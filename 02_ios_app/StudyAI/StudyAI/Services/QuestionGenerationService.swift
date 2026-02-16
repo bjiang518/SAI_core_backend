@@ -645,6 +645,7 @@ class QuestionGenerationService: ObservableObject {
     func generateConversationBasedQuestions(
         subject: String,
         conversations: [ConversationData],
+        questions: [[String: Any]],
         config: RandomQuestionsConfig,
         userProfile: UserProfile
     ) async -> Result<[GeneratedQuestion], QuestionGenerationError> {
@@ -652,7 +653,7 @@ class QuestionGenerationService: ObservableObject {
         await MainActor.run {
             self.isGenerating = true
             self.lastError = nil
-            self.generationProgress = "Analyzing \(conversations.count) conversations and generating personalized questions..."
+            self.generationProgress = "Analyzing \(conversations.count) conversations and \(questions.count) questions and generating personalized questions..."
         }
 
         defer {
@@ -677,6 +678,7 @@ class QuestionGenerationService: ObservableObject {
         let requestBody: [String: Any] = [
             "subject": subject,
             "conversation_data": conversations.map { $0.dictionary },
+            "question_data": questions,
             "config": [
                 "question_count": config.questionCount,
                 "question_type": config.questionType.rawValue

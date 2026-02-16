@@ -285,7 +285,7 @@ class SummaryReportGenerator {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Weekly Summary Report</title>
+    <title>${periodLabel} Summary Report</title>
     <style>
         * {
             margin: 0;
@@ -295,55 +295,59 @@ class SummaryReportGenerator {
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: #f8f9fa;
-            padding: 24px 16px;
-            min-height: 100vh;
+            background: #f8fafc;
+            padding: 12px;
             color: #1a1a1a;
-            line-height: 1.6;
+            line-height: 1.7;
+            font-size: 16px;
         }
 
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        }
-
+        /* Flat header section */
         .header {
-            background: white;
-            color: #1a1a1a;
-            padding: 32px 24px;
-            text-align: center;
-            border-bottom: 1px solid #e5e7eb;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
         }
 
         .header h1 {
-            font-size: 26px;
+            font-size: 22px;
             font-weight: 700;
-            margin-bottom: 6px;
-            color: #1a1a1a;
+            margin-bottom: 4px;
         }
 
         .header p {
-            font-size: 14px;
-            color: #6b7280;
-            font-weight: 500;
+            font-size: 15px;
+            opacity: 0.9;
         }
 
-        .content {
-            padding: 32px 24px;
+        /* Passage-style sections */
+        .section {
+            background: white;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
 
+        .section-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 10px;
+            padding-bottom: 6px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        /* Tone badge - flat standalone */
         .tone-badge {
             display: inline-block;
-            padding: 8px 12px;
+            padding: 6px 12px;
             border-radius: 6px;
             font-weight: 600;
-            margin-bottom: 16px;
-            font-size: 12px;
-            border: 1px solid #e5e7eb;
+            font-size: 14px;
+            margin-bottom: 12px;
         }
 
         .tone-positive {
@@ -361,80 +365,104 @@ class SummaryReportGenerator {
             color: #dc2626;
         }
 
+        /* Main narrative - flat standalone */
         .narrative {
-            background: #f9fafb;
-            padding: 16px;
-            border-radius: 8px;
-            font-size: 13px;
-            line-height: 1.7;
-            color: #374151;
-            margin-bottom: 24px;
-            border-left: 3px solid #2563eb;
-            border: 1px solid #e5e7eb;
+            font-size: 16px;
+            line-height: 1.8;
+            color: #2d3748;
+            margin-bottom: 12px;
         }
 
+        .narrative p {
+            margin-bottom: 12px;
+        }
+
+        .narrative strong {
+            color: #1a1a1a;
+            font-weight: 600;
+        }
+
+        /* Quick stats - compact grid */
+        .quick-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .stat {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%);
+            padding: 14px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: #64748b;
+            font-weight: 500;
+            margin-top: 4px;
+        }
+
+        /* Win section - flat style */
         .win-section {
             background: #f0fdf4;
-            padding: 12px;
+            padding: 14px;
             border-radius: 8px;
-            margin-bottom: 24px;
-            border-left: 3px solid #16a34a;
-            border: 1px solid #bbf7d0;
+            border-left: 4px solid #16a34a;
+            margin-bottom: 12px;
         }
 
         .win-title {
             color: #166534;
             font-weight: 600;
             margin-bottom: 6px;
-            font-size: 13px;
+            font-size: 16px;
         }
 
         .win-text {
-            color: #166534;
-            font-size: 13px;
+            color: #15803d;
+            font-size: 15px;
             line-height: 1.6;
         }
 
-        .action-items {
-            margin-bottom: 24px;
-        }
-
+        /* Action items - flat list */
         .action-items-title {
-            font-size: 16px;
+            font-size: 18px;
             font-weight: 700;
             color: #1a1a1a;
             margin-bottom: 12px;
+            margin-top: 12px;
         }
 
         .action-item {
-            background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 6px;
-            padding: 12px;
-            margin-bottom: 8px;
             display: flex;
             gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid #e2e8f0;
         }
 
-        .action-priority-high {
-            border-left: 3px solid #dc2626;
-        }
-
-        .action-priority-medium {
-            border-left: 3px solid #ea580c;
+        .action-item:last-child {
+            border-bottom: none;
         }
 
         .action-badge {
+            flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            min-width: 40px;
-            height: 40px;
-            border-radius: 6px;
-            font-weight: 600;
             color: white;
-            font-size: 12px;
-            flex-shrink: 0;
+            font-weight: 700;
+            font-size: 16px;
         }
 
         .action-priority-high .action-badge {
@@ -447,99 +475,34 @@ class SummaryReportGenerator {
 
         .action-text {
             flex: 1;
-            display: flex;
-            align-items: center;
-            font-size: 13px;
+            font-size: 15px;
             color: #374151;
-            line-height: 1.5;
-        }
-
-        .quick-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-            gap: 8px;
-            margin-bottom: 16px;
-        }
-
-        .stat {
-            background: #f9fafb;
-            padding: 8px;
-            border-radius: 6px;
-            text-align: center;
-            border: 1px solid #e5e7eb;
-        }
-
-        .stat-value {
-            font-size: 18px;
-            font-weight: 700;
-            color: #1a1a1a;
-        }
-
-        .stat-label {
-            font-size: 10px;
-            color: #6b7280;
-            margin-top: 3px;
-            font-weight: 500;
-        }
-
-        footer {
-            background: #f3f4f6;
-            padding: 16px;
-            text-align: center;
-            font-size: 11px;
-            color: #6b7280;
-            border-top: 1px solid #e5e7eb;
-        }
-
-        .parent-note {
-            background: #eff6ff;
-            padding: 12px;
-            border-radius: 6px;
-            border-left: 3px solid #2563eb;
-            color: #1e40af;
-            border: 1px solid #bfdbfe;
-            font-size: 13px;
             line-height: 1.6;
+            padding-top: 4px;
         }
 
-        .parent-note strong {
-            color: #1e40af;
-        }
-
-        /* AI Insights Styling */
+        /* AI Insights - flat style */
         .ai-insight {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 12px;
-            padding: 20px;
-            margin: 24px 0;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
-        }
-
-        .ai-insight-header {
-            display: flex;
-            align-items: center;
+            border-radius: 8px;
+            padding: 16px;
             margin-bottom: 12px;
-        }
-
-        .ai-insight-icon {
-            font-size: 20px;
-            margin-right: 10px;
         }
 
         .ai-insight h3 {
             color: white;
-            font-size: 15px;
+            font-size: 16px;
             font-weight: 700;
-            margin: 0;
+            margin-bottom: 10px;
         }
 
         .ai-insight-content {
             background: rgba(255, 255, 255, 0.95);
-            border-radius: 8px;
-            padding: 16px;
+            border-radius: 6px;
+            padding: 14px;
             color: #1a1a1a;
             line-height: 1.7;
-            font-size: 13px;
+            font-size: 15px;
         }
 
         .ai-insight-content ul {
@@ -548,8 +511,7 @@ class SummaryReportGenerator {
         }
 
         .ai-insight-content li {
-            margin: 8px 0;
-            line-height: 1.6;
+            margin: 6px 0;
         }
 
         .ai-insight-content p {
@@ -561,107 +523,84 @@ class SummaryReportGenerator {
             font-weight: 700;
         }
 
-        .ai-badge {
-            display: inline-block;
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-size: 10px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-left: 8px;
+        .footer {
+            text-align: center;
+            color: #94a3b8;
+            font-size: 13px;
+            padding: 12px 0;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>📋 ${periodLabel} Summary</h1>
-            <p>Complete Learning Overview for the ${timePhrase}</p>
+    <!-- Flat header -->
+    <div class="header">
+        <h1>📋 ${periodLabel} Summary</h1>
+        <p>Complete Learning Overview for the ${timePhrase}</p>
+    </div>
+
+    <!-- Quick stats -->
+    <div class="quick-stats">
+        <div class="stat">
+            <div class="stat-value">${analysis.activityData.totalQuestions}</div>
+            <div class="stat-label">Questions</div>
         </div>
-
-        <div class="content">
-            <!-- Tone Badge -->
-            <div class="tone-badge tone-${analysis.overallTone}">
-                ${toneEmojis[analysis.overallTone]} ${analysis.overallTone.charAt(0).toUpperCase() + analysis.overallTone.slice(1)} ${timePhrase}
-            </div>
-
-            <!-- Main Narrative -->
-            <div class="narrative">
-                ${analysis.narrative}
-            </div>
-
-            <!-- Quick Stats -->
-            <div class="quick-stats">
-                <div class="stat">
-                    <div class="stat-value">${analysis.activityData.totalQuestions}</div>
-                    <div class="stat-label">Questions</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-value">${analysis.activityData.activeDays}</div>
-                    <div class="stat-label">Active Days</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-value">${Object.keys(analysis.activityData.subjectBreakdown).length}</div>
-                    <div class="stat-label">Subjects</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-value">${analysis.mentalHealthData.emotionalWellbeing.redFlags.length}</div>
-                    <div class="stat-label">Concerns</div>
-                </div>
-            </div>
-
-            ${aiInsights && aiInsights[0] ? `
-            <!-- AI Insight 1: Holistic Student Profile -->
-            <div class="ai-insight">
-                <div class="ai-insight-header">
-                    <span class="ai-insight-icon">🤖</span>
-                    <h3>AI Insights: Student Profile<span class="ai-badge">GPT-4o</span></h3>
-                </div>
-                <div class="ai-insight-content">
-                    ${aiInsights[0]}
-                </div>
-            </div>
-            ` : ''}
-
-            <!-- Win Celebration -->
-            <div class="win-section">
-                <div class="win-title">🎉 This ${timePhrase}'s Win</div>
-                <div class="win-text">${analysis.biggestWin}</div>
-            </div>
-
-            ${aiInsights && aiInsights[1] ? `
-            <!-- AI Insight 2: Priority Action Plan -->
-            <div class="ai-insight">
-                <div class="ai-insight-header">
-                    <span class="ai-insight-icon">🤖</span>
-                    <h3>AI Insights: Priority Actions<span class="ai-badge">GPT-4o</span></h3>
-                </div>
-                <div class="ai-insight-content">
-                    ${aiInsights[1]}
-                </div>
-            </div>
-            ` : ''}
-
-            <!-- Action Items -->
-            <div class="action-items">
-                <div class="action-items-title">📝 Action Items for Next ${timePhrase}</div>
-                ${analysis.actionItems.map((item, i) => `
-                    <div class="action-item action-priority-${item.priority}">
-                        <div class="action-badge">${i + 1}</div>
-                        <div class="action-text">${item.text}</div>
-                    </div>
-                `).join('')}
-            </div>
-
-            <!-- Next Steps -->
-            <div style="background: #E3F2FD; padding: 15px; border-radius: 8px; border-left: 3px solid #2196F3; color: #1565C0;">
-                <strong>Questions?</strong> Review the detailed reports above (Activity, Areas of Improvement, Mental Health)
-                for specific insights and recommendations.
-            </div>
+        <div class="stat">
+            <div class="stat-value">${analysis.activityData.activeDays}</div>
+            <div class="stat-label">Active Days</div>
         </div>
+        <div class="stat">
+            <div class="stat-value">${Object.keys(analysis.activityData.subjectBreakdown).length}</div>
+            <div class="stat-label">Subjects</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">${analysis.mentalHealthData.emotionalWellbeing.redFlags.length}</div>
+            <div class="stat-label">Concerns</div>
+        </div>
+    </div>
+
+    <!-- Tone badge (flat - no wrapper) -->
+    <div class="tone-badge tone-${analysis.overallTone}">
+        ${toneEmojis[analysis.overallTone]} ${analysis.overallTone.charAt(0).toUpperCase() + analysis.overallTone.slice(1)} ${timePhrase}
+    </div>
+
+    <!-- Narrative (flat - no wrapper) -->
+    <div class="narrative">
+        ${analysis.narrative}
+    </div>
+
+    ${aiInsights && aiInsights[0] ? `
+    <!-- AI Insight 1: Student Profile (flat) -->
+    <div class="ai-insight">
+        <div class="ai-insight-title">🤖 AI Insights: Student Profile</div>
+        ${aiInsights[0]}
+    </div>
+    ` : ''}
+
+    <!-- Win (flat - no wrapper) -->
+    <div class="win-section">
+        <div class="win-title">🎉 This ${timePhrase}'s Win</div>
+        <div class="win-text">${analysis.biggestWin}</div>
+    </div>
+
+    ${aiInsights && aiInsights[1] ? `
+    <!-- AI Insight 2: Priority Actions (flat) -->
+    <div class="ai-insight">
+        <div class="ai-insight-title">🤖 AI Insights: Priority Actions</div>
+        ${aiInsights[1]}
+    </div>
+    ` : ''}
+
+    <!-- Action Items (flat) -->
+    <div class="action-items-title">📝 Action Items for Next ${timePhrase}</div>
+    ${analysis.actionItems.map((item, i) => `
+        <div class="action-item action-priority-${item.priority}">
+            <div class="action-badge">${i + 1}</div>
+            <div class="action-text">${item.text}</div>
+        </div>
+    `).join('')}
+
+    <div class="footer">
+        Generated by StudyAI • ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
     </div>
 </body>
 </html>

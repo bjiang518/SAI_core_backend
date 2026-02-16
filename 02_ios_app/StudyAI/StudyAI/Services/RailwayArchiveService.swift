@@ -193,10 +193,20 @@ class RailwayArchiveService: ObservableObject {
         
         if let jsonResponse = try JSONSerialization.jsonObject(with: data) as? [String: Any],
            let conversationsData = jsonResponse["data"] as? [[String: Any]] {
-            
-            return try conversationsData.map { try convertToArchivedConversation($0) }
+
+            // 🔍 DEBUG: Log API response
+            print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            print("🔍 [ARCHIVE DEBUG] Fetched \(conversationsData.count) conversations from API")
+            print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+            let conversations = try conversationsData.enumerated().map { index, data in
+                print("\n📦 [CONVERSATION #\(index + 1)]")
+                return try convertToArchivedConversation(data)
+            }
+
+            return conversations
         }
-        
+
         throw ArchiveError.invalidData
     }
     
@@ -511,13 +521,34 @@ class RailwayArchiveService: ObservableObject {
     }
     
     private func convertToArchivedConversation(_ data: [String: Any]) throws -> ArchivedConversation {
-        print("🔄 Converting conversation data: \(data)")
-        
+        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        print("🔄 [ARCHIVE DEBUG] Converting conversation data")
+        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+        // Log all available keys in the data dictionary
+        print("\n📋 [RAW DATA] Available keys and values:")
+        for key in data.keys.sorted() {
+            let value = data[key]
+            if let stringValue = value as? String {
+                let preview = stringValue.count > 100 ? String(stringValue.prefix(100)) + "..." : stringValue
+                print("   • \(key): \(preview)")
+            } else if let intValue = value as? Int {
+                print("   • \(key): \(intValue)")
+            } else if let arrayValue = value as? [Any] {
+                print("   • \(key): [Array with \(arrayValue.count) items]")
+            } else if let dictValue = value as? [String: Any] {
+                print("   • \(key): [Dictionary with \(dictValue.keys.count) keys]")
+            } else {
+                print("   • \(key): \(type(of: value))")
+            }
+        }
+
         // Handle different field name variations from different tables
         guard let id = data["id"] as? String else {
-            print("❌ Missing required field: id")
+            print("❌ [EXTRACT ERROR] Missing required field: id")
             throw ArchiveError.invalidData
         }
+        print("\n✅ [EXTRACT] id = \(id)")
         
         // Try different user ID field names
         let userId = data["user_id"] as? String ?? 
@@ -525,23 +556,27 @@ class RailwayArchiveService: ObservableObject {
                     data["user"] as? String
         
         guard let userId = userId else {
-            print("❌ Missing required field: user_id/userId")
+            print("❌ [EXTRACT ERROR] Missing required field: user_id/userId")
             throw ArchiveError.invalidData
         }
-        
+        print("✅ [EXTRACT] userId = \(userId)")
+
         // Try different subject field names
         let subject = data["subject"] as? String ?? "General"
-        
-        // Try different conversation content field names  
-        let conversationContent = data["conversation_content"] as? String ?? 
-                                 data["conversationContent"] as? String ?? 
-                                 data["content"] as? String ?? 
+        print("✅ [EXTRACT] subject = \(subject)")
+
+        // Try different conversation content field names
+        let conversationContent = data["conversation_content"] as? String ??
+                                 data["conversationContent"] as? String ??
+                                 data["content"] as? String ??
                                  data["messages"] as? String
-        
+
         guard let conversationContent = conversationContent else {
-            print("❌ Missing required field: conversation_content/conversationContent")
+            print("❌ [EXTRACT ERROR] Missing required field: conversation_content/conversationContent")
             throw ArchiveError.invalidData
         }
+        let contentPreview = conversationContent.count > 200 ? String(conversationContent.prefix(200)) + "..." : conversationContent
+        print("✅ [EXTRACT] conversationContent (length: \(conversationContent.count)): \(contentPreview)")
 
         // Parse date - try multiple field names and formats
         let archivedDate: Date
@@ -557,54 +592,95 @@ class RailwayArchiveService: ObservableObject {
         } else {
             archivedDate = Date()
         }
+        print("✅ [EXTRACT] archivedDate = \(archivedDate)")
 
         // ✅ NEW: Extract AI-generated analysis fields from backend
+        print("\n🤖 [AI ANALYSIS] Extracting AI-generated fields from backend:")
+
         let title = data["title"] as? String
+        if let title = title {
+            print("   ✅ title = \(title)")
+        } else {
+            print("   ⚠️ title = nil (NOT PROVIDED BY BACKEND)")
+        }
+
         let summary = data["summary"] as? String
+        if let summary = summary {
+            print("   ✅ summary = \(summary)")
+        } else {
+            print("   ⚠️ summary = nil (NOT PROVIDED BY BACKEND)")
+        }
 
         // Parse keyTopics (can be array or JSON string)
+        print("\n🔍 [PARSING] keyTopics:")
         let keyTopics: [String]?
         if let topicsArray = data["keyTopics"] as? [String] {
             keyTopics = topicsArray
+            print("   ✅ Found as array: \(topicsArray)")
         } else if let topicsArray = data["key_topics"] as? [String] {
             keyTopics = topicsArray
+            print("   ✅ Found as array (snake_case): \(topicsArray)")
         } else if let topicsJSON = data["keyTopics"] as? String,
                   let jsonData = topicsJSON.data(using: .utf8),
                   let decoded = try? JSONSerialization.jsonObject(with: jsonData) as? [String] {
             keyTopics = decoded
+            print("   ✅ Parsed from JSON string: \(decoded)")
         } else if let topicsJSON = data["key_topics"] as? String,
                   let jsonData = topicsJSON.data(using: .utf8),
                   let decoded = try? JSONSerialization.jsonObject(with: jsonData) as? [String] {
             keyTopics = decoded
+            print("   ✅ Parsed from JSON string (snake_case): \(decoded)")
         } else {
             keyTopics = nil
+            print("   ⚠️ keyTopics = nil (NOT PROVIDED BY BACKEND)")
         }
 
         // Parse learningOutcomes (can be array or JSON string)
+        print("\n🔍 [PARSING] learningOutcomes:")
         let learningOutcomes: [String]?
         if let outcomesArray = data["learningOutcomes"] as? [String] {
             learningOutcomes = outcomesArray
+            print("   ✅ Found as array: \(outcomesArray)")
         } else if let outcomesArray = data["learning_outcomes"] as? [String] {
             learningOutcomes = outcomesArray
+            print("   ✅ Found as array (snake_case): \(outcomesArray)")
         } else if let outcomesJSON = data["learningOutcomes"] as? String,
                   let jsonData = outcomesJSON.data(using: .utf8),
                   let decoded = try? JSONSerialization.jsonObject(with: jsonData) as? [String] {
             learningOutcomes = decoded
+            print("   ✅ Parsed from JSON string: \(decoded)")
         } else if let outcomesJSON = data["learning_outcomes"] as? String,
                   let jsonData = outcomesJSON.data(using: .utf8),
                   let decoded = try? JSONSerialization.jsonObject(with: jsonData) as? [String] {
             learningOutcomes = decoded
+            print("   ✅ Parsed from JSON string (snake_case): \(decoded)")
         } else {
             learningOutcomes = nil
+            print("   ⚠️ learningOutcomes = nil (NOT PROVIDED BY BACKEND)")
         }
 
         let messageCount = data["messageCount"] as? Int ?? data["message_count"] as? Int
+        print("\n✅ [EXTRACT] messageCount = \(messageCount?.description ?? "nil")")
+
         let durationMinutes = data["durationMinutes"] as? Int ?? data["duration_minutes"] as? Int
+        print("✅ [EXTRACT] durationMinutes = \(durationMinutes?.description ?? "nil")")
 
         // Use title first, then topic, then fallback
         let topic = title ?? data["topic"] as? String
 
-        print("✅ Successfully converted conversation: id=\(id), subject=\(subject), title=\(title ?? "none"), summary=\(summary ?? "none")")
+        print("\n🏁 [FINAL VALUES] Creating ArchivedConversation:")
+        print("   • id: \(id)")
+        print("   • userId: \(userId)")
+        print("   • subject: \(subject)")
+        print("   • topic: \(topic ?? "nil")")
+        print("   • title (for display): \(title ?? "nil")")
+        print("   • summary (for display): \(summary ?? "nil")")
+        print("   • keyTopics: \(keyTopics?.description ?? "nil")")
+        print("   • learningOutcomes: \(learningOutcomes?.description ?? "nil")")
+        print("   • messageCount: \(messageCount?.description ?? "nil")")
+        print("   • durationMinutes: \(durationMinutes?.description ?? "nil")")
+        print("   • conversationContent length: \(conversationContent.count)")
+        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
 
         return ArchivedConversation(
             id: id,

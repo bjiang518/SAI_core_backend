@@ -717,58 +717,49 @@ class MentalHealthReportGenerator {
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: #f8f9fa;
-            padding: 24px 16px;
-            min-height: 100vh;
+            background: #f8fafc;
+            padding: 12px;
             color: #1a1a1a;
-            line-height: 1.6;
+            line-height: 1.7;
+            font-size: 16px;
         }
 
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        }
-
+        /* Flat header section */
         .header {
-            background: white;
-            color: #1a1a1a;
-            padding: 32px 24px;
-            text-align: center;
-            border-bottom: 1px solid #e5e7eb;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
         }
 
         .header h1 {
-            font-size: 26px;
+            font-size: 22px;
             font-weight: 700;
-            margin-bottom: 6px;
-            color: #1a1a1a;
+            margin-bottom: 4px;
         }
 
         .header p {
-            font-size: 14px;
-            color: #6b7280;
-            font-weight: 500;
+            font-size: 15px;
+            opacity: 0.9;
         }
 
-        .content {
-            padding: 32px 24px;
-        }
-
+        /* Passage-style sections */
         .section {
-            margin-bottom: 16px;
+            background: white;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
 
         .section-title {
-            font-size: 14px;
+            font-size: 18px;
             font-weight: 700;
             color: #1a1a1a;
-            margin-bottom: 12px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #f3f4f6;
+            margin-bottom: 10px;
+            padding-bottom: 6px;
+            border-bottom: 2px solid #e2e8f0;
         }
 
         .status-badge {
@@ -776,7 +767,7 @@ class MentalHealthReportGenerator {
             padding: 6px 12px;
             border-radius: 6px;
             font-weight: 600;
-            font-size: 12px;
+            font-size: 14px;
             margin-bottom: 12px;
             border: 1px solid #e5e7eb;
         }
@@ -814,9 +805,9 @@ class MentalHealthReportGenerator {
 
         .indicator {
             background: #f9fafb;
-            padding: 10px;
+            padding: 12px;
             border-radius: 6px;
-            border-left: 3px solid #2563eb;
+            border-left: 4px solid #2563eb;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -826,16 +817,16 @@ class MentalHealthReportGenerator {
         .indicator-text {
             flex: 1;
             color: #6b7280;
-            font-size: 13px;
+            font-size: 15px;
         }
 
         .indicator-value {
             background: #eff6ff;
             color: #1e40af;
-            padding: 3px 10px;
+            padding: 4px 12px;
             border-radius: 4px;
             font-weight: 600;
-            font-size: 12px;
+            font-size: 14px;
             border: 1px solid #bfdbfe;
         }
 
@@ -843,21 +834,21 @@ class MentalHealthReportGenerator {
             background: white;
             border: 1px solid #e5e7eb;
             border-radius: 6px;
-            padding: 12px;
+            padding: 14px;
             margin-bottom: 10px;
         }
 
         .red-flag-urgent {
-            border-left: 3px solid #dc2626;
+            border-left: 4px solid #dc2626;
         }
 
         .red-flag-warning {
-            border-left: 3px solid #ea580c;
+            border-left: 4px solid #ea580c;
         }
 
         .red-flag-title {
             font-weight: 600;
-            font-size: 13px;
+            font-size: 15px;
             margin-bottom: 6px;
         }
 
@@ -871,25 +862,25 @@ class MentalHealthReportGenerator {
 
         .red-flag-description {
             color: #6b7280;
-            font-size: 12px;
+            font-size: 14px;
             margin-bottom: 8px;
-            line-height: 1.5;
+            line-height: 1.7;
         }
 
         .red-flag-action {
             background: #f3f4f6;
-            padding: 8px;
+            padding: 10px;
             border-radius: 4px;
-            border-left: 2px solid #dc2626;
-            font-size: 12px;
+            border-left: 3px solid #dc2626;
+            font-size: 14px;
             color: #1a1a1a;
         }
 
         .positive-section {
             background: #f0fdf4;
-            padding: 12px;
+            padding: 14px;
             border-radius: 6px;
-            border-left: 3px solid #16a34a;
+            border-left: 4px solid #16a34a;
             border: 1px solid #bbf7d0;
         }
 
@@ -897,7 +888,7 @@ class MentalHealthReportGenerator {
             color: #166534;
             font-weight: 600;
             margin-bottom: 8px;
-            font-size: 13px;
+            font-size: 15px;
         }
 
         .positive-list {
@@ -907,7 +898,7 @@ class MentalHealthReportGenerator {
 
         .positive-list li {
             padding: 4px 0;
-            font-size: 12px;
+            font-size: 14px;
         }
 
         .positive-list li:before {
@@ -927,19 +918,19 @@ class MentalHealthReportGenerator {
 
         .parent-note {
             background: #eff6ff;
-            padding: 12px;
+            padding: 14px;
             border-radius: 6px;
-            border-left: 3px solid #2563eb;
+            border-left: 4px solid #2563eb;
             margin-top: 12px;
             color: #1e40af;
-            line-height: 1.6;
+            line-height: 1.7;
             border: 1px solid #bfdbfe;
         }
 
         .parent-note-title {
             font-weight: 600;
             margin-bottom: 6px;
-            font-size: 13px;
+            font-size: 15px;
         }
 
         /* AI Insights Styling */
@@ -1012,15 +1003,14 @@ class MentalHealthReportGenerator {
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>💭 ${studentName}'s Mental Health & Wellbeing Report</h1>
-            <p>${periodLabel} Learning Attitude, Focus, and Emotional Assessment</p>
-        </div>
+    <!-- Flat header -->
+    <div class="header">
+        <h1>💭 ${studentName}'s Mental Health & Wellbeing</h1>
+        <p>${periodLabel} Learning Attitude, Focus, and Emotional Assessment</p>
+    </div>
 
-        <div class="content">
-            <!-- LEARNING ATTITUDE -->
-            <div class="section">
+    <!-- LEARNING ATTITUDE -->
+    <div class="section">
                 <h2 class="section-title">1. Learning Attitude</h2>
                 <span class="status-badge status-${analysis.learningAttitude.status}">
                     ${analysis.learningAttitude.status.charAt(0).toUpperCase() + analysis.learningAttitude.status.slice(1).replace('_', ' ')}
@@ -1166,8 +1156,7 @@ class MentalHealthReportGenerator {
                 </div>
             </div>
             ` : ''}
-        </div>
-    </div>
+
 </body>
 </html>
         `;

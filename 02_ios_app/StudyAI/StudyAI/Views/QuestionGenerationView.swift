@@ -604,7 +604,8 @@ struct QuestionGenerationView: View {
             }
 
         case .fromArchives:
-            guard !availableConversations.isEmpty else {
+            // ✅ FIX: Handle both conversations and questions
+            guard !selectedConversations.isEmpty || !selectedQuestions.isEmpty else {
                 throw NSError(domain: "QuestionGeneration", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("questionGeneration.noArchives", comment: "")])
             }
 
@@ -614,6 +615,11 @@ struct QuestionGenerationView: View {
                     return selectedConversations.contains(conversationId)
                 }
                 return false
+            }
+
+            // ✅ NEW: Filter to only selected questions
+            let selectedQuestionObjects = availableQuestions.filter { question in
+                return selectedQuestions.contains(question.id)
             }
 
             // Convert real conversation data using backend analysis
@@ -679,23 +685,63 @@ struct QuestionGenerationView: View {
                 )
             }
 
-            // Get the most common subject from conversations
-            let conversationSubjects = Array(Set(selectedConversationObjects.compactMap { conversation in
+            // ✅ NEW: Convert selected questions to backend format
+            let questionData = selectedQuestionObjects.map { question -> [String: Any] in
+                var questionDict: [String: Any] = [
+                    "question_text": question.questionText,
+                    "topic": question.subject,
+                    "date": ISO8601DateFormatter().string(from: question.archivedAt),
+                    "is_correct": question.grade == .correct
+                ]
+
+                // Add optional fields
+                if let tags = question.tags, !tags.isEmpty {
+                    questionDict["tags"] = tags
+                }
+
+                // Add grading info if available
+                if let grade = question.grade {
+                    questionDict["grade"] = grade.rawValue
+                }
+
+                if let points = question.points, let maxPoints = question.maxPoints {
+                    questionDict["points"] = points
+                    questionDict["max_points"] = maxPoints
+                }
+
+                return questionDict
+            }
+
+            // ✅ FIX: Get the most common subject from BOTH conversations and questions
+            var allSubjects: [String] = []
+
+            // Add conversation subjects
+            let conversationSubjects = selectedConversationObjects.compactMap { conversation in
                 conversation["subject"] as? String
-            })).filter { !$0.isEmpty && $0 != NSLocalizedString("questionGeneration.generalDiscussion", comment: "") }
-            let primarySubject = conversationSubjects.first ?? NSLocalizedString("questionGeneration.defaultSubject.mathematics", comment: "")
+            }.filter { !$0.isEmpty && $0 != NSLocalizedString("questionGeneration.generalDiscussion", comment: "") }
+            allSubjects.append(contentsOf: conversationSubjects)
+
+            // Add question subjects
+            let questionSubjects = selectedQuestionObjects.map { $0.subject }
+            allSubjects.append(contentsOf: questionSubjects)
+
+            // Get unique subjects and determine primary
+            let uniqueSubjects = Array(Set(allSubjects))
+            let primarySubject = uniqueSubjects.first ?? NSLocalizedString("questionGeneration.defaultSubject.mathematics", comment: "")
 
             let config = QuestionGenerationService.RandomQuestionsConfig(
-                topics: conversationSubjects.isEmpty ? [primarySubject] : conversationSubjects,
+                topics: uniqueSubjects.isEmpty ? [primarySubject] : uniqueSubjects,
                 focusNotes: NSLocalizedString("questionGeneration.focusNotes.conversationPatterns", comment: ""),
                 difficulty: selectedDifficulty,
                 questionCount: questionCount,
                 questionType: selectedQuestionType
             )
 
+            // ✅ FIX: Call with both conversation data AND question data
             let result = await questionService.generateConversationBasedQuestions(
                 subject: primarySubject,
                 conversations: conversationData,
+                questions: questionData,  // ✅ NEW: Pass question data
                 config: config,
                 userProfile: userProfile
             )
