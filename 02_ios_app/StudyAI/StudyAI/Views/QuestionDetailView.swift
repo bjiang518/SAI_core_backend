@@ -16,10 +16,12 @@ struct GeneratedQuestionDetailView: View {
     // Navigation support
     let allQuestions: [QuestionGenerationService.GeneratedQuestion]?
     let currentIndex: Int?
-    @State private var showingNextQuestion = false
-    @State private var nextQuestion: QuestionGenerationService.GeneratedQuestion?
+
+    // ✅ NEW: Track current question index for same-page navigation
+    @State private var currentQuestionIndex: Int
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) var colorScheme
     @State private var userAnswer = ""
     @State private var selectedOption: String?
     @State private var hasSubmitted = false
@@ -39,30 +41,52 @@ struct GeneratedQuestionDetailView: View {
     @State private var hasMarkedProgress = false
     @ObservedObject private var pointsManager = PointsEarningManager.shared
     @ObservedObject private var appState = AppState.shared
+    @ObservedObject private var themeManager = ThemeManager.shared  // ✅ ADD: Theme manager for cute mode colors
 
     private let logger = Logger(subsystem: "com.studyai", category: "QuestionDetail")
     private let archiveService = QuestionArchiveService.shared
 
     // Check if there's a next question available
     private var hasNextQuestion: Bool {
-        guard let allQuestions = allQuestions,
-              let currentIndex = currentIndex else {
+        guard let allQuestions = allQuestions else {
             return false
         }
-        return currentIndex < allQuestions.count - 1
+        return currentQuestionIndex < allQuestions.count - 1
+    }
+
+    // ✅ NEW: Check if there's a previous question available
+    private var hasPreviousQuestion: Bool {
+        return currentQuestionIndex > 0
+    }
+
+    // ✅ NEW: Get the current question based on index
+    private var currentQuestion: QuestionGenerationService.GeneratedQuestion {
+        guard let allQuestions = allQuestions,
+              currentQuestionIndex < allQuestions.count else {
+            return question  // Fallback to initial question
+        }
+        return allQuestions[currentQuestionIndex]
+    }
+
+    // ✅ NEW: Check if this is the last question
+    private var isLastQuestion: Bool {
+        guard let allQuestions = allQuestions else {
+            return true
+        }
+        return currentQuestionIndex == allQuestions.count - 1
     }
 
     // UserDefaults keys
     private var progressMarkedKey: String {
-        return "question_progress_marked_\(question.id)"
+        return "question_progress_marked_\(currentQuestion.id)"
     }
 
     private var archivedStateKey: String {
-        return "question_archived_\(question.id)"
+        return "question_archived_\(currentQuestion.id)"
     }
 
     private var answerPersistenceKey: String {
-        return "question_answer_\(question.id.uuidString)"
+        return "question_answer_\(currentQuestion.id.uuidString)"
     }
 
     // Default initializer without callback (for backwards compatibility)
@@ -76,6 +100,8 @@ struct GeneratedQuestionDetailView: View {
         self.onAnswerSubmitted = onAnswerSubmitted
         self.allQuestions = allQuestions
         self.currentIndex = currentIndex
+        // ✅ Initialize current question index for same-page navigation
+        self._currentQuestionIndex = State(initialValue: currentIndex ?? 0)
     }
 
     var body: some View {
@@ -103,18 +129,39 @@ struct GeneratedQuestionDetailView: View {
                         actionButtonsSection
                     }
 
-                    // Question Metadata
-                    questionMetadata
-
                     Spacer(minLength: 100)
                 }
                 .padding()
             }
             .navigationTitle(NSLocalizedString("questionDetail.title", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
-            .navigationBarItems(trailing: closeButton)
+            .toolbar {
+                // ✅ Archive button in top right corner (like digital homework)
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    HStack(spacing: 16) {
+                        if hasSubmitted && !isArchived {
+                            Button(action: archiveQuestion) {
+                                if isArchiving {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle())
+                                        .scaleEffect(0.8)
+                                } else {
+                                    Image(systemName: "books.vertical.fill")
+                                        .foregroundColor(.purple)
+                                }
+                            }
+                            .disabled(isArchiving)
+                        } else if isArchived {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                        }
+
+                        closeButton
+                    }
+                }
+            }
             .onAppear {
-                logger.info("📝 Question detail view appeared for: \(question.type.displayName)")
+                logger.info("📝 Question detail view appeared for: \(currentQuestion.type.displayName)")
                 loadProgressState()
                 loadArchivedState()
                 loadSavedAnswer()
@@ -160,14 +207,7 @@ struct GeneratedQuestionDetailView: View {
                 .font(.title3)
                 .fontWeight(.semibold)
 
-            EnhancedMathText(question.question, fontSize: 16)
-                .padding()
-                .background(Color(.systemBackground))
-                .cornerRadius(16)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color.blue.opacity(0.2), lineWidth: 1)
-                )
+            SmartLaTeXView(currentQuestion.question, fontSize: 16, colorScheme: colorScheme)
         }
     }
 
@@ -178,7 +218,7 @@ struct GeneratedQuestionDetailView: View {
                 .fontWeight(.semibold)
 
             Group {
-                switch question.type {
+                switch currentQuestion.type {
                 case .multipleChoice:
                     multipleChoiceInput
                 case .trueFalse:
@@ -193,7 +233,7 @@ struct GeneratedQuestionDetailView: View {
 
     private var multipleChoiceInput: some View {
         VStack(spacing: 12) {
-            if let options = question.options {
+            if let options = currentQuestion.options {
                 ForEach(options, id: \.self) { option in
                     Button(action: { selectedOption = option }) {
                         HStack {
@@ -270,7 +310,7 @@ struct GeneratedQuestionDetailView: View {
 
     private var textAnswerInput: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if question.type == .longAnswer {
+            if currentQuestion.type == .longAnswer {
                 TextEditor(text: $userAnswer)
                     .frame(minHeight: 120)
                     .padding()
@@ -292,7 +332,7 @@ struct GeneratedQuestionDetailView: View {
                     )
             }
 
-            Text(question.type == .longAnswer ? NSLocalizedString("questionDetail.provideDetailedExplanation", comment: "") : NSLocalizedString("questionDetail.typeAnswerAbove", comment: ""))
+            Text(currentQuestion.type == .longAnswer ? NSLocalizedString("questionDetail.provideDetailedExplanation", comment: "") : NSLocalizedString("questionDetail.typeAnswerAbove", comment: ""))
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
@@ -403,7 +443,7 @@ struct GeneratedQuestionDetailView: View {
             let bgColor = isCorrect ? Color.green.opacity(0.05) : (partialCredit > 0 ? Color.orange.opacity(0.05) : Color.red.opacity(0.05))
             let strokeColor = isCorrect ? Color.green.opacity(0.3) : (partialCredit > 0 ? Color.orange.opacity(0.3) : Color.red.opacity(0.3))
 
-            EnhancedMathText(getCurrentAnswer(), fontSize: 14)
+            SmartLaTeXView(getCurrentAnswer(), fontSize: 14, colorScheme: colorScheme)
                 .padding()
                 .background(bgColor)
                 .cornerRadius(12)
@@ -421,7 +461,7 @@ struct GeneratedQuestionDetailView: View {
                 .fontWeight(.medium)
                 .foregroundColor(.secondary)
 
-            EnhancedMathText(question.correctAnswer, fontSize: 14)
+            SmartLaTeXView(currentQuestion.correctAnswer, fontSize: 14, colorScheme: colorScheme)
                 .padding()
                 .background(Color.green.opacity(0.05))
                 .cornerRadius(12)
@@ -483,10 +523,10 @@ struct GeneratedQuestionDetailView: View {
 
             // Show AI feedback if available, otherwise show question explanation
             if let feedback = aiFeedback {
-                EnhancedMathText(feedback, fontSize: 14)
+                SmartLaTeXView(feedback, fontSize: 14, colorScheme: colorScheme)
                     .foregroundColor(.primary)
             } else {
-                EnhancedMathText(question.explanation, fontSize: 14)
+                SmartLaTeXView(currentQuestion.explanation, fontSize: 14, colorScheme: colorScheme)
             }
         }
         .padding()
@@ -500,62 +540,8 @@ struct GeneratedQuestionDetailView: View {
 
     private var actionButtonsSection: some View {
         VStack(spacing: 16) {
-            // Row 1: Archive and Mark Progress side by side
-            HStack(spacing: 12) {
-                // Archive Button
-                if !isArchived {
-                    Button(action: archiveQuestion) {
-                        HStack(spacing: 8) {
-                            if isArchiving {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                    .scaleEffect(0.8)
-                            } else {
-                                Image(systemName: "books.vertical.fill")
-                                    .font(.body)
-                            }
-
-                            Text(isArchiving ? "Archiving..." : "Archive")
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                        }
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 50)
-                        .background(
-                            LinearGradient(
-                                colors: [.purple, .purple.opacity(0.8)],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .cornerRadius(12)
-                        .disabled(isArchiving)
-                    }
-                    .opacity(isArchiving ? 0.6 : 1.0)
-                } else {
-                    // Archived indicator
-                    HStack(spacing: 8) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.body)
-                            .foregroundColor(.green)
-
-                        Text("Archived")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.green)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    .background(Color.green.opacity(0.1))
-                    .cornerRadius(12)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.green.opacity(0.3), lineWidth: 1)
-                    )
-                }
-
-                // Mark Progress Button
+            // ✅ Mark Progress Button - Only shown on the last question
+            if isLastQuestion {
                 Button(action: {
                     if !hasMarkedProgress {
                         trackPracticeProgress()
@@ -577,7 +563,13 @@ struct GeneratedQuestionDetailView: View {
                     .frame(height: 50)
                     .background(
                         LinearGradient(
-                            colors: hasMarkedProgress ? [Color.green, Color.green.opacity(0.8)] : [Color.blue, Color.blue.opacity(0.8)],
+                            colors: hasMarkedProgress ?
+                                (themeManager.currentTheme == .cute ?
+                                    [DesignTokens.Colors.Cute.mint, DesignTokens.Colors.Cute.mint.opacity(0.8)] :
+                                    [Color.green, Color.green.opacity(0.8)]) :
+                                (themeManager.currentTheme == .cute ?
+                                    [DesignTokens.Colors.Cute.blue, DesignTokens.Colors.Cute.blue.opacity(0.8)] :
+                                    [Color.blue, Color.blue.opacity(0.8)]),
                             startPoint: .leading,
                             endPoint: .trailing
                         )
@@ -587,12 +579,12 @@ struct GeneratedQuestionDetailView: View {
                 .disabled(hasMarkedProgress)
             }
 
-            // Ask AI Button
+            // Ask AI Button - ✅ Changed text to "Follow up"
             Button(action: askAIForHelp) {
                 HStack(spacing: 12) {
                     Image(systemName: "bubble.left.and.bubble.right.fill")
                         .font(.body)
-                    Text("Ask AI for Follow Up")
+                    Text("Follow up")
                         .font(.body)
                         .fontWeight(.semibold)
                 }
@@ -601,52 +593,78 @@ struct GeneratedQuestionDetailView: View {
                 .frame(height: 50)
                 .background(
                     LinearGradient(
-                        colors: [Color.orange, Color.orange.opacity(0.8)],
+                        colors: themeManager.currentTheme == .cute ?
+                            [DesignTokens.Colors.Cute.peach, DesignTokens.Colors.Cute.peach.opacity(0.8)] :
+                            [Color.orange, Color.orange.opacity(0.8)],
                         startPoint: .leading,
                         endPoint: .trailing
                     )
                 )
                 .cornerRadius(12)
-                .shadow(color: Color.orange.opacity(0.3), radius: 8, x: 0, y: 4)
+                .shadow(color: (themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.peach : Color.orange).opacity(0.3), radius: 8, x: 0, y: 4)
             }
 
-            // Next Question Button (if available)
-            if hasNextQuestion {
-                Button(action: {
-                    if let allQuestions = allQuestions,
-                       let currentIndex = currentIndex,
-                       currentIndex < allQuestions.count - 1 {
-                        nextQuestion = allQuestions[currentIndex + 1]
-                        showingNextQuestion = true
-                    }
-                }) {
-                    HStack(spacing: 12) {
-                        Text("Next Question")
-                            .font(.body)
-                            .fontWeight(.semibold)
-
-                        Image(systemName: "arrow.right.circle.fill")
-                            .font(.title3)
-
-                        if let currentIndex = currentIndex,
-                           let allQuestions = allQuestions {
-                            Text("(\(currentIndex + 2)/\(allQuestions.count))")
-                                .font(.caption)
-                                .foregroundColor(.white.opacity(0.8))
+            // ✅ NEW: Previous/Next navigation buttons side by side
+            if hasPreviousQuestion || hasNextQuestion {
+                HStack(spacing: 12) {
+                    // Previous Question Button
+                    if hasPreviousQuestion {
+                        Button(action: navigateToPrevious) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "arrow.left.circle.fill")
+                                    .font(.title3)
+                                Text("Previous")
+                                    .font(.body)
+                                    .fontWeight(.semibold)
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 50)
+                            .background(
+                                LinearGradient(
+                                    colors: themeManager.currentTheme == .cute ?
+                                        [DesignTokens.Colors.Cute.blue, DesignTokens.Colors.Cute.blue.opacity(0.8)] :
+                                        [.blue, .blue.opacity(0.8)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .cornerRadius(12)
                         }
                     }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    .background(
-                        LinearGradient(
-                            colors: [.blue, .blue.opacity(0.8)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .cornerRadius(12)
-                    .shadow(color: Color.blue.opacity(0.3), radius: 8, x: 0, y: 4)
+
+                    // Next Question Button
+                    if hasNextQuestion {
+                        Button(action: navigateToNext) {
+                            HStack(spacing: 8) {
+                                Text("Next")
+                                    .font(.body)
+                                    .fontWeight(.semibold)
+                                Image(systemName: "arrow.right.circle.fill")
+                                    .font(.title3)
+
+                                if let allQuestions = allQuestions {
+                                    Text("(\(currentQuestionIndex + 2)/\(allQuestions.count))")
+                                        .font(.caption)
+                                        .foregroundColor(.white.opacity(0.8))
+                                }
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 50)
+                            .background(
+                                LinearGradient(
+                                    colors: themeManager.currentTheme == .cute ?
+                                        [DesignTokens.Colors.Cute.blue, DesignTokens.Colors.Cute.blue.opacity(0.8)] :
+                                        [.blue, .blue.opacity(0.8)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .cornerRadius(12)
+                            .shadow(color: (themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : Color.blue).opacity(0.3), radius: 8, x: 0, y: 4)
+                        }
+                    }
                 }
             }
         }
@@ -654,19 +672,6 @@ struct GeneratedQuestionDetailView: View {
             Button(NSLocalizedString("common.ok", comment: "")) { }
         } message: {
             Text(NSLocalizedString("questionDetail.archiveSuccessMessage", comment: ""))
-        }
-        .sheet(isPresented: $showingNextQuestion) {
-            if let nextQuestion = nextQuestion,
-               let allQuestions = allQuestions,
-               let currentIndex = currentIndex {
-                GeneratedQuestionDetailView(
-                    question: nextQuestion,
-                    sessionId: sessionId,  // ✅ FIX P0: Pass session ID to next question
-                    onAnswerSubmitted: onAnswerSubmitted,
-                    allQuestions: allQuestions,
-                    currentIndex: currentIndex + 1
-                )
-            }
         }
     }
 
@@ -703,7 +708,7 @@ struct GeneratedQuestionDetailView: View {
     }
 
     private func canSubmit() -> Bool {
-        switch question.type {
+        switch currentQuestion.type {
         case .multipleChoice, .trueFalse:
             return selectedOption != nil
         case .shortAnswer, .calculation, .longAnswer, .fillBlank, .matching, .any:
@@ -712,7 +717,7 @@ struct GeneratedQuestionDetailView: View {
     }
 
     private func getCurrentAnswer() -> String {
-        switch question.type {
+        switch currentQuestion.type {
         case .multipleChoice, .trueFalse:
             return selectedOption ?? ""
         case .shortAnswer, .calculation, .longAnswer, .fillBlank, .matching, .any:
@@ -720,19 +725,74 @@ struct GeneratedQuestionDetailView: View {
         }
     }
 
+    // ✅ NEW: Navigate to previous question
+    private func navigateToPrevious() {
+        guard hasPreviousQuestion else { return }
+
+        // Save current state before navigating
+        saveAnswer()
+
+        // Reset state for new question
+        currentQuestionIndex -= 1
+        resetQuestionState()
+
+        // Load saved state for previous question
+        loadProgressState()
+        loadArchivedState()
+        loadSavedAnswer()
+
+        logger.info("📝 Navigated to previous question (\(currentQuestionIndex + 1)/\(allQuestions?.count ?? 0))")
+    }
+
+    // ✅ NEW: Navigate to next question
+    private func navigateToNext() {
+        guard hasNextQuestion else { return }
+
+        // Save current state before navigating
+        saveAnswer()
+
+        // Reset state for new question
+        currentQuestionIndex += 1
+        resetQuestionState()
+
+        // Load saved state for next question
+        loadProgressState()
+        loadArchivedState()
+        loadSavedAnswer()
+
+        logger.info("📝 Navigated to next question (\(currentQuestionIndex + 1)/\(allQuestions?.count ?? 0))")
+    }
+
+    // ✅ NEW: Reset question state when navigating
+    private func resetQuestionState() {
+        userAnswer = ""
+        selectedOption = nil
+        hasSubmitted = false
+        showingExplanation = false
+        isCorrect = false
+        partialCredit = 0.0
+        isArchived = false
+        showingArchiveSuccess = false
+        isArchiving = false
+        isGradingWithAI = false
+        wasInstantGraded = false
+        aiFeedback = nil
+        hasMarkedProgress = false
+    }
+
     // ✅ OPTIMIZED: Two-tier grading system (client-side matching + AI fallback)
     private func submitAnswer() {
         hasSubmitted = true
         let currentAnswer = getCurrentAnswer()
 
-        print("📝 [Generation] Submitting answer for question: \(question.question.prefix(50))...")
+        print("📝 [Generation] Submitting answer for question: \(currentQuestion.question.prefix(50))...")
         print("📝 [Generation] User answer: \(currentAnswer.prefix(100))")
-        print("📝 [Generation] Correct answer: \(question.correctAnswer.prefix(100))")
+        print("📝 [Generation] Correct answer: \(currentQuestion.correctAnswer.prefix(100))")
 
         // TIER 1: Client-side answer matching (instant grading)
         // Convert options array to dictionary format for matching service
         let optionsDict: [String: String]?
-        if let optionsArray = question.options {
+        if let optionsArray = currentQuestion.options {
             let letters = ["A", "B", "C", "D", "E", "F", "G", "H"]
             optionsDict = Dictionary(uniqueKeysWithValues: zip(letters.prefix(optionsArray.count), optionsArray))
         } else {
@@ -741,41 +801,40 @@ struct GeneratedQuestionDetailView: View {
 
         let matchResult = AnswerMatchingService.shared.matchAnswer(
             userAnswer: currentAnswer,
-            correctAnswer: question.correctAnswer,
-            questionType: question.type.rawValue,
+            correctAnswer: currentQuestion.correctAnswer,
+            questionType: currentQuestion.type.rawValue,
             options: optionsDict
         )
 
         print("🎯 [Generation] Client-side match score: \(String(format: "%.1f%%", matchResult.matchScore * 100))")
-        print("   Should skip AI: \(matchResult.shouldSkipAIGrading)")
+        print("   Is exact match: \(matchResult.isExactMatch)")
 
-        // If match score >= 90%, grade instantly without AI call
-        if matchResult.shouldSkipAIGrading {
-            print("⚡ [Generation] INSTANT GRADING (score >= 90%)")
+        // ✅ CHANGED: Only use instant grading for EXACT matches (100%)
+        // For anything less than exact, use AI grading immediately
+        if matchResult.isExactMatch {
+            print("⚡ [Generation] INSTANT GRADING (exact match)")
 
-            // Instant grade result (curve to 100% correct if >= 90%)
+            // Instant grade result for exact matches only
             isCorrect = true
             partialCredit = 1.0
             wasInstantGraded = true
             showingExplanation = true
 
-            let instantFeedback = matchResult.isExactMatch ?
-                "Perfect! Your answer is exactly correct." :
-                "Correct! Your answer matches the expected solution."
+            let instantFeedback = "Perfect! Your answer is exactly correct."
             aiFeedback = instantFeedback
 
             logger.info("📝 Answer submitted: Instant grade - Correct (100%)")
 
             // Save and notify
             saveAnswer()
-            let maxPoints = question.points ?? 1
+            let maxPoints = currentQuestion.points ?? 1
             onAnswerSubmitted?(isCorrect, maxPoints)
 
             return  // Skip AI grading
         }
 
-        // TIER 2: AI grading with specialized prompts (for match score < 90%)
-        print("🤖 [Generation] AI GRADING (score < 90%)")
+        // ✅ CHANGED: AI grading for ALL non-exact answers (no intermediate grading)
+        print("🤖 [Generation] AI GRADING (not exact match)")
         print("   Sending to Gemini deep mode for analysis...")
 
         isGradingWithAI = true
@@ -791,14 +850,14 @@ struct GeneratedQuestionDetailView: View {
 
         do {
             // Get subject from question topic or default to "General"
-            let subject = question.topic ?? "General"
+            let subject = currentQuestion.topic ?? "General"
 
             // Call backend with specialized prompts
             let response = try await NetworkService.shared.gradeSingleQuestion(
-                questionText: question.question,
+                questionText: currentQuestion.question,
                 studentAnswer: userAnswer,
                 subject: subject,
-                questionType: question.type.rawValue,
+                questionType: currentQuestion.type.rawValue,
                 contextImageBase64: nil,
                 parentQuestionContent: nil,
                 useDeepReasoning: true,  // Gemini deep mode for nuanced grading
@@ -831,7 +890,7 @@ struct GeneratedQuestionDetailView: View {
                     saveAnswer()
 
                     // Notify parent view about the answer result with partial credit
-                    let maxPoints = question.points ?? 1
+                    let maxPoints = currentQuestion.points ?? 1
                     let earnedPoints = Int(Double(maxPoints) * partialCredit)
                     onAnswerSubmitted?(isCorrect, earnedPoints)
 
@@ -849,8 +908,8 @@ struct GeneratedQuestionDetailView: View {
                 print("🔄 [Generation] Falling back to local flexible grading")
                 let gradingResult = gradeAnswerFlexibly(
                     userAnswer: userAnswer,
-                    correctAnswer: question.correctAnswer,
-                    questionType: question.type
+                    correctAnswer: currentQuestion.correctAnswer,
+                    questionType: currentQuestion.type
                 )
 
                 isCorrect = gradingResult.isFullyCorrect
@@ -863,7 +922,7 @@ struct GeneratedQuestionDetailView: View {
 
                 // Save and notify
                 saveAnswer()
-                let maxPoints = question.points ?? 1
+                let maxPoints = currentQuestion.points ?? 1
                 let earnedPoints = Int(Double(maxPoints) * partialCredit)
                 onAnswerSubmitted?(isCorrect, earnedPoints)
             }
@@ -1118,14 +1177,14 @@ struct GeneratedQuestionDetailView: View {
             let userMessage = """
 I need help understanding this question:
 
-Question: \(question.question)
+Question: \(currentQuestion.question)
 
 \(hasSubmitted ? "My answer was: \(getCurrentAnswer())\n\n" : "")Can you help me understand this better and explain the solution?
 """
 
             // ✅ Navigate to chat with question context AND deep mode enabled for first message
             // User can use fast mode for follow-up messages, or activate deep mode manually via long-press
-            appState.navigateToChatWithMessage(userMessage, subject: question.topic, useDeepMode: true)
+            appState.navigateToChatWithMessage(userMessage, subject: currentQuestion.topic, useDeepMode: true)
 
             // Haptic feedback
             let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
@@ -1136,7 +1195,7 @@ Question: \(question.question)
     // MARK: - Progress Tracking
 
     private func trackPracticeProgress() {
-        let subject = question.topic
+        let subject = currentQuestion.topic
         let totalAnswered = 1 // One question
 
         // Use partial credit for correct count
@@ -1185,18 +1244,18 @@ Question: \(question.question)
 
         if let data = try? JSONSerialization.data(withJSONObject: answerData) {
             UserDefaults.standard.set(data, forKey: answerPersistenceKey)
-            logger.info("💾 Saved answer for question: \(question.id)")
+            logger.info("💾 Saved answer for question: \(currentQuestion.id)")
         }
 
         // ✅ FIX P0: Update session progress if session ID is available
         if let sessionId = sessionId {
             PracticeSessionManager.shared.updateProgress(
                 sessionId: sessionId,
-                completedQuestionId: question.id.uuidString,
+                completedQuestionId: currentQuestion.id.uuidString,
                 answer: getCurrentAnswer(),
                 isCorrect: isCorrect
             )
-            logger.info("✅ Updated session progress: \(sessionId) - Question \(question.id.uuidString.prefix(8))")
+            logger.info("✅ Updated session progress: \(sessionId) - Question \(currentQuestion.id.uuidString.prefix(8))")
         }
     }
 
@@ -1228,7 +1287,7 @@ Question: \(question.question)
             partialCredit = savedPartialCredit
         }
 
-        logger.info("💾 Loaded saved answer for question: \(question.id)")
+        logger.info("💾 Loaded saved answer for question: \(currentQuestion.id)")
     }
 
     /// Archive the answered question to local storage
@@ -1238,46 +1297,38 @@ Question: \(question.question)
         isArchiving = true
 
         // ✅ DEBUG: Log archiving start
-        print("📚 [Archive] Starting archive for question: \(question.question.prefix(50))...")
-        // DebugSettings.shared.logArchive("Starting archive for question: \(question.question.prefix(50))...")
-        // DebugSettings.shared.prettyPrintErrorKeys(
-        //     errorType: question.errorType,
-        //     baseBranch: question.baseBranch,
-        //     detailedBranch: question.detailedBranch,
-        //     weaknessKey: question.weaknessKey
-        // )
+        print("📚 [Archive] Starting archive for question: \(currentQuestion.question.prefix(50))...")
 
         Task {
             // Build question data for archiving
             let questionData: [String: Any] = [
                 "id": UUID().uuidString,
-                "subject": question.topic,
-                "questionText": question.question,
-                "rawQuestionText": question.question,
-                "answerText": question.correctAnswer,
+                "subject": currentQuestion.topic,
+                "questionText": currentQuestion.question,
+                "rawQuestionText": currentQuestion.question,
+                "answerText": currentQuestion.correctAnswer,
                 "confidence": 1.0,  // Generated questions have high confidence
                 "hasVisualElements": false,
                 "archivedAt": ISO8601DateFormatter().string(from: Date()),
                 "reviewCount": 0,
-                "tags": question.tags ?? [],  // Inherit tags from generated question
+                "tags": currentQuestion.tags ?? [],  // Inherit tags from generated question
                 "notes": "",
                 "studentAnswer": getCurrentAnswer(),
                 "grade": isCorrect ? "CORRECT" : "INCORRECT",
-                "points": isCorrect ? (question.points ?? 1) : 0,
-                "maxPoints": question.points ?? 1,
-                "feedback": question.explanation,
+                "points": isCorrect ? (currentQuestion.points ?? 1) : 0,
+                "maxPoints": currentQuestion.points ?? 1,
+                "feedback": currentQuestion.explanation,
                 "isGraded": true,
                 "isCorrect": isCorrect,
                 // ✅ CRITICAL: Include error keys for short-term status tracking
-                "errorType": question.errorType as Any,
-                "baseBranch": question.baseBranch as Any,
-                "detailedBranch": question.detailedBranch as Any,
-                "weaknessKey": question.weaknessKey as Any
+                "errorType": currentQuestion.errorType as Any,
+                "baseBranch": currentQuestion.baseBranch as Any,
+                "detailedBranch": currentQuestion.detailedBranch as Any,
+                "weaknessKey": currentQuestion.weaknessKey as Any
             ]
 
             // ✅ DEBUG: Log archiving data
-            print("📚 [Archive] Archive data - Subject: \(question.topic), Correct: \(isCorrect), Has error keys: \(question.errorType != nil)")
-            // DebugSettings.shared.logArchive("Archive data - Subject: \(question.topic), Correct: \(isCorrect), Has error keys: \(question.errorType != nil)")
+            print("📚 [Archive] Archive data - Subject: \(currentQuestion.topic), Correct: \(isCorrect), Has error keys: \(currentQuestion.errorType != nil)")
 
             // Save to local storage
             _ = QuestionLocalStorage.shared.saveQuestions([questionData])
@@ -1291,7 +1342,6 @@ Question: \(question.question)
 
                 // ✅ DEBUG: Log completion
                 print("📚 [Archive] ✅ Archive completed successfully")
-                // DebugSettings.shared.logArchive("✅ Archive completed successfully")
             }
         }
     }

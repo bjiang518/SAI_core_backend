@@ -626,7 +626,7 @@ struct QuickStatsHeader: View {
                     icon: "questionmark.circle.fill",
                     title: NSLocalizedString("library.stats.questions", comment: ""),
                     count: questionCount,
-                    color: DesignTokens.Colors.primary,
+                    color: .yellow,  // ✅ Questions in yellow
                     isSelected: selectedContentType == .questions,
                     action: { onContentTypeSelected(.questions) }
                 )
@@ -635,7 +635,7 @@ struct QuickStatsHeader: View {
                     icon: "bubble.left.and.bubble.right.fill",
                     title: NSLocalizedString("library.stats.conversations", comment: ""),
                     count: conversationCount,
-                    color: DesignTokens.Colors.success,
+                    color: .blue,  // ✅ Conversations in blue
                     isSelected: selectedContentType == .conversations,
                     action: { onContentTypeSelected(.conversations) }
                 )
@@ -644,7 +644,7 @@ struct QuickStatsHeader: View {
                     icon: "books.vertical.fill",
                     title: NSLocalizedString("library.stats.totalSessions", comment: ""),
                     count: totalCount,
-                    color: DesignTokens.Colors.analyticsPlum,
+                    color: .green,  // ✅ Total sessions in green
                     isSelected: selectedContentType == .all,
                     action: { onContentTypeSelected(.all) }
                 )
@@ -735,25 +735,11 @@ struct LibraryItemRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Header with type indicator
+            // Header with type indicator (removed subject title, will add tag at bottom)
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    // Display subject only (removed redundant title)
-                    Text(item.subject)
-                        .font(.headline)
-                        .foregroundColor(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary)
-                        .lineLimit(2)
-
-                    HStack {
-                        Text(item.topic)
-                            .font(.caption)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background((themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary).opacity(0.1))
-                            .foregroundColor(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary)
-                            .clipShape(Capsule())
-
-                        // Pro Mode badge
+                    // Pro Mode badge
+                    HStack(spacing: 8) {
                         if isProModeQuestion {
                             HStack(spacing: 4) {
                                 Image(systemName: "wand.and.stars")
@@ -790,10 +776,10 @@ struct LibraryItemRow: View {
                     .cornerRadius(8)
             }
 
-            // Enhanced preview content
+            // Enhanced preview content (more solid text color)
             Text(item.preview)
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundColor(.primary)  // ✅ Changed to primary for better readability
                 .lineLimit(3)
 
             // ✅ NEW: Red flag indicator for conversations with behavior concerns
@@ -813,11 +799,11 @@ struct LibraryItemRow: View {
                 .clipShape(Capsule())
             }
 
-            // Item type label with action hint
+            // Item type label with action hint (more solid text color)
             HStack {
                 Text(labelForItem(item))
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.primary)  // ✅ Changed to primary for better readability
 
                 Spacer()
 
@@ -828,17 +814,28 @@ struct LibraryItemRow: View {
                         .fontWeight(.medium)
                 }
             }
+
+            // ✅ Subject tag at bottom (more opaque background for better contrast)
+            HStack {
+                Text(item.subject)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.black.opacity(0.2))  // ✅ Darker background for better contrast
+                    .foregroundColor(.primary)  // ✅ Use primary color for better readability
+                    .clipShape(Capsule())
+
+                Spacer()
+            }
         }
         .padding(12)
-        .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundSoftPink : Color(.systemBackground))
+        .background(backgroundColorForItem(item))  // ✅ Card background color based on type
         .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(colorForItem(item), lineWidth: 2)
-        )
-        .shadow(color: (themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender : Color.black).opacity(0.1), radius: 3, x: 0, y: 2)
-        .padding(.horizontal)
-        .padding(.vertical, 4)
+        // ✅ Removed .overlay border
+        .shadow(color: Color.black.opacity(0.1), radius: 3, x: 0, y: 2)
+        .padding(.horizontal, 4)  // ✅ Minimal horizontal padding for wider cards
+        .padding(.vertical, 0)  // ✅ No vertical padding for minimal gap between cards
         .onAppear {
             loadProModeImageIfNeeded()
         }
@@ -908,7 +905,17 @@ struct LibraryItemRow: View {
             return themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.mint : DesignTokens.Colors.success
         }
     }
-    
+
+    // ✅ Background colors for cards: Questions in yellow, Conversations in blue (very light, close to white)
+    private func backgroundColorForItem(_ item: LibraryItem) -> Color {
+        switch item.itemType {
+        case .question:
+            return Color.yellow.opacity(0.08)  // ✅ Questions: very light yellow (close to white)
+        case .conversation:
+            return Color.blue.opacity(0.08)  // ✅ Conversations: very light blue (close to white)
+        }
+    }
+
     private func labelForItem(_ item: LibraryItem) -> String {
         switch item.itemType {
         case .question:

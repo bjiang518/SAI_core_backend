@@ -35,6 +35,7 @@ struct SessionChatView: View {
     @State private var showingSubjectPicker = false
     @State private var showingSessionInfo = false
     @State private var showingArchiveDialog = false
+    @State private var showingArchiveProgress = false  // ✅ NEW: Progress animation overlay
     @State private var showingArchiveSuccess = false
     @State private var showingVoiceSettings = false
     @State private var showingCamera = false
@@ -188,9 +189,9 @@ struct SessionChatView: View {
                     Divider()
 
                     Button(NSLocalizedString("chat.menu.archiveSession", comment: "")) {
-                        // Set default topic to current subject
-                        viewModel.archiveTopic = viewModel.selectedSubject
-                        showingArchiveDialog = true
+                        // ✅ UPDATED: Show progress animation and archive directly
+                        showingArchiveProgress = true
+                        // Archive happens automatically with progress animation
                     }
                     .disabled(networkService.currentSessionId == nil || networkService.conversationHistory.isEmpty)
                 } label: {
@@ -210,9 +211,10 @@ struct SessionChatView: View {
             .sheet(isPresented: $showingSessionInfo) {
                 sessionInfoView
             }
-            .sheet(isPresented: $showingArchiveDialog) {
-                archiveSessionView
-            }
+            // ✅ REMOVED: Manual archive form sheet
+            // .sheet(isPresented: $showingArchiveDialog) {
+            //     archiveSessionView
+            // }
             .sheet(isPresented: $showingVoiceSettings) {
                 VoiceSettingsView()
             }
@@ -227,6 +229,12 @@ struct SessionChatView: View {
                 ) { image, prompt in
                     viewModel.processImageWithPrompt(image: image, prompt: prompt)
                 }
+            }
+            // ✅ NEW: Archive progress animation overlay
+            .archiveProgressOverlay(isPresented: $showingArchiveProgress) {
+                // When progress completes, actually perform the archive
+                viewModel.archiveCurrentSession()
+                showingArchiveSuccess = true
             }
     }
 
@@ -249,9 +257,8 @@ struct SessionChatView: View {
                 titleVisibility: .visible
             ) {
                 Button(NSLocalizedString("chat.alert.currentChatExists.archiveCurrent", comment: "Archive Current")) {
-                    // Archive current conversation and clear pending question
-                    viewModel.archiveTopic = viewModel.selectedSubject
-                    showingArchiveDialog = true
+                    // ✅ UPDATED: Archive current conversation and show progress
+                    showingArchiveProgress = true
                     appState.clearPendingChatMessage()
                     showingExistingSessionAlert = false
                 }

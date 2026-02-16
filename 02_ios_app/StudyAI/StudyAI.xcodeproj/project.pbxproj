@@ -379,6 +379,30 @@
 		7BEC07602F3EE55200B6E573 /* PracticeSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC075F2F3EE55200B6E573 /* PracticeSessionManager.swift */; };
 		7BEC07612F3EE55200B6E573 /* PracticeSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC075F2F3EE55200B6E573 /* PracticeSessionManager.swift */; };
 		7BEC07622F3EE55200B6E573 /* PracticeSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC075F2F3EE55200B6E573 /* PracticeSessionManager.swift */; };
+		7BEC079A2F42F75100B6E573 /* ArchiveProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07992F42F75100B6E573 /* ArchiveProgressView.swift */; };
+		7BEC079B2F42F75100B6E573 /* ArchiveProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07992F42F75100B6E573 /* ArchiveProgressView.swift */; };
+		7BEC079C2F42F75100B6E573 /* ArchiveProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07992F42F75100B6E573 /* ArchiveProgressView.swift */; };
+		7BEC079E2F42F82900B6E573 /* AppConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC079D2F42F82900B6E573 /* AppConfiguration.swift */; };
+		7BEC079F2F42F82900B6E573 /* AppConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC079D2F42F82900B6E573 /* AppConfiguration.swift */; };
+		7BEC07A02F42F82900B6E573 /* AppConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC079D2F42F82900B6E573 /* AppConfiguration.swift */; };
+		7BEC07BF2F42F9DB00B6E573 /* Correct.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC07B92F42F9DB00B6E573 /* Correct.json */; };
+		7BEC07C02F42F9DB00B6E573 /* Question and Answer 2.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC07BA2F42F9DB00B6E573 /* Question and Answer 2.json */; };
+		7BEC07C12F42F9DB00B6E573 /* Star.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC07BC2F42F9DB00B6E573 /* Star.json */; };
+		7BEC07C22F42F9DB00B6E573 /* Star rating.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC07BD2F42F9DB00B6E573 /* Star rating.json */; };
+		7BEC07C32F42F9DB00B6E573 /* Target.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC07BE2F42F9DB00B6E573 /* Target.json */; };
+		7BEC07C42F42F9DB00B6E573 /* rocket 2.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC07BB2F42F9DB00B6E573 /* rocket 2.json */; };
+		7BEC07C52F42F9DB00B6E573 /* Correct.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC07B92F42F9DB00B6E573 /* Correct.json */; };
+		7BEC07C62F42F9DB00B6E573 /* Question and Answer 2.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC07BA2F42F9DB00B6E573 /* Question and Answer 2.json */; };
+		7BEC07C72F42F9DB00B6E573 /* Star.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC07BC2F42F9DB00B6E573 /* Star.json */; };
+		7BEC07C82F42F9DB00B6E573 /* Star rating.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC07BD2F42F9DB00B6E573 /* Star rating.json */; };
+		7BEC07C92F42F9DB00B6E573 /* Target.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC07BE2F42F9DB00B6E573 /* Target.json */; };
+		7BEC07CA2F42F9DB00B6E573 /* rocket 2.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC07BB2F42F9DB00B6E573 /* rocket 2.json */; };
+		7BEC07CB2F42F9DB00B6E573 /* Correct.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC07B92F42F9DB00B6E573 /* Correct.json */; };
+		7BEC07CC2F42F9DB00B6E573 /* Question and Answer 2.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC07BA2F42F9DB00B6E573 /* Question and Answer 2.json */; };
+		7BEC07CD2F42F9DB00B6E573 /* Star.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC07BC2F42F9DB00B6E573 /* Star.json */; };
+		7BEC07CE2F42F9DB00B6E573 /* Star rating.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC07BD2F42F9DB00B6E573 /* Star rating.json */; };
+		7BEC07CF2F42F9DB00B6E573 /* Target.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC07BE2F42F9DB00B6E573 /* Target.json */; };
+		7BEC07D02F42F9DB00B6E573 /* rocket 2.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC07BB2F42F9DB00B6E573 /* rocket 2.json */; };
 		7BEDA6272E80B8C500D57B15 /* QuestionGenerationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEDA6262E80B8C500D57B15 /* QuestionGenerationService.swift */; };
 		7BEDA6282E80B8C500D57B15 /* QuestionGenerationDataAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEDA6252E80B8C500D57B15 /* QuestionGenerationDataAdapter.swift */; };
 		7BEDA62C2E80B91100D57B15 /* GeneratedQuestionsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEDA6292E80B91100D57B15 /* GeneratedQuestionsListView.swift */; };
@@ -664,6 +688,14 @@
 		7BDE56E82EC31AC7004A8629 /* HTMLRendererView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HTMLRendererView.swift; path = StudyAI/Views/Components/HTMLRendererView.swift; sourceTree = SOURCE_ROOT; };
 		7BDE56EF2EC31AD7004A8629 /* EssayResultsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = EssayResultsView.swift; path = StudyAI/Views/EssayResultsView.swift; sourceTree = SOURCE_ROOT; };
 		7BEC075F2F3EE55200B6E573 /* PracticeSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PracticeSessionManager.swift; path = StudyAI/Services/PracticeSessionManager.swift; sourceTree = SOURCE_ROOT; };
+		7BEC07992F42F75100B6E573 /* ArchiveProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ArchiveProgressView.swift; path = StudyAI/Views/Components/ArchiveProgressView.swift; sourceTree = SOURCE_ROOT; };
+		7BEC079D2F42F82900B6E573 /* AppConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppConfiguration.swift; path = StudyAI/Core/AppConfiguration.swift; sourceTree = SOURCE_ROOT; };
+		7BEC07B92F42F9DB00B6E573 /* Correct.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Correct.json; sourceTree = "<group>"; };
+		7BEC07BA2F42F9DB00B6E573 /* Question and Answer 2.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "Question and Answer 2.json"; sourceTree = "<group>"; };
+		7BEC07BB2F42F9DB00B6E573 /* rocket 2.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "rocket 2.json"; sourceTree = "<group>"; };
+		7BEC07BC2F42F9DB00B6E573 /* Star.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Star.json; sourceTree = "<group>"; };
+		7BEC07BD2F42F9DB00B6E573 /* Star rating.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "Star rating.json"; sourceTree = "<group>"; };
+		7BEC07BE2F42F9DB00B6E573 /* Target.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Target.json; sourceTree = "<group>"; };
 		7BEDA6252E80B8C500D57B15 /* QuestionGenerationDataAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QuestionGenerationDataAdapter.swift; path = StudyAI/Services/QuestionGenerationDataAdapter.swift; sourceTree = SOURCE_ROOT; };
 		7BEDA6262E80B8C500D57B15 /* QuestionGenerationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QuestionGenerationService.swift; path = StudyAI/Services/QuestionGenerationService.swift; sourceTree = SOURCE_ROOT; };
 		7BEDA6292E80B91100D57B15 /* GeneratedQuestionsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GeneratedQuestionsListView.swift; path = StudyAI/Views/GeneratedQuestionsListView.swift; sourceTree = SOURCE_ROOT; };
@@ -914,6 +946,7 @@
 		7BEDA5F82E7EB90500D57B15 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				7BEC079D2F42F82900B6E573 /* AppConfiguration.swift */,
 				7BEC075F2F3EE55200B6E573 /* PracticeSessionManager.swift */,
 				7B2249242F39BEF2006ADD93 /* ReportAvailabilityChecker.swift */,
 				144BF1CD8B2345EFBFB9415E /* SynchronizedTextRenderer.swift */,
@@ -983,6 +1016,7 @@
 		7BEDA5F92E7EB94000D57B15 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				7BEC07992F42F75100B6E573 /* ArchiveProgressView.swift */,
 				7B2249522F3AC54E006ADD93 /* CuteTabBar.swift */,
 				7B2249202F39BE97006ADD93 /* ThemeSelectionView.swift */,
 				7B2248EC2F37448F006ADD93 /* ParentReportsOnboardingView.swift */,
@@ -1106,6 +1140,12 @@
 		7BEEB6292E8EFFCA00957748 /* Lottie */ = {
 			isa = PBXGroup;
 			children = (
+				7BEC07B92F42F9DB00B6E573 /* Correct.json */,
+				7BEC07BA2F42F9DB00B6E573 /* Question and Answer 2.json */,
+				7BEC07BB2F42F9DB00B6E573 /* rocket 2.json */,
+				7BEC07BC2F42F9DB00B6E573 /* Star.json */,
+				7BEC07BD2F42F9DB00B6E573 /* Star rating.json */,
+				7BEC07BE2F42F9DB00B6E573 /* Target.json */,
 				7B74A2E32EB6BBDD002DBE2B /* Bubbles x2.json */,
 				7B74A2E42EB6BBDD002DBE2B /* Fire_moving.json */,
 				7B74A2E52EB6BBDD002DBE2B /* Loading_animation_blue.json */,
@@ -1272,6 +1312,12 @@
 				7B9045262E8FB5DD00E5DDFA /* Chat.json in Resources */,
 				7B2248B32F2F53CB006ADD93 /* Just Flow.json in Resources */,
 				7B1961E42E94D96A0024317A /* Localizable.strings in Resources */,
+				7BEC07BF2F42F9DB00B6E573 /* Correct.json in Resources */,
+				7BEC07C02F42F9DB00B6E573 /* Question and Answer 2.json in Resources */,
+				7BEC07C12F42F9DB00B6E573 /* Star.json in Resources */,
+				7BEC07C22F42F9DB00B6E573 /* Star rating.json in Resources */,
+				7BEC07C32F42F9DB00B6E573 /* Target.json in Resources */,
+				7BEC07C42F42F9DB00B6E573 /* rocket 2.json in Resources */,
 				7B1961E52E94D96A0024317A /* Localizable.strings in Resources */,
 				7B8353682EA80C7000199AC3 /* Assets.xcassets in Resources */,
 				7B1961E62E94D96A0024317A /* Localizable.strings in Resources */,
@@ -1302,6 +1348,12 @@
 				7B9045272E8FB5DD00E5DDFA /* Chart Graph.json in Resources */,
 				7B9045282E8FB5DD00E5DDFA /* Chat.json in Resources */,
 				7B1961DE2E94D96A0024317A /* Localizable.strings in Resources */,
+				7BEC07CB2F42F9DB00B6E573 /* Correct.json in Resources */,
+				7BEC07CC2F42F9DB00B6E573 /* Question and Answer 2.json in Resources */,
+				7BEC07CD2F42F9DB00B6E573 /* Star.json in Resources */,
+				7BEC07CE2F42F9DB00B6E573 /* Star rating.json in Resources */,
+				7BEC07CF2F42F9DB00B6E573 /* Target.json in Resources */,
+				7BEC07D02F42F9DB00B6E573 /* rocket 2.json in Resources */,
 				7B2248B12F2F53CB006ADD93 /* Just Flow.json in Resources */,
 				7B1961DF2E94D96A0024317A /* Localizable.strings in Resources */,
 				7B83536A2EA80C7000199AC3 /* Assets.xcassets in Resources */,
@@ -1332,6 +1384,12 @@
 				7B9045232E8FB5DD00E5DDFA /* Chart Graph.json in Resources */,
 				7B9045242E8FB5DD00E5DDFA /* Chat.json in Resources */,
 				7B1961E12E94D96A0024317A /* Localizable.strings in Resources */,
+				7BEC07C52F42F9DB00B6E573 /* Correct.json in Resources */,
+				7BEC07C62F42F9DB00B6E573 /* Question and Answer 2.json in Resources */,
+				7BEC07C72F42F9DB00B6E573 /* Star.json in Resources */,
+				7BEC07C82F42F9DB00B6E573 /* Star rating.json in Resources */,
+				7BEC07C92F42F9DB00B6E573 /* Target.json in Resources */,
+				7BEC07CA2F42F9DB00B6E573 /* rocket 2.json in Resources */,
 				7B2248B22F2F53CB006ADD93 /* Just Flow.json in Resources */,
 				7B1961E22E94D96A0024317A /* Localizable.strings in Resources */,
 				7B8353692EA80C7000199AC3 /* Assets.xcassets in Resources */,
@@ -1507,6 +1565,7 @@
 				7BDE56642EC1C617004A8629 /* PomodoroDeepLinkHandler.swift in Sources */,
 				7BDE567A2EC1C6C4004A8629 /* PomodoroCalendarView.swift in Sources */,
 				7B2248512F20212C006ADD93 /* PassiveReportsView.swift in Sources */,
+				7BEC079E2F42F82900B6E573 /* AppConfiguration.swift in Sources */,
 				7B2248522F20212C006ADD93 /* ParentReportsContainerView.swift in Sources */,
 				7B2248532F20212C006ADD93 /* PassiveReportDetailView.swift in Sources */,
 				7DCD4D51FBF64F74AEA6A5C3 /* VoiceSettingsView.swift in Sources */,
@@ -1540,6 +1599,7 @@
 				7B83523A2E9625C900199AC3 /* ShareAppView.swift in Sources */,
 				7BDE567F2EC1C6E5004A8629 /* PomodoroCalendarService.swift in Sources */,
 				7B83523B2E9625C900199AC3 /* HelpCenterView.swift in Sources */,
+				7BEC079A2F42F75100B6E573 /* ArchiveProgressView.swift in Sources */,
 				7B83523C2E9625C900199AC3 /* ContactSupportView.swift in Sources */,
 				7B83523D2E9625C900199AC3 /* MessageActionsView.swift in Sources */,
 				7B8352432E963F0000199AC3 /* AppState.swift in Sources */,
@@ -1649,10 +1709,12 @@
 				7BD668C62EE2E88700E09E55 /* ProModePDFExporter.swift in Sources */,
 				7BDE56602EC1C5C3004A8629 /* MathJaxRenderer.swift in Sources */,
 				7BDE56702EC1C667004A8629 /* SessionChatViewModel.swift in Sources */,
+				7BEC07A02F42F82900B6E573 /* AppConfiguration.swift in Sources */,
 				7B2248AE2F2F4A8D006ADD93 /* DebugSettings.swift in Sources */,
 				7BD668B72ED9AC9D00E09E55 /* SavedDigitalHomeworkView.swift in Sources */,
 				7B8E9E952EAB50F400E83DA8 /* HomeworkImageDetailView.swift in Sources */,
 				7BDE56E52EC31A8B004A8629 /* LaTeXToHTMLConverter.swift in Sources */,
+				7BEC079B2F42F75100B6E573 /* ArchiveProgressView.swift in Sources */,
 				7BD668772ED05FAE00E09E55 /* DigitalHomeworkView.swift in Sources */,
 				7BD668782ED05FAE00E09E55 /* HomeworkSummaryView.swift in Sources */,
 				7B8E9EB22EAF38D000E83DA8 /* SessionManager.swift in Sources */,
@@ -1670,6 +1732,7 @@
 				7B2248542F20212C006ADD93 /* PassiveReportsView.swift in Sources */,
 				7B2248552F20212C006ADD93 /* ParentReportsContainerView.swift in Sources */,
 				7B2248562F20212C006ADD93 /* PassiveReportDetailView.swift in Sources */,
+				7BEC079C2F42F75100B6E573 /* ArchiveProgressView.swift in Sources */,
 				7BEC07622F3EE55200B6E573 /* PracticeSessionManager.swift in Sources */,
 				7BDE56F12EC31AD7004A8629 /* EssayResultsView.swift in Sources */,
 				7BDE56912EC1CA4D004A8629 /* UIComponents.swift in Sources */,
@@ -1746,6 +1809,7 @@
 				7B2248A52F2DCDE4006ADD93 /* AppSessionManager.swift in Sources */,
 				7B2248AF2F2F4A8D006ADD93 /* DebugSettings.swift in Sources */,
 				7B2248D12F340790006ADD93 /* VerticalPagesViewer.swift in Sources */,
+				7BEC079F2F42F82900B6E573 /* AppConfiguration.swift in Sources */,
 				7B8E9E9E2EAB518100E83DA8 /* HomeworkImageStorageService.swift in Sources */,
 				7BDE56E62EC31A8B004A8629 /* LaTeXToHTMLConverter.swift in Sources */,
 				7BD6687D2ED05FD400E09E55 /* ZoomableImageView.swift in Sources */,

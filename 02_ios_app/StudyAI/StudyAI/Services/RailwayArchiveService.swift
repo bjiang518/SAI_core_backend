@@ -542,26 +542,70 @@ class RailwayArchiveService: ObservableObject {
             print("❌ Missing required field: conversation_content/conversationContent")
             throw ArchiveError.invalidData
         }
-        
+
         // Parse date - try multiple field names and formats
         let archivedDate: Date
-        let dateString = data["archived_date"] as? String ?? 
-                        data["archivedDate"] as? String ?? 
-                        data["archived_at"] as? String ?? 
-                        data["created_at"] as? String ?? 
+        let dateString = data["archived_date"] as? String ??
+                        data["archivedDate"] as? String ??
+                        data["archived_at"] as? String ??
+                        data["created_at"] as? String ??
                         data["createdAt"] as? String
-        
+
         if let dateString = dateString {
             let formatter = ISO8601DateFormatter()
             archivedDate = formatter.date(from: dateString) ?? Date()
         } else {
             archivedDate = Date()
         }
-        
-        let topic = data["topic"] as? String ?? data["title"] as? String
-        
-        print("✅ Successfully converted conversation: id=\(id), subject=\(subject), topic=\(topic ?? "none")")
-        
+
+        // ✅ NEW: Extract AI-generated analysis fields from backend
+        let title = data["title"] as? String
+        let summary = data["summary"] as? String
+
+        // Parse keyTopics (can be array or JSON string)
+        let keyTopics: [String]?
+        if let topicsArray = data["keyTopics"] as? [String] {
+            keyTopics = topicsArray
+        } else if let topicsArray = data["key_topics"] as? [String] {
+            keyTopics = topicsArray
+        } else if let topicsJSON = data["keyTopics"] as? String,
+                  let jsonData = topicsJSON.data(using: .utf8),
+                  let decoded = try? JSONSerialization.jsonObject(with: jsonData) as? [String] {
+            keyTopics = decoded
+        } else if let topicsJSON = data["key_topics"] as? String,
+                  let jsonData = topicsJSON.data(using: .utf8),
+                  let decoded = try? JSONSerialization.jsonObject(with: jsonData) as? [String] {
+            keyTopics = decoded
+        } else {
+            keyTopics = nil
+        }
+
+        // Parse learningOutcomes (can be array or JSON string)
+        let learningOutcomes: [String]?
+        if let outcomesArray = data["learningOutcomes"] as? [String] {
+            learningOutcomes = outcomesArray
+        } else if let outcomesArray = data["learning_outcomes"] as? [String] {
+            learningOutcomes = outcomesArray
+        } else if let outcomesJSON = data["learningOutcomes"] as? String,
+                  let jsonData = outcomesJSON.data(using: .utf8),
+                  let decoded = try? JSONSerialization.jsonObject(with: jsonData) as? [String] {
+            learningOutcomes = decoded
+        } else if let outcomesJSON = data["learning_outcomes"] as? String,
+                  let jsonData = outcomesJSON.data(using: .utf8),
+                  let decoded = try? JSONSerialization.jsonObject(with: jsonData) as? [String] {
+            learningOutcomes = decoded
+        } else {
+            learningOutcomes = nil
+        }
+
+        let messageCount = data["messageCount"] as? Int ?? data["message_count"] as? Int
+        let durationMinutes = data["durationMinutes"] as? Int ?? data["duration_minutes"] as? Int
+
+        // Use title first, then topic, then fallback
+        let topic = title ?? data["topic"] as? String
+
+        print("✅ Successfully converted conversation: id=\(id), subject=\(subject), title=\(title ?? "none"), summary=\(summary ?? "none")")
+
         return ArchivedConversation(
             id: id,
             userId: userId,
@@ -569,7 +613,13 @@ class RailwayArchiveService: ObservableObject {
             topic: topic,
             conversationContent: conversationContent,
             archivedDate: archivedDate,
-            createdAt: archivedDate
+            createdAt: archivedDate,
+            diagrams: nil,
+            summary: summary,
+            keyTopics: keyTopics,
+            learningOutcomes: learningOutcomes,
+            estimatedDuration: durationMinutes,
+            behaviorSummary: nil
         )
     }
     

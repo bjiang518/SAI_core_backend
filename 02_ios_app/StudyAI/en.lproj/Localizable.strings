@@ -200,9 +200,11 @@
 "aiHomework.parsingMode.progressive" = "Pro";
 "aiHomework.parsingMode.hierarchical" = "Detail";
 "aiHomework.parsingMode.baseline" = "Fast";
+"aiHomework.parsingMode.fast" = "Fast";  // ✅ Production: Fast Mode
 "aiHomework.parsingMode.progressive.description" = "Smart digital homework with on-demand grading. Flexible and interactive.";
 "aiHomework.parsingMode.hierarchical.description" = "Accurate parsing with parent-child question relationships. Best for structured homework.";
 "aiHomework.parsingMode.baseline.description" = "Faster parsing with flat question structure. Good for simple homework.";
+"aiHomework.parsingMode.fast.description" = "Quick AI analysis with GPT-4o-mini. Fast results with high accuracy.";  // ✅ Production: Fast Mode description
 "aiHomework.subject" = "Subject";
 "aiHomework.model" = "Model";
 "aiHomework.mode" = "Mode";
@@ -863,6 +865,10 @@
 "chat.archive.archiving" = "Archiving...";
 "chat.archive.infoTitle" = "Archive Information";
 "chat.archive.infoMessage" = "Save this conversation for future reference. You can add a custom title and notes to help you remember what you learned.";
+"chat.archive.analyzingWithAI" = "Analyzing with AI...";
+"chat.archive.generatingSummary" = "Generating summary and key topics";
+"chat.archive.complete" = "Archive Complete!";
+"chat.archive.summaryGenerated" = "Summary generated successfully";
 
 // Diagram
 "chat.diagram.regenerate" = "Regenerate Image";
@@ -1495,7 +1501,12 @@
 "proMode.grading" = "Grading %d/%d";
 "proMode.deepGradingMode" = "Deep Grading Mode";
 "proMode.deepMode" = "Deep Mode";
+"proMode.fastMode" = "Fast Mode";  // ✅ Production: Fast Mode (GPT Deep)
 "proMode.deepGradingDescription" = "AI will analyze deeply (slower but more accurate)";
+"proMode.deepModeDescription" = "Deep analysis with advanced reasoning";  // ✅ Production: Deep Mode description
+"proMode.fastModeDescription" = "Quick grading with logic check";  // ✅ Production: Fast Mode description
+"proMode.quickGrade" = "Quick Grade";  // ✅ Production: Fast Mode button text
+"proMode.deepGrade" = "Deep Grade";  // ✅ Production: Deep Mode button text
 "proMode.standardGradingDescription" = "Standard grading speed (fast but may lack depth)";
 "proMode.gradeHomework" = "Grade Homework with AI";
 "proMode.deepGradeHomework" = "Deep Grade Homework";
@@ -1607,6 +1618,11 @@
 "proMode.deleteButton" = "Delete";
 "proMode.archiveWholeQuestion" = "Archive Whole Question";
 "proMode.archiveSubquestionOnly" = "Archive This Subquestion Only";
+"proMode.blankLabel" = "Blank %d:";
+"proMode.trueFalse.true" = "True";
+"proMode.trueFalse.false" = "False";
+"proMode.trueFalse.trueShort" = "T";
+"proMode.trueFalse.falseShort" = "F";
 
 // MARK: - Progressive Homework View
 "progressiveHomework.loadingMessage" = "This may take a moment...";

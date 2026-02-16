@@ -167,25 +167,25 @@ struct DigitalHomeworkView: View {
             Text(NSLocalizedString("proMode.revertGradingAlert.message", comment: "Warning message"))
         }
         .alert("Detected \(detectedMistakeIds.count) Errors on This Page", isPresented: $showMistakeDetectionAlert) {
-            Button("Cancel", role: .cancel) {
+            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {
                 detectedMistakeIds = []
             }
-            Button("Analyze Them") {
+            Button(NSLocalizedString("proMode.analyzeButton", comment: "")) {
                 Task {
                     await archiveAndAnalyzeMistakes()
                 }
             }
         } message: {
-            Text("Do you want me to analyze them? (Results will be ready soon in the mistake review)")
+            Text(NSLocalizedString("proMode.analyzeMistakesPrompt", comment: ""))
         }
         // ✅ NEW: Deletion confirmation alert
-        .alert("Delete \(selectedQuestionsForDeletion.count) Question\(selectedQuestionsForDeletion.count == 1 ? "" : "s")?", isPresented: $showDeletionConfirmation) {
-            Button("Cancel", role: .cancel) { }
-            Button("Delete", role: .destructive) {
+        .alert(String(format: NSLocalizedString("proMode.deleteQuestionsTitle", comment: ""), selectedQuestionsForDeletion.count, selectedQuestionsForDeletion.count == 1 ? "" : "s"), isPresented: $showDeletionConfirmation) {
+            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) { }
+            Button(NSLocalizedString("proMode.deleteButton", comment: ""), role: .destructive) {
                 deleteSelectedQuestions()
             }
         } message: {
-            Text("This will permanently remove the selected question\(selectedQuestionsForDeletion.count == 1 ? "" : "s") from this homework session. This action cannot be undone.")
+            Text(String(format: NSLocalizedString("proMode.deleteConfirmation", comment: ""), selectedQuestionsForDeletion.count == 1 ? "" : "s"))
         }
     }
 
@@ -397,7 +397,7 @@ struct DigitalHomeworkView: View {
             HStack(spacing: 12) {
                 Image(systemName: "trash.fill")
                     .font(.title3)
-                Text("Delete \(selectedQuestionsForDeletion.count) Question\(selectedQuestionsForDeletion.count == 1 ? "" : "s")")
+                Text(String(format: NSLocalizedString("proMode.deleteQuestions", comment: ""), selectedQuestionsForDeletion.count, selectedQuestionsForDeletion.count == 1 ? "" : "s"))
                     .font(.headline)
                     .fontWeight(.bold)
             }
@@ -805,13 +805,13 @@ struct DigitalHomeworkView: View {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
                         .scaleEffect(0.8)
-                    Text("Exporting... \(Int(viewModel.pdfExportProgress * 100))%")
+                    Text(String(format: NSLocalizedString("proMode.exportingProgress", comment: ""), Int(viewModel.pdfExportProgress * 100)))
                         .font(.headline)
                         .fontWeight(.semibold)
                 } else {
                     Image(systemName: "doc.fill")
                         .font(.headline)
-                    Text("Export to PDF")
+                    Text(NSLocalizedString("proMode.exportToPDF", comment: ""))
                         .font(.headline)
                         .fontWeight(.semibold)
                 }
@@ -850,7 +850,7 @@ struct DigitalHomeworkView: View {
             }
         }
         .alert("PDF Export Failed", isPresented: $showPDFExportError) {
-            Button("OK", role: .cancel) {}
+            Button(NSLocalizedString("common.ok", comment: ""), role: .cancel) {}
         } message: {
             Text(pdfExportErrorMessage)
         }
@@ -1244,53 +1244,29 @@ struct DigitalHomeworkView: View {
                     .transition(.scale.combined(with: .opacity))
             }
 
-            // AI Model Selector (NEW: OpenAI vs Gemini) - Only show before grading
+            // PRODUCTION MODE: Unified Fast/Deep Mode toggle
+            // PROTOTYPE MODE: Separate AI model selector + Deep reasoning toggle
             if !viewModel.isGrading {
-                aiModelSelectorCard
-            }
+                if FeatureFlags.manualModelSelection {
+                    // ✅ PROTOTYPE MODE: Show both AI model selector and deep reasoning toggle
+                    aiModelSelectorCard
 
-            // Deep reasoning mode toggle (省督批改开关)
-            if !viewModel.isGrading {
-                HStack {
-                    Toggle(isOn: $viewModel.useDeepReasoning) {
-                        HStack(spacing: 8) {
-                            Image(systemName: viewModel.useDeepReasoning ? "brain.head.profile.fill" : "brain.head.profile")
-                                .font(.body)
-                                .foregroundColor(viewModel.useDeepReasoning ? .purple : .secondary)
-
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(NSLocalizedString("proMode.deepGradingMode", comment: "Deep Grading Mode"))
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-                                    .foregroundColor(.primary)
-
-                                Text(viewModel.useDeepReasoning ? NSLocalizedString("proMode.deepGradingDescription", comment: "AI will analyze deeply") : NSLocalizedString("proMode.standardGradingDescription", comment: "Standard grading speed"))
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                    }
-                    .toggleStyle(SwitchToggleStyle(tint: .purple))
+                    deepReasoningToggleCard
+                } else {
+                    // ✅ PRODUCTION MODE: Single Fast/Deep mode toggle
+                    unifiedModeToggleCard
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(viewModel.useDeepReasoning ? Color.purple.opacity(0.1) : Color(.systemGray6))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(viewModel.useDeepReasoning ? Color.purple.opacity(0.3) : Color.clear, lineWidth: 1)
-                )
             }
 
-            // Grade button
+            // Grade button (✅ Production: Fast Mode = Quick Grade (blue), Deep Mode = Deep Grade (purple))
             Button(action: {
                 Task {
                     await viewModel.startGrading()
                 }
             }) {
-                Text(viewModel.useDeepReasoning ? NSLocalizedString("proMode.deepGradeHomework", comment: "Deep Grade Homework") : NSLocalizedString("proMode.gradeHomework", comment: "Grade Homework with AI"))
+                Text(viewModel.selectedAIModel == "openai" ?
+                    NSLocalizedString("proMode.quickGrade", comment: "Quick Grade") :
+                    NSLocalizedString("proMode.deepGrade", comment: "Deep Grade"))
                     .font(.headline)
                     .fontWeight(.bold)
                     .foregroundColor(.white)
@@ -1298,13 +1274,15 @@ struct DigitalHomeworkView: View {
                     .padding(.vertical, 16)
                     .background(
                         LinearGradient(
-                            colors: viewModel.useDeepReasoning ? [Color.purple, Color.purple.opacity(0.8)] : [Color.green, Color.green.opacity(0.8)],
+                            colors: viewModel.selectedAIModel == "openai" ?
+                                [Color.blue, Color.blue.opacity(0.8)] :
+                                [Color.purple, Color.purple.opacity(0.8)],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
                     )
                     .cornerRadius(16)
-                    .shadow(color: (viewModel.useDeepReasoning ? Color.purple : Color.green).opacity(0.3), radius: 8, x: 0, y: 4)
+                    .shadow(color: (viewModel.selectedAIModel == "openai" ? Color.blue : Color.purple).opacity(0.3), radius: 8, x: 0, y: 4)
             }
             .disabled(viewModel.isGrading)
             .opacity(viewModel.isGrading ? 0.6 : 1.0)
@@ -1445,9 +1423,12 @@ struct DigitalHomeworkView: View {
     }
 
     private var modelDisplayName: String {
-        let model = viewModel.selectedAIModel == "gemini" ? "Gemini" : "GPT-4o-mini"
-        let mode = viewModel.useDeepReasoning ? " · \(NSLocalizedString("proMode.deepMode", comment: ""))" : ""
-        return model + mode
+        // ✅ Production: Show mode name only, no AI model mentions
+        if viewModel.selectedAIModel == "gemini" {
+            return NSLocalizedString("proMode.deepMode", comment: "Deep Mode")
+        } else {
+            return NSLocalizedString("proMode.fastMode", comment: "Fast Mode")
+        }
     }
 
     private func shimmerOffset(geometryWidth: CGFloat) -> CGFloat {
@@ -1529,6 +1510,100 @@ struct DigitalHomeworkView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(PlainButtonStyle())
+    }
+
+    // MARK: - Deep Reasoning Toggle Card (Prototype Mode)
+
+    private var deepReasoningToggleCard: some View {
+        HStack {
+            Toggle(isOn: $viewModel.useDeepReasoning) {
+                HStack(spacing: 8) {
+                    Image(systemName: viewModel.useDeepReasoning ? "brain.head.profile.fill" : "brain.head.profile")
+                        .font(.body)
+                        .foregroundColor(viewModel.useDeepReasoning ? .purple : .secondary)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(NSLocalizedString("proMode.deepGradingMode", comment: "Deep Grading Mode"))
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.primary)
+
+                        Text(viewModel.useDeepReasoning ? NSLocalizedString("proMode.deepGradingDescription", comment: "AI will analyze deeply") : NSLocalizedString("proMode.standardGradingDescription", comment: "Standard grading speed"))
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            .toggleStyle(SwitchToggleStyle(tint: .purple))
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(viewModel.useDeepReasoning ? Color.purple.opacity(0.1) : Color(.systemGray6))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(viewModel.useDeepReasoning ? Color.purple.opacity(0.3) : Color.clear, lineWidth: 1)
+        )
+    }
+
+    // MARK: - Unified Mode Toggle Card (Production Mode)
+
+    /// Production mode: Single toggle for Fast (GPT Deep) vs Deep (Gemini Deep)
+    private var unifiedModeToggleCard: some View {
+        // Computed binding: true = Deep Mode (Gemini), false = Fast Mode (GPT)
+        let isDeepMode = Binding<Bool>(
+            get: { self.viewModel.selectedAIModel == "gemini" },
+            set: { newValue in
+                // Set model based on toggle
+                self.viewModel.selectedAIModel = newValue ? "gemini" : "openai"
+                // Always enable deep reasoning in production mode
+                self.viewModel.useDeepReasoning = true
+            }
+        )
+
+        return HStack {
+            Toggle(isOn: isDeepMode) {
+                HStack(spacing: 12) {
+                    Image(systemName: isDeepMode.wrappedValue ? "brain.head.profile.fill" : "bolt.fill")
+                        .font(.title3)
+                        .foregroundColor(isDeepMode.wrappedValue ? .purple : .blue)
+                        .frame(width: 24)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(isDeepMode.wrappedValue ?
+                            NSLocalizedString("proMode.deepMode", comment: "Deep Mode") :
+                            NSLocalizedString("proMode.fastMode", comment: "Fast Mode"))
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.primary)
+
+                        Text(isDeepMode.wrappedValue ?
+                            NSLocalizedString("proMode.deepModeDescription", comment: "Gemini advanced analysis") :
+                            NSLocalizedString("proMode.fastModeDescription", comment: "GPT quick grading"))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            .toggleStyle(SwitchToggleStyle(tint: isDeepMode.wrappedValue ? .purple : .blue))
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(isDeepMode.wrappedValue ?
+                    Color.purple.opacity(0.1) :
+                    Color.blue.opacity(0.1))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(isDeepMode.wrappedValue ?
+                    Color.purple.opacity(0.3) :
+                    Color.blue.opacity(0.3),
+                    lineWidth: 1.5)
+        )
     }
 
     // ✅ Helper function for fitted image size (unified calculation)
@@ -2375,7 +2450,7 @@ struct SubquestionRow: View {
                         HStack(spacing: 2) {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.caption2)
-                            Text("Archived")
+                            Text(NSLocalizedString("proMode.archivedBadge", comment: ""))
                                 .font(.caption2)
                                 .fontWeight(.medium)
                         }
@@ -2430,7 +2505,7 @@ struct SubquestionRow: View {
                         }
                     } label: {
                         HStack {
-                            Text("Feedback")
+                            Text(NSLocalizedString("proMode.feedbackLabel", comment: ""))
                                 .font(.caption2)
                                 .fontWeight(.medium)
                                 .foregroundColor(.blue)
@@ -2502,23 +2577,23 @@ struct SubquestionRow: View {
         )
         .animation(.easeInOut(duration: 0.3), value: isGrading)
         .confirmationDialog(
-            "Archive Options",
+            NSLocalizedString("proMode.archiveOptionsTitle", comment: ""),
             isPresented: $showArchiveOptions,
             titleVisibility: .visible
         ) {
-            Button("Archive Whole Question") {
+            Button(NSLocalizedString("proMode.archiveWholeQuestion", comment: "")) {
                 // Archive the entire parent question (default)
                 onArchive()
             }
 
-            Button("Archive This Subquestion Only") {
+            Button(NSLocalizedString("proMode.archiveSubquestionOnly", comment: "")) {
                 // ✅ IMPLEMENTED: Archive only this subquestion
                 onArchiveSubquestion()
             }
 
-            Button("Cancel", role: .cancel) {}
+            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {}
         } message: {
-            Text("Choose what to archive:")
+            Text(NSLocalizedString("proMode.archivePrompt", comment: ""))
         }
     }
 

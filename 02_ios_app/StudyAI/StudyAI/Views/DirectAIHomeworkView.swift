@@ -199,6 +199,8 @@ struct DirectAIHomeworkView: View {
     @State private var showModeInfo: Bool = false
 
     // AI Model selection (OpenAI vs Gemini)
+    // ✅ In production mode, this is auto-set from parsingMode (not persisted)
+    // ✅ In prototype mode, this is user-controlled (persisted)
     @AppStorage("selectedAIModel") private var selectedAIModel: String = "gemini"
     @State private var showModelInfo: Bool = false
 
@@ -211,16 +213,50 @@ struct DirectAIHomeworkView: View {
 
     enum ParsingMode: String, CaseIterable {
         case progressive = "Pro"
-        case hierarchical = "Detail"
-        case baseline = "Fast"
+        case hierarchical = "Fast"  // ✅ Production: Fast Mode (was Detail)
+        case baseline = "Detail"    // ✅ Prototype only (was Fast)
+
+        /// Available modes based on current app mode (production vs prototype)
+        static var availableModes: [ParsingMode] {
+            switch AppMode.current {
+            case .production:
+                // Production: Only Fast + Pro modes
+                return [.hierarchical, .progressive]
+            case .prototype:
+                // Prototype: All 3 modes for testing
+                return ParsingMode.allCases
+            }
+        }
+
+        /// Recommended AI model for this parsing mode (production only)
+        var recommendedModel: String {
+            switch AppMode.current {
+            case .production:
+                switch self {
+                case .hierarchical:  // Fast mode uses GPT
+                    return "openai"
+                case .progressive:   // Pro mode uses Gemini
+                    return "gemini"
+                case .baseline:
+                    return "openai"  // Fallback (shouldn't be used in production)
+                }
+            case .prototype:
+                // Prototype: Manual selection (return current selection)
+                return "gemini"  // Default, will be overridden by user selection
+            }
+        }
 
         var displayName: String {
             switch self {
             case .progressive:
                 return NSLocalizedString("aiHomework.parsingMode.progressive", comment: "")
             case .hierarchical:
-                return NSLocalizedString("aiHomework.parsingMode.hierarchical", comment: "")
+                // Production: "Fast", Prototype: "Fast" (for consistency)
+                return AppMode.current == .production ?
+                    NSLocalizedString("aiHomework.parsingMode.fast", comment: "") :
+                    NSLocalizedString("aiHomework.parsingMode.hierarchical", comment: "")
             case .baseline:
+                // Prototype only: "Detail"
                 return NSLocalizedString("aiHomework.parsingMode.baseline", comment: "")
             }
         }
@@ -230,7 +266,9 @@ struct DirectAIHomeworkView: View {
             case .progressive:
                 return NSLocalizedString("aiHomework.parsingMode.progressive.description", comment: "")
             case .hierarchical:
-                return NSLocalizedString("aiHomework.parsingMode.hierarchical.description", comment: "")
+                return AppMode.current == .production ?
+                    NSLocalizedString("aiHomework.parsingMode.fast.description", comment: "") :
+                    NSLocalizedString("aiHomework.parsingMode.hierarchical.description", comment: "")
             case .baseline:
                 return NSLocalizedString("aiHomework.parsingMode.baseline.description", comment: "")
             }
@@ -241,9 +279,9 @@ struct DirectAIHomeworkView: View {
             case .progressive:
                 return "wand.and.stars"  // Pro Mode: Magic wand with stars (智能分析)
             case .hierarchical:
-                return "list.bullet.indent"
+                return "bolt.fill"  // Fast mode: Lightning bolt
             case .baseline:
-                return "bolt.fill"
+                return "list.bullet.indent"  // Detail mode (prototype only)
             }
         }
 
@@ -559,6 +597,29 @@ struct DirectAIHomeworkView: View {
                 )
             }
         }
+        // ✅ Auto-select AI model based on parsing mode in production
+        .onChange(of: parsingMode) { oldValue, newValue in
+            if !FeatureFlags.manualModelSelection {
+                // Production mode: Auto-select model based on mode
+                selectedAIModel = newValue.recommendedModel
+                AppLogger.ui.info("🔄 Auto-selected AI model: \(selectedAIModel) for mode: \(newValue.displayName)")
+            }
+        }
+        .onAppear {
+            // ✅ Set initial model on appear in production mode
+            if !FeatureFlags.manualModelSelection {
+                // Production mode: ALWAYS compute model from parsing mode
+                // Clear any persisted value and use the computed one
+                let computedModel = parsingMode.recommendedModel
+                if selectedAIModel != computedModel {
+                    selectedAIModel = computedModel
+                    AppLogger.ui.info("🔄 Corrected AI model from \(selectedAIModel) to \(computedModel) for mode: \(parsingMode.displayName)")
+                } else {
+                    selectedAIModel = computedModel
+                    AppLogger.ui.info("🎯 Initial AI model set: \(selectedAIModel) for mode: \(parsingMode.displayName)")
+                }
+            }
+        }
     }
     
     // MARK: - Initial View
@@ -732,8 +793,10 @@ struct DirectAIHomeworkView: View {
             VStack(spacing: 8) {  // Reduced from 12 to 8 for more compact layout
                 // ✅ REMOVED: Subject Selection Card (AI auto-detects subject)
 
-                // AI Model Selection Card
-                aiModelSelectionCard
+                // AI Model Selection Card (only in prototype mode)
+                if FeatureFlags.manualModelSelection {
+                    aiModelSelectionCard
+                }
 
                 // Parsing Mode Selection Card
                 parsingModeCard
@@ -935,8 +998,8 @@ struct DirectAIHomeworkView: View {
 
                     // Animated liquid glass indicator
                     GeometryReader { geometry in
-                        let selectedIndex = ParsingMode.allCases.firstIndex(of: parsingMode) ?? 0
-                        let segmentWidth = geometry.size.width / CGFloat(ParsingMode.allCases.count)
+                        let selectedIndex = ParsingMode.availableModes.firstIndex(of: parsingMode) ?? 0
+                        let segmentWidth = geometry.size.width / CGFloat(ParsingMode.availableModes.count)
 
                         RoundedRectangle(cornerRadius: 6)
                             .fill(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundSoftPink : Color(UIColor.systemBackground))
@@ -950,7 +1013,7 @@ struct DirectAIHomeworkView: View {
 
                     // Option buttons
                     HStack(spacing: 0) {
-                        ForEach(ParsingMode.allCases, id: \.self) { mode in
+                        ForEach(ParsingMode.availableModes, id: \.self) { mode in
                             parsingModeLiquidButton(for: mode)
                         }
                     }
@@ -1007,7 +1070,7 @@ struct DirectAIHomeworkView: View {
     // MARK: - Parsing Mode Info Content
     private var parsingModeInfoContent: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ForEach(ParsingMode.allCases, id: \.self) { mode in
+            ForEach(ParsingMode.availableModes, id: \.self) { mode in
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: mode.icon)
                         .foregroundColor(.blue)

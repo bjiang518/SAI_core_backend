@@ -616,26 +616,65 @@ struct QuestionGenerationView: View {
                 return false
             }
 
-            // Convert real conversation data using the adapter
+            // Convert real conversation data using backend analysis
             let conversationData = selectedConversationObjects.map { conversation in
-                let title = conversation["title"] as? String ?? NSLocalizedString("questionGeneration.untitled", comment: "")
+                let title = conversation["title"] as? String ?? conversation["summary"] as? String ?? NSLocalizedString("questionGeneration.untitled", comment: "")
                 let subject = conversation["subject"] as? String ?? NSLocalizedString("questionGeneration.generalSubject", comment: "")
                 let content = conversation["conversationContent"] as? String ?? ""
+                let summary = conversation["summary"] as? String ?? ""
 
-                // ✅ Extract only student questions (remove archive headers, metadata, and AI responses)
+                // ✅ Use backend-provided analysis (keyTopics, learningOutcomes from SessionHelper)
+                let keyTopics: [String]
+                if let keyTopicsArray = conversation["keyTopics"] as? [String] {
+                    keyTopics = keyTopicsArray
+                } else if let keyTopicsJSON = conversation["keyTopics"] as? String,
+                          let data = keyTopicsJSON.data(using: .utf8),
+                          let decoded = try? JSONSerialization.jsonObject(with: data) as? [String] {
+                    keyTopics = decoded
+                } else {
+                    keyTopics = [subject]
+                }
+
+                let learningOutcomes: [String]
+                if let outcomesArray = conversation["learningOutcomes"] as? [String] {
+                    learningOutcomes = outcomesArray
+                } else if let outcomesJSON = conversation["learningOutcomes"] as? String,
+                          let data = outcomesJSON.data(using: .utf8),
+                          let decoded = try? JSONSerialization.jsonObject(with: data) as? [String] {
+                    learningOutcomes = decoded
+                } else {
+                    learningOutcomes = []
+                }
+
+                let messageCount = conversation["messageCount"] as? Int ?? 0
+
+                // ✅ Extract student questions for context
                 let studentQuestions = extractStudentQuestions(from: content, title: title)
 
-                // ✅ FIX 3: Analyze conversation to get real metadata (not hardcoded)
-                let analysis = analyzeConversation(content: content, title: title)
+                // ✅ Use backend analysis + fallback to client-side if needed
+                let analysis: (difficultyLevel: String, strengths: [String], weaknesses: [String], engagement: String)
+
+                if !summary.isEmpty && !keyTopics.isEmpty {
+                    // Use backend-provided analysis
+                    analysis = (
+                        difficultyLevel: messageCount >= 8 ? "advanced" : (messageCount >= 4 ? "intermediate" : "beginner"),
+                        strengths: learningOutcomes.isEmpty ? ["Engaged in conversation"] : learningOutcomes,
+                        weaknesses: [], // Backend doesn't provide weaknesses yet, could be derived from learningOutcomes
+                        engagement: messageCount >= 5 ? "high" : (messageCount >= 3 ? "medium" : "low")
+                    )
+                } else {
+                    // Fallback to client-side analysis
+                    analysis = analyzeConversation(content: content, title: title)
+                }
 
                 return QuestionGenerationService.ConversationData(
-                    date: ISO8601DateFormatter().string(from: Date()),
-                    topics: [subject],
+                    date: conversation["createdAt"] as? String ?? ISO8601DateFormatter().string(from: Date()),
+                    topics: keyTopics, // Use backend-analyzed topics
                     studentQuestions: studentQuestions,
                     difficultyLevel: analysis.difficultyLevel,
                     strengths: analysis.strengths,
                     weaknesses: analysis.weaknesses,
-                    keyConcepts: title,
+                    keyConcepts: summary.isEmpty ? title : summary, // Use AI-generated summary
                     engagement: analysis.engagement
                 )
             }

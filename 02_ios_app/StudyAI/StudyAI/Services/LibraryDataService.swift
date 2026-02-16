@@ -756,13 +756,18 @@ struct ConversationLibraryItem: LibraryItem {
             return actualTitle
         }
 
-        // Priority 2: Fall back to topic if available and not empty
+        // Priority 2: Use summary if available (AI-generated)
+        if let summaryValue = data["summary"] as? String, !summaryValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return summaryValue
+        }
+
+        // Priority 3: Fall back to topic if available and not empty
         if let topicValue = data["topic"] as? String, !topicValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             let normalizedTopic = QuestionSummary.normalizeSubject(topicValue)
             return normalizedTopic
         }
 
-        // Priority 3: Default to "Chat on {Subject}"
+        // Priority 4: Default to "Chat on {Subject}"
         let rawSubject = data["subject"] as? String ?? "General"
         let normalized = QuestionSummary.normalizeSubject(rawSubject)
         return "Chat on \(normalized)"
