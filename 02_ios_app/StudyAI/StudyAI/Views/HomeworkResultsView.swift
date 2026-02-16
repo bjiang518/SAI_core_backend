@@ -8,6 +8,9 @@
 import SwiftUI
 import os.log
 
+// Import MathJax renderer for LaTeX support in questions and feedback
+// Note: MathJaxRenderer is a custom component in Services/MathJaxRenderer.swift
+
 struct HomeworkResultsView: View {
     @State var parsingResult: HomeworkParsingResult
     @State var enhancedResult: EnhancedHomeworkParsingResult?
@@ -777,8 +780,7 @@ struct QuestionAnswerCard: View {
                                     .fontWeight(.semibold)
                                     .foregroundColor(.gray)
 
-                                Text(feedback)
-                                    .font(.body)
+                                MarkdownLaTeXText(feedback, fontSize: 16)
                                     .foregroundColor(DesignTokens.AdaptiveColors.primaryText)
                                     .multilineTextAlignment(.leading)
                             }
@@ -839,8 +841,7 @@ struct QuestionAnswerCard: View {
                     
                     // Question Text
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(question.questionText)
-                            .font(.body)
+                        MarkdownLaTeXText(question.questionText, fontSize: 16)
                             .fontWeight(.medium)
                             .multilineTextAlignment(.leading)
                             .foregroundColor(DesignTokens.AdaptiveColors.primaryText)
@@ -1255,8 +1256,7 @@ struct SubquestionCard: View {
                                     .fontWeight(.semibold)
                                     .foregroundColor(.gray)
 
-                                Text(feedback)
-                                    .font(.subheadline)
+                                MarkdownLaTeXText(feedback, fontSize: 15)
                                     .foregroundColor(DesignTokens.AdaptiveColors.primaryText)
                                     .multilineTextAlignment(.leading)
                                     .textSelection(.enabled)
