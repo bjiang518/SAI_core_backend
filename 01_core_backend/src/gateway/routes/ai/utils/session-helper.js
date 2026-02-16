@@ -147,7 +147,7 @@ class SessionHelper {
             {
               role: 'system',
               content: `You are an AI assistant that analyzes educational conversations. Extract:
-1. A concise summary (max 15 words) suitable for a list view
+1. A concise summary (max 15 words) that captures the SPECIFIC conversation content
 2. Key topics discussed (as array)
 3. Learning outcomes achieved (as array)
 4. Estimated conversation duration in minutes
@@ -156,9 +156,23 @@ Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes
 
 Summary guidelines:
 - Max 15 words
-- Format: "[Subject] - [main activity/topic]"
-- Examples: "Math - solving quadratic equations", "Biology - photosynthesis process and ATP production"
-- Be specific but concise`
+- Extract the ACTUAL user question/topic from the conversation, not generic descriptions
+- Be specific about what was discussed/asked
+- AVOID generic phrases like "interactive learning session", "Q&A session", "discussion"
+
+Good examples:
+- "Student asked for math joke about equal signs"
+- "Explaining photosynthesis process and ATP production"
+- "Solving quadratic equations using factoring method"
+- "Understanding grammar: difference between their/there/they're"
+- "Help with Python for loop syntax errors"
+
+Bad examples (too generic):
+- "Math - interactive learning session" ❌
+- "General - Q&A session" ❌
+- "Discussion about science" ❌
+
+Focus on the student's question or the main concept being taught.`
             },
             {
               role: 'user',
