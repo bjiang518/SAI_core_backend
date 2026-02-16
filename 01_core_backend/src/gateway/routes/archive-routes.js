@@ -610,7 +610,7 @@ class ArchiveRoutes {
 
       const query = `
         SELECT id, user_id, subject, topic, conversation_content, archived_date, created_at,
-               title, summary, key_topics, learning_outcomes, message_count, duration_minutes
+               title, summary, key_topics, learning_outcomes, estimated_duration, total_tokens
         FROM archived_conversations_new
         WHERE user_id = $1
         ORDER BY created_at DESC
@@ -634,8 +634,8 @@ class ArchiveRoutes {
           summary: row.summary,
           keyTopics: row.key_topics,
           learningOutcomes: row.learning_outcomes,
-          messageCount: row.message_count,
-          durationMinutes: row.duration_minutes
+          estimatedDuration: row.estimated_duration,
+          totalTokens: row.total_tokens
         }))
       });
 
@@ -760,9 +760,9 @@ class ArchiveRoutes {
       const insertQuery = `
         INSERT INTO archived_conversations_new (
           user_id, subject, topic, conversation_content, archived_date, created_at,
-          title, summary, key_topics, learning_outcomes, message_count, duration_minutes
+          title, summary, key_topics, learning_outcomes, estimated_duration, total_tokens
         ) VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7, $8, $9, $10, $11)
-        RETURNING id, user_id, subject, topic, archived_date, created_at, title, summary, key_topics, learning_outcomes, message_count, duration_minutes
+        RETURNING id, user_id, subject, topic, archived_date, created_at, title, summary, key_topics, learning_outcomes, estimated_duration, total_tokens
       `;
 
       const result = await db.query(insertQuery, [
@@ -775,8 +775,8 @@ class ArchiveRoutes {
         analysis.summary,
         JSON.stringify(analysis.keyTopics || []),
         JSON.stringify(analysis.learningOutcomes || []),
-        conversationHistory.length,
-        analysis.estimatedDuration || Math.ceil(conversationHistory.length * 0.5)
+        analysis.estimatedDuration || Math.ceil(conversationHistory.length * 0.5),
+        analysis.totalTokens || 0
       ]);
 
       const conversation = result.rows[0];
@@ -795,8 +795,8 @@ class ArchiveRoutes {
           summary: conversation.summary,
           keyTopics: conversation.key_topics,
           learningOutcomes: conversation.learning_outcomes,
-          messageCount: conversation.message_count,
-          durationMinutes: conversation.duration_minutes,
+          estimatedDuration: conversation.estimated_duration,
+          totalTokens: conversation.total_tokens,
           archivedDate: conversation.archived_date,
           createdAt: conversation.created_at
         }
