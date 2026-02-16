@@ -14,6 +14,49 @@ const { getInsightsService } = require('./openai-insights-service');
 
 class SummaryReportGenerator {
     /**
+     * Convert markdown to HTML for AI insights
+     */
+    markdownToHtml(markdown) {
+        if (!markdown) return '';
+
+        let html = markdown;
+
+        // Convert **bold** to <strong>
+        html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+        // Convert *italic* to <em>
+        html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+        // Convert numbered lists (1. item)
+        html = html.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+
+        // Wrap consecutive <li> in <ol>
+        html = html.replace(/(<li>.*<\/li>\n?)+/g, (match) => `<ol>${match}</ol>`);
+
+        // Convert bullet points (- item or * item)
+        html = html.replace(/^[-*]\s+(.+)$/gm, '<li>$1</li>');
+
+        // Wrap consecutive <li> not already in <ol> in <ul>
+        html = html.replace(/(<li>.*<\/li>\n?)+/g, (match) => {
+            if (match.includes('<ol>')) return match;
+            return `<ul>${match}</ul>`;
+        });
+
+        // Convert paragraphs (double newlines)
+        html = html.split('\n\n').map(para => {
+            para = para.trim();
+            if (!para) return '';
+            if (para.startsWith('<')) return para; // Already HTML
+            return `<p>${para}</p>`;
+        }).join('\n');
+
+        // Clean up any remaining single newlines
+        html = html.replace(/\n(?!<)/g, '<br>');
+
+        return html;
+    }
+
+    /**
      * Generate summary report HTML from other reports' data
      * @param {Object} activityData - Activity report data
      * @param {Object} improvementData - Improvement report data
@@ -286,6 +329,22 @@ class SummaryReportGenerator {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${periodLabel} Summary Report</title>
+
+    <!-- MathJax for LaTeX rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true
+            },
+            options: {
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+            }
+        };
+    </script>
+
     <style>
         * {
             margin: 0;
@@ -487,40 +546,50 @@ class SummaryReportGenerator {
             border-radius: 8px;
             padding: 16px;
             margin-bottom: 12px;
+            color: white;
         }
 
-        .ai-insight h3 {
+        .ai-insight-title {
             color: white;
             font-size: 16px;
             font-weight: 700;
             margin-bottom: 10px;
         }
 
-        .ai-insight-content {
+        .ai-insight p {
             background: rgba(255, 255, 255, 0.95);
             border-radius: 6px;
             padding: 14px;
             color: #1a1a1a;
             line-height: 1.7;
             font-size: 15px;
-        }
-
-        .ai-insight-content ul {
             margin: 8px 0;
-            padding-left: 20px;
         }
 
-        .ai-insight-content li {
+        .ai-insight ul {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 6px;
+            padding: 14px 14px 14px 34px;
+            color: #1a1a1a;
+            line-height: 1.7;
+            font-size: 15px;
+            margin: 8px 0;
+            list-style-position: outside;
+        }
+
+        .ai-insight li {
             margin: 6px 0;
+            color: #1a1a1a;
         }
 
-        .ai-insight-content p {
-            margin: 8px 0;
-        }
-
-        .ai-insight-content strong {
+        .ai-insight strong {
             color: #667eea;
             font-weight: 700;
+        }
+
+        .ai-insight em {
+            font-style: italic;
+            color: #4b5563;
         }
 
         .footer {
@@ -572,7 +641,7 @@ class SummaryReportGenerator {
     <!-- AI Insight 1: Student Profile (flat) -->
     <div class="ai-insight">
         <div class="ai-insight-title">🤖 AI Insights: Student Profile</div>
-        ${aiInsights[0]}
+        ${this.markdownToHtml(aiInsights[0])}
     </div>
     ` : ''}
 
@@ -586,7 +655,7 @@ class SummaryReportGenerator {
     <!-- AI Insight 2: Priority Actions (flat) -->
     <div class="ai-insight">
         <div class="ai-insight-title">🤖 AI Insights: Priority Actions</div>
-        ${aiInsights[1]}
+        ${this.markdownToHtml(aiInsights[1])}
     </div>
     ` : ''}
 

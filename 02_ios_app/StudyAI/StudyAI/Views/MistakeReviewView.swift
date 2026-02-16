@@ -1718,50 +1718,20 @@ struct PracticeQuestionsView: View {
             }
         }
 
-        // ✅ NEW: Update daily progress counters (like random practice should do)
+        // ✅ NEW: Update daily progress counters (local-only, like random practice)
         if totalCount > 0 {
             print("📊 [MarkProgress] Updating daily progress: \(correctCount)/\(totalCount) questions for \(subject)")
 
-            // Update local progress counters
+            // Update local progress counters only
+            // Backend sync happens manually via Settings or automatic schedule
             PointsEarningSystem.shared.markHomeworkProgress(
                 subject: subject,
                 numberOfQuestions: totalCount,
                 numberOfCorrectQuestions: correctCount
             )
-
-            // Sync with backend
-            Task {
-                await syncDailyProgressWithBackend()
-            }
         }
 
-        print("✅ [MarkProgress] Progress marked successfully")
-    }
-
-    /// Sync daily progress with backend
-    private func syncDailyProgressWithBackend() async {
-        print("🔄 [MarkProgress] Syncing daily progress with backend...")
-
-        guard let userId = await MainActor.run({ AuthenticationService.shared.currentUser?.id }) else {
-            print("❌ [MarkProgress] User not authenticated, skipping sync")
-            return
-        }
-
-        guard let todayProgress = await MainActor.run({ PointsEarningSystem.shared.todayProgress }) else {
-            print("❌ [MarkProgress] No progress data to sync")
-            return
-        }
-
-        let result = await NetworkService.shared.syncDailyProgress(
-            userId: userId,
-            dailyProgress: todayProgress
-        )
-
-        if result.success {
-            print("✅ [MarkProgress] Daily progress synced successfully")
-        } else {
-            print("❌ [MarkProgress] Failed to sync daily progress: \(result.message ?? "Unknown error")")
-        }
+        print("✅ [MarkProgress] Progress marked successfully (LOCAL ONLY)")
     }
 
     // MARK: - PDF Export
