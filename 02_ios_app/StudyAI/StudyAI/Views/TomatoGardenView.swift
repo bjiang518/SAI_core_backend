@@ -2,7 +2,7 @@
 //  TomatoGardenView.swift
 //  StudyAI
 //
-//  我的番茄园 - 展示用户收集的所有番茄
+//  Tomato Garden - Display all collected tomatoes
 //
 
 import SwiftUI
@@ -11,6 +11,7 @@ struct TomatoGardenView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
     @StateObject private var gardenService = TomatoGardenService.shared
+    @StateObject private var themeManager = ThemeManager.shared
 
     @State private var selectedFilter: FilterOption = .all
     @State private var showDeleteConfirmation = false
@@ -19,33 +20,43 @@ struct TomatoGardenView: View {
     @State private var showingGardenInfo = false
 
     enum FilterOption: String, CaseIterable {
-        case all = "全部"
-        case today = "今天"
-        case week = "本周"
-        case classic = "经典番茄"
-        case curly = "卷藤番茄"
-        case cute = "萌萌番茄"
+        case all
+        case today
+        case week
+        case classic
+        case curly
+        case cute
+
+        var localizedTitle: String {
+            switch self {
+            case .all:
+                return NSLocalizedString("tomato.garden.filter.all", comment: "All")
+            case .today:
+                return NSLocalizedString("tomato.garden.filter.today", comment: "Today")
+            case .week:
+                return NSLocalizedString("tomato.garden.filter.week", comment: "Week")
+            case .classic:
+                return NSLocalizedString("tomato.garden.type.classic", comment: "Classic")
+            case .curly:
+                return NSLocalizedString("tomato.garden.type.curly", comment: "Curly")
+            case .cute:
+                return NSLocalizedString("tomato.garden.type.cute", comment: "Cute")
+            }
+        }
     }
 
     var body: some View {
         NavigationView {
             ZStack {
-                // Background
-                Color(colorScheme == .dark ? .systemGroupedBackground : .systemBackground)
+                themeManager.backgroundColor
                     .ignoresSafeArea()
 
                 ScrollView {
                     VStack(spacing: 20) {
-                        // 统计卡片
                         statsCard
-
-                        // 筛选器
                         filterSection
-
-                        // 番茄网格
                         tomatoGrid
 
-                        // 成就提示
                         if let milestone = gardenService.getNextMilestone() {
                             nextMilestoneCard(milestone: milestone)
                         }
@@ -53,28 +64,28 @@ struct TomatoGardenView: View {
                     .padding()
                 }
             }
-            .navigationTitle("我的番茄园")
+            .navigationTitle(NSLocalizedString("tomato.garden.title", comment: ""))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: { dismiss() }) {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
+                            .foregroundColor(themeManager.secondaryText)
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     HStack(spacing: 16) {
                         Button(action: { showingGardenInfo = true }) {
                             Image(systemName: "info.circle")
-                                .foregroundColor(.blue)
+                                .foregroundColor(DesignTokens.Colors.Cute.blue)
                         }
                         Button(action: { showPhysicsGarden = true }) {
                             HStack(spacing: 4) {
                                 Image(systemName: "sparkles")
-                                Text("物理模式")
+                                Text(NSLocalizedString("tomato.garden.physics", comment: ""))
                                     .font(.subheadline.weight(.semibold))
                             }
-                            .foregroundColor(.purple)
+                            .foregroundColor(DesignTokens.Colors.Cute.lavender)
                         }
                     }
                 }
@@ -87,15 +98,15 @@ struct TomatoGardenView: View {
             .fullScreenCover(isPresented: $showPhysicsGarden) {
                 PhysicsTomatoGardenView()
             }
-            .alert("删除番茄", isPresented: $showDeleteConfirmation) {
-                Button("取消", role: .cancel) {}
-                Button("删除", role: .destructive) {
+            .alert(NSLocalizedString("tomato.garden.delete.title", comment: "Delete"), isPresented: $showDeleteConfirmation) {
+                Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {}
+                Button(NSLocalizedString("common.delete", comment: ""), role: .destructive) {
                     if let tomato = tomatoToDelete {
                         gardenService.removeTomato(id: tomato.id)
                     }
                 }
             } message: {
-                Text("确定要删除这个番茄吗？")
+                Text(NSLocalizedString("tomato.garden.delete.message", comment: ""))
             }
         }
     }
@@ -104,16 +115,15 @@ struct TomatoGardenView: View {
 
     private var statsCard: some View {
         VStack(spacing: 16) {
-            // 标题
             HStack {
                 Image(systemName: "chart.bar.fill")
-                    .foregroundColor(.red)
-                Text("番茄园统计")
+                    .foregroundColor(DesignTokens.Colors.Cute.peach)
+                Text(NSLocalizedString("tomato.garden.stats", comment: ""))
                     .font(.headline)
+                    .foregroundColor(themeManager.primaryText)
                 Spacer()
             }
 
-            // 统计网格
             LazyVGrid(columns: [
                 GridItem(.flexible()),
                 GridItem(.flexible()),
@@ -122,33 +132,35 @@ struct TomatoGardenView: View {
                 TomatoStatItem(
                     icon: "🍅",
                     value: "\(gardenService.stats.totalTomatoes)",
-                    label: "总番茄数"
+                    label: NSLocalizedString("tomato.garden.total", comment: ""),
+                    themeManager: themeManager
                 )
 
                 TomatoStatItem(
                     icon: "⏱️",
                     value: gardenService.stats.formattedTotalTime,
-                    label: "总专注时间"
+                    label: NSLocalizedString("tomato.garden.focusTime", comment: ""),
+                    themeManager: themeManager
                 )
 
                 TomatoStatItem(
                     icon: "⭐️",
                     value: formatDuration(gardenService.stats.longestSession),
-                    label: "最长专注"
+                    label: NSLocalizedString("tomato.garden.longestSession", comment: ""),
+                    themeManager: themeManager
                 )
             }
 
-            // 番茄类型分布
             HStack(spacing: 12) {
-                TomatoTypeCount(type: .classic, count: gardenService.stats.classicCount)
-                TomatoTypeCount(type: .curly, count: gardenService.stats.curlyCount)
-                TomatoTypeCount(type: .cute, count: gardenService.stats.cuteCount)
+                TomatoTypeCount(type: .classic, count: gardenService.stats.classicCount, themeManager: themeManager)
+                TomatoTypeCount(type: .curly, count: gardenService.stats.curlyCount, themeManager: themeManager)
+                TomatoTypeCount(type: .cute, count: gardenService.stats.cuteCount, themeManager: themeManager)
             }
         }
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.white)
+                .fill(themeManager.cardBackground)
                 .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
         )
     }
@@ -160,8 +172,9 @@ struct TomatoGardenView: View {
             HStack(spacing: 12) {
                 ForEach(FilterOption.allCases, id: \.self) { option in
                     FilterChip(
-                        title: option.rawValue,
+                        title: option.localizedTitle,
                         isSelected: selectedFilter == option,
+                        themeManager: themeManager,
                         action: { selectedFilter = option }
                     )
                 }
@@ -184,7 +197,7 @@ struct TomatoGardenView: View {
                     GridItem(.flexible())
                 ], spacing: 16) {
                     ForEach(filteredTomatoes) { tomato in
-                        TomatoCard(tomato: tomato) {
+                        TomatoCard(tomato: tomato, themeManager: themeManager) {
                             tomatoToDelete = tomato
                             showDeleteConfirmation = true
                         }
@@ -200,15 +213,15 @@ struct TomatoGardenView: View {
         VStack(spacing: 16) {
             Image(systemName: "leaf.fill")
                 .font(.system(size: 60))
-                .foregroundColor(.gray.opacity(0.3))
+                .foregroundColor(DesignTokens.Colors.Cute.mint.opacity(0.3))
 
-            Text("还没有番茄")
+            Text(NSLocalizedString("tomato.garden.emptyState", comment: ""))
                 .font(.title3.weight(.medium))
-                .foregroundColor(.secondary)
+                .foregroundColor(themeManager.secondaryText)
 
-            Text("完成专注即可获得可爱的番茄奖励")
+            Text(NSLocalizedString("tomato.garden.emptyMessage", comment: ""))
                 .font(.body)
-                .foregroundColor(.secondary)
+                .foregroundColor(themeManager.secondaryText)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
@@ -223,43 +236,44 @@ struct TomatoGardenView: View {
         return HStack(spacing: 12) {
             Image(systemName: "flag.fill")
                 .font(.system(size: 24))
-                .foregroundColor(.orange)
+                .foregroundColor(DesignTokens.Colors.Cute.yellow)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("下一个里程碑")
+                Text(NSLocalizedString("tomato.garden.nextMilestone", comment: ""))
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(themeManager.secondaryText)
 
                 Text(milestone.description)
                     .font(.body.weight(.semibold))
+                    .foregroundColor(themeManager.primaryText)
 
-                Text("还需要 \(remaining) 个番茄")
+                Text(String(format: NSLocalizedString("tomato.garden.remaining", comment: ""), remaining))
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(themeManager.secondaryText)
             }
 
             Spacer()
 
-            // 进度环
             ZStack {
                 Circle()
-                    .stroke(Color.gray.opacity(0.2), lineWidth: 4)
+                    .stroke(themeManager.secondaryText.opacity(0.2), lineWidth: 4)
                     .frame(width: 50, height: 50)
 
                 Circle()
                     .trim(from: 0, to: CGFloat(gardenService.stats.totalTomatoes) / CGFloat(milestone.count))
-                    .stroke(Color.orange, lineWidth: 4)
+                    .stroke(DesignTokens.Colors.Cute.yellow, lineWidth: 4)
                     .frame(width: 50, height: 50)
                     .rotationEffect(.degrees(-90))
 
                 Text("\(Int((Double(gardenService.stats.totalTomatoes) / Double(milestone.count)) * 100))%")
                     .font(.caption2.weight(.bold))
+                    .foregroundColor(themeManager.primaryText)
             }
         }
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.white)
+                .fill(themeManager.cardBackground)
                 .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
         )
     }
@@ -288,7 +302,7 @@ struct TomatoGardenView: View {
     private func formatDuration(_ duration: TimeInterval) -> String {
         let minutes = Int(duration / 60)
         if minutes < 60 {
-            return "\(minutes)分"
+            return "\(minutes)\(NSLocalizedString("tomato.garden.minutes", comment: "min"))"
         } else {
             let hours = minutes / 60
             let remainingMinutes = minutes % 60
@@ -303,6 +317,7 @@ struct TomatoStatItem: View {
     let icon: String
     let value: String
     let label: String
+    let themeManager: ThemeManager
 
     var body: some View {
         VStack(spacing: 8) {
@@ -311,10 +326,11 @@ struct TomatoStatItem: View {
 
             Text(value)
                 .font(.title3.weight(.bold))
+                .foregroundColor(themeManager.primaryText)
 
             Text(label)
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(themeManager.secondaryText)
         }
     }
 }
@@ -322,6 +338,7 @@ struct TomatoStatItem: View {
 struct TomatoTypeCount: View {
     let type: TomatoType
     let count: Int
+    let themeManager: ThemeManager
 
     var body: some View {
         HStack(spacing: 8) {
@@ -333,10 +350,11 @@ struct TomatoTypeCount: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(type.displayName)
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(themeManager.secondaryText)
 
-                Text("\(count)个")
+                Text(String(format: NSLocalizedString("tomato.garden.count", comment: ""), count))
                     .font(.body.weight(.semibold))
+                    .foregroundColor(themeManager.primaryText)
             }
 
             Spacer()
@@ -344,7 +362,7 @@ struct TomatoTypeCount: View {
         .padding(8)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(Color.gray.opacity(0.1))
+                .fill(themeManager.cardBackground.opacity(0.5))
         )
     }
 }
@@ -352,18 +370,19 @@ struct TomatoTypeCount: View {
 struct FilterChip: View {
     let title: String
     let isSelected: Bool
+    let themeManager: ThemeManager
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             Text(title)
                 .font(.subheadline.weight(isSelected ? .semibold : .regular))
-                .foregroundColor(isSelected ? .white : .primary)
+                .foregroundColor(isSelected ? .white : themeManager.primaryText)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
                 .background(
                     RoundedRectangle(cornerRadius: 20)
-                        .fill(isSelected ? Color.red : Color.gray.opacity(0.1))
+                        .fill(isSelected ? DesignTokens.Colors.Cute.peach : themeManager.cardBackground)
                 )
         }
     }
@@ -371,44 +390,42 @@ struct FilterChip: View {
 
 struct TomatoCard: View {
     let tomato: Tomato
+    let themeManager: ThemeManager
     let onDelete: () -> Void
-    @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         VStack(spacing: 12) {
-            // 番茄图片
             Image(tomato.type.imageName)
                 .resizable()
                 .scaledToFit()
                 .frame(width: 80, height: 80)
 
-            // 类型名称
             Text(tomato.type.displayName)
                 .font(.caption.weight(.medium))
+                .foregroundColor(themeManager.primaryText)
 
-            // 时间和日期
             VStack(spacing: 4) {
                 Text(tomato.formattedDuration)
                     .font(.caption2)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(themeManager.secondaryText)
 
                 Text(tomato.formattedDate)
                     .font(.caption2)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(themeManager.secondaryText)
             }
         }
         .padding()
         .frame(maxWidth: .infinity)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.white)
+                .fill(themeManager.cardBackground)
                 .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
         )
         .contextMenu {
             Button(role: .destructive) {
                 onDelete()
             } label: {
-                Label("删除", systemImage: "trash")
+                Label(NSLocalizedString("common.delete", comment: ""), systemImage: "trash")
             }
         }
     }

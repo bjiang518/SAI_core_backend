@@ -278,6 +278,71 @@ class AuthRoutes {
       }
     }, this.exportUserData.bind(this));
 
+    // Clear user learning data (keep account active)
+    this.fastify.delete('/api/user/clear-my-data', {
+      schema: {
+        description: 'Clear all learning data (questions, conversations, reports, progress) but keep account active',
+        tags: ['User', 'Privacy', 'GDPR'],
+        headers: {
+          type: 'object',
+          properties: {
+            authorization: { type: 'string' }
+          },
+          required: ['authorization']
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              message: { type: 'string' },
+              deletedCounts: {
+                type: 'object',
+                properties: {
+                  questions: { type: 'integer' },
+                  conversations: { type: 'integer' },
+                  reportBatches: { type: 'integer' },
+                  reports: { type: 'integer' },
+                  progress: { type: 'integer' }
+                }
+              }
+            }
+          }
+        }
+      }
+    }, this.clearMyData.bind(this));
+
+    // Delete account completely (GDPR Article 17 - Right to Erasure)
+    this.fastify.delete('/api/user/delete-account', {
+      schema: {
+        description: 'Delete user account and all associated data (GDPR Article 17 - Right to Erasure)',
+        tags: ['User', 'Privacy', 'GDPR'],
+        headers: {
+          type: 'object',
+          properties: {
+            authorization: { type: 'string' }
+          },
+          required: ['authorization']
+        },
+        body: {
+          type: 'object',
+          required: ['confirmEmail'],
+          properties: {
+            confirmEmail: { type: 'string', format: 'email' }
+          }
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              message: { type: 'string' }
+            }
+          }
+        }
+      }
+    }, this.deleteAccount.bind(this));
+
     // Health check for auth service
     this.fastify.get('/api/auth/health', {
       schema: {
@@ -2025,6 +2090,141 @@ The StudyAI Team
       this.fastify.log.error(`❌ Failed to send parental consent email:`, error);
       this.fastify.log.error(`Email error details: ${error.message}`);
       throw new Error('Failed to send parental consent email. Please try again later.');
+    }
+  }
+
+  /**
+   * Clear all user learning data (keep account active)
+   * Deletes: questions, conversations, reports, progress
+   * Keeps: user account, profile, authentication
+   */
+  async clearMyData(request, reply) {
+    try {
+      const userId = await this.getUserIdFromToken(request);
+      if (!userId) {
+        return reply.status(401).send({
+          success: false,
+          message: 'Authentication required'
+        });
+      }
+
+      this.fastify.log.info(`🗑️ Clearing all learning data for user: ${PIIMasking.maskUserId(userId)}`);
+
+      const deletedCounts = {
+        questions: 0,
+        conversations: 0,
+        reportBatches: 0,
+        reports: 0,
+        progress: 0
+      };
+
+      // 1. Delete all questions (archived homework)
+      const questionsResult = await db.query('DELETE FROM questions WHERE user_id = $1', [userId]);
+      deletedCounts.questions = questionsResult.rowCount || 0;
+      this.fastify.log.info(`   ✅ Deleted ${deletedCounts.questions} questions`);
+
+      // 2. Delete all archived conversations
+      const conversationsResult = await db.query('DELETE FROM archived_conversations_new WHERE user_id = $1', [userId]);
+      deletedCounts.conversations = conversationsResult.rowCount || 0;
+      this.fastify.log.info(`   ✅ Deleted ${deletedCounts.conversations} conversations`);
+
+      // 3. Delete passive reports (cascades to parent_report_batches)
+      const batchesResult = await db.query('DELETE FROM parent_report_batches WHERE user_id = $1 RETURNING id', [userId]);
+      deletedCounts.reportBatches = batchesResult.rowCount || 0;
+      this.fastify.log.info(`   ✅ Deleted ${deletedCounts.reportBatches} report batches (passive_reports cascade deleted)`);
+
+      // 4. Delete progress data
+      const progressResult = await db.query('DELETE FROM subject_progress WHERE user_id = $1', [userId]);
+      deletedCounts.progress = progressResult.rowCount || 0;
+      this.fastify.log.info(`   ✅ Deleted ${deletedCounts.progress} progress records`);
+
+      // 5. Delete daily activities
+      const activitiesResult = await db.query('DELETE FROM daily_subject_activities WHERE user_id = $1', [userId]);
+      this.fastify.log.info(`   ✅ Deleted ${activitiesResult.rowCount || 0} daily activity records`);
+
+      this.fastify.log.info(`✅ Successfully cleared all learning data for user ${PIIMasking.maskUserId(userId)}`);
+
+      return reply.send({
+        success: true,
+        message: 'All learning data has been cleared. Your account remains active.',
+        deletedCounts
+      });
+
+    } catch (error) {
+      this.fastify.log.error('❌ Clear my data error:', error);
+      return reply.status(500).send({
+        success: false,
+        message: 'Failed to clear data',
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * Delete user account and all associated data
+   * Requires email confirmation for safety
+   */
+  async deleteAccount(request, reply) {
+    try {
+      const userId = await this.getUserIdFromToken(request);
+      if (!userId) {
+        return reply.status(401).send({
+          success: false,
+          message: 'Authentication required'
+        });
+      }
+
+      const { confirmEmail } = request.body;
+
+      this.fastify.log.info(`🗑️ Account deletion requested for user: ${PIIMasking.maskUserId(userId)}`);
+
+      // Verify email confirmation matches
+      const userResult = await db.query('SELECT email FROM users WHERE id = $1', [userId]);
+      if (userResult.rows.length === 0) {
+        return reply.status(404).send({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      const userEmail = userResult.rows[0].email;
+      if (userEmail.toLowerCase() !== confirmEmail.toLowerCase()) {
+        this.fastify.log.warn(`   ❌ Email confirmation mismatch: expected ${PIIMasking.maskEmail(userEmail)}, got ${PIIMasking.maskEmail(confirmEmail)}`);
+        return reply.status(400).send({
+          success: false,
+          message: 'Email confirmation does not match your account email'
+        });
+      }
+
+      this.fastify.log.info(`   ✅ Email confirmed, proceeding with account deletion`);
+
+      // Delete all user data (CASCADE will handle related tables)
+      // Order matters: Delete child records first to avoid foreign key issues
+      await db.query('DELETE FROM questions WHERE user_id = $1', [userId]);
+      await db.query('DELETE FROM archived_conversations_new WHERE user_id = $1', [userId]);
+      await db.query('DELETE FROM parent_report_batches WHERE user_id = $1', [userId]);
+      await db.query('DELETE FROM subject_progress WHERE user_id = $1', [userId]);
+      await db.query('DELETE FROM daily_subject_activities WHERE user_id = $1', [userId]);
+      await db.query('DELETE FROM user_sessions WHERE user_id = $1', [userId]);
+      await db.query('DELETE FROM profiles WHERE email = $1', [userEmail]);
+
+      // Finally delete the user account
+      await db.query('DELETE FROM users WHERE id = $1', [userId]);
+
+      this.fastify.log.info(`✅ Successfully deleted account and all data for user ${PIIMasking.maskUserId(userId)}`);
+
+      return reply.send({
+        success: true,
+        message: 'Your account and all associated data have been permanently deleted.'
+      });
+
+    } catch (error) {
+      this.fastify.log.error('❌ Delete account error:', error);
+      return reply.status(500).send({
+        success: false,
+        message: 'Failed to delete account',
+        error: error.message
+      });
     }
   }
 

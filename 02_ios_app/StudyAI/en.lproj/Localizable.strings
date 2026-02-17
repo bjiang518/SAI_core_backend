@@ -1570,6 +1570,114 @@
 "theme.description.night" = "Dark theme for low-light environments";
 "theme.description.cute" = "Soft pastel colors for a playful experience";
 
+// Tomato Garden Strings
+"tomato.garden.title" = "My Tomato Garden";
+"tomato.garden.stats" = "Garden Stats";
+"tomato.garden.total" = "Total Tomatoes";
+"tomato.garden.focusTime" = "Total Focus Time";
+"tomato.garden.longestSession" = "Longest Session";
+"tomato.garden.currentStreak" = "Current Streak";
+"tomato.garden.collection" = "Collection";
+"tomato.garden.collectionProgress" = "Collection Progress";
+"tomato.garden.rarity.ordinary" = "Ordinary";
+"tomato.garden.rarity.rare" = "Rare";
+"tomato.garden.rarity.superRare" = "Super Rare";
+"tomato.garden.rarity.legendary" = "Legendary";
+"tomato.garden.type.classic" = "Classic Tomato";
+"tomato.garden.type.curly" = "Curly Vine Tomato";
+"tomato.garden.type.cute" = "Cute Tomato";
+"tomato.garden.type.batman" = "Batman Tomato";
+"tomato.garden.type.ironman" = "Iron Man Tomato";
+"tomato.garden.type.mario" = "Mario Tomato";
+"tomato.garden.type.pokemon" = "Pokémon Tomato";
+"tomato.garden.type.golden" = "Golden Tomato";
+"tomato.garden.type.platinum" = "Platinum Tomato";
+"tomato.garden.type.diamond" = "Diamond Tomato";
+"tomato.garden.exchange" = "Exchange";
+"tomato.garden.exchange.title" = "Tomato Exchange";
+"tomato.garden.exchange.5to1" = "5 Ordinary → 1 Rare";
+"tomato.garden.exchange.5rare" = "5 Rare → 1 Super Rare";
+"tomato.garden.exchange.5super" = "5 Super Rare → 1 Diamond";
+"tomato.garden.filter" = "Filter";
+"tomato.garden.sortBy" = "Sort By";
+"tomato.garden.sort.recent" = "Recent";
+"tomato.garden.sort.oldest" = "Oldest";
+"tomato.garden.physics" = "Physics Mode";
+"tomato.garden.todayCount" = "%d today";
+"tomato.garden.weekCount" = "%d this week";
+"tomato.garden.emptyState" = "No tomatoes yet";
+"tomato.garden.emptyMessage" = "Complete focus sessions to earn tomatoes!";
+"tomato.garden.achievement" = "Achievement Unlocked!";
+"tomato.garden.milestone" = "%d Tomatoes Collected";
+
+// Focus Session UI
+"focus.session.start" = "Start Focus";
+"focus.session.pause" = "Pause";
+"focus.session.resume" = "Resume";
+"focus.session.end" = "End Session";
+"focus.session.cancel" = "Cancel";
+"focus.session.active" = "Focusing";
+"focus.session.paused" = "Paused";
+"focus.session.remaining" = "Remaining";
+"focus.session.elapsed" = "Elapsed";
+"focus.session.minutes" = "%d min";
+"focus.session.completed" = "Session Completed!";
+"focus.session.congratulations" = "Congratulations!";
+"focus.session.earnedTomato" = "You earned a %@ tomato!";
+"focus.session.pointsEarned" = "+%d points earned";
+"focus.session.duration" = "Duration: %@";
+"focus.session.viewGarden" = "View My Garden";
+"focus.session.startAnother" = "Start Another Session";
+
+// Music Player
+"focus.music.title" = "Focus Music";
+"focus.music.select" = "Select Music";
+"focus.music.noMusic" = "No Music";
+"focus.music.nowPlaying" = "Now Playing";
+"focus.music.nextTrack" = "Next: %@";
+"focus.music.tracks" = "tracks";
+"focus.music.selectTrack" = "Select Track";
+"focus.music.selectPlaylist" = "Select Playlist";
+"focus.music.volume" = "Volume";
+"focus.music.singleTrack" = "Single Track";
+"focus.music.playlist" = "Playlist";
+"focus.music.createPlaylist" = "Create Playlist";
+"focus.music.noPlaylists" = "No playlists yet";
+"focus.music.category.ambient" = "Ambient";
+"focus.music.category.classical" = "Classical";
+"focus.music.category.lofi" = "Lo-fi Beats";
+"focus.music.category.nature" = "Nature Sounds";
+
+// Pomodoro Calendar
+"pomodoroCalendar.title" = "Focus Calendar";
+"pomodoroCalendar.addEvent" = "Add to Calendar";
+"pomodoroCalendar.todayEvents" = "Today's Sessions";
+"pomodoroCalendar.weekEvents" = "This Week";
+"pomodoroCalendar.freeSlots" = "Free Time Slots";
+"pomodoroCalendar.scheduled" = "Scheduled";
+"pomodoroCalendar.noEvents" = "No events scheduled";
+"pomodoroCalendar.eventTitle" = "Focus Session 🍅";
+"pomodoroCalendar.reminderBefore" = "Remind me %d minutes before";
+"pomodoroCalendar.duration" = "25 minutes";
+
+// Deep Focus Mode
+"deepFocus.title" = "Deep Focus Mode";
+"deepFocus.enable" = "Enable Deep Focus";
+"deepFocus.disable" = "Disable Deep Focus";
+"deepFocus.active" = "Deep Focus Active";
+"deepFocus.ready" = "Deep Focus Ready";
+"deepFocus.autoOptimize" = "Automatically optimize focus environment";
+"deepFocus.status" = "Focus environment optimized · Fully protected";
+"deepFocus.features.title" = "Deep Focus Features";
+"deepFocus.features.notifications" = "Blocks in-app notifications";
+"deepFocus.features.brightness" = "Reduces screen brightness to 50%";
+"deepFocus.features.audio" = "Optimizes audio environment";
+"deepFocus.features.oneClick" = "One-tap activation";
+"deepFocus.guide.title" = "Deep Focus Setup Guide";
+"deepFocus.guide.message" = "🌙 Deep Focus Mode Features:\n\n✅ Automatically blocks in-app notifications\n✅ Automatically reduces screen brightness to 50%\n✅ Optimizes audio environment\n✅ One-tap activation, focus effortlessly\n\n💡 Advanced Tip (Optional):\nTo block all system notifications, manually enable \"Do Not Disturb\" in Control Center for a complete focus experience.\n\nYou can also tell Siri: \"Turn on Do Not Disturb\"";
+"deepFocus.gotIt" = "Got It";
+"deepFocus.viewGuide" = "View Setup Guide";
+
 // MARK: - Library View
 "library.proBadge" = "Pro";
 "library.needsAttention" = "Needs attention";
@@ -1648,3 +1756,22 @@
 "progressiveHomework.accuracyLabel" = "Accuracy";
 
 // MARK: - Common Buttons
+
+// Additional Tomato Garden Keys
+"tomato.garden.locked" = "Locked";
+"tomato.garden.exchangeRequirement" = "%d exchange for 1";
+
+// Physics Tomato Garden
+"tomato.garden.shakePhone" = "Shake your phone";
+"tomato.garden.todayNew" = "Today's new";
+
+// Tomato Exchange View
+"tomato.garden.exchange.workshop" = "Tomato Exchange Workshop";
+"tomato.garden.exchange.description" = "Select 5 same-tier tomatoes to exchange for a higher-tier tomato";
+"tomato.garden.exchange.button" = "Exchange Tomatoes";
+"tomato.garden.exchange.selectTomatoes" = "Select tomatoes to exchange";
+"tomato.garden.exchange.noTomatoes" = "No tomatoes available to exchange";
+"tomato.garden.exchange.earnMore" = "Complete focus sessions to earn more tomatoes";
+"tomato.garden.exchange.exchanging" = "Exchanging...";
+"tomato.garden.exchange.congratulations" = "Congratulations\!";
+"tomato.garden.exchange.awesome" = "Awesome\!";

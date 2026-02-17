@@ -10,7 +10,7 @@ import EventKit
 
 struct PomodoroCalendarView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.colorScheme) var colorScheme
+    @StateObject private var themeManager = ThemeManager.shared
     @StateObject private var calendarService = PomodoroCalendarService.shared
     @StateObject private var notificationService = PomodoroNotificationService.shared
 
@@ -24,8 +24,7 @@ struct PomodoroCalendarView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // Background
-                Color(colorScheme == .dark ? .systemGroupedBackground : .systemBackground)
+                themeManager.backgroundColor
                     .ignoresSafeArea()
 
                 ScrollView {
@@ -52,20 +51,20 @@ struct PomodoroCalendarView: View {
                     .padding()
                 }
             }
-            .navigationTitle("📅 番茄专注日历")
+            .navigationTitle(NSLocalizedString("pomodoroCalendar.title", comment: ""))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: { dismiss() }) {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
+                            .foregroundColor(themeManager.secondaryText)
                     }
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: refreshEvents) {
                         Image(systemName: "arrow.clockwise")
-                            .foregroundColor(.blue)
+                            .foregroundColor(DesignTokens.Colors.Cute.blue)
                     }
                 }
             }
@@ -75,11 +74,11 @@ struct PomodoroCalendarView: View {
                     onEventAdded: { refreshEvents() }
                 )
             }
-            .alert("需要日历权限", isPresented: $showPermissionAlert) {
-                Button("去设置", action: openSettings)
-                Button("取消", role: .cancel) {}
+            .alert(NSLocalizedString("pomodoroCalendar.permissionRequired", comment: ""), isPresented: $showPermissionAlert) {
+                Button(NSLocalizedString("common.openSettings", comment: ""), action: openSettings)
+                Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {}
             } message: {
-                Text("请在设置中允许StudyAI访问您的日历，以便添加和查看番茄专注时间段")
+                Text(NSLocalizedString("pomodoroCalendar.permissionMessage", comment: ""))
             }
             .onAppear {
                 Task {
@@ -96,14 +95,15 @@ struct PomodoroCalendarView: View {
         VStack(spacing: 12) {
             Image(systemName: "calendar.badge.exclamationmark")
                 .font(.system(size: 40))
-                .foregroundColor(.orange)
+                .foregroundColor(DesignTokens.Colors.Cute.peach)
 
-            Text("需要访问日历")
+            Text(NSLocalizedString("pomodoroCalendar.accessRequired", comment: ""))
                 .font(.headline)
+                .foregroundColor(themeManager.primaryText)
 
-            Text("允许访问日历后，可以查看您的日程并添加番茄专注时间段")
+            Text(NSLocalizedString("pomodoroCalendar.accessDescription", comment: ""))
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundColor(themeManager.secondaryText)
                 .multilineTextAlignment(.center)
 
             Button(action: {
@@ -111,17 +111,17 @@ struct PomodoroCalendarView: View {
                     await requestPermissionsIfNeeded()
                 }
             }) {
-                Text("授权访问")
+                Text(NSLocalizedString("pomodoroCalendar.grantAccess", comment: ""))
                     .font(.body.weight(.semibold))
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
-                    .background(Color.blue)
+                    .background(DesignTokens.Colors.Cute.blue)
                     .cornerRadius(12)
             }
         }
         .padding()
-        .background(Color(colorScheme == .dark ? .secondarySystemGroupedBackground : .secondarySystemBackground))
+        .background(themeManager.cardBackground)
         .cornerRadius(16)
     }
 
@@ -129,11 +129,12 @@ struct PomodoroCalendarView: View {
 
     private var datePickerSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("选择日期")
+            Text(NSLocalizedString("pomodoroCalendar.selectDate", comment: ""))
                 .font(.headline)
+                .foregroundColor(themeManager.primaryText)
 
             DatePicker(
-                "日期",
+                NSLocalizedString("pomodoroCalendar.date", comment: ""),
                 selection: $selectedDate,
                 in: Date()...,
                 displayedComponents: [.date]
@@ -144,7 +145,7 @@ struct PomodoroCalendarView: View {
             }
         }
         .padding()
-        .background(Color(colorScheme == .dark ? .secondarySystemGroupedBackground : .white))
+        .background(themeManager.cardBackground)
         .cornerRadius(16)
     }
 
@@ -153,26 +154,27 @@ struct PomodoroCalendarView: View {
     private var todayEventsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("当天事件")
+                Text(NSLocalizedString("pomodoroCalendar.todayEvents", comment: ""))
                     .font(.headline)
+                    .foregroundColor(themeManager.primaryText)
 
                 Spacer()
 
-                Text("\(todayEvents.count)个")
+                Text("\(todayEvents.count)" + NSLocalizedString("pomodoroCalendar.eventsCount", comment: ""))
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(themeManager.secondaryText)
             }
 
             if todayEvents.isEmpty {
                 emptyEventsView
             } else {
                 ForEach(todayEvents) { event in
-                    EventRow(event: event)
+                    EventRow(event: event, themeManager: themeManager)
                 }
             }
         }
         .padding()
-        .background(Color(colorScheme == .dark ? .secondarySystemGroupedBackground : .white))
+        .background(themeManager.cardBackground)
         .cornerRadius(16)
     }
 
@@ -180,11 +182,11 @@ struct PomodoroCalendarView: View {
         VStack(spacing: 8) {
             Image(systemName: "calendar")
                 .font(.system(size: 40))
-                .foregroundColor(.secondary.opacity(0.5))
+                .foregroundColor(themeManager.secondaryText.opacity(0.5))
 
-            Text("当天没有事件")
+            Text(NSLocalizedString("pomodoroCalendar.noEvents", comment: ""))
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundColor(themeManager.secondaryText)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 30)
@@ -196,14 +198,15 @@ struct PomodoroCalendarView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: "clock.fill")
-                    .foregroundColor(.green)
-                Text("建议的空闲时间")
+                    .foregroundColor(DesignTokens.Colors.Cute.mint)
+                Text(NSLocalizedString("pomodoroCalendar.freeSlots", comment: ""))
                     .font(.headline)
+                    .foregroundColor(themeManager.primaryText)
             }
 
-            Text("以下时间段适合进行25分钟的番茄专注")
+            Text(NSLocalizedString("pomodoroCalendar.freeSlotsDescription", comment: ""))
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(themeManager.secondaryText)
 
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 100))], spacing: 12) {
                 ForEach(freeTimeSlots.prefix(6), id: \.self) { slot in
@@ -214,7 +217,7 @@ struct PomodoroCalendarView: View {
             }
         }
         .padding()
-        .background(Color(colorScheme == .dark ? .secondarySystemGroupedBackground : .white))
+        .background(themeManager.cardBackground)
         .cornerRadius(16)
     }
 
@@ -226,7 +229,7 @@ struct PomodoroCalendarView: View {
                 HStack {
                     Image(systemName: "plus.circle.fill")
                         .font(.system(size: 20))
-                    Text("自定义添加番茄专注")
+                    Text(NSLocalizedString("pomodoroCalendar.addCustom", comment: ""))
                         .font(.body.weight(.semibold))
                 }
                 .foregroundColor(.white)
@@ -234,7 +237,7 @@ struct PomodoroCalendarView: View {
                 .padding(.vertical, 16)
                 .background(
                     LinearGradient(
-                        colors: [Color.orange, Color.red],
+                        colors: [DesignTokens.Colors.Cute.peach, DesignTokens.Colors.Cute.pink],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -287,7 +290,7 @@ struct PomodoroCalendarView: View {
             // 安排提醒通知
             _ = notificationService.scheduleNotification(
                 for: eventId,
-                title: "番茄专注时间",
+                title: NSLocalizedString("pomodoroCalendar.eventTitle", comment: ""),
                 startDate: startTime
             )
 
@@ -311,7 +314,7 @@ struct PomodoroCalendarView: View {
 
 struct EventRow: View {
     let event: PomodoroCalendarEvent
-    @Environment(\.colorScheme) var colorScheme
+    let themeManager: ThemeManager
 
     var body: some View {
         HStack(spacing: 12) {
@@ -319,11 +322,11 @@ struct EventRow: View {
             VStack(spacing: 4) {
                 Text(formatTime(event.startDate))
                     .font(.caption.weight(.semibold))
-                    .foregroundColor(.blue)
+                    .foregroundColor(DesignTokens.Colors.Cute.blue)
 
                 Text(formatTime(event.endDate))
                     .font(.caption2)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(themeManager.secondaryText)
             }
             .frame(width: 60)
 
@@ -335,19 +338,19 @@ struct EventRow: View {
                     }
                     Text(event.title)
                         .font(.body.weight(.medium))
-                        .foregroundColor(.primary)
+                        .foregroundColor(themeManager.primaryText)
                 }
 
                 if let notes = event.notes {
                     Text(notes)
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(themeManager.secondaryText)
                         .lineLimit(1)
                 }
 
-                Text("\(event.durationInMinutes)分钟")
+                Text("\(event.durationInMinutes)" + NSLocalizedString("pomodoroCalendar.duration", comment: ""))
                     .font(.caption2)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(themeManager.secondaryText)
             }
 
             Spacer()
@@ -355,15 +358,11 @@ struct EventRow: View {
             // 番茄钟标记
             if event.isPomodoroEvent {
                 Image(systemName: "checkmark.circle.fill")
-                    .foregroundColor(.green)
+                    .foregroundColor(DesignTokens.Colors.Cute.mint)
             }
         }
         .padding()
-        .background(
-            colorScheme == .dark ?
-                Color.black.opacity(0.2) :
-                Color.gray.opacity(0.05)
-        )
+        .background(themeManager.cardBackground.opacity(0.5))
         .cornerRadius(12)
     }
 
@@ -393,7 +392,7 @@ struct FreeTimeSlotButton: View {
             .padding(.vertical, 12)
             .background(
                 LinearGradient(
-                    colors: [Color.green, Color.green.opacity(0.8)],
+                    colors: [DesignTokens.Colors.Cute.mint, DesignTokens.Colors.Cute.mint.opacity(0.8)],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
@@ -416,10 +415,11 @@ struct AddPomodoroEventSheet: View {
     @Binding var selectedDate: Date
     let onEventAdded: () -> Void
 
+    @StateObject private var themeManager = ThemeManager.shared
     @StateObject private var calendarService = PomodoroCalendarService.shared
     @StateObject private var notificationService = PomodoroNotificationService.shared
 
-    @State private var eventTitle = "番茄专注 🍅"
+    @State private var eventTitle = ""
     @State private var startTime = Date()
     @State private var duration: TimeInterval = 25 * 60
     @State private var notes = ""
@@ -428,45 +428,48 @@ struct AddPomodoroEventSheet: View {
     var body: some View {
         NavigationView {
             Form {
-                Section("事件信息") {
-                    TextField("标题", text: $eventTitle)
+                Section(NSLocalizedString("pomodoroCalendar.eventInfo", comment: "")) {
+                    TextField(NSLocalizedString("pomodoroCalendar.eventTitlePlaceholder", comment: ""), text: $eventTitle)
 
                     DatePicker(
-                        "开始时间",
+                        NSLocalizedString("pomodoroCalendar.startTime", comment: ""),
                         selection: $startTime,
                         in: Date()...,
                         displayedComponents: [.date, .hourAndMinute]
                     )
 
-                    Picker("时长", selection: $duration) {
-                        Text("25分钟").tag(TimeInterval(25 * 60))
-                        Text("50分钟（双倍）").tag(TimeInterval(50 * 60))
+                    Picker(NSLocalizedString("pomodoroCalendar.durationLabel", comment: ""), selection: $duration) {
+                        Text(NSLocalizedString("pomodoroCalendar.duration25", comment: "")).tag(TimeInterval(25 * 60))
+                        Text(NSLocalizedString("pomodoroCalendar.duration50", comment: "")).tag(TimeInterval(50 * 60))
                     }
                 }
 
-                Section("备注") {
+                Section(NSLocalizedString("pomodoroCalendar.notes", comment: "")) {
                     TextEditor(text: $notes)
                         .frame(height: 80)
                 }
 
                 Section {
-                    Toggle("提前5分钟提醒", isOn: $withReminder)
+                    Toggle(NSLocalizedString("pomodoroCalendar.reminderBefore", comment: ""), isOn: $withReminder)
                 }
             }
-            .navigationTitle("添加番茄专注")
+            .navigationTitle(NSLocalizedString("pomodoroCalendar.addEvent", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("取消") { dismiss() }
+                    Button(NSLocalizedString("common.cancel", comment: "")) { dismiss() }
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("添加") {
+                    Button(NSLocalizedString("common.add", comment: "")) {
                         addEvent()
                     }
                     .fontWeight(.semibold)
                 }
             }
+        }
+        .onAppear {
+            eventTitle = NSLocalizedString("pomodoroCalendar.eventTitle", comment: "")
         }
     }
 

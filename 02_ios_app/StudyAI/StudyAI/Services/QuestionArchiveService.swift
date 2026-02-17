@@ -273,7 +273,7 @@ class QuestionArchiveService: ObservableObject {
             }
         }()
 
-        // Build request body - ensure isCorrect is included
+        // Build request body - ensure isCorrect and archivedAt are included
         let requestBody: [String: Any] = [
             "subject": questionData["subject"] as? String ?? "Unknown",
             "questionText": questionData["questionText"] as? String ?? "",
@@ -288,7 +288,8 @@ class QuestionArchiveService: ObservableObject {
             "points": questionData["points"] as? Float ?? 0.0,
             "maxPoints": questionData["maxPoints"] as? Float ?? 1.0,
             "feedback": questionData["feedback"] as? String ?? "",
-            "isCorrect": questionData["isCorrect"] as? Bool ?? false  // ✅ CRITICAL for mistake tracking
+            "isCorrect": questionData["isCorrect"] as? Bool ?? false,  // ✅ CRITICAL for mistake tracking
+            "archivedAt": questionData["archivedAt"] as? String ?? ISO8601DateFormatter().string(from: Date())  // ✅ CRITICAL for date range filtering
         ]
 
         var request = URLRequest(url: url)
@@ -301,6 +302,7 @@ class QuestionArchiveService: ObservableObject {
         print("   📤 [Archive] Uploading question to server: \(url)")
         print("   📝 [Archive] Grade: \(rawGrade) → \(normalizedGrade)")
         print("   📝 [Archive] isCorrect: \(requestBody["isCorrect"] ?? "nil")")
+        print("   📅 [Archive] archivedAt: \(requestBody["archivedAt"] ?? "nil")")
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
