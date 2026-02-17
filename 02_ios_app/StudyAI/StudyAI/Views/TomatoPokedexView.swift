@@ -9,27 +9,16 @@ import SwiftUI
 
 struct TomatoPokedexView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.colorScheme) var colorScheme
     @StateObject private var gardenService = TomatoGardenService.shared
+    @StateObject private var themeManager = ThemeManager.shared
     @State private var showPhysicsGarden = false
     @State private var showExchangeView = false
 
     var body: some View {
         NavigationView {
             ZStack {
-                // Background
-                LinearGradient(
-                    gradient: Gradient(colors: colorScheme == .dark ? [
-                        Color(red: 0.05, green: 0.05, blue: 0.1),
-                        Color(red: 0.1, green: 0.1, blue: 0.15)
-                    ] : [
-                        Color(red: 0.95, green: 0.97, blue: 1.0),
-                        Color(red: 0.90, green: 0.95, blue: 0.98)
-                    ]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+                themeManager.backgroundColor
+                    .ignoresSafeArea()
 
                 ScrollView {
                     VStack(spacing: 24) {
@@ -47,23 +36,23 @@ struct TomatoPokedexView: View {
                     .padding()
                 }
             }
-            .navigationTitle("🍅 番茄图鉴")
+            .navigationTitle(NSLocalizedString("tomato.garden.collection", comment: ""))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: { dismiss() }) {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
+                            .foregroundColor(themeManager.secondaryText)
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { showPhysicsGarden = true }) {
                         HStack(spacing: 4) {
                             Image(systemName: "sparkles")
-                            Text("物理模式")
+                            Text(NSLocalizedString("tomato.garden.physics", comment: ""))
                                 .font(.subheadline.weight(.semibold))
                         }
-                        .foregroundColor(.purple)
+                        .foregroundColor(DesignTokens.Colors.Cute.lavender)
                     }
                 }
             }
@@ -83,27 +72,28 @@ struct TomatoPokedexView: View {
             // Progress Bar
             HStack {
                 Image(systemName: "star.fill")
-                    .foregroundColor(.yellow)
-                Text("收集进度")
+                    .foregroundColor(DesignTokens.Colors.Cute.yellow)
+                Text(NSLocalizedString("tomato.garden.collectionProgress", comment: ""))
                     .font(.headline)
+                    .foregroundColor(themeManager.primaryText)
                 Spacer()
                 Text("\(gardenService.stats.unlockedCount)/\(TomatoType.allCases.count)")
                     .font(.headline)
-                    .foregroundColor(.blue)
+                    .foregroundColor(DesignTokens.Colors.Cute.blue)
             }
 
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
                     // Background
                     RoundedRectangle(cornerRadius: 10)
-                        .fill(Color.gray.opacity(0.2))
+                        .fill(themeManager.secondaryText.opacity(0.2))
                         .frame(height: 20)
 
                     // Progress
                     RoundedRectangle(cornerRadius: 10)
                         .fill(
                             LinearGradient(
-                                colors: [.blue, .purple],
+                                colors: [DesignTokens.Colors.Cute.blue, DesignTokens.Colors.Cute.lavender],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
@@ -115,15 +105,15 @@ struct TomatoPokedexView: View {
 
             // Stats Row
             HStack(spacing: 20) {
-                StatBubble(icon: "🍅", value: "\(gardenService.stats.totalTomatoes)", label: "总数量")
-                StatBubble(icon: "⏱️", value: gardenService.stats.formattedTotalTime, label: "专注时长")
-                StatBubble(icon: "🔥", value: String(format: "%.0f%%", gardenService.stats.collectionProgress), label: "完成度")
+                StatBubble(icon: "🍅", value: "\(gardenService.stats.totalTomatoes)", label: NSLocalizedString("tomato.garden.total", comment: ""), themeManager: themeManager)
+                StatBubble(icon: "⏱️", value: gardenService.stats.formattedTotalTime, label: NSLocalizedString("tomato.garden.focusTime", comment: ""), themeManager: themeManager)
+                StatBubble(icon: "🔥", value: String(format: "%.0f%%", gardenService.stats.collectionProgress), label: NSLocalizedString("tomato.garden.collectionProgress", comment: ""), themeManager: themeManager)
             }
         }
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.white)
+                .fill(themeManager.cardBackground)
                 .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
         )
     }
@@ -137,7 +127,7 @@ struct TomatoPokedexView: View {
                     Circle()
                         .fill(
                             LinearGradient(
-                                colors: [.orange.opacity(0.3), .red.opacity(0.2)],
+                                colors: [DesignTokens.Colors.Cute.peach.opacity(0.3), DesignTokens.Colors.Cute.pink.opacity(0.2)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -146,30 +136,30 @@ struct TomatoPokedexView: View {
 
                     Image(systemName: "arrow.triangle.2.circlepath")
                         .font(.system(size: 28))
-                        .foregroundColor(.orange)
+                        .foregroundColor(DesignTokens.Colors.Cute.peach)
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("番茄兑换工坊")
+                    Text(NSLocalizedString("tomato.garden.exchange.title", comment: ""))
                         .font(.headline)
-                        .foregroundColor(colorScheme == .dark ? .white : .primary)
+                        .foregroundColor(themeManager.primaryText)
 
-                    Text("5个番茄兑换更高级别")
+                    Text(NSLocalizedString("tomato.garden.exchange.5to1", comment: ""))
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(themeManager.secondaryText)
                 }
 
                 Spacer()
 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.orange)
+                    .foregroundColor(DesignTokens.Colors.Cute.peach)
             }
             .padding(20)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.white)
-                    .shadow(color: .orange.opacity(0.2), radius: 10, x: 0, y: 5)
+                    .fill(themeManager.cardBackground)
+                    .shadow(color: DesignTokens.Colors.Cute.peach.opacity(0.2), radius: 10, x: 0, y: 5)
             )
         }
         .buttonStyle(PlainButtonStyle())
@@ -187,7 +177,7 @@ struct TomatoPokedexView: View {
                     tomatoType: type,
                     count: gardenService.stats.count(for: type),
                     isUnlocked: gardenService.stats.isUnlocked(type),
-                    colorScheme: colorScheme
+                    themeManager: themeManager
                 )
             }
         }
@@ -200,7 +190,7 @@ struct PokedexCard: View {
     let tomatoType: TomatoType
     let count: Int
     let isUnlocked: Bool
-    let colorScheme: ColorScheme
+    let themeManager: ThemeManager
 
     var body: some View {
         VStack(spacing: 12) {
@@ -208,7 +198,7 @@ struct PokedexCard: View {
             ZStack {
                 // Background Circle
                 Circle()
-                    .fill(isUnlocked ? AnyShapeStyle(rarityGradient) : AnyShapeStyle(Color.gray.opacity(0.2)))
+                    .fill(isUnlocked ? AnyShapeStyle(rarityGradient) : AnyShapeStyle(themeManager.secondaryText.opacity(0.2)))
                     .frame(width: 120, height: 120)
 
                 if isUnlocked {
@@ -222,10 +212,10 @@ struct PokedexCard: View {
                     VStack(spacing: 8) {
                         Image(systemName: "lock.fill")
                             .font(.system(size: 40))
-                            .foregroundColor(.gray.opacity(0.5))
-                        Text("未获得")
+                            .foregroundColor(themeManager.secondaryText.opacity(0.5))
+                        Text(NSLocalizedString("tomato.garden.locked", comment: ""))
                             .font(.caption)
-                            .foregroundColor(.gray.opacity(0.7))
+                            .foregroundColor(themeManager.secondaryText.opacity(0.7))
                     }
                 }
 
@@ -255,7 +245,7 @@ struct PokedexCard: View {
             VStack(spacing: 4) {
                 Text(tomatoType.displayName)
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : .primary)
+                    .foregroundColor(themeManager.primaryText)
 
                 if isUnlocked {
                     HStack(spacing: 4) {
@@ -269,7 +259,7 @@ struct PokedexCard: View {
                 } else {
                     Text("???")
                         .font(.caption)
-                        .foregroundColor(.gray.opacity(0.5))
+                        .foregroundColor(themeManager.secondaryText.opacity(0.5))
                 }
             }
 
@@ -277,7 +267,7 @@ struct PokedexCard: View {
             if isUnlocked {
                 Text(tomatoType.description)
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(themeManager.secondaryText)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
                     .padding(.horizontal, 8)
@@ -287,7 +277,7 @@ struct PokedexCard: View {
         .frame(maxWidth: .infinity)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.white)
+                .fill(themeManager.cardBackground)
                 .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
         )
         .overlay(
@@ -307,15 +297,15 @@ struct PokedexCard: View {
     private var rarityColor: Color {
         switch tomatoType.rarityColor {
         case "gray":
-            return .gray
+            return themeManager.secondaryText
         case "blue":
-            return .blue
+            return DesignTokens.Colors.Cute.blue
         case "purple":
-            return .purple
+            return DesignTokens.Colors.Cute.lavender
         case "orange":
-            return .orange
+            return DesignTokens.Colors.Cute.peach
         default:
-            return .gray
+            return themeManager.secondaryText
         }
     }
 }
@@ -330,7 +320,7 @@ struct ExchangeCard: View {
     let toLabel: String
     let requirement: Int
     let canExchange: Bool
-    let colorScheme: ColorScheme
+    let themeManager: ThemeManager
     let onExchange: () -> Void
 
     var body: some View {
@@ -341,10 +331,10 @@ struct ExchangeCard: View {
                     .font(.system(size: 32))
                 Text(fromLabel)
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(themeManager.secondaryText)
                 Text("×\(fromCount)")
                     .font(.caption2.bold())
-                    .foregroundColor(canExchange ? .green : .red)
+                    .foregroundColor(canExchange ? DesignTokens.Colors.Cute.mint : DesignTokens.Colors.Cute.peach)
             }
             .frame(width: 80)
 
@@ -352,10 +342,10 @@ struct ExchangeCard: View {
             VStack(spacing: 4) {
                 Image(systemName: "arrow.right")
                     .font(.title3)
-                    .foregroundColor(.orange)
-                Text("\(requirement)个兑换1个")
+                    .foregroundColor(DesignTokens.Colors.Cute.peach)
+                Text(String(format: NSLocalizedString("tomato.garden.exchangeRequirement", comment: ""), requirement))
                     .font(.caption2)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(themeManager.secondaryText)
             }
             .frame(width: 100)
 
@@ -365,7 +355,7 @@ struct ExchangeCard: View {
                     .font(.system(size: 32))
                 Text(toLabel)
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(themeManager.secondaryText)
             }
             .frame(width: 80)
 
@@ -373,14 +363,14 @@ struct ExchangeCard: View {
 
             // Exchange Button
             Button(action: onExchange) {
-                Text("兑换")
+                Text(NSLocalizedString("tomato.garden.exchange", comment: ""))
                     .font(.subheadline.bold())
                     .foregroundColor(.white)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 10)
                     .background(
                         RoundedRectangle(cornerRadius: 10)
-                            .fill(canExchange ? Color.orange : Color.gray)
+                            .fill(canExchange ? DesignTokens.Colors.Cute.peach : themeManager.secondaryText)
                     )
             }
             .disabled(!canExchange)
@@ -388,10 +378,10 @@ struct ExchangeCard: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.white.opacity(0.5))
+                .fill(themeManager.cardBackground.opacity(0.5))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(canExchange ? Color.orange.opacity(0.3) : Color.gray.opacity(0.2), lineWidth: 1)
+                        .stroke(canExchange ? DesignTokens.Colors.Cute.peach.opacity(0.3) : themeManager.secondaryText.opacity(0.2), lineWidth: 1)
                 )
         )
     }
@@ -403,6 +393,7 @@ private struct StatBubble: View {
     let icon: String
     let value: String
     let label: String
+    let themeManager: ThemeManager
 
     var body: some View {
         VStack(spacing: 4) {
@@ -410,9 +401,10 @@ private struct StatBubble: View {
                 .font(.system(size: 24))
             Text(value)
                 .font(.system(size: 14, weight: .bold))
+                .foregroundColor(themeManager.primaryText)
             Text(label)
                 .font(.caption2)
-                .foregroundColor(.secondary)
+                .foregroundColor(themeManager.secondaryText)
         }
         .frame(maxWidth: .infinity)
     }

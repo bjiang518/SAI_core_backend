@@ -16,9 +16,13 @@ struct PrivacySettingsView: View {
     @State private var consentStatus: ConsentStatusInfo?
     @State private var showingParentalConsent = false
     @State private var showingDataExport = false
+    @State private var showingClearData = false
     @State private var showingDeleteAccount = false
     @State private var showingPrivacyPolicy = false
     @State private var showingTermsOfService = false
+    @State private var confirmEmailText = ""
+    @State private var clearDataResult: String? = nil
+    @State private var deleteAccountResult: String? = nil
 
     // Parent Reports State
     @State private var parentReportsSettings = ParentReportSettings.load()
@@ -201,6 +205,31 @@ struct PrivacySettingsView: View {
                     .buttonStyle(.plain)
 
                     Button(action: {
+                        showingClearData = true
+                    }) {
+                        HStack {
+                            Image(systemName: "xmark.bin.fill")
+                                .foregroundColor(.orange)
+                                .frame(width: 24)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Clear My Data")
+                                    .foregroundColor(.primary)
+                                Text("Delete all learning data but keep your account")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+
+                            Spacer()
+
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    Button(action: {
                         showingDeleteAccount = true
                     }) {
                         HStack {
@@ -340,13 +369,26 @@ struct PrivacySettingsView: View {
             } message: {
                 Text(NSLocalizedString("privacy.settings.exportDataAlert.message", comment: ""))
             }
+            .alert("Clear My Data", isPresented: $showingClearData) {
+                Button("Cancel", role: .cancel) { }
+                Button("Clear All Data", role: .destructive) {
+                    clearMyData()
+                }
+            } message: {
+                Text("This will permanently delete all your learning data including:\n\n• Homework questions (784 questions)\n• Chat conversations\n• Parent reports\n• Progress tracking\n\nYour account will remain active. This action cannot be undone.")
+            }
             .alert(NSLocalizedString("privacy.settings.deleteAccountAlert.title", comment: ""), isPresented: $showingDeleteAccount) {
-                Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) { }
+                TextField("Enter your email to confirm", text: $confirmEmailText)
+                    .textContentType(.emailAddress)
+                    .autocapitalization(.none)
+                Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {
+                    confirmEmailText = ""
+                }
                 Button(NSLocalizedString("privacy.settings.deleteAccountAlert.button", comment: ""), role: .destructive) {
                     deleteAccount()
                 }
             } message: {
-                Text(NSLocalizedString("privacy.settings.deleteAccountAlert.message", comment: ""))
+                Text("This will permanently delete your account and ALL data. Please enter your email to confirm.")
             }
         }
     }
@@ -416,10 +458,124 @@ struct PrivacySettingsView: View {
         print("Export user data requested")
     }
 
+    private func clearMyData() {
+        Task {
+            do {
+                guard let token = AuthenticationService.shared.getAuthToken() else {
+                    print("❌ No authentication token")
+                    return
+                }
+
+                guard let url = URL(string: "https://sai-backend-production.up.railway.app/api/user/clear-my-data") else {
+                    print("❌ Invalid URL")
+                    return
+                }
+
+                var request = URLRequest(url: url)
+                request.httpMethod = "DELETE"
+                request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+                print("🗑️ Calling clear-my-data endpoint...")
+                let (data, response) = try await URLSession.shared.data(for: request)
+
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    print("❌ Invalid response")
+                    return
+                }
+
+                print("📡 Response status: \(httpResponse.statusCode)")
+
+                if httpResponse.statusCode == 200 {
+                    if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                        print("✅ Data cleared successfully:")
+                        print(json)
+
+                        await MainActor.run {
+                            clearDataResult = "All learning data has been cleared successfully."
+                            // Clear local storage too
+                            QuestionLocalStorage.shared.clearAll()
+                            ConversationLocalStorage.shared.clearAll()
+                        }
+                    }
+                } else {
+                    let errorText = String(data: data, encoding: .utf8) ?? "Unknown error"
+                    print("❌ Failed to clear data: \(errorText)")
+                    await MainActor.run {
+                        clearDataResult = "Failed to clear data: \(errorText)"
+                    }
+                }
+            } catch {
+                print("❌ Error clearing data: \(error.localizedDescription)")
+                await MainActor.run {
+                    clearDataResult = "Error: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+
     private func deleteAccount() {
-        // TODO: Implement account deletion
-        // Call /api/user/delete-my-data endpoint
-        print("Delete account requested")
+        Task {
+            do {
+                guard let token = AuthenticationService.shared.getAuthToken() else {
+                    print("❌ No authentication token")
+                    return
+                }
+
+                guard let url = URL(string: "https://sai-backend-production.up.railway.app/api/user/delete-account") else {
+                    print("❌ Invalid URL")
+                    return
+                }
+
+                var request = URLRequest(url: url)
+                request.httpMethod = "DELETE"
+                request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+                let requestBody: [String: Any] = [
+                    "confirmEmail": confirmEmailText
+                ]
+                request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+
+                print("🗑️ Calling delete-account endpoint with email: \(confirmEmailText)")
+                let (data, response) = try await URLSession.shared.data(for: request)
+
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    print("❌ Invalid response")
+                    return
+                }
+
+                print("📡 Response status: \(httpResponse.statusCode)")
+
+                if httpResponse.statusCode == 200 {
+                    print("✅ Account deleted successfully")
+
+                    await MainActor.run {
+                        // Clear local storage
+                        QuestionLocalStorage.shared.clearAll()
+                        ConversationLocalStorage.shared.clearAll()
+
+                        // Log out user
+                        AuthenticationService.shared.signOut()
+
+                        deleteAccountResult = "Account deleted successfully"
+                        confirmEmailText = ""
+                    }
+                } else {
+                    let errorText = String(data: data, encoding: .utf8) ?? "Unknown error"
+                    print("❌ Failed to delete account: \(errorText)")
+                    await MainActor.run {
+                        deleteAccountResult = "Failed: \(errorText)"
+                        confirmEmailText = ""
+                    }
+                }
+            } catch {
+                print("❌ Error deleting account: \(error.localizedDescription)")
+                await MainActor.run {
+                    deleteAccountResult = "Error: \(error.localizedDescription)"
+                    confirmEmailText = ""
+                }
+            }
+        }
     }
 
     // MARK: - Parent Reports Methods

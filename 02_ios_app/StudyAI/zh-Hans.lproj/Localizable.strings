@@ -1587,3 +1587,130 @@
 "theme.description.day" = "经典浅色主题，适合白天使用";
 "theme.description.night" = "深色主题，适合弱光环境";
 "theme.description.cute" = "柔和的粉彩色，带来俏皮体验";
+
+// 番茄园字符串
+"tomato.garden.title" = "我的番茄园";
+"tomato.garden.stats" = "花园统计";
+"tomato.garden.total" = "总番茄数";
+"tomato.garden.focusTime" = "总专注时间";
+"tomato.garden.longestSession" = "最长专注";
+"tomato.garden.currentStreak" = "当前连续";
+"tomato.garden.collection" = "收藏";
+"tomato.garden.collectionProgress" = "收藏进度";
+"tomato.garden.rarity.ordinary" = "普通";
+"tomato.garden.rarity.rare" = "稀有";
+"tomato.garden.rarity.superRare" = "超级稀有";
+"tomato.garden.rarity.legendary" = "传说";
+"tomato.garden.type.classic" = "经典番茄";
+"tomato.garden.type.curly" = "卷藤番茄";
+"tomato.garden.type.cute" = "萌萌番茄";
+"tomato.garden.type.batman" = "蝙蝠侠番茄";
+"tomato.garden.type.ironman" = "钢铁侠番茄";
+"tomato.garden.type.mario" = "马里奥番茄";
+"tomato.garden.type.pokemon" = "宝可梦番茄";
+"tomato.garden.type.golden" = "黄金番茄";
+"tomato.garden.type.platinum" = "白金番茄";
+"tomato.garden.type.diamond" = "钻石番茄";
+"tomato.garden.exchange" = "兑换";
+"tomato.garden.exchange.title" = "番茄兑换";
+"tomato.garden.exchange.5to1" = "5个普通 → 1个稀有";
+"tomato.garden.exchange.5rare" = "5个稀有 → 1个超级稀有";
+"tomato.garden.exchange.5super" = "5个超级稀有 → 1个钻石";
+"tomato.garden.filter" = "筛选";
+"tomato.garden.sortBy" = "排序";
+"tomato.garden.sort.recent" = "最近";
+"tomato.garden.sort.oldest" = "最早";
+"tomato.garden.physics" = "物理模式";
+"tomato.garden.todayCount" = "今天%d个";
+"tomato.garden.weekCount" = "本周%d个";
+"tomato.garden.emptyState" = "还没有番茄";
+"tomato.garden.emptyMessage" = "完成专注学习以获得番茄！";
+"tomato.garden.achievement" = "成就解锁！";
+"tomato.garden.milestone" = "收集%d个番茄";
+
+// 专注会话界面
+"focus.session.start" = "开始专注";
+"focus.session.pause" = "暂停";
+"focus.session.resume" = "继续";
+"focus.session.end" = "结束会话";
+"focus.session.cancel" = "取消";
+"focus.session.active" = "专注中";
+"focus.session.paused" = "已暂停";
+"focus.session.remaining" = "剩余";
+"focus.session.elapsed" = "已用时";
+"focus.session.minutes" = "%d分钟";
+"focus.session.completed" = "会话完成！";
+"focus.session.congratulations" = "恭喜！";
+"focus.session.earnedTomato" = "你获得了一个%@番茄！";
+"focus.session.pointsEarned" = "+%d积分";
+"focus.session.duration" = "时长：%@";
+"focus.session.viewGarden" = "查看我的花园";
+"focus.session.startAnother" = "开始另一个会话";
+
+// 音乐播放器
+"focus.music.title" = "专注音乐";
+"focus.music.select" = "选择音乐";
+"focus.music.noMusic" = "无音乐";
+"focus.music.nowPlaying" = "正在播放";
+"focus.music.nextTrack" = "下一首：%@";
+"focus.music.tracks" = "首";
+"focus.music.selectTrack" = "选择曲目";
+"focus.music.selectPlaylist" = "选择播放列表";
+"focus.music.volume" = "音量";
+"focus.music.singleTrack" = "单曲";
+"focus.music.playlist" = "播放列表";
+"focus.music.createPlaylist" = "创建播放列表";
+"focus.music.noPlaylists" = "还没有播放列表";
+"focus.music.category.ambient" = "环境音乐";
+"focus.music.category.classical" = "古典音乐";
+"focus.music.category.lofi" = "Lo-fi节拍";
+"focus.music.category.nature" = "自然声音";
+
+// 番茄钟日历
+"pomodoroCalendar.title" = "专注日历";
+"pomodoroCalendar.addEvent" = "添加到日历";
+"pomodoroCalendar.todayEvents" = "今天的会话";
+"pomodoroCalendar.weekEvents" = "本周";
+"pomodoroCalendar.freeSlots" = "空闲时段";
+"pomodoroCalendar.scheduled" = "已安排";
+"pomodoroCalendar.noEvents" = "没有安排的事件";
+"pomodoroCalendar.eventTitle" = "专注会话🍅";
+"pomodoroCalendar.reminderBefore" = "提前%d分钟提醒我";
+"pomodoroCalendar.duration" = "25分钟";
+
+// 深度专注模式
+"deepFocus.title" = "深度专注模式";
+"deepFocus.enable" = "启用深度专注";
+"deepFocus.disable" = "禁用深度专注";
+"deepFocus.active" = "深度专注已启用";
+"deepFocus.ready" = "深度专注准备就绪";
+"deepFocus.autoOptimize" = "自动优化专注环境";
+"deepFocus.status" = "已优化专注环境 · 全面保护中";
+"deepFocus.features.title" = "深度专注功能";
+"deepFocus.features.notifications" = "屏蔽App内通知";
+"deepFocus.features.brightness" = "降低屏幕亮度至50%";
+"deepFocus.features.audio" = "优化音频环境";
+"deepFocus.features.oneClick" = "一键启用";
+"deepFocus.guide.title" = "深度专注设置指南";
+"deepFocus.guide.message" = "🌙 深度专注模式功能：\n\n✅ 自动屏蔽App内通知\n✅ 自动降低屏幕亮度至50%\n✅ 优化音频环境\n✅ 一键启用，专注无忧\n\n💡 进阶技巧（选用）：\n如需屏蔽所有系统通知，可在控制中心手动启用「勿扰模式」，获得更完整的专注体验。\n\n也可以对Siri说：「开启勿扰模式」";
+"deepFocus.gotIt" = "知道了";
+"deepFocus.viewGuide" = "查看设置指南";
+
+// Additional Tomato Garden Keys
+"tomato.garden.locked" = "未获得";
+"tomato.garden.exchangeRequirement" = "%d个兑换1个";
+
+// 物理番茄园
+"tomato.garden.shakePhone" = "晃动手机试试看";
+"tomato.garden.todayNew" = "今日新增";
+
+// Tomato Exchange View
+"tomato.garden.exchange.workshop" = "番茄兑换工坊";
+"tomato.garden.exchange.description" = "选择5个同等级番茄，兑换更高等级番茄";
+"tomato.garden.exchange.button" = "兑换番茄";
+"tomato.garden.exchange.selectTomatoes" = "选择要兑换的番茄";
+"tomato.garden.exchange.noTomatoes" = "没有可兑换的番茄";
+"tomato.garden.exchange.earnMore" = "完成专注任务获得更多番茄";
+"tomato.garden.exchange.exchanging" = "正在兑换...";
+"tomato.garden.exchange.congratulations" = "恭喜获得";
+"tomato.garden.exchange.awesome" = "太棒了！";

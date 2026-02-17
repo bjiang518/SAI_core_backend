@@ -12,7 +12,7 @@ import CoreMotion
 // MARK: - SwiftUI Wrapper View
 struct PhysicsTomatoGardenView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.colorScheme) var colorScheme
+    @StateObject private var themeManager = ThemeManager.shared
     @StateObject private var gardenService = TomatoGardenService.shared
 
     var body: some View {
@@ -36,10 +36,10 @@ struct PhysicsTomatoGardenView: View {
 
                     // Instructions
                     VStack(alignment: .trailing, spacing: 4) {
-                        Text("🍅 我的番茄园")
+                        Text(NSLocalizedString("tomato.garden.title", comment: ""))
                             .font(.headline)
                             .foregroundColor(.white)
-                        Text("晃动手机试试看")
+                        Text(NSLocalizedString("tomato.garden.shakePhone", comment: ""))
                             .font(.caption)
                             .foregroundColor(.white.opacity(0.8))
                     }
@@ -67,19 +67,22 @@ struct PhysicsTomatoGardenView: View {
             StatBubble(
                 icon: "🍅",
                 value: "\(gardenService.stats.totalTomatoes)",
-                label: "总数量"
+                label: NSLocalizedString("tomato.garden.total", comment: ""),
+                themeManager: themeManager
             )
 
             StatBubble(
                 icon: "⏱️",
                 value: gardenService.stats.formattedTotalTime,
-                label: "专注时长"
+                label: NSLocalizedString("tomato.garden.focusTime", comment: ""),
+                themeManager: themeManager
             )
 
             StatBubble(
                 icon: "🔥",
                 value: "\(gardenService.getTomatoesSortedByDate().count)",
-                label: "今日新增"
+                label: NSLocalizedString("tomato.garden.todayNew", comment: ""),
+                themeManager: themeManager
             )
         }
         .padding()
@@ -104,6 +107,7 @@ private struct StatBubble: View {
     let icon: String
     let value: String
     let label: String
+    let themeManager: ThemeManager
 
     var body: some View {
         VStack(spacing: 4) {
