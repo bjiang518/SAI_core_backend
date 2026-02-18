@@ -44,99 +44,98 @@ module.exports = async function (fastify, opts) {
      *   - error: Error occurred during processing
      *   - session_ended: Session closed
      */
-    fastify.register(async function (fastify) {
-        fastify.get('/api/ai/gemini-live/connect', { websocket: true }, async (connection, req) => {
-            const clientSocket = connection.socket;
-            let geminiSession = null;
-            let userId = null;
-            let sessionId = null;
+    fastify.get('/api/ai/gemini-live/connect', { websocket: true }, (connection, req) => {
+        const clientSocket = connection.socket;
+        let geminiSession = null;
+        let userId = null;
+        let sessionId = null;
 
+        try {
+            // Authenticate via query parameter
+            const token = req.query.token;
+            sessionId = req.query.sessionId;
+
+            if (!token) {
+                clientSocket.send(JSON.stringify({
+                    type: 'error',
+                    error: 'Missing authentication token'
+                }));
+                clientSocket.close(1008, 'Unauthorized');
+                return;
+            }
+
+            // Verify JWT token
             try {
-                // Authenticate via query parameter
-                const token = req.query.token;
-                sessionId = req.query.sessionId;
+                const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                userId = decoded.userId;
+                logger.info({ userId, sessionId }, 'Gemini Live connection authenticated');
+            } catch (error) {
+                logger.error({ error }, 'JWT verification failed');
+                clientSocket.send(JSON.stringify({
+                    type: 'error',
+                    error: 'Invalid authentication token'
+                }));
+                clientSocket.close(1008, 'Unauthorized');
+                return;
+            }
 
-                if (!token) {
+            // Verify session ownership
+            if (sessionId) {
+                const sessionCheck = await db.query(
+                    'SELECT user_id FROM sessions WHERE id = $1',
+                    [sessionId]
+                );
+
+                if (sessionCheck.rows.length === 0 || sessionCheck.rows[0].user_id !== userId) {
                     clientSocket.send(JSON.stringify({
                         type: 'error',
-                        error: 'Missing authentication token'
+                        error: 'Session not found or unauthorized'
                     }));
                     clientSocket.close(1008, 'Unauthorized');
                     return;
                 }
+            }
 
-                // Verify JWT token
+            // Handle incoming messages from iOS client
+            clientSocket.on('message', async (message) => {
                 try {
-                    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-                    userId = decoded.userId;
-                    logger.info({ userId, sessionId }, 'Gemini Live connection authenticated');
+                    const data = JSON.parse(message.toString());
+
+                    switch (data.type) {
+                        case 'start_session':
+                            await handleStartSession(data);
+                            break;
+
+                        case 'audio_chunk':
+                            await handleAudioChunk(data);
+                            break;
+
+                        case 'text_message':
+                            await handleTextMessage(data);
+                            break;
+
+                        case 'interrupt':
+                            await handleInterrupt();
+                            break;
+
+                        case 'end_session':
+                            await handleEndSession();
+                            break;
+
+                        default:
+                            logger.warn({ type: data.type }, 'Unknown message type');
+                    }
                 } catch (error) {
-                    logger.error({ error }, 'JWT verification failed');
+                    logger.error({ error }, 'Error processing WebSocket message');
                     clientSocket.send(JSON.stringify({
                         type: 'error',
-                        error: 'Invalid authentication token'
+                        error: error.message
                     }));
-                    clientSocket.close(1008, 'Unauthorized');
-                    return;
                 }
+            });
 
-                // Verify session ownership
-                if (sessionId) {
-                    const sessionCheck = await db.query(
-                        'SELECT user_id FROM sessions WHERE id = $1',
-                        [sessionId]
-                    );
-
-                    if (sessionCheck.rows.length === 0 || sessionCheck.rows[0].user_id !== userId) {
-                        clientSocket.send(JSON.stringify({
-                            type: 'error',
-                            error: 'Session not found or unauthorized'
-                        }));
-                        clientSocket.close(1008, 'Unauthorized');
-                        return;
-                    }
-                }
-
-                // Handle incoming messages from iOS client
-                clientSocket.on('message', async (message) => {
-                    try {
-                        const data = JSON.parse(message.toString());
-
-                        switch (data.type) {
-                            case 'start_session':
-                                await handleStartSession(data);
-                                break;
-
-                            case 'audio_chunk':
-                                await handleAudioChunk(data);
-                                break;
-
-                            case 'text_message':
-                                await handleTextMessage(data);
-                                break;
-
-                            case 'interrupt':
-                                await handleInterrupt();
-                                break;
-
-                            case 'end_session':
-                                await handleEndSession();
-                                break;
-
-                            default:
-                                logger.warn({ type: data.type }, 'Unknown message type');
-                        }
-                    } catch (error) {
-                        logger.error({ error }, 'Error processing WebSocket message');
-                        clientSocket.send(JSON.stringify({
-                            type: 'error',
-                            error: error.message
-                        }));
-                    }
-                });
-
-                // Handle connection close
-                clientSocket.on('close', async (code, reason) => {
+            // Handle connection close
+            clientSocket.on('close', async (code, reason) => {
                     logger.info({ code, reason: reason.toString(), userId }, 'WebSocket connection closed');
                     if (geminiSession) {
                         try {
@@ -549,7 +548,6 @@ module.exports = async function (fastify, opts) {
                 }
             }
         });
-    });
 
     /**
      * Build educational system prompt for Gemini
