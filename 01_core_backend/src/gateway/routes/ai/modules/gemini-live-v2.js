@@ -29,7 +29,8 @@ module.exports = async function (fastify, opts) {
      * Handles authentication, message translation, and bidirectional streaming.
      */
     fastify.get('/api/ai/gemini-live/connect', { websocket: true }, async (connection, req) => {
-        const clientSocket = connection.socket;
+        // In @fastify/websocket, connection itself is the WebSocket (not connection.socket)
+        const clientSocket = connection;
         let geminiSocket = null;
         let userId = null;
         let sessionId = null;
@@ -712,7 +713,7 @@ module.exports = async function (fastify, opts) {
 
             // Safely close client socket if still open
             try {
-                if (clientSocket && typeof clientSocket.readyState !== 'undefined' && clientSocket.readyState === 1) {
+                if (clientSocket && clientSocket.readyState === WebSocket.OPEN) {
                     clientSocket.send(JSON.stringify({
                         type: 'error',
                         error: 'Internal server error'

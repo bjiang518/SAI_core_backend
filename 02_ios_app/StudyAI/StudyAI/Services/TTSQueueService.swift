@@ -50,6 +50,9 @@ class TTSQueueService: ObservableObject {
     /// Re-entrance guard to prevent observer from firing multiple times
     private var isProcessingNextChunk = false
 
+    /// Watchdog recovery guard to prevent observer from firing during recovery
+    private var isInWatchdogRecovery = false
+
     // MARK: - Published Properties
 
     /// Flag indicating if TTS is currently active
@@ -124,7 +127,8 @@ class TTSQueueService: ObservableObject {
                 if state == .idle
                     && !self.voiceService.isProcessingTTS  // Not loading audio from network
                     && self.isPlayingTTS
-                    && !self.isProcessingNextChunk {  // ✅ Prevent double-trigger race condition
+                    && !self.isProcessingNextChunk  // ✅ Prevent double-trigger race condition
+                    && !self.isInWatchdogRecovery {  // ✅ Phase 3.8: Don't fire during watchdog recovery
 
                     // ✅ Lock to prevent re-entrance
                     self.isProcessingNextChunk = true
@@ -446,7 +450,27 @@ class TTSQueueService: ObservableObject {
             return
         }
 
-        // Force recovery - stop current playback and try next
+        // ✅ Phase 3.8 (2026-02-18): CRITICAL FIX - Don't interrupt if audio is actively SPEAKING!
+        // Voice state is .speaking means audio is currently playing - extend watchdog
+        if voiceService.interactionState == .speaking {
+            print("⏸️ [TTSQueue] Audio is SPEAKING - giving 30 more seconds...")
+            // Long audio can be 30+ seconds, give plenty of time
+            watchdogTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: false) { [weak self] _ in
+                guard let self = self else { return }
+                Task { @MainActor in
+                    self.handleWatchdogTimeout()
+                }
+            }
+            return
+        }
+
+        // Now it's truly stuck - force recovery
+        print("🛑 [TTSQueue] Voice is stuck (not speaking, not processing) - forcing recovery")
+
+        // ✅ Phase 3.8: Set recovery flag to prevent observer from interfering
+        isInWatchdogRecovery = true
+        print("🔒 [TTSQueue] Watchdog recovery mode ACTIVE - observer blocked")
+
         voiceService.stopSpeech()
 
         // If queue has more items, try playing next
@@ -458,6 +482,12 @@ class TTSQueueService: ObservableObject {
             // Queue empty - just stop
             isPlayingTTS = false
             print("🛑 [TTSQueue] Queue empty after timeout - stopping TTS")
+        }
+
+        // ✅ Release recovery lock after 1 second (allows new chunk to start)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            self.isInWatchdogRecovery = false
+            print("🔓 [TTSQueue] Watchdog recovery mode CLEARED - observer re-enabled")
         }
     }
 
