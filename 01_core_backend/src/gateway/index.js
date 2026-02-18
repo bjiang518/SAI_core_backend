@@ -53,6 +53,15 @@ fastify.register(require('@fastify/multipart'), {
   }
 });
 
+// Register WebSocket support for Gemini Live API
+fastify.register(require('@fastify/websocket'), {
+  options: {
+    maxPayload: 5 * 1024 * 1024, // 5MB - allow large audio chunks
+    verifyClient: false // We handle auth via JWT in route handler
+  }
+});
+fastify.log.info('✅ WebSocket support registered (Gemini Live voice chat)');
+
 // Register compression for better performance (70% payload reduction)
 fastify.register(require('@fastify/compress'), {
   encodings: ['br', 'gzip', 'deflate'], // Brotli first (best compression)

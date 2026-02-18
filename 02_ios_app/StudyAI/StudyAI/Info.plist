@@ -46,7 +46,7 @@
 	<key>NSCameraUsageDescription</key>
 	<string>StudyMates needs camera access to capture homework photos for AI-powered question analysis and solving.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>StudyMates needs microphone access to listen to your voice questions and help you learn through voice interaction.</string>
+	<string>StudyMates needs microphone access for voice questions, real-time voice chat with AI tutor, and voice interaction features.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>StudyMates needs photo library access to select homework images for analysis and to save processed results.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

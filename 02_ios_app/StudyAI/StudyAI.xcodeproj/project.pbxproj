@@ -403,6 +403,12 @@
 		7BEC07CE2F42F9DB00B6E573 /* Star rating.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC07BD2F42F9DB00B6E573 /* Star rating.json */; };
 		7BEC07CF2F42F9DB00B6E573 /* Target.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC07BE2F42F9DB00B6E573 /* Target.json */; };
 		7BEC07D02F42F9DB00B6E573 /* rocket 2.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC07BB2F42F9DB00B6E573 /* rocket 2.json */; };
+		7BEC07D22F4654C000B6E573 /* VoiceChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07D12F4654C000B6E573 /* VoiceChatView.swift */; };
+		7BEC07D32F4654C000B6E573 /* VoiceChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07D12F4654C000B6E573 /* VoiceChatView.swift */; };
+		7BEC07D42F4654C000B6E573 /* VoiceChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07D12F4654C000B6E573 /* VoiceChatView.swift */; };
+		7BEC07DA2F465EDE00B6E573 /* VoiceChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07D92F465EDE00B6E573 /* VoiceChatViewModel.swift */; };
+		7BEC07DB2F465EDE00B6E573 /* VoiceChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07D92F465EDE00B6E573 /* VoiceChatViewModel.swift */; };
+		7BEC07DC2F465EDE00B6E573 /* VoiceChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07D92F465EDE00B6E573 /* VoiceChatViewModel.swift */; };
 		7BEDA6272E80B8C500D57B15 /* QuestionGenerationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEDA6262E80B8C500D57B15 /* QuestionGenerationService.swift */; };
 		7BEDA6282E80B8C500D57B15 /* QuestionGenerationDataAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEDA6252E80B8C500D57B15 /* QuestionGenerationDataAdapter.swift */; };
 		7BEDA62C2E80B91100D57B15 /* GeneratedQuestionsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEDA6292E80B91100D57B15 /* GeneratedQuestionsListView.swift */; };
@@ -696,6 +702,8 @@
 		7BEC07BC2F42F9DB00B6E573 /* Star.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Star.json; sourceTree = "<group>"; };
 		7BEC07BD2F42F9DB00B6E573 /* Star rating.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "Star rating.json"; sourceTree = "<group>"; };
 		7BEC07BE2F42F9DB00B6E573 /* Target.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Target.json; sourceTree = "<group>"; };
+		7BEC07D12F4654C000B6E573 /* VoiceChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VoiceChatView.swift; path = StudyAI/Views/VoiceChatView.swift; sourceTree = SOURCE_ROOT; };
+		7BEC07D92F465EDE00B6E573 /* VoiceChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceChatViewModel.swift; sourceTree = "<group>"; };
 		7BEDA6252E80B8C500D57B15 /* QuestionGenerationDataAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QuestionGenerationDataAdapter.swift; path = StudyAI/Services/QuestionGenerationDataAdapter.swift; sourceTree = SOURCE_ROOT; };
 		7BEDA6262E80B8C500D57B15 /* QuestionGenerationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QuestionGenerationService.swift; path = StudyAI/Services/QuestionGenerationService.swift; sourceTree = SOURCE_ROOT; };
 		7BEDA6292E80B91100D57B15 /* GeneratedQuestionsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GeneratedQuestionsListView.swift; path = StudyAI/Views/GeneratedQuestionsListView.swift; sourceTree = SOURCE_ROOT; };
@@ -916,6 +924,7 @@
 		7BEDA5F72E7EB8C500D57B15 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				7BEC07D92F465EDE00B6E573 /* VoiceChatViewModel.swift */,
 				7B2248BC2F331667006ADD93 /* InteractiveModeSettings.swift */,
 				7B22487C2F26F821006ADD93 /* ShortTermStatusModels.swift */,
 				7B22485A2F202156006ADD93 /* PassiveReportsViewModel.swift */,
@@ -1016,6 +1025,7 @@
 		7BEDA5F92E7EB94000D57B15 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				7BEC07D12F4654C000B6E573 /* VoiceChatView.swift */,
 				7BEC07992F42F75100B6E573 /* ArchiveProgressView.swift */,
 				7B2249522F3AC54E006ADD93 /* CuteTabBar.swift */,
 				7B2249202F39BE97006ADD93 /* ThemeSelectionView.swift */,
@@ -1500,6 +1510,7 @@
 				7B2249212F39BE97006ADD93 /* ThemeSelectionView.swift in Sources */,
 				7B2248212F1CCEDB006ADD93 /* DigitalHomeworkPDFPreviewView.swift in Sources */,
 				12345678901234567890ABCD /* UserSessionManager.swift in Sources */,
+				7BEC07DB2F465EDE00B6E573 /* VoiceChatViewModel.swift in Sources */,
 				23456789012345678901BCDE /* LibraryDataService.swift in Sources */,
 				PRFS678901234567CDEF9012 /* ProfileService.swift in Sources */,
 				17B3328E16B94A21AFE789F7 /* StudyAIApp.swift in Sources */,
@@ -1590,6 +1601,7 @@
 				MIST1234567890123456ABCD /* MistakeReviewView.swift in Sources */,
 				7B1961E92E94E2740024317A /* PasswordManagementView.swift in Sources */,
 				7B1961EA2E94E2740024317A /* ParentAuthenticationView.swift in Sources */,
+				7BEC07D22F4654C000B6E573 /* VoiceChatView.swift in Sources */,
 				MSTS1234567890123456ABCD /* MistakeReviewService.swift in Sources */,
 				PDFG1234567890123456ABCD /* PDFGeneratorService.swift in Sources */,
 				7BEEB6122E8E3A3200957748 /* DesignTokens.swift in Sources */,
@@ -1668,6 +1680,7 @@
 				7B8E9EA12EAC163B00E83DA8 /* HomeworkQuestionsPDFPreviewView.swift in Sources */,
 				7B83533F2EA6F11400199AC3 /* AppLogger.swift in Sources */,
 				7B2248572F20212C006ADD93 /* PassiveReportsView.swift in Sources */,
+				7BEC07DA2F465EDE00B6E573 /* VoiceChatViewModel.swift in Sources */,
 				7B2248582F20212C006ADD93 /* ParentReportsContainerView.swift in Sources */,
 				7B2248592F20212C006ADD93 /* PassiveReportDetailView.swift in Sources */,
 				7BDE56822EC1C718004A8629 /* PomodoroCalendarEvent.swift in Sources */,
@@ -1681,6 +1694,7 @@
 				7B2248872F26FB06006ADD93 /* WeaknessPracticeView.swift in Sources */,
 				7B6B2B0D2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */,
 				7B2248932F2D8DFE006ADD93 /* CompactSubjectSelector.swift in Sources */,
+				7BEC07D32F4654C000B6E573 /* VoiceChatView.swift in Sources */,
 				7B2248942F2D8DFE006ADD93 /* DualSliderFilters.swift in Sources */,
 				7B2248952F2D8DFE006ADD93 /* TaxonomyFilter.swift in Sources */,
 				7BFC71322EC5A91D00DB95A7 /* NetworkService+PracticeGenerator.swift in Sources */,
@@ -1777,6 +1791,7 @@
 				7BDE56E02EC31A7A004A8629 /* EssayGradingModels.swift in Sources */,
 				7BD664D82ECAB29F00E09E55 /* NativePhotoViewer.swift in Sources */,
 				7B1961F22E94E31A0024317A /* ParentModeManager.swift in Sources */,
+				7BEC07D42F4654C000B6E573 /* VoiceChatView.swift in Sources */,
 				7B8353442EA6F4F400199AC3 /* LocalReportDataAggregator.swift in Sources */,
 				7B2248782F26BE6C006ADD93 /* MistakeGroupDetailView.swift in Sources */,
 				7B2248792F26BE6C006ADD93 /* MistakeNotebookView.swift in Sources */,
@@ -1809,6 +1824,7 @@
 				7B2248A52F2DCDE4006ADD93 /* AppSessionManager.swift in Sources */,
 				7B2248AF2F2F4A8D006ADD93 /* DebugSettings.swift in Sources */,
 				7B2248D12F340790006ADD93 /* VerticalPagesViewer.swift in Sources */,
+				7BEC07DC2F465EDE00B6E573 /* VoiceChatViewModel.swift in Sources */,
 				7BEC079F2F42F82900B6E573 /* AppConfiguration.swift in Sources */,
 				7B8E9E9E2EAB518100E83DA8 /* HomeworkImageStorageService.swift in Sources */,
 				7BDE56E62EC31A8B004A8629 /* LaTeXToHTMLConverter.swift in Sources */,

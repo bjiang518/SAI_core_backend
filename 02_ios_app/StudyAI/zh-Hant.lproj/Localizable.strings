@@ -772,7 +772,21 @@
 "chat.menu.enableVoice" = "啟用語音";
 "chat.menu.disableVoice" = "停用語音";
 "chat.menu.synchronizedAudio" = "同步語音";
+"chat.menu.liveTalk" = "即時對話";
 "chat.menu.archiveSession" = "封存會話";
+
+// Voice Chat (Gemini Live)
+"voice_chat.title" = "即時對話";
+"voice_chat.end" = "結束";
+"voice_chat.connecting" = "連接中...";
+"voice_chat.empty.title" = "開始語音對話";
+"voice_chat.empty.subtitle" = "點擊下方的麥克風按鈕開始與AI導師對話";
+"voice_chat.tip.tap" = "按住說話";
+"voice_chat.tip.realtime" = "與AI即時對話";
+"voice_chat.tip.natural" = "自然說話，AI理解上下文";
+"voice_chat.ai_speaking" = "AI正在說話";
+"voice_chat.listening" = "正在聆聽";
+"voice_chat.interrupt" = "停止";
 
 // Common
 "common.yes" = "是";
