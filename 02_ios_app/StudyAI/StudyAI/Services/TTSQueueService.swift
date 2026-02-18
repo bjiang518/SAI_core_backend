@@ -90,6 +90,13 @@ class TTSQueueService: ObservableObject {
     /// Direct completion callback for next chunk (replaces observer pattern)
     private var completionCallback: (() -> Void)?
 
+    // ✅ Phase 3.9 (2026-02-18): Prefetching to eliminate network latency gaps
+    /// Track which message IDs are currently being prefetched
+    private var prefetchingMessageIds: Set<String> = []
+
+    /// Enhanced TTS service for prefetching
+    private let enhancedTTS = EnhancedTTSService()
+
     // MARK: - Dependencies
 
     /// Voice service for actual TTS playback
@@ -220,6 +227,10 @@ class TTSQueueService: ObservableObject {
         if !isPlayingTTS {
             print("▶️ [TTSQueue] Starting playback (queue was idle)")
             playNextTTSChunk()
+        } else {
+            // ✅ Phase 3.9: Trigger prefetch for newly enqueued chunks
+            // If playback is active, prefetch the new chunks that just arrived
+            prefetchNextChunk()
         }
     }
 
@@ -298,6 +309,10 @@ class TTSQueueService: ObservableObject {
         // Speak the text
         voiceService.speakText(nextItem.text, autoSpeak: true)
 
+        // ✅ Phase 3.9 (2026-02-18): PREFETCH next chunk while current one plays
+        // This eliminates 4-7 second network latency gaps between chunks
+        prefetchNextChunk()
+
         // Phase 3.4: Trigger cleanup if needed
         compactQueueIfNeeded()
     }
@@ -351,6 +366,7 @@ class TTSQueueService: ObservableObject {
         isPlayingTTS = false
         currentSessionIdForTTS = nil
         totalQueueMemoryBytes = 0  // ✅ Phase 3.6: Reset memory counter
+        prefetchingMessageIds.removeAll()  // ✅ Phase 3.9: Clear prefetch tracking
         cancelWatchdog()  // ✅ Cancel watchdog when clearing
         updateQueueSize()
     }
@@ -371,6 +387,68 @@ class TTSQueueService: ObservableObject {
         // Shrink capacity if queue is much smaller than capacity
         if queueStorage.capacity > queueStorage.count * 2 {
             queueStorage.reserveCapacity(queueStorage.count)
+        }
+    }
+
+    // MARK: - Phase 3.9: Prefetching Methods
+
+    /// Peek at the next item in queue without dequeuing it
+    private func peekNextItem() -> TTSQueueItem? {
+        guard headIndex < queueStorage.count else {
+            return nil
+        }
+        return queueStorage[headIndex]
+    }
+
+    /// Prefetch the next 1-2 chunks to eliminate network latency gaps
+    ///
+    /// This method is called when a chunk starts playing, triggering
+    /// background download of the next chunk(s) from ElevenLabs.
+    /// When the current chunk finishes, the next one is already cached.
+    private func prefetchNextChunk() {
+        // Prefetch next chunk (and optionally one more)
+        for offset in 0..<2 {
+            let prefetchIndex = headIndex + offset
+            guard prefetchIndex < queueStorage.count else {
+                break
+            }
+
+            let item = queueStorage[prefetchIndex]
+
+            // Skip if already prefetching this chunk
+            guard !prefetchingMessageIds.contains(item.messageId) else {
+                continue
+            }
+
+            // Mark as prefetching
+            prefetchingMessageIds.insert(item.messageId)
+
+            let textPreview = item.text.prefix(50).replacingOccurrences(of: "\n", with: " ")
+            print("🔮 [Prefetch] Starting prefetch for chunk (offset +\(offset))")
+            print("   └─ Preview: \"\(textPreview)...\" (\(item.text.count) chars)")
+
+            // Trigger async prefetch (doesn't block)
+            Task { @MainActor in
+                do {
+                    // Get voice settings from voice service
+                    let settings = self.voiceService.voiceSettings
+
+                    // Prefetch audio (downloads and caches, doesn't play)
+                    try await self.enhancedTTS.preloadAudio(item.text, with: settings)
+
+                    let timestamp = Date()
+                    let timeStr = DateFormatter.localizedString(from: timestamp, dateStyle: .none, timeStyle: .medium)
+                    print("✅ [Prefetch] [\(timeStr)] Chunk cached successfully")
+                    print("   └─ Text: \"\(textPreview)...\"")
+
+                    // Remove from prefetching set
+                    self.prefetchingMessageIds.remove(item.messageId)
+                } catch {
+                    print("⚠️ [Prefetch] Failed: \(error.localizedDescription)")
+                    // Remove from set even on error so we can retry
+                    self.prefetchingMessageIds.remove(item.messageId)
+                }
+            }
         }
     }
 
