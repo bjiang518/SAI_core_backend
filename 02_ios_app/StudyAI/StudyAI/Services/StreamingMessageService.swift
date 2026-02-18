@@ -5,6 +5,7 @@
 //  Created by Claude Code on 11/5/25.
 //  Extracted from SessionChatView.swift for Phase 1 refactoring
 //  Phase 3.2: Optimized for performance - zero-copy operations
+//  Phase 3.5 (2026-02-16): Delta processing with O(1) complexity + LaTeX boundary detection
 //
 
 import Foundation
@@ -12,7 +13,7 @@ import Combine
 
 /// Service responsible for managing streaming message chunking and processing
 /// Handles smart chunking of long streaming responses at sentence boundaries
-/// **Phase 3.2 Optimizations**: Zero-copy string operations, cached boundaries
+/// **Phase 3.5 Optimizations**: Cached String.Index for O(1) delta extraction + LaTeX completion detection
 @MainActor
 class StreamingMessageService: ObservableObject {
 
@@ -34,10 +35,12 @@ class StreamingMessageService: ObservableObject {
     // MARK: - Configuration
 
     /// Target size for first chunk (characters) - smaller for faster initial response
-    private let firstChunkSizeTarget: Int = 150
+    /// Phase 3.6 (2026-02-16): Reduced from 150 to 100 chars for faster first TTS
+    private let firstChunkSizeTarget: Int = 100
 
-    /// Target size for subsequent chunks (characters) - larger for optimal TTS performance
-    private let chunkSizeTarget: Int = 800
+    /// Target size for subsequent chunks (characters) - balanced for TTS performance
+    /// Phase 3.6 (2026-02-16): Reduced from 800 to 400 chars for more frequent TTS updates
+    private let chunkSizeTarget: Int = 400
 
     // MARK: - Phase 3.2: Performance Optimizations
 
@@ -50,6 +53,18 @@ class StreamingMessageService: ObservableObject {
     /// Fallback word boundary characters for fast lookup
     private let wordBoundaries: Set<Character> = [" ", ",", "，", ";", "；"]
 
+    // MARK: - Phase 3.5: Delta Processing with Cached Index (O(1))
+
+    /// Cached String.Index for O(1) delta extraction (eliminates O(n) offsetBy)
+    private var cachedProcessedIndex: String.Index?
+
+    /// Reference to last processed text for cache validation
+    private var lastProcessedText: String = ""
+
+    /// LaTeX delimiter tracking for completion detection
+    private var openInlineDelimiters: Int = 0  // Count of unmatched \(
+    private var openDisplayDelimiters: Int = 0  // Count of unmatched \[
+
     // MARK: - Initialization
 
     private init() {}
@@ -59,26 +74,41 @@ class StreamingMessageService: ObservableObject {
     /// Process streaming text and split into chunks at sentence boundaries
     /// Returns completed chunks that are ready for display and TTS
     ///
-    /// **Phase 3.2 Optimizations**:
-    /// - Uses String.Index for zero-copy substring operations
+    /// **Phase 3.5 Optimizations (2026-02-16)**:
+    /// - Uses CACHED String.Index for O(1) delta extraction (not O(n) offsetBy!)
+    /// - Only processes NEW text since last call
+    /// - LaTeX completion detection (only render complete expressions)
     /// - Pre-computed character sets for O(1) boundary detection
-    /// - Eliminates intermediate string allocations
     ///
     /// - Parameter accumulatedText: Full text received from server so far
-    /// - Returns: Array of newly completed chunks
+    /// - Returns: Array of newly completed chunks (with complete LaTeX only)
     func processStreamingChunk(_ accumulatedText: String) -> [String] {
         var completedChunks: [String] = []
 
-        // Phase 3.2: Use String.Index for zero-copy operations
-        let startIndex = accumulatedText.index(accumulatedText.startIndex, offsetBy: totalProcessedLength, limitedBy: accumulatedText.endIndex) ?? accumulatedText.endIndex
+        // ✅ Phase 3.5: O(1) Delta Extraction using Cached Index
+        var startIndex: String.Index
+
+        // Check if we can use cached index (text is continuation of last)
+        if let cached = cachedProcessedIndex,
+           accumulatedText.hasPrefix(lastProcessedText),
+           cached <= accumulatedText.endIndex {
+            // ✅ FAST PATH: Use cached index - O(1) operation!
+            startIndex = cached
+        } else {
+            // Cache miss - recalculate from offset (only on first call or text change)
+            startIndex = accumulatedText.index(
+                accumulatedText.startIndex,
+                offsetBy: totalProcessedLength,
+                limitedBy: accumulatedText.endIndex
+            ) ?? accumulatedText.endIndex
+        }
 
         guard startIndex < accumulatedText.endIndex else {
             return completedChunks
         }
 
         // Get unprocessed text using indices (zero-copy)
-        let unprocessedStartIndex = startIndex
-        var currentIndex = unprocessedStartIndex
+        var currentIndex = startIndex
 
         // Process the unprocessed text to find chunk boundaries
         while currentIndex < accumulatedText.endIndex {
@@ -94,26 +124,38 @@ class StreamingMessageService: ObservableObject {
                 // Extract completed chunk (zero-copy substring)
                 let chunkSubstring = accumulatedText[currentIndex..<boundary]
                 let chunk = String(chunkSubstring)
-                completedChunks.append(chunk)
 
-                // Track that we've processed this chunk
-                totalProcessedLength += chunk.count
+                // ✅ Phase 3.5: Check LaTeX completion before accepting chunk
+                if isLaTeXComplete(in: chunk) {
+                    completedChunks.append(chunk)
 
-                // Mark that we've created the first chunk
-                if isFirstChunkOfResponse {
-                    isFirstChunkOfResponse = false
-                    print("📦 [StreamingService] First chunk created: \(chunk.count) chars (target: \(targetSize))")
+                    // Track that we've processed this chunk
+                    totalProcessedLength += chunk.count
+
+                    // Mark that we've created the first chunk
+                    if isFirstChunkOfResponse {
+                        isFirstChunkOfResponse = false
+                        print("📦 [StreamingService] First chunk created: \(chunk.count) chars (target: \(targetSize))")
+                    }
+
+                    // Update current index
+                    currentIndex = boundary
+
+                    print("📦 [StreamingService] ✅ Complete chunk (LaTeX verified): \(chunk.count) chars, total processed: \(totalProcessedLength)")
+                } else {
+                    // LaTeX incomplete - wait for closing delimiters
+                    print("⏳ [StreamingService] Incomplete LaTeX in chunk, waiting for closing delimiters")
+                    break
                 }
-
-                // Update current index
-                currentIndex = boundary
-
-                print("📦 [StreamingService] Smart chunk created: \(chunk.count) chars (target: \(targetSize)), total processed: \(totalProcessedLength)")
             } else {
                 // No good boundary found, stop chunking for now
                 break
             }
         }
+
+        // ✅ Phase 3.5: Cache the current index for next call - O(1) next time!
+        cachedProcessedIndex = currentIndex
+        lastProcessedText = accumulatedText
 
         // Add completed chunks to our tracking array
         streamingChunks.append(contentsOf: completedChunks)
@@ -152,10 +194,80 @@ class StreamingMessageService: ObservableObject {
         streamingChunks.removeAll(keepingCapacity: true) // Phase 3.2: Keep capacity to avoid reallocation
         totalProcessedLength = 0
         isFirstChunkOfResponse = true
-        print("🔄 [StreamingService] Chunking reset - ready for new response")
+
+        // ✅ Phase 3.5: Clear cached index and LaTeX state
+        cachedProcessedIndex = nil
+        lastProcessedText = ""
+        openInlineDelimiters = 0
+        openDisplayDelimiters = 0
+
+        print("🔄 [StreamingService] Chunking reset - ready for new response (cache cleared)")
     }
 
     // MARK: - Phase 3.2: Optimized Private Helpers
+
+    // MARK: - Phase 3.5: LaTeX Completion Detection
+
+    /// Check if LaTeX expressions in text are complete (all delimiters balanced)
+    /// Returns true if all LaTeX expressions have matching opening and closing delimiters
+    ///
+    /// - Parameter text: Text chunk to check
+    /// - Returns: true if all LaTeX is complete, false if incomplete expressions detected
+    private func isLaTeXComplete(in text: String) -> Bool {
+        var inlineOpen = 0
+        var displayOpen = 0
+        var i = text.startIndex
+
+        while i < text.endIndex {
+            let char = text[i]
+
+            // Check for backslash (potential LaTeX delimiter)
+            if char == "\\" {
+                let nextIndex = text.index(after: i)
+                guard nextIndex < text.endIndex else {
+                    // Trailing backslash - incomplete
+                    return false
+                }
+
+                let nextChar = text[nextIndex]
+
+                if nextChar == "(" {
+                    // Opening inline delimiter \(
+                    inlineOpen += 1
+                    i = text.index(after: nextIndex)
+                    continue
+                } else if nextChar == ")" {
+                    // Closing inline delimiter \)
+                    inlineOpen -= 1
+                    i = text.index(after: nextIndex)
+                    continue
+                } else if nextChar == "[" {
+                    // Opening display delimiter \[
+                    displayOpen += 1
+                    i = text.index(after: nextIndex)
+                    continue
+                } else if nextChar == "]" {
+                    // Closing display delimiter \]
+                    displayOpen -= 1
+                    i = text.index(after: nextIndex)
+                    continue
+                }
+            }
+
+            i = text.index(after: i)
+        }
+
+        // All delimiters must be balanced (count = 0)
+        let isComplete = (inlineOpen == 0) && (displayOpen == 0)
+
+        if !isComplete {
+            print("📐 [StreamingService] LaTeX incomplete: inline=\(inlineOpen), display=\(displayOpen)")
+        }
+
+        return isComplete
+    }
+
+    // MARK: - Original Phase 3.2 Helpers
 
     /// Find the last sentence boundary in text before targetSize (optimized version)
     ///

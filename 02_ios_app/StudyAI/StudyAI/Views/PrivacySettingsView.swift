@@ -213,9 +213,9 @@ struct PrivacySettingsView: View {
                                 .frame(width: 24)
 
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("Clear My Data")
+                                Text("Clear Server Data")
                                     .foregroundColor(.primary)
-                                Text("Delete all learning data but keep your account")
+                                Text("Delete all learning data from server (keeps local data)")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
@@ -371,11 +371,11 @@ struct PrivacySettingsView: View {
             }
             .alert("Clear My Data", isPresented: $showingClearData) {
                 Button("Cancel", role: .cancel) { }
-                Button("Clear All Data", role: .destructive) {
+                Button("Clear Server Data", role: .destructive) {
                     clearMyData()
                 }
             } message: {
-                Text("This will permanently delete all your learning data including:\n\n• Homework questions (784 questions)\n• Chat conversations\n• Parent reports\n• Progress tracking\n\nYour account will remain active. This action cannot be undone.")
+                Text("This will permanently delete all your learning data from the SERVER:\n\n• Homework questions (784 questions)\n• Chat conversations\n• Parent reports\n• Progress tracking\n\nYour LOCAL data will remain intact. Your account will remain active. This action cannot be undone.")
             }
             .alert(NSLocalizedString("privacy.settings.deleteAccountAlert.title", comment: ""), isPresented: $showingDeleteAccount) {
                 TextField("Enter your email to confirm", text: $confirmEmailText)
@@ -487,14 +487,13 @@ struct PrivacySettingsView: View {
 
                 if httpResponse.statusCode == 200 {
                     if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                        print("✅ Data cleared successfully:")
+                        print("✅ Server data cleared successfully:")
                         print(json)
 
                         await MainActor.run {
-                            clearDataResult = "All learning data has been cleared successfully."
-                            // Clear local storage too
-                            QuestionLocalStorage.shared.clearAll()
-                            ConversationLocalStorage.shared.clearAll()
+                            clearDataResult = "All server data has been cleared. Local data remains intact."
+                            // ✅ DO NOT clear local storage - only server data is cleared
+                            // Local data will remain for offline access
                         }
                     }
                 } else {
