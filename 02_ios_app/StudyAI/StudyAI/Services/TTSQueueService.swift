@@ -145,6 +145,21 @@ class TTSQueueService: ObservableObject {
                 }
             }
             .store(in: &cancellables)
+
+        // ✅ Phase 3.8 (2026-02-18): CRITICAL FIX - Reset watchdog when audio starts playing
+        // The watchdog starts when chunk is requested, but audio may take 5-10s to download
+        // Reset watchdog when isProcessing changes from true → false (audio starts playing)
+        voiceService.$isProcessingTTS
+            .sink { [weak self] isProcessing in
+                guard let self = self else { return }
+
+                // When processing finishes (audio starts playing), reset watchdog
+                if !isProcessing && self.isPlayingTTS {
+                    print("🐕 [TTSQueue] Audio started playing - RESETTING watchdog")
+                    self.resetWatchdog()
+                }
+            }
+            .store(in: &cancellables)
     }
 
     /// Add chunk to TTS queue and start playing if not already playing
@@ -213,8 +228,17 @@ class TTSQueueService: ObservableObject {
         print("   └─ Queue size: \(effectiveQueueSize)")
         print("   └─ isPlayingTTS: \(isPlayingTTS)")
         print("   └─ voiceEnabled: \(voiceService.isVoiceEnabled)")
+        print("   └─ voiceService.isProcessingTTS: \(voiceService.isProcessingTTS)")
 
         guard effectiveQueueSize > 0 else {
+            // ✅ Phase 3.8 (2026-02-18): CRITICAL FIX - Don't stop if EnhancedTTS is still processing!
+            // If isProcessingTTS=true, it means audio is being fetched/prepared in EnhancedTTS
+            // We must wait for it to finish before stopping playback
+            if voiceService.isProcessingTTS {
+                print("⏸️ [TTSQueue] Queue empty but voice is PROCESSING - waiting for audio to finish")
+                return
+            }
+
             print("⏹️ [TTSQueue] Queue empty - stopping playback")
             isPlayingTTS = false
             currentSessionIdForTTS = nil
@@ -380,9 +404,11 @@ class TTSQueueService: ObservableObject {
     /// Reset watchdog timer (called when progress is made)
     private func resetWatchdog() {
         if watchdogTimer != nil {
-            if Self.debugMode {
-            print("🐕 [TTSQueueService] Watchdog reset - progress detected")
-            }
+            let timestamp = Date()
+            let timeStr = DateFormatter.localizedString(from: timestamp, dateStyle: .none, timeStyle: .medium)
+            print("🐕 [TTSQueue] [\(timeStr)] Watchdog RESET - progress detected")
+            print("   └─ Queue size: \(effectiveQueueSize)")
+            print("   └─ isProcessingTTS: \(voiceService.isProcessingTTS)")
             startWatchdog()
         }
     }
@@ -405,6 +431,20 @@ class TTSQueueService: ObservableObject {
         print("   └─ isProcessingTTS: \(voiceService.isProcessingTTS)")
         print("   └─ isProcessingNextChunk: \(isProcessingNextChunk)")
         print("   └─ currentSessionId: \(currentSessionIdForTTS ?? "nil")")
+
+        // ✅ Phase 3.8 (2026-02-18): CRITICAL FIX - Don't interrupt if still processing!
+        // If isProcessingTTS=true, audio is being downloaded/prepared - give it more time
+        if voiceService.isProcessingTTS {
+            print("⏸️ [TTSQueue] Audio still PROCESSING - giving 10 more seconds...")
+            // Restart watchdog with extra time for slow network
+            watchdogTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: false) { [weak self] _ in
+                guard let self = self else { return }
+                Task { @MainActor in
+                    self.handleWatchdogTimeout()
+                }
+            }
+            return
+        }
 
         // Force recovery - stop current playback and try next
         voiceService.stopSpeech()

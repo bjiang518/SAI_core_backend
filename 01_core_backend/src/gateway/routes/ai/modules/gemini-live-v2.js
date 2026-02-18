@@ -117,7 +117,18 @@ module.exports = async function (fastify, opts) {
             const geminiUrl = `${GEMINI_LIVE_ENDPOINT}?key=${apiKey}`;
             logger.info('Connecting to Gemini Live API...');
 
-            geminiSocket = new WebSocket(geminiUrl);
+            try {
+                geminiSocket = new WebSocket(geminiUrl);
+                logger.debug('WebSocket object created successfully');
+            } catch (wsError) {
+                logger.error({ wsError }, 'Failed to create WebSocket connection');
+                clientSocket.send(JSON.stringify({
+                    type: 'error',
+                    error: 'Failed to connect to AI service'
+                }));
+                clientSocket.close(1011, 'Connection failed');
+                return;
+            }
 
             // ============================================
             // STEP 3: Handle Gemini Connection Events
@@ -693,7 +704,11 @@ module.exports = async function (fastify, opts) {
             }
 
         } catch (error) {
-            logger.error({ error, userId }, 'Fatal error in WebSocket handler');
+            logger.error({
+                error: error.message,
+                stack: error.stack,
+                userId
+            }, 'Fatal error in WebSocket handler');
 
             // Safely close client socket if still open
             try {
