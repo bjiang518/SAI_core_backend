@@ -847,7 +847,21 @@
 "chat.menu.enableVoice" = "Enable Voice";
 "chat.menu.disableVoice" = "Disable Voice";
 "chat.menu.synchronizedAudio" = "Synchronized Audio";
+"chat.menu.liveTalk" = "Live Talk";
 "chat.menu.archiveSession" = "Archive Session";
+
+// Voice Chat (Gemini Live)
+"voice_chat.title" = "Live Talk";
+"voice_chat.end" = "End";
+"voice_chat.connecting" = "Connecting to Gemini Live...";
+"voice_chat.empty.title" = "Start Voice Chat";
+"voice_chat.empty.subtitle" = "Tap the microphone button below to start talking with your AI tutor";
+"voice_chat.tip.tap" = "Tap and hold to speak";
+"voice_chat.tip.realtime" = "Real-time conversation with AI";
+"voice_chat.tip.natural" = "Speak naturally, AI understands context";
+"voice_chat.ai_speaking" = "AI Speaking";
+"voice_chat.listening" = "Listening";
+"voice_chat.interrupt" = "Stop";
 
 // Common
 "common.yes" = "Yes";

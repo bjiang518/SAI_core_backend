@@ -25,6 +25,7 @@ const ErrorAnalysisRoutes = require('./modules/error-analysis'); // NEW: Pass 2 
 const WeaknessDescriptionRoutes = require('./modules/weakness-description'); // NEW: Weakness description generation
 const ConceptExtractionRoutes = require('./modules/concept-extraction'); // NEW: Bidirectional status tracking
 const InteractiveStreamingRoutes = require('./modules/interactive-streaming'); // NEW: Interactive Mode (Phase 1)
+const GeminiLiveRoutes = require('./modules/gemini-live'); // NEW: Gemini Live API voice chat
 
 /**
  * Register all AI routes
@@ -98,6 +99,14 @@ async function aiRoutes(fastify, opts) {
     fastify.log.info(`  ✅ Interactive Streaming (Phase 1) routes registered`);
   } catch (error) {
     fastify.log.error(`  ❌ Failed to register Interactive Streaming routes:`, error);
+  }
+
+  // Register Gemini Live routes (NEW: Real-time voice chat)
+  try {
+    await fastify.register(GeminiLiveRoutes);
+    fastify.log.info(`  ✅ Gemini Live API (Voice Chat) routes registered`);
+  } catch (error) {
+    fastify.log.error(`  ❌ Failed to register Gemini Live routes:`, error);
   }
 
   fastify.log.info('✅ All AI routes registered successfully');

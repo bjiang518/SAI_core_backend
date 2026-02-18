@@ -46,6 +46,7 @@ struct SessionChatView: View {
     @State private var showingPermissionAlert = false
     @State private var showingArchiveInfo = false
     @State private var exampleCardScale: CGFloat = 0.8
+    @State private var showingLiveTalk = false  // ✅ NEW: Gemini Live voice chat
 
     // Keyboard state for bottom padding adjustment
     @State private var isKeyboardVisible = false
@@ -158,6 +159,16 @@ struct SessionChatView: View {
 
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
+                    // ✅ NEW: Live Talk (Gemini Live voice chat)
+                    Button(action: {
+                        showingLiveTalk = true
+                    }) {
+                        Label(NSLocalizedString("chat.menu.liveTalk", comment: ""), systemImage: "waveform.circle.fill")
+                    }
+                    .disabled(networkService.currentSessionId == nil)
+
+                    Divider()
+
                     Button(NSLocalizedString("chat.menu.newSession", comment: "")) {
                         withAnimation(.easeInOut(duration: 0.3)) {
                             hasConversationStarted = false
@@ -228,6 +239,17 @@ struct SessionChatView: View {
                     isPresented: $showingImageInputSheet
                 ) { image, prompt in
                     viewModel.processImageWithPrompt(image: image, prompt: prompt)
+                }
+            }
+            // ✅ NEW: Gemini Live voice chat (full screen)
+            .fullScreenCover(isPresented: $showingLiveTalk) {
+                if let sessionId = networkService.currentSessionId {
+                    NavigationView {
+                        VoiceChatView(
+                            sessionId: sessionId,
+                            subject: viewModel.selectedSubject
+                        )
+                    }
                 }
             }
             // ✅ NEW: Archive progress animation overlay
