@@ -105,10 +105,12 @@ class VoiceChatViewModel: ObservableObject {
         guard let token = authService.getAuthToken() else {
             errorMessage = "Authentication token not found"
             connectionState = .error("Not authenticated")
+            logger.error("❌ No auth token available")
             return
         }
 
         connectionState = .connecting
+        logger.info("🔄 Connecting to Gemini Live...")
 
         // Configure audio session early for bidirectional audio
         configureAudioSession(for: .playAndRecord)
@@ -121,16 +123,19 @@ class VoiceChatViewModel: ObservableObject {
         guard let wsURL = URL(string: "\(baseURL)/api/ai/gemini-live/connect?token=\(token)&sessionId=\(sessionId)") else {
             errorMessage = "Invalid WebSocket URL"
             connectionState = .error("Invalid URL")
+            logger.error("❌ Invalid WebSocket URL")
             return
         }
 
-        logger.info("Connecting to Gemini Live: \(wsURL.absoluteString)")
+        logger.info("🌐 Connecting to Gemini Live: \(wsURL.absoluteString)")
 
         // Create WebSocket task
         webSocket = URLSession.shared.webSocketTask(with: wsURL)
         webSocket?.resume()
 
-        // Start session
+        logger.info("✅ WebSocket task created and resumed")
+
+        // Send start_session immediately
         sendWebSocketMessage(type: "start_session", data: [
             "subject": subject,
             "language": getCurrentLanguage()
@@ -140,6 +145,7 @@ class VoiceChatViewModel: ObservableObject {
         receiveWebSocketMessages()
 
         connectionState = .connected
+        logger.info("✅ Connection state set to connected")
     }
 
     /// Disconnect from Gemini Live
@@ -170,41 +176,60 @@ class VoiceChatViewModel: ObservableObject {
 
     /// Start recording from microphone
     func startRecording() {
-        guard !isRecording else { return }
+        logger.info("🎙️ startRecording() called")
 
-        logger.info("Starting microphone recording")
+        guard !isRecording else {
+            logger.warn("⚠️ Already recording, ignoring startRecording() call")
+            return
+        }
+
+        logger.info("✅ Starting microphone recording (isRecording was false)")
 
         isRecording = true
         errorMessage = nil
 
+        logger.info("🔊 Configuring audio session for bidirectional audio...")
         // Configure audio session for bidirectional audio (recording + playback)
         configureAudioSession(for: .playAndRecord)
 
         // Start audio engine
+        logger.info("🎤 Attempting to start audio engine...")
         do {
             try startAudioEngine()
+            logger.info("✅ Audio engine started successfully - isRecording: \(isRecording)")
         } catch {
-            logger.error("Failed to start audio engine: \(error)")
+            logger.error("❌ Failed to start audio engine: \(error)")
+            logger.error("   Error description: \(error.localizedDescription)")
             errorMessage = "Failed to start recording: \(error.localizedDescription)"
             isRecording = false
+            logger.info("⚠️ Set isRecording to false due to error")
         }
     }
 
     /// Stop recording
     func stopRecording() {
-        guard isRecording else { return }
+        logger.info("🛑 stopRecording() called")
 
-        logger.info("Stopping microphone recording")
+        guard isRecording else {
+            logger.warn("⚠️ Not currently recording, ignoring stopRecording() call")
+            return
+        }
+
+        logger.info("✅ Stopping microphone recording (isRecording was true)")
 
         isRecording = false
 
         // Stop audio engine
+        logger.info("🎤 Stopping audio engine...")
         stopAudioEngine()
 
         // Stop level timer
+        logger.info("⏱️ Invalidating level timer...")
         levelTimer?.invalidate()
         levelTimer = nil
         recordingLevel = 0.0
+
+        logger.info("✅ Recording stopped - isRecording: \(isRecording)")
     }
 
     /// Interrupt AI speaking
@@ -240,21 +265,28 @@ class VoiceChatViewModel: ObservableObject {
 
         guard let jsonData = try? JSONSerialization.data(withJSONObject: payload),
               let jsonString = String(data: jsonData, encoding: .utf8) else {
-            logger.error("Failed to serialize WebSocket message")
+            logger.error("❌ Failed to serialize WebSocket message type: \(type)")
             return
         }
 
-        webSocket?.send(.string(jsonString)) { error in
+        logger.info("📤 Sending WebSocket message: \(type)")
+        logger.debug("   Payload: \(jsonString)")
+
+        webSocket?.send(.string(jsonString)) { [weak self] error in
             if let error = error {
-                self.logger.error("WebSocket send error: \(error)")
+                self?.logger.error("❌ WebSocket send error for \(type): \(error)")
                 Task { @MainActor in
-                    self.errorMessage = "Failed to send message"
+                    self?.errorMessage = "Failed to send message"
                 }
+            } else {
+                self?.logger.debug("✅ Successfully sent \(type) message")
             }
         }
     }
 
     private func receiveWebSocketMessages() {
+        logger.debug("👂 Starting to receive WebSocket messages...")
+
         webSocket?.receive { [weak self] result in
             guard let self = self else { return }
 
@@ -262,11 +294,13 @@ class VoiceChatViewModel: ObservableObject {
             case .success(let message):
                 switch message {
                 case .string(let text):
+                    self.logger.info("📥 Received WebSocket message")
+                    self.logger.debug("   Content: \(text.prefix(200))...")
                     Task { @MainActor in
                         self.handleWebSocketMessage(text)
                     }
                 case .data(let data):
-                    self.logger.debug("Received binary data: \(data.count) bytes")
+                    self.logger.debug("📥 Received binary data: \(data.count) bytes")
                 @unknown default:
                     break
                 }
@@ -275,7 +309,7 @@ class VoiceChatViewModel: ObservableObject {
                 self.receiveWebSocketMessages()
 
             case .failure(let error):
-                self.logger.error("WebSocket receive error: \(error)")
+                self.logger.error("❌ WebSocket receive error: \(error)")
                 Task { @MainActor in
                     self.connectionState = .error(error.localizedDescription)
                     self.errorMessage = "Connection lost"
@@ -288,19 +322,20 @@ class VoiceChatViewModel: ObservableObject {
         guard let data = text.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let type = json["type"] as? String else {
-            logger.error("Failed to parse WebSocket message")
+            logger.error("❌ Failed to parse WebSocket message")
             return
         }
 
-        logger.debug("Received WebSocket message type: \(type)")
+        logger.debug("🔍 Processing message type: \(type)")
 
         switch type {
         case "session_ready":
-            logger.info("Gemini Live session ready")
+            logger.info("✅ Gemini Live session ready")
             errorMessage = nil
 
         case "text_chunk":
             if let textChunk = json["text"] as? String {
+                logger.debug("📝 Received text chunk: \(textChunk.prefix(50))...")
                 liveTranscription += textChunk
                 isAISpeaking = true
             }
@@ -308,10 +343,12 @@ class VoiceChatViewModel: ObservableObject {
         case "audio_chunk":
             if let audioBase64 = json["data"] as? String,
                let audioData = Data(base64Encoded: audioBase64) {
+                logger.debug("🔊 Received audio chunk: \(audioData.count) bytes")
                 playAudioChunk(audioData)
             }
 
         case "turn_complete":
+            logger.info("✅ Turn complete")
             // AI finished speaking
             if !liveTranscription.isEmpty {
                 messages.append(VoiceMessage(
@@ -324,63 +361,114 @@ class VoiceChatViewModel: ObservableObject {
             isAISpeaking = false
 
         case "interrupted":
-            logger.info("AI interrupted by user")
+            logger.info("⚠️ AI interrupted by user")
 
         case "session_ended":
-            logger.info("Gemini Live session ended")
+            logger.info("🔚 Gemini Live session ended")
             connectionState = .disconnected
 
         case "error":
             if let errorMsg = json["error"] as? String {
-                logger.error("Server error: \(errorMsg)")
+                logger.error("❌ Server error: \(errorMsg)")
                 errorMessage = errorMsg
             }
 
         default:
-            logger.debug("Unknown message type: \(type)")
+            logger.debug("❓ Unknown message type: \(type)")
         }
     }
 
     // MARK: - Audio Recording
 
+    private var audioChunkCounter = 0 // Track number of audio chunks sent
+
     private func startAudioEngine() throws {
+        logger.info("🎤 startAudioEngine() called - Creating AVAudioEngine...")
         audioEngine = AVAudioEngine()
 
-        guard let audioEngine = audioEngine else { return }
+        guard let audioEngine = audioEngine else {
+            logger.error("❌ Failed to create AVAudioEngine")
+            return
+        }
+
+        logger.info("✅ AVAudioEngine created successfully")
 
         let inputNode = audioEngine.inputNode
         let recordingFormat = inputNode.outputFormat(forBus: 0)
 
-        logger.info("Audio format: \(recordingFormat)")
+        logger.info("📊 Audio format: \(recordingFormat)")
+        logger.info("   Sample rate: \(recordingFormat.sampleRate) Hz")
+        logger.info("   Channels: \(recordingFormat.channelCount)")
+        logger.info("   Format: \(recordingFormat.commonFormat.rawValue)")
+
+        // Reset chunk counter
+        audioChunkCounter = 0
 
         // Install tap to capture audio
+        logger.info("🔧 Installing audio tap on input node...")
         inputNode.installTap(onBus: 0, bufferSize: 4096, format: recordingFormat) { [weak self] buffer, time in
             guard let self = self else { return }
 
             // Calculate audio level for visual feedback
             self.calculateAudioLevel(from: buffer)
 
-            // Convert to 16-bit PCM at 24kHz (Gemini Live format)
+            // Log first few chunks to verify tap is working
+            if self.audioChunkCounter < 3 {
+                self.logger.debug("🎵 Audio tap callback fired - chunk #\(self.audioChunkCounter + 1), frameLength: \(buffer.frameLength)")
+            }
+
+            // Convert to 16-bit PCM at 16kHz (Gemini Live format)
             if let convertedData = self.convertAudioToGeminiFormat(buffer: buffer) {
+                self.audioChunkCounter += 1
+
+                // Log every 50th chunk to avoid spam
+                if self.audioChunkCounter % 50 == 0 {
+                    self.logger.debug("✅ Successfully converted audio chunk #\(self.audioChunkCounter), size: \(convertedData.count) bytes")
+                }
+
                 let base64Audio = convertedData.base64EncodedString()
 
                 // Send to backend
                 Task { @MainActor in
+                    if self.audioChunkCounter == 1 || self.audioChunkCounter % 50 == 0 {
+                        self.logger.debug("📤 Sending audio chunk #\(self.audioChunkCounter) to backend")
+                    }
                     self.sendWebSocketMessage(type: "audio_chunk", data: ["audio": base64Audio])
+                }
+            } else {
+                if self.audioChunkCounter == 0 {
+                    self.logger.error("❌ Failed to convert audio chunk to Gemini format (first chunk)")
                 }
             }
         }
 
+        logger.info("✅ Audio tap installed successfully")
+
+        logger.info("🚀 Starting AVAudioEngine...")
         try audioEngine.start()
+        logger.info("✅ AVAudioEngine started successfully")
 
         // Start level monitoring
+        logger.info("📊 Starting level monitoring...")
         startLevelMonitoring()
+        logger.info("✅ Audio engine setup complete - Total chunks sent: \(audioChunkCounter)")
     }
 
     private func stopAudioEngine() {
-        audioEngine?.stop()
-        audioEngine?.inputNode.removeTap(onBus: 0)
+        logger.info("🛑 stopAudioEngine() called - Total chunks sent: \(audioChunkCounter)")
+
+        if let engine = audioEngine {
+            logger.debug("   Stopping audio engine...")
+            engine.stop()
+            logger.debug("   Removing input tap...")
+            engine.inputNode.removeTap(onBus: 0)
+            logger.info("✅ Audio engine stopped and tap removed")
+        } else {
+            logger.warn("⚠️ Audio engine was already nil")
+        }
+
         audioEngine = nil
+        audioChunkCounter = 0
     }
 
     private func convertAudioToGeminiFormat(buffer: AVAudioPCMBuffer) -> Data? {
@@ -392,13 +480,19 @@ class VoiceChatViewModel: ObservableObject {
             interleaved: false
         )
 
-        guard let targetFormat = targetFormat,
-              let converter = AVAudioConverter(from: buffer.format, to: targetFormat) else {
+        guard let targetFormat = targetFormat else {
+            logger.error("❌ Failed to create target audio format (16kHz PCM16)")
+            return nil
+        }
+
+        guard let converter = AVAudioConverter(from: buffer.format, to: targetFormat) else {
+            logger.error("❌ Failed to create audio converter from \(buffer.format.sampleRate)Hz to 16000Hz")
             return nil
         }
 
         let capacity = AVAudioFrameCount(Double(buffer.frameLength) * targetFormat.sampleRate / buffer.format.sampleRate)
         guard let convertedBuffer = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: capacity) else {
+            logger.error("❌ Failed to create converted PCM buffer with capacity: \(capacity)")
             return nil
         }
 
@@ -409,13 +503,20 @@ class VoiceChatViewModel: ObservableObject {
         }
 
         if let error = error {
-            logger.error("Audio conversion error: \(error)")
+            logger.error("❌ Audio conversion error: \(error)")
             return nil
         }
 
         // Convert to Data
         let audioBuffer = convertedBuffer.audioBufferList.pointee.mBuffers
-        return Data(bytes: audioBuffer.mData!, count: Int(audioBuffer.mDataByteSize))
+        let dataSize = Int(audioBuffer.mDataByteSize)
+
+        // Log first conversion for verification
+        if audioChunkCounter == 0 {
+            logger.debug("✅ First audio conversion successful: \(dataSize) bytes (from \(buffer.frameLength) frames)")
+        }
+
+        return Data(bytes: audioBuffer.mData!, count: dataSize)
     }
 
     private func calculateAudioLevel(from buffer: AVAudioPCMBuffer) {
@@ -550,20 +651,28 @@ class VoiceChatViewModel: ObservableObject {
     private func configureAudioSession(for mode: AudioSessionMode) {
         let audioSession = AVAudioSession.sharedInstance()
 
+        logger.info("🔊 Configuring audio session for mode: \(mode)")
+
         do {
             switch mode {
             case .recording:
+                logger.debug("   Setting category: .record, mode: .measurement")
                 try audioSession.setCategory(.record, mode: .measurement, options: [])
             case .playback:
+                logger.debug("   Setting category: .playback, mode: .spokenAudio")
                 try audioSession.setCategory(.playback, mode: .spokenAudio, options: [])
             case .playAndRecord:
                 // Use .duckOthers to lower volume of InteractiveTTS instead of interrupting it
+                logger.debug("   Setting category: .playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetooth, .duckOthers]")
                 try audioSession.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetooth, .duckOthers])
             }
 
+            logger.debug("   Activating audio session with .notifyOthersOnDeactivation...")
             try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+            logger.info("✅ Audio session configured successfully for mode: \(mode)")
         } catch {
-            logger.error("Failed to configure audio session: \(error)")
+            logger.error("❌ Failed to configure audio session for mode \(mode): \(error)")
+            logger.error("   Error description: \(error.localizedDescription)")
         }
     }
 
