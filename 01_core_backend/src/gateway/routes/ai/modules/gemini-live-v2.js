@@ -35,6 +35,8 @@ module.exports = async function (fastify, opts) {
         let userId = null;
         let sessionId = null;
         let isSetupComplete = false;
+        let isGeminiConnected = false;
+        const messageQueue = []; // Queue messages until Gemini is ready
 
         logger.info('New Gemini Live connection request');
 
@@ -113,13 +115,14 @@ module.exports = async function (fastify, opts) {
             // ============================================
             geminiSocket.on('open', () => {
                 logger.info({ userId }, 'Connected to Gemini Live API');
+                isGeminiConnected = true;
 
-                // Notify iOS client that connection is ready
-                // (Setup will be sent by iOS via start_session message)
-                clientSocket.send(JSON.stringify({
-                    type: 'connection_ready',
-                    message: 'Ready to receive setup configuration'
-                }));
+                // Flush queued messages
+                while (messageQueue.length > 0) {
+                    const queuedMessage = messageQueue.shift();
+                    logger.debug('Processing queued message');
+                    handleClientMessage(queuedMessage);
+                }
             });
 
             geminiSocket.on('message', (data) => {
@@ -154,6 +157,14 @@ module.exports = async function (fastify, opts) {
             clientSocket.on('message', async (data) => {
                 try {
                     const message = JSON.parse(data.toString());
+
+                    // Queue messages if Gemini not connected yet
+                    if (!isGeminiConnected) {
+                        logger.debug('Queuing message until Gemini connects');
+                        messageQueue.push(message);
+                        return;
+                    }
+
                     await handleClientMessage(message);
                 } catch (error) {
                     logger.error({ error }, 'Error processing client message');
