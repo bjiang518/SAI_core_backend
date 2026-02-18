@@ -157,6 +157,14 @@ class VoiceChatViewModel: ObservableObject {
         stopRecording()
         stopAudioPlayback()
 
+        // Deactivate audio session to allow InteractiveTTS to resume
+        do {
+            try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            logger.info("Audio session deactivated - InteractiveTTS can resume")
+        } catch {
+            logger.error("Failed to deactivate audio session: \(error)")
+        }
+
         connectionState = .disconnected
     }
 
@@ -549,10 +557,11 @@ class VoiceChatViewModel: ObservableObject {
             case .playback:
                 try audioSession.setCategory(.playback, mode: .spokenAudio, options: [])
             case .playAndRecord:
-                try audioSession.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetooth])
+                // Use .duckOthers to lower volume of InteractiveTTS instead of interrupting it
+                try audioSession.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetooth, .duckOthers])
             }
 
-            try audioSession.setActive(true)
+            try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
         } catch {
             logger.error("Failed to configure audio session: \(error)")
         }
