@@ -116,7 +116,10 @@ module.exports = async function (fastify, opts) {
 
             // Connect to Google's WebSocket with API key
             const geminiUrl = `${GEMINI_LIVE_ENDPOINT}?key=${apiKey}`;
-            logger.info('Connecting to Gemini Live API...');
+            logger.info({
+                endpoint: GEMINI_LIVE_ENDPOINT,
+                apiKeyPrefix: apiKey ? `${apiKey.substring(0, 10)}...` : 'MISSING'
+            }, 'Connecting to Gemini Live API...');
 
             try {
                 geminiSocket = new WebSocket(geminiUrl);
@@ -135,28 +138,54 @@ module.exports = async function (fastify, opts) {
             // STEP 3: Handle Gemini Connection Events
             // ============================================
             geminiSocket.on('open', () => {
-                logger.info({ userId }, 'Connected to Gemini Live API');
+                const timestamp = new Date().toISOString();
+                logger.info({
+                    userId,
+                    timestamp,
+                    readyState: geminiSocket.readyState
+                }, '✅ Connected to Gemini Live API');
+
                 isGeminiConnected = true;
 
-                // Flush queued messages
-                while (messageQueue.length > 0) {
-                    const queuedMessage = messageQueue.shift();
-                    logger.debug('Processing queued message');
-                    handleClientMessage(queuedMessage);
-                }
+                logger.info({
+                    userId,
+                    queuedMessages: messageQueue.length
+                }, '🔔 Gemini connected - waiting for iOS start_session to send setup...');
+
+                // ✅ FIX: Don't flush queue yet - wait for setupComplete
+                // Messages will be flushed after receiving setupComplete from Gemini
             });
 
             geminiSocket.on('message', (data) => {
                 try {
-                    const message = JSON.parse(data.toString());
+                    const rawData = data.toString();
+                    const message = JSON.parse(rawData);
+
+                    // 🔍 DEBUG: Log full message from Gemini
+                    logger.info({
+                        userId,
+                        messageType: Object.keys(message)[0],
+                        fullMessage: JSON.stringify(message, null, 2)
+                    }, '📨 Received from Gemini');
+
                     handleGeminiMessage(message);
                 } catch (error) {
-                    logger.error({ error }, 'Failed to parse Gemini message');
+                    logger.error({
+                        error: error.message,
+                        stack: error.stack,
+                        rawData: data.toString()
+                    }, '❌ Failed to parse Gemini message');
                 }
             });
 
             geminiSocket.on('error', (error) => {
-                logger.error({ error, userId }, 'Gemini WebSocket error');
+                logger.error({
+                    error: error.message,
+                    stack: error.stack,
+                    errorCode: error.code,
+                    userId
+                }, '🔴 Gemini WebSocket error');
+
                 clientSocket.send(JSON.stringify({
                     type: 'error',
                     error: 'Connection to AI service failed'
@@ -164,7 +193,31 @@ module.exports = async function (fastify, opts) {
             });
 
             geminiSocket.on('close', (code, reason) => {
-                logger.info({ code, reason: reason.toString(), userId }, 'Gemini WebSocket closed');
+                const reasonStr = reason ? reason.toString() : 'No reason provided';
+                logger.error({
+                    code,
+                    reason: reasonStr,
+                    wasSetupComplete: isSetupComplete,
+                    userId
+                }, '🔴 Gemini WebSocket closed');
+
+                // 🔍 DEBUG: Explain close codes
+                const closeCodeExplanation = {
+                    1000: 'Normal closure',
+                    1001: 'Going away',
+                    1002: 'Protocol error',
+                    1003: 'Unsupported data',
+                    1006: 'Abnormal closure (no close frame)',
+                    1007: 'Invalid frame payload data',
+                    1008: 'Policy violation',
+                    1009: 'Message too big',
+                    1011: 'Internal server error'
+                };
+
+                logger.error({
+                    closeCodeMeaning: closeCodeExplanation[code] || 'Unknown code'
+                }, `Close code ${code} meaning`);
+
                 clientSocket.send(JSON.stringify({
                     type: 'session_ended',
                     reason: 'AI service disconnected'
@@ -177,18 +230,45 @@ module.exports = async function (fastify, opts) {
             // ============================================
             clientSocket.on('message', async (data) => {
                 try {
-                    const message = JSON.parse(data.toString());
+                    const rawData = data.toString();
+                    const message = JSON.parse(rawData);
 
-                    // Queue messages if Gemini not connected yet
-                    if (!isGeminiConnected) {
-                        logger.debug('Queuing message until Gemini connects');
+                    // 🔍 DEBUG: Log incoming client messages
+                    logger.info({
+                        userId,
+                        messageType: message.type,
+                        fullMessage: JSON.stringify(message, null, 2)
+                    }, '📥 Received from iOS client');
+
+                    // ✅ CRITICAL FIX: Allow start_session through immediately!
+                    // start_session MUST be processed to send setup to Gemini
+                    // Other messages wait for setupComplete
+                    if (message.type === 'start_session') {
+                        logger.info({
+                            userId,
+                            sessionId
+                        }, '🚀 Processing start_session immediately (triggers Gemini setup)');
+                        await handleClientMessage(message);
+                        return;
+                    }
+
+                    // ✅ FIX: Queue OTHER messages until setupComplete
+                    if (!isSetupComplete) {
+                        logger.info({
+                            messageType: message.type
+                        }, '⏸️ Queuing message until Gemini setup completes');
                         messageQueue.push(message);
                         return;
                     }
 
                     await handleClientMessage(message);
                 } catch (error) {
-                    logger.error({ error }, 'Error processing client message');
+                    logger.error({
+                        error: error.message,
+                        stack: error.stack,
+                        rawData: data.toString()
+                    }, '❌ Error processing client message');
+
                     clientSocket.send(JSON.stringify({
                         type: 'error',
                         error: error.message
@@ -224,6 +304,10 @@ module.exports = async function (fastify, opts) {
                         handleAudioChunk(data);
                         break;
 
+                    case 'audio_stream_end':
+                        handleAudioStreamEnd();
+                        break;
+
                     case 'text_message':
                         handleTextMessage(data);
                         break;
@@ -254,27 +338,31 @@ module.exports = async function (fastify, opts) {
                 const systemInstruction = buildSystemInstruction(subject, language);
 
                 // Build official BidiGenerateContentSetup message
+                // ✅ Official protocol uses camelCase for all fields
                 const setupMessage = {
                     setup: {
                         model: 'models/gemini-2.5-flash-native-audio-preview-12-2025',
-                        generationConfig: {
-                            responseModalities: ['AUDIO', 'TEXT'],
-                            speechConfig: {
-                                voiceConfig: {
-                                    prebuiltVoiceConfig: {
-                                        voiceName: 'Puck' // Friendly AI tutor voice
+                        generationConfig: {  // ✅ camelCase
+                            responseModalities: ['AUDIO', 'TEXT'],  // ✅ Explicitly request both
+                            speechConfig: {  // ✅ camelCase
+                                voiceConfig: {  // ✅ camelCase
+                                    prebuiltVoiceConfig: {  // ✅ camelCase
+                                        voiceName: 'Puck'  // ✅ camelCase
                                     }
                                 }
-                            }
+                            },
+                            // ✅ FIX: Enable transcriptions for both input and output
+                            inputAudioTranscription: {},  // Transcribe user's speech
+                            outputAudioTranscription: {}  // Transcribe AI's speech
                         },
-                        systemInstruction: {
+                        systemInstruction: {  // ✅ camelCase
                             parts: [{
                                 text: systemInstruction
                             }]
                         },
                         tools: [
                             {
-                                functionDeclarations: [
+                                functionDeclarations: [  // ✅ camelCase
                                     {
                                         name: 'fetch_homework_context',
                                         description: 'Retrieves the homework question and context from the current study session',
@@ -315,8 +403,28 @@ module.exports = async function (fastify, opts) {
 
                 // Send setup to Gemini
                 if (geminiSocket && geminiSocket.readyState === WebSocket.OPEN) {
-                    geminiSocket.send(JSON.stringify(setupMessage));
-                    logger.info({ userId }, 'Setup message sent to Gemini');
+                    const setupJson = JSON.stringify(setupMessage);
+
+                    // 🔍 DEBUG: Log the exact setup message being sent
+                    logger.info({
+                        userId,
+                        sessionId,
+                        setupMessage: JSON.stringify(setupMessage, null, 2)
+                    }, '📤 Sending setup message to Gemini');
+
+                    geminiSocket.send(setupJson);
+                    logger.info({ userId }, '✅ Setup message sent to Gemini');
+
+                    // 🔍 DEBUG: Set timeout to detect if Gemini never responds
+                    setTimeout(() => {
+                        if (!isSetupComplete) {
+                            logger.error({
+                                userId,
+                                sessionId,
+                                elapsedSeconds: 5
+                            }, '⏰ TIMEOUT: Gemini did not respond to setup after 5 seconds');
+                        }
+                    }, 5000);
                 } else {
                     throw new Error('Gemini connection not ready');
                 }
@@ -325,17 +433,18 @@ module.exports = async function (fastify, opts) {
             /**
              * HANDLER: Audio Chunk
              * Translates iOS audio to official realtimeInput message
-             * NOTE: Input audio is natively 16kHz (output is 24kHz)
+             * NOTE: Input audio is 16kHz PCM
              */
             function handleAudioChunk(data) {
                 const { audio } = data; // Base64 encoded audio
 
                 // Build official BidiGenerateContentRealtimeInput message
+                // ✅ Official protocol uses camelCase and audio field (not media_chunks)
                 const realtimeInput = {
-                    realtimeInput: {
-                        audio: {
+                    realtimeInput: {  // ✅ camelCase
+                        audio: {  // ✅ Use audio field, not media_chunks
                             data: audio,
-                            mimeType: 'audio/pcm;rate=16000' // Input is 16kHz (output is 24kHz)
+                            mimeType: 'audio/pcm;rate=16000'  // ✅ camelCase
                         }
                     }
                 };
@@ -349,6 +458,33 @@ module.exports = async function (fastify, opts) {
             }
 
             /**
+             * HANDLER: Audio Stream End
+             *
+             * ✅ FIX: Send audioStreamEnd when mic stops to flush cached audio
+             *
+             * When to send:
+             * - Push-to-talk released
+             * - User mutes microphone
+             * - App backgrounds
+             * - Audio stream pauses for >1 second
+             */
+            function handleAudioStreamEnd() {
+                logger.info({ userId }, 'Audio stream ended - flushing cached audio');
+
+                const streamEnd = {
+                    realtimeInput: {
+                        audioStreamEnd: true
+                    }
+                };
+
+                if (geminiSocket && geminiSocket.readyState === WebSocket.OPEN) {
+                    geminiSocket.send(JSON.stringify(streamEnd));
+                } else {
+                    logger.warn('Cannot send audioStreamEnd: Gemini connection not ready');
+                }
+            }
+
+            /**
              * HANDLER: Text Message
              * Translates iOS text to official clientContent message
              */
@@ -356,15 +492,16 @@ module.exports = async function (fastify, opts) {
                 const { text } = data;
 
                 // Build official BidiGenerateContentClientContent message
+                // ✅ Official protocol uses camelCase
                 const clientContent = {
-                    clientContent: {
+                    clientContent: {  // ✅ camelCase
                         turns: [{
                             role: 'user',
                             parts: [{
                                 text: text
                             }]
                         }],
-                        turnComplete: true
+                        turnComplete: true  // ✅ camelCase
                     }
                 };
 
@@ -381,21 +518,19 @@ module.exports = async function (fastify, opts) {
 
             /**
              * HANDLER: Interrupt
-             * Sends activity end signal to stop AI response
+             *
+             * ✅ FIX: With automatic VAD enabled (default), barge-in happens naturally
+             * when new user audio/text is sent. Don't send activityEnd in this mode.
+             *
+             * If you need explicit control, set:
+             * realtimeInputConfig.automaticActivityDetection.disabled = true
+             * in setup, then use activityStart/activityEnd explicitly.
              */
             function handleInterrupt() {
-                logger.info({ userId }, 'User interrupted AI');
+                logger.info({ userId }, 'User interrupted AI (automatic VAD barge-in)');
 
-                // Send activity end to stop generation
-                const activityEnd = {
-                    realtimeInput: {
-                        activityEnd: {}
-                    }
-                };
-
-                if (geminiSocket && geminiSocket.readyState === WebSocket.OPEN) {
-                    geminiSocket.send(JSON.stringify(activityEnd));
-                }
+                // With auto VAD (default), interruption happens when iOS sends new audio/text
+                // No need to send activityEnd - just notify iOS that we acknowledge the interrupt
 
                 // Notify iOS
                 clientSocket.send(JSON.stringify({
@@ -428,21 +563,37 @@ module.exports = async function (fastify, opts) {
                 logger.debug({ messageType: Object.keys(message)[0] }, 'Received Gemini message');
 
                 // Handle setupComplete
-                if (message.setupComplete) {
+                if (message.setupComplete || message.setup_complete) {
                     isSetupComplete = true;
-                    logger.info({ userId }, 'Gemini setup complete');
+                    logger.info({ userId }, '✅ Gemini setup complete - ready for messages');
 
                     clientSocket.send(JSON.stringify({
                         type: 'session_ready',
                         sessionId: sessionId
                     }));
+
+                    // ✅ FIX: Now flush queued messages after setupComplete
+                    if (messageQueue.length > 0) {
+                        logger.info({
+                            queueLength: messageQueue.length
+                        }, 'Processing queued messages after setupComplete');
+
+                        while (messageQueue.length > 0) {
+                            const queuedMessage = messageQueue.shift();
+                            logger.debug({ messageType: queuedMessage.type }, 'Processing queued message');
+                            handleClientMessage(queuedMessage);
+                        }
+                    }
                 }
 
                 // Handle serverContent (AI response)
-                if (message.serverContent) {
-                    const { modelTurn, generationComplete, turnComplete, interrupted } = message.serverContent;
+                const serverContent = message.serverContent || message.server_content;
+                if (serverContent) {
+                    const modelTurn = serverContent.modelTurn || serverContent.model_turn;
+                    const turnComplete = serverContent.turnComplete || serverContent.turn_complete;
+                    const interrupted = serverContent.interrupted;
 
-                    // Send text transcription
+                    // Send text transcription from modelTurn
                     if (modelTurn && modelTurn.parts) {
                         for (const part of modelTurn.parts) {
                             if (part.text) {
@@ -453,20 +604,35 @@ module.exports = async function (fastify, opts) {
                             }
 
                             // Send audio chunk
-                            if (part.inlineData && part.inlineData.mimeType.startsWith('audio/')) {
-                                clientSocket.send(JSON.stringify({
-                                    type: 'audio_chunk',
-                                    data: part.inlineData.data // Base64 audio
-                                }));
+                            const inlineData = part.inlineData || part.inline_data;
+                            if (inlineData) {
+                                const mimeType = inlineData.mimeType || inlineData.mime_type;
+                                if (mimeType && mimeType.startsWith('audio/')) {
+                                    clientSocket.send(JSON.stringify({
+                                        type: 'audio_chunk',
+                                        data: inlineData.data // Base64 audio
+                                    }));
+                                }
                             }
                         }
                     }
 
+                    // ✅ Handle outputTranscription (AI's speech-to-text of its own audio)
+                    // This is more reliable than relying only on modelTurn.parts[].text
+                    const outputTranscription = serverContent.outputTranscription || serverContent.output_transcription;
+                    if (outputTranscription && outputTranscription.text) {
+                        clientSocket.send(JSON.stringify({
+                            type: 'output_transcription',
+                            text: outputTranscription.text
+                        }));
+                    }
+
                     // Send input transcription (user's speech recognized)
-                    if (message.serverContent.inputTranscription) {
+                    const inputTranscription = serverContent.inputTranscription || serverContent.input_transcription;
+                    if (inputTranscription && inputTranscription.text) {
                         clientSocket.send(JSON.stringify({
                             type: 'user_transcription',
-                            text: message.serverContent.inputTranscription.text
+                            text: inputTranscription.text
                         }));
                     }
 
@@ -476,15 +642,19 @@ module.exports = async function (fastify, opts) {
                             type: 'turn_complete'
                         }));
 
-                        // Store AI response
-                        if (modelTurn && modelTurn.parts) {
-                            const responseText = modelTurn.parts
+                        // Store AI response (prefer outputTranscription, fallback to modelTurn text)
+                        let responseText = '';
+                        if (outputTranscription && outputTranscription.text) {
+                            responseText = outputTranscription.text;
+                        } else if (modelTurn && modelTurn.parts) {
+                            responseText = modelTurn.parts
                                 .filter(p => p.text)
                                 .map(p => p.text)
                                 .join(' ');
-                            if (responseText) {
-                                storeMessage('assistant', responseText);
-                            }
+                        }
+
+                        if (responseText) {
+                            storeMessage('assistant', responseText);
                         }
                     }
 
@@ -497,37 +667,35 @@ module.exports = async function (fastify, opts) {
                 }
 
                 // Handle toolCall (function calling)
-                if (message.toolCall) {
-                    handleToolCall(message.toolCall);
+                const toolCall = message.toolCall || message.tool_call;
+                if (toolCall) {
+                    handleToolCall(toolCall);
                 }
 
                 // Handle toolCallCancellation
-                if (message.toolCallCancellation) {
-                    const { ids } = message.toolCallCancellation;
+                const toolCallCancellation = message.toolCallCancellation || message.tool_call_cancellation;
+                if (toolCallCancellation) {
+                    const { ids } = toolCallCancellation;
                     logger.info({ ids }, 'Tool calls cancelled by server');
 
-                    // Notify iOS that tool calls were cancelled
                     clientSocket.send(JSON.stringify({
                         type: 'tool_call_cancelled',
                         ids: ids
                     }));
-
-                    // TODO: Attempt to undo side effects if possible
                 }
 
                 // Handle goAway (server requests disconnect)
-                if (message.goAway) {
-                    const { timeLeft } = message.goAway;
+                const goAway = message.goAway || message.go_away;
+                if (goAway) {
+                    const timeLeft = goAway.timeLeft || goAway.time_left;
                     logger.warn({ timeLeft }, 'Server sent goAway - will disconnect soon');
 
-                    // Notify iOS to prepare for reconnection
                     clientSocket.send(JSON.stringify({
                         type: 'go_away',
                         timeLeft: timeLeft,
                         message: 'Server requesting disconnect - please reconnect'
                     }));
 
-                    // Close connection gracefully after a brief delay
                     setTimeout(() => {
                         if (geminiSocket && geminiSocket.readyState === WebSocket.OPEN) {
                             geminiSocket.close(1000, 'goAway received');
@@ -539,20 +707,21 @@ module.exports = async function (fastify, opts) {
                 }
 
                 // Handle sessionResumptionUpdate
-                if (message.sessionResumptionUpdate) {
-                    const { newHandle, resumable } = message.sessionResumptionUpdate;
+                const sessionUpdate = message.sessionResumptionUpdate || message.session_resumption_update;
+                if (sessionUpdate) {
+                    const newHandle = sessionUpdate.newHandle || sessionUpdate.new_handle;
+                    const resumable = sessionUpdate.resumable;
                     logger.debug({ newHandle, resumable }, 'Session resumption state update');
 
-                    // Store resumption token if available (for future reconnection)
                     if (resumable && newHandle) {
-                        // TODO: Store newHandle in database for session resumption
                         logger.info({ userId, sessionId, newHandle }, 'Session resumption token available');
                     }
                 }
 
                 // Handle usage metadata
-                if (message.usageMetadata) {
-                    logger.debug({ usage: message.usageMetadata }, 'Token usage');
+                const usageMetadata = message.usageMetadata || message.usage_metadata;
+                if (usageMetadata) {
+                    logger.debug({ usage: usageMetadata }, 'Token usage');
                 }
             }
 
@@ -560,7 +729,7 @@ module.exports = async function (fastify, opts) {
              * Handle function calls from Gemini
              */
             async function handleToolCall(toolCall) {
-                const { functionCalls } = toolCall;
+                const functionCalls = toolCall.functionCalls || toolCall.function_calls;
 
                 for (const call of functionCalls) {
                     const { name, args, id } = call;
@@ -583,9 +752,10 @@ module.exports = async function (fastify, opts) {
                         }
 
                         // Send function response back to Gemini
+                        // ✅ Official protocol uses camelCase
                         const toolResponse = {
-                            toolResponse: {
-                                functionResponses: [{
+                            toolResponse: {  // ✅ camelCase
+                                functionResponses: [{  // ✅ camelCase
                                     id: id,
                                     name: name,
                                     response: result
@@ -602,8 +772,8 @@ module.exports = async function (fastify, opts) {
 
                         // Send error response
                         const errorResponse = {
-                            toolResponse: {
-                                functionResponses: [{
+                            toolResponse: {  // ✅ camelCase
+                                functionResponses: [{  // ✅ camelCase
                                     id: id,
                                     name: name,
                                     response: { error: error.message }
