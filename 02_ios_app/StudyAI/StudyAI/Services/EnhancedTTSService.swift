@@ -253,14 +253,18 @@ class EnhancedTTSService: NSObject, ObservableObject {
         // All 4 characters (Adam, Eva, Max, Mia) use ElevenLabs for best quality
         return currentVoiceSettings.useEnhancedVoices
     }
-    
+
     private func generateOpenAIAudio(for request: TTSRequest) {
+        // ✅ Phase 3.6 (2026-02-16): Set processing flag to prevent race conditions
+        // This prevents observer from firing while we're fetching audio from network
         isProcessing = true
 
         let cacheKey = createCacheKey(for: request)
 
         // Check memory cache first
         if let cachedData = audioCache.object(forKey: cacheKey as NSString) {
+            // ✅ Phase 3.6: Keep processing=true during playback setup
+            // Will be set to false in playAudioData when audio actually starts
             playAudioData(cachedData as Data, for: request)
             return
         }
@@ -269,6 +273,7 @@ class EnhancedTTSService: NSObject, ObservableObject {
         if let diskData = loadFromDiskCache(cacheKey: cacheKey) {
             // Store in memory cache for faster access next time
             audioCache.setObject(diskData as NSData, forKey: cacheKey as NSString)
+            // ✅ Phase 3.6: Keep processing=true during playback setup
             playAudioData(diskData, for: request)
             return
         }
@@ -288,14 +293,14 @@ class EnhancedTTSService: NSObject, ObservableObject {
                     self.playAudioData(audioData, for: request)
                 }
             } catch {
-                print("🎵 EnhancedTTSService: Server TTS failed: \(error)")
-                print("⚠️ Skipping TTS for this chunk to maintain voice consistency")
+                // ✅ Phase 3.6 (2026-02-16): ENABLE FALLBACK on network timeout/error
+                // Automatically fallback to system TTS to maintain continuous playback
+                print("🎵 EnhancedTTS: Network request failed (\(error)), falling back to SystemTTS")
+
                 await MainActor.run {
-                    // ✅ DISABLED FALLBACK: Don't use iOS TTS fallback to maintain consistent voice quality
-                    // Instead of falling back to native iOS TTS (which sounds different), just skip this chunk
                     self.isProcessing = false
-                    self.isSpeaking = false
-                    self.errorMessage = "TTS service temporarily unavailable"
+                    // ✅ Fallback to system TTS instead of stopping completely
+                    self.useFallbackTTS(for: request)
                 }
             }
         }
@@ -377,7 +382,9 @@ class EnhancedTTSService: NSObject, ObservableObject {
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        urlRequest.timeoutInterval = 60.0 // Increased timeout for TTS generation
+        // ✅ Phase 3.6 (2026-02-17): Reduced from 30s to 15s for faster fallback
+        // If ElevenLabs is slow (30+ seconds), fail fast and use system TTS instead
+        urlRequest.timeoutInterval = 15.0
 
         // Add authentication header
         if let token = AuthenticationService.shared.getAuthToken() {
@@ -415,47 +422,75 @@ class EnhancedTTSService: NSObject, ObservableObject {
     }
     
     private func playAudioData(_ data: Data, for request: TTSRequest) {
-        // ✅ Move audio session activation to background to prevent main thread blocking
-        Task.detached(priority: .userInitiated) { [weak self] in
+        // ✅ Phase 3.7 (2026-02-18): CRITICAL FIX - Use regular Task (not detached)
+        // Task.detached breaks actor isolation, causing delegate to not be retained
+        // Regular Task maintains @MainActor context, ensuring delegate callbacks work
+        Task { @MainActor [weak self] in
             guard let self = self else { return }
 
-            // Activate audio session on background thread
+            print("🎵 [EnhancedTTS] Setting up audio playback...")
+
+            // Activate audio session
             do {
                 let audioSession = AVAudioSession.sharedInstance()
                 try audioSession.setActive(true)
+                print("🎵 [EnhancedTTS] Audio session activated")
             } catch {
                 print("🎵 EnhancedTTSService: Warning - could not activate audio session: \(error)")
             }
 
-            // Initialize audio player on main thread (required for AVAudioPlayer)
-            await MainActor.run {
-                do {
-                    self.audioPlayer = try AVAudioPlayer(data: data)
-                    self.audioPlayer?.delegate = self
-                    self.audioPlayer?.volume = request.voiceSettings.volume
+            // Initialize audio player on main actor (ensures delegate is properly retained)
+            do {
+                self.audioPlayer = try AVAudioPlayer(data: data)
+                self.audioPlayer?.delegate = self
+                self.audioPlayer?.volume = request.voiceSettings.volume
 
+                print("🎵 [EnhancedTTS] AVAudioPlayer initialized, delegate set to self")
+                print("🎵 [EnhancedTTS] Audio duration: \(self.audioPlayer?.duration ?? 0)s")
+
+                // ✅ Phase 3.7 (2026-02-18): CRITICAL FIX - Check if playback actually starts
+                // AVAudioPlayer.play() returns Bool - false means playback failed to start
+                let didStart = self.audioPlayer?.play() ?? false
+
+                if didStart {
+                    print("🔊 [EnhancedTTS] Playback started successfully")
+                    print("   └─ Delegate is: \(self.audioPlayer?.delegate != nil ? "SET ✅" : "NIL ❌")")
                     self.isSpeaking = true
+                    // ✅ Phase 3.6 (2026-02-16): Clear processing flag when audio actually starts
+                    // This signals to observers that audio is now playing (not loading anymore)
                     self.isProcessing = false
                     self.speechProgress = 0.0
 
                     // Start progress tracking
                     self.startProgressTracking()
+                } else {
+                    print("⚠️⚠️⚠️ [EnhancedTTS] PLAYBACK FAILED - AVAudioPlayer.play() returned false!")
+                    print("   └─ Audio session active: \(AVAudioSession.sharedInstance().isOtherAudioPlaying)")
+                    print("   └─ Audio category: \(AVAudioSession.sharedInstance().category)")
+                    print("   └─ This causes watchdog timeout - cleaning up")
 
-                    self.audioPlayer?.play()
-
-                } catch {
-                    print("🎵 EnhancedTTSService: Audio playback failed: \(error)")
-                    print("⚠️ Skipping audio playback for this chunk to maintain voice consistency")
-                    // ✅ DISABLED FALLBACK: Don't use iOS TTS fallback to maintain consistent voice quality
-                    self.errorMessage = "Audio playback failed"
+                    // Clean up and signal completion (skip this chunk)
+                    self.audioPlayer?.delegate = nil
+                    self.audioPlayer = nil
                     self.isProcessing = false
                     self.isSpeaking = false
+
+                    print("   └─ Cleanup complete - observer should trigger next chunk")
                 }
+
+            } catch {
+                print("🎵 EnhancedTTSService: Audio playback failed: \(error)")
+                print("⚠️ Skipping audio playback for this chunk to maintain voice consistency")
+                // ✅ DISABLED FALLBACK: Don't use iOS TTS fallback to maintain consistent voice quality
+                self.errorMessage = "Audio playback failed"
+                self.isProcessing = false  // ✅ Phase 3.6: Clear on error too
+                self.isSpeaking = false
             }
         }
     }
 
     private func useFallbackTTS(for request: TTSRequest) {
+        // ✅ Phase 3.6 (2026-02-16): Clear processing flag when using fallback
         isProcessing = false
 
         // Use your existing TextToSpeechService
@@ -520,24 +555,36 @@ class EnhancedTTSService: NSObject, ObservableObject {
 extension EnhancedTTSService: AVAudioPlayerDelegate {
 
     func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        print("🎉🎉🎉 [EnhancedTTS] audioPlayerDidFinishPlaying CALLED!")
+        print("   └─ Successfully: \(flag)")
+        print("   └─ Duration: \(player.duration)s")
+        print("   └─ Thread: \(Thread.isMainThread ? "Main ✅" : "Background ❌")")
+
         progressTimer?.invalidate()
         progressTimer = nil
 
         DispatchQueue.main.async {
+            print("🎉 [EnhancedTTS] Setting isSpeaking = false (this should trigger observer)")
             self.isSpeaking = false
             self.isPaused = false
             self.speechProgress = 1.0
             self.audioPlayer = nil
 
-            // Process next in queue if any
+            // ✅ Phase 3.7 (2026-02-18): CRITICAL FIX - Don't deactivate audio session here!
+            // EnhancedTTS doesn't manage the queue - TTSQueueService does.
+            // If we deactivate here, subsequent chunks from TTSQueueService will fail to play.
+            // TTSQueueService will deactivate the session when its queue is truly empty.
+
+            // Process next in EnhancedTTS's internal queue if any (usually empty)
             if !self.speechQueue.isEmpty {
+                print("🎉 [EnhancedTTS] Internal queue has items, processing next")
                 let nextRequest = self.speechQueue.removeFirst()
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     self.processRequest(nextRequest)
                 }
             } else {
-                // BATTERY OPTIMIZATION: Deactivate audio session when queue is empty
-                self.deactivateAudioSession()
+                print("🎉 [EnhancedTTS] Chunk complete, observer will trigger next")
+                // Don't deactivate audio session - let TTSQueueService manage this
             }
         }
     }

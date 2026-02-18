@@ -26,6 +26,11 @@ class VoiceInteractionService: ObservableObject {
     @Published var errorMessage: String?
     @Published var isPaused = false
     @Published var currentSpeakingMessageId: String? = nil
+
+    // ✅ Phase 3.6 (2026-02-16): Track when TTS is loading audio to prevent race conditions
+    /// True when EnhancedTTS is making network request to fetch audio
+    /// Prevents observer from firing multiple times while audio is loading
+    @Published var isProcessingTTS: Bool = false
     
     // MARK: - Services
     
@@ -112,6 +117,16 @@ class VoiceInteractionService: ObservableObject {
             }
         }
         .store(in: &cancellables)
+
+        // ✅ Phase 3.6 (2026-02-16): Bind EnhancedTTS processing state
+        // This tracks when EnhancedTTS is making network requests to prevent race conditions
+        enhancedTTSService.$isProcessing
+            .sink { [weak self] isProcessing in
+                DispatchQueue.main.async {
+                    self?.isProcessingTTS = isProcessing
+                }
+            }
+            .store(in: &cancellables)
         
         // Bind error messages from all services
         Publishers.Merge3(

@@ -1075,16 +1075,20 @@ class SessionChatViewModel: ObservableObject {
                                 }
                             }
 
-                            // ✅ FIX: Process chunks for TTS only, not for UI display
-                            let newChunks = self.streamingService.processStreamingChunk(accumulatedText)
+                            // ✅ CRITICAL FIX (2026-02-16): Only process chunks for TTS if voice is enabled
+                            // This eliminates O(n²) complexity when voice is disabled!
+                            if self.voiceService.isVoiceEnabled {
+                                // Process chunks for TTS sentence detection
+                                let newChunks = self.streamingService.processStreamingChunk(accumulatedText)
 
-                            // Enqueue new completed chunks for TTS only
-                            if !newChunks.isEmpty && self.voiceService.isVoiceEnabled {
-                                for (index, chunk) in newChunks.enumerated() {
-                                    let chunkIndex = self.streamingService.streamingChunks.count - newChunks.count + index
-                                    let messageId = "chunk-\(sessionId)-\(chunkIndex)"
-                                    self.ttsQueueService.enqueueTTSChunk(text: chunk, messageId: messageId, sessionId: sessionId)
-                                    print("🎤 [TTS] Enqueued chunk \(chunkIndex): \(chunk.prefix(50))...")
+                                // Enqueue new completed chunks for TTS
+                                if !newChunks.isEmpty {
+                                    for (index, chunk) in newChunks.enumerated() {
+                                        let chunkIndex = self.streamingService.streamingChunks.count - newChunks.count + index
+                                        let messageId = "chunk-\(sessionId)-\(chunkIndex)"
+                                        self.ttsQueueService.enqueueTTSChunk(text: chunk, messageId: messageId, sessionId: sessionId)
+                                        print("🎤 [TTS] Enqueued chunk \(chunkIndex): \(chunk.prefix(50))...")
+                                    }
                                 }
                             }
 
@@ -1118,11 +1122,29 @@ class SessionChatViewModel: ObservableObject {
 
                                     // Enqueue any remaining incomplete chunk for TTS
                                     let finalIncompleteChunk = String(finalText.dropFirst(self.streamingService.totalProcessedLength))
+
+                                    print("🎯 [TTS-Final] Checking final chunk:")
+                                    print("   └─ Full text length: \(finalText.count) chars")
+                                    print("   └─ Already processed: \(self.streamingService.totalProcessedLength) chars")
+                                    print("   └─ Remaining chunk: \(finalIncompleteChunk.count) chars")
+                                    print("   └─ Voice enabled: \(self.voiceService.isVoiceEnabled)")
+
                                     if !finalIncompleteChunk.isEmpty && self.voiceService.isVoiceEnabled {
                                         let chunkIndex = self.streamingService.streamingChunks.count
-                                        let messageId = "chunk-\(sessionId)-\(chunkIndex)"
+                                        let messageId = "final-chunk-\(sessionId)-\(chunkIndex)"
+
+                                        let preview = finalIncompleteChunk.prefix(80).replacingOccurrences(of: "\n", with: " ")
+                                        print("📤 [TTS-Final] Enqueueing final chunk #\(chunkIndex)")
+                                        print("   └─ Preview: \"\(preview)...\"")
+                                        print("   └─ MessageId: \(messageId)")
+
                                         self.ttsQueueService.enqueueTTSChunk(text: finalIncompleteChunk, messageId: messageId, sessionId: sessionId)
-                                        print("🎤 [TTS] Enqueued final incomplete chunk: \(finalIncompleteChunk.prefix(50))...")
+
+                                        print("✅ [TTS-Final] Final chunk successfully enqueued")
+                                    } else if finalIncompleteChunk.isEmpty {
+                                        print("✅ [TTS-Final] No remaining text - all chunks already queued")
+                                    } else {
+                                        print("⚠️ [TTS-Final] Voice disabled - skipping final chunk")
                                     }
                                 }
 
@@ -1242,16 +1264,20 @@ class SessionChatViewModel: ObservableObject {
                             Task { @MainActor in
                                 guard let self = self else { return }
 
-                                // ✅ FIX: Process chunks for TTS only, not for UI display
-                                let newChunks = self.streamingService.processStreamingChunk(accumulatedText)
+                                // ✅ CRITICAL FIX (2026-02-16): Only process chunks for TTS if voice is enabled
+                                // This eliminates O(n²) complexity when voice is disabled!
+                                if self.voiceService.isVoiceEnabled {
+                                    // Process chunks for TTS sentence detection
+                                    let newChunks = self.streamingService.processStreamingChunk(accumulatedText)
 
-                                // Enqueue new completed chunks for TTS only
-                                if !newChunks.isEmpty && self.voiceService.isVoiceEnabled {
-                                    for (index, chunk) in newChunks.enumerated() {
-                                        let chunkIndex = self.streamingService.streamingChunks.count - newChunks.count + index
-                                        let messageId = "chunk-\(sessionId)-\(chunkIndex)"
-                                        self.ttsQueueService.enqueueTTSChunk(text: chunk, messageId: messageId, sessionId: sessionId)
-                                        print("🎤 [TTS] Enqueued chunk \(chunkIndex): \(chunk.prefix(50))...")
+                                    // Enqueue new completed chunks for TTS
+                                    if !newChunks.isEmpty {
+                                        for (index, chunk) in newChunks.enumerated() {
+                                            let chunkIndex = self.streamingService.streamingChunks.count - newChunks.count + index
+                                            let messageId = "chunk-\(sessionId)-\(chunkIndex)"
+                                            self.ttsQueueService.enqueueTTSChunk(text: chunk, messageId: messageId, sessionId: sessionId)
+                                            print("🎤 [TTS] Enqueued chunk \(chunkIndex): \(chunk.prefix(50))...")
+                                        }
                                     }
                                 }
 
@@ -1298,11 +1324,29 @@ class SessionChatViewModel: ObservableObject {
 
                                         // Enqueue any remaining incomplete chunk for TTS
                                         let finalIncompleteChunk = String(finalText.dropFirst(self.streamingService.totalProcessedLength))
+
+                                        print("🎯 [TTS-Final] Checking final chunk (non-interactive mode):")
+                                        print("   └─ Full text length: \(finalText.count) chars")
+                                        print("   └─ Already processed: \(self.streamingService.totalProcessedLength) chars")
+                                        print("   └─ Remaining chunk: \(finalIncompleteChunk.count) chars")
+                                        print("   └─ Voice enabled: \(self.voiceService.isVoiceEnabled)")
+
                                         if !finalIncompleteChunk.isEmpty && self.voiceService.isVoiceEnabled {
                                             let chunkIndex = self.streamingService.streamingChunks.count
-                                            let messageId = "chunk-\(sessionId)-\(chunkIndex)"
+                                            let messageId = "final-chunk-\(sessionId)-\(chunkIndex)"
+
+                                            let preview = finalIncompleteChunk.prefix(80).replacingOccurrences(of: "\n", with: " ")
+                                            print("📤 [TTS-Final] Enqueueing final chunk #\(chunkIndex)")
+                                            print("   └─ Preview: \"\(preview)...\"")
+                                            print("   └─ MessageId: \(messageId)")
+
                                             self.ttsQueueService.enqueueTTSChunk(text: finalIncompleteChunk, messageId: messageId, sessionId: sessionId)
-                                            print("🎤 [TTS] Enqueued final incomplete chunk: \(finalIncompleteChunk.prefix(50))...")
+
+                                            print("✅ [TTS-Final] Final chunk successfully enqueued")
+                                        } else if finalIncompleteChunk.isEmpty {
+                                            print("✅ [TTS-Final] No remaining text - all chunks already queued")
+                                        } else {
+                                            print("⚠️ [TTS-Final] Voice disabled - skipping final chunk")
                                         }
 
                                         // ✅ FIX: Persist complete message as single entry
