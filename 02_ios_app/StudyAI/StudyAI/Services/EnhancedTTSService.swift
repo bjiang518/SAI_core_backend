@@ -24,12 +24,17 @@ class EnhancedTTSService: NSObject, ObservableObject {
     @Published var currentVoiceSettings = VoiceSettings()
     
     // MARK: - Private Properties
-    
+
     private var audioPlayer: AVAudioPlayer?
     private let fallbackTTS = TextToSpeechService()
     private var speechQueue: [TTSRequest] = []
     private let networkService = NetworkService.shared
     private var progressTimer: Timer?
+
+    // ✅ Phase 3.7 (2026-02-18): Serial playback queue
+    // Prevents out-of-order playback and interruptions
+    private var isCurrentlyPlayingAudio = false
+    private var pendingAudioQueue: [(data: Data, request: TTSRequest)] = []
     
     // Cache for audio files
     private let audioCache = NSCache<NSString, NSData>()
@@ -225,6 +230,10 @@ class EnhancedTTSService: NSObject, ObservableObject {
         progressTimer?.invalidate()
         progressTimer = nil
         speechQueue.removeAll()
+
+        // ✅ Phase 3.7 (2026-02-18): Clear pending audio queue
+        pendingAudioQueue.removeAll()
+        isCurrentlyPlayingAudio = false
 
         // BATTERY OPTIMIZATION: Deactivate audio session when not in use
         deactivateAudioSession()
@@ -422,21 +431,37 @@ class EnhancedTTSService: NSObject, ObservableObject {
     }
     
     private func playAudioData(_ data: Data, for request: TTSRequest) {
-        // ✅ Phase 3.7 (2026-02-18): CRITICAL FIX - Use regular Task (not detached)
-        // Task.detached breaks actor isolation, causing delegate to not be retained
-        // Regular Task maintains @MainActor context, ensuring delegate callbacks work
         Task { @MainActor [weak self] in
             guard let self = self else { return }
 
-            print("🎵 [EnhancedTTS] Setting up audio playback...")
+            // ✅ Phase 3.7 (2026-02-18): CRITICAL FIX - Serial playback queue
+            // If audio is currently playing, add to queue and return
+            if self.isCurrentlyPlayingAudio {
+                print("🎵 [EnhancedTTS] Audio already playing - queueing chunk (\(self.pendingAudioQueue.count + 1) in queue)")
+                self.pendingAudioQueue.append((data: data, request: request))
+                return
+            }
 
-            // Activate audio session
+            // Mark as playing to prevent interruptions
+            self.isCurrentlyPlayingAudio = true
+
+            print("🎵 [EnhancedTTS] Setting up audio playback (queue size: \(self.pendingAudioQueue.count))...")
+
+            // ✅ Phase 3.7 (2026-02-18): FORCE audio session to playback mode
+            // InteractiveTTS changes it to .record, breaking playback
             do {
                 let audioSession = AVAudioSession.sharedInstance()
+
+                // Force playback category every time (InteractiveTTS changes it to .record)
+                try audioSession.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
                 try audioSession.setActive(true)
-                print("🎵 [EnhancedTTS] Audio session activated")
+
+                print("🎵 [EnhancedTTS] Audio session FORCED to playback mode")
+                print("   └─ Category: \(audioSession.category)")
+                print("   └─ Active: \(audioSession.isOtherAudioPlaying)")
             } catch {
-                print("🎵 EnhancedTTSService: Warning - could not activate audio session: \(error)")
+                print("⚠️ [EnhancedTTS] Failed to configure audio session: \(error)")
+                print("   └─ This will likely cause playback to fail")
             }
 
             // Initialize audio player on main actor (ensures delegate is properly retained)
@@ -464,9 +489,11 @@ class EnhancedTTSService: NSObject, ObservableObject {
                     // Start progress tracking
                     self.startProgressTracking()
                 } else {
+                    // Check audio session status to diagnose the issue
+                    let audioSession = AVAudioSession.sharedInstance()
                     print("⚠️⚠️⚠️ [EnhancedTTS] PLAYBACK FAILED - AVAudioPlayer.play() returned false!")
-                    print("   └─ Audio session active: \(AVAudioSession.sharedInstance().isOtherAudioPlaying)")
-                    print("   └─ Audio category: \(AVAudioSession.sharedInstance().category)")
+                    print("   └─ Audio session active: \(audioSession.isOtherAudioPlaying)")
+                    print("   └─ Audio category: \(audioSession.category)")
                     print("   └─ This causes watchdog timeout - cleaning up")
 
                     // Clean up and signal completion (skip this chunk)
@@ -474,8 +501,12 @@ class EnhancedTTSService: NSObject, ObservableObject {
                     self.audioPlayer = nil
                     self.isProcessing = false
                     self.isSpeaking = false
+                    self.isCurrentlyPlayingAudio = false  // ✅ Release lock
 
                     print("   └─ Cleanup complete - observer should trigger next chunk")
+
+                    // ✅ Try to play next item in queue
+                    self.playNextPendingAudio()
                 }
 
             } catch {
@@ -485,8 +516,24 @@ class EnhancedTTSService: NSObject, ObservableObject {
                 self.errorMessage = "Audio playback failed"
                 self.isProcessing = false  // ✅ Phase 3.6: Clear on error too
                 self.isSpeaking = false
+                self.isCurrentlyPlayingAudio = false  // ✅ Release lock
+
+                // ✅ Try to play next item in queue
+                self.playNextPendingAudio()
             }
         }
+    }
+
+    /// Play next item from pending audio queue
+    private func playNextPendingAudio() {
+        guard !pendingAudioQueue.isEmpty else {
+            print("🎵 [EnhancedTTS] Pending queue empty")
+            return
+        }
+
+        let next = pendingAudioQueue.removeFirst()
+        print("🎵 [EnhancedTTS] Playing next from pending queue (\(pendingAudioQueue.count) remaining)")
+        playAudioData(next.data, for: next.request)
     }
 
     private func useFallbackTTS(for request: TTSRequest) {
@@ -559,6 +606,7 @@ extension EnhancedTTSService: AVAudioPlayerDelegate {
         print("   └─ Successfully: \(flag)")
         print("   └─ Duration: \(player.duration)s")
         print("   └─ Thread: \(Thread.isMainThread ? "Main ✅" : "Background ❌")")
+        print("   └─ Pending queue: \(pendingAudioQueue.count) items")
 
         progressTimer?.invalidate()
         progressTimer = nil
@@ -570,10 +618,8 @@ extension EnhancedTTSService: AVAudioPlayerDelegate {
             self.speechProgress = 1.0
             self.audioPlayer = nil
 
-            // ✅ Phase 3.7 (2026-02-18): CRITICAL FIX - Don't deactivate audio session here!
-            // EnhancedTTS doesn't manage the queue - TTSQueueService does.
-            // If we deactivate here, subsequent chunks from TTSQueueService will fail to play.
-            // TTSQueueService will deactivate the session when its queue is truly empty.
+            // ✅ Phase 3.7 (2026-02-18): Release lock and play next from pending queue
+            self.isCurrentlyPlayingAudio = false
 
             // Process next in EnhancedTTS's internal queue if any (usually empty)
             if !self.speechQueue.isEmpty {
@@ -582,8 +628,12 @@ extension EnhancedTTSService: AVAudioPlayerDelegate {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     self.processRequest(nextRequest)
                 }
+            } else if !self.pendingAudioQueue.isEmpty {
+                // ✅ Play next from pending audio queue (serial playback)
+                print("🎉 [EnhancedTTS] Playing next from pending queue")
+                self.playNextPendingAudio()
             } else {
-                print("🎉 [EnhancedTTS] Chunk complete, observer will trigger next")
+                print("🎉 [EnhancedTTS] All queues empty, playback complete")
                 // Don't deactivate audio session - let TTSQueueService manage this
             }
         }
