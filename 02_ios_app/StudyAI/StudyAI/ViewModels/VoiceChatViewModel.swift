@@ -376,10 +376,10 @@ class VoiceChatViewModel: ObservableObject {
     }
 
     private func convertAudioToGeminiFormat(buffer: AVAudioPCMBuffer) -> Data? {
-        // Gemini Live expects 16-bit PCM at 24kHz
+        // Gemini Live input: 16-bit PCM at 16kHz (output is 24kHz)
         let targetFormat = AVAudioFormat(
             commonFormat: .pcmFormatInt16,
-            sampleRate: 24000,
+            sampleRate: 16000,
             channels: 1,
             interleaved: false
         )

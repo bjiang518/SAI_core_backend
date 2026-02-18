@@ -29,7 +29,7 @@ module.exports = async function (fastify, opts) {
      * Acts as a bridge between iOS client and Google's Gemini Live API.
      * Handles authentication, message translation, and bidirectional streaming.
      */
-    fastify.get('/api/ai/gemini-live/connect', { websocket: true }, (connection, req) => {
+    fastify.get('/api/ai/gemini-live/connect', { websocket: true }, async (connection, req) => {
         const clientSocket = connection.socket;
         let geminiSocket = null;
         let userId = null;
@@ -42,7 +42,7 @@ module.exports = async function (fastify, opts) {
 
         try {
             // ============================================
-            // STEP 1: Authenticate iOS Client
+            // STEP 1: Authenticate iOS Client (BLOCKING)
             // ============================================
             const token = req.query.token;
             sessionId = req.query.sessionId;
@@ -72,22 +72,21 @@ module.exports = async function (fastify, opts) {
                 return;
             }
 
-            // Verify session ownership
+            // Verify session ownership (BLOCKING - prevent race condition)
             if (sessionId) {
-                db.query('SELECT user_id FROM sessions WHERE id = $1', [sessionId])
-                    .then(result => {
-                        if (result.rows.length === 0 || result.rows[0].user_id !== userId) {
-                            logger.warn({ userId, sessionId }, 'Session not found or unauthorized');
-                            clientSocket.send(JSON.stringify({
-                                type: 'error',
-                                error: 'Session not found or unauthorized'
-                            }));
-                            clientSocket.close(1008, 'Unauthorized');
-                        }
-                    })
-                    .catch(error => {
-                        logger.error({ error }, 'Database error during session verification');
-                    });
+                const result = await db.query('SELECT user_id FROM sessions WHERE id = $1', [sessionId]);
+
+                if (result.rows.length === 0 || result.rows[0].user_id !== userId) {
+                    logger.warn({ userId, sessionId }, 'Session not found or unauthorized');
+                    clientSocket.send(JSON.stringify({
+                        type: 'error',
+                        error: 'Session not found or unauthorized'
+                    }));
+                    clientSocket.close(1008, 'Unauthorized');
+                    return;
+                }
+
+                logger.info({ userId, sessionId }, 'Session ownership verified');
             }
 
             // ============================================
@@ -235,7 +234,7 @@ module.exports = async function (fastify, opts) {
                 // Build official BidiGenerateContentSetup message
                 const setupMessage = {
                     setup: {
-                        model: 'models/gemini-2.0-flash-exp',
+                        model: 'models/gemini-2.5-flash-native-audio-preview-12-2025',
                         generationConfig: {
                             responseModalities: ['AUDIO', 'TEXT'],
                             speechConfig: {
@@ -304,6 +303,7 @@ module.exports = async function (fastify, opts) {
             /**
              * HANDLER: Audio Chunk
              * Translates iOS audio to official realtimeInput message
+             * NOTE: Input audio is natively 16kHz (output is 24kHz)
              */
             function handleAudioChunk(data) {
                 const { audio } = data; // Base64 encoded audio
@@ -313,7 +313,7 @@ module.exports = async function (fastify, opts) {
                     realtimeInput: {
                         audio: {
                             data: audio,
-                            mimeType: 'audio/pcm;rate=24000'
+                            mimeType: 'audio/pcm;rate=16000' // Input is 16kHz (output is 24kHz)
                         }
                     }
                 };
@@ -477,6 +477,55 @@ module.exports = async function (fastify, opts) {
                 // Handle toolCall (function calling)
                 if (message.toolCall) {
                     handleToolCall(message.toolCall);
+                }
+
+                // Handle toolCallCancellation
+                if (message.toolCallCancellation) {
+                    const { ids } = message.toolCallCancellation;
+                    logger.info({ ids }, 'Tool calls cancelled by server');
+
+                    // Notify iOS that tool calls were cancelled
+                    clientSocket.send(JSON.stringify({
+                        type: 'tool_call_cancelled',
+                        ids: ids
+                    }));
+
+                    // TODO: Attempt to undo side effects if possible
+                }
+
+                // Handle goAway (server requests disconnect)
+                if (message.goAway) {
+                    const { timeLeft } = message.goAway;
+                    logger.warn({ timeLeft }, 'Server sent goAway - will disconnect soon');
+
+                    // Notify iOS to prepare for reconnection
+                    clientSocket.send(JSON.stringify({
+                        type: 'go_away',
+                        timeLeft: timeLeft,
+                        message: 'Server requesting disconnect - please reconnect'
+                    }));
+
+                    // Close connection gracefully after a brief delay
+                    setTimeout(() => {
+                        if (geminiSocket && geminiSocket.readyState === WebSocket.OPEN) {
+                            geminiSocket.close(1000, 'goAway received');
+                        }
+                        if (clientSocket.readyState === WebSocket.OPEN) {
+                            clientSocket.close(1000, 'Server requested disconnect');
+                        }
+                    }, 1000);
+                }
+
+                // Handle sessionResumptionUpdate
+                if (message.sessionResumptionUpdate) {
+                    const { newHandle, resumable } = message.sessionResumptionUpdate;
+                    logger.debug({ newHandle, resumable }, 'Session resumption state update');
+
+                    // Store resumption token if available (for future reconnection)
+                    if (resumable && newHandle) {
+                        // TODO: Store newHandle in database for session resumption
+                        logger.info({ userId, sessionId, newHandle }, 'Session resumption token available');
+                    }
                 }
 
                 // Handle usage metadata
