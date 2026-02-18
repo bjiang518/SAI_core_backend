@@ -25,7 +25,7 @@ const ErrorAnalysisRoutes = require('./modules/error-analysis'); // NEW: Pass 2 
 const WeaknessDescriptionRoutes = require('./modules/weakness-description'); // NEW: Weakness description generation
 const ConceptExtractionRoutes = require('./modules/concept-extraction'); // NEW: Bidirectional status tracking
 const InteractiveStreamingRoutes = require('./modules/interactive-streaming'); // NEW: Interactive Mode (Phase 1)
-const GeminiLiveRoutes = require('./modules/gemini-live'); // NEW: Gemini Live API voice chat
+const GeminiLiveRoutes = require('./modules/gemini-live-v2'); // NEW: Gemini Live API voice chat (v2 - official protocol)
 
 /**
  * Register all AI routes
