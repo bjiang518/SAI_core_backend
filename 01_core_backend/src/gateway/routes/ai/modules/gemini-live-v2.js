@@ -338,45 +338,43 @@ module.exports = async function (fastify, opts) {
                 const systemInstruction = buildSystemInstruction(subject, language);
 
                 // Build official BidiGenerateContentSetup message
-                // ✅ Official protocol uses camelCase for all fields
                 const setupMessage = {
                     setup: {
                         model: 'models/gemini-2.5-flash-native-audio-preview-12-2025',
-                        generationConfig: {  // ✅ camelCase
-                            responseModalities: ['AUDIO', 'TEXT'],  // ✅ Explicitly request both
-                            speechConfig: {  // ✅ camelCase
-                                voiceConfig: {  // ✅ camelCase
-                                    prebuiltVoiceConfig: {  // ✅ camelCase
-                                        voiceName: 'Puck'  // ✅ camelCase
-                                    }
-                                }
-                            }
+                        generationConfig: {
+                            // Start safe: AUDIO only. You still get text via outputTranscription.
+                            responseModalities: ['AUDIO'],
+
+                            speechConfig: {
+                                voiceConfig: {
+                                    prebuiltVoiceConfig: {
+                                        voiceName: 'Puck',
+                                    },
+                                },
+                            },
+
+                            // ✅ MUST be inside generationConfig (not at setup-level)
+                            inputAudioTranscription: {},   // Transcribe user's speech
+                            outputAudioTranscription: {},  // Transcribe AI's speech
                         },
-                        // ✅ CRITICAL FIX: Move transcription configs to setup-level (NOT generationConfig)
-                        // These are fields on BidiGenerateContentSetup, not GenerationConfig
-                        inputAudioTranscription: {},  // Transcribe user's speech
-                        outputAudioTranscription: {},  // Transcribe AI's speech
-                        systemInstruction: {  // ✅ camelCase
-                            parts: [{
-                                text: systemInstruction
-                            }]
+
+                        systemInstruction: {
+                            parts: [{ text: systemInstruction }],
                         },
+
                         tools: [
                             {
-                                functionDeclarations: [  // ✅ camelCase
+                                functionDeclarations: [
                                     {
                                         name: 'fetch_homework_context',
                                         description: 'Retrieves the homework question and context from the current study session',
                                         parameters: {
                                             type: 'OBJECT',
                                             properties: {
-                                                sessionId: {
-                                                    type: 'STRING',
-                                                    description: 'The session ID to retrieve context from'
-                                                }
+                                                sessionId: { type: 'STRING', description: 'The session ID to retrieve context from' },
                                             },
-                                            required: ['sessionId']
-                                        }
+                                            required: ['sessionId'],
+                                        },
                                     },
                                     {
                                         name: 'search_archived_conversations',
@@ -384,22 +382,16 @@ module.exports = async function (fastify, opts) {
                                         parameters: {
                                             type: 'OBJECT',
                                             properties: {
-                                                query: {
-                                                    type: 'STRING',
-                                                    description: 'Search query for archived conversations'
-                                                },
-                                                subject: {
-                                                    type: 'STRING',
-                                                    description: 'Subject filter (optional)'
-                                                }
+                                                query: { type: 'STRING', description: 'Search query for archived conversations' },
+                                                subject: { type: 'STRING', description: 'Subject filter (optional)' },
                                             },
-                                            required: ['query']
-                                        }
-                                    }
-                                ]
-                            }
-                        ]
-                    }
+                                            required: ['query'],
+                                        },
+                                    },
+                                ],
+                            },
+                        ],
+                    },
                 };
 
                 // Send setup to Gemini
