@@ -350,11 +350,12 @@ module.exports = async function (fastify, opts) {
                                         voiceName: 'Puck'  // ✅ camelCase
                                     }
                                 }
-                            },
-                            // ✅ FIX: Enable transcriptions for both input and output
-                            inputAudioTranscription: {},  // Transcribe user's speech
-                            outputAudioTranscription: {}  // Transcribe AI's speech
+                            }
                         },
+                        // ✅ CRITICAL FIX: Move transcription configs to setup-level (NOT generationConfig)
+                        // These are fields on BidiGenerateContentSetup, not GenerationConfig
+                        inputAudioTranscription: {},  // Transcribe user's speech
+                        outputAudioTranscription: {},  // Transcribe AI's speech
                         systemInstruction: {  // ✅ camelCase
                             parts: [{
                                 text: systemInstruction
