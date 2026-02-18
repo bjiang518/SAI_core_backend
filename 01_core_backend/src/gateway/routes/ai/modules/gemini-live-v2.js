@@ -13,11 +13,10 @@
  * - Backend → iOS: Simplified response messages
  */
 
-const jwt = require('jsonwebtoken');
 const WebSocket = require('ws');
 
 module.exports = async function (fastify, opts) {
-    const db = require('../../../../utils/railway-database');
+    const { db } = require('../../../../utils/railway-database');
     const logger = fastify.log;
 
     // Google Gemini Live API WebSocket endpoint
@@ -57,16 +56,27 @@ module.exports = async function (fastify, opts) {
                 return;
             }
 
-            // Verify JWT token
+            // Verify session token (64-character hex format)
             try {
-                const decoded = jwt.verify(token, process.env.JWT_SECRET);
-                userId = decoded.userId;
-                logger.info({ userId, sessionId }, 'iOS client authenticated');
+                const sessionData = await db.verifyUserSession(token);
+
+                if (!sessionData || !sessionData.user_id) {
+                    logger.warn('Invalid or expired session token');
+                    clientSocket.send(JSON.stringify({
+                        type: 'error',
+                        error: 'Invalid or expired authentication token'
+                    }));
+                    clientSocket.close(1008, 'Unauthorized');
+                    return;
+                }
+
+                userId = sessionData.user_id;
+                logger.info({ userId, sessionId }, 'iOS client authenticated via session token');
             } catch (error) {
-                logger.error({ error }, 'JWT verification failed');
+                logger.error({ error }, 'Session verification failed');
                 clientSocket.send(JSON.stringify({
                     type: 'error',
-                    error: 'Invalid authentication token'
+                    error: 'Authentication failed'
                 }));
                 clientSocket.close(1008, 'Unauthorized');
                 return;
@@ -684,12 +694,18 @@ module.exports = async function (fastify, opts) {
 
         } catch (error) {
             logger.error({ error, userId }, 'Fatal error in WebSocket handler');
-            if (clientSocket.readyState === WebSocket.OPEN) {
-                clientSocket.send(JSON.stringify({
-                    type: 'error',
-                    error: 'Internal server error'
-                }));
-                clientSocket.close(1011, 'Internal error');
+
+            // Safely close client socket if still open
+            try {
+                if (clientSocket && typeof clientSocket.readyState !== 'undefined' && clientSocket.readyState === 1) {
+                    clientSocket.send(JSON.stringify({
+                        type: 'error',
+                        error: 'Internal server error'
+                    }));
+                    clientSocket.close(1011, 'Internal error');
+                }
+            } catch (closeError) {
+                logger.error({ closeError }, 'Error closing client socket');
             }
         }
     });
