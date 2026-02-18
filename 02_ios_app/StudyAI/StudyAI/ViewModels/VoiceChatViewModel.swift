@@ -110,6 +110,9 @@ class VoiceChatViewModel: ObservableObject {
 
         connectionState = .connecting
 
+        // Configure audio session early for bidirectional audio
+        configureAudioSession(for: .playAndRecord)
+
         // Build WebSocket URL
         let baseURL = networkService.apiBaseURL
             .replacingOccurrences(of: "https://", with: "wss://")
@@ -166,8 +169,8 @@ class VoiceChatViewModel: ObservableObject {
         isRecording = true
         errorMessage = nil
 
-        // Configure audio session
-        configureAudioSession(for: .recording)
+        // Configure audio session for bidirectional audio (recording + playback)
+        configureAudioSession(for: .playAndRecord)
 
         // Start audio engine
         do {
