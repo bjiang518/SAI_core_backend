@@ -425,7 +425,7 @@ module.exports = async function (fastify, opts) {
                     realtimeInput: {  // ✅ camelCase
                         audio: {  // ✅ Use audio field, not media_chunks
                             data: audio,
-                            mimeType: 'audio/pcm;rate=16000'  // ✅ camelCase
+                            mimeType: 'audio/pcm;rate=24000'  // ✅ Match iOS recording rate (24kHz)
                         }
                     }
                 };
