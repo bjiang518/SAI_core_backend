@@ -173,11 +173,11 @@ module.exports = async function (fastify, opts) {
                     const rawData = data.toString();
                     const message = JSON.parse(rawData);
 
-                    // 🔍 DEBUG: Log full message from Gemini
-                    logger.info({
+                    // ✅ PERFORMANCE: Only log type, NEVER log full message (contains huge Base64 audio)
+                    const messageType = Object.keys(message)[0];
+                    logger.debug({
                         userId,
-                        messageType: Object.keys(message)[0],
-                        fullMessage: JSON.stringify(message, null, 2)
+                        messageType
                     }, '📨 Received from Gemini');
 
                     handleGeminiMessage(message);
@@ -359,12 +359,12 @@ module.exports = async function (fastify, opts) {
                 const systemInstruction = buildSystemInstruction(subject, language);
 
                 // Build official BidiGenerateContentSetup message
-                // ✅ Testing: responseModalities with TEXT should enable outputTranscription
+                // ✅ CRITICAL: Must add inputAudioTranscription and outputAudioTranscription at setup level
                 const setupMessage = {
                     setup: {
                         model: "models/gemini-2.5-flash-native-audio-preview-12-2025",
                         generationConfig: {
-                            responseModalities: ["AUDIO", "TEXT"], // ✅ Request BOTH audio and text transcription
+                            responseModalities: ["AUDIO"], // Keep AUDIO only, transcription has dedicated config
                             speechConfig: {
                                 voiceConfig: {
                                     prebuiltVoiceConfig: {
@@ -373,6 +373,9 @@ module.exports = async function (fastify, opts) {
                                 }
                             }
                         },
+                        // ✅ CRITICAL: These MUST be at setup level to enable outputTranscription
+                        inputAudioTranscription: {},  // Enable user speech-to-text
+                        outputAudioTranscription: {}, // Enable AI speech-to-text (required for iOS display)
                         systemInstruction: {
                             parts: [{ text: systemInstruction }]
                         }
