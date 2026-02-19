@@ -77,6 +77,9 @@ class VoiceChatViewModel: ObservableObject {
     /// Is currently playing audio
     private var isPlayingAudio = false
 
+    /// Track if user has started speaking (to filter out initial Gemini responses)
+    private var userHasSpoken = false
+
     // MARK: - Connection State
 
     enum ConnectionState {
@@ -195,6 +198,7 @@ class VoiceChatViewModel: ObservableObject {
         logger.info("✅ Starting microphone recording (isRecording was false)")
 
         isRecording = true
+        userHasSpoken = true  // ✅ Mark that user has spoken
         errorMessage = nil
 
         logger.info("🔊 Configuring audio session for bidirectional audio...")
@@ -344,6 +348,13 @@ class VoiceChatViewModel: ObservableObject {
 
         case "text_chunk":
             if let textChunk = json["text"] as? String {
+                // ✅ Filter: Only show text after user has spoken
+                // This prevents showing Gemini's initial system responses
+                if !userHasSpoken {
+                    logger.debug("⏭️ Skipping text chunk before user spoke: \(textChunk.prefix(30))...")
+                    return
+                }
+
                 logger.debug("📝 Received text chunk: \(textChunk.prefix(50))...")
                 liveTranscription += textChunk
                 isAISpeaking = true
