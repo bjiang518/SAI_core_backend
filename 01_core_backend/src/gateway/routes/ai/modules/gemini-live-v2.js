@@ -359,7 +359,7 @@ module.exports = async function (fastify, opts) {
                 const systemInstruction = buildSystemInstruction(subject, language);
 
                 // Build official BidiGenerateContentSetup message
-                // ✅ CRITICAL: Must enable transcription for text display on iOS
+                // ✅ Testing: responseModalities with TEXT should enable outputTranscription
                 const setupMessage = {
                     setup: {
                         model: "models/gemini-2.5-flash-native-audio-preview-12-2025",
@@ -373,9 +373,6 @@ module.exports = async function (fastify, opts) {
                                 }
                             }
                         },
-                        // ✅ CRITICAL: Enable transcription to get outputTranscription.text
-                        inputAudioTranscription: {},  // Enable user speech-to-text
-                        outputAudioTranscription: {}, // Enable AI speech-to-text (required for iOS display)
                         systemInstruction: {
                             parts: [{ text: systemInstruction }]
                         }
