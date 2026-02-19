@@ -100,6 +100,9 @@ class VoiceChatViewModel: ObservableObject {
     /// ID of the most recent user placeholder bubble waiting for transcription
     private var pendingUserMessageID: UUID?
 
+    /// When true the audio tap captures and sends data; false = engine warm but discarding
+    private var isCapturing = false
+
     // MARK: - Connection State
 
     enum ConnectionState {
@@ -141,6 +144,9 @@ class VoiceChatViewModel: ObservableObject {
         // ✅ Configure audio session for bidirectional voice chat ONCE
         logger.info("🔊 Configuring audio session for bidirectional voice chat (.playAndRecord mode)")
         configureAudioSession(for: .playAndRecord)
+
+        // ✅ Pre-warm audio engine so first recording has zero startup latency
+        prewarmAudioEngine()
 
         // Build WebSocket URL
         let baseURL = networkService.apiBaseURL
@@ -199,8 +205,9 @@ class VoiceChatViewModel: ObservableObject {
         webSocket?.cancel(with: .goingAway, reason: nil)
         webSocket = nil
 
-        // Stop audio
-        stopRecording()
+        // Stop audio — stop capturing and tear down engine fully
+        isCapturing = false
+        stopAudioEngine()
         stopAudioPlayback()
 
         // ✅ Re-enable InteractiveTTS now that voice chat is done
@@ -226,16 +233,20 @@ class VoiceChatViewModel: ObservableObject {
         currentRecordingID = UUID()
         currentRecordingBuffer = Data()
 
-        // Audio session already configured in connectToGeminiLive() - don't reconfigure
-
-        // Start audio engine
-        do {
-            try startAudioEngine()
-            logger.info("✅ Audio engine started for recording")
-        } catch {
-            logger.error("❌ Failed to start audio engine: \(error)")
-            errorMessage = "Failed to start recording: \(error.localizedDescription)"
-            isRecording = false
+        if audioEngine != nil {
+            // Engine already pre-warmed — flip gate to start capturing immediately (zero latency)
+            isCapturing = true
+            logger.info("✅ Audio capture started (pre-warmed engine, zero latency)")
+        } else {
+            // Fallback: engine wasn't pre-warmed, start it now
+            do {
+                try startAudioEngine()
+                logger.info("✅ Audio engine started for recording (cold start)")
+            } catch {
+                logger.error("❌ Failed to start audio engine: \(error)")
+                errorMessage = "Failed to start recording: \(error.localizedDescription)"
+                isRecording = false
+            }
         }
     }
 
@@ -267,13 +278,13 @@ class VoiceChatViewModel: ObservableObject {
         print("📤 [VoiceChat] Sending audio_stream_end to backend")
         sendWebSocketMessage(type: "audio_stream_end", data: [:])
 
-        // Stop audio engine
-        stopAudioEngine()
+        // Stop capturing but keep engine running (warm for next press)
+        isCapturing = false
+        recordingLevel = 0.0
 
         // Stop level timer
         levelTimer?.invalidate()
         levelTimer = nil
-        recordingLevel = 0.0
     }
 
     /// Interrupt AI speaking
@@ -504,6 +515,42 @@ class VoiceChatViewModel: ObservableObject {
         startLevelMonitoring()
     }
 
+    /// Start engine immediately with tap installed but capturing disabled.
+    /// This pre-warms the hardware so startRecording() has zero latency.
+    private func prewarmAudioEngine() {
+        guard audioEngine == nil else { return }
+        do {
+            audioEngine = AVAudioEngine()
+            guard let engine = audioEngine else { return }
+            let inputNode = engine.inputNode
+            let recordingFormat = inputNode.outputFormat(forBus: 0)
+            inputNode.installTap(onBus: 0, bufferSize: 4096, format: recordingFormat) { [weak self] buffer, _ in
+                guard let self, self.isCapturing else { return }
+                // Same processing as startAudioEngine tap — reuse existing logic
+                guard let channelData = buffer.floatChannelData?[0] else { return }
+                let frames = buffer.frameLength
+                var sum: Float = 0
+                for i in 0..<Int(frames) { sum += abs(channelData[i]) }
+                let scaledLevel = min((sum / Float(frames)) * 10, 1.0)
+                Task { @MainActor in self.recordingLevel = scaledLevel }
+                let silenceThreshold: Float = 0.02
+                guard scaledLevel > silenceThreshold else { return }
+                if let convertedData = self.convertAudioToGeminiFormat(buffer: buffer) {
+                    self.currentRecordingBuffer.append(convertedData)
+                    let base64Audio = convertedData.base64EncodedString()
+                    Task { @MainActor in
+                        self.sendWebSocketMessage(type: "audio_chunk", data: ["audio": base64Audio])
+                    }
+                }
+            }
+            try engine.start()
+            logger.info("🎙️ Audio engine pre-warmed")
+        } catch {
+            logger.error("❌ Audio engine pre-warm failed: \(error)")
+            audioEngine = nil
+        }
+    }
+
     private func stopAudioEngine() {
         audioEngine?.stop()
         audioEngine?.inputNode.removeTap(onBus: 0)
@@ -727,8 +774,10 @@ class VoiceChatViewModel: ObservableObject {
                 logger.info("   Setting category: .playback, mode: .spokenAudio")
                 try audioSession.setCategory(.playback, mode: .spokenAudio, options: [])
             case .playAndRecord:
-                logger.info("   Setting category: .playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetooth]")
-                try audioSession.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetooth])
+                logger.info("   Setting category: .playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetooth]")
+                // Use .default mode (not .voiceChat) — .voiceChat forces earpiece routing
+                // regardless of .defaultToSpeaker. .default respects .defaultToSpeaker.
+                try audioSession.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetooth])
             }
 
             try audioSession.setActive(true)
