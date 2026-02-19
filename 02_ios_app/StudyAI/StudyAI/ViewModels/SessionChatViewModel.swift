@@ -142,6 +142,7 @@ class SessionChatViewModel: ObservableObject {
 
     init() {
         setupNetworkMonitoring()
+        setupVoiceChatNotifications()  // ✅ NEW: Listen for voice chat events
 
         // ✅ NEW: Observe textRenderer.visibleText changes and update activeStreamingMessage
         textRenderer.$visibleText
@@ -151,6 +152,27 @@ class SessionChatViewModel: ObservableObject {
                 self.activeStreamingMessage = visibleText
             }
             .store(in: &cancellables)
+    }
+
+    // ✅ NEW: Voice Chat Notification Handlers
+    private func setupVoiceChatNotifications() {
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("StopInteractiveTTS"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.logger.info("🔇 Received StopInteractiveTTS notification - stopping playback")
+            self?.interactiveTTSService.stopPlayback()
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("ResumeInteractiveTTS"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.logger.info("🔊 Received ResumeInteractiveTTS notification - service can resume")
+            // InteractiveTTS will automatically resume when next audio chunk arrives
+        }
     }
 
     // MARK: - Phase 2.3: Network Monitoring Setup
