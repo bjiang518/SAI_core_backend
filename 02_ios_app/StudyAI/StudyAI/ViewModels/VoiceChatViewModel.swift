@@ -112,6 +112,11 @@ class VoiceChatViewModel: ObservableObject {
         connectionState = .connecting
         logger.info("🔄 Connecting to Gemini Live...")
 
+        // ✅ CRITICAL: Stop InteractiveTTS to avoid audio engine conflicts
+        // InteractiveTTS will be restarted when we disconnect
+        logger.info("🔇 Stopping InteractiveTTS to prevent audio conflicts...")
+        NotificationCenter.default.post(name: NSNotification.Name("StopInteractiveTTS"), object: nil)
+
         // Configure audio session early for bidirectional audio
         configureAudioSession(for: .playAndRecord)
 
@@ -166,10 +171,14 @@ class VoiceChatViewModel: ObservableObject {
         // Deactivate audio session to allow InteractiveTTS to resume
         do {
             try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-            logger.info("Audio session deactivated - InteractiveTTS can resume")
+            logger.info("✅ Audio session deactivated - InteractiveTTS can resume")
         } catch {
             logger.error("Failed to deactivate audio session: \(error)")
         }
+
+        // ✅ Allow InteractiveTTS to resume after we're done
+        logger.info("🔊 Notifying SessionChatView that InteractiveTTS can resume")
+        NotificationCenter.default.post(name: NSNotification.Name("ResumeInteractiveTTS"), object: nil)
 
         connectionState = .disconnected
     }
