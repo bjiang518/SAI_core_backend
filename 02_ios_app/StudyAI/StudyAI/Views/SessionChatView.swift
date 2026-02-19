@@ -247,6 +247,7 @@ struct SessionChatView: View {
                             vm.connectToGeminiLive()
                             withAnimation(.easeInOut(duration: 0.3)) {
                                 isLiveMode = true
+                                hasConversationStarted = true  // suppress empty state in Live mode
                             }
                             print("🎙️ [LiveMode] voiceVM created, connectToGeminiLive() called")
                         }
@@ -799,7 +800,7 @@ struct SessionChatView: View {
                         .padding(.top, 8)
                     }
 
-                    if networkService.conversationHistory.isEmpty && viewModel.isActivelyStreaming == false {
+                    if networkService.conversationHistory.isEmpty && viewModel.isActivelyStreaming == false && !isLiveMode {
                         modernEmptyStateView
                     } else {
                         // Show regular messages (completed messages only)
