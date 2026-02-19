@@ -41,6 +41,9 @@ class VoiceChatViewModel: ObservableObject {
     /// WebSocket connection to backend
     private var webSocket: URLSessionWebSocketTask?
 
+    /// Timer for client-side WebSocket keepalive pings (prevents Railway proxy from closing idle connections)
+    private var keepAliveTimer: Timer?
+
     /// Audio engine for recording
     private var audioEngine: AVAudioEngine?
 
@@ -80,6 +83,22 @@ class VoiceChatViewModel: ObservableObject {
     /// Minimum buffers to accumulate before starting playback (prevents choppy audio)
     /// ✅ Increased from 2 to 5 (200ms) for smoother playback with network jitter
     private let minimumBuffersBeforePlayback = 5
+
+    // MARK: - Recording Capture (for voice bubble playback)
+
+    /// Completed user recordings keyed by recording UUID.
+    /// SessionChatView observes messages.count changes and drains this dict
+    /// to pair each new user VoiceMessage with its raw PCM data.
+    @Published var completedUserRecordings: [UUID: Data] = [:]
+
+    /// UUID assigned to the recording that is currently in progress
+    private var currentRecordingID: UUID?
+
+    /// Accumulates 16-bit PCM bytes from the audio tap during recording
+    private var currentRecordingBuffer = Data()
+
+    /// ID of the most recent user placeholder bubble waiting for transcription
+    private var pendingUserMessageID: UUID?
 
     // MARK: - Connection State
 
@@ -140,6 +159,19 @@ class VoiceChatViewModel: ObservableObject {
         webSocket = URLSession.shared.webSocketTask(with: wsURL)
         webSocket?.resume()
 
+        // Send WebSocket ping every 10s to keep Railway proxy connection alive
+        keepAliveTimer?.invalidate()
+        keepAliveTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { [weak self] _ in
+            guard let self, let ws = self.webSocket else { return }
+            ws.sendPing { error in
+                if let error = error {
+                    print("⚠️ [VoiceChat] Keepalive ping failed: \(error.localizedDescription)")
+                } else {
+                    print("🏓 [VoiceChat] Keepalive ping sent")
+                }
+            }
+        }
+
         // Start session
         sendWebSocketMessage(type: "start_session", data: [
             "subject": subject,
@@ -155,6 +187,10 @@ class VoiceChatViewModel: ObservableObject {
     /// Disconnect from Gemini Live
     func disconnect() {
         logger.info("Disconnecting from Gemini Live")
+
+        // Stop keepalive pings
+        keepAliveTimer?.invalidate()
+        keepAliveTimer = nil
 
         // Send end session message
         sendWebSocketMessage(type: "end_session", data: [:])
@@ -183,6 +219,10 @@ class VoiceChatViewModel: ObservableObject {
         isRecording = true
         errorMessage = nil
 
+        // Start a fresh PCM capture buffer for this recording
+        currentRecordingID = UUID()
+        currentRecordingBuffer = Data()
+
         // Audio session already configured in connectToGeminiLive() - don't reconfigure
 
         // Start audio engine
@@ -204,7 +244,24 @@ class VoiceChatViewModel: ObservableObject {
 
         isRecording = false
 
+        // Save accumulated PCM recording for voice bubble playback
+        if let recordingID = currentRecordingID, !currentRecordingBuffer.isEmpty {
+            completedUserRecordings[recordingID] = currentRecordingBuffer
+            print("🎙️ [VoiceChat] Recording saved — pcmBytes: \(currentRecordingBuffer.count), completedRecordings: \(completedUserRecordings.count)")
+        } else {
+            print("⚠️ [VoiceChat] stopRecording — buffer empty or no recordingID (bytes: \(currentRecordingBuffer.count))")
+        }
+        currentRecordingID = nil
+        currentRecordingBuffer = Data()
+
+        // ✅ Immediately append a placeholder bubble — text updated when transcription arrives
+        let placeholder = VoiceMessage(role: .user, text: "", isVoice: true)
+        messages.append(placeholder)
+        pendingUserMessageID = placeholder.id
+        print("🎙️ [VoiceChat] Placeholder bubble appended — id: \(placeholder.id), messages.count: \(messages.count)")
+
         // ✅ Send audio_stream_end to flush cached audio on backend
+        print("📤 [VoiceChat] Sending audio_stream_end to backend")
         sendWebSocketMessage(type: "audio_stream_end", data: [:])
 
         // Stop audio engine
@@ -285,6 +342,7 @@ class VoiceChatViewModel: ObservableObject {
 
             case .failure(let error):
                 self.logger.error("WebSocket receive error: \(error)")
+                print("❌ [VoiceChat WS] Receive loop error: \(error) — connection dropped")
                 Task { @MainActor in
                     self.connectionState = .error(error.localizedDescription)
                     self.errorMessage = "Connection lost"
@@ -298,48 +356,62 @@ class VoiceChatViewModel: ObservableObject {
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let type = json["type"] as? String else {
             logger.error("Failed to parse WebSocket message")
+            print("❌ [VoiceChat WS] Failed to parse message: \(text.prefix(200))")
             return
         }
 
+        print("📨 [VoiceChat WS] Received type: '\(type)'")
         logger.debug("Received WebSocket message type: \(type)")
 
         switch type {
         case "session_ready":
+            print("✅ [VoiceChat WS] session_ready — Gemini Live is ready")
             logger.info("Gemini Live session ready")
             errorMessage = nil
 
         case "text_chunk":
             if let textChunk = json["text"] as? String {
+                print("📝 [VoiceChat WS] text_chunk: '\(textChunk)'")
                 logger.info("📝 [TEXT] Received text_chunk: '\(textChunk)'")
-                // Backend now sends clean outputTranscription - no filtering needed
                 liveTranscription += textChunk
                 isAISpeaking = true
             } else {
+                print("❌ [VoiceChat WS] text_chunk missing 'text' field: \(json)")
                 logger.error("❌ [TEXT] text_chunk message has no 'text' field: \(json)")
             }
 
         case "user_transcription":
             if let userText = json["text"] as? String {
+                print("🎤 [VoiceChat WS] user_transcription: '\(userText)'")
                 logger.info("🎤 [USER] Transcribed: '\(userText)'")
-                // Add user's transcribed message to conversation
-                messages.append(VoiceMessage(
-                    role: .user,
-                    text: userText,
-                    isVoice: true
-                ))
+                // Fill in the pending placeholder bubble with real transcription text
+                if let pendingID = pendingUserMessageID,
+                   let idx = messages.firstIndex(where: { $0.id == pendingID }) {
+                    messages[idx].text = userText
+                    pendingUserMessageID = nil
+                    print("🎤 [VoiceChat WS] Updated placeholder bubble at index \(idx) with transcription")
+                } else {
+                    // No placeholder found — append normally (fallback)
+                    print("🎤 [VoiceChat WS] No placeholder found, appending new message")
+                    messages.append(VoiceMessage(role: .user, text: userText, isVoice: true))
+                }
+            } else {
+                print("❌ [VoiceChat WS] user_transcription missing 'text' field: \(json)")
             }
 
         case "audio_chunk":
             if let audioBase64 = json["data"] as? String,
                let audioData = Data(base64Encoded: audioBase64) {
+                print("🔊 [VoiceChat WS] audio_chunk: \(audioData.count) bytes")
                 logger.debug("📥 Received audio_chunk: \(audioData.count) bytes")
                 playAudioChunk(audioData)
             } else {
+                print("❌ [VoiceChat WS] Failed to decode audio_chunk")
                 logger.error("❌ Failed to decode audio_chunk data")
             }
 
         case "turn_complete":
-            // AI finished speaking
+            print("✅ [VoiceChat WS] turn_complete — liveTranscription: '\(liveTranscription)', messages.count: \(messages.count)")
             if !liveTranscription.isEmpty {
                 messages.append(VoiceMessage(
                     role: .assistant,
@@ -349,21 +421,26 @@ class VoiceChatViewModel: ObservableObject {
                 liveTranscription = ""
             }
             isAISpeaking = false
+            print("✅ [VoiceChat WS] turn_complete handled — messages.count now: \(messages.count)")
 
         case "interrupted":
+            print("⚡ [VoiceChat WS] interrupted")
             logger.info("AI interrupted by user")
 
         case "session_ended":
+            print("🔴 [VoiceChat WS] session_ended")
             logger.info("Gemini Live session ended")
             connectionState = .disconnected
 
         case "error":
             if let errorMsg = json["error"] as? String {
+                print("❌ [VoiceChat WS] server error: \(errorMsg)")
                 logger.error("Server error: \(errorMsg)")
                 errorMessage = errorMsg
             }
 
         default:
+            print("⚠️ [VoiceChat WS] unknown type '\(type)' — full json: \(json)")
             logger.warning("⚠️ Unknown message type '\(type)': \(json)")
         }
     }
@@ -413,6 +490,9 @@ class VoiceChatViewModel: ObservableObject {
             // Convert to 16-bit PCM at 24kHz (Gemini Live format)
             if let convertedData = self.convertAudioToGeminiFormat(buffer: buffer) {
                 let base64Audio = convertedData.base64EncodedString()
+
+                // Accumulate PCM bytes for voice bubble playback
+                self.currentRecordingBuffer.append(convertedData)
 
                 // Send to backend
                 Task { @MainActor in
@@ -702,7 +782,7 @@ class VoiceChatViewModel: ObservableObject {
 struct VoiceMessage: Identifiable, Equatable {
     let id = UUID()
     let role: MessageRole
-    let text: String
+    var text: String          // mutable: starts empty, updated when transcription arrives
     let isVoice: Bool
     let timestamp = Date()
 
