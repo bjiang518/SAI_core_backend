@@ -57,10 +57,11 @@ fastify.register(require('@fastify/multipart'), {
 fastify.register(require('@fastify/websocket'), {
   options: {
     maxPayload: 5 * 1024 * 1024, // 5MB - allow large audio chunks
-    verifyClient: false // We handle auth via JWT in route handler
+    verifyClient: false, // We handle auth via JWT in route handler
+    perMessageDeflate: false // Disable compression for real-time audio streaming (reduces latency & CPU)
   }
 });
-fastify.log.info('✅ WebSocket support registered (Gemini Live voice chat)');
+fastify.log.info('✅ WebSocket support registered (Gemini Live voice chat - compression disabled)');
 
 // Register compression for better performance (70% payload reduction)
 fastify.register(require('@fastify/compress'), {
