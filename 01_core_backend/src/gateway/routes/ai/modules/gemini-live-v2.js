@@ -338,60 +338,24 @@ module.exports = async function (fastify, opts) {
                 const systemInstruction = buildSystemInstruction(subject, language);
 
                 // Build official BidiGenerateContentSetup message
+                // Minimal setup: remove transcriptions and tools for now
                 const setupMessage = {
                     setup: {
-                        model: 'models/gemini-2.5-flash-native-audio-preview-12-2025',
+                        model: "models/gemini-2.5-flash-native-audio-preview-12-2025",
                         generationConfig: {
-                            // Start safe: AUDIO only. You still get text via outputTranscription.
-                            responseModalities: ['AUDIO'],
-
+                            responseModalities: ["AUDIO"],
                             speechConfig: {
                                 voiceConfig: {
                                     prebuiltVoiceConfig: {
-                                        voiceName: 'Puck',
-                                    },
-                                },
-                            },
-
-                            // ✅ MUST be inside generationConfig (not at setup-level)
-                            inputAudioTranscription: {},   // Transcribe user's speech
-                            outputAudioTranscription: {},  // Transcribe AI's speech
+                                        voiceName: "Puck"
+                                    }
+                                }
+                            }
                         },
-
                         systemInstruction: {
-                            parts: [{ text: systemInstruction }],
-                        },
-
-                        tools: [
-                            {
-                                functionDeclarations: [
-                                    {
-                                        name: 'fetch_homework_context',
-                                        description: 'Retrieves the homework question and context from the current study session',
-                                        parameters: {
-                                            type: 'OBJECT',
-                                            properties: {
-                                                sessionId: { type: 'STRING', description: 'The session ID to retrieve context from' },
-                                            },
-                                            required: ['sessionId'],
-                                        },
-                                    },
-                                    {
-                                        name: 'search_archived_conversations',
-                                        description: 'Searches previous study conversations for relevant information',
-                                        parameters: {
-                                            type: 'OBJECT',
-                                            properties: {
-                                                query: { type: 'STRING', description: 'Search query for archived conversations' },
-                                                subject: { type: 'STRING', description: 'Subject filter (optional)' },
-                                            },
-                                            required: ['query'],
-                                        },
-                                    },
-                                ],
-                            },
-                        ],
-                    },
+                            parts: [{ text: systemInstruction }]
+                        }
+                    }
                 };
 
                 // Send setup to Gemini
