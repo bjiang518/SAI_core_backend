@@ -37,6 +37,7 @@ module.exports = async function (fastify, opts) {
         let isSetupComplete = false;
         let isGeminiConnected = false;
         const messageQueue = []; // Queue messages until Gemini is ready
+        let pendingStartSession = null; // Store start_session until Gemini WS is open
 
         logger.info('New Gemini Live connection request');
 
@@ -137,7 +138,7 @@ module.exports = async function (fastify, opts) {
             // ============================================
             // STEP 3: Handle Gemini Connection Events
             // ============================================
-            geminiSocket.on('open', () => {
+            geminiSocket.on('open', async () => {
                 const timestamp = new Date().toISOString();
                 logger.info({
                     userId,
@@ -147,12 +148,23 @@ module.exports = async function (fastify, opts) {
 
                 isGeminiConnected = true;
 
-                logger.info({
-                    userId,
-                    queuedMessages: messageQueue.length
-                }, '🔔 Gemini connected - waiting for iOS start_session to send setup...');
+                // ✅ FIX: If start_session arrived before Gemini opened, process it now
+                if (pendingStartSession) {
+                    logger.info({
+                        userId,
+                        sessionId
+                    }, '📤 Sending queued start_session now that Gemini is open');
 
-                // ✅ FIX: Don't flush queue yet - wait for setupComplete
+                    const msg = pendingStartSession;
+                    pendingStartSession = null;
+                    await handleClientMessage(msg);
+                } else {
+                    logger.info({
+                        userId,
+                        queuedMessages: messageQueue.length
+                    }, '🔔 Gemini connected - waiting for iOS start_session...');
+                }
+
                 // Messages will be flushed after receiving setupComplete from Gemini
             });
 
@@ -240,14 +252,23 @@ module.exports = async function (fastify, opts) {
                         fullMessage: JSON.stringify(message, null, 2)
                     }, '📥 Received from iOS client');
 
-                    // ✅ CRITICAL FIX: Allow start_session through immediately!
-                    // start_session MUST be processed to send setup to Gemini
-                    // Other messages wait for setupComplete
+                    // ✅ CRITICAL FIX: Gate start_session on Gemini WS being open
+                    // If Gemini not connected yet, queue start_session
                     if (message.type === 'start_session') {
+                        if (!isGeminiConnected || !geminiSocket || geminiSocket.readyState !== WebSocket.OPEN) {
+                            logger.info({
+                                userId,
+                                sessionId,
+                                geminiReadyState: geminiSocket?.readyState
+                            }, '⏳ start_session received before Gemini open; queueing');
+                            pendingStartSession = message;  // Keep only latest
+                            return;
+                        }
+
                         logger.info({
                             userId,
                             sessionId
-                        }, '🚀 Processing start_session immediately (triggers Gemini setup)');
+                        }, '🚀 Processing start_session (Gemini is open)');
                         await handleClientMessage(message);
                         return;
                     }
@@ -516,7 +537,7 @@ module.exports = async function (fastify, opts) {
             // ============================================
             // Message Handler: Google Gemini → iOS Client
             // ============================================
-            function handleGeminiMessage(message) {
+            async function handleGeminiMessage(message) {
                 logger.debug({ messageType: Object.keys(message)[0] }, 'Received Gemini message');
 
                 // Handle setupComplete
@@ -529,7 +550,7 @@ module.exports = async function (fastify, opts) {
                         sessionId: sessionId
                     }));
 
-                    // ✅ FIX: Now flush queued messages after setupComplete
+                    // ✅ FIX: Now flush queued messages after setupComplete (with await)
                     if (messageQueue.length > 0) {
                         logger.info({
                             queueLength: messageQueue.length
@@ -538,7 +559,7 @@ module.exports = async function (fastify, opts) {
                         while (messageQueue.length > 0) {
                             const queuedMessage = messageQueue.shift();
                             logger.debug({ messageType: queuedMessage.type }, 'Processing queued message');
-                            handleClientMessage(queuedMessage);
+                            await handleClientMessage(queuedMessage);  // ✅ await for proper ordering
                         }
                     }
                 }
