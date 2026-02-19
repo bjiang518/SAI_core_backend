@@ -571,15 +571,24 @@ module.exports = async function (fastify, opts) {
                     const turnComplete = serverContent.turnComplete || serverContent.turn_complete;
                     const interrupted = serverContent.interrupted;
 
-                    // Send text transcription from modelTurn
+                    // ✅ CRITICAL: Use outputTranscription for text display (not modelTurn.parts.text)
+                    // outputTranscription contains ONLY the spoken text without internal thinking
+                    // modelTurn.parts.text contains internal reasoning/thinking that should NOT be displayed
+                    const outputTranscription = serverContent.outputTranscription || serverContent.output_transcription;
+                    if (outputTranscription && outputTranscription.text) {
+                        // Send as text_chunk so iOS displays it
+                        clientSocket.send(JSON.stringify({
+                            type: 'text_chunk',
+                            text: outputTranscription.text
+                        }));
+                        logger.debug(`📝 Sent outputTranscription text (${outputTranscription.text.length} chars)`);
+                    }
+
+                    // Send audio chunks from modelTurn (still needed for playback)
                     if (modelTurn && modelTurn.parts) {
                         for (const part of modelTurn.parts) {
-                            if (part.text) {
-                                clientSocket.send(JSON.stringify({
-                                    type: 'text_chunk',
-                                    text: part.text
-                                }));
-                            }
+                            // ❌ SKIP text from modelTurn - it contains internal thinking
+                            // ✅ ONLY send audio chunks
 
                             // Send audio chunk
                             const inlineData = part.inlineData || part.inline_data;
@@ -593,16 +602,6 @@ module.exports = async function (fastify, opts) {
                                 }
                             }
                         }
-                    }
-
-                    // ✅ Handle outputTranscription (AI's speech-to-text of its own audio)
-                    // This is more reliable than relying only on modelTurn.parts[].text
-                    const outputTranscription = serverContent.outputTranscription || serverContent.output_transcription;
-                    if (outputTranscription && outputTranscription.text) {
-                        clientSocket.send(JSON.stringify({
-                            type: 'output_transcription',
-                            text: outputTranscription.text
-                        }));
                     }
 
                     // Send input transcription (user's speech recognized)
