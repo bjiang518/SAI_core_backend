@@ -359,12 +359,12 @@ module.exports = async function (fastify, opts) {
                 const systemInstruction = buildSystemInstruction(subject, language);
 
                 // Build official BidiGenerateContentSetup message
-                // Minimal setup: remove transcriptions and tools for now
+                // ✅ CRITICAL: Must enable transcription for text display on iOS
                 const setupMessage = {
                     setup: {
                         model: "models/gemini-2.5-flash-native-audio-preview-12-2025",
                         generationConfig: {
-                            responseModalities: ["AUDIO"],
+                            responseModalities: ["AUDIO", "TEXT"], // ✅ Request BOTH audio and text transcription
                             speechConfig: {
                                 voiceConfig: {
                                     prebuiltVoiceConfig: {
@@ -373,6 +373,9 @@ module.exports = async function (fastify, opts) {
                                 }
                             }
                         },
+                        // ✅ CRITICAL: Enable transcription to get outputTranscription.text
+                        inputAudioTranscription: {},  // Enable user speech-to-text
+                        outputAudioTranscription: {}, // Enable AI speech-to-text (required for iOS display)
                         systemInstruction: {
                             parts: [{ text: systemInstruction }]
                         }
@@ -577,11 +580,19 @@ module.exports = async function (fastify, opts) {
                     const outputTranscription = serverContent.outputTranscription || serverContent.output_transcription;
                     if (outputTranscription && outputTranscription.text) {
                         // Send as text_chunk so iOS displays it
+                        logger.info({
+                            userId,
+                            textLength: outputTranscription.text.length,
+                            textPreview: outputTranscription.text.substring(0, 100)
+                        }, '📝 Sending text_chunk from outputTranscription');
+
                         clientSocket.send(JSON.stringify({
                             type: 'text_chunk',
                             text: outputTranscription.text
                         }));
                         logger.debug(`📝 Sent outputTranscription text (${outputTranscription.text.length} chars)`);
+                    } else {
+                        logger.debug('No outputTranscription in this serverContent message');
                     }
 
                     // Send audio chunks from modelTurn (still needed for playback)
