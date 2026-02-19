@@ -78,7 +78,8 @@ class VoiceChatViewModel: ObservableObject {
     private var isPlayingAudio = false
 
     /// Minimum buffers to accumulate before starting playback (prevents choppy audio)
-    private let minimumBuffersBeforePlayback = 2
+    /// ✅ Increased from 2 to 5 (200ms) for smoother playback with network jitter
+    private let minimumBuffersBeforePlayback = 5
 
     // MARK: - Connection State
 
@@ -541,15 +542,17 @@ class VoiceChatViewModel: ObservableObject {
         playbackEngine.attach(audioPlayer)
         logger.info("✅ Audio player node attached to playback engine")
 
+        // ✅ CRITICAL: Use Float32 format (AVAudioEngine's native format)
+        // Int16 causes inefficient real-time conversion and audio quality issues
         let format = AVAudioFormat(
-            commonFormat: .pcmFormatInt16,
+            commonFormat: .pcmFormatFloat32,
             sampleRate: 24000,
             channels: 1,
             interleaved: false
         )!
 
         playbackEngine.connect(audioPlayer, to: playbackEngine.mainMixerNode, format: format)
-        logger.info("✅ Audio player node connected to mixer (24kHz, 1ch, Int16)")
+        logger.info("✅ Audio player node connected to mixer (24kHz, 1ch, Float32)")
 
         do {
             try playbackEngine.start()
@@ -595,14 +598,17 @@ class VoiceChatViewModel: ObservableObject {
     }
 
     private func convertDataToPCMBuffer(data: Data) -> AVAudioPCMBuffer? {
+        // ✅ CRITICAL: Use Float32 format (AVAudioEngine's native format)
+        // Gemini returns Int16 PCM, we must convert to Float32 for proper playback
         let format = AVAudioFormat(
-            commonFormat: .pcmFormatInt16,
+            commonFormat: .pcmFormatFloat32,
             sampleRate: 24000,
             channels: 1,
             interleaved: false
         )!
 
-        let frameCount = UInt32(data.count) / format.streamDescription.pointee.mBytesPerFrame
+        // Calculate frame count: each Int16 sample is 2 bytes
+        let frameCount = UInt32(data.count / 2)
 
         guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else {
             return nil
@@ -610,8 +616,19 @@ class VoiceChatViewModel: ObservableObject {
 
         buffer.frameLength = frameCount
 
-        data.withUnsafeBytes { ptr in
-            memcpy(buffer.audioBufferList.pointee.mBuffers.mData, ptr.baseAddress, data.count)
+        // ✅ CRITICAL: Convert Int16 → Float32
+        // Int16 range: -32768 to 32767
+        // Float32 range: -1.0 to 1.0
+        guard let floatChannelData = buffer.floatChannelData?[0] else {
+            return nil
+        }
+
+        data.withUnsafeBytes { (rawPtr: UnsafeRawBufferPointer) in
+            let int16Ptr = rawPtr.bindMemory(to: Int16.self)
+            for i in 0..<Int(frameCount) {
+                // Normalize Int16 to Float32: divide by 32768.0
+                floatChannelData[i] = Float(int16Ptr[i]) / 32768.0
+            }
         }
 
         return buffer
