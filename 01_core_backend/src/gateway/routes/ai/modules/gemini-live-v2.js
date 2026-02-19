@@ -299,6 +299,7 @@ module.exports = async function (fastify, opts) {
 
             clientSocket.on('close', (code, reason) => {
                 logger.info({ code, reason: reason.toString(), userId }, 'iOS client disconnected');
+                clearInterval(keepAliveInterval);
                 if (geminiSocket && geminiSocket.readyState === WebSocket.OPEN) {
                     geminiSocket.close(1000, 'Client disconnected');
                 }
@@ -307,6 +308,15 @@ module.exports = async function (fastify, opts) {
             clientSocket.on('error', (error) => {
                 logger.error({ error, userId }, 'iOS client WebSocket error');
             });
+
+            // Keep-alive ping every 20s to prevent Railway/proxy from closing idle connections
+            const keepAliveInterval = setInterval(() => {
+                if (clientSocket.readyState === WebSocket.OPEN) {
+                    clientSocket.ping();
+                } else {
+                    clearInterval(keepAliveInterval);
+                }
+            }, 20000);
 
             // ============================================
             // Message Handler: iOS Client → Google Gemini
