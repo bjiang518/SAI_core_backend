@@ -269,6 +269,8 @@ struct QuestionSummary: Codable, Identifiable {
     let points: Float?
     let maxPoints: Float?
     let isGraded: Bool
+    let studentAnswer: String?   // What the student wrote
+    let answerText: String?      // The AI's correct answer
 
     // Question type fields (for type-specific rendering)
     let questionType: String?

@@ -77,6 +77,9 @@ class VoiceChatViewModel: ObservableObject {
     /// Is currently playing audio
     private var isPlayingAudio = false
 
+    /// Minimum buffers to accumulate before starting playback (prevents choppy audio)
+    private let minimumBuffersBeforePlayback = 2
+
     // MARK: - Connection State
 
     enum ConnectionState {
@@ -109,6 +112,15 @@ class VoiceChatViewModel: ObservableObject {
         }
 
         connectionState = .connecting
+
+        // ✅ CRITICAL: Stop InteractiveTTS to avoid audio engine conflicts
+        // InteractiveTTS will be restarted when we disconnect
+        logger.info("🔇 Stopping InteractiveTTS to prevent audio conflicts...")
+        NotificationCenter.default.post(name: NSNotification.Name("StopInteractiveTTS"), object: nil)
+
+        // ✅ Configure audio session for bidirectional voice chat ONCE
+        logger.info("🔊 Configuring audio session for bidirectional voice chat (.playAndRecord mode)")
+        configureAudioSession(for: .playAndRecord)
 
         // Build WebSocket URL
         let baseURL = networkService.apiBaseURL
@@ -154,6 +166,10 @@ class VoiceChatViewModel: ObservableObject {
         stopRecording()
         stopAudioPlayback()
 
+        // ✅ Re-enable InteractiveTTS now that voice chat is done
+        logger.info("🔊 Re-enabling InteractiveTTS after voice chat...")
+        NotificationCenter.default.post(name: NSNotification.Name("ResumeInteractiveTTS"), object: nil)
+
         connectionState = .disconnected
     }
 
@@ -161,19 +177,19 @@ class VoiceChatViewModel: ObservableObject {
     func startRecording() {
         guard !isRecording else { return }
 
-        logger.info("Starting microphone recording")
+        logger.info("🎙️ Starting microphone recording")
 
         isRecording = true
         errorMessage = nil
 
-        // Configure audio session
-        configureAudioSession(for: .recording)
+        // Audio session already configured in connectToGeminiLive() - don't reconfigure
 
         // Start audio engine
         do {
             try startAudioEngine()
+            logger.info("✅ Audio engine started for recording")
         } catch {
-            logger.error("Failed to start audio engine: \(error)")
+            logger.error("❌ Failed to start audio engine: \(error)")
             errorMessage = "Failed to start recording: \(error.localizedDescription)"
             isRecording = false
         }
@@ -290,14 +306,21 @@ class VoiceChatViewModel: ObservableObject {
 
         case "text_chunk":
             if let textChunk = json["text"] as? String {
+                logger.info("📝 [TEXT] Received text_chunk: '\(textChunk)'")
+                // Backend now sends clean outputTranscription - no filtering needed
                 liveTranscription += textChunk
                 isAISpeaking = true
+            } else {
+                logger.error("❌ [TEXT] text_chunk message has no 'text' field: \(json)")
             }
 
         case "audio_chunk":
             if let audioBase64 = json["data"] as? String,
                let audioData = Data(base64Encoded: audioBase64) {
+                logger.debug("📥 Received audio_chunk: \(audioData.count) bytes")
                 playAudioChunk(audioData)
+            } else {
+                logger.error("❌ Failed to decode audio_chunk data")
             }
 
         case "turn_complete":
@@ -326,7 +349,7 @@ class VoiceChatViewModel: ObservableObject {
             }
 
         default:
-            logger.debug("Unknown message type: \(type)")
+            logger.warning("⚠️ Unknown message type '\(type)': \(json)")
         }
     }
 
@@ -433,8 +456,11 @@ class VoiceChatViewModel: ObservableObject {
     // MARK: - Audio Playback
 
     private func playAudioChunk(_ audioData: Data) {
+        logger.debug("🎵 Processing audio chunk: \(audioData.count) bytes")
+
         // Initialize playback engine if needed
         if playbackEngine == nil {
+            logger.info("🔊 Initializing playback engine...")
             setupPlaybackEngine()
         }
 
@@ -442,27 +468,41 @@ class VoiceChatViewModel: ObservableObject {
 
         // Convert data to PCM buffer
         guard let buffer = convertDataToPCMBuffer(data: audioData) else {
-            logger.error("Failed to convert audio data to PCM buffer")
+            logger.error("❌ Failed to convert audio data to PCM buffer")
             return
         }
 
         // Add to queue
         audioBufferQueue.append(buffer)
 
-        // Start playback if not already playing
+        // Start playback if not already playing AND we have enough buffers
         if !isPlayingAudio {
-            playNextBuffer()
+            if audioBufferQueue.count >= minimumBuffersBeforePlayback {
+                logger.info("▶️ Prebuffering complete (\(audioBufferQueue.count) buffers), starting playback...")
+                playNextBuffer()
+            } else {
+                logger.debug("⏳ Prebuffering... (\(audioBufferQueue.count)/\(minimumBuffersBeforePlayback))")
+            }
         }
     }
 
     private func setupPlaybackEngine() {
+        logger.info("🔊 Setting up playback engine...")
+
+        // Audio session already configured in connectToGeminiLive() - don't reconfigure
+        // Switching modes while engines are running causes error '!pri' (561017449)
+
         playbackEngine = AVAudioEngine()
         audioPlayer = AVAudioPlayerNode()
 
         guard let playbackEngine = playbackEngine,
-              let audioPlayer = audioPlayer else { return }
+              let audioPlayer = audioPlayer else {
+            logger.error("❌ Failed to create playback engine or player node")
+            return
+        }
 
         playbackEngine.attach(audioPlayer)
+        logger.info("✅ Audio player node attached to playback engine")
 
         let format = AVAudioFormat(
             commonFormat: .pcmFormatInt16,
@@ -472,17 +512,20 @@ class VoiceChatViewModel: ObservableObject {
         )!
 
         playbackEngine.connect(audioPlayer, to: playbackEngine.mainMixerNode, format: format)
+        logger.info("✅ Audio player node connected to mixer (24kHz, 1ch, Int16)")
 
         do {
             try playbackEngine.start()
+            logger.info("✅ Playback engine started successfully")
         } catch {
-            logger.error("Failed to start playback engine: \(error)")
+            logger.error("❌ Failed to start playback engine: \(error)")
         }
     }
 
     private func playNextBuffer() {
         guard let audioPlayer = audioPlayer,
               !audioBufferQueue.isEmpty else {
+            logger.debug("⏹️ Playback queue empty")
             isPlayingAudio = false
             return
         }
@@ -497,11 +540,14 @@ class VoiceChatViewModel: ObservableObject {
         }
 
         if !audioPlayer.isPlaying {
+            logger.debug("▶️ Starting audio player...")
             audioPlayer.play()
         }
     }
 
     private func stopAudioPlayback() {
+        logger.info("🔇 Stopping audio playback")
+
         audioPlayer?.stop()
         audioBufferQueue.removeAll()
         isPlayingAudio = false
@@ -539,19 +585,25 @@ class VoiceChatViewModel: ObservableObject {
     private func configureAudioSession(for mode: AudioSessionMode) {
         let audioSession = AVAudioSession.sharedInstance()
 
+        logger.info("🔧 Configuring audio session for mode: \(mode)")
+
         do {
             switch mode {
             case .recording:
+                logger.info("   Setting category: .record, mode: .measurement")
                 try audioSession.setCategory(.record, mode: .measurement, options: [])
             case .playback:
+                logger.info("   Setting category: .playback, mode: .spokenAudio")
                 try audioSession.setCategory(.playback, mode: .spokenAudio, options: [])
             case .playAndRecord:
+                logger.info("   Setting category: .playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetooth]")
                 try audioSession.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetooth])
             }
 
             try audioSession.setActive(true)
+            logger.info("✅ Audio session configured successfully and activated")
         } catch {
-            logger.error("Failed to configure audio session: \(error)")
+            logger.error("❌ Failed to configure audio session: \(error)")
         }
     }
 

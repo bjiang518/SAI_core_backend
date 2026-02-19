@@ -117,6 +117,7 @@ class SessionChatViewModel: ObservableObject {
     private let voiceService = VoiceInteractionService.shared
     private let messageManager = ChatMessageManager.shared
     private let appState = AppState.shared
+    private let logger = AppLogger.forFeature("SessionChat")
 
     // Phase 3: Interactive Mode (Real-time synchronized TTS)
     private let interactiveTTSService = InteractiveTTSService()
