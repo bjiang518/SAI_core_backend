@@ -384,24 +384,16 @@ class VoiceChatViewModel: ObservableObject {
             }
 
         case "user_transcription":
-            if let userText = json["text"] as? String {
-                print("🎤 [VoiceChat WS] user_transcription: '\(userText)'")
-                logger.info("🎤 [USER] Transcribed: '\(userText)'")
-                // Keep updating the same placeholder bubble with each new transcription chunk.
-                // Backend may send multiple user_transcription messages (word-by-word streaming).
-                // We do NOT clear pendingUserMessageID here — it is cleared in stopRecording()
-                // (when a new recording begins) so all chunks for one utterance go to one bubble.
-                if let pendingID = pendingUserMessageID,
-                   let idx = messages.firstIndex(where: { $0.id == pendingID }) {
-                    messages[idx].text = userText
-                    print("🎤 [VoiceChat WS] Updated placeholder bubble at index \(idx) with: '\(userText)'")
-                } else {
-                    // No placeholder — append (fallback: shouldn't normally happen)
-                    print("🎤 [VoiceChat WS] No placeholder found, appending new message (fallback)")
-                    messages.append(VoiceMessage(role: .user, text: userText, isVoice: true))
-                }
+            // Transcription is context-only — update the pending bubble caption if available.
+            // Multiple streaming chunks may arrive; all update the same bubble in-place.
+            // Never create a new bubble from transcription — bubbles are local-only (stopRecording).
+            if let userText = json["text"] as? String,
+               let pendingID = pendingUserMessageID,
+               let idx = messages.firstIndex(where: { $0.id == pendingID }) {
+                messages[idx].text = userText
+                print("🎤 [VoiceChat WS] user_transcription updated bubble[\(idx)]: '\(userText)'")
             } else {
-                print("❌ [VoiceChat WS] user_transcription missing 'text' field: \(json)")
+                print("🎤 [VoiceChat WS] user_transcription ignored (no pending bubble)")
             }
 
         case "audio_chunk":
