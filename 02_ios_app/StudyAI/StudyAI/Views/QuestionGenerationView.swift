@@ -685,28 +685,29 @@ struct QuestionGenerationView: View {
                 )
             }
 
-            // ✅ NEW: Convert selected questions to backend format
+            // Convert selected questions to backend format
             let questionData = selectedQuestionObjects.map { question -> [String: Any] in
                 var questionDict: [String: Any] = [
                     "question_text": question.questionText,
                     "topic": question.subject,
                     "date": ISO8601DateFormatter().string(from: question.archivedAt),
-                    "is_correct": question.grade == .correct
+                    "is_correct": question.grade == .correct || question.grade == .partialCredit
                 ]
 
-                // Add optional fields
-                if let tags = question.tags, !tags.isEmpty {
-                    questionDict["tags"] = tags
+                if let studentAnswer = question.studentAnswer, !studentAnswer.isEmpty {
+                    questionDict["student_answer"] = studentAnswer
                 }
-
-                // Add grading info if available
+                if let answerText = question.answerText, !answerText.isEmpty {
+                    questionDict["correct_answer"] = answerText
+                }
                 if let grade = question.grade {
                     questionDict["grade"] = grade.rawValue
                 }
-
-                if let points = question.points, let maxPoints = question.maxPoints {
-                    questionDict["points"] = points
-                    questionDict["max_points"] = maxPoints
+                if let tags = question.tags, !tags.isEmpty {
+                    questionDict["tags"] = tags
+                }
+                if let questionType = question.questionType, !questionType.isEmpty {
+                    questionDict["question_type"] = questionType
                 }
 
                 return questionDict

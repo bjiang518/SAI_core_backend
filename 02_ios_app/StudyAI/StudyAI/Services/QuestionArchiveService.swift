@@ -408,6 +408,10 @@ class QuestionArchiveService: ObservableObject {
         let parentQuestionId = data["parentQuestionId"] as? Int
         let subquestionId = data["subquestionId"] as? String
 
+        // Answer fields
+        let studentAnswer = data["studentAnswer"] as? String
+        let answerText = data["answerText"] as? String
+
         return QuestionSummary(
             id: id,
             subject: subject,
@@ -423,6 +427,8 @@ class QuestionArchiveService: ObservableObject {
             points: points,
             maxPoints: maxPoints,
             isGraded: isGraded,
+            studentAnswer: studentAnswer,
+            answerText: answerText,
             questionType: questionType,
             options: options,
             questionImageUrl: questionImageUrl,

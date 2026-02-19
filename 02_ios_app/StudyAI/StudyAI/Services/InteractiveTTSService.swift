@@ -49,6 +49,9 @@ class InteractiveTTSService: NSObject, ObservableObject {
     // Audio session interruption tracking
     private var wasPlayingBeforeInterruption = false
 
+    // Voice chat coordination flag
+    private var isVoiceChatActive = false
+
     // ✅ NEW: Timing metrics for latency measurement
     private var firstAudioChunkTime: Date?
     private var firstPlaybackStartTime: Date?
@@ -110,6 +113,8 @@ class InteractiveTTSService: NSObject, ObservableObject {
     }
 
     private func setupAudioInterruptionHandling() {
+        logger.info("🔧 [InteractiveTTS] Setting up audio interruption handling and voice chat coordination")
+
         // Handle audio session interruptions (phone calls, system sounds, keyboard, etc.)
         NotificationCenter.default.addObserver(
             self,
@@ -140,6 +145,23 @@ class InteractiveTTSService: NSObject, ObservableObject {
             name: UIApplication.didBecomeActiveNotification,
             object: nil
         )
+
+        // ✅ NEW: Voice chat coordination
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleStopInteractiveTTS),
+            name: NSNotification.Name("StopInteractiveTTS"),
+            object: nil
+        )
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleResumeInteractiveTTS),
+            name: NSNotification.Name("ResumeInteractiveTTS"),
+            object: nil
+        )
+
+        logger.info("✅ [InteractiveTTS] All notification observers registered (including voice chat coordination)")
     }
 
     // MARK: - Audio Interruption Handling
@@ -207,6 +229,14 @@ class InteractiveTTSService: NSObject, ObservableObject {
     }
 
     @objc private func handleAudioEngineConfigurationChange(_ notification: Notification) {
+        logger.info("🔔 [InteractiveTTS] Audio engine configuration change detected. isVoiceChatActive = \(isVoiceChatActive)")
+
+        // ✅ Skip restart if voice chat is active
+        if isVoiceChatActive {
+            logger.info("⏭️ [InteractiveTTS] Skipping audio engine restart - voice chat is active")
+            return
+        }
+
         // Audio engine configuration changed (headphones plugged/unplugged, route change)
         logger.warning("⚠️ [InteractiveTTS] Audio engine configuration changed, restarting engine...")
 
@@ -278,6 +308,33 @@ class InteractiveTTSService: NSObject, ObservableObject {
                 logger.error("❌ [InteractiveTTS] Failed to resume after app became active: \(error)")
             }
         }
+    }
+
+    // MARK: - Voice Chat Coordination
+
+    @objc private func handleStopInteractiveTTS(_ notification: Notification) {
+        logger.info("🔇 [InteractiveTTS] Voice chat starting - stopping playback and disabling auto-restart")
+
+        // Set flag to prevent audio engine restarts
+        isVoiceChatActive = true
+
+        // Stop playback completely
+        stopPlayback()
+
+        // Stop audio engine to release audio session
+        if audioEngine.isRunning {
+            audioEngine.stop()
+            logger.info("🔇 [InteractiveTTS] Audio engine stopped for voice chat")
+        }
+    }
+
+    @objc private func handleResumeInteractiveTTS(_ notification: Notification) {
+        logger.info("🔊 [InteractiveTTS] Voice chat ended - re-enabling audio engine")
+
+        // Clear flag to allow audio engine restarts
+        isVoiceChatActive = false
+
+        // Audio engine will restart automatically when next audio chunk arrives
     }
 
     // MARK: - Audio Processing

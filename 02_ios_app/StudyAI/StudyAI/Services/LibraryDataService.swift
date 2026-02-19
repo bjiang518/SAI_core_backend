@@ -1698,6 +1698,8 @@ class QuestionLocalStorage {
         let points = (data["points"] as? Float) ?? (data["points"] as? Double).map(Float.init)
         let maxPoints = (data["maxPoints"] as? Float) ?? (data["maxPoints"] as? Double).map(Float.init)
         let isGraded = (data["isGraded"] as? Bool) ?? false
+        let studentAnswer = data["studentAnswer"] as? String
+        let answerText = data["answerText"] as? String
 
         // Question type fields (for type-specific rendering)
         let questionType = data["questionType"] as? String
@@ -1729,6 +1731,8 @@ class QuestionLocalStorage {
             points: points,
             maxPoints: maxPoints,
             isGraded: isGraded,
+            studentAnswer: studentAnswer,
+            answerText: answerText,
             questionType: questionType,
             options: options,
             questionImageUrl: questionImageUrl,
