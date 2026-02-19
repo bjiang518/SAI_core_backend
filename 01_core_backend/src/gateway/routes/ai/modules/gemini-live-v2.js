@@ -567,6 +567,14 @@ module.exports = async function (fastify, opts) {
                 // Handle serverContent (AI response)
                 const serverContent = message.serverContent || message.server_content;
                 if (serverContent) {
+                    // 🔍 DEBUG: Log what fields Gemini is actually returning
+                    logger.info({
+                        userId,
+                        serverContentKeys: Object.keys(serverContent),
+                        hasOutputTranscription: !!(serverContent.outputTranscription || serverContent.output_transcription),
+                        hasModelTurn: !!(serverContent.modelTurn || serverContent.model_turn)
+                    }, '📦 serverContent received from Gemini');
+
                     const modelTurn = serverContent.modelTurn || serverContent.model_turn;
                     const turnComplete = serverContent.turnComplete || serverContent.turn_complete;
                     const interrupted = serverContent.interrupted;
@@ -589,7 +597,11 @@ module.exports = async function (fastify, opts) {
                         }));
                         logger.debug(`📝 Sent outputTranscription text (${outputTranscription.text.length} chars)`);
                     } else {
-                        logger.debug('No outputTranscription in this serverContent message');
+                        logger.warn({
+                            userId,
+                            hasModelTurn: !!modelTurn,
+                            modelTurnHasText: modelTurn?.parts?.some(p => p.text)
+                        }, '⚠️ No outputTranscription in serverContent - text will not display on iOS');
                     }
 
                     // Send audio chunks from modelTurn (still needed for playback)
