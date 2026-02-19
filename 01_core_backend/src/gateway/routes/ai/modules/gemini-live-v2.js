@@ -595,9 +595,20 @@ module.exports = async function (fastify, opts) {
                             if (inlineData) {
                                 const mimeType = inlineData.mimeType || inlineData.mime_type;
                                 if (mimeType && mimeType.startsWith('audio/')) {
+                                    // ✅ Check backpressure before sending audio
+                                    // If bufferedAmount > 64KB, client can't keep up - log warning
+                                    const bufferedAmount = clientSocket.bufferedAmount || 0;
+                                    if (bufferedAmount > 65536) {
+                                        logger.warn({
+                                            userId,
+                                            bufferedAmount,
+                                            bufferKB: Math.round(bufferedAmount / 1024)
+                                        }, '⚠️ WebSocket backpressure detected - client buffer full');
+                                    }
+
                                     clientSocket.send(JSON.stringify({
                                         type: 'audio_chunk',
-                                        data: inlineData.data // Base64 audio
+                                        data: inlineData.data // Base64 audio - passed through directly
                                     }));
                                 }
                             }
