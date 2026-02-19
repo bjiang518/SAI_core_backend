@@ -20,6 +20,9 @@ struct LiveMessagesSection: View {
     @ObservedObject var holder: LiveVMHolder
     let voiceAudioStorage: [String: Data]
     let voiceType: VoiceType
+    /// Passed from @State liveRenderToken — changing this forces SwiftUI to re-evaluate
+    /// this view even through deeply nested generic apply*() wrapper chains.
+    let renderToken: Int
 
     var body: some View {
         Group {
@@ -120,6 +123,10 @@ struct SessionChatView: View {
     @State private var isLiveMode = false
     @StateObject private var liveVMHolder = LiveVMHolder()
     @State private var voiceAudioStorage: [String: Data] = [:]  // msgId → WAV data
+    /// Incremented every time a live message is added/changed — used as .id() on
+    /// LiveMessagesSection so SessionChatView's @State change forces a full re-render
+    /// even through the deep apply*() generic wrapper chain.
+    @State private var liveRenderToken: Int = 0
 
     // Keyboard state for bottom padding adjustment
     @State private var isKeyboardVisible = false
@@ -519,6 +526,11 @@ struct SessionChatView: View {
                 } else {
                     print("⚠️ [LiveMode] No completed recording found to pair with user message")
                 }
+                // Bump token → @State change forces SessionChatView body re-render
+                // → LiveMessagesSection gets new .id() → SwiftUI destroys/recreates it
+                // → its @ObservedObject subscription fires correctly
+                print("🔄 [LiveMode] liveRenderToken bumped to \(liveRenderToken + 1)")
+                liveRenderToken += 1
             }
     }
 
@@ -911,8 +923,10 @@ struct SessionChatView: View {
                             LiveMessagesSection(
                                 holder: liveVMHolder,
                                 voiceAudioStorage: voiceAudioStorage,
-                                voiceType: voiceService.voiceSettings.voiceType
+                                voiceType: voiceService.voiceSettings.voiceType,
+                                renderToken: liveRenderToken
                             )
+                            .id("live-section-\(liveRenderToken)")
                         }
                     }
                 }
