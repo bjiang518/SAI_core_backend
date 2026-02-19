@@ -203,6 +203,9 @@ class VoiceChatViewModel: ObservableObject {
 
         isRecording = false
 
+        // ✅ Send audio_stream_end to flush cached audio on backend
+        sendWebSocketMessage(type: "audio_stream_end", data: [:])
+
         // Stop audio engine
         stopAudioEngine()
 
@@ -314,6 +317,17 @@ class VoiceChatViewModel: ObservableObject {
                 logger.error("❌ [TEXT] text_chunk message has no 'text' field: \(json)")
             }
 
+        case "user_transcription":
+            if let userText = json["text"] as? String {
+                logger.info("🎤 [USER] Transcribed: '\(userText)'")
+                // Add user's transcribed message to conversation
+                messages.append(VoiceMessage(
+                    role: .user,
+                    text: userText,
+                    isVoice: true
+                ))
+            }
+
         case "audio_chunk":
             if let audioBase64 = json["data"] as? String,
                let audioData = Data(base64Encoded: audioBase64) {
@@ -369,8 +383,31 @@ class VoiceChatViewModel: ObservableObject {
         inputNode.installTap(onBus: 0, bufferSize: 4096, format: recordingFormat) { [weak self] buffer, time in
             guard let self = self else { return }
 
-            // Calculate audio level for visual feedback
-            self.calculateAudioLevel(from: buffer)
+            // ✅ Voice Activity Detection: Calculate audio level first
+            guard let channelData = buffer.floatChannelData?[0] else { return }
+            let frames = buffer.frameLength
+            var sum: Float = 0
+
+            for i in 0..<Int(frames) {
+                sum += abs(channelData[i])
+            }
+
+            let average = sum / Float(frames)
+            let scaledLevel = min(average * 10, 1.0)
+
+            // Update UI level
+            Task { @MainActor in
+                self.recordingLevel = scaledLevel
+            }
+
+            // ✅ CRITICAL: Only send audio if level exceeds threshold (filter background noise)
+            // Threshold: 0.02 = ~2% of max volume (filters silence and background noise)
+            let silenceThreshold: Float = 0.02
+
+            guard scaledLevel > silenceThreshold else {
+                // Skip sending - this is just background noise
+                return
+            }
 
             // Convert to 16-bit PCM at 24kHz (Gemini Live format)
             if let convertedData = self.convertAudioToGeminiFormat(buffer: buffer) {
