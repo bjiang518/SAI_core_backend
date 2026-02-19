@@ -219,6 +219,9 @@ class VoiceChatViewModel: ObservableObject {
         isRecording = true
         errorMessage = nil
 
+        // Clear pending ID so previous bubble stops receiving transcription updates
+        pendingUserMessageID = nil
+
         // Start a fresh PCM capture buffer for this recording
         currentRecordingID = UUID()
         currentRecordingBuffer = Data()
@@ -384,15 +387,17 @@ class VoiceChatViewModel: ObservableObject {
             if let userText = json["text"] as? String {
                 print("🎤 [VoiceChat WS] user_transcription: '\(userText)'")
                 logger.info("🎤 [USER] Transcribed: '\(userText)'")
-                // Fill in the pending placeholder bubble with real transcription text
+                // Keep updating the same placeholder bubble with each new transcription chunk.
+                // Backend may send multiple user_transcription messages (word-by-word streaming).
+                // We do NOT clear pendingUserMessageID here — it is cleared in stopRecording()
+                // (when a new recording begins) so all chunks for one utterance go to one bubble.
                 if let pendingID = pendingUserMessageID,
                    let idx = messages.firstIndex(where: { $0.id == pendingID }) {
                     messages[idx].text = userText
-                    pendingUserMessageID = nil
-                    print("🎤 [VoiceChat WS] Updated placeholder bubble at index \(idx) with transcription")
+                    print("🎤 [VoiceChat WS] Updated placeholder bubble at index \(idx) with: '\(userText)'")
                 } else {
-                    // No placeholder found — append normally (fallback)
-                    print("🎤 [VoiceChat WS] No placeholder found, appending new message")
+                    // No placeholder — append (fallback: shouldn't normally happen)
+                    print("🎤 [VoiceChat WS] No placeholder found, appending new message (fallback)")
                     messages.append(VoiceMessage(role: .user, text: userText, isVoice: true))
                 }
             } else {
