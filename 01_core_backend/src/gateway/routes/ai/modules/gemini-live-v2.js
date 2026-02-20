@@ -658,17 +658,15 @@ module.exports = async function (fastify, opts) {
                     // Send audio chunks from modelTurn; also accumulate any text parts as AI transcript
                     if (modelTurn && modelTurn.parts) {
                         for (const part of modelTurn.parts) {
-                            // Text part — this is the actual spoken response text
-                            if (part.text) {
+                            // Text part — this is the spoken response text for the native-audio model.
+                            // Skip if outputTranscription already handled text for this event.
+                            if (part.text && !(outputTranscription && outputTranscription.text)) {
                                 currentAiTranscript += part.text;
-                                // Only send as text_chunk if outputTranscription didn't already deliver it
-                                if (!(outputTranscription && outputTranscription.text)) {
-                                    clientSocket.send(JSON.stringify({
-                                        type: 'text_chunk',
-                                        text: part.text
-                                    }));
-                                    logger.debug(`📝 AI text via modelTurn.parts (${part.text.length} chars)`);
-                                }
+                                clientSocket.send(JSON.stringify({
+                                    type: 'text_chunk',
+                                    text: part.text
+                                }));
+                                logger.debug(`📝 AI text via modelTurn.parts (${part.text.length} chars)`);
                             }
 
                             // Audio part
