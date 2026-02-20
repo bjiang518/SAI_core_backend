@@ -642,41 +642,36 @@ module.exports = async function (fastify, opts) {
                     const turnComplete = serverContent.turnComplete || serverContent.turn_complete;
                     const interrupted = serverContent.interrupted;
 
-                    // ✅ CRITICAL: Use outputTranscription for text display (not modelTurn.parts.text)
-                    // outputTranscription contains ONLY the spoken text without internal thinking
-                    // modelTurn.parts.text contains internal reasoning/thinking that should NOT be displayed
+                    // outputTranscription is not reliably delivered by the native-audio model.
+                    // modelTurn.parts[].text IS the spoken response text for this model.
                     const outputTranscription = serverContent.outputTranscription || serverContent.output_transcription;
                     if (outputTranscription && outputTranscription.text) {
-                        // Accumulate — Gemini streams this in multiple chunks
+                        // Use it when available (future-proof)
                         currentAiTranscript += outputTranscription.text;
-
-                        // Send as text_chunk so iOS displays it
-                        logger.info({
-                            userId,
-                            textLength: outputTranscription.text.length,
-                            textPreview: outputTranscription.text.substring(0, 100)
-                        }, '📝 Sending text_chunk from outputTranscription');
-
                         clientSocket.send(JSON.stringify({
                             type: 'text_chunk',
                             text: outputTranscription.text
                         }));
-                        logger.debug(`📝 Sent outputTranscription text (${outputTranscription.text.length} chars)`);
-                    } else {
-                        logger.warn({
-                            userId,
-                            hasModelTurn: !!modelTurn,
-                            modelTurnHasText: modelTurn?.parts?.some(p => p.text)
-                        }, '⚠️ No outputTranscription in serverContent - text will not display on iOS');
+                        logger.debug(`📝 AI text via outputTranscription (${outputTranscription.text.length} chars)`);
                     }
 
-                    // Send audio chunks from modelTurn (still needed for playback)
+                    // Send audio chunks from modelTurn; also accumulate any text parts as AI transcript
                     if (modelTurn && modelTurn.parts) {
                         for (const part of modelTurn.parts) {
-                            // ❌ SKIP text from modelTurn - it contains internal thinking
-                            // ✅ ONLY send audio chunks
+                            // Text part — this is the actual spoken response text
+                            if (part.text) {
+                                currentAiTranscript += part.text;
+                                // Only send as text_chunk if outputTranscription didn't already deliver it
+                                if (!(outputTranscription && outputTranscription.text)) {
+                                    clientSocket.send(JSON.stringify({
+                                        type: 'text_chunk',
+                                        text: part.text
+                                    }));
+                                    logger.debug(`📝 AI text via modelTurn.parts (${part.text.length} chars)`);
+                                }
+                            }
 
-                            // Send audio chunk
+                            // Audio part
                             const inlineData = part.inlineData || part.inline_data;
                             if (inlineData) {
                                 const mimeType = inlineData.mimeType || inlineData.mime_type;
