@@ -658,6 +658,12 @@ module.exports = async function (fastify, opts) {
                     // Send audio chunks from modelTurn; also accumulate any text parts as AI transcript
                     if (modelTurn && modelTurn.parts) {
                         for (const part of modelTurn.parts) {
+                            // Skip thinking/COT parts — Gemini 2.5 Flash marks these with thought: true
+                            if (part.thought === true) {
+                                logger.debug(`🧠 Skipping COT thought part (${(part.text || '').length} chars)`);
+                                continue;
+                            }
+
                             // Text part — this is the spoken response text for the native-audio model.
                             // Skip if outputTranscription already handled text for this event.
                             if (part.text && !(outputTranscription && outputTranscription.text)) {
