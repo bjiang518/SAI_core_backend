@@ -38,6 +38,11 @@ module.exports = async function (fastify, opts) {
         let isGeminiConnected = false;
         const messageQueue = []; // Queue messages until Gemini is ready
         let pendingStartSession = null; // Store start_session until Gemini WS is open
+        let currentSubject = null; // Set on start_session; used to give image context
+
+        // Accumulators for the current turn — reset on turn_complete / interrupted
+        let currentUserTranscript = '';   // built from inputTranscription chunks
+        let currentAiTranscript = '';     // built from outputTranscription chunks
 
         logger.info('New Gemini Live connection request');
 
@@ -339,6 +344,10 @@ module.exports = async function (fastify, opts) {
                         handleAudioStreamEnd();
                         break;
 
+                    case 'image_message':
+                        handleImageChunk(data);
+                        break;
+
                     case 'text_message':
                         handleTextMessage(data);
                         break;
@@ -362,6 +371,8 @@ module.exports = async function (fastify, opts) {
              */
             async function handleStartSession(data) {
                 const { subject, language } = data;
+
+                currentSubject = subject || null; // capture for image context
 
                 logger.info({ userId, sessionId, subject, language }, 'Starting Gemini Live session');
 
@@ -452,12 +463,6 @@ module.exports = async function (fastify, opts) {
              * HANDLER: Audio Stream End
              *
              * ✅ FIX: Send audioStreamEnd when mic stops to flush cached audio
-             *
-             * When to send:
-             * - Push-to-talk released
-             * - User mutes microphone
-             * - App backgrounds
-             * - Audio stream pauses for >1 second
              */
             function handleAudioStreamEnd() {
                 logger.info({ userId }, 'Audio stream ended - flushing cached audio');
@@ -473,6 +478,51 @@ module.exports = async function (fastify, opts) {
                 } else {
                     logger.warn('Cannot send audioStreamEnd: Gemini connection not ready');
                 }
+            }
+
+            /**
+             * HANDLER: Image Message
+             * Sends image + subject-anchored prompt as a clientContent turn so Gemini
+             * stores it in session history and can reference it in all subsequent turns.
+             */
+            function handleImageChunk(data) {
+                const { imageBase64, mimeType = 'image/jpeg' } = data;
+
+                if (!imageBase64) {
+                    logger.warn({ userId }, 'image_message missing imageBase64 data');
+                    return;
+                }
+
+                logger.info({ userId, mimeType, base64Len: imageBase64.length }, '📸 Forwarding image to Gemini');
+
+                if (!geminiSocket || geminiSocket.readyState !== WebSocket.OPEN) {
+                    logger.warn('Cannot send image: Gemini connection not ready');
+                    return;
+                }
+
+                const subjectHint = currentSubject ? `This is a ${currentSubject} problem.` : '';
+                const instruction = `${subjectHint} Please look at this image carefully and help me with it. I may ask follow-up questions by voice.`.trim();
+
+                // text part BEFORE inlineData (BidiGenerateContentClientContent spec order)
+                const clientContent = {
+                    clientContent: {
+                        turns: [{
+                            role: 'user',
+                            parts: [
+                                { text: instruction },
+                                {
+                                    inlineData: {
+                                        mimeType: mimeType,
+                                        data: imageBase64
+                                    }
+                                }
+                            ]
+                        }],
+                        turnComplete: true
+                    }
+                };
+
+                geminiSocket.send(JSON.stringify(clientContent));
             }
 
             /**
@@ -597,6 +647,9 @@ module.exports = async function (fastify, opts) {
                     // modelTurn.parts.text contains internal reasoning/thinking that should NOT be displayed
                     const outputTranscription = serverContent.outputTranscription || serverContent.output_transcription;
                     if (outputTranscription && outputTranscription.text) {
+                        // Accumulate — Gemini streams this in multiple chunks
+                        currentAiTranscript += outputTranscription.text;
+
                         // Send as text_chunk so iOS displays it
                         logger.info({
                             userId,
@@ -648,42 +701,47 @@ module.exports = async function (fastify, opts) {
                         }
                     }
 
-                    // Send input transcription (user's speech recognized)
+                    // Accumulate user speech transcript chunks
                     const inputTranscription = serverContent.inputTranscription || serverContent.input_transcription;
                     if (inputTranscription && inputTranscription.text) {
+                        currentUserTranscript += inputTranscription.text;
                         clientSocket.send(JSON.stringify({
                             type: 'user_transcription',
                             text: inputTranscription.text
                         }));
                     }
 
-                    // Signal turn complete
+                    // On turn_complete: persist one row each for user and AI, then reset accumulators
                     if (turnComplete) {
                         clientSocket.send(JSON.stringify({
                             type: 'turn_complete'
                         }));
 
-                        // Store AI response (prefer outputTranscription, fallback to modelTurn text)
-                        let responseText = '';
-                        if (outputTranscription && outputTranscription.text) {
-                            responseText = outputTranscription.text;
-                        } else if (modelTurn && modelTurn.parts) {
-                            responseText = modelTurn.parts
-                                .filter(p => p.text)
-                                .map(p => p.text)
-                                .join(' ');
-                        }
+                        const userText = currentUserTranscript.trim();
+                        const aiText = currentAiTranscript.trim();
+                        currentUserTranscript = '';
+                        currentAiTranscript = '';
 
-                        if (responseText) {
-                            storeMessage('assistant', responseText);
+                        if (userText) {
+                            storeMessage('user', `🎙️ ${userText}`);
+                        }
+                        if (aiText) {
+                            storeMessage('assistant', aiText);
                         }
                     }
 
-                    // Signal interrupted
+                    // Signal interrupted — reset AI accumulator (incomplete response discarded)
                     if (interrupted) {
                         clientSocket.send(JSON.stringify({
                             type: 'interrupted'
                         }));
+                        // Save any user speech that arrived before the interrupt
+                        const userText = currentUserTranscript.trim();
+                        if (userText) {
+                            storeMessage('user', `🎙️ ${userText}`);
+                        }
+                        currentUserTranscript = '';
+                        currentAiTranscript = '';
                     }
                 }
 
@@ -816,11 +874,17 @@ module.exports = async function (fastify, opts) {
                 if (!sessionId) return;
 
                 try {
-                    await db.query(`
-                        INSERT INTO conversation_messages
-                        (session_id, user_id, message_type, message_text, tokens_used, created_at)
-                        VALUES ($1, $2, $3, $4, $5, NOW())
-                    `, [sessionId, userId, role, text, 0]);
+                    // Write into `conversations` — the same table getConversationHistory reads,
+                    // so the standard archive endpoint can find Live voice messages.
+                    await db.addConversationMessage({
+                        userId,
+                        sessionId,
+                        questionId: null,
+                        messageType: role,       // 'user' | 'assistant'
+                        messageText: text,
+                        messageData: null,
+                        tokensUsed: 0
+                    });
                 } catch (error) {
                     logger.error({ error }, 'Error storing message');
                 }
