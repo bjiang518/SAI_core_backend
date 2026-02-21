@@ -1261,13 +1261,14 @@ Generate now:"""
         print("=" * 60)
         return prompt
 
-    def get_conversation_based_questions_prompt(self, subject: str, conversation_data: List[Dict], config: Dict[str, Any], user_profile: Dict[str, Any]) -> str:
+    def get_conversation_based_questions_prompt(self, subject: str, conversation_data: List[Dict], question_data: List[Dict], config: Dict[str, Any], user_profile: Dict[str, Any]) -> str:
         """
-        Generate prompt for creating questions based on previous conversations.
+        Generate prompt for creating questions based on archived conversations and/or archived questions.
         """
-        print(f"🎯 === GENERATING CONVERSATION-BASED QUESTIONS PROMPT ===")
+        print(f"🎯 === GENERATING ARCHIVE-BASED QUESTIONS PROMPT ===")
         print(f"📚 Subject: {subject}")
         print(f"💬 Conversations Count: {len(conversation_data)}")
+        print(f"❓ Questions Count: {len(question_data)}")
         print(f"⚙️  Config: {config}")
         print(f"👤 User Profile: {user_profile}")
 
@@ -1283,27 +1284,31 @@ Generate now:"""
         # Extract user profile
         grade_level = user_profile.get('grade', 'High School')
 
-        # ✅ FIX: Include actual conversation content, not just metadata
-        conv_summary = []
+        # Build context sections — handle two distinct item shapes
+        archive_items = []
+
         for i, c in enumerate(conversation_data, 1):
-            # Primary content (what was actually discussed)
             student_questions = c.get('student_questions', 'N/A')
             key_concepts = c.get('key_concepts', 'N/A')
-
-            # Metadata (topics, strengths, weaknesses)
             topics = ', '.join(c.get('topics', [])) if c.get('topics') else 'N/A'
-            strengths = ', '.join(c.get('strengths', [])) if c.get('strengths') else 'N/A'
-            weaknesses = ', '.join(c.get('weaknesses', [])) if c.get('weaknesses') else 'N/A'
+            archive_items.append(f"""Conversation #{i} ({c.get('date', 'N/A')}):
+  - Topics: {topics}
+  - Student Asked: {str(student_questions)[:200]}
+  - Key Concepts: {str(key_concepts)[:200]}""")
 
-            # ✅ CRITICAL: Include student_questions and key_concepts so AI knows what was discussed!
-            conv_summary.append(f"""#{i} ({c.get('date', 'N/A')}):
-  - Student Asked: {student_questions[:200]}
-  - Key Concepts: {key_concepts[:200]}
-  - Topics: {topics[:50]}, Strengths: {strengths[:40]}, Gaps: {weaknesses[:40]}""")
+        for i, q in enumerate(question_data, 1):
+            correctness = "Correct" if q.get('is_correct') else "Incorrect"
+            student_ans = str(q.get('student_answer', 'N/A'))[:150]
+            correct_ans = str(q.get('correct_answer', 'N/A'))[:150]
+            archive_items.append(f"""Archived Q&A #{i} ({q.get('date', 'N/A')}) [{correctness}]:
+  - Question: {str(q.get('question_text', 'N/A'))[:200]}
+  - Student Answer: {student_ans}
+  - Correct Answer: {correct_ans}
+  - Topic: {q.get('topic', subject)}""")
 
-        # ALWAYS include LaTeX formatting instructions for ALL question types
-        # True/false, multiple choice, etc. can all contain mathematical notation
-        # Build math note outside f-string (can't use backslashes in f-string)
+        context_block = chr(10).join(archive_items) if archive_items else "No prior archive data provided."
+
+        # LaTeX formatting instruction
         math_note = "FORMATTING: Use \\(...\\) delimiters for ANY math symbols or equations. LaTeX commands use SINGLE backslash: \\frac{1}{2}, \\sqrt{x}, x^2, \\alpha, \\leq (NOT double \\\\)"
 
         # Build question type instruction
@@ -1314,11 +1319,11 @@ Generate now:"""
             question_type_instruction = f'- Mix question types from: {"|".join(question_types)}'
             allowed_types = "|".join(question_types)
 
-        prompt = f"""Generate {question_count} personalized {subject} questions based on conversation history:
+        prompt = f"""Generate {question_count} personalized {subject} questions based on the student's archive:
 
-{chr(10).join(conv_summary)}
+{context_block}
 
-Build on topics they engaged with, address knowledge gaps.
+Build questions that test the same concepts and topics. For incorrectly answered questions, generate similar questions to reinforce understanding.
 {math_note}
 
 OUTPUT FORMAT:
@@ -1327,7 +1332,7 @@ Return your response as a JSON object with a "questions" array. Each question mu
 {{
     "questions": [
         {{
-            "question": "Personalized question text building on their conversation history",
+            "question": "Question text based on the archived material",
             "question_type": "{allowed_types}",
             "multiple_choice_options": [
                 {{"label": "A", "text": "First option", "is_correct": true}},
@@ -1336,10 +1341,9 @@ Return your response as a JSON object with a "questions" array. Each question mu
                 {{"label": "D", "text": "Fourth option", "is_correct": false}}
             ],
             "correct_answer": "The correct answer",
-            "explanation": "Explanation that connects to their previous understanding and conversations",
+            "explanation": "Explanation connecting to the archived material",
             "difficulty": "beginner|intermediate|advanced",
-            "topic": "specific topic from conversation analysis",
-            "builds_on": "Brief description of which conversation element this builds upon (optional)",
+            "topic": "specific topic from the archive",
             "estimated_time_minutes": "time in minutes"
         }}
     ]
@@ -1354,6 +1358,6 @@ CRITICAL:
 
 Generate now:"""
 
-        print(f"📝 Generated Conversation-Based Questions Prompt Length: {len(prompt)} characters")
+        print(f"📝 Generated Archive-Based Questions Prompt Length: {len(prompt)} characters")
         print("=" * 60)
         return prompt

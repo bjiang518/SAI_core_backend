@@ -1133,6 +1133,24 @@ class ConversationLocalStorage {
         return mergedConversations
     }
 
+    // MARK: - Update in Local Storage
+
+    /// Patch an existing locally-stored conversation with new fields (e.g., AI summary after it arrives)
+    func updateConversation(withId id: String, fields: [String: Any]) {
+        var conversations = getLocalConversations()
+        guard let index = conversations.firstIndex(where: { ($0["id"] as? String) == id }) else {
+            print("💾 [LocalStorage] updateConversation: id \(id) not found, skipping")
+            return
+        }
+        for (key, value) in fields {
+            conversations[index][key] = value
+        }
+        if let data = try? JSONSerialization.data(withJSONObject: conversations) {
+            userDefaults.set(data, forKey: conversationsKey)
+            print("💾 [LocalStorage] Updated conversation \(id) with keys: \(fields.keys.joined(separator: ", "))")
+        }
+    }
+
     // MARK: - Cleanup
 
     /// Remove a conversation from local storage (e.g., when confirmed synced with server)

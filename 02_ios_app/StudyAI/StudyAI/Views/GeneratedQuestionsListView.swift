@@ -11,6 +11,7 @@ import PDFKit
 
 struct GeneratedQuestionsListView: View {
     let questions: [QuestionGenerationService.GeneratedQuestion]
+    let subject: String
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
     @State private var selectedQuestion: QuestionGenerationService.GeneratedQuestion?
@@ -69,6 +70,7 @@ struct GeneratedQuestionsListView: View {
             let _ = print("🟢 [FULLSCREEN DEBUG] ✅ Found question at index \(questionIndex)")
             GeneratedQuestionDetailView(
                 question: selectedQuestion,
+                subject: subject,
                 sessionId: QuestionGenerationService.shared.currentSessionId,
                 onAnswerSubmitted: { isCorrect, points in
                     answeredQuestions[selectedQuestion.id] = QuestionResult(isCorrect: isCorrect, points: points)
@@ -1097,5 +1099,5 @@ struct PracticePDFPreviewView: View {
         )
     ]
 
-    GeneratedQuestionsListView(questions: sampleQuestions)
+    GeneratedQuestionsListView(questions: sampleQuestions, subject: "Mathematics")
 }

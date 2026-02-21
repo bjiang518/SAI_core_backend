@@ -856,6 +856,12 @@ LANGUAGE: ${languageInstruction}`;
         session_id: sessionId,
         summary: analysis.summary,
         message_count: conversationHistory.length,
+        // Include the serialised conversation so iOS can populate local storage
+        // even when conversationHistory is empty on the iOS side (e.g. Live sessions)
+        conversation_content: conversationHistory.map(msg => {
+          const role = msg.message_type === 'user' ? 'USER' : 'AI';
+          return `${role}: ${msg.message_text || ''}`;
+        }).join('\n\n'),
 
         // NEW: Return behavior insights to iOS
         behaviorInsights: {

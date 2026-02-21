@@ -409,6 +409,15 @@
 		7BEC07DA2F465EDE00B6E573 /* VoiceChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07D92F465EDE00B6E573 /* VoiceChatViewModel.swift */; };
 		7BEC07DB2F465EDE00B6E573 /* VoiceChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07D92F465EDE00B6E573 /* VoiceChatViewModel.swift */; };
 		7BEC07DC2F465EDE00B6E573 /* VoiceChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07D92F465EDE00B6E573 /* VoiceChatViewModel.swift */; };
+		7BEC07DE2F478BFA00B6E573 /* UnifiedChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07DD2F478BFA00B6E573 /* UnifiedChatMessage.swift */; };
+		7BEC07DF2F478BFA00B6E573 /* UnifiedChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07DD2F478BFA00B6E573 /* UnifiedChatMessage.swift */; };
+		7BEC07E02F478BFA00B6E573 /* UnifiedChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07DD2F478BFA00B6E573 /* UnifiedChatMessage.swift */; };
+		7BEC07E22F47900000B6E573 /* AudioStreamManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07E12F47900000B6E573 /* AudioStreamManager.swift */; };
+		7BEC07E32F47900000B6E573 /* AudioStreamManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07E12F47900000B6E573 /* AudioStreamManager.swift */; };
+		7BEC07E42F47900000B6E573 /* AudioStreamManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07E12F47900000B6E573 /* AudioStreamManager.swift */; };
+		7BEC07E22F478C1500B6E573 /* LiveVoiceBubbles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07E12F478C1500B6E573 /* LiveVoiceBubbles.swift */; };
+		7BEC07E32F478C1500B6E573 /* LiveVoiceBubbles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07E12F478C1500B6E573 /* LiveVoiceBubbles.swift */; };
+		7BEC07E42F478C1500B6E573 /* LiveVoiceBubbles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07E12F478C1500B6E573 /* LiveVoiceBubbles.swift */; };
 		7BEDA6272E80B8C500D57B15 /* QuestionGenerationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEDA6262E80B8C500D57B15 /* QuestionGenerationService.swift */; };
 		7BEDA6282E80B8C500D57B15 /* QuestionGenerationDataAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEDA6252E80B8C500D57B15 /* QuestionGenerationDataAdapter.swift */; };
 		7BEDA62C2E80B91100D57B15 /* GeneratedQuestionsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEDA6292E80B91100D57B15 /* GeneratedQuestionsListView.swift */; };
@@ -704,6 +713,9 @@
 		7BEC07BE2F42F9DB00B6E573 /* Target.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Target.json; sourceTree = "<group>"; };
 		7BEC07D12F4654C000B6E573 /* VoiceChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VoiceChatView.swift; path = StudyAI/Views/VoiceChatView.swift; sourceTree = SOURCE_ROOT; };
 		7BEC07D92F465EDE00B6E573 /* VoiceChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceChatViewModel.swift; sourceTree = "<group>"; };
+		7BEC07DD2F478BFA00B6E573 /* UnifiedChatMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedChatMessage.swift; sourceTree = "<group>"; };
+		7BEC07E12F47900000B6E573 /* AudioStreamManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioStreamManager.swift; sourceTree = "<group>"; };
+		7BEC07E12F478C1500B6E573 /* LiveVoiceBubbles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LiveVoiceBubbles.swift; path = StudyAI/Views/SessionChat/LiveVoiceBubbles.swift; sourceTree = SOURCE_ROOT; };
 		7BEDA6252E80B8C500D57B15 /* QuestionGenerationDataAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QuestionGenerationDataAdapter.swift; path = StudyAI/Services/QuestionGenerationDataAdapter.swift; sourceTree = SOURCE_ROOT; };
 		7BEDA6262E80B8C500D57B15 /* QuestionGenerationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QuestionGenerationService.swift; path = StudyAI/Services/QuestionGenerationService.swift; sourceTree = SOURCE_ROOT; };
 		7BEDA6292E80B91100D57B15 /* GeneratedQuestionsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GeneratedQuestionsListView.swift; path = StudyAI/Views/GeneratedQuestionsListView.swift; sourceTree = SOURCE_ROOT; };
@@ -924,6 +936,8 @@
 		7BEDA5F72E7EB8C500D57B15 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				7BEC07DD2F478BFA00B6E573 /* UnifiedChatMessage.swift */,
+				7BEC07E12F47900000B6E573 /* AudioStreamManager.swift */,
 				7BEC07D92F465EDE00B6E573 /* VoiceChatViewModel.swift */,
 				7B2248BC2F331667006ADD93 /* InteractiveModeSettings.swift */,
 				7B22487C2F26F821006ADD93 /* ShortTermStatusModels.swift */,
@@ -1025,6 +1039,7 @@
 		7BEDA5F92E7EB94000D57B15 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				7BEC07E12F478C1500B6E573 /* LiveVoiceBubbles.swift */,
 				7BEC07D12F4654C000B6E573 /* VoiceChatView.swift */,
 				7BEC07992F42F75100B6E573 /* ArchiveProgressView.swift */,
 				7B2249522F3AC54E006ADD93 /* CuteTabBar.swift */,
@@ -1497,9 +1512,12 @@
 				7B2248BB2F331644006ADD93 /* InteractiveTTSService.swift in Sources */,
 				368449B00EC0466B89F7AFF6 /* RailwayArchiveService.swift in Sources */,
 				7B8E9E9B2EAB516C00E83DA8 /* HomeworkImageModels.swift in Sources */,
+				7BEC07E22F478C1500B6E573 /* LiveVoiceBubbles.swift in Sources */,
 				7B8E9EB32EAF38D000E83DA8 /* SessionManager.swift in Sources */,
 				BBC5F8E4CA694EABAD6955A2 /* SimpleMathRenderer.swift in Sources */,
 				D3FB6347F13948AB873BE1F8 /* SpeechRecognitionService.swift in Sources */,
+				7BEC07DE2F478BFA00B6E573 /* UnifiedChatMessage.swift in Sources */,
+				7BEC07E22F47900000B6E573 /* AudioStreamManager.swift in Sources */,
 				7BD668A62ED6F36300E09E55 /* DigitalHomeworkViewModel.swift in Sources */,
 				7B1ED83E2E829B1700E5E57D /* ReportDateRangeSelector.swift in Sources */,
 				7B1ED83F2E829B1700E5E57D /* ReportDetailComponents.swift in Sources */,
@@ -1699,6 +1717,7 @@
 				7B2248952F2D8DFE006ADD93 /* TaxonomyFilter.swift in Sources */,
 				7BFC71322EC5A91D00DB95A7 /* NetworkService+PracticeGenerator.swift in Sources */,
 				7BD668A22ED6F27300E09E55 /* DigitalHomeworkStateManager.swift in Sources */,
+				7BEC07E32F478C1500B6E573 /* LiveVoiceBubbles.swift in Sources */,
 				7B2248EF2F37448F006ADD93 /* ParentReportsOnboardingView.swift in Sources */,
 				7B8353402EA6F11400199AC3 /* SecureLogger.swift in Sources */,
 				7B2248D22F340790006ADD93 /* VerticalPagesViewer.swift in Sources */,
@@ -1731,6 +1750,8 @@
 				7BEC079B2F42F75100B6E573 /* ArchiveProgressView.swift in Sources */,
 				7BD668772ED05FAE00E09E55 /* DigitalHomeworkView.swift in Sources */,
 				7BD668782ED05FAE00E09E55 /* HomeworkSummaryView.swift in Sources */,
+				7BEC07DF2F478BFA00B6E573 /* UnifiedChatMessage.swift in Sources */,
+				7BEC07E32F47900000B6E573 /* AudioStreamManager.swift in Sources */,
 				7B8E9EB22EAF38D000E83DA8 /* SessionManager.swift in Sources */,
 				7BDE56732EC1C685004A8629 /* DeepFocusService.swift in Sources */,
 				7B22491E2F39BE4E006ADD93 /* ThemeManager.swift in Sources */,
@@ -1797,6 +1818,7 @@
 				7B2248792F26BE6C006ADD93 /* MistakeNotebookView.swift in Sources */,
 				7B1961B22E949DD10024317A /* NotificationService.swift in Sources */,
 				7BD664CB2ECA8B0A00E09E55 /* ProgressiveHomeworkViewModel.swift in Sources */,
+				7BEC07E42F478C1500B6E573 /* LiveVoiceBubbles.swift in Sources */,
 				7B6B2B0F2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */,
 				7B1961AE2E949DAD0024317A /* NotificationSettingsView.swift in Sources */,
 				7B1961CD2E94B32C0024317A /* LanguageSettingsView.swift in Sources */,
@@ -1820,6 +1842,8 @@
 				7B2248992F2D8DFE006ADD93 /* CompactSubjectSelector.swift in Sources */,
 				7B22489A2F2D8DFE006ADD93 /* DualSliderFilters.swift in Sources */,
 				7B22489B2F2D8DFE006ADD93 /* TaxonomyFilter.swift in Sources */,
+				7BEC07E02F478BFA00B6E573 /* UnifiedChatMessage.swift in Sources */,
+				7BEC07E42F47900000B6E573 /* AudioStreamManager.swift in Sources */,
 				7B83533D2EA6F11400199AC3 /* ErrorBoundary.swift in Sources */,
 				7B2248A52F2DCDE4006ADD93 /* AppSessionManager.swift in Sources */,
 				7B2248AF2F2F4A8D006ADD93 /* DebugSettings.swift in Sources */,

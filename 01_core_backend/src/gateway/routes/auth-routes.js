@@ -1646,20 +1646,20 @@ class AuthRoutes {
       this.fastify.log.info(`
 📧 ===== EMAIL VERIFICATION CODE =====
 To: ${email}
-Subject: Verify your StudyAI email address
+Subject: Verify your Study Mates email address
 
 Hi ${name},
 
-Welcome to StudyAI!
+Welcome to Study Mates!
 
 Your verification code is: ${code}
 
 This code will expire in 10 minutes.
 
-If you didn't create an account with StudyAI, please ignore this email.
+If you didn't create an account with Study Mates, please ignore this email.
 
 Best regards,
-The StudyAI Team
+The Study Mates Team
 =====================================
       `);
       return; // Don't throw error in dev mode
@@ -1673,10 +1673,10 @@ The StudyAI Team
       const { data, error } = await resend.emails.send({
         from: fromEmail,
         to: [email],
-        subject: 'Verify your StudyAI email address',
+        subject: 'Verify your Study Mates email address',
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <h2 style="color: #2563eb;">Welcome to StudyAI!</h2>
+            <h2 style="color: #2563eb;">Welcome to Study Mates!</h2>
             <p>Hi ${name},</p>
             <p>Thank you for signing up! Please verify your email address to complete your registration.</p>
             <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; text-align: center; margin: 30px 0;">
@@ -1684,12 +1684,12 @@ The StudyAI Team
               <p style="font-size: 32px; font-weight: bold; color: #2563eb; letter-spacing: 8px; margin: 10px 0;">${code}</p>
               <p style="margin: 10px 0 0 0; color: #6b7280; font-size: 14px;">This code will expire in 10 minutes</p>
             </div>
-            <p style="color: #6b7280; font-size: 14px;">If you didn't create an account with StudyAI, please ignore this email.</p>
+            <p style="color: #6b7280; font-size: 14px;">If you didn't create an account with Study Mates, please ignore this email.</p>
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
-            <p style="color: #9ca3af; font-size: 12px; text-align: center;">Best regards,<br>The StudyAI Team</p>
+            <p style="color: #9ca3af; font-size: 12px; text-align: center;">Best regards,<br>The Study Mates Team</p>
           </div>
         `,
-        text: `Hi ${name},\n\nWelcome to StudyAI!\n\nYour verification code is: ${code}\n\nThis code will expire in 10 minutes.\n\nIf you didn't create an account with StudyAI, please ignore this email.\n\nBest regards,\nThe StudyAI Team`
+        text: `Hi ${name},\n\nWelcome to Study Mates!\n\nYour verification code is: ${code}\n\nThis code will expire in 10 minutes.\n\nIf you didn't create an account with Study Mates, please ignore this email.\n\nBest regards,\nThe Study Mates Team`
       });
 
       if (error) {
@@ -2026,22 +2026,22 @@ The StudyAI Team
       this.fastify.log.info(`
 📧 ===== PARENTAL CONSENT EMAIL =====
 To: ${parentEmail}
-Subject: Parental Consent Required - StudyAI
+Subject: Parental Consent Required - Study Mates
 
 Hi ${parentName},
 
-Your child (${childEmail}) has signed up for StudyAI. Because they are under 13 years old, we require parental consent under COPPA (Children's Online Privacy Protection Act).
+Your child (${childEmail}) has signed up for Study Mates. Because they are under 13 years old, we require parental consent under COPPA (Children's Online Privacy Protection Act).
 
 Your verification code is: ${verificationCode}
 
 This code will expire in 24 hours.
 
-Please enter this code to grant consent for your child to use StudyAI.
+Please enter this code to grant consent for your child to use Study Mates.
 
 If you did not expect this email, please ignore it.
 
 Best regards,
-The StudyAI Team
+The Study Mates Team
 =====================================
       `);
       return; // Don't throw error in dev mode
@@ -2055,28 +2055,28 @@ The StudyAI Team
       const { data, error } = await resend.emails.send({
         from: fromEmail,
         to: [parentEmail],
-        subject: 'Parental Consent Required - StudyAI',
+        subject: 'Parental Consent Required - Study Mates',
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
             <h2 style="color: #2563eb;">Parental Consent Required</h2>
             <p>Hi ${parentName},</p>
-            <p>Your child (<strong>${childEmail}</strong>) has signed up for StudyAI. Because they are under 13 years old, we require parental consent under <strong>COPPA</strong> (Children's Online Privacy Protection Act).</p>
+            <p>Your child (<strong>${childEmail}</strong>) has signed up for Study Mates. Because they are under 13 years old, we require parental consent under <strong>COPPA</strong> (Children's Online Privacy Protection Act).</p>
             <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; text-align: center; margin: 30px 0;">
               <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px;">Your verification code is:</p>
               <p style="font-size: 32px; font-weight: bold; color: #2563eb; letter-spacing: 8px; margin: 10px 0;">${verificationCode}</p>
               <p style="margin: 10px 0 0 0; color: #6b7280; font-size: 14px;">This code will expire in 24 hours</p>
             </div>
-            <p>Please enter this code in the StudyAI app to grant consent for your child to use StudyAI.</p>
+            <p>Please enter this code in the Study Mates app to grant consent for your child to use Study Mates.</p>
             <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0;">
               <p style="margin: 0; color: #92400e; font-size: 14px;"><strong>COPPA Privacy Notice:</strong></p>
-              <p style="margin: 5px 0 0 0; color: #92400e; font-size: 14px;">By providing consent, you authorize StudyAI to collect and process your child's learning data for educational purposes. You may revoke consent at any time.</p>
+              <p style="margin: 5px 0 0 0; color: #92400e; font-size: 14px;">By providing consent, you authorize Study Mates to collect and process your child's learning data for educational purposes. You may revoke consent at any time.</p>
             </div>
             <p style="color: #6b7280; font-size: 14px;">If you did not expect this email or if you have questions, please contact us at privacy@study-mates.net</p>
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
-            <p style="color: #9ca3af; font-size: 12px; text-align: center;">Best regards,<br>The StudyAI Team</p>
+            <p style="color: #9ca3af; font-size: 12px; text-align: center;">Best regards,<br>The Study Mates Team</p>
           </div>
         `,
-        text: `Hi ${parentName},\n\nYour child (${childEmail}) has signed up for StudyAI. Because they are under 13 years old, we require parental consent under COPPA (Children's Online Privacy Protection Act).\n\nYour verification code is: ${verificationCode}\n\nThis code will expire in 24 hours.\n\nPlease enter this code to grant consent for your child to use StudyAI.\n\nCOPPA Privacy Notice: By providing consent, you authorize StudyAI to collect and process your child's learning data for educational purposes. You may revoke consent at any time.\n\nIf you did not expect this email, please contact us at privacy@study-mates.net\n\nBest regards,\nThe StudyAI Team`
+        text: `Hi ${parentName},\n\nYour child (${childEmail}) has signed up for Study Mates. Because they are under 13 years old, we require parental consent under COPPA (Children's Online Privacy Protection Act).\n\nYour verification code is: ${verificationCode}\n\nThis code will expire in 24 hours.\n\nPlease enter this code to grant consent for your child to use Study Mates.\n\nCOPPA Privacy Notice: By providing consent, you authorize Study Mates to collect and process your child's learning data for educational purposes. You may revoke consent at any time.\n\nIf you did not expect this email, please contact us at privacy@study-mates.net\n\nBest regards,\nThe Study Mates Team`
       });
 
       if (error) {

@@ -532,6 +532,7 @@ struct MistakeQuestionListView: View {
                 // ✅ NEW: Show configuration sheet before generating
                 PracticeConfigurationSheet(
                     mistakeCount: selectedQuestions.count,
+                    selectedMistakes: filteredMistakes.filter { selectedQuestions.contains($0.id) },
                     onGenerate: { difficulty, questionTypes, count in
                         Task {
                             // Generate with user-selected parameters
@@ -766,15 +767,12 @@ struct MistakeQuestionCard: View {
             // ✅ Header: Question preview (always visible)
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    // ✅ Just subject and preview text
-                    Text(question.subject)
-                        .font(.headline)
-                        .lineLimit(1)
-
-                    Text(question.question.prefix(80) + (question.question.count > 80 ? "..." : ""))
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .lineLimit(2)
+                    if !isExpanded {
+                        Text(question.question.prefix(80) + (question.question.count > 80 ? "..." : ""))
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .lineLimit(2)
+                    }
                 }
 
                 Spacer()
@@ -818,14 +816,13 @@ struct MistakeQuestionCard: View {
             // ✅ Expanded content (folded by default)
             if isExpanded {
                 VStack(alignment: .leading, spacing: 16) {
-                    // ✅ Full question text
+                    // 1. Full question text
                     VStack(alignment: .leading, spacing: 8) {
                         Text(NSLocalizedString("mistakeReview.questionLabel", comment: ""))
                             .font(.caption)
                             .fontWeight(.semibold)
                             .foregroundColor(.secondary)
 
-                        // ✅ Render with subquestion support (NO "Subquestion" text)
                         SubquestionAwareTextView(
                             text: question.rawQuestionText,
                             fontSize: 16
@@ -833,21 +830,50 @@ struct MistakeQuestionCard: View {
                         .textSelection(.enabled)
                     }
 
-                    // ✅ Error Analysis section (moved inside expanded content)
-                    if question.hasErrorAnalysis {
-                        errorAnalysisSection
-                    } else if question.isAnalyzing {
-                        analyzingSection
+                    // 2. Branch breadcrumb (from error analysis)
+                    if let baseBranch = question.baseBranch,
+                       let detailedBranch = question.detailedBranch,
+                       !baseBranch.isEmpty,
+                       !detailedBranch.isEmpty {
+                        HStack(spacing: 4) {
+                            Image(systemName: "folder.fill")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+
+                            Text(question.subject)
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+
+                            Image(systemName: "chevron.right")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+
+                            Text(baseBranch)
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+
+                            Image(systemName: "chevron.right")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+
+                            Text(detailedBranch)
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(.primary)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(6)
                     }
 
-                    // Your incorrect answer
+                    // 3. Student answer
                     VStack(alignment: .leading, spacing: 8) {
                         Text(NSLocalizedString("mistakeReview.yourAnswerLabel", comment: ""))
                             .font(.caption)
                             .fontWeight(.semibold)
                             .foregroundColor(.secondary)
 
-                        // ✅ Use EnhancedMathText for math support in student answers
                         EnhancedMathText(
                             question.studentAnswer.isEmpty ?
                             NSLocalizedString("mistakeReview.noAnswer", comment: "") :
@@ -865,14 +891,58 @@ struct MistakeQuestionCard: View {
                         )
                     }
 
-                    // Correct answer
+                    // 4. What Went Wrong (specificIssue + evidence)
+                    if question.hasErrorAnalysis {
+                        if let specificIssue = question.specificIssue, !specificIssue.isEmpty {
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .foregroundColor(DesignTokens.Colors.warning)
+                                        .font(.caption)
+                                    Text("What Went Wrong")
+                                        .font(.caption)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.secondary)
+                                }
+                                Text(specificIssue)
+                                    .font(.subheadline)
+                                    .foregroundColor(.primary)
+                            }
+                            .padding(10)
+                            .background(DesignTokens.Colors.warning.opacity(0.05))
+                            .cornerRadius(8)
+                        }
+
+                        if let evidence = question.errorEvidence, !evidence.isEmpty {
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack {
+                                    Image(systemName: "magnifyingglass")
+                                        .foregroundColor(themeManager.accentColor)
+                                        .font(.caption)
+                                    Text("Evidence")
+                                        .font(.caption)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.secondary)
+                                }
+                                Text(evidence)
+                                    .font(.subheadline)
+                                    .foregroundColor(.primary)
+                            }
+                            .padding(10)
+                            .background(themeManager.accentColor.opacity(0.05))
+                            .cornerRadius(8)
+                        }
+                    } else if question.isAnalyzing {
+                        analyzingSection
+                    }
+
+                    // 5. Correct answer
                     VStack(alignment: .leading, spacing: 8) {
                         Text(NSLocalizedString("mistakeReview.correctAnswerLabel", comment: ""))
                             .font(.caption)
                             .fontWeight(.semibold)
                             .foregroundColor(.secondary)
 
-                        // ✅ Use EnhancedMathText for math support in correct answers
                         EnhancedMathText(question.correctAnswer, fontSize: 16)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
@@ -885,7 +955,7 @@ struct MistakeQuestionCard: View {
                             )
                     }
 
-                    // Explanation (if available)
+                    // 6. Explanation
                     if !question.explanation.isEmpty && question.explanation != "No explanation provided" {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Explanation")
@@ -893,7 +963,6 @@ struct MistakeQuestionCard: View {
                                 .fontWeight(.semibold)
                                 .foregroundColor(.secondary)
 
-                            // ✅ Use EnhancedMathText for math support in explanations
                             EnhancedMathText(question.explanation, fontSize: 14)
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 8)
@@ -901,6 +970,55 @@ struct MistakeQuestionCard: View {
                                 .foregroundColor(.primary)
                                 .cornerRadius(8)
                         }
+                    }
+
+                    // 7. Error classification badge
+                    if question.hasErrorAnalysis, let errorType = question.errorType {
+                        HStack(spacing: 8) {
+                            Image(systemName: errorIcon(for: errorType))
+                                .foregroundColor(errorColor(for: errorType))
+                                .font(.caption)
+
+                            Text(errorDisplayName(for: errorType))
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(errorColor(for: errorType))
+
+                            Spacer()
+
+                            if let confidence = question.errorConfidence {
+                                Text("\(Int(confidence * 100))%")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(errorColor(for: errorType).opacity(0.1))
+                        .cornerRadius(6)
+                    }
+
+                    // 8. How to Improve
+                    if question.hasErrorAnalysis,
+                       let suggestion = question.learningSuggestion,
+                       !suggestion.isEmpty {
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                Image(systemName: "lightbulb.fill")
+                                    .foregroundColor(DesignTokens.Colors.warning)
+                                    .font(.caption)
+                                Text("How to Improve")
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.secondary)
+                            }
+                            Text(suggestion)
+                                .font(.subheadline)
+                                .foregroundColor(.primary)
+                        }
+                        .padding(10)
+                        .background(DesignTokens.Colors.warning.opacity(0.05))
+                        .cornerRadius(8)
                     }
                 }
                 .padding(.top, 8)
@@ -917,137 +1035,6 @@ struct MistakeQuestionCard: View {
                     lineWidth: isSelectionMode && isSelected ? 2 : 1  // ✅ Thinner when not selected
                 )
         )
-    }
-
-    // ✅ OPTIMIZATION: Error analysis section
-    private var errorAnalysisSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // NEW: Hierarchical breadcrumb
-            if let baseBranch = question.baseBranch,
-               let detailedBranch = question.detailedBranch,
-               !baseBranch.isEmpty,
-               !detailedBranch.isEmpty {
-                HStack(spacing: 4) {
-                    Image(systemName: "folder.fill")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-
-                    Text("Math")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-
-                    Image(systemName: "chevron.right")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-
-                    Text(baseBranch)
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-
-                    Image(systemName: "chevron.right")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-
-                    Text(detailedBranch)
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.primary)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(Color(.systemGray6))
-                .cornerRadius(6)
-            }
-
-            // Error type badge (updated for 3 types)
-            if let errorType = question.errorType {
-                HStack(spacing: 8) {
-                    Image(systemName: errorIcon(for: errorType))
-                        .foregroundColor(errorColor(for: errorType))
-                        .font(.caption)
-
-                    Text(errorDisplayName(for: errorType))
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(errorColor(for: errorType))
-
-                    Spacer()
-
-                    if let confidence = question.errorConfidence {
-                        Text("\(Int(confidence * 100))%")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(errorColor(for: errorType).opacity(0.1))
-                .cornerRadius(6)
-            }
-
-            // NEW: Specific issue section
-            if let specificIssue = question.specificIssue, !specificIssue.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(DesignTokens.Colors.warning)
-                            .font(.caption)
-                        Text("What Went Wrong")
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.secondary)
-                    }
-                    Text(specificIssue)
-                        .font(.subheadline)
-                        .foregroundColor(.primary)
-                }
-                .padding(10)
-                .background(DesignTokens.Colors.warning.opacity(0.05))
-                .cornerRadius(8)
-            }
-
-            // Evidence section (existing)
-            if let evidence = question.errorEvidence, !evidence.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(themeManager.accentColor)
-                            .font(.caption)
-                        Text("Evidence")
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.secondary)
-                    }
-                    Text(evidence)
-                        .font(.subheadline)
-                        .foregroundColor(.primary)
-                }
-                .padding(10)
-                .background(themeManager.accentColor.opacity(0.05))
-                .cornerRadius(8)
-            }
-
-            // Learning suggestion (existing)
-            if let suggestion = question.learningSuggestion, !suggestion.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Image(systemName: "lightbulb.fill")
-                            .foregroundColor(DesignTokens.Colors.warning)
-                            .font(.caption)
-                        Text("How to Improve")
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.secondary)
-                    }
-                    Text(suggestion)
-                        .font(.subheadline)
-                        .foregroundColor(.primary)
-                }
-                .padding(10)
-                .background(DesignTokens.Colors.warning.opacity(0.05))
-                .cornerRadius(8)
-            }
-        }
     }
 
     // ✅ OPTIMIZATION: Analyzing section
@@ -2526,12 +2513,56 @@ struct SubquestionAwareTextView: View {
 // MARK: - Practice Configuration Sheet
 struct PracticeConfigurationSheet: View {
     let mistakeCount: Int
+    let selectedMistakes: [MistakeQuestion]
     let onGenerate: (QuestionGenerationService.RandomQuestionsConfig.QuestionDifficulty, Set<QuestionGenerationService.GeneratedQuestion.QuestionType>, Int) -> Void
     @Environment(\.dismiss) private var dismiss
 
     @State private var selectedDifficulty: QuestionGenerationService.RandomQuestionsConfig.QuestionDifficulty = .intermediate
     @State private var selectedQuestionTypes: Set<QuestionGenerationService.GeneratedQuestion.QuestionType> = [.any]
     @State private var questionCount: Int = 5
+
+    // Each element: (label, questionsNeeded)
+    private var weaknessHints: [(label: String, needed: Int)] {
+        let service = ShortTermStatusService.shared
+
+        // Group selected mistakes by weaknessKey; collect error types per key
+        var keyInfo: [String: (label: String, errorTypes: [String])] = [:]
+        for mistake in selectedMistakes {
+            guard let key = mistake.weaknessKey,
+                  let base = mistake.baseBranch,
+                  let detail = mistake.detailedBranch,
+                  !base.isEmpty, !detail.isEmpty else { continue }
+            if keyInfo[key] == nil {
+                keyInfo[key] = (label: detail, errorTypes: [])
+            }
+            if let et = mistake.errorType {
+                keyInfo[key]!.errorTypes.append(et)
+            }
+        }
+
+        var hints: [(label: String, needed: Int)] = []
+        for (key, info) in keyInfo {
+            let currentValue: Double
+            if let weakness = service.status.activeWeaknesses[key] {
+                guard weakness.value > 0 else { continue }  // already cleared/mastered
+                currentValue = weakness.value
+            } else {
+                continue  // not tracked yet
+            }
+
+            // Mirror the decrement formula in recordCorrectAttempt (retryType .firstTime)
+            let weights = info.errorTypes.isEmpty
+                ? [1.5]
+                : info.errorTypes.map { service.errorTypeWeight($0) }
+            let avgWeight = weights.reduce(0, +) / Double(weights.count)
+            let decrement = 1.0 * avgWeight * 0.6 * 1.0   // bonusMultiplier = 1.0 (.firstTime)
+            guard decrement > 0 else { continue }
+
+            let needed = Int(ceil(currentValue / decrement))
+            hints.append((label: info.label, needed: needed))
+        }
+        return hints.sorted { $0.needed < $1.needed }
+    }
 
     var body: some View {
         NavigationView {
@@ -2626,6 +2657,24 @@ struct PracticeConfigurationSheet: View {
                                 .foregroundColor(.secondary)
                         }
                         .padding(.horizontal)
+
+                        // Weakness clearance hints
+                        if !weaknessHints.isEmpty {
+                            VStack(alignment: .leading, spacing: 6) {
+                                ForEach(weaknessHints, id: \.label) { hint in
+                                    HStack(spacing: 6) {
+                                        Image(systemName: hint.needed <= questionCount ? "checkmark.circle.fill" : "circle.dotted")
+                                            .font(.caption)
+                                            .foregroundColor(hint.needed <= questionCount ? DesignTokens.Colors.success : .secondary)
+                                        Text("\(hint.needed) more question\(hint.needed == 1 ? "" : "s") to clear \(hint.label) weakness")
+                                            .font(.caption)
+                                            .foregroundColor(hint.needed <= questionCount ? DesignTokens.Colors.success : .secondary)
+                                    }
+                                }
+                            }
+                            .padding(.horizontal)
+                            .padding(.top, 4)
+                        }
                     }
 
                     // Generate Button

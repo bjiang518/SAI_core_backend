@@ -848,12 +848,11 @@ public struct MarkdownLaTeXText: View {
 
     @ViewBuilder
     private var streamingView: some View {
-        // ✅ SIMPLIFIED: Show plain text during streaming (no LaTeX parsing)
-        // This eliminates ALL WebView creation/destruction during streaming
         Text(SimpleMathRenderer.renderMathText(content))
             .font(.system(size: fontSize))
             .multilineTextAlignment(.leading)
             .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Markdown-Only View (No LaTeX Detected)
@@ -895,12 +894,12 @@ public struct MarkdownLaTeXText: View {
     private func renderHeader(_ text: String, level: Int) -> some View {
         let headerSize: CGFloat = {
             switch level {
-            case 1: return fontSize + 12  // # Largest
-            case 2: return fontSize + 8   // ##
-            case 3: return fontSize + 6   // ###
-            case 4: return fontSize + 4   // ####
-            case 5: return fontSize + 2   // #####
-            case 6: return fontSize + 1   // ###### Smallest
+            case 1: return fontSize + 12
+            case 2: return fontSize + 8
+            case 3: return fontSize + 6
+            case 4: return fontSize + 4
+            case 5: return fontSize + 2
+            case 6: return fontSize + 1
             default: return fontSize
             }
         }()
@@ -909,11 +908,13 @@ public struct MarkdownLaTeXText: View {
             Text(attributedString)
                 .font(.system(size: headerSize, weight: .bold))
                 .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, 4)
         } else {
             Text(text)
                 .font(.system(size: headerSize, weight: .bold))
                 .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, 4)
         }
     }
@@ -925,11 +926,13 @@ public struct MarkdownLaTeXText: View {
                 .font(.system(size: fontSize))
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
         } else {
             Text(text)
                 .font(.system(size: fontSize))
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -945,11 +948,13 @@ public struct MarkdownLaTeXText: View {
                             .font(.system(size: fontSize))
                             .multilineTextAlignment(.leading)
                             .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     } else {
                         Text(item)
                             .font(.system(size: fontSize))
                             .multilineTextAlignment(.leading)
                             .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
             }

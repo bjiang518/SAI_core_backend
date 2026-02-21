@@ -2987,15 +2987,17 @@ Focus on being helpful and educational while maintaining a conversational tone."
         self,
         subject: str,
         conversation_data: List[Dict],
-        config: Dict[str, Any],
-        user_profile: Dict[str, Any]
+        question_data: List[Dict] = None,
+        config: Dict[str, Any] = None,
+        user_profile: Dict[str, Any] = None
     ) -> Dict[str, Any]:
         """
-        Generate personalized questions based on previous conversations.
+        Generate personalized questions based on archived conversations and/or questions.
 
         Args:
             subject: Subject area
-            conversation_data: List of conversation summaries and contexts
+            conversation_data: List of conversation summaries (date, topics, student_questions, key_concepts)
+            question_data: List of archived Q&A records (question_text, student_answer, correct_answer, is_correct, topic)
             config: Configuration including question_count
             user_profile: User details
 
@@ -3004,15 +3006,16 @@ Focus on being helpful and educational while maintaining a conversational tone."
         """
 
         try:
-            logger.debug(f"🎯 === AI SERVICE: CONVERSATION-BASED QUESTIONS GENERATION START ===")
+            logger.debug(f"🎯 === AI SERVICE: ARCHIVE-BASED QUESTIONS GENERATION START ===")
             logger.debug(f"📚 Subject: {subject}")
             logger.debug(f"💬 Conversations Count: {len(conversation_data)}")
+            logger.debug(f"❓ Questions Count: {len(question_data or [])}")
             logger.debug(f"⚙️  Config: {config}")
             logger.debug(f"👤 User Profile: {user_profile}")
 
             # Generate the comprehensive prompt
             system_prompt = self.prompt_service.get_conversation_based_questions_prompt(
-                subject, conversation_data, config, user_profile
+                subject, conversation_data, question_data or [], config or {}, user_profile or {}
             )
 
             logger.debug(f"📝 === FULL INPUT PROMPT FOR CONVERSATION-BASED QUESTIONS ===")

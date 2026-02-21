@@ -9,6 +9,7 @@
 import Foundation
 import AVFoundation
 import Combine
+import UIKit
 
 @MainActor
 class VoiceChatViewModel: ObservableObject {
@@ -36,6 +37,14 @@ class VoiceChatViewModel: ObservableObject {
     /// Recording level for visual feedback (0.0 to 1.0)
     @Published var recordingLevel: Float = 0.0
 
+    /// True while an image is being serialized + sent over WebSocket.
+    /// UI shows a "Sending image…" banner and recording is paused during this window.
+    @Published var isSendingImage = false
+
+    /// True when the Live session was interrupted (app backgrounded / WebSocket dropped)
+    /// and needs the user to tap "Tap to Reactivate" before voice input is re-enabled.
+    @Published var isSessionSuspended = false
+
     // MARK: - Private Properties
 
     /// WebSocket connection to backend
@@ -47,11 +56,8 @@ class VoiceChatViewModel: ObservableObject {
     /// Audio engine for recording
     private var audioEngine: AVAudioEngine?
 
-    /// Audio player for playback
-    private var audioPlayer: AVAudioPlayerNode?
-
-    /// Audio engine for playback
-    private var playbackEngine: AVAudioEngine?
+    /// Dedicated background actor for audio playback (persistent across turns)
+    private var audioStreamManager: AudioStreamManager?
 
     /// Timer for recording level updates
     private var levelTimer: Timer?
@@ -74,16 +80,6 @@ class VoiceChatViewModel: ObservableObject {
     /// Cancellables
     private var cancellables = Set<AnyCancellable>()
 
-    /// Accumulated audio buffer for playback
-    private var audioBufferQueue: [AVAudioPCMBuffer] = []
-
-    /// Is currently playing audio
-    private var isPlayingAudio = false
-
-    /// Minimum buffers to accumulate before starting playback (prevents choppy audio)
-    /// ✅ Increased from 2 to 5 (200ms) for smoother playback with network jitter
-    private let minimumBuffersBeforePlayback = 5
-
     // MARK: - Recording Capture (for voice bubble playback)
 
     /// Completed user recordings keyed by recording UUID.
@@ -94,8 +90,13 @@ class VoiceChatViewModel: ObservableObject {
     /// UUID assigned to the recording that is currently in progress
     private var currentRecordingID: UUID?
 
-    /// Accumulates 16-bit PCM bytes from the audio tap during recording
+    /// Accumulates 16-bit PCM bytes from the audio tap during recording.
+    /// Protected by recordingBufferQueue — mutated from audio thread and main thread.
     private var currentRecordingBuffer = Data()
+
+    /// Serial queue that serializes all access to currentRecordingBuffer and currentRecordingID
+    /// from both the audio tap (background thread) and startRecording/stopRecording (main thread).
+    private let recordingBufferQueue = DispatchQueue(label: "com.studyai.recordingBuffer")
 
     /// ID of the most recent user placeholder bubble waiting for transcription
     private var pendingUserMessageID: UUID?
@@ -148,6 +149,21 @@ class VoiceChatViewModel: ObservableObject {
         // ✅ Pre-warm audio engine so first recording has zero startup latency
         prewarmAudioEngine()
 
+        // ✅ Create persistent AudioStreamManager (lives for the full session)
+        let manager = AudioStreamManager()
+        audioStreamManager = manager
+        // Wire the drain callback back to @MainActor to update isAISpeaking
+        manager.onPlaybackDrained = { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                // Only clear isAISpeaking if we didn't already stop intentionally
+                if self.isAISpeaking {
+                    self.isAISpeaking = false
+                    self.logger.info("✅ AudioStreamManager drain → isAISpeaking = false")
+                }
+            }
+        }
+
         // Build WebSocket URL
         let baseURL = networkService.apiBaseURL
             .replacingOccurrences(of: "https://", with: "wss://")
@@ -171,9 +187,7 @@ class VoiceChatViewModel: ObservableObject {
             guard let self, let ws = self.webSocket else { return }
             ws.sendPing { error in
                 if let error = error {
-                    print("⚠️ [VoiceChat] Keepalive ping failed: \(error.localizedDescription)")
-                } else {
-                    print("🏓 [VoiceChat] Keepalive ping sent")
+                    self.logger.warning("Keepalive ping failed: \(error.localizedDescription)")
                 }
             }
         }
@@ -205,16 +219,39 @@ class VoiceChatViewModel: ObservableObject {
         webSocket?.cancel(with: .goingAway, reason: nil)
         webSocket = nil
 
-        // Stop audio — stop capturing and tear down engine fully
+        // Stop audio — stop capturing, tear down recording engine, tear down playback actor
         isCapturing = false
         stopAudioEngine()
-        stopAudioPlayback()
+        if let manager = audioStreamManager {
+            Task.detached { await manager.tearDown() }
+            audioStreamManager = nil
+        }
 
         // ✅ Re-enable InteractiveTTS now that voice chat is done
         logger.info("🔊 Re-enabling InteractiveTTS after voice chat...")
         NotificationCenter.default.post(name: NSNotification.Name("ResumeInteractiveTTS"), object: nil)
 
         connectionState = .disconnected
+    }
+
+    /// Reconnect to Gemini Live after a tab-switch interruption.
+    /// Keeps existing messages visible; creates a fresh WebSocket + Gemini session.
+    func reconnect() {
+        logger.info("🔄 Reconnecting to Gemini Live after suspension")
+        isSessionSuspended = false
+
+        // Tear down any stale socket without clearing messages or audio storage
+        keepAliveTimer?.invalidate()
+        keepAliveTimer = nil
+        webSocket?.cancel(with: .goingAway, reason: nil)
+        webSocket = nil
+        if let manager = audioStreamManager {
+            Task.detached { await manager.tearDown() }
+            audioStreamManager = nil
+        }
+
+        // Re-run the full connect sequence (re-warms audio, creates new WS + AudioStreamManager)
+        connectToGeminiLive()
     }
 
     /// Start recording from microphone
@@ -229,9 +266,12 @@ class VoiceChatViewModel: ObservableObject {
         // Clear pending ID so previous bubble stops receiving transcription updates
         pendingUserMessageID = nil
 
-        // Start a fresh PCM capture buffer for this recording
-        currentRecordingID = UUID()
-        currentRecordingBuffer = Data()
+        // Reset the PCM buffer on the recording queue (serialized with the tap closure)
+        let newID = UUID()
+        recordingBufferQueue.sync {
+            self.currentRecordingID = newID
+            self.currentRecordingBuffer = Data()
+        }
 
         if audioEngine != nil {
             // Engine already pre-warmed — flip gate to start capturing immediately (zero latency)
@@ -250,6 +290,28 @@ class VoiceChatViewModel: ObservableObject {
         }
     }
 
+    /// Cancel recording — discard audio, no bubble, no send
+    func cancelRecording() {
+        guard isRecording else { return }
+        logger.info("🎙️ Recording cancelled by user (slide to cancel)")
+
+        isRecording = false
+        isCapturing = false
+
+        // Discard the buffer on the recording queue
+        recordingBufferQueue.sync {
+            self.currentRecordingID = nil
+            self.currentRecordingBuffer = Data()
+        }
+
+        recordingLevel = 0.0
+        levelTimer?.invalidate()
+        levelTimer = nil
+
+        // No placeholder bubble, no audio_stream_end — just drop everything
+        logger.info("Recording cancelled — buffer discarded")
+    }
+
     /// Stop recording
     func stopRecording() {
         guard isRecording else { return }
@@ -258,28 +320,32 @@ class VoiceChatViewModel: ObservableObject {
 
         isRecording = false
 
-        // Save accumulated PCM recording for voice bubble playback
-        if let recordingID = currentRecordingID, !currentRecordingBuffer.isEmpty {
-            completedUserRecordings[recordingID] = currentRecordingBuffer
-            print("🎙️ [VoiceChat] Recording saved — pcmBytes: \(currentRecordingBuffer.count), completedRecordings: \(completedUserRecordings.count)")
-        } else {
-            print("⚠️ [VoiceChat] stopRecording — buffer empty or no recordingID (bytes: \(currentRecordingBuffer.count))")
-        }
-        currentRecordingID = nil
-        currentRecordingBuffer = Data()
+        // Stop capturing first so tap stops appending after we read the buffer
+        isCapturing = false
 
-        // ✅ Immediately append a placeholder bubble — text updated when transcription arrives
+        // Drain the buffer on the recording queue to get a consistent snapshot
+        var capturedID: UUID?
+        var capturedData = Data()
+        recordingBufferQueue.sync {
+            capturedID = self.currentRecordingID
+            capturedData = self.currentRecordingBuffer
+            self.currentRecordingID = nil
+            self.currentRecordingBuffer = Data()
+        }
+
+        // Save accumulated PCM recording for voice bubble playback
+        if let recordingID = capturedID, !capturedData.isEmpty {
+            completedUserRecordings[recordingID] = capturedData
+        }
+
+        // Immediately append a placeholder bubble — text updated when transcription arrives
         let placeholder = VoiceMessage(role: .user, text: "", isVoice: true)
         messages.append(placeholder)
         pendingUserMessageID = placeholder.id
-        print("🎙️ [VoiceChat] Placeholder bubble appended — id: \(placeholder.id), messages.count: \(messages.count)")
 
-        // ✅ Send audio_stream_end to flush cached audio on backend
-        print("📤 [VoiceChat] Sending audio_stream_end to backend")
+        // Send audio_stream_end to flush cached audio on backend
         sendWebSocketMessage(type: "audio_stream_end", data: [:])
 
-        // Stop capturing but keep engine running (warm for next press)
-        isCapturing = false
         recordingLevel = 0.0
 
         // Stop level timer
@@ -287,15 +353,22 @@ class VoiceChatViewModel: ObservableObject {
         levelTimer = nil
     }
 
-    /// Interrupt AI speaking
+    /// Interrupt AI speaking — stops audio and commits any partial text as a completed bubble.
     func interruptAI() {
         logger.info("Interrupting AI")
 
-        isAISpeaking = false
-        liveTranscription = ""
+        // Commit partial transcription so text stays on screen as a completed message
+        if !liveTranscription.isEmpty {
+            messages.append(VoiceMessage(role: .assistant, text: liveTranscription, isVoice: true))
+            liveTranscription = ""
+        }
 
-        // Stop audio playback
-        stopAudioPlayback()
+        isAISpeaking = false
+
+        // Stop playback on the actor — engine stays alive for next turn (no teardown)
+        if let manager = audioStreamManager {
+            Task.detached { await manager.stopPlayback() }
+        }
 
         // Send interrupt signal
         sendWebSocketMessage(type: "interrupt", data: [:])
@@ -310,6 +383,55 @@ class VoiceChatViewModel: ObservableObject {
 
         // Send to backend
         sendWebSocketMessage(type: "text_message", data: ["text": text])
+    }
+
+    /// Send an image to Gemini Live.
+    /// - Scales to long-edge 1024px (optimal Gemini vision resolution).
+    /// - Encodes as JPEG @ 0.8 quality (~100-200 KB).
+    /// - Pauses audio capture for the duration of the upload to avoid
+    ///   head-of-line blocking on the uplink WebSocket connection.
+    func sendImage(_ image: UIImage) {
+        logger.info("📸 Sending image to Gemini Live")
+
+        // Scale so the long edge is at most 1024px (Gemini vision sweet-spot)
+        let maxDimension: CGFloat = 1024
+        let size = image.size
+        let scale = min(maxDimension / max(size.width, size.height), 1.0)
+        let targetSize = CGSize(width: (size.width * scale).rounded(),
+                                height: (size.height * scale).rounded())
+
+        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        let resized = renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: targetSize))
+        }
+
+        guard let jpegData = resized.jpegData(compressionQuality: 0.8) else {
+            logger.error("❌ Failed to encode image as JPEG")
+            errorMessage = "Failed to encode image"
+            return
+        }
+
+        let base64 = jpegData.base64EncodedString()
+        logger.info("📸 Image encoded: \(jpegData.count / 1024) KB, \(Int(targetSize.width))×\(Int(targetSize.height))px")
+
+        // Add a user bubble carrying the JPEG data so it renders as an image in the chat
+        messages.append(VoiceMessage(role: .user, text: "", isVoice: false, imageData: jpegData))
+
+        // Pause audio capture so the large WebSocket frame doesn't block incoming audio chunks
+        let wasCapturing = isCapturing
+        isCapturing = false
+        isSendingImage = true
+
+        sendWebSocketMessage(type: "image_message", data: [
+            "imageBase64": base64,
+            "mimeType": "image/jpeg"
+        ])
+
+        // Resume capture immediately after the send call returns — the WS send is async
+        // so there's no guarantee the frame is fully flushed, but the main thread is
+        // unblocked and audio can resume on the next engine tap cycle.
+        isSendingImage = false
+        if wasCapturing { isCapturing = true }
     }
 
     // MARK: - WebSocket Communication
@@ -342,8 +464,25 @@ class VoiceChatViewModel: ObservableObject {
             case .success(let message):
                 switch message {
                 case .string(let text):
-                    Task { @MainActor in
-                        self.handleWebSocketMessage(text)
+                    // Fast path: route audio_chunk directly to AudioStreamManager
+                    // off the main thread — no @MainActor contention during audio processing.
+                    if text.contains("\"audio_chunk\""),
+                       let msgData = text.data(using: .utf8),
+                       let json = try? JSONSerialization.jsonObject(with: msgData) as? [String: Any],
+                       let base64 = json["data"] as? String,
+                       let manager = self.audioStreamManager {
+                        Task.detached(priority: .userInitiated) {
+                            await manager.scheduleAudioChunk(base64: base64)
+                        }
+                        // Still set isAISpeaking on main actor (lightweight, non-blocking)
+                        Task { @MainActor in
+                            self.isAISpeaking = true
+                        }
+                    } else {
+                        // All non-audio messages go to handleWebSocketMessage on main actor
+                        Task { @MainActor in
+                            self.handleWebSocketMessage(text)
+                        }
                     }
                 case .data(let data):
                     self.logger.debug("Received binary data: \(data.count) bytes")
@@ -356,10 +495,11 @@ class VoiceChatViewModel: ObservableObject {
 
             case .failure(let error):
                 self.logger.error("WebSocket receive error: \(error)")
-                print("❌ [VoiceChat WS] Receive loop error: \(error) — connection dropped")
                 Task { @MainActor in
                     self.connectionState = .error(error.localizedDescription)
                     self.errorMessage = "Connection lost"
+                    // Mark session as suspended so UI shows "Tap to Reactivate"
+                    self.isSessionSuspended = true
                 }
             }
         }
@@ -370,28 +510,22 @@ class VoiceChatViewModel: ObservableObject {
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let type = json["type"] as? String else {
             logger.error("Failed to parse WebSocket message")
-            print("❌ [VoiceChat WS] Failed to parse message: \(text.prefix(200))")
             return
         }
 
-        print("📨 [VoiceChat WS] Received type: '\(type)'")
         logger.debug("Received WebSocket message type: \(type)")
 
         switch type {
         case "session_ready":
-            print("✅ [VoiceChat WS] session_ready — Gemini Live is ready")
             logger.info("Gemini Live session ready")
             errorMessage = nil
 
         case "text_chunk":
             if let textChunk = json["text"] as? String {
-                print("📝 [VoiceChat WS] text_chunk: '\(textChunk)'")
-                logger.info("📝 [TEXT] Received text_chunk: '\(textChunk)'")
                 liveTranscription += textChunk
                 isAISpeaking = true
             } else {
-                print("❌ [VoiceChat WS] text_chunk missing 'text' field: \(json)")
-                logger.error("❌ [TEXT] text_chunk message has no 'text' field: \(json)")
+                logger.error("text_chunk message missing 'text' field")
             }
 
         case "user_transcription":
@@ -402,24 +536,20 @@ class VoiceChatViewModel: ObservableObject {
                let pendingID = pendingUserMessageID,
                let idx = messages.firstIndex(where: { $0.id == pendingID }) {
                 messages[idx].text = userText
-                print("🎤 [VoiceChat WS] user_transcription updated bubble[\(idx)]: '\(userText)'")
-            } else {
-                print("🎤 [VoiceChat WS] user_transcription ignored (no pending bubble)")
             }
 
         case "audio_chunk":
+            // audio_chunk is handled in receiveWebSocketMessages() fast path.
+            // If it falls through here, route it to the actor.
             if let audioBase64 = json["data"] as? String,
-               let audioData = Data(base64Encoded: audioBase64) {
-                print("🔊 [VoiceChat WS] audio_chunk: \(audioData.count) bytes")
-                logger.debug("📥 Received audio_chunk: \(audioData.count) bytes")
-                playAudioChunk(audioData)
-            } else {
-                print("❌ [VoiceChat WS] Failed to decode audio_chunk")
-                logger.error("❌ Failed to decode audio_chunk data")
+               let manager = audioStreamManager {
+                Task.detached(priority: .userInitiated) {
+                    await manager.scheduleAudioChunk(base64: audioBase64)
+                }
+                isAISpeaking = true
             }
 
         case "turn_complete":
-            print("✅ [VoiceChat WS] turn_complete — liveTranscription: '\(liveTranscription)', messages.count: \(messages.count)")
             if !liveTranscription.isEmpty {
                 messages.append(VoiceMessage(
                     role: .assistant,
@@ -428,28 +558,27 @@ class VoiceChatViewModel: ObservableObject {
                 ))
                 liveTranscription = ""
             }
-            isAISpeaking = false
-            print("✅ [VoiceChat WS] turn_complete handled — messages.count now: \(messages.count)")
+            // Do NOT set isAISpeaking = false here.
+            // AudioStreamManager's drain callback does it once all buffered audio finishes,
+            // preventing the speaking indicator from disappearing before the last sample plays.
 
         case "interrupted":
-            print("⚡ [VoiceChat WS] interrupted")
             logger.info("AI interrupted by user")
 
         case "session_ended":
-            print("🔴 [VoiceChat WS] session_ended")
-            logger.info("Gemini Live session ended")
+            logger.info("Gemini Live session ended by server")
             connectionState = .disconnected
+            // Mark as suspended so UI shows "Tap to Reactivate" rather than silently breaking
+            if !isSessionSuspended { isSessionSuspended = true }
 
         case "error":
             if let errorMsg = json["error"] as? String {
-                print("❌ [VoiceChat WS] server error: \(errorMsg)")
                 logger.error("Server error: \(errorMsg)")
                 errorMessage = errorMsg
             }
 
         default:
-            print("⚠️ [VoiceChat WS] unknown type '\(type)' — full json: \(json)")
-            logger.warning("⚠️ Unknown message type '\(type)': \(json)")
+            logger.warning("Unknown message type '\(type)'")
         }
     }
 
@@ -536,7 +665,11 @@ class VoiceChatViewModel: ObservableObject {
                 let silenceThreshold: Float = 0.02
                 guard scaledLevel > silenceThreshold else { return }
                 if let convertedData = self.convertAudioToGeminiFormat(buffer: buffer) {
-                    self.currentRecordingBuffer.append(convertedData)
+                    // Append to buffer inside the serial queue to avoid data race with
+                    // startRecording() resetting the buffer on the main thread.
+                    self.recordingBufferQueue.async {
+                        self.currentRecordingBuffer.append(convertedData)
+                    }
                     let base64Audio = convertedData.base64EncodedString()
                     Task { @MainActor in
                         self.sendWebSocketMessage(type: "audio_chunk", data: ["audio": base64Audio])
@@ -615,149 +748,6 @@ class VoiceChatViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Audio Playback
-
-    private func playAudioChunk(_ audioData: Data) {
-        logger.debug("🎵 Processing audio chunk: \(audioData.count) bytes")
-
-        // Initialize playback engine if needed
-        if playbackEngine == nil {
-            logger.info("🔊 Initializing playback engine...")
-            setupPlaybackEngine()
-        }
-
-        isAISpeaking = true
-
-        // Convert data to PCM buffer
-        guard let buffer = convertDataToPCMBuffer(data: audioData) else {
-            logger.error("❌ Failed to convert audio data to PCM buffer")
-            return
-        }
-
-        // Add to queue
-        audioBufferQueue.append(buffer)
-
-        // Start playback if not already playing AND we have enough buffers
-        if !isPlayingAudio {
-            if audioBufferQueue.count >= minimumBuffersBeforePlayback {
-                logger.info("▶️ Prebuffering complete (\(audioBufferQueue.count) buffers), starting playback...")
-                playNextBuffer()
-            } else {
-                logger.debug("⏳ Prebuffering... (\(audioBufferQueue.count)/\(minimumBuffersBeforePlayback))")
-            }
-        }
-    }
-
-    private func setupPlaybackEngine() {
-        logger.info("🔊 Setting up playback engine...")
-
-        // Audio session already configured in connectToGeminiLive() - don't reconfigure
-        // Switching modes while engines are running causes error '!pri' (561017449)
-
-        playbackEngine = AVAudioEngine()
-        audioPlayer = AVAudioPlayerNode()
-
-        guard let playbackEngine = playbackEngine,
-              let audioPlayer = audioPlayer else {
-            logger.error("❌ Failed to create playback engine or player node")
-            return
-        }
-
-        playbackEngine.attach(audioPlayer)
-        logger.info("✅ Audio player node attached to playback engine")
-
-        // ✅ CRITICAL: Use Float32 format (AVAudioEngine's native format)
-        // Int16 causes inefficient real-time conversion and audio quality issues
-        let format = AVAudioFormat(
-            commonFormat: .pcmFormatFloat32,
-            sampleRate: 24000,
-            channels: 1,
-            interleaved: false
-        )!
-
-        playbackEngine.connect(audioPlayer, to: playbackEngine.mainMixerNode, format: format)
-        logger.info("✅ Audio player node connected to mixer (24kHz, 1ch, Float32)")
-
-        do {
-            try playbackEngine.start()
-            logger.info("✅ Playback engine started successfully")
-        } catch {
-            logger.error("❌ Failed to start playback engine: \(error)")
-        }
-    }
-
-    private func playNextBuffer() {
-        guard let audioPlayer = audioPlayer,
-              !audioBufferQueue.isEmpty else {
-            logger.debug("⏹️ Playback queue empty")
-            isPlayingAudio = false
-            return
-        }
-
-        isPlayingAudio = true
-        let buffer = audioBufferQueue.removeFirst()
-
-        audioPlayer.scheduleBuffer(buffer) { [weak self] in
-            Task { @MainActor in
-                self?.playNextBuffer()
-            }
-        }
-
-        if !audioPlayer.isPlaying {
-            logger.debug("▶️ Starting audio player...")
-            audioPlayer.play()
-        }
-    }
-
-    private func stopAudioPlayback() {
-        logger.info("🔇 Stopping audio playback")
-
-        audioPlayer?.stop()
-        audioBufferQueue.removeAll()
-        isPlayingAudio = false
-
-        playbackEngine?.stop()
-        playbackEngine = nil
-        audioPlayer = nil
-    }
-
-    private func convertDataToPCMBuffer(data: Data) -> AVAudioPCMBuffer? {
-        // ✅ CRITICAL: Use Float32 format (AVAudioEngine's native format)
-        // Gemini returns Int16 PCM, we must convert to Float32 for proper playback
-        let format = AVAudioFormat(
-            commonFormat: .pcmFormatFloat32,
-            sampleRate: 24000,
-            channels: 1,
-            interleaved: false
-        )!
-
-        // Calculate frame count: each Int16 sample is 2 bytes
-        let frameCount = UInt32(data.count / 2)
-
-        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else {
-            return nil
-        }
-
-        buffer.frameLength = frameCount
-
-        // ✅ CRITICAL: Convert Int16 → Float32
-        // Int16 range: -32768 to 32767
-        // Float32 range: -1.0 to 1.0
-        guard let floatChannelData = buffer.floatChannelData?[0] else {
-            return nil
-        }
-
-        data.withUnsafeBytes { (rawPtr: UnsafeRawBufferPointer) in
-            let int16Ptr = rawPtr.bindMemory(to: Int16.self)
-            for i in 0..<Int(frameCount) {
-                // Normalize Int16 to Float32: divide by 32768.0
-                floatChannelData[i] = Float(int16Ptr[i]) / 32768.0
-            }
-        }
-
-        return buffer
-    }
-
     // MARK: - Audio Session Configuration
 
     private func configureAudioSession(for mode: AudioSessionMode) {
@@ -830,7 +820,15 @@ struct VoiceMessage: Identifiable, Equatable {
     let role: MessageRole
     var text: String          // mutable: starts empty, updated when transcription arrives
     let isVoice: Bool
+    let imageData: Data?      // JPEG data for image messages (nil for voice/text)
     let timestamp = Date()
+
+    init(role: MessageRole, text: String, isVoice: Bool, imageData: Data? = nil) {
+        self.role = role
+        self.text = text
+        self.isVoice = isVoice
+        self.imageData = imageData
+    }
 
     enum MessageRole {
         case user

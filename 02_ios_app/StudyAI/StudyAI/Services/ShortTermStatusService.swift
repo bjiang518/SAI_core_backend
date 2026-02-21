@@ -193,7 +193,7 @@ class ShortTermStatusService: ObservableObject {
     }
 
     // ✅ Error type weights (updated for hierarchical error analysis)
-    private func errorTypeWeight(_ type: String) -> Double {
+    func errorTypeWeight(_ type: String) -> Double {
         switch type {
         // NEW hierarchical error types (3 types)
         case "conceptual_gap": return 3.0        // High severity - conceptual misunderstanding
