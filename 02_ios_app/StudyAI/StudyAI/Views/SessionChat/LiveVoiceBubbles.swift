@@ -92,7 +92,7 @@ struct WaveformView: View {
 /// Tapping the bubble plays back the recorded audio.
 struct LiveUserVoiceBubble: View {
     let message: VoiceMessage
-    let audioData: Data?   // WAV-wrapped PCM; nil = no playback available
+    // Audio is now stored directly on message.audioData — no separate parameter needed
 
     @State private var player: AVAudioPlayer?
     @State private var playerDelegate: PlaybackDelegate?   // retained alongside player
@@ -124,7 +124,7 @@ struct LiveUserVoiceBubble: View {
                     .cornerRadius(18)
                 }
                 .buttonStyle(.plain)
-                .disabled(audioData == nil)
+                .disabled(message.audioData == nil)
 
                 Text(timeString(from: message.timestamp))
                     .font(.caption2)
@@ -140,7 +140,7 @@ struct LiveUserVoiceBubble: View {
             player?.stop()
             isPlaying = false
         } else {
-            guard let data = audioData else { return }
+            guard let data = message.audioData else { return }
             do {
                 let delegate = PlaybackDelegate(onFinish: {
                     isPlaying = false
@@ -157,7 +157,7 @@ struct LiveUserVoiceBubble: View {
     }
 
     private var durationText: String? {
-        guard let data = audioData, data.count > 44 else { return nil }
+        guard let data = message.audioData, data.count > 44 else { return nil }
         // WAV: header is 44 bytes; rest is Int16 PCM at 24kHz mono
         let pcmBytes = data.count - 44
         let seconds = Double(pcmBytes) / (24000.0 * 2.0)  // 2 bytes per sample

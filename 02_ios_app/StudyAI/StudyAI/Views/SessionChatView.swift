@@ -40,10 +40,7 @@ struct LiveMessagesSection: View {
                         }
                         .id("voice-\(msg.id.uuidString)")
                     } else {
-                        LiveUserVoiceBubble(
-                            message: msg,
-                            audioData: voiceAudioStorage[msg.id.uuidString]
-                        )
+                        LiveUserVoiceBubble(message: msg)
                         .id("voice-\(msg.id.uuidString)")
                     }
                 } else {
@@ -783,7 +780,7 @@ struct SessionChatView: View {
             .map { .text(index: $0.offset, dict: $0.element) }
         if isLiveMode, let vm = liveVMHolder.vm {
             result += vm.messages.map { msg in
-                    .voice(msg, audioData: voiceAudioStorage[msg.id.uuidString])
+                    .voice(msg, audioData: msg.audioData)
             }
         }
         return result
@@ -1456,12 +1453,15 @@ struct SessionChatView: View {
                 let transcript = msg.text.trimmingCharacters(in: .whitespacesAndNewlines)
                 contentLines.append("USER: 🎙️ \(transcript.isEmpty ? "[voice]" : transcript)")
 
-                // Save WAV audio if we have it in memory
-                if let wavData = voiceAudioStorage[msg.id.uuidString] {
+                // Save WAV audio directly from the message (embedded at recording time)
+                if let wavData = msg.audioData {
                     let fileName = "\(archiveID)_\(msgIndex).wav"
                     let fileURL = audioDir.appendingPathComponent(fileName)
                     try? wavData.write(to: fileURL)
                     voiceAudioFiles["\(msgIndex)"] = fileURL.path
+                    print("🎙️ Saved audio for message \(msgIndex): \(wavData.count) bytes")
+                } else {
+                    print("⚠️ No audio data on user message \(msgIndex)")
                 }
                 msgIndex += 1
 
