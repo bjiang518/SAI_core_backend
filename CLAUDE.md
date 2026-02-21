@@ -190,6 +190,70 @@ daily_subject_activities (user_id, date, question_count)
 
 ### Recent Major Features
 
+**Gemini Live Chat (WeChat-style, Complete)**:
+
+Live mode is an in-page voice chat mode embedded directly in `SessionChatView` — no separate screen. Activated via the three-dot menu → "Live Talk".
+
+**Architecture:**
+```
+SessionChatView
+  ├── isLiveMode: Bool                    // toggles input bar + unified message list
+  ├── liveVMHolder: LiveVMHolder          // @StateObject wrapper around VoiceChatViewModel?
+  └── archiveLiveSessionAsync()           // local-first archive for Live sessions
+
+VoiceChatViewModel (Models/VoiceChatViewModel.swift)
+  ├── messages: [VoiceMessage]            // all voice turns (user + assistant)
+  ├── liveTranscription: String           // streaming AI text (cleared on turn_complete)
+  ├── isAISpeaking / isRecording / recordingLevel
+  └── audioData: Data? on VoiceMessage    // WAV embedded at stopRecording() time
+
+Backend: gemini-live-v2.js (WebSocket, /api/ai/gemini-live/connect)
+  ├── inputAudioTranscription: {}  → user_transcription events
+  ├── outputAudioTranscription: {} → text_chunk events (SOLE text source — no COT)
+  └── modelTurn.parts              → audio_chunk events only (text ignored — contains COT)
+```
+
+**User audio recording:**
+- `prewarmAudioEngine()` starts AVAudioEngine on `connectToGeminiLive()` with tap installed but `isCapturing = false`
+- `startRecording()` flips `isCapturing = true` (zero-latency)
+- Audio tap accumulates 24kHz 16-bit PCM into `currentRecordingBuffer` (serial queue)
+- `stopRecording()` drains buffer, builds 44-byte RIFF/WAV header inline, embeds as `VoiceMessage.audioData`
+- `LiveHoldToTalkButton` (DragGesture) controls start/stop/cancel; slide-left ≥ 80pt = cancel
+
+**AI text rendering:**
+- `outputAudioTranscription` at setup → `serverContent.outputTranscription.text` chunks → `text_chunk` WS events → `liveTranscription` appended on iOS
+- `turn_complete` → `liveTranscription` moved into `messages[]` as completed assistant bubble, streaming overlay disappears
+- `modelTurn.parts[].text` is **never used** for text (contains chain-of-thought); only `inlineData` audio parts are forwarded
+
+**Live mode archive path (local-first):**
+```
+archiveLiveSessionAsync()  [SessionChatView]
+  1. Walk vm.messages → build "USER: 🎙️ <transcript>" / "AI: <text>" lines
+  2. For each user VoiceMessage with audioData → write WAV to
+     Documents/LiveAudio/<archiveID>_<msgIndex>.wav
+  3. Build voiceAudioFiles: ["0": "/path/to/0.wav", ...]
+  4. Call networkService.archiveSession(liveConversationContent:voiceAudioFiles:)
+       → saves conversationData dict (including voiceAudioFiles) to ConversationLocalStorage immediately
+       → Task.detached: backend AI analysis → patch local record with summary/insights
+
+SessionDetailView.loadDetails()
+  1. Read local dict → rawAudioFiles = dict["voiceAudioFiles"] as? [String: String]
+  2. Pass rawAudioFiles to ArchivedConversation.init(voiceAudioFiles:)
+  3. ConversationMessageView receives audioFilePath for each voice bubble
+  4. Play button calls AVAudioPlayer(contentsOf: URL(fileURLWithPath: path))
+```
+
+**Key files:**
+```
+Views/SessionChat/LiveVoiceBubbles.swift    // LiveUserVoiceBubble, LiveHoldToTalkButton, AnimatedWaveformBars, WaveformView, addWAVHeader
+Models/VoiceChatViewModel.swift             // WebSocket + audio engine + VoiceMessage struct
+Views/SessionChatView.swift                 // isLiveMode, liveVMHolder, archiveLiveSessionAsync, unifiedMessages
+Views/SessionDetailView.swift               // ConversationMessageView (voice bubble + playback)
+Models/SessionModels.swift                  // ArchivedConversation.voiceAudioFiles: [String: String]?
+Services/LibraryDataService.swift           // ConversationLocalStorage (save/get/update)
+backend: routes/ai/modules/gemini-live-v2.js // WebSocket handler, Gemini Live API protocol
+```
+
 **Pomodoro/Focus Mode with Tomato Garden Gamification** (Complete):
 - Users start 25-minute Pomodoro sessions with background music
 - Each completed session earns a collectible tomato (13 types, 4 rarity tiers)
