@@ -385,13 +385,17 @@ module.exports = async function (fastify, opts) {
                     setup: {
                         model: "models/gemini-2.5-flash-native-audio-preview-12-2025",
                         generationConfig: {
-                            responseModalities: ["AUDIO"], // Keep AUDIO only, transcription has dedicated config
+                            responseModalities: ["AUDIO"],
                             speechConfig: {
                                 voiceConfig: {
                                     prebuiltVoiceConfig: {
                                         voiceName: "Puck"
                                     }
                                 }
+                            },
+                            // Disable chain-of-thought thinking — keeps responses clean and fast
+                            thinkingConfig: {
+                                thinkingBudget: 0
                             }
                         },
                         // ✅ CRITICAL: These MUST be at setup level to enable outputTranscription
