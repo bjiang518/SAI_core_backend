@@ -44,8 +44,6 @@ module.exports = async function (fastify, opts) {
         let currentUserTranscript = '';   // built from inputTranscription chunks
         let currentAiTranscript = '';     // built from outputTranscription chunks
 
-        logger.info('New Gemini Live connection request');
-
         try {
             // ============================================
             // STEP 1: Authenticate iOS Client (BLOCKING)
@@ -54,7 +52,6 @@ module.exports = async function (fastify, opts) {
             sessionId = req.query.sessionId;
 
             if (!token) {
-                logger.warn('Missing authentication token');
                 clientSocket.send(JSON.stringify({
                     type: 'error',
                     error: 'Missing authentication token'
@@ -68,7 +65,6 @@ module.exports = async function (fastify, opts) {
                 const sessionData = await db.verifyUserSession(token);
 
                 if (!sessionData || !sessionData.user_id) {
-                    logger.warn('Invalid or expired session token');
                     clientSocket.send(JSON.stringify({
                         type: 'error',
                         error: 'Invalid or expired authentication token'
@@ -78,7 +74,6 @@ module.exports = async function (fastify, opts) {
                 }
 
                 userId = sessionData.user_id;
-                logger.info({ userId, sessionId }, 'iOS client authenticated via session token');
             } catch (error) {
                 logger.error({ error }, 'Session verification failed');
                 clientSocket.send(JSON.stringify({
@@ -94,7 +89,6 @@ module.exports = async function (fastify, opts) {
                 const result = await db.query('SELECT user_id FROM sessions WHERE id = $1', [sessionId]);
 
                 if (result.rows.length === 0 || result.rows[0].user_id !== userId) {
-                    logger.warn({ userId, sessionId }, 'Session not found or unauthorized');
                     clientSocket.send(JSON.stringify({
                         type: 'error',
                         error: 'Session not found or unauthorized'
@@ -102,8 +96,6 @@ module.exports = async function (fastify, opts) {
                     clientSocket.close(1008, 'Unauthorized');
                     return;
                 }
-
-                logger.info({ userId, sessionId }, 'Session ownership verified');
             }
 
             // ============================================
@@ -122,14 +114,9 @@ module.exports = async function (fastify, opts) {
 
             // Connect to Google's WebSocket with API key
             const geminiUrl = `${GEMINI_LIVE_ENDPOINT}?key=${apiKey}`;
-            logger.info({
-                endpoint: GEMINI_LIVE_ENDPOINT,
-                apiKeyPrefix: apiKey ? `${apiKey.substring(0, 10)}...` : 'MISSING'
-            }, 'Connecting to Gemini Live API...');
 
             try {
                 geminiSocket = new WebSocket(geminiUrl);
-                logger.debug('WebSocket object created successfully');
             } catch (wsError) {
                 logger.error({ wsError }, 'Failed to create WebSocket connection');
                 clientSocket.send(JSON.stringify({
@@ -144,65 +131,27 @@ module.exports = async function (fastify, opts) {
             // STEP 3: Handle Gemini Connection Events
             // ============================================
             geminiSocket.on('open', async () => {
-                const timestamp = new Date().toISOString();
-                logger.info({
-                    userId,
-                    timestamp,
-                    readyState: geminiSocket.readyState
-                }, '✅ Connected to Gemini Live API');
-
                 isGeminiConnected = true;
 
-                // ✅ FIX: If start_session arrived before Gemini opened, process it now
+                // If start_session arrived before Gemini opened, process it now
                 if (pendingStartSession) {
-                    logger.info({
-                        userId,
-                        sessionId
-                    }, '📤 Sending queued start_session now that Gemini is open');
-
                     const msg = pendingStartSession;
                     pendingStartSession = null;
                     await handleClientMessage(msg);
-                } else {
-                    logger.info({
-                        userId,
-                        queuedMessages: messageQueue.length
-                    }, '🔔 Gemini connected - waiting for iOS start_session...');
                 }
-
-                // Messages will be flushed after receiving setupComplete from Gemini
             });
 
             geminiSocket.on('message', (data) => {
                 try {
-                    const rawData = data.toString();
-                    const message = JSON.parse(rawData);
-
-                    // ✅ PERFORMANCE: Only log type, NEVER log full message (contains huge Base64 audio)
-                    const messageType = Object.keys(message)[0];
-                    logger.debug({
-                        userId,
-                        messageType
-                    }, '📨 Received from Gemini');
-
+                    const message = JSON.parse(data.toString());
                     handleGeminiMessage(message);
                 } catch (error) {
-                    logger.error({
-                        error: error.message,
-                        stack: error.stack,
-                        rawData: data.toString()
-                    }, '❌ Failed to parse Gemini message');
+                    logger.error({ error: error.message }, 'Failed to parse Gemini message');
                 }
             });
 
             geminiSocket.on('error', (error) => {
-                logger.error({
-                    error: error.message,
-                    stack: error.stack,
-                    errorCode: error.code,
-                    userId
-                }, '🔴 Gemini WebSocket error');
-
+                logger.error({ error: error.message, userId }, 'Gemini WebSocket error');
                 clientSocket.send(JSON.stringify({
                     type: 'error',
                     error: 'Connection to AI service failed'
@@ -211,30 +160,9 @@ module.exports = async function (fastify, opts) {
 
             geminiSocket.on('close', (code, reason) => {
                 const reasonStr = reason ? reason.toString() : 'No reason provided';
-                logger.error({
-                    code,
-                    reason: reasonStr,
-                    wasSetupComplete: isSetupComplete,
-                    userId
-                }, '🔴 Gemini WebSocket closed');
-
-                // 🔍 DEBUG: Explain close codes
-                const closeCodeExplanation = {
-                    1000: 'Normal closure',
-                    1001: 'Going away',
-                    1002: 'Protocol error',
-                    1003: 'Unsupported data',
-                    1006: 'Abnormal closure (no close frame)',
-                    1007: 'Invalid frame payload data',
-                    1008: 'Policy violation',
-                    1009: 'Message too big',
-                    1011: 'Internal server error'
-                };
-
-                logger.error({
-                    closeCodeMeaning: closeCodeExplanation[code] || 'Unknown code'
-                }, `Close code ${code} meaning`);
-
+                if (code !== 1000) {
+                    logger.error({ code, reason: reasonStr, userId }, 'Gemini WebSocket closed unexpectedly');
+                }
                 clientSocket.send(JSON.stringify({
                     type: 'session_ended',
                     reason: 'AI service disconnected'
@@ -247,54 +175,27 @@ module.exports = async function (fastify, opts) {
             // ============================================
             clientSocket.on('message', async (data) => {
                 try {
-                    const rawData = data.toString();
-                    const message = JSON.parse(rawData);
+                    const message = JSON.parse(data.toString());
 
-                    // 🔍 DEBUG: Log incoming client messages
-                    logger.info({
-                        userId,
-                        messageType: message.type,
-                        fullMessage: JSON.stringify(message, null, 2)
-                    }, '📥 Received from iOS client');
-
-                    // ✅ CRITICAL FIX: Gate start_session on Gemini WS being open
-                    // If Gemini not connected yet, queue start_session
+                    // Gate start_session on Gemini WS being open
                     if (message.type === 'start_session') {
                         if (!isGeminiConnected || !geminiSocket || geminiSocket.readyState !== WebSocket.OPEN) {
-                            logger.info({
-                                userId,
-                                sessionId,
-                                geminiReadyState: geminiSocket?.readyState
-                            }, '⏳ start_session received before Gemini open; queueing');
-                            pendingStartSession = message;  // Keep only latest
+                            pendingStartSession = message;
                             return;
                         }
-
-                        logger.info({
-                            userId,
-                            sessionId
-                        }, '🚀 Processing start_session (Gemini is open)');
                         await handleClientMessage(message);
                         return;
                     }
 
-                    // ✅ FIX: Queue OTHER messages until setupComplete
+                    // Queue other messages until setupComplete
                     if (!isSetupComplete) {
-                        logger.info({
-                            messageType: message.type
-                        }, '⏸️ Queuing message until Gemini setup completes');
                         messageQueue.push(message);
                         return;
                     }
 
                     await handleClientMessage(message);
                 } catch (error) {
-                    logger.error({
-                        error: error.message,
-                        stack: error.stack,
-                        rawData: data.toString()
-                    }, '❌ Error processing client message');
-
+                    logger.error({ error: error.message }, 'Error processing client message');
                     clientSocket.send(JSON.stringify({
                         type: 'error',
                         error: error.message
@@ -302,8 +203,7 @@ module.exports = async function (fastify, opts) {
                 }
             });
 
-            clientSocket.on('close', (code, reason) => {
-                logger.info({ code, reason: reason.toString(), userId }, 'iOS client disconnected');
+            clientSocket.on('close', () => {
                 clearInterval(keepAliveInterval);
                 if (geminiSocket && geminiSocket.readyState === WebSocket.OPEN) {
                     geminiSocket.close(1000, 'Client disconnected');
@@ -311,7 +211,7 @@ module.exports = async function (fastify, opts) {
             });
 
             clientSocket.on('error', (error) => {
-                logger.error({ error, userId }, 'iOS client WebSocket error');
+                logger.error({ error: error.message, userId }, 'iOS client WebSocket error');
             });
 
             // Keep-alive ping every 20s to prevent Railway/proxy from closing idle connections
@@ -328,8 +228,6 @@ module.exports = async function (fastify, opts) {
             // ============================================
             async function handleClientMessage(message) {
                 const { type, ...data } = message;
-
-                logger.debug({ type, userId }, 'Received client message');
 
                 switch (type) {
                     case 'start_session':
@@ -361,7 +259,7 @@ module.exports = async function (fastify, opts) {
                         break;
 
                     default:
-                        logger.warn({ type }, 'Unknown client message type');
+                        break;
                 }
             }
 
@@ -372,15 +270,10 @@ module.exports = async function (fastify, opts) {
             async function handleStartSession(data) {
                 const { subject, language } = data;
 
-                currentSubject = subject || null; // capture for image context
+                currentSubject = subject || null;
 
-                logger.info({ userId, sessionId, subject, language }, 'Starting Gemini Live session');
-
-                // Build system instruction
                 const systemInstruction = buildSystemInstruction(subject, language);
 
-                // Build official BidiGenerateContentSetup message
-                // ✅ CRITICAL: Must add inputAudioTranscription and outputAudioTranscription at setup level
                 const setupMessage = {
                     setup: {
                         model: "models/gemini-2.5-flash-native-audio-preview-12-2025",
@@ -404,28 +297,13 @@ module.exports = async function (fastify, opts) {
                     }
                 };
 
-                // Send setup to Gemini
                 if (geminiSocket && geminiSocket.readyState === WebSocket.OPEN) {
-                    const setupJson = JSON.stringify(setupMessage);
+                    geminiSocket.send(JSON.stringify(setupMessage));
 
-                    // 🔍 DEBUG: Log the exact setup message being sent
-                    logger.info({
-                        userId,
-                        sessionId,
-                        setupMessage: JSON.stringify(setupMessage, null, 2)
-                    }, '📤 Sending setup message to Gemini');
-
-                    geminiSocket.send(setupJson);
-                    logger.info({ userId }, '✅ Setup message sent to Gemini');
-
-                    // 🔍 DEBUG: Set timeout to detect if Gemini never responds
+                    // Error if Gemini doesn't respond to setup within 5 seconds
                     setTimeout(() => {
                         if (!isSetupComplete) {
-                            logger.error({
-                                userId,
-                                sessionId,
-                                elapsedSeconds: 5
-                            }, '⏰ TIMEOUT: Gemini did not respond to setup after 5 seconds');
+                            logger.error({ userId, sessionId }, 'Gemini did not respond to setup after 5 seconds');
                         }
                     }, 5000);
                 } else {
@@ -455,8 +333,6 @@ module.exports = async function (fastify, opts) {
                 // Forward to Gemini
                 if (geminiSocket && geminiSocket.readyState === WebSocket.OPEN) {
                     geminiSocket.send(JSON.stringify(realtimeInput));
-                } else {
-                    logger.warn('Cannot send audio: Gemini connection not ready');
                 }
             }
 
@@ -466,8 +342,6 @@ module.exports = async function (fastify, opts) {
              * ✅ FIX: Send audioStreamEnd when mic stops to flush cached audio
              */
             function handleAudioStreamEnd() {
-                logger.info({ userId }, 'Audio stream ended - flushing cached audio');
-
                 const streamEnd = {
                     realtimeInput: {
                         audioStreamEnd: true
@@ -476,8 +350,6 @@ module.exports = async function (fastify, opts) {
 
                 if (geminiSocket && geminiSocket.readyState === WebSocket.OPEN) {
                     geminiSocket.send(JSON.stringify(streamEnd));
-                } else {
-                    logger.warn('Cannot send audioStreamEnd: Gemini connection not ready');
                 }
             }
 
@@ -489,17 +361,9 @@ module.exports = async function (fastify, opts) {
             function handleImageChunk(data) {
                 const { imageBase64, mimeType = 'image/jpeg' } = data;
 
-                if (!imageBase64) {
-                    logger.warn({ userId }, 'image_message missing imageBase64 data');
-                    return;
-                }
+                if (!imageBase64) return;
 
-                logger.info({ userId, mimeType, base64Len: imageBase64.length }, '📸 Forwarding image to Gemini');
-
-                if (!geminiSocket || geminiSocket.readyState !== WebSocket.OPEN) {
-                    logger.warn('Cannot send image: Gemini connection not ready');
-                    return;
-                }
+                if (!geminiSocket || geminiSocket.readyState !== WebSocket.OPEN) return;
 
                 const subjectHint = currentSubject ? `This is a ${currentSubject} problem.` : '';
                 const instruction = `${subjectHint} Please look at this image carefully and help me with it. I may ask follow-up questions by voice.`.trim();
@@ -547,14 +411,9 @@ module.exports = async function (fastify, opts) {
                     }
                 };
 
-                // Forward to Gemini
                 if (geminiSocket && geminiSocket.readyState === WebSocket.OPEN) {
                     geminiSocket.send(JSON.stringify(clientContent));
-
-                    // Store in database
                     storeMessage('user', text);
-                } else {
-                    logger.warn('Cannot send text: Gemini connection not ready');
                 }
             }
 
@@ -569,32 +428,14 @@ module.exports = async function (fastify, opts) {
              * in setup, then use activityStart/activityEnd explicitly.
              */
             function handleInterrupt() {
-                logger.info({ userId }, 'User interrupted AI (automatic VAD barge-in)');
-
-                // With auto VAD (default), interruption happens when iOS sends new audio/text
-                // No need to send activityEnd - just notify iOS that we acknowledge the interrupt
-
-                // Notify iOS
-                clientSocket.send(JSON.stringify({
-                    type: 'interrupted'
-                }));
+                clientSocket.send(JSON.stringify({ type: 'interrupted' }));
             }
 
-            /**
-             * HANDLER: End Session
-             * Closes both connections gracefully
-             */
             function handleEndSession() {
-                logger.info({ userId, sessionId }, 'Ending session');
-
                 if (geminiSocket && geminiSocket.readyState === WebSocket.OPEN) {
                     geminiSocket.close(1000, 'Session ended by user');
                 }
-
-                clientSocket.send(JSON.stringify({
-                    type: 'session_ended'
-                }));
-
+                clientSocket.send(JSON.stringify({ type: 'session_ended' }));
                 clientSocket.close(1000, 'Session ended');
             }
 
@@ -602,43 +443,24 @@ module.exports = async function (fastify, opts) {
             // Message Handler: Google Gemini → iOS Client
             // ============================================
             async function handleGeminiMessage(message) {
-                logger.debug({ messageType: Object.keys(message)[0] }, 'Received Gemini message');
-
                 // Handle setupComplete
                 if (message.setupComplete || message.setup_complete) {
                     isSetupComplete = true;
-                    logger.info({ userId }, '✅ Gemini setup complete - ready for messages');
 
                     clientSocket.send(JSON.stringify({
                         type: 'session_ready',
                         sessionId: sessionId
                     }));
 
-                    // ✅ FIX: Now flush queued messages after setupComplete (with await)
-                    if (messageQueue.length > 0) {
-                        logger.info({
-                            queueLength: messageQueue.length
-                        }, 'Processing queued messages after setupComplete');
-
-                        while (messageQueue.length > 0) {
-                            const queuedMessage = messageQueue.shift();
-                            logger.debug({ messageType: queuedMessage.type }, 'Processing queued message');
-                            await handleClientMessage(queuedMessage);  // ✅ await for proper ordering
-                        }
+                    // Flush queued messages after setupComplete
+                    while (messageQueue.length > 0) {
+                        await handleClientMessage(messageQueue.shift());
                     }
                 }
 
                 // Handle serverContent (AI response)
                 const serverContent = message.serverContent || message.server_content;
                 if (serverContent) {
-                    // 🔍 DEBUG: Log what fields Gemini is actually returning
-                    logger.info({
-                        userId,
-                        serverContentKeys: Object.keys(serverContent),
-                        hasOutputTranscription: !!(serverContent.outputTranscription || serverContent.output_transcription),
-                        hasModelTurn: !!(serverContent.modelTurn || serverContent.model_turn)
-                    }, '📦 serverContent received from Gemini');
-
                     const modelTurn = serverContent.modelTurn || serverContent.model_turn;
                     const turnComplete = serverContent.turnComplete || serverContent.turn_complete;
                     const interrupted = serverContent.interrupted;
@@ -654,7 +476,6 @@ module.exports = async function (fastify, opts) {
                             type: 'text_chunk',
                             text: outputTranscription.text
                         }));
-                        logger.debug(`📝 AI text via outputAudioTranscription (${outputTranscription.text.length} chars)`);
                     }
 
                     // Process modelTurn parts for audio only — text parts are intentionally ignored
@@ -666,20 +487,13 @@ module.exports = async function (fastify, opts) {
                             if (inlineData) {
                                 const mimeType = inlineData.mimeType || inlineData.mime_type;
                                 if (mimeType && mimeType.startsWith('audio/')) {
-                                    // ✅ Check backpressure before sending audio
-                                    // If bufferedAmount > 64KB, client can't keep up - log warning
                                     const bufferedAmount = clientSocket.bufferedAmount || 0;
                                     if (bufferedAmount > 65536) {
-                                        logger.warn({
-                                            userId,
-                                            bufferedAmount,
-                                            bufferKB: Math.round(bufferedAmount / 1024)
-                                        }, '⚠️ WebSocket backpressure detected - client buffer full');
+                                        logger.error({ userId, bufferKB: Math.round(bufferedAmount / 1024) }, 'WebSocket backpressure: client buffer full');
                                     }
-
                                     clientSocket.send(JSON.stringify({
                                         type: 'audio_chunk',
-                                        data: inlineData.data // Base64 audio - passed through directly
+                                        data: inlineData.data
                                     }));
                                 }
                             }
@@ -739,24 +553,18 @@ module.exports = async function (fastify, opts) {
                 // Handle toolCallCancellation
                 const toolCallCancellation = message.toolCallCancellation || message.tool_call_cancellation;
                 if (toolCallCancellation) {
-                    const { ids } = toolCallCancellation;
-                    logger.info({ ids }, 'Tool calls cancelled by server');
-
                     clientSocket.send(JSON.stringify({
                         type: 'tool_call_cancelled',
-                        ids: ids
+                        ids: toolCallCancellation.ids
                     }));
                 }
 
                 // Handle goAway (server requests disconnect)
                 const goAway = message.goAway || message.go_away;
                 if (goAway) {
-                    const timeLeft = goAway.timeLeft || goAway.time_left;
-                    logger.warn({ timeLeft }, 'Server sent goAway - will disconnect soon');
-
                     clientSocket.send(JSON.stringify({
                         type: 'go_away',
-                        timeLeft: timeLeft,
+                        timeLeft: goAway.timeLeft || goAway.time_left,
                         message: 'Server requesting disconnect - please reconnect'
                     }));
 
@@ -770,23 +578,8 @@ module.exports = async function (fastify, opts) {
                     }, 1000);
                 }
 
-                // Handle sessionResumptionUpdate
-                const sessionUpdate = message.sessionResumptionUpdate || message.session_resumption_update;
-                if (sessionUpdate) {
-                    const newHandle = sessionUpdate.newHandle || sessionUpdate.new_handle;
-                    const resumable = sessionUpdate.resumable;
-                    logger.debug({ newHandle, resumable }, 'Session resumption state update');
-
-                    if (resumable && newHandle) {
-                        logger.info({ userId, sessionId, newHandle }, 'Session resumption token available');
-                    }
-                }
-
-                // Handle usage metadata
-                const usageMetadata = message.usageMetadata || message.usage_metadata;
-                if (usageMetadata) {
-                    logger.debug({ usage: usageMetadata }, 'Token usage');
-                }
+                // Handle sessionResumptionUpdate (no action needed, token managed server-side)
+                // Handle usageMetadata (no action needed)
             }
 
             /**
@@ -797,9 +590,6 @@ module.exports = async function (fastify, opts) {
 
                 for (const call of functionCalls) {
                     const { name, args, id } = call;
-
-                    logger.info({ name, args, id }, 'Executing function call');
-
                     let result;
                     try {
                         switch (name) {
@@ -1096,6 +886,4 @@ Always encourage the student and adapt your teaching style to their needs.`,
             endpoint: GEMINI_LIVE_ENDPOINT
         };
     });
-
-    logger.info('Gemini Live v2 module registered (official API protocol)');
 };
