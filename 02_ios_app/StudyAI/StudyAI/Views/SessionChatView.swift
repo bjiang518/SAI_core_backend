@@ -711,7 +711,7 @@ struct SessionChatView: View {
                     .offset(x: 0, y: 20)  // Move avatar UP within the tap circle
                     .allowsHitTesting(false)  // Avatar doesn't intercept taps - let circle handle it
                 }
-                .offset(x: 15, y: -90)  // ✅ FIX: Adjusted position to avoid toolbar overlap
+                .offset(x: 0, y: -60)  // Top-left corner, tight to navigation bar
                 .zIndex(10)  // ✅ FIX: Ensure avatar is above other UI elements
                 .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("AIMessageAppeared"))) { notification in
                     handleAIMessageAppeared(notification)
@@ -1245,7 +1245,7 @@ struct SessionChatView: View {
                     }
                 }
                 .padding(.horizontal, 20)
-                .padding(.bottom, 20)
+                .padding(.bottom, -5)
             }
         }
         .background(Color.clear)  // Remove dark gradient
@@ -1400,7 +1400,7 @@ struct SessionChatView: View {
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.bottom, 20)
+            .padding(.bottom, -5)
             .animation(.easeInOut, value: liveVMHolder.vm?.isAISpeaking)
         }
         .background(themeManager.backgroundColor)
@@ -2650,7 +2650,7 @@ struct WeChatStyleVoiceInput: View {
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.bottom, 20)
+            .padding(.bottom, -5)
         }
         .background(
             LinearGradient(
