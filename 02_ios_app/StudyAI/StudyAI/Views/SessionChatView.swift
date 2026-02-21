@@ -13,51 +13,59 @@ import Combine
 // Wraps VoiceChatViewModel? so SwiftUI can observe its @Published properties.
 // @State alone on an ObservableObject reference does NOT subscribe to published changes.
 
-/// Standalone View for live voice messages — has its OWN @ObservedObject subscription to
-/// LiveVMHolder, so SwiftUI re-renders THIS view directly when messages change,
-/// bypassing the large SessionChatView body diffing chain entirely.
+/// Standalone View for live voice messages.
+/// Receives messages as plain value types — SwiftUI diffs content directly
+/// without ever changing view identity (no .id() on this struct itself).
 struct LiveMessagesSection: View {
-    @ObservedObject var holder: LiveVMHolder
+    let messages: [VoiceMessage]
     let voiceAudioStorage: [String: Data]
     let voiceType: VoiceType
-    /// Passed from @State liveRenderToken — changing this forces SwiftUI to re-evaluate
-    /// this view even through deeply nested generic apply*() wrapper chains.
-    let renderToken: Int
+    let isAISpeaking: Bool
+    let liveTranscription: String
 
     var body: some View {
         Group {
-            let _ = print("🖼️ [LiveMessagesSection] body evaluated — vmIsNil: \(holder.vm == nil), messagesCount: \(holder.vm?.messages.count ?? -1)")
-            if let vm = holder.vm {
-                let _ = print("🖼️ [LiveMessagesSection] Rendering \(vm.messages.count) messages")
-                ForEach(vm.messages) { msg in
-                    let _ = print("🖼️ [LiveMessagesSection] Bubble — role:\(msg.role), text:'\(msg.text.prefix(20))'")
-                    if msg.role == .user {
+            ForEach(messages) { msg in
+                if msg.role == .user {
+                    if let imageData = msg.imageData, let uiImage = UIImage(data: imageData) {
+                        // Image message — right-aligned photo bubble
+                        HStack {
+                            Spacer(minLength: 60)
+                            Image(uiImage: uiImage)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(maxWidth: 220)
+                                .cornerRadius(14)
+                                .padding(.horizontal, 4)
+                        }
+                        .id("voice-\(msg.id.uuidString)")
+                    } else {
                         LiveUserVoiceBubble(
                             message: msg,
                             audioData: voiceAudioStorage[msg.id.uuidString]
                         )
                         .id("voice-\(msg.id.uuidString)")
-                    } else {
-                        ModernAIMessageView(
-                            message: msg.text,
-                            voiceType: voiceType,
-                            isStreaming: false,
-                            messageId: "voice-ai-\(msg.id.uuidString)"
-                        )
-                        .id("voice-ai-\(msg.id.uuidString)")
                     }
-                }
-
-                // AI real-time streaming text (while AI is speaking)
-                if vm.isAISpeaking && !vm.liveTranscription.isEmpty {
+                } else {
                     ModernAIMessageView(
-                        message: vm.liveTranscription,
+                        message: msg.text,
                         voiceType: voiceType,
-                        isStreaming: true,
-                        messageId: "live-transcription"
+                        isStreaming: false,
+                        messageId: "voice-ai-\(msg.id.uuidString)"
                     )
-                    .id("live-transcription")
+                    .id("voice-ai-\(msg.id.uuidString)")
                 }
+            }
+
+            // AI real-time streaming text (while AI is speaking)
+            if isAISpeaking && !liveTranscription.isEmpty {
+                ModernAIMessageView(
+                    message: liveTranscription,
+                    voiceType: voiceType,
+                    isStreaming: true,
+                    messageId: "live-transcription"
+                )
+                .id("live-transcription")
             }
         }
     }
@@ -69,16 +77,10 @@ final class LiveVMHolder: ObservableObject {
 
     @MainActor
     func set(_ newVM: VoiceChatViewModel?) {
-        print("🔗 [LiveVMHolder] set() called — newVM isNil: \(newVM == nil)")
         vm = newVM
-        // Forward the inner VM's objectWillChange onto ours so SwiftUI re-renders
         forwardCancellable = newVM?.objectWillChange
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                print("🔗 [LiveVMHolder] objectWillChange forwarded → triggering SwiftUI re-render")
-                self?.objectWillChange.send()
-            }
-        print("🔗 [LiveVMHolder] forwardCancellable set: \(forwardCancellable != nil)")
+            .sink { [weak self] _ in self?.objectWillChange.send() }
     }
 }
 
@@ -235,46 +237,61 @@ struct SessionChatView: View {
                 }
             }
 
+            // Live mode indicator (shown next to three-dot when in Live mode)
+            if isLiveMode {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(DesignTokens.Colors.Cute.mint)
+                            .frame(width: 7, height: 7)
+                        Text(NSLocalizedString("live.connected", value: "Live", comment: ""))
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(DesignTokens.Colors.Cute.mint)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(DesignTokens.Colors.Cute.mint.opacity(0.12))
+                    .clipShape(Capsule())
+                }
+            }
+
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
-                    // Live Talk (WeChat-style inline Gemini Live voice chat)
-                    Button(action: {
-                        print("🎙️ [LiveMode] Live Talk tapped — currentSessionId: \(networkService.currentSessionId ?? "nil")")
-                        let enterLive: (String) -> Void = { sessionId in
-                            print("🎙️ [LiveMode] Entering Live mode — sessionId: \(sessionId), subject: \(viewModel.selectedSubject)")
-                            let vm = VoiceChatViewModel(sessionId: sessionId, subject: viewModel.selectedSubject)
-                            liveVMHolder.set(vm)
-                            vm.connectToGeminiLive()
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                isLiveMode = true
-                                hasConversationStarted = true  // suppress empty state in Live mode
-                            }
-                            print("🎙️ [LiveMode] voiceVM created, connectToGeminiLive() called")
+                    // Live Talk / End Live toggle
+                    if isLiveMode {
+                        Button(role: .destructive, action: exitLiveMode) {
+                            Label(NSLocalizedString("chat.menu.endLive", value: "End Live", comment: ""), systemImage: "waveform.slash")
                         }
-                        if let sessionId = networkService.currentSessionId {
-                            enterLive(sessionId)
-                        } else {
-                            // No session yet — create one first, then enter Live mode
-                            print("🎙️ [LiveMode] No session — auto-creating session before entering Live mode")
-                            viewModel.startNewSession()
-                            // Wait briefly for session ID to be assigned
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                                if let sessionId = networkService.currentSessionId {
-                                    enterLive(sessionId)
-                                } else {
-                                    print("⚠️ [LiveMode] Session still nil after wait — retrying once more")
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                                        if let sessionId = networkService.currentSessionId {
-                                            enterLive(sessionId)
-                                        } else {
-                                            print("❌ [LiveMode] Failed to obtain session ID for Live mode")
+                    } else {
+                        Button(action: {
+                            let enterLive: (String) -> Void = { sessionId in
+                                let vm = VoiceChatViewModel(sessionId: sessionId, subject: viewModel.selectedSubject)
+                                liveVMHolder.set(vm)
+                                vm.connectToGeminiLive()
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    isLiveMode = true
+                                    hasConversationStarted = true
+                                }
+                            }
+                            if let sessionId = networkService.currentSessionId {
+                                enterLive(sessionId)
+                            } else {
+                                viewModel.startNewSession()
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                                    if let sessionId = networkService.currentSessionId {
+                                        enterLive(sessionId)
+                                    } else {
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                                            if let sessionId = networkService.currentSessionId {
+                                                enterLive(sessionId)
+                                            }
                                         }
                                     }
                                 }
                             }
+                        }) {
+                            Label(NSLocalizedString("chat.menu.liveTalk", comment: ""), systemImage: "waveform.circle.fill")
                         }
-                    }) {
-                        Label(NSLocalizedString("chat.menu.liveTalk", comment: ""), systemImage: "waveform.circle.fill")
                     }
 
                     Divider()
@@ -310,11 +327,13 @@ struct SessionChatView: View {
                     Divider()
 
                     Button(NSLocalizedString("chat.menu.archiveSession", comment: "")) {
-                        // ✅ UPDATED: Show progress animation and archive directly
                         showingArchiveProgress = true
-                        // Archive happens automatically with progress animation
                     }
-                    .disabled(networkService.currentSessionId == nil || networkService.conversationHistory.isEmpty)
+                    .disabled(
+                        isLiveMode
+                            ? (liveVMHolder.vm?.messages.isEmpty ?? true)
+                            : (networkService.currentSessionId == nil || networkService.conversationHistory.isEmpty)
+                    )
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
@@ -353,10 +372,12 @@ struct SessionChatView: View {
             }
             // ✅ Archive progress animation overlay
             .archiveProgressOverlay(isPresented: $showingArchiveProgress, archiveTask: {
-                // ✅ FIXED: Archive runs DURING the animation, not after
-                await viewModel.archiveCurrentSessionAsync()
+                if isLiveMode {
+                    await archiveLiveSessionAsync()
+                } else {
+                    await viewModel.archiveCurrentSessionAsync()
+                }
             }) {
-                // Called after overlay dismisses
                 showingArchiveSuccess = true
             }
     }
@@ -479,19 +500,43 @@ struct SessionChatView: View {
             }
             .onDisappear {
                 ttsQueueService.stopAllTTS()
-                liveVMHolder.vm?.disconnect()
-                liveVMHolder.set(nil)
+                // Do NOT disconnect Live session on tab switch — only disconnect
+                // when the app backgrounds (handled by scenePhase) or user taps End Live.
+            }
+            .onAppear {
+                // If Live mode is flagged but the VM was lost (e.g. after an app restart
+                // or unexpected nil), clean up state so the UI is consistent.
+                if isLiveMode && liveVMHolder.vm == nil {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isLiveMode = false
+                        if networkService.conversationHistory.isEmpty {
+                            hasConversationStarted = false
+                        }
+                    }
+                }
             }
             .onChange(of: viewModel.selectedImage) { _, newImage in
-                if newImage != nil {
-                    showingImageInputSheet = true
+                if let image = newImage {
+                    if isLiveMode, let vm = liveVMHolder.vm {
+                        // In Live mode: send image directly to Gemini via WebSocket
+                        vm.sendImage(image)
+                        viewModel.selectedImage = nil  // clear so it doesn't trigger again
+                    } else {
+                        showingImageInputSheet = true
+                    }
                 }
             }
             .onChange(of: scenePhase) { _, newPhase in
                 switch newPhase {
-                case .background, .inactive:
+                case .background:
+                    // Full background: disconnect Live session to free resources
                     ttsQueueService.stopAllTTS()
                     if isLiveMode { exitLiveMode() }
+                case .inactive:
+                    // Inactive fires on tab switches and control centre swipes — do NOT disconnect.
+                    // The WebSocket survives briefly inactive periods; the user gets a
+                    // "Tap to Reactivate" overlay when they return if the connection dropped.
+                    ttsQueueService.stopAllTTS()
                 case .active:
                     break
                 @unknown default:
@@ -514,24 +559,32 @@ struct SessionChatView: View {
                 }
             }
             // Live mode: capture completed user voice recordings into voiceAudioStorage
-            .onChange(of: liveVMHolder.vm?.messages.count) { _, newCount in
+            .onChange(of: liveVMHolder.vm?.messages.count) { _, _ in
                 guard let vm = liveVMHolder.vm, let lastMsg = vm.messages.last,
-                      lastMsg.role == .user, lastMsg.isVoice else { return }
-                print("🎙️ [LiveMode] New user voice message — id: \(lastMsg.id.uuidString), text: '\(lastMsg.text)', completedRecordings: \(vm.completedUserRecordings.count)")
+                      lastMsg.role == .user, lastMsg.isVoice else {
+                    liveRenderToken += 1  // still bump so AI turn_complete message renders
+                    return
+                }
                 // Drain the oldest completed recording and pair it with this message
                 if let (recID, pcmData) = vm.completedUserRecordings.first {
                     let wavData = addWAVHeader(to: pcmData)
                     voiceAudioStorage[lastMsg.id.uuidString] = wavData
                     vm.completedUserRecordings.removeValue(forKey: recID)
-                    print("🎙️ [LiveMode] Audio stored for bubble — pcmBytes: \(pcmData.count), wavBytes: \(wavData.count)")
-                } else {
-                    print("⚠️ [LiveMode] No completed recording found to pair with user message")
                 }
-                // Bump token → @State change forces SessionChatView body re-render
-                // → LiveMessagesSection gets new .id() → SwiftUI destroys/recreates it
-                // → its @ObservedObject subscription fires correctly
-                print("🔄 [LiveMode] liveRenderToken bumped to \(liveRenderToken + 1)")
+                // Bump @State token → forces SessionChatView.body to re-evaluate
+                // → LiveMessagesSection receives fresh value-type snapshots (no view identity change)
                 liveRenderToken += 1
+            }
+            // Also re-render when AI streaming text updates
+            .onChange(of: liveVMHolder.vm?.liveTranscription) { _, _ in
+                liveRenderToken += 1
+            }
+            .onChange(of: liveVMHolder.vm?.isAISpeaking) { _, isSpeaking in
+                liveRenderToken += 1
+                // Drive avatar animation from Gemini Live audio
+                if let speaking = isSpeaking {
+                    avatarState.animationState = speaking ? .speaking : .idle
+                }
             }
     }
 
@@ -696,7 +749,7 @@ struct SessionChatView: View {
                         break
                     }
                 }
-                .transition(.opacity.combined(with: .move(edge: .leading)))
+                .transition(.opacity)
             }
         }
         .safeAreaInset(edge: .bottom) {
@@ -918,16 +971,19 @@ struct SessionChatView: View {
                         }
 
                         // ── Live voice messages (appended after text history) ──
-                        // LiveMessagesSection is its own @ObservedObject subscriber,
-                        // so it re-renders independently whenever liveVMHolder changes.
+                        // LiveMessagesSection receives plain value-type snapshots.
+                        // liveRenderToken is a @State so bumping it forces SessionChatView.body
+                        // to re-evaluate and pass fresh values through the apply*() chain.
+                        // NO .id() here — we never change view identity, only its content.
                         if isLiveMode {
+                            let _ = liveRenderToken  // read token so body re-evals when it bumps
                             LiveMessagesSection(
-                                holder: liveVMHolder,
+                                messages: liveVMHolder.vm?.messages ?? [],
                                 voiceAudioStorage: voiceAudioStorage,
                                 voiceType: voiceService.voiceSettings.voiceType,
-                                renderToken: liveRenderToken
+                                isAISpeaking: liveVMHolder.vm?.isAISpeaking ?? false,
+                                liveTranscription: liveVMHolder.vm?.liveTranscription ?? ""
                             )
-                            .id("live-section-\(liveRenderToken)")
                         }
                     }
                 }
@@ -1039,24 +1095,14 @@ struct SessionChatView: View {
                 HStack {
                     Spacer()
                     Button(action: {
-                        print("🛑 [StopButton] User tapped stop button")
-                        print("🛑 [StopButton] Current streaming message length: \(viewModel.activeStreamingMessage.count)")
-
                         viewModel.stopGeneration()
 
-                        print("🛑 [StopButton] Generation stopped - checking state")
-                        print("🛑 [StopButton] isActivelyStreaming: \(viewModel.isActivelyStreaming)")
-                        print("🛑 [StopButton] isSubmitting: \(viewModel.isSubmitting)")
-
-                        // ✅ Enhanced haptic feedback - success notification
                         let notificationFeedback = UINotificationFeedbackGenerator()
                         notificationFeedback.notificationOccurred(.success)
 
-                        // ✅ Secondary impact for emphasis
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                             let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
                             impactFeedback.impactOccurred()
-                            print("🛑 [StopButton] Haptic feedback completed")
                         }
                     }) {
                         HStack(spacing: 6) {
@@ -1079,12 +1125,6 @@ struct SessionChatView: View {
                         .shadow(color: Color.red.opacity(0.3), radius: 4, x: 0, y: 2)
                     }
                     .buttonStyle(PlainButtonStyle())
-                    .onAppear {
-                        print("🛑 [StopButton] Stop button appeared in stable position")
-                    }
-                    .onDisappear {
-                        print("🛑 [StopButton] Stop button disappeared")
-                    }
                     Spacer()
                 }
                 .padding(.horizontal, 20)
@@ -1218,8 +1258,8 @@ struct SessionChatView: View {
     // MARK: - Live Mode Input Bar
 
     private var liveModeInputBar: some View {
-        VStack(spacing: 0) {
-            // Connection status banner
+        VStack(spacing: 12) {
+            // Connection status / error banners (same padding as text mode input)
             if let vm = liveVMHolder.vm {
                 if case .connecting = vm.connectionState {
                     HStack {
@@ -1231,12 +1271,13 @@ struct SessionChatView: View {
                             .foregroundColor(.secondary)
                         Spacer()
                     }
-                    .padding(.horizontal)
+                    .padding(.horizontal, 20)
                     .padding(.vertical, 8)
-                    .background(DesignTokens.Colors.Cute.blue.opacity(0.2))
+                    .background(DesignTokens.Colors.Cute.blue.opacity(0.15))
+                    .cornerRadius(12)
+                    .padding(.horizontal, 20)
                 }
 
-                // Error banner
                 if let errMsg = vm.errorMessage {
                     HStack {
                         Image(systemName: "exclamationmark.triangle.fill")
@@ -1245,50 +1286,67 @@ struct SessionChatView: View {
                             .font(.caption)
                             .foregroundColor(.primary)
                         Spacer()
-                        Button {
-                            liveVMHolder.vm?.errorMessage = nil
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.secondary)
+                        Button { liveVMHolder.vm?.errorMessage = nil } label: {
+                            Image(systemName: "xmark.circle.fill").foregroundColor(.secondary)
                         }
                     }
-                    .padding(.horizontal)
+                    .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(Color.orange.opacity(0.2))
+                    .background(Color.orange.opacity(0.12))
+                    .cornerRadius(12)
+                    .padding(.horizontal, 20)
+                }
+
+                if vm.isSendingImage {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                            .scaleEffect(0.8)
+                        Text(NSLocalizedString("live.sending_image", value: "Sending image…", comment: ""))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 8)
+                    .background(DesignTokens.Colors.Cute.yellow.opacity(0.15))
+                    .cornerRadius(12)
+                    .padding(.horizontal, 20)
+                    .transition(.opacity)
                 }
             }
 
-            // Connected status pill
-            if let vm = liveVMHolder.vm, case .connected = vm.connectionState {
+            // Stop AI button (same style as text-mode "Stop Generating")
+            if let vm = liveVMHolder.vm, vm.isAISpeaking {
                 HStack {
-                    Circle()
-                        .fill(DesignTokens.Colors.Cute.mint)
-                        .frame(width: 8, height: 8)
-                    Text(NSLocalizedString("live.connected", value: "Live", comment: ""))
-                        .font(.caption.weight(.semibold))
-                        .foregroundColor(DesignTokens.Colors.Cute.mint)
+                    Spacer()
+                    Button(action: {
+                        vm.interruptAI()
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "stop.circle.fill")
+                                .font(.system(size: 14, weight: .semibold))
+                            Text(NSLocalizedString("live.stop", value: "Stop AI", comment: ""))
+                                .font(.system(size: 14, weight: .medium))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(LinearGradient(colors: [Color.red.opacity(0.9), Color.red.opacity(0.7)], startPoint: .leading, endPoint: .trailing))
+                        .cornerRadius(20)
+                        .shadow(color: Color.red.opacity(0.3), radius: 4, x: 0, y: 2)
+                    }
+                    .buttonStyle(PlainButtonStyle())
                     Spacer()
                 }
                 .padding(.horizontal, 20)
-                .padding(.top, 8)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
 
-            // Controls row
-            HStack(spacing: 16) {
-                // Exit live mode
-                Button(action: exitLiveMode) {
-                    VStack(spacing: 4) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 28))
-                            .foregroundColor(.secondary)
-                        Text(NSLocalizedString("live.exit", value: "Exit Live", comment: ""))
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                .buttonStyle(.plain)
-
-                // Camera / attach file button (same as text mode)
+            // Input row: plus button + mic button (same layout as text mode)
+            HStack(spacing: 12) {
+                // Plus / attach button (same as text mode)
                 Button(action: openCamera) {
                     Image(systemName: "plus")
                         .font(.system(size: 20, weight: .semibold))
@@ -1299,64 +1357,138 @@ struct SessionChatView: View {
                 }
                 .disabled(viewModel.isSubmitting || viewModel.isProcessingImage)
 
-                Spacer()
-
-                // Hold-to-talk button
+                // Mic hold-to-talk (fills same width as text input field)
                 if let vm = liveVMHolder.vm {
-                    LiveHoldToTalkButton(
-                        isRecording: Binding(
-                            get: { vm.isRecording },
-                            set: { _ in }
-                        ),
-                        isAISpeaking: vm.isAISpeaking,
-                        onStartRecording: { vm.startRecording() },
-                        onStopRecording: { vm.stopRecording() },
-                        onInterruptAI: { vm.interruptAI() },
-                        recordingLevel: vm.recordingLevel
-                    )
-                }
+                    ZStack {
+                        // Hold-to-talk button (always underneath)
+                        LiveHoldToTalkButton(
+                            isRecording: Binding(get: { vm.isRecording }, set: { _ in }),
+                            isAISpeaking: vm.isAISpeaking,
+                            onStartRecording: { vm.startRecording() },
+                            onStopRecording: { vm.stopRecording() },
+                            onCancelRecording: { vm.cancelRecording() },
+                            onInterruptAI: { vm.interruptAI() },
+                            recordingLevel: vm.recordingLevel
+                        )
+                        .disabled(showingCamera || vm.isSessionSuspended)
 
-                Spacer()
-
-                // Interrupt AI button (visible only when AI is speaking)
-                if let vm = liveVMHolder.vm, vm.isAISpeaking {
-                    Button(action: { vm.interruptAI() }) {
-                        VStack(spacing: 4) {
-                            Image(systemName: "stop.circle.fill")
-                                .font(.system(size: 28))
-                                .foregroundColor(.orange)
-                            Text(NSLocalizedString("live.stop", value: "Stop AI", comment: ""))
-                                .font(.caption2)
-                                .foregroundColor(.orange)
+                        // "Tap to Reactivate" overlay — shown when WebSocket dropped
+                        if vm.isSessionSuspended {
+                            Button(action: {
+                                vm.errorMessage = nil
+                                vm.reconnect()
+                            }) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "arrow.clockwise.circle.fill")
+                                        .font(.system(size: 16, weight: .semibold))
+                                    Text(NSLocalizedString("live.tap_to_reactivate",
+                                                           value: "Tap to Reactivate",
+                                                           comment: ""))
+                                        .font(.system(size: 15, weight: .semibold))
+                                }
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 44)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 25)
+                                        .fill(Color.orange.opacity(0.85))
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
                         }
                     }
-                    .buttonStyle(.plain)
-                    .transition(.scale.combined(with: .opacity))
-                } else {
-                    Color.clear.frame(width: 50, height: 50)
+                    .frame(maxWidth: .infinity)
+                    .animation(.easeInOut(duration: 0.2), value: vm.isSessionSuspended)
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.vertical, 16)
+            .padding(.bottom, 20)
             .animation(.easeInOut, value: liveVMHolder.vm?.isAISpeaking)
         }
-        .background(
-            themeManager.cardBackground
-                .shadow(color: Color.black.opacity(0.1), radius: 10, y: -5)
-        )
+        .background(themeManager.backgroundColor)
     }
 
     // MARK: - Exit Live Mode
 
     private func exitLiveMode() {
-        print("🎙️ [LiveMode] Exiting Live mode — voiceMessages: \(liveVMHolder.vm?.messages.count ?? 0), audioStored: \(voiceAudioStorage.count)")
         liveVMHolder.vm?.disconnect()
         liveVMHolder.set(nil)
         voiceAudioStorage.removeAll()
         withAnimation(.easeInOut(duration: 0.3)) {
             isLiveMode = false
+            // If no text conversation exists, return to the empty state (hides floating avatar)
+            if networkService.conversationHistory.isEmpty {
+                hasConversationStarted = false
+            }
         }
-        print("🎙️ [LiveMode] Exited — isLiveMode: false")
+    }
+
+    // MARK: - Archive Live Session
+
+    /// Archive a Live mode session.
+    /// Builds conversation content directly from the in-memory vm.messages (no backend fetch needed),
+    /// saves user voice audio files to disk so library bubbles are playable,
+    /// saves locally immediately, then fires backend AI analysis in the background.
+    @MainActor
+    private func archiveLiveSessionAsync() async {
+        guard let sessionId = networkService.currentSessionId,
+              let vm = liveVMHolder.vm else { return }
+
+        // Assign a stable archive ID so audio files are grouped under it
+        let archiveID = UUID().uuidString
+        let audioDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("LiveAudio", isDirectory: true)
+        try? FileManager.default.createDirectory(at: audioDir, withIntermediateDirectories: true)
+
+        // Walk messages in order, build content lines and save audio files
+        var contentLines: [String] = []
+        var voiceAudioFiles: [String: String] = [:]  // "msgIndex" → absolute file path
+        var msgIndex = 0
+
+        for msg in vm.messages {
+            switch msg.role {
+            case .user:
+                if msg.imageData != nil {
+                    // Image message — skip from text archive
+                    continue
+                }
+                let transcript = msg.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                contentLines.append("USER: 🎙️ \(transcript.isEmpty ? "[voice]" : transcript)")
+
+                // Save WAV audio if we have it in memory
+                if let wavData = voiceAudioStorage[msg.id.uuidString] {
+                    let fileName = "\(archiveID)_\(msgIndex).wav"
+                    let fileURL = audioDir.appendingPathComponent(fileName)
+                    try? wavData.write(to: fileURL)
+                    voiceAudioFiles["\(msgIndex)"] = fileURL.path
+                }
+                msgIndex += 1
+
+            case .assistant:
+                let text = msg.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !text.isEmpty else { continue }
+                contentLines.append("AI: \(text)")
+                msgIndex += 1
+            }
+        }
+
+        let conversationContent = contentLines.joined(separator: "\n\n")
+
+        let result = await networkService.archiveSession(
+            sessionId: sessionId,
+            title: nil,
+            topic: "Live Voice Chat",
+            subject: viewModel.selectedSubject,
+            notes: nil,
+            diagrams: nil,
+            liveConversationContent: conversationContent.isEmpty ? nil : conversationContent,
+            voiceAudioFiles: voiceAudioFiles.isEmpty ? nil : voiceAudioFiles
+        )
+
+        if result.success {
+            exitLiveMode()
+        }
     }
 
     private var conversationContinuationButtons: some View {

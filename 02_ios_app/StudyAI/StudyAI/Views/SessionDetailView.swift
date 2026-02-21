@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import AVFoundation
 
 struct SessionDetailView: View {
     let sessionId: String
@@ -313,7 +314,8 @@ struct ConversationDetailContent: View {
                             ConversationMessageView(
                                 speaker: messageItem.element.speaker,
                                 message: messageItem.element.message,
-                                isUser: messageItem.element.speaker.lowercased().contains("user")
+                                isUser: messageItem.element.speaker.lowercased().contains("user"),
+                                audioFilePath: conversation.voiceAudioFiles?["\(messageItem.offset)"]
                             )
                         }
 
@@ -510,6 +512,20 @@ struct ConversationMessageView: View {
     let speaker: String
     let message: String
     let isUser: Bool
+    var audioFilePath: String? = nil
+
+    @State private var audioPlayer: AVAudioPlayer?
+    @State private var isPlaying = false
+
+    /// True when this is a transcribed voice turn from Live mode
+    private var isVoiceMessage: Bool {
+        isUser && message.hasPrefix("🎙️")
+    }
+
+    /// Transcript text with the voice marker stripped
+    private var transcriptText: String {
+        isVoiceMessage ? String(message.dropFirst(2)).trimmingCharacters(in: .whitespaces) : message
+    }
 
     var body: some View {
         HStack {
@@ -524,19 +540,67 @@ struct ConversationMessageView: View {
     }
 
     private var messageContent: some View {
-        VStack(alignment: isUser ? .trailing : .leading, spacing: 8) {
-            // Use MathFormattedText for proper math rendering (same as raw chat session)
-            MathFormattedText(message, fontSize: 16)
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
+        Group {
+            if isVoiceMessage {
+                // Voice bubble: play button + waveform + transcript text
+                HStack(spacing: 8) {
+                    Button(action: togglePlayback) {
+                        Image(systemName: isPlaying ? "stop.circle.fill" : "play.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(.white.opacity(0.9))
+                    }
+                    .disabled(audioFilePath == nil)
+                    .opacity(audioFilePath == nil ? 0.4 : 1)
+
+                    Image(systemName: "waveform")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.white.opacity(0.85))
+
+                    Text(transcriptText.isEmpty ? "[Voice message]" : transcriptText)
+                        .font(.system(size: 15))
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.leading)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(Color.purple.opacity(0.65))
+                .cornerRadius(18)
+            } else {
+                VStack(alignment: isUser ? .trailing : .leading, spacing: 8) {
+                    MathFormattedText(message, fontSize: 16)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
+                }
+                .padding(12)
+                .background(isUser ? Color.blue.opacity(0.1) : Color.gray.opacity(0.1))
+                .cornerRadius(16)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(isUser ? Color.blue.opacity(0.3) : Color.gray.opacity(0.3), lineWidth: 1)
+                )
+            }
         }
-        .padding(12)
-        .background(isUser ? Color.blue.opacity(0.1) : Color.gray.opacity(0.1))
-        .cornerRadius(16)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(isUser ? Color.blue.opacity(0.3) : Color.gray.opacity(0.3), lineWidth: 1)
-        )
+    }
+
+    private func togglePlayback() {
+        if isPlaying {
+            audioPlayer?.stop()
+            isPlaying = false
+            return
+        }
+        guard let path = audioFilePath else { return }
+        let url = URL(fileURLWithPath: path)
+        do {
+            audioPlayer = try AVAudioPlayer(contentsOf: url)
+            audioPlayer?.play()
+            isPlaying = true
+            // Reset flag when playback finishes
+            DispatchQueue.main.asyncAfter(deadline: .now() + (audioPlayer?.duration ?? 0)) {
+                isPlaying = false
+            }
+        } catch {
+            print("❌ Could not play voice audio: \(error)")
+        }
     }
 }
 

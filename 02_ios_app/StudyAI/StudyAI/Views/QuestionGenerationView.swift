@@ -37,6 +37,7 @@ struct QuestionGenerationView: View {
     @State private var selectedSubject = ""
     @State private var showingArchiveSelection = false
     @State private var showingInfoAlert = false
+    @State private var generatedSubject = ""  // Top-level subject for archiving
     @Environment(\.dismiss) private var dismiss
 
     private let logger = Logger(subsystem: "com.studyai", category: "QuestionGeneration")
@@ -148,7 +149,7 @@ struct QuestionGenerationView: View {
             }
             // ✅ CHANGED: Use fullScreenCover instead of sheet for fixed view
             .fullScreenCover(isPresented: $showingQuestionsList) {
-                GeneratedQuestionsListView(questions: generatedQuestions)
+                GeneratedQuestionsListView(questions: generatedQuestions, subject: generatedSubject)
             }
             .sheet(isPresented: $showingArchiveSelection) {
                 ArchiveSelectionView(
@@ -515,10 +516,11 @@ struct QuestionGenerationView: View {
 
         Task {
             do {
-                let questions = try await performGeneration()
+                let (questions, subject) = try await performGeneration()
 
                 await MainActor.run {
                     self.generatedQuestions = questions
+                    self.generatedSubject = subject
                     self.showingQuestionsList = true
                 }
             } catch {
@@ -542,7 +544,7 @@ struct QuestionGenerationView: View {
         }
     }
 
-    private func performGeneration() async throws -> [QuestionGenerationService.GeneratedQuestion] {
+    private func performGeneration() async throws -> ([QuestionGenerationService.GeneratedQuestion], String) {
         let userProfile = dataAdapter.createUserProfile()
 
         switch selectedTemplate {
@@ -598,7 +600,7 @@ struct QuestionGenerationView: View {
 
             switch result {
             case .success(let questions):
-                return questions
+                return (questions, primarySubject)
             case .failure(let error):
                 throw error
             }
@@ -629,7 +631,7 @@ struct QuestionGenerationView: View {
                 let content = conversation["conversationContent"] as? String ?? ""
                 let summary = conversation["summary"] as? String ?? ""
 
-                // ✅ Use backend-provided analysis (keyTopics, learningOutcomes from SessionHelper)
+                // Use backend-provided keyTopics, fall back to subject
                 let keyTopics: [String]
                 if let keyTopicsArray = conversation["keyTopics"] as? [String] {
                     keyTopics = keyTopicsArray
@@ -641,47 +643,13 @@ struct QuestionGenerationView: View {
                     keyTopics = [subject]
                 }
 
-                let learningOutcomes: [String]
-                if let outcomesArray = conversation["learningOutcomes"] as? [String] {
-                    learningOutcomes = outcomesArray
-                } else if let outcomesJSON = conversation["learningOutcomes"] as? String,
-                          let data = outcomesJSON.data(using: .utf8),
-                          let decoded = try? JSONSerialization.jsonObject(with: data) as? [String] {
-                    learningOutcomes = decoded
-                } else {
-                    learningOutcomes = []
-                }
-
-                let messageCount = conversation["messageCount"] as? Int ?? 0
-
-                // ✅ Extract student questions for context
                 let studentQuestions = extractStudentQuestions(from: content, title: title)
-
-                // ✅ Use backend analysis + fallback to client-side if needed
-                let analysis: (difficultyLevel: String, strengths: [String], weaknesses: [String], engagement: String)
-
-                if !summary.isEmpty && !keyTopics.isEmpty {
-                    // Use backend-provided analysis
-                    analysis = (
-                        difficultyLevel: messageCount >= 8 ? "advanced" : (messageCount >= 4 ? "intermediate" : "beginner"),
-                        strengths: learningOutcomes.isEmpty ? ["Engaged in conversation"] : learningOutcomes,
-                        weaknesses: [], // Backend doesn't provide weaknesses yet, could be derived from learningOutcomes
-                        engagement: messageCount >= 5 ? "high" : (messageCount >= 3 ? "medium" : "low")
-                    )
-                } else {
-                    // Fallback to client-side analysis
-                    analysis = analyzeConversation(content: content, title: title)
-                }
 
                 return QuestionGenerationService.ConversationData(
                     date: conversation["createdAt"] as? String ?? ISO8601DateFormatter().string(from: Date()),
-                    topics: keyTopics, // Use backend-analyzed topics
+                    topics: keyTopics,
                     studentQuestions: studentQuestions,
-                    difficultyLevel: analysis.difficultyLevel,
-                    strengths: analysis.strengths,
-                    weaknesses: analysis.weaknesses,
-                    keyConcepts: summary.isEmpty ? title : summary, // Use AI-generated summary
-                    engagement: analysis.engagement
+                    keyConcepts: summary.isEmpty ? title : summary
                 )
             }
 
@@ -749,7 +717,7 @@ struct QuestionGenerationView: View {
 
             switch result {
             case .success(let questions):
-                return questions
+                return (questions, primarySubject)
             case .failure(let error):
                 throw error
             }
@@ -757,80 +725,6 @@ struct QuestionGenerationView: View {
     }
 
     // MARK: - Helper Functions
-
-    /// ✅ FIX 3: Analyze conversation content to extract real metadata (not hardcoded)
-    private func analyzeConversation(content: String, title: String) -> (difficultyLevel: String, strengths: [String], weaknesses: [String], engagement: String) {
-        // Count student questions (indicated by "Student:" prefix in archived conversations)
-        let studentTurnCount = content.components(separatedBy: "Student:").count - 1
-
-        // Calculate average question length
-        let studentQuestions = content.components(separatedBy: "Student:")
-            .dropFirst()  // Remove first empty element
-            .map { $0.components(separatedBy: "AI:").first ?? "" }
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-
-        let avgQuestionLength = studentQuestions.isEmpty ? 0 : studentQuestions.reduce(0) { $0 + $1.count } / studentQuestions.count
-
-        // Determine difficulty level based on conversation depth
-        let difficultyLevel: String
-        if studentTurnCount >= 8 {
-            difficultyLevel = "advanced"  // Many follow-up questions = deeper understanding needed
-        } else if studentTurnCount >= 4 {
-            difficultyLevel = "intermediate"
-        } else {
-            difficultyLevel = "beginner"
-        }
-
-        // Determine strengths based on question quality
-        var strengths: [String] = []
-        if avgQuestionLength > 100 {
-            strengths.append("Asks detailed, well-formulated questions")
-        } else if avgQuestionLength > 50 {
-            strengths.append("Shows curiosity through questions")
-        }
-
-        if studentTurnCount >= 5 {
-            strengths.append("Persistent in exploring topics")
-        }
-
-        if strengths.isEmpty {
-            strengths.append("Engaged in conversation")
-        }
-
-        // Determine weaknesses based on conversation patterns
-        var weaknesses: [String] = []
-        if studentTurnCount < 3 {
-            weaknesses.append("Could ask more follow-up questions")
-        }
-
-        if avgQuestionLength < 30 {
-            weaknesses.append("Could provide more context in questions")
-        }
-
-        // Look for question marks - if few questions relative to content, may need practice
-        let questionMarks = content.components(separatedBy: "?").count - 1
-        if questionMarks < studentTurnCount / 2 {
-            weaknesses.append("Practice formulating clear questions")
-        }
-
-        if weaknesses.isEmpty {
-            weaknesses.append("Continue exploring challenging topics")
-        }
-
-        // Determine engagement level
-        let engagement: String
-        if studentTurnCount >= 8 && avgQuestionLength > 80 {
-            engagement = "very_high"
-        } else if studentTurnCount >= 5 || avgQuestionLength > 60 {
-            engagement = "high"
-        } else if studentTurnCount >= 3 {
-            engagement = "medium"
-        } else {
-            engagement = "low"
-        }
-
-        return (difficultyLevel, strengths, weaknesses, engagement)
-    }
 }
 
 // MARK: - New Supporting Views

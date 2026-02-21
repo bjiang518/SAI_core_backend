@@ -126,20 +126,6 @@ struct LiveUserVoiceBubble: View {
                 .buttonStyle(.plain)
                 .disabled(audioData == nil)
 
-                // Show transcription text once it arrives, or a subtle "transcribing..." hint
-                if !message.text.isEmpty {
-                    Text(message.text)
-                        .font(.caption)
-                        .foregroundColor(themeManager.secondaryText)
-                        .frame(maxWidth: 220, alignment: .trailing)
-                        .multilineTextAlignment(.trailing)
-                } else {
-                    Text("transcribing...")
-                        .font(.caption)
-                        .foregroundColor(themeManager.secondaryText.opacity(0.5))
-                        .italic()
-                }
-
                 Text(timeString(from: message.timestamp))
                     .font(.caption2)
                     .foregroundColor(themeManager.secondaryText)
@@ -151,27 +137,21 @@ struct LiveUserVoiceBubble: View {
 
     private func togglePlayback() {
         if isPlaying {
-            print("🔊 [LiveBubble] Stopping playback — msgId: \(message.id.uuidString)")
             player?.stop()
             isPlaying = false
         } else {
-            guard let data = audioData else {
-                print("⚠️ [LiveBubble] No audio data available for playback — msgId: \(message.id.uuidString)")
-                return
-            }
-            print("🔊 [LiveBubble] Starting playback — wavBytes: \(data.count), msgId: \(message.id.uuidString)")
+            guard let data = audioData else { return }
             do {
                 let delegate = PlaybackDelegate(onFinish: {
-                    print("🔊 [LiveBubble] Playback finished — msgId: \(message.id.uuidString)")
                     isPlaying = false
                 })
                 player = try AVAudioPlayer(data: data)
                 player?.delegate = delegate
-                playerDelegate = delegate   // retain so delegate is not deallocated
+                playerDelegate = delegate
                 player?.play()
                 isPlaying = true
             } catch {
-                print("❌ [LiveBubble] AVAudioPlayer init failed: \(error) — msgId: \(message.id.uuidString)")
+                // AVAudioPlayer init failed — no playback available
             }
         }
     }
@@ -203,77 +183,126 @@ private final class PlaybackDelegate: NSObject, AVAudioPlayerDelegate {
 
 // MARK: - Live Hold-to-Talk Button
 
-/// WeChat-style long-press button:
-/// - Press  → interrupt AI (if speaking) → start recording
-/// - Release → stop recording & send
+/// Long-press pill button with slide-to-cancel:
+/// - Press & hold  → start recording
+/// - Release (no slide) → send
+/// - Slide left ≥ 80pt → cancel (discard recording)
 struct LiveHoldToTalkButton: View {
     @Binding var isRecording: Bool
     let isAISpeaking: Bool
     let onStartRecording: () -> Void
     let onStopRecording: () -> Void
+    let onCancelRecording: () -> Void   // new: discard without sending
     let onInterruptAI: () -> Void
     let recordingLevel: Float
 
     @State private var isPressed = false
-    @StateObject private var themeManager = ThemeManager.shared
+    @State private var dragOffset: CGFloat = 0          // horizontal translation
+    @State private var isCancelZone = false             // slid far enough left to cancel
+
+    /// Pixels the user must slide left to enter the cancel zone
+    private let cancelThreshold: CGFloat = 80
 
     var body: some View {
-        VStack(spacing: 6) {
-            if isRecording {
-                AnimatedWaveformBars(level: recordingLevel)
-            }
+        ZStack {
+            // Pill background
+            RoundedRectangle(cornerRadius: 25)
+                .fill(isCancelZone
+                      ? Color.red.opacity(0.18)
+                      : (isPressed
+                         ? DesignTokens.Colors.Cute.yellow.opacity(0.35)
+                         : DesignTokens.Colors.Cute.yellow.opacity(0.22)))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 25)
+                        .stroke(isCancelZone
+                                ? Color.red.opacity(0.5)
+                                : (isPressed
+                                   ? DesignTokens.Colors.Cute.yellow.opacity(0.8)
+                                   : DesignTokens.Colors.Cute.yellow.opacity(0.5)),
+                                lineWidth: 1)
+                )
+                .scaleEffect(isPressed ? 1.02 : 1.0)
+                .animation(.spring(response: 0.25, dampingFraction: 0.6), value: isPressed)
+                .animation(.easeInOut(duration: 0.15), value: isCancelZone)
 
-            ZStack {
-                // Background circle
-                Circle()
-                    .fill(isPressed
-                          ? DesignTokens.Colors.Cute.peach
-                          : DesignTokens.Colors.Cute.lavender)
-                    .frame(width: 72, height: 72)
-                    .shadow(
-                        color: isPressed
-                            ? DesignTokens.Colors.Cute.peach.opacity(0.5)
-                            : Color.black.opacity(0.1),
-                        radius: isPressed ? 12 : 4
-                    )
-                    .scaleEffect(isPressed ? 1.12 : 1.0)
-                    .animation(.spring(response: 0.25, dampingFraction: 0.6), value: isPressed)
-
-                Image(systemName: isPressed ? "mic.fill" : "mic")
-                    .font(.system(size: 28, weight: .medium))
-                    .foregroundColor(.white)
-            }
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { _ in
-                        if !isPressed {
-                            isPressed = true
-                            print("🎙️ [HoldToTalk] Press — isAISpeaking: \(isAISpeaking)")
-                            // Auto-interrupt AI then start recording
-                            if isAISpeaking {
-                                print("🎙️ [HoldToTalk] Auto-interrupting AI before recording")
-                                onInterruptAI()
-                            }
-                            onStartRecording()
-                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                        }
+            // Content
+            HStack(spacing: 12) {
+                if isCancelZone {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.red)
+                    Text(NSLocalizedString("live.release_to_cancel", value: "Release to Cancel", comment: ""))
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundColor(.red)
+                } else if isPressed {
+                    AnimatedWaveformBars(level: recordingLevel)
+                        .frame(height: 28)
+                    // Slide hint only during recording
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.secondary.opacity(0.6))
+                        Text(NSLocalizedString("live.slide_to_cancel", value: "Slide to Cancel", comment: ""))
+                            .font(.system(size: 13))
+                            .foregroundColor(.secondary.opacity(0.6))
                     }
-                    .onEnded { _ in
-                        if isPressed {
-                            isPressed = false
-                            print("🎙️ [HoldToTalk] Release — stopping recording & sending")
-                            onStopRecording()
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        }
-                    }
-            )
-
-            Text(isPressed
-                 ? NSLocalizedString("live.release_to_send", value: "Release to Send", comment: "")
-                 : NSLocalizedString("live.hold_to_talk", value: "Hold to Talk", comment: ""))
-                .font(.caption)
-                .foregroundColor(themeManager.secondaryText)
-                .animation(.easeInOut(duration: 0.15), value: isPressed)
+                    Spacer()
+                    Text(NSLocalizedString("live.release_to_send", value: "Release to Send", comment: ""))
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundColor(DesignTokens.Colors.Cute.peach)
+                } else {
+                    Image(systemName: "mic")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(.primary.opacity(0.7))
+                    Text(NSLocalizedString("live.hold_to_talk", value: "Hold to Talk", comment: ""))
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundColor(.primary.opacity(0.7))
+                }
+            }
+            .padding(.horizontal, 16)
+            .animation(.easeInOut(duration: 0.15), value: isPressed)
+            .animation(.easeInOut(duration: 0.15), value: isCancelZone)
         }
+        .frame(height: 44)
+        .offset(x: isPressed ? min(0, dragOffset) * 0.4 : 0)  // subtle follow for tactile feedback
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { value in
+                    if !isPressed {
+                        isPressed = true
+                        dragOffset = 0
+                        isCancelZone = false
+                        if isAISpeaking { onInterruptAI() }
+                        onStartRecording()
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    }
+
+                    let newOffset = value.translation.width
+                    dragOffset = newOffset
+                    let wasCancelZone = isCancelZone
+                    isCancelZone = newOffset <= -cancelThreshold
+
+                    if isCancelZone && !wasCancelZone {
+                        UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+                    } else if !isCancelZone && wasCancelZone {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    }
+                }
+                .onEnded { _ in
+                    guard isPressed else { return }
+                    isPressed = false
+                    let shouldCancel = isCancelZone
+                    dragOffset = 0
+                    isCancelZone = false
+
+                    if shouldCancel {
+                        onCancelRecording()
+                        UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                    } else {
+                        onStopRecording()
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    }
+                }
+        )
     }
 }

@@ -126,7 +126,7 @@ module.exports = async function (fastify, opts) {
       });
     }
 
-    const { subject, topic, difficulty, count = 5, language = 'en', question_type = 'any', use_personalization = false, custom_message, mode = 1, mistakes_data = [], conversation_data = [] } = request.body;
+    const { subject, topic, difficulty, count = 5, language = 'en', question_type = 'any', use_personalization = false, custom_message, mode = 1, mistakes_data = [], conversation_data = [], question_data = [] } = request.body;
 
     // Validate mode-specific requirements
     if (mode === 2 && (!mistakes_data || mistakes_data.length === 0)) {
@@ -137,11 +137,11 @@ module.exports = async function (fastify, opts) {
       });
     }
 
-    if (mode === 3 && (!conversation_data || conversation_data.length === 0)) {
+    if (mode === 3 && (!conversation_data || conversation_data.length === 0) && (!question_data || question_data.length === 0)) {
       return reply.status(400).send({
         success: false,
-        error: 'NO_CONVERSATIONS_PROVIDED',
-        message: 'Mode 3 requires conversation_data array with at least one conversation'
+        error: 'NO_ARCHIVE_DATA_PROVIDED',
+        message: 'Mode 3 requires at least one item in conversation_data or question_data'
       });
     }
 
@@ -167,8 +167,8 @@ module.exports = async function (fastify, opts) {
         // MODE 2: Mistake-based questions via AI Engine
         result = await generateMistakeQuestionsWithAIEngine(userId, subject, mistakes_data, difficulty, count, language, question_type, aiClient);
       } else if (mode === 3) {
-        // MODE 3: Conversation-based questions via AI Engine
-        result = await generateConversationQuestionsWithAIEngine(userId, subject, conversation_data, difficulty, count, language, question_type, aiClient);
+        // MODE 3: Archive-based questions (conversations + archived questions) via AI Engine
+        result = await generateConversationQuestionsWithAIEngine(userId, subject, conversation_data, question_data, difficulty, count, language, question_type, aiClient);
       } else {
         // MODE 1: Random questions via AI Engine
         result = await generateQuestionsWithAIEngine(userId, subject, topic, difficulty, count, language, question_type, aiClient);
@@ -247,37 +247,52 @@ module.exports = async function (fastify, opts) {
   });
 
   // ============================================
-  // LEGACY ROUTES (for backward compatibility)
+  // LEGACY ROUTES (redirect to unified endpoint)
   // ============================================
 
   /**
    * Legacy: Generate random questions
    */
   fastify.post('/api/ai/generate-questions/random', async (request, reply) => {
-    // Map to new unified endpoint
-    const { subject, grade_level, difficulty, count, topics } = request.body;
+    const { subject, difficulty, count, topics } = request.body;
+    const userId = await getUserId(request);
 
-    const mappedBody = {
-      subject,
-      topic: topics?.[0],
-      difficulty: mapDifficultyToNumber(difficulty),
-      count
-    };
+    if (!userId) {
+      return reply.status(401).send({
+        success: false,
+        error: 'AUTHENTICATION_REQUIRED',
+        message: 'Please log in to generate practice questions'
+      });
+    }
 
-    request.body = mappedBody;
-    return await fastify.inject({
-      method: 'POST',
-      url: '/api/ai/generate-questions/practice',
-      headers: request.headers,
-      payload: mappedBody
-    });
+    const startTime = Date.now();
+    try {
+      const result = await generateQuestionsWithAIEngine(
+        userId, subject, topics?.[0],
+        mapDifficultyToNumber(difficulty), count || 5, 'en', 'any', aiClient
+      );
+      const totalLatency = Date.now() - startTime;
+      return {
+        success: true,
+        questions: result.questions,
+        metadata: { ...result.metadata, total_latency_ms: totalLatency },
+        _performance: { latency_ms: totalLatency, implementation: 'ai_engine' }
+      };
+    } catch (error) {
+      fastify.log.error('❌ Random question generation failed:', error);
+      return reply.status(500).send({
+        success: false,
+        error: 'GENERATION_FAILED',
+        message: error.message || 'Failed to generate practice questions'
+      });
+    }
   });
 
   /**
-   * Generate questions based on mistakes (iOS sends local mistake data)
+   * Legacy: Mistake-based questions → redirect to unified mode 2
    */
   fastify.post('/api/ai/generate-questions/mistakes', async (request, reply) => {
-    const startTime = Date.now();
+    const { subject, mistakes_data = [], config = {} } = request.body;
     const userId = await getUserId(request);
 
     if (!userId) {
@@ -288,216 +303,44 @@ module.exports = async function (fastify, opts) {
       });
     }
 
-    const { subject, mistakes_data = [], config = {}, user_profile = {} } = request.body;
-
-    fastify.log.info({
-      msg: '🔄 Mistakes endpoint called',
-      userId,
-      subject,
-      mistakesCount: mistakes_data.length,
-      configReceived: !!config
-    });
+    const count = config.question_count || 5;
+    const language = config.language || 'en';
+    const questionType = config.question_type || 'any';
+    const difficulty = config.difficulty || 3;
 
     if (!mistakes_data || mistakes_data.length === 0) {
       return reply.status(400).send({
         success: false,
         error: 'NO_MISTAKES_PROVIDED',
-        message: 'No mistakes data provided. Please select mistakes from your practice history.'
+        message: 'Mode 2 requires mistakes_data array with at least one mistake'
       });
     }
 
-    try {
-      const questionCount = config.question_count || 5;
-      const questionType = config.question_type || 'any';
-      const difficulty = config.difficulty || 3;
-      const language = config.language || 'en';
-
-      // Extract unique tags from all mistakes
-      const allTags = mistakes_data.flatMap(m => m.tags || []);
-      const uniqueTags = [...new Set(allTags)];
-
-      // Build mistakes context
-      const mistakesContext = mistakes_data.map((m, i) => `
-Mistake #${i+1}:
-- Original Question: ${m.original_question || 'N/A'}
-- Your Answer: ${m.user_answer || 'N/A'}
-- Correct Answer: ${m.correct_answer || 'N/A'}
-- Mistake Type: ${m.mistake_type || 'Unknown'}
-- Topic: ${m.topic || subject}
-- Date: ${m.date || 'Unknown'}
-- Tags: ${(m.tags || []).join(', ')}
-      `).join('\n');
-
-      // Use AI Engine directly (fast path, no Assistants API)
-      fastify.log.info('⚡ Using AI Engine for mistake-based questions (fast path)...');
-
-      const result = await generateMistakeQuestionsWithAIEngine(
-        userId,
-        subject,
-        mistakes_data,
-        difficulty,
-        questionCount,
-        language,
-        questionType,
-        aiClient
-      );
-
-      const totalLatency = Date.now() - startTime;
-
-      // Log metrics (AI Engine, not Assistants API)
-      await logMetrics({
-        userId,
-        assistantType: 'practice_generator',
-        endpoint: '/api/ai/generate-questions/mistakes',
-        totalLatency,
-        inputTokens: result.tokens?.input || 0,
-        outputTokens: result.tokens?.output || 0,
-        model: result.model || 'gpt-4o-mini',
-        wasSuccessful: true,
-        useAssistantsAPI: false, // Changed from true
-        experimentGroup: 'ai_engine_fast_path'
-      });
-
-      return {
-        success: true,
-        questions: result.questions,
-        metadata: {
-          ...result.metadata,
-          using_assistants_api: false, // Changed from true
-          using_ai_engine: true, // Added
-          mode: 2,
-          total_latency_ms: totalLatency
-        }
-      };
-    } catch (error) {
-      fastify.log.error('❌ Mistake-based generation failed:', error);
-
-      return reply.status(500).send({
-        success: false,
-        error: 'GENERATION_FAILED',
-        message: error.message || 'Failed to generate questions from mistakes'
-      });
-    }
-  });
-
-  /**
-   * ✅ OPTIMIZED: Generate questions from client-provided mistakes with hierarchical error analysis
-   * iOS sends mistake data with enhanced error taxonomy (error_type, base_branch, detailed_branch, specific_issue)
-   */
-  fastify.post('/api/ai/generate-from-mistakes', async (request, reply) => {
     const startTime = Date.now();
-    const userId = await getUserId(request);
-
-    if (!userId) {
-      return reply.status(401).send({
-        success: false,
-        error: 'AUTHENTICATION_REQUIRED',
-        message: 'Please log in to generate practice questions'
-      });
-    }
-
-    const { subject, mistakes_data = [], count = 5, question_type } = request.body;
-
-    fastify.log.info(`🎯 [OPTIMIZED] Generating ${count} targeted questions from ${mistakes_data.length} selected mistakes`);
-    fastify.log.info(`   Subject: ${subject}`);
-    fastify.log.info(`   Has error analysis: ${mistakes_data.some(m => m.error_type || m.base_branch)}`);
-
-    if (!mistakes_data || mistakes_data.length === 0) {
-      return reply.status(400).send({
-        success: false,
-        error: 'NO_MISTAKES_PROVIDED',
-        message: 'No mistakes data provided. Please select mistakes from your practice history.'
-      });
-    }
-
     try {
-      // ✅ OPTIMIZED: Enhanced field mapping with hierarchical taxonomy
-      const enhancedMistakesData = mistakes_data.map(m => ({
-        original_question: m.original_question || m.question_text || m.questionText,
-        user_answer: m.user_answer || m.student_answer || m.studentAnswer,
-        correct_answer: m.correct_answer || m.correctAnswer,
-
-        // ✅ NEW: Hierarchical error taxonomy
-        error_type: m.error_type || m.errorType,
-        base_branch: m.base_branch || m.baseBranch || m.primary_concept || m.primaryConcept,
-        detailed_branch: m.detailed_branch || m.detailedBranch || m.secondary_concept || m.secondaryConcept,
-        specific_issue: m.specific_issue || m.specificIssue || m.error_evidence || m.errorEvidence,
-
-        // ✅ NEW: Pro Mode image support
-        question_image_url: m.question_image_url || m.questionImageUrl,
-
-        subject: m.subject || subject,
-        tags: m.tags || []
-      }));
-
-      // Log sample for debugging
-      if (enhancedMistakesData.length > 0) {
-        const sample = enhancedMistakesData[0];
-        fastify.log.info(`   Sample mistake: Q="${(sample.original_question || '').substring(0, 50)}..."`);
-        fastify.log.info(`   Error type: ${sample.error_type || 'N/A'}`);
-        fastify.log.info(`   Base branch: ${sample.base_branch || 'N/A'}`);
-        fastify.log.info(`   Detailed branch: ${sample.detailed_branch || 'N/A'}`);
-        fastify.log.info(`   Specific issue: ${sample.specific_issue || 'N/A'}`);
-      }
-
-      // Use AI Engine directly (fast path)
-      fastify.log.info('⚡ Using AI Engine for mistake-based questions with hierarchical analysis...');
-
-      const result = await generateMistakeQuestionsWithAIEngine(
-        userId,
-        subject,
-        enhancedMistakesData,
-        3, // difficulty (intermediate)
-        count,
-        'en', // language
-        question_type || 'any',
-        aiClient
-      );
-
+      const result = await generateMistakeQuestionsWithAIEngine(userId, subject, mistakes_data, difficulty, count, language, questionType, aiClient);
       const totalLatency = Date.now() - startTime;
-
-      // Log metrics
-      await logMetrics({
-        userId,
-        assistantType: 'practice_generator_optimized',
-        endpoint: '/api/ai/generate-from-mistakes',
-        totalLatency,
-        inputTokens: result.tokens?.input || 0,
-        outputTokens: result.tokens?.output || 0,
-        model: result.model || 'gpt-4o-mini',
-        wasSuccessful: true,
-        useAssistantsAPI: false,
-        experimentGroup: 'ai_engine_hierarchical_taxonomy'
-      });
-
       return {
         success: true,
         questions: result.questions,
-        metadata: {
-          ...result.metadata,
-          using_ai_engine: true,
-          using_hierarchical_taxonomy: true,
-          mode: 2,
-          total_latency_ms: totalLatency
-        }
+        metadata: { ...result.metadata, total_latency_ms: totalLatency },
+        _performance: { latency_ms: totalLatency, implementation: 'ai_engine' }
       };
     } catch (error) {
-      fastify.log.error('❌ Optimized mistake-based generation failed:', error);
-
+      fastify.log.error('❌ Mistake question generation failed:', error);
       return reply.status(500).send({
         success: false,
         error: 'GENERATION_FAILED',
-        message: error.message || 'Failed to generate questions from mistakes'
+        message: error.message || 'Failed to generate practice questions'
       });
     }
   });
 
   /**
-   * Generate questions based on conversations/archives (iOS sends local data)
-   * Supports: conversations, questions (archived), or both combined
+   * Legacy: Conversation/archive-based questions → redirect to unified mode 3
    */
   fastify.post('/api/ai/generate-questions/conversations', async (request, reply) => {
-    const startTime = Date.now();
+    const { subject, conversation_data = [], question_data = [], config = {} } = request.body;
     const userId = await getUserId(request);
 
     if (!userId) {
@@ -508,162 +351,35 @@ Mistake #${i+1}:
       });
     }
 
-    const { subject, conversation_data = [], question_data = [], config = {}, user_profile = {} } = request.body;
-
-    fastify.log.info({
-      msg: '🔄 Archive/Conversation endpoint called',
-      userId,
-      subject,
-      conversationsCount: conversation_data.length,
-      questionsCount: question_data.length,
-      configReceived: !!config
-    });
-
-    // Check if at least one type of data is provided
-    const hasConversations = conversation_data && conversation_data.length > 0;
-    const hasQuestions = question_data && question_data.length > 0;
-
-    if (!hasConversations && !hasQuestions) {
+    if ((!conversation_data || conversation_data.length === 0) && (!question_data || question_data.length === 0)) {
       return reply.status(400).send({
         success: false,
-        error: 'NO_DATA_PROVIDED',
-        message: 'No conversation data or question data provided. Please select items from your archives.'
+        error: 'NO_ARCHIVE_DATA_PROVIDED',
+        message: 'Mode 3 requires at least one item in conversation_data or question_data'
       });
     }
 
+    const count = config.question_count || 5;
+    const language = config.language || 'en';
+    const questionType = config.question_type || 'any';
+    const difficulty = config.difficulty || 3;
+
+    const startTime = Date.now();
     try {
-      const questionCount = config.question_count || 5;
-      const questionType = config.question_type || 'any';
-      const difficulty = config.difficulty || 3;
-      const language = config.language || 'en';
-
-      // Build context from conversations
-      let conversationsContext = '';
-      if (hasConversations) {
-        conversationsContext = conversation_data.map((c, i) => `
-Conversation #${i+1} (${c.date || 'Unknown date'}):
-- Topics Discussed: ${Array.isArray(c.topics) ? c.topics.join(', ') : (c.topics || 'N/A')}
-- Student Questions: ${c.student_questions || 'N/A'}
-- Difficulty Level: ${c.difficulty_level || 'intermediate'}
-- Strengths Observed: ${Array.isArray(c.strengths) ? c.strengths.join(', ') : (c.strengths || 'N/A')}
-- Areas for Improvement: ${Array.isArray(c.weaknesses) ? c.weaknesses.join(', ') : (c.weaknesses || 'N/A')}
-- Key Concepts: ${c.key_concepts || 'N/A'}
-- Engagement Level: ${c.engagement || 'medium'}
-        `).join('\n');
-      }
-
-      // Build context from archived questions
-      let questionsContext = '';
-      if (hasQuestions) {
-        questionsContext = question_data.map((q, i) => `
-Archived Question #${i+1}:
-- Question: ${q.question_text || q.question || 'N/A'}
-- Student Answer: ${q.student_answer || q.user_answer || 'N/A'}
-- Correct Answer: ${q.correct_answer || q.ai_answer || 'N/A'}
-- Was Correct: ${q.is_correct || q.was_correct || 'unknown'}
-- Topic: ${q.topic || subject}
-- Date: ${q.date || q.created_at || 'Unknown'}
-- Tags: ${(q.tags || []).join(', ')}
-        `).join('\n');
-      }
-
-      // Build combined message
-      let contextSection = '';
-      if (hasConversations && hasQuestions) {
-        contextSection = `
-PREVIOUS_CONVERSATIONS (analyze learning patterns):
-${conversationsContext}
-
-ARCHIVED_QUESTIONS (review past practice):
-${questionsContext}
-
-Analyze BOTH the conversations and questions to understand the student's learning journey.`;
-      } else if (hasConversations) {
-        contextSection = `
-PREVIOUS_CONVERSATIONS (build upon these learning interactions):
-${conversationsContext}`;
-      } else {
-        contextSection = `
-ARCHIVED_QUESTIONS (build upon past practice):
-${questionsContext}`;
-      }
-
-      const customMessage = `Generate ${questionCount} practice questions for ${subject}.
-
-${contextSection}
-
-Requirements:
-- Question Type: ${questionType}
-- Count: ${questionCount}
-- Language: ${language}
-- Difficulty: ${difficulty}
-
-Create personalized questions that:
-1. Build upon concepts the student has shown interest in
-2. Address knowledge gaps identified in their history
-3. Match the student's demonstrated ability level
-4. Connect to topics they've previously engaged with successfully
-
-Generate questions that feel like a natural continuation of their learning journey.`;
-
-      // Use AI Engine directly (fast path, no Assistants API)
-      fastify.log.info('⚡ Using AI Engine for conversation/archive-based questions (fast path)...');
-
-      // Combine conversation_data and question_data for AI Engine
-      const combinedData = [
-        ...conversation_data.map(c => ({ type: 'conversation', ...c })),
-        ...question_data.map(q => ({ type: 'question', ...q }))
-      ];
-
-      const result = await generateConversationQuestionsWithAIEngine(
-        userId,
-        subject,
-        combinedData,
-        difficulty,
-        questionCount,
-        language,
-        questionType,
-        aiClient
-      );
-
+      const result = await generateConversationQuestionsWithAIEngine(userId, subject, conversation_data, question_data, difficulty, count, language, questionType, aiClient);
       const totalLatency = Date.now() - startTime;
-
-      // Log metrics (AI Engine, not Assistants API)
-      await logMetrics({
-        userId,
-        assistantType: 'practice_generator',
-        endpoint: '/api/ai/generate-questions/conversations',
-        totalLatency,
-        inputTokens: result.tokens?.input || 0,
-        outputTokens: result.tokens?.output || 0,
-        model: result.model || 'gpt-4o-mini',
-        wasSuccessful: true,
-        useAssistantsAPI: false, // Changed from true
-        experimentGroup: 'ai_engine_fast_path'
-      });
-
       return {
         success: true,
         questions: result.questions,
-        metadata: {
-          ...result.metadata,
-          using_assistants_api: false, // Changed from true
-          using_ai_engine: true, // Added
-          mode: 3,
-          sources: {
-            conversations: conversation_data.length,
-            questions: question_data.length
-          },
-          total_latency_ms: totalLatency
-        }
+        metadata: { ...result.metadata, total_latency_ms: totalLatency },
+        _performance: { latency_ms: totalLatency, implementation: 'ai_engine' }
       };
     } catch (error) {
-      fastify.log.error('❌ Archive-based generation failed:', error);
-
+      fastify.log.error('❌ Archive question generation failed:', error);
       return reply.status(500).send({
         success: false,
         error: 'GENERATION_FAILED',
-        message: error.message || 'Failed to generate questions from archives'
+        message: error.message || 'Failed to generate practice questions'
       });
     }
   });
@@ -801,12 +517,12 @@ async function generateMistakeQuestionsWithAIEngine(userId, subject, mistakes_da
 }
 
 /**
- * Generate conversation-based questions using AI Engine (MODE 3)
+ * Generate archive-based questions using AI Engine (MODE 3)
  */
-async function generateConversationQuestionsWithAIEngine(userId, subject, conversation_data, difficulty, count, language, questionType, aiClient) {
+async function generateConversationQuestionsWithAIEngine(userId, subject, conversation_data, question_data, difficulty, count, language, questionType, aiClient) {
   try {
     console.log('🔄 Calling AI Engine /api/v1/generate-questions/conversations...');
-    console.log('📊 Parameters:', { userId, subject, conversationsCount: conversation_data?.length, difficulty, count, language, questionType });
+    console.log('📊 Parameters:', { userId, subject, conversationsCount: conversation_data?.length, questionsCount: question_data?.length, difficulty, count, language, questionType });
 
     const response = await aiClient.proxyRequest(
       'POST',
@@ -814,6 +530,7 @@ async function generateConversationQuestionsWithAIEngine(userId, subject, conver
       {
         subject,
         conversation_data: conversation_data || [],
+        question_data: question_data || [],
         config: {
           question_count: count || 5,
           difficulty: difficulty || 'intermediate',
@@ -828,7 +545,7 @@ async function generateConversationQuestionsWithAIEngine(userId, subject, conver
     );
 
     const aiEngineData = response.data || response;
-    console.log(`✅ AI Engine returned ${aiEngineData?.questions?.length || 0} conversation-based questions`);
+    console.log(`✅ AI Engine returned ${aiEngineData?.questions?.length || 0} archive-based questions`);
 
     if (!aiEngineData || !aiEngineData.questions) {
       console.error('❌ AI Engine response invalid:', { response, aiEngineData });
@@ -841,8 +558,9 @@ async function generateConversationQuestionsWithAIEngine(userId, subject, conver
         total_questions: aiEngineData.questions?.length || 0,
         language,
         tokens_used: aiEngineData.tokens_used,
-        generation_type: aiEngineData.generation_type || 'conversation_based',
-        conversations_analyzed: conversation_data?.length || 0
+        generation_type: aiEngineData.generation_type || 'archive_based',
+        conversations_analyzed: conversation_data?.length || 0,
+        questions_analyzed: question_data?.length || 0
       },
       model: aiEngineData.model || 'gpt-4o-mini',
       tokens: {
@@ -851,7 +569,7 @@ async function generateConversationQuestionsWithAIEngine(userId, subject, conver
       }
     };
   } catch (error) {
-    console.error('❌ AI Engine conversation questions failed:', error);
+    console.error('❌ AI Engine archive questions failed:', error);
     throw error;
   }
 }

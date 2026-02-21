@@ -1408,6 +1408,7 @@ class MistakeBasedQuestionsRequest(BaseModel):
 class ConversationBasedQuestionsRequest(BaseModel):
     subject: str
     conversation_data: List[Dict]
+    question_data: List[Dict] = []
     config: Dict
     user_profile: Dict
 
@@ -1593,6 +1594,7 @@ async def generate_conversation_based_questions(request: ConversationBasedQuesti
         result = await ai_service.generate_conversation_based_questions(
             subject=request.subject,
             conversation_data=request.conversation_data,
+            question_data=request.question_data,
             config=request.config,
             user_profile=request.user_profile
         )

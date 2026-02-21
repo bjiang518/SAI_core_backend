@@ -10,6 +10,7 @@ import os.log
 
 struct GeneratedQuestionDetailView: View {
     let question: QuestionGenerationService.GeneratedQuestion
+    let subject: String          // Top-level subject (e.g. "English"), distinct from question.topic (e.g. "Grammar & Mechanics")
     let sessionId: String?  // ✅ FIX P0: Track session for progress updates
     let onAnswerSubmitted: ((Bool, Int) -> Void)? // Callback with isCorrect and points
 
@@ -91,11 +92,13 @@ struct GeneratedQuestionDetailView: View {
 
     // Default initializer without callback (for backwards compatibility)
     init(question: QuestionGenerationService.GeneratedQuestion,
+         subject: String = "",
          sessionId: String? = nil,  // ✅ FIX P0: Accept session ID
          onAnswerSubmitted: ((Bool, Int) -> Void)? = nil,
          allQuestions: [QuestionGenerationService.GeneratedQuestion]? = nil,
          currentIndex: Int? = nil) {
         self.question = question
+        self.subject = subject
         self.sessionId = sessionId
         self.onAnswerSubmitted = onAnswerSubmitted
         self.allQuestions = allQuestions
@@ -1303,7 +1306,7 @@ Question: \(currentQuestion.question)
             // Build question data for archiving
             let questionData: [String: Any] = [
                 "id": UUID().uuidString,
-                "subject": currentQuestion.topic,
+                "subject": subject,                          // Top-level subject for grouping in mistake review
                 "questionText": currentQuestion.question,
                 "rawQuestionText": currentQuestion.question,
                 "answerText": currentQuestion.correctAnswer,
@@ -1328,10 +1331,26 @@ Question: \(currentQuestion.question)
             ]
 
             // ✅ DEBUG: Log archiving data
-            print("📚 [Archive] Archive data - Subject: \(currentQuestion.topic), Correct: \(isCorrect), Has error keys: \(currentQuestion.errorType != nil)")
+            print("📚 [Archive] Archive data - Subject: \(subject), Topic: \(currentQuestion.topic), Correct: \(isCorrect), Has error keys: \(currentQuestion.errorType != nil)")
 
             // Save to local storage
             _ = QuestionLocalStorage.shared.saveQuestions([questionData])
+
+            // Route through error analysis pipeline (same as AI homework grader)
+            // This ensures base_branch, detailed_branch, error_type, and weaknessKey
+            // are properly assigned, and MistakeReview groups by top-level subject.
+            let sessionId = self.sessionId ?? UUID().uuidString
+            if !isCorrect {
+                ErrorAnalysisQueueService.shared.queueErrorAnalysisAfterGrading(
+                    sessionId: sessionId,
+                    wrongQuestions: [questionData]
+                )
+            } else {
+                ErrorAnalysisQueueService.shared.queueConceptExtractionForCorrectAnswers(
+                    sessionId: sessionId,
+                    correctQuestions: [questionData]
+                )
+            }
 
             await MainActor.run {
                 isArchiving = false
@@ -1386,5 +1405,5 @@ struct MetadataRow: View {
         options: nil
     )
 
-    GeneratedQuestionDetailView(question: sampleQuestion)
+    GeneratedQuestionDetailView(question: sampleQuestion, subject: "Mathematics")
 }

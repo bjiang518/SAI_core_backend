@@ -3553,140 +3553,124 @@ class NetworkService: ObservableObject {
 
     // MARK: - Session Archive Management
     
-    /// Archive a session conversation to LOCAL storage only (with image processing)
-    func archiveSession(sessionId: String, title: String? = nil, topic: String? = nil, subject: String? = nil, notes: String? = nil, diagrams: [String: DiagramGenerationResponse]? = nil) async -> (success: Bool, message: String, conversation: [String: Any]?) {
-        print("📦 === ARCHIVE CONVERSATION SESSION ===")
+    /// Archive a session conversation — local-first approach.
+    /// 1. Use liveConversationContent if provided (Live mode: built from in-memory vm.messages)
+    ///    OR process local conversationHistory (text mode)
+    /// 2. Save to local storage IMMEDIATELY so the Library shows the entry right away
+    /// 3. Fire backend AI analysis in the background (doesn't block the caller)
+    /// 4. Patch the local record with summary + behavior insights once analysis returns
+    func archiveSession(sessionId: String, title: String? = nil, topic: String? = nil, subject: String? = nil, notes: String? = nil, diagrams: [String: DiagramGenerationResponse]? = nil, liveConversationContent: String? = nil, voiceAudioFiles: [String: String]? = nil) async -> (success: Bool, message: String, conversation: [String: Any]?) {
+        print("📦 === ARCHIVE CONVERSATION SESSION (local-first) ===")
         print("📁 Session ID: \(sessionId)")
-        print("📝 Title: \(title ?? "Auto-generated")")
-        print("🏷️ Topic: \(topic ?? "Auto-generated from subject")")
         print("📚 Subject: \(subject ?? "General")")
-        print("💭 Notes: \(notes ?? "None")")
 
-        // ✅ STEP 1: Try to call backend for AI-generated summary and behavior analysis
-        let backendResult = await archiveSessionToBackend(
-            sessionId: sessionId,
-            title: title,
-            topic: topic,
-            subject: subject,
-            notes: notes
-        )
+        // ──────────────────────────────────────────────
+        // STEP 1: Collect conversation content
+        // ──────────────────────────────────────────────
+        let finalTextContent: String
+        let finalMessageCount: Int
 
-        // ✅ STEP 2: Process conversation to handle images
-        let processedConversation = await processConversationForArchive()
-        print("🔍 Processed conversation: \(processedConversation.messageCount) messages")
-        print("📷 Images processed: \(processedConversation.imagesProcessed)")
-        if processedConversation.imagesProcessed > 0 {
-            print("📝 Image summaries created: \(processedConversation.imageSummariesCreated)")
+        if let liveContent = liveConversationContent, !liveContent.isEmpty {
+            // Live mode: content built directly from vm.messages on the caller side — no network needed
+            finalTextContent = liveContent
+            finalMessageCount = liveContent.components(separatedBy: "\n\n").filter { !$0.isEmpty }.count
+            print("🎙️ Using in-memory Live conversation content (\(finalMessageCount) messages)")
+        } else {
+            // Text mode: build from local conversationHistory
+            let processedConversation = await processConversationForArchive()
+            finalTextContent = processedConversation.textContent
+            finalMessageCount = processedConversation.messageCount
+            print("🔍 Local conversation: \(finalMessageCount) messages")
         }
 
-        // ✅ STEP 3: Generate local UUID for conversation
+        // ──────────────────────────────────────────────
+        // STEP 2: Build the base local record
+        // ──────────────────────────────────────────────
         let conversationId = UUID().uuidString
 
-        // ✅ STEP 4: Build conversation data with backend summary if available
         var conversationData: [String: Any] = [
             "id": conversationId,
             "subject": subject ?? "General",
             "topic": topic ?? (subject ?? "General Discussion"),
-            "conversationContent": processedConversation.textContent,
+            "conversationContent": finalTextContent,
             "archivedDate": ISO8601DateFormatter().string(from: Date()),
             "createdAt": ISO8601DateFormatter().string(from: Date()),
-            "messageCount": processedConversation.messageCount,
-            "hasImageSummaries": processedConversation.imagesProcessed > 0,
-            "imageCount": processedConversation.imagesProcessed
+            "messageCount": finalMessageCount,
+            "hasImageSummaries": false,
+            "imageCount": 0
         ]
 
-        // ✅ STEP 5: Add AI-generated summary if backend call succeeded
-        if backendResult.success, let summary = backendResult.summary {
-            conversationData["summary"] = summary
-            print("✨ Added AI-generated summary: \(summary.prefix(100))...")
+        // Voice audio file paths (Live mode only) — keyed by message index string
+        if let audioFiles = voiceAudioFiles, !audioFiles.isEmpty {
+            conversationData["voiceAudioFiles"] = audioFiles
+        }
+
+        // Title
+        if let t = title, !t.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            conversationData["title"] = t
         } else {
-            print("⚠️ No AI summary available (backend call failed or not authenticated)")
+            let df = DateFormatter(); df.dateStyle = .medium
+            conversationData["title"] = "\(subject ?? "Study") Session - \(df.string(from: Date()))"
         }
 
-        // ✅ STEP 6: Add behavior insights if available
-        if let behaviorInsights = backendResult.behaviorInsights {
-            conversationData["behaviorSummary"] = behaviorInsights
-            if let hasRedFlags = behaviorInsights["hasRedFlags"] as? Bool, hasRedFlags {
-                print("🚨 Conversation has red flags detected")
-            }
+        // Notes — image summary note only applies to text mode (diagrams come from processConversationForArchive)
+        if let n = notes, !n.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            conversationData["notes"] = n
         }
 
-        // ✅ NEW: Save diagram data for retrieval in library
+        // Diagrams
         if let diagrams = diagrams, !diagrams.isEmpty {
-            var diagramsArray: [[String: Any]] = []
-
-            for (key, diagramResponse) in diagrams {
-                var diagramDict: [String: Any] = [
+            let diagramsArray: [[String: Any]] = diagrams.map { (key, dr) in
+                var d: [String: Any] = [
                     "key": key,
-                    "type": diagramResponse.diagramType ?? "svg",
-                    "code": diagramResponse.diagramCode ?? "",
-                    "title": diagramResponse.diagramTitle ?? "Diagram",
-                    "explanation": diagramResponse.explanation ?? ""
+                    "type": dr.diagramType ?? "svg",
+                    "code": dr.diagramCode ?? "",
+                    "title": dr.diagramTitle ?? "Diagram",
+                    "explanation": dr.explanation ?? ""
                 ]
-
-                if let hint = diagramResponse.renderingHint {
-                    diagramDict["width"] = hint.width
-                    diagramDict["height"] = hint.height
-                    diagramDict["background"] = hint.background
+                if let hint = dr.renderingHint {
+                    d["width"] = hint.width; d["height"] = hint.height; d["background"] = hint.background
                 }
-
-                diagramsArray.append(diagramDict)
+                return d
             }
-
             conversationData["diagrams"] = diagramsArray
             conversationData["diagramCount"] = diagramsArray.count
-            print("📊 Saved \(diagramsArray.count) diagram(s) to archive")
         }
 
-        // Add title
-        if let title = title, !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            conversationData["title"] = title
-        } else {
-            // Generate auto title based on subject and date
-            let dateFormatter = DateFormatter()
-            dateFormatter.dateStyle = .medium
-            conversationData["title"] = "\(subject ?? "Study") Session - \(dateFormatter.string(from: Date()))"
-        }
-
-        // Add notes
-        if let notes = notes, !notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            conversationData["notes"] = notes
-        }
-
-        // Add image summary note if applicable
-        if processedConversation.imagesProcessed > 0 {
-            let enhancedNotes = """
-            \(notes ?? "")
-
-            📸 Session contained \(processedConversation.imagesProcessed) image(s) that were converted to text summaries for storage.
-            """
-            conversationData["notes"] = enhancedNotes.trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-
-        print("💾 Built conversation data for local storage:")
-        print("   - ID: \(conversationId)")
-        print("   - Title: \(conversationData["title"] ?? "N/A")")
-        print("   - Subject: \(conversationData["subject"] ?? "N/A")")
-        print("   - Topic: \(conversationData["topic"] ?? "N/A")")
-        print("   - Message count: \(processedConversation.messageCount)")
-
-        // ✅ Save to local storage with backend summary (if available)
+        // ──────────────────────────────────────────────
+        // STEP 3: Save to local storage IMMEDIATELY
+        // ──────────────────────────────────────────────
         ConversationLocalStorage.shared.saveConversation(conversationData)
-
-        let hasSummary = conversationData["summary"] != nil
-        let summaryStatus = hasSummary ? "with AI summary" : "without AI summary (offline mode)"
-
-        print("✅ [Archive] Saved conversation to local storage (ID: \(conversationId))")
-        print("   📝 Summary: \(summaryStatus)")
-        print("   💬 Messages: \(processedConversation.messageCount)")
-
-        // Invalidate cache so fresh data is loaded
         invalidateCache()
+        print("✅ [Archive] Saved conversation locally (ID: \(conversationId), \(finalMessageCount) messages)")
 
-        let message = hasSummary
-            ? "Session archived with \(processedConversation.messageCount) messages and AI summary"
-            : "Session archived locally with \(processedConversation.messageCount) messages (offline mode)"
+        // ──────────────────────────────────────────────
+        // STEP 4: Run backend AI analysis in background;
+        //         patch local record when it comes back
+        // ──────────────────────────────────────────────
+        Task.detached { [weak self] in
+            guard let self else { return }
+            print("🤖 [Archive] Starting background AI analysis for \(conversationId)…")
+            let backendResult = await self.archiveSessionToBackend(
+                sessionId: sessionId, title: title, topic: topic, subject: subject, notes: notes
+            )
+            guard backendResult.success else {
+                print("⚠️ [Archive] Backend AI analysis failed: \(backendResult.message)")
+                return
+            }
+            var patch: [String: Any] = [:]
+            if let summary = backendResult.summary { patch["summary"] = summary }
+            if let insights = backendResult.behaviorInsights { patch["behaviorSummary"] = insights }
+            if !patch.isEmpty {
+                await MainActor.run {
+                    ConversationLocalStorage.shared.updateConversation(withId: conversationId, fields: patch)
+                    self.invalidateCache()
+                    print("✨ [Archive] Patched local record with AI summary + insights")
+                }
+            }
+        }
 
+        let message = "Session archived with \(finalMessageCount) messages"
         return (true, message, conversationData)
     }
 
@@ -3700,12 +3684,12 @@ class NetworkService: ObservableObject {
         topic: String? = nil,
         subject: String? = nil,
         notes: String? = nil
-    ) async -> (success: Bool, summary: String?, behaviorInsights: [String: Any]?, message: String) {
+    ) async -> (success: Bool, summary: String?, behaviorInsights: [String: Any]?, message: String, conversationContent: String?, messageCount: Int?) {
 
         // Check authentication
         guard AuthenticationService.shared.getAuthToken() != nil else {
             print("❌ Authentication required to archive session")
-            return (false, nil, nil, "Authentication required")
+            return (false, nil, nil, "Authentication required", nil, nil)
         }
 
         print("📦 === ARCHIVING SESSION TO BACKEND ===")
@@ -3716,7 +3700,7 @@ class NetworkService: ObservableObject {
         let archiveURL = "\(baseURL)/api/ai/sessions/\(sessionId)/archive"
         guard let url = URL(string: archiveURL) else {
             print("❌ Invalid archive URL")
-            return (false, nil, nil, "Invalid URL")
+            return (false, nil, nil, "Invalid URL", nil, nil)
         }
 
         // Build request body
@@ -3750,9 +3734,15 @@ class NetworkService: ObservableObject {
 
                         let summary = json["summary"] as? String
                         let behaviorInsights = json["behaviorInsights"] as? [String: Any]
+                        let conversationContent = json["conversation_content"] as? String
+                        let messageCount = json["message_count"] as? Int
 
                         print("🎉 === SESSION ARCHIVED TO BACKEND ===")
                         print("📝 Summary: \(summary ?? "No summary generated")")
+                        print("💬 Message count from backend: \(messageCount ?? 0)")
+                        if let content = conversationContent {
+                            print("📄 Conversation content length: \(content.count) chars")
+                        }
                         if let insights = behaviorInsights {
                             print("🧠 Behavior Insights:")
                             print("   - Frustration Level: \(insights["frustrationLevel"] ?? "N/A")")
@@ -3761,28 +3751,28 @@ class NetworkService: ObservableObject {
                             print("   - Curiosity Count: \(insights["curiosityCount"] ?? "N/A")")
                         }
 
-                        return (true, summary, behaviorInsights, "Session archived successfully")
+                        return (true, summary, behaviorInsights, "Session archived successfully", conversationContent, messageCount)
                     }
                 } else if httpResponse.statusCode == 404 {
                     print("❌ Session not found on backend")
-                    return (false, nil, nil, "Session not found")
+                    return (false, nil, nil, "Session not found", nil, nil)
                 } else if httpResponse.statusCode == 400 {
                     print("❌ Cannot archive empty session")
-                    return (false, nil, nil, "Cannot archive empty session")
+                    return (false, nil, nil, "Cannot archive empty session", nil, nil)
                 } else if httpResponse.statusCode == 401 {
                     print("❌ Authentication expired in archiveSessionToBackend")
-                    return (false, nil, nil, "Authentication expired")
+                    return (false, nil, nil, "Authentication expired", nil, nil)
                 }
 
                 let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
                 print("❌ Archive Failed HTTP \(httpResponse.statusCode): \(String(rawResponse.prefix(200)))")
-                return (false, nil, nil, "HTTP \(httpResponse.statusCode)")
+                return (false, nil, nil, "HTTP \(httpResponse.statusCode)", nil, nil)
             }
 
-            return (false, nil, nil, "No HTTP response")
+            return (false, nil, nil, "No HTTP response", nil, nil)
         } catch {
             print("❌ Session archive to backend failed: \(error.localizedDescription)")
-            return (false, nil, nil, error.localizedDescription)
+            return (false, nil, nil, error.localizedDescription, nil, nil)
         }
     }
 

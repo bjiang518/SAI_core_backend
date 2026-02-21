@@ -147,22 +147,14 @@ class QuestionGenerationService: ObservableObject {
         let date: String
         let topics: [String]
         let studentQuestions: String
-        let difficultyLevel: String
-        let strengths: [String]
-        let weaknesses: [String]
         let keyConcepts: String
-        let engagement: String
 
         var dictionary: [String: Any] {
             return [
                 "date": date,
                 "topics": topics,
                 "student_questions": studentQuestions,
-                "difficulty_level": difficultyLevel,
-                "strengths": strengths,
-                "weaknesses": weaknesses,
-                "key_concepts": keyConcepts,
-                "engagement": engagement
+                "key_concepts": keyConcepts
             ]
         }
     }
@@ -668,7 +660,7 @@ class QuestionGenerationService: ObservableObject {
         print("💬 Conversations Count: \(conversations.count)")
 
 
-        let endpoint = "/api/ai/generate-questions/conversations"
+        let endpoint = "/api/ai/generate-questions/practice"
 
         guard let url = URL(string: "\(baseURL)\(endpoint)") else {
             await MainActor.run { self.lastError = "Invalid URL" }
@@ -677,13 +669,12 @@ class QuestionGenerationService: ObservableObject {
 
         let requestBody: [String: Any] = [
             "subject": subject,
+            "mode": 3,
             "conversation_data": conversations.map { $0.dictionary },
             "question_data": questions,
-            "config": [
-                "question_count": config.questionCount,
-                "question_type": config.questionType.rawValue
-            ],
-            "user_profile": userProfile.dictionary
+            "count": config.questionCount,
+            "question_type": config.questionType.rawValue,
+            "language": "en"
         ]
 
         var request = URLRequest(url: url)
