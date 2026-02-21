@@ -333,13 +333,40 @@ class VoiceChatViewModel: ObservableObject {
             self.currentRecordingBuffer = Data()
         }
 
-        // Save accumulated PCM recording for voice bubble playback
+        // Save accumulated PCM recording and wrap as WAV for in-message playback
+        var wavData: Data? = nil
         if let recordingID = capturedID, !capturedData.isEmpty {
-            completedUserRecordings[recordingID] = capturedData
+            completedUserRecordings[recordingID] = capturedData  // keep for SessionChatView compat
+            // Build WAV inline — 44-byte RIFF header + 16-bit PCM at 24kHz mono
+            var header = Data()
+            let sampleRate: Int32 = 24000
+            let channels: Int16 = 1
+            let bitsPerSample: Int16 = 16
+            let blockAlign: Int16 = channels * (bitsPerSample / 8)
+            let byteRate: Int32 = sampleRate * Int32(blockAlign)
+            let dataSize = Int32(capturedData.count)
+            func append<T>(_ value: T, to data: inout Data) {
+                var v = value; data.append(Data(bytes: &v, count: MemoryLayout<T>.size))
+            }
+            // RIFF header
+            header.append(contentsOf: "RIFF".utf8)
+            append(dataSize + 36, to: &header)
+            header.append(contentsOf: "WAVE".utf8)
+            header.append(contentsOf: "fmt ".utf8)
+            append(Int32(16), to: &header)
+            append(Int16(1), to: &header)
+            append(channels, to: &header)
+            append(sampleRate, to: &header)
+            append(byteRate, to: &header)
+            append(blockAlign, to: &header)
+            append(bitsPerSample, to: &header)
+            header.append(contentsOf: "data".utf8)
+            append(dataSize, to: &header)
+            wavData = header + capturedData
         }
 
-        // Immediately append a placeholder bubble — text updated when transcription arrives
-        let placeholder = VoiceMessage(role: .user, text: "", isVoice: true)
+        // Append placeholder bubble with audio already embedded
+        let placeholder = VoiceMessage(role: .user, text: "", isVoice: true, audioData: wavData)
         messages.append(placeholder)
         pendingUserMessageID = placeholder.id
 
@@ -821,13 +848,15 @@ struct VoiceMessage: Identifiable, Equatable {
     var text: String          // mutable: starts empty, updated when transcription arrives
     let isVoice: Bool
     let imageData: Data?      // JPEG data for image messages (nil for voice/text)
+    var audioData: Data?      // WAV audio for user voice messages (nil until stopRecording saves it)
     let timestamp = Date()
 
-    init(role: MessageRole, text: String, isVoice: Bool, imageData: Data? = nil) {
+    init(role: MessageRole, text: String, isVoice: Bool, imageData: Data? = nil, audioData: Data? = nil) {
         self.role = role
         self.text = text
         self.isVoice = isVoice
         self.imageData = imageData
+        self.audioData = audioData
     }
 
     enum MessageRole {

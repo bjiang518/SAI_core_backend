@@ -524,7 +524,10 @@ struct ConversationMessageView: View {
 
     /// Transcript text with the voice marker stripped
     private var transcriptText: String {
-        isVoiceMessage ? String(message.dropFirst(2)).trimmingCharacters(in: .whitespaces) : message
+        guard isVoiceMessage else { return message }
+        return message
+            .replacingOccurrences(of: "🎙️", with: "")
+            .trimmingCharacters(in: .whitespaces)
     }
 
     var body: some View {
