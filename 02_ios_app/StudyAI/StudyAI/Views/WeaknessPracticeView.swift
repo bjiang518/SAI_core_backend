@@ -215,6 +215,8 @@ struct WeaknessPracticeQuestionCard: View {
     let questionNumber: Int
     let weaknessKey: String
 
+    @Environment(\.colorScheme) var colorScheme
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             // Question number header
@@ -238,10 +240,12 @@ struct WeaknessPracticeQuestionCard: View {
                         .foregroundColor(.blue)
                 }
 
-                // ✅ Use shared SubquestionAwareTextView for consistent rendering
-                SubquestionAwareTextView(
-                    text: question.rawQuestionText ?? question.questionText,
-                    fontSize: 16
+                // ✅ Use SmartLaTeXView with MathJax for proper LaTeX rendering
+                SmartLaTeXView(
+                    question.rawQuestionText ?? question.questionText,
+                    fontSize: 16,
+                    colorScheme: colorScheme,
+                    strategy: .mathjax
                 )
 
                 // ✅ Display question image if available
@@ -362,6 +366,8 @@ struct TrueFalseInput: View {
 struct WeaknessPracticeResultView: View {
     let result: WeaknessPracticeQuestionResult
 
+    @Environment(\.colorScheme) var colorScheme
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -379,21 +385,16 @@ struct WeaknessPracticeResultView: View {
                     Text("Your Answer:")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    Text(result.userAnswer)
-                        .font(.body)
+                    SmartLaTeXView(result.userAnswer, fontSize: 15, colorScheme: colorScheme, strategy: .mathjax)
 
                     Text("Correct Answer:")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    Text(result.correctAnswer)
-                        .font(.body)
-                        .foregroundColor(.green)
+                    SmartLaTeXView(result.correctAnswer, fontSize: 15, colorScheme: colorScheme, strategy: .mathjax)
                 }
             }
 
-            Text(result.feedback)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+            SmartLaTeXView(result.feedback, fontSize: 14, colorScheme: colorScheme, strategy: .mathjax)
         }
         .padding()
         .background(

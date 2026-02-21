@@ -349,9 +349,20 @@ class MistakeReviewService: ObservableObject {
     // MARK: - Hierarchical Filtering Support
 
     /// Get base branches with counts for a subject
-    func getBaseBranches(for subject: String, timeRange: MistakeTimeRange?) -> [BaseBranchCount] {
+    func getBaseBranches(for subject: String, timeRange: MistakeTimeRange?, activeFilter: MistakeActiveFilter = .all) -> [BaseBranchCount] {
         let allMistakes = questionLocalStorage.getMistakeQuestions(subject: subject)
-        let filteredMistakes = filterByTimeRange(allMistakes, timeRange: timeRange)
+        var filteredMistakes = filterByTimeRange(allMistakes, timeRange: timeRange)
+
+        // Apply active weakness filter if needed
+        if activeFilter == .active {
+            let activeWeaknesses = ShortTermStatusService.shared.status.activeWeaknesses
+            filteredMistakes = filteredMistakes.filter { mistake in
+                guard let key = mistake["weaknessKey"] as? String, !key.isEmpty else {
+                    return true // no key → include
+                }
+                return (activeWeaknesses[key]?.value ?? 0) > 0
+            }
+        }
 
         // ✅ DEBUG: Inspect what's actually stored in the first few mistakes
         print("\n🔍 [DEBUG] getBaseBranches called for subject: \(subject)")

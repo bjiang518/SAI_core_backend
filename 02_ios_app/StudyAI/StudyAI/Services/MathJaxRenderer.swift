@@ -492,7 +492,7 @@ struct SmartLaTeXView: View {
     let strategy: MathRenderStrategy
 
     @StateObject private var renderer = FullLaTeXRenderer.shared
-    @State private var webViewHeight: CGFloat = 100
+    @State private var webViewHeight: CGFloat = 0
     @State private var isLoading = true
     @State private var renderError: String? = nil
     @State private var usesFallback = false
@@ -555,7 +555,7 @@ struct SmartLaTeXView: View {
                     // Successfully rendered - fade in MathJax
                 }
             )
-            .frame(height: max(webViewHeight, 20))
+            .frame(height: isLoading ? 0 : max(webViewHeight, 20))
             .opacity(isLoading ? 0 : 1)  // Hidden while loading, visible when ready
         }
         .frame(maxWidth: .infinity, alignment: .leading)

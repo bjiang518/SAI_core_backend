@@ -575,8 +575,6 @@ struct ModernProfileView: View {
                     }
                     .buttonStyle(.plain)
 
-                    SettingsRow(icon: "textformat.size", title: NSLocalizedString("settings.textSize", comment: ""), color: .green)
-
                     Button(action: {
                         showingLanguageSettings = true
                     }) {
@@ -597,16 +595,6 @@ struct ModernProfileView: View {
                         SettingsRow(icon: "externaldrive.fill", title: NSLocalizedString("settings.storageControl", comment: ""), color: .purple)
                     }
                     .buttonStyle(.plain)
-
-                    #if DEBUG
-                    // Debug Settings (only visible in debug builds)
-                    Button(action: {
-                        showingDebugSettings = true
-                    }) {
-                        SettingsRow(icon: "ant.fill", title: "Debug Settings", color: .red)
-                    }
-                    .buttonStyle(.plain)
-                    #endif
 
                     // Power Saving Mode Toggle
                     HStack(spacing: 12) {

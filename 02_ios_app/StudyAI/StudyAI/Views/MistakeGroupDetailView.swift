@@ -76,6 +76,8 @@ struct MistakeCard: View {
     let isExpanded: Bool
     let onTap: () -> Void
 
+    @Environment(\.colorScheme) var colorScheme
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Question
@@ -85,8 +87,7 @@ struct MistakeCard: View {
                     .foregroundColor(.secondary)
                     .textCase(.uppercase)
 
-                Text(mistake.questionText)
-                    .font(.body)
+                SmartLaTeXView(mistake.questionText, fontSize: 14, colorScheme: colorScheme, strategy: .mathjax)
             }
 
             // Your answer (wrong)
@@ -96,9 +97,7 @@ struct MistakeCard: View {
                     .foregroundColor(.red)
                     .textCase(.uppercase)
 
-                Text(mistake.studentAnswer.isEmpty ? "No answer" : mistake.studentAnswer)
-                    .font(.body)
-                    .foregroundColor(.red)
+                SmartLaTeXView(mistake.studentAnswer.isEmpty ? "No answer" : mistake.studentAnswer, fontSize: 14, colorScheme: colorScheme, strategy: .mathjax)
             }
             .padding(8)
             .background(
@@ -113,9 +112,7 @@ struct MistakeCard: View {
                     .foregroundColor(.green)
                     .textCase(.uppercase)
 
-                Text(mistake.correctAnswer)
-                    .font(.body)
-                    .foregroundColor(.green)
+                SmartLaTeXView(mistake.correctAnswer, fontSize: 14, colorScheme: colorScheme, strategy: .mathjax)
             }
             .padding(8)
             .background(
@@ -185,6 +182,8 @@ struct MistakeCard: View {
 struct AnalysisDetailView: View {
     let mistake: LocalMistake
 
+    @Environment(\.colorScheme) var colorScheme
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Evidence
@@ -200,8 +199,7 @@ struct AnalysisDetailView: View {
                             .textCase(.uppercase)
                     }
 
-                    Text(evidence)
-                        .font(.subheadline)
+                    SmartLaTeXView(evidence, fontSize: 14, colorScheme: colorScheme, strategy: .mathjax)
                 }
             }
 
@@ -220,8 +218,7 @@ struct AnalysisDetailView: View {
                             .textCase(.uppercase)
                     }
 
-                    Text(suggestion)
-                        .font(.subheadline)
+                    SmartLaTeXView(suggestion, fontSize: 14, colorScheme: colorScheme, strategy: .mathjax)
                 }
             }
 

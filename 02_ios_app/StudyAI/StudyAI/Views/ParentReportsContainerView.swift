@@ -2,8 +2,8 @@
 //  ParentReportsContainerView.swift
 //  StudyAI
 //
-//  Simple wrapper that directly shows PassiveReportsView
-//  Scheduled/On-Demand tabs removed per user request
+//  Simple wrapper that shows PassiveReportsView and gates onboarding.
+//  Onboarding shows when parentReportsEnabled == false (including after user declines and later returns).
 //
 
 import SwiftUI
@@ -16,16 +16,10 @@ struct ParentReportsContainerView: View {
         PassiveReportsView()
             .sheet(isPresented: $showingOnboarding) {
                 ParentReportsOnboardingView(
-                    onComplete: {
-                        var settings = ParentReportSettings.load()
-                        settings.hasSeenOnboarding = true
-                        settings.save()
+                    onEnable: {
                         showingOnboarding = false
                     },
-                    onSkip: {
-                        var settings = ParentReportSettings.load()
-                        settings.hasSeenOnboarding = true
-                        settings.save()
+                    onDecline: {
                         showingOnboarding = false
                     }
                 )
@@ -41,20 +35,15 @@ struct ParentReportsContainerView: View {
         guard !hasCheckedOnboarding else { return }
         hasCheckedOnboarding = true
 
-        // Check if user has already seen the onboarding
         let settings = ParentReportSettings.load()
-        if settings.hasSeenOnboarding {
-            print("✅ [ParentReportsContainer] Onboarding already completed")
-            return
-        }
 
-        // Check if reports are already enabled
+        // Only skip if user has actively enabled reports
         if settings.parentReportsEnabled {
             print("✅ [ParentReportsContainer] Reports already enabled, skipping onboarding")
             return
         }
 
-        // Show onboarding
+        // Show onboarding (first-time or re-enable after declining)
         print("📊 [ParentReportsContainer] Showing parent reports onboarding")
         showingOnboarding = true
     }
