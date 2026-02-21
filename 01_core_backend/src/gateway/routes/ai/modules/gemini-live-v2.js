@@ -392,15 +392,12 @@ module.exports = async function (fastify, opts) {
                                         voiceName: "Puck"
                                     }
                                 }
-                            },
-                            // Disable chain-of-thought thinking — keeps responses clean and fast
-                            thinkingConfig: {
-                                thinkingBudget: 0
                             }
                         },
-                        // ✅ CRITICAL: These MUST be at setup level to enable outputTranscription
-                        inputAudioTranscription: {},  // Enable user speech-to-text
-                        outputAudioTranscription: {}, // Enable AI speech-to-text (required for iOS display)
+                        // outputAudioTranscription gives clean spoken-text-only transcription,
+                        // with no chain-of-thought content — the right source for text display.
+                        inputAudioTranscription: {},
+                        outputAudioTranscription: {},
                         systemInstruction: {
                             parts: [{ text: systemInstruction }]
                         }
@@ -646,40 +643,25 @@ module.exports = async function (fastify, opts) {
                     const turnComplete = serverContent.turnComplete || serverContent.turn_complete;
                     const interrupted = serverContent.interrupted;
 
-                    // outputTranscription is not reliably delivered by the native-audio model.
-                    // modelTurn.parts[].text IS the spoken response text for this model.
+                    // outputAudioTranscription (set up at session level) delivers clean spoken-text-only
+                    // transcription with no chain-of-thought content. This is the correct and sole
+                    // source for text display and storage. modelTurn.parts[].text contains COT and
+                    // must NOT be used for text_chunk messages or transcript accumulation.
                     const outputTranscription = serverContent.outputTranscription || serverContent.output_transcription;
                     if (outputTranscription && outputTranscription.text) {
-                        // Use it when available (future-proof)
                         currentAiTranscript += outputTranscription.text;
                         clientSocket.send(JSON.stringify({
                             type: 'text_chunk',
                             text: outputTranscription.text
                         }));
-                        logger.debug(`📝 AI text via outputTranscription (${outputTranscription.text.length} chars)`);
+                        logger.debug(`📝 AI text via outputAudioTranscription (${outputTranscription.text.length} chars)`);
                     }
 
-                    // Send audio chunks from modelTurn; also accumulate any text parts as AI transcript
+                    // Process modelTurn parts for audio only — text parts are intentionally ignored
+                    // here because they contain COT. Text comes exclusively from outputTranscription above.
                     if (modelTurn && modelTurn.parts) {
                         for (const part of modelTurn.parts) {
-                            // Skip thinking/COT parts — Gemini 2.5 Flash marks these with thought: true
-                            if (part.thought === true) {
-                                logger.debug(`🧠 Skipping COT thought part (${(part.text || '').length} chars)`);
-                                continue;
-                            }
-
-                            // Text part — this is the spoken response text for the native-audio model.
-                            // Skip if outputTranscription already handled text for this event.
-                            if (part.text && !(outputTranscription && outputTranscription.text)) {
-                                currentAiTranscript += part.text;
-                                clientSocket.send(JSON.stringify({
-                                    type: 'text_chunk',
-                                    text: part.text
-                                }));
-                                logger.debug(`📝 AI text via modelTurn.parts (${part.text.length} chars)`);
-                            }
-
-                            // Audio part
+                            // Audio part — forward to iOS for playback
                             const inlineData = part.inlineData || part.inline_data;
                             if (inlineData) {
                                 const mimeType = inlineData.mimeType || inlineData.mime_type;
