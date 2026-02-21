@@ -80,16 +80,30 @@ struct SessionDetailView: View {
                 // ✅ Try loading from LOCAL storage first (for archived conversations)
                 let localConversations = ConversationLocalStorage.shared.getLocalConversations()
                 if let localConversation = localConversations.first(where: { ($0["id"] as? String) == sessionId }) {
+                    let rawAudioFiles = localConversation["voiceAudioFiles"] as? [String: String]
+                    print("📖 [SessionDetail] Loading from local storage — id=\(sessionId)")
+                    print("📖 [SessionDetail]   keys in local dict: \(localConversation.keys.sorted())")
+                    print("📖 [SessionDetail]   voiceAudioFiles raw value: \(String(describing: localConversation["voiceAudioFiles"]))")
+                    print("📖 [SessionDetail]   voiceAudioFiles as [String:String]: \(rawAudioFiles.map { "\($0.count) entries: \($0)" } ?? "nil (cast failed)")")
+                    if let audioFiles = rawAudioFiles {
+                        for (key, path) in audioFiles.sorted(by: { $0.key < $1.key }) {
+                            let exists = FileManager.default.fileExists(atPath: path)
+                            print("📖 [SessionDetail]     key='\(key)' path=\(path) exists=\(exists)")
+                        }
+                    }
+
                     let archivedConversation = ArchivedConversation(
                         id: localConversation["id"] as? String ?? sessionId,
-                        userId: "", // Local conversations don't have userId
+                        userId: "",
                         subject: localConversation["subject"] as? String ?? "General",
                         topic: localConversation["topic"] as? String,
                         conversationContent: localConversation["conversationContent"] as? String ?? "",
                         archivedDate: ISO8601DateFormatter().date(from: localConversation["archivedDate"] as? String ?? "") ?? Date(),
                         createdAt: ISO8601DateFormatter().date(from: localConversation["createdAt"] as? String ?? "") ?? Date(),
-                        diagrams: localConversation["diagrams"] as? [[String: Any]]  // ✅ NEW: Load diagrams from archive
+                        diagrams: localConversation["diagrams"] as? [[String: Any]],
+                        voiceAudioFiles: rawAudioFiles
                     )
+                    print("📖 [SessionDetail]   ArchivedConversation.voiceAudioFiles=\(archivedConversation.voiceAudioFiles.map { "\($0.count) entries" } ?? "nil")")
 
                     await MainActor.run {
                         conversation = archivedConversation
@@ -538,6 +552,16 @@ struct ConversationMessageView: View {
             } else {
                 messageContent
                 Spacer(minLength: 50)
+            }
+        }
+        .onAppear {
+            if isVoiceMessage {
+                if let path = audioFilePath {
+                    let exists = FileManager.default.fileExists(atPath: path)
+                    print("📖 [MessageView] Voice bubble rendered — audioFilePath='\(path)', fileExists=\(exists)")
+                } else {
+                    print("📖 [MessageView] Voice bubble rendered — audioFilePath=nil (play button will be disabled)")
+                }
             }
         }
     }
