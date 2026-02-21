@@ -139,6 +139,10 @@ struct SessionChatView: View {
     // Avatar and TTS State - Consolidated
     @State private var avatarState = AvatarState()
 
+    // Avatar drag position (offset from top-leading anchor)
+    @State private var avatarPosition: CGPoint = CGPoint(x: 0, y: -60)
+    @State private var avatarDragOffset: CGSize = .zero
+
     // MARK: - Avatar State Struct
     private struct AvatarState {
         var animationState: AIAvatarState = .idle
@@ -708,10 +712,41 @@ struct SessionChatView: View {
                         voiceType: avatarState.latestMessage.isEmpty ? voiceService.voiceSettings.voiceType : avatarState.voiceType
                     )
                     .frame(width: 30, height: 30)
-                    .offset(x: 0, y: 20)  // Move avatar UP within the tap circle
-                    .allowsHitTesting(false)  // Avatar doesn't intercept taps - let circle handle it
+                    .offset(x: 0, y: 20)
+                    .allowsHitTesting(false)
                 }
-                .offset(x: 0, y: -60)  // Top-left corner, tight to navigation bar
+                .offset(
+                    x: avatarPosition.x + avatarDragOffset.width,
+                    y: avatarPosition.y + avatarDragOffset.height
+                )
+                // simultaneousGesture lets tap and drag coexist — drag doesn't steal from onTapGesture
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 10)
+                        .onChanged { value in
+                            avatarDragOffset = value.translation
+                        }
+                        .onEnded { value in
+                            let screenWidth = UIScreen.main.bounds.width
+                            let screenHeight = UIScreen.main.bounds.height
+                            let halfTap: CGFloat = 70
+
+                            var newX = avatarPosition.x + value.translation.width
+                            var newY = avatarPosition.y + value.translation.height
+
+                            // Clamp vertically within safe area
+                            newY = max(-screenHeight * 0.5 + halfTap + 100, newY)
+                            newY = min(screenHeight * 0.5 - halfTap - 80, newY)
+
+                            // Snap to nearest horizontal edge
+                            let currentAbsX = halfTap + newX
+                            newX = currentAbsX < screenWidth / 2 ? 0 : screenWidth - halfTap * 2
+
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+                                avatarPosition = CGPoint(x: newX, y: newY)
+                                avatarDragOffset = .zero
+                            }
+                        }
+                )
                 .zIndex(10)  // ✅ FIX: Ensure avatar is above other UI elements
                 .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("AIMessageAppeared"))) { notification in
                     handleAIMessageAppeared(notification)
