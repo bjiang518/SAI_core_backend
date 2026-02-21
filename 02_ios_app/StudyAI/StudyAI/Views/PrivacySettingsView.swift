@@ -338,26 +338,14 @@ struct PrivacySettingsView: View {
             }
             .sheet(isPresented: $showingOnboarding) {
                 ParentReportsOnboardingView(
-                    onComplete: {
-                        // Save completion state and enable reports
-                        var settings = ParentReportSettings.load()
-                        settings.hasSeenOnboarding = true
-                        settings.save()
-                        showingOnboarding = false
-
-                        // Now actually enable the reports since onboarding completed
+                    onEnable: {
                         parentReportsSettings.parentReportsEnabled = true
                         handleParentReportsToggle(enabled: true)
-                    },
-                    onSkip: {
-                        // Mark as seen but don't enable
-                        var settings = ParentReportSettings.load()
-                        settings.hasSeenOnboarding = true
-                        settings.save()
                         showingOnboarding = false
-
-                        // Revert toggle since they skipped
+                    },
+                    onDecline: {
                         parentReportsSettings.parentReportsEnabled = false
+                        showingOnboarding = false
                     }
                 )
             }
@@ -581,9 +569,9 @@ struct PrivacySettingsView: View {
 
     private func handleParentReportsToggle(enabled: Bool) {
         if enabled {
-            // Check if onboarding has been seen
+            // Show agreement screen if not already enabled
             let settings = ParentReportSettings.load()
-            if !settings.hasSeenOnboarding {
+            if !settings.parentReportsEnabled {
                 print("📊 [PrivacySettings] Showing onboarding before enabling reports")
                 showingOnboarding = true
                 return  // Don't proceed with enabling yet - onboarding will handle it

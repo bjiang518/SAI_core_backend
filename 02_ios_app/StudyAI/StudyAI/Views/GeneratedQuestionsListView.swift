@@ -24,12 +24,8 @@ struct GeneratedQuestionsListView: View {
     @State private var showingPDFGenerator = false
 
     // Progress tracking state
-    @State private var answeredQuestions: [UUID: QuestionResult] = [:] // Track answered questions with results
-    @State private var showingInfoAlert = false // Add info alert state
-
-    // ✅ NEW: Save progress confirmation dialog
-    @State private var showingSaveProgressDialog = false
-    @State private var pendingDismiss = false
+    @State private var answeredQuestions: [UUID: QuestionResult] = [:]
+    @State private var showingInfoAlert = false
 
     private let logger = Logger(subsystem: "com.studyai", category: "GeneratedQuestionsList")
 
@@ -37,15 +33,6 @@ struct GeneratedQuestionsListView: View {
     struct QuestionResult {
         let isCorrect: Bool
         let points: Int
-    }
-
-    // ✅ NEW: Compute unfinished questions count
-    private var hasUnfinishedQuestions: Bool {
-        answeredQuestions.count < questions.count
-    }
-
-    private var unfinishedCount: Int {
-        questions.count - answeredQuestions.count
     }
 
     var filteredQuestions: [QuestionGenerationService.GeneratedQuestion] {
@@ -61,13 +48,8 @@ struct GeneratedQuestionsListView: View {
 
     @ViewBuilder
     private var questionDetailView: some View {
-        let _ = print("🟢 [FULLSCREEN DEBUG] fullScreenCover PRESENTING")
-        let _ = print("🟢 [FULLSCREEN DEBUG] selectedQuestion: \(selectedQuestion?.question.prefix(50) ?? "nil")")
-        let _ = print("🟢 [FULLSCREEN DEBUG] questions.count: \(questions.count)")
-
         if let selectedQuestion = selectedQuestion,
            let questionIndex = questions.firstIndex(where: { $0.id == selectedQuestion.id }) {
-            let _ = print("🟢 [FULLSCREEN DEBUG] ✅ Found question at index \(questionIndex)")
             GeneratedQuestionDetailView(
                 question: selectedQuestion,
                 subject: subject,
@@ -79,28 +61,11 @@ struct GeneratedQuestionsListView: View {
                 allQuestions: questions,
                 currentIndex: questionIndex
             )
-            .onAppear {
-                print("🟢 [FULLSCREEN DEBUG] GeneratedQuestionDetailView APPEARED for question at index \(questionIndex)")
-            }
         } else {
-            let _ = print("🔴 [FULLSCREEN DEBUG] ❌ ERROR: Could not find question!")
-            let _ = print("🔴 [FULLSCREEN DEBUG] selectedQuestion exists: \(selectedQuestion != nil)")
-            let _ = {
-                if let sel = selectedQuestion {
-                    print("🔴 [FULLSCREEN DEBUG] selectedQuestion.id: \(sel.id)")
-                    print("🔴 [FULLSCREEN DEBUG] Looking for match in \(questions.count) questions...")
-                    let foundIndex = questions.firstIndex(where: { $0.id == sel.id })
-                    print("🔴 [FULLSCREEN DEBUG] Found index: \(foundIndex?.description ?? "nil")")
-                }
-            }()
-
             VStack {
                 Text("Error: Question not found")
                     .font(.headline)
                     .foregroundColor(.red)
-            }
-            .onAppear {
-                print("🔴 [FULLSCREEN DEBUG] ERROR VIEW appeared - showing error state")
             }
         }
     }
@@ -175,67 +140,16 @@ struct GeneratedQuestionsListView: View {
             } message: {
                 Text(NSLocalizedString("generatedQuestions.howToUse.message", comment: ""))
             }
-            // ✅ NEW: Save progress confirmation dialog
-            .confirmationDialog(
-                "You have \(unfinishedCount) unfinished question\(unfinishedCount == 1 ? "" : "s"). Save your progress?",
-                isPresented: $showingSaveProgressDialog,
-                titleVisibility: .visible
-            ) {
-                Button("Yes", role: .none) {
-                    // Save progress and dismiss
-                    saveProgress()
-                    dismiss()
-                }
-                Button("No", role: .destructive) {
-                    // Dismiss without saving
-                    dismiss()
-                }
-                Button("Cancel", role: .cancel) {
-                    // Stay on the page
-                }
-            }
             .onAppear {
                 logger.info("📝 Generated questions list appeared with \(questions.count) questions")
 
-                // ✅ DEBUG: Log question list details
-                // TODO: Add DebugSettings.swift to Xcode project to enable debug logging
-                print("📝 [Generation] Displaying \(questions.count) generated questions")
-                print("📝 [Generation] Initial showingQuestionDetail: \(showingQuestionDetail)")
-                print("📝 [Generation] Initial selectedQuestion: \(selectedQuestion?.id.uuidString ?? "nil")")
-                print("📝 [Generation] Initial isSelectionMode: \(isSelectionMode)")
-
-                // ✅ DEBUG: Count questions with error keys
                 let questionsWithErrorKeys = questions.filter { $0.errorType != nil }
-                print("🎯 [ErrorKeys] Questions with error keys: \(questionsWithErrorKeys.count)/\(questions.count)")
-
-                // ✅ DEBUG: Log each question's error key status
-                for (index, question) in questions.enumerated() {
-                    let hasKeys = question.errorType != nil
-                    print("🎯 [ErrorKeys] Question \(index + 1): \(hasKeys ? "HAS" : "NO") error keys - Type: \(question.type.rawValue)")
-
-                    // if hasKeys {
-                    //     DebugSettings.shared.prettyPrintErrorKeys(
-                    //         errorType: question.errorType,
-                    //         baseBranch: question.baseBranch,
-                    //         detailedBranch: question.detailedBranch,
-                    //         weaknessKey: question.weaknessKey
-                    //     )
-                    // }
-                }
+                logger.debug("🎯 Questions with error keys: \(questionsWithErrorKeys.count)/\(questions.count)")
             }
-            .onChange(of: showingQuestionDetail) { oldValue, newValue in
-                print("🔄 [STATE CHANGE] showingQuestionDetail changed: \(oldValue) → \(newValue)")
-                if newValue {
-                    print("🔄 [STATE CHANGE] Detail should be showing now")
-                    print("🔄 [STATE CHANGE] selectedQuestion at change: \(selectedQuestion?.id.uuidString ?? "nil")")
-                } else {
-                    print("🔄 [STATE CHANGE] Detail should be hidden now")
+            .onChange(of: showingQuestionDetail) { _, newValue in
+                if !newValue {
+                    logger.debug("🔄 Question detail dismissed")
                 }
-            }
-            .onChange(of: selectedQuestion?.id) { oldValue, newValue in
-                print("🔄 [STATE CHANGE] selectedQuestion ID changed")
-                print("🔄 [STATE CHANGE]   Old: \(oldValue?.uuidString ?? "nil")")
-                print("🔄 [STATE CHANGE]   New: \(newValue?.uuidString ?? "nil")")
             }
         }
     }
@@ -289,10 +203,6 @@ struct GeneratedQuestionsListView: View {
 
     private var confirmPDFButton: some View {
         Button(action: {
-            // ✅ DEBUG: Log PDF generation start
-            print("📝 [Generation] Starting PDF generation for \(selectedQuestions.count) selected questions")
-            // DebugSettings.shared.logGeneration("Starting PDF generation for \(selectedQuestions.count) selected questions")
-
             showingPDFGenerator = true
         }) {
             HStack {
@@ -393,44 +303,16 @@ struct GeneratedQuestionsListView: View {
 
                         // Use QuestionTypeRenderer based on question type
                         Button(action: {
-                            print("🎯 [GESTURE DEBUG] ==========================================")
-                            print("🎯 [GESTURE DEBUG] Button tapped at \(Date())")
-                            print("🎯 [GESTURE DEBUG] Question index: \(questionIndex)")
-                            print("🎯 [GESTURE DEBUG] Question ID: \(question.id)")
-                            print("🎯 [GESTURE DEBUG] Question preview: \(question.question.prefix(80))...")
-                            print("🎯 [GESTURE DEBUG] Question type: \(question.type.rawValue)")
-                            print("🎯 [GESTURE DEBUG] isSelectionMode: \(isSelectionMode)")
-                            print("🎯 [GESTURE DEBUG] Current showingQuestionDetail: \(showingQuestionDetail)")
-                            print("🎯 [GESTURE DEBUG] Current selectedQuestion: \(selectedQuestion?.id.uuidString ?? "nil")")
-
                             if !isSelectionMode {
-                                print("🎯 [GESTURE DEBUG] ✅ Entering normal mode - should open detail")
-                                print("🎯 [GESTURE DEBUG] Setting selectedQuestion...")
                                 selectedQuestion = question
-                                print("🎯 [GESTURE DEBUG] selectedQuestion SET to: \(question.id)")
-
-                                print("🎯 [GESTURE DEBUG] Setting showingQuestionDetail = true...")
                                 showingQuestionDetail = true
-                                print("🎯 [GESTURE DEBUG] showingQuestionDetail NOW: \(showingQuestionDetail)")
-
-                                // Add a slight delay to check if the value persists
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                    print("🎯 [GESTURE DEBUG] After 0.1s - showingQuestionDetail: \(showingQuestionDetail)")
-                                    print("🎯 [GESTURE DEBUG] After 0.1s - selectedQuestion: \(selectedQuestion?.id.uuidString ?? "nil")")
-                                }
-
-                                print("🎯 [GESTURE DEBUG] ✅ Normal mode tap complete - detail should open")
                             } else {
-                                print("🎯 [GESTURE DEBUG] ⚠️ In selection mode - toggling selection")
                                 if selectedQuestions.contains(question.id) {
                                     selectedQuestions.remove(question.id)
-                                    print("🎯 [GESTURE DEBUG] Deselected question")
                                 } else {
                                     selectedQuestions.insert(question.id)
-                                    print("🎯 [GESTURE DEBUG] Selected question")
                                 }
                             }
-                            print("🎯 [GESTURE DEBUG] ==========================================")
                         }) {
                             HStack(spacing: 0) {
                                 // Question content - disable hit testing so taps pass through to button
@@ -448,13 +330,7 @@ struct GeneratedQuestionsListView: View {
                             }
                         }
                         .buttonStyle(PlainButtonStyle())
-                        .contentShape(Rectangle())  // ✅ Make entire card area tappable
-                        .simultaneousGesture(
-                            TapGesture()
-                                .onEnded { _ in
-                                    print("🟡 [GESTURE DEBUG] TapGesture detected (simultaneous)")
-                                }
-                        )
+                        .contentShape(Rectangle())
                     }
                     .background(DesignTokens.AdaptiveColors.cardBackground)
                     .cornerRadius(12)
@@ -576,30 +452,10 @@ struct GeneratedQuestionsListView: View {
 
     private var closeButton: some View {
         Button(NSLocalizedString("common.done", comment: "")) {
-            // ✅ Check for unfinished questions before dismissing
-            if hasUnfinishedQuestions {
-                showingSaveProgressDialog = true
-            } else {
-                dismiss()
-            }
+            dismiss()
         }
         .font(.body)
         .fontWeight(.semibold)
-    }
-
-    // ✅ NEW: Save progress function
-    private func saveProgress() {
-        logger.info("💾 Saving progress: \(answeredQuestions.count)/\(questions.count) questions answered")
-
-        // Save answered questions to local storage or UserDefaults
-        // This can be expanded to save to the archive service or local database
-        for (questionId, result) in answeredQuestions {
-            logger.debug("✓ Question \(questionId): \(result.isCorrect ? "Correct" : "Incorrect") (\(result.points) points)")
-        }
-
-        // TODO: Implement actual save logic here
-        // For now, just log the progress
-        print("💾 [Progress] Saved \(answeredQuestions.count) answered questions")
     }
 
     private func difficultyColor(_ difficulty: String) -> Color {

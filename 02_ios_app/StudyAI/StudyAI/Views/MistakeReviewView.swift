@@ -51,6 +51,12 @@ enum PracticeGenerationError: LocalizedError {
     }
 }
 
+// MARK: - Active Filter
+enum MistakeActiveFilter: String, CaseIterable {
+    case active = "Active"
+    case all = "All"
+}
+
 // MARK: - Main View
 struct MistakeReviewView: View {
     @StateObject private var mistakeService = MistakeReviewService()
@@ -63,6 +69,9 @@ struct MistakeReviewView: View {
 
     // NEW: Hierarchical filtering state (multi-select)
     @State private var selectedDetailedBranches: Set<String> = []
+
+    // Active / All toggle
+    @State private var activeFilter: MistakeActiveFilter = .active
 
     @State private var showingMistakeList = false
     @State private var showingInstructions = false
@@ -104,6 +113,15 @@ struct MistakeReviewView: View {
                         }
                     }
 
+                    // SECTION 1b: Active / All toggle
+                    Picker("", selection: $activeFilter) {
+                        ForEach(MistakeActiveFilter.allCases, id: \.self) { filter in
+                            Text(filter.rawValue).tag(filter)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal)
+
                     // SECTION 2: Dual Slider Filters (Severity + Time)
                     if selectedSubject != nil {
                         DualSliderFilters(
@@ -117,7 +135,8 @@ struct MistakeReviewView: View {
                     if let subject = selectedSubject {
                         let taxonomyData = mistakeService.getBaseBranches(
                             for: subject,
-                            timeRange: selectedTimeRange.mistakeTimeRange
+                            timeRange: selectedTimeRange.mistakeTimeRange,
+                            activeFilter: activeFilter
                         )
 
                         TaxonomyFilterView(
@@ -203,7 +222,8 @@ struct MistakeReviewView: View {
                         subject: subject,
                         selectedDetailedBranches: selectedDetailedBranches,
                         selectedSeverity: selectedSeverity,
-                        timeRange: selectedTimeRange.mistakeTimeRange
+                        timeRange: selectedTimeRange.mistakeTimeRange,
+                        activeFilter: activeFilter
                     )
                 }
             }
@@ -221,6 +241,17 @@ struct MistakeReviewView: View {
 
         // Filter by time range
         allMistakes = mistakeService.filterByTimeRange(allMistakes, timeRange: selectedTimeRange.mistakeTimeRange)
+
+        // Filter by active weakness
+        if activeFilter == .active {
+            let activeWeaknesses = ShortTermStatusService.shared.status.activeWeaknesses
+            allMistakes = allMistakes.filter { mistake in
+                guard let key = mistake["weaknessKey"] as? String, !key.isEmpty else {
+                    return true // no key → include (safe fallback)
+                }
+                return (activeWeaknesses[key]?.value ?? 0) > 0
+            }
+        }
 
         // Filter by severity (error type)
         allMistakes = allMistakes.filter { mistake in
@@ -326,6 +357,7 @@ struct MistakeQuestionListView: View {
     let selectedDetailedBranches: Set<String>
     let selectedSeverity: SeverityLevel
     let timeRange: MistakeTimeRange
+    let activeFilter: MistakeActiveFilter
 
     @StateObject private var mistakeService = MistakeReviewService()
     @StateObject private var questionGenerationService = QuestionGenerationService.shared
@@ -343,9 +375,20 @@ struct MistakeQuestionListView: View {
 
     // MARK: - Computed Properties
 
-    /// Filter mistakes by hierarchical filters and severity
+    /// Filter mistakes by hierarchical filters, severity, and active status
     private var filteredMistakes: [MistakeQuestion] {
         var filtered = mistakeService.mistakes
+
+        // Filter by active weakness
+        if activeFilter == .active {
+            let activeWeaknesses = ShortTermStatusService.shared.status.activeWeaknesses
+            filtered = filtered.filter { mistake in
+                guard let key = mistake.weaknessKey, !key.isEmpty else {
+                    return true // no key → include (safe fallback)
+                }
+                return (activeWeaknesses[key]?.value ?? 0) > 0
+            }
+        }
 
         // Filter by severity (error type)
         filtered = filtered.filter { mistake in
@@ -737,6 +780,7 @@ struct MistakeQuestionCard: View {
     let onToggleSelection: () -> Void
 
     @StateObject private var themeManager = ThemeManager.shared
+    @Environment(\.colorScheme) var colorScheme
     @State private var isExpanded = false  // ✅ Changed: Card starts folded
     @State private var imageExpanded = false  // ✅ New: Image expansion state
 
@@ -764,22 +808,22 @@ struct MistakeQuestionCard: View {
                 }
             }
 
-            // ✅ Header: Question preview (always visible)
+            // ✅ Header: Date + Question preview (always visible)
             HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    if !isExpanded {
-                        Text(question.question.prefix(80) + (question.question.count > 80 ? "..." : ""))
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .lineLimit(2)
-                    }
-                }
-
                 Spacer()
-
                 Text(RelativeDateTimeFormatter().localizedString(for: question.createdAt, relativeTo: Date()))
                     .font(.caption)
                     .foregroundColor(.secondary)
+            }
+
+            if !isExpanded {
+                SmartLaTeXView(
+                    question.question,
+                    fontSize: 14,
+                    colorScheme: colorScheme,
+                    strategy: .mathjax
+                )
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             // ✅ Thumbnail image (tappable to expand)
@@ -823,9 +867,11 @@ struct MistakeQuestionCard: View {
                             .fontWeight(.semibold)
                             .foregroundColor(.secondary)
 
-                        SubquestionAwareTextView(
-                            text: question.rawQuestionText,
-                            fontSize: 16
+                        SmartLaTeXView(
+                            question.rawQuestionText,
+                            fontSize: 16,
+                            colorScheme: colorScheme,
+                            strategy: .mathjax
                         )
                         .textSelection(.enabled)
                     }
@@ -874,16 +920,17 @@ struct MistakeQuestionCard: View {
                             .fontWeight(.semibold)
                             .foregroundColor(.secondary)
 
-                        EnhancedMathText(
+                        SmartLaTeXView(
                             question.studentAnswer.isEmpty ?
                             NSLocalizedString("mistakeReview.noAnswer", comment: "") :
                             question.studentAnswer,
-                            fontSize: 16
+                            fontSize: 16,
+                            colorScheme: colorScheme,
+                            strategy: .mathjax
                         )
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
                         .background(DesignTokens.Colors.error.opacity(0.1))
-                        .foregroundColor(DesignTokens.Colors.error)
                         .cornerRadius(8)
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)
@@ -943,16 +990,20 @@ struct MistakeQuestionCard: View {
                             .fontWeight(.semibold)
                             .foregroundColor(.secondary)
 
-                        EnhancedMathText(question.correctAnswer, fontSize: 16)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(DesignTokens.Colors.success.opacity(0.1))
-                            .foregroundColor(DesignTokens.Colors.success)
-                            .cornerRadius(8)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(DesignTokens.Colors.success.opacity(0.3), lineWidth: 1)
-                            )
+                        SmartLaTeXView(
+                            question.correctAnswer,
+                            fontSize: 16,
+                            colorScheme: colorScheme,
+                            strategy: .mathjax
+                        )
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(DesignTokens.Colors.success.opacity(0.1))
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(DesignTokens.Colors.success.opacity(0.3), lineWidth: 1)
+                        )
                     }
 
                     // 6. Explanation
@@ -963,12 +1014,16 @@ struct MistakeQuestionCard: View {
                                 .fontWeight(.semibold)
                                 .foregroundColor(.secondary)
 
-                            EnhancedMathText(question.explanation, fontSize: 14)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                                .background(themeManager.accentColor.opacity(0.05))
-                                .foregroundColor(.primary)
-                                .cornerRadius(8)
+                            SmartLaTeXView(
+                                question.explanation,
+                                fontSize: 14,
+                                colorScheme: colorScheme,
+                                strategy: .mathjax
+                            )
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(themeManager.accentColor.opacity(0.05))
+                            .cornerRadius(8)
                         }
                     }
 

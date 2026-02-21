@@ -68,7 +68,7 @@ struct HomeView: View {
 
                     Spacer(minLength: 100)
                 }
-                .padding(.vertical, DesignTokens.Spacing.md)
+                .padding(.bottom, DesignTokens.Spacing.md)
             }
             .background(themeManager.backgroundColor.ignoresSafeArea())
             .navigationBarHidden(true)
