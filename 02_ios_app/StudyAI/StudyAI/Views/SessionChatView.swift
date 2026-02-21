@@ -1443,47 +1443,29 @@ struct SessionChatView: View {
         var voiceAudioFiles: [String: String] = [:]  // "msgIndex" → absolute file path
         var msgIndex = 0
 
-        print("🗂️ [Archive] Walking \(vm.messages.count) messages for archiveID=\(archiveID)")
-        for (rawIdx, msg) in vm.messages.enumerated() {
+        for msg in vm.messages {
             switch msg.role {
             case .user:
-                if msg.imageData != nil {
-                    print("🗂️ [Archive]   msg[\(rawIdx)] = user IMAGE — skipping text archive")
-                    continue
-                }
+                if msg.imageData != nil { continue }
                 let transcript = msg.text.trimmingCharacters(in: .whitespacesAndNewlines)
                 contentLines.append("USER: 🎙️ \(transcript.isEmpty ? "[voice]" : transcript)")
-                print("🗂️ [Archive]   msg[\(rawIdx)] = user VOICE → msgIndex=\(msgIndex), transcript='\(transcript.prefix(60))', audioData=\(msg.audioData.map { "\($0.count) bytes" } ?? "nil")")
 
                 // Save WAV audio directly from the message (embedded at recording time)
                 if let wavData = msg.audioData {
                     let fileName = "\(archiveID)_\(msgIndex).wav"
                     let fileURL = audioDir.appendingPathComponent(fileName)
-                    let writeError: Error? = { do { try wavData.write(to: fileURL); return nil } catch { return error } }()
-                    if let err = writeError {
-                        print("🗂️ [Archive]   ❌ WRITE FAILED for msgIndex=\(msgIndex): \(err)")
-                    } else {
-                        voiceAudioFiles["\(msgIndex)"] = fileURL.path
-                        print("🗂️ [Archive]   ✅ Audio written → key='\(msgIndex)', path=\(fileURL.path), size=\(wavData.count) bytes")
-                    }
-                } else {
-                    print("🗂️ [Archive]   ⚠️ audioData=nil on user voice message at msgIndex=\(msgIndex)")
+                    try? wavData.write(to: fileURL)
+                    voiceAudioFiles["\(msgIndex)"] = fileURL.path
                 }
                 msgIndex += 1
 
             case .assistant:
                 let text = msg.text.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !text.isEmpty else {
-                    print("🗂️ [Archive]   msg[\(rawIdx)] = assistant (empty, skipped)")
-                    continue
-                }
+                guard !text.isEmpty else { continue }
                 contentLines.append("AI: \(text)")
-                print("🗂️ [Archive]   msg[\(rawIdx)] = assistant → msgIndex=\(msgIndex), text='\(text.prefix(60))'")
                 msgIndex += 1
             }
         }
-
-        print("🗂️ [Archive] voiceAudioFiles (\(voiceAudioFiles.count) entries): \(voiceAudioFiles)")
 
         let conversationContent = contentLines.joined(separator: "\n\n")
 

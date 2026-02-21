@@ -81,16 +81,6 @@ struct SessionDetailView: View {
                 let localConversations = ConversationLocalStorage.shared.getLocalConversations()
                 if let localConversation = localConversations.first(where: { ($0["id"] as? String) == sessionId }) {
                     let rawAudioFiles = localConversation["voiceAudioFiles"] as? [String: String]
-                    print("📖 [SessionDetail] Loading from local storage — id=\(sessionId)")
-                    print("📖 [SessionDetail]   keys in local dict: \(localConversation.keys.sorted())")
-                    print("📖 [SessionDetail]   voiceAudioFiles raw value: \(String(describing: localConversation["voiceAudioFiles"]))")
-                    print("📖 [SessionDetail]   voiceAudioFiles as [String:String]: \(rawAudioFiles.map { "\($0.count) entries: \($0)" } ?? "nil (cast failed)")")
-                    if let audioFiles = rawAudioFiles {
-                        for (key, path) in audioFiles.sorted(by: { $0.key < $1.key }) {
-                            let exists = FileManager.default.fileExists(atPath: path)
-                            print("📖 [SessionDetail]     key='\(key)' path=\(path) exists=\(exists)")
-                        }
-                    }
 
                     let archivedConversation = ArchivedConversation(
                         id: localConversation["id"] as? String ?? sessionId,
@@ -103,7 +93,6 @@ struct SessionDetailView: View {
                         diagrams: localConversation["diagrams"] as? [[String: Any]],
                         voiceAudioFiles: rawAudioFiles
                     )
-                    print("📖 [SessionDetail]   ArchivedConversation.voiceAudioFiles=\(archivedConversation.voiceAudioFiles.map { "\($0.count) entries" } ?? "nil")")
 
                     await MainActor.run {
                         conversation = archivedConversation
@@ -554,16 +543,6 @@ struct ConversationMessageView: View {
                 Spacer(minLength: 50)
             }
         }
-        .onAppear {
-            if isVoiceMessage {
-                if let path = audioFilePath {
-                    let exists = FileManager.default.fileExists(atPath: path)
-                    print("📖 [MessageView] Voice bubble rendered — audioFilePath='\(path)', fileExists=\(exists)")
-                } else {
-                    print("📖 [MessageView] Voice bubble rendered — audioFilePath=nil (play button will be disabled)")
-                }
-            }
-        }
     }
 
     private var messageContent: some View {
@@ -626,7 +605,7 @@ struct ConversationMessageView: View {
                 isPlaying = false
             }
         } catch {
-            print("❌ Could not play voice audio: \(error)")
+            // AVAudioPlayer failed — no playback
         }
     }
 }
