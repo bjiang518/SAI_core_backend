@@ -363,17 +363,27 @@ struct MistakeQuestionListView: View {
     @StateObject private var questionGenerationService = QuestionGenerationService.shared
     @StateObject private var profileService = ProfileService.shared
     @StateObject private var themeManager = ThemeManager.shared
+    @StateObject private var sessionManager = PracticeSessionManager.shared
     @State private var selectedQuestions: Set<String> = []
     @State private var isSelectionMode = false
     @State private var showingPDFGenerator = false
     @State private var isGeneratingPractice = false
     @State private var generatedQuestions: [QuestionGenerationService.GeneratedQuestion] = []
     @State private var showingPracticeQuestions = false
-    @State private var showingConfigurationSheet = false // ✅ NEW: Show configuration before generating
-    @State private var generationError: String? = nil // ✅ OPTIMIZATION: Error handling
+    @State private var showingConfigurationSheet = false
+    @State private var generationError: String? = nil
+    @State private var currentSessionId: String? = nil   // session ID for newly generated set
+    @State private var resumeSessionId: String? = nil    // session ID being resumed
     @Environment(\.dismiss) private var dismiss
 
     // MARK: - Computed Properties
+
+    /// The most recent incomplete mistake-based session for this subject, if any.
+    private var incompleteSession: PracticeSession? {
+        sessionManager.incompleteSessions.first {
+            $0.generationType == "Mistake-Based" && $0.subject == subject
+        }
+    }
 
     /// Filter mistakes by hierarchical filters, severity, and active status
     private var filteredMistakes: [MistakeQuestion] {
@@ -435,6 +445,59 @@ struct MistakeQuestionListView: View {
                         }
                         .buttonStyle(PlainButtonStyle())
                         .padding(.horizontal)
+
+                        // Resume button — shown when an incomplete session exists for this subject
+                        if let session = incompleteSession {
+                            Button(action: {
+                                resumeSessionId = session.id
+                                generatedQuestions = session.questions
+                                showingPracticeQuestions = true
+                            }) {
+                                HStack(spacing: 10) {
+                                    Image(systemName: "clock.arrow.circlepath")
+                                        .font(.body)
+
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Resume Practice")
+                                            .font(.body)
+                                            .fontWeight(.semibold)
+
+                                        Text("\(session.remainingQuestions) questions left · \(Int(session.progressPercentage * 100))% done")
+                                            .font(.caption)
+                                            .opacity(0.85)
+                                    }
+
+                                    Spacer()
+
+                                    // Mini progress bar
+                                    GeometryReader { geo in
+                                        ZStack(alignment: .leading) {
+                                            Capsule().fill(Color.white.opacity(0.3)).frame(height: 4)
+                                            Capsule().fill(Color.white)
+                                                .frame(width: geo.size.width * session.progressPercentage, height: 4)
+                                        }
+                                    }
+                                    .frame(width: 60, height: 4)
+
+                                    Button(action: {
+                                        sessionManager.deleteSession(id: session.id)
+                                    }) {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .font(.body)
+                                            .foregroundColor(.white.opacity(0.7))
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
+                                }
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 14)
+                                .frame(maxWidth: .infinity)
+                                .background(Color.orange)
+                                .cornerRadius(12)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            .padding(.horizontal)
+                        }
                     }
                     .padding(.top)
                 }
@@ -569,7 +632,11 @@ struct MistakeQuestionListView: View {
                 }
             }
             .sheet(isPresented: $showingPracticeQuestions) {
-                PracticeQuestionsView(questions: generatedQuestions, subject: subject)
+                PracticeQuestionsView(
+                    questions: generatedQuestions,
+                    subject: subject,
+                    sessionId: resumeSessionId ?? currentSessionId
+                )
             }
             .sheet(isPresented: $showingConfigurationSheet) {
                 // ✅ NEW: Show configuration sheet before generating
@@ -729,6 +796,22 @@ struct MistakeQuestionListView: View {
                 await MainActor.run {
                     // ✅ FIX: Keep full GeneratedQuestion objects instead of just text
                     generatedQuestions = questions
+                    // Save session for resume support
+                    let config = QuestionGenerationService.RandomQuestionsConfig(
+                        topics: [],
+                        focusNotes: nil,
+                        difficulty: difficulty,
+                        questionCount: questionCount,
+                        questionType: questionTypes.first ?? .any
+                    )
+                    let sid = sessionManager.saveSession(
+                        questions: questions,
+                        generationType: "Mistake-Based",
+                        subject: subject,
+                        config: config
+                    )
+                    currentSessionId = sid
+                    resumeSessionId = nil  // fresh session, not a resume
                     showingPracticeQuestions = true
                 }
                 print("🎉 Generated \(questions.count) targeted practice questions with type-based rendering")
@@ -1140,10 +1223,17 @@ struct MistakeQuestionCard: View {
 struct PracticeQuestionsView: View {
     let questions: [QuestionGenerationService.GeneratedQuestion]
     let subject: String
+    /// Pass a non-nil value to persist progress (new session) or restore it (resume).
+    var sessionId: String? = nil
     @Environment(\.dismiss) private var dismiss
     @State private var expandedQuestions: Set<UUID> = []
     @State private var currentAnswers: [UUID: String] = [:]
     @State private var gradedQuestions: [UUID: GradeResult] = [:] // UUID -> GradeResult
+
+    private let sessionManager = PracticeSessionManager.shared
+
+    // UserDefaults key prefix for grading persistence
+    private func gradeKey(_ id: UUID) -> String { "mistake_practice_grade_\(id.uuidString)" }
 
     // ✅ PDF Export state
     @StateObject private var pdfGenerator = PDFGeneratorService()
@@ -1237,6 +1327,54 @@ struct PracticeQuestionsView: View {
         .padding()
         .onAppear {
             logPracticeQuestionsDebug()
+            restoreSavedProgress()
+        }
+    }
+
+    /// Restore any previously graded answers from UserDefaults.
+    private func restoreSavedProgress() {
+        for question in questions {
+            let key = gradeKey(question.id)
+            guard let data = UserDefaults.standard.data(forKey: key),
+                  let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { continue }
+
+            let isCorrect       = dict["isCorrect"]       as? Bool   ?? false
+            let correctAnswer   = dict["correctAnswer"]   as? String ?? question.correctAnswer
+            let feedback        = dict["feedback"]        as? String ?? ""
+            let wasInstant      = dict["wasInstantGraded"] as? Bool  ?? false
+            let matchScore      = dict["matchScore"]      as? Double
+
+            gradedQuestions[question.id] = GradeResult(
+                isCorrect: isCorrect,
+                correctAnswer: correctAnswer,
+                feedback: feedback,
+                wasInstantGraded: wasInstant,
+                matchScore: matchScore
+            )
+            currentAnswers[question.id] = dict["userAnswer"] as? String ?? ""
+        }
+    }
+
+    /// Persist a grade result to UserDefaults and update session progress.
+    private func persistGrade(questionId: UUID, userAnswer: String, result: GradeResult) {
+        let dict: [String: Any] = [
+            "isCorrect":       result.isCorrect,
+            "correctAnswer":   result.correctAnswer,
+            "feedback":        result.feedback,
+            "wasInstantGraded": result.wasInstantGraded,
+            "matchScore":      result.matchScore as Any,
+            "userAnswer":      userAnswer
+        ]
+        if let data = try? JSONSerialization.data(withJSONObject: dict) {
+            UserDefaults.standard.set(data, forKey: gradeKey(questionId))
+        }
+        if let sid = sessionId {
+            sessionManager.updateProgress(
+                sessionId: sid,
+                completedQuestionId: questionId.uuidString,
+                answer: userAnswer,
+                isCorrect: result.isCorrect
+            )
         }
     }
 
@@ -1431,13 +1569,15 @@ struct PracticeQuestionsView: View {
             }
 
             await MainActor.run {
-                gradedQuestions[question.id] = GradeResult(
-                    isCorrect: true,  // Curve to 100% if >= 90%
+                let result = GradeResult(
+                    isCorrect: true,
                     correctAnswer: question.correctAnswer,
                     feedback: instantFeedback,
                     wasInstantGraded: true,
                     matchScore: matchResult.matchScore
                 )
+                gradedQuestions[question.id] = result
+                persistGrade(questionId: question.id, userAnswer: userAnswer, result: result)
 
                 #if DEBUG
                 print("💾 Stored INSTANT grade result for question \(question.id)")
@@ -1497,13 +1637,15 @@ struct PracticeQuestionsView: View {
 
             if let grade = response.grade {
                 await MainActor.run {
-                    gradedQuestions[question.id] = GradeResult(
+                    let result = GradeResult(
                         isCorrect: grade.isCorrect,
                         correctAnswer: grade.correctAnswer ?? question.correctAnswer,
                         feedback: grade.feedback,
-                        wasInstantGraded: false,  // AI graded
+                        wasInstantGraded: false,
                         matchScore: matchResult.matchScore
                     )
+                    gradedQuestions[question.id] = result
+                    persistGrade(questionId: question.id, userAnswer: userAnswer, result: result)
 
                     #if DEBUG
                     print("💾 Stored AI grade result for question \(question.id)")
@@ -1934,7 +2076,7 @@ struct PracticeQuestionCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Question Header
+            // Question Header — full-width tappable area
             Button(action: onToggleExpand) {
                 HStack {
                     // Question number badge
@@ -1976,6 +2118,7 @@ struct PracticeQuestionCard: View {
                         .foregroundColor(.secondary)
                         .font(.caption)
                 }
+                .contentShape(Rectangle())
             }
             .buttonStyle(PlainButtonStyle())
 

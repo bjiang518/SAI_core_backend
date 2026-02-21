@@ -12,6 +12,8 @@ import PDFKit
 struct GeneratedQuestionsListView: View {
     let questions: [QuestionGenerationService.GeneratedQuestion]
     let subject: String
+    /// When set (resume path), pre-populate answered state from the saved session.
+    var resumeSessionId: String? = nil
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
     @State private var selectedQuestion: QuestionGenerationService.GeneratedQuestion?
@@ -145,6 +147,26 @@ struct GeneratedQuestionsListView: View {
 
                 let questionsWithErrorKeys = questions.filter { $0.errorType != nil }
                 logger.debug("🎯 Questions with error keys: \(questionsWithErrorKeys.count)/\(questions.count)")
+
+                // Pre-populate answered state from UserDefaults (per-question persistence).
+                // Covers both the resume path (resumeSessionId set) and re-entry after navigating
+                // away — any question that was submitted will have saved state in UserDefaults.
+                for question in questions {
+                    let key = "question_answer_\(question.id.uuidString)"
+                    guard let data = UserDefaults.standard.data(forKey: key),
+                          let answerData = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                          let hasSubmitted = answerData["hasSubmitted"] as? Bool,
+                          hasSubmitted else { continue }
+
+                    let isCorrect = answerData["isCorrect"] as? Bool ?? false
+                    let points = isCorrect ? (question.points ?? 10) : 0
+                    answeredQuestions[question.id] = QuestionResult(isCorrect: isCorrect, points: points)
+                    logger.debug("♻️ Restored answer for question \(question.id.uuidString.prefix(8)): correct=\(isCorrect)")
+                }
+
+                if !answeredQuestions.isEmpty {
+                    logger.info("✅ Restored \(answeredQuestions.count)/\(questions.count) answered questions from saved state")
+                }
             }
             .onChange(of: showingQuestionDetail) { _, newValue in
                 if !newValue {
@@ -328,6 +350,7 @@ struct GeneratedQuestionsListView: View {
                                         .padding(.trailing, 16)
                                 }
                             }
+                            .contentShape(Rectangle())
                         }
                         .buttonStyle(PlainButtonStyle())
                         .contentShape(Rectangle())

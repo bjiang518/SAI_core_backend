@@ -490,6 +490,7 @@
 "questionGeneration.generating" = "Generating...";
 "questionGeneration.generateQuestions" = "Generate Questions";
 "questionGeneration.generatedQuestions" = "Generated Questions";
+"questionGeneration.recentQuestions" = "Recent Questions";
 "questionGeneration.viewAll" = "View All";
 "questionGeneration.error.title" = "Generation Error";
 "questionGeneration.randomPracticeSettings" = "Random Practice Settings";

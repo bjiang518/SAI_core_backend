@@ -68,6 +68,9 @@ class VoiceChatViewModel: ObservableObject {
     /// Subject for the session
     private let subject: String
 
+    /// Selected AI character
+    let voiceType: VoiceType
+
     /// Network service
     private let networkService = NetworkService.shared
 
@@ -115,11 +118,12 @@ class VoiceChatViewModel: ObservableObject {
 
     // MARK: - Initialization
 
-    init(sessionId: String, subject: String) {
+    init(sessionId: String, subject: String, voiceType: VoiceType) {
         self.sessionId = sessionId
         self.subject = subject
+        self.voiceType = voiceType
 
-        logger.info("VoiceChatViewModel initialized for session: \(sessionId), subject: \(subject)")
+        logger.info("VoiceChatViewModel initialized for session: \(sessionId), subject: \(subject), character: \(voiceType.rawValue)")
 
         // Request microphone permission on init
         requestMicrophonePermission()
@@ -195,7 +199,8 @@ class VoiceChatViewModel: ObservableObject {
         // Start session
         sendWebSocketMessage(type: "start_session", data: [
             "subject": subject,
-            "language": getCurrentLanguage()
+            "language": getCurrentLanguage(),
+            "character": voiceType.rawValue
         ])
 
         // Start receiving messages

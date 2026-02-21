@@ -493,6 +493,7 @@
 "questionGeneration.generating" = "生成中...";
 "questionGeneration.generateQuestions" = "生成題目";
 "questionGeneration.generatedQuestions" = "已生成題目";
+"questionGeneration.recentQuestions" = "最近題目";
 "questionGeneration.viewAll" = "查看全部";
 "questionGeneration.error.title" = "生成錯誤";
 "questionGeneration.randomPracticeSettings" = "隨機練習設定";

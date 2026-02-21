@@ -237,8 +237,23 @@ struct MainTabView: View {
     @StateObject private var appState = AppState.shared
     @StateObject private var sessionManager = SessionManager.shared  // ✅ Track user activity
     @StateObject private var themeManager = ThemeManager.shared  // ✅ Cute Mode: Black tab bar
+    @Environment(\.horizontalSizeClass) private var sizeClass  // iPad vs iPhone
 
     var body: some View {
+        Group {
+            // iPad: 侧边栏导航（NavigationSplitView）
+            if sizeClass == .regular {
+                iPadSplitView(onLogout: onLogout)
+            } else {
+                // iPhone: 现有底部 TabBar（代码完全不变）
+                iPhoneTabView
+            }
+        }
+    }
+
+    // ── iPhone 专用 TabBar（现有代码提取为计算属性，内容零改动）──────────
+    @ViewBuilder
+    private var iPhoneTabView: some View {
         ZStack(alignment: .bottom) {
             TabView(selection: Binding(
                 get: { appState.selectedTab.rawValue },
@@ -858,6 +873,90 @@ struct SettingsRow: View {
                 .foregroundColor(.secondary)
         }
         .contentShape(Rectangle())
+    }
+}
+
+// MARK: - iPad Split View (iPad-only, iPhone 代码路径零改动)
+
+struct iPadSplitView: View {
+    let onLogout: () -> Void
+    @StateObject private var appState = AppState.shared
+    @StateObject private var themeManager = ThemeManager.shared
+    @StateObject private var sessionManager = SessionManager.shared
+    // 控制侧边栏可见性，默认显示
+    @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
+
+    var body: some View {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
+            // ── 侧边栏 ──────────────────────────────────────────
+            List(selection: Binding(
+                get: { appState.selectedTab },
+                set: { if let tab = $0 { appState.selectedTab = tab } }
+            )) {
+                ForEach(MainTab.allCases, id: \.self) { tab in
+                    Label(tab.title, systemImage: tab.icon)
+                        .tag(tab)
+                }
+            }
+            .listStyle(.sidebar)
+            .navigationTitle("StudyAI")
+            .toolbar {
+                ToolbarItem(placement: .bottomBar) {
+                    Button(role: .destructive, action: onLogout) {
+                        Label(NSLocalizedString("settings.signOut", comment: ""), systemImage: "arrow.right.square")
+                            .foregroundColor(.red)
+                    }
+                }
+            }
+        } detail: {
+            // ── 右侧内容区（占据剩余所有空间）────────────────────────
+            iPadDetailView(appState: appState, sessionManager: sessionManager)
+        }
+        // .balanced 让 detail 区尽量宽，sidebar 宽度适中
+        .navigationSplitViewStyle(.balanced)
+        .onChange(of: appState.selectedTab) { _, _ in
+            sessionManager.updateActivity()
+        }
+        .onAppear {
+            // 默认选中 Home Tab
+            if appState.selectedTab == .chat {
+                appState.selectedTab = .home
+            }
+            sessionManager.updateActivity()
+        }
+    }
+}
+
+// 右侧内容视图（解决 @ViewBuilder switch 里的 @StateObject 复用问题）
+private struct iPadDetailView: View {
+    @ObservedObject var appState: AppState
+    @ObservedObject var sessionManager: SessionManager
+
+    var body: some View {
+        // 注意：不包 NavigationStack，各 View 自带导航层
+        // HomeView 内含 NavigationView，SessionChatView/LearningProgressView 等使用 NavigationStack 父级
+        Group {
+            switch appState.selectedTab {
+            case .chat:
+                SessionChatView()
+                    .environmentObject(appState)
+                    .onAppear { sessionManager.updateActivity() }
+            case .grader:
+                DirectAIHomeworkView()
+                    .environmentObject(appState)
+                    .onAppear { sessionManager.updateActivity() }
+            case .home:
+                HomeView(onSelectTab: { appState.selectedTab = $0 })
+                    .onAppear { sessionManager.updateActivity() }
+            case .progress:
+                LearningProgressView()
+                    .onAppear { sessionManager.updateActivity() }
+            case .library:
+                UnifiedLibraryView()
+                    .environmentObject(appState)
+                    .onAppear { sessionManager.updateActivity() }
+            }
+        }
     }
 }
 

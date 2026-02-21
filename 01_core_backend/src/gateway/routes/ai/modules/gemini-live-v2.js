@@ -268,9 +268,18 @@ module.exports = async function (fastify, opts) {
              * Translates iOS "start_session" to official "setup" message
              */
             async function handleStartSession(data) {
-                const { subject, language } = data;
+                const { subject, language, character } = data;
 
                 currentSubject = subject || null;
+
+                // Map iOS character to Gemini prebuilt voice name
+                const geminiVoiceMap = {
+                    adam: 'Schedar',
+                    eva:  'Despina',
+                    max:  'Fenrir',
+                    mia:  'Zephyr'
+                };
+                const voiceName = geminiVoiceMap[character] || 'Puck';
 
                 const systemInstruction = buildSystemInstruction(subject, language);
 
@@ -282,7 +291,7 @@ module.exports = async function (fastify, opts) {
                             speechConfig: {
                                 voiceConfig: {
                                     prebuiltVoiceConfig: {
-                                        voiceName: "Puck"
+                                        voiceName: voiceName
                                     }
                                 }
                             }

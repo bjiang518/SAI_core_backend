@@ -29,6 +29,8 @@ struct HomeView: View {
 
     // ✅ Dark Mode Support: Detect current color scheme
     @Environment(\.colorScheme) var colorScheme
+    // iPad vs iPhone layout
+    @Environment(\.horizontalSizeClass) var sizeClass
 
     // Parent authentication modals
     @State private var showingParentAuthForChat = false
@@ -141,6 +143,8 @@ struct HomeView: View {
                 )
             }
         }
+        // iPad 上防止 NavigationView 变成双列拆分布局
+        .navigationViewStyle(.stack)
     }
 
     // MARK: - Engaging Hero Header
@@ -414,10 +418,10 @@ extension HomeView {
                 )
                 .padding(.horizontal, DesignTokens.Spacing.xl)
 
-            LazyVGrid(columns: [
-                GridItem(.flexible(), spacing: DesignTokens.Spacing.md),
-                GridItem(.flexible(), spacing: DesignTokens.Spacing.md)
-            ], spacing: DesignTokens.Spacing.md) {
+            LazyVGrid(columns: Array(
+                repeating: GridItem(.flexible(), spacing: DesignTokens.Spacing.md),
+                count: sizeClass == .regular ? 4 : 2  // iPad: 4列, iPhone: 2列
+            ), spacing: DesignTokens.Spacing.md) {
 
                 // Card 1: Homework Grader (Pink in Cute Mode)
                 QuickActionCard_New(
@@ -493,62 +497,78 @@ extension HomeView {
                 )
                 .padding(.horizontal, DesignTokens.Spacing.xl)
 
-            // Card 5: Practice (Blue in Cute Mode)
-            HorizontalActionButton(
-                icon: "doc.text.fill",
-                title: NSLocalizedString("home.practice", comment: ""),
-                subtitle: NSLocalizedString("home.practiceDescription", comment: ""),
-                color: themeManager.featureCardColor("practice"),
-                action: { showingQuestionGeneration = true }
-            )
-            .padding(.horizontal, DesignTokens.Spacing.xl)
-
-            // Card 6: Mistake Review
-            HorizontalActionButton(
-                icon: "xmark.circle.fill",
-                title: NSLocalizedString("home.mistakeReview", comment: ""),
-                subtitle: NSLocalizedString("home.mistakeReviewDescription", comment: ""),
-                color: colorScheme == .dark ? DesignTokens.Colors.rainbowIndigo.dark : DesignTokens.Colors.rainbowIndigo.light,
-                action: { showingMistakeReview = true }
-            )
-            .padding(.horizontal, DesignTokens.Spacing.xl)
-
-            // Card 7: Parent Reports (Peach in Cute Mode)
-            HorizontalActionButton(
-                icon: "figure.2.and.child.holdinghands",
-                title: NSLocalizedString("home.parentReports", comment: ""),
-                subtitle: NSLocalizedString("home.parentReportsDescription", comment: ""),
-                color: themeManager.featureCardColor("reports"),
-                action: {
-                    if parentModeManager.requiresAuthentication(for: .parentReports) {
-                        showingParentAuthForReports = true
-                    } else {
-                        showingParentReports = true
-                    }
+            if sizeClass == .regular {
+                // iPad: 2列网格布局
+                LazyVGrid(columns: [
+                    GridItem(.flexible(), spacing: DesignTokens.Spacing.md),
+                    GridItem(.flexible(), spacing: DesignTokens.Spacing.md)
+                ], spacing: DesignTokens.Spacing.md) {
+                    moreFeatureButtons
                 }
-            )
-            .padding(.horizontal, DesignTokens.Spacing.xl)
-
-            // Card 8: Homework Album
-            HorizontalActionButton(
-                icon: "photo.on.rectangle.angled",
-                title: NSLocalizedString("home.homeworkAlbum", comment: ""),
-                subtitle: NSLocalizedString("home.homeworkAlbumDescription", comment: ""),
-                color: colorScheme == .dark ? DesignTokens.Colors.rainbowPink.dark : DesignTokens.Colors.rainbowPink.light,
-                action: { showingHomeworkAlbum = true }
-            )
-            .padding(.horizontal, DesignTokens.Spacing.xl)
-
-            // Card 9: Focus Mode
-            HorizontalActionButton(
-                icon: "brain.head.profile",
-                title: NSLocalizedString("home.focusMode", comment: ""),
-                subtitle: NSLocalizedString("home.focusModeDescription", comment: ""),
-                color: Color(red: 0.2, green: 0.8, blue: 0.7),
-                action: { showingFocusMode = true }
-            )
-            .padding(.horizontal, DesignTokens.Spacing.xl)
+                .padding(.horizontal, DesignTokens.Spacing.xl)
+            } else {
+                // iPhone: 现有竖排布局（零改动）
+                VStack(spacing: DesignTokens.Spacing.md) {
+                    moreFeatureButtons
+                        .padding(.horizontal, DesignTokens.Spacing.xl)
+                }
+            }
         }
+    }
+
+    // 5 个 More Features 按钮（内容零改动，仅提取复用）
+    @ViewBuilder
+    private var moreFeatureButtons: some View {
+        // Card 5: Practice (Blue in Cute Mode)
+        HorizontalActionButton(
+            icon: "doc.text.fill",
+            title: NSLocalizedString("home.practice", comment: ""),
+            subtitle: NSLocalizedString("home.practiceDescription", comment: ""),
+            color: themeManager.featureCardColor("practice"),
+            action: { showingQuestionGeneration = true }
+        )
+
+        // Card 6: Mistake Review
+        HorizontalActionButton(
+            icon: "xmark.circle.fill",
+            title: NSLocalizedString("home.mistakeReview", comment: ""),
+            subtitle: NSLocalizedString("home.mistakeReviewDescription", comment: ""),
+            color: colorScheme == .dark ? DesignTokens.Colors.rainbowIndigo.dark : DesignTokens.Colors.rainbowIndigo.light,
+            action: { showingMistakeReview = true }
+        )
+
+        // Card 7: Parent Reports (Peach in Cute Mode)
+        HorizontalActionButton(
+            icon: "figure.2.and.child.holdinghands",
+            title: NSLocalizedString("home.parentReports", comment: ""),
+            subtitle: NSLocalizedString("home.parentReportsDescription", comment: ""),
+            color: themeManager.featureCardColor("reports"),
+            action: {
+                if parentModeManager.requiresAuthentication(for: .parentReports) {
+                    showingParentAuthForReports = true
+                } else {
+                    showingParentReports = true
+                }
+            }
+        )
+
+        // Card 8: Homework Album
+        HorizontalActionButton(
+            icon: "photo.on.rectangle.angled",
+            title: NSLocalizedString("home.homeworkAlbum", comment: ""),
+            subtitle: NSLocalizedString("home.homeworkAlbumDescription", comment: ""),
+            color: colorScheme == .dark ? DesignTokens.Colors.rainbowPink.dark : DesignTokens.Colors.rainbowPink.light,
+            action: { showingHomeworkAlbum = true }
+        )
+
+        // Card 9: Focus Mode
+        HorizontalActionButton(
+            icon: "brain.head.profile",
+            title: NSLocalizedString("home.focusMode", comment: ""),
+            subtitle: NSLocalizedString("home.focusModeDescription", comment: ""),
+            color: Color(red: 0.2, green: 0.8, blue: 0.7),
+            action: { showingFocusMode = true }
+        )
     }
 }
 

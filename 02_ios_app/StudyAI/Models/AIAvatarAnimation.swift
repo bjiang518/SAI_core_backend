@@ -8,7 +8,7 @@
 import SwiftUI
 import Lottie
 
-enum AIAvatarState {
+enum AIAvatarState: Equatable {
     case idle              // Normal speed, small size (0.12 scale)
     case waiting           // Fast, small, blinking (waiting for AI response)
     case processing        // Fast, small, no blinking (AI text received)
