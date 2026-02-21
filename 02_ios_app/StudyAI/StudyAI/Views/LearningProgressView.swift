@@ -24,6 +24,8 @@ struct LearningProgressView: View {
     @State private var selectedSubjectFilter: SubjectCategory? = nil
     @State private var loadingTask: Task<Void, Never>? = nil
     @State private var showingProgressInfo = false
+    // iPad vs iPhone layout
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     // ✅ Computed properties for today's activity - read directly from PointsEarningManager
     private var todayTotalQuestions: Int {
@@ -100,6 +102,9 @@ struct LearningProgressView: View {
                 }
             }
             .padding()
+            // iPad: 内容居中，最大宽度 880pt，iPhone 不受影响
+            .frame(maxWidth: sizeClass == .regular ? 880 : .infinity)
+            .frame(maxWidth: .infinity)
         }
         .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundCream : Color(.systemBackground))
         .navigationTitle(NSLocalizedString("progress.title", comment: "Progress tab title"))

@@ -38,6 +38,8 @@ struct QuestionGenerationView: View {
     @State private var showingArchiveSelection = false
     @State private var showingInfoAlert = false
     @State private var generatedSubject = ""  // Top-level subject for archiving
+    @State private var isRecentExpanded = false  // Recent Questions section collapsed by default
+    @State private var resumeSessionId: String? = nil  // Set when user taps Resume
     @Environment(\.dismiss) private var dismiss
 
     private let logger = Logger(subsystem: "com.studyai", category: "QuestionGeneration")
@@ -86,8 +88,9 @@ struct QuestionGenerationView: View {
                         ResumeSessionBanner(
                             session: latestSession,
                             onResume: {
-                                // Load the session questions
+                                // Load the session questions and record which session we're resuming
                                 generatedQuestions = latestSession.questions
+                                resumeSessionId = latestSession.id
                                 showingQuestionsList = true
                             },
                             onDismiss: {
@@ -149,7 +152,11 @@ struct QuestionGenerationView: View {
             }
             // ✅ CHANGED: Use fullScreenCover instead of sheet for fixed view
             .fullScreenCover(isPresented: $showingQuestionsList) {
-                GeneratedQuestionsListView(questions: generatedQuestions, subject: generatedSubject)
+                GeneratedQuestionsListView(
+                    questions: generatedQuestions,
+                    subject: generatedSubject,
+                    resumeSessionId: resumeSessionId
+                )
             }
             .sheet(isPresented: $showingArchiveSelection) {
                 ArchiveSelectionView(
@@ -387,82 +394,80 @@ struct QuestionGenerationView: View {
     private var progressSection: some View {
         GeometryReader { geometry in
             VStack(spacing: -60) {
-                // ============================================
-                // LOTTIE ANIMATION CONFIGURATION
-                // ============================================
-                // This displays while questions are being generated
-
                 LottieView(
-                    // ANIMATION FILE: Name of the JSON file in Resources folder (without .json extension)
-                    // Available animations: "Bubbles x2", "Fire_moving", "Loading_animation_blue"
                     animationName: "Bubbles x2",
-
-                    // LOOP MODE: How the animation repeats
-                    // Options: .loop (infinite repeat), .playOnce (plays once then stops),
-                    //          .autoReverse (plays forward then backward), .repeat(count) (repeat N times)
                     loopMode: .loop,
-
-                    // ANIMATION SPEED: Playback speed multiplier
-                    // 1.0 = normal speed, 2.0 = twice as fast, 0.5 = half speed
-                    // Range: 0.1 to 10.0 (recommended: 0.5 to 2.0 for smooth playback)
                     animationSpeed: 1.0,
-
-                    // POWER SAVING PROGRESS: Where animation pauses in power saving mode
-                    // 0.0 = start, 1.0 = end. This animation pauses at 70% (good hero pose)
                     powerSavingProgress: 0.7
                 )
-                // FRAME SIZE: Dynamic sizing based on screen width
-                // - Uses minimum of (screen width - padding) or max size
-                // - geometry.size.width - 64 = screen width minus 32pt padding on each side
-                // - 500 = maximum width cap
-                // - Height maintains aspect ratio (500/370 ≈ 1.35)
-                // The animation adapts: ~300x405 on iPhone 15 Pro, ~360x486 on Pro Max
                 .frame(
                     width: min(geometry.size.width, 500),
                     height: min(geometry.size.width - 64, 500) * (500.0 / 370.0)
                 )
-
-                // CLIPPING: Prevents animation from rendering outside the frame bounds
-                // Remove .clipped() if you want overflow effects
                 .clipped()
-
-                // ============================================
-                // ADDITIONAL MODIFIERS YOU CAN ADD:
-                // ============================================
-                .scaleEffect(1.3)                    // Scale up/down (1.0 = original size)
-                .offset(y: -100)                   // Move animation up to overlap with button
-                .frame(height: 300)                // Tell layout system it only takes 200 points of vertical space
-                // .opacity(0.8)                         // Transparency (0.0 = invisible, 1.0 = opaque)
-                // .rotationEffect(.degrees(45))         // Rotate animation
-                // .background(Color.blue.opacity(0.1))  // Add background color
-                // .cornerRadius(20)                     // Round corners
-                // .shadow(radius: 10)                   // Add shadow effect
-                // .padding()                            // Add padding around animation
+                .scaleEffect(1.3)
+                .offset(y: -100)
+                .frame(height: 300)
             }
             .frame(maxWidth: .infinity)
         }
+        .frame(height: 300)
     }
 
     private var recentQuestionsPreview: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            HStack {
-                Text(NSLocalizedString("questionGeneration.generatedQuestions", comment: ""))
-                    .font(.title3)
-                    .fontWeight(.semibold)
-
-                Spacer()
-
-                Button(NSLocalizedString("questionGeneration.viewAll", comment: "")) {
-                    showingQuestionsList = true
+        VStack(alignment: .leading, spacing: 0) {
+            // Collapsible header
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    isRecentExpanded.toggle()
                 }
-                .font(.subheadline)
-                .foregroundColor(selectedTemplate.color)
+            }) {
+                HStack {
+                    Text(NSLocalizedString("questionGeneration.recentQuestions", comment: "Recent Questions"))
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary)
+
+                    Spacer()
+
+                    HStack(spacing: 12) {
+                        // Question count badge
+                        Text("\(generatedQuestions.count)")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(selectedTemplate.color)
+                            .clipShape(Capsule())
+
+                        // View All button
+                        Button(NSLocalizedString("questionGeneration.viewAll", comment: "")) {
+                            showingQuestionsList = true
+                        }
+                        .font(.subheadline)
+                        .foregroundColor(selectedTemplate.color)
+
+                        // Chevron
+                        Image(systemName: isRecentExpanded ? "chevron.up" : "chevron.down")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
 
-            VStack(spacing: 8) {
-                ForEach(generatedQuestions.prefix(3)) { question in
-                    QuestionGenerationPreviewCard(question: question)
+            // Expandable preview cards
+            if isRecentExpanded {
+                VStack(spacing: 8) {
+                    ForEach(generatedQuestions.prefix(3)) { question in
+                        QuestionGenerationPreviewCard(question: question)
+                    }
                 }
+                .padding(.top, 12)
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
     }
@@ -1298,6 +1303,83 @@ struct ArchiveSelectionView: View {
     }
 
     @State private var selectedFilter: ArchiveFilter = .all
+    @State private var selectedSubject: String = "All"
+    @State private var selectedTimeFilter: TimeFilter = .allTime
+
+    enum TimeFilter: String, CaseIterable {
+        case thisWeek  = "This Week"
+        case thisMonth = "This Month"
+        case thisYear  = "This Year"
+        case allTime   = "All Time"
+    }
+
+    // All distinct subjects across both conversations and questions
+    private var availableSubjects: [String] {
+        var subjects = Set<String>()
+        for conv in conversations {
+            if let s = conv["subject"] as? String, !s.isEmpty { subjects.insert(s) }
+        }
+        for q in questions {
+            if !q.subject.isEmpty { subjects.insert(q.subject) }
+        }
+        return ["All"] + subjects.sorted()
+    }
+
+    // Date cutoff derived from time filter
+    private var dateCutoff: Date? {
+        let cal = Calendar.current
+        let now = Date()
+        switch selectedTimeFilter {
+        case .allTime:   return nil
+        case .thisWeek:  return cal.date(byAdding: .day,   value: -7,   to: now)
+        case .thisMonth: return cal.date(byAdding: .month, value: -1,   to: now)
+        case .thisYear:  return cal.date(byAdding: .year,  value: -1,   to: now)
+        }
+    }
+
+    private func conversationDate(_ conv: [String: Any]) -> Date? {
+        let keys = ["archived_date", "archivedDate", "archived_at", "sessionDate", "created_at"]
+        for key in keys {
+            if let s = conv[key] as? String {
+                let fmt = ISO8601DateFormatter()
+                fmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                if let d = fmt.date(from: s) { return d }
+                fmt.formatOptions = [.withInternetDateTime]
+                if let d = fmt.date(from: s) { return d }
+                // Try yyyy-MM-dd
+                let simple = DateFormatter()
+                simple.dateFormat = "yyyy-MM-dd"
+                if let d = simple.date(from: s) { return d }
+            }
+        }
+        return nil
+    }
+
+    private var filteredConversations: [[String: Any]] {
+        conversations.filter { conv in
+            let subjectOK = selectedSubject == "All" || (conv["subject"] as? String) == selectedSubject
+            let dateOK: Bool
+            if let cutoff = dateCutoff, let d = conversationDate(conv) {
+                dateOK = d >= cutoff
+            } else {
+                dateOK = dateCutoff == nil
+            }
+            return subjectOK && dateOK
+        }
+    }
+
+    private var filteredQuestions: [QuestionSummary] {
+        questions.filter { q in
+            let subjectOK = selectedSubject == "All" || q.subject == selectedSubject
+            let dateOK: Bool
+            if let cutoff = dateCutoff {
+                dateOK = q.archivedAt >= cutoff
+            } else {
+                dateOK = true
+            }
+            return subjectOK && dateOK
+        }
+    }
 
     var body: some View {
         NavigationView {
@@ -1319,7 +1401,7 @@ struct ArchiveSelectionView: View {
                     }
                     .padding()
                 } else {
-                    // ✅ NEW: Filter picker
+                    // Row 1: Content type segmented control
                     Picker("Archive Type", selection: $selectedFilter) {
                         ForEach(ArchiveFilter.allCases, id: \.self) { filter in
                             Text(filter.localizedName).tag(filter)
@@ -1329,26 +1411,88 @@ struct ArchiveSelectionView: View {
                     .padding(.horizontal)
                     .padding(.top, 8)
 
+                    // Row 2: Subject + Time dropdown filters
+                    HStack(spacing: 12) {
+                        // Subject filter
+                        Menu {
+                            ForEach(availableSubjects, id: \.self) { subject in
+                                Button(action: { selectedSubject = subject }) {
+                                    HStack {
+                                        Text(subject)
+                                        if selectedSubject == subject {
+                                            Image(systemName: "checkmark")
+                                        }
+                                    }
+                                }
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "book.closed")
+                                    .font(.caption)
+                                Text(selectedSubject == "All" ? "Subject" : selectedSubject)
+                                    .font(.subheadline)
+                                    .lineLimit(1)
+                                Image(systemName: "chevron.down")
+                                    .font(.caption2)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 7)
+                            .background(selectedSubject == "All" ? Color(.systemGray6) : Color.green.opacity(0.15))
+                            .foregroundColor(selectedSubject == "All" ? .primary : .green)
+                            .cornerRadius(8)
+                        }
+
+                        // Time filter
+                        Menu {
+                            ForEach(TimeFilter.allCases, id: \.self) { tf in
+                                Button(action: { selectedTimeFilter = tf }) {
+                                    HStack {
+                                        Text(tf.rawValue)
+                                        if selectedTimeFilter == tf {
+                                            Image(systemName: "checkmark")
+                                        }
+                                    }
+                                }
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "calendar")
+                                    .font(.caption)
+                                Text(selectedTimeFilter.rawValue)
+                                    .font(.subheadline)
+                                Image(systemName: "chevron.down")
+                                    .font(.caption2)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 7)
+                            .background(selectedTimeFilter == .allTime ? Color(.systemGray6) : Color.green.opacity(0.15))
+                            .foregroundColor(selectedTimeFilter == .allTime ? .primary : .green)
+                            .cornerRadius(8)
+                        }
+
+                        Spacer()
+                    }
+                    .padding(.horizontal)
+                    .padding(.top, 4)
+
                     // Selection Controls
                     HStack {
                         Button(action: {
-                            let totalItems = conversations.count + questions.count
+                            let totalItems = filteredConversations.count + filteredQuestions.count
                             let selectedItems = selectedConversations.count + selectedQuestions.count
 
                             if selectedItems == totalItems {
                                 selectedConversations.removeAll()
                                 selectedQuestions.removeAll()
                             } else {
-                                // Extract conversation IDs for selection
-                                let conversationIds = conversations.compactMap { $0["id"] as? String }
+                                let conversationIds = filteredConversations.compactMap { $0["id"] as? String }
                                 selectedConversations = Set(conversationIds)
-                                selectedQuestions = Set(questions.map { $0.id })
+                                selectedQuestions = Set(filteredQuestions.map { $0.id })
                             }
                         }) {
-                            let totalItems = conversations.count + questions.count
+                            let totalItems = filteredConversations.count + filteredQuestions.count
                             let selectedItems = selectedConversations.count + selectedQuestions.count
-
-                            Text(selectedItems == totalItems ? NSLocalizedString("common.deselectAll", comment: "") : NSLocalizedString("common.selectAll", comment: ""))
+                            Text(selectedItems == totalItems && totalItems > 0 ? NSLocalizedString("common.deselectAll", comment: "") : NSLocalizedString("common.selectAll", comment: ""))
                                 .font(.subheadline)
                                 .foregroundColor(.green)
                         }
@@ -1364,11 +1508,11 @@ struct ArchiveSelectionView: View {
 
                     // Archive List
                     List {
-                        // ✅ NEW: Show conversations only if filter allows
-                        if (selectedFilter == .all || selectedFilter == .conversations) && !conversations.isEmpty {
+                        // Show conversations only if filter allows
+                        if (selectedFilter == .all || selectedFilter == .conversations) && !filteredConversations.isEmpty {
                             Section(NSLocalizedString("questionGeneration.conversations", comment: "")) {
-                                ForEach(conversations.indices, id: \.self) { index in
-                                    let conversation = conversations[index]
+                                ForEach(filteredConversations.indices, id: \.self) { index in
+                                    let conversation = filteredConversations[index]
                                     let conversationId = conversation["id"] as? String ?? ""
                                     let conversationPreview = extractConversationPreview(from: conversation)
 
@@ -1387,10 +1531,10 @@ struct ArchiveSelectionView: View {
                             }
                         }
 
-                        // ✅ NEW: Show questions only if filter allows
-                        if (selectedFilter == .all || selectedFilter == .questions) && !questions.isEmpty {
+                        // Show questions only if filter allows
+                        if (selectedFilter == .all || selectedFilter == .questions) && !filteredQuestions.isEmpty {
                             Section(NSLocalizedString("questionGeneration.questions", comment: "")) {
-                                ForEach(questions) { question in
+                                ForEach(filteredQuestions) { question in
                                     ArchiveQuestionSelectionCard(
                                         question: question,
                                         isSelected: selectedQuestions.contains(question.id),
@@ -1403,6 +1547,17 @@ struct ArchiveSelectionView: View {
                                         }
                                     )
                                 }
+                            }
+                        }
+
+                        // Empty state when filters yield no results
+                        if filteredConversations.isEmpty && filteredQuestions.isEmpty {
+                            Section {
+                                Text("No items match the selected filters.")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                    .frame(maxWidth: .infinity, alignment: .center)
+                                    .padding(.vertical, 24)
                             }
                         }
                     }

@@ -9,6 +9,8 @@
 import SwiftUI
 import AVFoundation
 
+private let avatarLogger = AppLogger.forFeature("AvatarAnimation")
+
 struct VoiceChatView: View {
 
     // MARK: - Properties
@@ -19,8 +21,16 @@ struct VoiceChatView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     // Initialize with session and subject
-    init(sessionId: String, subject: String) {
-        _viewModel = StateObject(wrappedValue: VoiceChatViewModel(sessionId: sessionId, subject: subject))
+    init(sessionId: String, subject: String, voiceType: VoiceType = .adam) {
+        _viewModel = StateObject(wrappedValue: VoiceChatViewModel(sessionId: sessionId, subject: subject, voiceType: voiceType))
+    }
+
+    // MARK: - Avatar State
+
+    private var avatarState: AIAvatarState {
+        if viewModel.isAISpeaking { return .speaking }
+        if viewModel.isRecording  { return .waiting }
+        return .idle
     }
 
     // MARK: - Body
@@ -42,11 +52,14 @@ struct VoiceChatView: View {
                     errorBanner(message: errorMessage)
                 }
 
+                // Avatar header — always visible, reflects current AI state
+                avatarHeaderView
+
                 // Main content
                 ScrollViewReader { proxy in
                     ScrollView {
                         VStack(spacing: 16) {
-                            // Empty state
+                            // Empty state hint (no avatar here — avatar is in header)
                             if viewModel.messages.isEmpty && viewModel.liveTranscription.isEmpty {
                                 emptyStateView
                             }
@@ -79,8 +92,6 @@ struct VoiceChatView: View {
                     }
                 }
 
-                Spacer()
-
                 // Voice control panel
                 VoiceControlPanel(
                     isRecording: $viewModel.isRecording,
@@ -112,13 +123,49 @@ struct VoiceChatView: View {
         }
         .onAppear {
             viewModel.connectToGeminiLive()
+            avatarLogger.info("🎭 VoiceChatView appeared — voiceType=\(viewModel.voiceType.rawValue), avatarState=idle")
         }
         .onDisappear {
             viewModel.disconnect()
+            avatarLogger.info("🎭 VoiceChatView disappeared")
+        }
+        .onChange(of: viewModel.isAISpeaking) { _, newValue in
+            avatarLogger.info("🔊 isAISpeaking → \(newValue) | avatarState → \(newValue ? "speaking" : (viewModel.isRecording ? "waiting" : "idle"))")
+        }
+        .onChange(of: viewModel.isRecording) { _, newValue in
+            avatarLogger.info("🎙 isRecording → \(newValue) | avatarState → \(viewModel.isAISpeaking ? "speaking" : (newValue ? "waiting" : "idle"))")
         }
     }
 
     // MARK: - Subviews
+
+    private var avatarHeaderView: some View {
+        VStack(spacing: 8) {
+            AIAvatarAnimation(state: avatarState, voiceType: viewModel.voiceType)
+                .frame(width: 60, height: 60)
+                .animation(.easeInOut(duration: 0.4), value: avatarState)
+                .onChange(of: avatarState) { _, newState in
+                    avatarLogger.info("🎭 avatarState changed → \(String(describing: newState)) | isAISpeaking=\(viewModel.isAISpeaking) isRecording=\(viewModel.isRecording)")
+                }
+
+            // Status label beneath the avatar
+            Text(avatarStatusLabel)
+                .font(.caption)
+                .foregroundColor(themeManager.secondaryText)
+                .animation(.easeInOut(duration: 0.3), value: avatarState)
+        }
+        .padding(.top, 12)
+        .padding(.bottom, 4)
+    }
+
+    private var avatarStatusLabel: String {
+        switch avatarState {
+        case .speaking:    return NSLocalizedString("voice_chat.status.speaking", comment: "AI Speaking")
+        case .waiting:     return NSLocalizedString("voice_chat.status.listening", comment: "Listening…")
+        case .idle:        return NSLocalizedString("voice_chat.status.idle", comment: "Ready")
+        case .processing:  return NSLocalizedString("voice_chat.status.processing", comment: "Processing…")
+        }
+    }
 
     private var connectionBanner: some View {
         HStack {
@@ -162,11 +209,6 @@ struct VoiceChatView: View {
 
     private var emptyStateView: some View {
         VStack(spacing: 20) {
-            Image(systemName: "mic.circle.fill")
-                .font(.system(size: 80))
-                .foregroundColor(DesignTokens.Colors.Cute.lavender)
-                .symbolEffect(.bounce)
-
             VStack(spacing: 8) {
                 Text(NSLocalizedString("voice_chat.empty.title", comment: "Start Voice Chat"))
                     .font(.title2)
@@ -189,7 +231,7 @@ struct VoiceChatView: View {
             .background(themeManager.cardBackground)
             .cornerRadius(16)
         }
-        .padding(.top, 60)
+        .padding(.top, 20)
     }
 
     private func tipRow(icon: String, text: String) -> some View {

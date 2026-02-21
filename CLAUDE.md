@@ -527,3 +527,251 @@ Active backend: `passive-reports.js` (5 endpoints listed above under Key API End
 Active iOS: `PassiveReportsView.swift`, `PassiveReportsViewModel.swift`.
 
 Report types: `activity`, `areas_of_improvement`, `mental_health`, `summary` (4 per batch).
+
+---
+
+## Zombie Code Audit (Feb 2026)
+
+Full audit run on 2026-02-21. ~40% of iOS files and ~15% of backend are dead code.
+
+### Backend — Confirmed Zombie Files
+
+| Priority | File | Lines | Reason |
+|----------|------|-------|--------|
+| 🔴 CRITICAL | `src/gateway/routes/ai-proxy.js` | 3,393 | Imported but COMMENTED OUT in `gateway/index.js:457`. All routes now handled by modular `ai/modules/*`. Remove the `require` on line 25. |
+| 🔴 CRITICAL | `src/services/aiService.js` | 355 | Zero imports anywhere. Replaced by `ai-engine-client.js`. |
+| 🟠 HIGH | `src/gateway/routes/ai/modules/gemini-live.js` | 635 | v1 duplicate of `gemini-live-v2.js`. Only v2 is registered (`ai/index.js:28`). Both define same `/api/ai/gemini-live/connect` endpoint. |
+| 🟠 HIGH | `src/services/report-generators/activity-report-generator.js` | 282 | Duplicate of root-level `activity-report-generator.js` (1,641 lines). Never imported. |
+| 🟠 HIGH | `src/services/report-generators/improvement-report-generator.js` | 278 | Duplicate of root-level `areas-of-improvement-generator.js`. Never imported. |
+| 🟡 MEDIUM | `src/services/report-export-service.js` | 647 | Zero imports anywhere. Not wired to any route. |
+| 🟡 MEDIUM | `src/services/report-narrative-service.js` | 520 | Zero imports anywhere. Superseded by passive-report-generator. |
+| 🟡 MEDIUM | `src/services/enhanced-passive-report-generator.js` | 602 | Zero imports anywhere. Experimental "enhanced" version never integrated. |
+| 🟡 MEDIUM | `src/services/scheduling/report-scheduler.js` | ~100 | Never imported. May be future infrastructure — verify before deleting. |
+| 🟡 MEDIUM | `src/services/scheduling/timezone-manager.js` | ~100 | Only used by report-scheduler (itself unused). |
+
+**Also:** `src/gateway/routes/ai/modules/question-generation.js.legacy` — safe to delete.
+
+**Total backend zombie code: ~6,500 lines confirmed dead.**
+
+**Key architectural note:** The migration from monolithic `ai-proxy.js` → modular `ai/modules/*` is COMPLETE. The modular routes are properly registered. The old proxy file is dead but still loaded into memory at startup via `require()` on line 25.
+
+---
+
+### iOS — Confirmed Zombie Files
+
+#### Core/ — DELETE ALL (no external references)
+| File | Lines | Reason |
+|------|-------|--------|
+| `Core/OptimizedNetworkService.swift` | ~400 | **Fully commented out** since 2025-09-19. Comment says "Redundant with main NetworkService.swift". |
+| `Core/ErrorManager.swift` | ~280 | Only referenced inside OptimizedNetworkService (which is deactivated). |
+| `Core/PerformanceManager.swift` | ~150 | Only referenced inside OptimizedNetworkService (deactivated). |
+| `Core/StateManager.swift` | ~80 | References `AppStateManager` which doesn't exist. Incomplete refactoring. |
+| `Core/AppConfiguration.swift` | ~100 | Zero external references found. |
+
+#### Services/ — .bak files (DELETE)
+These are backup copies sitting as active-named files — they will be picked up by Xcode:
+- `Services/InteractiveTTSService.swift.bak`
+- `Services/MathJaxRenderer.swift.bak`
+- `Services/TTSQueueService.swift.bak`
+- `Services/VoiceInteractionService.swift.bak`
+
+#### Services/ — Confirmed Unused
+| File | Lines | Reason |
+|------|-------|--------|
+| `Services/ConversationMemoryManager.swift` | ~200 | Zero external references. |
+| `Services/ConversationStore.swift` | ~100 | Zero external references. |
+
+#### Services/ — Duplicate Implementations (Audit Required)
+**TTS — 4 competing implementations:**
+- `TextToSpeechService.swift` — basic fallback, only used inside `EnhancedTTSService`
+- `EnhancedTTSService.swift` (774 lines) — OpenAI API TTS, active
+- `InteractiveTTSService.swift` (752 lines) — AVAudioEngine real-time, active
+- `TTSQueueService.swift` — queue wrapper, active
+- → Likely `TextToSpeechService` is dead; the other 3 serve different purposes.
+
+**Math Rendering — 3 competing implementations:**
+- `MathRenderer.swift` — original
+- `SimpleMathRenderer.swift` — simplified replacement
+- `MathJaxRenderer.swift` (1,037 lines) — full MathJax
+- `SynchronizedTextRenderer.swift` — synchronized version
+- `LaTeXToHTMLConverter.swift` — LaTeX support
+- → Audit which one(s) are actually instantiated in views. At least 2 are likely dead.
+
+#### Views/ — Confirmed or Very Likely Dead
+| File | Reason |
+|------|--------|
+| `Views/WeChatStyleVoiceInput.swift` | Replaced by Live mode in `SessionChatView`. Zero navigation references. |
+| `Views/VoiceChatView.swift` | Replaced by inline Live mode. Zero navigation references. |
+| `Views/HandwritingEvaluationView.swift` | Zero navigation references. Feature appears removed. |
+| `Views/ImageCropView.swift` | Likely replaced by `UnifiedImageEditorView`. Zero navigation references. |
+| `Views/ImagePreprocessingView.swift` | Zero navigation references. |
+| `Views/ImageSourceSelectionView.swift` | Zero navigation references. |
+| `Views/NativePhotoViewer.swift` | Zero navigation references. |
+| `Views/MathJaxTestView.swift` | Debug/test view. Should not be in production. |
+| `Views/EssayResultsView.swift` | Essay grading feature unclear status. Verify then delete. |
+
+#### Views/ — Old Report System (superseded by PassiveReports)
+Per CLAUDE.md, `parent-reports.js` was deleted from backend. These iOS views may be orphaned:
+- `Views/ParentReportsView.swift` — header comment says "DISABLED on the backend"
+- `Views/ReportDetailView.swift` (872 lines) — used by `ParentReportsView` (itself dead)
+- `Views/ReportDetailComponents.swift` (1,121 lines) — used by `ReportDetailView` (itself dead)
+- `Views/ProfessionalReportComponents.swift` — same chain
+- **Keep**: `PassiveReportsView.swift`, `PassiveReportDetailView.swift`, `ParentReportsContainerView.swift` (wraps PassiveReportsView)
+
+---
+
+### Backend .bak Files — DELETE ALL
+These are backup copies that waste storage and clutter diffs:
+```
+src/gateway/routes/ai/utils/auth-helper.js.bak
+src/gateway/routes/ai/utils/session-helper.js.bak
+src/gateway/routes/ai/modules/chat-image.js.bak
+src/gateway/routes/ai/modules/homework-processing.js.bak
+src/gateway/routes/ai/modules/analytics.js.bak
+src/gateway/routes/ai/modules/tts.js.bak
+src/gateway/routes/ai/modules/session-management.js.bak
+src/gateway/routes/ai/modules/archive-retrieval.js.bak
+src/gateway/routes/ai/modules/question-processing.js.bak
+```
+
+---
+
+### Recommended Deletion Order
+
+Delete in this order to avoid accidentally breaking compile/build:
+
+**Phase 1 — Zero-risk deletes (never imported, fully dead):**
+1. All `.bak` files (iOS + backend)
+2. `question-generation.js.legacy`
+3. `src/services/aiService.js`
+4. `src/services/report-export-service.js`
+5. `src/services/report-narrative-service.js`
+6. `src/services/enhanced-passive-report-generator.js`
+7. `src/services/report-generators/` (both files)
+8. `Core/OptimizedNetworkService.swift`
+9. `Core/ErrorManager.swift`
+10. `Core/PerformanceManager.swift`
+11. `Core/StateManager.swift`
+12. `Core/AppConfiguration.swift`
+13. `Services/ConversationMemoryManager.swift`
+14. `Services/ConversationStore.swift`
+15. `Views/MathJaxTestView.swift`
+
+**Phase 2 — Remove dead import (low risk):**
+16. Remove `const AIProxyRoutes = require('./routes/ai-proxy');` from `gateway/index.js:25`
+17. Then delete `src/gateway/routes/ai-proxy.js`
+
+**Phase 3 — Verify then delete (check navigation graph first):**
+18. `src/gateway/routes/ai/modules/gemini-live.js`
+19. `Views/WeChatStyleVoiceInput.swift`
+20. `Views/VoiceChatView.swift`
+21. `Views/HandwritingEvaluationView.swift`
+22. `Views/ImageCropView.swift`, `ImagePreprocessingView.swift`, `ImageSourceSelectionView.swift`, `NativePhotoViewer.swift`
+23. `Views/ParentReportsView.swift` + `ReportDetailView.swift` + `ReportDetailComponents.swift` + `ProfessionalReportComponents.swift`
+24. `Views/EssayResultsView.swift` + `Models/EssayGradingModels.swift`
+
+**Phase 4 — Consolidation (requires code changes):**
+25. Audit TTS services — merge `TextToSpeechService` into `EnhancedTTSService`
+26. Audit math renderers — pick one, delete the rest
+27. Audit `ChatMessage.swift` + `ChatMessageModel.swift` → consolidate into `UnifiedChatMessage`
+
+---
+
+### Large Files Needing Refactoring (Active but too big)
+
+These are not zombie code but are too large and should be split up in a future refactoring sprint:
+
+| File | Lines | Suggestion |
+|------|-------|------------|
+| `NetworkService.swift` | 5,419 | Split by domain: AuthNetworkService, HomeworkNetworkService, etc. |
+| `DirectAIHomeworkView.swift` | 3,337 | Extract DirectAIHomeworkViewModel |
+| `SessionChatView.swift` | 3,044 | Extract LiveVoiceChatView component |
+| `DigitalHomeworkView.swift` | 2,997 | Extract DigitalHomeworkViewModel |
+| `MistakeReviewView.swift` | 2,873 | Split into sub-views |
+| `railway-database.js` | 5,832 | Split by domain (auth queries, session queries, etc.) |
+
+---
+
+## AI Engine Zombie Code Audit (Feb 2026)
+
+Full audit run on 2026-02-21. The AI engine is the healthiest of the three components (~4% dead code vs 40% iOS / 15% backend). Architecture is well-structured.
+
+### Overview: 27 active endpoints across main.py + 3 routers
+
+**Routers registered in main.py:**
+- `diagram_router` → `POST /api/v1/generate-diagram`
+- `error_analysis_router` → `POST /api/v1/error-analysis/analyze`, `POST /api/v1/error-analysis/analyze-batch`
+- `concept_extraction_router` → `POST /api/v1/concept-extraction/extract`, `POST /api/v1/concept-extraction/extract-batch`
+
+**Services imported and active in main.py:**
+- `EducationalAIService` (`improved_openai_service.py`) — primary AI service
+- `GeminiEducationalAIService` (`gemini_service.py`) — used conditionally when `model_provider="gemini"` in requests
+- `AdvancedPromptService` (`prompt_service.py`) — prompt templates, used by session endpoints
+- `SessionService` (`session_service.py`) — in-memory/Redis session management
+- `AIAnalyticsService` (`ai_analytics_service.py`) — analytics insights endpoint
+- `latex_converter`, `svg_utils`, `matplotlib_generator`, `graphviz_generator` — diagram generation
+
+### Confirmed Zombie Files (DELETE)
+
+| Priority | File | Lines | Reason |
+|----------|------|-------|--------|
+| 🔴 CRITICAL | `src/services/optimized_prompt_service.py` | 238 | Defines a duplicate `AdvancedPromptService` class. Zero imports anywhere. `prompt_service.py` is the real one. |
+| 🔴 CRITICAL | `src/services/external_latex_renderer.py` | 160 | QuickLaTeX API client — zero imports anywhere. `latex_converter.py` (system pdflatex) is used instead. |
+| 🟠 HIGH | `src/main.py.backup` | ~3,100 | Outdated backup from Jan 14, 2026. |
+| 🟠 HIGH | `_archived_code/openai_service.py.backup` | 734 | Backup from Nov 20, 2025. Pre-dates current `improved_openai_service.py`. |
+
+**Total: ~4,200 lines of confirmed dead code.**
+
+### Test Files in Wrong Location (MOVE, don't delete)
+
+These 3 test files are in the root but `.gitignore` expects them in `tests/`:
+```
+test_diagram_generation.py     (130 lines)
+test_followup_diagrams.py      (248 lines)
+test_simple_diagram_logic.py   (237 lines)
+src/test_taxonomies.py         (177 lines)  ← also misplaced
+```
+Move all to: `04_ai_engine_service/tests/`
+
+### Endpoints NOT Called by Backend (potential dead endpoints)
+
+The backend (`ai-engine-client.js`) never calls these main.py endpoints:
+- `GET /api/v1/subjects` — subject list
+- `GET /api/v1/personalization/{student_id}` — personalization data
+- `POST /api/v1/analyze-image` — raw image analysis
+- `POST /api/v1/process-image-question` — image + question combo
+- `POST /api/v1/sessions/{session_id}/message/stream` — streaming session (backend uses non-streaming)
+- `POST /api/v1/homework-followup/{session_id}/message` — homework follow-up (separate from main sessions)
+
+These may be intentional future endpoints or accessible directly. Verify before removing.
+
+### requirements.txt — Bloated Dependencies (~50–70MB wasted Docker image space)
+
+The following packages are in `requirements.txt` but **never imported** anywhere in the codebase:
+
+| Package | Why it's dead |
+|---------|---------------|
+| `pinecone-client==2.4.0` | Vector DB — not used |
+| `chromadb==0.4.18` | Vector DB — not used |
+| `langchain==0.0.339` | LLM framework — not used |
+| `langchain-community==0.0.10` | LLM framework — not used |
+| `langchain-openai==0.0.2` | LLM framework — not used |
+| `sqlalchemy==2.0.23` | ORM — DB queries go through backend, not AI engine |
+| `alembic==1.13.0` | DB migrations — not used |
+| `psycopg2-binary==2.9.9` | PostgreSQL driver — only needed with SQLAlchemy |
+| `sympy==1.12` | Symbolic math — not used |
+| `scipy==1.11.4` | Scientific computing — not used |
+
+**Note**: `requirements-railway.txt` is already trimmed and correct. The bloat is only in `requirements.txt` (dev/local). Remove from `requirements.txt` to keep both files consistent.
+
+### All 11 Subject Taxonomies are Active
+
+All taxonomy files (`taxonomy_english.py`, `taxonomy_physics.py`, etc.) are imported by `taxonomy_router.py` which is used by `error_analysis_service.py` and `concept_extraction_service.py`. None are zombie code.
+
+### Large File Needing Future Refactoring
+
+| File | Lines | Suggestion |
+|------|-------|------------|
+| `src/main.py` | 3,064 | 24 endpoints in one file — split into route modules under `src/routes/` |
+| `src/services/improved_openai_service.py` | 3,712 | Two classes + grading + parsing + caching — split into `openai_api.py` + `response_parser.py` + `grading_engine.py` |
+| `src/services/prompt_service.py` | 1,362 | Template-heavy but acceptable |

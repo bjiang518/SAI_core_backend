@@ -9,6 +9,8 @@
 import SwiftUI
 import Combine
 
+private let avatarLogger = AppLogger.forFeature("AvatarAnimation")
+
 // MARK: - Live VM Holder
 // Wraps VoiceChatViewModel? so SwiftUI can observe its @Published properties.
 // @State alone on an ObservableObject reference does NOT subscribe to published changes.
@@ -139,8 +141,8 @@ struct SessionChatView: View {
     // Avatar and TTS State - Consolidated
     @State private var avatarState = AvatarState()
 
-    // Avatar drag position (offset from top-leading anchor)
-    @State private var avatarPosition: CGPoint = CGPoint(x: 0, y: -60)
+    // Avatar drag position — y=0 is screen top (ignoresSafeArea applied to overlay)
+    @State private var avatarPosition: CGPoint = CGPoint(x: 0, y: 0)
     @State private var avatarDragOffset: CGSize = .zero
 
     // MARK: - Avatar State Struct
@@ -164,6 +166,7 @@ struct SessionChatView: View {
     // Environment
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.scenePhase) var scenePhase
+    @Environment(\.horizontalSizeClass) private var sizeClass  // iPad vs iPhone
 
     private var subjects: [String] {
         [
@@ -209,6 +212,12 @@ struct SessionChatView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)  // Hide navigation bar background
         .background(themeManager.backgroundColor)  // Ensure background color extends everywhere
+        // Avatar overlay: anchored to .topLeading with .ignoresSafeArea so y=0 is the
+        // very top of the screen (same layer as the navigation bar).  The avatar can
+        // therefore sit at the same vertical height as the ⋯ toolbar button.
+        .overlay(alignment: .topLeading) {
+            floatingAvatarOverlay
+        }
     }
 
     @ToolbarContentBuilder
@@ -266,7 +275,7 @@ struct SessionChatView: View {
                     } else {
                         Button(action: {
                             let enterLive: (String) -> Void = { sessionId in
-                                let vm = VoiceChatViewModel(sessionId: sessionId, subject: viewModel.selectedSubject)
+                                let vm = VoiceChatViewModel(sessionId: sessionId, subject: viewModel.selectedSubject, voiceType: voiceService.voiceSettings.voiceType)
                                 liveVMHolder.set(vm)
                                 vm.connectToGeminiLive()
                                 withAnimation(.easeInOut(duration: 0.3)) {
@@ -584,7 +593,30 @@ struct SessionChatView: View {
                 liveRenderToken += 1
                 // Drive avatar animation from Gemini Live audio
                 if let speaking = isSpeaking {
+                    avatarLogger.info("🎭 [onChange] isAISpeaking → \(speaking) — setting avatarState to \(speaking ? "speaking" : "idle")")
                     avatarState.animationState = speaking ? .speaking : .idle
+                }
+            }
+            // RELIABILITY FIX: onChange(of: optional?.property) can miss rapid updates.
+            // onReceive subscribes directly to the inner VM's publisher so every
+            // isAISpeaking flip — including fast true→false within the same runloop
+            // cycle — is guaranteed to reach the avatar.
+            .onReceive(
+                liveVMHolder.$vm
+                    .compactMap { $0 }                        // unwrap Optional<VoiceChatViewModel>
+                    .flatMap { $0.objectWillChange }          // subscribe to inner VM changes
+            ) { _ in
+                // willChange fires *before* the new value is written; dispatch async
+                // so we read the already-updated published property.
+                DispatchQueue.main.async {
+                    guard let vm = liveVMHolder.vm else { return }
+                    let newState: AIAvatarState = vm.isAISpeaking ? .speaking
+                                                : vm.isRecording  ? .waiting
+                                                : .idle
+                    if avatarState.animationState != newState {
+                        avatarLogger.info("🎭 [onReceive] avatarState \(String(describing: avatarState.animationState)) → \(String(describing: newState)) | isAISpeaking=\(vm.isAISpeaking) isRecording=\(vm.isRecording)")
+                        avatarState.animationState = newState
+                    }
                 }
             }
     }
@@ -684,6 +716,9 @@ struct SessionChatView: View {
                     // Stop any playing audio when user taps messages area
                     ttsQueueService.stopAllTTS()
                 }
+                // iPad: 限制消息区最大宽度并居中，iPhone 不受影响
+                .frame(maxWidth: sizeClass == .regular ? 760 : .infinity)
+                .frame(maxWidth: .infinity)
 
             // Modern floating message input
             modernMessageInputView
@@ -691,98 +726,9 @@ struct SessionChatView: View {
                     // Stop any playing audio when user taps input area
                     ttsQueueService.stopAllTTS()
                 }
-        }
-        // ✅ FIX: Add avatar as overlay - won't be clipped and maintains original appearance
-        .overlay(alignment: .topLeading) {
-            // Floating AI Avatar at top left (after first message)
-            if hasConversationStarted {
-                ZStack(alignment: .center) {
-                    // Tap area - large invisible circle
-                    Circle()
-                        .fill(Color.clear)
-                        .frame(width: 140, height: 140)
-                        .contentShape(Circle())
-                        .onTapGesture {
-                            toggleTopAvatarTTS()
-                        }
-
-                    // Visual avatar - positioned to align with tap area
-                    AIAvatarAnimation(
-                        state: avatarState.animationState,
-                        voiceType: avatarState.latestMessage.isEmpty ? voiceService.voiceSettings.voiceType : avatarState.voiceType
-                    )
-                    .frame(width: 30, height: 30)
-                    .offset(x: 0, y: 20)
-                    .allowsHitTesting(false)
-                }
-                .offset(
-                    x: avatarPosition.x + avatarDragOffset.width,
-                    y: avatarPosition.y + avatarDragOffset.height
-                )
-                // simultaneousGesture lets tap and drag coexist — drag doesn't steal from onTapGesture
-                .simultaneousGesture(
-                    DragGesture(minimumDistance: 10)
-                        .onChanged { value in
-                            avatarDragOffset = value.translation
-                        }
-                        .onEnded { value in
-                            let screenWidth = UIScreen.main.bounds.width
-                            let screenHeight = UIScreen.main.bounds.height
-                            let halfTap: CGFloat = 70
-
-                            var newX = avatarPosition.x + value.translation.width
-                            var newY = avatarPosition.y + value.translation.height
-
-                            // Clamp vertically within safe area
-                            newY = max(-screenHeight * 0.5 + halfTap + 100, newY)
-                            newY = min(screenHeight * 0.5 - halfTap - 80, newY)
-
-                            // Snap to nearest horizontal edge
-                            let currentAbsX = halfTap + newX
-                            newX = currentAbsX < screenWidth / 2 ? 0 : screenWidth - halfTap * 2
-
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
-                                avatarPosition = CGPoint(x: newX, y: newY)
-                                avatarDragOffset = .zero
-                            }
-                        }
-                )
-                .zIndex(10)  // ✅ FIX: Ensure avatar is above other UI elements
-                .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("AIMessageAppeared"))) { notification in
-                    handleAIMessageAppeared(notification)
-                }
-                .onReceive(voiceService.$currentSpeakingMessageId) { messageId in
-                    updateTopAvatarState()
-                }
-                .onReceive(voiceService.$interactionState) { state in
-                    // Update avatar state when TTS actually starts/stops speaking
-                    if Self.debugMode {
-                    print("🎭 [Avatar] VoiceService state changed: \(state)")
-                    print("🎭 [Avatar] Current speaking message: \(voiceService.currentSpeakingMessageId ?? "nil")")
-                    print("🎭 [Avatar] Latest AI message: \(avatarState.latestMessageId ?? "nil")")
-                    }
-
-                    switch state {
-                    case .speaking:
-                        // Audio is actively playing - update to speaking state
-                        if Self.debugMode {
-                        print("🎭 [Avatar] Setting to .speaking state")
-                        }
-                        avatarState.animationState = .speaking
-                    case .idle:
-                        // Audio stopped - return to idle
-                        if avatarState.animationState == .speaking {
-                            if Self.debugMode {
-                            print("🎭 [Avatar] Setting to .idle state (was speaking)")
-                            }
-                            avatarState.animationState = .idle
-                        }
-                    default:
-                        break
-                    }
-                }
-                .transition(.opacity)
-            }
+                // iPad: 输入栏同步限宽居中
+                .frame(maxWidth: sizeClass == .regular ? 760 : .infinity)
+                .frame(maxWidth: .infinity)
         }
         .safeAreaInset(edge: .bottom) {
             // Padding to lift input box above custom tab bar in cute mode
@@ -2512,6 +2458,100 @@ struct SessionChatView: View {
             print("🔄 [Avatar] No audio playing: Setting to .idle")
             }
             avatarState.animationState = .idle
+        }
+    }
+
+    // MARK: - Floating Avatar Overlay
+
+    /// Floating draggable avatar. Placed on `baseContent` with `.ignoresSafeArea(.all, edges: .top)`
+    /// so its coordinate origin is the **screen top** (y=0 = top of status bar), matching
+    /// the same vertical space as UIKit navigation bar items like the ⋯ button.
+    @ViewBuilder
+    private var floatingAvatarOverlay: some View {
+        if hasConversationStarted {
+            ZStack(alignment: .center) {
+                // Tap area — large invisible circle
+                Circle()
+                    .fill(Color.clear)
+                    .frame(width: 140, height: 140)
+                    .contentShape(Circle())
+                    .onTapGesture { toggleTopAvatarTTS() }
+
+                // Visual avatar
+                AIAvatarAnimation(
+                    state: avatarState.animationState,
+                    voiceType: voiceService.voiceSettings.voiceType
+                )
+                .frame(width: 30, height: 30)
+                .offset(x: 0, y: 20)
+                .allowsHitTesting(false)
+            }
+            // ignoresSafeArea expands the overlay's coordinate space to include the
+            // status bar + nav bar region, so negative/small y values map to the top chrome.
+            .ignoresSafeArea(.all, edges: .top)
+            .offset(
+                x: avatarPosition.x + avatarDragOffset.width,
+                y: avatarPosition.y + avatarDragOffset.height
+            )
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 10)
+                    .onChanged { value in
+                        avatarDragOffset = value.translation
+                    }
+                    .onEnded { value in
+                        let screenWidth  = UIScreen.main.bounds.width
+                        let screenHeight = UIScreen.main.bounds.height
+                        let halfTap: CGFloat = 70
+
+                        let safeInsets = UIApplication.shared.connectedScenes
+                            .compactMap { $0 as? UIWindowScene }
+                            .first?.windows.first?.safeAreaInsets
+                        let safeTop    = safeInsets?.top    ?? 50
+                        let safeBottom = safeInsets?.bottom ?? 34
+
+                        var newX = avatarPosition.x + value.translation.width
+                        var newY = avatarPosition.y + value.translation.height
+
+                        // Now that ignoresSafeArea is set, y=0 is screen top.
+                        // Top bound: keep avatar center below the status bar bottom.
+                        let topBound    = safeTop - halfTap + 4
+                        // Bottom bound: stay above tab bar + input bar + home indicator.
+                        let bottomBound = screenHeight - safeBottom - 49 - 80 - halfTap
+                        newY = max(topBound, min(bottomBound, newY))
+
+                        // Snap to nearest horizontal edge
+                        let currentAbsX = halfTap + newX
+                        newX = currentAbsX < screenWidth / 2 ? 0 : screenWidth - halfTap * 2
+
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+                            avatarPosition = CGPoint(x: newX, y: newY)
+                            avatarDragOffset = .zero
+                        }
+                    }
+            )
+            .zIndex(10)
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("AIMessageAppeared"))) { notification in
+                handleAIMessageAppeared(notification)
+            }
+            .onReceive(voiceService.$currentSpeakingMessageId) { _ in
+                updateTopAvatarState()
+            }
+            .onReceive(voiceService.$interactionState) { state in
+                if Self.debugMode {
+                    print("🎭 [Avatar] VoiceService state: \(state)")
+                }
+                switch state {
+                case .speaking:
+                    avatarState.animationState = .speaking
+                case .idle:
+                    if avatarState.animationState == .speaking {
+                        avatarState.animationState = .idle
+                    }
+                default:
+                    break
+                }
+            }
+            .transition(.opacity)
         }
     }
 
