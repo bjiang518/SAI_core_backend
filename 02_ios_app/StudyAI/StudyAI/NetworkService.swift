@@ -3603,9 +3603,6 @@ class NetworkService: ObservableObject {
         // Voice audio file paths (Live mode only) — keyed by message index string
         if let audioFiles = voiceAudioFiles, !audioFiles.isEmpty {
             conversationData["voiceAudioFiles"] = audioFiles
-            print("📦 [ArchiveSession] Stored voiceAudioFiles in local record: \(audioFiles)")
-        } else {
-            print("📦 [ArchiveSession] No voiceAudioFiles to store (nil or empty)")
         }
 
         // Title
@@ -3641,10 +3638,9 @@ class NetworkService: ObservableObject {
         }
 
         // ──────────────────────────────────────────────
+        // ──────────────────────────────────────────────
         // STEP 3: Save to local storage IMMEDIATELY
         // ──────────────────────────────────────────────
-        let storedAudioFiles = conversationData["voiceAudioFiles"] as? [String: String]
-        print("📦 [ArchiveSession] Saving to local storage — keys: \(conversationData.keys.sorted()), voiceAudioFiles=\(storedAudioFiles.map { "\($0.count) entries: \($0)" } ?? "nil")")
         ConversationLocalStorage.shared.saveConversation(conversationData)
         invalidateCache()
         print("✅ [Archive] Saved conversation locally (ID: \(conversationId), \(finalMessageCount) messages)")
