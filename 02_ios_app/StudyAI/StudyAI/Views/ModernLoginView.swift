@@ -13,6 +13,7 @@ struct ModernLoginView: View {
     @State private var email = ""
     @State private var password = ""
     @State private var showingSignUp = false
+    @State private var showingForgotPassword = false
     @State private var showingError = false
     @State private var showingFaceIDPrompt = false
     @State private var isPasswordVisible = false  // ✅ Password visibility toggle
@@ -74,6 +75,9 @@ struct ModernLoginView: View {
         }
         .sheet(isPresented: $showingSignUp) {
             ModernSignUpView(onSignUpSuccess: onLoginSuccess)
+        }
+        .sheet(isPresented: $showingForgotPassword) {
+            ForgotPasswordView()
         }
         .onChange(of: authService.isAuthenticated) { _, isAuthenticated in
             if isAuthenticated {
@@ -372,6 +376,16 @@ struct ModernLoginView: View {
                     .padding(.trailing, 12)
                 }
                 .textFieldStyle(PlayfulTextFieldStyle())
+            }
+
+            // Forgot password link
+            HStack {
+                Spacer()
+                Button(NSLocalizedString("forgot_password", comment: "Forgot password link")) {
+                    showingForgotPassword = true
+                }
+                .font(.caption)
+                .foregroundColor(.blue)
             }
 
             // Sign in button

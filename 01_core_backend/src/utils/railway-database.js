@@ -572,25 +572,36 @@ const db = {
    * Verify code for email verification
    */
   async verifyCode(email, code) {
-    const query = `
+    // First check if a record exists for this email at all (regardless of code match)
+    const recordQuery = `
       SELECT * FROM email_verifications
-      WHERE email = $1 AND code = $2 AND expires_at > NOW()
+      WHERE email = $1
     `;
+    const recordResult = await this.query(recordQuery, [email]);
 
-    const result = await this.query(query, [email, code]);
+    if (recordResult.rows.length === 0) {
+      return false;
+    }
 
-    if (result.rows.length === 0) {
-      // Increment attempts if verification record exists
+    const verification = recordResult.rows[0];
+
+    // Block if too many failed attempts
+    if (verification.attempts >= 10) {
+      return false;
+    }
+
+    // Check expiry
+    if (new Date(verification.expires_at) <= new Date()) {
+      return false;
+    }
+
+    // Check code match
+    if (verification.code !== code) {
+      // Only increment attempts on wrong code
       await this.query(
         'UPDATE email_verifications SET attempts = attempts + 1 WHERE email = $1',
         [email]
       );
-      return false;
-    }
-
-    // Check if too many attempts
-    const verification = result.rows[0];
-    if (verification.attempts >= 5) {
       return false;
     }
 
@@ -603,6 +614,22 @@ const db = {
   async deleteVerificationCode(email) {
     const query = 'DELETE FROM email_verifications WHERE email = $1';
     await this.query(query, [email]);
+  },
+
+  /**
+   * Update user password (for password reset flow)
+   */
+  async updateUserPassword(email, newPassword) {
+    const bcrypt = require('bcryptjs');
+    const saltRounds = 12;
+    const passwordHash = await bcrypt.hash(newPassword, saltRounds);
+    const query = `
+      UPDATE users SET password_hash = $1, updated_at = NOW()
+      WHERE email = $2
+      RETURNING id, email
+    `;
+    const result = await this.query(query, [passwordHash, email]);
+    return result.rows[0] || null;
   },
 
   /**

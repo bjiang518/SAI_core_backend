@@ -300,6 +300,17 @@
 "emailVerification.wrongEmail" = "Wrong email?";
 "emailVerification.change" = "Change";
 
+// Password Reset
+"forgot_password" = "Forgot Password?";
+"reset_password_title" = "Reset Password";
+"reset_password_email_prompt" = "Enter your email to receive a reset code";
+"send_reset_code" = "Send Reset Code";
+"reset_code_sent" = "A 6-digit reset code was sent to your email";
+"new_password" = "New Password";
+"confirm_new_password" = "Confirm New Password";
+"reset_password_button" = "Reset Password";
+"password_reset_success" = "Password reset successfully. Please log in.";
+
 // Account Password Management
 "accountPassword.title" = "Account Password";
 "accountPassword.subtitle" = "Change your account login password";
