@@ -211,6 +211,37 @@ struct PracticeSession: Codable, Identifiable {
         questions.count - completedQuestionIds.count
     }
 
+    var localizedGenerationType: String {
+        switch generationType {
+        case "Random Practice":
+            return NSLocalizedString("questionGeneration.type.random", comment: "")
+        case "Conversation-Based", "Conversation-Based Practice":
+            return NSLocalizedString("questionGeneration.type.conversationBased", comment: "")
+        case "Mistake-Based", "Mistake-Based Practice":
+            return NSLocalizedString("questionGeneration.type.mistakeBased", comment: "")
+        default:
+            return generationType
+        }
+    }
+
+    var generationTypeColor: Color {
+        switch generationType {
+        case "Random Practice": return .blue
+        case "Conversation-Based", "Conversation-Based Practice": return .green
+        case "Mistake-Based", "Mistake-Based Practice": return .orange
+        default: return .blue
+        }
+    }
+
+    var generationTypeIcon: String {
+        switch generationType {
+        case "Random Practice": return "dice.fill"
+        case "Conversation-Based", "Conversation-Based Practice": return "books.vertical.fill"
+        case "Mistake-Based", "Mistake-Based Practice": return "exclamationmark.triangle.fill"
+        default: return "questionmark.circle.fill"
+        }
+    }
+
     // Custom coding for dictionary with Any values
     enum CodingKeys: String, CodingKey {
         case id, questions, generationType, subject, difficulty, questionType
@@ -300,63 +331,76 @@ struct ResumeSessionBanner: View {
     let onDismiss: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Image(systemName: "clock.arrow.circlepath")
-                        .foregroundColor(.orange)
-                    Text("Resume Practice")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
+        ZStack(alignment: .topTrailing) {
+            // Main card body — same HStack layout as GenerationTypeCard
+            HStack(spacing: 16) {
+                // LEFT: Icon in colored circle (same as GenerationTypeCard)
+                ZStack {
+                    Circle()
+                        .fill(session.generationTypeColor.opacity(0.15))
+                        .frame(width: 50, height: 50)
+
+                    Image(systemName: session.generationTypeIcon)
+                        .font(.title2)
+                        .foregroundColor(session.generationTypeColor)
                 }
 
-                Text("\(session.generationType) • \(session.remainingQuestions) questions left")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                // MIDDLE: Title + subtitle + progress bar
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(NSLocalizedString("questionGeneration.resume.title", comment: ""))
+                        .font(.body.bold())
+                        .foregroundColor(.primary)
 
-                // Progress bar
-                GeometryReader { geometry in
-                    ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(Color.gray.opacity(0.2))
-                            .frame(height: 4)
+                    Text(String(format: NSLocalizedString("questionGeneration.resume.subtitle", comment: ""), session.localizedGenerationType, session.remainingQuestions))
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
 
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(Color.orange)
-                            .frame(width: geometry.size.width * session.progressPercentage, height: 4)
+                    // Progress bar
+                    GeometryReader { geometry in
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(Color.gray.opacity(0.2))
+                                .frame(height: 4)
+
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(session.generationTypeColor)
+                                .frame(width: geometry.size.width * session.progressPercentage, height: 4)
+                        }
                     }
+                    .frame(height: 4)
                 }
-                .frame(height: 4)
-            }
 
-            Spacer()
+                Spacer()
 
-            VStack(spacing: 8) {
+                // RIGHT: Continue button (same side as GenerationTypeCard checkmark)
                 Button(action: onResume) {
-                    Text("Resume")
+                    Text(NSLocalizedString("questionGeneration.resume.button", comment: ""))
                         .font(.caption)
                         .fontWeight(.semibold)
                         .foregroundColor(.white)
-                        .padding(.horizontal, 16)
+                        .padding(.horizontal, 14)
                         .padding(.vertical, 8)
-                        .background(Color.orange)
+                        .background(session.generationTypeColor)
                         .cornerRadius(8)
                 }
-
-                Button(action: onDismiss) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.gray)
-                }
             }
+            .padding()
+            .background(session.generationTypeColor.opacity(0.05))
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(session.generationTypeColor.opacity(0.3), lineWidth: 1)
+            )
+
+            // TOP-RIGHT: X dismiss button
+            Button(action: onDismiss) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(.gray.opacity(0.7))
+                    .background(Color(.systemBackground))
+                    .clipShape(Circle())
+            }
+            .offset(x: 8, y: -8)
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.orange.opacity(0.1))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.orange.opacity(0.3), lineWidth: 1)
-        )
     }
 }

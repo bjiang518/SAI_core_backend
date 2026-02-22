@@ -128,7 +128,7 @@ class PassiveReportGenerator {
      * @param {Object} dateRange - { startDate, endDate }
      * @returns {Promise<Object>} Generated batch info
      */
-    async generateAllReports(userId, period, dateRange) {
+    async generateAllReports(userId, period, dateRange, language = 'en') {
         const startTime = Date.now();
 
         // ✅ UPDATED: Accept both weekly and monthly
@@ -246,7 +246,8 @@ class PassiveReportGenerator {
                     dateRange.endDate,
                     studentName,
                     studentAge,
-                    period  // ✅ Pass period for context-aware language
+                    period,  // ✅ Pass period for context-aware language
+                    language  // ✅ Pass language for i18n
                 );
 
                 if (activityHTML) {
@@ -278,7 +279,8 @@ class PassiveReportGenerator {
                     dateRange.endDate,
                     studentName,
                     studentAge,
-                    period  // ✅ Pass period
+                    period,  // ✅ Pass period
+                    language  // ✅ Pass language for i18n
                 );
 
                 if (improvementHTML) {
@@ -310,7 +312,8 @@ class PassiveReportGenerator {
                     dateRange.endDate,
                     studentAge,
                     studentName,
-                    period  // ✅ Pass period
+                    period,  // ✅ Pass period
+                    language  // ✅ Pass language for i18n
                 );
 
                 if (mentalHealthHTML) {
@@ -348,7 +351,8 @@ class PassiveReportGenerator {
                     studentAge,
                     userId,  // ✅ Pass userId for AI context
                     period,  // ✅ Pass period
-                    dateRange.startDate  // ✅ Pass startDate for AI context
+                    dateRange.startDate,  // ✅ Pass startDate for AI context
+                    language  // ✅ Pass language for i18n
                 );
 
                 if (summaryHTML) {
@@ -521,7 +525,7 @@ class PassiveReportGenerator {
      * Generate summary report by synthesizing data
      * ✅ UPDATED: Now period-aware and with AI insights
      */
-    async generateSummaryReport(questions, conversations, studentName, studentAge, userId, period = 'weekly', startDate = new Date()) {
+    async generateSummaryReport(questions, conversations, studentName, studentAge, userId, period = 'weekly', startDate = new Date(), language = 'en') {
         // Basic data structure for summary
         const activityData = {
             totalQuestions: questions.length,
@@ -564,7 +568,8 @@ class PassiveReportGenerator {
             studentAge,
             userId,
             period,  // ✅ Pass period for context-aware language
-            startDate  // ✅ Pass startDate for AI context
+            startDate,  // ✅ Pass startDate for AI context
+            language  // ✅ Pass language for i18n
         );
     }
 

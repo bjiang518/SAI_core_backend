@@ -34,7 +34,7 @@ struct TaxonomyFilterView: View {
         VStack(alignment: .leading, spacing: 12) {
             // Header with mode switcher
             HStack {
-                Text("Filter by Topic")
+                Text(NSLocalizedString("mistakeReview.filter.filterByTopic", comment: ""))
                     .font(.subheadline)
                     .fontWeight(.semibold)
 
@@ -50,7 +50,7 @@ struct TaxonomyFilterView: View {
 
             // Content based on visualization mode
             if taxonomyData.isEmpty {
-                Text("No taxonomy data available")
+                Text(NSLocalizedString("mistakeReview.filter.noTaxonomyData", comment: ""))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .padding()
@@ -123,7 +123,7 @@ struct TaxonomyFilterView: View {
         Button(action: {
             selectedDetailedBranches.removeAll()
         }) {
-            Text("Clear (\(selectedDetailedBranches.count))")
+            Text(String(format: NSLocalizedString("mistakeReview.filter.clearCount", comment: ""), selectedDetailedBranches.count))
                 .font(.caption)
                 .foregroundColor(.red)
         }
@@ -221,7 +221,7 @@ struct TreeBasedTaxonomyView: View {
             // Root node
             TreeNode(
                 icon: "circle.fill",
-                title: "All Topics",
+                title: NSLocalizedString("mistakeReview.filter.allTopics", comment: ""),
                 level: 0,
                 isExpanded: true,
                 onTap: nil

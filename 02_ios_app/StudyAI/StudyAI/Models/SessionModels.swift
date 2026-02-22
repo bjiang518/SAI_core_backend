@@ -188,7 +188,7 @@ enum SubjectCategory: String, CaseIterable, Codable {
     }
     
     var displayName: String {
-        return self.rawValue
+        return NSLocalizedString("subject.\(self.rawValue.lowercased().replacingOccurrences(of: " ", with: ""))", value: self.rawValue, comment: "")
     }
     
     static func detectSubject(from result: HomeworkParsingResult) -> SubjectCategory {

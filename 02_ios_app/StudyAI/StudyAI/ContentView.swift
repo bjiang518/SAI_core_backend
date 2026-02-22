@@ -635,7 +635,7 @@ struct ModernProfileView: View {
                                 .foregroundColor(.green)
                                 .frame(width: 20)
 
-                            Text("\(authService.getBiometricType()) Login")
+                            Text(String(format: NSLocalizedString("settings.biometricLogin", comment: ""), authService.getBiometricType()))
                                 .font(.body)
 
                             Spacer()
@@ -716,15 +716,15 @@ struct ModernProfileView: View {
                 // APP INFO SECTION
                 Section {
                     VStack(spacing: 8) {
-                        Text("StudyMates v1.0")
+                        Text(NSLocalizedString("settings.appVersion", comment: ""))
                             .font(.caption)
                             .foregroundColor(.secondary)
 
-                        Text("Enhanced with Modern Authentication")
+                        Text(NSLocalizedString("settings.appTagline", comment: ""))
                             .font(.caption)
                             .foregroundColor(.secondary)
 
-                        Text("Powered by OpenAI GPT-4")
+                        Text(NSLocalizedString("settings.appPoweredBy", comment: ""))
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -776,8 +776,8 @@ struct ModernProfileView: View {
         }
         .sheet(isPresented: $showingParentControls) {
             ParentAuthenticationView(
-                title: "Parent Controls",
-                message: "Verify parental access to manage settings",
+                title: NSLocalizedString("settings.parentControls", comment: ""),
+                message: NSLocalizedString("settings.parentControls.message", comment: ""),
                 onSuccess: {
                     // Parent authenticated - show controls
                     showingParentControls = false

@@ -21,7 +21,7 @@ struct RawQuestionText: View {
                     Image(systemName: "doc.text")
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
-                    Text("Full Question:")
+                    Text(NSLocalizedString("renderer.fullQuestion", comment: ""))
                         .font(.system(size: 11, weight: .medium))
                         .foregroundColor(.secondary)
                 }
@@ -68,13 +68,13 @@ struct GradeBadge: View {
     }
 
     var gradeText: String {
-        guard let grade = grade else { return "Ungraded" }
+        guard let grade = grade else { return NSLocalizedString("renderer.ungraded", comment: "") }
         switch grade {
         case "CORRECT": return NSLocalizedString("homeworkResults.correct", comment: "")
         case "INCORRECT": return NSLocalizedString("homeworkResults.incorrect", comment: "")
         case "EMPTY": return NSLocalizedString("homeworkResults.empty", comment: "")
         case "PARTIAL_CREDIT", "PARTIAL": return NSLocalizedString("homeworkResults.partialCredit", comment: "")
-        default: return "Unknown"
+        default: return NSLocalizedString("renderer.unknownGrade", comment: "")
         }
     }
 
@@ -105,7 +105,7 @@ struct AnswerComparisonView: View {
                         .foregroundColor(.blue)
                         .font(.system(size: 16))
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Student Answer")
+                        Text(NSLocalizedString("renderer.studentAnswer", comment: ""))
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(.secondary)
                         MathFormattedText(student, fontSize: 14)
@@ -124,7 +124,7 @@ struct AnswerComparisonView: View {
                         .foregroundColor(.orange)
                         .font(.system(size: 16))
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Correct Answer")
+                        Text(NSLocalizedString("renderer.correctAnswer", comment: ""))
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(.secondary)
                         MathFormattedText(correct, fontSize: 14)
@@ -185,7 +185,7 @@ struct MultipleChoiceRenderer: View {
                 Button(action: onTapAskAI) {
                     HStack {
                         Image(systemName: "message.fill")
-                        Text("Follow Up")
+                        Text(NSLocalizedString("proMode.followUp", comment: ""))
                     }
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.blue)
@@ -299,7 +299,7 @@ struct TrueFalseRenderer: View {
                 Button(action: onTapAskAI) {
                     HStack {
                         Image(systemName: "message.fill")
-                        Text("Follow Up")
+                        Text(NSLocalizedString("proMode.followUp", comment: ""))
                     }
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.blue)
@@ -411,7 +411,7 @@ struct FillInBlankRenderer: View {
                 Button(action: onTapAskAI) {
                     HStack {
                         Image(systemName: "message.fill")
-                        Text("Follow Up")
+                        Text(NSLocalizedString("proMode.followUp", comment: ""))
                     }
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.blue)
@@ -478,7 +478,7 @@ struct CalculationRenderer: View {
                             Image(systemName: "function")
                                 .foregroundColor(.cyan)
                                 .font(.system(size: 12))
-                            Text("Student's Work:")
+                            Text(NSLocalizedString("renderer.studentsWork", comment: ""))
                                 .font(.system(size: 13, weight: .medium))
                                 .foregroundColor(.secondary)
                         }
@@ -536,7 +536,7 @@ struct CalculationRenderer: View {
                 Button(action: onTapAskAI) {
                     HStack {
                         Image(systemName: "message.fill")
-                        Text("Follow Up")
+                        Text(NSLocalizedString("proMode.followUp", comment: ""))
                     }
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.blue)
@@ -597,7 +597,7 @@ struct ShortAnswerRenderer: View {
                 Button(action: onTapAskAI) {
                     HStack {
                         Image(systemName: "message.fill")
-                        Text("Follow Up")
+                        Text(NSLocalizedString("proMode.followUp", comment: ""))
                     }
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.blue)
@@ -636,12 +636,12 @@ struct LongAnswerRenderer: View {
                             Image(systemName: "pencil.circle.fill")
                                 .foregroundColor(.blue)
                                 .font(.system(size: 14))
-                            Text("Student Answer (\(wordCount(studentAnswer)) words)")
+                            Text(String(format: NSLocalizedString("renderer.studentAnswerWords", comment: ""), wordCount(studentAnswer)))
                                 .font(.system(size: 12, weight: .medium))
                                 .foregroundColor(.secondary)
                             Spacer()
                             Button(action: { showFullAnswer.toggle() }) {
-                                Text(showFullAnswer ? "Show Less" : "Show More")
+                                Text(showFullAnswer ? NSLocalizedString("renderer.showLess", comment: "") : NSLocalizedString("renderer.showMore", comment: ""))
                                     .font(.system(size: 12, weight: .medium))
                                     .foregroundColor(.blue)
                             }
@@ -664,7 +664,7 @@ struct LongAnswerRenderer: View {
                             Image(systemName: "list.bullet.clipboard")
                                 .foregroundColor(.orange)
                                 .font(.system(size: 14))
-                            Text("Key Points Expected")
+                            Text(NSLocalizedString("renderer.keyPointsExpected", comment: ""))
                                 .font(.system(size: 12, weight: .medium))
                                 .foregroundColor(.secondary)
                         }
@@ -702,7 +702,7 @@ struct LongAnswerRenderer: View {
                 Button(action: onTapAskAI) {
                     HStack {
                         Image(systemName: "message.fill")
-                        Text("Follow Up")
+                        Text(NSLocalizedString("proMode.followUp", comment: ""))
                     }
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.blue)
@@ -762,7 +762,7 @@ struct MatchingRenderer: View {
                 Button(action: onTapAskAI) {
                     HStack {
                         Image(systemName: "message.fill")
-                        Text("Follow Up")
+                        Text(NSLocalizedString("proMode.followUp", comment: ""))
                     }
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.blue)

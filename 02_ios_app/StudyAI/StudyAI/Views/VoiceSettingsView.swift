@@ -39,17 +39,17 @@ struct VoiceSettingsView: View {
                 }
                 .padding()
             }
-            .navigationTitle("Your AI Study Mates")
+            .navigationTitle(NSLocalizedString("voiceSettings.title", comment: ""))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
+                    Button(NSLocalizedString("common.cancel", comment: "")) {
                         dismiss()
                     }
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
+                    Button(NSLocalizedString("common.save", comment: "")) {
                         saveSettings()
                     }
                     .fontWeight(.semibold)
@@ -103,13 +103,13 @@ struct VoiceSettingsView: View {
         }()
 
         return VStack(alignment: .leading, spacing: 16) {
-            sectionHeader("Voice Controls", icon: "slider.horizontal.3")
+            sectionHeader(NSLocalizedString("voiceSettings.voiceControls", comment: ""), icon: "slider.horizontal.3")
 
             VStack(spacing: 20) {
                 // Speaking Rate
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text("Speaking Speed")
+                        Text(NSLocalizedString("voiceSettings.speakingSpeed", comment: ""))
                             .font(.subheadline)
                             .fontWeight(.medium)
 
@@ -126,7 +126,7 @@ struct VoiceSettingsView: View {
                             .font(.caption)
 
                         Slider(value: $tempSettings.speakingRate, in: 0.25...1.0) {
-                            Text("Speaking Rate")
+                        Text(NSLocalizedString("voiceSettings.speakingRate", comment: ""))
                         } minimumValueLabel: {
                             EmptyView()
                         } maximumValueLabel: {
@@ -143,7 +143,7 @@ struct VoiceSettingsView: View {
                 // Volume
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text("Volume")
+                        Text(NSLocalizedString("voiceSettings.volume", comment: ""))
                             .font(.subheadline)
                             .fontWeight(.medium)
 
@@ -160,7 +160,7 @@ struct VoiceSettingsView: View {
                             .font(.caption)
 
                         Slider(value: $tempSettings.volume, in: 0.3...1.0) {
-                            Text("Volume")
+                            Text(NSLocalizedString("voiceSettings.volume", comment: ""))
                         } minimumValueLabel: {
                             EmptyView()
                         } maximumValueLabel: {
@@ -183,16 +183,16 @@ struct VoiceSettingsView: View {
         let voiceColor = tempSettings.voiceType == .adam ? Color.blue : Color.purple
 
         return VStack(alignment: .leading, spacing: 16) {
-            sectionHeader("Auto-Speak Settings", icon: "autostartstop.trianglebadge.exclamationmark")
+            sectionHeader(NSLocalizedString("voiceSettings.autoSpeakSettings", comment: ""), icon: "autostartstop.trianglebadge.exclamationmark")
 
             VStack(spacing: 12) {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Auto-Speak AI Responses")
+                        Text(NSLocalizedString("voiceSettings.autoSpeakResponses", comment: ""))
                             .font(.subheadline)
                             .fontWeight(.medium)
 
-                        Text("Automatically read AI responses aloud")
+                        Text(NSLocalizedString("voiceSettings.autoSpeakDesc", comment: ""))
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -215,10 +215,10 @@ struct VoiceSettingsView: View {
         let voiceColor = tempSettings.voiceType == .adam ? Color.blue : Color.purple
 
         return VStack(alignment: .leading, spacing: 16) {
-            sectionHeader("Voice Preview", icon: "play.circle.fill")
+            sectionHeader(NSLocalizedString("voiceSettings.voicePreview", comment: ""), icon: "play.circle.fill")
 
             VStack(spacing: 12) {
-                Text("Tap to hear how your AI assistant will sound with these settings:")
+                Text(NSLocalizedString("voiceSettings.previewHint", comment: ""))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -228,7 +228,7 @@ struct VoiceSettingsView: View {
                         Image(systemName: showingPreview ? "stop.circle.fill" : "play.circle.fill")
                             .font(.title2)
 
-                        Text(showingPreview ? "Stop Preview" : "Play Preview")
+                        Text(showingPreview ? NSLocalizedString("voiceSettings.stopPreview", comment: "") : NSLocalizedString("voiceSettings.playPreview", comment: ""))
                             .fontWeight(.semibold)
                     }
                     .frame(maxWidth: .infinity)
@@ -263,15 +263,15 @@ struct VoiceSettingsView: View {
     private var speedLabel: String {
         switch tempSettings.speakingRate {
         case 0.25..<0.4:
-            return "Very Slow"
+            return NSLocalizedString("voiceSettings.speed.verySlow", comment: "")
         case 0.4..<0.6:
-            return "Slow"
+            return NSLocalizedString("voiceSettings.speed.slow", comment: "")
         case 0.6..<0.8:
-            return "Normal"
+            return NSLocalizedString("voiceSettings.speed.normal", comment: "")
         case 0.8..<0.95:
-            return "Fast"
+            return NSLocalizedString("voiceSettings.speed.fast", comment: "")
         default:
-            return "Very Fast"
+            return NSLocalizedString("voiceSettings.speed.veryFast", comment: "")
         }
     }
 

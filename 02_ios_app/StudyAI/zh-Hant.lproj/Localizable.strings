@@ -23,13 +23,21 @@
 "settings.account" = "帳戶";
 "settings.editProfile" = "編輯資料";
 "settings.signOut" = "登出";
+"settings.biometricLogin" = "%@ 登入";
+"settings.parentControls.message" = "驗證家長身份以管理設定";
+"settings.appVersion" = "StudyMates v1.0";
+"settings.appTagline" = "搭載現代身份驗證";
+"settings.appPoweredBy" = "由 OpenAI GPT-4 驅動";
 "settings.security" = "安全與隱私";
 "settings.passwordManager" = "密碼管理器";
 "settings.privacySettings" = "隱私設定";
 "settings.appSettings" = "應用程式設定";
 "settings.studyReminders" = "學習提醒";
-"settings.textSize" = "文字大小";
 "settings.language" = "語言";
+"languageSettings.sectionHeader" = "選擇語言";
+"languageSettings.sectionFooter" = "選擇你偏好的應用介面語言，這將影響應用中的所有文字。";
+"languageSettings.restartRequired" = "需要重啟";
+"languageSettings.restartMessage" = "應用即將關閉，請重新開啟以查看語言更改。";
 "settings.voiceAudio" = "學習夥伴";
 "settings.voiceSettings" = "選擇你的學習夥伴";
 "settings.learning" = "學習";
@@ -76,10 +84,8 @@
 "day.sunday" = "星期日";
 
 // Common
-"common.done" = "完成";
 "common.cancel" = "取消";
 "common.save" = "儲存";
-"common.ok" = "確定";
 "common.close" = "關閉";
 "common.edit" = "編輯";
 "common.clear" = "清除";
@@ -243,8 +249,6 @@
 "homeworkResults.debugInfo" = "除錯資訊";
 "homeworkResults.selectQuestionsToArchive" = "選擇要歸檔的題目";
 "homeworkResults.questionsSelected" = "題已選";
-"homeworkResults.noQuestionsSelected" = "未選擇題目";
-"homeworkResults.selectQuestionsToArchiveMessage" = "請至少選擇一道題目進行歸檔。";
 "homeworkResults.markProgress" = "標記進度";
 "homeworkResults.slideToMarkProgress" = "滑動以標記進度";
 "homeworkResults.progressMarked" = "進度已標記！";
@@ -260,6 +264,18 @@
 "homeworkResults.correctAnswer" = "正確答案：";
 "homeworkResults.feedback" = "回饋：";
 "homeworkResults.askAiForHelp" = "向AI求助";
+
+// Question type renderers
+"renderer.fullQuestion" = "完整題目：";
+"renderer.ungraded" = "未批改";
+"renderer.unknownGrade" = "未知";
+"renderer.studentAnswer" = "學生答案";
+"renderer.correctAnswer" = "正確答案";
+"renderer.studentsWork" = "學生解題過程：";
+"renderer.studentAnswerWords" = "學生答案（%d 字）";
+"renderer.keyPointsExpected" = "預期要點";
+"renderer.showMore" = "展開";
+"renderer.showLess" = "收起";
 "homeworkResults.archiveSuccess" = "成功歸檔";
 "homeworkResults.archiveSuccessSuffix" = "題到您的錯題本！";
 "homeworkResults.archiveFailure" = "歸檔題目失敗：";
@@ -481,6 +497,12 @@
 "questionGeneration.template.randomPractice" = "隨機練習";
 "questionGeneration.template.fromMistakes" = "基於錯題";
 "questionGeneration.template.fromArchives" = "基於歸檔";
+"questionGeneration.resume.title" = "繼續練習";
+"questionGeneration.resume.subtitle" = "%@ • 還剩 %d 道題";
+"questionGeneration.resume.button" = "繼續";
+"questionGeneration.type.random" = "隨機練習";
+"questionGeneration.type.conversationBased" = "基於對話的練習";
+"questionGeneration.type.mistakeBased" = "基於錯題的練習";
 "questionGeneration.description.randomPractice" = "生成全新練習題";
 "questionGeneration.description.fromMistakes" = "針對您的薄弱環節";
 "questionGeneration.description.fromArchives" = "基於歸檔的學習記錄";
@@ -599,6 +621,23 @@
 "progress.less" = "少";
 "progress.more" = "多";
 "progress.questionsThisMonth" = "本月題目";
+"progress.questionsThisWeek" = "本週題目";
+"progress.weeklyProgressEmpty" = "每週進度";
+"progress.weeklyProgressEmptyMessage" = "開始答題，查看本週的學習活動！";
+
+// Subject names
+"subject.math" = "數學";
+"subject.physics" = "物理";
+"subject.chemistry" = "化學";
+"subject.biology" = "生物";
+"subject.english" = "英語";
+"subject.history" = "歷史";
+"subject.geography" = "地理";
+"subject.computerscience" = "電腦科學";
+"subject.foreignlanguage" = "外語";
+"subject.arts" = "藝術";
+"subject.other" = "其他";
+
 "progress.noSubjectData" = "暫無科目數據";
 "progress.noSubjectDataMessage" = "回答不同科目的題目以查看您的細分數據！";
 "progress.noSubjectDataForFilter" = "暫無%@數據";
@@ -1124,6 +1163,10 @@
 "questionDetail.typeAnswerAbove" = "在上方輸入您的答案";
 "questionDetail.submitAnswer" = "提交答案";
 "questionDetail.markProgress" = "標記進度";
+"questionDetail.marked" = "已標記";
+"questionDetail.followUp" = "繼續提問";
+"questionDetail.previous" = "上一題";
+"questionDetail.next" = "下一題";
 "questionDetail.progressMarked" = "進度已標記！";
 "questionDetail.progressUpdated" = "✅ 您的學習進度已更新！";
 "questionDetail.progressTip" = "💡 點擊以在您的每日、每週和每月統計中追蹤此題目！";
@@ -1195,6 +1238,81 @@
 "mistakeReview.showExplanation" = "顯示解析";
 "mistakeReview.instructions.title" = "如何使用錯題複習";
 "mistakeReview.instructions.message" = "1. 選擇時間範圍（本週、本月或全部時間）來篩選錯題\n\n2. 選擇科目查看做錯的題目\n\n3. 點擊「開始複習」查看你的錯題\n\n4. 使用「讓我們再做一遍」選擇題目並生成PDF進行練習\n\n5. 查看正確答案和解析以提高理解";
+"mistakeReview.startReview" = "開始複習（%d 道錯題）";
+"mistakeReview.letsPractise" = "讓我們來練習吧";
+"mistakeReview.resumePractice" = "繼續練習";
+"mistakeReview.questionsLeftDone" = "還剩 %d 道題 · 已完成 %d%%";
+"mistakeReview.generatePractice" = "生成練習（%d 道錯題）";
+"mistakeReview.generationFailed" = "練習生成失敗";
+"mistakeReview.generatingQuestions" = "正在生成題目...";
+"mistakeReview.whatWentWrong" = "錯在哪裡";
+"mistakeReview.evidence" = "錯誤依據";
+"mistakeReview.explanation" = "解析";
+"mistakeReview.howToImprove" = "如何改進";
+"mistakeReview.analyzingMistake" = "AI 正在分析錯誤...";
+"mistakeReview.errorType.executionError" = "執行錯誤";
+"mistakeReview.errorType.conceptualGap" = "概念缺失";
+"mistakeReview.errorType.needsRefinement" = "需要改進";
+"mistakeReview.errorType.unknown" = "未知錯誤";
+"mistakeReview.targetedPractice" = "針對性練習";
+"mistakeReview.questionsBasedOnMistakes" = "%d 道基於你錯誤的題目";
+"mistakeReview.progressAnswered" = "進度：%d/%d 已作答";
+"mistakeReview.correctCount" = "%d/%d 答對";
+"mistakeReview.exportToPDF" = "匯出為 PDF";
+"mistakeReview.feedbackExact" = "完美！你的答案完全正確。";
+"mistakeReview.feedbackCorrect" = "正確！你的答案與預期答案吻合。";
+"mistakeReview.accuracy" = "準確率";
+"mistakeReview.correct" = "正確";
+"mistakeReview.incorrect" = "錯誤";
+"mistakeReview.progressAlreadyMarked" = "進度已記錄";
+"mistakeReview.slideToMarkProgress" = "滑動以記錄進度";
+"mistakeReview.masteredWeakness" = "你已掌握一個薄弱點！";
+"mistakeReview.keepUpGreatWork" = "繼續保持，加油！";
+"mistakeReview.questionNumber" = "第 %d 題";
+"mistakeReview.yourAnswerColon" = "你的答案：";
+"mistakeReview.submitAnswer" = "提交答案";
+"mistakeReview.yourAnswer" = "你的答案";
+"mistakeReview.correctAnswer" = "正確答案";
+"mistakeReview.gradingInstant" = "即時";
+"mistakeReview.gradingAI" = "AI 分析";
+"mistakeReview.archived" = "已歸檔";
+"mistakeReview.archiveQuestion" = "歸檔題目";
+"mistakeReview.followUp" = "繼續追問";
+"mistakeReview.questionArchived" = "題目已歸檔";
+"mistakeReview.questionArchivedMessage" = "此練習題已儲存至你的檔案，供日後複習使用。";
+"mistakeReview.configurePractice" = "配置練習題";
+"mistakeReview.basedOnMistakes" = "基於 %d 道選中錯題";
+"mistakeReview.questionTypes" = "題目類型";
+"mistakeReview.selectQuestionTypes" = "選擇要生成的題目類型：";
+"mistakeReview.difficultyLevel" = "難度級別";
+"mistakeReview.numberOfQuestions" = "題目數量";
+"mistakeReview.sliderMin" = "1 道題";
+"mistakeReview.sliderMax" = "10 道題";
+"mistakeReview.generateCount" = "生成 %d 道題";
+"mistakeReview.practiceConfiguration" = "練習配置";
+"mistakeReview.filter.severityLabel" = "嚴重程度";
+"mistakeReview.filter.timeLabel" = "時間";
+"mistakeReview.filter.severity.all" = "全部";
+"mistakeReview.filter.severity.medPlus" = "中等+";
+"mistakeReview.filter.severity.severe" = "嚴重";
+"mistakeReview.filter.time.week" = "本週";
+"mistakeReview.filter.time.month" = "本月";
+"mistakeReview.filter.time.all" = "全部";
+"mistakeReview.filter.subjectsLabel" = "科目";
+"mistakeReview.filter.filterByTopic" = "按主題篩選";
+"mistakeReview.filter.noTaxonomyData" = "暫無分類資料";
+"mistakeReview.filter.clearCount" = "清除 (%d)";
+"mistakeReview.filter.allTopics" = "所有主題";
+"mistakeReview.filter.active" = "活躍";
+"mistakeReview.filter.allFilter" = "全部";
+"difficulty.desc.beginner" = "適合新概念打基礎的題目";
+"difficulty.desc.intermediate" = "用於練習和複習的均衡題目";
+"difficulty.desc.advanced" = "挑戰理解的高難度題目";
+"difficulty.desc.adaptive" = "AI 根據你的錯誤動態調整難度";
+"common.retry" = "重試";
+"common.continue" = "繼續";
+"common.true" = "正確";
+"common.false" = "錯誤";
 
 // Parent Mode - Face ID
 "parentAuth.useFaceID" = "使用 Face ID";
@@ -1225,19 +1343,8 @@
 "goals.currentPoints" = "目前積分";
 "goals.streak" = "連續天數";
 "goals.days" = "天";
-"goals.dailyQuestions" = "每日答題";
-"goals.dailyQuestionsDescription" = "每天回答問題以養成持續學習的習慣";
-"goals.target" = "目標：";
 "goals.questionsPerDay" = "題/天";
-"goals.accuracyGoal" = "正確率目標";
-"goals.accuracyGoalDescription" = "在答題中保持高正確率以獲得最高分數";
 "goals.percentAccuracy" = "% 正確率";
-"goals.weeklyStreak" = "每週連續";
-"goals.weeklyStreakDescription" = "保持 7 天的學習連續以獲得豐厚的獎勵積分";
-"goals.dailyStreak" = "每日連續";
-"goals.dailyStreakDescription" = "通過每日活動保持學習動力";
-"goals.studyTime" = "學習時長";
-"goals.subjectMastery" = "科目掌握";
 "goals.studyConsistency" = "學習一致性";
 "goals.studyConsistencyDescription" = "保持規律的學習習慣以實現持續進步";
 "goals.daysPerWeek" = "天/週";
@@ -1262,12 +1369,6 @@
 "goals.dailyStreakDescription" = "通過每日活動保持學習動力";
 
 // Subjects
-"subject.mathematics" = "數學";
-"subject.science" = "科學";
-"subject.physics" = "物理";
-"subject.chemistry" = "化學";
-"subject.biology" = "生物";
-"subject.english" = "英語";
 
 // Difficulty Levels
 "difficulty.beginner" = "初級";
@@ -1284,6 +1385,7 @@
 "questionType.calculation" = "計算題";
 "questionType.matching" = "配對題";
 "questionType.mixedTypes" = "混合題型";
+"questionType.unknown" = "未知類型";
 
 // Question Generation - How to Use
 "questionGeneration.howToUse.title" = "如何使用練習生成";
@@ -1412,6 +1514,30 @@
 "privacy.settings.termsOfService" = "服務條款";
 "privacy.settings.title" = "隱私設定";
 
+// Parent Reports section
+"privacy.parentReports.sectionHeader" = "家長報告";
+"privacy.parentReports.automatedReports" = "自動每週報告";
+"privacy.parentReports.automatedReportsDesc" = "每週日晚上9點生成家長報告";
+"privacy.parentReports.backgroundSync" = "背景作業同步";
+"privacy.parentReports.backgroundSyncDesc" = "自動同步作業資料以生成報告";
+"privacy.parentReports.lastSync" = "上次同步";
+"privacy.parentReports.never" = "從未";
+"privacy.parentReports.syncNow" = "立即同步";
+"privacy.parentReports.nextReport" = "下次報告";
+"privacy.parentReports.footerEnabled" = "報告將在每週日晚上9點，使用本週同步的作業資料自動生成。";
+"privacy.parentReports.footerDisabled" = "開啟自動每週家長報告，追蹤學習進度。";
+
+// Clear Server Data
+"privacy.clearData.title" = "清除伺服器資料";
+"privacy.clearData.desc" = "從伺服器刪除所有學習資料（保留本地資料）";
+"privacy.clearData.alertTitle" = "清除我的資料";
+"privacy.clearData.alertButton" = "清除伺服器資料";
+"privacy.clearData.alertMessage" = "這將永久刪除伺服器上的所有學習資料。\n\n本地資料將保持完整，帳號將繼續有效。此操作無法撤銷。";
+
+// Delete Account alert
+"privacy.deleteAccount.emailPlaceholder" = "輸入電子郵件以確認";
+"privacy.deleteAccount.alertMessage" = "這將永久刪除你的帳號和所有資料。請輸入你的電子郵件以確認。";
+
 // Additional Focus Mode and Settings Translations
 "focus.garden.allTrees" = "所有樹木";
 "focus.garden.clearConfirmation" = "確定要清空花園中的所有樹木嗎？此操作無法復原。";
@@ -1426,10 +1552,6 @@
 "focus.garden.sortBy" = "排序：";
 "focus.garden.totalFocusTime" = "總專注時間";
 "focus.garden.totalTrees" = "總樹木數";
-"focus.music.category.ambient" = "環境音樂";
-"focus.music.category.classical" = "古典音樂";
-"focus.music.category.lofi" = "Lo-fi 節拍";
-"focus.music.category.nature" = "自然聲音";
 "focus.selectMusicSubtitle" = "選擇音樂或建立播放清單來進行專注學習";
 "focus.tree.ancientTree" = "古樹";
 "focus.tree.matureTree" = "成樹";
@@ -1469,22 +1591,15 @@
 "archive.add" = "添加";
 "archive.visual" = "圖形";
 
-// Subject Names
+// Subject Names (legacy keys used by other features)
 "subject.mathematics" = "數學";
 "subject.science" = "科學";
-"subject.physics" = "物理";
-"subject.chemistry" = "化學";
-"subject.biology" = "生物";
-"subject.english" = "英語";
-"subject.history" = "歷史";
-"subject.geography" = "地理";
 "subject.computerScience" = "計算機科學";
 "subject.literature" = "文學";
 "subject.socialStudies" = "社會科學";
 "subject.economics" = "經濟學";
 "subject.art" = "美術";
 "subject.music" = "音樂";
-"subject.other" = "其他";
 
 // Pomodoro Focus Mode
 "pomodoro.dragToStop" = "拖動下方按鈕到圓環內以停止";
@@ -1517,9 +1632,7 @@
 "proMode.batchArchive" = "一鍵歸檔";
 "proMode.batchArchiveCount" = "一鍵歸檔 (%d)";
 "proMode.accuracy" = "正確率";
-"proMode.correct" = "正確";
 "proMode.partialCorrect" = "部分正確";
-"proMode.incorrect" = "錯誤";
 "proMode.markProgress" = "標記學習進度";
 "proMode.questionPreview" = "題目預覽";
 "proMode.tapToAnnotate" = "點擊圖片創建標註框";
@@ -1556,6 +1669,7 @@
 "proMode.subquestionAnswer" = "答: %@";
 "proMode.addAnnotation" = "添加標註";
 "proMode.editAnnotations" = "編輯標註 (%d)";
+"proMode.annotationImageHint" = "部分題目需要配圖 — 點擊裁剪照片";
 "proMode.selectAIModel" = "選擇AI模型";
 "proMode.revertGrading" = "撤銷批改";
 "proMode.revertGradingAlert.title" = "撤銷批改？";
@@ -1687,11 +1801,28 @@
 "pomodoroCalendar.todayEvents" = "今天的會話";
 "pomodoroCalendar.weekEvents" = "本週";
 "pomodoroCalendar.freeSlots" = "空閒時段";
+"pomodoroCalendar.freeSlotsDescription" = "適合25分鐘專注會話的空閒時間";
 "pomodoroCalendar.scheduled" = "已安排";
 "pomodoroCalendar.noEvents" = "沒有安排的事件";
 "pomodoroCalendar.eventTitle" = "專注會話🍅";
+"pomodoroCalendar.eventTitlePlaceholder" = "事件標題";
 "pomodoroCalendar.reminderBefore" = "提前%d分鐘提醒我";
-"pomodoroCalendar.duration" = "25分鐘";
+"pomodoroCalendar.duration" = " 分鐘";
+"pomodoroCalendar.duration25" = "25分鐘";
+"pomodoroCalendar.duration50" = "50分鐘";
+"pomodoroCalendar.durationLabel" = "時長";
+"pomodoroCalendar.selectDate" = "選擇日期";
+"pomodoroCalendar.date" = "日期";
+"pomodoroCalendar.eventsCount" = " 個事件";
+"pomodoroCalendar.addCustom" = "添加自訂會話";
+"pomodoroCalendar.eventInfo" = "事件資訊";
+"pomodoroCalendar.startTime" = "開始時間";
+"pomodoroCalendar.notes" = "備註";
+"pomodoroCalendar.accessRequired" = "需要日曆存取權限";
+"pomodoroCalendar.accessDescription" = "允許存取以在日曆中查看和安排專注會話。";
+"pomodoroCalendar.grantAccess" = "授權日曆存取";
+"pomodoroCalendar.permissionRequired" = "需要日曆權限";
+"pomodoroCalendar.permissionMessage" = "請在設定中啟用日曆存取權限以安排專注會話。";
 
 // 深度專注模式
 "deepFocus.title" = "深度專注模式";
@@ -1729,3 +1860,131 @@
 "tomato.garden.exchange.exchanging" = "正在兌換...";
 "tomato.garden.exchange.congratulations" = "恭喜獲得";
 "tomato.garden.exchange.awesome" = "太棒了！";
+
+// Chat & Archive (missing)
+"chat.alert.archiveSuccess.startNewChat" = "開始新對話";
+"chat.archive.archiving" = "封存中...";
+
+// Home (missing)
+"home.startLearningPrompt" = "開始學習以追蹤進度";
+
+// Library (missing)
+"library.needsAttention" = "需要關注";
+"library.proBadge" = "Pro";
+
+// Homework Results (missing)
+"homeworkResults.overallFeedback" = "整體回饋";
+"homeworkResults.subquestions" = "%d 個子題";
+
+// Direct AI Homework (missing)
+"directAIHomework.performanceSummary" = "表現總結";
+
+// Progressive Homework (missing)
+"progressiveHomework.loadingMessage" = "這可能需要一點時間...";
+"progressiveHomework.selectAIModelTitle" = "選擇AI模型";
+"progressiveHomework.selectAIModelDescription" = "選擇用於批改的AI模型";
+"progressiveHomework.aiModelLabel" = "AI模型";
+"progressiveHomework.startGrading" = "開始批改";
+"progressiveHomework.gradingProgress" = "批改進度";
+"progressiveHomework.saveToMistakeBook" = "儲存到錯題本";
+"progressiveHomework.errorTitle" = "錯誤";
+"progressiveHomework.questionLabel" = "題目 %@";
+"progressiveHomework.overallScore" = "總分：";
+"progressiveHomework.viewSubquestions" = "查看子題（%d）";
+"progressiveHomework.subquestionGradeProgress" = "%d/%d";
+"progressiveHomework.someSubquestionsFailed" = "部分子題批改失敗";
+"progressiveHomework.yourAnswer" = "你的答案：";
+"progressiveHomework.gradingError" = "批改錯誤：%@";
+"progressiveHomework.scoreLabel" = "分數：";
+"progressiveHomework.aiFeedback" = "AI回饋";
+"progressiveHomework.askAIForHelp" = "向AI求助";
+"progressiveHomework.answerLabel" = "答案：";
+"progressiveHomework.askAI" = "求助AI";
+"progressiveHomework.accuracyLabel" = "準確率";
+
+// Pro Mode (missing)
+"proMode.analyzeButton" = "分析錯題";
+"proMode.analyzeMistakesPrompt" = "是否幫您分析這些錯題？（結果稍後將在錯題複習中顯示）";
+"proMode.archivedBadge" = "已歸檔";
+"proMode.archiveOptionsTitle" = "歸檔選項";
+"proMode.archivePrompt" = "選擇要歸檔的內容：";
+"proMode.archiveSubquestionOnly" = "僅歸檔此子題";
+"proMode.archiveWholeQuestion" = "歸檔整道題目";
+"proMode.blankLabel" = "填空 %d：";
+"proMode.deleteButton" = "刪除";
+"proMode.deleteConfirmation" = "這將從此次作業會話中永久刪除所選題目%@。此操作無法撤銷。";
+"proMode.deleteQuestions" = "刪除 %d 道題目%@";
+"proMode.deleteQuestionsTitle" = "刪除 %d 道題目%@？";
+"proMode.exportingProgress" = "匯出中... %d%%";
+"proMode.exportToPDF" = "匯出為PDF";
+"proMode.feedbackLabel" = "回饋";
+"proMode.trueFalse.true" = "正確";
+"proMode.trueFalse.false" = "錯誤";
+"proMode.trueFalse.trueShort" = "對";
+"proMode.trueFalse.falseShort" = "錯";
+"proMode.followUp" = "追問";
+"proMode.regrade" = "重新批改";
+"proMode.selectToDelete" = "選擇刪除";
+"proMode.detectedErrors" = "本頁檢測到 %d 個錯誤";
+"proMode.pdfExportFailed" = "PDF 匯出失敗";
+"proMode.handwritingQuality" = "書寫品質";
+"proMode.handwritingCompact" = "書寫：";
+"proMode.handwriting.noHandwriting" = "未檢測到手寫內容";
+"proMode.handwriting.exceptional" = "優秀";
+"proMode.handwriting.clear" = "清晰";
+"proMode.handwriting.readable" = "可讀";
+"proMode.handwriting.difficult" = "較難辨認";
+"proMode.handwriting.illegible" = "難以辨認";
+"proMode.handwriting.desc.exceptional" = "非常清晰整潔";
+"proMode.handwriting.desc.clear" = "字形規範，易於閱讀";
+"proMode.handwriting.desc.readable" = "基本可讀";
+"proMode.handwriting.desc.difficult" = "難以閱讀";
+"proMode.handwriting.desc.illegible" = "極難辨認";
+
+// Session Chat (missing)
+"sessionChat.archiveSuccess" = "「%@」已成功儲存！\n\n您可以隨時在資料庫中查看。\n\n已為您準備好新的對話！";
+"sessionChat.archiveSuccessDefault" = "您的對話";
+"sessionChat.homeworkHelpMode" = "作業輔助模式";
+"sessionChat.questionNumber" = "第 %d 題";
+"sessionChat.currentGrade" = "目前：%@";
+"sessionChat.deepBadge" = "深度";
+"sessionChat.sessionDetails" = "會話詳情";
+"sessionChat.sessionIdLabel" = "會話ID：";
+"sessionChat.subjectLabel" = "科目：";
+"sessionChat.messagesLabel" = "訊息數：";
+"sessionChat.createdLabel" = "建立時間：";
+"sessionChat.lastActivityLabel" = "最近活動：";
+"sessionChat.noSessionInfo" = "暫無會話資訊";
+"sessionChat.noSessionInfoDescription" = "會話詳情將在可用時顯示。";
+"sessionChat.slideUp" = "上滑";
+"sessionChat.deepThinkingMode" = "深度思考模式";
+"sessionChat.releaseToSend" = "放開發送";
+
+// MARK: - Live Voice Chat
+"live.hold_to_talk" = "按住說話";
+"live.release_to_send" = "放開發送";
+"live.slide_to_cancel" = "滑動取消";
+"live.release_to_cancel" = "放開取消";
+
+// MARK: - Voice Settings
+"voiceSettings.title" = "你的AI學習夥伴";
+"voiceSettings.voiceControls" = "語音控制";
+"voiceSettings.speakingSpeed" = "語速";
+"voiceSettings.speakingRate" = "語速調節";
+"voiceSettings.volume" = "音量";
+"voiceSettings.autoSpeakSettings" = "自動朗讀設置";
+"voiceSettings.autoSpeakResponses" = "自動朗讀AI回覆";
+"voiceSettings.autoSpeakDesc" = "自動將AI回覆朗讀出來";
+"voiceSettings.voicePreview" = "語音預覽";
+"voiceSettings.previewHint" = "點擊試聽當前設置下AI助手的聲音效果：";
+"voiceSettings.playPreview" = "播放預覽";
+"voiceSettings.stopPreview" = "停止預覽";
+"voiceSettings.speed.verySlow" = "非常慢";
+"voiceSettings.speed.slow" = "慢";
+"voiceSettings.speed.normal" = "正常";
+"voiceSettings.speed.fast" = "快";
+"voiceSettings.speed.veryFast" = "非常快";
+"voiceSettings.avatar.adam.desc" = "友善、鼓勵的男孩";
+"voiceSettings.avatar.eva.desc" = "溫柔、體貼的女孩";
+"voiceSettings.avatar.max.desc" = "活力、熱情的男孩";
+"voiceSettings.avatar.mia.desc" = "活潑、好奇的女孩";

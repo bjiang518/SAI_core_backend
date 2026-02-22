@@ -23,6 +23,11 @@
 "settings.account" = "Account";
 "settings.editProfile" = "Edit Profile";
 "settings.signOut" = "Sign Out";
+"settings.biometricLogin" = "%@ Login";
+"settings.parentControls.message" = "Verify parental access to manage settings";
+"settings.appVersion" = "StudyMates v1.0";
+"settings.appTagline" = "Enhanced with Modern Authentication";
+"settings.appPoweredBy" = "Powered by OpenAI GPT-4";
 "settings.security" = "Security & Privacy";
 "settings.passwordManager" = "Password Manager";
 "settings.privacySettings" = "Privacy Settings";
@@ -30,6 +35,10 @@
 "settings.studyReminders" = "Study Reminders";
 "settings.textSize" = "Text Size";
 "settings.language" = "Language";
+"languageSettings.sectionHeader" = "Select Language";
+"languageSettings.sectionFooter" = "Choose your preferred language for the app interface. This will affect all text in the app.";
+"languageSettings.restartRequired" = "Restart Required";
+"languageSettings.restartMessage" = "The app will close now. Please reopen it to see the language change.";
 "settings.voiceAudio" = "Study Mates";
 "settings.voiceSettings" = "Select your study mate";
 "settings.learning" = "Learning";
@@ -258,6 +267,18 @@
 "homeworkResults.correctAnswer" = "Correct Answer:";
 "homeworkResults.feedback" = "Feedback:";
 "homeworkResults.askAiForHelp" = "Ask AI for Help";
+
+// Question type renderers
+"renderer.fullQuestion" = "Full Question:";
+"renderer.ungraded" = "Ungraded";
+"renderer.unknownGrade" = "Unknown";
+"renderer.studentAnswer" = "Student Answer";
+"renderer.correctAnswer" = "Correct Answer";
+"renderer.studentsWork" = "Student's Work:";
+"renderer.studentAnswerWords" = "Student Answer (%d words)";
+"renderer.keyPointsExpected" = "Key Points Expected";
+"renderer.showMore" = "Show More";
+"renderer.showLess" = "Show Less";
 "homeworkResults.archiveSuccess" = "Successfully archived ";
 "homeworkResults.archiveSuccessSuffix" = " question(s) to your Mistake Notebook!";
 "homeworkResults.archiveFailure" = "Failed to archive questions: ";
@@ -477,6 +498,12 @@
 "questionGeneration.template.randomPractice" = "Random Practice";
 "questionGeneration.template.fromMistakes" = "From Mistakes";
 "questionGeneration.template.fromArchives" = "From Archives";
+"questionGeneration.resume.title" = "Resume Practice";
+"questionGeneration.resume.subtitle" = "%@ • %d questions left";
+"questionGeneration.resume.button" = "Continue";
+"questionGeneration.type.random" = "Random Practice";
+"questionGeneration.type.conversationBased" = "Conversation-Based Practice";
+"questionGeneration.type.mistakeBased" = "Mistake-Based Practice";
 "questionGeneration.description.randomPractice" = "Generate fresh practice questions";
 "questionGeneration.description.fromMistakes" = "Target your weak areas";
 "questionGeneration.description.fromArchives" = "Build on archived sessions";
@@ -570,6 +597,10 @@
 "questionDetail.typeAnswerAbove" = "Type your answer above";
 "questionDetail.submitAnswer" = "Submit Answer";
 "questionDetail.markProgress" = "Mark Progress";
+"questionDetail.marked" = "Marked";
+"questionDetail.followUp" = "Follow Up";
+"questionDetail.previous" = "Previous";
+"questionDetail.next" = "Next";
 "questionDetail.progressMarked" = "Progress Marked!";
 "questionDetail.progressUpdated" = "✅ Your study progress has been updated!";
 "questionDetail.progressTip" = "💡 Tap to track this question in your daily, weekly, and monthly stats!";
@@ -674,6 +705,23 @@
 "progress.less" = "Less";
 "progress.more" = "More";
 "progress.questionsThisMonth" = "questions this month";
+"progress.questionsThisWeek" = "questions this week";
+"progress.weeklyProgressEmpty" = "Weekly Progress";
+"progress.weeklyProgressEmptyMessage" = "Start asking questions to see your weekly activity pattern!";
+
+// Subject names
+"subject.math" = "Math";
+"subject.physics" = "Physics";
+"subject.chemistry" = "Chemistry";
+"subject.biology" = "Biology";
+"subject.english" = "English";
+"subject.history" = "History";
+"subject.geography" = "Geography";
+"subject.computerscience" = "Computer Science";
+"subject.foreignlanguage" = "Foreign Language";
+"subject.arts" = "Arts";
+"subject.other" = "Other";
+
 "progress.noSubjectData" = "No Subject Data Yet";
 "progress.noSubjectDataMessage" = "Answer questions across different subjects to see your breakdown!";
 "progress.noSubjectDataForFilter" = "No %@ Data Yet";
@@ -1200,6 +1248,81 @@
 "mistakeReview.showExplanation" = "Show Explanation";
 "mistakeReview.instructions.title" = "How to Use Mistake Review";
 "mistakeReview.instructions.message" = "1. Select a time range (This Week, This Month, or All Time) to filter your mistakes\n\n2. Choose a subject to review incorrect answers\n\n3. Tap 'Start Review' to see your mistakes\n\n4. Use 'Let's do them again' to select questions and generate a PDF for practice\n\n5. Review the correct answers and explanations to improve your understanding";
+"mistakeReview.startReview" = "Start Review (%d Mistakes)";
+"mistakeReview.letsPractise" = "Let's practise them";
+"mistakeReview.resumePractice" = "Resume Practice";
+"mistakeReview.questionsLeftDone" = "%d questions left · %d%% done";
+"mistakeReview.generatePractice" = "Generate Practice (%d mistakes)";
+"mistakeReview.generationFailed" = "Practice Generation Failed";
+"mistakeReview.generatingQuestions" = "Generating Questions...";
+"mistakeReview.whatWentWrong" = "What Went Wrong";
+"mistakeReview.evidence" = "Evidence";
+"mistakeReview.explanation" = "Explanation";
+"mistakeReview.howToImprove" = "How to Improve";
+"mistakeReview.analyzingMistake" = "Analyzing mistake with AI...";
+"mistakeReview.errorType.executionError" = "Execution Error";
+"mistakeReview.errorType.conceptualGap" = "Concept Gap";
+"mistakeReview.errorType.needsRefinement" = "Needs Refinement";
+"mistakeReview.errorType.unknown" = "Unknown Error";
+"mistakeReview.targetedPractice" = "Targeted Practice";
+"mistakeReview.questionsBasedOnMistakes" = "%d questions based on your mistakes";
+"mistakeReview.progressAnswered" = "Progress: %d/%d answered";
+"mistakeReview.correctCount" = "%d/%d correct";
+"mistakeReview.exportToPDF" = "Export to PDF";
+"mistakeReview.feedbackExact" = "Perfect! Your answer is exactly correct.";
+"mistakeReview.feedbackCorrect" = "Correct! Your answer matches the expected solution.";
+"mistakeReview.accuracy" = "Accuracy";
+"mistakeReview.correct" = "Correct";
+"mistakeReview.incorrect" = "Incorrect";
+"mistakeReview.progressAlreadyMarked" = "Progress Already Marked";
+"mistakeReview.slideToMarkProgress" = "Slide to Mark Progress";
+"mistakeReview.masteredWeakness" = "You Mastered a Weakness!";
+"mistakeReview.keepUpGreatWork" = "Keep up the great work!";
+"mistakeReview.questionNumber" = "Question %d";
+"mistakeReview.yourAnswerColon" = "Your Answer:";
+"mistakeReview.submitAnswer" = "Submit Answer";
+"mistakeReview.yourAnswer" = "Your Answer";
+"mistakeReview.correctAnswer" = "Correct Answer";
+"mistakeReview.gradingInstant" = "Instant";
+"mistakeReview.gradingAI" = "AI Analyzed";
+"mistakeReview.archived" = "Archived";
+"mistakeReview.archiveQuestion" = "Archive Question";
+"mistakeReview.followUp" = "Follow up";
+"mistakeReview.questionArchived" = "Question Archived";
+"mistakeReview.questionArchivedMessage" = "This practice question has been saved to your archive for future review.";
+"mistakeReview.configurePractice" = "Configure Practice Questions";
+"mistakeReview.basedOnMistakes" = "Based on %d selected mistakes";
+"mistakeReview.questionTypes" = "Question Types";
+"mistakeReview.selectQuestionTypes" = "Select which types of questions to generate:";
+"mistakeReview.difficultyLevel" = "Difficulty Level";
+"mistakeReview.numberOfQuestions" = "Number of Questions";
+"mistakeReview.sliderMin" = "1 question";
+"mistakeReview.sliderMax" = "10 questions";
+"mistakeReview.generateCount" = "Generate %d Questions";
+"mistakeReview.practiceConfiguration" = "Practice Configuration";
+"mistakeReview.filter.severityLabel" = "Severity";
+"mistakeReview.filter.timeLabel" = "Time";
+"mistakeReview.filter.severity.all" = "All";
+"mistakeReview.filter.severity.medPlus" = "Med+";
+"mistakeReview.filter.severity.severe" = "Severe";
+"mistakeReview.filter.time.week" = "Week";
+"mistakeReview.filter.time.month" = "Month";
+"mistakeReview.filter.time.all" = "All";
+"mistakeReview.filter.subjectsLabel" = "Subjects";
+"mistakeReview.filter.filterByTopic" = "Filter by Topic";
+"mistakeReview.filter.noTaxonomyData" = "No taxonomy data available";
+"mistakeReview.filter.clearCount" = "Clear (%d)";
+"mistakeReview.filter.allTopics" = "All Topics";
+"mistakeReview.filter.active" = "Active";
+"mistakeReview.filter.allFilter" = "All";
+"difficulty.desc.beginner" = "Foundation-building questions for new concepts";
+"difficulty.desc.intermediate" = "Balanced questions for practice and review";
+"difficulty.desc.advanced" = "Challenging questions to push understanding";
+"difficulty.desc.adaptive" = "AI-adjusted difficulty based on your mistakes";
+"common.retry" = "Retry";
+"common.continue" = "Continue";
+"common.true" = "True";
+"common.false" = "False";
 
 // Parent Mode - Face ID
 "parentAuth.useFaceID" = "Use Face ID";
@@ -1266,6 +1389,7 @@
 "questionType.calculation" = "Calculation";
 "questionType.matching" = "Matching";
 "questionType.mixedTypes" = "Mixed Types";
+"questionType.unknown" = "Unknown";
 
 // Difficulty Levels
 "difficulty.beginner" = "Beginner";
@@ -1396,6 +1520,30 @@
 "privacy.settings.termsOfService" = "Terms of Service";
 "privacy.settings.title" = "Privacy Settings";
 
+// Parent Reports section
+"privacy.parentReports.sectionHeader" = "Parent Reports";
+"privacy.parentReports.automatedReports" = "Automated Weekly Reports";
+"privacy.parentReports.automatedReportsDesc" = "Generate parent reports every Sunday at 9 PM";
+"privacy.parentReports.backgroundSync" = "Background Homework Sync";
+"privacy.parentReports.backgroundSyncDesc" = "Automatically sync homework data for reports";
+"privacy.parentReports.lastSync" = "Last Sync";
+"privacy.parentReports.never" = "Never";
+"privacy.parentReports.syncNow" = "Sync Now";
+"privacy.parentReports.nextReport" = "Next Report";
+"privacy.parentReports.footerEnabled" = "Reports are generated every Sunday at 9 PM using homework data synced throughout the week.";
+"privacy.parentReports.footerDisabled" = "Enable automated weekly parent reports to track learning progress.";
+
+// Clear Server Data
+"privacy.clearData.title" = "Clear Server Data";
+"privacy.clearData.desc" = "Delete all learning data from server (keeps local data)";
+"privacy.clearData.alertTitle" = "Clear My Data";
+"privacy.clearData.alertButton" = "Clear Server Data";
+"privacy.clearData.alertMessage" = "This will permanently delete all your learning data from the server.\n\nYour local data will remain intact. Your account will remain active. This action cannot be undone.";
+
+// Delete Account alert
+"privacy.deleteAccount.emailPlaceholder" = "Enter your email to confirm";
+"privacy.deleteAccount.alertMessage" = "This will permanently delete your account and all data. Please enter your email to confirm.";
+
 // Additional Focus Mode and Settings Translations
 "focus.garden.allTrees" = "All Trees";
 "focus.garden.clearConfirmation" = "Are you sure you want to clear all trees from your garden? This cannot be undone.";
@@ -1474,22 +1622,15 @@
 "pomodoro.deepFocusGuide" = "🌙 Deep Focus Mode Features:\n\n✅ Automatically blocks in-app notifications\n✅ Automatically reduces screen brightness to 50%\n✅ Optimizes audio environment\n✅ One-tap activation, focus effortlessly\n\n💡 Advanced Tip (Optional):\nTo block all system notifications, manually enable \"Do Not Disturb\" in Control Center for a complete focus experience.\n\nYou can also tell Siri: \"Turn on Do Not Disturb\"";
 
 
-// Subject Names
+// Subject Names (legacy keys used by other features)
 "subject.mathematics" = "Mathematics";
 "subject.science" = "Science";
-"subject.physics" = "Physics";
-"subject.chemistry" = "Chemistry";
-"subject.biology" = "Biology";
-"subject.english" = "English";
-"subject.history" = "History";
-"subject.geography" = "Geography";
 "subject.computerScience" = "Computer Science";
 "subject.literature" = "Literature";
 "subject.socialStudies" = "Social Studies";
 "subject.economics" = "Economics";
 "subject.art" = "Art";
 "subject.music" = "Music";
-"subject.other" = "Other";
 
 // Pro Mode - Digital Homework
 "proMode.title" = "Digital Homework";
@@ -1540,6 +1681,7 @@
 "proMode.subquestionAnswer" = "Answer: %@";
 "proMode.addAnnotation" = "Add Annotation";
 "proMode.editAnnotations" = "Edit Annotations (%d)";
+"proMode.annotationImageHint" = "Some questions need images — tap to crop from photo";
 "proMode.selectAIModel" = "Select AI Model";
 "proMode.revertGrading" = "Revert Grading";
 "proMode.revertGradingAlert.title" = "Revert Grading?";
@@ -1669,11 +1811,28 @@
 "pomodoroCalendar.todayEvents" = "Today's Sessions";
 "pomodoroCalendar.weekEvents" = "This Week";
 "pomodoroCalendar.freeSlots" = "Free Time Slots";
+"pomodoroCalendar.freeSlotsDescription" = "Available slots for a 25-min focus session";
 "pomodoroCalendar.scheduled" = "Scheduled";
 "pomodoroCalendar.noEvents" = "No events scheduled";
 "pomodoroCalendar.eventTitle" = "Focus Session 🍅";
+"pomodoroCalendar.eventTitlePlaceholder" = "Event title";
 "pomodoroCalendar.reminderBefore" = "Remind me %d minutes before";
-"pomodoroCalendar.duration" = "25 minutes";
+"pomodoroCalendar.duration" = " min";
+"pomodoroCalendar.duration25" = "25 minutes";
+"pomodoroCalendar.duration50" = "50 minutes";
+"pomodoroCalendar.durationLabel" = "Duration";
+"pomodoroCalendar.selectDate" = "Select Date";
+"pomodoroCalendar.date" = "Date";
+"pomodoroCalendar.eventsCount" = " events";
+"pomodoroCalendar.addCustom" = "Add Custom Session";
+"pomodoroCalendar.eventInfo" = "Event Info";
+"pomodoroCalendar.startTime" = "Start Time";
+"pomodoroCalendar.notes" = "Notes";
+"pomodoroCalendar.accessRequired" = "Calendar Access Required";
+"pomodoroCalendar.accessDescription" = "Allow access to view and schedule focus sessions in your calendar.";
+"pomodoroCalendar.grantAccess" = "Grant Calendar Access";
+"pomodoroCalendar.permissionRequired" = "Calendar Permission Required";
+"pomodoroCalendar.permissionMessage" = "Please enable calendar access in Settings to schedule focus sessions.";
 
 // Deep Focus Mode
 "deepFocus.title" = "Deep Focus Mode";
@@ -1722,6 +1881,12 @@
 "sessionChat.deepThinkingMode" = "Deep Thinking Mode";
 "sessionChat.releaseToSend" = "Release to Send";
 
+// MARK: - Live Voice Chat
+"live.hold_to_talk" = "Hold to Talk";
+"live.release_to_send" = "Release to Send";
+"live.slide_to_cancel" = "Slide to Cancel";
+"live.release_to_cancel" = "Release to Cancel";
+
 // MARK: - Homework Results View
 "homeworkResults.subquestions" = "%d subquestions";
 "homeworkResults.overallFeedback" = "Overall Feedback";
@@ -1746,6 +1911,24 @@
 "proMode.trueFalse.false" = "False";
 "proMode.trueFalse.trueShort" = "T";
 "proMode.trueFalse.falseShort" = "F";
+"proMode.followUp" = "Follow Up";
+"proMode.regrade" = "Regrade";
+"proMode.selectToDelete" = "Select to Delete";
+"proMode.detectedErrors" = "Detected %d Errors on This Page";
+"proMode.pdfExportFailed" = "PDF Export Failed";
+"proMode.handwritingQuality" = "Handwriting Quality";
+"proMode.handwritingCompact" = "Handwriting:";
+"proMode.handwriting.noHandwriting" = "No handwriting detected";
+"proMode.handwriting.exceptional" = "Exceptional";
+"proMode.handwriting.clear" = "Clear";
+"proMode.handwriting.readable" = "Readable";
+"proMode.handwriting.difficult" = "Difficult";
+"proMode.handwriting.illegible" = "Illegible";
+"proMode.handwriting.desc.exceptional" = "Very clear and consistent";
+"proMode.handwriting.desc.clear" = "Well-formed and readable";
+"proMode.handwriting.desc.readable" = "Understandable";
+"proMode.handwriting.desc.difficult" = "Hard to read";
+"proMode.handwriting.desc.illegible" = "Very difficult to decipher";
 
 // MARK: - Progressive Homework View
 "progressiveHomework.loadingMessage" = "This may take a moment...";
@@ -1790,3 +1973,26 @@
 "tomato.garden.exchange.exchanging" = "Exchanging...";
 "tomato.garden.exchange.congratulations" = "Congratulations\!";
 "tomato.garden.exchange.awesome" = "Awesome\!";
+
+// MARK: - Voice Settings
+"voiceSettings.title" = "Your AI Study Mates";
+"voiceSettings.voiceControls" = "Voice Controls";
+"voiceSettings.speakingSpeed" = "Speaking Speed";
+"voiceSettings.speakingRate" = "Speaking Rate";
+"voiceSettings.volume" = "Volume";
+"voiceSettings.autoSpeakSettings" = "Auto-Speak Settings";
+"voiceSettings.autoSpeakResponses" = "Auto-Speak AI Responses";
+"voiceSettings.autoSpeakDesc" = "Automatically read AI responses aloud";
+"voiceSettings.voicePreview" = "Voice Preview";
+"voiceSettings.previewHint" = "Tap to hear how your AI assistant will sound with these settings:";
+"voiceSettings.playPreview" = "Play Preview";
+"voiceSettings.stopPreview" = "Stop Preview";
+"voiceSettings.speed.verySlow" = "Very Slow";
+"voiceSettings.speed.slow" = "Slow";
+"voiceSettings.speed.normal" = "Normal";
+"voiceSettings.speed.fast" = "Fast";
+"voiceSettings.speed.veryFast" = "Very Fast";
+"voiceSettings.avatar.adam.desc" = "A friendly, encouraging boy";
+"voiceSettings.avatar.eva.desc" = "A kind, supportive girl";
+"voiceSettings.avatar.max.desc" = "An energetic, enthusiastic boy";
+"voiceSettings.avatar.mia.desc" = "A playful, curious girl";

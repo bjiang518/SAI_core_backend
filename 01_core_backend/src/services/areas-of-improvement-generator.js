@@ -13,6 +13,7 @@
 const { db } = require('../utils/railway-database');
 const logger = require('../utils/logger');
 const { getInsightsService } = require('./openai-insights-service');
+const { getT } = require('./report-i18n');
 
 class AreasOfImprovementGenerator {
     /**
@@ -25,7 +26,7 @@ class AreasOfImprovementGenerator {
      * @param {String} period - Report period ('weekly' or 'monthly')
      * @returns {Promise<String>} HTML report
      */
-    async generateAreasOfImprovementReport(userId, startDate, endDate, studentName, studentAge, period = 'weekly') {
+    async generateAreasOfImprovementReport(userId, startDate, endDate, studentName, studentAge, period = 'weekly', language = 'en') {
         logger.info(`🎯 Generating ${period} Areas of Improvement Report for ${userId.substring(0, 8)}... (${studentName}, Age: ${studentAge})`);
 
         try {
@@ -59,6 +60,7 @@ class AreasOfImprovementGenerator {
                     studentName,
                     studentAge,
                     period,
+                    language,
                     startDate
                 };
 
@@ -93,7 +95,7 @@ class AreasOfImprovementGenerator {
             }
 
             // Step 5: Generate HTML
-            const html = this.generateImprovementHTML(analysis, studentName, period, aiInsights);
+            const html = this.generateImprovementHTML(analysis, studentName, period, aiInsights, language);
 
             logger.info(`✅ Areas of Improvement Report generated: ${Object.keys(analysis.bySubject).length} subjects analyzed`);
 
@@ -428,9 +430,9 @@ class AreasOfImprovementGenerator {
      * @param {String} period - 'weekly' or 'monthly'
      * @param {Array} aiInsights - AI-generated insights (optional)
      */
-    generateImprovementHTML(analysis, studentName, period = 'weekly', aiInsights = null) {
-        const periodLabel = period === 'monthly' ? 'this month' : 'this week';
-        const comparisonLabel = period === 'monthly' ? 'last month' : 'last week';
+    generateImprovementHTML(analysis, studentName, period = 'weekly', aiInsights = null, language = 'en') {
+        const t = getT(language);
+        const ti = t.improvement;
         const subjects = Object.values(analysis.bySubject)
             .filter(s => s.totalMistakes > 0)
             .sort((a, b) => b.totalMistakes - a.totalMistakes);
@@ -488,7 +490,7 @@ class AreasOfImprovementGenerator {
 
         /* Flat header section */
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #FFB6A3 0%, #FF85C1 100%);
             color: white;
             padding: 20px 16px;
             border-radius: 8px;
@@ -511,7 +513,7 @@ class AreasOfImprovementGenerator {
             padding: 16px;
             border-radius: 8px;
             margin-bottom: 12px;
-            border-left: 4px solid #dc2626;
+            border-left: 4px solid #FFB6A3;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
 
@@ -526,7 +528,7 @@ class AreasOfImprovementGenerator {
             border-radius: 8px;
             padding: 16px;
             margin-bottom: 12px;
-            border-left: 4px solid #dc2626;
+            border-left: 4px solid #FF85C1;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
 
@@ -544,13 +546,13 @@ class AreasOfImprovementGenerator {
         }
 
         .mistake-count {
-            background: #fef2f2;
-            color: #dc2626;
+            background: #fff0f5;
+            color: #c0003c;
             padding: 6px 12px;
             border-radius: 6px;
             font-weight: 600;
             font-size: 13px;
-            border: 1px solid #fecaca;
+            border: 1px solid #FFC0D0;
         }
 
         .trend-badge {
@@ -559,22 +561,22 @@ class AreasOfImprovementGenerator {
             border-radius: 6px;
             font-weight: 600;
             font-size: 14px;
-            border: 1px solid #e5e7eb;
+            border: 1px solid #e8d5f5;
         }
 
         .trend-improving {
-            background: #f0fdf4;
-            color: #166534;
+            background: #f0fdf9;
+            color: #0f6b52;
         }
 
         .trend-increasing {
-            background: #fef2f2;
-            color: #dc2626;
+            background: #fff0f5;
+            color: #c0003c;
         }
 
         .trend-stable {
-            background: #f3f4f6;
-            color: #374151;
+            background: #fdf6ff;
+            color: #7B4F9E;
         }
 
         .error-type {
@@ -582,8 +584,8 @@ class AreasOfImprovementGenerator {
             padding: 12px;
             margin: 8px 0;
             border-radius: 6px;
-            border-left: 3px solid #dc2626;
-            border: 1px solid #e5e7eb;
+            border-left: 3px solid #FFB6A3;
+            border: 1px solid #e8d5f5;
         }
 
         .error-type-header {
@@ -597,22 +599,22 @@ class AreasOfImprovementGenerator {
         }
 
         .error-count {
-            background: #fef2f2;
-            color: #dc2626;
+            background: #fff0f5;
+            color: #c0003c;
             padding: 4px 10px;
             border-radius: 4px;
             font-size: 13px;
             font-weight: 600;
-            border: 1px solid #fecaca;
+            border: 1px solid #FFC0D0;
         }
 
         .error-type-body {
             font-size: 14px;
-            color: #6b7280;
+            color: #4a4a4a;
         }
 
         .example {
-            background: #f3f4f6;
+            background: #fdf6ff;
             padding: 10px;
             border-radius: 4px;
             margin: 8px 0;
@@ -623,45 +625,45 @@ class AreasOfImprovementGenerator {
         }
 
         .suggestion {
-            background: #eff6ff;
+            background: #f0fdf9;
             padding: 12px;
             border-radius: 6px;
             margin-top: 8px;
-            border-left: 4px solid #2563eb;
+            border-left: 4px solid #7FDBCA;
             font-size: 14px;
-            color: #1e40af;
-            border: 1px solid #bfdbfe;
+            color: #0f6b52;
+            border: 1px solid #b2f0e6;
         }
 
         .parent-action {
-            background: #fffbf0;
+            background: #fdf6ff;
             padding: 14px;
             border-radius: 6px;
             margin-top: 12px;
-            border-left: 4px solid #ea580c;
-            border: 1px solid #fed7aa;
+            border-left: 4px solid #C9A0DC;
+            border: 1px solid #e8d5f5;
         }
 
         .parent-action-title {
             font-weight: 600;
-            color: #92400e;
+            color: #7B4F9E;
             margin-bottom: 6px;
             font-size: 15px;
         }
 
         .parent-action-content {
-            color: #92400e;
+            color: #4a4a4a;
             font-size: 14px;
             line-height: 1.7;
         }
 
         .no-issues {
-            background: #f0fdf4;
+            background: #f0fdf9;
             padding: 16px;
             border-radius: 8px;
             text-align: center;
-            color: #166534;
-            border: 1px solid #bbf7d0;
+            color: #0f6b52;
+            border: 1px solid #b2f0e6;
         }
 
         .no-issues p {
@@ -670,12 +672,12 @@ class AreasOfImprovementGenerator {
         }
 
         footer {
-            background: #f3f4f6;
+            background: #fdf6ff;
             padding: 16px;
             text-align: center;
             font-size: 11px;
-            color: #6b7280;
-            border-top: 1px solid #e5e7eb;
+            color: #7B4F9E;
+            border-top: 1px solid #e8d5f5;
         }
 
         @media (max-width: 768px) {
@@ -691,11 +693,11 @@ class AreasOfImprovementGenerator {
 
         /* AI Insights Styling */
         .ai-insight {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #C9A0DC 0%, #7EC8E3 100%);
             border-radius: 12px;
             padding: 20px;
             margin: 24px 0;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+            box-shadow: 0 4px 12px rgba(201, 160, 220, 0.2);
         }
 
         .ai-insight-header {
@@ -717,7 +719,7 @@ class AreasOfImprovementGenerator {
         }
 
         .ai-insight-content {
-            background: rgba(255, 255, 255, 0.95);
+            background: rgba(255, 255, 255, 0.97);
             border-radius: 8px;
             padding: 16px;
             color: #1a1a1a;
@@ -725,7 +727,16 @@ class AreasOfImprovementGenerator {
             font-size: 13px;
         }
 
-        .ai-insight-content ul {
+        .ai-insight-content h3,
+        .ai-insight-content h4 {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin: 10px 0 6px;
+        }
+
+        .ai-insight-content ul,
+        .ai-insight-content ol {
             margin: 8px 0;
             padding-left: 20px;
         }
@@ -740,13 +751,17 @@ class AreasOfImprovementGenerator {
         }
 
         .ai-insight-content strong {
-            color: #667eea;
+            color: #7B4F9E;
             font-weight: 700;
+        }
+
+        .ai-insight-content em {
+            font-style: italic;
         }
 
         .ai-badge {
             display: inline-block;
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.25);
             color: white;
             padding: 3px 8px;
             border-radius: 4px;
@@ -761,21 +776,18 @@ class AreasOfImprovementGenerator {
 <body>
     <!-- Flat header -->
     <div class="header">
-        <h1>🎯 ${studentName}'s Areas for Improvement</h1>
-        <p>Subject-Specific Weakness Analysis</p>
+        <h1>${ti.title(studentName)}</h1>
+        <p>${ti.subtitle}</p>
     </div>
 
     <!-- Overview --!>
     <div class="overview">
                 <p>
-                    This report analyzes your child's learning challenges ${periodLabel}.
-                    We identified <strong>${analysis.totalMistakes} mistakes</strong> across
-                    <strong>${subjects.length} subjects</strong>. Each mistake is categorized by type
-                    (calculation, concept, grammar, incomplete) with specific improvement suggestions.
+                    ${ti.overviewText(period, analysis.totalMistakes, subjects.length)}
                     ${analysis.totalMistakes > analysis.totalMistakesLastPeriod ?
-                        `<strong style="color: #721C24;">Note: Mistakes increased from ${analysis.totalMistakesLastPeriod} ${comparisonLabel}.</strong>` :
+                        ti.mistakesIncreased(analysis.totalMistakesLastPeriod, period) :
                         analysis.totalMistakes < analysis.totalMistakesLastPeriod ?
-                        `<strong style="color: #155724;">Great news: Mistakes decreased from ${analysis.totalMistakesLastPeriod} ${comparisonLabel}!</strong>` :
+                        ti.mistakesDecreased(analysis.totalMistakesLastPeriod, period) :
                         ''}
                 </p>
             </div>
@@ -784,8 +796,8 @@ class AreasOfImprovementGenerator {
             <!-- AI Insight 1: Root Cause Analysis -->
             <div class="ai-insight">
                 <div class="ai-insight-header">
-                    <span class="ai-insight-icon">🤖</span>
-                    <h3>AI Insights: Root Cause Analysis<span class="ai-badge">GPT-4o</span></h3>
+                    <span class="ai-insight-icon" style="display:none;"></span>
+                    <h3>${ti.aiRootCause}<span class="ai-badge">${t.gptBadge}</span></h3>
                 </div>
                 <div class="ai-insight-content">
                     ${aiInsights[0]}
@@ -801,10 +813,10 @@ class AreasOfImprovementGenerator {
                             <div class="subject-title">${subject.subject}</div>
                         </div>
                         <div style="text-align: right;">
-                            <span class="mistake-count">${subject.totalMistakes} mistakes</span>
+                            <span class="mistake-count">${subject.totalMistakes} ${ti.mistakes}</span>
                             <span class="trend-badge trend-${subject.trend}">
                                 ${subject.trend === 'improving' ? '↓' : subject.trend === 'increasing' ? '↑' : '→'}
-                                ${Math.abs(subject.trendChange)} vs ${comparisonLabel}
+                                ${Math.abs(subject.trendChange)} ${ti.vsLastPeriod(period)}
                             </span>
                         </div>
                     </div>
@@ -815,30 +827,30 @@ class AreasOfImprovementGenerator {
                         if (errors.length === 0) return '';
 
                         const errorLabels = {
-                            calculation_error: 'Calculation Errors',
-                            concept_mismatch: 'Concept Misunderstandings',
-                            grammar_spelling: 'Grammar & Spelling',
-                            incomplete: 'Incomplete Answers'
+                            calculation_error: ti.calculationErrors,
+                            concept_mismatch: ti.conceptMisunderstandings,
+                            grammar_spelling: ti.grammarSpelling,
+                            incomplete: ti.incompleteAnswers
                         };
 
                         return `
                             <div class="error-type">
                                 <div class="error-type-header">
                                     ${errorLabels[errorType]}
-                                    <span class="error-count">${errors.length} ${errors.length === 1 ? 'instance' : 'instances'}</span>
+                                    <span class="error-count">${ti.instance(errors.length)}</span>
                                 </div>
                                 <div class="error-type-body">
                                     ${errors.slice(0, 2).map(err => `
                                         <div class="example">
-                                            <strong>Q:</strong> ${err.question.substring(0, 100)}...
-                                            <br><strong>Student:</strong> "${err.studentAnswer}"
-                                            <br><strong>Correct:</strong> "${err.correctAnswer}"
+                                            <strong>${ti.questionLabel}</strong> ${err.question.substring(0, 100)}...
+                                            <br><strong>${ti.studentLabel}</strong> "${err.studentAnswer}"
+                                            <br><strong>${ti.correctLabel}</strong> "${err.correctAnswer}"
                                         </div>
                                     `).join('')}
-                                    ${errors.length > 2 ? `<div style="color: #999; font-size: 12px; margin-top: 8px;">... and ${errors.length - 2} more</div>` : ''}
+                                    ${errors.length > 2 ? `<div style="color: #999; font-size: 12px; margin-top: 8px;">${ti.andMore(errors.length - 2)}</div>` : ''}
                                 </div>
                                 <div class="suggestion">
-                                    How to help: ${this.getSuggestion(errorType)}
+                                    ${ti.howToHelp} ${this.getSuggestion(errorType)}
                                 </div>
                             </div>
                         `;
@@ -846,18 +858,16 @@ class AreasOfImprovementGenerator {
 
                     <!-- Parent Action -->
                     <div class="parent-action">
-                        <div class="parent-action-title">Parent Action Item</div>
+                        <div class="parent-action-title">${ti.parentActionTitle}</div>
                         <div class="parent-action-content">
-                            Practice 10-15 minutes daily focusing on ${subject.subject} fundamentals.
-                            Emphasize understanding over speed. Review the examples above together and ask
-                            your child to explain their thinking process.
+                            ${ti.parentActionText(subject.subject)}
                         </div>
                     </div>
                 </div>
             `).join('') : `
                 <div class="no-issues">
-                    <p><strong>Excellent!</strong> No significant learning challenges detected ${periodLabel}.</p>
-                    <p style="margin-top: 10px; font-size: 14px;">Your child is showing strong understanding across all subjects. Keep up the great learning!</p>
+                    <p><strong>${ti.noIssuesTitle}</strong> ${ti.noIssuesText(period)}</p>
+                    <p style="margin-top: 10px; font-size: 14px;">${ti.noIssuesSubtext}</p>
                 </div>
             `}
 
@@ -865,8 +875,8 @@ class AreasOfImprovementGenerator {
             <!-- AI Insight 2: Progress Trajectory -->
             <div class="ai-insight">
                 <div class="ai-insight-header">
-                    <span class="ai-insight-icon">🤖</span>
-                    <h3>AI Insights: Progress Trajectory<span class="ai-badge">GPT-4o</span></h3>
+                    <span class="ai-insight-icon" style="display:none;"></span>
+                    <h3>${ti.aiProgressTrajectory}<span class="ai-badge">${t.gptBadge}</span></h3>
                 </div>
                 <div class="ai-insight-content">
                     ${aiInsights[1]}
@@ -878,8 +888,8 @@ class AreasOfImprovementGenerator {
             <!-- AI Insight 3: Personalized Practice Plan -->
             <div class="ai-insight">
                 <div class="ai-insight-header">
-                    <span class="ai-insight-icon">🤖</span>
-                    <h3>AI Insights: Practice Plan<span class="ai-badge">GPT-4o</span></h3>
+                    <span class="ai-insight-icon" style="display:none;"></span>
+                    <h3>${ti.aiPracticePlan}<span class="ai-badge">${t.gptBadge}</span></h3>
                 </div>
                 <div class="ai-insight-content">
                     ${aiInsights[2]}

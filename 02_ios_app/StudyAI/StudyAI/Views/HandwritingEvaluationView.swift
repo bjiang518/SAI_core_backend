@@ -19,7 +19,7 @@ struct HandwritingEvaluationView: View {
                     .font(.system(size: 14))
                     .foregroundColor(scoreColor)
 
-                Text("Handwriting Quality")
+                Text(NSLocalizedString("proMode.handwritingQuality", comment: ""))
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(scoreColor)
 
@@ -116,20 +116,15 @@ struct HandwritingEvaluationView: View {
     // Quality label based on score
     private var qualityLabel: String {
         guard let score = evaluation.score else {
-            return "No handwriting detected"
+            return NSLocalizedString("proMode.handwriting.noHandwriting", comment: "")
         }
 
         switch score {
-        case 9...10:
-            return "Exceptional"
-        case 7..<9:
-            return "Clear"
-        case 5..<7:
-            return "Readable"
-        case 3..<5:
-            return "Difficult"
-        default:
-            return "Illegible"
+        case 9...10: return NSLocalizedString("proMode.handwriting.exceptional", comment: "")
+        case 7..<9:  return NSLocalizedString("proMode.handwriting.clear", comment: "")
+        case 5..<7:  return NSLocalizedString("proMode.handwriting.readable", comment: "")
+        case 3..<5:  return NSLocalizedString("proMode.handwriting.difficult", comment: "")
+        default:     return NSLocalizedString("proMode.handwriting.illegible", comment: "")
         }
     }
 
@@ -140,16 +135,11 @@ struct HandwritingEvaluationView: View {
         }
 
         switch score {
-        case 9...10:
-            return "Very clear and consistent"
-        case 7..<9:
-            return "Well-formed and readable"
-        case 5..<7:
-            return "Understandable"
-        case 3..<5:
-            return "Hard to read"
-        default:
-            return "Very difficult to decipher"
+        case 9...10: return NSLocalizedString("proMode.handwriting.desc.exceptional", comment: "")
+        case 7..<9:  return NSLocalizedString("proMode.handwriting.desc.clear", comment: "")
+        case 5..<7:  return NSLocalizedString("proMode.handwriting.desc.readable", comment: "")
+        case 3..<5:  return NSLocalizedString("proMode.handwriting.desc.difficult", comment: "")
+        default:     return NSLocalizedString("proMode.handwriting.desc.illegible", comment: "")
         }
     }
 }
@@ -166,7 +156,7 @@ struct HandwritingEvaluationCompactView: View {
                     .font(.caption)
                     .foregroundColor(scoreColor)
 
-                Text("Handwriting:")
+                Text(NSLocalizedString("proMode.handwritingCompact", comment: ""))
                     .font(.caption)
                     .foregroundColor(.secondary)
 
@@ -246,7 +236,7 @@ struct HandwritingEvaluationExpandableCard: View {
                     }
 
                     // Title
-                    Text("Handwriting Quality")
+                    Text(NSLocalizedString("proMode.handwritingQuality", comment: ""))
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(.primary)
 
@@ -388,15 +378,15 @@ struct HandwritingEvaluationExpandableCard: View {
     // Quality label based on score
     private var qualityLabel: String {
         guard let score = evaluation.score else {
-            return "No handwriting detected"
+            return NSLocalizedString("proMode.handwriting.noHandwriting", comment: "")
         }
 
         switch score {
-        case 9...10: return "Exceptional"
-        case 7..<9: return "Clear"
-        case 5..<7: return "Readable"
-        case 3..<5: return "Difficult"
-        default: return "Illegible"
+        case 9...10: return NSLocalizedString("proMode.handwriting.exceptional", comment: "")
+        case 7..<9:  return NSLocalizedString("proMode.handwriting.clear", comment: "")
+        case 5..<7:  return NSLocalizedString("proMode.handwriting.readable", comment: "")
+        case 3..<5:  return NSLocalizedString("proMode.handwriting.difficult", comment: "")
+        default:     return NSLocalizedString("proMode.handwriting.illegible", comment: "")
         }
     }
 
@@ -407,11 +397,11 @@ struct HandwritingEvaluationExpandableCard: View {
         }
 
         switch score {
-        case 9...10: return "Very clear and consistent"
-        case 7..<9: return "Well-formed and readable"
-        case 5..<7: return "Understandable"
-        case 3..<5: return "Hard to read"
-        default: return "Very difficult to decipher"
+        case 9...10: return NSLocalizedString("proMode.handwriting.desc.exceptional", comment: "")
+        case 7..<9:  return NSLocalizedString("proMode.handwriting.desc.clear", comment: "")
+        case 5..<7:  return NSLocalizedString("proMode.handwriting.desc.readable", comment: "")
+        case 3..<5:  return NSLocalizedString("proMode.handwriting.desc.difficult", comment: "")
+        default:     return NSLocalizedString("proMode.handwriting.desc.illegible", comment: "")
         }
     }
 }

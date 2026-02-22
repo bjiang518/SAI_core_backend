@@ -46,6 +46,7 @@ struct ProgressiveQuestion: Codable, Identifiable {
     let hasImage: Bool?
     let imageRegion: ImageRegion?
     let questionType: String?
+    let needImage: Bool?  // Pro Mode only: true if question references a diagram/figure
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -60,6 +61,7 @@ struct ProgressiveQuestion: Codable, Identifiable {
         case hasImage = "has_image"
         case imageRegion = "image_region"
         case questionType = "question_type"
+        case needImage = "need_image"
     }
 
     /// Check if this is a parent question with subquestions

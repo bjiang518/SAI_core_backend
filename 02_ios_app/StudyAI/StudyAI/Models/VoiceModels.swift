@@ -67,13 +67,13 @@ enum VoiceType: String, CaseIterable, Codable {
     var description: String {
         switch self {
         case .adam:
-            return "A friendly, encouraging boy"
+            return NSLocalizedString("voiceSettings.avatar.adam.desc", comment: "")
         case .eva:
-            return "A kind, supportive girl"
+            return NSLocalizedString("voiceSettings.avatar.eva.desc", comment: "")
         case .max:
-            return "An energetic, enthusiastic boy"
+            return NSLocalizedString("voiceSettings.avatar.max.desc", comment: "")
         case .mia:
-            return "A playful, curious girl"
+            return NSLocalizedString("voiceSettings.avatar.mia.desc", comment: "")
         }
     }
 

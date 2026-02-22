@@ -13,6 +13,7 @@
 const { db } = require('../utils/railway-database');
 const logger = require('../utils/logger');
 const { getInsightsService } = require('./openai-insights-service');
+const { getT } = require('./report-i18n');
 
 class ActivityReportGenerator {
     /**
@@ -25,7 +26,7 @@ class ActivityReportGenerator {
      * @param {String} period - Report period ('weekly' or 'monthly')
      * @returns {Promise<String>} HTML report
      */
-    async generateActivityReport(userId, startDate, endDate, studentName, studentAge, period = 'weekly') {
+    async generateActivityReport(userId, startDate, endDate, studentName, studentAge, period = 'weekly', language = 'en') {
         logger.info(`📊 Generating ${period} Activity Report for ${userId.substring(0, 8)}... (${studentName}, Age: ${studentAge})`);
 
         try {
@@ -70,6 +71,7 @@ class ActivityReportGenerator {
                     studentName,
                     studentAge,
                     period,
+                    language,
                     startDate,
                     periodDays: this.calculatePeriodDays(startDate, endDate)
                 };
@@ -109,7 +111,7 @@ class ActivityReportGenerator {
             }
 
             // Step 6: Generate HTML
-            const html = this.generateActivityHTML(metrics, studentName, period, startDate, endDate, aiInsights);
+            const html = this.generateActivityHTML(metrics, studentName, period, startDate, endDate, aiInsights, language);
 
             logger.info(`✅ Activity Report generated: ${metrics.totalQuestions} questions, ${metrics.totalChats} chats`);
 
@@ -646,10 +648,11 @@ class ActivityReportGenerator {
      * @param {Date} endDate - Period end date (for monthly insights)
      * @param {Array} aiInsights - AI-generated insights (optional)
      */
-    generateActivityHTML(metrics, studentName, period = 'weekly', startDate = null, endDate = null, aiInsights = null) {
-        const periodLabel = period === 'monthly' ? 'Monthly' : 'Weekly';
-        const timePhrase = period === 'monthly' ? 'this month' : 'this week';
-        const comparisonLabel = period === 'monthly' ? 'Month-over-Month' : 'Week-over-Week';
+    generateActivityHTML(metrics, studentName, period = 'weekly', startDate = null, endDate = null, aiInsights = null, language = 'en') {
+        const t = getT(language);
+        const ta = t.activity;
+        const periodLabel = period === 'monthly' ? t.monthly : t.weekly;
+        const comparisonLabel = period === 'monthly' ? ta.monthComparison : ta.weekComparison;
         const subjectArray = Object.entries(metrics.subjectBreakdown)
             .map(([name, data]) => ({
                 name,
@@ -723,7 +726,7 @@ class ActivityReportGenerator {
 
         /* Flat header section */
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #FFB6A3 0%, #FF85C1 100%);
             color: white;
             padding: 20px 16px;
             border-radius: 8px;
@@ -749,38 +752,39 @@ class ActivityReportGenerator {
         }
 
         .metric-card {
-            background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%);
+            background: #fdf6ff;
             padding: 14px;
             border-radius: 8px;
             text-align: center;
+            border: 1px solid #e8d5f5;
         }
 
         .metric-card.questions {
-            border-left: 4px solid #dc2626;
+            border-left: 4px solid #FF85C1;
         }
 
         .metric-card.chats {
-            border-left: 4px solid #0d9488;
+            border-left: 4px solid #7FDBCA;
         }
 
         .metric-card.days {
-            border-left: 4px solid #2563eb;
+            border-left: 4px solid #7EC8E3;
         }
 
         .metric-card.time {
-            border-left: 4px solid #ea580c;
+            border-left: 4px solid #FFB6A3;
         }
 
         .metric-value {
             font-size: 24px;
             font-weight: 700;
-            color: #667eea;
+            color: #7B4F9E;
             margin-bottom: 4px;
         }
 
         .metric-label {
             font-size: 13px;
-            color: #64748b;
+            color: #4a4a4a;
             font-weight: 500;
         }
 
@@ -799,7 +803,7 @@ class ActivityReportGenerator {
             color: #1a1a1a;
             margin-bottom: 10px;
             padding-bottom: 6px;
-            border-bottom: 2px solid #e2e8f0;
+            border-bottom: 2px solid #FFB6A3;
         }
 
         .charts-grid {
@@ -810,10 +814,10 @@ class ActivityReportGenerator {
         }
 
         .chart-container {
-            background: #f9fafb;
+            background: #fdf6ff;
             padding: 16px;
             border-radius: 8px;
-            border: 1px solid #e5e7eb;
+            border: 1px solid #e8d5f5;
         }
 
         .chart-title {
@@ -883,25 +887,25 @@ class ActivityReportGenerator {
         }
 
         .trend-increasing {
-            background: #dcfce7;
-            color: #166534;
+            background: #e6faf6;
+            color: #0f6b52;
         }
 
         .trend-decreasing {
-            background: #fee2e2;
-            color: #991b1b;
+            background: #fff0f5;
+            color: #c0003c;
         }
 
         .trend-stable {
-            background: #f3f4f6;
-            color: #374151;
+            background: #fdf6ff;
+            color: #7B4F9E;
         }
 
         .week-comparison {
-            background: #f9fafb;
+            background: #fdf6ff;
             padding: 16px;
             border-radius: 8px;
-            border: 1px solid #e5e7eb;
+            border: 1px solid #e8d5f5;
         }
 
         .week-comparison-title {
@@ -916,7 +920,7 @@ class ActivityReportGenerator {
             justify-content: space-between;
             padding: 8px 0;
             font-size: 15px;
-            border-bottom: 1px solid #e5e7eb;
+            border-bottom: 1px solid #e8d5f5;
         }
 
         .week-comparison-item:last-child {
@@ -924,7 +928,7 @@ class ActivityReportGenerator {
         }
 
         .week-comparison-label {
-            color: #6b7280;
+            color: #4a4a4a;
             font-weight: 500;
         }
 
@@ -934,10 +938,10 @@ class ActivityReportGenerator {
         }
 
         .summary-text {
-            background: #f9fafb;
+            background: #fdf6ff;
             padding: 16px;
             border-radius: 8px;
-            border: 1px solid #e5e7eb;
+            border: 1px solid #e8d5f5;
             line-height: 1.8;
             color: #2d3748;
             font-size: 16px;
@@ -945,7 +949,7 @@ class ActivityReportGenerator {
 
         /* AI Insights - flat style */
         .ai-insight {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #C9A0DC 0%, #7EC8E3 100%);
             border-radius: 8px;
             padding: 16px;
             margin-bottom: 12px;
@@ -970,7 +974,7 @@ class ActivityReportGenerator {
         }
 
         .ai-insight-content {
-            background: rgba(255, 255, 255, 0.95);
+            background: rgba(255, 255, 255, 0.97);
             border-radius: 6px;
             padding: 14px;
             color: #1a1a1a;
@@ -978,7 +982,16 @@ class ActivityReportGenerator {
             font-size: 15px;
         }
 
-        .ai-insight-content ul {
+        .ai-insight-content h3,
+        .ai-insight-content h4 {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin: 10px 0 6px;
+        }
+
+        .ai-insight-content ul,
+        .ai-insight-content ol {
             margin: 8px 0;
             padding-left: 20px;
         }
@@ -993,13 +1006,17 @@ class ActivityReportGenerator {
         }
 
         .ai-insight-content strong {
-            color: #667eea;
+            color: #7B4F9E;
             font-weight: 700;
+        }
+
+        .ai-insight-content em {
+            font-style: italic;
         }
 
         .ai-badge {
             display: inline-block;
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.25);
             color: white;
             padding: 3px 8px;
             border-radius: 4px;
@@ -1011,52 +1028,52 @@ class ActivityReportGenerator {
         }
 
         footer {
-            background: #f3f4f6;
+            background: #fdf6ff;
             padding: 16px;
             text-align: center;
             font-size: 11px;
-            color: #6b7280;
-            border-top: 1px solid #e5e7eb;
+            color: #7B4F9E;
+            border-top: 1px solid #e8d5f5;
         }
     </style>
 </head>
 <body>
     <!-- Flat header -->
     <div class="header">
-        <h1>📊 ${studentName}'s Activity Report</h1>
-        <p>${periodLabel} Learning Summary</p>
+        <h1>${ta.title(studentName)}</h1>
+        <p>${ta.subtitle(period)}</p>
     </div>
 
     <!-- Key Metrics -->
     <div class="metrics-grid">
                 <div class="metric-card questions">
                     <div class="metric-value">${metrics.totalQuestions}</div>
-                    <div class="metric-label">Questions Completed</div>
+                    <div class="metric-label">${ta.questionsCompleted}</div>
                 </div>
                 <div class="metric-card chats">
                     <div class="metric-value">${metrics.totalChats}</div>
-                    <div class="metric-label">Chat Sessions</div>
+                    <div class="metric-label">${ta.chatSessions}</div>
                 </div>
                 <div class="metric-card days">
                     <div class="metric-value">${metrics.activeDays}</div>
-                    <div class="metric-label">Active Days</div>
+                    <div class="metric-label">${ta.activeDays}</div>
                 </div>
                 <div class="metric-card time">
                     <div class="metric-value">${metrics.estimatedMinutes}</div>
-                    <div class="metric-label">Minutes Studied</div>
+                    <div class="metric-label">${ta.minutesStudied}</div>
                 </div>
             </div>
 
             <!-- Subject Breakdown -->
             <div class="section">
-                <h2 class="section-title">Subject Breakdown</h2>
+                <h2 class="section-title">${ta.subjectBreakdown}</h2>
                 <div class="charts-grid">
                     <div class="chart-container">
-                        <div class="chart-title">Questions by Subject</div>
+                        <div class="chart-title">${ta.questionsBySubject}</div>
                         <canvas id="pieChart"></canvas>
                     </div>
                     <div class="chart-container">
-                        <div class="chart-title">Accuracy by Subject</div>
+                        <div class="chart-title">${ta.accuracyBySubject}</div>
                         <canvas id="barChart"></canvas>
                     </div>
                 </div>
@@ -1081,8 +1098,8 @@ class ActivityReportGenerator {
             <!-- AI Insight 1: Learning Pattern Analysis -->
             <div class="ai-insight">
                 <div class="ai-insight-header">
-                    <span class="ai-insight-icon">🤖</span>
-                    <h3>AI Insights: Learning Patterns<span class="ai-badge">GPT-4o</span></h3>
+                    <span class="ai-insight-icon" style="display:none;"></span>
+                    <h3>${ta.aiLearningPatterns}<span class="ai-badge">${t.gptBadge}</span></h3>
                 </div>
                 <div class="ai-insight-content">
                     ${aiInsights[0]}
@@ -1095,7 +1112,7 @@ class ActivityReportGenerator {
                 <h2 class="section-title">${comparisonLabel} Comparison</h2>
                 <div class="week-comparison">
                     <div class="week-comparison-item">
-                        <span class="week-comparison-label">Questions:</span>
+                        <span class="week-comparison-label">${ta.questionsLabel}</span>
                         <span class="week-comparison-value">
                             ${metrics.totalQuestions}
                             <span class="trend-indicator trend-${metrics.periodComparison.engagementTrend}">
@@ -1105,7 +1122,7 @@ class ActivityReportGenerator {
                         </span>
                     </div>
                     <div class="week-comparison-item">
-                        <span class="week-comparison-label">Chat Sessions:</span>
+                        <span class="week-comparison-label">${ta.chatSessionsLabel}</span>
                         <span class="week-comparison-value">
                             ${metrics.totalChats}
                             <span class="trend-indicator trend-${metrics.periodComparison.chatsChange > 0 ? 'increasing' : metrics.periodComparison.chatsChange < 0 ? 'decreasing' : 'stable'}">
@@ -1115,7 +1132,7 @@ class ActivityReportGenerator {
                         </span>
                     </div>
                     <div class="week-comparison-item">
-                        <span class="week-comparison-label">Engagement Trend:</span>
+                        <span class="week-comparison-label">${ta.engagementTrend}</span>
                         <span class="week-comparison-value trend-${metrics.periodComparison.engagementTrend}">
                             ${metrics.periodComparison.engagementTrend.charAt(0).toUpperCase() + metrics.periodComparison.engagementTrend.slice(1)}
                         </span>
@@ -1127,8 +1144,8 @@ class ActivityReportGenerator {
             <!-- AI Insight 2: Engagement Quality Assessment -->
             <div class="ai-insight">
                 <div class="ai-insight-header">
-                    <span class="ai-insight-icon">🤖</span>
-                    <h3>AI Insights: Engagement Quality<span class="ai-badge">GPT-4o</span></h3>
+                    <span class="ai-insight-icon" style="display:none;"></span>
+                    <h3>${ta.aiEngagementQuality}<span class="ai-badge">${t.gptBadge}</span></h3>
                 </div>
                 <div class="ai-insight-content">
                     ${aiInsights[1]}
@@ -1138,11 +1155,12 @@ class ActivityReportGenerator {
 
             <!-- Summary -->
             <div class="section">
-                <h2 class="section-title">Summary</h2>
+                <h2 class="section-title">${ta.summary}</h2>
                 <div class="summary-text">
-                    Your child had ${metrics.periodComparison.engagementTrend === 'increasing' ? 'strong' : metrics.periodComparison.engagementTrend === 'decreasing' ? 'reduced' : 'steady'} engagement ${timePhrase} with
-                    ${metrics.totalQuestions} questions across ${subjectArray.length} subjects. They were active ${metrics.activeDays} days and spent approximately
-                    ${metrics.estimatedMinutes} minutes studying. ${metrics.totalChats > 0 ? `They also had ${metrics.totalChats} chat sessions seeking additional help.` : ''}
+                    ${ta.summaryText(
+                        metrics.periodComparison.engagementTrend === 'increasing' ? ta.trendIncreasing : metrics.periodComparison.engagementTrend === 'decreasing' ? ta.trendDecreasing : ta.trendStable,
+                        metrics.totalQuestions, subjectArray.length, metrics.activeDays, metrics.estimatedMinutes, metrics.totalChats
+                    )}
                 </div>
             </div>
 
@@ -1150,8 +1168,8 @@ class ActivityReportGenerator {
             <!-- AI Insight 3: Study Optimization (Monthly Only) -->
             <div class="ai-insight">
                 <div class="ai-insight-header">
-                    <span class="ai-insight-icon">🤖</span>
-                    <h3>AI Insights: Study Optimization<span class="ai-badge">GPT-4o</span></h3>
+                    <span class="ai-insight-icon" style="display:none;"></span>
+                    <h3>${ta.aiStudyOptimization}<span class="ai-badge">${t.gptBadge}</span></h3>
                 </div>
                 <div class="ai-insight-content">
                     ${aiInsights[2]}
@@ -1162,7 +1180,7 @@ class ActivityReportGenerator {
             ${period === 'monthly' && metrics.weeklyBreakdown ? `
             <!-- ✅ MONTHLY ONLY: Week-by-Week Progression -->
             <div class="section">
-                <h2 class="section-title">📈 Week-by-Week Progression</h2>
+                <h2 class="section-title">${ta.weekByWeekProgression}</h2>
                 <div class="chart-container">
                     <canvas id="weeklyProgressionChart" style="max-height: 300px;"></canvas>
                 </div>
@@ -1175,14 +1193,14 @@ class ActivityReportGenerator {
 
             <!-- ✅ MONTHLY ONLY: Day-of-Week Heatmap -->
             <div class="section">
-                <h2 class="section-title">📅 Study Pattern by Day of Week</h2>
+                <h2 class="section-title">${ta.studyPatternByDay}</h2>
                 <div class="chart-container">
                     <canvas id="dayOfWeekChart" style="max-height: 280px;"></canvas>
                 </div>
                 ${metrics.dayOfWeekHeatmap.bestDay && metrics.dayOfWeekHeatmap.worstDay ? `
                 <div class="summary-text" style="margin-top: 12px;">
-                    <strong>Best Day:</strong> ${metrics.dayOfWeekHeatmap.bestDay.day} (${metrics.dayOfWeekHeatmap.bestDay.accuracy}% accuracy) •
-                    <strong>Most Active:</strong> ${metrics.dayOfWeekHeatmap.dayData.reduce((a, b) => a.questionCount > b.questionCount ? a : b).day}
+                    <strong>${ta.bestDay}</strong> ${metrics.dayOfWeekHeatmap.bestDay.day} (${metrics.dayOfWeekHeatmap.bestDay.accuracy}% accuracy) •
+                    <strong>${ta.mostActive}</strong> ${metrics.dayOfWeekHeatmap.dayData.reduce((a, b) => a.questionCount > b.questionCount ? a : b).day}
                     (${metrics.dayOfWeekHeatmap.dayData.reduce((a, b) => a.questionCount > b.questionCount ? a : b).questionCount} questions)
                 </div>
                 ` : ''}
@@ -1190,53 +1208,53 @@ class ActivityReportGenerator {
 
             <!-- ✅ MONTHLY ONLY: Time-of-Day Optimization -->
             <div class="section">
-                <h2 class="section-title">⏰ Peak Performance Windows</h2>
+                <h2 class="section-title">${ta.peakPerformance}</h2>
                 <div class="chart-container">
                     <canvas id="timeOfDayChart" style="max-height: 260px;"></canvas>
                 </div>
                 ${metrics.timeOfDayOptimization.peakTime ? `
                 <div class="summary-text" style="margin-top: 12px;">
-                    <strong>Peak Performance:</strong> ${metrics.timeOfDayOptimization.timeSlots[metrics.timeOfDayOptimization.peakTime].label}
+                    <strong>${ta.peakPerformanceLabel}</strong> ${metrics.timeOfDayOptimization.timeSlots[metrics.timeOfDayOptimization.peakTime].label}
                     (${metrics.timeOfDayOptimization.timeSlots[metrics.timeOfDayOptimization.peakTime].accuracy}% accuracy)
-                    <br><em>💡 Tip: Schedule challenging subjects during peak hours for best results.</em>
+                    <br><em>${ta.tipPeakHours}</em>
                 </div>
                 ` : ''}
             </div>
 
             <!-- ✅ MONTHLY ONLY: Study Session Patterns -->
             <div class="section">
-                <h2 class="section-title">🎯 Study Session Insights</h2>
+                <h2 class="section-title">${ta.studySessionInsights}</h2>
                 <div class="metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));">
                     <div class="metric-card" style="background: #f0f9ff;">
                         <div class="metric-value" style="color: #0369a1;">${metrics.studySessionPatterns.sessionCount}</div>
-                        <div class="metric-label">Total Sessions</div>
+                        <div class="metric-label">${ta.totalSessions}</div>
                     </div>
                     <div class="metric-card" style="background: #f0fdf4;">
                         <div class="metric-value" style="color: #15803d;">${metrics.studySessionPatterns.averageLength}m</div>
-                        <div class="metric-label">Avg Session</div>
+                        <div class="metric-label">${ta.avgSession}</div>
                     </div>
                     <div class="metric-card" style="background: #fef3c7;">
                         <div class="metric-value" style="color: #b45309;">${metrics.studySessionPatterns.longestSession}m</div>
-                        <div class="metric-label">Longest Session</div>
+                        <div class="metric-label">${ta.longestSession}</div>
                     </div>
                     <div class="metric-card" style="background: #fce7f3;">
                         <div class="metric-value" style="color: #be185d;">${metrics.studySessionPatterns.averageBreak}m</div>
-                        <div class="metric-label">Avg Break</div>
+                        <div class="metric-label">${ta.avgBreak}</div>
                     </div>
                 </div>
                 <div class="summary-text" style="margin-top: 12px;">
                     ${metrics.studySessionPatterns.averageLength < 15
-                        ? '⚠️ Sessions are quite short. Consider encouraging longer focused study periods (20-30 minutes).'
+                        ? ta.sessionShort
                         : metrics.studySessionPatterns.averageLength > 45
-                        ? '💡 Sessions are long! Make sure to take breaks every 30-40 minutes to maintain focus.'
-                        : '✅ Session length is optimal for sustained focus and learning.'}
+                        ? ta.sessionLong
+                        : ta.sessionOptimal}
                 </div>
             </div>
 
             <!-- ✅ MONTHLY ONLY: Handwriting Quality (Pro Mode) -->
             ${metrics.handwritingQuality ? `
             <div class="section">
-                <h2 class="section-title">✍️ Handwriting Quality (Pro Mode)</h2>
+                <h2 class="section-title">${ta.handwritingQuality}</h2>
                 <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 16px; margin-bottom: 12px;">
                     <!-- Quality Score Circle -->
                     <div style="display: flex; align-items: center; justify-content: center;">
@@ -1272,14 +1290,14 @@ class ActivityReportGenerator {
                     <div style="display: flex; flex-direction: column; justify-content: center;">
                         <div style="background: #f9fafb; padding: 12px; border-radius: 8px; border: 1px solid #e5e7eb;">
                             <div style="font-size: 12px; color: #6b7280; margin-bottom: 6px;">
-                                <strong>AI Feedback:</strong>
+                                <strong>${ta.aiFeedback}</strong>
                             </div>
                             <div style="font-size: 13px; color: #374151; line-height: 1.5;">
-                                ${metrics.handwritingQuality.feedback || 'No specific feedback available.'}
+                                ${metrics.handwritingQuality.feedback || ta.noFeedback}
                             </div>
                             ${metrics.handwritingQuality.date ? `
                             <div style="font-size: 11px; color: #9ca3af; margin-top: 8px;">
-                                Last analyzed: ${new Date(metrics.handwritingQuality.date).toLocaleDateString()}
+                                ${ta.lastAnalyzed} ${new Date(metrics.handwritingQuality.date).toLocaleDateString()}
                             </div>
                             ` : ''}
                         </div>
@@ -1288,13 +1306,13 @@ class ActivityReportGenerator {
 
                 <div class="summary-text" style="margin-top: 12px;">
                     ${metrics.handwritingQuality.score >= 0.8
-                        ? '🌟 <strong>Excellent handwriting!</strong> Clear, legible writing makes it easier for teachers and AI to understand your work.'
+                        ? ta.handwritingExcellent
                         : metrics.handwritingQuality.score >= 0.6
-                        ? '✅ <strong>Good handwriting.</strong> Your writing is generally clear. Keep practicing for even better results.'
+                        ? ta.handwritingGood
                         : metrics.handwritingQuality.score >= 0.4
-                        ? '⚠️ <strong>Fair handwriting.</strong> Try slowing down and focusing on letter formation for improved clarity.'
-                        : '❗ <strong>Handwriting needs attention.</strong> Practice writing slowly and carefully. Consider using Pro Mode more often for feedback.'}
-                    <br><em>💡 Tip: Good handwriting helps AI better understand and grade your homework in Pro Mode.</em>
+                        ? ta.handwritingFair
+                        : ta.handwritingPoor}
+                    <br><em>${ta.tipHandwriting}</em>
                 </div>
             </div>
             ` : ''}
@@ -1302,16 +1320,15 @@ class ActivityReportGenerator {
             <!-- ✅ MONTHLY ONLY: Concept Mastery Tracking -->
             ${metrics.conceptWeaknesses?.hasWeaknesses ? `
             <div class="section">
-                <h2 class="section-title">🎯 Concepts Needing Practice</h2>
+                <h2 class="section-title">${ta.conceptsNeedingPractice}</h2>
                 <div style="background: #fef3c7; padding: 12px; border-radius: 8px; border: 1px solid #fbbf24; margin-bottom: 16px;">
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <span style="font-size: 24px;">📚</span>
                         <div>
                             <div style="font-weight: 600; color: #78350f;">
-                                ${metrics.conceptWeaknesses.totalCount} concept${metrics.conceptWeaknesses.totalCount !== 1 ? 's' : ''} to review
+                                ${ta.conceptsToReview(metrics.conceptWeaknesses.totalCount)}
                             </div>
                             <div style="font-size: 12px; color: #92400e;">
-                                These topics have shown difficulty recently and need extra practice
+                                ${ta.conceptsSubtitle}
                             </div>
                         </div>
                     </div>
@@ -1320,7 +1337,7 @@ class ActivityReportGenerator {
                 ${Object.entries(metrics.conceptWeaknesses.bySubject).map(([subject, concepts]) => `
                     <div style="margin-bottom: 16px;">
                         <div style="font-weight: 600; color: #1a1a1a; margin-bottom: 8px; font-size: 14px;">
-                            📘 ${subject} (${concepts.length} concept${concepts.length !== 1 ? 's' : ''})
+                            ${subject} (${ta.conceptsCount(concepts.length)})
                         </div>
                         <div style="display: grid; gap: 8px;">
                             ${concepts.map(weakness => `
@@ -1330,7 +1347,7 @@ class ActivityReportGenerator {
                                     </div>
                                     ${weakness.topic !== 'General' && weakness.topic !== weakness.concept ? `
                                         <div style="font-size: 11px; color: #6b7280; margin-top: 4px;">
-                                            Topic: ${weakness.topic}
+                                            ${ta.conceptTopic} ${weakness.topic}
                                         </div>
                                     ` : ''}
                                 </div>
@@ -1341,11 +1358,11 @@ class ActivityReportGenerator {
 
                 <div class="summary-text" style="margin-top: 12px;">
                     ${metrics.conceptWeaknesses.totalCount >= 5
-                        ? '⚠️ <strong>Multiple concepts need attention.</strong> Focus on one subject at a time and practice the basics before moving to advanced topics.'
+                        ? ta.conceptsManyAttention
                         : metrics.conceptWeaknesses.totalCount >= 3
-                        ? '💡 <strong>A few concepts to review.</strong> Dedicate extra study time to these areas for improvement.'
-                        : '✅ <strong>Just a couple concepts to work on.</strong> Regular practice will help strengthen understanding.'}
-                    <br><em>💡 Tip: Ask for help with these specific topics during study sessions to get targeted practice.</em>
+                        ? ta.conceptsFewReview
+                        : ta.conceptsCouple}
+                    <br><em>${ta.tipConcepts}</em>
                 </div>
             </div>
             ` : ''}
