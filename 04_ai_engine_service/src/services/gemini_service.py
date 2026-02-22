@@ -119,8 +119,8 @@ class GeminiEducationalAIService:
 
         Configuration:
         - temperature=0.0: OCR must be deterministic
-        - max_output_tokens=8192: Handle large homework
-        - top_k=32, top_p=0.8: Limit randomness for accurate parsing
+        - max_output_tokens=4096: Sufficient for typical homework (reduced from 8192)
+        - Handwriting evaluation is a SEPARATE call (evaluate_handwriting)
 
         Args:
             base64_image: Base64 encoded homework image
@@ -153,33 +153,19 @@ class GeminiEducationalAIService:
 
             image_data = base64.b64decode(base64_image)
             image = Image.open(io.BytesIO(image_data))
-
-            # Store image dimensions for iOS coordinate scaling
-            image_width, image_height = image.size
-            logger.debug(f"🖼️ Image loaded: {image.size} (width={image_width}, height={image_height})")
+            logger.debug(f"🖼️ Image loaded: {image.size}")
             logger.debug(f"🚀 Calling Gemini Vision API...")
 
             import time
             start_time = time.time()
 
-            # Call Gemini with image and prompt
-            # Gemini 2.0 Flash configuration optimized for OCR + layout parsing
-            # SPEED FIX: Using gemini-2.0-flash instead of gemini-3-pro-preview
-            # - gemini-2.0-flash: 5-10s (FAST, no timeout) ✅
-            # - gemini-3-pro-preview: 30-60s (SLOW, timeout issues) ❌
-            #
-            # Configuration from GPT-4 recommendations:
+            # Gemini 2.5 Flash configuration optimized for OCR + layout parsing
             # - temperature=0.0: OCR must be stable and deterministic
-            # - max_output_tokens=8192: INCREASED for large homework (prevents MAX_TOKENS)
-            # - top_k=32: Limit randomness for accurate text extraction
-            # - top_p=0.8: Control randomness while maintaining quality
-
-            # Prepare generation config
+            # - max_output_tokens=4096: Sufficient for typical homework (reduced from 8192)
+            # - top_p/top_k removed: redundant at temperature=0.0 (no sampling)
             generation_config = {
-                "temperature": 0.0,              # OCR must be 0 for stability
-                "top_p": 0.8,
-                "top_k": 32,
-                "max_output_tokens": 8192,      # INCREASED: 4096 → 8192 (hit MAX_TOKENS)
+                "temperature": 0.0,
+                "max_output_tokens": 4096,
                 "candidate_count": 1
             }
 
@@ -228,12 +214,8 @@ class GeminiEducationalAIService:
                 "subject": result.get("subject", "Unknown"),
                 "subject_confidence": result.get("subject_confidence", 0.5),
                 "total_questions": result.get("total_questions", 0),
-                "questions": questions_array,
-                "handwriting_evaluation": result.get("handwriting_evaluation", None),
-                "processed_image_dimensions": {
-                    "width": image_width,
-                    "height": image_height
-                }
+                "questions": questions_array
+                # handwriting_evaluation removed — use /evaluate-handwriting endpoint instead
             }
 
         except Exception as e:
@@ -254,7 +236,8 @@ class GeminiEducationalAIService:
         question_type: Optional[str] = None,  # NEW: Question type for specialized grading
         context_image: Optional[str] = None,
         parent_content: Optional[str] = None,  # NEW: Parent question context
-        use_deep_reasoning: bool = False
+        use_deep_reasoning: bool = False,
+        language: str = "en"
     ) -> Dict[str, Any]:
         """
         Grade a single question using Gemini with two-mode configuration.
@@ -340,7 +323,8 @@ class GeminiEducationalAIService:
                 question_type=question_type,  # NEW: Pass question type for specialized grading
                 parent_content=parent_content,  # NEW: Pass parent context
                 use_deep_reasoning=use_deep_reasoning,
-                has_context_image=bool(context_image)
+                has_context_image=bool(context_image),
+                language=language
             )
 
             logger.debug(f"🚀 Calling Gemini for grading...")
@@ -642,7 +626,7 @@ JSON SCHEMA
       "has_subquestions": true,
       "parent_content": "Solve the following.",
       "subquestions": [
-        {{"id": "1a", "question_text": "...", "student_answer": "...", "question_type": "calculation"}}
+        {{"id": "1a", "question_text": "...", "student_answer": "...", "question_type": "calculation", "need_image": false}}
       ]
     }},
     {{
@@ -650,7 +634,8 @@ JSON SCHEMA
       "question_number": "2",
       "question_text": "What is 2+2?",
       "student_answer": "4",
-      "question_type": "short_answer"
+      "question_type": "short_answer",
+      "need_image": false
     }}
   ],
   "handwriting_evaluation": {{
@@ -706,8 +691,10 @@ RULES:
 
 FIELD RULES:
 - id: ALWAYS string ("1", "2", "1a", "1b")
-- Regular questions: MUST have question_text, student_answer, question_type
+- Regular questions: MUST have question_text, student_answer, question_type, need_image
 - Parent questions: MUST have is_parent, has_subquestions, parent_content, subquestions
+- Subquestions: MUST have question_text, student_answer, question_type, need_image
+- need_image: true if the question references a diagram, graph, figure, chart, or table; or contains phrases like "refer to", "as shown", "in the figure", "based on the image", "use the diagram". Set false otherwise.
 - Omit fields that don't apply (DO NOT use null)
 - questions array ONLY contains top-level questions
 - total_questions = questions.length
@@ -834,6 +821,81 @@ OUTPUT CHECKLIST
         # If subject_rules is empty (General/unknown), it won't add anything
         return base_prompt.format(subject_rules=subject_rules)
 
+    async def evaluate_handwriting(self, base64_image: str) -> Dict[str, Any]:
+        """
+        Evaluate handwriting quality from a homework image.
+        Runs as a separate concurrent call alongside parse_homework_questions_with_coordinates.
+
+        Returns:
+            {success, has_handwriting, score (0-10 or null), feedback (<150 chars or null)}
+        """
+        if not self.client:
+            raise Exception("Gemini client not initialized. Check GEMINI_API_KEY in environment.")
+
+        try:
+            import io
+            from PIL import Image as PILImage
+
+            image_data = base64.b64decode(base64_image)
+            image = PILImage.open(io.BytesIO(image_data))
+
+            prompt = """Look at this homework image and assess the student's handwriting. Return JSON only.
+
+{
+  "has_handwriting": true,
+  "score": 7,
+  "feedback": "Well-formed letters, good spacing, readable."
+}
+
+TASK: Find the student's handwritten answers (numbers, words, or sentences written by hand in answer boxes, blank lines, or margins). Ignore printed/typed question text.
+
+SCORING (0-10) — rate the handwritten answers only:
+9-10: Exceptional — very clear, consistent, easily readable
+7-8:  Good — well-formed, readable with minor issues
+5-6:  Readable — some inconsistency but understandable
+3-4:  Difficult — hard to read, poor spacing/formation
+0-2:  Illegible — very difficult to decipher
+
+RULES:
+- has_handwriting: true if ANY student handwriting is visible (even a single written answer), false only if the page is completely blank or entirely printed/typed with zero handwritten marks
+- score: integer 0-10 if has_handwriting=true, else null
+- feedback: short constructive comment under 150 characters if has_handwriting=true, else null
+- Return valid JSON only, no markdown"""
+
+            generation_config = {
+                "temperature": 0.0,
+                "max_output_tokens": 256,  # Tiny response: just 3 fields
+                "candidate_count": 1
+            }
+
+            import time
+            start_time = time.time()
+
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=[image, prompt],
+                config=generation_config
+            )
+
+            api_duration = time.time() - start_time
+            logger.debug(f"✅ Handwriting eval completed in {api_duration:.2f}s")
+
+            raw = self._extract_response_text(response)
+            result = self._extract_json_from_response(raw)
+
+            has_handwriting = result.get("has_handwriting", False)
+            return {
+                "success": True,
+                "has_handwriting": has_handwriting,
+                # Enforce null when no handwriting — Gemini sometimes returns 0 instead of null
+                "score": result.get("score") if has_handwriting else None,
+                "feedback": result.get("feedback") if has_handwriting else None
+            }
+
+        except Exception as e:
+            logger.debug(f"❌ Handwriting eval error: {e}")
+            return {"success": False, "error": str(e)}
+
     def _build_grading_prompt(
         self,
         question_text: str,
@@ -843,7 +905,8 @@ OUTPUT CHECKLIST
         question_type: Optional[str],  # NEW: Question type for specialized prompts
         parent_content: Optional[str],  # NEW: Parent question context
         use_deep_reasoning: bool = False,
-        has_context_image: bool = False
+        has_context_image: bool = False,
+        language: str = "en"
     ) -> str:
         """
         Build grading prompt using specialized type × subject instructions.
@@ -862,7 +925,8 @@ OUTPUT CHECKLIST
             correct_answer=correct_answer,
             parent_content=parent_content,
             has_context_image=has_context_image,
-            use_deep_reasoning=use_deep_reasoning
+            use_deep_reasoning=use_deep_reasoning,
+            language=language
         )
 
     def _normalize_answer(self, answer: str) -> str:
