@@ -839,28 +839,39 @@ OUTPUT CHECKLIST
             image_data = base64.b64decode(base64_image)
             image = PILImage.open(io.BytesIO(image_data))
 
-            prompt = """Look at this homework image and assess the student's handwriting. Return JSON only.
+            prompt = """You are analyzing a student's homework image. Your task is to detect whether the student wrote anything by hand.
 
-{
-  "has_handwriting": true,
-  "score": 7,
-  "feedback": "Well-formed letters, good spacing, readable."
-}
+STEP 1 — LOOK carefully at the entire image for:
+- Handwritten numbers, letters, or words in answer spaces
+- Pen or pencil marks filling in blanks or boxes
+- Student annotations, calculations, or working-out in margins
+- Any ink/pencil marks that differ in style from printed text
 
-TASK: Find the student's handwritten answers (numbers, words, or sentences written by hand in answer boxes, blank lines, or margins). Ignore printed/typed question text.
+STEP 2 — IMPORTANT DISTINCTION:
+- Printed/typed text (questions, instructions, form labels) = NOT handwriting
+- Student-written answers, even just a single digit = IS handwriting
+- Most homework images will have BOTH: printed questions AND handwritten answers
 
-SCORING (0-10) — rate the handwritten answers only:
+STEP 3 — Return JSON only:
+{{
+  "has_handwriting": true or false,
+  "score": integer 0-10 or null,
+  "feedback": "brief comment" or null
+}}
+
+SCORING (only when has_handwriting=true):
 9-10: Exceptional — very clear, consistent, easily readable
 7-8:  Good — well-formed, readable with minor issues
 5-6:  Readable — some inconsistency but understandable
 3-4:  Difficult — hard to read, poor spacing/formation
 0-2:  Illegible — very difficult to decipher
 
-RULES:
-- has_handwriting: true if ANY student handwriting is visible (even a single written answer), false only if the page is completely blank or entirely printed/typed with zero handwritten marks
-- score: integer 0-10 if has_handwriting=true, else null
-- feedback: short constructive comment under 150 characters if has_handwriting=true, else null
-- Return valid JSON only, no markdown"""
+OUTPUT RULES:
+- has_handwriting: TRUE if ANY handwritten mark by the student is present. Most homework will be true.
+- has_handwriting: false ONLY if the page has zero student writing (completely blank answer spaces, or 100% printed/typed)
+- score: integer 0-10 only when has_handwriting=true, otherwise null
+- feedback: <150 character comment only when has_handwriting=true, otherwise null
+- Return valid JSON only, no markdown, no explanation"""
 
             generation_config = {
                 "temperature": 0.0,
@@ -881,6 +892,7 @@ RULES:
             logger.debug(f"✅ Handwriting eval completed in {api_duration:.2f}s")
 
             raw = self._extract_response_text(response)
+            logger.debug(f"🔍 Handwriting eval raw response: {raw[:300]}")
             result = self._extract_json_from_response(raw)
 
             has_handwriting = result.get("has_handwriting", False)
