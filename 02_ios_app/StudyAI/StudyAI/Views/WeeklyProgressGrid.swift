@@ -105,7 +105,7 @@ struct WeeklyProgressGrid: View {
             HStack {
                 Spacer()
 
-                Text("questions this week")
+                Text(NSLocalizedString("progress.questionsThisWeek", comment: ""))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
@@ -151,16 +151,16 @@ struct WeeklyProgressGrid: View {
     
     private var intensityLegend: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Activity Level")
+            Text(NSLocalizedString("progress.activityLevel", comment: ""))
                 .font(.caption)
                 .fontWeight(.medium)
                 .foregroundColor(.secondary)
-            
+
             HStack(spacing: 12) {
-                Text("Less")
+                Text(NSLocalizedString("progress.less", comment: ""))
                     .font(.caption2)
                     .foregroundColor(.secondary)
-                
+
                 HStack(spacing: 3) {
                     ForEach(ActivityIntensity.allCases, id: \.rawValue) { intensity in
                         RoundedRectangle(cornerRadius: 2)
@@ -168,8 +168,8 @@ struct WeeklyProgressGrid: View {
                             .frame(width: 12, height: 12)
                     }
                 }
-                
-                Text("More")
+
+                Text(NSLocalizedString("progress.more", comment: ""))
                     .font(.caption2)
                     .foregroundColor(.secondary)
                 
@@ -186,11 +186,11 @@ struct WeeklyProgressGrid: View {
                 .font(.system(size: 40))
                 .foregroundColor(.secondary)
             
-            Text("Weekly Progress")
+            Text(NSLocalizedString("progress.weeklyProgressEmpty", comment: ""))
                 .font(.headline)
                 .fontWeight(.bold)
-            
-            Text("Start asking questions to see your weekly activity pattern!")
+
+            Text(NSLocalizedString("progress.weeklyProgressEmptyMessage", comment: ""))
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)

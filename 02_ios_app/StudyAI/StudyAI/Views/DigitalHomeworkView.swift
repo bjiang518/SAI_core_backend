@@ -45,6 +45,9 @@ struct DigitalHomeworkView: View {
     @State private var selectedQuestionsForDeletion: Set<String> = []
     @State private var showDeletionConfirmation = false
 
+    // Annotation button glow pulse animation
+    @State private var annotationGlowPulse = false
+
     // MARK: - Body
 
     var body: some View {
@@ -113,7 +116,7 @@ struct DigitalHomeworkView: View {
                                     Button(action: {
                                         isDeletionMode = true
                                     }) {
-                                        Label("Select to Delete", systemImage: "trash")
+                                        Label(NSLocalizedString("proMode.selectToDelete", comment: ""), systemImage: "trash")
                                     }
 
                                     Divider()
@@ -166,7 +169,7 @@ struct DigitalHomeworkView: View {
         } message: {
             Text(NSLocalizedString("proMode.revertGradingAlert.message", comment: "Warning message"))
         }
-        .alert("Detected \(detectedMistakeIds.count) Errors on This Page", isPresented: $showMistakeDetectionAlert) {
+        .alert(String(format: NSLocalizedString("proMode.detectedErrors", comment: ""), detectedMistakeIds.count), isPresented: $showMistakeDetectionAlert) {
             Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {
                 detectedMistakeIds = []
             }
@@ -230,6 +233,9 @@ struct DigitalHomeworkView: View {
                                     QuestionCard(
                                         questionWithGrade: questionWithGrade,
                                         croppedImage: viewModel.getCroppedImage(for: questionWithGrade.question.id),
+                                        subquestionCroppedImages: viewModel.croppedImages.filter { key, _ in
+                                            questionWithGrade.question.subquestions?.contains { $0.id == key } == true
+                                        },
                                         isArchiveMode: viewModel.isArchiveMode,
                                         isSelected: viewModel.selectedQuestionIds.contains(questionWithGrade.question.id),
                                         isDeletionMode: isDeletionMode,  // ✅ NEW: Pass deletion mode state
@@ -849,7 +855,7 @@ struct DigitalHomeworkView: View {
                 )
             }
         }
-        .alert("PDF Export Failed", isPresented: $showPDFExportError) {
+        .alert(NSLocalizedString("proMode.pdfExportFailed", comment: ""), isPresented: $showPDFExportError) {
             Button(NSLocalizedString("common.ok", comment: ""), role: .cancel) {}
         } message: {
             Text(pdfExportErrorMessage)
@@ -878,31 +884,61 @@ struct DigitalHomeworkView: View {
             }
 
             // 添加标注按钮
-            Button(action: {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                    viewModel.showAnnotationMode = true
-                }
-            }) {
-                HStack(spacing: 8) {
-                    Image(systemName: "pencil.circle.fill")
-                    Text(viewModel.annotations.isEmpty ? NSLocalizedString("proMode.addAnnotation", comment: "Add Annotation") : String(format: NSLocalizedString("proMode.editAnnotations", comment: "Edit Annotations (count)"), viewModel.annotations.count))
-                }
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundColor(.white)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 10)
-                .background(
-                    LinearGradient(
-                        colors: [Color.blue, Color.blue.opacity(0.8)],
-                        startPoint: .leading,
-                        endPoint: .trailing
+            VStack(spacing: 6) {
+                Button(action: {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        viewModel.showAnnotationMode = true
+                    }
+                }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "pencil.circle.fill")
+                        Text(viewModel.annotations.isEmpty ? NSLocalizedString("proMode.addAnnotation", comment: "Add Annotation") : String(format: NSLocalizedString("proMode.editAnnotations", comment: "Edit Annotations (count)"), viewModel.annotations.count))
+                    }
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
+                    .background(
+                        LinearGradient(
+                            colors: [Color.blue, Color.blue.opacity(0.8)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
                     )
-                )
-                .cornerRadius(20)
-                .shadow(color: Color.blue.opacity(0.3), radius: 4, x: 0, y: 2)
+                    .cornerRadius(20)
+                    .shadow(color: Color.blue.opacity(annotationGlowPulse ? 0.75 : 0.3),
+                            radius: annotationGlowPulse ? 12 : 4, x: 0, y: 2)
+                    .scaleEffect(annotationGlowPulse ? 1.04 : 1.0)
+                    .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true),
+                               value: annotationGlowPulse)
+                }
+
+                // Hint banner: shown when any question needs an image and no annotation exists yet
+                if viewModel.anyQuestionNeedsImage && viewModel.annotations.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "photo.badge.plus")
+                            .font(.caption2)
+                        Text(NSLocalizedString("proMode.annotationImageHint",
+                             comment: "Some questions need images — tap to crop from photo"))
+                            .font(.caption2)
+                    }
+                    .foregroundColor(.orange)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
             }
             .padding(.vertical, 12)
+            .onAppear {
+                if viewModel.anyQuestionNeedsImage && viewModel.annotations.isEmpty {
+                    annotationGlowPulse = true
+                }
+            }
+            .onChange(of: viewModel.anyQuestionNeedsImage) { needsImage in
+                annotationGlowPulse = needsImage && viewModel.annotations.isEmpty
+            }
+            .onChange(of: viewModel.annotations.isEmpty) { isEmpty in
+                if !isEmpty { annotationGlowPulse = false }
+            }
         }
     }
 
@@ -1093,29 +1129,20 @@ struct DigitalHomeworkView: View {
                     .fill(annotation.color)
                     .frame(width: 28, height: 28)
 
-                // Question number picker
+                // Question number picker — hierarchical (parent + subquestions with indent)
                 Menu {
-                    ForEach(viewModel.availableQuestionNumbers, id: \.self) { number in
+                    ForEach(viewModel.availableAnnotationTargets, id: \.annotationQuestionNumber) { target in
                         Button(action: {
-                            viewModel.updateAnnotationQuestionNumber(annotationId: annotation.id, questionNumber: number)
+                            viewModel.updateAnnotationQuestionNumber(annotationId: annotation.id, questionNumber: target.annotationQuestionNumber)
                         }) {
                             HStack {
-                                // Question number and preview text on same line
-                                // ✅ IMPROVED: Show 50 characters instead of 8, allow 2-line wrapping
-                                if let question = viewModel.questions.first(where: { $0.question.questionNumber == number }) {
-                                    let previewText = String(question.question.displayText.prefix(50))
-                                    let questionPrefix = NSLocalizedString("proMode.questionPrefix", comment: "Question prefix (Q/题)")
-                                    Text("\(questionPrefix) \(number): \(previewText)\(question.question.displayText.count > 50 ? "..." : "")")
-                                        .lineLimit(2)  // Allow wrapping to 2 lines for long questions
-                                        .fixedSize(horizontal: false, vertical: true)
-                                } else {
-                                    let questionPrefix = NSLocalizedString("proMode.questionPrefix", comment: "Question prefix (Q/题)")
-                                    Text("\(questionPrefix) \(number)")
-                                }
+                                Text(target.displayLabel)
+                                    .lineLimit(2)
+                                    .fixedSize(horizontal: false, vertical: true)
 
                                 Spacer()
 
-                                if annotation.questionNumber == number {
+                                if annotation.questionNumber == target.annotationQuestionNumber {
                                     Image(systemName: "checkmark")
                                 }
                             }
@@ -1835,6 +1862,7 @@ struct DigitalHomeworkView: View {
 struct QuestionCard: View {
     let questionWithGrade: ProgressiveQuestionWithGrade
     let croppedImage: UIImage?
+    let subquestionCroppedImages: [String: UIImage]  // subquestion id -> cropped image
     let isArchiveMode: Bool
     let isSelected: Bool
     let isDeletionMode: Bool  // ✅ NEW: Deletion mode flag
@@ -1965,6 +1993,7 @@ struct QuestionCard: View {
                                 isGrading: questionWithGrade.subquestionGradingStatus[subquestion.id] ?? false,
                                 modelType: modelType,
                                 isArchived: questionWithGrade.archivedSubquestions.contains(subquestion.id),  // ✅ NEW: Check if archived
+                                croppedImage: subquestionCroppedImages[subquestion.id],
                                 onAskAI: {
                                     // ✅ FIXED: Pass subquestion to parent callback
                                     print("💬 Ask AI for subquestion \(subquestion.id)")
@@ -2022,14 +2051,14 @@ struct QuestionCard: View {
                 if questionWithGrade.grade != nil && !isArchiveMode {
                     HStack(spacing: 12) {
                         Button(action: { onAskAI(nil) }) {  // ✅ FIXED: Pass nil for regular questions
-                            Label("Follow Up", systemImage: "message")
+                            Label(NSLocalizedString("proMode.followUp", comment: ""), systemImage: "message")
                                 .font(.caption)
                         }
                         .buttonStyle(.bordered)
                         .disabled(questionWithGrade.isArchived || questionWithGrade.isGrading)  // ✅ Disable during grading
 
                         Button(action: onRegrade) {
-                            Label("Regrade", systemImage: "arrow.triangle.2.circlepath")
+                            Label(NSLocalizedString("proMode.regrade", comment: ""), systemImage: "arrow.triangle.2.circlepath")
                                 .font(.caption)
                         }
                         .buttonStyle(.bordered)
@@ -2173,7 +2202,7 @@ struct QuestionCard: View {
                 VStack(alignment: .leading, spacing: 4) {
                     ForEach(answers.indices, id: \.self) { index in
                         HStack(spacing: 4) {
-                            Text("Blank \(index + 1):")
+                            Text(String(format: NSLocalizedString("proMode.blankLabel", comment: ""), index + 1))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
 
@@ -2247,7 +2276,7 @@ struct QuestionCard: View {
                     Image(systemName: isTrue(studentAnswer) ? "checkmark.circle.fill" : "circle")
                         .font(.caption)
                         .foregroundColor(isTrue(studentAnswer) ? .blue : .gray)
-                    Text("True")
+                    Text(NSLocalizedString("proMode.trueFalse.true", comment: ""))
                         .font(.caption)
                         .foregroundColor(isTrue(studentAnswer) ? .primary : .secondary)
                 }
@@ -2256,7 +2285,7 @@ struct QuestionCard: View {
                     Image(systemName: isFalse(studentAnswer) ? "checkmark.circle.fill" : "circle")
                         .font(.caption)
                         .foregroundColor(isFalse(studentAnswer) ? .blue : .gray)
-                    Text("False")
+                    Text(NSLocalizedString("proMode.trueFalse.false", comment: ""))
                         .font(.caption)
                         .foregroundColor(isFalse(studentAnswer) ? .primary : .secondary)
                 }
@@ -2407,6 +2436,7 @@ struct SubquestionRow: View {
     let isGrading: Bool  // ✅ NEW: Track grading status
     let modelType: String  // ✅ NEW: Track AI model for loading indicator
     let isArchived: Bool  // ✅ NEW: Track if this subquestion is archived
+    let croppedImage: UIImage?  // Image cropped for this specific subquestion
     let onAskAI: () -> Void
     let onArchive: () -> Void  // This archives the parent question
     let onArchiveSubquestion: () -> Void  // ✅ NEW: Archive this subquestion only
@@ -2479,6 +2509,17 @@ struct SubquestionRow: View {
             }
             .animation(.easeInOut(duration: 0.3), value: isGrading)  // ✅ Animate score badge changes
 
+            // Cropped image for this subquestion (shown below question text)
+            if let image = croppedImage {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(maxHeight: 100)
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(6)
+                    .padding(.leading, 24)
+            }
+
             // Correct Answer (if graded and available) - shown BEFORE feedback
             if let grade = grade, let correctAnswer = grade.correctAnswer, !correctAnswer.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
@@ -2530,7 +2571,7 @@ struct SubquestionRow: View {
                             HStack(spacing: 12) {
                                 // Follow Up button
                                 Button(action: onAskAI) {
-                                    Label("Follow Up", systemImage: "message")
+                                    Label(NSLocalizedString("proMode.followUp", comment: ""), systemImage: "message")
                                         .font(.caption)
                                 }
                                 .buttonStyle(.bordered)
@@ -2538,7 +2579,7 @@ struct SubquestionRow: View {
 
                                 // ✅ NEW: Regrade button
                                 Button(action: onRegrade) {
-                                    Label("Regrade", systemImage: "arrow.triangle.2.circlepath")
+                                    Label(NSLocalizedString("proMode.regrade", comment: ""), systemImage: "arrow.triangle.2.circlepath")
                                         .font(.caption)
                                 }
                                 .buttonStyle(.bordered)
@@ -2742,7 +2783,7 @@ struct SubquestionRow: View {
                     Image(systemName: isTrue(studentAnswer) ? "checkmark.circle.fill" : "circle")
                         .font(.caption2)
                         .foregroundColor(isTrue(studentAnswer) ? .blue : .gray)
-                    Text("T")
+                    Text(NSLocalizedString("proMode.trueFalse.trueShort", comment: ""))
                         .font(.caption2)
                 }
 
@@ -2750,7 +2791,7 @@ struct SubquestionRow: View {
                     Image(systemName: isFalse(studentAnswer) ? "checkmark.circle.fill" : "circle")
                         .font(.caption2)
                         .foregroundColor(isFalse(studentAnswer) ? .blue : .gray)
-                    Text("F")
+                    Text(NSLocalizedString("proMode.trueFalse.falseShort", comment: ""))
                         .font(.caption2)
                 }
             }
@@ -2983,7 +3024,8 @@ struct GradingLoadingIndicator: View {
                         studentAnswer: "4",
                         hasImage: false,
                         imageRegion: nil,
-                        questionType: "short_answer"
+                        questionType: "short_answer",
+                        needImage: nil
                     )
                 ],
                 processingTimeMs: 1200,

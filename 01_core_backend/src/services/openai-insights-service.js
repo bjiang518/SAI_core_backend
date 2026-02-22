@@ -73,7 +73,8 @@ class OpenAIInsightsService {
                 top_p: 0.9
             });
 
-            const insight = response.choices[0].message.content;
+            const rawInsight = response.choices[0].message.content;
+            const insight = this.markdownToHtml(rawInsight);
             const duration = Date.now() - startTime;
 
             logger.info(`✅ [AI-INSIGHT] Generated in ${duration}ms (${response.usage.total_tokens} tokens)`);
@@ -130,9 +131,14 @@ Your role:
 - Be concise (3-4 sentences per point)
 
 OUTPUT FORMAT:
-- Use markdown for formatting: **bold**, *emphasis*, numbered lists
-- Structure with clear headings and bullet points
+- Output ONLY clean HTML fragments — no markdown, no code fences, no backticks
+- Use <strong> for bold, <em> for emphasis, <ul><li> for bullet lists, <ol><li> for numbered lists, <p> for paragraphs
+- Do NOT wrap output in \`\`\`html or any code block
 - Keep it parent-friendly and actionable`;
+
+        const languageInstruction = context.language && context.language !== 'en'
+            ? `\n\nIMPORTANT: Respond entirely in ${context.language === 'zh-Hans' ? 'Simplified Chinese (zh-Hans)' : context.language === 'zh-Hant' ? 'Traditional Chinese (zh-Hant)' : context.language}. All output text must be in that language.`
+            : '';
 
         const typeSpecific = {
             activity: `\n\nFor Activity Reports, focus on:
@@ -160,7 +166,51 @@ OUTPUT FORMAT:
 - Quick wins and long-term goals`
         };
 
-        return basePrompt + (typeSpecific[reportType] || '');
+        return basePrompt + (typeSpecific[reportType] || '') + languageInstruction;
+    }
+
+    /**
+     * Convert AI output (markdown or plain text) to safe HTML for injection.
+     * Strips ```html / ``` code fences, then converts markdown syntax to HTML tags.
+     */
+    markdownToHtml(text) {
+        if (!text) return '';
+
+        // 1. Strip code fences: ```html...``` or ```...```
+        let result = text.replace(/^```(?:html|markdown|md)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+
+        // 2. Convert ATX headings (## Title → <h3>)
+        result = result.replace(/^#{5,6}\s+(.+)$/gm, '<h5>$1</h5>');
+        result = result.replace(/^#{3,4}\s+(.+)$/gm, '<h4>$1</h4>');
+        result = result.replace(/^#{1,2}\s+(.+)$/gm, '<h3>$1</h3>');
+
+        // 3. Bold **text** and __text__
+        result = result.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        result = result.replace(/__(.+?)__/g, '<strong>$1</strong>');
+
+        // 4. Italic *text* and _text_
+        result = result.replace(/\*(?!\s)(.+?)(?<!\s)\*/g, '<em>$1</em>');
+        result = result.replace(/(?<![a-zA-Z0-9])_(?!\s)(.+?)(?<!\s)_(?![a-zA-Z0-9])/g, '<em>$1</em>');
+
+        // 5. Unordered list items (- item or * item)
+        result = result.replace(/^[ \t]*[-*]\s+(.+)$/gm, '<li>$1</li>');
+
+        // 6. Numbered list items (1. item)
+        result = result.replace(/^[ \t]*\d+\.\s+(.+)$/gm, '<li>$1</li>');
+
+        // 7. Wrap consecutive <li> groups in <ul>
+        result = result.replace(/((?:<li>.*?<\/li>\s*)+)/gs, match => `<ul>${match}</ul>`);
+
+        // 8. Wrap bare text paragraphs (not already block elements)
+        const parts = result.split(/\n{2,}/);
+        result = parts.map(para => {
+            para = para.trim();
+            if (!para) return '';
+            if (/^<(h[1-6]|ul|ol|li|div|p|blockquote)/i.test(para)) return para;
+            return `<p>${para.replace(/\n/g, '<br>')}</p>`;
+        }).filter(Boolean).join('\n');
+
+        return result;
     }
 
     /**
@@ -489,7 +539,11 @@ Format as numbered list with priority markers.`
             'mental_health:behavioral_signals': '<ul><li>The student\'s activity level appears consistent with their typical pattern.</li><li>Continue to monitor engagement and check in regularly about how they\'re feeling about schoolwork.</li></ul>'
         };
 
-        return fallbacks[`${reportType}:${insightType}`] || '<p>Insight temporarily unavailable. Please check back later.</p>';
+        return fallbacks[`${reportType}:${insightType}`] || this.markdownToHtml(this.getFallbackGeneric());
+    }
+
+    getFallbackGeneric() {
+        return '<p>Insight temporarily unavailable. Please check back later.</p>';
     }
 
     // ===== HELPER FORMATTING FUNCTIONS =====

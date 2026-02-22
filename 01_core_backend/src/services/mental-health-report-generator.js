@@ -13,6 +13,7 @@
 const { db } = require('../utils/railway-database');
 const logger = require('../utils/logger');
 const { getInsightsService } = require('./openai-insights-service');
+const { getT } = require('./report-i18n');
 
 class MentalHealthReportGenerator {
     /**
@@ -25,7 +26,7 @@ class MentalHealthReportGenerator {
      * @param {String} period - Report period ('weekly' or 'monthly')
      * @returns {Promise<String>} HTML report
      */
-    async generateMentalHealthReport(userId, startDate, endDate, studentAge = 7, studentName = '[Student]', period = 'weekly') {
+    async generateMentalHealthReport(userId, startDate, endDate, studentAge = 7, studentName = '[Student]', period = 'weekly', language = 'en') {
         logger.info(`💭 Generating ${period} Mental Health Report for ${userId.substring(0, 8)}... (${studentName}, Age: ${studentAge})`);
 
         try {
@@ -82,6 +83,7 @@ class MentalHealthReportGenerator {
                     studentName,
                     studentAge,
                     period,
+                    language,
                     startDate
                 };
 
@@ -116,7 +118,7 @@ class MentalHealthReportGenerator {
             }
 
             // Step 5: Generate HTML
-            const html = this.generateMentalHealthHTML(analysis, studentName, period, aiInsights);
+            const html = this.generateMentalHealthHTML(analysis, studentName, period, aiInsights, language);
 
             logger.info(`✅ Mental Health Report generated: ${(analysis.redFlags || []).length} flags detected`);
 
@@ -511,7 +513,7 @@ class MentalHealthReportGenerator {
         if (hasRedFlags || harmfulLanguageDetected.length > 0) {
             redFlags.push({
                 level: 'urgent',
-                title: '🚨 Harmful Language Detected',
+                title: 'Harmful Language Detected',
                 description: `Keywords detected: "${harmfulLanguageDetected.join('", "')}"`,
                 action: 'Please talk to your child about their feelings. Consider contacting school counselor if this persists.'
             });
@@ -693,8 +695,9 @@ class MentalHealthReportGenerator {
      * @param {String} period - 'weekly' or 'monthly'
      * @param {Array} aiInsights - AI-generated insights (optional)
      */
-    generateMentalHealthHTML(analysis, studentName, period = 'weekly', aiInsights = null) {
-        const periodLabel = period === 'monthly' ? 'Monthly' : 'Weekly';
+    generateMentalHealthHTML(analysis, studentName, period = 'weekly', aiInsights = null, language = 'en') {
+        const t = getT(language);
+        const tm = t.mentalHealth;
         const redFlagLevelColors = {
             urgent: '#DC3545',
             warning: '#FFC107',
@@ -742,7 +745,7 @@ class MentalHealthReportGenerator {
 
         /* Flat header section */
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #FFB6A3 0%, #FF85C1 100%);
             color: white;
             padding: 20px 16px;
             border-radius: 8px;
@@ -775,7 +778,7 @@ class MentalHealthReportGenerator {
             color: #1a1a1a;
             margin-bottom: 10px;
             padding-bottom: 6px;
-            border-bottom: 2px solid #e2e8f0;
+            border-bottom: 2px solid #FFB6A3;
         }
 
         .status-badge {
@@ -789,8 +792,8 @@ class MentalHealthReportGenerator {
         }
 
         .status-positive {
-            background: #f0fdf4;
-            color: #166534;
+            background: #f0fdf9;
+            color: #0f6b52;
         }
 
         .status-moderate {
@@ -799,18 +802,18 @@ class MentalHealthReportGenerator {
         }
 
         .status-warning {
-            background: #fffbf0;
-            color: #92400e;
+            background: #fffde7;
+            color: #7a5c00;
         }
 
         .status-needs-attention {
-            background: #fef2f2;
-            color: #dc2626;
+            background: #fff0f5;
+            color: #c0003c;
         }
 
         .status-urgent-concern {
-            background: #fef2f2;
-            color: #dc2626;
+            background: #fff0f5;
+            color: #c0003c;
         }
 
         .indicators {
@@ -820,30 +823,30 @@ class MentalHealthReportGenerator {
         }
 
         .indicator {
-            background: #f9fafb;
+            background: #fdf6ff;
             padding: 12px;
             border-radius: 6px;
-            border-left: 4px solid #2563eb;
+            border-left: 4px solid #C9A0DC;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border: 1px solid #e5e7eb;
+            border: 1px solid #e8d5f5;
         }
 
         .indicator-text {
             flex: 1;
-            color: #6b7280;
+            color: #4a4a4a;
             font-size: 15px;
         }
 
         .indicator-value {
-            background: #eff6ff;
-            color: #1e40af;
+            background: #f3e8ff;
+            color: #7B4F9E;
             padding: 4px 12px;
             border-radius: 4px;
             font-weight: 600;
             font-size: 14px;
-            border: 1px solid #bfdbfe;
+            border: 1px solid #C9A0DC;
         }
 
         .red-flag {
@@ -855,11 +858,11 @@ class MentalHealthReportGenerator {
         }
 
         .red-flag-urgent {
-            border-left: 4px solid #dc2626;
+            border-left: 4px solid #c0003c;
         }
 
         .red-flag-warning {
-            border-left: 4px solid #ea580c;
+            border-left: 4px solid #FFB6A3;
         }
 
         .red-flag-title {
@@ -869,39 +872,39 @@ class MentalHealthReportGenerator {
         }
 
         .red-flag-urgent .red-flag-title {
-            color: #dc2626;
+            color: #c0003c;
         }
 
         .red-flag-warning .red-flag-title {
-            color: #92400e;
+            color: #a04000;
         }
 
         .red-flag-description {
-            color: #6b7280;
+            color: #4a4a4a;
             font-size: 14px;
             margin-bottom: 8px;
             line-height: 1.7;
         }
 
         .red-flag-action {
-            background: #f3f4f6;
+            background: #fff8f5;
             padding: 10px;
             border-radius: 4px;
-            border-left: 3px solid #dc2626;
+            border-left: 3px solid #FFB6A3;
             font-size: 14px;
             color: #1a1a1a;
         }
 
         .positive-section {
-            background: #f0fdf4;
+            background: #f0fdf9;
             padding: 14px;
             border-radius: 6px;
-            border-left: 4px solid #16a34a;
-            border: 1px solid #bbf7d0;
+            border-left: 4px solid #7FDBCA;
+            border: 1px solid #b2f0e6;
         }
 
         .positive-title {
-            color: #166534;
+            color: #0f6b52;
             font-weight: 600;
             margin-bottom: 8px;
             font-size: 15px;
@@ -909,7 +912,7 @@ class MentalHealthReportGenerator {
 
         .positive-list {
             list-style: none;
-            color: #166534;
+            color: #0f6b52;
         }
 
         .positive-list li {
@@ -924,23 +927,23 @@ class MentalHealthReportGenerator {
         }
 
         footer {
-            background: #f3f4f6;
+            background: #fdf6ff;
             padding: 16px;
             text-align: center;
             font-size: 11px;
-            color: #6b7280;
-            border-top: 1px solid #e5e7eb;
+            color: #7B4F9E;
+            border-top: 1px solid #e8d5f5;
         }
 
         .parent-note {
-            background: #eff6ff;
+            background: #f0fdf9;
             padding: 14px;
             border-radius: 6px;
-            border-left: 4px solid #2563eb;
+            border-left: 4px solid #7FDBCA;
             margin-top: 12px;
-            color: #1e40af;
+            color: #0f6b52;
             line-height: 1.7;
-            border: 1px solid #bfdbfe;
+            border: 1px solid #b2f0e6;
         }
 
         .parent-note-title {
@@ -951,11 +954,11 @@ class MentalHealthReportGenerator {
 
         /* AI Insights Styling */
         .ai-insight {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #C9A0DC 0%, #7EC8E3 100%);
             border-radius: 12px;
             padding: 20px;
             margin: 24px 0;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+            box-shadow: 0 4px 12px rgba(201, 160, 220, 0.2);
         }
 
         .ai-insight-header {
@@ -977,7 +980,7 @@ class MentalHealthReportGenerator {
         }
 
         .ai-insight-content {
-            background: rgba(255, 255, 255, 0.95);
+            background: rgba(255, 255, 255, 0.97);
             border-radius: 8px;
             padding: 16px;
             color: #1a1a1a;
@@ -985,13 +988,22 @@ class MentalHealthReportGenerator {
             font-size: 13px;
         }
 
-        .ai-insight-content ul {
+        .ai-insight-content h3,
+        .ai-insight-content h4 {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin: 10px 0 6px;
+        }
+
+        .ai-insight-content ul,
+        .ai-insight-content ol {
             margin: 8px 0;
             padding-left: 20px;
         }
 
         .ai-insight-content li {
-            margin: 8px 0;
+            margin: 6px 0;
             line-height: 1.6;
         }
 
@@ -1000,13 +1012,17 @@ class MentalHealthReportGenerator {
         }
 
         .ai-insight-content strong {
-            color: #667eea;
+            color: #7B4F9E;
             font-weight: 700;
+        }
+
+        .ai-insight-content em {
+            font-style: italic;
         }
 
         .ai-badge {
             display: inline-block;
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.25);
             color: white;
             padding: 3px 8px;
             border-radius: 4px;
@@ -1021,13 +1037,13 @@ class MentalHealthReportGenerator {
 <body>
     <!-- Flat header -->
     <div class="header">
-        <h1>💭 ${studentName}'s Mental Health & Wellbeing</h1>
-        <p>${periodLabel} Learning Attitude, Focus, and Emotional Assessment</p>
+        <h1>${tm.title(studentName)}</h1>
+        <p>${tm.subtitle(period)}</p>
     </div>
 
     <!-- LEARNING ATTITUDE -->
     <div class="section">
-                <h2 class="section-title">1. Learning Attitude</h2>
+                <h2 class="section-title">${tm.section1}</h2>
                 <span class="status-badge status-${analysis.learningAttitude.status}">
                     ${analysis.learningAttitude.status.charAt(0).toUpperCase() + analysis.learningAttitude.status.slice(1).replace('_', ' ')}
                 </span>
@@ -1044,7 +1060,7 @@ class MentalHealthReportGenerator {
                 ${analysis.learningAttitude.indicators.length === 0 ? `
                     <div class="indicators">
                         <div class="indicator">
-                            <div class="indicator-text">Limited engagement indicators detected</div>
+                            <div class="indicator-text">${tm.noEngagement}</div>
                         </div>
                     </div>
                 ` : ''}
@@ -1054,8 +1070,8 @@ class MentalHealthReportGenerator {
             <!-- AI Insight 1: Behavioral Signals Interpretation -->
             <div class="ai-insight">
                 <div class="ai-insight-header">
-                    <span class="ai-insight-icon">🤖</span>
-                    <h3>AI Insights: Behavioral Analysis<span class="ai-badge">GPT-4o</span></h3>
+                    <span class="ai-insight-icon" style="display:none;"></span>
+                    <h3>${tm.aiBehavioralAnalysis}<span class="ai-badge">${t.gptBadge}</span></h3>
                 </div>
                 <div class="ai-insight-content">
                     ${aiInsights[0]}
@@ -1063,33 +1079,9 @@ class MentalHealthReportGenerator {
             </div>
             ` : ''}
 
-            <!-- FOCUS CAPABILITY -->
-            <div class="section">
-                <h2 class="section-title">2. Focus Capability</h2>
-                <span class="status-badge status-${analysis.focusCapability.status}">
-                    ${analysis.focusCapability.status.charAt(0).toUpperCase() + analysis.focusCapability.status.slice(1).replace('_', ' ')}
-                </span>
-
-                <div class="indicators">
-                    ${analysis.focusCapability.indicators.map((ind, i) => `
-                        <div class="indicator">
-                            <div class="indicator-text">${ind}</div>
-                        </div>
-                    `).join('')}
-                </div>
-
-                ${analysis.focusCapability.status !== 'healthy' && analysis.focusCapability.status !== 'moderate' ? `
-                    <div class="parent-note">
-                        <div class="parent-note-title">Focus Recommendation:</div>
-                        Encourage your child to study at the same time each day, even if just 15 minutes.
-                        Consistency matters more than duration. Use a visual timer to make study time visible.
-                    </div>
-                ` : ''}
-            </div>
-
             <!-- EMOTIONAL WELLBEING -->
             <div class="section">
-                <h2 class="section-title">3. Emotional Wellbeing</h2>
+                <h2 class="section-title">${tm.section2}</h2>
                 <span class="status-badge status-${analysis.emotionalWellbeing.status}">
                     ${analysis.emotionalWellbeing.status.charAt(0).toUpperCase() + analysis.emotionalWellbeing.status.slice(1).replace('_', ' ')}
                 </span>
@@ -1097,12 +1089,12 @@ class MentalHealthReportGenerator {
                 <!-- RED FLAGS -->
                 ${analysis.emotionalWellbeing.redFlags.length > 0 ? `
                     <div style="margin-bottom: 20px;">
-                        <h3 style="color: #DC3545; margin-bottom: 10px; font-size: 18px;">⚠️ Concerns Detected</h3>
+                        <h3 style="color: #c0003c; margin-bottom: 10px; font-size: 18px;">${tm.concernsDetected}</h3>
                         ${analysis.emotionalWellbeing.redFlags.map(flag => `
                             <div class="red-flag red-flag-${flag.level}">
                                 <div class="red-flag-title">${flag.title}</div>
                                 <div class="red-flag-description">${flag.description}</div>
-                                <div class="red-flag-action"><strong>Action:</strong> ${flag.action}</div>
+                                <div class="red-flag-action"><strong>${tm.actionLabel}</strong> ${flag.action}</div>
                             </div>
                         `).join('')}
                     </div>
@@ -1111,7 +1103,7 @@ class MentalHealthReportGenerator {
                 <!-- POSITIVE INDICATORS -->
                 ${analysis.emotionalWellbeing.positiveIndicators.length > 0 ? `
                     <div class="positive-section">
-                        <div class="positive-title">Positive Indicators</div>
+                        <div class="positive-title">${tm.positiveIndicatorsTitle}</div>
                         <ul class="positive-list">
                             ${analysis.emotionalWellbeing.positiveIndicators.map(ind => `
                                 <li>${ind}</li>
@@ -1125,8 +1117,8 @@ class MentalHealthReportGenerator {
             <!-- AI Insight 2: Emotional Wellbeing Assessment -->
             <div class="ai-insight">
                 <div class="ai-insight-header">
-                    <span class="ai-insight-icon">🤖</span>
-                    <h3>AI Insights: Wellbeing Assessment<span class="ai-badge">GPT-4o</span></h3>
+                    <span class="ai-insight-icon" style="display:none;"></span>
+                    <h3>${tm.aiWellbeingAssessment}<span class="ai-badge">${t.gptBadge}</span></h3>
                 </div>
                 <div class="ai-insight-content">
                     ${aiInsights[1]}
@@ -1136,25 +1128,25 @@ class MentalHealthReportGenerator {
 
             <!-- SUMMARY -->
             <div class="section">
-                <h2 class="section-title">Summary & Recommendations</h2>
+                <h2 class="section-title">${tm.section3}</h2>
 
                 ${analysis.emotionalWellbeing.redFlags.length === 0 ? `
                     <div class="positive-section">
-                        <div class="positive-title">Overall: Healthy Learning Experience</div>
-                        <p style="color: #155724; margin-top: 8px;">
-                            Your child appears to be in a good mental state regarding their learning.
-                            They show ${analysis.learningAttitude.score >= 0.7 ? 'strong' : 'steady'} effort and engagement.
-                            Continue to support their learning with encouragement and patience.
+                        <div class="positive-title">${tm.overallHealthy}</div>
+                        <p style="color: #0f6b52; margin-top: 8px;">
+                            ${tm.healthyDesc}
+                            ${tm.healthySubtext(analysis.learningAttitude.score >= 0.7 ? tm.healthyTrendStrong : tm.healthyTrendSteady)}
+                            ${tm.continueSupport}
                         </p>
                     </div>
                 ` : `
                     <div class="parent-note">
-                        <div class="parent-note-title">Next Steps:</div>
-                        <ol style="margin-left: 20px; color: #1565C0;">
-                            <li>Talk to your child about their learning experience</li>
-                            <li>Consider reducing pressure and celebrating effort over perfection</li>
-                            <li>If concerns persist, reach out to school counselor or teacher</li>
-                            <li>Focus on building confidence with easier problems first</li>
+                        <div class="parent-note-title">${tm.nextSteps}</div>
+                        <ol style="margin-left: 20px; color: #1a1a1a;">
+                            <li>${tm.nextStep1}</li>
+                            <li>${tm.nextStep2}</li>
+                            <li>${tm.nextStep3}</li>
+                            <li>${tm.nextStep4}</li>
                         </ol>
                     </div>
                 `}
@@ -1164,8 +1156,8 @@ class MentalHealthReportGenerator {
             <!-- AI Insight 3: Parent Communication Strategies -->
             <div class="ai-insight">
                 <div class="ai-insight-header">
-                    <span class="ai-insight-icon">🤖</span>
-                    <h3>AI Insights: Communication Tips<span class="ai-badge">GPT-4o</span></h3>
+                    <span class="ai-insight-icon" style="display:none;"></span>
+                    <h3>${tm.aiCommunicationTips}<span class="ai-badge">${t.gptBadge}</span></h3>
                 </div>
                 <div class="ai-insight-content">
                     ${aiInsights[2]}

@@ -95,9 +95,9 @@ struct PrivacySettingsView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         Toggle(isOn: $parentReportsSettings.parentReportsEnabled) {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("Automated Weekly Reports")
+                                Text(NSLocalizedString("privacy.parentReports.automatedReports", comment: ""))
                                     .font(.headline)
-                                Text("Generate parent reports every Sunday at 9 PM")
+                                Text(NSLocalizedString("privacy.parentReports.automatedReportsDesc", comment: ""))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
@@ -113,9 +113,9 @@ struct PrivacySettingsView: View {
 
                             Toggle(isOn: $parentReportsSettings.autoSyncEnabled) {
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text("Background Homework Sync")
+                                    Text(NSLocalizedString("privacy.parentReports.backgroundSync", comment: ""))
                                         .font(.subheadline)
-                                    Text("Automatically sync homework data for reports")
+                                    Text(NSLocalizedString("privacy.parentReports.backgroundSyncDesc", comment: ""))
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
@@ -126,14 +126,14 @@ struct PrivacySettingsView: View {
 
                             HStack {
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text("Last Sync")
+                                    Text(NSLocalizedString("privacy.parentReports.lastSync", comment: ""))
                                         .font(.subheadline)
                                     if let lastSync = parentReportsSettings.lastSyncTimestamp {
                                         Text(lastSync, style: .relative)
                                             .font(.caption)
                                             .foregroundColor(.secondary)
                                     } else {
-                                        Text("Never")
+                                        Text(NSLocalizedString("privacy.parentReports.never", comment: ""))
                                             .font(.caption)
                                             .foregroundColor(.secondary)
                                     }
@@ -146,7 +146,7 @@ struct PrivacySettingsView: View {
                                         ProgressView()
                                             .progressViewStyle(CircularProgressViewStyle())
                                     } else {
-                                        Text("Sync Now")
+                                        Text(NSLocalizedString("privacy.parentReports.syncNow", comment: ""))
                                             .font(.subheadline)
                                             .fontWeight(.medium)
                                     }
@@ -159,7 +159,7 @@ struct PrivacySettingsView: View {
                                     .padding(.vertical, 4)
 
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text("Next Report")
+                                    Text(NSLocalizedString("privacy.parentReports.nextReport", comment: ""))
                                         .font(.subheadline)
                                     Text(parentReportsSettings.nextReportDescription())
                                         .font(.caption)
@@ -170,11 +170,11 @@ struct PrivacySettingsView: View {
                     }
                     .padding(.vertical, 8)
                 } header: {
-                    Text("Parent Reports")
+                    Text(NSLocalizedString("privacy.parentReports.sectionHeader", comment: ""))
                 } footer: {
                     Text(parentReportsSettings.parentReportsEnabled ?
-                         "Reports are generated every Sunday at 9 PM using homework data synced throughout the week." :
-                         "Enable automated weekly parent reports to track learning progress.")
+                         NSLocalizedString("privacy.parentReports.footerEnabled", comment: "") :
+                         NSLocalizedString("privacy.parentReports.footerDisabled", comment: ""))
                 }
 
                 // Data Privacy Section
@@ -213,9 +213,9 @@ struct PrivacySettingsView: View {
                                 .frame(width: 24)
 
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("Clear Server Data")
+                                Text(NSLocalizedString("privacy.clearData.title", comment: ""))
                                     .foregroundColor(.primary)
-                                Text("Delete all learning data from server (keeps local data)")
+                                Text(NSLocalizedString("privacy.clearData.desc", comment: ""))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
@@ -357,16 +357,16 @@ struct PrivacySettingsView: View {
             } message: {
                 Text(NSLocalizedString("privacy.settings.exportDataAlert.message", comment: ""))
             }
-            .alert("Clear My Data", isPresented: $showingClearData) {
-                Button("Cancel", role: .cancel) { }
-                Button("Clear Server Data", role: .destructive) {
+            .alert(NSLocalizedString("privacy.clearData.alertTitle", comment: ""), isPresented: $showingClearData) {
+                Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) { }
+                Button(NSLocalizedString("privacy.clearData.alertButton", comment: ""), role: .destructive) {
                     clearMyData()
                 }
             } message: {
-                Text("This will permanently delete all your learning data from the SERVER:\n\n• Homework questions (784 questions)\n• Chat conversations\n• Parent reports\n• Progress tracking\n\nYour LOCAL data will remain intact. Your account will remain active. This action cannot be undone.")
+                Text(NSLocalizedString("privacy.clearData.alertMessage", comment: ""))
             }
             .alert(NSLocalizedString("privacy.settings.deleteAccountAlert.title", comment: ""), isPresented: $showingDeleteAccount) {
-                TextField("Enter your email to confirm", text: $confirmEmailText)
+                TextField(NSLocalizedString("privacy.deleteAccount.emailPlaceholder", comment: ""), text: $confirmEmailText)
                     .textContentType(.emailAddress)
                     .autocapitalization(.none)
                 Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {
@@ -376,7 +376,7 @@ struct PrivacySettingsView: View {
                     deleteAccount()
                 }
             } message: {
-                Text("This will permanently delete your account and ALL data. Please enter your email to confirm.")
+                Text(NSLocalizedString("privacy.deleteAccount.alertMessage", comment: ""))
             }
         }
     }

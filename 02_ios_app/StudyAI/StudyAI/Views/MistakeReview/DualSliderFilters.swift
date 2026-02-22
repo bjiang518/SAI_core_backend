@@ -24,9 +24,9 @@ enum SeverityLevel: String, CaseIterable {
 
     var displayName: String {
         switch self {
-        case .all: return "All"
-        case .mediumPlus: return "Med+"
-        case .severe: return "Severe"
+        case .all: return NSLocalizedString("mistakeReview.filter.severity.all", comment: "")
+        case .mediumPlus: return NSLocalizedString("mistakeReview.filter.severity.medPlus", comment: "")
+        case .severe: return NSLocalizedString("mistakeReview.filter.severity.severe", comment: "")
         }
     }
 
@@ -61,7 +61,11 @@ enum FilterTimeRange: String, CaseIterable {
     case allTime = "All"
 
     var displayName: String {
-        rawValue
+        switch self {
+        case .week: return NSLocalizedString("mistakeReview.filter.time.week", comment: "")
+        case .month: return NSLocalizedString("mistakeReview.filter.time.month", comment: "")
+        case .allTime: return NSLocalizedString("mistakeReview.filter.time.all", comment: "")
+        }
     }
 
     var mistakeTimeRange: MistakeTimeRange {
@@ -83,7 +87,7 @@ struct DualSliderFilters: View {
         HStack(spacing: 16) {
             // Left: Severity Filter
             VStack(alignment: .leading, spacing: 8) {
-                Text("Severity")
+                Text(NSLocalizedString("mistakeReview.filter.severityLabel", comment: ""))
                     .font(.caption)
                     .foregroundColor(.secondary)
 
@@ -102,7 +106,7 @@ struct DualSliderFilters: View {
 
             // Right: Time Range Filter
             VStack(alignment: .leading, spacing: 8) {
-                Text("Time")
+                Text(NSLocalizedString("mistakeReview.filter.timeLabel", comment: ""))
                     .font(.caption)
                     .foregroundColor(.secondary)
 

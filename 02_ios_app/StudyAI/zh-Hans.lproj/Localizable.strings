@@ -23,20 +23,28 @@
 "settings.account" = "帐户";
 "settings.editProfile" = "编辑资料";
 "settings.signOut" = "登出";
+"settings.biometricLogin" = "%@ 登录";
+"settings.parentControls.message" = "验证家长身份以管理设置";
+"settings.appVersion" = "StudyMates v1.0";
+"settings.appTagline" = "搭载现代身份验证";
+"settings.appPoweredBy" = "由 OpenAI GPT-4 驱动";
 "settings.security" = "安全与隐私";
-"settings.passwordManager" = "密碼管理器";
+"settings.passwordManager" = "密码管理器";
 "settings.privacySettings" = "隐私设定";
 "settings.appSettings" = "应用程式设定";
 "settings.studyReminders" = "学习提醒";
-"settings.textSize" = "文字大小";
-"settings.language" = "語言";
+"settings.language" = "语言";
+"languageSettings.sectionHeader" = "选择语言";
+"languageSettings.sectionFooter" = "选择你偏好的应用界面语言，这将影响应用中的所有文字。";
+"languageSettings.restartRequired" = "需要重启";
+"languageSettings.restartMessage" = "应用即将关闭，请重新打开以查看语言更改。";
 "settings.voiceAudio" = "学习夥伴";
 "settings.voiceSettings" = "选择你的学习夥伴";
 "settings.learning" = "学习";
 "settings.learningGoals" = "学习目标与进度";
 "settings.support" = "支援";
-"settings.help" = "協助与常见问题";
-"settings.contact" = "聯络支援";
+"settings.help" = "协助与常见问题";
+"settings.contact" = "联络支援";
 "settings.rateApp" = "评价应用程式";
 "settings.shareApp" = "分享应用程式";
 
@@ -46,8 +54,8 @@
 
 // Study Reminders
 "studyReminders.title" = "学习提醒";
-"studyReminders.permissions" = "權限";
-"studyReminders.notificationPermission" = "通知權限";
+"studyReminders.permissions" = "权限";
+"studyReminders.notificationPermission" = "通知权限";
 "studyReminders.enabled" = "通知已启用";
 "studyReminders.denied" = "通知已拒絕";
 "studyReminders.notConfigured" = "未设定";
@@ -59,11 +67,11 @@
 "studyReminders.studyTime" = "学习时间";
 "studyReminders.timeDescription" = "您将在 %@ 收到学习提醒";
 "studyReminders.studyDays" = "学习日期";
-"studyReminders.daysDescription" = "提醒将在 %@ 發送";
+"studyReminders.daysDescription" = "提醒将在 %@ 发送";
 "studyReminders.weekdays" = "工作日";
 "studyReminders.everyDay" = "每天";
 "studyReminders.clear" = "清除";
-"studyReminders.save" = "儲存";
+"studyReminders.save" = "储存";
 "studyReminders.cancel" = "取消";
 
 // Days of Week
@@ -76,10 +84,8 @@
 "day.sunday" = "星期日";
 
 // Common
-"common.done" = "完成";
 "common.cancel" = "取消";
-"common.save" = "儲存";
-"common.ok" = "确定";
+"common.save" = "储存";
 "common.close" = "关闭";
 "common.edit" = "编辑";
 "common.clear" = "清除";
@@ -95,7 +101,7 @@
 "common.years" = "年";
 "common.openSettings" = "开启设定";
 "common.settings" = "设定";
-"common.delete" = "刪除";
+"common.delete" = "删除";
 "common.continueHere" = "在此继续";
 "common.moveOnAndNotify" = "转到后台并通知";
 
@@ -104,7 +110,7 @@
 "home.goodAfternoon" = "午安";
 "home.goodEvening" = "晚安";
 "home.defaultStudentName" = "同学";
-"home.pleaseEditProfile" = "請编辑您的资料";
+"home.pleaseEditProfile" = "请编辑您的资料";
 "home.todaysProgress" = "今日进度";
 "home.startLearningMessage" = "开始学习以追蹤进度";
 "home.questions" = "题目";
@@ -145,10 +151,10 @@
 "parentReport.percentComplete" = "%d%% 完成";
 "parentReport.aiAnalysis" = "AI分析";
 "parentReport.reportDetails" = "报告详情";
-"parentReport.loadingNarrative" = "正在載入内容...";
+"parentReport.loadingNarrative" = "正在载入内容...";
 "parentReport.summary" = "总结";
 "parentReport.keyInsights" = "重点洞察";
-"parentReport.recommendations" = "建議";
+"parentReport.recommendations" = "建议";
 
 // Common
 "common.done" = "完成";
@@ -163,16 +169,16 @@
 "aiHomework.selectImage" = "选择图片以分析作业";
 "aiHomework.optimizing" = "优化图片中...";
 "aiHomework.cropping" = "正在图像分割...";
-"aiHomework.uploading" = "上傳到AI中...";
+"aiHomework.uploading" = "上传到AI中...";
 "aiHomework.analyzing" = "AI正在阅读作业...";
 "aiHomework.grading" = "评分中...";
 "aiHomework.preparingResults" = "准备结果中...";
 "aiHomework.analysisComplete" = "分析完成！";
 "aiHomework.processingError" = "处理错误";
 "aiHomework.homeworkAnalysisComplete" = "作业分析完成";
-"aiHomework.gradingCompleteMessage" = "您的作业已评分完成。發现%d道题。";
+"aiHomework.gradingCompleteMessage" = "您的作业已评分完成。发现%d道题。";
 "aiHomework.selectImageSource.title" = "选择图片来源";
-"aiHomework.selectImageSource.subtitle" = "选择您上傳作业的方式";
+"aiHomework.selectImageSource.subtitle" = "选择您上传作业的方式";
 "aiHomework.imageSource.takePhoto" = "拍照";
 "aiHomework.imageSource.takePhotoSubtitle" = "使用相机掃描作业";
 "aiHomework.imageSource.choosePhotos" = "从相簿选择";
@@ -181,22 +187,22 @@
 "aiHomework.imageSource.chooseFilesSubtitle" = "从档案应用程式匯入";
 "aiHomework.imageSource.chooseHomework" = "选择最近作业";
 "aiHomework.imageSource.chooseHomeworkSubtitle" = "从之前评分的作业中选择";
-"aiHomework.preview.singleImage" = "预覽图片";
-"aiHomework.preview.multipleImages" = "预覽多張图片";
+"aiHomework.preview.singleImage" = "预览图片";
+"aiHomework.preview.multipleImages" = "预览多张图片";
 "aiHomework.preview.selectedCount" = "已选";
 "aiHomework.editImage" = "编辑图片";
 "aiHomework.analyzeWithAI" = "使用AI分析";
-"aiHomework.analyzeMultipleImages" = "分析%d張图片";
+"aiHomework.analyzeMultipleImages" = "分析%d张图片";
 "aiHomework.imageCounter" = "%d / %d";
-"aiHomework.continueInBackground" = "是否在后台继续分析？完成后将發送通知。";
-"aiHomework.photoAccessRequired" = "需要照片存取權限";
-"aiHomework.photoAccessMessage" = "請在设定中允許存取您的照片图库以选择图片。";
-"aiHomework.cameraAccessRequired" = "需要相机存取權限";
-"aiHomework.cameraAccessMessage" = "請在设定中允許相机存取以拍照。";
+"aiHomework.continueInBackground" = "是否在后台继续分析？完成后将发送通知。";
+"aiHomework.photoAccessRequired" = "需要照片存取权限";
+"aiHomework.photoAccessMessage" = "请在设定中允許存取您的照片图库以选择图片。";
+"aiHomework.cameraAccessRequired" = "需要相机存取权限";
+"aiHomework.cameraAccessMessage" = "请在设定中允許相机存取以拍照。";
 "aiHomework.imageLimitReached" = "已达图片上限";
-"aiHomework.imageLimitMessage" = "最多可新增%d張图片。請刪除一張图片后再新增新图片。";
-"aiHomework.selectOneImage" = "选择单張图片";
-"aiHomework.selectOneImageMessage" = "請一次只选择1張图片进行编辑。";
+"aiHomework.imageLimitMessage" = "最多可新增%d张图片。请删除一张图片后再新增新图片。";
+"aiHomework.selectOneImage" = "选择单张图片";
+"aiHomework.selectOneImageMessage" = "请一次只选择1张图片进行编辑。";
 "aiHomework.selectSubject" = "选择科目";
 "aiHomework.parsingMode.title" = "解析模式";
 "aiHomework.parsingMode.progressive" = "专业";
@@ -221,13 +227,13 @@
 "aiHomework.results.confidence" = "置信度";
 "aiHomework.results.viewDetails" = "查看详细结果";
 "aiHomework.processing.message" = "AI正在仔细检查您的作业！";
-"aiHomework.processing.waitMessage" = "这可能需要一点时间，請稍候...";
-"imageViewer.instructions" = "双指縮放 • 拖动平移 • 双擊重置 • 使用关闭按鈕退出";
+"aiHomework.processing.waitMessage" = "这可能需要一点时间，请稍候...";
+"imageViewer.instructions" = "双指縮放 • 拖动平移 • 双击重置 • 使用关闭按鈕退出";
 
 // Homework Results
 "homeworkResults.yourScore" = "您的分数";
 "homeworkResults.titleWithSubject" = "您的%@作业报告";
-"homeworkResults.archive" = "歸档";
+"homeworkResults.archive" = "归档";
 "homeworkResults.report" = "报告";
 "homeworkResults.subject" = "科目：";
 "homeworkResults.confidence" = "置信度";
@@ -241,17 +247,15 @@
 "homeworkResults.questionsAndAnswers" = "题目与答案";
 "homeworkResults.additionalItems" = "其他项目";
 "homeworkResults.debugInfo" = "除错资讯";
-"homeworkResults.selectQuestionsToArchive" = "选择要歸档的题目";
+"homeworkResults.selectQuestionsToArchive" = "选择要归档的题目";
 "homeworkResults.questionsSelected" = "题已选";
-"homeworkResults.noQuestionsSelected" = "未选择题目";
-"homeworkResults.selectQuestionsToArchiveMessage" = "請至少选择一道题目进行歸档。";
 "homeworkResults.markProgress" = "标记进度";
 "homeworkResults.slideToMarkProgress" = "滑动以标记进度";
 "homeworkResults.progressMarked" = "进度已标记！";
 "homeworkResults.progressUpdated" = "✅ 您的学习进度已更新！";
-"homeworkResults.progressTip" = "💡 提示：歸档题目时会自动追蹤进度！";
-"homeworkResults.tapToAddQuestions" = "点擊此处手动新增 %d 题到您的进度";
-"homeworkResults.manuallyAddPrefix" = "或点擊此处手动新增这";
+"homeworkResults.progressTip" = "💡 提示：归档题目时会自动追蹤进度！";
+"homeworkResults.tapToAddQuestions" = "点击此处手动新增 %d 题到您的进度";
+"homeworkResults.manuallyAddPrefix" = "或点击此处手动新增这";
 "homeworkResults.manuallyAddSuffix" = "题到您的每日学习目标";
 "homeworkResults.hasVisual" = "有图片";
 "homeworkResults.rawQuestion" = "原始题目：";
@@ -260,94 +264,106 @@
 "homeworkResults.correctAnswer" = "正确答案：";
 "homeworkResults.feedback" = "回饋：";
 "homeworkResults.askAiForHelp" = "向AI求助";
-"homeworkResults.archiveSuccess" = "成功歸档";
+
+// Question type renderers
+"renderer.fullQuestion" = "完整题目：";
+"renderer.ungraded" = "未批改";
+"renderer.unknownGrade" = "未知";
+"renderer.studentAnswer" = "学生答案";
+"renderer.correctAnswer" = "正确答案";
+"renderer.studentsWork" = "学生解题过程：";
+"renderer.studentAnswerWords" = "学生答案（%d 字）";
+"renderer.keyPointsExpected" = "预期要点";
+"renderer.showMore" = "展开";
+"renderer.showLess" = "收起";
+"homeworkResults.archiveSuccess" = "成功归档";
 "homeworkResults.archiveSuccessSuffix" = "题到您的错题本！";
-"homeworkResults.archiveFailure" = "歸档题目失敗：";
+"homeworkResults.archiveFailure" = "归档题目失敗：";
 "homeworkResults.noQuestionsSelected" = "未选择题目";
-"homeworkResults.selectQuestionsToArchiveMessage" = "請至少选择一道题目进行歸档。";
+"homeworkResults.selectQuestionsToArchiveMessage" = "请至少选择一道题目进行归档。";
 
 // Authentication
 "auth.error.title" = "认证错误";
-"auth.error.unknown" = "發生未知错误";
+"auth.error.unknown" = "发生未知错误";
 
 // Email Verification
 "emailVerification.error.title" = "验证错误";
 "emailVerification.title" = "验证您的电子郵件";
-"emailVerification.codeSentMessage" = "我们已向您發送了一个6位验证碼";
-"emailVerification.enterCode" = "输入6位验证碼";
+"emailVerification.codeSentMessage" = "我们已向您发送了一个6位验证码";
+"emailVerification.enterCode" = "输入6位验证码";
 "emailVerification.verifying" = "验证中...";
 "emailVerification.verifyButton" = "验证电子郵件";
-"emailVerification.resendCode" = "重新發送验证碼";
-"emailVerification.resendCountdown" = "%d秒后可重新發送";
-"emailVerification.checkSpam" = "沒有收到验证碼？請检查您的垃圾郵件资料夾";
+"emailVerification.resendCode" = "重新发送验证码";
+"emailVerification.resendCountdown" = "%d秒后可重新发送";
+"emailVerification.checkSpam" = "沒有收到验证码？请检查您的垃圾郵件资料夾";
 "emailVerification.wrongEmail" = "电子郵件错误？";
 "emailVerification.change" = "更改";
 
 // Account Password Management
-"accountPassword.title" = "帐户密碼";
-"accountPassword.subtitle" = "更改您的帐户登入密碼";
+"accountPassword.title" = "帐户密码";
+"accountPassword.subtitle" = "更改您的帐户登入密码";
 "accountPassword.sectionHeader" = "帐户安全";
-"accountPassword.sectionFooter" = "您的帐户密碼用於登入您的帐户";
-"accountPassword.current" = "目前密碼";
-"accountPassword.new" = "新密碼";
-"accountPassword.confirm" = "确认密碼";
-"accountPassword.changeHeader" = "更改帐户密碼";
-"accountPassword.requirementFooter" = "密碼必须至少6个字元";
-"accountPassword.button" = "更改密碼";
-"accountPassword.comingSoon" = "帐户密碼更改功能将在未来更新中提供";
+"accountPassword.sectionFooter" = "您的帐户密码用於登入您的帐户";
+"accountPassword.current" = "目前密码";
+"accountPassword.new" = "新密码";
+"accountPassword.confirm" = "确认密码";
+"accountPassword.changeHeader" = "更改帐户密码";
+"accountPassword.requirementFooter" = "密码必须至少6个字元";
+"accountPassword.button" = "更改密码";
+"accountPassword.comingSoon" = "帐户密码更改功能将在未来更新中提供";
 
 // Parent Password Management
-"parentPassword.title" = "家长模式密碼";
+"parentPassword.title" = "家长模式密码";
 "parentPassword.statusEnabled" = "已启用";
 "parentPassword.statusNotSet" = "未设定";
-"parentPassword.set" = "设定家长密碼";
+"parentPassword.set" = "设定家长密码";
 "parentPassword.setSubtitle" = "建立PIN以保护家长模式";
-"parentPassword.change" = "更改家长密碼";
+"parentPassword.change" = "更改家长密码";
 "parentPassword.changeSubtitle" = "更新您的家长模式PIN";
-"parentPassword.remove" = "移除家长密碼";
+"parentPassword.remove" = "移除家长密码";
 "parentPassword.removeSubtitle" = "停用家长模式保护";
 "parentPassword.controlsHeader" = "家长模式控制";
 "parentPassword.controlsFooter" = "家长模式允許您控制应用程式功能并设定限制";
 "parentPassword.featureAccessHeader" = "受保护功能";
-"parentPassword.featureAccessFooter" = "为需要家长授權的功能启用保护";
+"parentPassword.featureAccessFooter" = "为需要家长授权的功能启用保护";
 
 // Parent Password - Set Password
-"parentPasswordSet.title" = "设定家长密碼";
+"parentPasswordSet.title" = "设定家长密码";
 "parentPasswordSet.description" = "建立一个6位PIN以保护家长模式功能和设定";
 "parentPasswordSet.pinPlaceholder" = "输入PIN（6位数字）";
 "parentPasswordSet.confirmPlaceholder" = "确认PIN";
 "parentPasswordSet.header" = "建立您的PIN";
 "parentPasswordSet.footer" = "存取家长模式功能时需要此PIN";
-"parentPasswordSet.button" = "设定密碼";
-"parentPasswordSet.mismatch" = "PIN不相符。請重试。";
+"parentPasswordSet.button" = "设定密码";
+"parentPasswordSet.mismatch" = "PIN不相符。请重试。";
 "parentPasswordSet.invalid" = "PIN必须恰好为6位数字";
-"parentPasswordSet.success" = "✅ 家长密碼设定成功";
-"parentPasswordSet.failed" = "❌ 设定密碼失敗。請重试。";
+"parentPasswordSet.success" = "✅ 家长密码设定成功";
+"parentPasswordSet.failed" = "❌ 设定密码失敗。请重试。";
 
 // Parent Password - Change Password
-"parentPasswordChange.title" = "更改家长密碼";
+"parentPasswordChange.title" = "更改家长密码";
 "parentPasswordChange.currentPlaceholder" = "输入目前PIN";
-"parentPasswordChange.currentHeader" = "目前密碼";
+"parentPasswordChange.currentHeader" = "目前密码";
 "parentPasswordChange.newPlaceholder" = "输入新PIN（6位数字）";
 "parentPasswordChange.confirmPlaceholder" = "确认新PIN";
-"parentPasswordChange.newHeader" = "新密碼";
-"parentPasswordChange.footer" = "输入新的6位PIN以更改您的家长模式密碼";
-"parentPasswordChange.button" = "更改密碼";
-"parentPasswordChange.mismatch" = "PIN不相符。請重试。";
-"parentPasswordChange.success" = "✅ 家长密碼更改成功";
-"parentPasswordChange.failed" = "❌ 更改密碼失敗。請检查您的目前PIN。";
+"parentPasswordChange.newHeader" = "新密码";
+"parentPasswordChange.footer" = "输入新的6位PIN以更改您的家长模式密码";
+"parentPasswordChange.button" = "更改密码";
+"parentPasswordChange.mismatch" = "PIN不相符。请重试。";
+"parentPasswordChange.success" = "✅ 家长密码更改成功";
+"parentPasswordChange.failed" = "❌ 更改密码失敗。请检查您的目前PIN。";
 
 // Parent Password - Remove Password
 "parentPasswordRemove.title" = "移除家长模式";
 "parentPasswordRemove.description" = "这将停用家长模式并移除所有限制";
 "parentPasswordRemove.pinPlaceholder" = "输入目前PIN";
-"parentPasswordRemove.header" = "验证密碼";
+"parentPasswordRemove.header" = "验证密码";
 "parentPasswordRemove.footer" = "输入您目前的家长PIN以确认移除";
 "parentPasswordRemove.button" = "移除家长模式";
 "parentPasswordRemove.navigationTitle" = "移除家长模式";
 "parentPasswordRemove.alertTitle" = "移除家长模式";
 "parentPasswordRemove.success" = "✅ 家长模式已移除";
-"parentPasswordRemove.incorrectPin" = "❌ PIN错误。請重试。";
+"parentPasswordRemove.incorrectPin" = "❌ PIN错误。请重试。";
 
 
 "app.name" = "StudyAI";
@@ -359,8 +375,8 @@
 "auth.continueWithGoogle" = "使用Google继续";
 "auth.emailAddress" = "电子郵件地址";
 "auth.enterEmail" = "输入您的电子郵件";
-"auth.password" = "密碼";
-"auth.enterPassword" = "输入您的密碼";
+"auth.password" = "密码";
+"auth.enterPassword" = "输入您的密码";
 "auth.signIn" = "登入";
 "auth.dontHaveAccount" = "还沒有帐户？";
 "auth.signUp" = "注册";
@@ -368,83 +384,83 @@
 "auth.signup.subtitle" = "加入StudyAI，开始您的学习冒险！";
 "auth.fullName" = "全名";
 "auth.enterFullName" = "输入您的全名";
-"auth.createPassword" = "建立密碼";
-"auth.confirmPassword" = "确认密碼";
-"auth.confirmYourPassword" = "确认您的密碼";
+"auth.createPassword" = "建立密码";
+"auth.confirmPassword" = "确认密码";
+"auth.confirmYourPassword" = "确认您的密码";
 "auth.createAccount" = "建立帐户";
 "auth.signup.error" = "注册错误";
 "auth.passwordRequirement.minLength" = "至少6个字元";
-"auth.passwordRequirement.match" = "密碼相符";
+"auth.passwordRequirement.match" = "密码相符";
 
 // Error Messages
 "error.offline" = "无网路连线";
-"error.rateLimit" = "請求过多。請在 %@ 后重试";
-"error.rateLimitGeneric" = "請求过多。請稍后重试";
-"error.invalidImage" = "图片格式不支援或已損壞";
-"error.aiProcessing" = "AI分析失敗。請重试";
-"error.auth" = "认证失敗。請重新登入";
+"error.rateLimit" = "请求过多。请在 %@ 后重试";
+"error.rateLimitGeneric" = "请求过多。请稍后重试";
+"error.invalidImage" = "图片格式不支援或已损坏";
+"error.aiProcessing" = "AI分析失敗。请重试";
+"error.auth" = "认证失敗。请重新登入";
 
 // Chat Session Errors
-"error.session.creation" = "无法开始新的对话会话。請检查网路连线后重试。";
-"error.session.expired" = "会话已过期。别擔心 - 您的讯息已儲存！点擊重试在新会话中傳送。";
-"error.session.loadInfo" = "无法載入会话资讯。会话仍在正常运作。";
-"error.session.archive" = "对话儲存失敗。您的讯息很安全 - 請重试封存。";
+"error.session.creation" = "无法开始新的对话会话。请检查网路连线后重试。";
+"error.session.expired" = "会话已过期。别擔心 - 您的讯息已储存！点击重试在新会话中传送。";
+"error.session.loadInfo" = "无法载入会话资讯。会话仍在正常运作。";
+"error.session.archive" = "对话储存失敗。您的讯息很安全 - 请重试封存。";
 
 // Message Errors
-"error.message.send" = "讯息未送达。点擊重试按鈕重新傳送。";
-"error.message.network" = "网路连线问题。請检查您的网路连线后重试。";
-"error.message.noResponse" = "AI未回应。这可能是暫时性问题 - 請重试您的讯息。";
+"error.message.send" = "讯息未送达。点击重试按鈕重新传送。";
+"error.message.network" = "网路连线问题。请检查您的网路连线后重试。";
+"error.message.noResponse" = "AI未回应。这可能是暫时性问题 - 请重试您的讯息。";
 
 // Image Processing Errors
-"error.image.prepare" = "无法准备上傳图片。請嘗试选择其他图片。";
-"error.image.process" = "图片分析失敗。請确保图片清晰后重试。";
-"error.image.upload" = "上傳图片失敗。請检查网路连线后重试。";
+"error.image.prepare" = "无法准备上传图片。请嘗试选择其他图片。";
+"error.image.process" = "图片分析失敗。请确保图片清晰后重试。";
+"error.image.upload" = "上传图片失敗。请检查网路连线后重试。";
 
 // Loading States
 "loading.session.creating" = "开始新对话...";
-"loading.message.sending" = "傳送讯息中...";
+"loading.message.sending" = "传送讯息中...";
 "loading.image.processing" = "AI分析图片中...";
-"loading.archive.saving" = "儲存对话中...";
+"loading.archive.saving" = "储存对话中...";
 
 // Success Messages
 "success.session.created" = "✓ 新对话已开始";
 "success.message.sent" = "✓ 讯息已送达";
 "success.image.processed" = "✓ 图片分析成功";
-"success.archive.saved" = "✓ 对话已儲存到图书馆";
+"success.archive.saved" = "✓ 对话已储存到图书馆";
 "success.grade.updated" = "✅ 成績已更新为 %@ (%@ 分)";
 "success.network.restored" = "✓ 网路连线已恢复";
 
 // Phase 2 可靠性 - 网路監控 (Phase 2.3)
-"error.network.disconnected" = "连线中斷。部分回应已儲存。";
+"error.network.disconnected" = "连线中斷。部分回应已储存。";
 "error.network.reconnecting" = "重新连线中...";
-"error.network.timeout" = "請求逾时。請检查网路连线后重试。";
+"error.network.timeout" = "请求逾时。请检查网路连线后重试。";
 
 // Phase 2 可靠性 - 串流重试 (Phase 2.3)
-"error.streaming.interrupted" = "回应过程中连线中斷。部分讯息已儲存。";
+"error.streaming.interrupted" = "回应过程中连线中斷。部分讯息已储存。";
 "error.streaming.retry" = "重试";
 "success.streaming.recovered" = "连线已恢复。讯息完整。";
-"streaming.partialResponse" = "部分回应可用。点擊重试继续。";
+"streaming.partialResponse" = "部分回应可用。点击重试继续。";
 
 // Phase 2 可靠性 - 斷路器 (Phase 2.1)
-"error.ai.circuitOpen" = "AI服務暫时无法使用。請稍后重试。";
-"error.ai.serviceDown" = "AI服務離线中。我们的團隊正在努力恢复。";
-"error.ai.timeout" = "AI处理时间超出预期。請重试。";
+"error.ai.circuitOpen" = "AI服务暫时无法使用。请稍后重试。";
+"error.ai.serviceDown" = "AI服务離线中。我们的團隊正在努力恢复。";
+"error.ai.timeout" = "AI处理时间超出预期。请重试。";
 
 // Phase 2 可靠性 - 资料库错误 (Phase 2.2)
-"error.database.writeFailed" = "无法儲存您的讯息。請检查网路连线后重试。";
+"error.database.writeFailed" = "无法储存您的讯息。请检查网路连线后重试。";
 "error.database.unavailable" = "资料库暫时无法使用。您的讯息将自动重试。";
-"error.database.saveFailed" = "对话儲存失敗。您的讯息在记憶体中是安全的。";
+"error.database.saveFailed" = "对话储存失敗。您的讯息在记憶体中是安全的。";
 
-// Phase 2 可靠性 - 權杖更新 (Phase 2.5)
-"error.token.expired" = "会话已过期。請重新登入。";
-"error.token.refreshFailed" = "无法更新会话。請重新登入。";
-"error.token.invalid" = "会话无效。請重新登入。";
+// Phase 2 可靠性 - 权杖更新 (Phase 2.5)
+"error.token.expired" = "会话已过期。请重新登入。";
+"error.token.refreshFailed" = "无法更新会话。请重新登入。";
+"error.token.invalid" = "会话无效。请重新登入。";
 "success.token.refreshed" = "会话已成功续期。";
 
 // Phase 2 可靠性 - 会话验证 (Phase 2.6)
 "error.session.notfound" = "未找到会话。正在建立新会话...";
 "error.session.invalid" = "会话无效。正在开始新会话...";
-"error.session.validation" = "无法验证会话。請重试。";
+"error.session.validation" = "无法验证会话。请重试。";
 "success.session.validated" = "会话就緒。";
 "success.session.recreated" = "新会话建立成功。";
 
@@ -452,22 +468,22 @@
 "homeworkAlbum.title" = "作业相簿";
 "homeworkAlbum.select" = "选择";
 "homeworkAlbum.done" = "完成";
-"homeworkAlbum.delete" = "刪除";
-"homeworkAlbum.deleteCount" = "刪除 (%d)";
-"homeworkAlbum.deleteConfirmation" = "刪除 %d 張作业图片%@？";
+"homeworkAlbum.delete" = "删除";
+"homeworkAlbum.deleteCount" = "删除 (%d)";
+"homeworkAlbum.deleteConfirmation" = "删除 %d 张作业图片%@？";
 "homeworkAlbum.deleteConfirmationMessage" = "此操作无法复原。";
 "homeworkAlbum.emptyStateTitle" = "暫无作业";
 "homeworkAlbum.emptyStateMessage" = "提交作业进行AI评分后，图片将在此显示";
 "homeworkAlbum.questionCount" = "%d 道题目%@";
-"homeworkAlbum.filters" = "篩选";
-"homeworkAlbum.timeRange" = "时间範圍";
+"homeworkAlbum.filters" = "筛选";
+"homeworkAlbum.timeRange" = "时间范围";
 "homeworkAlbum.subject" = "科目";
 "homeworkAlbum.grade" = "年级";
 "homeworkAlbum.chooseHomework" = "选择作业";
-"homeworkAlbum.selectionHint" = "点擊任意作业以选择它进行AI重新分析";
+"homeworkAlbum.selectionHint" = "点击任意作业以选择它进行AI重新分析";
 
 // Homework Image Detail
-"homeworkImageDetail.deleteTitle" = "刪除作业图片？";
+"homeworkImageDetail.deleteTitle" = "删除作业图片？";
 "homeworkImageDetail.deleteMessage" = "此操作无法复原。";
 "homeworkImageDetail.questions" = "题目";
 "homeworkImageDetail.correct" = "正确";
@@ -480,10 +496,16 @@
 "questionGeneration.chooseTemplate" = "选择模板";
 "questionGeneration.template.randomPractice" = "随机练习";
 "questionGeneration.template.fromMistakes" = "基於错题";
-"questionGeneration.template.fromArchives" = "基於歸档";
+"questionGeneration.template.fromArchives" = "基于归档";
+"questionGeneration.resume.title" = "继续练习";
+"questionGeneration.resume.subtitle" = "%@ • 还剩 %d 道题";
+"questionGeneration.resume.button" = "继续";
+"questionGeneration.type.random" = "随机练习";
+"questionGeneration.type.conversationBased" = "基于对话的练习";
+"questionGeneration.type.mistakeBased" = "基于错题的练习";
 "questionGeneration.description.randomPractice" = "生成全新练习题";
-"questionGeneration.description.fromMistakes" = "針对您的薄弱环節";
-"questionGeneration.description.fromArchives" = "基於歸档的学习记录";
+"questionGeneration.description.fromMistakes" = "針对您的薄弱环节";
+"questionGeneration.description.fromArchives" = "基於归档的学习记录";
 "questionGeneration.configuration" = "设定";
 "questionGeneration.generalSettings" = "一般设定";
 "questionGeneration.difficultyLevel" = "难度等级";
@@ -500,53 +522,53 @@
 "questionGeneration.chooseSubject" = "选择科目";
 "questionGeneration.usingGeneralMath" = "使用一般数学主题";
 "questionGeneration.mistakeBasedSettings" = "错题基礎设定";
-"questionGeneration.loadingMistakes" = "載入错题中...";
+"questionGeneration.loadingMistakes" = "载入错题中...";
 "questionGeneration.mistakesAvailable" = "个错题可用";
-"questionGeneration.tapToSelectMistakes" = "点擊选择错题";
+"questionGeneration.tapToSelectMistakes" = "点击选择错题";
 "questionGeneration.mistakesSelected" = "个错题已选";
-"questionGeneration.noMistakes" = "未找到错题。請先完成作业。";
-"questionGeneration.archiveBasedSettings" = "歸档基礎设定";
-"questionGeneration.loadingArchiveData" = "載入歸档资料中...";
+"questionGeneration.noMistakes" = "未找到错题。请先完成作业。";
+"questionGeneration.archiveBasedSettings" = "归档基礎设定";
+"questionGeneration.loadingArchiveData" = "载入归档资料中...";
 "questionGeneration.conversationsCount" = "个对话，";
 "questionGeneration.questionsAvailable" = "个题目可用";
-"questionGeneration.tapToSelectArchives" = "点擊选择歸档";
+"questionGeneration.tapToSelectArchives" = "点击选择归档";
 "questionGeneration.questionsSelected" = "个题目已选";
-"questionGeneration.noArchives" = "未找到歸档内容。請先进行对话或完成作业。";
+"questionGeneration.noArchives" = "未找到归档内容。请先进行对话或完成作业。";
 "questionGeneration.noMistakesFound" = "未找到错题！";
 "questionGeneration.completeHomeworkToCreateMistakes" = "完成作业以建立您的错题集。";
 "questionGeneration.selectMistakes" = "选择错题";
-"questionGeneration.noArchivesFound" = "未找到歸档！";
-"questionGeneration.createArchivesMessage" = "进行对话或完成作业以建立您的歸档集。";
+"questionGeneration.noArchivesFound" = "未找到归档！";
+"questionGeneration.createArchivesMessage" = "进行对话或完成作业以建立您的归档集。";
 "questionGeneration.conversations" = "对话";
 "questionGeneration.questions" = "题目";
-"questionGeneration.selectArchives" = "选择歸档";
+"questionGeneration.selectArchives" = "选择归档";
 "questionGeneration.conversation" = "对话";
-"questionGeneration.failedToLoadData" = "載入资料失敗：%@";
+"questionGeneration.failedToLoadData" = "载入资料失敗：%@";
 "questionGeneration.defaultSubject.mathematics" = "数学";
-"questionGeneration.focusNotes.diversePractice" = "生成多樣化的练习题以建立基礎知識";
+"questionGeneration.focusNotes.diversePractice" = "生成多样化的练习题以建立基礎知识";
 "questionGeneration.focusNotes.improvementAreas" = "专注於学生需要改进的这些方面：%@";
 "questionGeneration.mistakeType.incorrectAnswer" = "答案错误";
-"questionGeneration.focusNotes.addressMistakes" = "专注於解決常见错误并加強薄弱环節";
+"questionGeneration.focusNotes.addressMistakes" = "专注於解決常见错误并加强薄弱环节";
 "questionGeneration.untitled" = "无标题";
 "questionGeneration.generalSubject" = "通用";
 "questionGeneration.difficulty.intermediate" = "中级";
-"questionGeneration.strengths.activeParticipation" = "积极參与";
+"questionGeneration.strengths.activeParticipation" = "积极参与";
 "questionGeneration.weaknesses.morePractice" = "需要更多练习";
 "questionGeneration.engagement.high" = "高";
-"questionGeneration.generalDiscussion" = "一般討論";
-"questionGeneration.focusNotes.conversationPatterns" = "基於对话主题和使用者參与模式";
-"questionGeneration.loadingConversations" = "載入对话中...";
+"questionGeneration.generalDiscussion" = "一般讨论";
+"questionGeneration.focusNotes.conversationPatterns" = "基於对话主题和使用者参与模式";
+"questionGeneration.loadingConversations" = "载入对话中...";
 "questionGeneration.conversationsAvailable" = "%d 个对话可用於生成题目";
-"questionGeneration.noConversationsFound" = "未找到歸档对话。請先进行一些对话。";
+"questionGeneration.noConversationsFound" = "未找到归档对话。请先进行一些对话。";
 "questionGeneration.messagesInConversation" = "对话中有 %d 条讯息";
 "questionGeneration.studySession" = "学习会话";
-"questionGeneration.discussionAbout" = "关於 %@ 的討論";
+"questionGeneration.discussionAbout" = "关於 %@ 的讨论";
 "questionGeneration.questionType" = "题目类型";
 
 "settings.textSize" = "文字大小";
 "progress.title" = "进度";
-"progress.loadingProgress" = "正在載入您的进度...";
-"progress.unableToLoadData" = "无法載入数据";
+"progress.loadingProgress" = "正在载入您的进度...";
+"progress.unableToLoadData" = "无法载入数据";
 "progress.tryAgain" = "重试";
 "progress.info.title" = "如何使用学习进度";
 "progress.info.message" = "📊 理解您的进度：\n\n• 时间筛选：点击右上角三点菜单切换查看本周、本月或全部时间的数据\n• 学科分类：查看各学科的答题情况和正确率\n• 彩色卡片：每个学科显示已答题数、准确率和趋势指标（↑ 进步中、→ 稳定、↓ 需要加强）\n• 点击任意学科卡片可查看详细分析和个性化建议\n\n🎯 使用技巧：\n• 下拉刷新获取最新进度数据\n• 关注每日连续学习天数保持学习动力\n• 重点提升准确率较低的学科";
@@ -599,7 +621,24 @@
 "progress.less" = "少";
 "progress.more" = "多";
 "progress.questionsThisMonth" = "本月题目";
-"progress.noSubjectData" = "暫无科目数据";
+"progress.questionsThisWeek" = "本周题目";
+"progress.weeklyProgressEmpty" = "每周进度";
+"progress.weeklyProgressEmptyMessage" = "开始答题，查看本周的学习活动！";
+
+// Subject names
+"subject.math" = "数学";
+"subject.physics" = "物理";
+"subject.chemistry" = "化学";
+"subject.biology" = "生物";
+"subject.english" = "英语";
+"subject.history" = "历史";
+"subject.geography" = "地理";
+"subject.computerscience" = "计算机科学";
+"subject.foreignlanguage" = "外语";
+"subject.arts" = "艺术";
+"subject.other" = "其他";
+
+"progress.noSubjectData" = "暂无科目数据";
 "progress.noSubjectDataMessage" = "回答不同科目的题目以查看您的细分数据！";
 "progress.noSubjectDataForFilter" = "暫无%@数据";
 "progress.noSubjectDataForFilterMessage" = "回答关於%@的题目以查看您的进度！";
@@ -607,7 +646,7 @@
 "progress.insightsFor" = "%@的洞察";
 "progress.focusOn" = "重点关注：%@";
 "progress.keepUp" = "保持：%@";
-"progress.recommendedStudyTime" = "建議学习时间：每天%d分鐘";
+"progress.recommendedStudyTime" = "建议学习时间：每天%d分鐘";
 "progress.subjectComparison" = "科目对比";
 "progress.topPerformingCategory" = "表现最佳";
 "progress.needsAttention" = "需要关注";
@@ -617,12 +656,12 @@
 // Library View
 "library.title" = "学习资料库";
 "library.refreshLibrary" = "重新整理资料库";
-"library.advancedSearch" = "进阶搜尋";
-"library.clearFilters" = "清除篩选";
-"library.filterBySubject" = "按科目篩选";
+"library.advancedSearch" = "进阶搜寻";
+"library.clearFilters" = "清除筛选";
+"library.filterBySubject" = "按科目筛选";
 "library.allSubjects" = "全部科目";
 "library.debugInfo" = "偵错资讯";
-"library.searchPlaceholder" = "搜尋题目、科目或内容...";
+"library.searchPlaceholder" = "搜寻题目、科目或内容...";
 "library.updating" = "更新中...";
 
 // Content Type Filters
@@ -647,41 +686,41 @@
 "library.stats.subject" = "科目：%@";
 
 // Library Item
-"library.item.tapToReview" = "点擊查看";
+"library.item.tapToReview" = "点击查看";
 "library.item.homeworkSession" = "作业记录";
-"library.item.archivedQuestion" = "歸档题目";
+"library.item.archivedQuestion" = "归档题目";
 "library.item.conversationSession" = "对话记录";
 
 // Empty States
 "library.empty.signInRequired" = "需要登入";
-"library.empty.signInMessage" = "請登入以存取您的个人学习资料库";
+"library.empty.signInMessage" = "请登入以存取您的个人学习资料库";
 "library.empty.libraryEmpty" = "学习资料库为空";
 "library.empty.libraryEmptyMessage" = "完成AI作业或开始对话来建立您的学习资料库";
-"library.empty.loading" = "正在載入学习资料库...";
+"library.empty.loading" = "正在载入学习资料库...";
 
 // No Results
 "library.noResults.title" = "未找到结果";
-"library.noResults.adjustFilters" = "請嘗试调整搜尋或篩选条件";
+"library.noResults.adjustFilters" = "请嘗试调整搜寻或筛选条件";
 "library.noResults.noMatch" = "沒有符合条件的学习记录";
 
 // Advanced Search
-"library.advancedSearch.title" = "进阶搜尋";
+"library.advancedSearch.title" = "进阶搜寻";
 "library.advancedSearch.cancel" = "取消";
-"library.advancedSearch.search" = "搜尋";
-"library.advancedSearch.clearSearch" = "清除搜尋";
+"library.advancedSearch.search" = "搜寻";
+"library.advancedSearch.clearSearch" = "清除搜寻";
 
-"library.advancedSearch.searchText" = "搜尋文字";
-"library.advancedSearch.searchPlaceholder" = "搜尋题目...";
+"library.advancedSearch.searchText" = "搜寻文字";
+"library.advancedSearch.searchPlaceholder" = "搜寻题目...";
 
-"library.advancedSearch.subjectFilter" = "科目篩选";
+"library.advancedSearch.subjectFilter" = "科目筛选";
 "library.advancedSearch.subject" = "科目";
 "library.advancedSearch.allSubjects" = "全部科目";
 
-"library.advancedSearch.gradeFilter" = "年级篩选";
+"library.advancedSearch.gradeFilter" = "年级筛选";
 "library.advancedSearch.grade" = "年级";
 "library.advancedSearch.allGrades" = "全部年级";
 
-"library.advancedSearch.dateRange" = "日期範圍";
+"library.advancedSearch.dateRange" = "日期范围";
 "library.advancedSearch.allTime" = "全部时间";
 "library.advancedSearch.last7Days" = "最近7天";
 "library.advancedSearch.last30Days" = "最近30天";
@@ -691,13 +730,13 @@
 "library.advancedSearch.sortBy" = "排序依据";
 
 // Contact Support
-"contactSupport.subtitle" = "我们随时为您提供幫助！";
+"contactSupport.subtitle" = "我们随时为您提供帮助！";
 "contactSupport.emailTitle" = "电子郵件支援";
-"contactSupport.emailDescription" = "透过电子郵件获取详细幫助";
+"contactSupport.emailDescription" = "透过电子郵件获取详细帮助";
 "contactSupport.chatTitle" = "线上聊天";
 "contactSupport.chatSubtitle" = "工作日9am-5pm EST可用";
 "contactSupport.chatDescription" = "与我们的支援團隊聊天";
-"contactSupport.forumTitle" = "社群論壇";
+"contactSupport.forumTitle" = "社群论壇";
 "contactSupport.forumSubtitle" = "加入对话";
 "contactSupport.forumDescription" = "与其他学生交流";
 "contactSupport.phoneTitle" = "电话支援";
@@ -707,57 +746,57 @@
 "contactSupport.chatResponseTime" = "线上聊天：<5分鐘";
 "contactSupport.phoneResponseTime" = "电话：即时";
 "contactSupport.emailNotAvailable" = "电子郵件不可用";
-"contactSupport.emailNotAvailableMessage" = "請在裝置设定中配置电子郵件帐户。";
+"contactSupport.emailNotAvailableMessage" = "请在裝置设定中配置电子郵件帐户。";
 
 // Help Center
-"helpCenter.subtitle" = "尋找常见问题的答案";
+"helpCenter.subtitle" = "寻找常见问题的答案";
 "helpCenter.faq1.question" = "如何使用作业评分器？";
-"helpCenter.faq1.answer" = "拍攝作业照片或上傳图片。我们的AI将对其进行分析，检测问题，并提供详细的回饋、更正和说明。";
+"helpCenter.faq1.answer" = "拍攝作业照片或上传图片。我们的AI将对其进行分析，检测问题，并提供详细的回饋、更正和说明。";
 "helpCenter.faq2.question" = "支援哪些科目？";
-"helpCenter.faq2.answer" = "StudyAI支援数学、物理、化学、生物、英語、歷史、地理和电脑科学。我们正在不斷新增更多科目！";
-"helpCenter.faq3.question" = "如何更改AI語音？";
-"helpCenter.faq3.answer" = "前往设定>学习夥伴>选择你的学习夥伴。您可以在Adam（男声）和Eva（女声）之间进行选择，并自訂速度和音量。";
+"helpCenter.faq2.answer" = "StudyAI支援数学、物理、化学、生物、英语、历史、地理和电脑科学。我们正在不斷新增更多科目！";
+"helpCenter.faq3.question" = "如何更改AI语音？";
+"helpCenter.faq3.answer" = "前往设定>学习夥伴>选择你的学习夥伴。您可以在Adam（男声）和Eva（女声）之间进行选择，并自订速度和音量。";
 "helpCenter.faq4.question" = "可以查看过去的错误嗎？";
 "helpCenter.faq4.answer" = "可以！使用主画面上的错题复习功能重新造访您答错的问题并练习类似的问题。";
 "helpCenter.faq5.question" = "连续天数系统如何运作？";
 "helpCenter.faq5.answer" = "每天完成至少一次学习时，连续天数就会增加。保持连续天数以解锁成就和獎勵！";
 "helpCenter.faq6.question" = "我的资料安全嗎？";
-"helpCenter.faq6.answer" = "是的！我们使用业界标准加密和安全验证。您的作业和学习资料安全儲存，絕不会与第三方共享。";
+"helpCenter.faq6.answer" = "是的！我们使用业界标准加密和安全验证。您的作业和学习资料安全储存，絕不会与第三方共享。";
 "helpCenter.faq7.question" = "如何追蹤我的进度？";
-"helpCenter.faq7.answer" = "造访进度分页检视详细统计资讯、准确率趨势、科目表现和每周学习模式。";
+"helpCenter.faq7.answer" = "造访进度分页检视详细统计资讯、准确率趋势、科目表现和每周学习模式。";
 "helpCenter.faq8.question" = "详细模式和快速模式有什麼区别？";
-"helpCenter.faq8.answer" = "详细模式提供更准确的解析，具有層次结构和父子关係。快速模式更快但更簡单。对於複杂的作业使用详细模式。";
+"helpCenter.faq8.answer" = "详细模式提供更准确的解析，具有层次结构和父子关係。快速模式更快但更簡单。对於复杂的作业使用详细模式。";
 "helpCenter.quickLinks" = "快速连结";
 "helpCenter.gettingStarted" = "入门指南";
 "helpCenter.videoTutorials" = "影片教学";
 "helpCenter.studyTips" = "学习技巧和最佳实踐";
 
 // Share App
-"shareApp.subtitle" = "幫助你的朋友在学习中取得优異成績！";
+"shareApp.subtitle" = "帮助你的朋友在学习中取得优異成績！";
 "shareApp.messageTitle" = "分享讯息";
 "shareApp.messagePreview" = "\"看看StudyAI-最好的AI驅动的作业助手！\"";
 "shareApp.feature1" = "✓ AI驅动的作业评分";
 "shareApp.feature2" = "✓ 互动式AI导师";
 "shareApp.feature3" = "✓ 错题复习和练习";
 "shareApp.feature4" = "✓ 进度追蹤";
-"shareApp.downloadLink" = "立即下載：https://studyai.app";
+"shareApp.downloadLink" = "立即下载：https://studyai.app";
 "shareApp.shareViaTitle" = "分享方式...";
 "shareApp.shareViaSubtitle" = "讯息、电子郵件、社群媒体等";
-"shareApp.copyLinkTitle" = "複制应用程式连结";
-"shareApp.copyLinkSubtitle" = "在任何地方分享下載连结";
-"shareApp.scanToDownload" = "掃描下載";
-"shareApp.qrCode" = "QR碼";
-"shareApp.showQRCode" = "向朋友展示此QR碼";
+"shareApp.copyLinkTitle" = "复制应用程式连结";
+"shareApp.copyLinkSubtitle" = "在任何地方分享下载连结";
+"shareApp.scanToDownload" = "掃描下载";
+"shareApp.qrCode" = "QR码";
+"shareApp.showQRCode" = "向朋友展示此QR码";
 "shareApp.comingSoonReferral" = "即将推出：推薦獎勵！";
 "shareApp.earnPoints" = "为每位加入StudyAI的朋友賺取积分";
-"shareApp.downloadNow" = "立即下載：";
+"shareApp.downloadNow" = "立即下载：";
 
 // Chat View
 "chat.subjects.mathematics" = "数学";
 "chat.subjects.physics" = "物理";
 "chat.subjects.chemistry" = "化学";
 "chat.subjects.biology" = "生物";
-"chat.subjects.history" = "歷史";
+"chat.subjects.history" = "历史";
 "chat.subjects.literature" = "文学";
 "chat.subjects.geography" = "地理";
 "chat.subjects.computerScience" = "电脑科学";
@@ -769,10 +808,10 @@
 // Menu Items
 "chat.menu.newSession" = "新会话";
 "chat.menu.sessionInfo" = "会话资讯";
-"chat.menu.voiceSettings" = "語音设定";
-"chat.menu.enableVoice" = "启用語音";
-"chat.menu.disableVoice" = "停用語音";
-"chat.menu.synchronizedAudio" = "同步語音";
+"chat.menu.voiceSettings" = "语音设定";
+"chat.menu.enableVoice" = "启用语音";
+"chat.menu.disableVoice" = "停用语音";
+"chat.menu.synchronizedAudio" = "同步语音";
 "chat.menu.liveTalk" = "实时对话";
 "chat.menu.archiveSession" = "封存会话";
 
@@ -803,7 +842,7 @@
 "chat.archive.notesPlaceholder" = "为此会话新增备注...";
 "chat.archive.buttonTitle" = "封存会话";
 "chat.archive.infoTitle" = "封存资讯";
-"chat.archive.infoMessage" = "儲存此对话以供日后參考。您可以新增自訂标题和备注，協助您记住所学内容。";
+"chat.archive.infoMessage" = "储存此对话以供日后参考。您可以新增自订标题和备注，协助您记住所学内容。";
 "chat.archive.analyzingWithAI" = "正在使用AI分析...";
 "chat.archive.generatingSummary" = "正在生成摘要和关键主题";
 "chat.archive.complete" = "归档完成！";
@@ -819,66 +858,66 @@
 "chat.input.archiveTitle" = "输入封存标题...";
 "chat.input.archiveTopic" = "输入主题（例如 %@）...";
 "chat.input.archiveNotes" = "为此会话新增备注...";
-"chat.input.addComment" = "新增评論...";
+"chat.input.addComment" = "新增评论...";
 
 // Alerts
-"chat.alert.cameraPermission.title" = "相机權限";
-"chat.alert.cameraPermission.message" = "StudyAI需要相机存取權限来掃描作业题目。請在设定中启用相机權限。";
+"chat.alert.cameraPermission.title" = "相机权限";
+"chat.alert.cameraPermission.message" = "StudyAI需要相机存取权限来掃描作业题目。请在设定中启用相机权限。";
 "chat.alert.currentChatExists.title" = "目前聊天存在";
-"chat.alert.currentChatExists.message" = "您有一个活躍的聊天会话。您想先封存它，还是捨棄它并使用此作业题目开始新会话？";
+"chat.alert.currentChatExists.message" = "您有一个活躍的聊天会话。您想先封存它，还是捨弃它并使用此作业题目开始新会话？";
 "chat.alert.currentChatExists.archiveCurrent" = "封存目前聊天";
-"chat.alert.currentChatExists.discardAndStart" = "捨棄并开始新会话";
+"chat.alert.currentChatExists.discardAndStart" = "捨弃并开始新会话";
 "chat.alert.currentChatExists.continueCurrent" = "继续之前的对话";
 "chat.alert.currentChatExists.startNew" = "开始新会话";
 "chat.alert.error.title" = "错误";
 "chat.alert.archiveSuccess.title" = "封存成功！🎉";
-"chat.alert.archiveSuccess.message" = "%@ 已成功封存并儲存到您的学习资料库。";
+"chat.alert.archiveSuccess.message" = "%@ 已成功封存并储存到您的学习资料库。";
 "chat.alert.archiveSuccess.viewInLibrary" = "在资料库中查看";
 
 // Empty State
 "chat.emptyState.greeting" = "你好！我是 %@";
-"chat.emptyState.subtext" = "问我任何关於%@的问题，我会幫助你学习！";
+"chat.emptyState.subtext" = "问我任何关於%@的问题，我会帮助你学习！";
 "chat.emptyState.tryAsking" = "试试问：";
 
 // Smart Suggestions
 "chat.suggestion.showSteps" = "显示步驟";
 "chat.suggestion.trySimilarProblem" = "试试类似题目";
-"chat.suggestion.explainMethod" = "解釋方法";
+"chat.suggestion.explainMethod" = "解释方法";
 "chat.suggestion.realExamples" = "真实例子";
 "chat.suggestion.howItWorks" = "工作原理";
-"chat.suggestion.connectToDailyLife" = "与日常生活聯繫";
+"chat.suggestion.connectToDailyLife" = "与日常生活联系";
 "chat.suggestion.giveExamples" = "舉例说明";
-"chat.suggestion.compareWith" = "比較";
+"chat.suggestion.compareWith" = "比较";
 "chat.suggestion.useInSentence" = "用於句子";
-"chat.suggestion.explainWhy" = "解釋原因";
+"chat.suggestion.explainWhy" = "解释原因";
 "chat.suggestion.alternativeApproach" = "替代方法";
 "chat.suggestion.practiceProblem" = "练习题";
-"chat.suggestion.whenDidThisHappen" = "这是什麼时候發生的";
-"chat.suggestion.whoWasInvolved" = "誰參与了";
+"chat.suggestion.whenDidThisHappen" = "这是什麼时候发生的";
+"chat.suggestion.whoWasInvolved" = "誰参与了";
 "chat.suggestion.whatCausedThis" = "是什麼导致的";
-"chat.suggestion.analyzeMeaning" = "分析意義";
+"chat.suggestion.analyzeMeaning" = "分析意义";
 "chat.suggestion.findThemes" = "找主题";
 "chat.suggestion.authorsIntent" = "作者意图";
-"chat.suggestion.explainDifferently" = "换个方式解釋";
+"chat.suggestion.explainDifferently" = "换个方式解释";
 "chat.suggestion.giveExample" = "舉个例子";
-"chat.suggestion.moreDetails" = "更多细節";
+"chat.suggestion.moreDetails" = "更多细节";
 
 // Contextual Prompts
 "chat.prompt.showSteps" = "你能把解決方案分解成详细的步驟嗎？";
-"chat.prompt.trySimilarProblem" = "你能給我一个类似的问题来练习嗎？";
-"chat.prompt.explainMethod" = "你能解釋这裡使用的方法或公式嗎？";
+"chat.prompt.trySimilarProblem" = "你能给我一个类似的问题来练习嗎？";
+"chat.prompt.explainMethod" = "你能解释这裡使用的方法或公式嗎？";
 "chat.prompt.moreExamples" = "你能提供更多这个概念的例子嗎？";
 "chat.prompt.relatedConcepts" = "与这个主题相关的其他概念有哪些？";
-"chat.prompt.giveExamples" = "你能給我一些具体的例子嗎？";
+"chat.prompt.giveExamples" = "你能给我一些具体的例子嗎？";
 "chat.prompt.compareWith" = "这与类似的概念相比如何？";
 "chat.prompt.useInSentence" = "你能向我展示如何在句子中使用它嗎？";
-"chat.prompt.explainWhy" = "为什麼这个方法有效？你能解釋其中的原理嗎？";
+"chat.prompt.explainWhy" = "为什麼这个方法有效？你能解释其中的原理嗎？";
 "chat.prompt.alternativeApproach" = "有沒有其他方法来解決这个问题？";
-"chat.prompt.practiceProblem" = "你能給我一道练习题来测试我的理解嗎？";
-"chat.prompt.realExamples" = "你能給我真实世界的例子嗎？";
-"chat.prompt.howItWorks" = "你能详细解釋这个过程是如何工作的嗎？";
+"chat.prompt.practiceProblem" = "你能给我一道练习题来测试我的理解嗎？";
+"chat.prompt.realExamples" = "你能给我真实世界的例子嗎？";
+"chat.prompt.howItWorks" = "你能详细解释这个过程是如何工作的嗎？";
 "chat.prompt.connectToDailyLife" = "这个概念与日常生活有什麼关係？";
-"chat.prompt.explainDifferently" = "你能用不同的方式解釋这个概念嗎？";
+"chat.prompt.explainDifferently" = "你能用不同的方式解释这个概念嗎？";
 "chat.prompt.giveExample" = "你能提供一个具体的例子嗎？";
 "chat.prompt.moreDetails" = "你能详细说明这个主题嗎？";
 
@@ -891,78 +930,78 @@
 // Example Prompts - Mathematics
 "chat.example.math.1" = "解方程式：2x + 5 = 13";
 "chat.example.math.2" = "x²的导数是什麼？";
-"chat.example.math.3" = "解釋畢氏定理";
+"chat.example.math.3" = "解释畢氏定理";
 "chat.example.math.4" = "如何因式分解 x² + 5x + 6？";
 
 // Example Prompts - Physics
-"chat.example.physics.1" = "解釋牛頓运动定律";
+"chat.example.physics.1" = "解释牛頓运动定律";
 "chat.example.physics.2" = "什麼是动能？";
 "chat.example.physics.3" = "重力如何运作？";
 "chat.example.physics.4" = "用 F = ma 计算力";
 
 // Example Prompts - Chemistry
 "chat.example.chemistry.1" = "如何平衡化学方程式？";
-"chat.example.chemistry.2" = "解釋元素周期表";
+"chat.example.chemistry.2" = "解释元素周期表";
 "chat.example.chemistry.3" = "什麼是共价键？";
 "chat.example.chemistry.4" = "描述物质的状态";
 
 // Example Prompts - Biology
-"chat.example.biology.1" = "解釋光合作用";
+"chat.example.biology.1" = "解释光合作用";
 "chat.example.biology.2" = "什麼是DNA？";
 "chat.example.biology.3" = "细胞分裂如何运作？";
 "chat.example.biology.4" = "描述人体循环系统";
 
 // Example Prompts - History
 "chat.example.history.1" = "第二次世界大戰的原因是什麼？";
-"chat.example.history.2" = "解釋法国大革命";
+"chat.example.history.2" = "解释法国大革命";
 "chat.example.history.3" = "誰是凱撒大帝？";
 "chat.example.history.4" = "描述工业革命";
 
 // Example Prompts - Literature
 "chat.example.literature.1" = "分析莎士比亞的《哈姆雷特》";
 "chat.example.literature.2" = "什麼是文学手法？";
-"chat.example.literature.3" = "解釋英雄之旅";
-"chat.example.literature.4" = "比較隐喻和明喻";
+"chat.example.literature.3" = "解释英雄之旅";
+"chat.example.literature.4" = "比较隐喻和明喻";
 
 // Example Prompts - Geography
 "chat.example.geography.1" = "主要的海洋在哪裡？";
-"chat.example.geography.2" = "解釋板塊构造";
-"chat.example.geography.3" = "什麼导致氣候帶？";
+"chat.example.geography.2" = "解释板塊构造";
+"chat.example.geography.3" = "什麼导致氣候带？";
 "chat.example.geography.4" = "描述水循环";
 
 // Example Prompts - Computer Science
 "chat.example.computerScience.1" = "什麼是演算法？";
-"chat.example.computerScience.2" = "解釋二进位数字";
+"chat.example.computerScience.2" = "解释二进位数字";
 "chat.example.computerScience.3" = "程式设计中的迴圈如何运作？";
 "chat.example.computerScience.4" = "什麼是物件导向程式设计？";
 
 // Example Prompts - Economics
-"chat.example.economics.1" = "什麼是供給和需求？";
-"chat.example.economics.2" = "解釋通貨膨脹";
+"chat.example.economics.1" = "什麼是供给和需求？";
+"chat.example.economics.2" = "解释通貨膨脹";
 "chat.example.economics.3" = "GDP如何运作？";
-"chat.example.economics.4" = "什麼是市場结构？";
+"chat.example.economics.4" = "什麼是市场结构？";
 
 // Example Prompts - Psychology
 "chat.example.psychology.1" = "什麼是古典制約？";
-"chat.example.psychology.2" = "解釋认知發展";
+"chat.example.psychology.2" = "解释认知发展";
 "chat.example.psychology.3" = "记憶如何运作？";
 "chat.example.psychology.4" = "什麼是防衛机制？";
 
 // Example Prompts - Philosophy
 "chat.example.philosophy.1" = "什麼是蘇格拉底方法？";
-"chat.example.philosophy.2" = "解釋存在主義";
+"chat.example.philosophy.2" = "解释存在主义";
 "chat.example.philosophy.3" = "什麼是电車难题？";
-"chat.example.philosophy.4" = "描述倫理理論";
+"chat.example.philosophy.4" = "描述倫理理论";
 
 // Example Prompts - General
-"chat.example.general.1" = "幫我理解这个概念";
-"chat.example.general.2" = "一步一步解釋";
+"chat.example.general.1" = "帮我理解这个概念";
+"chat.example.general.2" = "一步一步解释";
 "chat.example.general.3" = "这是什麼意思？";
 "chat.example.general.4" = "你能舉个例子嗎？";
 
 // Default Examples
 "chat.example.default.1" = "问我任何问题";
-"chat.example.default.2" = "我在这裡幫助你学习";
+"chat.example.default.2" = "我在这裡帮助你学习";
 "chat.example.default.3" = "让我们一起探索";
 "chat.example.default.4" = "你想知道什麼？";
 
@@ -970,11 +1009,11 @@
 // Edit Profile View
 "editProfile.title" = "编辑资料";
 "editProfile.cancel" = "取消";
-"editProfile.save" = "儲存";
+"editProfile.save" = "储存";
 "editProfile.error" = "错误";
 "editProfile.profileUpdated" = "资料已更新";
 "editProfile.profileUpdatedMessage" = "您的资料已成功更新！";
-"editProfile.savingProfile" = "儲存资料中...";
+"editProfile.savingProfile" = "储存资料中...";
 
 // Avatar Selection
 "editProfile.selectAvatar" = "选择您的头像";
@@ -986,14 +1025,14 @@
 "editProfile.firstNamePlaceholder" = "输入名字";
 "editProfile.lastName" = "姓氏";
 "editProfile.lastNamePlaceholder" = "输入姓氏";
-"editProfile.displayName" = "显示名稱（选填）";
-"editProfile.displayNamePlaceholder" = "显示的首选名稱";
+"editProfile.displayName" = "显示名称（选填）";
+"editProfile.displayNamePlaceholder" = "显示的首选名称";
 "editProfile.addDateOfBirth" = "新增出生日期";
 "editProfile.dateOfBirth" = "出生日期";
 
 // Children Information
 "editProfile.childrenInfo" = "孩子资讯";
-"editProfile.childrenInfoDescription" = "如果您正在協助孩子学习，請输入孩子的年齡";
+"editProfile.childrenInfoDescription" = "如果您正在协助孩子学习，请输入孩子的年齡";
 "editProfile.childAge" = "孩子年齡";
 "editProfile.childAgePlaceholder" = "输入孩子年齡（1-18）";
 
@@ -1025,14 +1064,14 @@
 "editProfile.genderMale" = "男";
 "editProfile.genderNonBinary" = "非二元";
 "editProfile.genderOther" = "其他";
-"editProfile.languagePreference" = "語言偏好";
-"editProfile.languagePicker" = "語言";
-"editProfile.languageEnglish" = "英語";
-"editProfile.languageSpanish" = "西班牙語";
-"editProfile.languageFrench" = "法語";
-"editProfile.languageGerman" = "德語";
+"editProfile.languagePreference" = "语言偏好";
+"editProfile.languagePicker" = "语言";
+"editProfile.languageEnglish" = "英语";
+"editProfile.languageSpanish" = "西班牙语";
+"editProfile.languageFrench" = "法语";
+"editProfile.languageGerman" = "德语";
 "editProfile.languageChinese" = "中文";
-"editProfile.languageJapanese" = "日語";
+"editProfile.languageJapanese" = "日语";
 
 // Subject Picker
 "editProfile.selectSubjects" = "选择科目";
@@ -1041,8 +1080,8 @@
 "editProfile.validationNameRequired" = "名字和姓氏为必填项";
 
 // Session Detail View
-"sessionDetail.loading" = "載入中...";
-"sessionDetail.errorLoading" = "載入内容时出错";
+"sessionDetail.loading" = "载入中...";
+"sessionDetail.errorLoading" = "载入内容时出错";
 "sessionDetail.contentNotFound" = "未找到内容";
 "sessionDetail.conversationDetails" = "对话详情";
 "sessionDetail.sessionDetails" = "会话详情";
@@ -1054,20 +1093,20 @@
 "sessionDetail.sessionInfo" = "会话资讯";
 "sessionDetail.processingTime" = "处理时间";
 "sessionDetail.parsingMethod" = "解析方法";
-"sessionDetail.reviewCount" = "複习次数";
+"sessionDetail.reviewCount" = "复习次数";
 "sessionDetail.created" = "建立时间";
 "sessionDetail.conversation" = "对话";
 "sessionDetail.conversationInfo" = "对话资讯";
 "sessionDetail.topic" = "主题";
 
 // Storage Control
-"settings.storageControl" = "儲存管理";
+"settings.storageControl" = "储存管理";
 "settings.powerSavingMode" = "省电模式";
-"storage.title" = "儲存管理";
-"storage.totalUsed" = "总儲存使用量";
-"storage.archivedQuestions" = "已歸档问题";
+"storage.title" = "储存管理";
+"storage.totalUsed" = "总储存使用量";
+"storage.archivedQuestions" = "已归档问题";
 "storage.progressData" = "学习进度资料";
-"storage.archivedConversations" = "已歸档对话";
+"storage.archivedConversations" = "已归档对话";
 "storage.clear" = "清除";
 "storage.clearAll.button" = "清除所有资料";
 "storage.syncWithServer" = "同步到伺服器";
@@ -1075,20 +1114,20 @@
 "storage.sync.title" = "同步结果";
 
 // Storage Clear Alerts
-"storage.clearQuestions.title" = "清除已歸档问题？";
-"storage.clearQuestions.message" = "这将刪除本机儲存的所有已歸档问题。此操作无法复原。";
-"storage.clearQuestions.success" = "已成功清除歸档问题";
+"storage.clearQuestions.title" = "清除已归档问题？";
+"storage.clearQuestions.message" = "这将删除本机储存的所有已归档问题。此操作无法复原。";
+"storage.clearQuestions.success" = "已成功清除归档问题";
 
 "storage.clearProgress.title" = "清除学习进度资料？";
-"storage.clearProgress.message" = "这将刪除所有学习进度、积分和连续学习天数。此操作无法复原。";
+"storage.clearProgress.message" = "这将删除所有学习进度、积分和连续学习天数。此操作无法复原。";
 "storage.clearProgress.success" = "已成功清除进度资料";
 
-"storage.clearConversations.title" = "清除已歸档对话？";
-"storage.clearConversations.message" = "这将刪除本机儲存的所有已歸档对话。此操作无法复原。";
-"storage.clearConversations.success" = "已成功清除歸档对话";
+"storage.clearConversations.title" = "清除已归档对话？";
+"storage.clearConversations.message" = "这将删除本机储存的所有已归档对话。此操作无法复原。";
+"storage.clearConversations.success" = "已成功清除归档对话";
 
 "storage.clearAll.title" = "清除所有资料？";
-"storage.clearAll.message" = "这将刪除所有本机资料，包括已歸档问题、对话和学习进度。此操作无法复原。";
+"storage.clearAll.message" = "这将删除所有本机资料，包括已归档问题、对话和学习进度。此操作无法复原。";
 "storage.clearAll.success" = "已成功清除所有本机资料";
 
 "storage.success.title" = "成功";
@@ -1098,16 +1137,16 @@
 "questionDetail.results" = "结果";
 "questionDetail.correct" = "正确！";
 "questionDetail.incorrect" = "错误";
-"questionDetail.showExplanation" = "显示解釋";
-"questionDetail.hideExplanation" = "隐藏解釋";
+"questionDetail.showExplanation" = "显示解释";
+"questionDetail.hideExplanation" = "隐藏解释";
 "questionDetail.yourAnswer" = "您的答案：";
 "questionDetail.correctAnswer" = "正确答案：";
-"questionDetail.archiveQuestion" = "歸档题目";
-"questionDetail.archiving" = "歸档中...";
-"questionDetail.archived" = "已歸档";
+"questionDetail.archiveQuestion" = "归档题目";
+"questionDetail.archiving" = "归档中...";
+"questionDetail.archived" = "已归档";
 "questionDetail.archiveSuccess" = "成功！";
-"questionDetail.archiveSuccessMessage" = "此题目已儲存到您的题库以供日后複习。";
-"questionDetail.explanation" = "解釋";
+"questionDetail.archiveSuccessMessage" = "此题目已储存到您的题库以供日后复习。";
+"questionDetail.explanation" = "解释";
 "questionDetail.questionInfo" = "题目资讯";
 "questionDetail.type" = "类型";
 "questionDetail.topic" = "主题";
@@ -1120,40 +1159,44 @@
 "questionDetail.true" = "正确";
 "questionDetail.false" = "错误";
 "questionDetail.enterAnswer" = "输入您的答案...";
-"questionDetail.provideDetailedExplanation" = "提供详细解釋";
+"questionDetail.provideDetailedExplanation" = "提供详细解释";
 "questionDetail.typeAnswerAbove" = "在上方输入您的答案";
 "questionDetail.submitAnswer" = "提交答案";
 "questionDetail.markProgress" = "标记进度";
+"questionDetail.marked" = "已标记";
+"questionDetail.followUp" = "继续提问";
+"questionDetail.previous" = "上一题";
+"questionDetail.next" = "下一题";
 "questionDetail.progressMarked" = "进度已标记！";
 "questionDetail.progressUpdated" = "✅ 您的学习进度已更新！";
-"questionDetail.progressTip" = "💡 点擊以在您的每日、每周和每月统计中追蹤此题目！";
+"questionDetail.progressTip" = "💡 点击以在您的每日、每周和每月统计中追蹤此题目！";
 
 // Generated Questions List View
 "generatedQuestions.title" = "产生的题目";
 "generatedQuestions.generatePDF" = "产生 PDF";
 "generatedQuestions.questionsSelected" = "已选择 %d 道题目";
 "generatedQuestions.generatePDFCount" = "产生 PDF（%d）";
-"generatedQuestions.searchPlaceholder" = "搜尋题目...";
+"generatedQuestions.searchPlaceholder" = "搜寻题目...";
 "generatedQuestions.questionsCount" = "显示 %d / %d 道题目";
-"generatedQuestions.filteredBy" = "篩选条件：%@";
+"generatedQuestions.filteredBy" = "筛选条件：%@";
 "generatedQuestions.noQuestions" = "暫无题目";
 "generatedQuestions.noMatchingQuestions" = "沒有符合的题目";
 "generatedQuestions.noQuestionsMessage" = "产生题目以开始练习";
-"generatedQuestions.noMatchingMessage" = "嘗试调整您的搜尋条件";
-"generatedQuestions.clearSearch" = "清除搜尋";
+"generatedQuestions.noMatchingMessage" = "嘗试调整您的搜寻条件";
+"generatedQuestions.clearSearch" = "清除搜寻";
 "generatedQuestions.summary" = "摘要";
 "generatedQuestions.selected" = "已选择";
 "generatedQuestions.select" = "选择";
 "generatedQuestions.viewDetails" = "检视详情";
 "generatedQuestions.generatingPDF" = "正在产生 PDF...";
-"generatedQuestions.loading" = "載入中...";
+"generatedQuestions.loading" = "载入中...";
 "generatedQuestions.print" = "列印";
 "generatedQuestions.email" = "电子郵件";
 "generatedQuestions.share" = "分享";
 "generatedQuestions.pdfError" = "产生 PDF 失敗";
-"generatedQuestions.tryAgain" = "請重试";
+"generatedQuestions.tryAgain" = "请重试";
 "generatedQuestions.retry" = "重试";
-"generatedQuestions.pdfPreview" = "PDF 预覽";
+"generatedQuestions.pdfPreview" = "PDF 预览";
 "generatedQuestions.markProgress" = "标记进度";
 "generatedQuestions.progressMarked" = "进度已标记！";
 "generatedQuestions.progressUpdated" = "✅ 您的学习进度已更新！";
@@ -1166,23 +1209,23 @@
 "generatedQuestions.emailClosing" = "祝学习愉快！";
 
 // Mistake Review
-"mistakeReview.title" = "错题複习";
+"mistakeReview.title" = "错题复习";
 "mistakeReview.header.title" = "从错误中学习";
-"mistakeReview.header.subtitle" = "选择科目和时间範圍来複习做错的题目";
-"mistakeReview.timeRangeTitle" = "时间範圍";
+"mistakeReview.header.subtitle" = "选择科目和时间范围来复习做错的题目";
+"mistakeReview.timeRangeTitle" = "时间范围";
 "mistakeReview.timeRange.thisWeek" = "本周";
 "mistakeReview.timeRange.thisMonth" = "本月";
 "mistakeReview.timeRange.allTime" = "全部时间";
 "mistakeReview.subjectsTitle" = "有错题的科目";
-"mistakeReview.loadingSubjects" = "正在載入科目...";
-"mistakeReview.noMistakesFound" = "沒有發现错题！";
-"mistakeReview.noMistakesMessage" = "太棒了！你在选定的时间範圍内沒有做错题目。";
-"mistakeReview.startReview" = "开始複习";
+"mistakeReview.loadingSubjects" = "正在载入科目...";
+"mistakeReview.noMistakesFound" = "沒有发现错题！";
+"mistakeReview.noMistakesMessage" = "太棒了！你在选定的时间范围内沒有做错题目。";
+"mistakeReview.startReview" = "开始复习";
 "mistakeReview.mistakeSingular" = "1 道错题";
 "mistakeReview.mistakePlural" = "%d 道错题";
 "mistakeReview.letsDoAgain" = "让我们再做一遍";
 "mistakeReview.selectedCount" = "已选择 %d 道";
-"mistakeReview.loadingMistakes" = "正在載入错题...";
+"mistakeReview.loadingMistakes" = "正在载入错题...";
 "mistakeReview.noMistakesInSubject" = "你在此时间段内的 %@ 科目沒有做错题目。";
 "mistakeReview.generatePDF" = "生成 PDF（%d 道题目）";
 "mistakeReview.subjectMistakes" = "%@ 错题";
@@ -1193,15 +1236,90 @@
 "mistakeReview.noAnswer" = "未作答";
 "mistakeReview.correctAnswerLabel" = "正确答案：";
 "mistakeReview.showExplanation" = "显示解析";
-"mistakeReview.instructions.title" = "如何使用错题複习";
-"mistakeReview.instructions.message" = "1. 选择时间範圍（本周、本月或全部时间）来篩选错题\n\n2. 选择科目查看做错的题目\n\n3. 点擊「开始複习」查看你的错题\n\n4. 使用「让我们再做一遍」选择题目并生成PDF进行练习\n\n5. 查看正确答案和解析以提高理解";
+"mistakeReview.instructions.title" = "如何使用错题复习";
+"mistakeReview.instructions.message" = "1. 选择时间范围（本周、本月或全部时间）来筛选错题\n\n2. 选择科目查看做错的题目\n\n3. 点击「开始复习」查看你的错题\n\n4. 使用「让我们再做一遍」选择题目并生成PDF进行练习\n\n5. 查看正确答案和解析以提高理解";
+"mistakeReview.startReview" = "开始复习（%d 道错题）";
+"mistakeReview.letsPractise" = "让我们来练习吧";
+"mistakeReview.resumePractice" = "继续练习";
+"mistakeReview.questionsLeftDone" = "还剩 %d 道题 · 已完成 %d%%";
+"mistakeReview.generatePractice" = "生成练习（%d 道错题）";
+"mistakeReview.generationFailed" = "练习生成失败";
+"mistakeReview.generatingQuestions" = "正在生成题目...";
+"mistakeReview.whatWentWrong" = "错在哪里";
+"mistakeReview.evidence" = "错误依据";
+"mistakeReview.explanation" = "解析";
+"mistakeReview.howToImprove" = "如何改进";
+"mistakeReview.analyzingMistake" = "AI 正在分析错误...";
+"mistakeReview.errorType.executionError" = "执行错误";
+"mistakeReview.errorType.conceptualGap" = "概念缺失";
+"mistakeReview.errorType.needsRefinement" = "需要改进";
+"mistakeReview.errorType.unknown" = "未知错误";
+"mistakeReview.targetedPractice" = "针对性练习";
+"mistakeReview.questionsBasedOnMistakes" = "%d 道基于你错误的题目";
+"mistakeReview.progressAnswered" = "进度：%d/%d 已作答";
+"mistakeReview.correctCount" = "%d/%d 答对";
+"mistakeReview.exportToPDF" = "导出为 PDF";
+"mistakeReview.feedbackExact" = "完美！你的答案完全正确。";
+"mistakeReview.feedbackCorrect" = "正确！你的答案与预期答案吻合。";
+"mistakeReview.accuracy" = "准确率";
+"mistakeReview.correct" = "正确";
+"mistakeReview.incorrect" = "错误";
+"mistakeReview.progressAlreadyMarked" = "进度已记录";
+"mistakeReview.slideToMarkProgress" = "滑动以记录进度";
+"mistakeReview.masteredWeakness" = "你已掌握一个薄弱点！";
+"mistakeReview.keepUpGreatWork" = "继续保持，加油！";
+"mistakeReview.questionNumber" = "第 %d 题";
+"mistakeReview.yourAnswerColon" = "你的答案：";
+"mistakeReview.submitAnswer" = "提交答案";
+"mistakeReview.yourAnswer" = "你的答案";
+"mistakeReview.correctAnswer" = "正确答案";
+"mistakeReview.gradingInstant" = "即时";
+"mistakeReview.gradingAI" = "AI 分析";
+"mistakeReview.archived" = "已归档";
+"mistakeReview.archiveQuestion" = "归档题目";
+"mistakeReview.followUp" = "继续追问";
+"mistakeReview.questionArchived" = "题目已归档";
+"mistakeReview.questionArchivedMessage" = "此练习题已保存至你的档案，供日后复习使用。";
+"mistakeReview.configurePractice" = "配置练习题";
+"mistakeReview.basedOnMistakes" = "基于 %d 道选中错题";
+"mistakeReview.questionTypes" = "题目类型";
+"mistakeReview.selectQuestionTypes" = "选择要生成的题目类型：";
+"mistakeReview.difficultyLevel" = "难度级别";
+"mistakeReview.numberOfQuestions" = "题目数量";
+"mistakeReview.sliderMin" = "1 道题";
+"mistakeReview.sliderMax" = "10 道题";
+"mistakeReview.generateCount" = "生成 %d 道题";
+"mistakeReview.practiceConfiguration" = "练习配置";
+"mistakeReview.filter.severityLabel" = "严重程度";
+"mistakeReview.filter.timeLabel" = "时间";
+"mistakeReview.filter.severity.all" = "全部";
+"mistakeReview.filter.severity.medPlus" = "中等+";
+"mistakeReview.filter.severity.severe" = "严重";
+"mistakeReview.filter.time.week" = "本周";
+"mistakeReview.filter.time.month" = "本月";
+"mistakeReview.filter.time.all" = "全部";
+"mistakeReview.filter.subjectsLabel" = "科目";
+"mistakeReview.filter.filterByTopic" = "按主题筛选";
+"mistakeReview.filter.noTaxonomyData" = "暂无分类数据";
+"mistakeReview.filter.clearCount" = "清除 (%d)";
+"mistakeReview.filter.allTopics" = "所有主题";
+"mistakeReview.filter.active" = "活跃";
+"mistakeReview.filter.allFilter" = "全部";
+"difficulty.desc.beginner" = "适合新概念打基础的题目";
+"difficulty.desc.intermediate" = "用于练习和复习的均衡题目";
+"difficulty.desc.advanced" = "挑战理解的高难度题目";
+"difficulty.desc.adaptive" = "AI 根据你的错误动态调整难度";
+"common.retry" = "重试";
+"common.continue" = "继续";
+"common.true" = "正确";
+"common.false" = "错误";
 
 // Parent Mode - Face ID
 "parentAuth.useFaceID" = "使用 Face ID";
 "parentAuth.useTouchID" = "使用 Touch ID";
 "parentAuth.useOpticID" = "使用 Optic ID";
-"parentAuth.biometricFailed" = "生物識别认证失敗。請重试。";
-"parentAuth.biometricError" = "生物識别认证错误：%@";
+"parentAuth.biometricFailed" = "生物识别认证失敗。请重试。";
+"parentAuth.biometricError" = "生物识别认证错误：%@";
 "parentAuth.or" = "或";
 "parentMode.faceIDForParentMode" = "家长模式的 Face ID";
 "parentMode.touchIDForParentMode" = "家长模式的 Touch ID";
@@ -1212,12 +1330,12 @@
 
 // Voice Input Preview
 "voicePreview.liveTranscription" = "即时转寫";
-"voicePreview.title" = "語音输入预覽";
-"voicePreview.transcribedText" = "转寫文字（点擊编辑）";
-"voicePreview.sendToAI" = "發送給 AI";
+"voicePreview.title" = "语音输入预览";
+"voicePreview.transcribedText" = "转寫文字（点击编辑）";
+"voicePreview.sendToAI" = "发送给 AI";
 "voicePreview.reRecord" = "重新录制";
 "voicePreview.confidence.high" = "高可信度 - 转寫看起来不错";
-"voicePreview.confidence.medium" = "中等可信度 - 請仔细检查";
+"voicePreview.confidence.medium" = "中等可信度 - 请仔细检查";
 "voicePreview.confidence.low" = "低可信度 - 转寫可能不准确";
 
 // Learning Goals
@@ -1225,23 +1343,12 @@
 "goals.currentPoints" = "目前积分";
 "goals.streak" = "连续天数";
 "goals.days" = "天";
-"goals.dailyQuestions" = "每日答题";
-"goals.dailyQuestionsDescription" = "每天回答问题以养成持续学习的习慣";
-"goals.target" = "目标：";
 "goals.questionsPerDay" = "题/天";
-"goals.accuracyGoal" = "正确率目标";
-"goals.accuracyGoalDescription" = "在答题中保持高正确率以获得最高分数";
 "goals.percentAccuracy" = "% 正确率";
-"goals.weeklyStreak" = "每周连续";
-"goals.weeklyStreakDescription" = "保持 7 天的学习连续以获得豐厚的獎勵积分";
-"goals.dailyStreak" = "每日连续";
-"goals.dailyStreakDescription" = "通过每日活动保持学习动力";
-"goals.studyTime" = "学习时长";
-"goals.subjectMastery" = "科目掌握";
 "goals.studyConsistency" = "学习一致性";
 "goals.studyConsistencyDescription" = "保持規律的学习习慣以实现持续进步";
 "goals.daysPerWeek" = "天/周";
-"goals.saveToDatabase" = "儲存到资料库";
+"goals.saveToDatabase" = "储存到资料库";
 
 // Voice Input Controls
 "voice.pressToTalk" = "按住说话";
@@ -1262,12 +1369,6 @@
 "goals.dailyStreakDescription" = "通过每日活动保持学习动力";
 
 // Subjects
-"subject.mathematics" = "数学";
-"subject.science" = "科学";
-"subject.physics" = "物理";
-"subject.chemistry" = "化学";
-"subject.biology" = "生物";
-"subject.english" = "英語";
 
 // Difficulty Levels
 "difficulty.beginner" = "初级";
@@ -1277,21 +1378,22 @@
 
 // Question Types
 "questionType.multipleChoice" = "选择题";
-"questionType.trueFalse" = "判斷题";
+"questionType.trueFalse" = "判断题";
 "questionType.fillBlank" = "填空题";
-"questionType.shortAnswer" = "簡答题";
-"questionType.longAnswer" = "論述题";
+"questionType.shortAnswer" = "简答题";
+"questionType.longAnswer" = "论述题";
 "questionType.calculation" = "计算题";
 "questionType.matching" = "配对题";
 "questionType.mixedTypes" = "混合题型";
+"questionType.unknown" = "未知类型";
 
 // Question Generation - How to Use
 "questionGeneration.howToUse.title" = "如何使用练习生成";
-"questionGeneration.howToUse.message" = "• 选择练习类型：随机练习、错题複习或从资料库生成\n• 选择科目和难度等级\n• 选择题型（选择题、判斷题、填空题等）\n• 设置题目数量\n• 点擊'生成练习题'按鈕\n• 生成后开始答题并获得即时反饋";
+"questionGeneration.howToUse.message" = "• 选择练习类型：随机练习、错题复习或从资料库生成\n• 选择科目和难度等级\n• 选择题型（选择题、判斷题、填空题等）\n• 设置题目数量\n• 点击'生成练习题'按鈕\n• 生成后开始答题并获得即时反饋";
 
 // Generated Questions - How to Use
 "generatedQuestions.howToUse.title" = "如何使用练习题";
-"generatedQuestions.howToUse.message" = "• 点擊任意题目卡片开始答题\n• 阅读题目并选择答案\n• 提交后查看即时反饋和解析\n• 通过勾选标记追蹤进度\n• 使用'生成PDF'导出选定题目供離线练习\n• 使用上一题/下一题按鈕在题目间导航";
+"generatedQuestions.howToUse.message" = "• 点击任意题目卡片开始答题\n• 阅读题目并选择答案\n• 提交后查看即时反饋和解析\n• 通过勾选标记追蹤进度\n• 使用'生成PDF'导出选定题目供離线练习\n• 使用上一题/下一题按鈕在题目间导航";
 
 // Focus Mode - Music Player
 "focus.nowPlaying" = "正在播放";
@@ -1301,7 +1403,7 @@
 "focus.endSession" = "结束";
 "focus.focusTime" = "专注时间";
 "focus.garden.title" = "我的花園";
-"focus.keepGoing" = "继续专注以種植更大的樹！";
+"focus.keepGoing" = "继续专注以种植更大的樹！";
 "focus.noMusic" = "无音樂";
 "focus.pauseSession" = "暫停";
 "focus.resumeSession" = "继续";
@@ -1318,68 +1420,68 @@
 "focus.noPlaylists" = "还沒有播放清单";
 "focus.createFirstPlaylist" = "建立你的第一个播放清单开始";
 "focus.tracks" = "首";
-"focus.deletePlaylist" = "刪除播放清单";
-"focus.deletePlaylistConfirmation" = "确定要刪除这个播放清单嗎？";
+"focus.deletePlaylist" = "删除播放清单";
+"focus.deletePlaylistConfirmation" = "确定要删除这个播放清单嗎？";
 
 // Focus Mode - Playlist Editor
-"focus.playlistName" = "播放清单名稱";
-"focus.enterPlaylistName" = "输入播放清单名稱...";
-"focus.playlistNameRequired" = "播放清单名稱必填";
+"focus.playlistName" = "播放清单名称";
+"focus.enterPlaylistName" = "输入播放清单名称...";
+"focus.playlistNameRequired" = "播放清单名称必填";
 "focus.selectTracks" = "选择曲目";
 "focus.editPlaylist" = "编辑播放清单";
 
 // Privacy Policy
-"privacy.changes.content" = "我们可能会不时更新本隐私政策。我们将透过發布新政策并更新「最后更新」日期来通知您任何重大变更。";
+"privacy.changes.content" = "我们可能会不时更新本隐私政策。我们将透过发布新政策并更新「最后更新」日期来通知您任何重大变更。";
 "privacy.changes.title" = "本政策的变更";
-"privacy.collect.content" = "我们收集您直接提供的资讯，包括您的姓名、电子郵件、年齡和学习资料。我们还自动收集使用资料、裝置资讯和分析资料以改进我们的服務。";
+"privacy.collect.content" = "我们收集您直接提供的资讯，包括您的姓名、电子郵件、年齡和学习资料。我们还自动收集使用资料、裝置资讯和分析资料以改进我们的服务。";
 "privacy.collect.title" = "我们收集的资讯";
-"privacy.contact.content" = "如果您对本隐私政策或我们的隐私做法有疑问，請透过privacy@studymates.app聯络我们";
-"privacy.contact.title" = "聯络我们";
+"privacy.contact.content" = "如果您对本隐私政策或我们的隐私做法有疑问，请透过privacy@studymates.app联络我们";
+"privacy.contact.title" = "联络我们";
 "privacy.coppa.content" = "我们遵守《兒童线上隐私保护法》(COPPA)。对於13歲以下的使用者，我们在收集个人资讯之前需要可验证的家长同意。";
 "privacy.coppa.title" = "COPPA合規";
-"privacy.gdpr.content" = "如果您在歐洲经济区，您享有GDPR下的權利，包括存取您的资料、更正、刪除和资料可攜性。請聯络我们行使这些權利。";
-"privacy.gdpr.title" = "GDPR權利";
+"privacy.gdpr.content" = "如果您在歐洲经济区，您享有GDPR下的权利，包括存取您的资料、更正、删除和资料可攜性。请联络我们行使这些权利。";
+"privacy.gdpr.title" = "GDPR权利";
 "privacy.intro.content" = "StudyAI致力於保护您的隐私。本隐私政策说明我们如何收集、使用、披露和保护您在使用我们的教育应用程式时的资讯。";
 "privacy.intro.title" = "簡介";
 "privacy.lastUpdated" = "最后更新：2025年1月";
-"privacy.retention.content" = "我们保留您的个人资讯的时间僅限於提供我们的服務和遵守法律義務所必需的时间。您可以随时請求刪除您的资料。";
+"privacy.retention.content" = "我们保留您的个人资讯的时间僅限於提供我们的服务和遵守法律义务所必需的时间。您可以随时请求删除您的资料。";
 "privacy.retention.title" = "资料保留";
-"privacy.rights.content" = "您有權存取、更正或刪除您的个人资讯。您还可以反对处理并請求资料可攜性。請聯络我们行使这些權利。";
-"privacy.rights.title" = "您的權利";
-"privacy.security.content" = "我们实施业界标准的安全措施，包括加密、安全身分验证和定期安全稽核，以保护您的资料免受未经授權的存取。";
+"privacy.rights.content" = "您有权存取、更正或删除您的个人资讯。您还可以反对处理并请求资料可攜性。请联络我们行使这些权利。";
+"privacy.rights.title" = "您的权利";
+"privacy.security.content" = "我们实施业界标准的安全措施，包括加密、安全身分验证和定期安全稽核，以保护您的资料免受未经授权的存取。";
 "privacy.security.title" = "资料安全";
-"privacy.thirdParty.content" = "我们使用值得信賴的第三方服務进行身分验证、分析和雲端儲存。这些服務经过精心挑选，符合适用的隐私法律。";
-"privacy.thirdParty.title" = "第三方服務";
+"privacy.thirdParty.content" = "我们使用值得信賴的第三方服务进行身分验证、分析和雲端储存。这些服务经过精心挑选，符合适用的隐私法律。";
+"privacy.thirdParty.title" = "第三方服务";
 "privacy.title" = "隐私政策";
-"privacy.usage.content" = "我们使用您的资讯来提供和改进我们的教育服務、个人化您的学习体验、与您溝通并确保我们平台的安全。";
+"privacy.usage.content" = "我们使用您的资讯来提供和改进我们的教育服务、个人化您的学习体验、与您溝通并确保我们平台的安全。";
 "privacy.usage.title" = "我们如何使用您的资讯";
 
 // Terms of Service
-"terms.acceptable.content" = "您同意不将服務用於任何非法目的、傷害他人、上傳惡意内容或干擾服務的运行。";
+"terms.acceptable.content" = "您同意不将服务用於任何非法目的、傷害他人、上传惡意内容或干擾服务的运行。";
 "terms.acceptable.title" = "可接受的使用";
-"terms.acceptance.content" = "存取或使用StudyAI即表示您同意受这些服務条款的約束。如果您不同意这些条款，請不要使用我们的应用程式。";
+"terms.acceptance.content" = "存取或使用StudyAI即表示您同意受这些服务条款的約束。如果您不同意这些条款，请不要使用我们的应用程式。";
 "terms.acceptance.title" = "接受条款";
-"terms.accounts.content" = "您負責維护您的帐户和密碼的安全。您必须提供准确的资讯并保持更新。";
+"terms.accounts.content" = "您負責維护您的帐户和密码的安全。您必须提供准确的资讯并保持更新。";
 "terms.accounts.title" = "使用者帐户";
-"terms.changes.content" = "我们保留随时修改这些条款的權利。我们将通知您重大变更，您的继续使用构成对更新条款的接受。";
+"terms.changes.content" = "我们保留随时修改这些条款的权利。我们将通知您重大变更，您的继续使用构成对更新条款的接受。";
 "terms.changes.title" = "条款变更";
-"terms.contact.content" = "有关这些服務条款的问题，請透过support@studymates.app聯络我们";
-"terms.contact.title" = "聯络资讯";
-"terms.disclaimer.content" = "StudyAI「按原樣」提供，不提供任何形式的保证。虽然我们努力确保准确性，但我们不保证我们的AI生成内容是无错误或完整的。";
+"terms.contact.content" = "有关这些服务条款的问题，请透过support@studymates.app联络我们";
+"terms.contact.title" = "联络资讯";
+"terms.disclaimer.content" = "StudyAI「按原样」提供，不提供任何形式的保证。虽然我们努力确保准确性，但我们不保证我们的AI生成内容是无错误或完整的。";
 "terms.disclaimer.title" = "免責声明";
-"terms.intellectual.content" = "StudyAI中的所有内容和材料均歸我们或我们的授權方所有，并受智慧财产權法保护。未经許可，您不得複制、修改或分發我们的内容。";
-"terms.intellectual.title" = "智慧财产權";
+"terms.intellectual.content" = "StudyAI中的所有内容和材料均归我们或我们的授权方所有，并受智慧财产权法保护。未经許可，您不得复制、修改或分发我们的内容。";
+"terms.intellectual.title" = "智慧财产权";
 "terms.lastUpdated" = "最后更新：2025年1月";
 "terms.law.content" = "这些条款受我们營运所在司法管轄区的法律管轄，不考慮法律衝突原则。";
 "terms.law.title" = "管轄法律";
-"terms.liability.content" = "在法律允許的最大範圍内，StudyAI不对因您使用服務而产生的任何间接、附帶、特殊或后果性損害負責。";
+"terms.liability.content" = "在法律允許的最大范围内，StudyAI不对因您使用服务而产生的任何间接、附带、特殊或后果性损害負責。";
 "terms.liability.title" = "責任限制";
-"terms.termination.content" = "如果您违反这些条款，我们可能会暫停或終止您对服務的存取。您也可以随时終止您的帐户。";
+"terms.termination.content" = "如果您违反这些条款，我们可能会暫停或終止您对服务的存取。您也可以随时終止您的帐户。";
 "terms.termination.title" = "終止";
-"terms.title" = "服務条款";
-"terms.use.content" = "StudyAI提供由AI驅动的教育平台。您只能将我们的服務用於个人、非商业性教育目的。";
-"terms.use.title" = "服務使用";
-"terms.userContent.content" = "您保留对所提交内容的所有權。透过使用我们的服務，您授予我们使用、儲存和处理您的内容以提供我们服務的授權。";
+"terms.title" = "服务条款";
+"terms.use.content" = "StudyAI提供由AI驅动的教育平台。您只能将我们的服务用於个人、非商业性教育目的。";
+"terms.use.title" = "服务使用";
+"terms.userContent.content" = "您保留对所提交内容的所有权。透过使用我们的服务，您授予我们使用、储存和处理您的内容以提供我们服务的授权。";
 "terms.userContent.title" = "使用者内容";
 
 // Privacy Settings
@@ -1387,30 +1489,54 @@
 "privacy.settings.consentStatus.denied" = "同意被拒絕";
 "privacy.settings.consentStatus.expired" = "同意已过期";
 "privacy.settings.consentStatus.granted" = "已同意";
-"privacy.settings.consentStatus.loading" = "正在載入同意状态...";
+"privacy.settings.consentStatus.loading" = "正在载入同意状态...";
 "privacy.settings.consentStatus.notRequired" = "您的年齡段不需要";
 "privacy.settings.consentStatus.pending" = "待同意";
 "privacy.settings.consentStatus.required" = "需要家长同意";
 "privacy.settings.coppaCompliance" = "COPPA合規";
 "privacy.settings.coppaNotice" = "根据COPPA法規，13歲以下的使用者需要家长同意才能使用某些功能。";
 "privacy.settings.dataManagement" = "资料管理";
-"privacy.settings.dataManagementFooter" = "您有權随时存取、匯出或刪除您的个人资料。";
-"privacy.settings.deleteAccount" = "刪除帐户";
-"privacy.settings.deleteAccountAlert.button" = "刪除";
-"privacy.settings.deleteAccountAlert.message" = "此操作无法复原。您的所有资料将被永久刪除。";
-"privacy.settings.deleteAccountAlert.title" = "刪除帐户";
-"privacy.settings.deleteAccountDesc" = "永久刪除您的帐户和所有资料";
+"privacy.settings.dataManagementFooter" = "您有权随时存取、匯出或删除您的个人资料。";
+"privacy.settings.deleteAccount" = "删除帐户";
+"privacy.settings.deleteAccountAlert.button" = "删除";
+"privacy.settings.deleteAccountAlert.message" = "此操作无法复原。您的所有资料将被永久删除。";
+"privacy.settings.deleteAccountAlert.title" = "删除帐户";
+"privacy.settings.deleteAccountDesc" = "永久删除您的帐户和所有资料";
 "privacy.settings.exportData" = "匯出我的资料";
 "privacy.settings.exportDataAlert.button" = "匯出";
-"privacy.settings.exportDataAlert.message" = "我们将准备您的所有资料副本并傳送到您的电子郵件地址。";
+"privacy.settings.exportDataAlert.message" = "我们将准备您的所有资料副本并传送到您的电子郵件地址。";
 "privacy.settings.exportDataAlert.title" = "匯出您的资料";
-"privacy.settings.exportDataDesc" = "下載您的个人资料副本";
+"privacy.settings.exportDataDesc" = "下载您的个人资料副本";
 "privacy.settings.legal" = "法律";
 "privacy.settings.parentalConsent" = "家长同意";
 "privacy.settings.privacyPolicy" = "隐私政策";
-"privacy.settings.requestConsent" = "請求家长同意";
-"privacy.settings.termsOfService" = "服務条款";
+"privacy.settings.requestConsent" = "请求家长同意";
+"privacy.settings.termsOfService" = "服务条款";
 "privacy.settings.title" = "隐私设定";
+
+// Parent Reports section
+"privacy.parentReports.sectionHeader" = "家长报告";
+"privacy.parentReports.automatedReports" = "自动每周报告";
+"privacy.parentReports.automatedReportsDesc" = "每周日晚上9点生成家长报告";
+"privacy.parentReports.backgroundSync" = "后台作业同步";
+"privacy.parentReports.backgroundSyncDesc" = "自动同步作业数据以生成报告";
+"privacy.parentReports.lastSync" = "上次同步";
+"privacy.parentReports.never" = "从未";
+"privacy.parentReports.syncNow" = "立即同步";
+"privacy.parentReports.nextReport" = "下次报告";
+"privacy.parentReports.footerEnabled" = "报告将在每周日晚上9点，使用本周同步的作业数据自动生成。";
+"privacy.parentReports.footerDisabled" = "开启自动每周家长报告，追踪学习进度。";
+
+// Clear Server Data
+"privacy.clearData.title" = "清除服务器数据";
+"privacy.clearData.desc" = "从服务器删除所有学习数据（保留本地数据）";
+"privacy.clearData.alertTitle" = "清除我的数据";
+"privacy.clearData.alertButton" = "清除服务器数据";
+"privacy.clearData.alertMessage" = "这将永久删除服务器上的所有学习数据。\n\n本地数据将保持完整，账号将继续有效。此操作无法撤销。";
+
+// Delete Account alert
+"privacy.deleteAccount.emailPlaceholder" = "输入邮箱以确认";
+"privacy.deleteAccount.alertMessage" = "这将永久删除你的账号和所有数据。请输入你的邮箱以确认。";
 
 // Additional Focus Mode and Settings Translations
 "focus.garden.allTrees" = "所有樹木";
@@ -1419,17 +1545,13 @@
 "focus.garden.currentStreak" = "目前连续";
 "focus.garden.days" = "天";
 "focus.garden.emptyState" = "你的花園是空的";
-"focus.garden.emptyStateMessage" = "完成专注学习以種植樹木！";
+"focus.garden.emptyStateMessage" = "完成专注学习以种植樹木！";
 "focus.garden.longestSession" = "最长专注";
 "focus.garden.oldest" = "最早";
 "focus.garden.recent" = "最近";
 "focus.garden.sortBy" = "排序：";
 "focus.garden.totalFocusTime" = "总专注时间";
 "focus.garden.totalTrees" = "总樹木数";
-"focus.music.category.ambient" = "环境音樂";
-"focus.music.category.classical" = "古典音樂";
-"focus.music.category.lofi" = "Lo-fi 節拍";
-"focus.music.category.nature" = "自然声音";
 "focus.selectMusicSubtitle" = "选择音樂或建立播放清单来进行专注学习";
 "focus.tree.ancientTree" = "古樹";
 "focus.tree.matureTree" = "成樹";
@@ -1443,21 +1565,21 @@
 
 // Custom Date Range Picker
 "library.filter.moreSpecific" = "更具体";
-"library.customDate.title" = "选择自訂日期範圍";
-"library.customDate.subtitle" = "选择篩选的开始和结束日期";
+"library.customDate.title" = "选择自订日期范围";
+"library.customDate.subtitle" = "选择筛选的开始和结束日期";
 "library.customDate.startDate" = "开始日期";
 "library.customDate.endDate" = "结束日期";
-"library.customDate.selectedRange" = "已选範圍：";
-"library.customDate.apply" = "套用日期篩选";
-"library.customDate.navigationTitle" = "自訂日期範圍";
+"library.customDate.selectedRange" = "已选范围：";
+"library.customDate.apply" = "套用日期筛选";
+"library.customDate.navigationTitle" = "自订日期范围";
 
 // Question Archive View
-"archive.title" = "歸档题目";
-"archive.archiveButton" = "歸档";
+"archive.title" = "归档题目";
+"archive.archiveButton" = "归档";
 "archive.subjectClassification" = "科目分类";
-"archive.enterSubject" = "输入科目名稱";
+"archive.enterSubject" = "输入科目名称";
 "archive.useAIDetection" = "使用AI检测";
-"archive.enterCustomSubject" = "输入自訂科目";
+"archive.enterCustomSubject" = "输入自订科目";
 "archive.selectedQuestions" = "已选题目";
 "archive.noQuestionsSelected" = "未选择题目";
 "archive.notesAndTags" = "筆记与标籤（可选）";
@@ -1469,22 +1591,15 @@
 "archive.add" = "添加";
 "archive.visual" = "图形";
 
-// Subject Names
+// Subject Names (legacy keys used by other features)
 "subject.mathematics" = "数学";
 "subject.science" = "科学";
-"subject.physics" = "物理";
-"subject.chemistry" = "化学";
-"subject.biology" = "生物";
-"subject.english" = "英語";
-"subject.history" = "歷史";
-"subject.geography" = "地理";
 "subject.computerScience" = "计算机科学";
 "subject.literature" = "文学";
 "subject.socialStudies" = "社会科学";
 "subject.economics" = "经济学";
 "subject.art" = "美术";
-"subject.music" = "音樂";
-"subject.other" = "其他";
+"subject.music" = "音乐";
 
 // Pomodoro Focus Mode
 "pomodoro.dragToStop" = "拖动下方按鈕到圓环内以停止";
@@ -1514,15 +1629,13 @@
 "proMode.deselectAll" = "取消全选";
 "proMode.viewOriginalImage" = "查看原图";
 "proMode.resetAnnotations" = "重置标注";
-"proMode.batchArchive" = "一键歸档";
-"proMode.batchArchiveCount" = "一键歸档 (%d)";
+"proMode.batchArchive" = "一键归档";
+"proMode.batchArchiveCount" = "一键归档 (%d)";
 "proMode.accuracy" = "正确率";
-"proMode.correct" = "正确";
 "proMode.partialCorrect" = "部分正确";
-"proMode.incorrect" = "错误";
 "proMode.markProgress" = "标记学习进度";
-"proMode.questionPreview" = "题目预覽";
-"proMode.tapToAnnotate" = "点擊图片创建标注框";
+"proMode.questionPreview" = "题目预览";
+"proMode.tapToAnnotate" = "点击图片创建标注框";
 "proMode.done" = "完成";
 "proMode.selectQuestionNumber" = "选择题号";
 "proMode.questionPrefix" = "题";
@@ -1533,7 +1646,7 @@
 "proMode.deepGradingMode" = "深度批改模式";
 "proMode.deepMode" = "深度模式";
 "proMode.fastMode" = "快速模式";  // ✅ Production: Fast Mode (GPT Deep)
-"proMode.deepGradingDescription" = "AI将深度推理分析 (較慢但更准确)";
+"proMode.deepGradingDescription" = "AI将深度推理分析 (较慢但更准确)";
 "proMode.deepModeDescription" = "深度分析与高级推理";  // ✅ Production: Deep Mode description
 "proMode.fastModeDescription" = "快速批改与逻辑检查";  // ✅ Production: Fast Mode description
 "proMode.quickGrade" = "快速批改";  // ✅ Production: Fast Mode button text
@@ -1544,18 +1657,19 @@
 "proMode.annotationHint" = "提示: 添加标注可为题目添加图片上下文";
 "proMode.studentAnswerLabel" = "学生答案: %@";
 "proMode.askAI" = "求助 AI";
-"proMode.askAIPrompt" = "請幫我理解这道题";
-"proMode.askAIPromptWithSubquestion" = "請幫我理解这道题（小题 %@）";
+"proMode.askAIPrompt" = "请帮我理解这道题";
+"proMode.askAIPromptWithSubquestion" = "请帮我理解这道题（小题 %@）";
 "proMode.parentQuestionContext" = "【母题背景】";
 "proMode.subquestion" = "【小题】";
 "proMode.myAnswer" = "【我的答案】";
 "proMode.teacherFeedback" = "【老师反饋】";
 "proMode.noFeedback" = "无反饋";
-"proMode.archive" = "歸档";
-"proMode.archived" = "已歸档";
+"proMode.archive" = "归档";
+"proMode.archived" = "已归档";
 "proMode.subquestionAnswer" = "答: %@";
 "proMode.addAnnotation" = "添加标注";
 "proMode.editAnnotations" = "编辑标注 (%d)";
+"proMode.annotationImageHint" = "部分题目需要配图 — 点击裁剪照片";
 "proMode.selectAIModel" = "选择AI模型";
 "proMode.revertGrading" = "撤銷批改";
 "proMode.revertGradingAlert.title" = "撤銷批改？";
@@ -1566,8 +1680,8 @@
 // Homework Summary View
 "homeworkSummary.title" = "作业分析完成";
 "homeworkSummary.questionCount" = "%d 道题目";
-"homeworkSummary.hierarchicalQuestions" = "層次题";
-"homeworkSummary.questionsPreview" = "题目预覽";
+"homeworkSummary.hierarchicalQuestions" = "层次题";
+"homeworkSummary.questionsPreview" = "题目预览";
 "homeworkSummary.moreQuestions" = "还有 %d 道题";
 "homeworkSummary.viewDigitalHomework" = "查看数位版作业";
 "homeworkSummary.subquestionCount" = "%d 个子题";
@@ -1687,11 +1801,28 @@
 "pomodoroCalendar.todayEvents" = "今天的会话";
 "pomodoroCalendar.weekEvents" = "本周";
 "pomodoroCalendar.freeSlots" = "空闲时段";
+"pomodoroCalendar.freeSlotsDescription" = "适合25分钟专注会话的空闲时间";
 "pomodoroCalendar.scheduled" = "已安排";
 "pomodoroCalendar.noEvents" = "没有安排的事件";
 "pomodoroCalendar.eventTitle" = "专注会话🍅";
+"pomodoroCalendar.eventTitlePlaceholder" = "事件标题";
 "pomodoroCalendar.reminderBefore" = "提前%d分钟提醒我";
-"pomodoroCalendar.duration" = "25分钟";
+"pomodoroCalendar.duration" = " 分钟";
+"pomodoroCalendar.duration25" = "25分钟";
+"pomodoroCalendar.duration50" = "50分钟";
+"pomodoroCalendar.durationLabel" = "时长";
+"pomodoroCalendar.selectDate" = "选择日期";
+"pomodoroCalendar.date" = "日期";
+"pomodoroCalendar.eventsCount" = " 个事件";
+"pomodoroCalendar.addCustom" = "添加自定义会话";
+"pomodoroCalendar.eventInfo" = "事件信息";
+"pomodoroCalendar.startTime" = "开始时间";
+"pomodoroCalendar.notes" = "备注";
+"pomodoroCalendar.accessRequired" = "需要日历访问权限";
+"pomodoroCalendar.accessDescription" = "允许访问以在日历中查看和安排专注会话。";
+"pomodoroCalendar.grantAccess" = "授权日历访问";
+"pomodoroCalendar.permissionRequired" = "需要日历权限";
+"pomodoroCalendar.permissionMessage" = "请在设置中启用日历访问权限以安排专注会话。";
 
 // 深度专注模式
 "deepFocus.title" = "深度专注模式";
@@ -1729,3 +1860,131 @@
 "tomato.garden.exchange.exchanging" = "正在兑换...";
 "tomato.garden.exchange.congratulations" = "恭喜获得";
 "tomato.garden.exchange.awesome" = "太棒了！";
+
+// Chat & Archive (missing)
+"chat.alert.archiveSuccess.startNewChat" = "开始新对话";
+"chat.archive.archiving" = "封存中...";
+
+// Home (missing)
+"home.startLearningPrompt" = "开始学习以追踪进度";
+
+// Library (missing)
+"library.needsAttention" = "需要关注";
+"library.proBadge" = "Pro";
+
+// Homework Results (missing)
+"homeworkResults.overallFeedback" = "总体反馈";
+"homeworkResults.subquestions" = "%d 个子题";
+
+// Direct AI Homework (missing)
+"directAIHomework.performanceSummary" = "表现总结";
+
+// Progressive Homework (missing)
+"progressiveHomework.loadingMessage" = "这可能需要一点时间...";
+"progressiveHomework.selectAIModelTitle" = "选择AI模型";
+"progressiveHomework.selectAIModelDescription" = "选择用于批改的AI模型";
+"progressiveHomework.aiModelLabel" = "AI模型";
+"progressiveHomework.startGrading" = "开始批改";
+"progressiveHomework.gradingProgress" = "批改进度";
+"progressiveHomework.saveToMistakeBook" = "保存到错题本";
+"progressiveHomework.errorTitle" = "错误";
+"progressiveHomework.questionLabel" = "题目 %@";
+"progressiveHomework.overallScore" = "总分：";
+"progressiveHomework.viewSubquestions" = "查看子题（%d）";
+"progressiveHomework.subquestionGradeProgress" = "%d/%d";
+"progressiveHomework.someSubquestionsFailed" = "部分子题批改失败";
+"progressiveHomework.yourAnswer" = "你的答案：";
+"progressiveHomework.gradingError" = "批改错误：%@";
+"progressiveHomework.scoreLabel" = "分数：";
+"progressiveHomework.aiFeedback" = "AI反馈";
+"progressiveHomework.askAIForHelp" = "向AI求助";
+"progressiveHomework.answerLabel" = "答案：";
+"progressiveHomework.askAI" = "求助AI";
+"progressiveHomework.accuracyLabel" = "正确率";
+
+// Pro Mode (missing)
+"proMode.analyzeButton" = "分析错题";
+"proMode.analyzeMistakesPrompt" = "是否帮您分析这些错题？（结果稍后将在错题复习中显示）";
+"proMode.archivedBadge" = "已归档";
+"proMode.archiveOptionsTitle" = "归档选项";
+"proMode.archivePrompt" = "选择要归档的内容：";
+"proMode.archiveSubquestionOnly" = "仅归档此子题";
+"proMode.archiveWholeQuestion" = "归档整道题目";
+"proMode.blankLabel" = "填空 %d：";
+"proMode.deleteButton" = "删除";
+"proMode.deleteConfirmation" = "这将从此次作业会话中永久删除所选题目%@。此操作无法撤销。";
+"proMode.deleteQuestions" = "删除 %d 道题目%@";
+"proMode.deleteQuestionsTitle" = "删除 %d 道题目%@？";
+"proMode.exportingProgress" = "导出中... %d%%";
+"proMode.exportToPDF" = "导出为PDF";
+"proMode.feedbackLabel" = "反馈";
+"proMode.trueFalse.true" = "正确";
+"proMode.trueFalse.false" = "错误";
+"proMode.trueFalse.trueShort" = "对";
+"proMode.trueFalse.falseShort" = "错";
+"proMode.followUp" = "追问";
+"proMode.regrade" = "重新批改";
+"proMode.selectToDelete" = "选择删除";
+"proMode.detectedErrors" = "本页检测到 %d 个错误";
+"proMode.pdfExportFailed" = "PDF 导出失败";
+"proMode.handwritingQuality" = "书写质量";
+"proMode.handwritingCompact" = "书写：";
+"proMode.handwriting.noHandwriting" = "未检测到手写内容";
+"proMode.handwriting.exceptional" = "优秀";
+"proMode.handwriting.clear" = "清晰";
+"proMode.handwriting.readable" = "可读";
+"proMode.handwriting.difficult" = "较难辨认";
+"proMode.handwriting.illegible" = "难以辨认";
+"proMode.handwriting.desc.exceptional" = "非常清晰整洁";
+"proMode.handwriting.desc.clear" = "字形规范，易于阅读";
+"proMode.handwriting.desc.readable" = "基本可读";
+"proMode.handwriting.desc.difficult" = "难以阅读";
+"proMode.handwriting.desc.illegible" = "极难辨认";
+
+// Session Chat (missing)
+"sessionChat.archiveSuccess" = "「%@」已成功保存！\n\n您可以随时在资料库中查看。\n\n已为您准备好新的对话！";
+"sessionChat.archiveSuccessDefault" = "您的对话";
+"sessionChat.homeworkHelpMode" = "作业辅助模式";
+"sessionChat.questionNumber" = "第 %d 题";
+"sessionChat.currentGrade" = "当前：%@";
+"sessionChat.deepBadge" = "深度";
+"sessionChat.sessionDetails" = "会话详情";
+"sessionChat.sessionIdLabel" = "会话ID：";
+"sessionChat.subjectLabel" = "科目：";
+"sessionChat.messagesLabel" = "消息数：";
+"sessionChat.createdLabel" = "创建时间：";
+"sessionChat.lastActivityLabel" = "最近活动：";
+"sessionChat.noSessionInfo" = "暂无会话信息";
+"sessionChat.noSessionInfoDescription" = "会话详情将在可用时显示。";
+"sessionChat.slideUp" = "上滑";
+"sessionChat.deepThinkingMode" = "深度思考模式";
+"sessionChat.releaseToSend" = "松开发送";
+
+// MARK: - Live Voice Chat
+"live.hold_to_talk" = "按住说话";
+"live.release_to_send" = "松开发送";
+"live.slide_to_cancel" = "滑动取消";
+"live.release_to_cancel" = "松开取消";
+
+// MARK: - Voice Settings
+"voiceSettings.title" = "你的AI学习伙伴";
+"voiceSettings.voiceControls" = "语音控制";
+"voiceSettings.speakingSpeed" = "语速";
+"voiceSettings.speakingRate" = "语速调节";
+"voiceSettings.volume" = "音量";
+"voiceSettings.autoSpeakSettings" = "自动朗读设置";
+"voiceSettings.autoSpeakResponses" = "自动朗读AI回复";
+"voiceSettings.autoSpeakDesc" = "自动将AI回复朗读出来";
+"voiceSettings.voicePreview" = "语音预览";
+"voiceSettings.previewHint" = "点击试听当前设置下AI助手的声音效果：";
+"voiceSettings.playPreview" = "播放预览";
+"voiceSettings.stopPreview" = "停止预览";
+"voiceSettings.speed.verySlow" = "非常慢";
+"voiceSettings.speed.slow" = "慢";
+"voiceSettings.speed.normal" = "正常";
+"voiceSettings.speed.fast" = "快";
+"voiceSettings.speed.veryFast" = "非常快";
+"voiceSettings.avatar.adam.desc" = "友善、鼓励的男孩";
+"voiceSettings.avatar.eva.desc" = "温柔、体贴的女孩";
+"voiceSettings.avatar.max.desc" = "活力、热情的男孩";
+"voiceSettings.avatar.mia.desc" = "活泼、好奇的女孩";

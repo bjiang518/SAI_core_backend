@@ -1175,7 +1175,7 @@ struct LearningGoalProgressRow: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 // Only show text, no icons
-                Text(goal.title)
+                Text(goal.localizedTitle)
                     .font(.subheadline)
                     .fontWeight(.medium)
 

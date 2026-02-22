@@ -148,6 +148,78 @@ class DigitalHomeworkViewModel: ObservableObject {
         return results.questions.compactMap { $0.questionNumber }
     }
 
+    /// True when any question (or subquestion) in Pro Mode signals it needs a diagram image
+    var anyQuestionNeedsImage: Bool {
+        questions.contains { qwg in
+            qwg.question.needImage == true ||
+            qwg.question.subquestions?.contains { $0.needImage == true } == true
+        }
+    }
+
+    /// Hierarchical list of annotation targets: parent/independent questions and their subquestions
+    enum AnnotationTarget: Equatable {
+        case parent(id: String, number: String, previewText: String)
+        case subquestion(parentId: String, subId: String, subNumber: String, previewText: String)
+        case independent(id: String, number: String, previewText: String)
+
+        var questionId: String {
+            switch self {
+            case .parent(let id, _, _): return id
+            case .subquestion(_, let subId, _, _): return subId
+            case .independent(let id, _, _): return id
+            }
+        }
+
+        var displayLabel: String {
+            switch self {
+            case .parent(_, let number, let preview):
+                let questionPrefix = NSLocalizedString("proMode.questionPrefix", comment: "Q")
+                return "\(questionPrefix) \(number): \(preview)"
+            case .subquestion(_, _, let subNumber, let preview):
+                return "  (\(subNumber)) \(preview)"
+            case .independent(_, let number, let preview):
+                let questionPrefix = NSLocalizedString("proMode.questionPrefix", comment: "Q")
+                return "\(questionPrefix) \(number): \(preview)"
+            }
+        }
+
+        /// Indentation level for display (0 = top-level, 1 = subquestion)
+        var indentLevel: Int {
+            switch self {
+            case .parent, .independent: return 0
+            case .subquestion: return 1
+            }
+        }
+
+        /// The question number string used for annotation matching
+        var annotationQuestionNumber: String {
+            switch self {
+            case .parent(_, let number, _): return number
+            case .subquestion(_, let subId, _, _): return subId
+            case .independent(_, let number, _): return number
+            }
+        }
+    }
+
+    var availableAnnotationTargets: [AnnotationTarget] {
+        var targets: [AnnotationTarget] = []
+        for qwg in questions {
+            let q = qwg.question
+            guard let number = q.questionNumber else { continue }
+            let preview = String(q.displayText.prefix(30))
+            if q.isParentQuestion, let subs = q.subquestions {
+                targets.append(.parent(id: q.id, number: number, previewText: preview))
+                for sub in subs {
+                    let subPreview = String(sub.questionText.prefix(30))
+                    targets.append(.subquestion(parentId: q.id, subId: sub.id, subNumber: sub.id, previewText: subPreview))
+                }
+            } else {
+                targets.append(.independent(id: q.id, number: number, previewText: preview))
+            }
+        }
+        return targets
+    }
+
     // ✅ OPTIMIZATION 4: Undo/Redo availability
     var canUndo: Bool {
         return historyIndex > 0
@@ -502,8 +574,17 @@ class DigitalHomeworkViewModel: ObservableObject {
 
         let imageForThisPage = originalImages[annotation.pageIndex]
 
-        guard let questionNumber = annotation.questionNumber,
-              let questionId = parseResults?.questions.first(where: { $0.questionNumber == questionNumber })?.id else {
+        guard let questionNumber = annotation.questionNumber else { return }
+
+        // Resolve the storage key: check top-level questions first, then subquestions
+        let imageKey: String
+        if let topLevelId = parseResults?.questions.first(where: { $0.questionNumber == questionNumber })?.id {
+            imageKey = topLevelId
+        } else if let subId = parseResults?.questions
+            .flatMap({ $0.subquestions ?? [] })
+            .first(where: { $0.id == questionNumber })?.id {
+            imageKey = subId
+        } else {
             return
         }
 
@@ -536,14 +617,14 @@ class DigitalHomeworkViewModel: ObservableObject {
                 if let compressedImage = UIImage(data: jpegData) {
                     // Update global state with compressed image
                     var updatedImages = croppedImages
-                    updatedImages[questionId] = compressedImage
+                    updatedImages[imageKey] = compressedImage
                     stateManager.updateHomework(croppedImages: updatedImages)
 
                     let originalSize = croppedUIImage.pngData()?.count ?? 0
                     let compressedSize = jpegData.count
                     let savings = originalSize > 0 ? (1.0 - Double(compressedSize) / Double(originalSize)) * 100 : 0
                     if Self.isDebugMode {
-                        logger.debug("Cropped image for Q\(questionNumber) from page \(annotation.pageIndex) (id: \(questionId))")
+                        logger.debug("Cropped image for Q\(questionNumber) from page \(annotation.pageIndex) (id: \(imageKey))")
                         logger.debug("Compressed: \(originalSize / 1024)KB → \(compressedSize / 1024)KB (saved \(Int(savings))%)")
                     }
                 } else {

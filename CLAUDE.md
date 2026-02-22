@@ -532,7 +532,9 @@ Report types: `activity`, `areas_of_improvement`, `mental_health`, `summary` (4 
 
 ## Zombie Code Audit (Feb 2026)
 
-Full audit run on 2026-02-21. ~40% of iOS files and ~15% of backend are dead code.
+Full audit run on 2026-02-21. Verification pass completed 2026-02-22. ~40% of iOS files and ~15% of backend are dead code.
+
+**VERIFICATION STATUS: All Phase 1 candidates double-checked. List below is confirmed safe to delete.**
 
 ### Backend — Confirmed Zombie Files
 
@@ -579,7 +581,8 @@ These are backup copies sitting as active-named files — they will be picked up
 | File | Lines | Reason |
 |------|-------|--------|
 | `Services/ConversationMemoryManager.swift` | ~200 | Zero external references. |
-| `Services/ConversationStore.swift` | ~100 | Zero external references. |
+
+**⚠️ CORRECTION**: `Services/ConversationStore.swift` is **LIVE** — used by `StudyLibraryViewModel.swift:23` and `HistoryViewModel.swift:14` (`ConversationStore.shared`). Do NOT delete.
 
 #### Services/ — Duplicate Implementations (Audit Required)
 **TTS — 4 competing implementations:**
@@ -600,15 +603,16 @@ These are backup copies sitting as active-named files — they will be picked up
 #### Views/ — Confirmed or Very Likely Dead
 | File | Reason |
 |------|--------|
-| `Views/WeChatStyleVoiceInput.swift` | Replaced by Live mode in `SessionChatView`. Zero navigation references. |
-| `Views/VoiceChatView.swift` | Replaced by inline Live mode. Zero navigation references. |
+| `Views/VoiceChatView.swift` | Replaced by inline Live mode. Zero external instantiations (preview only). |
 | `Views/HandwritingEvaluationView.swift` | Zero navigation references. Feature appears removed. |
 | `Views/ImageCropView.swift` | Likely replaced by `UnifiedImageEditorView`. Zero navigation references. |
 | `Views/ImagePreprocessingView.swift` | Zero navigation references. |
 | `Views/ImageSourceSelectionView.swift` | Zero navigation references. |
 | `Views/NativePhotoViewer.swift` | Zero navigation references. |
-| `Views/MathJaxTestView.swift` | Debug/test view. Should not be in production. |
+| `Views/MathJaxTestView.swift` | Debug/test view. Zero navigation references. Should not be in production. |
 | `Views/EssayResultsView.swift` | Essay grading feature unclear status. Verify then delete. |
+
+**⚠️ CORRECTION**: `Views/WeChatStyleVoiceInput.swift` does NOT exist as a standalone file. `WeChatStyleVoiceInput` is defined at `SessionChatView.swift:2636` and used at `SessionChatView.swift:1124` — it is LIVE embedded code.
 
 #### Views/ — Old Report System (superseded by PassiveReports)
 Per CLAUDE.md, `parent-reports.js` was deleted from backend. These iOS views may be orphaned:
@@ -641,20 +645,20 @@ src/gateway/routes/ai/modules/question-processing.js.bak
 Delete in this order to avoid accidentally breaking compile/build:
 
 **Phase 1 — Zero-risk deletes (never imported, fully dead):**
-1. All `.bak` files (iOS + backend)
+1. All `.bak` files (iOS + backend) — confirmed not in Xcode project, not require()'d anywhere
 2. `question-generation.js.legacy`
 3. `src/services/aiService.js`
 4. `src/services/report-export-service.js`
 5. `src/services/report-narrative-service.js`
 6. `src/services/enhanced-passive-report-generator.js`
-7. `src/services/report-generators/` (both files)
-8. `Core/OptimizedNetworkService.swift`
-9. `Core/ErrorManager.swift`
-10. `Core/PerformanceManager.swift`
-11. `Core/StateManager.swift`
+7. `src/services/report-generators/` (both files + report-scheduler.js — whole chain is orphaned)
+8. `Core/OptimizedNetworkService.swift` — fully commented out
+9. `Core/ErrorManager.swift` — only ref is from OptimizedNetworkService (dead)
+10. `Core/PerformanceManager.swift` — only ref is from OptimizedNetworkService (dead)
+11. `Core/StateManager.swift` (`AppStateManager` class) — only external refs are from OptimizedNetworkService and PerformanceManager (both dead)
 12. `Core/AppConfiguration.swift`
 13. `Services/ConversationMemoryManager.swift`
-14. `Services/ConversationStore.swift`
+14. ~~`Services/ConversationStore.swift`~~ — **DO NOT DELETE: actively used by StudyLibraryViewModel + HistoryViewModel**
 15. `Views/MathJaxTestView.swift`
 
 **Phase 2 — Remove dead import (low risk):**
@@ -662,13 +666,14 @@ Delete in this order to avoid accidentally breaking compile/build:
 17. Then delete `src/gateway/routes/ai-proxy.js`
 
 **Phase 3 — Verify then delete (check navigation graph first):**
-18. `src/gateway/routes/ai/modules/gemini-live.js`
-19. `Views/WeChatStyleVoiceInput.swift`
-20. `Views/VoiceChatView.swift`
-21. `Views/HandwritingEvaluationView.swift`
-22. `Views/ImageCropView.swift`, `ImagePreprocessingView.swift`, `ImageSourceSelectionView.swift`, `NativePhotoViewer.swift`
-23. `Views/ParentReportsView.swift` + `ReportDetailView.swift` + `ReportDetailComponents.swift` + `ProfessionalReportComponents.swift`
-24. `Views/EssayResultsView.swift` + `Models/EssayGradingModels.swift`
+18. `src/gateway/routes/ai/modules/gemini-live.js` — v1, confirmed not registered
+19. `Views/VoiceChatView.swift` — confirmed no external instantiations
+20. `Views/HandwritingEvaluationView.swift`
+21. `Views/ImageCropView.swift`, `ImagePreprocessingView.swift`, `ImageSourceSelectionView.swift`, `NativePhotoViewer.swift`
+22. `Views/ParentReportsView.swift` + `ReportDetailView.swift` + `ReportDetailComponents.swift` + `ProfessionalReportComponents.swift`
+23. `Views/EssayResultsView.swift` + `Models/EssayGradingModels.swift`
+
+**NOTE**: `WeChatStyleVoiceInput` is NOT a separate file — it lives inside `SessionChatView.swift:2636` and is active. Do not remove it.
 
 **Phase 4 — Consolidation (requires code changes):**
 25. Audit TTS services — merge `TextToSpeechService` into `EnhancedTTSService`

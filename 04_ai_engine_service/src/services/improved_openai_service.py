@@ -1187,6 +1187,7 @@ GENERAL GRADING RULES:
               "points_earned": 1.0,
               "points_possible": 1.0,
               "has_visuals": false,
+              "need_image": false,
               "feedback": "<30w",
               "question_type": "multiple_choice|true_false|fill_blank|short_answer|long_answer|calculation|matching",
               "options": ["A) Text", "B) Text", ...]
@@ -1208,6 +1209,7 @@ GENERAL GRADING RULES:
           "correct_answer": "expected answer",
           "grade": "CORRECT|INCORRECT|EMPTY|PARTIAL_CREDIT",
           "points_earned": 1.0,
+          "need_image": false,
           "feedback": "<30w",
           "question_type": "multiple_choice|true_false|fill_blank|short_answer|long_answer|calculation|matching",
           "options": ["A) Text", "B) Text", ...]
@@ -1246,7 +1248,8 @@ RULES:
 7. "student_answer" = What student wrote. "correct_answer" = Expected. Never mix.
 8. "question_type" = Detect type: multiple_choice (has A/B/C/D), true_false (T/F), fill_blank (has ___), calculation (math), short_answer, long_answer, matching
 9. "options" = For multiple_choice: ["A) Text", "B) Text", ...]. For true_false: ["True", "False"]. For others: null or []
-10. PARENT QUESTIONS: "raw_parent_content" = COMPLETE VERBATIM parent question text from image (NOT shortened). Include ALL context and instructions. "parent_content" = Simplified short preview <50 chars for UI display only"""
+10. PARENT QUESTIONS: "raw_parent_content" = COMPLETE VERBATIM parent question text from image (NOT shortened). Include ALL context and instructions. "parent_content" = Simplified short preview <50 chars for UI display only
+11. "need_image" = true if the question references a diagram, graph, figure, chart, or table; or contains phrases like "refer to", "as shown", "in the figure", "based on the image", "use the diagram". Set false otherwise."""
         else:
             # FLAT STRUCTURE (FAST & STABLE): Optimized for reliability
             base_prompt = f"""Grade HW. Return JSON:

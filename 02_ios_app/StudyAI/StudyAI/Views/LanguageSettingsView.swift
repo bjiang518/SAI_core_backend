@@ -52,28 +52,28 @@ struct LanguageSettingsView: View {
                         .buttonStyle(.plain)
                     }
                 } header: {
-                    Text("Select Language")
+                    Text(NSLocalizedString("languageSettings.sectionHeader", comment: ""))
                 } footer: {
-                    Text("Choose your preferred language for the app interface. This will affect all text in the app.")
+                    Text(NSLocalizedString("languageSettings.sectionFooter", comment: ""))
                 }
             }
-            .navigationTitle("Language")
+            .navigationTitle(NSLocalizedString("settings.language", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
+                    Button(NSLocalizedString("common.done", comment: "")) {
                         dismiss()
                     }
                     .fontWeight(.semibold)
                 }
             }
-            .alert("Restart Required", isPresented: $showRestartAlert) {
-                Button("OK") {
+            .alert(NSLocalizedString("languageSettings.restartRequired", comment: ""), isPresented: $showRestartAlert) {
+                Button(NSLocalizedString("common.ok", comment: "")) {
                     // ✅ Automatically close the app to apply language change
                     exit(0)
                 }
             } message: {
-                Text("The app will close now. Please reopen it to see the language change.")
+                Text(NSLocalizedString("languageSettings.restartMessage", comment: ""))
             }
         }
     }

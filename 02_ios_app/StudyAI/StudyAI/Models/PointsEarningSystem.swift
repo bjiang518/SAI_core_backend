@@ -58,16 +58,12 @@ struct DailyQuestionActivity: Codable, Identifiable {
     }
     
     var dayName: String {
-        switch dayOfWeek {
-        case 1: return "Sun"
-        case 2: return "Mon"
-        case 3: return "Tue"
-        case 4: return "Wed"
-        case 5: return "Thu"
-        case 6: return "Fri"
-        case 7: return "Sat"
-        default: return "?"
-        }
+        let formatter = DateFormatter()
+        formatter.locale = Locale.current
+        // shortWeekdaySymbols: index 0 = Sunday
+        let symbols = formatter.shortWeekdaySymbols ?? ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]
+        let index = max(0, min(dayOfWeek - 1, symbols.count - 1))
+        return String(symbols[index].prefix(3))
     }
 }
 
@@ -181,6 +177,18 @@ struct LearningGoal: Codable, Identifiable {
     // Coding keys for JSON encoding/decoding (excludes id since it's generated)
     enum CodingKeys: String, CodingKey {
         case type, title, description, targetValue, basePoints, bonusMultiplier, currentProgress, isDaily, isWeekly, isCheckedOut
+    }
+
+    // Always-localized title derived from type — immune to stale persisted strings
+    var localizedTitle: String {
+        switch type {
+        case .dailyQuestions: return NSLocalizedString("goals.dailyQuestions", comment: "")
+        case .weeklyStreak:   return NSLocalizedString("goals.weeklyStreak", comment: "")
+        case .dailyStreak:    return NSLocalizedString("goals.dailyStreak", comment: "")
+        case .accuracyGoal:   return NSLocalizedString("goals.accuracyGoal", comment: "")
+        case .studyTime:      return NSLocalizedString("goals.studyTime", comment: "")
+        case .subjectMastery: return NSLocalizedString("goals.subjectMastery", comment: "")
+        }
     }
     
     var progressPercentage: Double {

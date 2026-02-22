@@ -55,6 +55,13 @@ enum PracticeGenerationError: LocalizedError {
 enum MistakeActiveFilter: String, CaseIterable {
     case active = "Active"
     case all = "All"
+
+    var localizedName: String {
+        switch self {
+        case .active: return NSLocalizedString("mistakeReview.filter.active", comment: "")
+        case .all: return NSLocalizedString("mistakeReview.filter.allFilter", comment: "")
+        }
+    }
 }
 
 // MARK: - Main View
@@ -116,7 +123,7 @@ struct MistakeReviewView: View {
                     // SECTION 1b: Active / All toggle
                     Picker("", selection: $activeFilter) {
                         ForEach(MistakeActiveFilter.allCases, id: \.self) { filter in
-                            Text(filter.rawValue).tag(filter)
+                            Text(filter.localizedName).tag(filter)
                         }
                     }
                     .pickerStyle(.segmented)
@@ -158,7 +165,7 @@ struct MistakeReviewView: View {
                                 Image(systemName: "play.circle.fill")
                                     .font(.title3)
 
-                                Text("Start Review (\(mistakeCount) \(mistakeCount == 1 ? "Mistake" : "Mistakes"))")
+                                Text(String(format: NSLocalizedString("mistakeReview.startReview", comment: ""), mistakeCount))
                                     .font(.body)
                                     .fontWeight(.semibold)
                             }
@@ -433,7 +440,7 @@ struct MistakeQuestionListView: View {
                                 Image(systemName: "doc.text.fill")
                                     .font(.title3)
 
-                                Text("Let's practise them")
+                                Text(NSLocalizedString("mistakeReview.letsPractise", comment: ""))
                                     .font(.body)
                                     .fontWeight(.semibold)
                             }
@@ -458,11 +465,11 @@ struct MistakeQuestionListView: View {
                                         .font(.body)
 
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text("Resume Practice")
+                                        Text(NSLocalizedString("mistakeReview.resumePractice", comment: ""))
                                             .font(.body)
                                             .fontWeight(.semibold)
 
-                                        Text("\(session.remainingQuestions) questions left · \(Int(session.progressPercentage * 100))% done")
+                                        Text(String(format: NSLocalizedString("mistakeReview.questionsLeftDone", comment: ""), session.remainingQuestions, Int(session.progressPercentage * 100)))
                                             .font(.caption)
                                             .opacity(0.85)
                                     }
@@ -592,7 +599,7 @@ struct MistakeQuestionListView: View {
                                 Image(systemName: "brain.head.profile")
                                     .font(.title3)
 
-                                Text("Generate Practice (\(selectedQuestions.count) mistakes)")
+                                Text(String(format: NSLocalizedString("mistakeReview.generatePractice", comment: ""), selectedQuestions.count))
                                     .font(.body)
                                     .fontWeight(.semibold)
                             }
@@ -656,8 +663,8 @@ struct MistakeQuestionListView: View {
                 )
             }
             // ✅ OPTIMIZATION: Error alert for practice generation
-            .alert("Practice Generation Failed", isPresented: .constant(generationError != nil)) {
-                Button("Retry") {
+            .alert(NSLocalizedString("mistakeReview.generationFailed", comment: ""), isPresented: .constant(generationError != nil)) {
+                Button(NSLocalizedString("common.retry", comment: "")) {
                     // Show configuration sheet again
                     generationError = nil
                     showingConfigurationSheet = true
@@ -680,7 +687,7 @@ struct MistakeQuestionListView: View {
                 Spacer()
 
                 VStack(spacing: 12) {
-                    Text("Generating Questions...")
+                    Text(NSLocalizedString("mistakeReview.generatingQuestions", comment: ""))
                         .font(.headline)
                         .fontWeight(.bold)
                         .foregroundColor(.white)
@@ -1029,7 +1036,7 @@ struct MistakeQuestionCard: View {
                                     Image(systemName: "exclamationmark.triangle.fill")
                                         .foregroundColor(DesignTokens.Colors.warning)
                                         .font(.caption)
-                                    Text("What Went Wrong")
+                                    Text(NSLocalizedString("mistakeReview.whatWentWrong", comment: ""))
                                         .font(.caption)
                                         .fontWeight(.semibold)
                                         .foregroundColor(.secondary)
@@ -1049,7 +1056,7 @@ struct MistakeQuestionCard: View {
                                     Image(systemName: "magnifyingglass")
                                         .foregroundColor(themeManager.accentColor)
                                         .font(.caption)
-                                    Text("Evidence")
+                                    Text(NSLocalizedString("mistakeReview.evidence", comment: ""))
                                         .font(.caption)
                                         .fontWeight(.semibold)
                                         .foregroundColor(.secondary)
@@ -1092,7 +1099,7 @@ struct MistakeQuestionCard: View {
                     // 6. Explanation
                     if !question.explanation.isEmpty && question.explanation != "No explanation provided" {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Explanation")
+                            Text(NSLocalizedString("mistakeReview.explanation", comment: ""))
                                 .font(.caption)
                                 .fontWeight(.semibold)
                                 .foregroundColor(.secondary)
@@ -1145,7 +1152,7 @@ struct MistakeQuestionCard: View {
                                 Image(systemName: "lightbulb.fill")
                                     .foregroundColor(DesignTokens.Colors.warning)
                                     .font(.caption)
-                                Text("How to Improve")
+                                Text(NSLocalizedString("mistakeReview.howToImprove", comment: ""))
                                     .font(.caption)
                                     .fontWeight(.semibold)
                                     .foregroundColor(.secondary)
@@ -1180,7 +1187,7 @@ struct MistakeQuestionCard: View {
         HStack(spacing: 8) {
             ProgressView()
                 .scaleEffect(0.8)
-            Text("Analyzing mistake with AI...")
+            Text(NSLocalizedString("mistakeReview.analyzingMistake", comment: ""))
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
@@ -1193,10 +1200,10 @@ struct MistakeQuestionCard: View {
     // Helper functions for error type display (updated for 3 types)
     private func errorDisplayName(for errorType: String) -> String {
         switch errorType {
-        case "execution_error": return "Execution Error"
-        case "conceptual_gap": return "Concept Gap"
-        case "needs_refinement": return "Needs Refinement"
-        default: return "Unknown Error"
+        case "execution_error": return NSLocalizedString("mistakeReview.errorType.executionError", comment: "")
+        case "conceptual_gap": return NSLocalizedString("mistakeReview.errorType.conceptualGap", comment: "")
+        case "needs_refinement": return NSLocalizedString("mistakeReview.errorType.needsRefinement", comment: "")
+        default: return NSLocalizedString("mistakeReview.errorType.unknown", comment: "")
         }
     }
 
@@ -1266,7 +1273,7 @@ struct PracticeQuestionsView: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
-                        Button("Done") {
+                        Button(NSLocalizedString("common.done", comment: "")) {
                             dismiss()
                         }
                     }
@@ -1276,7 +1283,7 @@ struct PracticeQuestionsView: View {
                         PracticePDFPreviewView(
                             questions: questions,
                             subject: subject,
-                            generationType: "Targeted Practice"
+                            generationType: NSLocalizedString("mistakeReview.targetedPractice", comment: "")
                         )
                     }
                 }
@@ -1316,11 +1323,11 @@ struct PracticeQuestionsView: View {
 
     private var headerSection: some View {
         VStack(spacing: 8) {
-            Text("Targeted Practice")
+            Text(NSLocalizedString("mistakeReview.targetedPractice", comment: ""))
                 .font(.title)
                 .fontWeight(.bold)
 
-            Text("\(questions.count) questions based on your mistakes")
+            Text(String(format: NSLocalizedString("mistakeReview.questionsBasedOnMistakes", comment: ""), questions.count))
                 .font(.subheadline)
                 .foregroundColor(.secondary)
         }
@@ -1382,11 +1389,11 @@ struct PracticeQuestionsView: View {
     private var progressIndicator: some View {
         if !gradedQuestions.isEmpty {
             HStack {
-                Text("Progress: \(gradedQuestions.count)/\(questions.count) answered")
+                Text(String(format: NSLocalizedString("mistakeReview.progressAnswered", comment: ""), gradedQuestions.count, questions.count))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                 Spacer()
-                Text("\(correctCount)/\(gradedQuestions.count) correct")
+                Text(String(format: NSLocalizedString("mistakeReview.correctCount", comment: ""), correctCount, gradedQuestions.count))
                     .font(.subheadline)
                     .fontWeight(.semibold)
                     .foregroundColor(correctCount == gradedQuestions.count ? DesignTokens.Colors.success : DesignTokens.Colors.warning)
@@ -1436,7 +1443,7 @@ struct PracticeQuestionsView: View {
                 } else {
                     Image(systemName: "doc.fill")
                         .font(.title3)
-                    Text("Export to PDF")
+                    Text(NSLocalizedString("mistakeReview.exportToPDF", comment: ""))
                         .font(.body)
                         .fontWeight(.semibold)
                 }
@@ -1563,9 +1570,9 @@ struct PracticeQuestionsView: View {
             // Instant grade result (curve to 100% correct if >= 90%)
             let instantFeedback: String
             if matchResult.isExactMatch {
-                instantFeedback = "Perfect! Your answer is exactly correct."
+                instantFeedback = NSLocalizedString("mistakeReview.feedbackExact", comment: "")
             } else {
-                instantFeedback = "Correct! Your answer matches the expected solution."
+                instantFeedback = NSLocalizedString("mistakeReview.feedbackCorrect", comment: "")
             }
 
             await MainActor.run {
@@ -1686,7 +1693,7 @@ struct PracticeQuestionsView: View {
                     .font(.system(size: 56, weight: .bold))
                     .foregroundColor(DesignTokens.Colors.success)
 
-                Text("Accuracy")
+                Text(NSLocalizedString("mistakeReview.accuracy", comment: ""))
                     .font(.headline)
                     .foregroundColor(.secondary)
 
@@ -1704,7 +1711,7 @@ struct PracticeQuestionsView: View {
                                 .font(.title2)
                                 .fontWeight(.bold)
                         }
-                        Text("Correct")
+                        Text(NSLocalizedString("mistakeReview.correct", comment: ""))
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -1718,7 +1725,7 @@ struct PracticeQuestionsView: View {
                                 .font(.title2)
                                 .fontWeight(.bold)
                         }
-                        Text("Incorrect")
+                        Text(NSLocalizedString("mistakeReview.incorrect", comment: ""))
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -1736,7 +1743,7 @@ struct PracticeQuestionsView: View {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.title2)
                         .foregroundColor(DesignTokens.Colors.success)
-                    Text("Progress Already Marked")
+                    Text(NSLocalizedString("mistakeReview.progressAlreadyMarked", comment: ""))
                         .font(.headline)
                         .foregroundColor(DesignTokens.Colors.success)
                 }
@@ -1779,7 +1786,7 @@ struct PracticeQuestionsView: View {
                 // Instruction text (fades as slider moves)
                 HStack {
                     Spacer()
-                    Text("Slide to Mark Progress")
+                    Text(NSLocalizedString("mistakeReview.slideToMarkProgress", comment: ""))
                         .font(.headline)
                         .fontWeight(.semibold)
                         .foregroundColor(.primary.opacity(0.6))
@@ -1981,7 +1988,7 @@ struct PracticeQuestionsView: View {
                     .animation(.spring(response: 0.6, dampingFraction: 0.5), value: showingMasteryCelebration)
 
                 VStack(spacing: 12) {
-                    Text("You Mastered a Weakness!")
+                    Text(NSLocalizedString("mistakeReview.masteredWeakness", comment: ""))
                         .font(.title)
                         .fontWeight(.bold)
                         .foregroundColor(.primary)
@@ -1993,7 +2000,7 @@ struct PracticeQuestionsView: View {
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
 
-                    Text("Keep up the great work!")
+                    Text(NSLocalizedString("mistakeReview.keepUpGreatWork", comment: ""))
                         .font(.body)
                         .foregroundColor(.secondary)
                 }
@@ -2002,7 +2009,7 @@ struct PracticeQuestionsView: View {
                 Button(action: {
                     dismissCelebration()
                 }) {
-                    Text("Continue")
+                    Text(NSLocalizedString("common.continue", comment: ""))
                         .font(.headline)
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
@@ -2097,7 +2104,7 @@ struct PracticeQuestionCard: View {
                     }
 
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Question \(questionNumber)")
+                        Text(String(format: NSLocalizedString("mistakeReview.questionNumber", comment: ""), questionNumber))
                             .font(.caption)
                             .foregroundColor(.secondary)
 
@@ -2154,7 +2161,7 @@ struct PracticeQuestionCard: View {
                 // Answer input
                 if !isGraded {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Your Answer:")
+                        Text(NSLocalizedString("mistakeReview.yourAnswerColon", comment: ""))
                             .font(.subheadline)
                             .fontWeight(.semibold)
 
@@ -2218,7 +2225,7 @@ struct PracticeQuestionCard: View {
                                         .scaleEffect(0.8)
                                 } else {
                                     Image(systemName: "checkmark.circle")
-                                    Text("Submit Answer")
+                                    Text(NSLocalizedString("mistakeReview.submitAnswer", comment: ""))
                                 }
                             }
                             .font(.subheadline)
@@ -2240,7 +2247,7 @@ struct PracticeQuestionCard: View {
                                 .foregroundColor(.blue)
                                 .font(.system(size: 16))
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("Your Answer")
+                                Text(NSLocalizedString("mistakeReview.yourAnswer", comment: ""))
                                     .font(.caption)
                                     .fontWeight(.semibold)
                                     .foregroundColor(.secondary)
@@ -2259,7 +2266,7 @@ struct PracticeQuestionCard: View {
                                     .foregroundColor(DesignTokens.Colors.warning)
                                     .font(.system(size: 16))
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text("Correct Answer")
+                                    Text(NSLocalizedString("mistakeReview.correctAnswer", comment: ""))
                                         .font(.caption)
                                         .fontWeight(.semibold)
                                         .foregroundColor(.secondary)
@@ -2280,7 +2287,7 @@ struct PracticeQuestionCard: View {
                                     .font(.system(size: 16))
                                 VStack(alignment: .leading, spacing: 4) {
                                     HStack(spacing: 6) {
-                                        Text("Explanation")
+                                        Text(NSLocalizedString("mistakeReview.explanation", comment: ""))
                                             .font(.caption)
                                             .fontWeight(.semibold)
                                             .foregroundColor(.secondary)
@@ -2290,7 +2297,7 @@ struct PracticeQuestionCard: View {
                                             HStack(spacing: 3) {
                                                 Image(systemName: "bolt.fill")
                                                     .font(.system(size: 8))
-                                                Text("Instant")
+                                                Text(NSLocalizedString("mistakeReview.gradingInstant", comment: ""))
                                                     .font(.system(size: 9))
                                                     .fontWeight(.semibold)
                                             }
@@ -2305,7 +2312,7 @@ struct PracticeQuestionCard: View {
                                             HStack(spacing: 3) {
                                                 Image(systemName: "brain.head.profile")
                                                     .font(.system(size: 8))
-                                                Text("AI Analyzed")
+                                                Text(NSLocalizedString("mistakeReview.gradingAI", comment: ""))
                                                     .font(.system(size: 9))
                                                     .fontWeight(.semibold)
                                             }
@@ -2339,13 +2346,13 @@ struct PracticeQuestionCard: View {
                                     } else if isArchived {
                                         Image(systemName: "checkmark.circle.fill")
                                             .font(.body)
-                                        Text("Archived")
+                                        Text(NSLocalizedString("mistakeReview.archived", comment: ""))
                                             .font(.subheadline)
                                             .fontWeight(.semibold)
                                     } else {
                                         Image(systemName: "books.vertical.fill")
                                             .font(.body)
-                                        Text("Archive Question")
+                                        Text(NSLocalizedString("mistakeReview.archiveQuestion", comment: ""))
                                             .font(.subheadline)
                                             .fontWeight(.semibold)
                                     }
@@ -2371,7 +2378,7 @@ struct PracticeQuestionCard: View {
                                 HStack(spacing: 12) {
                                     Image(systemName: "bubble.left.and.bubble.right.fill")
                                         .font(.body)
-                                    Text("Follow up")
+                                    Text(NSLocalizedString("mistakeReview.followUp", comment: ""))
                                         .font(.body)
                                         .fontWeight(.semibold)
                                 }
@@ -2420,10 +2427,10 @@ struct PracticeQuestionCard: View {
             // Reset submitting state when grade result arrives
             isSubmitting = false
         }
-        .alert("Question Archived", isPresented: $showingArchiveSuccess) {
-            Button("OK", role: .cancel) { }
+        .alert(NSLocalizedString("mistakeReview.questionArchived", comment: ""), isPresented: $showingArchiveSuccess) {
+            Button(NSLocalizedString("common.ok", comment: ""), role: .cancel) { }
         } message: {
-            Text("This practice question has been saved to your archive for future review.")
+            Text(NSLocalizedString("mistakeReview.questionArchivedMessage", comment: ""))
         }
     }
 
@@ -2576,7 +2583,7 @@ struct PracticeTFInput: View {
                           "checkmark.circle.fill" : "circle")
                         .foregroundColor(selectedOption == "True" ? .green : .gray)
                         .font(.title3)
-                    Text("True")
+                    Text(NSLocalizedString("common.true", comment: ""))
                         .fontWeight(.semibold)
                 }
                 .padding()
@@ -2598,7 +2605,7 @@ struct PracticeTFInput: View {
                           "checkmark.circle.fill" : "circle")
                         .foregroundColor(selectedOption == "False" ? .red : .gray)
                         .font(.title3)
-                    Text("False")
+                    Text(NSLocalizedString("common.false", comment: ""))
                         .fontWeight(.semibold)
                 }
                 .padding()
@@ -2768,11 +2775,11 @@ struct PracticeConfigurationSheet: View {
                 VStack(alignment: .leading, spacing: 24) {
                     // Header
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Configure Practice Questions")
+                        Text(NSLocalizedString("mistakeReview.configurePractice", comment: ""))
                             .font(.title2)
                             .fontWeight(.bold)
 
-                        Text("Based on \(mistakeCount) selected mistake\(mistakeCount == 1 ? "" : "s")")
+                        Text(String(format: NSLocalizedString("mistakeReview.basedOnMistakes", comment: ""), mistakeCount))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
@@ -2780,11 +2787,11 @@ struct PracticeConfigurationSheet: View {
 
                     // Question Types Section
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Question Types")
+                        Text(NSLocalizedString("mistakeReview.questionTypes", comment: ""))
                             .font(.headline)
                             .padding(.horizontal)
 
-                        Text("Select which types of questions to generate:")
+                        Text(NSLocalizedString("mistakeReview.selectQuestionTypes", comment: ""))
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .padding(.horizontal)
@@ -2807,7 +2814,7 @@ struct PracticeConfigurationSheet: View {
 
                     // Difficulty Section
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Difficulty Level")
+                        Text(NSLocalizedString("mistakeReview.difficultyLevel", comment: ""))
                             .font(.headline)
                             .padding(.horizontal)
 
@@ -2828,7 +2835,7 @@ struct PracticeConfigurationSheet: View {
                     // Question Count Section
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
-                            Text("Number of Questions")
+                            Text(NSLocalizedString("mistakeReview.numberOfQuestions", comment: ""))
                                 .font(.headline)
                             Spacer()
                             Text("\(questionCount)")
@@ -2846,11 +2853,11 @@ struct PracticeConfigurationSheet: View {
                             .padding(.horizontal)
 
                         HStack {
-                            Text("1 question")
+                            Text(NSLocalizedString("mistakeReview.sliderMin", comment: ""))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                             Spacer()
-                            Text("10 questions")
+                            Text(NSLocalizedString("mistakeReview.sliderMax", comment: ""))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -2885,7 +2892,7 @@ struct PracticeConfigurationSheet: View {
                         HStack {
                             Image(systemName: "brain.head.profile")
                                 .font(.title3)
-                            Text("Generate \(questionCount) Questions")
+                            Text(String(format: NSLocalizedString("mistakeReview.generateCount", comment: ""), questionCount))
                                 .font(.body)
                                 .fontWeight(.semibold)
                         }
@@ -2900,11 +2907,11 @@ struct PracticeConfigurationSheet: View {
                 }
                 .padding(.vertical)
             }
-            .navigationTitle("Practice Configuration")
+            .navigationTitle(NSLocalizedString("mistakeReview.practiceConfiguration", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
+                    Button(NSLocalizedString("common.cancel", comment: "")) {
                         dismiss()
                     }
                 }
@@ -3000,13 +3007,13 @@ struct DifficultyOption: View {
     private var difficultyDescription: String {
         switch difficulty {
         case .beginner:
-            return "Foundation-building questions for new concepts"
+            return NSLocalizedString("difficulty.desc.beginner", comment: "")
         case .intermediate:
-            return "Balanced questions for practice and review"
+            return NSLocalizedString("difficulty.desc.intermediate", comment: "")
         case .advanced:
-            return "Challenging questions to push understanding"
+            return NSLocalizedString("difficulty.desc.advanced", comment: "")
         case .adaptive:
-            return "AI-adjusted difficulty based on your mistakes"
+            return NSLocalizedString("difficulty.desc.adaptive", comment: "")
         }
     }
 }

@@ -225,14 +225,14 @@ enum QuestionType: String, Codable {
 
     var displayName: String {
         switch self {
-        case .multipleChoice: return "Multiple Choice"
-        case .trueFalse: return "True/False"
-        case .fillInBlank: return "Fill in the Blank"
-        case .shortAnswer: return "Short Answer"
-        case .longAnswer: return "Long Answer"
-        case .calculation: return "Calculation"
-        case .matching: return "Matching"
-        case .unknown: return "Unknown"
+        case .multipleChoice: return NSLocalizedString("questionType.multipleChoice", value: "Multiple Choice", comment: "")
+        case .trueFalse: return NSLocalizedString("questionType.trueFalse", value: "True/False", comment: "")
+        case .fillInBlank: return NSLocalizedString("questionType.fillBlank", value: "Fill in the Blank", comment: "")
+        case .shortAnswer: return NSLocalizedString("questionType.shortAnswer", value: "Short Answer", comment: "")
+        case .longAnswer: return NSLocalizedString("questionType.longAnswer", value: "Long Answer", comment: "")
+        case .calculation: return NSLocalizedString("questionType.calculation", value: "Calculation", comment: "")
+        case .matching: return NSLocalizedString("questionType.matching", value: "Matching", comment: "")
+        case .unknown: return NSLocalizedString("questionType.unknown", value: "Unknown", comment: "")
         }
     }
 
@@ -365,6 +365,7 @@ struct BackendQuestion: Decodable {  // Changed from Codable to Decodable
     let subquestions: [BackendQuestion]?
     let subquestionNumber: String?
     let parentSummary: BackendParentSummary?
+    let needImage: Bool?  // Pro Mode only: true if question references a diagram/figure
 
     enum CodingKeys: String, CodingKey {
         case questionNumber = "question_number"
@@ -386,6 +387,7 @@ struct BackendQuestion: Decodable {  // Changed from Codable to Decodable
         case subquestions
         case subquestionNumber = "subquestion_number"
         case parentSummary = "parent_summary"
+        case needImage = "need_image"
     }
 
     // Custom decoding to handle question_number as Int or String (e.g., "1a", "2b")
@@ -510,6 +512,7 @@ struct BackendQuestion: Decodable {  // Changed from Codable to Decodable
         subquestions = try? container.decode([BackendQuestion].self, forKey: .subquestions)
         subquestionNumber = try? container.decode(String.self, forKey: .subquestionNumber)
         parentSummary = try? container.decode(BackendParentSummary.self, forKey: .parentSummary)
+        needImage = try? container.decode(Bool.self, forKey: .needImage)
     }
 }
 

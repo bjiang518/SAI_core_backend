@@ -270,7 +270,7 @@ struct UnifiedLibraryView: View {
                                 }
 
                                 ForEach(availableSubjects, id: \.self) { subject in
-                                    Button(subject) {
+                                    Button(NSLocalizedString("subject.\(subject.lowercased().replacingOccurrences(of: " ", with: ""))", value: subject, comment: "")) {
                                         selectedSubject = subject
                                     }
                                 }
@@ -410,7 +410,7 @@ struct UnifiedLibraryView: View {
                         Button {
                             selectedSubject = subject
                         } label: {
-                            Label(subject, systemImage: "book.fill")
+                            Label(NSLocalizedString("subject.\(subject.lowercased().replacingOccurrences(of: " ", with: ""))", value: subject, comment: ""), systemImage: "book.fill")
                         }
                     }
                 } label: {
@@ -815,7 +815,7 @@ struct LibraryItemRow: View {
 
             // ✅ Subject tag at bottom (more opaque background for better contrast)
             HStack {
-                Text(item.subject)
+                Text(NSLocalizedString("subject.\(item.subject.lowercased().replacingOccurrences(of: " ", with: ""))", value: item.subject, comment: ""))
                     .font(.caption)
                     .fontWeight(.semibold)
                     .padding(.horizontal, 8)
@@ -1121,7 +1121,7 @@ struct AdvancedSearchView: View {
             Picker(NSLocalizedString("library.advancedSearch.subject", comment: ""), selection: selectedSubjectBinding) {
                 Text(NSLocalizedString("library.advancedSearch.allSubjects", comment: "")).tag("All")
                 ForEach(availableSubjects, id: \.self) { subject in
-                    Text(subject).tag(subject)
+                    Text(NSLocalizedString("subject.\(subject.lowercased().replacingOccurrences(of: " ", with: ""))", value: subject, comment: "")).tag(subject)
                 }
             }
             .pickerStyle(.menu)

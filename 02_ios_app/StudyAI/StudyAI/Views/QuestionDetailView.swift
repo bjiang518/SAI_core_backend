@@ -557,7 +557,7 @@ struct GeneratedQuestionDetailView: View {
                     HStack(spacing: 8) {
                         Image(systemName: hasMarkedProgress ? "checkmark.circle.fill" : "chart.line.uptrend.xyaxis")
                             .font(.body)
-                        Text(hasMarkedProgress ? "Marked" : "Mark Progress")
+                        Text(hasMarkedProgress ? NSLocalizedString("questionDetail.marked", comment: "") : NSLocalizedString("questionDetail.markProgress", comment: ""))
                             .font(.subheadline)
                             .fontWeight(.semibold)
                     }
@@ -587,7 +587,7 @@ struct GeneratedQuestionDetailView: View {
                 HStack(spacing: 12) {
                     Image(systemName: "bubble.left.and.bubble.right.fill")
                         .font(.body)
-                    Text("Follow up")
+                    Text(NSLocalizedString("questionDetail.followUp", comment: ""))
                         .font(.body)
                         .fontWeight(.semibold)
                 }
@@ -616,7 +616,7 @@ struct GeneratedQuestionDetailView: View {
                             HStack(spacing: 8) {
                                 Image(systemName: "arrow.left.circle.fill")
                                     .font(.title3)
-                                Text("Previous")
+                                Text(NSLocalizedString("questionDetail.previous", comment: ""))
                                     .font(.body)
                                     .fontWeight(.semibold)
                             }
@@ -640,7 +640,7 @@ struct GeneratedQuestionDetailView: View {
                     if hasNextQuestion {
                         Button(action: navigateToNext) {
                             HStack(spacing: 8) {
-                                Text("Next")
+                                Text(NSLocalizedString("questionDetail.next", comment: ""))
                                     .font(.body)
                                     .fontWeight(.semibold)
                                 Image(systemName: "arrow.right.circle.fill")

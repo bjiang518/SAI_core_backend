@@ -352,14 +352,16 @@ struct QuestionPreviewRow: View {
                                 id: "1a",
                                 questionText: "2 + 3 = ?",
                                 studentAnswer: "5",
-                                questionType: "short_answer"
+                                questionType: "short_answer",
+                                needImage: nil
                             )
                         ],
                         questionText: nil,
                         studentAnswer: nil,
                         hasImage: false,
                         imageRegion: nil,
-                        questionType: "parent"
+                        questionType: "parent",
+                        needImage: nil
                     ),
                     ProgressiveQuestion(
                         id: "2",  // Changed from Int to String
@@ -373,7 +375,8 @@ struct QuestionPreviewRow: View {
                         studentAnswer: "Paris",
                         hasImage: false,
                         imageRegion: nil,
-                        questionType: "short_answer"
+                        questionType: "short_answer",
+                        needImage: nil
                     )
                 ],
                 processingTimeMs: 1200,

@@ -11,6 +11,7 @@
 
 const logger = require('../utils/logger');
 const { getInsightsService } = require('./openai-insights-service');
+const { getT } = require('./report-i18n');
 
 class SummaryReportGenerator {
     /**
@@ -20,6 +21,9 @@ class SummaryReportGenerator {
         if (!markdown) return '';
 
         let html = markdown;
+
+        // Strip ```html ... ``` or ``` ... ``` code fences
+        html = html.replace(/^```(?:html|markdown|md)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
 
         // Convert **bold** to <strong>
         html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
@@ -68,7 +72,7 @@ class SummaryReportGenerator {
      * @param {Date} startDate - Period start date
      * @returns {String} HTML report
      */
-    async generateSummaryReport(activityData, improvementData, mentalHealthData, studentName = '[Student]', studentAge = 7, userId = null, period = 'weekly', startDate = new Date()) {
+    async generateSummaryReport(activityData, improvementData, mentalHealthData, studentName = '[Student]', studentAge = 7, userId = null, period = 'weekly', startDate = new Date(), language = 'en') {
         logger.info(`📋 Generating ${period} Summary Report...`);
 
         try {
@@ -87,6 +91,7 @@ class SummaryReportGenerator {
                     studentName,
                     studentAge,
                     period,
+                    language,
                     startDate
                 };
 
@@ -114,7 +119,7 @@ class SummaryReportGenerator {
                 aiInsights = null; // Report will render without AI insights
             }
 
-            const html = this.generateSummaryHTML(analysis, period, aiInsights);
+            const html = this.generateSummaryHTML(analysis, period, aiInsights, language);
 
             logger.info(`✅ Summary Report generated`);
 
@@ -307,19 +312,13 @@ class SummaryReportGenerator {
      * @param {String} period - 'weekly' or 'monthly'
      * @param {Array} aiInsights - AI-generated insights (optional)
      */
-    generateSummaryHTML(analysis, period = 'weekly', aiInsights = null) {
-        const periodLabel = period === 'monthly' ? 'Monthly' : 'Weekly';
-        const timePhrase = period === 'monthly' ? 'Month' : 'Week';
+    generateSummaryHTML(analysis, period = 'weekly', aiInsights = null, language = 'en') {
+        const t = getT(language);
+        const ts = t.summary;
         const toneColors = {
             positive: '#28A745',
             balanced: '#FFC107',
             concerned: '#DC3545'
-        };
-
-        const toneEmojis = {
-            positive: '🌟',
-            balanced: '⚖️',
-            concerned: '⚠️'
         };
 
         const html = `
@@ -328,7 +327,7 @@ class SummaryReportGenerator {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${periodLabel} Summary Report</title>
+    <title>${ts.title(period)}</title>
 
     <!-- MathJax for LaTeX rendering -->
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
@@ -363,7 +362,7 @@ class SummaryReportGenerator {
 
         /* Flat header section */
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #FFB6A3 0%, #FF85C1 100%);
             color: white;
             padding: 20px 16px;
             border-radius: 8px;
@@ -396,7 +395,7 @@ class SummaryReportGenerator {
             color: #1a1a1a;
             margin-bottom: 10px;
             padding-bottom: 6px;
-            border-bottom: 2px solid #e2e8f0;
+            border-bottom: 2px solid #FFB6A3;
         }
 
         /* Tone badge - flat standalone */
@@ -410,18 +409,18 @@ class SummaryReportGenerator {
         }
 
         .tone-positive {
-            background: #f0fdf4;
-            color: #166534;
+            background: #f0fdf9;
+            color: #0f6b52;
         }
 
         .tone-balanced {
-            background: #fffbf0;
-            color: #92400e;
+            background: #fffde7;
+            color: #7a5c00;
         }
 
         .tone-concerned {
-            background: #fef2f2;
-            color: #dc2626;
+            background: #fff0f5;
+            color: #c0003c;
         }
 
         /* Main narrative - flat standalone */
@@ -450,43 +449,44 @@ class SummaryReportGenerator {
         }
 
         .stat {
-            background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%);
+            background: #fdf6ff;
             padding: 14px;
             border-radius: 8px;
             text-align: center;
+            border: 1px solid #e8d5f5;
         }
 
         .stat-value {
             font-size: 24px;
             font-weight: 700;
-            color: #667eea;
+            color: #7B4F9E;
         }
 
         .stat-label {
             font-size: 13px;
-            color: #64748b;
+            color: #4a4a4a;
             font-weight: 500;
             margin-top: 4px;
         }
 
         /* Win section - flat style */
         .win-section {
-            background: #f0fdf4;
+            background: #f0fdf9;
             padding: 14px;
             border-radius: 8px;
-            border-left: 4px solid #16a34a;
+            border-left: 4px solid #7FDBCA;
             margin-bottom: 12px;
         }
 
         .win-title {
-            color: #166534;
+            color: #0f6b52;
             font-weight: 600;
             margin-bottom: 6px;
             font-size: 16px;
         }
 
         .win-text {
-            color: #15803d;
+            color: #1a1a1a;
             font-size: 15px;
             line-height: 1.6;
         }
@@ -504,7 +504,7 @@ class SummaryReportGenerator {
             display: flex;
             gap: 12px;
             padding: 12px 0;
-            border-bottom: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e8d5f5;
         }
 
         .action-item:last-child {
@@ -525,11 +525,11 @@ class SummaryReportGenerator {
         }
 
         .action-priority-high .action-badge {
-            background: #dc2626;
+            background: #FF85C1;
         }
 
         .action-priority-medium .action-badge {
-            background: #ea580c;
+            background: #FFB6A3;
         }
 
         .action-text {
@@ -542,7 +542,7 @@ class SummaryReportGenerator {
 
         /* AI Insights - flat style */
         .ai-insight {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #C9A0DC 0%, #7EC8E3 100%);
             border-radius: 8px;
             padding: 16px;
             margin-bottom: 12px;
@@ -557,7 +557,7 @@ class SummaryReportGenerator {
         }
 
         .ai-insight p {
-            background: rgba(255, 255, 255, 0.95);
+            background: rgba(255, 255, 255, 0.97);
             border-radius: 6px;
             padding: 14px;
             color: #1a1a1a;
@@ -567,7 +567,7 @@ class SummaryReportGenerator {
         }
 
         .ai-insight ul {
-            background: rgba(255, 255, 255, 0.95);
+            background: rgba(255, 255, 255, 0.97);
             border-radius: 6px;
             padding: 14px 14px 14px 34px;
             color: #1a1a1a;
@@ -583,18 +583,18 @@ class SummaryReportGenerator {
         }
 
         .ai-insight strong {
-            color: #667eea;
+            color: #7B4F9E;
             font-weight: 700;
         }
 
         .ai-insight em {
             font-style: italic;
-            color: #4b5563;
+            color: #4a4a4a;
         }
 
         .footer {
             text-align: center;
-            color: #94a3b8;
+            color: #7B4F9E;
             font-size: 13px;
             padding: 12px 0;
         }
@@ -603,33 +603,33 @@ class SummaryReportGenerator {
 <body>
     <!-- Flat header -->
     <div class="header">
-        <h1>📋 ${periodLabel} Summary</h1>
-        <p>Complete Learning Overview for the ${timePhrase}</p>
+        <h1>${ts.title(period)}</h1>
+        <p>${ts.subtitle(period)}</p>
     </div>
 
     <!-- Quick stats -->
     <div class="quick-stats">
         <div class="stat">
             <div class="stat-value">${analysis.activityData.totalQuestions}</div>
-            <div class="stat-label">Questions</div>
+            <div class="stat-label">${ts.questions}</div>
         </div>
         <div class="stat">
             <div class="stat-value">${analysis.activityData.activeDays}</div>
-            <div class="stat-label">Active Days</div>
+            <div class="stat-label">${ts.activeDays}</div>
         </div>
         <div class="stat">
             <div class="stat-value">${Object.keys(analysis.activityData.subjectBreakdown).length}</div>
-            <div class="stat-label">Subjects</div>
+            <div class="stat-label">${ts.subjects}</div>
         </div>
         <div class="stat">
             <div class="stat-value">${analysis.mentalHealthData.emotionalWellbeing.redFlags.length}</div>
-            <div class="stat-label">Concerns</div>
+            <div class="stat-label">${ts.concerns}</div>
         </div>
     </div>
 
     <!-- Tone badge (flat - no wrapper) -->
     <div class="tone-badge tone-${analysis.overallTone}">
-        ${toneEmojis[analysis.overallTone]} ${analysis.overallTone.charAt(0).toUpperCase() + analysis.overallTone.slice(1)} ${timePhrase}
+        ${analysis.overallTone === 'positive' ? ts.tonePositive(period) : analysis.overallTone === 'balanced' ? ts.toneBalanced(period) : ts.toneConcerned(period)}
     </div>
 
     <!-- Narrative (flat - no wrapper) -->
@@ -640,27 +640,27 @@ class SummaryReportGenerator {
     ${aiInsights && aiInsights[0] ? `
     <!-- AI Insight 1: Student Profile (flat) -->
     <div class="ai-insight">
-        <div class="ai-insight-title">🤖 AI Insights: Student Profile</div>
+        <div class="ai-insight-title">${ts.aiStudentProfile}</div>
         ${this.markdownToHtml(aiInsights[0])}
     </div>
     ` : ''}
 
     <!-- Win (flat - no wrapper) -->
     <div class="win-section">
-        <div class="win-title">🎉 This ${timePhrase}'s Win</div>
+        <div class="win-title">${ts.win(period)}</div>
         <div class="win-text">${analysis.biggestWin}</div>
     </div>
 
     ${aiInsights && aiInsights[1] ? `
     <!-- AI Insight 2: Priority Actions (flat) -->
     <div class="ai-insight">
-        <div class="ai-insight-title">🤖 AI Insights: Priority Actions</div>
+        <div class="ai-insight-title">${ts.aiPriorityActions}</div>
         ${this.markdownToHtml(aiInsights[1])}
     </div>
     ` : ''}
 
     <!-- Action Items (flat) -->
-    <div class="action-items-title">📝 Action Items for Next ${timePhrase}</div>
+    <div class="action-items-title">${ts.actionItemsTitle(period)}</div>
     ${analysis.actionItems.map((item, i) => `
         <div class="action-item action-priority-${item.priority}">
             <div class="action-badge">${i + 1}</div>
@@ -669,7 +669,7 @@ class SummaryReportGenerator {
     `).join('')}
 
     <div class="footer">
-        Generated by StudyAI • ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+        ${t.generatedBy} • ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
     </div>
 </body>
 </html>

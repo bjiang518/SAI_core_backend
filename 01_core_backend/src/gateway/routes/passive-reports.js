@@ -115,7 +115,7 @@ module.exports = async function (fastify, opts) {
     }
   }, async (request, reply) => {
     const startTime = Date.now();
-    const { period, date_range } = request.body;
+    const { period, date_range, language } = request.body;
 
     try {
       // Authenticate user
@@ -188,7 +188,7 @@ module.exports = async function (fastify, opts) {
 
       // Generate reports
       logger.debug(`🚀 [DEBUG] Starting report generation...`);
-      const result = await reportGenerator.generateAllReports(userId, period, dateRange);
+      const result = await reportGenerator.generateAllReports(userId, period, dateRange, language);
 
       const duration = Date.now() - startTime;
 

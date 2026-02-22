@@ -14,7 +14,7 @@ struct CompactSubjectSelector: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Subjects")
+            Text(NSLocalizedString("mistakeReview.filter.subjectsLabel", comment: ""))
                 .font(.subheadline)
                 .fontWeight(.semibold)
                 .padding(.horizontal)
@@ -32,7 +32,7 @@ struct CompactSubjectSelector: View {
                                 }
                             }) {
                                 VStack(spacing: 8) {
-                                    Text(subject.subject)
+                                    Text(NSLocalizedString("subject.\(subject.subject.lowercased().replacingOccurrences(of: " ", with: ""))", value: subject.subject, comment: ""))
                                         .font(isSelected ? .title3 : .subheadline)
                                         .fontWeight(isSelected ? .bold : .medium)
                                         .foregroundColor(isSelected ? .primary : .secondary)

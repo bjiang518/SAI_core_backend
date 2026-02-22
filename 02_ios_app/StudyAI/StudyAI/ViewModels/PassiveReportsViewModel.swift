@@ -200,6 +200,8 @@ class RefreshCoordinator {
 class PassiveReportsViewModel: ObservableObject {
     // MARK: - Published Properties
 
+    @AppStorage("appLanguage") private var appLanguage: String = "en"
+
     @Published var weeklyBatches: [PassiveReportBatch] = []
     @Published var monthlyBatches: [PassiveReportBatch] = []
     @Published var selectedBatch: PassiveReportBatch?
@@ -575,7 +577,8 @@ class PassiveReportsViewModel: ObservableObject {
             }
 
             let requestBody: [String: Any] = [
-                "period": period
+                "period": period,
+                "language": appLanguage
             ]
             request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
 
