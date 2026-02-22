@@ -3355,6 +3355,74 @@ class NetworkService: ObservableObject {
         }
     }
 
+    // MARK: - Password Reset
+
+    /// Send password reset code to user's email
+    func sendPasswordResetCode(email: String) async -> (success: Bool, message: String, statusCode: Int?) {
+        let url = URL(string: "\(baseURL)/api/auth/send-password-reset-code")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 30.0
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: ["email": email])
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let httpResponse = response as? HTTPURLResponse,
+               let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                let message = json["message"] as? String ?? "Reset code sent"
+                return (httpResponse.statusCode == 200, message, httpResponse.statusCode)
+            }
+            return (false, "Invalid response", nil)
+        } catch {
+            return (false, "Failed to send reset code: \(error.localizedDescription)", nil)
+        }
+    }
+
+    /// Verify password reset code
+    func verifyPasswordResetCode(email: String, code: String) async -> (success: Bool, message: String, statusCode: Int?) {
+        let url = URL(string: "\(baseURL)/api/auth/verify-password-reset-code")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 30.0
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: ["email": email, "code": code])
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let httpResponse = response as? HTTPURLResponse,
+               let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                let message = json["message"] as? String ?? "Code verified"
+                return (httpResponse.statusCode == 200, message, httpResponse.statusCode)
+            }
+            return (false, "Invalid response", nil)
+        } catch {
+            return (false, "Verification failed: \(error.localizedDescription)", nil)
+        }
+    }
+
+    /// Reset password with verified code
+    func resetPassword(email: String, code: String, newPassword: String) async -> (success: Bool, message: String, statusCode: Int?) {
+        let url = URL(string: "\(baseURL)/api/auth/reset-password")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 30.0
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: ["email": email, "code": code, "newPassword": newPassword])
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let httpResponse = response as? HTTPURLResponse,
+               let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                let message = json["message"] as? String ?? "Password reset"
+                return (httpResponse.statusCode == 200, message, httpResponse.statusCode)
+            }
+            return (false, "Invalid response", nil)
+        } catch {
+            return (false, "Password reset failed: \(error.localizedDescription)", nil)
+        }
+    }
+
     // MARK: - Google Authentication
     func googleLogin(idToken: String, accessToken: String?, name: String, email: String, profileImageUrl: String?) async -> (success: Bool, message: String, token: String?, userData: [String: Any]?, statusCode: Int?) {
         print("🔐 Google authentication with Railway backend...")

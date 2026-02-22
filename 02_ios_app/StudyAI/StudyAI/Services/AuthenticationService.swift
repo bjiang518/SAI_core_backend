@@ -452,6 +452,56 @@ final class AuthenticationService: ObservableObject {
         }
     }
 
+    // MARK: - Password Reset
+
+    /// Send password reset code to user's email
+    func sendPasswordResetCode(email: String) async throws {
+        await MainActor.run {
+            isLoading = true
+            errorMessage = nil
+        }
+        defer {
+            Task { @MainActor in isLoading = false }
+        }
+        let result = await networkService.sendPasswordResetCode(email: email)
+        if !result.success {
+            let specificError = mapBackendError(statusCode: result.statusCode ?? 0, message: result.message)
+            throw specificError
+        }
+    }
+
+    /// Verify password reset code
+    func verifyPasswordResetCode(email: String, code: String) async throws {
+        await MainActor.run {
+            isLoading = true
+            errorMessage = nil
+        }
+        defer {
+            Task { @MainActor in isLoading = false }
+        }
+        let result = await networkService.verifyPasswordResetCode(email: email, code: code)
+        if !result.success {
+            let specificError = mapBackendError(statusCode: result.statusCode ?? 0, message: result.message)
+            throw specificError
+        }
+    }
+
+    /// Reset password with verified code
+    func resetPassword(email: String, code: String, newPassword: String) async throws {
+        await MainActor.run {
+            isLoading = true
+            errorMessage = nil
+        }
+        defer {
+            Task { @MainActor in isLoading = false }
+        }
+        let result = await networkService.resetPassword(email: email, code: code, newPassword: newPassword)
+        if !result.success {
+            let specificError = mapBackendError(statusCode: result.statusCode ?? 0, message: result.message)
+            throw specificError
+        }
+    }
+
     // MARK: - Apple Sign In
 
     func signInWithApple() async throws {

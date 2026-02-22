@@ -95,6 +95,52 @@ class AuthRoutes {
       }
     }, this.resendVerificationCode.bind(this));
 
+    // Password reset endpoints
+    this.fastify.post('/api/auth/send-password-reset-code', {
+      schema: {
+        description: 'Send password reset code to email',
+        tags: ['Authentication', 'Password Reset'],
+        body: {
+          type: 'object',
+          required: ['email'],
+          properties: {
+            email: { type: 'string', format: 'email' }
+          }
+        }
+      }
+    }, this.sendPasswordResetCode.bind(this));
+
+    this.fastify.post('/api/auth/verify-password-reset-code', {
+      schema: {
+        description: 'Verify password reset code',
+        tags: ['Authentication', 'Password Reset'],
+        body: {
+          type: 'object',
+          required: ['email', 'code'],
+          properties: {
+            email: { type: 'string', format: 'email' },
+            code: { type: 'string', minLength: 6, maxLength: 6 }
+          }
+        }
+      }
+    }, this.verifyPasswordResetCode.bind(this));
+
+    this.fastify.post('/api/auth/reset-password', {
+      schema: {
+        description: 'Reset password with verified code',
+        tags: ['Authentication', 'Password Reset'],
+        body: {
+          type: 'object',
+          required: ['email', 'code', 'newPassword'],
+          properties: {
+            email: { type: 'string', format: 'email' },
+            code: { type: 'string', minLength: 6, maxLength: 6 },
+            newPassword: { type: 'string', minLength: 6 }
+          }
+        }
+      }
+    }, this.resetPassword.bind(this));
+
     // Google OAuth login endpoint
     this.fastify.post('/api/auth/google', {
       schema: {
@@ -1630,6 +1676,154 @@ class AuthRoutes {
         message: 'Failed to resend verification code',
         error: error.message
       });
+    }
+  }
+
+  // ==============================
+  // Password Reset Methods
+  // ==============================
+
+  async sendPasswordResetCode(request, reply) {
+    try {
+      const { email } = request.body;
+      this.fastify.log.info(`🔑 === SEND PASSWORD RESET CODE === ${PIIMasking.maskEmail(email)}`);
+
+      // Look up user — return generic success to avoid leaking user existence
+      const user = await db.getUserByEmail(email);
+      if (!user) {
+        this.fastify.log.info(`🔑 Password reset requested for non-existent email: ${PIIMasking.maskEmail(email)}`);
+        return reply.send({ success: true, message: 'If an account exists with this email, a reset code has been sent.', expiresIn: 600 });
+      }
+
+      // Generate 6-digit code
+      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+      await db.storeVerificationCode(email, verificationCode, user.name || 'User', expiresAt);
+
+      // Send password reset email
+      await this.sendPasswordResetEmail(email, user.name || 'User', verificationCode);
+
+      this.fastify.log.info(`✅ Password reset code sent to: ${PIIMasking.maskEmail(email)}`);
+
+      return reply.send({ success: true, message: 'If an account exists with this email, a reset code has been sent.', expiresIn: 600 });
+    } catch (error) {
+      this.fastify.log.error(`❌ sendPasswordResetCode error:`, error);
+      return reply.status(500).send({ success: false, message: 'Failed to send reset code. Please try again.' });
+    }
+  }
+
+  async verifyPasswordResetCode(request, reply) {
+    try {
+      const { email, code } = request.body;
+      this.fastify.log.info(`🔑 === VERIFY PASSWORD RESET CODE === ${PIIMasking.maskEmail(email)}`);
+
+      const isValid = await db.verifyCode(email, code);
+
+      if (!isValid) {
+        return reply.status(400).send({ success: false, message: 'Invalid or expired code. Please try again.' });
+      }
+
+      return reply.send({ success: true, message: 'Code verified successfully.' });
+    } catch (error) {
+      this.fastify.log.error(`❌ verifyPasswordResetCode error:`, error);
+      return reply.status(500).send({ success: false, message: 'Verification failed. Please try again.' });
+    }
+  }
+
+  async resetPassword(request, reply) {
+    try {
+      const { email, code, newPassword } = request.body;
+      this.fastify.log.info(`🔑 === RESET PASSWORD === ${PIIMasking.maskEmail(email)}`);
+
+      if (!newPassword || newPassword.length < 6) {
+        return reply.status(400).send({ success: false, message: 'Password must be at least 6 characters.' });
+      }
+
+      // Re-verify code to prevent skipping the verify step
+      const isValid = await db.verifyCode(email, code);
+      if (!isValid) {
+        return reply.status(400).send({ success: false, message: 'Invalid or expired code. Please request a new code.' });
+      }
+
+      const updated = await db.updateUserPassword(email, newPassword);
+      if (!updated) {
+        return reply.status(404).send({ success: false, message: 'Account not found.' });
+      }
+
+      // Invalidate the reset code
+      await db.deleteVerificationCode(email);
+
+      this.fastify.log.info(`✅ Password reset successful for: ${PIIMasking.maskEmail(email)}`);
+
+      return reply.send({ success: true, message: 'Password reset successfully.' });
+    } catch (error) {
+      this.fastify.log.error(`❌ resetPassword error:`, error);
+      return reply.status(500).send({ success: false, message: 'Password reset failed. Please try again.' });
+    }
+  }
+
+  async sendPasswordResetEmail(email, name, code) {
+    const resendApiKey = process.env.RESEND_API_KEY;
+    const fromEmail = process.env.EMAIL_FROM || 'StudyAI <noreply@study-mates.net>';
+
+    if (!resendApiKey) {
+      this.fastify.log.warn('⚠️ Resend API not configured - logging password reset code to console');
+      this.fastify.log.info(`
+📧 ===== PASSWORD RESET CODE =====
+To: ${email}
+Subject: Reset your Study Mates password
+
+Hi ${name},
+
+Your password reset code is: ${code}
+
+This code will expire in 10 minutes.
+
+If you didn't request a password reset, please ignore this email.
+
+Best regards,
+The Study Mates Team
+=====================================
+      `);
+      return;
+    }
+
+    try {
+      const { Resend } = require('resend');
+      const resend = new Resend(resendApiKey);
+
+      const { data, error } = await resend.emails.send({
+        from: fromEmail,
+        to: [email],
+        subject: 'Reset your Study Mates password',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #2563eb;">Reset Your Password</h2>
+            <p>Hi ${name},</p>
+            <p>We received a request to reset your Study Mates password.</p>
+            <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; text-align: center; margin: 30px 0;">
+              <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px;">Your password reset code is:</p>
+              <p style="font-size: 32px; font-weight: bold; color: #2563eb; letter-spacing: 8px; margin: 10px 0;">${code}</p>
+              <p style="margin: 10px 0 0 0; color: #6b7280; font-size: 14px;">This code will expire in 10 minutes</p>
+            </div>
+            <p style="color: #6b7280; font-size: 14px;">If you didn't request a password reset, please ignore this email. Your password will remain unchanged.</p>
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+            <p style="color: #9ca3af; font-size: 12px; text-align: center;">Best regards,<br>The Study Mates Team</p>
+          </div>
+        `,
+        text: `Hi ${name},\n\nWe received a request to reset your Study Mates password.\n\nYour password reset code is: ${code}\n\nThis code will expire in 10 minutes.\n\nIf you didn't request a password reset, please ignore this email.\n\nBest regards,\nThe Study Mates Team`
+      });
+
+      if (error) {
+        this.fastify.log.error(`❌ Resend API error:`, error);
+        throw new Error(`Resend API error: ${error.message}`);
+      }
+
+      this.fastify.log.info(`✅ Password reset email sent to: ${PIIMasking.maskEmail(email)}, Resend ID: ${data?.id}`);
+    } catch (error) {
+      this.fastify.log.error(`❌ Failed to send password reset email:`, error);
+      throw new Error('Failed to send password reset email. Please try again later.');
     }
   }
 

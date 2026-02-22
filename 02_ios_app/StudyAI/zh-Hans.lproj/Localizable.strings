@@ -299,6 +299,17 @@
 "emailVerification.wrongEmail" = "电子郵件错误？";
 "emailVerification.change" = "更改";
 
+// Password Reset
+"forgot_password" = "忘记密码？";
+"reset_password_title" = "重置密码";
+"reset_password_email_prompt" = "输入您的邮箱以接收重置码";
+"send_reset_code" = "发送重置码";
+"reset_code_sent" = "6位重置码已发送至您的邮箱";
+"new_password" = "新密码";
+"confirm_new_password" = "确认新密码";
+"reset_password_button" = "重置密码";
+"password_reset_success" = "密码已重置成功。请重新登录。";
+
 // Account Password Management
 "accountPassword.title" = "帐户密码";
 "accountPassword.subtitle" = "更改您的帐户登入密码";

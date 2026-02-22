@@ -412,12 +412,15 @@
 		7BEC07DE2F478BFA00B6E573 /* UnifiedChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07DD2F478BFA00B6E573 /* UnifiedChatMessage.swift */; };
 		7BEC07DF2F478BFA00B6E573 /* UnifiedChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07DD2F478BFA00B6E573 /* UnifiedChatMessage.swift */; };
 		7BEC07E02F478BFA00B6E573 /* UnifiedChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07DD2F478BFA00B6E573 /* UnifiedChatMessage.swift */; };
-		7BEC07E22F47900000B6E573 /* AudioStreamManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07E12F47900000B6E573 /* AudioStreamManager.swift */; };
-		7BEC07E32F47900000B6E573 /* AudioStreamManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07E12F47900000B6E573 /* AudioStreamManager.swift */; };
-		7BEC07E42F47900000B6E573 /* AudioStreamManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07E12F47900000B6E573 /* AudioStreamManager.swift */; };
 		7BEC07E22F478C1500B6E573 /* LiveVoiceBubbles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07E12F478C1500B6E573 /* LiveVoiceBubbles.swift */; };
+		7BEC07E22F47900000B6E573 /* AudioStreamManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07E12F47900000B6E573 /* AudioStreamManager.swift */; };
 		7BEC07E32F478C1500B6E573 /* LiveVoiceBubbles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07E12F478C1500B6E573 /* LiveVoiceBubbles.swift */; };
+		7BEC07E32F47900000B6E573 /* AudioStreamManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07E12F47900000B6E573 /* AudioStreamManager.swift */; };
 		7BEC07E42F478C1500B6E573 /* LiveVoiceBubbles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07E12F478C1500B6E573 /* LiveVoiceBubbles.swift */; };
+		7BEC07E42F47900000B6E573 /* AudioStreamManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07E12F47900000B6E573 /* AudioStreamManager.swift */; };
+		7BEC07EC2F4AF58600B6E573 /* ForgotPasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07EB2F4AF58600B6E573 /* ForgotPasswordView.swift */; };
+		7BEC07ED2F4AF58600B6E573 /* ForgotPasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07EB2F4AF58600B6E573 /* ForgotPasswordView.swift */; };
+		7BEC07EE2F4AF58600B6E573 /* ForgotPasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC07EB2F4AF58600B6E573 /* ForgotPasswordView.swift */; };
 		7BEDA6272E80B8C500D57B15 /* QuestionGenerationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEDA6262E80B8C500D57B15 /* QuestionGenerationService.swift */; };
 		7BEDA6282E80B8C500D57B15 /* QuestionGenerationDataAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEDA6252E80B8C500D57B15 /* QuestionGenerationDataAdapter.swift */; };
 		7BEDA62C2E80B91100D57B15 /* GeneratedQuestionsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEDA6292E80B91100D57B15 /* GeneratedQuestionsListView.swift */; };
@@ -714,8 +717,9 @@
 		7BEC07D12F4654C000B6E573 /* VoiceChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VoiceChatView.swift; path = StudyAI/Views/VoiceChatView.swift; sourceTree = SOURCE_ROOT; };
 		7BEC07D92F465EDE00B6E573 /* VoiceChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceChatViewModel.swift; sourceTree = "<group>"; };
 		7BEC07DD2F478BFA00B6E573 /* UnifiedChatMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedChatMessage.swift; sourceTree = "<group>"; };
-		7BEC07E12F47900000B6E573 /* AudioStreamManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioStreamManager.swift; sourceTree = "<group>"; };
 		7BEC07E12F478C1500B6E573 /* LiveVoiceBubbles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LiveVoiceBubbles.swift; path = StudyAI/Views/SessionChat/LiveVoiceBubbles.swift; sourceTree = SOURCE_ROOT; };
+		7BEC07E12F47900000B6E573 /* AudioStreamManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioStreamManager.swift; sourceTree = "<group>"; };
+		7BEC07EB2F4AF58600B6E573 /* ForgotPasswordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ForgotPasswordView.swift; path = StudyAI/Views/ForgotPasswordView.swift; sourceTree = SOURCE_ROOT; };
 		7BEDA6252E80B8C500D57B15 /* QuestionGenerationDataAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QuestionGenerationDataAdapter.swift; path = StudyAI/Services/QuestionGenerationDataAdapter.swift; sourceTree = SOURCE_ROOT; };
 		7BEDA6262E80B8C500D57B15 /* QuestionGenerationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QuestionGenerationService.swift; path = StudyAI/Services/QuestionGenerationService.swift; sourceTree = SOURCE_ROOT; };
 		7BEDA6292E80B91100D57B15 /* GeneratedQuestionsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GeneratedQuestionsListView.swift; path = StudyAI/Views/GeneratedQuestionsListView.swift; sourceTree = SOURCE_ROOT; };
@@ -1039,6 +1043,7 @@
 		7BEDA5F92E7EB94000D57B15 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				7BEC07EB2F4AF58600B6E573 /* ForgotPasswordView.swift */,
 				7BEC07E12F478C1500B6E573 /* LiveVoiceBubbles.swift */,
 				7BEC07D12F4654C000B6E573 /* VoiceChatView.swift */,
 				7BEC07992F42F75100B6E573 /* ArchiveProgressView.swift */,
@@ -1570,6 +1575,7 @@
 				44D8DB9D1B4C4CFA8A59EB3D /* HomeworkResultsView.swift in Sources */,
 				73BEB15D842A4FB3B7E6B147 /* ImageCropView.swift in Sources */,
 				43494EF404494E379A902F21 /* UnifiedImageEditorView.swift in Sources */,
+				7BEC07EE2F4AF58600B6E573 /* ForgotPasswordView.swift in Sources */,
 				IMGPREPBUILD123456789ABCD /* ImagePreprocessingView.swift in Sources */,
 				E892C474DD7F4C22968FF06B /* ModernLoginView.swift in Sources */,
 				EMAILVER901234567890ABCD /* EmailVerificationView.swift in Sources */,
@@ -1691,6 +1697,7 @@
 				7BDE56962EC1CA4D004A8629 /* MessageBubbles.swift in Sources */,
 				7BDE56972EC1CA4D004A8629 /* VoiceComponents.swift in Sources */,
 				7BDE56982EC1CA4D004A8629 /* ImageComponents.swift in Sources */,
+				7BEC07ED2F4AF58600B6E573 /* ForgotPasswordView.swift in Sources */,
 				7B2248762F26BE6C006ADD93 /* MistakeGroupDetailView.swift in Sources */,
 				7B2248772F26BE6C006ADD93 /* MistakeNotebookView.swift in Sources */,
 				7BEEB6142E8E3A3200957748 /* DesignTokens.swift in Sources */,
@@ -1780,6 +1787,7 @@
 				7B1961ED2E94E2740024317A /* PasswordManagementView.swift in Sources */,
 				E6429D03DD164AFCA282DB92 /* SynchronizedTextRenderer.swift in Sources */,
 				7B2248BA2F331644006ADD93 /* InteractiveTTSService.swift in Sources */,
+				7BEC07EC2F4AF58600B6E573 /* ForgotPasswordView.swift in Sources */,
 				7BDE56772EC1C6A3004A8629 /* PomodoroNotificationService.swift in Sources */,
 				7B1961EE2E94E2740024317A /* ParentAuthenticationView.swift in Sources */,
 				7BDE56742EC1C685004A8629 /* DeepFocusService.swift in Sources */,
