@@ -217,6 +217,7 @@
 "aiHomework.model" = "模型";
 "aiHomework.mode" = "模式";
 "aiHomework.digitalHomework" = "AI数位作业本";
+"aiHomework.compressing" = "图片压缩中...";
 "aiHomework.scannedDocument.single" = "已掃描文件";
 "aiHomework.scannedDocument.multiple" = "已掃描多个文件";
 "aiHomework.results.complete" = "分析完成！";
@@ -249,9 +250,9 @@
 "homeworkResults.debugInfo" = "除错资讯";
 "homeworkResults.selectQuestionsToArchive" = "选择要归档的题目";
 "homeworkResults.questionsSelected" = "题已选";
-"homeworkResults.markProgress" = "标记进度";
-"homeworkResults.slideToMarkProgress" = "滑动以标记进度";
-"homeworkResults.progressMarked" = "进度已标记！";
+"homeworkResults.markProgress" = "智能整理";
+"homeworkResults.slideToMarkProgress" = "滑动以智能整理";
+"homeworkResults.progressMarked" = "已整理！";
 "homeworkResults.progressUpdated" = "✅ 您的学习进度已更新！";
 "homeworkResults.progressTip" = "💡 提示：归档题目时会自动追蹤进度！";
 "homeworkResults.tapToAddQuestions" = "点击此处手动新增 %d 题到您的进度";
@@ -1173,12 +1174,12 @@
 "questionDetail.provideDetailedExplanation" = "提供详细解释";
 "questionDetail.typeAnswerAbove" = "在上方输入您的答案";
 "questionDetail.submitAnswer" = "提交答案";
-"questionDetail.markProgress" = "标记进度";
+"questionDetail.markProgress" = "智能整理";
 "questionDetail.marked" = "已标记";
 "questionDetail.followUp" = "继续提问";
 "questionDetail.previous" = "上一题";
 "questionDetail.next" = "下一题";
-"questionDetail.progressMarked" = "进度已标记！";
+"questionDetail.progressMarked" = "已整理！";
 "questionDetail.progressUpdated" = "✅ 您的学习进度已更新！";
 "questionDetail.progressTip" = "💡 点击以在您的每日、每周和每月统计中追蹤此题目！";
 
@@ -1208,10 +1209,10 @@
 "generatedQuestions.tryAgain" = "请重试";
 "generatedQuestions.retry" = "重试";
 "generatedQuestions.pdfPreview" = "PDF 预览";
-"generatedQuestions.markProgress" = "标记进度";
-"generatedQuestions.progressMarked" = "进度已标记！";
+"generatedQuestions.markProgress" = "智能整理";
+"generatedQuestions.progressMarked" = "已整理！";
 "generatedQuestions.progressUpdated" = "✅ 您的学习进度已更新！";
-"generatedQuestions.progressTip" = "💡 提示：标记进度以在每日、每周和每月统计中追蹤您的学习！";
+"generatedQuestions.progressTip" = "💡 提示：使用智能整理以在每日、每周和每月统计中追踪您的学习！";
 "generatedQuestions.answeredCount" = "您已回答 %d / %d 道题目";
 "generatedQuestions.points" = "%d 分";
 "generatedQuestions.emailGreeting" = "您好！";
@@ -1276,7 +1277,7 @@
 "mistakeReview.correct" = "正确";
 "mistakeReview.incorrect" = "错误";
 "mistakeReview.progressAlreadyMarked" = "进度已记录";
-"mistakeReview.slideToMarkProgress" = "滑动以记录进度";
+"mistakeReview.slideToMarkProgress" = "滑动以智能整理";
 "mistakeReview.masteredWeakness" = "你已掌握一个薄弱点！";
 "mistakeReview.keepUpGreatWork" = "继续保持，加油！";
 "mistakeReview.questionNumber" = "第 %d 题";
@@ -1644,7 +1645,7 @@
 "proMode.batchArchiveCount" = "一键归档 (%d)";
 "proMode.accuracy" = "正确率";
 "proMode.partialCorrect" = "部分正确";
-"proMode.markProgress" = "标记学习进度";
+"proMode.markProgress" = "智能整理";
 "proMode.questionPreview" = "题目预览";
 "proMode.tapToAnnotate" = "点击图片创建标注框";
 "proMode.done" = "完成";
@@ -1698,20 +1699,32 @@
 "homeworkSummary.subquestionCount" = "%d 个子题";
 "homeworkSummary.answer" = "答案: %@";
 
-"proMode.slideToMarkProgress" = "滑动以标记进度";
-"proMode.progressMarked" = "进度已标记";
+"proMode.slideToMarkProgress" = "滑动以智能整理";
+"proMode.progressMarked" = "已整理";
+
+// Pro Mode - Archive / Smart Organize result toast
+"proMode.archive.toastTitle" = "✅ 已添加到题库";
+"proMode.archive.toast.added" = "已添加 %d 道题到题库";
+"proMode.archive.toast.mistakesAdded" = "已添加 %d 道题到错题本";
+"proMode.archive.toast.duplicates" = "跳过 %d 道重复题";
+"proMode.smartOrganize.toastTitle" = "✅ 智能整理完成";
+"proMode.smartOrganize.toast.mistakesAdded" = "%d 道错题已添加到错题本";
+"proMode.smartOrganize.toast.noMistakes" = "没有错题，继续加油！";
+"proMode.smartOrganize.toast.progressMarked" = "学习进度已记录";
+"proMode.smartOrganize.toast.albumSaved" = "作业图片已保存";
+"proMode.smartOrganize.toast.duplicates" = "跳过 %d 道重复题";
 "proMode.correct" = "正确";
 "proMode.partial" = "部分正确";
 "proMode.incorrect" = "错误";
 
 // Pro Mode - 批改状态讯息
-"proMode.grading.deepAnalyzing" = "🧠 深度分析题目中...";
-"proMode.grading.analyzing" = "📝 正在分析题目中...";
-"proMode.grading.deepGrading" = "🧠 深度批改 Q%@...";
-"proMode.grading.geminiGrading" = "✨ Gemini 批改 Q%@...";
-"proMode.grading.grading" = "🤖 批改 Q%@...";
-"proMode.grading.progress" = "✅ 已完成 %d/%d (%d%%)";
-"proMode.grading.complete" = "🎉 批改完成！";
+"proMode.grading.deepAnalyzing" = "深度分析题目中...";
+"proMode.grading.analyzing" = "正在分析题目中...";
+"proMode.grading.deepGrading" = "深度批改 Q%@...";
+"proMode.grading.geminiGrading" = "Gemini 批改 Q%@...";
+"proMode.grading.grading" = "批改 Q%@...";
+"proMode.grading.progress" = "已完成 %d/%d (%d%%)";
+"proMode.grading.complete" = "批改完成！";
 
 // PDF Preview
 "pdfPreview.title" = "PDF 预览";

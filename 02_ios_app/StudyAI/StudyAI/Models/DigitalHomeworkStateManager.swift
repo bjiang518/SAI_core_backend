@@ -23,7 +23,7 @@ enum DigitalHomeworkState: String, Codable {
 // ✅ Codable for persistence in Homework Album
 struct DigitalHomeworkData: Codable {
     let homeworkHash: String  // Unique identifier for this homework
-    let parseResults: ParseHomeworkQuestionsResponse
+    var parseResults: ParseHomeworkQuestionsResponse
     let originalImageDataArray: [Data]  // ✅ UPDATED: Store multiple images as Data array
     var questions: [ProgressiveQuestionWithGrade]
     var annotations: [QuestionAnnotation]
@@ -284,6 +284,15 @@ class DigitalHomeworkStateManager: ObservableObject {
         homework.lastModified = Date()
 
         // ✅ FIX: Explicitly notify SwiftUI of changes before updating
+        objectWillChange.send()
+        currentHomework = homework
+    }
+
+    /// Patch handwriting evaluation into the current homework's parseResults.
+    /// Called after the concurrent handwriting eval API call completes.
+    func patchHandwritingEvaluation(_ evaluation: HandwritingEvaluation?) {
+        guard evaluation != nil, var homework = currentHomework else { return }
+        homework.parseResults = homework.parseResults.withHandwritingEvaluation(evaluation)
         objectWillChange.send()
         currentHomework = homework
     }

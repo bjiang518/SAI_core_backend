@@ -24,6 +24,7 @@ struct LogConfig {
     static let mistakeDetectionDebug = true  // ✅ NEW: Mistake detection and analysis
     static let archivingDebug = true         // ✅ NEW: Question archiving
     static let errorAnalysisDebug = true     // ✅ NEW: Error analysis queueing
+    static let smartOrganizeDebug = true     // ✅ Smart Organize full pipeline trace
     #else
     static let verboseLogging = false
     static let networkLogging = false
@@ -36,6 +37,7 @@ struct LogConfig {
     static let mistakeDetectionDebug = false  // ✅ NEW
     static let archivingDebug = false         // ✅ NEW
     static let errorAnalysisDebug = false     // ✅ NEW
+    static let smartOrganizeDebug = false     // Smart Organize pipeline
     #endif
 
     // ✅ NEW: System log patterns to suppress
@@ -200,20 +202,29 @@ struct AppLogger {
         #endif
     }
 
-    /// ✅ NEW: Archiving debug logging
+    /// ✅ NEW: Archiving debug logging (info level — always visible in DEBUG)
     func archiving(_ message: String) {
         #if DEBUG
         if LogConfig.archivingDebug {
-            logger.debug("📦 [ARCHIVE] \(message)")
+            logger.info("📦 [ARCHIVE] \(message)")
         }
         #endif
     }
 
-    /// ✅ NEW: Error analysis debug logging
+    /// ✅ NEW: Error analysis debug logging (info level — always visible in DEBUG)
     func errorAnalysis(_ message: String) {
         #if DEBUG
         if LogConfig.errorAnalysisDebug {
-            logger.debug("🧠 [ANALYSIS] \(message)")
+            logger.info("🧠 [ANALYSIS] \(message)")
+        }
+        #endif
+    }
+
+    /// Smart Organize pipeline trace — full step-by-step visibility
+    func smartOrganize(_ message: String) {
+        #if DEBUG
+        if LogConfig.smartOrganizeDebug {
+            logger.info("🗂️ [SMART ORGANIZE] \(message)")
         }
         #endif
     }
@@ -288,6 +299,9 @@ extension AppLogger {
 
     /// ✅ NEW: Error analysis logger
     static let errorAnalysis = AppLogger(category: "ErrorAnalysis")
+
+    /// Smart Organize pipeline logger
+    static let smartOrganizeLogger = AppLogger(category: "SmartOrganize")
 }
 
 // MARK: - Performance Measurement Helper

@@ -1200,6 +1200,7 @@ class ConversationLocalStorage {
 //
 
 import Foundation
+import CryptoKit
 
 /// Local storage manager for archived questions
 /// Provides immediate access to recently archived questions while backend replication syncs
@@ -1208,6 +1209,7 @@ class QuestionLocalStorage {
 
     private let userDefaults = UserDefaults.standard
     private let questionsKey = "localArchivedQuestions"
+    private let hashSetKey = "localArchivedQuestionHashes"
 
     // ✅ CRITICAL: Serial queue for thread-safe access
     private let storageQueue = DispatchQueue(label: "com.studyai.questionStorage", qos: .userInitiated)
@@ -1216,11 +1218,52 @@ class QuestionLocalStorage {
     private var cachedQuestions: [[String: Any]]?
     private var cacheLastModified: Date?
 
+    // ✅ O(1) content hash set for duplicate detection
+    private var contentHashSet: Set<String> = []
+    private var hashSetLoaded = false
+
     // ✅ Date parsing cache for performance
     private var dateCache: [String: Date] = [:]
     private let dateCacheLimit = AppConstants.dateCacheSizeLimit
 
     private init() {}
+
+    // MARK: - Content Hash
+
+    /// Compute a stable SHA-256 hash from a question's immutable content fields.
+    /// Uses subject + questionText + studentAnswer (all lowercased and trimmed).
+    static func contentHash(subject: String, questionText: String, studentAnswer: String) -> String {
+        let canonical = [subject, questionText, studentAnswer]
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+            .joined(separator: "\u{0}")          // null-byte separator — can't appear in normal text
+        let digest = SHA256.hash(data: Data(canonical.utf8))
+        return digest.map { String(format: "%02x", $0) }.joined()
+    }
+
+    /// Load (or rebuild) the in-memory hash set from persisted storage.
+    /// Must be called inside storageQueue.
+    private func ensureHashSetLoaded(existingQuestions: [[String: Any]]) {
+        guard !hashSetLoaded else { return }
+
+        // Try loading persisted hash set first
+        if let stored = userDefaults.array(forKey: hashSetKey) as? [String], !stored.isEmpty {
+            contentHashSet = Set(stored)
+        } else {
+            // Rebuild from existing questions (migration path for older installs)
+            contentHashSet = Set(existingQuestions.compactMap { q -> String? in
+                guard let subject = q["subject"] as? String,
+                      let questionText = q["questionText"] as? String else { return nil }
+                let studentAnswer = q["studentAnswer"] as? String ?? ""
+                return QuestionLocalStorage.contentHash(subject: subject, questionText: questionText, studentAnswer: studentAnswer)
+            })
+            persistHashSet()
+        }
+        hashSetLoaded = true
+    }
+
+    private func persistHashSet() {
+        userDefaults.set(Array(contentHashSet), forKey: hashSetKey)
+    }
 
     // MARK: - Data Retention
 
@@ -1307,150 +1350,122 @@ class QuestionLocalStorage {
     /// ✅ THREAD-SAFE: Uses serial queue to prevent race conditions
     func saveQuestions(_ questions: [[String: Any]]) -> [(originalId: String, savedId: String)] {
         return storageQueue.sync {
-            var existingQuestions = getLocalQuestionsUnsafe()  // Direct read without queue (already in queue)
+            var existingQuestions = getLocalQuestionsUnsafe()
+            ensureHashSetLoaded(existingQuestions: existingQuestions)
             var idMappings: [(originalId: String, savedId: String)] = []
 
             #if DEBUG
-            print("💾 [QuestionLocalStorage] Saving \(questions.count) questions with duplicate detection")
-            print("   📊 Existing questions in storage: \(existingQuestions.count)")
+            let log = AppLogger(category: "SmartOrganize")
+            func logSO(_ msg: String) { log.info("🗂️ [SMART ORGANIZE] \(msg)") }
+            #else
+            func logSO(_ msg: String) {}
             #endif
+
+            logSO("  📦 Storage.saveQuestions — \(questions.count) incoming, \(existingQuestions.count) already stored")
 
             var addedCount = 0
             var skippedCount = 0
 
-            // Add new questions at the beginning (most recent first)
             for question in questions.reversed() {
                 guard let originalId = question["id"] as? String else {
-                    #if DEBUG
-                    print("   ⚠️ Skipping question without ID")
-                    #endif
+                    logSO("  ⚠️ Skipping question without ID")
                     continue
                 }
 
-                // ✅ NORMALIZE SUBJECT before storing (use existing Subject enum)
+                // ✅ NORMALIZE SUBJECT before storing
                 var normalizedQuestion = question
                 if let subject = question["subject"] as? String {
                     let normalizedSubject = Subject.normalize(subject)?.rawValue ?? subject
                     normalizedQuestion["subject"] = normalizedSubject
-                    #if DEBUG
-                    if subject != normalizedSubject {
-                        print("   🔄 Normalized subject: '\(subject)' → '\(normalizedSubject)'")
-                    }
-                    #endif
                 }
 
-                // Check if this question content already exists
-                if let existingIndex = findDuplicateIndex(normalizedQuestion, in: existingQuestions) {
-                    // ✅ UPDATE existing question instead of skipping
-                    print("   🔄 Updating existing question: \(String(describing: normalizedQuestion["questionText"] as? String ?? "").prefix(50))...")
+                // ✅ Compute content hash for O(1) duplicate detection
+                let subject = normalizedQuestion["subject"] as? String ?? ""
+                let questionText = normalizedQuestion["questionText"] as? String ?? ""
+                let studentAnswer = normalizedQuestion["studentAnswer"] as? String ?? ""
+                let hash = QuestionLocalStorage.contentHash(subject: subject, questionText: questionText, studentAnswer: studentAnswer)
+                let hashPrefix = String(hash.prefix(8))
 
-                    // Keep existing ID but update all other fields (especially error analysis)
-                    let existingId = existingQuestions[existingIndex]["id"] as? String ?? originalId
-                    normalizedQuestion["id"] = existingId
-                    existingQuestions[existingIndex] = normalizedQuestion
-                    skippedCount += 1
+                if contentHashSet.contains(hash) {
+                    // Duplicate: find existing ID for error analysis remapping, then skip
+                    let existingId: String = existingQuestions.first(where: { q in
+                        guard let s = q["subject"] as? String,
+                              let qt = q["questionText"] as? String else { return false }
+                        let sa = q["studentAnswer"] as? String ?? ""
+                        return QuestionLocalStorage.contentHash(subject: s, questionText: qt, studentAnswer: sa) == hash
+                    }).flatMap { $0["id"] as? String } ?? originalId
 
-                    // Map original ID to existing ID
                     idMappings.append((originalId: originalId, savedId: existingId))
-
-                    print("   ✅ Updated with ID: \(existingId)")
+                    skippedCount += 1
+                    logSO("  ⏭️ DUPLICATE — \"\(questionText.prefix(40))\" (hash: \(hashPrefix)…)")
                     continue
                 }
 
-                // Not a duplicate, add it with original ID
+                // Not a duplicate — store hash, insert question
+                normalizedQuestion["contentHash"] = hash
+                contentHashSet.insert(hash)
                 existingQuestions.insert(normalizedQuestion, at: 0)
-                addedCount += 1
-
-                // Map original ID to itself (new question)
                 idMappings.append((originalId: originalId, savedId: originalId))
-
-                print("   ✅ Added new question: \(String(describing: normalizedQuestion["questionText"] as? String ?? "").prefix(50))...")
-
-                // 🔍 DEBUG: Log Pro Mode image info
-                if let proMode = normalizedQuestion["proMode"] as? Bool, proMode == true {
-                    print("   🌟 Pro Mode question detected")
+                addedCount += 1
+                logSO("  ✅ NEW — \"\(questionText.prefix(40))\" (hash: \(hashPrefix)…)")
+                if let proMode = normalizedQuestion["proMode"] as? Bool, proMode {
                     if let imagePath = normalizedQuestion["questionImageUrl"] as? String {
-                        print("   🖼️ questionImageUrl: \(imagePath)")
-                        print("   🖼️ File exists: \(FileManager.default.fileExists(atPath: imagePath))")
-                    } else {
-                        print("   ⚠️ No questionImageUrl found in question data")
+                        logSO("     🖼️ questionImageUrl: \(imagePath)")
                     }
                 }
             }
 
             // Keep only the most recent questions
             if existingQuestions.count > AppConstants.maxLocalQuestions {
+                // Remove hashes for trimmed questions before trimming
+                let trimmed = existingQuestions.dropFirst(AppConstants.maxLocalQuestions)
+                for q in trimmed {
+                    if let h = q["contentHash"] as? String { contentHashSet.remove(h) }
+                }
                 existingQuestions = Array(existingQuestions.prefix(AppConstants.maxLocalQuestions))
-                #if DEBUG
-                print("   ✂️ Trimmed to \(AppConstants.maxLocalQuestions) questions")
-                #endif
+                logSO("  ✂️ Trimmed to \(AppConstants.maxLocalQuestions) questions (limit reached)")
             }
 
-            // Save to UserDefaults
+            // Persist questions and hash set
             do {
                 let data = try JSONSerialization.data(withJSONObject: existingQuestions)
                 userDefaults.set(data, forKey: questionsKey)
-
-                // ✅ OPTIMIZATION: Invalidate cache and update with new data
+                persistHashSet()
                 cachedQuestions = existingQuestions
                 cacheLastModified = Date()
-
-                #if DEBUG
-                print("   💾 Successfully saved \(existingQuestions.count) questions (added: \(addedCount), skipped duplicates: \(skippedCount))")
-                #endif
+                logSO("  💾 Persisted — total: \(existingQuestions.count), added: \(addedCount), skipped: \(skippedCount)")
             } catch {
-                #if DEBUG
-                print("   ❌ Failed to serialize questions: \(error)")
-                #endif
+                logSO("  ❌ Failed to serialize questions: \(error.localizedDescription)")
             }
 
             return idMappings
         }
     }
 
-    /// Check if a question with the same content already exists in storage
-    /// Compares based on: questionText, subject, and studentAnswer
-    private func isDuplicateQuestion(_ newQuestion: [String: Any], in existingQuestions: [[String: Any]]) -> Bool {
-        return findDuplicateIndex(newQuestion, in: existingQuestions) != nil
-    }
+    // MARK: - Update Existing Question
 
-    /// Find the index of a duplicate question in storage
-    /// Returns nil if no duplicate exists
-    private func findDuplicateIndex(_ newQuestion: [String: Any], in existingQuestions: [[String: Any]]) -> Int? {
-        guard let newQuestionText = newQuestion["questionText"] as? String else {
-            return nil // Can't compare without question text
-        }
-
-        let newSubject = newQuestion["subject"] as? String ?? ""
-        let newStudentAnswer = newQuestion["studentAnswer"] as? String ?? ""
-
-        // Normalize for comparison (trim whitespace, lowercase)
-        let normalizedNewQuestionText = newQuestionText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let normalizedNewSubject = newSubject.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let normalizedNewStudentAnswer = newStudentAnswer.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-
-        // Check if any existing question has the same content
-        for (index, existingQuestion) in existingQuestions.enumerated() {
-            guard let existingQuestionText = existingQuestion["questionText"] as? String else {
-                continue
+    /// Patch specific fields on an existing question by ID (bypasses dedup).
+    /// Used by error analysis and concept extraction to write results back after Pass 2.
+    /// ✅ THREAD-SAFE: Uses serial queue.
+    func updateQuestion(id: String, fields: [String: Any]) {
+        storageQueue.sync {
+            var allQuestions = getLocalQuestionsUnsafe()
+            guard let index = allQuestions.firstIndex(where: { ($0["id"] as? String) == id }) else {
+                print("⚠️ [QuestionLocalStorage] updateQuestion: id \(id.prefix(8))… not found")
+                return
             }
-
-            let existingSubject = existingQuestion["subject"] as? String ?? ""
-            let existingStudentAnswer = existingQuestion["studentAnswer"] as? String ?? ""
-
-            let normalizedExistingQuestionText = existingQuestionText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            let normalizedExistingSubject = existingSubject.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            let normalizedExistingStudentAnswer = existingStudentAnswer.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-
-            // Check if all key fields match
-            if normalizedNewQuestionText == normalizedExistingQuestionText &&
-               normalizedNewSubject == normalizedExistingSubject &&
-               normalizedNewStudentAnswer == normalizedExistingStudentAnswer {
-                return index // Duplicate found at this index
+            for (key, value) in fields {
+                allQuestions[index][key] = value
+            }
+            do {
+                let data = try JSONSerialization.data(withJSONObject: allQuestions)
+                userDefaults.set(data, forKey: questionsKey)
+                cachedQuestions = allQuestions
+                cacheLastModified = Date()
+            } catch {
+                print("❌ [QuestionLocalStorage] updateQuestion serialize error: \(error)")
             }
         }
-
-        return nil // No duplicate found
     }
 
     // MARK: - Fetch from Local Storage

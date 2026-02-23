@@ -66,6 +66,17 @@ class DigitalHomeworkViewModel: ObservableObject {
         case complete   // Animation complete
     }
 
+    // ✅ Archive result summary (for UI toast)
+    struct ArchiveResultSummary: Equatable {
+        let added: Int        // New questions added to library
+        let skipped: Int      // Duplicates skipped
+        let mistakeCount: Int // Wrong answers queued for mistake notebook
+        let albumSaved: Bool  // Image saved to homework album (Smart Organize only)
+        let isSmartOrganize: Bool
+    }
+
+    @Published var archiveResultSummary: ArchiveResultSummary? = nil
+
     // MARK: - Private Properties
 
     // Homework Album storage
@@ -203,7 +214,12 @@ class DigitalHomeworkViewModel: ObservableObject {
 
     var availableAnnotationTargets: [AnnotationTarget] {
         var targets: [AnnotationTarget] = []
-        for qwg in questions {
+        let sorted = questions.sorted {
+            let a = Int($0.question.questionNumber ?? "") ?? 0
+            let b = Int($1.question.questionNumber ?? "") ?? 0
+            return a < b
+        }
+        for qwg in sorted {
             let q = qwg.question
             guard let number = q.questionNumber else { continue }
             let preview = String(q.displayText.prefix(30))
@@ -618,6 +634,7 @@ class DigitalHomeworkViewModel: ObservableObject {
                     // Update global state with compressed image
                     var updatedImages = croppedImages
                     updatedImages[imageKey] = compressedImage
+                    objectWillChange.send()
                     stateManager.updateHomework(croppedImages: updatedImages)
 
                     let originalSize = croppedUIImage.pngData()?.count ?? 0
@@ -649,11 +666,17 @@ class DigitalHomeworkViewModel: ObservableObject {
         // Get all question numbers that have annotations
         let annotatedQuestionNumbers = Set(annotations.compactMap { $0.questionNumber })
 
-        // Get all question IDs that should have images
+        // Get all question IDs that should have images (top-level AND subquestion IDs)
         var validQuestionIds = Set<String>()
         for questionNumber in annotatedQuestionNumbers {
             if let questionId = parseResults?.questions.first(where: { $0.questionNumber == questionNumber })?.id {
+                // Top-level question match
                 validQuestionIds.insert(questionId)
+            } else if let subId = parseResults?.questions
+                .flatMap({ $0.subquestions ?? [] })
+                .first(where: { $0.id == questionNumber })?.id {
+                // Subquestion match — store under subquestion's own id
+                validQuestionIds.insert(subId)
             }
         }
 
@@ -915,8 +938,9 @@ class DigitalHomeworkViewModel: ObservableObject {
         logger.debug("Grading subquestion \(subquestion.id)...")
 
         do {
-            // Get context image from parent question if available
-            let contextImage = getCroppedImageBase64(for: parentQuestionId)
+            // Prefer the subquestion's own cropped image; fall back to parent's image
+            let contextImage = getCroppedImageBase64(for: subquestion.id)
+                ?? getCroppedImageBase64(for: parentQuestionId)
 
             // ✅ NEW: Get parent question content to provide context for subquestion grading
             let parentContent = questions.first(where: { $0.question.id == parentQuestionId })?.question.parentContent
@@ -958,6 +982,112 @@ class DigitalHomeworkViewModel: ObservableObject {
             return nil
         }
         return jpegData.base64EncodedString()
+    }
+
+    // MARK: - Per-Question Reparsing
+
+    /// Re-extract a single question from its source page image using Gemini.
+    /// Called when the user taps the reparse icon on an inaccurately parsed question card.
+    /// On success: replaces question content and clears the stale grade.
+    func reparseQuestion(questionId: String) async {
+        guard let index = questions.firstIndex(where: { $0.question.id == questionId }) else {
+            logger.error("Question \(questionId) not found for reparsing")
+            return
+        }
+
+        let question = questions[index].question
+        let pageIndex = (question.pageNumber ?? 1) - 1
+        guard pageIndex < originalImages.count else {
+            logger.error("Page index \(pageIndex) out of range (have \(originalImages.count) pages)")
+            return
+        }
+
+        logger.info("🔄 [Reparse] Starting reparse for Q\(questionId) on page \(pageIndex + 1)...")
+
+        // Mark as loading
+        var updatedQuestions = questions
+        updatedQuestions[index].isGrading = true
+        await MainActor.run {
+            objectWillChange.send()
+            stateManager.updateHomework(questions: updatedQuestions)
+        }
+
+        // Compress the source page image
+        guard let imageData = originalImages[pageIndex].jpegData(compressionQuality: 0.85) else {
+            logger.error("Failed to compress page image for reparse")
+            await MainActor.run {
+                var fresh = self.questions
+                guard let i = fresh.firstIndex(where: { $0.question.id == questionId }) else { return }
+                fresh[i].gradingError = "Failed to prepare image"
+                fresh[i].isGrading = false
+                objectWillChange.send()
+                stateManager.updateHomework(questions: fresh)
+            }
+            return
+        }
+
+        let base64Image = imageData.base64EncodedString()
+
+        do {
+            let response = try await networkService.reparseQuestion(
+                base64Image: base64Image,
+                questionNumber: question.questionNumber ?? questionId,
+                questionHint: question.questionText
+            )
+
+            await MainActor.run {
+                var fresh = self.questions
+                guard let i = fresh.firstIndex(where: { $0.question.id == questionId }) else {
+                    logger.error("Question \(questionId) disappeared during reparse")
+                    return
+                }
+
+                if response.success, let newQuestion = response.question {
+                    // Log AI reparsed content
+                    logger.info("[Reparse] AI returned for Q\(questionId):")
+                    logger.info("[Reparse]   questionNumber : \(newQuestion.questionNumber ?? "nil")")
+                    logger.info("[Reparse]   questionText   : \(newQuestion.questionText ?? "nil")")
+                    logger.info("[Reparse]   studentAnswer  : \(newQuestion.studentAnswer ?? "nil")")
+                    logger.info("[Reparse]   isParent       : \(String(newQuestion.isParent ?? false))")
+                    logger.info("[Reparse]   needImage      : \(String(newQuestion.needImage ?? false))")
+                    if let subs = newQuestion.subquestions {
+                        logger.info("[Reparse]   subquestions   : \(subs.count)")
+                        for sub in subs {
+                            logger.info("[Reparse]     sub \(sub.id): \(sub.questionText ?? "?")")
+                        }
+                    }
+
+                    // Replace with reparsed question, clear stale grade
+                    fresh[i] = ProgressiveQuestionWithGrade(id: fresh[i].id, question: newQuestion)
+
+                    logger.info("[Reparse] iOS state updated — Q\(questionId) question replaced, grade cleared")
+                    logger.info("✅ [Reparse] Q\(questionId) reparsed successfully")
+                } else {
+                    let error = response.error ?? "Reparse failed"
+                    fresh[i].gradingError = error
+                    fresh[i].isGrading = false
+                    logger.error("❌ [Reparse] Q\(questionId) failed: \(error)")
+                }
+
+                objectWillChange.send()
+                stateManager.updateHomework(questions: fresh)
+
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(response.success ? .success : .error)
+            }
+
+        } catch {
+            logger.error("❌ [Reparse] Q\(questionId) exception: \(error.localizedDescription)")
+            await MainActor.run {
+                var fresh = self.questions
+                guard let i = fresh.firstIndex(where: { $0.question.id == questionId }) else { return }
+                fresh[i].gradingError = error.localizedDescription
+                fresh[i].isGrading = false
+                objectWillChange.send()
+                stateManager.updateHomework(questions: fresh)
+                UINotificationFeedbackGenerator().notificationOccurred(.error)
+            }
+        }
     }
 
     // MARK: - Per-Question Regrading
@@ -1309,64 +1439,63 @@ class DigitalHomeworkViewModel: ObservableObject {
     }
 
     /// Archive specific subquestions from a parent question
-    private func archiveSubquestions(parentQuestionId: String, subquestionIds: [String]) async {  // Changed Int to String
+    private func archiveSubquestions(parentQuestionId: String, subquestionIds: [String]) async {
         guard let userId = AuthenticationService.shared.currentUser?.id else {
             logger.error("User not authenticated")
             return
         }
 
-        logger.debug("Archiving \(subquestionIds.count) subquestions from parent Q\(parentQuestionId)...")
+        let log = AppLogger(category: "SmartOrganize")
+        let pLabel = "Q\(questions.first(where: { $0.question.id == parentQuestionId })?.question.questionNumber ?? parentQuestionId.prefix(4).description)"
 
         guard let questionWithGrade = questions.first(where: { $0.question.id == parentQuestionId }) else {
-            logger.error("Parent question \(parentQuestionId) not found")
+            log.info("🗂️ [SMART ORGANIZE]   ⚠️ \(pLabel) — parent not found, cannot archive subquestions")
             return
         }
 
         let imageStorage = ProModeImageStorage.shared
         var questionsToArchive: [[String: Any]] = []
-
-        // Get parent question content for context
         let parentContent = questionWithGrade.question.parentContent ?? ""
 
-        // Save cropped image from parent question (shared by all subquestions)
+        // Save parent cropped image (shared by all subquestions)
         var imagePath: String?
         if let image = croppedImages[parentQuestionId] {
-            logger.debug("Found cropped image for parent Q\(parentQuestionId)")
             imagePath = imageStorage.saveImage(image)
-            if let path = imagePath {
-                logger.debug("Saved parent image: \(path)")
-            }
+            log.info("🗂️ [SMART ORGANIZE]   🖼️  \(pLabel) — shared cropped image saved: \(imagePath != nil ? "✅" : "❌ failed")")
+        } else {
+            log.info("🗂️ [SMART ORGANIZE]   🖼️  \(pLabel) — no cropped image for parent")
         }
 
-        // Archive each subquestion individually
         for subquestionId in subquestionIds {
             guard let subquestion = questionWithGrade.question.subquestions?.first(where: { $0.id == subquestionId }) else {
-                logger.error("Subquestion \(subquestionId) not found in parent")
+                log.info("🗂️ [SMART ORGANIZE]   ⚠️  \(pLabel)(\(subquestionId)) — subquestion not found, skipping")
                 continue
             }
 
-            // Get grade for this specific subquestion
             let grade = questionWithGrade.subquestionGrades[subquestionId]
-
-            // Determine grade string and isCorrect
             let (gradeString, isCorrect) = determineSubquestionGrade(grade: grade)
+            let studentAns = (subquestion.studentAnswer ?? "").prefix(40)
+            let correctAns = (grade?.correctAnswer ?? "").prefix(40)
 
-            // Build archived subquestion data (similar format to regular questions)
+            log.info("🗂️ [SMART ORGANIZE]   📝 \(pLabel)(\(subquestionId)) — grade: \(gradeString.isEmpty ? "(ungraded)" : gradeString) | correct: \(isCorrect)")
+            log.info("🗂️ [SMART ORGANIZE]        student: \"\(studentAns)\"")
+            log.info("🗂️ [SMART ORGANIZE]        answer:  \"\(correctAns)\"")
+
             let questionData: [String: Any] = [
-                "id": UUID().uuidString,
+                "id": subquestionId,
                 "userId": userId,
                 "subject": subject,
-                "questionText": subquestion.questionText,  // ✅ FIX: Use just subquestion text for library card preview
-                "rawQuestionText": "\(parentContent)\n\nSubquestion (\(subquestionId)): \(subquestion.questionText)",  // Full context with parent
-                "answerText": grade?.correctAnswer ?? "",  // ✅ FIX: Use correct answer, not student answer
+                "questionText": subquestion.questionText,
+                "rawQuestionText": "\(parentContent)\n\nSubquestion (\(subquestionId)): \(subquestion.questionText)",
+                "answerText": grade?.correctAnswer ?? "",
                 "confidence": 0.95,
                 "hasVisualElements": imagePath != nil,
-                "questionImageUrl": imagePath ?? "",  // Share parent's cropped image
+                "questionImageUrl": imagePath ?? "",
                 "archivedAt": ISO8601DateFormatter().string(from: Date()),
                 "reviewCount": 0,
                 "tags": [],
                 "notes": "",
-                "studentAnswer": subquestion.studentAnswer,
+                "studentAnswer": subquestion.studentAnswer ?? "",
                 "grade": gradeString,
                 "points": grade?.score ?? 0.0,
                 "maxPoints": 1.0,
@@ -1377,70 +1506,47 @@ class DigitalHomeworkViewModel: ObservableObject {
                 "questionType": subquestion.questionType ?? "short_answer",
                 "options": [],
                 "proMode": true,
-                "parentQuestionId": parentQuestionId,  // Link back to parent
-                "subquestionId": subquestionId  // Track subquestion ID
+                "parentQuestionId": parentQuestionId,
+                "subquestionId": subquestionId
             ]
-
             questionsToArchive.append(questionData)
-            logger.debug("Prepared subquestion \(subquestionId) for archiving")
         }
 
-        let withImages = questionsToArchive.filter { ($0["hasVisualElements"] as? Bool) == true }.count
-        logger.info("Subquestion archive summary: parent Q\(parentQuestionId), \(questionsToArchive.count) subquestions, \(withImages) with images")
-
-        // Save to local storage and get ID mappings
         let idMappings = QuestionLocalStorage.shared.saveQuestions(questionsToArchive)
+        let skipped = idMappings.filter { $0.originalId != $0.savedId }.count
+        let added   = idMappings.count - skipped
+        log.info("🗂️ [SMART ORGANIZE]   💾 \(pLabel) subquestions — added: \(added), skipped (duplicate): \(skipped)")
 
-        logger.info("Successfully archived \(questionsToArchive.count) subquestions from parent Q\(parentQuestionId)")
-
-        // ✅ NEW: Queue error analysis for wrong subquestions (Pass 2 - Two-Pass Grading)
-        var wrongSubquestions = questionsToArchive.filter {
-            ($0["isCorrect"] as? Bool) == false
-        }
-
-        // ✅ CRITICAL: Remap IDs to actual saved IDs (handles duplicate detection)
-        if !wrongSubquestions.isEmpty {
+        // Pass 2: error analysis
+        var wrongSubquestions = questionsToArchive.filter { ($0["isCorrect"] as? Bool) == false }
+        if wrongSubquestions.isEmpty {
+            log.info("🗂️ [SMART ORGANIZE]   🧠 \(pLabel) — no wrong subquestions for error analysis")
+        } else {
             for index in 0..<wrongSubquestions.count {
                 if let originalId = wrongSubquestions[index]["id"] as? String,
                    let mapping = idMappings.first(where: { $0.originalId == originalId }) {
                     wrongSubquestions[index]["id"] = mapping.savedId
-                    if Self.isDebugMode {
-                        logger.debug("Remapped subquestion error analysis ID: \(originalId.prefix(8))... → \(mapping.savedId.prefix(8))...")
-                    }
                 }
             }
-
-            let sessionId = UUID().uuidString // Generate session ID for this grading batch
-            ErrorAnalysisQueueService.shared.queueErrorAnalysisAfterGrading(
-                sessionId: sessionId,
-                wrongQuestions: wrongSubquestions
-            )
-            logger.info("Queued \(wrongSubquestions.count) wrong SUBQUESTIONS for Pass 2 error analysis")
+            let sessionId = UUID().uuidString
+            ErrorAnalysisQueueService.shared.queueErrorAnalysisAfterGrading(sessionId: sessionId, wrongQuestions: wrongSubquestions)
+            log.info("🗂️ [SMART ORGANIZE]   🧠 \(pLabel) — queued \(wrongSubquestions.count) wrong subquestion(s) for error analysis")
         }
 
-        // ✅ NEW: Queue concept extraction for correct subquestions (Bidirectional Status Tracking)
-        var correctSubquestions = questionsToArchive.filter {
-            ($0["isCorrect"] as? Bool) == true
-        }
-
-        // ✅ CRITICAL: Remap IDs to actual saved IDs (handles duplicate detection)
-        if !correctSubquestions.isEmpty {
+        // Pass 2: concept extraction
+        var correctSubquestions = questionsToArchive.filter { ($0["isCorrect"] as? Bool) == true }
+        if correctSubquestions.isEmpty {
+            log.info("🗂️ [SMART ORGANIZE]   ✅ \(pLabel) — no correct subquestions for concept extraction")
+        } else {
             for index in 0..<correctSubquestions.count {
                 if let originalId = correctSubquestions[index]["id"] as? String,
                    let mapping = idMappings.first(where: { $0.originalId == originalId }) {
                     correctSubquestions[index]["id"] = mapping.savedId
-                    if Self.isDebugMode {
-                        logger.debug("Remapped subquestion concept extraction ID: \(originalId.prefix(8))... → \(mapping.savedId.prefix(8))...")
-                    }
                 }
             }
-
-            let sessionId = UUID().uuidString // Generate session ID for this grading batch
-            ErrorAnalysisQueueService.shared.queueConceptExtractionForCorrectAnswers(
-                sessionId: sessionId,
-                correctQuestions: correctSubquestions
-            )
-            logger.info("✅ Queued \(correctSubquestions.count) correct SUBQUESTIONS for concept extraction (mastery tracking)")
+            let sessionId = UUID().uuidString
+            ErrorAnalysisQueueService.shared.queueConceptExtractionForCorrectAnswers(sessionId: sessionId, correctQuestions: correctSubquestions)
+            log.info("🗂️ [SMART ORGANIZE]   ✅ \(pLabel) — queued \(correctSubquestions.count) correct subquestion(s) for concept extraction")
         }
     }
 
@@ -1459,14 +1565,18 @@ class DigitalHomeworkViewModel: ObservableObject {
         return ("", false)
     }
 
-    /// Archive questions by their IDs
-    private func archiveQuestions(_ questionIds: [String]) async {
+    /// Archive questions by their IDs. Returns (added, skipped, mistakeCount).
+    @discardableResult
+    private func archiveQuestions(_ questionIds: [String]) async -> (added: Int, skipped: Int, mistakeCount: Int) {
         guard let userId = AuthenticationService.shared.currentUser?.id else {
             logger.error("User not authenticated")
-            return
+            return (0, 0, 0)
         }
 
-        logger.debug("Archiving \(questionIds.count) Pro Mode questions...")
+        let log = AppLogger(category: "SmartOrganize")
+        log.info("🗂️ [SMART ORGANIZE] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        log.info("🗂️ [SMART ORGANIZE] ARCHIVE START — \(questionIds.count) question(s) requested")
+        log.info("🗂️ [SMART ORGANIZE] Subject: \(subject)")
 
         let imageStorage = ProModeImageStorage.shared
         var questionsToArchive: [[String: Any]] = []
@@ -1474,76 +1584,47 @@ class DigitalHomeworkViewModel: ObservableObject {
 
         for questionId in questionIds {
             guard let questionWithGrade = questions.first(where: { $0.question.id == questionId }) else {
+                log.info("🗂️ [SMART ORGANIZE]   ⚠️ Q[\(questionId.prefix(8))] — not found in session, skipping")
                 continue
             }
 
             let question = questionWithGrade.question
+            let qLabel = "Q\(question.questionNumber ?? questionId.prefix(4).description)"
 
-            // ✅ FIX: Check if this is a parent question with subquestions
+            // Parent question — delegate to subquestion archiving
             if question.isParentQuestion, let subquestions = question.subquestions, !subquestions.isEmpty {
-                logger.debug("Q\(questionId): Detected parent question with \(subquestions.count) subquestions")
+                log.info("🗂️ [SMART ORGANIZE]   🔀 \(qLabel) — parent with \(subquestions.count) subquestion(s), delegating")
                 let subquestionIds = subquestions.map { $0.id }
                 subquestionsToArchive.append((parentId: questionId, subquestionIds: subquestionIds))
-
-                // ✅ FIX: Skip archiving parent question itself - only archive subquestions
-                // Parent content is already included in each subquestion's rawQuestionText (see archiveSubquestions)
-                logger.debug("Q\(questionId): Skipping parent question archive (will archive \(subquestions.count) subquestions separately)")
-                continue  // Skip to next question
+                continue
             }
 
-            // Save cropped image to file system if available
+            // Save cropped image
             var imagePath: String?
-            if Self.isDebugMode {
-                logger.debug("Q\(questionId): Checking for cropped image...")
-                logger.debug("croppedImages has \(croppedImages.count) entries, keys: \(croppedImages.keys.sorted())")
-            }
-
             if let image = croppedImages[questionId] {
-                if Self.isDebugMode {
-                    logger.debug("Q\(questionId): Found cropped image (size: \(image.size))")
-                }
                 imagePath = imageStorage.saveImage(image)
-                if let path = imagePath {
-                    if Self.isDebugMode {
-                        let fileExists = FileManager.default.fileExists(atPath: path)
-                        logger.debug("Q\(questionId): Saved image to: \(path), exists: \(fileExists)")
-                    }
-                } else {
-                    logger.error("Q\(questionId): Failed to save image to file system")
-                }
-            } else if Self.isDebugMode {
-                logger.debug("Q\(questionId): No cropped image found in memory")
+                log.info("🗂️ [SMART ORGANIZE]   🖼️  \(qLabel) — cropped image saved: \(imagePath != nil ? "✅" : "❌ failed")")
+            } else {
+                log.info("🗂️ [SMART ORGANIZE]   🖼️  \(qLabel) — no cropped image")
             }
 
-            // Determine grade and isCorrect
             let (gradeString, isCorrect) = determineGradeAndCorrectness(for: questionWithGrade)
+            let studentAns = question.displayStudentAnswer.prefix(40)
+            let correctAns = (questionWithGrade.grade?.correctAnswer ?? "").prefix(40)
+            log.info("🗂️ [SMART ORGANIZE]   📝 \(qLabel) — grade: \(gradeString.isEmpty ? "(ungraded)" : gradeString) | correct: \(isCorrect)")
+            log.info("🗂️ [SMART ORGANIZE]        student: \"\(studentAns)\"")
+            log.info("🗂️ [SMART ORGANIZE]        answer:  \"\(correctAns)\"")
 
-            // 🔍 CRITICAL DEBUG: Log grading data before archiving (debug mode only)
-            if Self.isDebugMode {
-                logger.debug("=== ARCHIVE DEBUG Q\(questionId) ===")
-                logger.debug("Grade object present: \(questionWithGrade.grade != nil)")
-                if let grade = questionWithGrade.grade {
-                    logger.debug("  - score: \(grade.score)")
-                    logger.debug("  - isCorrect: \(grade.isCorrect)")
-                    logger.debug("  - feedback: '\(grade.feedback.prefix(50))'...")
-                    logger.debug("  - correctAnswer: '\(grade.correctAnswer ?? "NIL")'")
-                    logger.debug("  - correctAnswer length: \(grade.correctAnswer?.count ?? 0)")
-                }
-                logger.debug("Student answer: '\(question.displayStudentAnswer.prefix(50))'...")
-                logger.debug("===")
-            }
-
-            // Build archived question data
             let questionData: [String: Any] = [
-                "id": UUID().uuidString,
+                "id": questionId,
                 "userId": userId,
                 "subject": subject,
                 "questionText": question.displayText,
-                "rawQuestionText": question.displayText,  // Use same as questionText for Pro Mode
-                "answerText": questionWithGrade.grade?.correctAnswer ?? "",  // ✅ FIX: Use correct answer, not student answer
-                "confidence": 0.95,  // High confidence for Pro Mode
+                "rawQuestionText": question.displayText,
+                "answerText": questionWithGrade.grade?.correctAnswer ?? "",
+                "confidence": 0.95,
                 "hasVisualElements": imagePath != nil,
-                "questionImageUrl": imagePath ?? "",  // File path to cropped image
+                "questionImageUrl": imagePath ?? "",
                 "archivedAt": ISO8601DateFormatter().string(from: Date()),
                 "reviewCount": 0,
                 "tags": [],
@@ -1553,92 +1634,79 @@ class DigitalHomeworkViewModel: ObservableObject {
                 "points": questionWithGrade.grade?.score ?? 0.0,
                 "maxPoints": 1.0,
                 "feedback": questionWithGrade.grade?.feedback ?? "",
-                "correctAnswer": questionWithGrade.grade?.correctAnswer ?? "",  // ✅ CRITICAL: Save correct answer
+                "correctAnswer": questionWithGrade.grade?.correctAnswer ?? "",
                 "isGraded": questionWithGrade.grade != nil,
                 "isCorrect": isCorrect,
                 "questionType": question.questionType ?? "short_answer",
                 "options": [],
-                "proMode": true  // Mark as Pro Mode question
+                "proMode": true
             ]
-
-            // 🔍 CRITICAL DEBUG: Log what's actually being archived (debug mode only)
-            if Self.isDebugMode {
-                logger.debug("ARCHIVED Q\(questionId): studentAnswer='\(question.displayStudentAnswer.prefix(30))', correctAnswer='\((questionWithGrade.grade?.correctAnswer ?? "NIL").prefix(30))'")
-            }
             questionsToArchive.append(questionData)
-            if Self.isDebugMode {
-                logger.debug("Prepared Q\(questionId) for archiving (hasImage: \(imagePath != nil), isCorrect: \(isCorrect))")
-            }
         }
 
-        let withImages = questionsToArchive.filter { ($0["hasVisualElements"] as? Bool) == true }.count
-        logger.info("Archive summary: \(questionsToArchive.count) questions, \(withImages) with images")
+        log.info("🗂️ [SMART ORGANIZE]   ─────────────────────────────────────────")
+        log.info("🗂️ [SMART ORGANIZE]   Prepared \(questionsToArchive.count) regular + \(subquestionsToArchive.count) parent(s) for storage")
 
-        // Save to local storage and get ID mappings
+        // Pass 1: save to local storage
         let idMappings = QuestionLocalStorage.shared.saveQuestions(questionsToArchive)
 
-        logger.info("Successfully archived \(questionsToArchive.count) Pro Mode questions")
-
-        // ✅ NEW: Queue error analysis for wrong answers (Pass 2 - Two-Pass Grading)
-        var wrongQuestions = questionsToArchive.filter {
-            ($0["isCorrect"] as? Bool) == false
+        let skipped = idMappings.filter { $0.originalId != $0.savedId }.count
+        let added   = idMappings.count - skipped
+        log.info("🗂️ [SMART ORGANIZE]   💾 Storage result — added: \(added), skipped (duplicate): \(skipped)")
+        for m in idMappings where m.originalId != m.savedId {
+            log.info("🗂️ [SMART ORGANIZE]      ⏭️  duplicate remapped \(m.originalId.prefix(8))… → \(m.savedId.prefix(8))…")
         }
 
-        // ✅ CRITICAL: Remap IDs to actual saved IDs (handles duplicate detection)
-        if !wrongQuestions.isEmpty {
+        // Pass 2: error analysis for wrong answers
+        var wrongQuestions = questionsToArchive.filter { ($0["isCorrect"] as? Bool) == false }
+        if wrongQuestions.isEmpty {
+            log.info("🗂️ [SMART ORGANIZE]   🧠 Pass 2 (error analysis) — no wrong answers, skipped")
+        } else {
             for index in 0..<wrongQuestions.count {
                 if let originalId = wrongQuestions[index]["id"] as? String,
                    let mapping = idMappings.first(where: { $0.originalId == originalId }) {
                     wrongQuestions[index]["id"] = mapping.savedId
-                    if Self.isDebugMode {
-                        logger.debug("Remapped error analysis ID: \(originalId.prefix(8))... → \(mapping.savedId.prefix(8))...")
-                    }
                 }
             }
-
-            let sessionId = UUID().uuidString // Generate session ID for this grading batch
+            let sessionId = UUID().uuidString
             ErrorAnalysisQueueService.shared.queueErrorAnalysisAfterGrading(
                 sessionId: sessionId,
                 wrongQuestions: wrongQuestions
             )
-            logger.info("Queued \(wrongQuestions.count) wrong answers for Pass 2 error analysis")
+            log.info("🗂️ [SMART ORGANIZE]   🧠 Pass 2 (error analysis) — queued \(wrongQuestions.count) wrong answer(s), session: \(sessionId.prefix(8))…")
         }
 
-        // ✅ NEW: Queue concept extraction for CORRECT answers (Bidirectional Status Tracking)
-        var correctQuestions = questionsToArchive.filter {
-            ($0["isCorrect"] as? Bool) == true
-        }
-
-        // ✅ CRITICAL: Remap IDs to actual saved IDs (handles duplicate detection)
-        if !correctQuestions.isEmpty {
+        // Pass 2: concept extraction for correct answers
+        var correctQuestions = questionsToArchive.filter { ($0["isCorrect"] as? Bool) == true }
+        if correctQuestions.isEmpty {
+            log.info("🗂️ [SMART ORGANIZE]   ✅ Pass 2 (concept extraction) — no correct answers, skipped")
+        } else {
             for index in 0..<correctQuestions.count {
                 if let originalId = correctQuestions[index]["id"] as? String,
                    let mapping = idMappings.first(where: { $0.originalId == originalId }) {
                     correctQuestions[index]["id"] = mapping.savedId
-                    if Self.isDebugMode {
-                        logger.debug("Remapped concept extraction ID: \(originalId.prefix(8))... → \(mapping.savedId.prefix(8))...")
-                    }
                 }
             }
-
-            let sessionId = UUID().uuidString // Generate session ID for this grading batch
+            let sessionId = UUID().uuidString
             ErrorAnalysisQueueService.shared.queueConceptExtractionForCorrectAnswers(
                 sessionId: sessionId,
                 correctQuestions: correctQuestions
             )
-            logger.info("✅ Queued \(correctQuestions.count) CORRECT answers for concept extraction (mastery tracking)")
+            log.info("🗂️ [SMART ORGANIZE]   ✅ Pass 2 (concept extraction) — queued \(correctQuestions.count) correct answer(s), session: \(sessionId.prefix(8))…")
         }
 
-        // ✅ NEW: Archive all subquestions for parent questions
+        // Archive subquestions for parent questions
         if !subquestionsToArchive.isEmpty {
-            logger.debug("Archiving subquestions for \(subquestionsToArchive.count) parent questions...")
             for (parentId, subquestionIds) in subquestionsToArchive {
-                logger.debug("Archiving \(subquestionIds.count) subquestions for parent Q\(parentId)")
+                let pLabel = "Q\(questions.first(where: { $0.question.id == parentId })?.question.questionNumber ?? parentId.prefix(4).description)"
+                log.info("🗂️ [SMART ORGANIZE]   🔀 Archiving \(subquestionIds.count) subquestion(s) for \(pLabel)")
                 await archiveSubquestions(parentQuestionId: parentId, subquestionIds: subquestionIds)
             }
-            let totalSubquestions = subquestionsToArchive.reduce(0) { $0 + $1.subquestionIds.count }
-            logger.info("Successfully archived \(totalSubquestions) subquestions across \(subquestionsToArchive.count) parent questions")
         }
+
+        log.info("🗂️ [SMART ORGANIZE] ARCHIVE END ✅")
+        log.info("🗂️ [SMART ORGANIZE] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        return (added: added, skipped: skipped, mistakeCount: wrongQuestions.count)
     }
 
     /// Determine grade string and isCorrect status for a question
@@ -1674,86 +1742,108 @@ class DigitalHomeworkViewModel: ObservableObject {
 
     func markProgress() {
         Task {
-            do {
-                // ✅ IMPROVED: Calculate statistics correctly for Pro Mode
-                // Handle parent questions with subquestions, partial credit, and ungraded questions
+            let log = AppLogger(category: "SmartOrganize")
+            log.info("🗂️ [SMART ORGANIZE] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            log.info("🗂️ [SMART ORGANIZE] SMART ORGANIZE START — subject: \(subject)")
 
-                var correctCount = 0
-                var totalCount = 0
+            // Calculate statistics
+            var correctCount = 0
+            var totalCount = 0
 
-                logger.debug("Calculating accuracy for \(questions.count) questions...")
-
-                for (index, questionWithGrade) in questions.enumerated() {
-                    // Handle parent questions (questions with subquestions)
-                    if questionWithGrade.isParentQuestion {
-                        let subquestionGrades = Array(questionWithGrade.subquestionGrades.values)
-                        totalCount += subquestionGrades.count
-                        let subCorrect = subquestionGrades.filter { $0.isCorrect }.count
-                        correctCount += subCorrect
-
-                        logger.debug("Q\(index+1) (Parent): \(subCorrect)/\(subquestionGrades.count) subquestions correct")
-
+            for (index, questionWithGrade) in questions.enumerated() {
+                if questionWithGrade.isParentQuestion {
+                    let subquestionGrades = Array(questionWithGrade.subquestionGrades.values)
+                    let subCorrect = subquestionGrades.filter { $0.isCorrect }.count
+                    totalCount += subquestionGrades.count
+                    correctCount += subCorrect
+                    log.info("🗂️ [SMART ORGANIZE]   Q\(index+1) (parent) — \(subCorrect)/\(subquestionGrades.count) subquestions correct")
+                } else {
+                    totalCount += 1
+                    if let grade = questionWithGrade.grade, grade.isCorrect {
+                        correctCount += 1
+                        log.info("🗂️ [SMART ORGANIZE]   Q\(index+1) — ✅ correct (score: \(grade.score))")
+                    } else if let grade = questionWithGrade.grade {
+                        log.info("🗂️ [SMART ORGANIZE]   Q\(index+1) — ❌ incorrect (score: \(grade.score))")
                     } else {
-                        // Handle regular questions
-                        totalCount += 1
-
-                        if let grade = questionWithGrade.grade {
-                            // Question has been graded
-                            if grade.isCorrect {
-                                correctCount += 1
-                                logger.debug("Q\(index+1): Correct")
-                            } else if grade.score >= 0.5 {
-                                // Partial credit: score >= 50%
-                                // Conservative approach: don't count as correct (consistent with Detail/Fast mode)
-                                logger.debug("Q\(index+1): Partial - counted as incorrect")
-                            } else {
-                                logger.debug("Q\(index+1): Incorrect")
-                            }
-                        } else {
-                            // Ungraded question: conservatively count as incorrect
-                            logger.debug("Q\(index+1): Ungraded - counted as incorrect")
-                        }
+                        log.info("🗂️ [SMART ORGANIZE]   Q\(index+1) — ⚪ ungraded")
                     }
                 }
-
-                let totalQuestions = totalCount
-                let totalCorrect = correctCount
-
-                logger.info("Progress marking: \(totalCorrect)/\(totalQuestions) correct")
-
-                // Update progress using PointsEarningManager
-                await MainActor.run {
-                    PointsEarningManager.shared.markHomeworkProgress(
-                        subject: subject,
-                        numberOfQuestions: totalQuestions,
-                        numberOfCorrectQuestions: totalCorrect
-                    )
-
-                    // ✅ CRITICAL: Set flag in BOTH ViewModel and StateManager to persist across navigation
-                    stateManager.currentHomework?.hasMarkedProgress = true
-                }
-
-                logger.info("Progress marked successfully")
-                logger.debug("hasMarkedProgress flag set in StateManager")
-
-                // ✅ NEW: Record handwriting score if available
-                if let handwriting = stateManager.currentHomework?.parseResults.handwritingEvaluation,
-                   handwriting.hasHandwriting,
-                   let score = handwriting.score {
-
-                    ShortTermStatusService.shared.recordHandwritingScore(
-                        score: score,
-                        feedback: handwriting.feedback,
-                        subject: subject,
-                        questionCount: totalQuestions
-                    )
-
-                    logger.info("✅ Recorded handwriting score: \(score)/10")
-                }
-
-                // ✅ NEW: Save to Homework Album when marking progress
-                saveToHomeworkAlbum()
             }
+
+            log.info("🗂️ [SMART ORGANIZE]   Score: \(correctCount)/\(totalCount)")
+
+            await MainActor.run {
+                PointsEarningManager.shared.markHomeworkProgress(
+                    subject: subject,
+                    numberOfQuestions: totalCount,
+                    numberOfCorrectQuestions: correctCount
+                )
+                stateManager.currentHomework?.hasMarkedProgress = true
+            }
+            log.info("🗂️ [SMART ORGANIZE]   📊 PointsEarningManager updated")
+
+            // Record handwriting score if available
+            if let handwriting = stateManager.currentHomework?.parseResults.handwritingEvaluation,
+               handwriting.hasHandwriting,
+               let score = handwriting.score {
+                ShortTermStatusService.shared.recordHandwritingScore(
+                    score: score,
+                    feedback: handwriting.feedback,
+                    subject: subject,
+                    questionCount: totalCount
+                )
+                log.info("🗂️ [SMART ORGANIZE]   ✍️  Handwriting score recorded: \(score)/10")
+            } else {
+                log.info("🗂️ [SMART ORGANIZE]   ✍️  No handwriting evaluation to record")
+            }
+
+            saveToHomeworkAlbum()
+            log.info("🗂️ [SMART ORGANIZE]   📸 Homework album saved")
+
+            // Archive all wrong/ungraded questions
+            let wrongQuestionIds = questions.compactMap { qwg -> String? in
+                if qwg.isParentQuestion {
+                    let hasWrong = qwg.subquestionGrades.values.contains { !$0.isCorrect }
+                    return hasWrong ? qwg.question.id : nil
+                } else {
+                    let isWrong = qwg.grade.map { !$0.isCorrect } ?? true
+                    return isWrong ? qwg.question.id : nil
+                }
+            }
+
+            if wrongQuestionIds.isEmpty {
+                log.info("🗂️ [SMART ORGANIZE]   🗂️  No wrong/ungraded questions — archive skipped")
+                await MainActor.run {
+                    archiveResultSummary = ArchiveResultSummary(
+                        added: 0, skipped: 0, mistakeCount: 0,
+                        albumSaved: true, isSmartOrganize: true
+                    )
+                }
+            } else {
+                log.info("🗂️ [SMART ORGANIZE]   🗂️  Archiving \(wrongQuestionIds.count) wrong/ungraded question(s) (dedup via hash)")
+                let result = await archiveQuestions(wrongQuestionIds)
+                await MainActor.run {
+                    var updatedQuestions = questions
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        for id in wrongQuestionIds {
+                            if let idx = updatedQuestions.firstIndex(where: { $0.question.id == id }) {
+                                updatedQuestions[idx].isArchived = true
+                            }
+                        }
+                        stateManager.updateHomework(questions: updatedQuestions)
+                    }
+                    archiveResultSummary = ArchiveResultSummary(
+                        added: result.added,
+                        skipped: result.skipped,
+                        mistakeCount: result.mistakeCount,
+                        albumSaved: true,
+                        isSmartOrganize: true
+                    )
+                }
+            }
+
+            log.info("🗂️ [SMART ORGANIZE] SMART ORGANIZE END ✅")
+            log.info("🗂️ [SMART ORGANIZE] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         }
     }
 
@@ -1811,9 +1901,9 @@ class DigitalHomeworkViewModel: ObservableObject {
         logger.debug("Batch archiving \(selectedQuestionIds.count) Pro Mode questions...")
 
         // Archive all selected questions
-        await archiveQuestions(Array(selectedQuestionIds))
+        let result = await archiveQuestions(Array(selectedQuestionIds))
 
-        // ✅ NEW: Mark questions as archived instead of removing them
+        // Mark questions as archived instead of removing them
         await MainActor.run {
             var updatedQuestions = questions
             withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
@@ -1826,9 +1916,16 @@ class DigitalHomeworkViewModel: ObservableObject {
                 selectedQuestionIds.removeAll()
                 isArchiveMode = false
             }
+            archiveResultSummary = ArchiveResultSummary(
+                added: result.added,
+                skipped: result.skipped,
+                mistakeCount: result.mistakeCount,
+                albumSaved: false,
+                isSmartOrganize: false
+            )
         }
 
-        logger.info("Batch archive completed - \(selectedQuestionIds.count) questions marked as archived")
+        logger.info("Batch archive completed — added: \(result.added), skipped: \(result.skipped), mistakes: \(result.mistakeCount)")
     }
 
     // MARK: - Question Deletion

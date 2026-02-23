@@ -26,19 +26,12 @@ class ErrorAnalysisService:
     async def analyze_error(self, question_data):
         """
         Analyze error with hierarchical taxonomy (with optional image support)
-
-        Args:
-            question_data: Dict with question_text, student_answer,
-                          correct_answer, subject, question_image_base64 (optional)
-
-        Returns:
-            Dict with base_branch, detailed_branch, error_type, specific_issue,
-                     evidence, learning_suggestion, confidence
         """
         question_text = question_data.get('question_text', '')
         student_answer = question_data.get('student_answer', '')
         correct_answer = question_data.get('correct_answer', '')
-        subject = question_data.get('subject', 'Math')  # Default to Math
+        subject = question_data.get('subject', 'Math')
+        language = question_data.get('language', 'en')
         question_image_base64 = question_data.get('question_image_base64')  # ✅ NEW: Extract image
 
         analysis_prompt = self._build_analysis_prompt(
@@ -48,7 +41,7 @@ class ErrorAnalysisService:
         try:
             # ✅ NEW: Build messages with Vision API support if image present
             messages = [
-                {"role": "system", "content": self._get_system_prompt(subject)}
+                {"role": "system", "content": self._get_system_prompt(subject, language)}
             ]
 
             # ✅ NEW: Use Vision API if image present, otherwise text-only
@@ -127,13 +120,13 @@ class ErrorAnalysisService:
                 "analysis_failed": True
             }
 
-    def _get_system_prompt(self, subject):
+    def _get_system_prompt(self, subject, language: str = "en"):
         """Get subject-specific system prompt"""
         normalized = normalize_subject(subject)
         is_generic = normalized == "others"
 
         if is_generic:
-            return f"""You are an expert educator analyzing student errors in {subject}.
+            prompt = f"""You are an expert educator analyzing student errors in {subject}.
 
 Your role:
 1. Identify WHERE in the curriculum the error occurred (base branch + detailed branch)
@@ -158,7 +151,7 @@ Be precise, empathetic, and curriculum-aligned."""
                 "spanish": "Spanish language"
             }.get(normalized, subject)
 
-            return f"""You are an expert {subject_label} educator analyzing student errors.
+            prompt = f"""You are an expert {subject_label} educator analyzing student errors.
 
 Your role:
 1. Identify WHERE in the {subject_label} curriculum the error occurred (base branch + detailed branch)
@@ -167,6 +160,13 @@ Your role:
 4. Provide actionable learning advice
 
 Be precise, empathetic, and curriculum-aligned."""
+
+        if language and language != "en":
+            lang_name = "Simplified Chinese (简体中文)" if language in ("zh-Hans", "zh-cn") \
+                else "Traditional Chinese (繁體中文)" if language in ("zh-Hant", "zh-tw") \
+                else language
+            prompt += f"\n\nLANGUAGE: Write 'specific_issue' and 'learning_suggestion' values in {lang_name}. Keep all other field values (base_branch, detailed_branch, error_type, evidence) in English."
+        return prompt
 
     def _build_analysis_prompt(self, question, student_ans, correct_ans, subject):
         taxonomy_text = get_taxonomy_prompt_text(subject)

@@ -57,9 +57,8 @@ module.exports = async function (fastify, opts) {
           },
           language: {
             type: 'string',
-            enum: ['en', 'zh-CN', 'zh-TW'],
             default: 'en',
-            description: 'Question language'
+            description: 'Question language (e.g. en, zh-Hans, zh-Hant)'
           },
           mode: {
             type: 'integer',
@@ -413,6 +412,7 @@ async function generateQuestionsWithAIEngine(userId, subject, topic, difficulty,
       {
         student_id: userId,
         subject,
+        language,
         config: {
           topics: topic ? [topic] : [],
           question_count: count || 5,  // ✅ AI Engine expects this in config
@@ -473,6 +473,7 @@ async function generateMistakeQuestionsWithAIEngine(userId, subject, mistakes_da
       '/api/v1/generate-questions/mistakes',
       {
         subject,
+        language,
         mistakes_data: mistakes_data || [],
         config: {
           question_count: count || 5,
@@ -529,6 +530,7 @@ async function generateConversationQuestionsWithAIEngine(userId, subject, conver
       '/api/v1/generate-questions/conversations',
       {
         subject,
+        language,
         conversation_data: conversation_data || [],
         question_data: question_data || [],
         config: {

@@ -8,6 +8,7 @@ and intelligent response formatting for different academic domains.
 from typing import Dict, List, Optional, Any
 from enum import Enum
 import re
+from .prompt_i18n import normalize_language, RANDOM_QUESTIONS_LANG_INSTRUCTION, ARCHIVE_QUESTIONS_LANG_INSTRUCTION, MISTAKE_QUESTIONS_LANG_INSTRUCTION
 
 
 class Subject(Enum):
@@ -985,7 +986,7 @@ Remember: Be patient, clear, and supportive. Focus on helping the student learn 
 
     # MARK: - Question Generation Prompts
 
-    def get_random_questions_prompt(self, subject: str, config: Dict[str, Any], user_profile: Dict[str, Any]) -> str:
+    def get_random_questions_prompt(self, subject: str, config: Dict[str, Any], user_profile: Dict[str, Any], language: str = "en") -> str:
         """
         Generate prompt for creating random practice questions.
         """
@@ -1025,6 +1026,9 @@ Remember: Be patient, clear, and supportive. Focus on helping the student learn 
             question_type_instruction = f'- Mix question types from: {"|".join(question_types)}'
             allowed_types = "|".join(question_types)
 
+        lang_key = normalize_language(language)
+        lang_instruction = RANDOM_QUESTIONS_LANG_INSTRUCTION.get(lang_key, RANDOM_QUESTIONS_LANG_INSTRUCTION["en"])
+
         prompt = f"""Generate {question_count} {difficulty} {subject} questions for {grade_level}.
 
 Topics: {', '.join(topics) if topics else 'general'}
@@ -1062,13 +1066,15 @@ CRITICAL:
 {question_type_instruction}
 - Generate EXACTLY {question_count} questions
 
+LANGUAGE: {lang_instruction}
+
 Generate now:"""
 
         print(f"📝 Generated Random Questions Prompt Length: {len(prompt)} characters")
         print("=" * 60)
         return prompt
 
-    def get_mistake_based_questions_prompt(self, subject: str, mistakes_data: List[Dict], config: Dict[str, Any], user_profile: Dict[str, Any]) -> str:
+    def get_mistake_based_questions_prompt(self, subject: str, mistakes_data: List[Dict], config: Dict[str, Any], user_profile: Dict[str, Any], language: str = "en") -> str:
         """
         Generate prompt for creating questions based on previous mistakes.
         Enhanced to use error analysis data when available.
@@ -1255,13 +1261,15 @@ CRITICAL REQUIREMENTS:
 - MANDATORY: Each question MUST include "error_type", "base_branch", and "detailed_branch" fields for status tracking
 - Use the error analysis from the mistakes above to populate these fields accurately
 
+LANGUAGE: {MISTAKE_QUESTIONS_LANG_INSTRUCTION.get(normalize_language(language), MISTAKE_QUESTIONS_LANG_INSTRUCTION["en"])}
+
 Generate now:"""
 
         print(f"📝 Generated Mistake-Based Questions Prompt Length: {len(prompt)} characters")
         print("=" * 60)
         return prompt
 
-    def get_conversation_based_questions_prompt(self, subject: str, conversation_data: List[Dict], question_data: List[Dict], config: Dict[str, Any], user_profile: Dict[str, Any]) -> str:
+    def get_conversation_based_questions_prompt(self, subject: str, conversation_data: List[Dict], question_data: List[Dict], config: Dict[str, Any], user_profile: Dict[str, Any], language: str = "en") -> str:
         """
         Generate prompt for creating questions based on archived conversations and/or archived questions.
         """
@@ -1355,6 +1363,8 @@ CRITICAL:
 - For non-MC: set "multiple_choice_options" to null
 {question_type_instruction}
 - Generate EXACTLY {question_count} questions
+
+LANGUAGE: {ARCHIVE_QUESTIONS_LANG_INSTRUCTION.get(normalize_language(language), ARCHIVE_QUESTIONS_LANG_INSTRUCTION["en"])}
 
 Generate now:"""
 

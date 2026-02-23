@@ -18,7 +18,8 @@ class ErrorAnalysisRequest(BaseModel):
     correctAnswer: str = Field(..., alias="correct_answer")
     subject: Optional[str] = "General"
     questionId: Optional[str] = Field(None, alias="question_id")
-    questionImageBase64: Optional[str] = Field(None, alias="question_image_base64")  # ✅ NEW: Image support
+    questionImageBase64: Optional[str] = Field(None, alias="question_image_base64")
+    language: Optional[str] = "en"
 
     class Config:
         populate_by_name = True  # Allow both camelCase and snake_case
@@ -51,7 +52,8 @@ async def analyze_single_error(request: ErrorAnalysisRequest):
         "correct_answer": request.correctAnswer,
         "subject": request.subject,
         "question_id": request.questionId,
-        "question_image_base64": request.questionImageBase64  # ✅ NEW: Pass image if present
+        "question_image_base64": request.questionImageBase64,
+        "language": request.language or "en"
     }
     result = await error_service.analyze_error(question_data)
     return result
@@ -69,7 +71,8 @@ async def analyze_batch_errors(request: BatchErrorAnalysisRequest):
             "correct_answer": q.correctAnswer,
             "subject": q.subject,
             "question_id": q.questionId,
-            "question_image_base64": q.questionImageBase64  # ✅ NEW: Pass image if present
+            "question_image_base64": q.questionImageBase64,
+            "language": q.language or "en"
         }
         for q in request.questions
     ]

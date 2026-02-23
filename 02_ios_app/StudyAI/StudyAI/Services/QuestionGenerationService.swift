@@ -23,6 +23,7 @@ class QuestionGenerationService: ObservableObject {
 
     private let networkService = NetworkService.shared
     private let baseURL: String
+    @AppStorage("appLanguage") private var appLanguage: String = "en"
 
     // MARK: - Published State
     @Published var isGenerating = false
@@ -396,7 +397,7 @@ class QuestionGenerationService: ObservableObject {
             "count": config.questionCount,
             "difficulty": mapDifficultyToNumber(config.difficulty) as Any, // Convert to 1-5
             "question_type": config.questionType.rawValue, // Send question type filter
-            "language": "en"
+            "language": appLanguage
         ]
 
         // ✅ FIX 1: Include personalized focus notes if available
@@ -528,7 +529,8 @@ class QuestionGenerationService: ObservableObject {
                 "question_type": config.questionType.rawValue,
                 "difficulty": config.difficulty.rawValue,
                 "topics": config.topics,
-                "focus_notes": config.focusNotes ?? ""
+                "focus_notes": config.focusNotes ?? "",
+                "language": appLanguage
             ] as [String: Any],
             "user_profile": userProfile.dictionary
         ]
@@ -674,7 +676,7 @@ class QuestionGenerationService: ObservableObject {
             "question_data": questions,
             "count": config.questionCount,
             "question_type": config.questionType.rawValue,
-            "language": "en"
+            "language": appLanguage
         ]
 
         var request = URLRequest(url: url)

@@ -138,6 +138,11 @@ class SessionHelper {
       this.fastify.log.info(`   • Total tokens: ${totalTokens}`);
       this.fastify.log.info(`   • Preview: ${conversationText.substring(0, 200)}...`);
 
+      const language = sessionInfo.language || 'en';
+      const languageInstruction = language !== 'en'
+        ? `\n\nIMPORTANT: Respond entirely in ${language === 'zh-Hans' ? 'Simplified Chinese (简体中文)' : language === 'zh-Hant' ? 'Traditional Chinese (繁體中文)' : language}. All text values in the JSON must be in that language.`
+        : '';
+
       // Generate both analysis and embedding in parallel
       this.fastify.log.info(`🔄 [AI ANALYSIS] Calling OpenAI API...`);
       const [analysisCompletion, embeddingResponse] = await Promise.all([
@@ -174,7 +179,7 @@ Bad examples (too wordy or generic):
 - "Math - interactive learning session" ❌ (too generic)
 - "General - Q&A session" ❌ (too generic)
 
-Be direct: state the topic, not the action.`
+Be direct: state the topic, not the action.${languageInstruction}`
             },
             {
               role: 'user',

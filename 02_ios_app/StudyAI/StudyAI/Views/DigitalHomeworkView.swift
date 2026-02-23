@@ -36,10 +36,6 @@ struct DigitalHomeworkView: View {
     @State private var showPDFExportError = false
     @State private var pdfExportErrorMessage = ""
 
-    // ✅ NEW: Mistake detection alert
-    @State private var showMistakeDetectionAlert = false
-    @State private var detectedMistakeIds: [String] = []
-
     // ✅ NEW: Deletion mode state
     @State private var isDeletionMode = false
     @State private var selectedQuestionsForDeletion: Set<String> = []
@@ -47,6 +43,10 @@ struct DigitalHomeworkView: View {
 
     // Annotation button glow pulse animation
     @State private var annotationGlowPulse = false
+
+    // ✅ Archive / Smart Organize result toast
+    @State private var showResultToast = false
+    @State private var resultToastLines: [String] = []
 
     // MARK: - Body
 
@@ -139,6 +139,31 @@ struct DigitalHomeworkView: View {
                         }
                     }
             }
+
+            // ✅ Archive / Smart Organize result toast overlay
+            if showResultToast {
+                VStack {
+                    Spacer()
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(resultToastLines, id: \.self) { line in
+                            Text(line)
+                                .font(.subheadline)
+                                .foregroundColor(.white)
+                        }
+                    }
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 14)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14)
+                            .fill(Color(.label).opacity(0.88))
+                            .shadow(color: .black.opacity(0.25), radius: 10, x: 0, y: 4)
+                    )
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 32)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+                .allowsHitTesting(false)
+            }
         }
         .toolbar(.hidden, for: .tabBar)  // 隐藏 tab bar
         .animation(.easeInOut(duration: 0.3), value: viewModel.showAnnotationMode)
@@ -146,6 +171,20 @@ struct DigitalHomeworkView: View {
             // When exiting annotation mode, sync cropped images
             if oldValue == true && newValue == false {
                 viewModel.syncCroppedImages()
+            }
+        }
+        .onChange(of: viewModel.archiveResultSummary) { _, summary in
+            guard let summary else { return }
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                resultToastLines = buildToastLines(from: summary)
+                showResultToast = true
+            }
+            // Auto-dismiss after 3.5 seconds
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
+                withAnimation(.easeOut(duration: 0.4)) {
+                    showResultToast = false
+                }
+                viewModel.archiveResultSummary = nil
             }
         }
         // ✅ REMOVED: .onAppear setup - state already exists from global StateManager
@@ -168,18 +207,6 @@ struct DigitalHomeworkView: View {
             }
         } message: {
             Text(NSLocalizedString("proMode.revertGradingAlert.message", comment: "Warning message"))
-        }
-        .alert(String(format: NSLocalizedString("proMode.detectedErrors", comment: ""), detectedMistakeIds.count), isPresented: $showMistakeDetectionAlert) {
-            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {
-                detectedMistakeIds = []
-            }
-            Button(NSLocalizedString("proMode.analyzeButton", comment: "")) {
-                Task {
-                    await archiveAndAnalyzeMistakes()
-                }
-            }
-        } message: {
-            Text(NSLocalizedString("proMode.analyzeMistakesPrompt", comment: ""))
         }
         // ✅ NEW: Deletion confirmation alert
         .alert(String(format: NSLocalizedString("proMode.deleteQuestionsTitle", comment: ""), selectedQuestionsForDeletion.count, selectedQuestionsForDeletion.count == 1 ? "" : "s"), isPresented: $showDeletionConfirmation) {
@@ -271,6 +298,11 @@ struct DigitalHomeworkView: View {
                                                     parentQuestionId: questionWithGrade.question.id,
                                                     subquestionId: subquestionId
                                                 )
+                                            }
+                                        },
+                                        onReparse: {
+                                            Task {
+                                                await viewModel.reparseQuestion(questionId: questionWithGrade.question.id)
                                             }
                                         },
                                         onToggleSelection: {
@@ -680,18 +712,6 @@ struct DigitalHomeworkView: View {
                                 viewModel.markProgress()
 
                                 // ✅ NEW: Check for unarchived mistakes after marking progress
-                                AppLogger.mistakeDetection.mistakeDetection("Checking for unarchived mistakes after marking progress...")
-                                let mistakeIds = MistakeDetectionHelper.shared.getUnarchivedMistakeIds(from: viewModel.questions)
-
-                                if !mistakeIds.isEmpty {
-                                    // Found unarchived mistakes - show prompt
-                                    detectedMistakeIds = mistakeIds
-                                    showMistakeDetectionAlert = true
-                                    AppLogger.mistakeDetection.info("📢 Showing alert for \(mistakeIds.count) detected mistakes")
-                                } else {
-                                    AppLogger.mistakeDetection.info("No unarchived mistakes detected")
-                                }
-
                                 // ✅ iOS unlock sound effect (1100 = Tock sound, similar to unlock)
                                 AudioServicesPlaySystemSound(1100)
 
@@ -1083,19 +1103,45 @@ struct DigitalHomeworkView: View {
                 ScrollView {
                     if let selectedId = viewModel.selectedAnnotationId,
                        let annotation = viewModel.annotations.first(where: { $0.id == selectedId }),
-                       let questionNumber = annotation.questionNumber,
-                       let questionWithGrade = viewModel.questions.first(where: { $0.question.questionNumber == questionNumber }) {
+                       let questionNumber = annotation.questionNumber {
 
-                        VStack(spacing: 12) {
-                            Text(NSLocalizedString("proMode.questionPreview", comment: "Question Preview"))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                        // Match top-level question OR find parent of a matching subquestion
+                        let questionWithGrade: ProgressiveQuestionWithGrade? = viewModel.questions.first(where: { $0.question.questionNumber == questionNumber })
+                            ?? viewModel.questions.first(where: { $0.question.subquestions?.contains { $0.id == questionNumber } == true })
+                        // ID used for image lookup: subquestion id takes priority over parent id
+                        let imageId: String = {
+                            if let sub = viewModel.questions
+                                .flatMap({ $0.question.subquestions ?? [] })
+                                .first(where: { $0.id == questionNumber }) {
+                                return sub.id
+                            }
+                            return questionWithGrade?.question.id ?? questionNumber
+                        }()
 
-                            compactQuestionPreview(questionWithGrade: questionWithGrade)
+                        if let questionWithGrade {
+                            VStack(spacing: 12) {
+                                Text(NSLocalizedString("proMode.questionPreview", comment: "Question Preview"))
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                                compactQuestionPreview(questionWithGrade: questionWithGrade, imageId: imageId, subquestionId: questionNumber)
+                            }
+                            .padding()
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                        } else {
+                            VStack(spacing: 16) {
+                                Image(systemName: "hand.tap.fill")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(.blue.opacity(0.5))
+
+                                Text(NSLocalizedString("proMode.tapToAnnotate", comment: "Tap to create annotation"))
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .padding()
                         }
-                        .padding()
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
                     } else {
                         VStack(spacing: 16) {
                             Image(systemName: "hand.tap.fill")
@@ -1131,19 +1177,21 @@ struct DigitalHomeworkView: View {
 
                 // Question number picker — hierarchical (parent + subquestions with indent)
                 Menu {
-                    ForEach(viewModel.availableAnnotationTargets, id: \.annotationQuestionNumber) { target in
-                        Button(action: {
-                            viewModel.updateAnnotationQuestionNumber(annotationId: annotation.id, questionNumber: target.annotationQuestionNumber)
-                        }) {
-                            HStack {
-                                Text(target.displayLabel)
-                                    .lineLimit(2)
-                                    .fixedSize(horizontal: false, vertical: true)
+                    Section(header: Text(NSLocalizedString("proMode.selectQuestionNumber", comment: "Select Question Number"))) {
+                        ForEach(viewModel.availableAnnotationTargets.reversed(), id: \.annotationQuestionNumber) { target in
+                            Button(action: {
+                                viewModel.updateAnnotationQuestionNumber(annotationId: annotation.id, questionNumber: target.annotationQuestionNumber)
+                            }) {
+                                HStack {
+                                    Text(target.displayLabel)
+                                        .lineLimit(2)
+                                        .fixedSize(horizontal: false, vertical: true)
 
-                                Spacer()
+                                    Spacer()
 
-                                if annotation.questionNumber == target.annotationQuestionNumber {
-                                    Image(systemName: "checkmark")
+                                    if annotation.questionNumber == target.annotationQuestionNumber {
+                                        Image(systemName: "checkmark")
+                                    }
                                 }
                             }
                         }
@@ -1212,8 +1260,11 @@ struct DigitalHomeworkView: View {
 
     // MARK: - Compact Question Preview (紧凑版题目预览)
 
-    private func compactQuestionPreview(questionWithGrade: ProgressiveQuestionWithGrade) -> some View {
+    /// imageId: the key to look up in croppedImages (parent id or subquestion id)
+    /// subquestionId: if non-nil and matches a subquestion, highlight that subquestion row
+    private func compactQuestionPreview(questionWithGrade: ProgressiveQuestionWithGrade, imageId: String? = nil, subquestionId: String? = nil) -> some View {
         let studentAnswer = questionWithGrade.question.displayStudentAnswer
+        let lookupId = imageId ?? questionWithGrade.question.id
 
         return VStack(alignment: .leading, spacing: 12) {
             // Question header
@@ -1224,8 +1275,15 @@ struct DigitalHomeworkView: View {
                     .foregroundColor(.primary)
             }
 
-            // Cropped image (if available)
-            if let image = viewModel.getCroppedImage(for: questionWithGrade.question.id) {
+            // Question text (parent content or regular question text)
+            Text(questionWithGrade.question.displayText)
+                .font(.subheadline)
+                .foregroundColor(.primary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            // Cropped image for parent/independent question (shown below question text)
+            if subquestionId == nil || subquestionId == questionWithGrade.question.id,
+               let image = viewModel.getCroppedImage(for: lookupId) {
                 Image(uiImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
@@ -1234,14 +1292,41 @@ struct DigitalHomeworkView: View {
                     .cornerRadius(12)
             }
 
-            // Question text
-            Text(questionWithGrade.question.displayText)
-                .font(.subheadline)
-                .foregroundColor(.primary)
-                .fixedSize(horizontal: false, vertical: true)
+            // If this is a parent question, show subquestions with highlighted target
+            if questionWithGrade.question.isParentQuestion,
+               let subquestions = questionWithGrade.question.subquestions {
+                ForEach(subquestions) { sub in
+                    let isTarget = sub.id == subquestionId
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(alignment: .top, spacing: 6) {
+                            Text("(\(sub.id))")
+                                .font(.caption)
+                                .foregroundColor(isTarget ? .blue : .secondary)
+                                .fontWeight(isTarget ? .semibold : .regular)
+                            Text(sub.questionText)
+                                .font(.caption)
+                                .foregroundColor(isTarget ? .primary : .secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        // Show subquestion cropped image directly below it
+                        if isTarget, let image = viewModel.getCroppedImage(for: sub.id) {
+                            Image(uiImage: image)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(maxHeight: 150)
+                                .background(Color.gray.opacity(0.1))
+                                .cornerRadius(8)
+                                .padding(.leading, 20)
+                        }
+                    }
+                    .padding(6)
+                    .background(isTarget ? Color.blue.opacity(0.08) : Color.clear)
+                    .cornerRadius(8)
+                }
+            }
 
-            // Student answer (if available)
-            if !studentAnswer.isEmpty {
+            // Student answer (only for non-parent questions)
+            if !questionWithGrade.question.isParentQuestion && !studentAnswer.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(NSLocalizedString("proMode.studentAnswer", comment: "Student Answer"))
                         .font(.caption)
@@ -1678,183 +1763,35 @@ struct DigitalHomeworkView: View {
     // MARK: - Mistake Detection & Analysis
 
     /// Archive and analyze detected mistakes
-    private func archiveAndAnalyzeMistakes() async {
-        guard !detectedMistakeIds.isEmpty else {
-            AppLogger.archiving.warning("archiveAndAnalyzeMistakes called with empty mistake IDs")
-            return
-        }
 
-        AppLogger.archiving.info("═══════════════════════════════════════════")
-        AppLogger.archiving.info("ARCHIVING & ANALYZING MISTAKES")
-        AppLogger.archiving.info("═══════════════════════════════════════════")
-        AppLogger.archiving.archiving("Starting archive process for \(detectedMistakeIds.count) mistakes")
+    // MARK: - Toast Helper
 
-        // Get the actual question objects from viewModel using the IDs
-        let mistakeQuestions = viewModel.questions.filter { detectedMistakeIds.contains($0.id) }
-        AppLogger.archiving.archiving("Filtered to \(mistakeQuestions.count) question objects")
-
-        // Convert ProgressiveQuestionWithGrade to ParsedQuestion format for archiving
-        AppLogger.archiving.archiving("Converting ProgressiveQuestionWithGrade to ParsedQuestion format...")
-        let parsedQuestions: [ParsedQuestion] = mistakeQuestions.map { questionWithGrade in
-            let question = questionWithGrade.question
-            let grade = questionWithGrade.grade
-
-            // Determine grade string
-            let gradeString: String
-            if let gradeResult = grade {
-                gradeString = gradeResult.isCorrect ? "CORRECT" : "INCORRECT"
+    private func buildToastLines(from summary: DigitalHomeworkViewModel.ArchiveResultSummary) -> [String] {
+        var lines: [String] = []
+        if summary.isSmartOrganize {
+            lines.append(NSLocalizedString("proMode.smartOrganize.toastTitle", comment: "Smart Organize"))
+            if summary.mistakeCount > 0 {
+                lines.append(String(format: NSLocalizedString("proMode.smartOrganize.toast.mistakesAdded", comment: ""), summary.mistakeCount))
             } else {
-                gradeString = "INCORRECT"
+                lines.append(NSLocalizedString("proMode.smartOrganize.toast.noMistakes", comment: ""))
             }
-
-            // Convert question number from String to Int
-            let questionNumberInt = question.questionNumber.flatMap { Int($0) }
-            AppLogger.archiving.archiving("  Converting Q#\(question.questionNumber ?? "?") - Grade: \(gradeString)")
-
-            return ParsedQuestion(
-                questionNumber: questionNumberInt,
-                rawQuestionText: question.questionText,
-                questionText: question.displayText,
-                answerText: "",  // Not used in Pro Mode
-                confidence: nil,
-                hasVisualElements: false,
-                studentAnswer: question.studentAnswer,
-                correctAnswer: grade?.correctAnswer,
-                grade: gradeString,
-                pointsEarned: grade != nil ? grade!.score : 0.0,
-                pointsPossible: 1.0,
-                feedback: grade?.feedback,
-                questionType: question.questionType,
-                options: nil,
-                isParent: question.isParent,
-                hasSubquestions: question.hasSubquestions,
-                parentContent: question.parentContent,
-                subquestions: nil,  // Don't include subquestions in archive
-                subquestionNumber: nil,
-                parentSummary: nil
-            )
-        }
-
-        // Get subject from parse results
-        let subject = parseResults.subject
-        let subjectConfidence = parseResults.subjectConfidence
-        AppLogger.archiving.archiving("Subject: \(subject) (confidence: \(subjectConfidence))")
-
-        // Create indices array (0...count-1)
-        let selectedIndices = Array(0..<parsedQuestions.count)
-
-        // Create empty notes and tags for all questions
-        let userNotes = Array(repeating: "", count: parsedQuestions.count)
-        let userTags = Array(repeating: [String](), count: parsedQuestions.count)
-
-        // Create archive request
-        let archiveRequest = QuestionArchiveRequest(
-            questions: parsedQuestions,
-            selectedQuestionIndices: selectedIndices,
-            detectedSubject: subject,
-            subjectConfidence: subjectConfidence,
-            originalImageUrl: nil,  // Pro Mode doesn't have original URL
-            processingTime: Double(parseResults.processingTimeMs ?? 0) / 1000.0,  // Convert ms to seconds
-            userNotes: userNotes,
-            userTags: userTags
-        )
-
-        do {
-            // Archive questions using QuestionArchiveService
-            AppLogger.archiving.archiving("Calling QuestionArchiveService.archiveQuestions...")
-            let archivedQuestions = try await QuestionArchiveService.shared.archiveQuestions(archiveRequest)
-            AppLogger.archiving.info("✅ Archived \(archivedQuestions.count) questions successfully")
-
-            // ✅ DEBUG: Show archived question IDs and subjects
-            #if DEBUG
-            print("\n🔍 [DEBUG] ARCHIVED QUESTIONS:")
-            for (index, archived) in archivedQuestions.enumerated() {
-                print("   [\(index + 1)] ID: \(archived.id.prefix(8))... | Subject: \(archived.subject)")
+            lines.append(NSLocalizedString("proMode.smartOrganize.toast.progressMarked", comment: ""))
+            lines.append(NSLocalizedString("proMode.smartOrganize.toast.albumSaved", comment: ""))
+            if summary.skipped > 0 {
+                lines.append(String(format: NSLocalizedString("proMode.smartOrganize.toast.duplicates", comment: ""), summary.skipped))
             }
-            print("")
-            #endif
-
-            // Convert to dictionary format for error analysis
-            // ✅ FIX: Map archived IDs and subject into wrongQuestions dictionary
-            AppLogger.errorAnalysis.errorAnalysis("Converting to error analysis format...")
-            let wrongQuestions: [[String: Any]] = zip(archivedQuestions, parsedQuestions).map { (archived, question) in
-                var dict: [String: Any] = [
-                    "id": archived.id,  // ✅ CRITICAL: Add question ID from archived question
-                    "subject": archived.subject,  // ✅ CRITICAL: Add subject for error analysis
-                    "questionText": question.questionText,
-                    "studentAnswer": question.studentAnswer ?? "",
-                    "correctAnswer": question.correctAnswer ?? "",
-                    "grade": question.grade ?? "INCORRECT"
-                ]
-
-                if let rawText = question.rawQuestionText {
-                    dict["rawQuestionText"] = rawText
-                }
-
-                if let qNum = question.questionNumber {
-                    dict["questionNumber"] = qNum
-                }
-
-                return dict
+        } else {
+            lines.append(NSLocalizedString("proMode.archive.toastTitle", comment: "Archive"))
+            lines.append(String(format: NSLocalizedString("proMode.archive.toast.added", comment: ""), summary.added))
+            if summary.mistakeCount > 0 {
+                lines.append(String(format: NSLocalizedString("proMode.archive.toast.mistakesAdded", comment: ""), summary.mistakeCount))
             }
-
-            // ✅ DEBUG: Verify wrongQuestions have IDs and subject
-            #if DEBUG
-            print("\n🔍 [DEBUG] ERROR ANALYSIS PAYLOAD:")
-            print("   Total questions: \(wrongQuestions.count)")
-            for (index, question) in wrongQuestions.prefix(3).enumerated() {
-                let id = question["id"] as? String ?? "NIL"
-                let subject = question["subject"] as? String ?? "NIL"
-                let questionText = (question["questionText"] as? String ?? "").prefix(30)
-                print("   [\(index + 1)] ID: \(id.prefix(8))... | Subject: \(subject) | Q: '\(questionText)...'")
-            }
-            if wrongQuestions.count > 3 {
-                print("   ... and \(wrongQuestions.count - 3) more")
-            }
-            print("")
-            #endif
-
-            // Generate session ID for this mistake batch
-            let sessionId = UUID().uuidString
-            AppLogger.errorAnalysis.errorAnalysis("Generated session ID: \(sessionId)")
-
-            // Queue error analysis for these mistakes
-            await MainActor.run {
-                AppLogger.errorAnalysis.errorAnalysis("Queueing error analysis...")
-
-                // ✅ DEBUG: Log before queueing
-                #if DEBUG
-                print("🔍 [DEBUG] Calling ErrorAnalysisQueueService.queueErrorAnalysisAfterGrading")
-                print("   Session ID: \(sessionId)")
-                print("   Questions count: \(wrongQuestions.count)")
-                #endif
-
-                ErrorAnalysisQueueService.shared.queueErrorAnalysisAfterGrading(
-                    sessionId: sessionId,
-                    wrongQuestions: wrongQuestions
-                )
-                AppLogger.errorAnalysis.info("✅ Queued error analysis for session \(sessionId)")
-                AppLogger.archiving.info("═══════════════════════════════════════════")
-
-                // Clear detected mistake IDs
-                detectedMistakeIds = []
-
-                // Show success feedback
-                let generator = UINotificationFeedbackGenerator()
-                generator.notificationOccurred(.success)
-            }
-        } catch {
-            AppLogger.archiving.error("❌ Failed to archive and analyze", error: error)
-            AppLogger.archiving.info("═══════════════════════════════════════════")
-
-            // Show error feedback
-            await MainActor.run {
-                let generator = UINotificationFeedbackGenerator()
-                generator.notificationOccurred(.error)
+            if summary.skipped > 0 {
+                lines.append(String(format: NSLocalizedString("proMode.archive.toast.duplicates", comment: ""), summary.skipped))
             }
         }
+        return lines
     }
-
 }
 
 // MARK: - Question Card Component
@@ -1873,6 +1810,7 @@ struct QuestionCard: View {
     let onArchiveSubquestion: ((String) -> Void)?  // ✅ NEW: Archive specific subquestion (optional, only for parent questions)
     let onRegrade: () -> Void  // ✅ NEW: Regrade this question
     let onRegradeSubquestion: ((String) -> Void)?  // ✅ NEW: Regrade specific subquestion
+    let onReparse: () -> Void  // Reparse this question with Gemini
     let onToggleSelection: () -> Void
     let onToggleDeletionSelection: () -> Void  // ✅ NEW: Toggle deletion selection
     let onLongPress: () -> Void  // ✅ NEW: Long press gesture callback
@@ -1930,6 +1868,19 @@ struct QuestionCard: View {
             }
 
             Spacer()
+
+            // Reparse button — only shown when not graded and not loading
+            if !questionWithGrade.isGrading && !questionWithGrade.isComplete {
+                Button(action: onReparse) {
+                    Image(systemName: "arrow.counterclockwise")
+                        .font(.caption)
+                        .foregroundColor(.white)
+                        .frame(width: 28, height: 28)
+                        .background(Color.orange)
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+            }
 
             // Grade badge (if graded) or loading indicator (if grading)
             // ✅ NEW: Hide grade during regrading with fade animation
@@ -2509,12 +2460,12 @@ struct SubquestionRow: View {
             }
             .animation(.easeInOut(duration: 0.3), value: isGrading)  // ✅ Animate score badge changes
 
-            // Cropped image for this subquestion (shown below question text)
+            // Cropped image for this subquestion (shown at bottom of question content, above answer/feedback)
             if let image = croppedImage {
                 Image(uiImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(maxHeight: 100)
+                    .frame(maxHeight: 120)
                     .background(Color.gray.opacity(0.1))
                     .cornerRadius(6)
                     .padding(.leading, 24)

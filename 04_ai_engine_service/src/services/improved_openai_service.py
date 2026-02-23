@@ -17,6 +17,7 @@ import re
 from typing import Dict, List, Optional, Any, AsyncGenerator, Literal
 from pydantic import BaseModel, Field
 from .prompt_service import AdvancedPromptService, Subject
+from .prompt_i18n import normalize_language, RANDOM_QUESTIONS_USER_MESSAGE, HOMEWORK_LANG_INSTRUCTION, ARCHIVE_QUESTIONS_LANG_INSTRUCTION, ARCHIVE_QUESTIONS_USER_MESSAGE, MISTAKE_QUESTIONS_LANG_INSTRUCTION, MISTAKE_QUESTIONS_USER_MESSAGE
 import os
 import hashlib
 from datetime import datetime, timedelta
@@ -115,7 +116,7 @@ class OptimizedEducationalAIService:
         self.model_reasoning = "o4-mini"  # Deep reasoning model for complex problem-solving
         self.model = self.model_mini  # Default to mini
         self.vision_model = "gpt-4o-2024-08-06"  # Required for structured outputs
-        self.structured_output_model = "gpt-4o-2024-08-06"  # For structured outputs
+        self.structured_output_model = "gpt-4o-mini"  # Switched from gpt-4o-2024-08-06: 4-8x faster, same JSON mode support
 
         # Track model usage for cost monitoring
         self.model_usage_stats = {
@@ -325,13 +326,13 @@ class OptimizedEducationalAIService:
         image_size_kb = len(base64_image) * 0.75 / 1024  # Approximate size in KB
 
         if image_size_kb < 500:  # Small image (< 500KB compressed)
-            tokens = 4000
+            tokens = 3000
             logger.debug(f"📊 Small image detected ({image_size_kb:.0f}KB) → allocating {tokens} tokens")
         elif image_size_kb < 1500:  # Medium image (500KB-1.5MB)
-            tokens = 6000
+            tokens = 4000
             logger.debug(f"📊 Medium image detected ({image_size_kb:.0f}KB) → allocating {tokens} tokens")
         else:  # Large/complex image (> 1.5MB)
-            tokens = 8000
+            tokens = 5000
             logger.debug(f"📊 Large image detected ({image_size_kb:.0f}KB) → allocating {tokens} tokens")
 
         return tokens
@@ -552,7 +553,8 @@ class OptimizedEducationalAIService:
         base64_image: str,
         custom_prompt: Optional[str] = None,
         student_context: Optional[Dict] = None,
-        parsing_mode: Optional[str] = None  # "hierarchical" or "baseline"
+        parsing_mode: Optional[str] = None,  # "hierarchical" or "baseline"
+        language: str = "en"
     ) -> Dict[str, Any]:
         """
         Parse homework images with guaranteed JSON structure using OpenAI structured outputs.
@@ -590,7 +592,7 @@ class OptimizedEducationalAIService:
                 return cached_result
 
             # Create the strict JSON schema prompt
-            system_prompt = self._create_json_schema_prompt(custom_prompt, student_context, parsing_mode)
+            system_prompt = self._create_json_schema_prompt(custom_prompt, student_context, parsing_mode, language)
 
             # Prepare image message for OpenAI Vision API
             image_url = f"data:image/jpeg;base64,{base64_image}"
@@ -599,9 +601,8 @@ class OptimizedEducationalAIService:
             max_tokens = self._estimate_tokens_needed(base64_image)
 
             # OPTIMIZATION 3: Mode-specific image detail level
-            # Hierarchical mode: "high" detail for complex structure parsing
-            # Baseline mode: "auto" detail for faster processing
-            image_detail = "high" if parsing_mode == "hierarchical" else "auto"
+            # Use "auto" detail for all modes — "high" gave no accuracy benefit and added 30-50% latency
+            image_detail = "auto"
 
             logger.debug(f"🔍 Allocating {max_tokens} tokens for homework parsing")
             logger.debug(f"🖼️ Image detail level: {image_detail} (parsing_mode={parsing_mode})")
@@ -654,8 +655,8 @@ CRITICAL INSTRUCTIONS:
                         }
                     ],
                     response_format={"type": "json_object"},  # JSON mode instead of beta parse
-                    # OPTIMIZATION 4: Temperature 0.2 for faster natural explanations (was 0.1)
-                    temperature=0.2,
+                    # OPTIMIZATION: Temperature 0.1 for consistent grading (was 0.2)
+                    temperature=0.1,
                     max_tokens=max_tokens,  # Dynamic allocation
                 )
 
@@ -1121,7 +1122,7 @@ GENERAL GRADING RULES:
 - Ensure all arrays (strengths, improvements, grammar_corrections) are present (can be empty)
 """
 
-    def _create_json_schema_prompt(self, custom_prompt: Optional[str], student_context: Optional[Dict], parsing_mode: Optional[str] = None) -> str:
+    def _create_json_schema_prompt(self, custom_prompt: Optional[str], student_context: Optional[Dict], parsing_mode: Optional[str] = None, language: str = "en") -> str:
         """Create a concise prompt that enforces strict JSON schema for grading.
 
         HIERARCHICAL PARSING: Feature flag controlled (USE_HIERARCHICAL_PARSING or parsing_mode parameter)
@@ -1144,7 +1145,9 @@ GENERAL GRADING RULES:
             return self._create_essay_grading_prompt()
 
         # Get subject-specific grading rules
-        subject_rules = self._get_subject_specific_rules(subject) if subject else ""
+        # DISABLED: Testing baseline accuracy without predefined rules.
+        # Re-enable by changing False → (subject is not None)
+        subject_rules = self._get_subject_specific_rules(subject) if False else ""
 
         # Feature flag: Use hierarchical parsing
         # Priority: parsing_mode parameter > environment variable > default (false)
@@ -1305,6 +1308,8 @@ RULES:
         if custom_prompt:
             base_prompt += f"\nContext: {custom_prompt}"
 
+        lang_key = normalize_language(language)
+        base_prompt += HOMEWORK_LANG_INSTRUCTION.get(lang_key, "")
         return base_prompt
     
     def _validate_json_structure(self, json_data: Dict) -> bool:
@@ -1906,7 +1911,8 @@ class EducationalAIService:
         base64_image: str,
         custom_prompt: Optional[str] = None,
         student_context: Optional[Dict] = None,
-        parsing_mode: Optional[str] = None
+        parsing_mode: Optional[str] = None,
+        language: str = "en"
     ) -> Dict[str, Any]:
         """
         Enhanced homework parsing with improved consistency.
@@ -1920,7 +1926,8 @@ class EducationalAIService:
             base64_image=base64_image,
             custom_prompt=custom_prompt,
             student_context=student_context,
-            parsing_mode=parsing_mode
+            parsing_mode=parsing_mode,
+            language=language
         )
     
     async def process_session_conversation(
@@ -2643,7 +2650,8 @@ Focus on being helpful and educational while maintaining a conversational tone."
         self,
         subject: str,
         config: Dict[str, Any],
-        user_profile: Dict[str, Any]
+        user_profile: Dict[str, Any],
+        language: str = "en"
     ) -> Dict[str, Any]:
         """
         Generate random practice questions for a given subject.
@@ -2664,7 +2672,7 @@ Focus on being helpful and educational while maintaining a conversational tone."
             logger.debug(f"👤 User Profile: {user_profile}")
 
             # Generate the comprehensive prompt
-            system_prompt = self.prompt_service.get_random_questions_prompt(subject, config, user_profile)
+            system_prompt = self.prompt_service.get_random_questions_prompt(subject, config, user_profile, language)
 
             logger.debug(f"📝 === FULL INPUT PROMPT FOR RANDOM QUESTIONS ===")
             logger.debug(f"📄 Prompt Length: {len(system_prompt)} characters")
@@ -2679,7 +2687,10 @@ Focus on being helpful and educational while maintaining a conversational tone."
                 model=self.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"Generate {config.get('question_count', 5)} random questions for {subject} now."}
+                    {"role": "user", "content": RANDOM_QUESTIONS_USER_MESSAGE.get(
+                        normalize_language(language),
+                        RANDOM_QUESTIONS_USER_MESSAGE["en"]
+                    ).format(count=config.get('question_count', 5), subject=subject)}
                 ],
                 temperature=0.7,  # Higher temperature for variety in questions
                 max_tokens=3000,
@@ -2764,7 +2775,8 @@ Focus on being helpful and educational while maintaining a conversational tone."
         subject: str,
         mistakes_data: List[Dict],
         config: Dict[str, Any],
-        user_profile: Dict[str, Any]
+        user_profile: Dict[str, Any],
+        language: str = "en"
     ) -> Dict[str, Any]:
         """
         Generate questions based on previous mistakes to help remedial learning.
@@ -2803,7 +2815,7 @@ Focus on being helpful and educational while maintaining a conversational tone."
 
             # Generate the comprehensive prompt
             system_prompt = self.prompt_service.get_mistake_based_questions_prompt(
-                subject, mistakes_data, config, user_profile
+                subject, mistakes_data, config, user_profile, language
             )
 
             logger.debug(f"📝 === FULL INPUT PROMPT FOR MISTAKE-BASED QUESTIONS ===")
@@ -2819,7 +2831,10 @@ Focus on being helpful and educational while maintaining a conversational tone."
                 model=self.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"Generate {config.get('question_count', 5)} remedial questions based on the mistake patterns for {subject}."}
+                    {"role": "user", "content": MISTAKE_QUESTIONS_USER_MESSAGE.get(
+                        normalize_language(language),
+                        MISTAKE_QUESTIONS_USER_MESSAGE["en"]
+                    ).format(count=config.get('question_count', 5), subject=subject)}
                 ],
                 temperature=0.6,  # Moderate temperature for focused remedial questions
                 max_tokens=3000,
@@ -2992,7 +3007,8 @@ Focus on being helpful and educational while maintaining a conversational tone."
         conversation_data: List[Dict],
         question_data: List[Dict] = None,
         config: Dict[str, Any] = None,
-        user_profile: Dict[str, Any] = None
+        user_profile: Dict[str, Any] = None,
+        language: str = "en"
     ) -> Dict[str, Any]:
         """
         Generate personalized questions based on archived conversations and/or questions.
@@ -3018,7 +3034,7 @@ Focus on being helpful and educational while maintaining a conversational tone."
 
             # Generate the comprehensive prompt
             system_prompt = self.prompt_service.get_conversation_based_questions_prompt(
-                subject, conversation_data, question_data or [], config or {}, user_profile or {}
+                subject, conversation_data, question_data or [], config or {}, user_profile or {}, language
             )
 
             logger.debug(f"📝 === FULL INPUT PROMPT FOR CONVERSATION-BASED QUESTIONS ===")
@@ -3034,7 +3050,10 @@ Focus on being helpful and educational while maintaining a conversational tone."
                 model=self.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"Generate {config.get('question_count', 5)} personalized questions based on the conversation history for {subject}."}
+                    {"role": "user", "content": ARCHIVE_QUESTIONS_USER_MESSAGE.get(
+                        normalize_language(language),
+                        ARCHIVE_QUESTIONS_USER_MESSAGE["en"]
+                    ).format(count=config.get('question_count', 5), subject=subject)}
                 ],
                 temperature=0.8,  # Higher temperature for more personalized, creative questions
                 max_tokens=3000,
@@ -3275,7 +3294,8 @@ Focus on being helpful and educational while maintaining a conversational tone."
         question_type: Optional[str] = None,  # NEW: Question type for specialized grading
         context_image: Optional[str] = None,
         parent_content: Optional[str] = None,  # NEW: Parent question context
-        use_deep_reasoning: bool = False
+        use_deep_reasoning: bool = False,
+        language: str = "en"
     ) -> Dict[str, Any]:
         """
         Grade a single question with smart model selection.
@@ -3352,7 +3372,8 @@ Focus on being helpful and educational while maintaining a conversational tone."
                 correct_answer=correct_answer,
                 parent_content=parent_content,
                 has_context_image=bool(context_image),
-                use_deep_reasoning=use_deep_reasoning
+                use_deep_reasoning=use_deep_reasoning,
+                language=language
             )
 
             # Prepare messages based on image context
@@ -3503,10 +3524,10 @@ OUTPUT FORMAT:
       "has_subquestions": true,
       "parent_content": "Label the number line from 10-19 by counting by ones.",
       "subquestions": [
-        {{"id": "1a", "question_text": "What number is one more than 14?", "student_answer": "15", "question_type": "short_answer"}},
-        {{"id": "1b", "question_text": "What number is one less than 17?", "student_answer": "16", "question_type": "short_answer"}},
-        {{"id": "1c", "question_text": "What number is one more than 11?", "student_answer": "12", "question_type": "short_answer"}},
-        {{"id": "1d", "question_text": "What number is one less than 18?", "student_answer": "17", "question_type": "short_answer"}}
+        {{"id": "1a", "question_text": "What number is one more than 14?", "student_answer": "15", "question_type": "short_answer", "need_image": false}},
+        {{"id": "1b", "question_text": "What number is one less than 17?", "student_answer": "16", "question_type": "short_answer", "need_image": false}},
+        {{"id": "1c", "question_text": "What number is one more than 11?", "student_answer": "12", "question_type": "short_answer", "need_image": false}},
+        {{"id": "1d", "question_text": "What number is one less than 18?", "student_answer": "17", "question_type": "short_answer", "need_image": false}}
       ]
     }},
     {{
@@ -3514,14 +3535,16 @@ OUTPUT FORMAT:
       "question_number": "2",
       "question_text": "What is 10 + 5?",
       "student_answer": "15",
-      "question_type": "short_answer"
+      "question_type": "short_answer",
+      "need_image": false
     }},
     {{
       "id": 3,
       "question_number": "3",
       "question_text": "The capital of France is ___.",
       "student_answer": "Paris",
-      "question_type": "fill_blank"
+      "question_type": "fill_blank",
+      "need_image": false
     }}
   ]
 }}
@@ -3560,8 +3583,8 @@ EXAMPLES OF PARENT QUESTIONS:
   "has_subquestions": true,
   "parent_content": "Solve the following addition problems:",
   "subquestions": [
-    {{"id": "1a", "question_text": "What is 1+1?", "student_answer": "2", "question_type": "calculation"}},
-    {{"id": "1b", "question_text": "What is 2+2?", "student_answer": "4", "question_type": "calculation"}}
+    {{"id": "1a", "question_text": "What is 1+1?", "student_answer": "2", "question_type": "calculation", "need_image": false}},
+    {{"id": "1b", "question_text": "What is 2+2?", "student_answer": "4", "question_type": "calculation", "need_image": false}}
   ]
 }}
 
@@ -3569,13 +3592,14 @@ PARENT QUESTION STRUCTURE (MANDATORY):
 - "is_parent": true
 - "has_subquestions": true
 - "parent_content": "The main instruction/context"
-- "subquestions": [{{"id": "1a", ...}}, {{"id": "1b", ...}}]
+- "subquestions": [{{"id": "1a", ..., "need_image": true|false}}, ...]
 - DO NOT include "question_text" or "student_answer" at parent level
 
 REGULAR QUESTION STRUCTURE:
 - "question_text": "The question"
 - "student_answer": "Student's answer"
 - "question_type": "short_answer|multiple_choice|calculation|etc"
+- "need_image": true|false
 - DO NOT include "is_parent", "has_subquestions", "parent_content", or "subquestions"
 
 RULES:
@@ -3583,6 +3607,7 @@ RULES:
 2. Question numbers: Keep original (don't renumber)
 3. Extract ALL student answers exactly as written
 4. Use LaTeX for math: \\(...\\) for inline, \\[...\\] for display
+5. "need_image": true if the question references a diagram, graph, figure, chart, or table; or contains phrases like "refer to the figure", "as shown", "in the diagram", "based on the image", "use the graph". Set false otherwise.
 """
 
     def _normalize_answer(self, answer: str) -> str:

@@ -254,7 +254,8 @@ class GeminiEducationalAIService:
         question_type: Optional[str] = None,  # NEW: Question type for specialized grading
         context_image: Optional[str] = None,
         parent_content: Optional[str] = None,  # NEW: Parent question context
-        use_deep_reasoning: bool = False
+        use_deep_reasoning: bool = False,
+        language: str = "en"
     ) -> Dict[str, Any]:
         """
         Grade a single question using Gemini with two-mode configuration.
@@ -340,7 +341,8 @@ class GeminiEducationalAIService:
                 question_type=question_type,  # NEW: Pass question type for specialized grading
                 parent_content=parent_content,  # NEW: Pass parent context
                 use_deep_reasoning=use_deep_reasoning,
-                has_context_image=bool(context_image)
+                has_context_image=bool(context_image),
+                language=language
             )
 
             logger.debug(f"🚀 Calling Gemini for grading...")
@@ -607,6 +609,91 @@ class GeminiEducationalAIService:
             logger.debug(f"❌ Failed to extract text, raising original error")
             raise e
 
+    async def reparse_single_question(
+        self,
+        base64_image: str,
+        question_number: str,
+        question_hint: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Re-extract a single question from the homework image with high accuracy.
+        Used when the initial parse was inaccurate for a specific question.
+
+        Returns a dict with {"question": {...}} matching ProgressiveQuestion schema.
+        """
+        import io
+        from PIL import Image as PILImage
+
+        hint_clause = f'\nHint from student: "{question_hint}"' if question_hint else ""
+
+        prompt = f"""You are re-extracting question {question_number} from this homework image.
+The initial extraction was inaccurate. Extract this question with MAXIMUM precision.{hint_clause}
+
+Return ONE JSON object only. No markdown. No explanation.
+First character MUST be {{. Last character MUST be }}.
+
+SCHEMA:
+{{
+  "question": {{
+    "id": "{question_number}",
+    "question_number": "{question_number}",
+    "question_text": "exact question text",
+    "student_answer": "exact student answer",
+    "question_type": "short_answer|calculation|multiple_choice|true_false|fill_blank|essay",
+    "need_image": false
+  }}
+}}
+
+For parent questions with sub-items use:
+{{
+  "question": {{
+    "id": "{question_number}",
+    "question_number": "{question_number}",
+    "is_parent": true,
+    "has_subquestions": true,
+    "parent_content": "shared stem or instruction",
+    "subquestions": [
+      {{"id": "{question_number}a", "question_text": "...", "student_answer": "...", "question_type": "short_answer", "need_image": false}}
+    ]
+  }}
+}}
+
+RULES:
+1. Focus ONLY on question {question_number} — ignore all other questions
+2. Extract EXACTLY what is written — do NOT paraphrase or translate
+3. PRESERVE the original language (Chinese stays Chinese, English stays English)
+4. For need_image: true ONLY if this question references a diagram/graph/figure
+5. For parent: extract ALL visible sub-items (a, b, c...) from the image
+6. student_answer is what the student wrote, NOT the correct answer
+7. Return valid JSON with no trailing commas"""
+
+        image_data = base64.b64decode(base64_image)
+        image = PILImage.open(io.BytesIO(image_data))
+
+        generation_config = {
+            "temperature": 0.0,
+            "max_output_tokens": 2048,
+            "candidate_count": 1
+        }
+
+        try:
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=[image, prompt],
+                config=generation_config
+            )
+            text = self._extract_response_text(response)
+            text = text.strip()
+            if text.startswith("```"):
+                text = text.split("```")[1]
+                if text.startswith("json"):
+                    text = text[4:]
+                text = text.strip()
+            return json.loads(text)
+        except Exception as e:
+            logger.error(f"reparse_single_question failed for Q{question_number}: {e}")
+            raise
+
     def _build_parse_prompt(self, subject: Optional[str] = None) -> str:
         """
         Build homework parsing prompt with optional subject-specific rules.
@@ -650,7 +737,8 @@ JSON SCHEMA
       "question_number": "2",
       "question_text": "What is 2+2?",
       "student_answer": "4",
-      "question_type": "short_answer"
+      "question_type": "short_answer",
+      "need_image": false
     }}
   ],
   "handwriting_evaluation": {{
@@ -706,8 +794,9 @@ RULES:
 
 FIELD RULES:
 - id: ALWAYS string ("1", "2", "1a", "1b")
-- Regular questions: MUST have question_text, student_answer, question_type
+- Regular questions: MUST have question_text, student_answer, question_type, need_image
 - Parent questions: MUST have is_parent, has_subquestions, parent_content, subquestions
+- need_image: true ONLY if question references a diagram, graph, chart, or figure the student must annotate; false otherwise
 - Omit fields that don't apply (DO NOT use null)
 - questions array ONLY contains top-level questions
 - total_questions = questions.length
@@ -843,7 +932,8 @@ OUTPUT CHECKLIST
         question_type: Optional[str],  # NEW: Question type for specialized prompts
         parent_content: Optional[str],  # NEW: Parent question context
         use_deep_reasoning: bool = False,
-        has_context_image: bool = False
+        has_context_image: bool = False,
+        language: str = "en"
     ) -> str:
         """
         Build grading prompt using specialized type × subject instructions.
@@ -862,7 +952,8 @@ OUTPUT CHECKLIST
             correct_answer=correct_answer,
             parent_content=parent_content,
             has_context_image=has_context_image,
-            use_deep_reasoning=use_deep_reasoning
+            use_deep_reasoning=use_deep_reasoning,
+            language=language
         )
 
     def _normalize_answer(self, answer: str) -> str:

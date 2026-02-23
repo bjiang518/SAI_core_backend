@@ -450,7 +450,8 @@ def build_complete_grading_prompt(
     correct_answer: Optional[str],
     parent_content: Optional[str] = None,
     has_context_image: bool = False,
-    use_deep_reasoning: bool = False
+    use_deep_reasoning: bool = False,
+    language: str = "en"
 ) -> str:
     """
     Build complete grading prompt with type × subject specialized instructions.
@@ -579,5 +580,11 @@ IMPORTANT:
 """
 
     prompt_parts.append(output_format)
+
+    # Language instruction — only feedback field is localized, JSON keys stay English
+    from src.services.prompt_i18n import normalize_language, GRADING_FEEDBACK_LANG_INSTRUCTION
+    lang_instruction = GRADING_FEEDBACK_LANG_INSTRUCTION.get(normalize_language(language), "")
+    if lang_instruction:
+        prompt_parts.append(lang_instruction)
 
     return "\n\n".join(prompt_parts)
