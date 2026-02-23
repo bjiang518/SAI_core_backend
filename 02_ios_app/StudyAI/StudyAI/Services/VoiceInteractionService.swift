@@ -233,14 +233,13 @@ class VoiceInteractionService: ObservableObject {
             stopSpeech()
         }
         
-        // Update state to speaking
-        DispatchQueue.main.async {
-            self.interactionState = .speaking
-        }
-        
         if Self.debugMode {
         print("🎙️ VoiceInteractionService: Using premium TTS service for enhanced voice quality")
             }
+        // NOTE: Do NOT set interactionState = .speaking here.
+        // The state is driven by enhancedTTSService.$isSpeaking via setupBindings(),
+        // which fires only when audio actually starts playing (not during network fetch).
+        // Setting it early causes the avatar to animate before audio begins.
         speakTextWithBestService(text)
     }
     

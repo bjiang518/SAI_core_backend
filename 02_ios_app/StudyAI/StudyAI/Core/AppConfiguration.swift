@@ -38,6 +38,11 @@ struct FeatureFlags {
         return AppMode.current == .prototype
     }
 
+    /// Show the parsing mode selector (Fast / Pro) in the homework UI.
+    /// Set to true to re-enable the selector and let users pick between modes.
+    /// When false, Pro mode (progressive) is used exclusively.
+    static let showParsingModeSelector: Bool = false
+
     /// Allow manual AI model selection (production: auto-select, prototype: manual)
     static var manualModelSelection: Bool {
         return AppMode.current == .prototype

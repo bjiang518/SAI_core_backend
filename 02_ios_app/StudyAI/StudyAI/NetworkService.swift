@@ -3001,6 +3001,42 @@ class NetworkService: ObservableObject {
         return parseResponse
     }
 
+    /// Re-extract a single inaccurate question from the homework image using Gemini
+    func reparseQuestion(
+        base64Image: String,
+        questionNumber: String,
+        questionHint: String? = nil
+    ) async throws -> ReparseQuestionResponse {
+
+        guard let url = URL(string: "\(baseURL)/api/ai/reparse-question") else {
+            throw NetworkError.invalidURL
+        }
+
+        var bodyDict: [String: Any] = [
+            "base64_image": base64Image,
+            "question_number": questionNumber
+        ]
+        if let hint = questionHint {
+            bodyDict["question_hint"] = hint
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 60
+        if let token = AuthenticationService.shared.getAuthToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        request.httpBody = try JSONSerialization.data(withJSONObject: bodyDict)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+            throw NetworkError.invalidResponse
+        }
+
+        return try JSONDecoder().decode(ReparseQuestionResponse.self, from: data)
+    }
+
     /// Grade a single question (Phase 2)
     /// Uses gpt-4o-mini for fast, low-cost grading or Gemini Thinking for deep reasoning
     func gradeSingleQuestion(
@@ -3038,7 +3074,8 @@ class NetworkService: ObservableObject {
             "question_text": questionText,
             "student_answer": studentAnswer,
             "model_provider": modelProvider,  // NEW: Pass AI model selection (openai/gemini)
-            "use_deep_reasoning": useDeepReasoning  // Pass deep reasoning flag
+            "use_deep_reasoning": useDeepReasoning,  // Pass deep reasoning flag
+            "language": appLanguage  // Pass user's language preference for feedback localization
         ]
 
         if let subject = subject {

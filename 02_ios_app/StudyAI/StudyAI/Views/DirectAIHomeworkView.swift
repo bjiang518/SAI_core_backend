@@ -785,24 +785,23 @@ struct DirectAIHomeworkView: View {
 
     // MARK: - Initial Image Preview
     private var initialImagePreview: some View {
-        VStack(spacing: 16) {  // Increased spacing for breathing room
+        VStack(spacing: 20) {
             // Show enlarged single image or grid for multiple images
             imageDisplaySection
 
-            // Configuration Cards Section
-            VStack(spacing: 8) {  // Reduced from 12 to 8 for more compact layout
-                // ✅ REMOVED: Subject Selection Card (AI auto-detects subject)
-
-                // AI Model Selection Card (only in prototype mode)
-                if FeatureFlags.manualModelSelection {
-                    aiModelSelectionCard
+            // Configuration Cards Section (only shown when flags enable them)
+            if FeatureFlags.showParsingModeSelector || FeatureFlags.manualModelSelection {
+                VStack(spacing: 8) {
+                    if FeatureFlags.manualModelSelection {
+                        aiModelSelectionCard
+                    }
+                    if FeatureFlags.showParsingModeSelector {
+                        parsingModeCard
+                    }
                 }
-
-                // Parsing Mode Selection Card
-                parsingModeCard
             }
 
-            // Primary Action - Ask AI Button (Most Prominent)
+            // Primary Action Button
             analyzeButton
 
             // Clear Session - Text link style
@@ -1098,24 +1097,24 @@ struct DirectAIHomeworkView: View {
 
     // MARK: - Analyze Button
     private var analyzeButton: some View {
-        // Determine button title and color based on parsing mode and image count
+        // When fast path is disabled, always use Pro Mode styling
+        let effectiveMode: ParsingMode = FeatureFlags.showParsingModeSelector ? parsingMode : .progressive
+
         let buttonTitle: String
         let buttonColor: Color
 
-        if parsingMode == .progressive {
-            // Pro Mode: "AI Digital Homework" with BLUE color (matching greeting button)
+        if effectiveMode == .progressive {
             buttonTitle = NSLocalizedString("aiHomework.digitalHomework", comment: "")
             buttonColor = themeManager.currentTheme == .cute ?
-                DesignTokens.Colors.Cute.blue :  // Solid blue in cute mode
-                Color(red: 0.4, green: 0.6, blue: 1.0)  // Light blue in day/night mode
+                DesignTokens.Colors.Cute.blue :
+                Color(red: 0.4, green: 0.6, blue: 1.0)
         } else {
-            // Detail/Fast Mode: "Ask AI for analysis" with PINK color (matching Homework Grader button)
             buttonTitle = stateManager.selectedImageIndices.count > 1 ?
                 String(format: NSLocalizedString("aiHomework.analyzeMultipleImages", comment: ""), stateManager.selectedImageIndices.count) :
                 NSLocalizedString("aiHomework.analyzeWithAI", comment: "")
             buttonColor = themeManager.currentTheme == .cute ?
-                DesignTokens.Colors.Cute.pink.opacity(0.7) :  // Pink at 70% opacity in cute mode
-                Color(red: 0.96, green: 0.51, blue: 0.59)  // Coral pink in day/night mode
+                DesignTokens.Colors.Cute.pink.opacity(0.7) :
+                Color(red: 0.96, green: 0.51, blue: 0.59)
         }
 
         return AnimatedGradientButton(
@@ -1123,16 +1122,10 @@ struct DirectAIHomeworkView: View {
             buttonColor: buttonColor,
             isProcessing: isProcessing
         ) {
-            // Process selected images
             if !self.stateManager.selectedImageIndices.isEmpty {
-                // Check parsing mode
-                if self.parsingMode == .progressive {
-                    // Pro Mode: Use user annotations + phased processing
-                    Task {
-                        await self.processWithProMode()
-                    }
+                if effectiveMode == .progressive {
+                    Task { await self.processWithProMode() }
                 } else {
-                    // Auto Modes (Detail/Fast): Use existing batch processing
                     let selectedIndices = self.stateManager.selectedImageIndices.sorted()
                     let selectedImages = selectedIndices.map { self.stateManager.capturedImages[$0] }
                     self.processMultipleImages(selectedImages)
@@ -1141,7 +1134,7 @@ struct DirectAIHomeworkView: View {
         }
         .disabled(isProcessing || stateManager.selectedImageIndices.isEmpty)
         .padding(.horizontal)
-        .padding(.top, 16)  // REDUCED from 24 to 16 for more compact layout
+        .padding(.top, 8)
         .transition(.scale.combined(with: .opacity))
     }
 

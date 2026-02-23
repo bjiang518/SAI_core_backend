@@ -115,6 +115,23 @@ struct ParseHomeworkQuestionsResponse: Codable {
     }
 }
 
+extension ParseHomeworkQuestionsResponse {
+    /// Returns a copy with the handwriting evaluation injected from a concurrent API call.
+    func withHandwritingEvaluation(_ evaluation: HandwritingEvaluation?) -> ParseHomeworkQuestionsResponse {
+        ParseHomeworkQuestionsResponse(
+            success: success,
+            subject: subject,
+            subjectConfidence: subjectConfidence,
+            totalQuestions: totalQuestions,
+            questions: questions,
+            processingTimeMs: processingTimeMs,
+            error: error,
+            processedImageDimensions: processedImageDimensions,
+            handwritingEvaluation: evaluation
+        )
+    }
+}
+
 // MARK: - Phase 2: Grading Models
 
 /// Result of grading a single question or subquestion
@@ -157,6 +174,21 @@ struct GradeSingleQuestionResponse: Codable {
     enum CodingKeys: String, CodingKey {
         case success
         case grade
+        case processingTimeMs = "processing_time_ms"
+        case error
+    }
+}
+
+/// Response from reparse-question endpoint
+struct ReparseQuestionResponse: Codable {
+    let success: Bool
+    let question: ProgressiveQuestion?
+    let processingTimeMs: Int?
+    let error: String?
+
+    enum CodingKeys: String, CodingKey {
+        case success
+        case question
         case processingTimeMs = "processing_time_ms"
         case error
     }

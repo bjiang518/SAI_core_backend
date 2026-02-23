@@ -218,6 +218,7 @@
 "aiHomework.model" = "Model";
 "aiHomework.mode" = "Mode";
 "aiHomework.digitalHomework" = "AI Digital Homework";
+"aiHomework.compressing" = "Compressing...";
 "aiHomework.scannedDocument.single" = "Scanned Document";
 "aiHomework.scannedDocument.multiple" = "Scanned Documents";
 "aiHomework.results.complete" = "Analysis Complete!";
@@ -252,9 +253,9 @@
 "homeworkResults.questionsSelected" = "questions selected";
 "homeworkResults.noQuestionsSelected" = "No Questions Selected";
 "homeworkResults.selectQuestionsToArchiveMessage" = "Please select at least one question to archive.";
-"homeworkResults.markProgress" = "Mark Progress";
-"homeworkResults.slideToMarkProgress" = "Slide to Mark Progress";
-"homeworkResults.progressMarked" = "Progress Marked!";
+"homeworkResults.markProgress" = "Smart Organize";
+"homeworkResults.slideToMarkProgress" = "Slide to Smart Organize";
+"homeworkResults.progressMarked" = "Organized!";
 "homeworkResults.progressUpdated" = "✅ Your study progress has been updated!";
 "homeworkResults.progressTip" = "💡 Tip: Progress is automatically tracked when you archive questions!";
 "homeworkResults.tapToAddQuestions" = "Tap here to manually add %d questions to your progress";
@@ -607,12 +608,12 @@
 "questionDetail.provideDetailedExplanation" = "Provide a detailed explanation";
 "questionDetail.typeAnswerAbove" = "Type your answer above";
 "questionDetail.submitAnswer" = "Submit Answer";
-"questionDetail.markProgress" = "Mark Progress";
+"questionDetail.markProgress" = "Smart Organize";
 "questionDetail.marked" = "Marked";
 "questionDetail.followUp" = "Follow Up";
 "questionDetail.previous" = "Previous";
 "questionDetail.next" = "Next";
-"questionDetail.progressMarked" = "Progress Marked!";
+"questionDetail.progressMarked" = "Organized!";
 "questionDetail.progressUpdated" = "✅ Your study progress has been updated!";
 "questionDetail.progressTip" = "💡 Tap to track this question in your daily, weekly, and monthly stats!";
 
@@ -642,10 +643,10 @@
 "generatedQuestions.tryAgain" = "Please try again";
 "generatedQuestions.retry" = "Retry";
 "generatedQuestions.pdfPreview" = "PDF Preview";
-"generatedQuestions.markProgress" = "Mark Progress";
-"generatedQuestions.progressMarked" = "Progress Marked!";
+"generatedQuestions.markProgress" = "Smart Organize";
+"generatedQuestions.progressMarked" = "Organized!";
 "generatedQuestions.progressUpdated" = "✅ Your study progress has been updated!";
-"generatedQuestions.progressTip" = "💡 Tip: Mark progress to track your learning in daily, weekly, and monthly stats!";
+"generatedQuestions.progressTip" = "💡 Tip: Use Smart Organize to track your learning in daily, weekly, and monthly stats!";
 "generatedQuestions.answeredCount" = "You answered %d of %d questions";
 "generatedQuestions.points" = "%d pts";
 "generatedQuestions.emailGreeting" = "Hi!";
@@ -1285,8 +1286,8 @@
 "mistakeReview.accuracy" = "Accuracy";
 "mistakeReview.correct" = "Correct";
 "mistakeReview.incorrect" = "Incorrect";
-"mistakeReview.progressAlreadyMarked" = "Progress Already Marked";
-"mistakeReview.slideToMarkProgress" = "Slide to Mark Progress";
+"mistakeReview.progressAlreadyMarked" = "Already Organized";
+"mistakeReview.slideToMarkProgress" = "Slide to Smart Organize";
 "mistakeReview.masteredWeakness" = "You Mastered a Weakness!";
 "mistakeReview.keepUpGreatWork" = "Keep up the great work!";
 "mistakeReview.questionNumber" = "Question %d";
@@ -1656,7 +1657,7 @@
 "proMode.correct" = "Correct";
 "proMode.partialCorrect" = "Partially Correct";
 "proMode.incorrect" = "Incorrect";
-"proMode.markProgress" = "Mark Learning Progress";
+"proMode.markProgress" = "Smart Organize";
 "proMode.questionPreview" = "Question Preview";
 "proMode.tapToAnnotate" = "Tap to create annotation box";
 "proMode.done" = "Done";
@@ -1710,9 +1711,21 @@
 "homeworkSummary.subquestionCount" = "%d subquestions";
 "homeworkSummary.answer" = "Answer: %@";
 
-"proMode.slideToMarkProgress" = "Slide to Mark Progress";
-"proMode.progressMarked" = "Progress Already Marked";
+"proMode.slideToMarkProgress" = "Slide to Smart Organize";
+"proMode.progressMarked" = "Already Organized";
 "proMode.partial" = "Partial";
+
+// Pro Mode - Archive / Smart Organize result toast
+"proMode.archive.toastTitle" = "✅ Added to Library";
+"proMode.archive.toast.added" = "%d question(s) added to library";
+"proMode.archive.toast.mistakesAdded" = "%d added to mistake notebook";
+"proMode.archive.toast.duplicates" = "%d duplicate(s) skipped";
+"proMode.smartOrganize.toastTitle" = "✅ Smart Organize Complete";
+"proMode.smartOrganize.toast.mistakesAdded" = "%d wrong question(s) added to mistake notebook";
+"proMode.smartOrganize.toast.noMistakes" = "No mistakes — great work!";
+"proMode.smartOrganize.toast.progressMarked" = "Progress marked";
+"proMode.smartOrganize.toast.albumSaved" = "Image saved to homework album";
+"proMode.smartOrganize.toast.duplicates" = "%d duplicate(s) skipped";
 
 // Pro Mode - Grading Status Messages
 "proMode.grading.deepAnalyzing" = "Deep analyzing questions...";

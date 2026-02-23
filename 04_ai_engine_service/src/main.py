@@ -1358,10 +1358,10 @@ async def reparse_question(request: ReparseQuestionRequest):
 
         processing_time = int((time.time() - start_time) * 1000)
 
-        if not result["success"]:
+        if not result.get("question"):
             return ReparseQuestionResponse(
                 success=False,
-                error=result.get("error", "Reparse failed"),
+                error=result.get("error", "Reparse returned no question"),
                 processing_time_ms=processing_time
             )
 

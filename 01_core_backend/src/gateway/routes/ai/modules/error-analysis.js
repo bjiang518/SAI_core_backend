@@ -22,7 +22,7 @@ module.exports = async function (fastify, opts) {
    */
   fastify.post('/api/ai/analyze-errors-batch', async (request, reply) => {
     const userId = await getUserId(request);  // ✅ FIX: Validate authentication
-    const { questions } = request.body;
+    const { questions, language } = request.body;
 
     // Check authentication
     if (!userId) {
@@ -47,7 +47,7 @@ module.exports = async function (fastify, opts) {
       const response = await fetch(`${aiEngineUrl}/api/v1/error-analysis/analyze-batch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ questions })  // ✅ Includes questionImageBase64 field if present
+        body: JSON.stringify({ questions: questions.map(q => ({ ...q, language: language || 'en' })) })
       });
 
       if (!response.ok) {

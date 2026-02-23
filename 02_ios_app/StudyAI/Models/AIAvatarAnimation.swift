@@ -284,29 +284,16 @@ struct AIAvatarAnimation: View {
                 .transition(.opacity)
 
             case .speaking:
-                // Speaking state - Fire_moving Animation (zoom in/out, faster motion)
+                // Speaking state - Fire_moving Animation (fixed size, no zoom)
                 LottieView(
                     animationName: "Fire_moving",
                     loopMode: .loop,
                     animationSpeed: 3.0  // Faster motion for fire effect
                 )
                 .frame(width: 60, height: 60)
-                .scaleEffect(0.15 * pulseScale)  // Zoom in/out effect
+                .scaleEffect(0.15)  // Fixed size, no zoom in/out
                 .offset(y: -1)  // Move up slightly
                 .transition(.opacity)
-                .onAppear {
-                    // Start zoom in/out animation
-                    withAnimationIfNotPowerSaving(
-                        Animation.easeInOut(duration: 0.6)
-                            .repeatForever(autoreverses: true)
-                    ) {
-                        pulseScale = 1.3  // Zoom in by 30%
-                    }
-                }
-                .onDisappear {
-                    // Reset animation when speaking finishes
-                    pulseScale = 1.0
-                }
             }
         }
     }

@@ -305,7 +305,8 @@ class ErrorAnalysisQueueService: ObservableObject {
                     correctAnswer: correctAnswer,
                     subject: subject,
                     questionId: questionId,
-                    questionImageBase64: questionImageBase64
+                    questionImageBase64: questionImageBase64,
+                    language: UserDefaults.standard.string(forKey: "appLanguage") ?? "en"
                 )
             }
 
@@ -417,8 +418,22 @@ class ErrorAnalysisQueueService: ObservableObject {
             print("      detailed_branch: \(analysis.detailed_branch ?? "nil")")
         }
 
-        // Save back to local storage (now includes weaknessKey)
-        _ = localStorage.saveQuestions([allQuestions[index]])
+        // Patch fields back using updateQuestion (bypasses dedup — this is an update, not a new insert)
+        var updatedFields: [String: Any] = [
+            "baseBranch": analysis.base_branch ?? "",
+            "detailedBranch": analysis.detailed_branch ?? "",
+            "specificIssue": analysis.specific_issue ?? "",
+            "errorType": analysis.error_type ?? "",
+            "errorEvidence": analysis.evidence ?? "",
+            "learningSuggestion": analysis.learning_suggestion ?? "",
+            "errorConfidence": analysis.confidence as Any,
+            "errorAnalysisStatus": (analysis.analysis_failed ? ErrorAnalysisStatus.failed : .completed).rawValue,
+            "errorAnalyzedAt": ISO8601DateFormatter().string(from: Date())
+        ]
+        if let wk = allQuestions[index]["weaknessKey"] as? String {
+            updatedFields["weaknessKey"] = wk
+        }
+        localStorage.updateQuestion(id: questionId, fields: updatedFields)
 
         print("✅ [ErrorAnalysis] Updated question \(questionId): \(analysis.error_type ?? "unknown") (branch: \(analysis.detailed_branch ?? "N/A"))")
 
@@ -442,17 +457,9 @@ class ErrorAnalysisQueueService: ObservableObject {
     }
 
     private func updateLocalStatus(questionIds: [String], status: String) {
-        var allQuestions = localStorage.getLocalQuestions()
-
         for questionId in questionIds {
-            guard let index = allQuestions.firstIndex(where: { ($0["id"] as? String) == questionId }) else {
-                continue
-            }
-
-            allQuestions[index]["errorAnalysisStatus"] = status
+            localStorage.updateQuestion(id: questionId, fields: ["errorAnalysisStatus": status])
         }
-
-        _ = localStorage.saveQuestions(allQuestions)
     }
 
     /// Get question IDs that have already been analyzed (status = "completed" or "processing")
@@ -488,7 +495,8 @@ struct ErrorAnalysisRequest: Codable {
     let correctAnswer: String
     let subject: String
     let questionId: String?
-    let questionImageBase64: String?  // ✅ NEW: Image support for visual questions
+    let questionImageBase64: String?
+    let language: String
 }
 
 struct ErrorAnalysisResponse: Codable {
