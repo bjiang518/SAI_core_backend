@@ -1327,6 +1327,7 @@
 "mistakeReview.filter.allTopics" = "All Topics";
 "mistakeReview.filter.active" = "Active";
 "mistakeReview.filter.allFilter" = "All";
+"mistakeReview.filter.uncategorized" = "Uncategorized";
 "difficulty.desc.beginner" = "Foundation-building questions for new concepts";
 "difficulty.desc.intermediate" = "Balanced questions for practice and review";
 "difficulty.desc.advanced" = "Challenging questions to push understanding";

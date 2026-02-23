@@ -141,6 +141,10 @@ struct ChipBasedTaxonomyView: View {
         VStack(alignment: .leading, spacing: 12) {
             ForEach(taxonomyData) { baseGroup in
                 VStack(alignment: .leading, spacing: 8) {
+                    let displayBaseBranch = baseGroup.baseBranch == MistakeReviewService.uncategorizedKey
+                        ? NSLocalizedString("mistakeReview.filter.uncategorized", comment: "")
+                        : baseGroup.baseBranch
+
                     // Base branch header (tap to expand/collapse)
                     Button(action: {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
@@ -159,9 +163,10 @@ struct ChipBasedTaxonomyView: View {
                                 .foregroundColor(.secondary)
                                 .frame(width: 16)
 
-                            Text(baseGroup.baseBranch)
+                            Text(displayBaseBranch)
                                 .font(.subheadline)
                                 .fontWeight(.medium)
+                                .foregroundColor(baseGroup.baseBranch == MistakeReviewService.uncategorizedKey ? .secondary : .primary)
 
                             Spacer()
 
@@ -172,7 +177,7 @@ struct ChipBasedTaxonomyView: View {
                                 .foregroundColor(.white)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
-                                .background(Color.red)
+                                .background(baseGroup.baseBranch == MistakeReviewService.uncategorizedKey ? Color.gray : Color.red)
                                 .cornerRadius(12)
                         }
                         .padding(.vertical, 8)
@@ -186,8 +191,11 @@ struct ChipBasedTaxonomyView: View {
                     if expandedBaseBranches.contains(baseGroup.baseBranch) {
                         ChipFlowLayout(spacing: 8) {
                             ForEach(baseGroup.detailedBranches) { detail in
+                                let displayDetailedBranch = detail.detailedBranch == MistakeReviewService.uncategorizedKey
+                                    ? NSLocalizedString("mistakeReview.filter.uncategorized", comment: "")
+                                    : detail.detailedBranch
                                 ChipButton(
-                                    title: detail.detailedBranch,
+                                    title: displayDetailedBranch,
                                     count: detail.mistakeCount,
                                     isSelected: selectedDetailedBranches.contains(detail.detailedBranch),
                                     action: {
@@ -229,9 +237,13 @@ struct TreeBasedTaxonomyView: View {
 
             // Base branches
             ForEach(taxonomyData) { baseGroup in
+                let displayBaseBranch = baseGroup.baseBranch == MistakeReviewService.uncategorizedKey
+                    ? NSLocalizedString("mistakeReview.filter.uncategorized", comment: "")
+                    : baseGroup.baseBranch
+
                 TreeNode(
-                    icon: "folder.fill",
-                    title: baseGroup.baseBranch,
+                    icon: baseGroup.baseBranch == MistakeReviewService.uncategorizedKey ? "questionmark.folder.fill" : "folder.fill",
+                    title: displayBaseBranch,
                     count: baseGroup.mistakeCount,
                     level: 1,
                     isExpanded: expandedBaseBranches.contains(baseGroup.baseBranch),
@@ -249,9 +261,12 @@ struct TreeBasedTaxonomyView: View {
                 // Detailed branches (leafs)
                 if expandedBaseBranches.contains(baseGroup.baseBranch) {
                     ForEach(baseGroup.detailedBranches) { detail in
+                        let displayDetailedBranch = detail.detailedBranch == MistakeReviewService.uncategorizedKey
+                            ? NSLocalizedString("mistakeReview.filter.uncategorized", comment: "")
+                            : detail.detailedBranch
                         TreeNode(
                             icon: "doc.fill",
-                            title: detail.detailedBranch,
+                            title: displayDetailedBranch,
                             count: detail.mistakeCount,
                             level: 2,
                             isSelected: selectedDetailedBranches.contains(detail.detailedBranch),
