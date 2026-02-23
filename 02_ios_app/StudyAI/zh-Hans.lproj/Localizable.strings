@@ -1317,6 +1317,7 @@
 "mistakeReview.filter.allTopics" = "所有主题";
 "mistakeReview.filter.active" = "活跃";
 "mistakeReview.filter.allFilter" = "全部";
+"mistakeReview.filter.uncategorized" = "未分类";
 "difficulty.desc.beginner" = "适合新概念打基础的题目";
 "difficulty.desc.intermediate" = "用于练习和复习的均衡题目";
 "difficulty.desc.advanced" = "挑战理解的高难度题目";

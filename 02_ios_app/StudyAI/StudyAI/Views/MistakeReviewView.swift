@@ -269,10 +269,12 @@ struct MistakeReviewView: View {
         // Filter by detailed branches (multi-select)
         if !selectedDetailedBranches.isEmpty {
             allMistakes = allMistakes.filter { mistake in
-                guard let detailedBranch = mistake["detailedBranch"] as? String else {
-                    return false
+                let branch = (mistake["detailedBranch"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+                if let detailedBranch = branch {
+                    return selectedDetailedBranches.contains(detailedBranch)
+                } else {
+                    return selectedDetailedBranches.contains(MistakeReviewService.uncategorizedKey)
                 }
-                return selectedDetailedBranches.contains(detailedBranch)
             }
         }
 
@@ -415,10 +417,13 @@ struct MistakeQuestionListView: View {
         // Filter by detailed branches (multi-select)
         if !selectedDetailedBranches.isEmpty {
             filtered = filtered.filter { mistake in
-                guard let detailedBranch = mistake.detailedBranch else {
-                    return false
+                let branch = (mistake.detailedBranch ?? "").isEmpty ? nil : mistake.detailedBranch
+                if let detailedBranch = branch {
+                    return selectedDetailedBranches.contains(detailedBranch)
+                } else {
+                    // question has no detailedBranch → include only if "Uncategorized" chip is selected
+                    return selectedDetailedBranches.contains(MistakeReviewService.uncategorizedKey)
                 }
-                return selectedDetailedBranches.contains(detailedBranch)
             }
         }
 

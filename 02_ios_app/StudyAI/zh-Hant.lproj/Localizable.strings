@@ -1317,6 +1317,7 @@
 "mistakeReview.filter.allTopics" = "所有主題";
 "mistakeReview.filter.active" = "活躍";
 "mistakeReview.filter.allFilter" = "全部";
+"mistakeReview.filter.uncategorized" = "未分類";
 "difficulty.desc.beginner" = "適合新概念打基礎的題目";
 "difficulty.desc.intermediate" = "用於練習和複習的均衡題目";
 "difficulty.desc.advanced" = "挑戰理解的高難度題目";

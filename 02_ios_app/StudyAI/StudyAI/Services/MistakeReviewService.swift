@@ -11,6 +11,9 @@ import Combine
 
 @MainActor
 class MistakeReviewService: ObservableObject {
+    /// Sentinel key used to bucket questions whose baseBranch/detailedBranch is nil or empty.
+    static let uncategorizedKey = "__uncategorized__"
+
     @Published var isLoading = false
     @Published var subjectsWithMistakes: [SubjectMistakeCount] = []
     @Published var mistakes: [MistakeQuestion] = []
@@ -387,20 +390,21 @@ class MistakeReviewService: ObservableObject {
             print("      Question: '\(questionPreview)...'")
         }
 
-        // Group by base branch
+        // Group by base branch (questions with no baseBranch go into the uncategorized bucket)
         var branchGroups: [String: [[String: Any]]] = [:]
-        var filteredOutCount = 0
+        var uncategorizedCount = 0
 
         for mistake in filteredMistakes {
-            guard let baseBranch = mistake["baseBranch"] as? String, !baseBranch.isEmpty else {
-                filteredOutCount += 1
-                continue
+            let baseBranch = (mistake["baseBranch"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+            if let branch = baseBranch {
+                branchGroups[branch, default: []].append(mistake)
+            } else {
+                branchGroups[MistakeReviewService.uncategorizedKey, default: []].append(mistake)
+                uncategorizedCount += 1
             }
-            branchGroups[baseBranch, default: []].append(mistake)
         }
 
-        print("\n   ✅ Grouped into \(branchGroups.count) base branches")
-        print("   ⚠️ Filtered out \(filteredOutCount) mistakes (empty baseBranch)")
+        print("\n   ✅ Grouped into \(branchGroups.count) base branches (\(uncategorizedCount) uncategorized)")
         for (branch, mistakes) in branchGroups.sorted(by: { $0.value.count > $1.value.count }) {
             print("      - \(branch): \(mistakes.count) mistakes")
         }
@@ -415,6 +419,9 @@ class MistakeReviewService: ObservableObject {
                 detailedBranches: detailedBranches
             )
         }.sorted {
+            // Uncategorized always goes last
+            if $0.baseBranch == MistakeReviewService.uncategorizedKey { return false }
+            if $1.baseBranch == MistakeReviewService.uncategorizedKey { return true }
             // Primary sort: by mistake count (descending)
             if $0.mistakeCount != $1.mistakeCount {
                 return $0.mistakeCount > $1.mistakeCount
@@ -441,15 +448,17 @@ class MistakeReviewService: ObservableObject {
     private func getDetailedBranchesInternal(from mistakes: [[String: Any]]) -> [DetailedBranchCount] {
         var branchCounts: [String: Int] = [:]
         for mistake in mistakes {
-            guard let detailedBranch = mistake["detailedBranch"] as? String, !detailedBranch.isEmpty else {
-                continue
-            }
-            branchCounts[detailedBranch, default: 0] += 1
+            let detailedBranch = (mistake["detailedBranch"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+            let key = detailedBranch ?? MistakeReviewService.uncategorizedKey
+            branchCounts[key, default: 0] += 1
         }
 
         return branchCounts.map { branch, count in
             DetailedBranchCount(detailedBranch: branch, mistakeCount: count)
         }.sorted {
+            // Uncategorized always goes last
+            if $0.detailedBranch == MistakeReviewService.uncategorizedKey { return false }
+            if $1.detailedBranch == MistakeReviewService.uncategorizedKey { return true }
             // Primary sort: by mistake count (descending)
             if $0.mistakeCount != $1.mistakeCount {
                 return $0.mistakeCount > $1.mistakeCount
