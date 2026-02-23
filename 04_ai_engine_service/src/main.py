@@ -815,6 +815,7 @@ class HomeworkParsingRequest(BaseModel):
     prompt: Optional[str] = None
     student_id: Optional[str] = "anonymous"
     parsing_mode: Optional[str] = "hierarchical"  # "hierarchical" or "baseline"
+    language: Optional[str] = "en"
 
 class HomeworkParsingResponse(BaseModel):
     success: bool
@@ -836,6 +837,7 @@ class ProgressiveSubquestion(BaseModel):
     question_text: str
     student_answer: str
     question_type: Optional[str] = "short_answer"
+    need_image: Optional[bool] = None  # True if question references a diagram/figure
 
 class ParsedQuestion(BaseModel):
     """Individual question parsed from homework image
@@ -857,6 +859,7 @@ class ParsedQuestion(BaseModel):
     question_text: Optional[str] = None
     student_answer: Optional[str] = None
     question_type: Optional[str] = None
+    need_image: Optional[bool] = None  # True if question references a diagram/figure
 
     class Config:
         # Remove null fields from JSON output to reduce response size
@@ -873,13 +876,17 @@ class ParseHomeworkQuestionsRequest(BaseModel):
     model_provider: Optional[str] = "openai"  # "openai" or "gemini"
 
 class HandwritingEvaluationResponse(BaseModel):
-    """Handwriting quality assessment for Pro Mode"""
+    """Handwriting quality assessment"""
     has_handwriting: bool
     score: Optional[float] = None
     feedback: Optional[str] = None
 
+class HandwritingEvaluationRequest(BaseModel):
+    """Request for standalone handwriting evaluation"""
+    base64_image: str
+
 class ParseHomeworkQuestionsResponse(BaseModel):
-    """Response with parsed questions and image regions"""
+    """Response with parsed questions"""
     success: bool
     subject: str
     subject_confidence: float
@@ -887,7 +894,7 @@ class ParseHomeworkQuestionsResponse(BaseModel):
     questions: List[ParsedQuestion]
     processing_time_ms: int
     error: Optional[str] = None
-    handwriting_evaluation: Optional[HandwritingEvaluationResponse] = None
+    handwriting_evaluation: Optional[dict] = None
 
 class GradeSingleQuestionRequest(BaseModel):
     """Request to grade a single question"""
@@ -902,6 +909,7 @@ class GradeSingleQuestionRequest(BaseModel):
     parent_question_content: Optional[str] = None  # NEW: Parent question context for subquestions
     model_provider: Optional[str] = "openai"  # "openai" or "gemini"
     use_deep_reasoning: bool = False  # Enable Gemini Thinking mode for complex questions
+    language: Optional[str] = "en"  # Language for feedback localization
 
 class GradeResult(BaseModel):
     """Result of grading a single question"""
@@ -1074,7 +1082,8 @@ async def process_homework_image(request: HomeworkParsingRequest):
             base64_image=request.base64_image,
             custom_prompt=request.prompt,
             student_context={"student_id": request.student_id},
-            parsing_mode=request.parsing_mode
+            parsing_mode=request.parsing_mode,
+            language=request.language or "en"
         )
 
         if not result["success"]:
@@ -1192,13 +1201,14 @@ async def parse_homework_questions(request: ParseHomeworkQuestionsRequest):
     start_time = time.time()
 
     try:
-        # Select AI service based on model provider
-        selected_service = gemini_service if request.model_provider == "gemini" else ai_service
-        provider_name = request.model_provider.upper() if request.model_provider else "OPENAI"
+        # Select AI service — always use Gemini for parsing (OpenAI path removed)
+        # selected_service = gemini_service if request.model_provider == "gemini" else ai_service
+        selected_service = gemini_service
+        provider_name = "GEMINI"
 
         logger.debug(f"🤖 === USING {provider_name} FOR HOMEWORK PARSING ===")
 
-        # Call selected AI service to parse questions with coordinates
+        # Call Gemini service to parse questions with coordinates
         result = await selected_service.parse_homework_questions_with_coordinates(
             base64_image=request.base64_image,
             parsing_mode=request.parsing_mode,
@@ -1238,38 +1248,16 @@ async def parse_homework_questions(request: ParseHomeworkQuestionsRequest):
 
         processing_time = int((time.time() - start_time) * 1000)
 
-        # Extract handwriting evaluation from result (if present)
-        handwriting_eval_dict = result.get("handwriting_evaluation")
-        handwriting_eval = None
-
-        # 🔍 DEBUG: Log raw handwriting evaluation data
-        logger.info(f"🔍 [HANDWRITING DEBUG] Raw handwriting_eval_dict from AI: {handwriting_eval_dict}")
-
-        if handwriting_eval_dict:
-            handwriting_eval = HandwritingEvaluationResponse(
-                has_handwriting=handwriting_eval_dict.get("has_handwriting", False),
-                score=handwriting_eval_dict.get("score"),
-                feedback=handwriting_eval_dict.get("feedback")
-            )
-            logger.info(f"🔍 [HANDWRITING DEBUG] Parsed handwriting_eval object: has_handwriting={handwriting_eval.has_handwriting}, score={handwriting_eval.score}, feedback={handwriting_eval.feedback}")
-        else:
-            logger.warning(f"⚠️ [HANDWRITING DEBUG] No handwriting_evaluation in result. Available keys: {list(result.keys())}")
-
         response = ParseHomeworkQuestionsResponse(
             success=True,
             subject=result.get("subject", "Unknown"),
             subject_confidence=result.get("subject_confidence", 0.5),
             total_questions=result.get("total_questions", 0),
-            questions=questions,  # Use cleaned questions
+            questions=questions,
             processing_time_ms=processing_time,
             error=None,
-            handwriting_evaluation=handwriting_eval
+            handwriting_evaluation=result.get("handwriting_evaluation")
         )
-
-        # 🔍 DEBUG: Log final response being sent
-        logger.info(f"🔍 [HANDWRITING DEBUG] Response includes handwriting_evaluation: {response.handwriting_evaluation is not None}")
-        if response.handwriting_evaluation:
-            logger.info(f"🔍 [HANDWRITING DEBUG] Response handwriting details: {response.handwriting_evaluation.model_dump()}")
 
         return response
 
@@ -1296,6 +1284,111 @@ async def parse_homework_questions(request: ParseHomeworkQuestionsRequest):
             questions=[],
             processing_time_ms=processing_time,
             error=f"Parsing error: {type(e).__name__}: {str(e)}"
+        )
+
+
+@app.post("/api/v1/evaluate-handwriting")
+async def evaluate_handwriting(request: HandwritingEvaluationRequest):
+    """
+    Evaluate handwriting quality from a homework image.
+    Runs concurrently alongside /api/v1/parse-homework-questions on the iOS side.
+    """
+    start_time = time.time()
+    try:
+        result = await gemini_service.evaluate_handwriting(request.base64_image)
+        processing_time = int((time.time() - start_time) * 1000)
+        logger.debug(f"✅ Handwriting eval endpoint: {processing_time}ms")
+        return {
+            "success": result.get("success", False),
+            "has_handwriting": result.get("has_handwriting", False),
+            "score": result.get("score"),
+            "feedback": result.get("feedback"),
+            "processing_time_ms": processing_time,
+            "error": result.get("error")
+        }
+    except Exception as e:
+        processing_time = int((time.time() - start_time) * 1000)
+        logger.debug(f"❌ Handwriting eval endpoint error: {e}")
+        return {
+            "success": False,
+            "has_handwriting": False,
+            "score": None,
+            "feedback": None,
+            "processing_time_ms": processing_time,
+            "error": str(e)
+        }
+
+
+class ReparseQuestionRequest(BaseModel):
+    """Request to re-extract a single question from the homework image"""
+    model_config = ConfigDict(protected_namespaces=())
+
+    base64_image: str
+    question_number: str          # e.g. "3", "1a"
+    question_hint: Optional[str] = None   # previous question_text as hint
+
+
+class ReparseQuestionResponse(BaseModel):
+    """Response with the re-extracted question"""
+    success: bool
+    question: Optional[ParsedQuestion] = None
+    processing_time_ms: int
+    error: Optional[str] = None
+
+
+@app.post("/api/v1/reparse-question", response_model=ReparseQuestionResponse)
+async def reparse_question(request: ReparseQuestionRequest):
+    """
+    Re-extract a single specific question from the homework image.
+
+    Called when the user taps the reparse icon on a question card that was
+    inaccurately parsed. Returns a corrected single-question object without
+    re-parsing the entire homework.
+    """
+
+    import time
+    start_time = time.time()
+
+    try:
+        result = await gemini_service.reparse_single_question(
+            base64_image=request.base64_image,
+            question_number=request.question_number,
+            question_hint=request.question_hint
+        )
+
+        processing_time = int((time.time() - start_time) * 1000)
+
+        if not result["success"]:
+            return ReparseQuestionResponse(
+                success=False,
+                error=result.get("error", "Reparse failed"),
+                processing_time_ms=processing_time
+            )
+
+        # Clean student answer (same as full parse pipeline)
+        q = result["question"]
+        if isinstance(q, dict):
+            if q.get("student_answer"):
+                q["student_answer"] = clean_student_answer(q["student_answer"])
+            if q.get("subquestions"):
+                for subq in q["subquestions"]:
+                    if isinstance(subq, dict) and subq.get("student_answer"):
+                        subq["student_answer"] = clean_student_answer(subq["student_answer"])
+
+        return ReparseQuestionResponse(
+            success=True,
+            question=q,
+            processing_time_ms=processing_time
+        )
+
+    except Exception as e:
+        processing_time = int((time.time() - start_time) * 1000)
+        import traceback
+        traceback.print_exc()
+        return ReparseQuestionResponse(
+            success=False,
+            error=f"Reparse error: {str(e)}",
+            processing_time_ms=processing_time
         )
 
 
@@ -1347,7 +1440,8 @@ async def grade_single_question(request: GradeSingleQuestionRequest):
             question_type=request.question_type,  # NEW: Pass question type for specialized grading
             context_image=request.context_image_base64,
             parent_content=request.parent_question_content,  # NEW: Pass parent question context
-            use_deep_reasoning=request.use_deep_reasoning  # Pass deep reasoning flag
+            use_deep_reasoning=request.use_deep_reasoning,  # Pass deep reasoning flag
+            language=request.language or "en"
         )
 
         if not result["success"]:
@@ -1398,12 +1492,14 @@ class RandomQuestionsRequest(BaseModel):
     subject: str
     config: Dict
     user_profile: Dict
+    language: str = "en"
 
 class MistakeBasedQuestionsRequest(BaseModel):
     subject: str
     mistakes_data: List[Dict]
     config: Dict
     user_profile: Dict
+    language: str = "en"
 
 class ConversationBasedQuestionsRequest(BaseModel):
     subject: str
@@ -1411,6 +1507,7 @@ class ConversationBasedQuestionsRequest(BaseModel):
     question_data: List[Dict] = []
     config: Dict
     user_profile: Dict
+    language: str = "en"
 
 class QuestionGenerationResponse(BaseModel):
     success: bool
@@ -1452,7 +1549,8 @@ async def generate_random_questions(request: RandomQuestionsRequest, service_inf
         result = await ai_service.generate_random_questions(
             subject=request.subject,
             config=request.config,
-            user_profile=request.user_profile
+            user_profile=request.user_profile,
+            language=request.language
         )
 
         processing_time = int((time.time() - start_time) * 1000)
@@ -1522,7 +1620,8 @@ async def generate_mistake_based_questions(request: MistakeBasedQuestionsRequest
             subject=request.subject,
             mistakes_data=request.mistakes_data,
             config=request.config,
-            user_profile=request.user_profile
+            user_profile=request.user_profile,
+            language=request.language
         )
 
         processing_time = int((time.time() - start_time) * 1000)
@@ -1596,7 +1695,8 @@ async def generate_conversation_based_questions(request: ConversationBasedQuesti
             conversation_data=request.conversation_data,
             question_data=request.question_data,
             config=request.config,
-            user_profile=request.user_profile
+            user_profile=request.user_profile,
+            language=request.language
         )
 
         processing_time = int((time.time() - start_time) * 1000)
