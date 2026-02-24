@@ -196,23 +196,15 @@ struct ContentView: View {
     // MARK: - App Lifecycle Handling
 
     private func handleScenePhaseChange(oldPhase: ScenePhase, newPhase: ScenePhase) {
-        print("🔐 [ContentView] Scene phase changed: \(oldPhase) → \(newPhase)")
-
         switch newPhase {
         case .background:
-            // App is going to background - session will be ended immediately
-            print("🔐 [ContentView] App entering background - session will be ended (Face ID required on reopen)")
             sessionManager.appWillResignActive()
             appSessionManager.appDidEnterBackground()  // ✅ Track background time
 
         case .active:
-            // App is returning to foreground - session was ended, so Face ID is required
-            print("🔐 [ContentView] App returning to foreground - checking if re-authentication is needed")
             let isSessionValid = sessionManager.appDidBecomeActive()
 
             if !isSessionValid && authService.currentUser != nil {
-                // Session expired (either from background or timeout)
-                print("🔐 [ContentView] Session expired - triggering Face ID re-authentication")
                 Task { @MainActor in
                     authService.isAuthenticated = false
                     authService.requiresFaceIDReauth = true

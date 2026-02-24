@@ -95,109 +95,17 @@ class ProgressRoutes {
   }
 
   setupRoutes() {
-    // Get enhanced progress data (used by iOS EngagingProgressView)
-    this.fastify.get('/api/progress/enhanced', {
-      preHandler: authPreHandler,
-      schema: {
-        description: 'Get enhanced progress data for iOS EngagingProgressView',
-        tags: ['Progress']
-      }
-    }, this.getEnhancedProgress.bind(this));
-
-    // Get subject breakdown for a user
-    this.fastify.get('/api/progress/subject/breakdown/:userId', {
-      preHandler: authPreHandler,
-      schema: {
-        description: 'Get subject breakdown analytics for user',
-        tags: ['Progress'],
-        params: {
-          type: 'object',
-          properties: {
-            userId: { type: 'string' }
-          }
-        }
-      }
-    }, this.getSubjectBreakdown.bind(this));
+    // NOTE: The following 6 routes have been moved to progress-routes.REDACTED.js (no iOS callers):
+    //   GET  /api/progress/enhanced
+    //   GET  /api/progress/subject/breakdown/:userId
+    //   GET  /api/progress/weekly/:userId
+    //   POST /api/progress/today/:userId
+    //   GET  /api/progress/insights/:userId
+    //   POST /api/progress/monthly/:userId
 
     // DEPRECATED: /api/progress/update endpoint removed due to critical bug (hardcoded questionsCorrect = 1)
     // Replaced by: POST /api/user/sync-daily-progress (line 281)
     // See: DEPRECATED_BACKEND_CODE.md for details
-
-    // Get weekly progress summary
-    this.fastify.get('/api/progress/weekly/:userId', {
-      preHandler: authPreHandler,
-      schema: {
-        description: 'Get weekly progress summary for user',
-        tags: ['Progress'],
-        params: {
-          type: 'object',
-          properties: {
-            userId: { type: 'string' }
-          }
-        }
-      }
-    }, this.getWeeklyProgress.bind(this));
-
-    // Get today's activity for a user
-    this.fastify.post('/api/progress/today/:userId', {
-      preHandler: authPreHandler,
-      schema: {
-        description: 'Get today\'s activity summary for user',
-        tags: ['Progress'],
-        params: {
-          type: 'object',
-          properties: {
-            userId: { type: 'string' }
-          }
-        },
-        body: {
-          type: 'object',
-          properties: {
-            timezone: { type: 'string', description: 'Client timezone (e.g., America/Los_Angeles)' },
-            date: { type: 'string', description: 'Date string in YYYY-MM-DD format' }
-          }
-        }
-      }
-    }, this.getTodaysActivity.bind(this));
-
-    // Get subject insights
-    this.fastify.get('/api/progress/insights/:userId', {
-      preHandler: authPreHandler,
-      schema: {
-        description: 'Get AI-generated subject insights for user',
-        tags: ['Progress'],
-        params: {
-          type: 'object',
-          properties: {
-            userId: { type: 'string' }
-          }
-        }
-      }
-    }, this.getSubjectInsights.bind(this));
-
-    // Get monthly activity data
-    this.fastify.post('/api/progress/monthly/:userId', {
-      preHandler: authPreHandler,
-      schema: {
-        description: 'Get monthly activity data for calendar view',
-        tags: ['Progress'],
-        params: {
-          type: 'object',
-          properties: {
-            userId: { type: 'string' }
-          }
-        },
-        body: {
-          type: 'object',
-          properties: {
-            year: { type: 'integer', description: 'Year (e.g., 2025)' },
-            month: { type: 'integer', description: 'Month (1-12)' },
-            timezone: { type: 'string', description: 'Client timezone (e.g., America/Los_Angeles)' }
-          },
-          required: ['year', 'month']
-        }
-      }
-    }, this.getMonthlyActivity.bind(this));
 
     // Get user progress data (for sync fetch)
     this.fastify.get('/api/progress/sync', {
