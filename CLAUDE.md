@@ -70,7 +70,7 @@ python src/main.py  # Start FastAPI server
       question-processing.js       # Q&A processing
       tts.js                       # Text-to-speech
       homework-processing.js       # Image processing
-      chat-image.js                # Chat with images
+      chat-image.js                # DISABLED: Chat with images (both /api/ai/chat-image and /api/ai/chat-image-stream). Only caller was orphaned QuestionView.swift. Reactivate by uncommenting import + classModules entry in ai/index.js.
       archive-retrieval.js         # Archive queries
       question-generation-v2.js    # Practice questions (unified + legacy routes)
       session-management.js        # Session CRUD (CRITICAL)
@@ -137,9 +137,12 @@ daily_subject_activities (user_id, date, question_count)
 - `POST /api/auth/apple`
 
 ### AI Processing
-- `POST /api/ai/process-homework-image-json`
+- `POST /api/ai/process-homework-image-json` ← active (base64 JSON)
 - `POST /api/ai/process-question`
 - `POST /api/ai/evaluate-answer`
+- ~~`POST /api/ai/process-homework-image`~~ — DISABLED (multipart form-data variant; iOS uses JSON variant above). Reactivate by uncommenting route + handler in `homework-processing.js`.
+- ~~`POST /api/ai/chat-image`~~ — DISABLED. Reactivate via `chat-image.js` import in `ai/index.js`.
+- ~~`POST /api/ai/chat-image-stream`~~ — DISABLED. Reactivate via `chat-image.js` import in `ai/index.js`.
 
 ### Practice Question Generation
 - `POST /api/ai/generate-questions/practice` - Unified endpoint (modes 1/2/3)
@@ -177,8 +180,8 @@ daily_subject_activities (user_id, date, question_count)
 
 **Homework Image Processing**:
 1. iOS captures image with `CameraView.swift`
-2. Image sent via `NetworkService.processHomeworkImage()`
-3. Backend forwards to AI Engine `/api/v1/process-homework-image`
+2. Image sent via `NetworkService.processHomeworkImageJSON()` → `POST /api/ai/process-homework-image-json`
+3. Backend forwards to AI Engine `/api/v1/process-homework-image-json`
 4. Results returned and displayed in `HomeworkResultsView.swift`
 5. Archive via `RailwayArchiveService.swift`
 

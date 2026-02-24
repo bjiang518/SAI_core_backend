@@ -19,39 +19,42 @@ class HomeworkProcessingRoutes {
    * Register all homework processing routes
    */
   registerRoutes() {
-    // Process homework image - multipart form data
-    this.fastify.post('/api/ai/process-homework-image', {
-      schema: {
-        description: 'Process homework image with AI analysis',
-        tags: ['AI', 'Homework'],
-        consumes: ['multipart/form-data'],
-        produces: ['application/json']
-      },
-      config: {
-        rateLimit: {
-          max: 15,
-          timeWindow: '1 hour',
-          keyGenerator: async (request) => {
-            const userId = await this.authHelper.getUserIdFromToken(request);
-            return userId || request.ip;
-          },
-          addHeaders: {
-            'x-ratelimit-limit': true,
-            'x-ratelimit-remaining': true,
-            'x-ratelimit-reset': true,
-            'retry-after': true
-          },
-          errorResponseBuilder: (request, context) => {
-            return {
-              error: 'Rate limit exceeded',
-              code: 'RATE_LIMIT_EXCEEDED',
-              message: `You can only process ${context.max} homework images per hour. Please try again later.`,
-              retryAfter: context.after
-            };
-          }
-        }
-      }
-    }, this.processHomeworkImage.bind(this));
+    // DISABLED: Process homework image - multipart form data
+    // iOS uses /api/ai/process-homework-image-json (base64 JSON) instead.
+    // Reactivate by uncommenting if multipart upload support is needed in future.
+    //
+    // this.fastify.post('/api/ai/process-homework-image', {
+    //   schema: {
+    //     description: 'Process homework image with AI analysis',
+    //     tags: ['AI', 'Homework'],
+    //     consumes: ['multipart/form-data'],
+    //     produces: ['application/json']
+    //   },
+    //   config: {
+    //     rateLimit: {
+    //       max: 15,
+    //       timeWindow: '1 hour',
+    //       keyGenerator: async (request) => {
+    //         const userId = await this.authHelper.getUserIdFromToken(request);
+    //         return userId || request.ip;
+    //       },
+    //       addHeaders: {
+    //         'x-ratelimit-limit': true,
+    //         'x-ratelimit-remaining': true,
+    //         'x-ratelimit-reset': true,
+    //         'retry-after': true
+    //       },
+    //       errorResponseBuilder: (request, context) => {
+    //         return {
+    //           error: 'Rate limit exceeded',
+    //           code: 'RATE_LIMIT_EXCEEDED',
+    //           message: `You can only process ${context.max} homework images per hour. Please try again later.`,
+    //           retryAfter: context.after
+    //         };
+    //       }
+    //     }
+    //   }
+    // }, this.processHomeworkImage.bind(this));
 
     // Process homework image - base64 JSON
     this.fastify.post('/api/ai/process-homework-image-json', {
@@ -350,61 +353,35 @@ class HomeworkProcessingRoutes {
     }, this.reparseQuestion.bind(this));
   }
 
-  /**
-   * Process homework image from multipart form data
-   */
-  async processHomeworkImage(request, reply) {
-    const startTime = Date.now();
-
-    try {
-      const data = await request.file();
-      if (!data) {
-        return reply.status(400).send({
-          error: 'No image file provided',
-          code: 'MISSING_IMAGE'
-        });
-      }
-
-      const FormData = require('form-data');
-      const form = new FormData();
-      form.append('image', data.file, {
-        filename: data.filename,
-        contentType: data.mimetype
-      });
-
-      if (request.body) {
-        Object.keys(request.body).forEach(key => {
-          form.append(key, request.body[key]);
-        });
-      }
-
-      const result = await this.aiClient.proxyRequest(
-        'POST',
-        '/api/v1/process-homework-image',
-        form,
-        form.getHeaders()
-      );
-
-      if (result.success) {
-        const duration = Date.now() - startTime;
-        return reply.send({
-          ...result.data,
-          _gateway: {
-            processTime: duration,
-            service: 'ai-engine'
-          }
-        });
-      } else {
-        return this.handleProxyError(reply, result.error);
-      }
-    } catch (error) {
-      this.fastify.log.error('Error processing homework image:', error);
-      return reply.status(500).send({
-        error: 'Internal server error processing image',
-        code: 'PROCESSING_ERROR'
-      });
-    }
-  }
+  // DISABLED: processHomeworkImage — multipart form-data variant.
+  // Not called by iOS (uses processHomeworkImageJSON instead).
+  // Reactivate by uncommenting and re-enabling the route in registerRoutes() if needed.
+  //
+  // async processHomeworkImage(request, reply) {
+  //   const startTime = Date.now();
+  //   try {
+  //     const data = await request.file();
+  //     if (!data) {
+  //       return reply.status(400).send({ error: 'No image file provided', code: 'MISSING_IMAGE' });
+  //     }
+  //     const FormData = require('form-data');
+  //     const form = new FormData();
+  //     form.append('image', data.file, { filename: data.filename, contentType: data.mimetype });
+  //     if (request.body) {
+  //       Object.keys(request.body).forEach(key => { form.append(key, request.body[key]); });
+  //     }
+  //     const result = await this.aiClient.proxyRequest('POST', '/api/v1/process-homework-image', form, form.getHeaders());
+  //     if (result.success) {
+  //       const duration = Date.now() - startTime;
+  //       return reply.send({ ...result.data, _gateway: { processTime: duration, service: 'ai-engine' } });
+  //     } else {
+  //       return this.handleProxyError(reply, result.error);
+  //     }
+  //   } catch (error) {
+  //     this.fastify.log.error('Error processing homework image:', error);
+  //     return reply.status(500).send({ error: 'Internal server error processing image', code: 'PROCESSING_ERROR' });
+  //   }
+  // }
 
   /**
    * Process homework image from base64 JSON
