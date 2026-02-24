@@ -433,6 +433,21 @@
 		7BEC08042F4C332900B6E573 /* Localizable_de.strings in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC07F02F4C332900B6E573 /* Localizable_de.strings */; };
 		7BEC08052F4C332900B6E573 /* Localizable_es.strings in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC07F32F4C332900B6E573 /* Localizable_es.strings */; };
 		7BEC08062F4C332900B6E573 /* Localizable_fr.strings in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC07F62F4C332900B6E573 /* Localizable_fr.strings */; };
+		7BEC080C2F4D7CB100B6E573 /* loadingtomato.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC08092F4D7CB100B6E573 /* loadingtomato.json */; };
+		7BEC080D2F4D7CB100B6E573 /* wronglistingcheck.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC080B2F4D7CB100B6E573 /* wronglistingcheck.json */; };
+		7BEC080E2F4D7CB100B6E573 /* Report.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC080A2F4D7CB100B6E573 /* Report.json */; };
+		7BEC080F2F4D7CB100B6E573 /* createquiz.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC08072F4D7CB100B6E573 /* createquiz.json */; };
+		7BEC08102F4D7CB100B6E573 /* Imageicontadah.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC08082F4D7CB100B6E573 /* Imageicontadah.json */; };
+		7BEC08112F4D7CB100B6E573 /* loadingtomato.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC08092F4D7CB100B6E573 /* loadingtomato.json */; };
+		7BEC08122F4D7CB100B6E573 /* wronglistingcheck.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC080B2F4D7CB100B6E573 /* wronglistingcheck.json */; };
+		7BEC08132F4D7CB100B6E573 /* Report.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC080A2F4D7CB100B6E573 /* Report.json */; };
+		7BEC08142F4D7CB100B6E573 /* createquiz.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC08072F4D7CB100B6E573 /* createquiz.json */; };
+		7BEC08152F4D7CB100B6E573 /* Imageicontadah.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC08082F4D7CB100B6E573 /* Imageicontadah.json */; };
+		7BEC08162F4D7CB100B6E573 /* loadingtomato.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC08092F4D7CB100B6E573 /* loadingtomato.json */; };
+		7BEC08172F4D7CB100B6E573 /* wronglistingcheck.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC080B2F4D7CB100B6E573 /* wronglistingcheck.json */; };
+		7BEC08182F4D7CB100B6E573 /* Report.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC080A2F4D7CB100B6E573 /* Report.json */; };
+		7BEC08192F4D7CB100B6E573 /* createquiz.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC08072F4D7CB100B6E573 /* createquiz.json */; };
+		7BEC081A2F4D7CB100B6E573 /* Imageicontadah.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC08082F4D7CB100B6E573 /* Imageicontadah.json */; };
 		7BEDA6272E80B8C500D57B15 /* QuestionGenerationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEDA6262E80B8C500D57B15 /* QuestionGenerationService.swift */; };
 		7BEDA6282E80B8C500D57B15 /* QuestionGenerationDataAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEDA6252E80B8C500D57B15 /* QuestionGenerationDataAdapter.swift */; };
 		7BEDA62C2E80B91100D57B15 /* GeneratedQuestionsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEDA6292E80B91100D57B15 /* GeneratedQuestionsListView.swift */; };
@@ -736,6 +751,11 @@
 		7BEC07F22F4C332900B6E573 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = Localizable_es.strings; sourceTree = "<group>"; };
 		7BEC07F52F4C332900B6E573 /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = fr; path = Localizable_fr.strings; sourceTree = "<group>"; };
 		7BEC07F82F4C332900B6E573 /* ja */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ja; path = Localizable_ja.strings; sourceTree = "<group>"; };
+		7BEC08072F4D7CB100B6E573 /* createquiz.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = createquiz.json; sourceTree = "<group>"; };
+		7BEC08082F4D7CB100B6E573 /* Imageicontadah.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Imageicontadah.json; sourceTree = "<group>"; };
+		7BEC08092F4D7CB100B6E573 /* loadingtomato.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = loadingtomato.json; sourceTree = "<group>"; };
+		7BEC080A2F4D7CB100B6E573 /* Report.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Report.json; sourceTree = "<group>"; };
+		7BEC080B2F4D7CB100B6E573 /* wronglistingcheck.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = wronglistingcheck.json; sourceTree = "<group>"; };
 		7BEDA6252E80B8C500D57B15 /* QuestionGenerationDataAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QuestionGenerationDataAdapter.swift; path = StudyAI/Services/QuestionGenerationDataAdapter.swift; sourceTree = SOURCE_ROOT; };
 		7BEDA6262E80B8C500D57B15 /* QuestionGenerationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QuestionGenerationService.swift; path = StudyAI/Services/QuestionGenerationService.swift; sourceTree = SOURCE_ROOT; };
 		7BEDA6292E80B91100D57B15 /* GeneratedQuestionsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GeneratedQuestionsListView.swift; path = StudyAI/Views/GeneratedQuestionsListView.swift; sourceTree = SOURCE_ROOT; };
@@ -1222,6 +1242,11 @@
 		7BEEB6292E8EFFCA00957748 /* Lottie */ = {
 			isa = PBXGroup;
 			children = (
+				7BEC08072F4D7CB100B6E573 /* createquiz.json */,
+				7BEC08082F4D7CB100B6E573 /* Imageicontadah.json */,
+				7BEC08092F4D7CB100B6E573 /* loadingtomato.json */,
+				7BEC080A2F4D7CB100B6E573 /* Report.json */,
+				7BEC080B2F4D7CB100B6E573 /* wronglistingcheck.json */,
 				7BEC07B92F42F9DB00B6E573 /* Correct.json */,
 				7BEC07BA2F42F9DB00B6E573 /* Question and Answer 2.json */,
 				7BEC07BB2F42F9DB00B6E573 /* rocket 2.json */,
@@ -1419,6 +1444,11 @@
 				7B74A2072EB18078002DBE2B /* Fire.json in Resources */,
 				7B2248172F1970BE006ADD93 /* PrivacyInfo.xcprivacy in Resources */,
 				7B74A2082EB18078002DBE2B /* Foriday.json in Resources */,
+				7BEC080C2F4D7CB100B6E573 /* loadingtomato.json in Resources */,
+				7BEC080D2F4D7CB100B6E573 /* wronglistingcheck.json in Resources */,
+				7BEC080E2F4D7CB100B6E573 /* Report.json in Resources */,
+				7BEC080F2F4D7CB100B6E573 /* createquiz.json in Resources */,
+				7BEC08102F4D7CB100B6E573 /* Imageicontadah.json in Resources */,
 				7B19619C2E9285F20024317A /* Customised_report.json in Resources */,
 				7B9045202E8FB42E00E5DDFA /* Checklist.json in Resources */,
 				7B1961A92E93AD240024317A /* Wave Animation.json in Resources */,
@@ -1445,6 +1475,11 @@
 				7BEC07CF2F42F9DB00B6E573 /* Target.json in Resources */,
 				7BEC07D02F42F9DB00B6E573 /* rocket 2.json in Resources */,
 				7B2248B12F2F53CB006ADD93 /* Just Flow.json in Resources */,
+				7BEC08162F4D7CB100B6E573 /* loadingtomato.json in Resources */,
+				7BEC08172F4D7CB100B6E573 /* wronglistingcheck.json in Resources */,
+				7BEC08182F4D7CB100B6E573 /* Report.json in Resources */,
+				7BEC08192F4D7CB100B6E573 /* createquiz.json in Resources */,
+				7BEC081A2F4D7CB100B6E573 /* Imageicontadah.json in Resources */,
 				7B1961DF2E94D96A0024317A /* Localizable.strings in Resources */,
 				7B83536A2EA80C7000199AC3 /* Assets.xcassets in Resources */,
 				7B1961E02E94D96A0024317A /* Localizable.strings in Resources */,
@@ -1485,6 +1520,11 @@
 				7BEC07C92F42F9DB00B6E573 /* Target.json in Resources */,
 				7BEC07CA2F42F9DB00B6E573 /* rocket 2.json in Resources */,
 				7B2248B22F2F53CB006ADD93 /* Just Flow.json in Resources */,
+				7BEC08112F4D7CB100B6E573 /* loadingtomato.json in Resources */,
+				7BEC08122F4D7CB100B6E573 /* wronglistingcheck.json in Resources */,
+				7BEC08132F4D7CB100B6E573 /* Report.json in Resources */,
+				7BEC08142F4D7CB100B6E573 /* createquiz.json in Resources */,
+				7BEC08152F4D7CB100B6E573 /* Imageicontadah.json in Resources */,
 				7B1961E22E94D96A0024317A /* Localizable.strings in Resources */,
 				7B8353692EA80C7000199AC3 /* Assets.xcassets in Resources */,
 				7B1961E32E94D96A0024317A /* Localizable.strings in Resources */,

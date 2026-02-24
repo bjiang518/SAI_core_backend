@@ -525,6 +525,8 @@ extension HomeView {
             title: NSLocalizedString("home.practice", comment: ""),
             subtitle: NSLocalizedString("home.practiceDescription", comment: ""),
             color: themeManager.featureCardColor("practice"),
+            lottieAnimation: "createquiz",
+            lottieScale: 0.14,
             action: { showingQuestionGeneration = true }
         )
 
@@ -534,6 +536,8 @@ extension HomeView {
             title: NSLocalizedString("home.mistakeReview", comment: ""),
             subtitle: NSLocalizedString("home.mistakeReviewDescription", comment: ""),
             color: colorScheme == .dark ? DesignTokens.Colors.rainbowIndigo.dark : DesignTokens.Colors.rainbowIndigo.light,
+            lottieAnimation: "wronglistingcheck",
+            lottieScale: 0.22,
             action: { showingMistakeReview = true }
         )
 
@@ -543,6 +547,8 @@ extension HomeView {
             title: NSLocalizedString("home.parentReports", comment: ""),
             subtitle: NSLocalizedString("home.parentReportsDescription", comment: ""),
             color: themeManager.featureCardColor("reports"),
+            lottieAnimation: "Report",
+            lottieScale: 0.1,
             action: {
                 if parentModeManager.requiresAuthentication(for: .parentReports) {
                     showingParentAuthForReports = true
@@ -558,6 +564,8 @@ extension HomeView {
             title: NSLocalizedString("home.homeworkAlbum", comment: ""),
             subtitle: NSLocalizedString("home.homeworkAlbumDescription", comment: ""),
             color: colorScheme == .dark ? DesignTokens.Colors.rainbowPink.dark : DesignTokens.Colors.rainbowPink.light,
+            lottieAnimation: "Imageicontadah",
+            lottieScale: 0.16,
             action: { showingHomeworkAlbum = true }
         )
 
@@ -567,6 +575,8 @@ extension HomeView {
             title: NSLocalizedString("home.focusMode", comment: ""),
             subtitle: NSLocalizedString("home.focusModeDescription", comment: ""),
             color: Color(red: 0.2, green: 0.8, blue: 0.7),
+            lottieAnimation: "loadingtomato",
+            lottieScale: 0.21,
             action: { showingFocusMode = true }
         )
     }
@@ -774,12 +784,34 @@ struct HorizontalActionButton: View {
     let subtitle: String
     let color: Color
     let action: () -> Void
+    let lottieAnimation: String?
+    let lottieScale: CGFloat
 
     @State private var isPressed = false
     @State private var iconScale: CGFloat = 1.0
     @State private var iconRotation: Double = 0
     @Environment(\.colorScheme) var colorScheme  // ✅ Detect dark mode
     @StateObject private var themeManager = ThemeManager.shared  // ✅ Cute Mode: Lighter colors
+
+    init(icon: String, title: String, subtitle: String, color: Color, action: @escaping () -> Void) {
+        self.icon = icon
+        self.title = title
+        self.subtitle = subtitle
+        self.color = color
+        self.action = action
+        self.lottieAnimation = nil
+        self.lottieScale = 1.0
+    }
+
+    init(icon: String, title: String, subtitle: String, color: Color, lottieAnimation: String, lottieScale: CGFloat = 1.0, action: @escaping () -> Void) {
+        self.icon = icon
+        self.title = title
+        self.subtitle = subtitle
+        self.color = color
+        self.action = action
+        self.lottieAnimation = lottieAnimation
+        self.lottieScale = lottieScale
+    }
 
     var body: some View {
         Button(action: {
@@ -802,26 +834,40 @@ struct HorizontalActionButton: View {
             HStack(spacing: 16) {
                 // Icon
                 ZStack {
-                    Circle()
-                        .fill(
-                            themeManager.currentTheme == .cute ?
-                                Color.white.opacity(0.5) :  // White circle in Cute mode
-                                color.opacity(isPressed ? 0.3 : 0.15)
+                    if lottieAnimation == nil {
+                        Circle()
+                            .fill(
+                                themeManager.currentTheme == .cute ?
+                                    Color.white.opacity(0.5) :  // White circle in Cute mode
+                                    color.opacity(isPressed ? 0.3 : 0.15)
+                            )
+                            .frame(width: 50, height: 50)
+                            .scaleEffect(isPressed ? 0.9 : 1.0)
+                    }
+
+                    if let animationName = lottieAnimation {
+                        LottieView(
+                            animationName: animationName,
+                            loopMode: .loop,
+                            animationSpeed: 0.5
                         )
                         .frame(width: 50, height: 50)
-                        .scaleEffect(isPressed ? 0.9 : 1.0)
-
-                    Image(systemName: icon)
-                        .font(.system(size: 22))
-                        .foregroundColor(
-                            themeManager.currentTheme == .cute ?
-                                DesignTokens.Colors.Cute.textPrimary :  // Soft black in Cute mode
-                                (isPressed ? color.opacity(0.7) : color)
-                        )
-                        .scaleEffect(iconScale)
-                        .rotationEffect(.degrees(iconRotation))
+                        .scaleEffect(isPressed ? lottieScale * 0.95 : lottieScale)
+                    } else {
+                        Image(systemName: icon)
+                            .font(.system(size: 22))
+                            .foregroundColor(
+                                themeManager.currentTheme == .cute ?
+                                    DesignTokens.Colors.Cute.textPrimary :  // Soft black in Cute mode
+                                    (isPressed ? color.opacity(0.7) : color)
+                            )
+                            .scaleEffect(iconScale)
+                            .rotationEffect(.degrees(iconRotation))
+                    }
                 }
                 .onAppear {
+                    // Only animate SF Symbols, not Lottie
+                    guard lottieAnimation == nil else { return }
                     // Gentle pulse animation
                     withAnimationIfNotPowerSaving(
                         Animation.easeInOut(duration: 2.5)
