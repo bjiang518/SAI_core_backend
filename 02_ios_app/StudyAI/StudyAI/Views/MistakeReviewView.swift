@@ -85,9 +85,8 @@ struct MistakeReviewView: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: 20) {
+        ScrollView {
+            VStack(spacing: 20) {
                     // SECTION 1: Compact Subject Selection
                     if mistakeService.isLoading {
                         ProgressView(NSLocalizedString("mistakeReview.loadingSubjects", comment: ""))
@@ -187,18 +186,12 @@ struct MistakeReviewView: View {
             .navigationTitle(NSLocalizedString("mistakeReview.title", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
                         showingInstructions = true
                     }) {
                         Image(systemName: "info.circle")
                             .font(.body)
-                    }
-                }
-
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(NSLocalizedString("common.done", comment: "")) {
-                        dismiss()
                     }
                 }
             }
@@ -234,7 +227,6 @@ struct MistakeReviewView: View {
                     )
                 }
             }
-        }
     }
 
     // MARK: - Helper Methods

@@ -2004,7 +2004,7 @@ struct DirectAIHomeworkView: View {
         // Update status to compressing before potentially slow compression step
         await MainActor.run {
             stateManager.currentStage = .compressing
-            stateManager.processingStatus = "📦 Optimizing images..."
+            stateManager.processingStatus = NSLocalizedString("aiHomework.optimizing", comment: "Optimizing images")
         }
 
         // Compress and encode image
@@ -2055,7 +2055,7 @@ struct DirectAIHomeworkView: View {
                 if attempt > 1 {
                     print("🔄 Retry attempt \(attempt)/\(maxRetries)...")
                     await MainActor.run {
-                        self.stateManager.processingStatus = "重试中... (\(attempt)/\(maxRetries))"
+                        self.stateManager.processingStatus = String(format: NSLocalizedString("aiHomework.retrying", comment: "Retrying"), attempt, maxRetries)
                     }
                     // Exponential backoff: 2s, 4s, 8s
                     try await Task.sleep(nanoseconds: UInt64(pow(2.0, Double(attempt))) * 1_000_000_000)
@@ -2063,6 +2063,14 @@ struct DirectAIHomeworkView: View {
 
                 // ✅ SMART ROUTING: Use batch endpoint for 2+ images, single endpoint for 1 image
                 let parseResponse: ParseHomeworkQuestionsResponse
+
+                // Update status to show AI is actively working
+                await MainActor.run {
+                    stateManager.currentStage = .analyzing
+                    stateManager.processingStatus = base64Images.count >= 2
+                        ? String(format: NSLocalizedString("aiHomework.parsingPages", comment: "Parsing N pages"), base64Images.count)
+                        : NSLocalizedString("aiHomework.parsingHomework", comment: "AI parsing homework")
+                }
 
                 if base64Images.count >= 2 {
                     // Batch parsing for multiple pages
@@ -2095,7 +2103,7 @@ struct DirectAIHomeworkView: View {
 
                 // Navigate to Summary View
                 await MainActor.run {
-                    self.stateManager.processingStatus = "分析完成"
+                    self.stateManager.processingStatus = NSLocalizedString("aiHomework.analysisComplete", comment: "Analysis complete")
                     self.isProcessing = false
 
                     // Store parse results for Summary View

@@ -79,9 +79,8 @@ struct QuestionGenerationView: View {
     }
 
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: 32) {
+        ScrollView {
+            VStack(spacing: 32) {
                     // ✅ FIX 2: Resume Session Banner
                     if sessionManager.hasIncompleteSessions,
                        let latestSession = sessionManager.incompleteSessions.first {
@@ -134,20 +133,13 @@ struct QuestionGenerationView: View {
             .navigationTitle(NSLocalizedString("questionGeneration.title", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
                         showingInfoAlert = true
                     }) {
                         Image(systemName: "info.circle")
                             .foregroundColor(.blue)
                     }
-                }
-
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(NSLocalizedString("common.done", comment: "")) {
-                        dismiss()
-                    }
-                    .fontWeight(.semibold)
                 }
             }
             // ✅ CHANGED: Use fullScreenCover instead of sheet for fixed view
@@ -181,7 +173,6 @@ struct QuestionGenerationView: View {
             .onAppear {
                 loadInitialData()
             }
-        }
     }
 
     private var generationTypeSelection: some View {

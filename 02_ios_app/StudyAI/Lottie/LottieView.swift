@@ -7,63 +7,84 @@
 
 import SwiftUI
 import Lottie
-import Combine
 
 struct LottieView: UIViewRepresentable {
     let animationName: String
     let loopMode: LottieLoopMode
     let animationSpeed: CGFloat
-    let powerSavingProgress: CGFloat  // Custom progress for power saving mode
+    let powerSavingProgress: CGFloat
+    // These two are diffed by SwiftUI to trigger updateUIView reliably
+    let isPowerSaving: Bool
+    let refreshID: Int
 
     init(
         animationName: String,
         loopMode: LottieLoopMode = .loop,
         animationSpeed: CGFloat = 1.0,
-        powerSavingProgress: CGFloat = 0.8  // Default to 80% (hero pose)
+        powerSavingProgress: CGFloat = 0.8,
+        refreshID: Int = 0
     ) {
         self.animationName = animationName
         self.loopMode = loopMode
         self.animationSpeed = animationSpeed
         self.powerSavingProgress = powerSavingProgress
+        self.isPowerSaving = AppState.shared.isPowerSavingMode
+        self.refreshID = refreshID
     }
 
     func makeUIView(context: Context) -> LottieAnimationView {
-        let animationView = LottieAnimationView(name: animationName)
-        animationView.loopMode = loopMode
-        animationView.animationSpeed = animationSpeed
+        let animationView = LottieAnimationView()
         animationView.contentMode = .scaleAspectFit
-        animationView.backgroundColor = .clear  // ✅ Transparent background to remove box
+        animationView.backgroundBehavior = .pauseAndRestore
 
-        // Store reference in coordinator for updates
-        context.coordinator.animationView = animationView
-        context.coordinator.powerSavingProgress = powerSavingProgress  // Store custom progress
+        print("🎬 [LottieView] makeUIView called for '\(animationName)' | isPowerSaving=\(isPowerSaving)")
 
-        // Subscribe to Power Saving Mode changes BEFORE playing
-        context.coordinator.setupPowerSavingObserver()
+        if let animation = LottieAnimation.named(animationName) {
+            animationView.animation = animation
+            animationView.loopMode = loopMode
+            animationView.animationSpeed = animationSpeed
 
-        // Only play if Power Saving Mode is disabled
-        if !AppState.shared.isPowerSavingMode {
-            animationView.play()
+            context.coordinator.animationView = animationView
+            context.coordinator.powerSavingProgress = powerSavingProgress
+
+            if !isPowerSaving {
+                animationView.play()
+                print("▶️ [LottieView] makeUIView → PLAYING '\(animationName)'")
+            } else {
+                animationView.currentProgress = powerSavingProgress
+                print("🔋 [LottieView] makeUIView → FROZEN '\(animationName)' at \(Int(powerSavingProgress * 100))%")
+            }
         } else {
-            // In power saving mode, show at custom progress (hero pose)
-            animationView.currentProgress = powerSavingProgress
+            print("❌ [LottieView] makeUIView → FAILED to load '\(animationName)'")
         }
 
         return animationView
     }
 
     func updateUIView(_ uiView: LottieAnimationView, context: Context) {
-        // Handle Power Saving Mode changes
-        let isPowerSaving = AppState.shared.isPowerSavingMode
+        if uiView.animationSpeed != animationSpeed {
+            uiView.animationSpeed = animationSpeed
+        }
+        if uiView.loopMode != loopMode {
+            uiView.loopMode = loopMode
+        }
+
+        print("🔄 [LottieView] updateUIView called for '\(animationName)' | isPowerSaving=\(isPowerSaving) | isPlaying=\(uiView.isAnimationPlaying)")
 
         if isPowerSaving {
             if uiView.isAnimationPlaying {
                 uiView.stop()
-                uiView.currentProgress = powerSavingProgress  // Stop at custom progress (hero pose)
+                uiView.currentProgress = powerSavingProgress
+                print("🔋 [LottieView] updateUIView → STOPPED '\(animationName)' at \(Int(powerSavingProgress * 100))%")
+            } else {
+                print("🔋 [LottieView] updateUIView → already stopped, no-op")
             }
         } else {
             if !uiView.isAnimationPlaying && uiView.animation != nil {
                 uiView.play()
+                print("▶️ [LottieView] updateUIView → RESUMED '\(animationName)'")
+            } else {
+                print("▶️ [LottieView] updateUIView → already playing, no-op")
             }
         }
     }
@@ -74,32 +95,6 @@ struct LottieView: UIViewRepresentable {
 
     class Coordinator {
         var animationView: LottieAnimationView?
-        var powerSavingProgress: CGFloat = 0.8  // Store the custom progress
-        private var cancellable: AnyCancellable?
-
-        func setupPowerSavingObserver() {
-            cancellable = AppState.shared.$isPowerSavingMode
-                .sink { [weak self] isPowerSaving in
-                    guard let animationView = self?.animationView else { return }
-
-                    DispatchQueue.main.async {
-                        if isPowerSaving {
-                            if animationView.isAnimationPlaying {
-                                animationView.stop()
-                                let progress = self?.powerSavingProgress ?? 0.8
-                                animationView.currentProgress = progress  // Stop at custom progress (hero pose)
-                            }
-                        } else {
-                            if !animationView.isAnimationPlaying && animationView.animation != nil {
-                                animationView.play()
-                            }
-                        }
-                    }
-                }
-        }
-
-        deinit {
-            cancellable?.cancel()
-        }
+        var powerSavingProgress: CGFloat = 0.8
     }
 }

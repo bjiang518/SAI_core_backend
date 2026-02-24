@@ -11,7 +11,10 @@
  */
 
 const HomeworkProcessingRoutes = require('./modules/homework-processing');
-const ChatImageRoutes = require('./modules/chat-image');
+// DISABLED: chat-image endpoints (/api/ai/chat-image, /api/ai/chat-image-stream)
+// Not called by iOS — QuestionView.swift (only caller) is orphaned dead code.
+// Reactivate by uncommenting this import and the classModules entry below.
+// const ChatImageRoutes = require('./modules/chat-image');
 const QuestionProcessingRoutes = require('./modules/question-processing');
 const SessionManagementRoutes = require('./modules/session-management');
 const ArchiveRetrievalRoutes = require('./modules/archive-retrieval');
@@ -38,7 +41,7 @@ async function aiRoutes(fastify, opts) {
   // Initialize and register all route modules (class-based)
   const classModules = [
     { name: 'Homework Processing', Class: HomeworkProcessingRoutes },
-    { name: 'Chat Image', Class: ChatImageRoutes },
+    // DISABLED: { name: 'Chat Image', Class: ChatImageRoutes },  // Dead — reactivate with import above if needed
     { name: 'Question Processing', Class: QuestionProcessingRoutes },
     { name: 'Session Management', Class: SessionManagementRoutes },
     { name: 'Archive Retrieval', Class: ArchiveRetrievalRoutes },

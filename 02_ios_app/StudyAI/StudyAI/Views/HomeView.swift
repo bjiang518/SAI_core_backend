@@ -9,6 +9,17 @@ import SwiftUI
 import os.log
 import Lottie
 
+// Environment key to propagate lottieRefreshID down to card subviews
+private struct LottieRefreshIDKey: EnvironmentKey {
+    static let defaultValue: Int = 0
+}
+extension EnvironmentValues {
+    var lottieRefreshID: Int {
+        get { self[LottieRefreshIDKey.self] }
+        set { self[LottieRefreshIDKey.self] = newValue }
+    }
+}
+
 struct HomeView: View {
     let onSelectTab: (MainTab) -> Void
     @StateObject private var networkService = NetworkService.shared
@@ -27,6 +38,7 @@ struct HomeView: View {
     @State private var showingParentReports = false
     @State private var showingHomeworkAlbum = false  // NEW: Homework Album
     @State private var showingFocusMode = false  // NEW: Focus Mode
+    @State private var lottieRefreshID: Int = 0  // Incremented on appear to force LottieView re-sync
 
     // ✅ Dark Mode Support: Detect current color scheme
     @Environment(\.colorScheme) var colorScheme
@@ -64,10 +76,12 @@ struct HomeView: View {
 
                     // Quick Actions Grid (2x2) - now includes Homework Grader
                     quickActionsSection
-                        .padding(.bottom, DesignTokens.Spacing.xxl)  // Increased spacing before horizontal buttons
+                        .padding(.bottom, DesignTokens.Spacing.xxl)
+                        .environment(\.lottieRefreshID, lottieRefreshID)
 
                     // Additional Actions (Practice, Mistake Review, Parent Reports)
                     additionalActionsSection
+                        .environment(\.lottieRefreshID, lottieRefreshID)
 
                     Spacer(minLength: 100)
                 }
@@ -76,6 +90,8 @@ struct HomeView: View {
             .background(themeManager.backgroundColor.ignoresSafeArea())
             .navigationBarHidden(true)
             .onAppear {
+                lottieRefreshID += 1
+                print("🏠 [HomeView] onAppear — lottieRefreshID=\(lottieRefreshID) isPowerSaving=\(appState.isPowerSavingMode)")
                 // Load user name from ProfileService - always show display name or first name
                 if let profile = profileService.currentProfile {
                     // Determine display name
@@ -105,10 +121,10 @@ struct HomeView: View {
                     showingProfile = false
                 })
             }
-            .sheet(isPresented: $showingMistakeReview) {
+            .navigationDestination(isPresented: $showingMistakeReview) {
                 MistakeReviewView()
             }
-            .sheet(isPresented: $showingQuestionGeneration) {
+            .navigationDestination(isPresented: $showingQuestionGeneration) {
                 QuestionGenerationView()
             }
             .sheet(isPresented: $showingParentReports) {
@@ -423,9 +439,11 @@ extension HomeView {
 
                 // Animation toggle button
                 Button(action: {
+                    print("🎛️ [HomeView] Animation toggle tapped | before=\(appState.isPowerSavingMode) → after=\(!appState.isPowerSavingMode)")
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
                         appState.isPowerSavingMode.toggle()
                     }
+                    print("🎛️ [HomeView] AppState.isPowerSavingMode is now: \(appState.isPowerSavingMode)")
                 }) {
                     Image(systemName: appState.isPowerSavingMode ? "figure.stand" : "figure.run")
                         .font(.system(size: 18, weight: .medium))
@@ -622,8 +640,9 @@ struct QuickActionCard_New: View {
     @State private var isPressed = false
     @State private var rotationAngle: Double = 0
     @State private var scale: CGFloat = 1.0
-    @Environment(\.colorScheme) var colorScheme  // ✅ Detect dark mode
-    @StateObject private var themeManager = ThemeManager.shared  // ✅ Cute Mode: Solid colors
+    @Environment(\.colorScheme) var colorScheme
+    @Environment(\.lottieRefreshID) var lottieRefreshID
+    @StateObject private var themeManager = ThemeManager.shared
 
     // Default initializer without Lottie animation
     init(icon: String, title: String, subtitle: String, color: Color, action: @escaping () -> Void) {
@@ -687,7 +706,9 @@ struct QuickActionCard_New: View {
                         LottieView(
                             animationName: animationName,
                             loopMode: .loop,
-                            animationSpeed: 0.5
+                            animationSpeed: 0.5,
+                            powerSavingProgress: 0.8,
+                            refreshID: lottieRefreshID
                         )
                         .frame(width: 50, height: 50)
                         .scaleEffect(isPressed ? lottieScale * 0.95 : lottieScale)
@@ -821,8 +842,9 @@ struct HorizontalActionButton: View {
     @State private var isPressed = false
     @State private var iconScale: CGFloat = 1.0
     @State private var iconRotation: Double = 0
-    @Environment(\.colorScheme) var colorScheme  // ✅ Detect dark mode
-    @StateObject private var themeManager = ThemeManager.shared  // ✅ Cute Mode: Lighter colors
+    @Environment(\.colorScheme) var colorScheme
+    @Environment(\.lottieRefreshID) var lottieRefreshID
+    @StateObject private var themeManager = ThemeManager.shared
 
     init(icon: String, title: String, subtitle: String, color: Color, action: @escaping () -> Void) {
         self.icon = icon
@@ -883,7 +905,8 @@ struct HorizontalActionButton: View {
                             animationName: animationName,
                             loopMode: .loop,
                             animationSpeed: 0.5,
-                            powerSavingProgress: lottiePowerSavingProgress
+                            powerSavingProgress: lottiePowerSavingProgress,
+                            refreshID: lottieRefreshID
                         )
                         .frame(width: 50, height: 50)
                         .scaleEffect(isPressed ? lottieScale * 0.95 : lottieScale)
@@ -964,14 +987,15 @@ struct HorizontalActionButton: View {
             )
             .cornerRadius(16)
             .overlay(
-                // Only show border in Day/Night mode, not in Cute mode
-                themeManager.currentTheme == .cute ?
-                    nil :
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(
-                            isPressed ? color.opacity(colorScheme == .dark ? 0.6 : 0.7) : color.opacity(colorScheme == .dark ? 0.3 : 0.4),
-                            lineWidth: isPressed ? 2.0 : 1.5
-                        )
+                Group {
+                    if themeManager.currentTheme != .cute {
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(
+                                isPressed ? color.opacity(colorScheme == .dark ? 0.6 : 0.7) : color.opacity(colorScheme == .dark ? 0.3 : 0.4),
+                                lineWidth: isPressed ? 2.0 : 1.5
+                            )
+                    }
+                }
             )
             .shadow(
                 color: colorScheme == .dark ?

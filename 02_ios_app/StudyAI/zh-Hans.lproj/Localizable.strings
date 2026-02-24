@@ -171,6 +171,10 @@
 "aiHomework.cropping" = "正在图像分割...";
 "aiHomework.uploading" = "上传到AI中...";
 "aiHomework.analyzing" = "AI正在阅读作业...";
+"aiHomework.optimizing" = "📦 优化图片中...";
+"aiHomework.parsingHomework" = "🤖 AI正在解析作业...";
+"aiHomework.parsingPages" = "🤖 AI正在解析%d页...";
+"aiHomework.retrying" = "🔄 重试中... (%d/%d)";
 "aiHomework.grading" = "评分中...";
 "aiHomework.preparingResults" = "准备结果中...";
 "aiHomework.analysisComplete" = "分析完成！";
