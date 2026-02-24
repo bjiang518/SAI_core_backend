@@ -102,49 +102,8 @@ const MUSIC_CATALOG = [
 
 module.exports = async function(fastify, opts) {
 
-    /**
-     * GET /api/music/library
-     * Get available music tracks catalog
-     *
-     * Returns list of all available tracks with metadata:
-     * - id, name, category, duration
-     * - fileSize (for download progress)
-     * - downloadURL (direct download link)
-     */
-    fastify.get('/api/music/library', async (request, reply) => {
-        try {
-            console.log('📚 [Music] Fetching music library catalog');
-
-            // Build catalog with download URLs
-            const catalog = MUSIC_CATALOG.map(track => {
-                const downloadURL = MUSIC_CDN_BASE_URL
-                    ? `${MUSIC_CDN_BASE_URL}/${track.category}/${track.fileName}`
-                    : `${request.protocol}://${request.hostname}/api/music/download/${track.id}`;
-
-                return {
-                    ...track,
-                    downloadURL: downloadURL
-                };
-            });
-
-            console.log(`✅ [Music] Returning ${catalog.length} tracks`);
-
-            return {
-                success: true,
-                tracks: catalog,
-                totalTracks: catalog.length,
-                categories: ["lofi", "classical", "ambient", "nature"],
-                cdnEnabled: !!MUSIC_CDN_BASE_URL
-            };
-
-        } catch (error) {
-            console.error('❌ [Music] Error fetching library:', error);
-            return reply.status(500).send({
-                success: false,
-                error: 'Failed to fetch music library'
-            });
-        }
-    });
+    // NOTE: GET /api/music/library moved to music-routes.REDACTED.js
+    // iOS BackgroundMusicService hardcodes track IDs directly; never calls this endpoint.
 
     /**
      * GET /api/music/download/:trackId
@@ -206,54 +165,8 @@ module.exports = async function(fastify, opts) {
         }
     });
 
-    /**
-     * GET /api/music/track/:trackId/info
-     * Get detailed info about a specific track
-     */
-    fastify.get('/api/music/track/:trackId/info', async (request, reply) => {
-        const { trackId } = request.params;
-
-        try {
-            const track = MUSIC_CATALOG.find(t => t.id === trackId);
-            if (!track) {
-                return reply.status(404).send({
-                    success: false,
-                    error: 'Track not found'
-                });
-            }
-
-            // Build download URL
-            const downloadURL = MUSIC_CDN_BASE_URL
-                ? `${MUSIC_CDN_BASE_URL}/${track.category}/${track.fileName}`
-                : `${request.protocol}://${request.hostname}/api/music/download/${track.id}`;
-
-            // Check file existence
-            const filePath = path.join(MUSIC_BASE_DIR, track.category, track.fileName);
-            let fileExists = false;
-            try {
-                await stat(filePath);
-                fileExists = true;
-            } catch (e) {
-                // File doesn't exist
-            }
-
-            return {
-                success: true,
-                track: {
-                    ...track,
-                    downloadURL: downloadURL,
-                    available: fileExists
-                }
-            };
-
-        } catch (error) {
-            console.error('❌ [Music] Error fetching track info:', error);
-            return reply.status(500).send({
-                success: false,
-                error: 'Failed to fetch track info'
-            });
-        }
-    });
+    // NOTE: GET /api/music/track/:trackId/info moved to music-routes.REDACTED.js
+    // Zero iOS callers.
 
     /**
      * POST /api/music/upload

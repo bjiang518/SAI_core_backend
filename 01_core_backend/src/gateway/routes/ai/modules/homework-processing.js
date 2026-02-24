@@ -238,44 +238,8 @@ class HomeworkProcessingRoutes {
       }
     }, this.parseHomeworkQuestionsBatch.bind(this));
 
-    // Handwriting evaluation - runs concurrently alongside parse-homework-questions on iOS
-    this.fastify.post('/api/ai/evaluate-handwriting', {
-      schema: {
-        description: 'Evaluate handwriting quality (fires concurrently with parse-homework-questions)',
-        tags: ['AI', 'Homework'],
-        body: {
-          type: 'object',
-          required: ['base64_image'],
-          properties: {
-            base64_image: { type: 'string' }
-          }
-        }
-      },
-      config: {
-        rateLimit: {
-          max: 15,
-          timeWindow: '1 hour',
-          keyGenerator: async (request) => {
-            const userId = await this.authHelper.getUserIdFromToken(request);
-            return userId || request.ip;
-          },
-          addHeaders: {
-            'x-ratelimit-limit': true,
-            'x-ratelimit-remaining': true,
-            'x-ratelimit-reset': true,
-            'retry-after': true
-          },
-          errorResponseBuilder: (request, context) => {
-            return {
-              error: 'Rate limit exceeded',
-              code: 'RATE_LIMIT_EXCEEDED',
-              message: `You can only evaluate ${context.max} homework images per hour. Please try again later.`,
-              retryAfter: context.after
-            };
-          }
-        }
-      }
-    }, this.evaluateHandwriting.bind(this));
+    // NOTE: POST /api/ai/evaluate-handwriting moved to homework-processing.REDACTED.js
+    // Zero iOS callers. HandwritingEvaluationView.swift is confirmed zombie code.
 
     // Progressive grading - Phase 2: Grade single question
     this.fastify.post('/api/ai/grade-question', {
@@ -739,33 +703,7 @@ class HomeworkProcessingRoutes {
     }
   }
 
-  /**
-   * Evaluate handwriting quality (fires concurrently with parseHomeworkQuestions on iOS)
-   */
-  async evaluateHandwriting(request, reply) {
-    const startTime = Date.now();
-
-    try {
-      const result = await this.aiClient.proxyRequest(
-        'POST',
-        '/api/v1/evaluate-handwriting',
-        request.body,
-        { 'Content-Type': 'application/json' }
-      );
-
-      const duration = Date.now() - startTime;
-      this.fastify.log.info(`✅ Handwriting eval completed: ${duration}ms`);
-
-      if (result.success) {
-        return reply.send({ ...result.data, _gateway: { processTime: duration } });
-      } else {
-        return reply.status(500).send({ success: false, error: result.error || 'Handwriting eval failed' });
-      }
-    } catch (error) {
-      this.fastify.log.error(`❌ Handwriting eval error: ${error.message}`);
-      return reply.status(500).send({ success: false, error: error.message });
-    }
-  }
+  // evaluateHandwriting() moved to homework-processing.REDACTED.js
 
   /**
    * Grade a single question (Phase 2)
