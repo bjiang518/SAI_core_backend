@@ -1802,11 +1802,12 @@ async def send_session_message(
             session_service.sessions[session_id] = session
             logger.debug(f"✅ Auto-created session: {session_id}")
 
-        # Add user message to session
+        # Add user message to session — store image_data so it persists in context
         await session_service.add_message_to_session(
             session_id=session_id,
             role="user",
-            content=request.message
+            content=request.message,
+            image_data=request.image_data,
         )
 
         # COST OPTIMIZATION: Use provided system prompt if available, otherwise create one
@@ -1823,18 +1824,22 @@ async def send_session_message(
             )
             logger.debug(f"⚠️ Creating system prompt (legacy mode) - consider sending system_prompt from gateway")
 
-        # Get conversation context for AI
+        # Get conversation context for AI — multimodal content already in correct OpenAI format
         context_messages = session.get_context_for_api(system_prompt)
 
-        # ✅ NEW: Support deep mode (o4-mini for complex reasoning)
+        # 🚀 INTELLIGENT MODEL ROUTING
+        # PRIORITY 1: deep thinking mode (o4-mini)
+        # PRIORITY 2: any message in session has an image → vision-capable model
+        # PRIORITY 3: intelligent routing for standard queries
+        session_has_images = any(msg.has_image() for msg in session.messages)
         if request.deep_mode:
-            selected_model = "o4-mini"  # Deep reasoning model
-            max_tokens = 4000  # More tokens for complex reasoning
+            selected_model = "o4-mini"
+            max_tokens = 4000
             logger.debug(f"🧠 Deep mode enabled - using o4-mini (complex reasoning)")
-        elif request.image_data:
+        elif session_has_images:
             selected_model = "gpt-4o-mini"  # Vision-capable model
             max_tokens = 4096
-            logger.debug(f"🖼️ Image detected - forcing gpt-4o-mini (vision-capable)")
+            logger.debug(f"🖼️ Session has image(s) - using gpt-4o-mini (vision-capable)")
         else:
             # 🚀 INTELLIGENT MODEL ROUTING: Select optimal model
             selected_model, max_tokens = select_chat_model(
@@ -2027,11 +2032,12 @@ async def send_session_message_stream(
             session.session_id = session_id
             session_service.sessions[session_id] = session
 
-        # Add user message to session
+        # Add user message to session — store image_data so it persists in context
         await session_service.add_message_to_session(
             session_id=session_id,
             role="user",
-            content=request.message
+            content=request.message,
+            image_data=request.image_data,
         )
 
         # 🆕 CHECK FOR HOMEWORK CONTEXT (for grade correction support)
@@ -2055,38 +2061,19 @@ async def send_session_message_stream(
                 context={"student_id": session.student_id, "language": request.language}
             )
 
-        # Get conversation context for API
+        # Get conversation context for API — multimodal content is already in the correct
+        # OpenAI format inside each SessionMessage, no patching needed.
         context_messages = session.get_context_for_api(system_prompt)
 
-        # ✅ CRITICAL: Add image to context if provided (homework question with image)
-        if request.image_data:
-            # Find the last user message in context_messages and add image
-            for i in range(len(context_messages) - 1, -1, -1):
-                if context_messages[i].get("role") == "user":
-                    # Convert text-only message to multimodal message with image
-                    original_content = context_messages[i]["content"]
-                    context_messages[i]["content"] = [
-                        {
-                            "type": "text",
-                            "text": original_content
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{request.image_data}"
-                            }
-                        }
-                    ]
-                    break
-
-        # 🚀 INTELLIGENT MODEL ROUTING: Select optimal model
-        # ✅ PRIORITY 1: Check for deep thinking mode (o4-mini for complex reasoning)
-        # ✅ PRIORITY 2: Check for images (gpt-4o-mini for vision capability)
-        # ✅ PRIORITY 3: Use intelligent routing for standard queries
+        # 🚀 INTELLIGENT MODEL ROUTING
+        # PRIORITY 1: deep thinking mode (o4-mini)
+        # PRIORITY 2: any message in the session has an image → vision-capable model
+        # PRIORITY 3: intelligent routing for standard queries
+        session_has_images = any(msg.has_image() for msg in session.messages)
         if request.deep_mode:
-            selected_model = "o4-mini"  # Deep reasoning model
-            max_tokens = 4000  # More tokens for complex reasoning
-        elif request.image_data:
+            selected_model = "o4-mini"
+            max_tokens = 4000
+        elif session_has_images:
             selected_model = "gpt-4o-mini"  # Vision-capable model
             max_tokens = 4096
         else:

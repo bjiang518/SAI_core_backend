@@ -100,7 +100,8 @@ class ProModePDFExporter: ObservableObject {
             let questionHeight = calculateQuestionHeight(
                 questionWithGrade: questionWithGrade,
                 croppedImage: croppedImages[questionWithGrade.question.id],
-                contentWidth: contentWidth
+                contentWidth: contentWidth,
+                croppedImages: croppedImages
             )
 
             // ✅ Check if question fits on current page (with spacing)
@@ -129,7 +130,8 @@ class ProModePDFExporter: ObservableObject {
                 startY: currentY,
                 pageNumber: pageNumber,
                 margin: margin,
-                contentWidth: contentWidth
+                contentWidth: contentWidth,
+                croppedImages: croppedImages
             )
 
             isFirstQuestionOnPage = false
@@ -258,7 +260,8 @@ class ProModePDFExporter: ObservableObject {
     private func calculateQuestionHeight(
         questionWithGrade: ProgressiveQuestionWithGrade,
         croppedImage: UIImage?,
-        contentWidth: CGFloat
+        contentWidth: CGFloat,
+        croppedImages: [String: UIImage] = [:]
     ) -> CGFloat {
         var totalHeight: CGFloat = 0
 
@@ -332,6 +335,22 @@ class ProModePDFExporter: ObservableObject {
                 )
                 totalHeight += subHeaderString.size().height + 5
 
+                // Subquestion-specific image height (prefer own crop, then parent crop)
+                let subImage = croppedImages[subquestion.id] ?? croppedImage
+                if let img = subImage {
+                    let maxImageWidth: CGFloat = contentWidth - subquestionIndent - 20
+                    let maxImageHeight: CGFloat = 200
+                    let aspect = img.size.width / img.size.height
+                    var imgHeight: CGFloat
+                    if aspect > 1 {
+                        imgHeight = maxImageWidth / aspect
+                        if imgHeight > maxImageHeight { imgHeight = maxImageHeight }
+                    } else {
+                        imgHeight = min(maxImageWidth / aspect, maxImageHeight)
+                    }
+                    totalHeight += imgHeight + 10
+                }
+
                 // Subquestion text height
                 if !subquestion.questionText.isEmpty {
                     let subTextSize = (subquestion.questionText as NSString).boundingRect(
@@ -358,7 +377,8 @@ class ProModePDFExporter: ObservableObject {
         startY: CGFloat,
         pageNumber: Int,
         margin: CGFloat,
-        contentWidth: CGFloat
+        contentWidth: CGFloat,
+        croppedImages: [String: UIImage] = [:]
     ) -> CGFloat {
         var y = startY
 
@@ -483,6 +503,30 @@ class ProModePDFExporter: ObservableObject {
                 )
                 subHeaderString.draw(at: CGPoint(x: margin + subquestionIndent, y: y))
                 y += subHeaderString.size().height + 5
+
+                // Subquestion-specific image (prefer own crop, fall back to parent crop)
+                let subImage = croppedImages[subquestion.id] ?? croppedImage
+                if let img = subImage {
+                    let maxImageWidth: CGFloat = contentWidth - subquestionIndent - 20
+                    let maxImageHeight: CGFloat = 200
+                    let aspect = img.size.width / img.size.height
+                    var imgWidth: CGFloat
+                    var imgHeight: CGFloat
+                    if aspect > 1 {
+                        imgWidth = maxImageWidth
+                        imgHeight = imgWidth / aspect
+                        if imgHeight > maxImageHeight {
+                            imgHeight = maxImageHeight
+                            imgWidth = imgHeight * aspect
+                        }
+                    } else {
+                        imgHeight = min(maxImageWidth / aspect, maxImageHeight)
+                        imgWidth = imgHeight * aspect
+                    }
+                    let imgRect = CGRect(x: margin + subquestionIndent + 20, y: y, width: imgWidth, height: imgHeight)
+                    img.draw(in: imgRect)
+                    y += imgHeight + 10
+                }
 
                 // Subquestion text
                 if !subquestion.questionText.isEmpty {

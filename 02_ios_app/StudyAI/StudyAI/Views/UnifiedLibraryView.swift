@@ -502,7 +502,7 @@ struct UnifiedLibraryView: View {
                     ZStack {
                         // Invisible NavigationLink
                         if item.itemType == .question, let questionItem = item as? QuestionSummary {
-                            NavigationLink(destination: QuestionDetailView(questionId: questionItem.id)) {
+                            NavigationLink(destination: QuestionDetailView(questionId: questionItem.id, preloadedSummary: questionItem)) {
                                 EmptyView()
                             }
                             .opacity(0)
@@ -546,7 +546,11 @@ struct UnifiedLibraryView: View {
     }
 
     private func loadContent() async {
+        QuestionLocalStorage.shared.removeDuplicates()
         libraryContent = await libraryService.fetchLibraryContent()
+        let hashCount = QuestionLocalStorage.shared.hashCount
+        let questionCount = libraryContent.questions.count
+        AppLogger(category: "Library").info("📚 [Library] Loaded — \(questionCount) question(s), \(hashCount) hash(es) in dedup set")
     }
 
     private func refreshContent() async {
@@ -797,19 +801,35 @@ struct LibraryItemRow: View {
                 .clipShape(Capsule())
             }
 
-            // Item type label with action hint (more solid text color)
-            HStack {
-                Text(labelForItem(item))
-                    .font(.caption)
-                    .foregroundColor(.primary)  // ✅ Changed to primary for better readability
-
-                Spacer()
-
-                if isClickable(item) {
-                    Text(NSLocalizedString("library.item.tapToReview", comment: ""))
+            // Item type label / title — only shown for conversations
+            // (Questions already show their content via FullLaTeXText above)
+            if item.itemType == .conversation {
+                HStack {
+                    Text(labelForItem(item))
                         .font(.caption)
-                        .foregroundColor(colorForItem(item))
                         .fontWeight(.medium)
+                        .foregroundColor(.primary)
+                        .lineLimit(1)
+
+                    Spacer()
+
+                    if isClickable(item) {
+                        Text(NSLocalizedString("library.item.tapToReview", comment: ""))
+                            .font(.caption)
+                            .foregroundColor(colorForItem(item))
+                            .fontWeight(.medium)
+                    }
+                }
+            } else {
+                // For questions: just show "Tap to review" hint aligned right
+                if isClickable(item) {
+                    HStack {
+                        Spacer()
+                        Text(NSLocalizedString("library.item.tapToReview", comment: ""))
+                            .font(.caption)
+                            .foregroundColor(colorForItem(item))
+                            .fontWeight(.medium)
+                    }
                 }
             }
 

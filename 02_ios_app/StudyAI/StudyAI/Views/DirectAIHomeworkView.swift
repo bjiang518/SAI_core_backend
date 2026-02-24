@@ -2001,6 +2001,12 @@ struct DirectAIHomeworkView: View {
 
         let originalImage = stateManager.capturedImages[firstIndex]
 
+        // Update status to compressing before potentially slow compression step
+        await MainActor.run {
+            stateManager.currentStage = .compressing
+            stateManager.processingStatus = "📦 Optimizing images..."
+        }
+
         // Compress and encode image
         guard let imageData = compressPreprocessedImage(originalImage) else {
             await MainActor.run {
