@@ -1,6 +1,6 @@
 # Endpoint Redaction Log
 
-**Date:** 2026-02-24
+**Last updated:** 2026-02-24 (Tier 1 pass complete)
 **Audit basis:** Full iOS ↔ Backend ↔ AI Engine cross-reference (Feb 2026)
 
 ---
@@ -107,9 +107,100 @@ These routes exist with no current iOS caller but were intentionally left active
 
 ---
 
+### 5. `01_core_backend/src/gateway/routes/ai/modules/homework-processing.js`
+**Companion:** `homework-processing.REDACTED.js`
+
+| Route | Reason |
+|---|---|
+| `POST /api/ai/evaluate-handwriting` | Zero iOS callers. `HandwritingEvaluationView.swift` is confirmed zombie code (no navigation references in iOS project). |
+
+**Still active:** All other 6 homework processing routes.
+
+---
+
+### 6. `01_core_backend/src/gateway/routes/music-routes.js`
+**Companion:** `music-routes.REDACTED.js`
+
+| Route | Reason |
+|---|---|
+| `GET /api/music/library` | iOS `BackgroundMusicService.swift` hardcodes track IDs and calls `/download/:trackId` directly. Never fetches catalog. |
+| `GET /api/music/track/:trackId/info` | Zero iOS callers anywhere in codebase. |
+
+**Still active:** `GET /api/music/download/:trackId` and `POST /api/music/upload` (admin stub).
+
+---
+
+### 7. `01_core_backend/src/gateway/routes/passive-reports.js`
+**Companion:** `passive-reports.REDACTED.js`
+
+| Route | Reason |
+|---|---|
+| `DELETE /api/reports/passive/batches` (bulk, no ID) | iOS only calls `DELETE /api/reports/passive/batches/:batchId`. Zero callers for the bulk variant. |
+
+**Still active:** All other 5 passive report routes.
+
+---
+
+---
+
+### 8. AI Engine `main.py` → Route Modules (Tier 2 Refactor)
+
+**Date:** 2026-02-24
+**New files created:**
+- `04_ai_engine_service/src/routes/health.py`
+- `04_ai_engine_service/src/routes/question_processing.py`
+- `04_ai_engine_service/src/routes/homework.py`
+- `04_ai_engine_service/src/routes/sessions.py`
+- `04_ai_engine_service/src/routes/question_generation.py`
+- `04_ai_engine_service/src/routes/analytics.py`
+
+`main.py` reduced from **3,151 → ~200 lines** (orchestration only).
+
+Dead AI engine endpoints previously documented in `main.REDACTED.py` (Session 1) were **not moved into new route files** — they remain archived in `main.REDACTED.py`.
+
+**Active endpoints migrated to new route files:**
+
+| Route | Module |
+|---|---|
+| `GET /health`, `GET /api/v1/health` | `health.py` |
+| `POST /api/v1/process-question` | `question_processing.py` |
+| `POST /api/v1/evaluate-answer` | `question_processing.py` |
+| `POST /api/v1/chat-image` | `homework.py` |
+| `POST /api/v1/chat-image-stream` | `homework.py` |
+| `POST /api/v1/process-homework-image` | `homework.py` |
+| `POST /api/v1/parse-homework-questions` | `homework.py` |
+| `POST /api/v1/reparse-question` | `homework.py` |
+| `POST /api/v1/grade-question` | `homework.py` |
+| `POST /api/v1/evaluate-handwriting` | `homework.py` |
+| `POST /api/v1/sessions/create` | `sessions.py` |
+| `POST /api/v1/sessions/{id}/message` | `sessions.py` |
+| `POST /api/v1/sessions/{id}/message/stream` | `sessions.py` |
+| `POST /api/v1/homework-followup/{id}/message` | `sessions.py` |
+| `POST /api/v1/generate-practice` | `question_generation.py` |
+| `POST /api/v1/generate-questions/random` | `question_generation.py` |
+| `POST /api/v1/generate-questions/mistakes` | `question_generation.py` |
+| `POST /api/v1/generate-questions/conversations` | `question_generation.py` |
+| `POST /api/v1/analytics/insights` | `analytics.py` |
+
+**Dead endpoints removed during refactor** (not added to new route files — see `main.REDACTED.py`):
+
+| Endpoint | Reason |
+|---|---|
+| `GET /health/authenticated` | Never proxied |
+| `GET /api/v1/subjects` | Never proxied |
+| `GET /api/v1/personalization/{student_id}` | Never proxied |
+| `POST /api/v1/analyze-image` | Never proxied |
+| `POST /api/v1/process-image-question` | Never proxied |
+| `GET /api/v1/sessions/{session_id}` | Never proxied |
+| `DELETE /api/v1/sessions/{session_id}` | Never proxied |
+| `POST /api/v1/homework-followup/{session_id}/message` | Never proxied (MOVED to sessions.py — re-evaluation: this is called by session stream endpoint internally, keep active) |
+| `POST /api/v1/reports/generate-narrative` | Caller (report-narrative-service.js) is a zombie |
+
+---
+
 ## Endpoint Count Summary
 
-| Component | Total Active | Redacted (this session) | Net Active |
-|---|---|---|---|
-| Backend routes | 131 | 12 routes | 119 routes |
-| AI Engine endpoints | 35 | 9 endpoints (doc only) | 26 active |
+| Component | Session 1 (progress/archive/qgen) | Session 2 (Tier 1) | Tier 2 (main.py refactor) | Total redacted | Net Active |
+|---|---|---|---|---|---|
+| Backend routes (was 131) | 12 routes | 4 routes | — | **16 routes** | **115 routes** |
+| AI Engine endpoints (was 35) | 9 endpoints (doc only) | — | main.py split complete | **9 dead (archived)** | **26 active** |
