@@ -423,24 +423,7 @@ extension HomeView {
                 count: sizeClass == .regular ? 4 : 2  // iPad: 4列, iPhone: 2列
             ), spacing: DesignTokens.Spacing.md) {
 
-                // Card 1: Homework Grader (Pink in Cute Mode)
-                QuickActionCard_New(
-                    icon: "camera.fill",
-                    title: NSLocalizedString("home.homeworkGrader", comment: ""),
-                    subtitle: NSLocalizedString("home.scanAndGrade", comment: ""),
-                    color: themeManager.featureCardColor("homework"),
-                    lottieAnimation: "Checklist",
-                    lottieScale: 0.29,
-                    action: {
-                        if parentModeManager.requiresAuthentication(for: .homeworkGrader) {
-                            showingParentAuthForGrader = true
-                        } else {
-                            onSelectTab(.grader)
-                        }
-                    }
-                )
-
-                // Card 2: Chat (Yellow in Cute Mode)
+                // Card 1: Snap & Ask (top-left)
                 QuickActionCard_New(
                     icon: "message.fill",
                     title: NSLocalizedString("home.chat", comment: ""),
@@ -457,26 +440,44 @@ extension HomeView {
                     }
                 )
 
-                // Card 3: Library (Lavender in Cute Mode)
+                // Card 2: Homework Grader (top-right)
                 QuickActionCard_New(
-                    icon: "books.vertical.fill",
-                    title: NSLocalizedString("home.library", comment: ""),
-                    subtitle: NSLocalizedString("home.studySessions", comment: ""),
-                    color: themeManager.featureCardColor("library"),
-                    lottieAnimation: "Books",
-                    lottieScale: 0.12,
-                    action: { onSelectTab(.library) }
+                    icon: "camera.fill",
+                    title: NSLocalizedString("home.homeworkGrader", comment: ""),
+                    subtitle: NSLocalizedString("home.scanAndGrade", comment: ""),
+                    color: themeManager.featureCardColor("homework"),
+                    lottieAnimation: "Checklist",
+                    lottieScale: 0.29,
+                    action: {
+                        if parentModeManager.requiresAuthentication(for: .homeworkGrader) {
+                            showingParentAuthForGrader = true
+                        } else {
+                            onSelectTab(.grader)
+                        }
+                    }
                 )
 
-                // Card 4: Progress (Mint in Cute Mode)
+                // Card 3: Mistake Review (bottom-left)
                 QuickActionCard_New(
-                    icon: "chart.bar.fill",
-                    title: NSLocalizedString("home.progress", comment: ""),
-                    subtitle: NSLocalizedString("home.trackLearning", comment: ""),
-                    color: themeManager.featureCardColor("progress"),
-                    lottieAnimation: "Chart Graph",
-                    lottieScale: 0.45,
-                    action: { onSelectTab(.progress) }
+                    icon: "xmark.circle.fill",
+                    title: NSLocalizedString("home.mistakeReview", comment: ""),
+                    subtitle: NSLocalizedString("home.mistakeReviewDescription", comment: ""),
+                    color: colorScheme == .dark ? DesignTokens.Colors.rainbowIndigo.dark : DesignTokens.Colors.rainbowIndigo.light,
+                    lottieAnimation: "wronglistingcheck",
+                    lottieScale: 0.22,
+                    action: { showingMistakeReview = true }
+                )
+
+                // Card 4: Practice (bottom-right)
+                QuickActionCard_New(
+                    icon: "doc.text.fill",
+                    title: NSLocalizedString("home.practice", comment: ""),
+                    subtitle: NSLocalizedString("home.practiceDescription", comment: ""),
+                    color: themeManager.featureCardColor("practice"),
+                    lottieAnimation: "createquiz",
+                    lottieScale: 0.14,
+                    lottieOffset: CGPoint(x: 0, y: 10),
+                    action: { showingQuestionGeneration = true }
                 )
             }
             .padding(.horizontal, DesignTokens.Spacing.xl)
@@ -519,46 +520,29 @@ extension HomeView {
     // 5 个 More Features 按钮（内容零改动，仅提取复用）
     @ViewBuilder
     private var moreFeatureButtons: some View {
-        // Card 5: Practice (Blue in Cute Mode)
+        // Card 5: Library
         HorizontalActionButton(
-            icon: "doc.text.fill",
-            title: NSLocalizedString("home.practice", comment: ""),
-            subtitle: NSLocalizedString("home.practiceDescription", comment: ""),
-            color: themeManager.featureCardColor("practice"),
-            lottieAnimation: "createquiz",
-            lottieScale: 0.14,
-            action: { showingQuestionGeneration = true }
+            icon: "books.vertical.fill",
+            title: NSLocalizedString("home.library", comment: ""),
+            subtitle: NSLocalizedString("home.studySessions", comment: ""),
+            color: themeManager.featureCardColor("library"),
+            lottieAnimation: "Books",
+            lottieScale: 0.12,
+            action: { onSelectTab(.library) }
         )
 
-        // Card 6: Mistake Review
+        // Card 6: Pomodoro Focus
         HorizontalActionButton(
-            icon: "xmark.circle.fill",
-            title: NSLocalizedString("home.mistakeReview", comment: ""),
-            subtitle: NSLocalizedString("home.mistakeReviewDescription", comment: ""),
-            color: colorScheme == .dark ? DesignTokens.Colors.rainbowIndigo.dark : DesignTokens.Colors.rainbowIndigo.light,
-            lottieAnimation: "wronglistingcheck",
-            lottieScale: 0.22,
-            action: { showingMistakeReview = true }
+            icon: "brain.head.profile",
+            title: NSLocalizedString("pomodoro.focusMode", comment: ""),
+            subtitle: NSLocalizedString("home.focusModeDescription", comment: ""),
+            color: Color(red: 0.2, green: 0.8, blue: 0.7),
+            lottieAnimation: "loadingtomato",
+            lottieScale: 0.21,
+            action: { showingFocusMode = true }
         )
 
-        // Card 7: Parent Reports (Peach in Cute Mode)
-        HorizontalActionButton(
-            icon: "figure.2.and.child.holdinghands",
-            title: NSLocalizedString("home.parentReports", comment: ""),
-            subtitle: NSLocalizedString("home.parentReportsDescription", comment: ""),
-            color: themeManager.featureCardColor("reports"),
-            lottieAnimation: "Report",
-            lottieScale: 0.1,
-            action: {
-                if parentModeManager.requiresAuthentication(for: .parentReports) {
-                    showingParentAuthForReports = true
-                } else {
-                    showingParentReports = true
-                }
-            }
-        )
-
-        // Card 8: Homework Album
+        // Card 7: Homework Album
         HorizontalActionButton(
             icon: "photo.on.rectangle.angled",
             title: NSLocalizedString("home.homeworkAlbum", comment: ""),
@@ -569,15 +553,33 @@ extension HomeView {
             action: { showingHomeworkAlbum = true }
         )
 
-        // Card 9: Focus Mode
+        // Card 8: Parent Reports
         HorizontalActionButton(
-            icon: "brain.head.profile",
-            title: NSLocalizedString("home.focusMode", comment: ""),
-            subtitle: NSLocalizedString("home.focusModeDescription", comment: ""),
-            color: Color(red: 0.2, green: 0.8, blue: 0.7),
-            lottieAnimation: "loadingtomato",
-            lottieScale: 0.21,
-            action: { showingFocusMode = true }
+            icon: "figure.2.and.child.holdinghands",
+            title: NSLocalizedString("home.parentReports", comment: ""),
+            subtitle: NSLocalizedString("home.parentReportsDescription", comment: ""),
+            color: themeManager.featureCardColor("reports"),
+            lottieAnimation: "Report",
+            lottieScale: 0.1,
+            lottiePowerSavingProgress: 0.5,
+            action: {
+                if parentModeManager.requiresAuthentication(for: .parentReports) {
+                    showingParentAuthForReports = true
+                } else {
+                    showingParentReports = true
+                }
+            }
+        )
+
+        // Card 9: Progress
+        HorizontalActionButton(
+            icon: "chart.bar.fill",
+            title: NSLocalizedString("home.progress", comment: ""),
+            subtitle: NSLocalizedString("home.trackLearning", comment: ""),
+            color: themeManager.featureCardColor("progress"),
+            lottieAnimation: "Chart Graph",
+            lottieScale: 0.45,
+            action: { onSelectTab(.progress) }
         )
     }
 }
@@ -591,6 +593,7 @@ struct QuickActionCard_New: View {
     let action: () -> Void
     let lottieAnimation: String?  // Optional Lottie animation name
     let lottieScale: CGFloat  // Scale for Lottie animation
+    let lottieOffset: CGPoint  // Offset for Lottie animation position
 
     @State private var isPressed = false
     @State private var rotationAngle: Double = 0
@@ -607,10 +610,11 @@ struct QuickActionCard_New: View {
         self.action = action
         self.lottieAnimation = nil
         self.lottieScale = 1.0
+        self.lottieOffset = .zero
     }
 
     // Initializer with Lottie animation
-    init(icon: String, title: String, subtitle: String, color: Color, lottieAnimation: String, lottieScale: CGFloat = 1.0, action: @escaping () -> Void) {
+    init(icon: String, title: String, subtitle: String, color: Color, lottieAnimation: String, lottieScale: CGFloat = 1.0, lottieOffset: CGPoint = .zero, action: @escaping () -> Void) {
         self.icon = icon
         self.title = title
         self.subtitle = subtitle
@@ -618,6 +622,7 @@ struct QuickActionCard_New: View {
         self.action = action
         self.lottieAnimation = lottieAnimation
         self.lottieScale = lottieScale
+        self.lottieOffset = lottieOffset
     }
 
     var body: some View {
@@ -662,6 +667,7 @@ struct QuickActionCard_New: View {
                         )
                         .frame(width: 50, height: 50)
                         .scaleEffect(isPressed ? lottieScale * 0.95 : lottieScale)
+                        .offset(x: lottieOffset.x, y: lottieOffset.y)
                     } else {
                         Image(systemName: icon)
                             .font(.system(size: 22))
@@ -786,6 +792,7 @@ struct HorizontalActionButton: View {
     let action: () -> Void
     let lottieAnimation: String?
     let lottieScale: CGFloat
+    let lottiePowerSavingProgress: CGFloat
 
     @State private var isPressed = false
     @State private var iconScale: CGFloat = 1.0
@@ -801,9 +808,10 @@ struct HorizontalActionButton: View {
         self.action = action
         self.lottieAnimation = nil
         self.lottieScale = 1.0
+        self.lottiePowerSavingProgress = 0.8
     }
 
-    init(icon: String, title: String, subtitle: String, color: Color, lottieAnimation: String, lottieScale: CGFloat = 1.0, action: @escaping () -> Void) {
+    init(icon: String, title: String, subtitle: String, color: Color, lottieAnimation: String, lottieScale: CGFloat = 1.0, lottiePowerSavingProgress: CGFloat = 0.8, action: @escaping () -> Void) {
         self.icon = icon
         self.title = title
         self.subtitle = subtitle
@@ -811,6 +819,7 @@ struct HorizontalActionButton: View {
         self.action = action
         self.lottieAnimation = lottieAnimation
         self.lottieScale = lottieScale
+        self.lottiePowerSavingProgress = lottiePowerSavingProgress
     }
 
     var body: some View {
@@ -849,7 +858,8 @@ struct HorizontalActionButton: View {
                         LottieView(
                             animationName: animationName,
                             loopMode: .loop,
-                            animationSpeed: 0.5
+                            animationSpeed: 0.5,
+                            powerSavingProgress: lottiePowerSavingProgress
                         )
                         .frame(width: 50, height: 50)
                         .scaleEffect(isPressed ? lottieScale * 0.95 : lottieScale)
@@ -904,6 +914,7 @@ struct HorizontalActionButton: View {
                                 .secondary
                         )
                 }
+                .padding(.leading, 20)
 
                 Spacer()
 
