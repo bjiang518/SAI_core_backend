@@ -18,6 +18,7 @@ struct HomeView: View {
     @StateObject private var themeManager = ThemeManager.shared
     @ObservedObject private var pointsManager = PointsEarningManager.shared
     @ObservedObject private var profileService = ProfileService.shared
+    @ObservedObject private var appState = AppState.shared
     @State private var userName = ""
     @State private var navigateToSession = false
     @State private var showingProfile = false
@@ -407,16 +408,39 @@ struct StatBadge: View {
 extension HomeView {
     private var quickActionsSection: some View {
         VStack(alignment: .leading, spacing: DesignTokens.Spacing.md) {
-            // Section title
-            Text(NSLocalizedString("home.quickActions", comment: ""))
-                .font(.title3)
-                .fontWeight(.bold)
-                .foregroundColor(
-                    themeManager.currentTheme == .cute ?
-                        Color.gray :  // Grey in Cute mode
-                        .primary
-                )
-                .padding(.horizontal, DesignTokens.Spacing.xl)
+            // Section title row with animation toggle
+            HStack {
+                Text(NSLocalizedString("home.quickActions", comment: ""))
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .foregroundColor(
+                        themeManager.currentTheme == .cute ?
+                            Color.gray :
+                            .primary
+                    )
+
+                Spacer()
+
+                // Animation toggle button
+                Button(action: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                        appState.isPowerSavingMode.toggle()
+                    }
+                }) {
+                    Image(systemName: appState.isPowerSavingMode ? "figure.stand" : "figure.run")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(appState.isPowerSavingMode ? .orange : .green)
+                        .padding(8)
+                        .background(
+                            Circle()
+                                .fill(appState.isPowerSavingMode
+                                    ? Color.orange.opacity(0.12)
+                                    : Color.green.opacity(0.12))
+                        )
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+            .padding(.horizontal, DesignTokens.Spacing.xl)
 
             LazyVGrid(columns: Array(
                 repeating: GridItem(.flexible(), spacing: DesignTokens.Spacing.md),
