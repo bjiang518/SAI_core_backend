@@ -123,8 +123,8 @@
 "home.moreFeatures" = "More Features";
 "home.homeworkGrader" = "Homework Grader";
 "home.scanAndGrade" = "Scan & grade";
-"home.chat" = "Chat";
-"home.conversationalAI" = "Conversational AI";
+"home.chat" = "Snap & Ask";
+"home.conversationalAI" = "AI learning Assistant";
 "home.library" = "Library";
 "home.studySessions" = "Study sessions";
 "home.progress" = "Progress";
@@ -1908,6 +1908,10 @@
 "live.release_to_send" = "Release to Send";
 "live.slide_to_cancel" = "Slide to Cancel";
 "live.release_to_cancel" = "Release to Cancel";
+"live.leave.title" = "Leave Live Chat?";
+"live.leave.message" = "Leaving this page will end your Live session and clear the conversation.";
+"live.leave.confirm" = "Leave & Clear";
+"live.leave.cancel" = "Stay";
 
 // MARK: - Homework Results View
 "homeworkResults.subquestions" = "%d subquestions";

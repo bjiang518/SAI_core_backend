@@ -910,26 +910,6 @@ struct QuestionDetailView: View {
                let loadedImage = ProModeImageStorage.shared.loadImage(from: imagePath) {
                 self.proModeImage = loadedImage
             }
-
-            let hash = QuestionLocalStorage.contentHash(
-                subject: summary.subject,
-                questionText: summary.questionText,
-                studentAnswer: summary.studentAnswer ?? ""
-            )
-            let log = AppLogger(category: "QuestionDetail")
-            log.info("📖 [QuestionDetail] ─────────────────────────────────────")
-            log.info("📖 [QuestionDetail] id:            \(summary.id)")
-            log.info("📖 [QuestionDetail] subject:       \(summary.subject)")
-            log.info("📖 [QuestionDetail] questionType:  \(summary.questionType ?? "nil")")
-            log.info("📖 [QuestionDetail] grade:         \(summary.grade?.rawValue ?? "nil")")
-            log.info("📖 [QuestionDetail] points:        \(summary.points.map { "\($0)" } ?? "nil") / \(summary.maxPoints.map { "\($0)" } ?? "nil")")
-            log.info("📖 [QuestionDetail] studentAnswer: \(summary.studentAnswer ?? "nil")")
-            log.info("📖 [QuestionDetail] answerText:    \(summary.answerText ?? "nil")")
-            log.info("📖 [QuestionDetail] questionText:  \(summary.questionText.prefix(120))")
-            log.info("📖 [QuestionDetail] hasImage:      \(summary.questionImageUrl != nil)")
-            log.info("📖 [QuestionDetail] parentId:      \(summary.parentQuestionId.map { "\($0)" } ?? "nil")  subId: \(summary.subquestionId ?? "nil")")
-            log.info("📖 [QuestionDetail] contentHash:   \(hash)")
-            log.info("📖 [QuestionDetail] ─────────────────────────────────────")
             return
         }
 
@@ -944,26 +924,6 @@ struct QuestionDetailView: View {
                     self.question = fetchedQuestion
                     self.isLoading = false
                     self.errorMessage = nil
-
-                    let hash = QuestionLocalStorage.contentHash(
-                        subject: fetchedQuestion.subject,
-                        questionText: fetchedQuestion.questionText,
-                        studentAnswer: fetchedQuestion.studentAnswer ?? ""
-                    )
-                    let log = AppLogger(category: "QuestionDetail")
-                    log.info("📖 [QuestionDetail] ─────────────────────────────────────")
-                    log.info("📖 [QuestionDetail] id:            \(fetchedQuestion.id)")
-                    log.info("📖 [QuestionDetail] subject:       \(fetchedQuestion.subject)")
-                    log.info("📖 [QuestionDetail] questionType:  \(fetchedQuestion.questionType ?? "nil")")
-                    log.info("📖 [QuestionDetail] grade:         \(fetchedQuestion.grade?.rawValue ?? "nil")")
-                    log.info("📖 [QuestionDetail] points:        \(fetchedQuestion.points.map { "\($0)" } ?? "nil") / \(fetchedQuestion.maxPoints.map { "\($0)" } ?? "nil")")
-                    log.info("📖 [QuestionDetail] studentAnswer: \(fetchedQuestion.studentAnswer ?? "nil")")
-                    log.info("📖 [QuestionDetail] answerText:    \(fetchedQuestion.answerText)")
-                    log.info("📖 [QuestionDetail] questionText:  \(fetchedQuestion.questionText.prefix(120))")
-                    log.info("📖 [QuestionDetail] hasImage:      \(fetchedQuestion.questionImageUrl != nil)")
-                    log.info("📖 [QuestionDetail] parentId:      \(fetchedQuestion.parentQuestionId.map { "\($0)" } ?? "nil")  subId: \(fetchedQuestion.subquestionId ?? "nil")")
-                    log.info("📖 [QuestionDetail] contentHash:   \(hash)")
-                    log.info("📖 [QuestionDetail] ─────────────────────────────────────")
                 }
             } catch {
                 await MainActor.run {
