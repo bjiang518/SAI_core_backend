@@ -163,6 +163,7 @@ module.exports = async function (fastify, opts) {
                 if (code !== 1000) {
                     logger.error({ code, reason: reasonStr, userId }, 'Gemini WebSocket closed unexpectedly');
                 }
+                clearInterval(geminiKeepAliveInterval);
                 clientSocket.send(JSON.stringify({
                     type: 'session_ended',
                     reason: 'AI service disconnected'
@@ -205,6 +206,7 @@ module.exports = async function (fastify, opts) {
 
             clientSocket.on('close', () => {
                 clearInterval(keepAliveInterval);
+                clearInterval(geminiKeepAliveInterval);
                 if (geminiSocket && geminiSocket.readyState === WebSocket.OPEN) {
                     geminiSocket.close(1000, 'Client disconnected');
                 }
@@ -220,6 +222,17 @@ module.exports = async function (fastify, opts) {
                     clientSocket.ping();
                 } else {
                     clearInterval(keepAliveInterval);
+                }
+            }, 20000);
+
+            // Keep-alive ping toward Gemini every 20s — prevents Gemini's idle timeout from
+            // closing the connection during long AI audio responses (especially multilingual,
+            // which produces larger audio bursts with longer silent gaps between iOS sends).
+            const geminiKeepAliveInterval = setInterval(() => {
+                if (geminiSocket && geminiSocket.readyState === WebSocket.OPEN) {
+                    geminiSocket.ping();
+                } else {
+                    clearInterval(geminiKeepAliveInterval);
                 }
             }, 20000);
 
@@ -309,12 +322,19 @@ module.exports = async function (fastify, opts) {
                 if (geminiSocket && geminiSocket.readyState === WebSocket.OPEN) {
                     geminiSocket.send(JSON.stringify(setupMessage));
 
-                    // Error if Gemini doesn't respond to setup within 5 seconds
+                    // If Gemini doesn't confirm setup within 8s, notify iOS so it can show
+                    // "Tap to Reactivate" rather than hanging indefinitely in .connecting state.
                     setTimeout(() => {
                         if (!isSetupComplete) {
-                            logger.error({ userId, sessionId }, 'Gemini did not respond to setup after 5 seconds');
+                            logger.error({ userId, sessionId }, 'Gemini did not respond to setup after 8 seconds');
+                            if (clientSocket.readyState === WebSocket.OPEN) {
+                                clientSocket.send(JSON.stringify({
+                                    type: 'error',
+                                    error: 'Connection to AI timed out. Tap to retry.'
+                                }));
+                            }
                         }
-                    }, 5000);
+                    }, 8000);
                 } else {
                     throw new Error('Gemini connection not ready');
                 }
@@ -455,6 +475,11 @@ module.exports = async function (fastify, opts) {
                 // Handle setupComplete
                 if (message.setupComplete || message.setup_complete) {
                     isSetupComplete = true;
+
+                    // Replay prior turns for this session so Gemini has full context.
+                    // This is a no-op on first connect (no rows yet); on reconnect it restores
+                    // everything the student said and Gemini answered before the drop.
+                    await replaySessionContext();
 
                     clientSocket.send(JSON.stringify({
                         type: 'session_ready',
@@ -674,6 +699,51 @@ module.exports = async function (fastify, opts) {
                 }
             }
 
+            /**
+             * Replay prior conversation turns into Gemini after setupComplete.
+             *
+             * Called on every connect — is a no-op when there are no stored rows yet (first
+             * connect). On reconnect it sends a single multi-turn clientContent message so
+             * Gemini has the full prior conversation in its context window.
+             *
+             * Capped at the 50 most recent turns to stay within Gemini's context limit.
+             */
+            async function replaySessionContext() {
+                if (!sessionId) return;
+                try {
+                    const result = await db.query(`
+                        SELECT message_type, message_text
+                        FROM conversations
+                        WHERE session_id = $1
+                        ORDER BY created_at ASC
+                        LIMIT 50
+                    `, [sessionId]);
+
+                    if (result.rows.length === 0) return;
+
+                    // Build multi-turn history as clientContent turns
+                    const turns = result.rows.map(row => ({
+                        role: row.message_type === 'user' ? 'user' : 'model',
+                        parts: [{ text: row.message_text }]
+                    }));
+
+                    const replayMessage = {
+                        clientContent: {
+                            turns,
+                            turnComplete: false  // history injection — not a new user turn
+                        }
+                    };
+
+                    if (geminiSocket && geminiSocket.readyState === WebSocket.OPEN) {
+                        geminiSocket.send(JSON.stringify(replayMessage));
+                        logger.info({ sessionId, turns: turns.length }, 'Replayed session context into Gemini');
+                    }
+                } catch (error) {
+                    // Non-fatal — Gemini starts fresh if replay fails
+                    logger.error({ error }, 'Error replaying session context');
+                }
+            }
+
             async function fetchHomeworkContext(sessionId) {
                 try {
                     const result = await db.query(`
@@ -689,7 +759,7 @@ module.exports = async function (fastify, opts) {
                                 ) ORDER BY cm.created_at
                             ) as messages
                         FROM sessions s
-                        LEFT JOIN conversation_messages cm ON cm.session_id = s.id
+                        LEFT JOIN conversations cm ON cm.session_id = s.id
                         WHERE s.id = $1 AND s.user_id = $2
                         GROUP BY s.id
                     `, [sessionId, userId]);
