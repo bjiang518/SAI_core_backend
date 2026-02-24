@@ -124,6 +124,9 @@ struct SessionChatView: View {
     @State private var isLiveMode = false
     @StateObject private var liveVMHolder = LiveVMHolder()
     @State private var voiceAudioStorage: [String: Data] = [:]  // msgId → WAV data
+    // Live mode leave confirmation
+    @State private var showingLiveLeaveAlert = false
+    @State private var pendingTab: MainTab? = nil
     /// Incremented every time a live message is added/changed — used as .id() on
     /// LiveMessagesSection so SessionChatView's @State change forces a full re-render
     /// even through the deep apply*() generic wrapper chain.
@@ -207,6 +210,10 @@ struct SessionChatView: View {
             themeManager.backgroundColor
                 .ignoresSafeArea()  // Extend background to all edges
             contentVStack
+            // Live leave confirmation overlay
+            if showingLiveLeaveAlert {
+                liveLeaveConfirmationOverlay
+            }
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
@@ -567,6 +574,17 @@ struct SessionChatView: View {
                 if oldValue.isEmpty && !newValue.isEmpty {
                     ttsQueueService.stopAllTTS()
                 }
+            }
+            // Intercept tab switches during an active Live session
+            .onChange(of: appState.selectedTab) { oldTab, newTab in
+                guard oldTab == .chat,
+                      newTab != .chat,
+                      isLiveMode,
+                      !(liveVMHolder.vm?.messages.isEmpty ?? true) else { return }
+                // Revert the tab switch and ask user to confirm leaving
+                appState.selectedTab = .chat
+                pendingTab = newTab
+                showingLiveLeaveAlert = true
             }
             // Live mode: capture completed user voice recordings into voiceAudioStorage
             .onChange(of: liveVMHolder.vm?.messages.count) { _, _ in
@@ -1141,9 +1159,9 @@ struct SessionChatView: View {
             } else {
                 // ChatGPT-style input interface
                 HStack(spacing: 12) {
-                    // Camera button (like ChatGPT's "+" button)
+                    // Camera button
                     Button(action: openCamera) {
-                        Image(systemName: "plus")
+                        Image(systemName: "camera")
                             .font(.system(size: 20, weight: .semibold))
                             .foregroundColor(.primary.opacity(0.7))
                             .frame(width: 44, height: 44)
@@ -1322,11 +1340,11 @@ struct SessionChatView: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
 
-            // Input row: plus button + mic button (same layout as text mode)
+            // Input row: camera button + mic button (same layout as text mode)
             HStack(spacing: 12) {
-                // Plus / attach button (same as text mode)
+                // Camera / attach button (same as text mode)
                 Button(action: openCamera) {
-                    Image(systemName: "plus")
+                    Image(systemName: "camera")
                         .font(.system(size: 20, weight: .semibold))
                         .foregroundColor(.primary.opacity(0.7))
                         .frame(width: 44, height: 44)
@@ -1388,6 +1406,81 @@ struct SessionChatView: View {
     }
 
     // MARK: - Exit Live Mode
+
+    /// Centered confirmation dialog shown when user tries to switch tabs during a Live session.
+    private var liveLeaveConfirmationOverlay: some View {
+        ZStack {
+            // Dimmed background
+            Color.black.opacity(0.45)
+                .ignoresSafeArea()
+                .onTapGesture { /* absorb taps */ }
+
+            // Dialog card
+            VStack(spacing: 0) {
+                // Title + message
+                VStack(spacing: 10) {
+                    Text(NSLocalizedString("live.leave.title", comment: ""))
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(.primary)
+                        .multilineTextAlignment(.center)
+
+                    Text(NSLocalizedString("live.leave.message", comment: ""))
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 24)
+                .padding(.bottom, 20)
+
+                Divider()
+
+                // Buttons
+                HStack(spacing: 0) {
+                    // Cancel — stay
+                    Button {
+                        pendingTab = nil
+                        showingLiveLeaveAlert = false
+                    } label: {
+                        Text(NSLocalizedString("live.leave.cancel", comment: ""))
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.blue)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                    }
+
+                    Divider().frame(height: 48)
+
+                    // Confirm — leave and clear
+                    Button {
+                        showingLiveLeaveAlert = false
+                        exitLiveMode()
+                        networkService.conversationHistory.removeAll()
+                        networkService.currentSessionId = nil
+                        hasConversationStarted = false
+                        if let tab = pendingTab {
+                            appState.selectedTab = tab
+                        }
+                        pendingTab = nil
+                    } label: {
+                        Text(NSLocalizedString("live.leave.confirm", comment: ""))
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.red)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                    }
+                }
+            }
+            .background(Color(.systemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .shadow(color: .black.opacity(0.2), radius: 20, x: 0, y: 8)
+            .padding(.horizontal, 52)
+            .transition(.opacity.combined(with: .scale(scale: 0.96)))
+        }
+        .animation(.easeOut(duration: 0.18), value: showingLiveLeaveAlert)
+    }
+
 
     private func exitLiveMode() {
         liveVMHolder.vm?.disconnect()

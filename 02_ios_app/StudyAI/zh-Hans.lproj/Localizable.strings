@@ -120,8 +120,8 @@
 "home.moreFeatures" = "更多功能";
 "home.homeworkGrader" = "作业评分";
 "home.scanAndGrade" = "掃描并评分";
-"home.chat" = "聊天";
-"home.conversationalAI" = "对话式AI";
+"home.chat" = "拍照答疑";
+"home.conversationalAI" = "AI学习助手";
 "home.library" = "资料库";
 "home.studySessions" = "学习记录";
 "home.progress" = "进度";
@@ -1987,6 +1987,10 @@
 "live.release_to_send" = "松开发送";
 "live.slide_to_cancel" = "滑动取消";
 "live.release_to_cancel" = "松开取消";
+"live.leave.title" = "离开实时对话？";
+"live.leave.message" = "离开此页面将结束实时语音会话，对话内容将被清除。";
+"live.leave.confirm" = "离开并清除";
+"live.leave.cancel" = "留下继续";
 
 // MARK: - Voice Settings
 "voiceSettings.title" = "你的AI学习伙伴";

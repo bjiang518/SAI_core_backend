@@ -548,9 +548,6 @@ struct UnifiedLibraryView: View {
     private func loadContent() async {
         QuestionLocalStorage.shared.removeDuplicates()
         libraryContent = await libraryService.fetchLibraryContent()
-        let hashCount = QuestionLocalStorage.shared.hashCount
-        let questionCount = libraryContent.questions.count
-        AppLogger(category: "Library").info("📚 [Library] Loaded — \(questionCount) question(s), \(hashCount) hash(es) in dedup set")
     }
 
     private func refreshContent() async {

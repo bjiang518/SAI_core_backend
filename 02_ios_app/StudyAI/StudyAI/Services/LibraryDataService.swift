@@ -1565,7 +1565,6 @@ class QuestionLocalStorage {
 
                 if isDuplicateHash || isDuplicateId {
                     removed += 1
-                    AppLogger(category: "Library").info("🧹 [Dedup] Removing duplicate (keeping first): id=\(id) hash=\(hash.prefix(16))… reason=\(isDuplicateHash ? "hash" : "id")")
                     continue
                 }
 
@@ -1574,9 +1573,7 @@ class QuestionLocalStorage {
                 cleaned.append(q)
             }
 
-            AppLogger(category: "Library").info("🧹 [Dedup] Scanned \(questions.count) questions → kept \(cleaned.count), removed \(removed)")
             guard removed > 0 else { return 0 }
-
             // Rebuild hash set from cleaned list
             contentHashSet = seenHashes
             persistHashSet()
