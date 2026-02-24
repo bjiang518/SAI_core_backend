@@ -47,6 +47,7 @@ struct DigitalHomeworkView: View {
     // ✅ Archive / Smart Organize result toast
     @State private var showResultToast = false
     @State private var resultToastLines: [String] = []
+    @State private var visibleToastItems: [Bool] = []
 
     // MARK: - Body
 
@@ -144,22 +145,48 @@ struct DigitalHomeworkView: View {
             if showResultToast {
                 VStack {
                     Spacer()
-                    VStack(alignment: .leading, spacing: 6) {
-                        ForEach(resultToastLines, id: \.self) { line in
-                            Text(line)
-                                .font(.subheadline)
-                                .foregroundColor(.white)
+                    VStack(alignment: .leading, spacing: 12) {
+                        ForEach(Array(resultToastLines.enumerated()), id: \.offset) { index, line in
+                            let isTitle = index == 0
+                            let isVisible = index < visibleToastItems.count && visibleToastItems[index]
+
+                            Group {
+                                if isTitle {
+                                    Text(line)
+                                        .font(.title3.weight(.bold))
+                                        .foregroundColor(.white)
+                                        .frame(maxWidth: .infinity, alignment: .center)
+                                        .multilineTextAlignment(.center)
+                                } else {
+                                    HStack(alignment: .top, spacing: 10) {
+                                        Image(systemName: "checkmark.square.fill")
+                                            .font(.system(size: 18, weight: .semibold))
+                                            .foregroundColor(.white)
+                                        Text(line)
+                                            .font(.body)
+                                            .foregroundColor(.white)
+                                            .fixedSize(horizontal: false, vertical: true)
+                                    }
+                                }
+                            }
+                            .opacity(isVisible ? 1 : 0)
+                            .offset(y: isVisible ? 0 : 14)
+                            .animation(
+                                .spring(response: 0.4, dampingFraction: 0.75)
+                                    .delay(Double(index) * 0.12),
+                                value: isVisible
+                            )
                         }
                     }
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 14)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 18)
                     .background(
-                        RoundedRectangle(cornerRadius: 14)
-                            .fill(Color(.label).opacity(0.88))
-                            .shadow(color: .black.opacity(0.25), radius: 10, x: 0, y: 4)
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color(.label).opacity(0.90))
+                            .shadow(color: .black.opacity(0.3), radius: 14, x: 0, y: 6)
                     )
                     .padding(.horizontal, 20)
-                    .padding(.bottom, 32)
+                    .padding(.bottom, 160)  // lift well above tab bar
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
                 .allowsHitTesting(false)
@@ -175,9 +202,20 @@ struct DigitalHomeworkView: View {
         }
         .onChange(of: viewModel.archiveResultSummary) { _, summary in
             guard let summary else { return }
+            let lines = buildToastLines(from: summary)
+            resultToastLines = lines
+            // Start all items hidden
+            visibleToastItems = Array(repeating: false, count: lines.count)
             withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
-                resultToastLines = buildToastLines(from: summary)
                 showResultToast = true
+            }
+            // Stagger each item's reveal
+            for i in 0..<lines.count {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1 + Double(i) * 0.12) {
+                    if i < visibleToastItems.count {
+                        visibleToastItems[i] = true
+                    }
+                }
             }
             // Auto-dismiss after 3.5 seconds
             DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
@@ -1770,25 +1808,13 @@ struct DigitalHomeworkView: View {
         var lines: [String] = []
         if summary.isSmartOrganize {
             lines.append(NSLocalizedString("proMode.smartOrganize.toastTitle", comment: "Smart Organize"))
-            if summary.mistakeCount > 0 {
-                lines.append(String(format: NSLocalizedString("proMode.smartOrganize.toast.mistakesAdded", comment: ""), summary.mistakeCount))
-            } else {
-                lines.append(NSLocalizedString("proMode.smartOrganize.toast.noMistakes", comment: ""))
-            }
+            lines.append(NSLocalizedString("proMode.smartOrganize.toast.mistakesAnalyzed", comment: ""))
             lines.append(NSLocalizedString("proMode.smartOrganize.toast.progressMarked", comment: ""))
             lines.append(NSLocalizedString("proMode.smartOrganize.toast.albumSaved", comment: ""))
-            if summary.skipped > 0 {
-                lines.append(String(format: NSLocalizedString("proMode.smartOrganize.toast.duplicates", comment: ""), summary.skipped))
-            }
         } else {
             lines.append(NSLocalizedString("proMode.archive.toastTitle", comment: "Archive"))
-            lines.append(String(format: NSLocalizedString("proMode.archive.toast.added", comment: ""), summary.added))
-            if summary.mistakeCount > 0 {
-                lines.append(String(format: NSLocalizedString("proMode.archive.toast.mistakesAdded", comment: ""), summary.mistakeCount))
-            }
-            if summary.skipped > 0 {
-                lines.append(String(format: NSLocalizedString("proMode.archive.toast.duplicates", comment: ""), summary.skipped))
-            }
+            lines.append(NSLocalizedString("proMode.archive.toast.added", comment: ""))
+            lines.append(NSLocalizedString("proMode.archive.toast.mistakesAnalyzed", comment: ""))
         }
         return lines
     }

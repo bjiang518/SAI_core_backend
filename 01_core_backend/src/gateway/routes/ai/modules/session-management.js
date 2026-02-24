@@ -239,7 +239,7 @@ class SessionManagementRoutes {
   async sendSessionMessage(request, reply) {
     const startTime = Date.now();
     const { sessionId } = request.params;
-    const { message, context, language, deep_mode = false } = request.body; // ✅ NEW: Accept deep_mode
+    const { message, context, language, question_context, deep_mode = false } = request.body;
 
     try {
       // Authenticate user
@@ -247,10 +247,8 @@ class SessionManagementRoutes {
       if (!authenticatedUserId) return;
 
       this.fastify.log.info(`💬 Processing session message: ${sessionId.substring(0, 8)}...`);
-      this.fastify.log.info(`💬 Deep Mode: ${deep_mode ? 'YES (o4-mini)' : 'NO (gpt-4o-mini)'}`); // ✅ NEW: Log deep mode
 
-      // Get and verify session
-      const { db } = require('../../../../utils/railway-database');
+      // Verify session ownership
       const sessionInfo = await this.sessionHelper.getSessionFromDatabase(sessionId);
 
       if (!sessionInfo) {
@@ -260,7 +258,6 @@ class SessionManagementRoutes {
         });
       }
 
-      // Verify ownership
       if (sessionInfo.user_id !== authenticatedUserId) {
         return reply.status(403).send({
           error: 'Access denied - session belongs to different user',
@@ -268,7 +265,7 @@ class SessionManagementRoutes {
         });
       }
 
-      // Get language preference
+      // Resolve language preference
       let userLanguage = language;
       if (!userLanguage && sessionInfo.metadata) {
         try {
@@ -282,134 +279,38 @@ class SessionManagementRoutes {
       }
       userLanguage = userLanguage || 'en';
 
-      // Language-specific instructions
-      const languageInstructions = {
-        'en': 'Respond in clear, educational English.',
-        'zh-Hans': '用简体中文回答。使用清晰的教育性语言。',
-        'zh-Hant': '用繁體中文回答。使用清晰的教育性語言。'
-      };
-
-      const languageInstruction = languageInstructions[userLanguage] || languageInstructions['en'];
-
-      // ✅ ENHANCED: Dynamic context window based on image presence
-      // - Text-only: 50 messages (excellent context retention)
-      // - With images: 10 messages (images consume ~500-700 tokens each)
-      // Note: GPT-4o-mini supports 128K tokens
-
-      // First, retrieve a larger set to detect images
-      const initialHistory = await db.getConversationHistory(sessionId, 60);
-      const allMessages = initialHistory || [];
-
-      // ✅ CRITICAL: Detect if any messages contain images (stored in message_data)
-      const hasImages = allMessages.some(msg => {
-        try {
-          if (msg.message_data) {
-            const data = typeof msg.message_data === 'string'
-              ? JSON.parse(msg.message_data)
-              : msg.message_data;
-            return !!(data.hasImage || data.image_data || data.question_image_base64);
-          }
-          return false;
-        } catch (e) {
-          return false;
-        }
-      });
-
-      // Dynamic context window: 10 with images, 50 without
-      const contextLimit = hasImages ? 10 : 50;
-
-      this.fastify.log.info(`📊 Context window: ${contextLimit} messages (images detected: ${hasImages})`);
-
-      // Split into recent and older messages based on dynamic limit
-      const recentMessages = allMessages.slice(-contextLimit);
-      const olderMessages = allMessages.slice(0, -contextLimit);
-
-      // Format recent messages for AI context (include images if present)
-      const conversationHistory = recentMessages
-        .map(msg => {
-          const baseMessage = {
-            role: msg.message_type === 'user' ? 'user' : 'assistant',
-            content: msg.message_text || ''
-          };
-
-          // ✅ NEW: Include image data if present in message_data
-          try {
-            if (msg.message_data) {
-              const data = typeof msg.message_data === 'string'
-                ? JSON.parse(msg.message_data)
-                : msg.message_data;
-
-              // If message contains image, add it to the message object
-              if (data.image_data || data.question_image_base64 || data.hasImage) {
-                baseMessage.image_data = data.image_data || data.question_image_base64;
-                this.fastify.log.info(`📸 Including image in context from message: ${msg.id?.substring(0, 8)}...`);
-              }
-            }
-          } catch (e) {
-            this.fastify.log.warn(`⚠️ Failed to parse message_data for image: ${e.message}`);
-          }
-
-          return baseMessage;
-        })
-        .filter(msg => msg.content && msg.content.trim().length > 0);
-
-      // Generate summary of older conversation if exists (for multi-turn complex problem solving)
-      let conversationSummary = '';
-      if (olderMessages.length > 0) {
-        // Create concise summary: "Previously discussed: [topic 1], [topic 2], ..."
-        const olderTopics = olderMessages
-          .filter(msg => msg.message_type === 'user')
-          .map(msg => (msg.message_text || '').substring(0, 100))
-          .join('; ');
-        conversationSummary = `[Earlier conversation context: ${olderTopics.substring(0, 300)}...]`;
-      }
-
-      // Build system prompt with math formatting if needed
+      // Build system prompt (AI Engine owns conversation history and context)
       const subject = (sessionInfo.subject || '').toLowerCase();
       const isMathSubject = ['mathematics', 'math', 'physics', 'chemistry'].includes(subject);
-
       let systemPrompt = TUTORING_SYSTEM_PROMPT;
       if (isMathSubject) {
         systemPrompt += '\n' + MATH_FORMATTING_SYSTEM_PROMPT;
       }
 
-      // Build user message with enhanced context
-      let userMessage = message;
-      if (conversationHistory.length > 0 || conversationSummary) {
-        let contextParts = [];
+      const languageInstructions = {
+        'en': 'Respond in clear, educational English.',
+        'zh-Hans': '用简体中文回答。使用清晰的教育性语言。',
+        'zh-Hant': '用繁體中文回答。使用清晰的教育性語言。'
+      };
+      const languageInstruction = languageInstructions[userLanguage] || languageInstructions['en'];
+      const userMessage = `${message}\n\nLANGUAGE: ${languageInstruction}`;
 
-        // Add summary of older messages if available
-        if (conversationSummary) {
-          contextParts.push(conversationSummary);
-        }
-
-        // Add recent conversation history
-        if (conversationHistory.length > 0) {
-          const conversationContext = conversationHistory
-            .map(msg => `${msg.role === 'user' ? 'Student' : 'AI Tutor'}: ${msg.content}`)
-            .join('\n\n');
-          contextParts.push(`Recent conversation:\n${conversationContext}`);
-        }
-
-        userMessage = `${contextParts.join('\n\n')}
-
-Current question: ${message}
-
-LANGUAGE: ${languageInstruction}`;
-      } else {
-        userMessage = `${message}
-
-LANGUAGE: ${languageInstruction}`;
+      // Extract image from question_context if present
+      const imageData = question_context?.question_image_base64 || null;
+      if (imageData) {
+        this.fastify.log.info(`📸 Forwarding image to AI Engine (${imageData.length} chars)`);
       }
 
-      // Send to AI Engine
+      // Send to AI Engine — it owns session state and conversation history
       const aiRequestPayload = {
         message: userMessage,
         system_prompt: systemPrompt,
         subject: sessionInfo.subject || 'general',
         student_id: authenticatedUserId,
         language: userLanguage,
-        deep_mode: deep_mode, // ✅ NEW: Pass deep mode flag to AI Engine
+        deep_mode,
+        ...(imageData && { image_data: imageData }),
+        ...(question_context && { question_context }),
         context: {
           session_id: sessionId,
           session_type: 'conversation',
@@ -426,13 +327,6 @@ LANGUAGE: ${languageInstruction}`;
 
       if (result.success) {
         const duration = Date.now() - startTime;
-
-        // ✅ NEW: Extract image data if present in request
-        let imageData = null;
-        if (question_context?.question_image_base64) {
-          imageData = question_context.question_image_base64;
-          this.fastify.log.info(`💾 Storing message with image data (${imageData.length} chars)`);
-        }
 
         // Store conversation in database (including image if present)
         await this.sessionHelper.storeConversation(
@@ -475,7 +369,7 @@ LANGUAGE: ${languageInstruction}`;
   async sendSessionMessageStreaming(request, reply) {
     const startTime = Date.now();
     const { sessionId } = request.params;
-    const { message, context, language, question_context } = request.body;  // ✅ Extract question_context
+    const { message, context, language, question_context, deep_mode = false } = request.body;
     const fetch = require('node-fetch');
 
     try {
@@ -485,17 +379,7 @@ LANGUAGE: ${languageInstruction}`;
 
       this.fastify.log.info(`💬 Processing streaming session message: ${sessionId.substring(0, 8)}...`);
 
-      // ✅ Log homework question context (if provided)
-      if (question_context) {
-        this.fastify.log.info(`📋 Homework Question Context Detected:`);
-        this.fastify.log.info(`   - Has image: ${!!question_context.question_image_base64}`);
-        this.fastify.log.info(`   - Question text: ${question_context.questionText || 'N/A'}`);
-        this.fastify.log.info(`   - Student answer: ${question_context.studentAnswer || 'N/A'}`);
-        this.fastify.log.info(`   - Grade: ${question_context.currentGrade || 'N/A'}`);
-      }
-
-      // Get and verify session (same as non-streaming)
-      const { db } = require('../../../../utils/railway-database');
+      // Verify session ownership
       const sessionInfo = await this.sessionHelper.getSessionFromDatabase(sessionId);
 
       if (!sessionInfo) {
@@ -512,50 +396,41 @@ LANGUAGE: ${languageInstruction}`;
         });
       }
 
-      // ✅ RELIABILITY FIX: Check database health before proceeding
-      try {
-        await db.query('SELECT 1');
-      } catch (dbError) {
-        this.fastify.log.error('❌ Database health check failed:', dbError);
-        return reply.status(503).send({
-          error: 'Database temporarily unavailable',
-          code: 'DATABASE_UNAVAILABLE',
-          retry_after: 10
-        });
-      }
-
-      // Build request payload (same as non-streaming)
+      // Resolve language preference
       let userLanguage = language || 'en';
       const languageInstructions = {
         'en': 'Respond in clear, educational English.',
         'zh-Hans': '用简体中文回答。使用清晰的教育性语言。',
         'zh-Hant': '用繁體中文回答。使用清晰的教育性語言。'
       };
-
       const languageInstruction = languageInstructions[userLanguage] || languageInstructions['en'];
+
+      // Build system prompt
       const subject = (sessionInfo.subject || '').toLowerCase();
       const isMathSubject = ['mathematics', 'math', 'physics', 'chemistry'].includes(subject);
-
       let systemPrompt = TUTORING_SYSTEM_PROMPT;
       if (isMathSubject) {
         systemPrompt += '\n' + MATH_FORMATTING_SYSTEM_PROMPT;
       }
 
-      const userMessage = `${message}
+      const userMessage = `${message}\n\nLANGUAGE: ${languageInstruction}`;
 
-LANGUAGE: ${languageInstruction}`;
+      // Extract image from question_context if present
+      const imageData = question_context?.question_image_base64 || null;
+      if (imageData) {
+        this.fastify.log.info(`📸 Forwarding image to AI Engine (${imageData.length} chars)`);
+      }
 
-      // Make streaming request to AI Engine
-      const AI_ENGINE_URL = process.env.AI_ENGINE_URL || 'http://localhost:5001';
-      const streamUrl = `${AI_ENGINE_URL}/api/v1/sessions/${sessionId}/message/stream`;
-
-      // ✅ Build request payload with question_context if provided
+      // Build request payload — AI Engine owns session state and conversation history
       const requestPayload = {
         message: userMessage,
         system_prompt: systemPrompt,
         subject: sessionInfo.subject || 'general',
         student_id: authenticatedUserId,
         language: userLanguage,
+        deep_mode,
+        ...(imageData && { image_data: imageData }),
+        ...(question_context && { question_context }),
         context: {
           session_id: sessionId,
           session_type: 'conversation',
@@ -563,25 +438,16 @@ LANGUAGE: ${languageInstruction}`;
         }
       };
 
-      // ✅ Add question_context if homework question with image
-      if (question_context) {
-        requestPayload.question_context = question_context;
+      // Make streaming request to AI Engine
+      const AI_ENGINE_URL = process.env.AI_ENGINE_URL || 'http://localhost:5001';
+      const streamUrl = `${AI_ENGINE_URL}/api/v1/sessions/${sessionId}/message/stream`;
 
-        // ✅ CRITICAL: Extract image from question_context and add as image_data
-        if (question_context.question_image_base64) {
-          requestPayload.image_data = question_context.question_image_base64;
-          this.fastify.log.info(`✅ Added image_data to AI Engine request (${question_context.question_image_base64.length} chars)`);
-        }
-
-        this.fastify.log.info(`✅ Added question_context to AI Engine request (has_image: ${!!question_context.question_image_base64})`);
-      }
-
-      // ✅ Phase 2.4: Add 170s timeout (10s buffer before iOS 180s timeout)
+      // Add 170s timeout (10s buffer before iOS 180s timeout)
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
         controller.abort();
         this.fastify.log.warn('⚠️ AI Engine request timed out after 170s');
-      }, 170000); // 170 seconds
+      }, 170000);
 
       let response;
       try {
@@ -598,7 +464,7 @@ LANGUAGE: ${languageInstruction}`;
           body: JSON.stringify(requestPayload)
         });
 
-        clearTimeout(timeoutId); // Clear timeout on successful response
+        clearTimeout(timeoutId);
       } catch (error) {
         clearTimeout(timeoutId);
         if (error.name === 'AbortError') {
@@ -634,10 +500,6 @@ LANGUAGE: ${languageInstruction}`;
         const duration = Date.now() - startTime;
         this.fastify.log.info(`✅ Streaming complete: ${duration}ms`);
 
-        // ✅ NEW: Extract image data if present
-        const imageData = question_context?.question_image_base64 || null;
-
-        // ✅ RELIABILITY FIX: Await database write to ensure persistence before completion
         try {
           await this.sessionHelper.storeConversation(
             sessionId,
@@ -645,7 +507,7 @@ LANGUAGE: ${languageInstruction}`;
             message,
             {
               response: fullResponse,
-              tokensUsed: 0, // Token count not available in streaming
+              tokensUsed: 0,
               service: 'ai-engine-stream',
               compressed: false
             },
@@ -653,14 +515,10 @@ LANGUAGE: ${languageInstruction}`;
           );
 
           this.fastify.log.info('✅ Conversation stored successfully');
-
-          // Send completion event AFTER successful database write
           reply.raw.end();
 
         } catch (storeError) {
           this.fastify.log.error('❌ Database write failed:', storeError);
-
-          // Send error event to client
           const errorEvent = `data: ${JSON.stringify({
             type: 'error',
             error: 'Message not saved - database unavailable'

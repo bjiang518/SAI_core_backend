@@ -1705,15 +1705,12 @@
 
 // Pro Mode - Archive / Smart Organize result toast
 "proMode.archive.toastTitle" = "✅ 已加入題庫";
-"proMode.archive.toast.added" = "已加入 %d 道題到題庫";
-"proMode.archive.toast.mistakesAdded" = "已加入 %d 道題到錯題本";
-"proMode.archive.toast.duplicates" = "跳過 %d 道重複題";
+"proMode.archive.toast.added" = "題目已儲存至題庫";
+"proMode.archive.toast.mistakesAnalyzed" = "錯題已分析，錯題本已更新";
 "proMode.smartOrganize.toastTitle" = "✅ 智能整理完成";
-"proMode.smartOrganize.toast.mistakesAdded" = "%d 道錯題已加入錯題本";
-"proMode.smartOrganize.toast.noMistakes" = "沒有錯題，繼續加油！";
+"proMode.smartOrganize.toast.mistakesAnalyzed" = "錯題已分析，錯題本已更新";
 "proMode.smartOrganize.toast.progressMarked" = "學習進度已記錄";
 "proMode.smartOrganize.toast.albumSaved" = "作業圖片已儲存";
-"proMode.smartOrganize.toast.duplicates" = "跳過 %d 道重複題";
 "proMode.correct" = "正確";
 "proMode.partial" = "部分正確";
 "proMode.incorrect" = "錯誤";

@@ -17,27 +17,66 @@ except ImportError:
     print("⚠️ tiktoken not available, using approximate token counting")
 
 class SessionMessage:
-    def __init__(self, role: str, content: str, timestamp: datetime = None, tokens: int = 0):
+    """
+    A single turn in a study session.
+
+    `content` follows the OpenAI multimodal message format:
+      - str  → plain text turn (no image)
+      - list → multimodal turn, e.g.
+                [{"type": "text", "text": "..."}, {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,..."}}]
+
+    Keeping content in this native format means get_context_for_api() can pass
+    it directly to the OpenAI API without any post-hoc patching.
+    """
+
+    def __init__(
+        self,
+        role: str,
+        content,  # str | list
+        timestamp: datetime = None,
+        tokens: int = 0,
+    ):
         self.role = role
         self.content = content
         self.timestamp = timestamp or datetime.now()
         self.tokens = tokens
-    
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    def text_content(self) -> str:
+        """Return the plain-text portion of the message (for compression etc.)."""
+        if isinstance(self.content, list):
+            return " ".join(
+                part.get("text", "") for part in self.content if part.get("type") == "text"
+            )
+        return self.content or ""
+
+    def has_image(self) -> bool:
+        if isinstance(self.content, list):
+            return any(part.get("type") == "image_url" for part in self.content)
+        return False
+
+    # ------------------------------------------------------------------
+    # Serialisation
+    # ------------------------------------------------------------------
+
     def to_dict(self):
         return {
             "role": self.role,
-            "content": self.content,
+            "content": self.content,  # str or list — both JSON-serialisable
             "timestamp": self.timestamp.isoformat(),
-            "tokens": self.tokens
+            "tokens": self.tokens,
         }
-    
+
     @classmethod
     def from_dict(cls, data: dict):
         return cls(
             role=data["role"],
-            content=data["content"],
+            content=data["content"],  # str or list preserved as-is
             timestamp=datetime.fromisoformat(data["timestamp"]),
-            tokens=data.get("tokens", 0)
+            tokens=data.get("tokens", 0),
         )
 
 class StudySession:
@@ -56,51 +95,68 @@ class StudySession:
         self.compression_threshold = 3000  # Start compressing at 3k tokens
         self.keep_recent_messages = 6  # Always keep last 6 messages uncompressed
     
-    def add_message(self, role: str, content: str) -> SessionMessage:
-        """Add a new message to the session."""
-        # Count tokens in the message
+    def add_message(self, role: str, content: str, image_data: Optional[str] = None) -> SessionMessage:
+        """
+        Add a new message to the session.
+
+        When `image_data` (base64 JPEG string) is provided the message content
+        is stored in OpenAI multimodal format so it is passed verbatim to the
+        API on every subsequent turn — no post-hoc patching needed.
+        """
+        # Build multimodal content when an image is attached
+        if image_data:
+            actual_content = [
+                {"type": "text", "text": content},
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_data}"}},
+            ]
+        else:
+            actual_content = content
+
+        # Token counting — operate on the text portion only
+        text_for_counting = content
         if TIKTOKEN_AVAILABLE:
             try:
                 encoding = tiktoken.encoding_for_model("gpt-4o-mini")
-                tokens = len(encoding.encode(content))
+                tokens = len(encoding.encode(text_for_counting))
             except Exception:
-                # Fallback to approximate counting
-                tokens = len(content.split()) * 1.3  # Approximate: ~1.3 tokens per word
+                tokens = int(len(text_for_counting.split()) * 1.3)
         else:
-            # Approximate token counting: ~1.3 tokens per word
-            tokens = int(len(content.split()) * 1.3)
-        
-        message = SessionMessage(role, content, tokens=int(tokens))
+            tokens = int(len(text_for_counting.split()) * 1.3)
+
+        # Images cost roughly 500–700 tokens; add a fixed estimate
+        if image_data:
+            tokens += 600
+
+        message = SessionMessage(role, actual_content, tokens=int(tokens))
         self.messages.append(message)
         self.total_tokens += int(tokens)
         self.last_activity = datetime.now()
-        
+
         return message
     
-    def get_context_for_api(self, system_prompt: str) -> List[Dict[str, str]]:
-        """Get properly formatted context for OpenAI API with compression if needed."""
-        
-        # System prompt
+    def get_context_for_api(self, system_prompt: str) -> List[Dict]:
+        """
+        Return the conversation formatted for the OpenAI API.
+
+        Each message's `content` is already in the correct OpenAI format
+        (str for text-only turns, list for multimodal turns), so no
+        transformation is needed here.
+        """
         context = [{"role": "system", "content": system_prompt}]
-        
-        # Check if compression is needed
+
         if self.total_tokens > self.compression_threshold:
-            # Add compressed context if available
             if self.compressed_context:
                 context.append({
-                    "role": "system", 
-                    "content": f"Previous conversation summary: {self.compressed_context}"
+                    "role": "system",
+                    "content": f"Previous conversation summary: {self.compressed_context}",
                 })
-            
-            # Add only recent messages
             recent_messages = self.messages[-self.keep_recent_messages:]
             for msg in recent_messages:
                 context.append({"role": msg.role, "content": msg.content})
         else:
-            # Add all messages if under threshold
             for msg in self.messages:
                 context.append({"role": msg.role, "content": msg.content})
-        
+
         return context
     
     def to_dict(self):
@@ -188,9 +244,9 @@ class SessionService:
         if not messages_to_compress:
             return ""
         
-        # Create conversation text for compression
+        # Create conversation text for compression (text only — images not summarised)
         conversation_text = "\n".join([
-            f"{msg.role.title()}: {msg.content}" 
+            f"{msg.role.title()}: {msg.text_content()}"
             for msg in messages_to_compress
         ])
         
@@ -228,17 +284,15 @@ Summary:"""
                 try:
                     encoding = tiktoken.encoding_for_model("gpt-4o-mini")
                     session.total_tokens = sum(
-                        len(encoding.encode(msg.content)) for msg in session.messages
+                        len(encoding.encode(msg.text_content())) for msg in session.messages
                     )
                 except Exception:
-                    # Fallback to approximate counting
                     session.total_tokens = sum(
-                        int(len(msg.content.split()) * 1.3) for msg in session.messages
+                        int(len(msg.text_content().split()) * 1.3) for msg in session.messages
                     )
             else:
-                # Approximate token counting
                 session.total_tokens = sum(
-                    int(len(msg.content.split()) * 1.3) for msg in session.messages
+                    int(len(msg.text_content().split()) * 1.3) for msg in session.messages
                 )
             
             await self._store_session(session)
@@ -249,19 +303,20 @@ Summary:"""
             return "Previous conversation context available."
     
     async def add_message_to_session(
-        self, 
-        session_id: str, 
-        role: str, 
-        content: str
-    ) -> Optional[StudySession]:
+        self,
+        session_id: str,
+        role: str,
+        content: str,
+        image_data: Optional[str] = None,
+    ) -> Optional["StudySession"]:
         """Add a message to an existing session with auto-compression."""
         
         session = await self.get_session(session_id)
         if not session:
             return None
         
-        # Add the message
-        session.add_message(role, content)
+        # Add the message (with optional image)
+        session.add_message(role, content, image_data=image_data)
         
         # Check if compression is needed
         if session.total_tokens > session.compression_threshold and not session.compressed_context:

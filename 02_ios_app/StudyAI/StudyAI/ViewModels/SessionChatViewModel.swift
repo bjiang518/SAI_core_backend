@@ -549,11 +549,16 @@ class SessionChatViewModel: ObservableObject {
         }
     }
 
-    /// Process an image with optional user prompt
-    func processImageWithPrompt(image: UIImage, prompt: String) {
-        guard networkService.currentSessionId != nil else { return }
+    /// Process an image with optional user prompt.
+    ///
+    /// Routes through the same session streaming endpoint as text messages so the
+    /// image is stored in the AI Engine's session context and remains visible to
+    /// the model on all subsequent turns in the same conversation.
+    func processImageWithPrompt(image: UIImage, prompt: String, deepMode: Bool = false) {
+        guard let sessionId = networkService.currentSessionId else { return }
 
         isProcessingImage = true
+        isSubmitting = true
         errorMessage = ""
 
         // Clear the image input state
@@ -564,23 +569,19 @@ class SessionChatViewModel: ObservableObject {
             // Compress image for upload
             guard let imageData = ImageProcessingService.shared.compressImageForUpload(image) else {
                 isProcessingImage = false
+                isSubmitting = false
                 errorMessage = NSLocalizedString("error.image.prepare", comment: "")
                 return
             }
 
-            // Use user prompt or default question
             let question = prompt.isEmpty ?
                 "Analyze this image and help me understand what I see. If there are mathematical problems, solve them step by step." :
                 prompt
 
-            // Add user message with image to conversation history immediately
+            // Add the user message (with thumbnail) to local conversation history immediately
             let messageId = UUID().uuidString
             let userMessage = prompt.isEmpty ? "📷 [Uploaded image for analysis]" : prompt
-
-            // Store image data separately for display
             imageMessages[messageId] = imageData
-
-            // Add message to conversation history
             networkService.conversationHistory.append([
                 "role": "user",
                 "content": userMessage,
@@ -588,39 +589,88 @@ class SessionChatViewModel: ObservableObject {
                 "hasImage": "true"
             ])
 
-            // Show typing indicator
             showTypingIndicator = true
 
-            // Process image with AI
-            let result = await networkService.processImageWithQuestion(
-                imageData: imageData,
-                question: question,
-                subject: selectedSubject.lowercased()
-            )
+            // Pass the image inside question_context so the session endpoint stores it
+            // in the AI Engine's session — making it available for all follow-up turns.
+            let base64Image = imageData.base64EncodedString()
+            let questionContext: [String: Any] = [
+                "question_image_base64": base64Image,
+                "question_text": question
+            ]
 
-            isProcessingImage = false
-            showTypingIndicator = false
-
-            if result.success, let response = result.result {
-                if let answer = response["answer"] as? String {
-                    // Add AI response to conversation history
-                    networkService.conversationHistory.append(["role": "assistant", "content": answer])
-
-                    // Refresh session info in background
-                    loadSessionInfo()
-                }
-            } else {
-                errorMessage = NSLocalizedString("error.image.process", comment: "")
-
-                // Remove the user message if processing failed
-                if let lastMessage = networkService.conversationHistory.last,
-                   lastMessage["hasImage"] == "true" {
-                    if let messageId = lastMessage["messageId"] {
-                        imageMessages.removeValue(forKey: messageId)
+            _ = await networkService.sendSessionMessageStreamingWithRetry(
+                sessionId: sessionId,
+                message: question,
+                deepMode: deepMode,
+                questionContext: questionContext,
+                onChunk: { [weak self] accumulatedText in
+                    Task { @MainActor in
+                        guard let self = self else { return }
+                        if self.showTypingIndicator {
+                            withAnimation { self.showTypingIndicator = false }
+                        }
+                        self.isActivelyStreaming = true
+                        self.activeStreamingMessage = accumulatedText
                     }
-                    networkService.conversationHistory.removeLast()
+                },
+                onSuggestions: { [weak self] suggestions in
+                    Task { @MainActor in
+                        self?.aiGeneratedSuggestions = suggestions
+                    }
+                },
+                onComplete: { [weak self] success, fullText, tokens, compressed in
+                    Task { @MainActor in
+                        guard let self = self else { return }
+                        self.cancelStreamingUpdates()
+                        self.isProcessingImage = false
+
+                        if success, let finalText = fullText {
+                            self.networkService.conversationHistory.append([
+                                "role": "assistant",
+                                "content": finalText
+                            ])
+                            self.persistMessage(role: "assistant", content: finalText, addToHistory: false)
+                            self.isActivelyStreaming = false
+                            self.activeStreamingMessage = ""
+                            withAnimation {
+                                self.isSubmitting = false
+                                self.showTypingIndicator = false
+                                self.isStreamingComplete = true
+                            }
+                        } else {
+                            self.isActivelyStreaming = false
+                            self.activeStreamingMessage = ""
+                            withAnimation {
+                                self.isSubmitting = false
+                                self.showTypingIndicator = false
+                            }
+                            self.errorMessage = NSLocalizedString("error.image.process", comment: "")
+                            // Roll back the optimistic user message
+                            if let last = self.networkService.conversationHistory.last,
+                               last["hasImage"] == "true" {
+                                if let mid = last["messageId"] {
+                                    self.imageMessages.removeValue(forKey: mid)
+                                }
+                                self.networkService.conversationHistory.removeLast()
+                            }
+                        }
+                    }
+                },
+                onRetryAvailable: { [weak self] partialText in
+                    Task { @MainActor in
+                        guard let self = self else { return }
+                        self.partialResponseText = partialText
+                        self.showRetryStreamingButton = true
+                        self.isActivelyStreaming = false
+                        self.activeStreamingMessage = partialText
+                        withAnimation {
+                            self.isSubmitting = false
+                            self.showTypingIndicator = false
+                        }
+                    }
                 }
-            }
+            )
         }
     }
 
@@ -1281,6 +1331,7 @@ class SessionChatViewModel: ObservableObject {
                     _ = await networkService.sendSessionMessageStreamingWithRetry(
                         sessionId: sessionId,
                         message: message,
+                        deepMode: deepMode,
                         questionContext: homeworkContext?.toDictionary(),
                         onChunk: { [weak self] accumulatedText in
                             // Same chunk handling logic...

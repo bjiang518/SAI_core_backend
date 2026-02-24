@@ -15,9 +15,11 @@ struct ImageInputSheet: View {
     @Binding var userPrompt: String
     @Binding var isPresented: Bool
 
-    let onSend: (UIImage, String) -> Void
+    let onSend: (UIImage, String, Bool) -> Void  // (image, prompt, deepMode)
 
     @State private var showingFullImage = false
+    @State private var isHoldingForDeep = false
+    @State private var isDeepActivated = false
     @FocusState private var isTextFieldFocused: Bool
 
     var body: some View {
@@ -89,13 +91,39 @@ struct ImageInputSheet: View {
                         .background(Color(.systemGray6))
                         .cornerRadius(20)
 
-                        // Send button (iOS Messages style)
-                        Button(action: {
-                            sendImageWithPrompt()
-                        }) {
-                            Image(systemName: "arrow.up.circle.fill")
-                                .font(.system(size: 32))
-                                .foregroundColor(selectedImage != nil ? .blue : .gray)
+                        // Send button with deep mode gesture (same as main chat input)
+                        ZStack {
+                            // Deep mode activation ring — visible while holding
+                            if isHoldingForDeep {
+                                Circle()
+                                    .stroke(isDeepActivated ? Color.purple : Color.blue.opacity(0.4), lineWidth: 2)
+                                    .frame(width: 48, height: 48)
+                                    .scaleEffect(isDeepActivated ? 1.3 : 1.1)
+                                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isDeepActivated)
+                            }
+
+                            DeepThinkingGestureHandler(
+                                messageText: .constant(selectedImage != nil ? "ready" : ""),
+                                isDeepMode: .constant(false),
+                                onSend: { deepMode in
+                                    sendImageWithPrompt(deepMode: deepMode)
+                                },
+                                onStateChange: { holding, activated in
+                                    isHoldingForDeep = holding
+                                    isDeepActivated = activated
+                                }
+                            )
+                            .frame(width: 44, height: 44)
+                            // Override the button icon to always show send arrow for images
+                            .overlay(
+                                Image(systemName: "arrow.up.circle.fill")
+                                    .font(.system(size: 32))
+                                    .foregroundColor(
+                                        selectedImage == nil ? .gray :
+                                        isDeepActivated ? .purple : .blue
+                                    )
+                                    .allowsHitTesting(false)
+                            )
                         }
                         .disabled(selectedImage == nil)
                     }
@@ -129,7 +157,7 @@ struct ImageInputSheet: View {
 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Send") {
-                        sendImageWithPrompt()
+                        sendImageWithPrompt(deepMode: false)
                     }
                     .fontWeight(.semibold)
                     .disabled(selectedImage == nil)
@@ -151,10 +179,9 @@ struct ImageInputSheet: View {
         }
     }
 
-    private func sendImageWithPrompt() {
+    private func sendImageWithPrompt(deepMode: Bool = false) {
         guard let image = selectedImage else { return }
-
-        onSend(image, userPrompt)
+        onSend(image, userPrompt, deepMode)
         isPresented = false
     }
 }

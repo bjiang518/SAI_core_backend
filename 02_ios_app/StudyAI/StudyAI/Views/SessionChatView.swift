@@ -376,8 +376,8 @@ struct SessionChatView: View {
                     selectedImage: $viewModel.selectedImage,
                     userPrompt: $viewModel.imagePrompt,
                     isPresented: $showingImageInputSheet
-                ) { image, prompt in
-                    viewModel.processImageWithPrompt(image: image, prompt: prompt)
+                ) { image, prompt, deepMode in
+                    viewModel.processImageWithPrompt(image: image, prompt: prompt, deepMode: deepMode)
                 }
             }
             // ✅ Archive progress animation overlay

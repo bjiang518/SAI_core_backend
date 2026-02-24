@@ -1439,10 +1439,10 @@ class DigitalHomeworkViewModel: ObservableObject {
     }
 
     /// Archive specific subquestions from a parent question
-    private func archiveSubquestions(parentQuestionId: String, subquestionIds: [String]) async {
+    private func archiveSubquestions(parentQuestionId: String, subquestionIds: [String]) async -> (added: Int, skipped: Int) {
         guard let userId = AuthenticationService.shared.currentUser?.id else {
             logger.error("User not authenticated")
-            return
+            return (0, 0)
         }
 
         let log = AppLogger(category: "SmartOrganize")
@@ -1450,18 +1450,18 @@ class DigitalHomeworkViewModel: ObservableObject {
 
         guard let questionWithGrade = questions.first(where: { $0.question.id == parentQuestionId }) else {
             log.info("🗂️ [SMART ORGANIZE]   ⚠️ \(pLabel) — parent not found, cannot archive subquestions")
-            return
+            return (0, 0)
         }
 
         let imageStorage = ProModeImageStorage.shared
         var questionsToArchive: [[String: Any]] = []
         let parentContent = questionWithGrade.question.parentContent ?? ""
 
-        // Save parent cropped image (shared by all subquestions)
-        var imagePath: String?
+        // Save parent cropped image (fallback shared by subquestions that have no own crop)
+        var parentImagePath: String?
         if let image = croppedImages[parentQuestionId] {
-            imagePath = imageStorage.saveImage(image)
-            log.info("🗂️ [SMART ORGANIZE]   🖼️  \(pLabel) — shared cropped image saved: \(imagePath != nil ? "✅" : "❌ failed")")
+            parentImagePath = imageStorage.saveImage(image)
+            log.info("🗂️ [SMART ORGANIZE]   🖼️  \(pLabel) — shared cropped image saved: \(parentImagePath != nil ? "✅" : "❌ failed")")
         } else {
             log.info("🗂️ [SMART ORGANIZE]   🖼️  \(pLabel) — no cropped image for parent")
         }
@@ -1470,6 +1470,13 @@ class DigitalHomeworkViewModel: ObservableObject {
             guard let subquestion = questionWithGrade.question.subquestions?.first(where: { $0.id == subquestionId }) else {
                 log.info("🗂️ [SMART ORGANIZE]   ⚠️  \(pLabel)(\(subquestionId)) — subquestion not found, skipping")
                 continue
+            }
+
+            // Prefer subquestion-specific crop; fall back to parent crop
+            var effectiveImagePath: String? = parentImagePath
+            if let subImage = croppedImages[subquestionId] {
+                effectiveImagePath = imageStorage.saveImage(subImage)
+                log.info("🗂️ [SMART ORGANIZE]   🖼️  \(pLabel)(\(subquestionId)) — subquestion-specific crop saved: \(effectiveImagePath != nil ? "✅" : "❌ failed")")
             }
 
             let grade = questionWithGrade.subquestionGrades[subquestionId]
@@ -1482,15 +1489,15 @@ class DigitalHomeworkViewModel: ObservableObject {
             log.info("🗂️ [SMART ORGANIZE]        answer:  \"\(correctAns)\"")
 
             let questionData: [String: Any] = [
-                "id": subquestionId,
+                "id": "\(parentQuestionId)_\(subquestionId)",  // globally unique — parent+sub compound key
                 "userId": userId,
                 "subject": subject,
                 "questionText": subquestion.questionText,
                 "rawQuestionText": "\(parentContent)\n\nSubquestion (\(subquestionId)): \(subquestion.questionText)",
                 "answerText": grade?.correctAnswer ?? "",
                 "confidence": 0.95,
-                "hasVisualElements": imagePath != nil,
-                "questionImageUrl": imagePath ?? "",
+                "hasVisualElements": effectiveImagePath != nil,
+                "questionImageUrl": effectiveImagePath ?? "",
                 "archivedAt": ISO8601DateFormatter().string(from: Date()),
                 "reviewCount": 0,
                 "tags": [],
@@ -1548,6 +1555,8 @@ class DigitalHomeworkViewModel: ObservableObject {
             ErrorAnalysisQueueService.shared.queueConceptExtractionForCorrectAnswers(sessionId: sessionId, correctQuestions: correctSubquestions)
             log.info("🗂️ [SMART ORGANIZE]   ✅ \(pLabel) — queued \(correctSubquestions.count) correct subquestion(s) for concept extraction")
         }
+
+        return (added: added, skipped: skipped)
     }
 
     /// Determine grade string and isCorrect status for a subquestion
@@ -1696,17 +1705,21 @@ class DigitalHomeworkViewModel: ObservableObject {
         }
 
         // Archive subquestions for parent questions
+        var subAdded = 0
+        var subSkipped = 0
         if !subquestionsToArchive.isEmpty {
             for (parentId, subquestionIds) in subquestionsToArchive {
                 let pLabel = "Q\(questions.first(where: { $0.question.id == parentId })?.question.questionNumber ?? parentId.prefix(4).description)"
                 log.info("🗂️ [SMART ORGANIZE]   🔀 Archiving \(subquestionIds.count) subquestion(s) for \(pLabel)")
-                await archiveSubquestions(parentQuestionId: parentId, subquestionIds: subquestionIds)
+                let subResult = await archiveSubquestions(parentQuestionId: parentId, subquestionIds: subquestionIds)
+                subAdded += subResult.added
+                subSkipped += subResult.skipped
             }
         }
 
         log.info("🗂️ [SMART ORGANIZE] ARCHIVE END ✅")
         log.info("🗂️ [SMART ORGANIZE] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        return (added: added, skipped: skipped, mistakeCount: wrongQuestions.count)
+        return (added: added + subAdded, skipped: skipped + subSkipped, mistakeCount: wrongQuestions.count)
     }
 
     /// Determine grade string and isCorrect status for a question
@@ -1850,9 +1863,11 @@ class DigitalHomeworkViewModel: ObservableObject {
     // MARK: - Archive Selection Mode
 
     var isAllSelected: Bool {
-        // Check if all graded questions are selected
-        let gradedQuestionIds = questions.filter { $0.grade != nil }.map { $0.question.id }
-        return !gradedQuestionIds.isEmpty && gradedQuestionIds.allSatisfy { selectedQuestionIds.contains($0) }
+        // Check if all graded, non-archived questions are selected
+        let selectableIds = questions.filter { q in
+            !q.isArchived && (q.question.isParentQuestion ? !q.subquestionGrades.isEmpty : q.grade != nil)
+        }.map { $0.question.id }
+        return !selectableIds.isEmpty && selectableIds.allSatisfy { selectedQuestionIds.contains($0) }
     }
 
     func toggleArchiveMode() {
@@ -1870,22 +1885,23 @@ class DigitalHomeworkViewModel: ObservableObject {
                 // Deselect all
                 selectedQuestionIds.removeAll()
             } else {
-                // Select all graded questions (including parent questions with graded subquestions)
-                let gradedQuestionIds = questions.filter { questionWithGrade in
+                // Select all graded, non-archived questions
+                let selectableIds = questions.filter { questionWithGrade in
+                    guard !questionWithGrade.isArchived else { return false }
                     if questionWithGrade.question.isParentQuestion {
-                        // Parent question: select if ANY subquestion is graded
                         return !questionWithGrade.subquestionGrades.isEmpty
                     } else {
-                        // Regular question: select if graded
                         return questionWithGrade.grade != nil
                     }
                 }.map { $0.question.id }
-                selectedQuestionIds = Set(gradedQuestionIds)
+                selectedQuestionIds = Set(selectableIds)
             }
         }
     }
 
     func toggleQuestionSelection(questionId: String) {
+        // Don't allow selecting already-archived questions
+        guard let q = questions.first(where: { $0.question.id == questionId }), !q.isArchived else { return }
         withAnimation(.spring(response: 0.2, dampingFraction: 0.9)) {
             if selectedQuestionIds.contains(questionId) {
                 selectedQuestionIds.remove(questionId)

@@ -726,9 +726,17 @@ enum LibraryItemType {
 /// Extension to make QuestionSummary conform to LibraryItem
 extension QuestionSummary: LibraryItem {
     var title: String {
-        // Format: "{Subject} question" (e.g., "Math question")
-        // Use normalized subject to display consistent names
-        return "\(normalizedSubject) question"
+        let text = questionText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return "\(normalizedSubject) question" }
+        // Use up to 60 characters of question text, trimming at a word boundary
+        if text.count <= 60 { return text }
+        let index = text.index(text.startIndex, offsetBy: 60)
+        let truncated = text[..<index]
+        // Trim back to the last space to avoid cutting mid-word
+        if let lastSpace = truncated.lastIndex(of: " ") {
+            return String(truncated[..<lastSpace]) + "…"
+        }
+        return String(truncated) + "…"
     }
     var topic: String { return normalizedSubject }  // For questions, topic is the normalized subject
     var date: Date { return archivedAt }
@@ -1265,6 +1273,17 @@ class QuestionLocalStorage {
         userDefaults.set(Array(contentHashSet), forKey: hashSetKey)
     }
 
+    /// Number of content hashes currently tracked for duplicate detection
+    var hashCount: Int {
+        return storageQueue.sync {
+            if !hashSetLoaded {
+                let existing = getLocalQuestionsUnsafe()
+                ensureHashSetLoaded(existingQuestions: existing)
+            }
+            return contentHashSet.count
+        }
+    }
+
     // MARK: - Data Retention
 
     /// ✅ Clean up old questions based on retention policy
@@ -1516,6 +1535,63 @@ class QuestionLocalStorage {
         #endif
     }
 
+    /// Remove duplicate questions that share the same content hash.
+    /// Keeps the first occurrence (most recently saved, since list is newest-first).
+    /// Returns the number of duplicates removed.
+    @discardableResult
+    func removeDuplicates() -> Int {
+        return storageQueue.sync {
+            let questions = getLocalQuestionsUnsafe()
+            ensureHashSetLoaded(existingQuestions: questions)
+
+            var seenHashes = Set<String>()
+            var seenIds = Set<String>()
+            var cleaned: [[String: Any]] = []
+            var removed = 0
+
+            for q in questions {
+                let id = q["id"] as? String ?? ""
+                let subject = q["subject"] as? String ?? ""
+                let questionText = q["questionText"] as? String ?? ""
+                let studentAnswer = q["studentAnswer"] as? String ?? ""
+                let hash = QuestionLocalStorage.contentHash(
+                    subject: subject,
+                    questionText: questionText,
+                    studentAnswer: studentAnswer
+                )
+
+                let isDuplicateHash = seenHashes.contains(hash)
+                let isDuplicateId = !id.isEmpty && seenIds.contains(id)
+
+                if isDuplicateHash || isDuplicateId {
+                    removed += 1
+                    AppLogger(category: "Library").info("🧹 [Dedup] Removing duplicate (keeping first): id=\(id) hash=\(hash.prefix(16))… reason=\(isDuplicateHash ? "hash" : "id")")
+                    continue
+                }
+
+                seenHashes.insert(hash)
+                if !id.isEmpty { seenIds.insert(id) }
+                cleaned.append(q)
+            }
+
+            AppLogger(category: "Library").info("🧹 [Dedup] Scanned \(questions.count) questions → kept \(cleaned.count), removed \(removed)")
+            guard removed > 0 else { return 0 }
+
+            // Rebuild hash set from cleaned list
+            contentHashSet = seenHashes
+            persistHashSet()
+
+            // Persist cleaned list
+            if let data = try? JSONSerialization.data(withJSONObject: cleaned) {
+                userDefaults.set(data, forKey: questionsKey)
+                cachedQuestions = cleaned
+                cacheLastModified = Date()
+            }
+
+            return removed
+        }
+    }
+
     /// Get a single question by ID from local storage
     func getQuestionById(_ id: String) -> [String: Any]? {
         let questions = getLocalQuestions()
@@ -1621,6 +1697,13 @@ class QuestionLocalStorage {
                 print("   Weakness Key: \(key)")
                 print("   Error Type: \(errorType ?? "NONE")")
                 print("   Is Correct: \(isCorrect)")
+            }
+
+            // Remove content hash so identical question can be re-archived later
+            if let hash = questionToDelete?["contentHash"] as? String, !hash.isEmpty {
+                contentHashSet.remove(hash)
+                persistHashSet()
+                print("💾 [QuestionLocalStorage] Removed content hash from dedup set: \(hash.prefix(16))…")
             }
 
             // Remove from storage

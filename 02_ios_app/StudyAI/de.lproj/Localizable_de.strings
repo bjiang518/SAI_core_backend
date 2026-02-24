@@ -4,25 +4,25 @@
 */
 
 // Biometric Authentication (NEW - no existing alternatives)
-"login.enableBiometric" = "Enable %@?";
-"login.enable" = "Enable";
-"login.notNow" = "Not Now";
-"login.biometricMessage" = "Sign in faster next time with %@. You can change this later in Settings.";
+"login.enableBiometric" = "Aktivieren %@?";
+"login.enable" = "Aktivieren";
+"login.notNow" = "Jetzt nicht";
+"login.biometricMessage" = "Sign in faster next time with %@. You can change this later in Einstellungen.";
 "login.signInWithBiometric" = "Sign in with %@";
-"login.continueWithApple" = "Continue with Apple";
+"login.continueWithApple" = "Mit Apple fortfahren";
 
 // Main Tabs
-"tab.home" = "Home";
+"tab.home" = "Startseite";
 "tab.grader" = "Grader";
 "tab.chat" = "Chat";
-"tab.progress" = "Progress";
-"tab.library" = "Library";
+"tab.progress" = "Fortschritt";
+"tab.library" = "Bibliothek";
 
 // Settings
-"settings.title" = "Settings";
-"settings.account" = "Account";
+"settings.title" = "Einstellungen";
+"settings.account" = "Konto";
 "settings.editProfile" = "Edit Profile";
-"settings.signOut" = "Sign Out";
+"settings.signOut" = "Abmelden";
 "settings.biometricLogin" = "%@ Login";
 "settings.parentControls.message" = "Verify parental access to manage settings";
 "settings.appVersion" = "StudyMates v1.0";
@@ -30,21 +30,21 @@
 "settings.appPoweredBy" = "Powered by OpenAI GPT-4";
 "settings.security" = "Security & Privacy";
 "settings.passwordManager" = "Password Manager";
-"settings.privacySettings" = "Privacy Settings";
-"settings.appSettings" = "App Settings";
+"settings.privacySettings" = "Privacy Einstellungen";
+"settings.appSettings" = "App Einstellungen";
 "settings.studyReminders" = "Study Reminders";
 "settings.textSize" = "Text Size";
-"settings.language" = "Language";
-"languageSettings.sectionHeader" = "Select Language";
+"settings.language" = "Sprache";
+"languageSettings.sectionHeader" = "Select Sprache";
 "languageSettings.sectionFooter" = "Choose your preferred language for the app interface. This will affect all text in the app.";
 "languageSettings.restartRequired" = "Restart Required";
 "languageSettings.restartMessage" = "The app will close now. Please reopen it to see the language change.";
 "settings.voiceAudio" = "Study Mates";
 "settings.voiceSettings" = "Select your study mate";
 "settings.learning" = "Learning";
-"settings.learningGoals" = "Learning Goals & Progress";
+"settings.learningGoals" = "Learning Goals & Fortschritt";
 "settings.support" = "Support";
-"settings.help" = "Help & FAQ";
+"settings.help" = "Hilfe & FAQ";
 "settings.contact" = "Contact Support";
 "settings.rateApp" = "Rate App";
 "settings.shareApp" = "Share App";
@@ -60,8 +60,8 @@
 "studyReminders.enabled" = "Notifications enabled";
 "studyReminders.denied" = "Notifications denied";
 "studyReminders.notConfigured" = "Not configured";
-"studyReminders.enable" = "Enable Notifications";
-"studyReminders.description" = "Enable notifications to receive study reminders and stay on track with your learning goals.";
+"studyReminders.enable" = "Aktivieren Notifications";
+"studyReminders.description" = "Aktivieren notifications to receive study reminders and stay on track with your learning goals.";
 "studyReminders.daily" = "Daily Study Reminders";
 "studyReminders.dailyDescription" = "Get reminded to study at your scheduled time each day.";
 "studyReminders.schedule" = "Schedule";
@@ -102,8 +102,8 @@
 "common.of" = "of";
 "common.add" = "Add";
 "common.years" = "years";
-"common.openSettings" = "Open Settings";
-"common.settings" = "Settings";
+"common.openSettings" = "Open Einstellungen";
+"common.settings" = "Einstellungen";
 "common.delete" = "Delete";
 "common.continueHere" = "Continue Here";
 "common.moveOnAndNotify" = "Move On & Notify";
@@ -114,20 +114,20 @@
 "home.goodEvening" = "Good evening";
 "home.defaultStudentName" = "Student";
 "home.pleaseEditProfile" = "Please edit your profile";
-"home.todaysProgress" = "Today's Progress";
+"home.todaysProgress" = "Today's Fortschritt";
 "home.startLearningMessage" = "Start learning to track progress";
 "home.questions" = "Questions";
 "home.accuracy" = "Accuracy";
 "home.streak" = "Day Streak";
 "home.quickActions" = "Quick Actions";
 "home.moreFeatures" = "More Features";
-"home.homeworkGrader" = "Homework Grader";
+"home.homeworkGrader" = "Startseitework Grader";
 "home.scanAndGrade" = "Scan & grade";
 "home.chat" = "Chat";
 "home.conversationalAI" = "Conversational AI";
-"home.library" = "Library";
+"home.library" = "Bibliothek";
 "home.studySessions" = "Study sessions";
-"home.progress" = "Progress";
+"home.progress" = "Fortschritt";
 "home.trackLearning" = "Track learning";
 "home.practice" = "Practice";
 "home.practiceDescription" = "Generate questions & test yourself";
@@ -135,7 +135,7 @@
 "home.mistakeReviewDescription" = "Learn from past errors";
 "home.parentReports" = "Parent Reports";
 "home.parentReportsDescription" = "Study progress & insights";
-"home.homeworkAlbum" = "Homework Album";
+"home.homeworkAlbum" = "Startseitework Album";
 "home.homeworkAlbumDescription" = "View all submitted homework";
 
 // Parent Reports
@@ -145,7 +145,7 @@
 "parentReport.quickActions" = "Quick Actions";
 "parentReport.weeklyReport" = "Weekly\nReport";
 "parentReport.monthlyReport" = "Monthly\nReport";
-"parentReport.progressReport" = "Progress\nReport";
+"parentReport.progressReport" = "Fortschritt\nReport";
 "parentReport.recentReports" = "Recent Reports";
 "parentReport.viewAll" = "View All";
 "parentReport.noReportsYet" = "No Reports Yet";
@@ -163,10 +163,10 @@
 "common.error" = "Error";
 
 // AI Homework
-"aiHomework.title" = "AI Homework";
-"aiHomework.assistant.title" = "AI Homework Assistant";
+"aiHomework.title" = "AI Startseitework";
+"aiHomework.assistant.title" = "AI Startseitework Assistant";
 "aiHomework.assistant.description" = "Scan homework images and get AI-powered solutions with step-by-step explanations";
-"aiHomework.startAnalysis" = "Start Homework Analysis";
+"aiHomework.startAnalysis" = "Start Startseitework Analysis";
 "aiHomework.selectImage" = "Select an image to analyze homework";
 "aiHomework.optimizing" = "Optimizing image...";
 "aiHomework.cropping" = "Image cropping...";
@@ -176,7 +176,7 @@
 "aiHomework.preparingResults" = "Preparing results...";
 "aiHomework.analysisComplete" = "Analysis complete!";
 "aiHomework.processingError" = "Processing Error";
-"aiHomework.homeworkAnalysisComplete" = "Homework Analysis Complete";
+"aiHomework.homeworkAnalysisComplete" = "Startseitework Analysis Complete";
 "aiHomework.gradingCompleteMessage" = "Your homework has been graded. Found %d question(s).";
 "aiHomework.selectImageSource.title" = "Select Image Source";
 "aiHomework.selectImageSource.subtitle" = "Choose how you'd like to upload your homework";
@@ -186,7 +186,7 @@
 "aiHomework.imageSource.choosePhotosSubtitle" = "Select from photo library";
 "aiHomework.imageSource.chooseFiles" = "Choose from Files";
 "aiHomework.imageSource.chooseFilesSubtitle" = "Import from Files app";
-"aiHomework.imageSource.chooseHomework" = "Choose Recent Homework";
+"aiHomework.imageSource.chooseHomework" = "Choose Recent Startseitework";
 "aiHomework.imageSource.chooseHomeworkSubtitle" = "Select from previously graded homework";
 "aiHomework.preview.singleImage" = "Preview Image";
 "aiHomework.preview.multipleImages" = "Preview Images";
@@ -197,9 +197,9 @@
 "aiHomework.imageCounter" = "%d of %d";
 "aiHomework.continueInBackground" = "Continue analyzing in background? You'll get a notification when it's done.";
 "aiHomework.photoAccessRequired" = "Photo Access Required";
-"aiHomework.photoAccessMessage" = "Please allow access to your photo library in Settings to select images.";
+"aiHomework.photoAccessMessage" = "Please allow access to your photo library in Einstellungen to select images.";
 "aiHomework.cameraAccessRequired" = "Camera Access Required";
-"aiHomework.cameraAccessMessage" = "Please allow camera access in Settings to take photos.";
+"aiHomework.cameraAccessMessage" = "Please allow camera access in Einstellungen to take photos.";
 "aiHomework.imageLimitReached" = "Image Limit Reached";
 "aiHomework.imageLimitMessage" = "You can add up to %d images. Please remove an image to add a new one.";
 "aiHomework.selectOneImage" = "Select One Image";
@@ -217,7 +217,7 @@
 "aiHomework.subject" = "Subject";
 "aiHomework.model" = "Model";
 "aiHomework.mode" = "Mode";
-"aiHomework.digitalHomework" = "AI Digital Homework";
+"aiHomework.digitalHomework" = "AI Digital Startseitework";
 "aiHomework.compressing" = "Compressing...";
 "aiHomework.scannedDocument.single" = "Scanned Document";
 "aiHomework.scannedDocument.multiple" = "Scanned Documents";
@@ -234,7 +234,7 @@
 
 // Homework Results
 "homeworkResults.yourScore" = "Your Score";
-"homeworkResults.titleWithSubject" = "Your %@ Homework Report";
+"homeworkResults.titleWithSubject" = "Your %@ Startseitework Report";
 "homeworkResults.archive" = "Archive";
 "homeworkResults.report" = "Report";
 "homeworkResults.subject" = "Subject:";
@@ -257,7 +257,7 @@
 "homeworkResults.slideToMarkProgress" = "Slide to Smart Organize";
 "homeworkResults.progressMarked" = "Organized!";
 "homeworkResults.progressUpdated" = "✅ Your study progress has been updated!";
-"homeworkResults.progressTip" = "💡 Tip: Progress is automatically tracked when you archive questions!";
+"homeworkResults.progressTip" = "💡 Tip: Fortschritt is automatically tracked when you archive questions!";
 "homeworkResults.tapToAddQuestions" = "Tap here to manually add %d questions to your progress";
 "homeworkResults.manuallyAddPrefix" = "Or tap here to manually add these ";
 "homeworkResults.manuallyAddSuffix" = " questions to your daily learning goals";
@@ -267,7 +267,7 @@
 "homeworkResults.noAnswerProvided" = "(No answer provided)";
 "homeworkResults.correctAnswer" = "Correct Answer:";
 "homeworkResults.feedback" = "Feedback:";
-"homeworkResults.askAiForHelp" = "Ask AI for Help";
+"homeworkResults.askAiForHelp" = "Ask AI for Hilfe";
 
 // Question type renderers
 "renderer.fullQuestion" = "Full Question:";
@@ -313,21 +313,21 @@
 "password_reset_success" = "Password reset successfully. Please log in.";
 
 // Account Password Management
-"accountPassword.title" = "Account Password";
+"accountPassword.title" = "Konto Password";
 "accountPassword.subtitle" = "Change your account login password";
-"accountPassword.sectionHeader" = "Account Security";
+"accountPassword.sectionHeader" = "Konto Security";
 "accountPassword.sectionFooter" = "Your account password is used to sign in to your account";
 "accountPassword.current" = "Current Password";
 "accountPassword.new" = "New Password";
 "accountPassword.confirm" = "Confirm Password";
-"accountPassword.changeHeader" = "Change Account Password";
+"accountPassword.changeHeader" = "Change Konto Password";
 "accountPassword.requirementFooter" = "Password must be at least 6 characters";
 "accountPassword.button" = "Change Password";
-"accountPassword.comingSoon" = "Account password change will be available in a future update";
+"accountPassword.comingSoon" = "Konto password change will be available in a future update";
 
 // Parent Password Management
 "parentPassword.title" = "Parent Mode Password";
-"parentPassword.statusEnabled" = "Enabled";
+"parentPassword.statusEnabled" = "Aktivierend";
 "parentPassword.statusNotSet" = "Not set";
 "parentPassword.set" = "Set Parent Password";
 "parentPassword.setSubtitle" = "Create a PIN to protect parent mode";
@@ -338,7 +338,7 @@
 "parentPassword.controlsHeader" = "Parent Mode Controls";
 "parentPassword.controlsFooter" = "Parent mode allows you to control app features and set restrictions";
 "parentPassword.featureAccessHeader" = "Protected Features";
-"parentPassword.featureAccessFooter" = "Enable protection for features that require parent authorization";
+"parentPassword.featureAccessFooter" = "Aktivieren protection for features that require parent authorization";
 
 // Parent Password - Set Password
 "parentPasswordSet.title" = "Set Parent Password";
@@ -390,17 +390,17 @@
 "auth.enterEmail" = "Enter your email";
 "auth.password" = "Password";
 "auth.enterPassword" = "Enter your password";
-"auth.signIn" = "Sign In";
+"auth.signIn" = "Anmelden";
 "auth.dontHaveAccount" = "Don't have an account?";
 "auth.signUp" = "Sign Up";
-"auth.signup.title" = "Create Your Account";
+"auth.signup.title" = "Create Your Konto";
 "auth.signup.subtitle" = "Join StudyAI to start your learning adventure!";
 "auth.fullName" = "Full Name";
 "auth.enterFullName" = "Enter your full name";
 "auth.createPassword" = "Create a password";
 "auth.confirmPassword" = "Confirm Password";
 "auth.confirmYourPassword" = "Confirm your password";
-"auth.createAccount" = "Create Account";
+"auth.createAccount" = "Create Konto";
 "auth.signup.error" = "Sign Up Error";
 "auth.passwordRequirement.minLength" = "At least 6 characters";
 "auth.passwordRequirement.match" = "Passwords match";
@@ -478,25 +478,25 @@
 "success.session.recreated" = "New session created successfully.";
 
 // Homework Album
-"homeworkAlbum.title" = "Homework Album";
+"homeworkAlbum.title" = "Startseitework Album";
 "homeworkAlbum.select" = "Select";
 "homeworkAlbum.done" = "Done";
 "homeworkAlbum.delete" = "Delete";
 "homeworkAlbum.deleteCount" = "Delete (%d)";
 "homeworkAlbum.deleteConfirmation" = "Delete %d homework image%@?";
 "homeworkAlbum.deleteConfirmationMessage" = "This action cannot be undone.";
-"homeworkAlbum.emptyStateTitle" = "No Homework Yet";
-"homeworkAlbum.emptyStateMessage" = "Homework images will appear here after you submit them for AI grading";
+"homeworkAlbum.emptyStateTitle" = "No Startseitework Yet";
+"homeworkAlbum.emptyStateMessage" = "Startseitework images will appear here after you submit them for AI grading";
 "homeworkAlbum.questionCount" = "%d question%@";
 "homeworkAlbum.filters" = "Filters";
 "homeworkAlbum.timeRange" = "Time Range";
 "homeworkAlbum.subject" = "Subject";
 "homeworkAlbum.grade" = "Grade";
-"homeworkAlbum.chooseHomework" = "Choose Homework";
+"homeworkAlbum.chooseHomework" = "Choose Startseitework";
 "homeworkAlbum.selectionHint" = "Tap any homework to select it for AI re-analysis";
 
 // Homework Image Detail
-"homeworkImageDetail.deleteTitle" = "Delete Homework Image?";
+"homeworkImageDetail.deleteTitle" = "Delete Startseitework Image?";
 "homeworkImageDetail.deleteMessage" = "This action cannot be undone.";
 "homeworkImageDetail.questions" = "Questions";
 "homeworkImageDetail.correct" = "Correct";
@@ -520,7 +520,7 @@
 "questionGeneration.description.fromMistakes" = "Target your weak areas";
 "questionGeneration.description.fromArchives" = "Build on archived sessions";
 "questionGeneration.configuration" = "Configuration";
-"questionGeneration.generalSettings" = "General Settings";
+"questionGeneration.generalSettings" = "General Einstellungen";
 "questionGeneration.difficultyLevel" = "Difficulty Level";
 "questionGeneration.difficulty.beginner" = "Beginner";
 "questionGeneration.difficulty.advanced" = "Advanced";
@@ -532,16 +532,16 @@
 "questionGeneration.recentQuestions" = "Recent Questions";
 "questionGeneration.viewAll" = "View All";
 "questionGeneration.error.title" = "Generation Error";
-"questionGeneration.randomPracticeSettings" = "Random Practice Settings";
+"questionGeneration.randomPracticeSettings" = "Random Practice Einstellungen";
 "questionGeneration.chooseSubject" = "Choose subject";
 "questionGeneration.usingGeneralMath" = "Using general math topics";
-"questionGeneration.mistakeBasedSettings" = "Mistake-Based Settings";
+"questionGeneration.mistakeBasedSettings" = "Mistake-Based Einstellungen";
 "questionGeneration.loadingMistakes" = "Loading mistakes...";
 "questionGeneration.mistakesAvailable" = "mistakes available";
 "questionGeneration.tapToSelectMistakes" = "Tap to select mistakes";
 "questionGeneration.mistakesSelected" = "mistakes selected";
 "questionGeneration.noMistakes" = "No mistakes found. Complete some homework first.";
-"questionGeneration.archiveBasedSettings" = "Archive-Based Settings";
+"questionGeneration.archiveBasedSettings" = "Archive-Based Einstellungen";
 "questionGeneration.loadingArchiveData" = "Loading archive data...";
 "questionGeneration.conversationsCount" = "conversations, ";
 "questionGeneration.questionsAvailable" = "questions available";
@@ -662,24 +662,24 @@
 // Days of Week
 
 // Common
-"progress.title" = "Progress";
+"progress.title" = "Fortschritt";
 "progress.loadingProgress" = "Loading your progress...";
 "progress.unableToLoadData" = "Unable to Load Data";
 "progress.tryAgain" = "Try Again";
-"progress.info.title" = "How to Use Learning Progress";
-"progress.info.message" = "📊 Understanding Your Progress:\n\n• Timeframe Filter: Tap the three-dot menu to switch between Current Week, Current Month, or All Time\n• Subject Breakdown: View your performance across different subjects with accuracy percentages\n• Color-Coded Cards: Each subject shows questions answered, accuracy rate, and trend indicators (↑ improving, → stable, ↓ needs work)\n• Tap any subject card to see detailed analytics and personalized insights\n\n🎯 Tips:\n• Pull down to refresh your latest progress\n• Check your daily streak to stay motivated\n• Focus on subjects with lower accuracy for improvement";
+"progress.info.title" = "How to Use Learning Fortschritt";
+"progress.info.message" = "📊 Understanding Your Fortschritt:\n\n• Timeframe Filter: Tap the three-dot menu to switch between Current Week, Current Month, or All Time\n• Subject Breakdown: View your performance across different subjects with accuracy percentages\n• Color-Coded Cards: Each subject shows questions answered, accuracy rate, and trend indicators (↑ improving, → stable, ↓ needs work)\n• Tap any subject card to see detailed analytics and personalized insights\n\n🎯 Tips:\n• Pull down to refresh your latest progress\n• Check your daily streak to stay motivated\n• Focus on subjects with lower accuracy for improvement";
 
 "tomatoGarden.info.title" = "About Tomato Garden";
 "tomatoGarden.info.message" = "🍅 Your Tomato Collection:\n\n• Each completed focus session earns you a tomato\n• Filter by time (Today, This Week) or by tomato type\n• Three tomato varieties:\n  - Classic Tomato: Standard 25-minute sessions\n  - Curly Vine Tomato: Deep focus sessions\n  - Cute Tomato: Short focus sessions\n\n✨ Physics Mode:\nTap the physics mode button to see your tomatoes with physics-based animations and interactions!\n\n🏆 Milestones:\nCollect more tomatoes to unlock achievement milestones and track your focus journey.";
 
 "passiveReports.info.title" = "About Parent Reports";
-"passiveReports.info.message" = "📊 Automated Learning Insights:\n\n• Weekly/Monthly Reports: Switch between report periods using the tabs\n• Tap '+' to manually generate a new report batch\n• Each batch contains 8 specialized reports:\n  1. Executive Summary - Overall performance overview\n  2. Academic Performance - Subject-wise analysis\n  3. Learning Behavior - Study habits and patterns\n  4. Motivation & Emotional - Engagement indicators\n  5. Progress Trajectory - Improvement trends\n  6. Social Learning - Collaboration insights\n  7. Risk & Opportunity - Areas needing attention\n  8. Action Plan - Personalized recommendations\n\n💡 Tips:\n• Reports analyze your study sessions, archived conversations, and practice results\n• Tap any report card to view detailed insights\n• Use Edit mode to manage or delete old report batches";
+"passiveReports.info.message" = "📊 Automated Learning Insights:\n\n• Weekly/Monthly Reports: Switch between report periods using the tabs\n• Tap '+' to manually generate a new report batch\n• Each batch contains 8 specialized reports:\n  1. Executive Summary - Overall performance overview\n  2. Academic Performance - Subject-wise analysis\n  3. Learning Behavior - Study habits and patterns\n  4. Motivation & Emotional - Engagement indicators\n  5. Fortschritt Trajectory - Improvement trends\n  6. Social Learning - Collaboration insights\n  7. Risk & Opportunity - Areas needing attention\n  8. Action Plan - Personalized recommendations\n\n💡 Tips:\n• Reports analyze your study sessions, archived conversations, and practice results\n• Tap any report card to view detailed insights\n• Use Edit mode to manage or delete old report batches";
 
-"library.info.title" = "How to Use Library";
+"library.info.title" = "How to Use Bibliothek";
 "library.info.message" = "📚 Your Learning Archive:\n\n• Content Types: Switch between All Sessions, Questions Only, or Conversations Only using the tabs\n• Search: Use the search bar to find specific content\n• Quick Filters: Filter by subject, date range, or content with images\n• Advanced Search: Tap the three-dot menu for detailed filtering options\n• Subject Filter: Filter content by specific subjects from the menu\n\n💡 Tips:\n• Pull down to refresh your library content\n• Tap any item to view full details, answers, and explanations\n• Use 'Clear Filters' from the menu to reset all active filters\n• Statistics at the top show your total questions and conversations";
 
 "homeworkResults.info.title" = "Understanding Your Results";
-"homeworkResults.info.message" = "📝 Homework Analysis Results:\n\n• Question Cards: Tap any card to expand and see full details, answers, and explanations\n• Checkboxes: Select questions you want to archive for later review\n• Color Indicators:\n  - Green: Correct answer\n  - Orange: Partially correct\n  - Red: Incorrect answer\n• Archive Button: Tap the book icon to save selected questions to your library\n\n💡 Tips:\n• Review incorrect answers carefully to understand mistakes\n• Use archived questions for focused practice later\n• Each question can be expanded to see step-by-step solutions\n• Progress is automatically tracked for learning analytics";
+"homeworkResults.info.message" = "📝 Startseitework Analysis Results:\n\n• Question Cards: Tap any card to expand and see full details, answers, and explanations\n• Checkboxes: Select questions you want to archive for later review\n• Color Indicators:\n  - Green: Correct answer\n  - Orange: Partially correct\n  - Red: Incorrect answer\n• Archive Button: Tap the book icon to save selected questions to your library\n\n💡 Tips:\n• Review incorrect answers carefully to understand mistakes\n• Use archived questions for focused practice later\n• Each question can be expanded to see step-by-step solutions\n• Fortschritt is automatically tracked for learning analytics";
 
 
 
@@ -718,7 +718,7 @@
 "progress.more" = "More";
 "progress.questionsThisMonth" = "questions this month";
 "progress.questionsThisWeek" = "questions this week";
-"progress.weeklyProgressEmpty" = "Weekly Progress";
+"progress.weeklyProgressEmpty" = "Weekly Fortschritt";
 "progress.weeklyProgressEmptyMessage" = "Start asking questions to see your weekly activity pattern!";
 
 // Subject names
@@ -730,7 +730,7 @@
 "subject.history" = "History";
 "subject.geography" = "Geography";
 "subject.computerscience" = "Computer Science";
-"subject.foreignlanguage" = "Foreign Language";
+"subject.foreignlanguage" = "Foreign Sprache";
 "subject.arts" = "Arts";
 "subject.other" = "Other";
 
@@ -750,8 +750,8 @@
 "progress.pointsAvailable" = "+%d pts";
 
 // Library View
-"library.title" = "Study Library";
-"library.refreshLibrary" = "Refresh Library";
+"library.title" = "Study Bibliothek";
+"library.refreshLibrary" = "Refresh Bibliothek";
 "library.advancedSearch" = "Advanced Search";
 "library.clearFilters" = "Clear Filters";
 "library.filterBySubject" = "Filter by Subject";
@@ -783,16 +783,16 @@
 
 // Library Item
 "library.item.tapToReview" = "Tap to review";
-"library.item.homeworkSession" = "Homework Session";
+"library.item.homeworkSession" = "Startseitework Session";
 "library.item.archivedQuestion" = "Archived Question";
 "library.item.conversationSession" = "Conversation Session";
 
 // Empty States
-"library.empty.signInRequired" = "Sign In Required";
-"library.empty.signInMessage" = "Please sign in to access your personal Study Library";
-"library.empty.libraryEmpty" = "Your Study Library is Empty";
-"library.empty.libraryEmptyMessage" = "Complete homework with AI Homework or start conversations to build your study library";
-"library.empty.loading" = "Loading your Study Library...";
+"library.empty.signInRequired" = "Anmelden Required";
+"library.empty.signInMessage" = "Please sign in to access your personal Study Bibliothek";
+"library.empty.libraryEmpty" = "Your Study Bibliothek is Empty";
+"library.empty.libraryEmptyMessage" = "Complete homework with AI Startseitework or start conversations to build your study library";
+"library.empty.loading" = "Loading your Study Bibliothek...";
 
 // No Results
 "library.noResults.title" = "No Results Found";
@@ -846,12 +846,12 @@
 
 // Help Center
 "helpCenter.subtitle" = "Find answers to common questions";
-"helpCenter.faq1.question" = "How do I use the Homework Grader?";
+"helpCenter.faq1.question" = "How do I use the Startseitework Grader?";
 "helpCenter.faq1.answer" = "Take a photo of your homework or upload an image. Our AI will analyze it, detect questions, and provide detailed feedback with corrections and explanations.";
 "helpCenter.faq2.question" = "What subjects are supported?";
 "helpCenter.faq2.answer" = "StudyAI supports Mathematics, Physics, Chemistry, Biology, English, History, Geography, and Computer Science. We're constantly adding more subjects\!";
 "helpCenter.faq3.question" = "How do I change the AI voice?";
-"helpCenter.faq3.answer" = "Go to Settings > Study Mates > Select your study mate. You can choose between Adam (boy voice) and Eva (girl voice), and customize speed and volume.";
+"helpCenter.faq3.answer" = "Go to Einstellungen > Study Mates > Select your study mate. You can choose between Adam (boy voice) and Eva (girl voice), and customize speed and volume.";
 "helpCenter.faq4.question" = "Can I review my past mistakes?";
 "helpCenter.faq4.answer" = "Yes\! Use the Mistake Review feature from the home screen to revisit questions you got wrong and practice similar problems.";
 "helpCenter.faq5.question" = "How does the streak system work?";
@@ -859,7 +859,7 @@
 "helpCenter.faq6.question" = "Is my data secure?";
 "helpCenter.faq6.answer" = "Yes\! We use industry-standard encryption and secure authentication. Your homework and learning data are stored securely and never shared with third parties.";
 "helpCenter.faq7.question" = "How do I track my progress?";
-"helpCenter.faq7.answer" = "Visit the Progress tab to see detailed statistics, accuracy trends, subject performance, and weekly learning patterns.";
+"helpCenter.faq7.answer" = "Visit the Fortschritt tab to see detailed statistics, accuracy trends, subject performance, and weekly learning patterns.";
 "helpCenter.faq8.question" = "What is the difference between Detail and Fast parsing?";
 "helpCenter.faq8.answer" = "Detail mode provides more accurate parsing with hierarchical structure and parent-child relationships. Fast mode is quicker but simpler. Use Detail for complex homework.";
 "helpCenter.quickLinks" = "Quick Links";
@@ -868,13 +868,13 @@
 "helpCenter.studyTips" = "Study Tips & Best Practices";
 
 // Share App
-"shareApp.subtitle" = "Help your friends excel in their studies\!";
+"shareApp.subtitle" = "Hilfe your friends excel in their studies\!";
 "shareApp.messageTitle" = "Share Message";
 "shareApp.messagePreview" = "\"Check out StudyAI - the best AI-powered homework helper\!\"";
 "shareApp.feature1" = "✓ AI-powered homework grading";
 "shareApp.feature2" = "✓ Interactive AI tutor";
 "shareApp.feature3" = "✓ Mistake review & practice";
-"shareApp.feature4" = "✓ Progress tracking";
+"shareApp.feature4" = "✓ Fortschritt tracking";
 "shareApp.downloadLink" = "Download now: https://studyai.app";
 "shareApp.shareViaTitle" = "Share via...";
 "shareApp.shareViaSubtitle" = "Messages, Email, Social Media & More";
@@ -904,8 +904,8 @@
 // Menu Items
 "chat.menu.newSession" = "New Session";
 "chat.menu.sessionInfo" = "Session Info";
-"chat.menu.voiceSettings" = "Voice Settings";
-"chat.menu.enableVoice" = "Enable Voice";
+"chat.menu.voiceSettings" = "Voice Einstellungen";
+"chat.menu.enableVoice" = "Aktivieren Voice";
 "chat.menu.disableVoice" = "Disable Voice";
 "chat.menu.synchronizedAudio" = "Synchronized Audio";
 "chat.menu.liveTalk" = "Live Talk";
@@ -959,7 +959,7 @@
 
 // Alerts
 "chat.alert.cameraPermission.title" = "Camera Permission";
-"chat.alert.cameraPermission.message" = "StudyAI needs camera access to scan homework questions. Please enable camera permission in Settings.";
+"chat.alert.cameraPermission.message" = "StudyAI needs camera access to scan homework questions. Please enable camera permission in Einstellungen.";
 "chat.alert.currentChatExists.title" = "Current Chat Exists";
 "chat.alert.currentChatExists.message" = "You have an active chat session. Would you like to archive it first, or discard it and start a new session with this homework question?";
 "chat.alert.currentChatExists.archiveCurrent" = "Archive Current Chat";
@@ -968,8 +968,8 @@
 "chat.alert.currentChatExists.startNew" = "Start New";
 "chat.alert.error.title" = "Error";
 "chat.alert.archiveSuccess.title" = "Archive Successful! 🎉";
-"chat.alert.archiveSuccess.message" = "%@ has been successfully archived and saved to your Study Library.";
-"chat.alert.archiveSuccess.viewInLibrary" = "View in Library";
+"chat.alert.archiveSuccess.message" = "%@ has been successfully archived and saved to your Study Bibliothek.";
+"chat.alert.archiveSuccess.viewInLibrary" = "View in Bibliothek";
 "chat.alert.archiveSuccess.startNewChat" = "Start New Chat";
 
 // Empty State
@@ -1092,7 +1092,7 @@
 "chat.example.philosophy.4" = "Describe ethical theories";
 
 // Example Prompts - General
-"chat.example.general.1" = "Help me understand this concept";
+"chat.example.general.1" = "Hilfe me understand this concept";
 "chat.example.general.2" = "Explain this step by step";
 "chat.example.general.3" = "What does this mean?";
 "chat.example.general.4" = "Can you give me an example?";
@@ -1162,8 +1162,8 @@
 "editProfile.genderMale" = "Male";
 "editProfile.genderNonBinary" = "Non-binary";
 "editProfile.genderOther" = "Other";
-"editProfile.languagePreference" = "Language Preference";
-"editProfile.languagePicker" = "Language";
+"editProfile.languagePreference" = "Sprache Preference";
+"editProfile.languagePicker" = "Sprache";
 "editProfile.languageEnglish" = "English";
 "editProfile.languageSpanish" = "Spanish";
 "editProfile.languageFrench" = "French";
@@ -1203,7 +1203,7 @@
 "storage.title" = "Storage Control";
 "storage.totalUsed" = "Total Storage Used";
 "storage.archivedQuestions" = "Archived Questions";
-"storage.progressData" = "Progress Data";
+"storage.progressData" = "Fortschritt Data";
 "storage.archivedConversations" = "Archived Conversations";
 "storage.clear" = "Clear";
 "storage.clearAll.button" = "Clear All Data";
@@ -1216,9 +1216,9 @@
 "storage.clearQuestions.message" = "This will delete all archived questions from local storage. This cannot be undone.";
 "storage.clearQuestions.success" = "Archived questions cleared successfully";
 
-"storage.clearProgress.title" = "Clear Progress Data?";
+"storage.clearProgress.title" = "Clear Fortschritt Data?";
 "storage.clearProgress.message" = "This will delete all your learning progress, points, and streaks. This cannot be undone.";
-"storage.clearProgress.success" = "Progress data cleared successfully";
+"storage.clearProgress.success" = "Fortschritt data cleared successfully";
 
 "storage.clearConversations.title" = "Clear Archived Conversations?";
 "storage.clearConversations.message" = "This will delete all archived conversations from local storage. This cannot be undone.";
@@ -1278,7 +1278,7 @@
 "mistakeReview.errorType.unknown" = "Unknown Error";
 "mistakeReview.targetedPractice" = "Targeted Practice";
 "mistakeReview.questionsBasedOnMistakes" = "%d questions based on your mistakes";
-"mistakeReview.progressAnswered" = "Progress: %d/%d answered";
+"mistakeReview.progressAnswered" = "Fortschritt: %d/%d answered";
 "mistakeReview.correctCount" = "%d/%d correct";
 "mistakeReview.exportToPDF" = "Export to PDF";
 "mistakeReview.feedbackExact" = "Perfect! Your answer is exactly correct.";
@@ -1347,7 +1347,7 @@
 "parentMode.faceIDForParentMode" = "Face ID for Parent Mode";
 "parentMode.touchIDForParentMode" = "Touch ID for Parent Mode";
 "parentMode.opticIDForParentMode" = "Optic ID for Parent Mode";
-"parentMode.enabled" = "Enabled";
+"parentMode.enabled" = "Aktivierend";
 "parentMode.disabled" = "Disabled";
 "parentMode.faceIDUsageDescription" = "StudyMates uses Face ID to securely authenticate parents for accessing protected features and parental controls.";
 
@@ -1391,7 +1391,7 @@
 
 // Question Generation - How to Use
 "questionGeneration.howToUse.title" = "How to Use Question Generation";
-"questionGeneration.howToUse.message" = "• Select practice type: Random Practice, Mistake Review, or From Library\n• Choose subject and difficulty level\n• Select question type (Multiple Choice, True/False, Fill in Blank, etc.)\n• Set number of questions\n• Tap 'Generate Practice Questions' button\n• Start answering and receive instant feedback";
+"questionGeneration.howToUse.message" = "• Select practice type: Random Practice, Mistake Review, or From Bibliothek\n• Choose subject and difficulty level\n• Select question type (Multiple Choice, True/False, Fill in Blank, etc.)\n• Set number of questions\n• Tap 'Generate Practice Questions' button\n• Start answering and receive instant feedback";
 
 // Question Types
 "questionType.multipleChoice" = "Multiple Choice";
@@ -1481,7 +1481,7 @@
 "terms.acceptance.content" = "By accessing or using StudyAI, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use our application.";
 "terms.acceptance.title" = "Acceptance of Terms";
 "terms.accounts.content" = "You are responsible for maintaining the security of your account and password. You must provide accurate information and keep it up to date.";
-"terms.accounts.title" = "User Accounts";
+"terms.accounts.title" = "User Kontos";
 "terms.changes.content" = "We reserve the right to modify these terms at any time. We will notify you of significant changes, and your continued use constitutes acceptance of the updated terms.";
 "terms.changes.title" = "Changes to Terms";
 "terms.contact.content" = "For questions about these Terms of Service, please contact us at service@study-mates.net";
@@ -1516,10 +1516,10 @@
 "privacy.settings.coppaNotice" = "According to COPPA regulations, users under 13 require parental consent to use certain features.";
 "privacy.settings.dataManagement" = "Data Management";
 "privacy.settings.dataManagementFooter" = "You have the right to access, export, or delete your personal data at any time.";
-"privacy.settings.deleteAccount" = "Delete Account";
+"privacy.settings.deleteAccount" = "Delete Konto";
 "privacy.settings.deleteAccountAlert.button" = "Delete";
 "privacy.settings.deleteAccountAlert.message" = "This action cannot be undone. All your data will be permanently deleted.";
-"privacy.settings.deleteAccountAlert.title" = "Delete Account";
+"privacy.settings.deleteAccountAlert.title" = "Delete Konto";
 "privacy.settings.deleteAccountDesc" = "Permanently delete your account and all data";
 "privacy.settings.exportData" = "Export My Data";
 "privacy.settings.exportDataAlert.button" = "Export";
@@ -1531,20 +1531,20 @@
 "privacy.settings.privacyPolicy" = "Privacy Policy";
 "privacy.settings.requestConsent" = "Request Parental Consent";
 "privacy.settings.termsOfService" = "Terms of Service";
-"privacy.settings.title" = "Privacy Settings";
+"privacy.settings.title" = "Privacy Einstellungen";
 
 // Parent Reports section
 "privacy.parentReports.sectionHeader" = "Parent Reports";
 "privacy.parentReports.automatedReports" = "Automated Weekly Reports";
 "privacy.parentReports.automatedReportsDesc" = "Generate parent reports every Sunday at 9 PM";
-"privacy.parentReports.backgroundSync" = "Background Homework Sync";
+"privacy.parentReports.backgroundSync" = "Background Startseitework Sync";
 "privacy.parentReports.backgroundSyncDesc" = "Automatically sync homework data for reports";
 "privacy.parentReports.lastSync" = "Last Sync";
 "privacy.parentReports.never" = "Never";
 "privacy.parentReports.syncNow" = "Sync Now";
 "privacy.parentReports.nextReport" = "Next Report";
 "privacy.parentReports.footerEnabled" = "Reports are generated every Sunday at 9 PM using homework data synced throughout the week.";
-"privacy.parentReports.footerDisabled" = "Enable automated weekly parent reports to track learning progress.";
+"privacy.parentReports.footerDisabled" = "Aktivieren automated weekly parent reports to track learning progress.";
 
 // Clear Server Data
 "privacy.clearData.title" = "Clear Server Data";
@@ -1584,7 +1584,7 @@
 "home.focusMode" = "Focus Mode";
 "home.focusModeDescription" = "Study with focus music & timer";
 "settings.parentControls" = "Parent Controls";
-"settings.studySettings" = "Study Settings";
+"settings.studySettings" = "Study Einstellungen";
 
 // Custom Date Range Picker
 "library.filter.moreSpecific" = "More Specific";
@@ -1646,7 +1646,7 @@
 "subject.music" = "Music";
 
 // Pro Mode - Digital Homework
-"proMode.title" = "Digital Homework";
+"proMode.title" = "Digital Startseitework";
 "proMode.cancel" = "Cancel";
 "proMode.selectAll" = "Select All";
 "proMode.deselectAll" = "Deselect All";
@@ -1677,11 +1677,11 @@
 "proMode.quickGrade" = "Quick Grade";  // ✅ Production: Fast Mode button text
 "proMode.deepGrade" = "Deep Grade";  // ✅ Production: Deep Mode button text
 "proMode.standardGradingDescription" = "Standard grading speed (fast but may lack depth)";
-"proMode.gradeHomework" = "Grade Homework with AI";
-"proMode.deepGradeHomework" = "Deep Grade Homework";
+"proMode.gradeHomework" = "Grade Startseitework with AI";
+"proMode.deepGradeHomework" = "Deep Grade Startseitework";
 "proMode.annotationHint" = "Tip: Add annotations to provide image context for questions";
 "proMode.studentAnswerLabel" = "Student Answer: %@";
-"proMode.askAI" = "Ask AI for Help";
+"proMode.askAI" = "Ask AI for Hilfe";
 "proMode.askAIPrompt" = "Please help me understand this question";
 "proMode.askAIPromptWithSubquestion" = "Please help me understand this question (Sub-question %@)";
 "proMode.parentQuestionContext" = "[Parent Question Context]";
@@ -1703,12 +1703,12 @@
 
 
 // Homework Summary View
-"homeworkSummary.title" = "Homework Analysis Complete";
+"homeworkSummary.title" = "Startseitework Analysis Complete";
 "homeworkSummary.questionCount" = "%d questions";
 "homeworkSummary.hierarchicalQuestions" = "Hierarchical";
 "homeworkSummary.questionsPreview" = "Questions Preview";
 "homeworkSummary.moreQuestions" = "%d more questions";
-"homeworkSummary.viewDigitalHomework" = "View Digital Homework";
+"homeworkSummary.viewDigitalHomework" = "View Digital Startseitework";
 "homeworkSummary.subquestionCount" = "%d subquestions";
 "homeworkSummary.answer" = "Answer: %@";
 
@@ -1717,13 +1717,16 @@
 "proMode.partial" = "Partial";
 
 // Pro Mode - Archive / Smart Organize result toast
-"proMode.archive.toastTitle" = "✅ Added to Library";
-"proMode.archive.toast.added" = "Questions saved to library";
-"proMode.archive.toast.mistakesAnalyzed" = "Mistakes analyzed, notebook updated";
+"proMode.archive.toastTitle" = "✅ Added to Bibliothek";
+"proMode.archive.toast.added" = "%d question(s) added to library";
+"proMode.archive.toast.mistakesAdded" = "%d added to mistake notebook";
+"proMode.archive.toast.duplicates" = "%d duplicate(s) skipped";
 "proMode.smartOrganize.toastTitle" = "✅ Smart Organize Complete";
-"proMode.smartOrganize.toast.mistakesAnalyzed" = "Mistakes analyzed, notebook updated";
-"proMode.smartOrganize.toast.progressMarked" = "Progress marked";
+"proMode.smartOrganize.toast.mistakesAdded" = "%d wrong question(s) added to mistake notebook";
+"proMode.smartOrganize.toast.noMistakes" = "No mistakes — great work!";
+"proMode.smartOrganize.toast.progressMarked" = "Fortschritt marked";
 "proMode.smartOrganize.toast.albumSaved" = "Image saved to homework album";
+"proMode.smartOrganize.toast.duplicates" = "%d duplicate(s) skipped";
 
 // Pro Mode - Grading Status Messages
 "proMode.grading.deepAnalyzing" = "Deep analyzing questions...";
@@ -1757,7 +1760,7 @@
 "tomato.garden.longestSession" = "Longest Session";
 "tomato.garden.currentStreak" = "Current Streak";
 "tomato.garden.collection" = "Collection";
-"tomato.garden.collectionProgress" = "Collection Progress";
+"tomato.garden.collectionProgress" = "Collection Fortschritt";
 "tomato.garden.rarity.ordinary" = "Ordinary";
 "tomato.garden.rarity.rare" = "Rare";
 "tomato.garden.rarity.superRare" = "Super Rare";
@@ -1854,11 +1857,11 @@
 "pomodoroCalendar.accessDescription" = "Allow access to view and schedule focus sessions in your calendar.";
 "pomodoroCalendar.grantAccess" = "Grant Calendar Access";
 "pomodoroCalendar.permissionRequired" = "Calendar Permission Required";
-"pomodoroCalendar.permissionMessage" = "Please enable calendar access in Settings to schedule focus sessions.";
+"pomodoroCalendar.permissionMessage" = "Please enable calendar access in Einstellungen to schedule focus sessions.";
 
 // Deep Focus Mode
 "deepFocus.title" = "Deep Focus Mode";
-"deepFocus.enable" = "Enable Deep Focus";
+"deepFocus.enable" = "Aktivieren Deep Focus";
 "deepFocus.disable" = "Disable Deep Focus";
 "deepFocus.active" = "Deep Focus Active";
 "deepFocus.ready" = "Deep Focus Ready";
@@ -1885,9 +1888,9 @@
 "directAIHomework.performanceSummary" = "Performance Summary";
 
 // MARK: - Session Chat View
-"sessionChat.archiveSuccess" = "'%@' saved successfully\!\n\nYou can view it anytime in the Library tab.\n\nA new chat session is ready for you\!";
+"sessionChat.archiveSuccess" = "'%@' saved successfully\!\n\nYou can view it anytime in the Bibliothek tab.\n\nA new chat session is ready for you\!";
 "sessionChat.archiveSuccessDefault" = "Your conversation";
-"sessionChat.homeworkHelpMode" = "Homework Help Mode";
+"sessionChat.homeworkHelpMode" = "Startseitework Hilfe Mode";
 "sessionChat.questionNumber" = "Question #%d";
 "sessionChat.currentGrade" = "Current: %@";
 "sessionChat.deepBadge" = "DEEP";
@@ -1958,7 +1961,7 @@
 "progressiveHomework.selectAIModelDescription" = "Choose the AI model for grading";
 "progressiveHomework.aiModelLabel" = "AI Model";
 "progressiveHomework.startGrading" = "Start Grading";
-"progressiveHomework.gradingProgress" = "Grading Progress";
+"progressiveHomework.gradingProgress" = "Grading Fortschritt";
 "progressiveHomework.saveToMistakeBook" = "Save to Wrong Answer Book";
 "progressiveHomework.errorTitle" = "Error";
 "progressiveHomework.questionLabel" = "Question %@";
@@ -1970,7 +1973,7 @@
 "progressiveHomework.gradingError" = "Grading error: %@";
 "progressiveHomework.scoreLabel" = "Score:";
 "progressiveHomework.aiFeedback" = "AI Feedback";
-"progressiveHomework.askAIForHelp" = "Ask AI for Help";
+"progressiveHomework.askAIForHelp" = "Ask AI for Hilfe";
 "progressiveHomework.answerLabel" = "Answer:";
 "progressiveHomework.askAI" = "Ask AI";
 "progressiveHomework.accuracyLabel" = "Accuracy";
@@ -2002,7 +2005,7 @@
 "voiceSettings.speakingSpeed" = "Speaking Speed";
 "voiceSettings.speakingRate" = "Speaking Rate";
 "voiceSettings.volume" = "Volume";
-"voiceSettings.autoSpeakSettings" = "Auto-Speak Settings";
+"voiceSettings.autoSpeakSettings" = "Auto-Speak Einstellungen";
 "voiceSettings.autoSpeakResponses" = "Auto-Speak AI Responses";
 "voiceSettings.autoSpeakDesc" = "Automatically read AI responses aloud";
 "voiceSettings.voicePreview" = "Voice Preview";

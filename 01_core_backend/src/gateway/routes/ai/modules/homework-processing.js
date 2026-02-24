@@ -287,7 +287,12 @@ class HomeworkProcessingRoutes {
             student_answer: { type: 'string' },
             correct_answer: { type: 'string' },
             subject: { type: 'string' },
-            context_image_base64: { type: 'string' }
+            context_image_base64: { type: 'string' },
+            model_provider: { type: 'string' },
+            use_deep_reasoning: { type: 'boolean' },
+            question_type: { type: 'string' },
+            parent_question_content: { type: 'string' },
+            language: { type: 'string' }
           }
         }
       },
