@@ -126,13 +126,13 @@
 "home.chat" = "Snap & Ask";
 "home.conversationalAI" = "AI learning Assistant";
 "home.library" = "Bibliothèque";
-"home.studySessions" = "Study sessions";
+"home.studySessions" = "All your archived questions and conversations";
 "home.progress" = "Progrès";
 "home.trackLearning" = "Track learning";
 "home.practice" = "Practice";
-"home.practiceDescription" = "Generate questions & test yourself";
+"home.practiceDescription" = "Generate & test";
 "home.mistakeReview" = "Mistake Review";
-"home.mistakeReviewDescription" = "Learn from past errors";
+"home.mistakeReviewDescription" = "Target your weakness";
 "home.parentReports" = "Parent Reports";
 "home.parentReportsDescription" = "Study progress & insights";
 "home.homeworkAlbum" = "Accueilwork Album";

@@ -123,13 +123,13 @@
 "home.chat" = "拍照答疑";
 "home.conversationalAI" = "AI學習助手";
 "home.library" = "資料庫";
-"home.studySessions" = "學習記錄";
+"home.studySessions" = "所有歸檔題目與對話記錄";
 "home.progress" = "進度";
 "home.trackLearning" = "追蹤學習";
 "home.practice" = "練習";
-"home.practiceDescription" = "生成題目並測試自己";
+"home.practiceDescription" = "生成 & 測試";
 "home.mistakeReview" = "錯題復習";
-"home.mistakeReviewDescription" = "從過往錯誤中學習";
+"home.mistakeReviewDescription" = "針對薄弱環節";
 "home.parentReports" = "家長報告";
 "home.parentReportsDescription" = "學習進度與見解";
 "home.homeworkAlbum" = "作業相簿";

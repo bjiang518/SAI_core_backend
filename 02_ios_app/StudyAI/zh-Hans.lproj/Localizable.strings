@@ -123,13 +123,13 @@
 "home.chat" = "拍照答疑";
 "home.conversationalAI" = "AI学习助手";
 "home.library" = "资料库";
-"home.studySessions" = "学习记录";
+"home.studySessions" = "所有归档题目与对话记录";
 "home.progress" = "进度";
 "home.trackLearning" = "追蹤学习";
 "home.practice" = "练习";
-"home.practiceDescription" = "生成题目并测试自己";
+"home.practiceDescription" = "生成 & 测试";
 "home.mistakeReview" = "错题复习";
-"home.mistakeReviewDescription" = "从过往错误中学习";
+"home.mistakeReviewDescription" = "针对薄弱环节";
 "home.parentReports" = "家长报告";
 "home.parentReportsDescription" = "学习进度与见解";
 "home.homeworkAlbum" = "作业相簿";
