@@ -1095,15 +1095,13 @@ class KeychainService {
             throw AuthError.keychainError
         }
 
-        authLogger.info("✅ [Keychain] Token format validated (length: \(trimmedToken.count))")
+        authLogger.debug("✅ [Keychain] Token format validated (length: \(trimmedToken.count))")
 
         // Convert to data with error handling
         guard let data = trimmedToken.data(using: .utf8) else {
             authLogger.error("❌ [Keychain] Failed to encode token to UTF-8")
             throw AuthError.keychainError
         }
-
-        authLogger.info("   Data size: \(data.count) bytes")
 
         // Save to keychain (thread-safe)
         try keychainQueue.sync {
@@ -1123,7 +1121,7 @@ class KeychainService {
             throw AuthError.keychainError
         }
 
-        authLogger.info("✅ [Keychain] Token saved and verified successfully")
+        authLogger.debug("✅ [Keychain] Token saved and verified successfully")
     }
 
     func getAuthToken() -> String? {

@@ -49,7 +49,7 @@ class SessionManager: ObservableObject {
     func updateActivity() {
         let now = Date()
         userDefaults.set(now.timeIntervalSince1970, forKey: lastActiveTimestampKey)
-        print("🔐 [SessionManager] Activity updated at \(now)")
+        // Activity timestamp updated silently
     }
 
     /// End the current session (called on logout or forced expiration)
@@ -76,18 +76,13 @@ class SessionManager: ObservableObject {
         let now = Date()
         let minutesSinceLastActivity = now.timeIntervalSince(lastActiveDate) / 60.0
 
-        print("🔐 [SessionManager] Last activity: \(lastActiveDate)")
-        print("🔐 [SessionManager] Minutes since last activity: \(String(format: "%.1f", minutesSinceLastActivity))")
-        print("🔐 [SessionManager] Session timeout threshold: \(sessionTimeoutMinutes) minutes")
-
         if minutesSinceLastActivity > sessionTimeoutMinutes {
-            print("🔐 [SessionManager] ⚠️ Session expired (inactive for \(String(format: "%.1f", minutesSinceLastActivity)) minutes)")
+            print("🔐 [SessionManager] ⚠️ Session expired (\(String(format: "%.1f", minutesSinceLastActivity))min inactive)")
             isSessionValid = false
             // If we have a stored session but it's expired, require Face ID re-auth
             requiresFaceIDReauth = true
             return false
         } else {
-            print("🔐 [SessionManager] ✅ Session is valid (active \(String(format: "%.1f", minutesSinceLastActivity)) minutes ago)")
             isSessionValid = true
             requiresFaceIDReauth = false
             return true
@@ -99,13 +94,11 @@ class SessionManager: ObservableObject {
         // Update last active timestamp but DON'T end the session
         // Session will only expire if inactive for longer than sessionTimeoutMinutes (15 minutes)
         updateActivity()
-        print("🔐 [SessionManager] App going to background - updating activity timestamp (session remains valid for \(sessionTimeoutMinutes) minutes)")
     }
 
     /// Called when app returns from background
     /// Returns true if session is still valid, false if expired
     func appDidBecomeActive() -> Bool {
-        print("🔐 [SessionManager] App returning from background, checking session validity...")
         return checkSessionValidity()
     }
 

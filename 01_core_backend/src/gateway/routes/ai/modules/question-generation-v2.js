@@ -248,44 +248,8 @@ module.exports = async function (fastify, opts) {
   // ============================================
   // LEGACY ROUTES (redirect to unified endpoint)
   // ============================================
-
-  /**
-   * Legacy: Generate random questions
-   */
-  fastify.post('/api/ai/generate-questions/random', async (request, reply) => {
-    const { subject, difficulty, count, topics } = request.body;
-    const userId = await getUserId(request);
-
-    if (!userId) {
-      return reply.status(401).send({
-        success: false,
-        error: 'AUTHENTICATION_REQUIRED',
-        message: 'Please log in to generate practice questions'
-      });
-    }
-
-    const startTime = Date.now();
-    try {
-      const result = await generateQuestionsWithAIEngine(
-        userId, subject, topics?.[0],
-        mapDifficultyToNumber(difficulty), count || 5, 'en', 'any', aiClient
-      );
-      const totalLatency = Date.now() - startTime;
-      return {
-        success: true,
-        questions: result.questions,
-        metadata: { ...result.metadata, total_latency_ms: totalLatency },
-        _performance: { latency_ms: totalLatency, implementation: 'ai_engine' }
-      };
-    } catch (error) {
-      fastify.log.error('❌ Random question generation failed:', error);
-      return reply.status(500).send({
-        success: false,
-        error: 'GENERATION_FAILED',
-        message: error.message || 'Failed to generate practice questions'
-      });
-    }
-  });
+  // NOTE: /api/ai/generate-questions/random and /api/ai/generate-questions/conversations
+  // have been moved to question-generation-v2.REDACTED.js (no iOS callers confirmed).
 
   /**
    * Legacy: Mistake-based questions → redirect to unified mode 2
@@ -335,54 +299,8 @@ module.exports = async function (fastify, opts) {
     }
   });
 
-  /**
-   * Legacy: Conversation/archive-based questions → redirect to unified mode 3
-   */
-  fastify.post('/api/ai/generate-questions/conversations', async (request, reply) => {
-    const { subject, conversation_data = [], question_data = [], config = {} } = request.body;
-    const userId = await getUserId(request);
-
-    if (!userId) {
-      return reply.status(401).send({
-        success: false,
-        error: 'AUTHENTICATION_REQUIRED',
-        message: 'Please log in to generate practice questions'
-      });
-    }
-
-    if ((!conversation_data || conversation_data.length === 0) && (!question_data || question_data.length === 0)) {
-      return reply.status(400).send({
-        success: false,
-        error: 'NO_ARCHIVE_DATA_PROVIDED',
-        message: 'Mode 3 requires at least one item in conversation_data or question_data'
-      });
-    }
-
-    const count = config.question_count || 5;
-    const language = config.language || 'en';
-    const questionType = config.question_type || 'any';
-    const difficulty = config.difficulty || 3;
-
-    const startTime = Date.now();
-    try {
-      const result = await generateConversationQuestionsWithAIEngine(userId, subject, conversation_data, question_data, difficulty, count, language, questionType, aiClient);
-      const totalLatency = Date.now() - startTime;
-      return {
-        success: true,
-        questions: result.questions,
-        metadata: { ...result.metadata, total_latency_ms: totalLatency },
-        _performance: { latency_ms: totalLatency, implementation: 'ai_engine' }
-      };
-    } catch (error) {
-      fastify.log.error('❌ Archive question generation failed:', error);
-      return reply.status(500).send({
-        success: false,
-        error: 'GENERATION_FAILED',
-        message: error.message || 'Failed to generate practice questions'
-      });
-    }
-  });
 };
+// NOTE: /api/ai/generate-questions/conversations moved to question-generation-v2.REDACTED.js
 
 // ============================================
 // Implementation Functions
@@ -576,17 +494,8 @@ async function generateConversationQuestionsWithAIEngine(userId, subject, conver
   }
 }
 
-/**
- * Map legacy difficulty string to number
- */
-function mapDifficultyToNumber(difficulty) {
-  const map = {
-    'easy': 2,
-    'medium': 3,
-    'hard': 4
-  };
-  return map[difficulty] || 3;
-}
+// mapDifficultyToNumber() moved to question-generation-v2.REDACTED.js
+// (was only used by the /random legacy route, which was redacted)
 
 /**
  * Log metrics to database

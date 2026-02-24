@@ -543,7 +543,6 @@ class PointsEarningManager: ObservableObject {
 
             if decodedToday.date == todayString {
                 todayProgress = decodedToday
-                print("📊 [loadStoredData] Loaded today's progress: \(decodedToday.totalQuestions) questions, \(decodedToday.correctAnswers) correct")
             } else {
                 // Stale data from previous day, initialize empty
                 todayProgress = DailyProgress(date: todayString)
@@ -555,21 +554,18 @@ class PointsEarningManager: ObservableObject {
             dateFormatter.dateFormat = "yyyy-MM-dd"
             let todayString = dateFormatter.string(from: Date())
             todayProgress = DailyProgress(date: todayString)
-            print("📊 [loadStoredData] No saved progress, initialized empty for \(todayString)")
         }
 
         // Load this week's progress history (counter-based)
         if let weekData = userDefaults.data(forKey: thisWeekProgressKey),
            let decodedWeek = try? JSONDecoder().decode([DailyProgress].self, from: weekData) {
             thisWeekProgress = decodedWeek
-            print("📊 [loadStoredData] Loaded \(decodedWeek.count) days of weekly progress")
         }
 
         // Load this month's progress history (counter-based)
         if let monthData = userDefaults.data(forKey: thisMonthProgressKey),
            let decodedMonth = try? JSONDecoder().decode([DailyProgress].self, from: monthData) {
             thisMonthProgress = decodedMonth
-            print("📊 [loadStoredData] Loaded \(decodedMonth.count) days of monthly progress")
         }
 
         lastTimezoneUpdate = userDefaults.object(forKey: lastTimezoneKey) as? Date
@@ -718,18 +714,16 @@ class PointsEarningManager: ObservableObject {
 
         let todayString = dateFormatter.string(from: today)
 
-        logger.info("🔄 [checkDailyReset] InstanceID: \(self.instanceId) - Checking daily reset")
-        logger.info("🔄 [checkDailyReset] Today: \(todayString), Last Reset: \(lastResetDateString ?? "nil")")
+        logger.debug("🔄 [checkDailyReset] Today: \(todayString), Last Reset: \(lastResetDateString ?? "nil")")
 
         // ✅ FIX: Only reset on date change, never mid-day
         // Previous logic incorrectly reset when question count > 10, causing data loss
-        logger.info("🔄 [checkDailyReset] Current todayProgress: \(self.todayProgress?.totalQuestions ?? 0) questions, \(self.todayProgress?.correctAnswers ?? 0) correct")
 
         // Reset ONLY if we haven't reset today yet (different date)
         let shouldReset = (lastResetDateString != todayString)
 
         if shouldReset {
-            logger.info("🔄 [checkDailyReset] ⚠️ PERFORMING DAILY RESET - Reason: New day (was: \(lastResetDateString ?? "never"), now: \(todayString))")
+            logger.info("🔄 [checkDailyReset] Daily reset — new day (was: \(lastResetDateString ?? "never"), now: \(todayString))")
 
             // Calculate streak before resetting daily data
             updateStreakForNewDay()
@@ -743,9 +737,9 @@ class PointsEarningManager: ObservableObject {
             // Force save the changes
             forceSave()
 
-            logger.info("🔄 [checkDailyReset] ✅ Daily reset completed - Date saved: \(todayString)")
+            logger.debug("🔄 [checkDailyReset] Daily reset completed — Date saved: \(todayString)")
         } else {
-            logger.info("🔄 [checkDailyReset] ✅ No reset needed - Already reset today")
+            logger.debug("🔄 [checkDailyReset] No reset needed — already reset today")
         }
     }
     
