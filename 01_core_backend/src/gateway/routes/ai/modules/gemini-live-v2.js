@@ -322,7 +322,9 @@ module.exports = async function (fastify, opts) {
                 };
 
                 if (geminiSocket && geminiSocket.readyState === WebSocket.OPEN) {
-                    geminiSocket.send(JSON.stringify(setupMessage));
+                    const setupJson = JSON.stringify(setupMessage);
+                    logger.info({ sessionId, payloadBytes: setupJson.length, model: setupMessage.setup.model }, '[Live] sending setup to Gemini');
+                    geminiSocket.send(setupJson);
 
                     // If Gemini doesn't confirm setup within 8s, notify iOS so it can show
                     // "Tap to Reactivate" rather than hanging indefinitely in .connecting state.
@@ -792,7 +794,9 @@ module.exports = async function (fastify, opts) {
                     };
 
                     if (geminiSocket && geminiSocket.readyState === WebSocket.OPEN) {
-                        geminiSocket.send(JSON.stringify(replayMessage));
+                        const json = JSON.stringify(replayMessage);
+                        logger.info({ sessionId, payload: json }, '[Live] replay: FULL PAYLOAD');
+                        geminiSocket.send(json);
                     }
                 } catch (error) {
                     logger.error({ error }, '[Live] replay: error');
