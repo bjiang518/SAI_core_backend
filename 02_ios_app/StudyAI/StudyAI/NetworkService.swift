@@ -107,10 +107,14 @@ class NetworkService: ObservableObject {
     // Conversation History - Public for backward compatibility
     private var internalConversationHistory: [ConversationMessage] = []
     private let maxHistorySize = 50 // Prevent unlimited growth
-    
+
     // Backward compatibility: Provide dictionary format for existing views
     @Published var conversationHistory: [[String: String]] = []
-    
+
+    /// Called on @MainActor whenever a message dict is appended to conversationHistory.
+    /// SessionChatView sets this to mirror text messages into `allMessages`.
+    var onMessageAdded: (([String: String]) -> Void)?
+
     // Internal conversation management
     internal func addToConversationHistory(role: String, content: String, deepMode: Bool = false) {
         let message = ConversationMessage(role: role, content: content, timestamp: Date())
@@ -125,12 +129,20 @@ class NetworkService: ObservableObject {
         }
 
         conversationHistory.append(messageDict)
+        onMessageAdded?(messageDict)
 
         // Limit history size to prevent memory issues
         if internalConversationHistory.count > maxHistorySize {
             internalConversationHistory.removeFirst(internalConversationHistory.count - maxHistorySize)
             conversationHistory.removeFirst(conversationHistory.count - maxHistorySize)
         }
+    }
+
+    /// Append a pre-built message dict to conversationHistory and fire the onMessageAdded callback.
+    /// Use this instead of direct `conversationHistory.append(dict)` calls.
+    func appendToConversationHistory(_ dict: [String: String]) {
+        conversationHistory.append(dict)
+        onMessageAdded?(dict)
     }
 
     // MARK: - Public Conversation Management (for SessionChatView)

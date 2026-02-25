@@ -285,7 +285,7 @@ class SessionChatViewModel: ObservableObject {
                     }
 
                     // Add message with image marker
-                    networkService.conversationHistory.append([
+                    networkService.appendToConversationHistory([
                         "role": "user",
                         "content": message,
                         "hasImage": "true",
@@ -582,7 +582,7 @@ class SessionChatViewModel: ObservableObject {
             let messageId = UUID().uuidString
             let userMessage = prompt.isEmpty ? "📷 [Uploaded image for analysis]" : prompt
             imageMessages[messageId] = imageData
-            networkService.conversationHistory.append([
+            networkService.appendToConversationHistory([
                 "role": "user",
                 "content": userMessage,
                 "messageId": messageId,
@@ -626,7 +626,7 @@ class SessionChatViewModel: ObservableObject {
                         self.isProcessingImage = false
 
                         if success, let finalText = fullText {
-                            self.networkService.conversationHistory.append([
+                            self.networkService.appendToConversationHistory([
                                 "role": "assistant",
                                 "content": finalText
                             ])
@@ -962,7 +962,7 @@ class SessionChatViewModel: ObservableObject {
                 messageDict["deepMode"] = "true"
             }
 
-            networkService.conversationHistory.append(messageDict)
+            networkService.appendToConversationHistory(messageDict)
         } else {
             // Add user message to history
             persistMessage(role: "user", content: message, deepMode: deepMode)
@@ -1039,7 +1039,7 @@ class SessionChatViewModel: ObservableObject {
                             // 1. Complete text rendering (show all text immediately)
                             self.textRenderer.complete()
                             // 2. Add to conversation history (so it shows in regular message list)
-                            self.networkService.conversationHistory.append([
+                            self.networkService.appendToConversationHistory([
                                 "role": "assistant",
                                 "content": text
                             ])
@@ -1185,7 +1185,7 @@ class SessionChatViewModel: ObservableObject {
                                 // ✅ PERFORMANCE FIX: Move streaming message to conversationHistory
                                 if let finalText = fullText {
                                     // Add the complete message to conversation history
-                                    self.networkService.conversationHistory.append([
+                                    self.networkService.appendToConversationHistory([
                                         "role": "assistant",
                                         "content": finalText
                                     ])
@@ -1313,7 +1313,7 @@ class SessionChatViewModel: ObservableObject {
                 // Save user message with image flag
                 if let msgId = messageId {
                     // Add message with image marker
-                    networkService.conversationHistory.append([
+                    networkService.appendToConversationHistory([
                         "role": "user",
                         "content": message,
                         "hasImage": "true",
@@ -1361,7 +1361,7 @@ class SessionChatViewModel: ObservableObject {
                                     self.networkService.conversationHistory[self.networkService.conversationHistory.count - 1]["content"] = accumulatedText
                                 } else {
                                     // Add new assistant message with accumulated text
-                                    self.networkService.conversationHistory.append([
+                                    self.networkService.appendToConversationHistory([
                                         "role": "assistant",
                                         "content": accumulatedText
                                     ])
@@ -1390,7 +1390,7 @@ class SessionChatViewModel: ObservableObject {
                                             self.networkService.conversationHistory[self.networkService.conversationHistory.count - 1]["content"] = finalText
                                         } else {
                                             // Add final complete text
-                                            self.networkService.conversationHistory.append([
+                                            self.networkService.appendToConversationHistory([
                                                 "role": "assistant",
                                                 "content": finalText
                                             ])
@@ -1458,7 +1458,7 @@ class SessionChatViewModel: ObservableObject {
                                 if self.networkService.conversationHistory.last?["role"] == "assistant" {
                                     self.networkService.conversationHistory[self.networkService.conversationHistory.count - 1]["content"] = partialText
                                 } else {
-                                    self.networkService.conversationHistory.append([
+                                    self.networkService.appendToConversationHistory([
                                         "role": "assistant",
                                         "content": partialText
                                     ])
@@ -1680,7 +1680,7 @@ class SessionChatViewModel: ObservableObject {
 
             // Add to NetworkService history (so it appears in chat)
             DispatchQueue.main.async {
-                self.networkService.conversationHistory.append(partialMessage)
+                self.networkService.appendToConversationHistory(partialMessage)
                 print("🛑 [Generation] Added partial message to history")
                 print("🛑 [Generation] Total messages in history: \(self.networkService.conversationHistory.count)")
             }
