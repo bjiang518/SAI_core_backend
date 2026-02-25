@@ -283,6 +283,8 @@ struct SessionChatView: View {
                         Button(action: {
                         Task { @MainActor in
                             @MainActor func doEnterLive(_ sessionId: String) {
+                                // Stop any playing TTS before entering Live mode
+                                ttsQueueService.stopAllTTS()
                                 let vm = VoiceChatViewModel(sessionId: sessionId, subject: viewModel.selectedSubject, voiceType: voiceService.voiceSettings.voiceType)
                                 // Wire voice message callback into unified message list
                                 vm.onMessageAppended = { voiceMsg in
@@ -301,7 +303,11 @@ struct SessionChatView: View {
                                 vm.connectToGeminiLive()
                                 withAnimation(.easeInOut(duration: 0.3)) {
                                     isLiveMode = true
-                                    hasConversationStarted = true
+                                    // Only mark conversation started if there are existing messages;
+                                    // a fresh Live session has no messages yet so avatar stays hidden
+                                    if !allMessages.isEmpty {
+                                        hasConversationStarted = true
+                                    }
                                 }
                             }
                             if let sessionId = networkService.currentSessionId {
@@ -2566,7 +2572,7 @@ struct SessionChatView: View {
     /// the same vertical space as UIKit navigation bar items like the ⋯ button.
     @ViewBuilder
     private var floatingAvatarOverlay: some View {
-        if hasConversationStarted {
+        if hasConversationStarted && !isLiveMode {
             ZStack(alignment: .center) {
                 // Tap area — large invisible circle
                 Circle()
