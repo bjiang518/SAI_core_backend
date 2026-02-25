@@ -504,8 +504,9 @@ extension HomeView {
                     title: NSLocalizedString("home.mistakeReview", comment: ""),
                     subtitle: NSLocalizedString("home.mistakeReviewDescription", comment: ""),
                     color: colorScheme == .dark ? DesignTokens.Colors.rainbowIndigo.dark : DesignTokens.Colors.rainbowIndigo.light,
-                    lottieAnimation: "wronglistingcheck",
-                    lottieScale: 0.22,
+                    lottieAnimation: "mistakeNotebook",
+                    lottieScale: 0.16,
+                    lottieOffset: CGPoint(x: 0, y: 5),
                     action: { showingMistakeReview = true }
                 )
 

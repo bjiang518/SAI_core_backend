@@ -82,6 +82,7 @@ struct MistakeReviewView: View {
 
     @State private var showingMistakeList = false
     @State private var showingInstructions = false
+    @StateObject private var appState = AppState.shared
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -227,6 +228,12 @@ struct MistakeReviewView: View {
                     )
                 }
             }
+            .onChange(of: appState.shouldDismissPracticeStack) { _, shouldDismiss in
+                if shouldDismiss {
+                    showingMistakeList = false
+                    appState.shouldDismissPracticeStack = false
+                }
+            }
     }
 
     // MARK: - Helper Methods
@@ -365,6 +372,7 @@ struct MistakeQuestionListView: View {
     @StateObject private var profileService = ProfileService.shared
     @StateObject private var themeManager = ThemeManager.shared
     @StateObject private var sessionManager = PracticeSessionManager.shared
+    @StateObject private var appState = AppState.shared
     @State private var selectedQuestions: Set<String> = []
     @State private var isSelectionMode = false
     @State private var showingPDFGenerator = false
@@ -641,6 +649,11 @@ struct MistakeQuestionListView: View {
                     subject: subject,
                     sessionId: resumeSessionId ?? currentSessionId
                 )
+            }
+            .onChange(of: appState.shouldDismissPracticeStack) { _, shouldDismiss in
+                if shouldDismiss {
+                    showingPracticeQuestions = false
+                }
             }
             .sheet(isPresented: $showingConfigurationSheet) {
                 // ✅ NEW: Show configuration sheet before generating
@@ -2067,7 +2080,7 @@ struct PracticeQuestionCard: View {
     @State private var isArchived: Bool = false
     @State private var showingArchiveSuccess: Bool = false
 
-    @EnvironmentObject private var appState: AppState
+    @StateObject private var appState = AppState.shared
     @Environment(\.dismiss) private var dismiss
 
     private var isGraded: Bool {
@@ -2130,8 +2143,7 @@ struct PracticeQuestionCard: View {
                 Divider()
 
                 // Question text
-                Text(question.question)
-                    .font(.body)
+                MarkdownLaTeXText(question.question, fontSize: 16, isStreaming: false)
                     .padding(.vertical, 4)
                     .onAppear {
                         #if DEBUG
@@ -2331,9 +2343,32 @@ struct PracticeQuestionCard: View {
                             .cornerRadius(8)
                         }
 
-                        // ✅ NEW: Action buttons (Archive + Follow-up)
-                        VStack(spacing: 12) {
-                            // Archive button
+                        // ✅ NEW: Action buttons (Follow-up + Archive) side by side
+                        HStack(spacing: 12) {
+                            // Follow-up button (left)
+                            Button(action: askAIForHelp) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "bubble.left.and.bubble.right.fill")
+                                        .font(.body)
+                                    Text(NSLocalizedString("mistakeReview.followUp", comment: ""))
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
+                                }
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 50)
+                                .background(
+                                    LinearGradient(
+                                        colors: [Color.orange, Color.orange.opacity(0.8)],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .cornerRadius(12)
+                                .shadow(color: Color.orange.opacity(0.3), radius: 8, x: 0, y: 4)
+                            }
+
+                            // Archive button (right)
                             Button(action: archiveQuestion) {
                                 HStack(spacing: 8) {
                                     if isArchiving {
@@ -2369,29 +2404,6 @@ struct PracticeQuestionCard: View {
                                 .cornerRadius(12)
                             }
                             .disabled(isArchiving || isArchived)
-
-                            // Follow-up button
-                            Button(action: askAIForHelp) {
-                                HStack(spacing: 12) {
-                                    Image(systemName: "bubble.left.and.bubble.right.fill")
-                                        .font(.body)
-                                    Text(NSLocalizedString("mistakeReview.followUp", comment: ""))
-                                        .font(.body)
-                                        .fontWeight(.semibold)
-                                }
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 50)
-                                .background(
-                                    LinearGradient(
-                                        colors: [Color.orange, Color.orange.opacity(0.8)],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                                .cornerRadius(12)
-                                .shadow(color: Color.orange.opacity(0.3), radius: 8, x: 0, y: 4)
-                            }
                         }
                         .padding(.top, 8)
                     }

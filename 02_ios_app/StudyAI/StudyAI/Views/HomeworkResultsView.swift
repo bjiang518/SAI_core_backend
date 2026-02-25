@@ -725,10 +725,8 @@ struct QuestionAnswerCard: View {
                     // Parent Content
                     VStack(alignment: .leading, spacing: 4) {
                         HStack {
-                            Text(question.parentContent ?? "Parent Question")
-                                .font(.body)
+                            MarkdownLaTeXText(question.parentContent ?? "Parent Question", fontSize: 16)
                                 .fontWeight(.semibold)
-                                .multilineTextAlignment(.leading)
                                 .foregroundColor(DesignTokens.AdaptiveColors.primaryText)
 
                             Image(systemName: "arrow.down.right.and.arrow.up.left")
@@ -1124,9 +1122,7 @@ struct SubquestionCard: View {
 
                     // Subquestion Text
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(subquestion.questionText)
-                            .font(.subheadline)
-                            .multilineTextAlignment(.leading)
+                        MarkdownLaTeXText(subquestion.questionText, fontSize: 15)
                             .foregroundColor(DesignTokens.AdaptiveColors.primaryText)
 
                         // Grade and Score
@@ -1181,10 +1177,8 @@ struct SubquestionCard: View {
                                     .fontWeight(.semibold)
                                     .foregroundColor(.gray)
 
-                                Text(studentAnswer)
-                                    .font(.subheadline)
+                                MarkdownLaTeXText(studentAnswer, fontSize: 15)
                                     .foregroundColor(DesignTokens.AdaptiveColors.primaryText)
-                                    .multilineTextAlignment(.leading)
                                     .textSelection(.enabled)
                             }
 
@@ -1230,10 +1224,8 @@ struct SubquestionCard: View {
                                     .fontWeight(.semibold)
                                     .foregroundColor(.gray)
 
-                                Text(correctAnswer)
-                                    .font(.subheadline)
+                                MarkdownLaTeXText(correctAnswer, fontSize: 15)
                                     .foregroundColor(DesignTokens.AdaptiveColors.primaryText)
-                                    .multilineTextAlignment(.leading)
                                     .textSelection(.enabled)
                             }
 

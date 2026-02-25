@@ -1293,7 +1293,7 @@
 "mistakeReview.gradingInstant" = "即時";
 "mistakeReview.gradingAI" = "AI 分析";
 "mistakeReview.archived" = "已歸檔";
-"mistakeReview.archiveQuestion" = "歸檔題目";
+"mistakeReview.archiveQuestion" = "歸檔";
 "mistakeReview.followUp" = "繼續追問";
 "mistakeReview.questionArchived" = "題目已歸檔";
 "mistakeReview.questionArchivedMessage" = "此練習題已儲存至你的檔案，供日後複習使用。";

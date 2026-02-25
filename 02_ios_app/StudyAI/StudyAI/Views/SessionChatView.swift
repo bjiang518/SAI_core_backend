@@ -427,36 +427,28 @@ struct SessionChatView: View {
             } message: {
                 Text(NSLocalizedString("chat.alert.cameraPermission.message", comment: ""))
             }
-            .confirmationDialog(
-                NSLocalizedString("chat.alert.currentChatExists.title", comment: "Current Chat Exists"),
-                isPresented: $showingExistingSessionAlert,
-                titleVisibility: .visible
-            ) {
-                Button(NSLocalizedString("chat.alert.currentChatExists.archiveCurrent", comment: "Archive Current")) {
-                    // ✅ UPDATED: Archive current conversation and show progress
-                    showingArchiveProgress = true
-                    appState.clearPendingChatMessage()
-                    showingExistingSessionAlert = false
+            .overlay {
+                if showingExistingSessionAlert {
+                    ExistingSessionDialog(
+                        onArchive: {
+                            showingArchiveProgress = true
+                            appState.clearPendingChatMessage()
+                            showingExistingSessionAlert = false
+                        },
+                        onContinue: {
+                            viewModel.proceedWithHomeworkQuestion()
+                            showingExistingSessionAlert = false
+                        },
+                        onStartNew: {
+                            viewModel.startNewConversationWithHomeworkQuestion()
+                            showingExistingSessionAlert = false
+                        },
+                        onCancel: {
+                            appState.clearPendingChatMessage()
+                            showingExistingSessionAlert = false
+                        }
+                    )
                 }
-
-                Button(NSLocalizedString("chat.alert.currentChatExists.continueCurrent", comment: "Continue Current")) {
-                    // Continue with existing conversation (send question to current session)
-                    viewModel.proceedWithHomeworkQuestion()
-                    showingExistingSessionAlert = false
-                }
-
-                Button(NSLocalizedString("chat.alert.currentChatExists.startNew", comment: "Start New"), role: .destructive) {
-                    // Start completely new conversation (discard current)
-                    viewModel.startNewConversationWithHomeworkQuestion()
-                    showingExistingSessionAlert = false
-                }
-
-                Button(NSLocalizedString("common.cancel", comment: "Cancel"), role: .cancel) {
-                    appState.clearPendingChatMessage()
-                    showingExistingSessionAlert = false
-                }
-            } message: {
-                Text(NSLocalizedString("chat.alert.currentChatExists.message", comment: "You have an active conversation. What would you like to do?"))
             }
             .alert(NSLocalizedString("chat.alert.error.title", comment: ""), isPresented: .constant(!viewModel.errorMessage.isEmpty)) {
                 Button(NSLocalizedString("common.ok", comment: "")) {
@@ -3193,6 +3185,89 @@ struct WeChatStyleVoiceInput: View {
 extension CGSize {
     var magnitude: CGFloat {
         return sqrt(width * width + height * height)
+    }
+}
+
+// MARK: - Existing Session Dialog
+
+private struct ExistingSessionDialog: View {
+    let onArchive: () -> Void
+    let onContinue: () -> Void
+    let onStartNew: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        ZStack {
+            // Dim background
+            Color.black.opacity(0.4)
+                .ignoresSafeArea()
+                .onTapGesture { onCancel() }
+
+            VStack(spacing: 0) {
+                // Push dialog below center
+                Spacer().frame(height: 80)
+
+                VStack(spacing: 0) {
+                    // Title + message
+                    VStack(spacing: 8) {
+                        Text(NSLocalizedString("chat.alert.currentChatExists.title", comment: "Current Chat Exists"))
+                            .font(.system(size: 17, weight: .semibold))
+                            .multilineTextAlignment(.center)
+
+                        Text(NSLocalizedString("chat.alert.currentChatExists.message", comment: "You have an active conversation. What would you like to do?"))
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 24)
+                    .padding(.bottom, 20)
+
+                    Divider()
+
+                    dialogButton(
+                        label: NSLocalizedString("chat.alert.currentChatExists.archiveCurrent", comment: "Archive Current"),
+                        color: .primary,
+                        action: onArchive
+                    )
+                    Divider()
+                    dialogButton(
+                        label: NSLocalizedString("chat.alert.currentChatExists.continueCurrent", comment: "Continue Current"),
+                        color: .primary,
+                        action: onContinue
+                    )
+                    Divider()
+                    dialogButton(
+                        label: NSLocalizedString("chat.alert.currentChatExists.startNew", comment: "Start New"),
+                        color: .red,
+                        action: onStartNew
+                    )
+                    Divider()
+                    dialogButton(
+                        label: NSLocalizedString("common.cancel", comment: "Cancel"),
+                        color: .secondary,
+                        action: onCancel
+                    )
+                }
+                .background(.regularMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .padding(.horizontal, 40)
+
+                Spacer()
+            }
+        }
+        .transition(.opacity)
+        .animation(.easeInOut(duration: 0.2), value: true)
+    }
+
+    private func dialogButton(label: String, color: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.system(size: 16))
+                .foregroundColor(color)
+                .frame(maxWidth: .infinity)
+                .frame(height: 50)
+        }
     }
 }
 
