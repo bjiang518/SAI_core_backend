@@ -1499,20 +1499,20 @@ struct SessionChatView: View {
     private func exitLiveMode() {
         liveVMHolder.vm?.disconnect()
 
-        // Sync Live voice turns into networkService.conversationHistory so:
-        // 1. Non-live AI responses that follow have full context.
-        // 2. allMessages can be rebuilt correctly if the view re-appears.
-        // We only add turns that have non-empty text (transcription arrived).
+        // Sync Live voice turns into networkService.conversationHistory so
+        // subsequent non-live AI responses have full context of what was said.
+        // Only sync .voice entries (they are exclusively from the current Live session).
+        // Skip turns with empty text (transcription never arrived).
+        let historyCountBefore = networkService.conversationHistory.count
         for msg in allMessages {
             if case .voice(let voiceMsg, _) = msg, !voiceMsg.text.isEmpty {
                 let role = voiceMsg.role == .user ? "user" : "assistant"
-                let dict: [String: String] = ["role": role, "content": voiceMsg.text]
-                // appendToConversationHistory appends + fires onMessageAdded.
-                // We DON'T want to add these back to allMessages again, so bypass the callback.
-                networkService.conversationHistory.append(dict)
-                textMessageIndex += 1
+                // Append directly — don't fire onMessageAdded (would re-add to allMessages)
+                networkService.conversationHistory.append(["role": role, "content": voiceMsg.text])
             }
         }
+        let added = networkService.conversationHistory.count - historyCountBefore
+        textMessageIndex += added
 
         liveVMHolder.set(nil)
         withAnimation(.easeInOut(duration: 0.3)) {
