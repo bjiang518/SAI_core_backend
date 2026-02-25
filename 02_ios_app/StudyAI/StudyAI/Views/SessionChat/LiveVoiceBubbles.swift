@@ -126,6 +126,16 @@ struct LiveUserVoiceBubble: View {
                 .buttonStyle(.plain)
                 .disabled(message.audioData == nil)
 
+                // Transcript text — shown when STT has resolved, even after leaving Live mode
+                if !message.text.isEmpty {
+                    Text(message.text)
+                        .font(.system(size: 14))
+                        .foregroundColor(themeManager.primaryText)
+                        .multilineTextAlignment(.trailing)
+                        .padding(.horizontal, 4)
+                        .frame(maxWidth: 260, alignment: .trailing)
+                }
+
                 Text(timeString(from: message.timestamp))
                     .font(.caption2)
                     .foregroundColor(themeManager.secondaryText)

@@ -937,8 +937,11 @@ struct SessionChatView: View {
                                             .id(msg.id)
                                     }
                                 } else {
+                                    // AI voice message — show transcript text.
+                                    // If transcription is empty (STT didn't arrive), show a placeholder.
+                                    let displayText = voiceMsg.text.isEmpty ? "🎙️ Voice message" : voiceMsg.text
                                     ModernAIMessageView(
-                                        message: voiceMsg.text,
+                                        message: displayText,
                                         voiceType: voiceService.voiceSettings.voiceType,
                                         isStreaming: false,
                                         messageId: "voice-ai-\(voiceMsg.id.uuidString)"
@@ -1495,11 +1498,25 @@ struct SessionChatView: View {
 
     private func exitLiveMode() {
         liveVMHolder.vm?.disconnect()
+
+        // Sync Live voice turns into networkService.conversationHistory so:
+        // 1. Non-live AI responses that follow have full context.
+        // 2. allMessages can be rebuilt correctly if the view re-appears.
+        // We only add turns that have non-empty text (transcription arrived).
+        for msg in allMessages {
+            if case .voice(let voiceMsg, _) = msg, !voiceMsg.text.isEmpty {
+                let role = voiceMsg.role == .user ? "user" : "assistant"
+                let dict: [String: String] = ["role": role, "content": voiceMsg.text]
+                // appendToConversationHistory appends + fires onMessageAdded.
+                // We DON'T want to add these back to allMessages again, so bypass the callback.
+                networkService.conversationHistory.append(dict)
+                textMessageIndex += 1
+            }
+        }
+
         liveVMHolder.set(nil)
-        // ✅ Do NOT clear allMessages — voice messages stay visible after ending Live
         withAnimation(.easeInOut(duration: 0.3)) {
             isLiveMode = false
-            // If no messages exist at all, return to the empty state
             if allMessages.isEmpty {
                 hasConversationStarted = false
             }
