@@ -776,7 +776,7 @@ module.exports = async function (fastify, opts) {
                     for (const t of rawTurns) {
                         const last = merged[merged.length - 1];
                         if (last && last.role === t.role) {
-                            last.parts.push({ text: t.text });
+                            last.parts.push({ text: '\n' + t.text });
                         } else {
                             merged.push({ role: t.role, parts: [{ text: t.text }] });
                         }
