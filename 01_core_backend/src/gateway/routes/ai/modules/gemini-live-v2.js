@@ -561,10 +561,10 @@ module.exports = async function (fastify, opts) {
 
                         logger.info({ sessionId, userChars: userText.length, aiChars: aiText.length }, '[Live] turn_complete: storing');
                         if (userText) {
-                            storeMessage('user', `🎙️ ${userText}`);
+                            await storeMessage('user', `🎙️ ${userText}`);
                         }
                         if (aiText) {
-                            storeMessage('assistant', aiText);
+                            await storeMessage('assistant', aiText);
                         }
                     }
 
@@ -576,7 +576,7 @@ module.exports = async function (fastify, opts) {
                         // Save any user speech that arrived before the interrupt
                         const userText = currentUserTranscript.trim();
                         if (userText) {
-                            storeMessage('user', `🎙️ ${userText}`);
+                            await storeMessage('user', `🎙️ ${userText}`);
                         }
                         currentUserTranscript = '';
                         currentAiTranscript = '';
@@ -731,15 +731,50 @@ module.exports = async function (fastify, opts) {
 
                     logger.info({ sessionId, rows: result.rows.length }, '[Live] replaySessionContext: replaying turns');
 
-                    // Build multi-turn history as clientContent turns
-                    const turns = result.rows.map(row => {
-                        const preview = (row.message_text || '').slice(0, 80).replace(/\n/g, ' ');
+                    // Sanitize stored text before replaying.
+                    // Non-live streaming path may have stored raw SSE bytes
+                    // (e.g. "data: {\"type\":\"text_chunk\",\"text\":\"Hello\"}\\n\\n...").
+                    // Extract clean text from those rows so Gemini receives readable history.
+                    function sanitizeMessageText(raw) {
+                        if (!raw) return '';
+                        // If it looks like SSE format, extract text from events
+                        if (raw.includes('data: {') || raw.startsWith('data:')) {
+                            let extracted = '';
+                            for (const line of raw.split('\n')) {
+                                if (!line.startsWith('data: ')) continue;
+                                try {
+                                    const event = JSON.parse(line.slice(6));
+                                    // Prefer complete event's full response
+                                    if (event.type === 'complete' && event.response) {
+                                        return event.response;
+                                    }
+                                    if (event.type === 'text_chunk' && event.text) {
+                                        extracted += event.text;
+                                    }
+                                } catch (_) {}
+                            }
+                            return extracted || raw; // fallback to raw if extraction fails
+                        }
+                        return raw;
+                    }
+
+                    // Build multi-turn history as clientContent turns, skipping empty rows
+                    const turns = [];
+                    for (const row of result.rows) {
+                        const cleanText = sanitizeMessageText(row.message_text);
+                        if (!cleanText.trim()) continue;
+                        const preview = cleanText.slice(0, 100).replace(/\n/g, ' ');
                         logger.info({ role: row.message_type, preview }, '[Live] replay turn');
-                        return {
+                        turns.push({
                             role: row.message_type === 'user' ? 'user' : 'model',
-                            parts: [{ text: row.message_text }]
-                        };
-                    });
+                            parts: [{ text: cleanText }]
+                        });
+                    }
+
+                    if (turns.length === 0) {
+                        logger.info({ sessionId }, '[Live] replaySessionContext: all rows empty after sanitize, skipping');
+                        return;
+                    }
 
                     const replayMessage = {
                         clientContent: {
