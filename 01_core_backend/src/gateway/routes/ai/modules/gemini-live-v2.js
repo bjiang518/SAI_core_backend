@@ -754,44 +754,63 @@ module.exports = async function (fastify, opts) {
                         return extracted || raw; // last resort: pass raw so Gemini can try
                     }
 
-                    // Build multi-turn history as clientContent turns, skipping empty rows
-                    const turns = [];
+                    // Build raw turn list, skipping empty rows.
+                    // Gemini Live clientContent.turns requires strictly alternating user/model
+                    // roles. Merge consecutive same-role rows into one part so the sequence
+                    // is always user → model → user → model … and starts with user.
+                    const rawTurns = [];
                     for (const row of result.rows) {
                         const cleanText = sanitizeMessageText(row.message_text);
                         if (!cleanText.trim()) continue;
-                        const preview = cleanText.slice(0, 100).replace(/\n/g, ' ');
-                        logger.info({ role: row.message_type, preview }, '[Live] replay turn');
-                        turns.push({
-                            role: row.message_type === 'user' ? 'user' : 'model',
-                            parts: [{ text: cleanText }]
-                        });
+                        const role = row.message_type === 'user' ? 'user' : 'model';
+                        rawTurns.push({ role, text: cleanText });
                     }
 
-                    if (turns.length === 0) {
+                    if (rawTurns.length === 0) {
                         logger.info({ sessionId }, '[Live] replaySessionContext: all rows empty after sanitize, skipping');
                         return;
                     }
 
+                    // Merge consecutive same-role turns into a single turn with multiple parts
+                    const merged = [];
+                    for (const t of rawTurns) {
+                        const last = merged[merged.length - 1];
+                        if (last && last.role === t.role) {
+                            last.parts.push({ text: t.text });
+                        } else {
+                            merged.push({ role: t.role, parts: [{ text: t.text }] });
+                        }
+                    }
+
+                    // Sequence must start with user. If it starts with model, prepend a stub.
+                    if (merged[0].role !== 'user') {
+                        merged.unshift({ role: 'user', parts: [{ text: '(conversation started)' }] });
+                    }
+
                     // Append a silent primer as the final model turn so Gemini doesn't
-                    // immediately respond to the history injection ("talk-back").
-                    turns.push({
-                        role: 'model',
-                        parts: [{ text: 'I have reviewed our previous conversation and I\'m ready to continue.' }]
-                    });
+                    // talk-back immediately after history injection.
+                    // If sequence already ends with model, replace its last part; otherwise append.
+                    if (merged[merged.length - 1].role === 'model') {
+                        merged[merged.length - 1].parts.push({ text: 'I have reviewed our previous conversation and I\'m ready to continue.' });
+                    } else {
+                        merged.push({ role: 'model', parts: [{ text: 'I have reviewed our previous conversation and I\'m ready to continue.' }] });
+                    }
+
+                    const roles = merged.map(t => t.role);
+                    logger.info({ sessionId, turns: merged.length, roles }, '[Live] replaySessionContext: sending merged turns');
 
                     // turnComplete: true — history injection, not an open user turn.
-                    // With false, Gemini treats the batch as incomplete and waits for
-                    // continuation instead of committing the turns to session memory.
+                    // With false, Gemini treats the batch as incomplete and goes silent.
                     const replayMessage = {
                         clientContent: {
-                            turns,
+                            turns: merged,
                             turnComplete: true
                         }
                     };
 
                     if (geminiSocket && geminiSocket.readyState === WebSocket.OPEN) {
                         geminiSocket.send(JSON.stringify(replayMessage));
-                        logger.info({ sessionId, turns: turns.length }, '[Live] replaySessionContext: sent to Gemini');
+                        logger.info({ sessionId }, '[Live] replaySessionContext: sent');
                     }
                 } catch (error) {
                     // Non-fatal — Gemini starts fresh if replay fails
