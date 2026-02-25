@@ -871,14 +871,20 @@ ${lines.join('\n')}
                     const hasImages = turns.some(t => t.parts.some(p => p.inlineData));
                     logger.info({ sessionId, turns: turns.length, roles: turns.map(t => t.role), hasImages }, '[Live] replay: sending turns');
 
-                    // Send ALL history turns with turnComplete: false.
-                    // This loads context into Gemini's window without triggering a response.
-                    // The user's first real audio input will be the actual turnComplete: true.
-                    for (const turn of turns) {
-                        geminiSocket.send(JSON.stringify({
-                            clientContent: { turns: [turn], turnComplete: false }
-                        }));
-                    }
+                    // Per Gemini Live docs:
+                    // 1. Send full history as one batch with turnComplete: false
+                    // 2. Send a final user turn with turnComplete: true to commit context
+                    //    — the wait instruction tells Gemini not to respond immediately
+                    geminiSocket.send(JSON.stringify({
+                        clientContent: { turns, turnComplete: false }
+                    }));
+
+                    geminiSocket.send(JSON.stringify({
+                        clientContent: {
+                            turns: [{ role: 'user', parts: [{ text: 'Please wait for me to speak before responding.' }] }],
+                            turnComplete: true
+                        }
+                    }));
 
                     logger.info({ sessionId }, '[Live] replay: done');
                 } catch (error) {
