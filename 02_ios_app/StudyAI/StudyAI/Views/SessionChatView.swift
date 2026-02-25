@@ -123,14 +123,14 @@ struct SessionChatView: View {
     // Live mode (WeChat-style inline voice chat)
     @State private var isLiveMode = false
     @StateObject private var liveVMHolder = LiveVMHolder()
-    @State private var voiceAudioStorage: [String: Data] = [:]  // msgId → WAV data
     // Live mode leave confirmation
     @State private var showingLiveLeaveAlert = false
     @State private var pendingTab: MainTab? = nil
-    /// Incremented every time a live message is added/changed — used as .id() on
-    /// LiveMessagesSection so SessionChatView's @State change forces a full re-render
-    /// even through the deep apply*() generic wrapper chain.
-    @State private var liveRenderToken: Int = 0
+    /// Single unified message list — both text and voice messages live here.
+    /// Populated via callbacks from NetworkService and VoiceChatViewModel.
+    @State private var allMessages: [UnifiedChatMessage] = []
+    /// Running index for text messages (mirrors conversationHistory.count)
+    @State private var textMessageIndex: Int = 0
 
     // Keyboard state for bottom padding adjustment
     @State private var isKeyboardVisible = false
@@ -281,8 +281,22 @@ struct SessionChatView: View {
                         }
                     } else {
                         Button(action: {
-                            let enterLive: (String) -> Void = { sessionId in
+                        Task { @MainActor in
+                            @MainActor func doEnterLive(_ sessionId: String) {
                                 let vm = VoiceChatViewModel(sessionId: sessionId, subject: viewModel.selectedSubject, voiceType: voiceService.voiceSettings.voiceType)
+                                // Wire voice message callback into unified message list
+                                vm.onMessageAppended = { voiceMsg in
+                                    allMessages.append(.voice(voiceMsg, audioData: voiceMsg.audioData))
+                                }
+                                // Wire transcription update callback to refresh existing voice bubble text
+                                vm.onMessageTextUpdated = { msgId, newText in
+                                    if let idx = allMessages.firstIndex(where: { $0.id == "voice-\(msgId.uuidString)" }) {
+                                        if case .voice(var voiceMsg, let audioData) = allMessages[idx] {
+                                            voiceMsg.text = newText
+                                            allMessages[idx] = .voice(voiceMsg, audioData: audioData)
+                                        }
+                                    }
+                                }
                                 liveVMHolder.set(vm)
                                 vm.connectToGeminiLive()
                                 withAnimation(.easeInOut(duration: 0.3)) {
@@ -291,22 +305,17 @@ struct SessionChatView: View {
                                 }
                             }
                             if let sessionId = networkService.currentSessionId {
-                                enterLive(sessionId)
+                                doEnterLive(sessionId)
                             } else {
+                                // No session yet — start one and wait for it to be assigned
                                 viewModel.startNewSession()
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                                    if let sessionId = networkService.currentSessionId {
-                                        enterLive(sessionId)
-                                    } else {
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                                            if let sessionId = networkService.currentSessionId {
-                                                enterLive(sessionId)
-                                            }
-                                        }
-                                    }
+                                for await sessionId in networkService.$currentSessionId.values
+                                    .compactMap({ $0 }).prefix(1) {
+                                    doEnterLive(sessionId)
                                 }
                             }
-                        }) {
+                        }
+                    }) {
                             Label(NSLocalizedString("chat.menu.liveTalk", comment: ""), systemImage: "waveform.circle.fill")
                         }
                     }
@@ -499,6 +508,23 @@ struct SessionChatView: View {
                     }
                 }
 
+                // ── Unified message list wiring ──
+                // Seed allMessages from any existing conversationHistory (e.g. homework follow-up)
+                if allMessages.isEmpty && !networkService.conversationHistory.isEmpty {
+                    allMessages = networkService.conversationHistory.enumerated().map { offset, dict in
+                        let idx = offset
+                        return .text(index: idx, dict: dict)
+                    }
+                    textMessageIndex = networkService.conversationHistory.count
+                    if !allMessages.isEmpty { hasConversationStarted = true }
+                }
+                // Wire text callback so new messages appear in allMessages
+                networkService.onMessageAdded = { dict in
+                    let idx = textMessageIndex
+                    textMessageIndex += 1
+                    allMessages.append(.text(index: idx, dict: dict))
+                }
+
                 if let message = appState.pendingChatMessage {
                     viewModel.pendingHomeworkQuestion = message
                     viewModel.pendingHomeworkSubject = appState.pendingChatSubject ?? "General"
@@ -586,29 +612,7 @@ struct SessionChatView: View {
                 pendingTab = newTab
                 showingLiveLeaveAlert = true
             }
-            // Live mode: capture completed user voice recordings into voiceAudioStorage
-            .onChange(of: liveVMHolder.vm?.messages.count) { _, _ in
-                guard let vm = liveVMHolder.vm, let lastMsg = vm.messages.last,
-                      lastMsg.role == .user, lastMsg.isVoice else {
-                    liveRenderToken += 1  // still bump so AI turn_complete message renders
-                    return
-                }
-                // Drain the oldest completed recording and pair it with this message
-                if let (recID, pcmData) = vm.completedUserRecordings.first {
-                    let wavData = addWAVHeader(to: pcmData)
-                    voiceAudioStorage[lastMsg.id.uuidString] = wavData
-                    vm.completedUserRecordings.removeValue(forKey: recID)
-                }
-                // Bump @State token → forces SessionChatView.body to re-evaluate
-                // → LiveMessagesSection receives fresh value-type snapshots (no view identity change)
-                liveRenderToken += 1
-            }
-            // Also re-render when AI streaming text updates
-            .onChange(of: liveVMHolder.vm?.liveTranscription) { _, _ in
-                liveRenderToken += 1
-            }
             .onChange(of: liveVMHolder.vm?.isAISpeaking) { _, isSpeaking in
-                liveRenderToken += 1
                 // Drive avatar animation from Gemini Live audio
                 if let speaking = isSpeaking {
                     avatarLogger.info("🎭 [onChange] isAISpeaking → \(speaking) — setting avatarState to \(speaking ? "speaking" : "idle")")
@@ -706,6 +710,12 @@ struct SessionChatView: View {
                     if Self.debugMode {
                     print("🔄 [TTS] Cleared spoken messages for new session (old: \(oldSessionId ?? "nil"), new: \(newSessionId ?? "nil"))")
                     }
+                    // Clear unified message list when switching to a different session
+                    // (oldSessionId != nil means this is a real session change, not initial load)
+                    if oldSessionId != nil {
+                        allMessages.removeAll()
+                        textMessageIndex = 0
+                    }
                 }
             }
     }
@@ -771,20 +781,6 @@ struct SessionChatView: View {
 
     // MARK: - Unified Message List (text + live voice)
 
-    /// Merges conversationHistory text messages with live VoiceMessages.
-    /// Used by lightChatMessagesView when isLiveMode is active.
-    private var unifiedMessages: [UnifiedChatMessage] {
-        var result: [UnifiedChatMessage] = networkService.conversationHistory
-            .enumerated()
-            .map { .text(index: $0.offset, dict: $0.element) }
-        if isLiveMode, let vm = liveVMHolder.vm {
-            result += vm.messages.map { msg in
-                    .voice(msg, audioData: msg.audioData)
-            }
-        }
-        return result
-    }
-
     private var lightChatMessagesView: some View {
         ScrollViewReader { proxy in
             ScrollView {
@@ -849,114 +845,131 @@ struct SessionChatView: View {
                         .padding(.top, 8)
                     }
 
-                    if networkService.conversationHistory.isEmpty && viewModel.isActivelyStreaming == false && !isLiveMode {
+                    if allMessages.isEmpty && viewModel.isActivelyStreaming == false {
                         modernEmptyStateView
                     } else {
-                        // Show regular messages (completed messages only)
-                        ForEach(Array(networkService.conversationHistory.enumerated()), id: \.offset) { index, message in
-                            if message["role"] == "user" {
-                                // Check if message has image data
-                                if message["hasImage"] == "true",
-                                   let messageId = message["messageId"],
-                                   let imageData = viewModel.imageMessages[messageId] {
-                                    // Show image message bubble
-                                    ImageMessageBubble(
-                                        imageData: imageData,
-                                        userPrompt: message["content"],
-                                        timestamp: Date(), // TODO: Add proper timestamp to message model
-                                        isFromCurrentUser: true
-                                    )
-                                    .id(index)
-                                } else {
-                                    // Regular user message - modern style
-                                    ModernUserMessageView(message: message)
-                                        .id(index)
-                                }
-                            } else {
-                                // AI message - Check for diagram data
-                                if let diagramKey = message["diagramKey"] {
-                                    let diagramData = viewModel.getDiagramData(for: diagramKey)
-                                    let isRegenerating = viewModel.regeneratingDiagramKey == diagramKey
-
-                                    if isRegenerating {
-                                        // Show loading animation while regenerating
-                                        VStack(spacing: 12) {
-                                            DiagramGenerationIndicatorView()
-
-                                            Text(NSLocalizedString("chat.diagram.regenerating", value: "Regenerating diagram...", comment: ""))
-                                                .font(.system(size: 14))
-                                                .foregroundColor(.secondary)
-                                        }
-                                        .padding()
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                        .id(index)
-                                    } else if diagramData != nil {
-                                        // AI message with diagram
-                                        EnhancedAIMessageView(
-                                            message: message["content"] ?? "",
-                                            diagramData: diagramData,
-                                            voiceType: voiceService.voiceSettings.voiceType,
-                                            isStreaming: voiceService.isMessageCurrentlySpeaking("message-\(index)"),
-                                            messageId: "message-\(index)",
-                                            onRemoveDiagram: {
-                                                viewModel.removeDiagram(withKey: diagramKey)
-                                            }
+                        // Unified message list — text and voice messages in arrival order
+                        ForEach(allMessages) { msg in
+                            switch msg {
+                            case .text(let index, let message):
+                                if message["role"] == "user" {
+                                    if message["hasImage"] == "true",
+                                       let messageId = message["messageId"],
+                                       let imageData = viewModel.imageMessages[messageId] {
+                                        ImageMessageBubble(
+                                            imageData: imageData,
+                                            userPrompt: message["content"],
+                                            timestamp: Date(),
+                                            isFromCurrentUser: true
                                         )
-                                        .id(index)
+                                        .id(msg.id)
                                     } else {
-                                        // Regular AI message - ChatGPT style with character avatar
+                                        ModernUserMessageView(message: message)
+                                            .id(msg.id)
+                                    }
+                                } else {
+                                    if let diagramKey = message["diagramKey"] {
+                                        let diagramData = viewModel.getDiagramData(for: diagramKey)
+                                        let isRegenerating = viewModel.regeneratingDiagramKey == diagramKey
+                                        if isRegenerating {
+                                            VStack(spacing: 12) {
+                                                DiagramGenerationIndicatorView()
+                                                Text(NSLocalizedString("chat.diagram.regenerating", value: "Regenerating diagram...", comment: ""))
+                                                    .font(.system(size: 14))
+                                                    .foregroundColor(.secondary)
+                                            }
+                                            .padding()
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .id(msg.id)
+                                        } else if diagramData != nil {
+                                            EnhancedAIMessageView(
+                                                message: message["content"] ?? "",
+                                                diagramData: diagramData,
+                                                voiceType: voiceService.voiceSettings.voiceType,
+                                                isStreaming: voiceService.isMessageCurrentlySpeaking("message-\(index)"),
+                                                messageId: "message-\(index)",
+                                                onRemoveDiagram: {
+                                                    viewModel.removeDiagram(withKey: diagramKey)
+                                                }
+                                            )
+                                            .id(msg.id)
+                                        } else {
+                                            ModernAIMessageView(
+                                                message: message["content"] ?? "",
+                                                voiceType: voiceService.voiceSettings.voiceType,
+                                                isStreaming: voiceService.isMessageCurrentlySpeaking("message-\(index)"),
+                                                messageId: "message-\(index)"
+                                            )
+                                            .id(msg.id)
+                                        }
+                                    } else {
                                         ModernAIMessageView(
                                             message: message["content"] ?? "",
                                             voiceType: voiceService.voiceSettings.voiceType,
                                             isStreaming: voiceService.isMessageCurrentlySpeaking("message-\(index)"),
                                             messageId: "message-\(index)"
                                         )
-                                        .id(index)
+                                        .id(msg.id)
+                                    }
+                                }
+
+                            case .voice(let voiceMsg, _):
+                                if voiceMsg.role == .user {
+                                    if let imageData = voiceMsg.imageData, let uiImage = UIImage(data: imageData) {
+                                        HStack {
+                                            Spacer(minLength: 60)
+                                            Image(uiImage: uiImage)
+                                                .resizable()
+                                                .scaledToFit()
+                                                .frame(maxWidth: 220)
+                                                .cornerRadius(14)
+                                                .padding(.horizontal, 4)
+                                        }
+                                        .id(msg.id)
+                                    } else {
+                                        LiveUserVoiceBubble(message: voiceMsg)
+                                            .id(msg.id)
                                     }
                                 } else {
-                                    // No diagram key - regular AI message
                                     ModernAIMessageView(
-                                        message: message["content"] ?? "",
+                                        message: voiceMsg.text,
                                         voiceType: voiceService.voiceSettings.voiceType,
-                                        isStreaming: voiceService.isMessageCurrentlySpeaking("message-\(index)"),
-                                        messageId: "message-\(index)"
+                                        isStreaming: false,
+                                        messageId: "voice-ai-\(voiceMsg.id.uuidString)"
                                     )
-                                    .id(index)
+                                    .id(msg.id)
                                 }
                             }
                         }
 
-                        // ✅ PERFORMANCE FIX: Show actively streaming message separately
-                        // This message updates independently without triggering ForEach re-render
+                        // Actively streaming text response (non-live)
                         if viewModel.isActivelyStreaming && !viewModel.activeStreamingMessage.isEmpty {
                             ModernAIMessageView(
                                 message: viewModel.activeStreamingMessage,
                                 voiceType: voiceService.voiceSettings.voiceType,
-                                isStreaming: true, // ✅ CRITICAL: Must be true to show raw text without processing
+                                isStreaming: true,
                                 messageId: "streaming-message"
                             )
                             .id("streaming-message")
                         }
 
-                        // Show pending user message
+                        // Pending user message (optimistic UI while sending)
                         if !viewModel.pendingUserMessage.isEmpty {
                             ModernUserMessageView(message: ["content": viewModel.pendingUserMessage])
                                 .id("pending-user")
                                 .opacity(0.7)
                         }
 
-                        // Show typing indicator for AI response
+                        // Typing indicator
                         if viewModel.showTypingIndicator {
                             ModernTypingIndicatorView()
                                 .id("typing-indicator")
                         }
 
-                        // ✅ Show diagram generation indicator ONLY for initial generation
-                        // (not for regeneration - that shows per-message loading state)
+                        // Diagram generation indicator
                         if viewModel.isGeneratingDiagram && viewModel.regeneratingDiagramKey == nil {
                             VStack(spacing: 12) {
                                 DiagramGenerationIndicatorView()
-
                                 Text(NSLocalizedString("chat.diagram.generating", value: "Generating diagram...", comment: ""))
                                     .font(.system(size: 14))
                                     .foregroundColor(.secondary)
@@ -966,42 +979,34 @@ struct SessionChatView: View {
                             .id("diagram-generation")
                         }
 
-                        // ── Live voice messages (appended after text history) ──
-                        // LiveMessagesSection receives plain value-type snapshots.
-                        // liveRenderToken is a @State so bumping it forces SessionChatView.body
-                        // to re-evaluate and pass fresh values through the apply*() chain.
-                        // NO .id() here — we never change view identity, only its content.
-                        if isLiveMode {
-                            let _ = liveRenderToken  // read token so body re-evals when it bumps
-                            LiveMessagesSection(
-                                messages: liveVMHolder.vm?.messages ?? [],
-                                voiceAudioStorage: voiceAudioStorage,
+                        // Live streaming transcription (while AI is speaking)
+                        if isLiveMode, let vm = liveVMHolder.vm,
+                           vm.isAISpeaking, !vm.liveTranscription.isEmpty {
+                            ModernAIMessageView(
+                                message: vm.liveTranscription,
                                 voiceType: voiceService.voiceSettings.voiceType,
-                                isAISpeaking: liveVMHolder.vm?.isAISpeaking ?? false,
-                                liveTranscription: liveVMHolder.vm?.liveTranscription ?? ""
+                                isStreaming: true,
+                                messageId: "live-transcription"
                             )
+                            .id("live-transcription")
                         }
                     }
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 20)
-                // ✅ PERFORMANCE FIX: Removed refreshTrigger - no longer needed with targeted streaming updates
             }
-            .onChange(of: networkService.conversationHistory.count) { _, newCount in
+            .onChange(of: allMessages.count) { _, newCount in
                 // Mark conversation as started when first message appears
                 if newCount > 0 && !hasConversationStarted {
                     withAnimation(.easeInOut(duration: 0.3)) {
                         hasConversationStarted = true
                     }
                 }
-
-                // ✅ AUTO-SCROLL: Scroll to bottom when new messages are added to history
-                let lastIndex = networkService.conversationHistory.count - 1
-                if lastIndex >= 0 {
-                    // Use DispatchQueue to ensure layout has updated before scrolling
+                // AUTO-SCROLL to bottom on new message
+                if let lastMsg = allMessages.last {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         withAnimation(.easeOut(duration: 0.3)) {
-                            proxy.scrollTo(lastIndex, anchor: .bottom)
+                            proxy.scrollTo(lastMsg.id, anchor: .bottom)
                         }
                     }
                 }
@@ -1485,11 +1490,11 @@ struct SessionChatView: View {
     private func exitLiveMode() {
         liveVMHolder.vm?.disconnect()
         liveVMHolder.set(nil)
-        voiceAudioStorage.removeAll()
+        // ✅ Do NOT clear allMessages — voice messages stay visible after ending Live
         withAnimation(.easeInOut(duration: 0.3)) {
             isLiveMode = false
-            // If no text conversation exists, return to the empty state (hides floating avatar)
-            if networkService.conversationHistory.isEmpty {
+            // If no messages exist at all, return to the empty state
+            if allMessages.isEmpty {
                 hasConversationStarted = false
             }
         }

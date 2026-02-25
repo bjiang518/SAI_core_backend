@@ -487,13 +487,31 @@ class SessionManagementRoutes {
 
       // Stream response
       let hasReceivedData = false;
-      let fullResponse = '';
+      let fullResponse = '';       // raw SSE bytes — forwarded to iOS as-is
+      let extractedAiText = '';    // clean AI text — extracted for DB storage
 
       response.body.on('data', (chunk) => {
         hasReceivedData = true;
         const chunkStr = chunk.toString();
         fullResponse += chunkStr;
         reply.raw.write(chunk);
+
+        // Extract clean AI text from SSE events for DB storage.
+        // The stream emits lines like: data: {"type":"text_chunk","text":"Hello"}
+        // We accumulate text_chunk pieces; the complete event has the full text too.
+        const lines = chunkStr.split('\n');
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const event = JSON.parse(line.slice(6));
+            if (event.type === 'text_chunk' && event.text) {
+              extractedAiText += event.text;
+            } else if (event.type === 'complete' && event.response) {
+              // complete event has the canonical full text — prefer it over accumulated chunks
+              extractedAiText = event.response;
+            }
+          } catch (_) { /* malformed line — skip */ }
+        }
       });
 
       response.body.on('end', async () => {
@@ -506,7 +524,7 @@ class SessionManagementRoutes {
             authenticatedUserId,
             message,
             {
-              response: fullResponse,
+              response: extractedAiText || fullResponse,  // clean text preferred; raw fallback
               tokensUsed: 0,
               service: 'ai-engine-stream',
               compressed: false

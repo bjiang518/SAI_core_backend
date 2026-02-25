@@ -83,6 +83,16 @@ class VoiceChatViewModel: ObservableObject {
     /// Cancellables
     private var cancellables = Set<AnyCancellable>()
 
+    // MARK: - Unified Message Callback
+
+    /// Called on @MainActor whenever a completed message is appended to `messages`.
+    /// SessionChatView sets this to mirror voice messages into `allMessages`.
+    var onMessageAppended: ((VoiceMessage) -> Void)?
+
+    /// Called on @MainActor whenever an existing message's text is updated (e.g. user transcription).
+    /// Passes the message id and new text so the caller can update its snapshot.
+    var onMessageTextUpdated: ((UUID, String) -> Void)?
+
     // MARK: - Recording Capture (for voice bubble playback)
 
     /// Completed user recordings keyed by recording UUID.
@@ -373,6 +383,7 @@ class VoiceChatViewModel: ObservableObject {
         // Append placeholder bubble with audio already embedded
         let placeholder = VoiceMessage(role: .user, text: "", isVoice: true, audioData: wavData)
         messages.append(placeholder)
+        onMessageAppended?(placeholder)
         pendingUserMessageID = placeholder.id
 
         // Send audio_stream_end to flush cached audio on backend
@@ -391,7 +402,9 @@ class VoiceChatViewModel: ObservableObject {
 
         // Commit partial transcription so text stays on screen as a completed message
         if !liveTranscription.isEmpty {
-            messages.append(VoiceMessage(role: .assistant, text: liveTranscription, isVoice: true))
+            let msg = VoiceMessage(role: .assistant, text: liveTranscription, isVoice: true)
+            messages.append(msg)
+            onMessageAppended?(msg)
             liveTranscription = ""
         }
 
@@ -411,7 +424,9 @@ class VoiceChatViewModel: ObservableObject {
         logger.info("Sending text message: \(text)")
 
         // Add user message to conversation
-        messages.append(VoiceMessage(role: .user, text: text, isVoice: false))
+        let textMsg = VoiceMessage(role: .user, text: text, isVoice: false)
+        messages.append(textMsg)
+        onMessageAppended?(textMsg)
 
         // Send to backend
         sendWebSocketMessage(type: "text_message", data: ["text": text])
@@ -447,7 +462,9 @@ class VoiceChatViewModel: ObservableObject {
         logger.info("📸 Image encoded: \(jpegData.count / 1024) KB, \(Int(targetSize.width))×\(Int(targetSize.height))px")
 
         // Add a user bubble carrying the JPEG data so it renders as an image in the chat
-        messages.append(VoiceMessage(role: .user, text: "", isVoice: false, imageData: jpegData))
+        let imgMsg = VoiceMessage(role: .user, text: "", isVoice: false, imageData: jpegData)
+        messages.append(imgMsg)
+        onMessageAppended?(imgMsg)
 
         // Pause audio capture so the large WebSocket frame doesn't block incoming audio chunks
         let wasCapturing = isCapturing
@@ -568,6 +585,7 @@ class VoiceChatViewModel: ObservableObject {
                let pendingID = pendingUserMessageID,
                let idx = messages.firstIndex(where: { $0.id == pendingID }) {
                 messages[idx].text = userText
+                onMessageTextUpdated?(pendingID, userText)
             }
 
         case "audio_chunk":
@@ -583,11 +601,13 @@ class VoiceChatViewModel: ObservableObject {
 
         case "turn_complete":
             if !liveTranscription.isEmpty {
-                messages.append(VoiceMessage(
+                let aiMsg = VoiceMessage(
                     role: .assistant,
                     text: liveTranscription,
                     isVoice: true
-                ))
+                )
+                messages.append(aiMsg)
+                onMessageAppended?(aiMsg)
                 liveTranscription = ""
             }
             // Do NOT set isAISpeaking = false here.
