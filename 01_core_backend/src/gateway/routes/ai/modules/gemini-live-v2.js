@@ -787,7 +787,7 @@ ${lines.join('\n')}
                 if (!sessionId) return;
                 try {
                     const result = await db.query(`
-                        SELECT message_type, message_text
+                        SELECT message_type, message_text, message_data
                         FROM conversations
                         WHERE session_id = $1
                         ORDER BY created_at ASC
@@ -814,22 +814,50 @@ ${lines.join('\n')}
                         return endContent || deltaAccum || raw;
                     }
 
-                    // Build turns, merging consecutive same-role rows into one
+                    // Build one entry per non-empty row.
+                    // User rows with a stored image get an inlineData part.
                     const rawTurns = [];
                     for (const row of result.rows) {
                         const text = sanitize(row.message_text).trim().replace(/\s+/g, ' ');
-                        if (!text) continue;
-                        rawTurns.push({ role: row.message_type === 'user' ? 'user' : 'model', text });
+                        const role = row.message_type === 'user' ? 'user' : 'model';
+
+                        let imageBase64 = null;
+                        if (role === 'user' && row.message_data) {
+                            try {
+                                const data = typeof row.message_data === 'string'
+                                    ? JSON.parse(row.message_data)
+                                    : row.message_data;
+                                if (data.hasImage && data.image_data) {
+                                    // Strip data URI prefix if present
+                                    imageBase64 = data.image_data.replace(/^data:image\/\w+;base64,/, '');
+                                }
+                            } catch (_) {}
+                        }
+
+                        if (!text && !imageBase64) continue;
+
+                        const parts = [];
+                        if (text) parts.push({ text });
+                        if (imageBase64) parts.push({ inlineData: { mimeType: 'image/jpeg', data: imageBase64 } });
+
+                        rawTurns.push({ role, parts });
                     }
+
                     if (rawTurns.length === 0) return;
 
+                    // Merge consecutive same-role rows into one turn.
+                    // For text-only turns concatenate; for turns with images keep separate parts.
                     const turns = [];
                     for (const t of rawTurns) {
                         const last = turns[turns.length - 1];
-                        if (last && last.role === t.role) {
-                            last.parts[0].text += ' ' + t.text;
+                        const hasImage = t.parts.some(p => p.inlineData);
+                        if (last && last.role === t.role && !hasImage) {
+                            // Safe to merge: just append text to existing text part
+                            const textPart = last.parts.find(p => p.text !== undefined);
+                            const newText = t.parts.find(p => p.text !== undefined)?.text || '';
+                            if (textPart && newText) textPart.text += ' ' + newText;
                         } else {
-                            turns.push({ role: t.role, parts: [{ text: t.text }] });
+                            turns.push({ role: t.role, parts: t.parts });
                         }
                     }
 
@@ -838,16 +866,16 @@ ${lines.join('\n')}
                         turns.unshift({ role: 'user', parts: [{ text: '(conversation started)' }] });
                     }
 
-                    // History must end with a user turn + turnComplete:true so Gemini
-                    // commits context without immediately generating a response.
-                    // If it ends on model, append a silent user anchor.
+                    // Must end with user + turnComplete:true so Gemini commits context
+                    // without immediately generating a response.
                     if (turns[turns.length - 1].role !== 'user') {
                         turns.push({ role: 'user', parts: [{ text: '(continuing our conversation)' }] });
                     }
 
                     if (!(geminiSocket && geminiSocket.readyState === WebSocket.OPEN)) return;
 
-                    logger.info({ sessionId, turns: turns.length, roles: turns.map(t => t.role) }, '[Live] replay: sending turns');
+                    const hasImages = turns.some(t => t.parts.some(p => p.inlineData));
+                    logger.info({ sessionId, turns: turns.length, roles: turns.map(t => t.role), hasImages }, '[Live] replay: sending turns');
 
                     // Send all turns except the last with turnComplete: false
                     for (let i = 0; i < turns.length - 1; i++) {
