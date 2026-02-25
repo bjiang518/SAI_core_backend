@@ -318,6 +318,24 @@ class SessionManagementRoutes {
         }
       };
 
+      // ── CONTEXT FLOW LOG ──────────────────────────────────────────────────
+      // Shows what the gateway fetches from DB vs what is sent to the AI Engine.
+      // The AI Engine owns its OWN in-memory session history — the gateway does
+      // NOT forward DB rows. If Live mode turns were stored in DB but the AI
+      // Engine's in-memory session is missing them, context will be stale.
+      const { db: dbForLog } = require('../../../../utils/railway-database');
+      const dbRows = await dbForLog.getConversationHistory(sessionId, 50);
+      this.fastify.log.info({
+        sessionId: sessionId.substring(0, 8),
+        dbRows: dbRows?.length ?? 0,
+        dbPreview: (dbRows || []).slice(-4).map(r => ({
+          role: r.message_type,
+          preview: (r.message_text || '').slice(0, 60).replace(/\n/g, ' ')
+        })),
+        aiEngineEndpoint: `/api/v1/sessions/${sessionId}/message`,
+        note: 'AI Engine uses its own in-memory session — DB rows above are NOT forwarded'
+      }, '[Session] non-live message: context flow');
+
       const result = await this.aiClient.proxyRequest(
         'POST',
         `/api/v1/sessions/${sessionId}/message`,

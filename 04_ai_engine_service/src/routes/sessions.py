@@ -315,6 +315,8 @@ async def send_session_message_stream(session_id: str, request: SessionMessageRe
     """
     try:
         session = await session_service.get_session(session_id)
+        is_new_session = session is None
+
         if not session:
             session = await session_service.create_session(
                 student_id="auto_created",
@@ -322,6 +324,23 @@ async def send_session_message_stream(session_id: str, request: SessionMessageRe
             )
             session.session_id = session_id
             session_service.sessions[session_id] = session
+
+        # ── CONTEXT FLOW LOG ─────────────────────────────────────────────────
+        # Shows what the AI Engine's in-memory session contains before processing.
+        # If Live mode turns are missing here, they were stored in the gateway DB
+        # (conversations table) but never injected into this in-memory session.
+        in_memory_count = len(session.messages) if session else 0
+        in_memory_preview = [
+            {"role": m.role, "preview": (str(m.content) if hasattr(m, "content") else "")[:60].replace("\n", " ")}
+            for m in (session.messages[-4:] if session and session.messages else [])
+        ]
+        import logging as _logging
+        _logging.getLogger("sessions").info(
+            f"[Session][stream] msg received | session={session_id[:8]} | "
+            f"new_in_memory={is_new_session} | in_memory_msgs={in_memory_count} | "
+            f"last_4={in_memory_preview} | "
+            f"user_msg={request.message[:80].replace(chr(10), ' ')!r}"
+        )
 
         await session_service.add_message_to_session(
             session_id=session_id,
