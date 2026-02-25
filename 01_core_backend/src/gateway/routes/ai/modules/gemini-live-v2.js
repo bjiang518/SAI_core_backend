@@ -298,6 +298,11 @@ module.exports = async function (fastify, opts) {
 
                 const systemInstruction = buildSystemInstruction(subject, language);
 
+                // Load prior conversation turns from DB and embed in setup.history.
+                // This is the correct way to inject history into Gemini Live — via the
+                // setup message, not via clientContent after setupComplete.
+                const history = await buildHistoryForSetup();
+
                 const setupMessage = {
                     setup: {
                         model: "models/gemini-2.5-flash-native-audio-preview-12-2025",
@@ -317,9 +322,14 @@ module.exports = async function (fastify, opts) {
                         outputAudioTranscription: {},
                         systemInstruction: {
                             parts: [{ text: systemInstruction }]
-                        }
+                        },
+                        ...(history.length > 0 ? { history } : {})
                     }
                 };
+
+                if (history.length > 0) {
+                    logger.info({ sessionId, turns: history.length, roles: history.map(t => t.role) }, '[Live] setup: injecting history');
+                }
 
                 if (geminiSocket && geminiSocket.readyState === WebSocket.OPEN) {
                     geminiSocket.send(JSON.stringify(setupMessage));
@@ -705,16 +715,20 @@ module.exports = async function (fastify, opts) {
             }
 
             /**
-             * Replay prior conversation turns into Gemini after setupComplete.
+             * Builds a history array for the Gemini setup message from prior DB turns.
+             * Returns [] if no sessionId or no stored turns.
              *
-             * Called on every connect — is a no-op when there are no stored rows yet (first
-             * connect). On reconnect it sends a single multi-turn clientContent message so
-             * Gemini has the full prior conversation in its context window.
+             * setup.history is the correct place for history injection in Gemini Live —
+             * sending clientContent with turns after setupComplete is NOT supported and
+             * results in WS close 1007 "invalid argument".
              *
-             * Capped at the 50 most recent turns to stay within Gemini's context limit.
+             * Rules enforced:
+             *   - Strictly alternating user → model roles
+             *   - Starts with user
+             *   - Ends with model (silent primer prevents talk-back)
              */
-            async function replaySessionContext() {
-                if (!sessionId) return;
+            async function buildHistoryForSetup() {
+                if (!sessionId) return [];
                 try {
                     const result = await db.query(`
                         SELECT message_type, message_text
@@ -724,54 +738,36 @@ module.exports = async function (fastify, opts) {
                         LIMIT 50
                     `, [sessionId]);
 
-                    if (result.rows.length === 0) {
-                        logger.info({ sessionId }, '[Live] replaySessionContext: no prior turns, starting fresh');
-                        return;
-                    }
+                    if (result.rows.length === 0) return [];
 
-                    logger.info({ sessionId, rows: result.rows.length }, '[Live] replaySessionContext: replaying turns');
+                    logger.info({ sessionId, rows: result.rows.length }, '[Live] buildHistoryForSetup: loading turns');
 
-                    // Sanitize stored text before replaying.
-                    // Non-live streaming path stores raw SSE bytes if the extraction failed.
-                    // AI Engine SSE event types: start (ignore), content (delta), end (full text)
-                    function sanitizeMessageText(raw) {
+                    // Strip raw SSE bytes if non-live path stored them unextracted
+                    function sanitize(raw) {
                         if (!raw) return '';
-                        if (!raw.includes('data: {')) return raw; // already clean text
-                        let endContent = '';
-                        let deltaAccum = '';
+                        if (!raw.includes('data: {')) return raw;
+                        let endContent = '', deltaAccum = '';
                         for (const line of raw.split('\n')) {
                             if (!line.startsWith('data: ')) continue;
                             try {
-                                const event = JSON.parse(line.slice(6));
-                                if (event.type === 'end' && event.content) {
-                                    endContent = event.content; // canonical — prefer this
-                                } else if (event.type === 'content' && event.delta) {
-                                    deltaAccum += event.delta;  // fallback accumulation
-                                }
+                                const ev = JSON.parse(line.slice(6));
+                                if (ev.type === 'end' && ev.content) endContent = ev.content;
+                                else if (ev.type === 'content' && ev.delta) deltaAccum += ev.delta;
                             } catch (_) {}
                         }
-                        const extracted = endContent || deltaAccum;
-                        return extracted || raw; // last resort: pass raw so Gemini can try
+                        return endContent || deltaAccum || raw;
                     }
 
-                    // Build raw turn list, skipping empty rows.
-                    // Gemini Live clientContent.turns requires strictly alternating user/model
-                    // roles. Merge consecutive same-role rows into one part so the sequence
-                    // is always user → model → user → model … and starts with user.
+                    // Collect non-empty rows
                     const rawTurns = [];
                     for (const row of result.rows) {
-                        const cleanText = sanitizeMessageText(row.message_text);
-                        if (!cleanText.trim()) continue;
-                        const role = row.message_type === 'user' ? 'user' : 'model';
-                        rawTurns.push({ role, text: cleanText });
+                        const text = sanitize(row.message_text);
+                        if (!text.trim()) continue;
+                        rawTurns.push({ role: row.message_type === 'user' ? 'user' : 'model', text });
                     }
+                    if (rawTurns.length === 0) return [];
 
-                    if (rawTurns.length === 0) {
-                        logger.info({ sessionId }, '[Live] replaySessionContext: all rows empty after sanitize, skipping');
-                        return;
-                    }
-
-                    // Merge consecutive same-role turns into a single turn with multiple parts
+                    // Merge consecutive same-role rows → one turn with multiple parts
                     const merged = [];
                     for (const t of rawTurns) {
                         const last = merged[merged.length - 1];
@@ -782,44 +778,27 @@ module.exports = async function (fastify, opts) {
                         }
                     }
 
-                    // Sequence must start with user. If it starts with model, prepend a stub.
+                    // Must start with user
                     if (merged[0].role !== 'user') {
                         merged.unshift({ role: 'user', parts: [{ text: '(conversation started)' }] });
                     }
 
-                    // Append a silent primer as the final model turn so Gemini doesn't
-                    // talk-back immediately after history injection.
-                    // If sequence already ends with model, replace its last part; otherwise append.
+                    // Must end with model (silent primer — prevents immediate talk-back)
                     if (merged[merged.length - 1].role === 'model') {
-                        merged[merged.length - 1].parts.push({ text: 'I have reviewed our previous conversation and I\'m ready to continue.' });
+                        merged[merged.length - 1].parts.push({ text: '\nI have reviewed our previous conversation and I\'m ready to continue.' });
                     } else {
                         merged.push({ role: 'model', parts: [{ text: 'I have reviewed our previous conversation and I\'m ready to continue.' }] });
                     }
 
-                    const roles = merged.map(t => t.role);
-                    logger.info({ sessionId, turns: merged.length, roles }, '[Live] replaySessionContext: sending merged turns');
-
-                    // turnComplete: true — history injection, not an open user turn.
-                    // With false, Gemini treats the batch as incomplete and goes silent.
-                    const replayMessage = {
-                        clientContent: {
-                            turns: merged,
-                            turnComplete: true
-                        }
-                    };
-
-                    if (geminiSocket && geminiSocket.readyState === WebSocket.OPEN) {
-                        const replayJson = JSON.stringify(replayMessage);
-                        // Log full payload so we can see exactly what Gemini rejects
-                        logger.info({ sessionId, payload: replayJson }, '[Live] replaySessionContext: FULL PAYLOAD');
-                        geminiSocket.send(replayJson);
-                        logger.info({ sessionId }, '[Live] replaySessionContext: sent');
-                    }
+                    return merged;
                 } catch (error) {
-                    // Non-fatal — Gemini starts fresh if replay fails
-                    logger.error({ error }, '[Live] replaySessionContext: error');
+                    logger.error({ error }, '[Live] buildHistoryForSetup: error, starting fresh');
+                    return [];
                 }
             }
+
+            // No longer used — history is now in setup.history (not clientContent after connect)
+            async function replaySessionContext() {}
 
             async function fetchHomeworkContext(sessionId) {
                 try {
