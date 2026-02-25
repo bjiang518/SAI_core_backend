@@ -866,28 +866,19 @@ ${lines.join('\n')}
                         turns.unshift({ role: 'user', parts: [{ text: '(conversation started)' }] });
                     }
 
-                    // Must end with user + turnComplete:true so Gemini commits context
-                    // without immediately generating a response.
-                    if (turns[turns.length - 1].role !== 'user') {
-                        turns.push({ role: 'user', parts: [{ text: '(continuing our conversation)' }] });
-                    }
-
                     if (!(geminiSocket && geminiSocket.readyState === WebSocket.OPEN)) return;
 
                     const hasImages = turns.some(t => t.parts.some(p => p.inlineData));
                     logger.info({ sessionId, turns: turns.length, roles: turns.map(t => t.role), hasImages }, '[Live] replay: sending turns');
 
-                    // Send all turns except the last with turnComplete: false
-                    for (let i = 0; i < turns.length - 1; i++) {
+                    // Send ALL history turns with turnComplete: false.
+                    // This loads context into Gemini's window without triggering a response.
+                    // The user's first real audio input will be the actual turnComplete: true.
+                    for (const turn of turns) {
                         geminiSocket.send(JSON.stringify({
-                            clientContent: { turns: [turns[i]], turnComplete: false }
+                            clientContent: { turns: [turn], turnComplete: false }
                         }));
                     }
-
-                    // Send the final user turn with turnComplete: true
-                    geminiSocket.send(JSON.stringify({
-                        clientContent: { turns: [turns[turns.length - 1]], turnComplete: true }
-                    }));
 
                     logger.info({ sessionId }, '[Live] replay: done');
                 } catch (error) {
