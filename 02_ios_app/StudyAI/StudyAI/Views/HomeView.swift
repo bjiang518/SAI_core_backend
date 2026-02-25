@@ -91,7 +91,6 @@ struct HomeView: View {
             .navigationBarHidden(true)
             .onAppear {
                 lottieRefreshID += 1
-                print("🏠 [HomeView] onAppear — lottieRefreshID=\(lottieRefreshID) isPowerSaving=\(appState.isPowerSavingMode)")
                 // Load user name from ProfileService - always show display name or first name
                 if let profile = profileService.currentProfile {
                     // Determine display name

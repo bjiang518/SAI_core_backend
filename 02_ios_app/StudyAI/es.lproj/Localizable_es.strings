@@ -169,8 +169,12 @@
 "aiHomework.startAnalysis" = "Start Iniciowork Analysis";
 "aiHomework.selectImage" = "Select an image to analyze homework";
 "aiHomework.optimizing" = "Optimizing image...";
+"aiHomework.parsingHomework" = "🤖 AI parsing homework...";
+"aiHomework.parsingPages" = "🤖 AI parsing %d pages...";
+"aiHomework.retrying" = "🔄 Retrying... (%d/%d)";
 "aiHomework.cropping" = "Image cropping...";
 "aiHomework.uploading" = "Uploading to AI...";
+"aiHomework.autoDetecting" = "Auto detecting content...";
 "aiHomework.analyzing" = "AI reading homework...";
 "aiHomework.grading" = "Grading answers...";
 "aiHomework.preparingResults" = "Preparing results...";

@@ -742,7 +742,7 @@ struct DigitalHomeworkView: View {
                             }
 
                             // ✅ FIX: Check if reached the end AND hasn't triggered yet
-                            if newOffset >= maxOffset * 0.95 && !hasTriggeredMarkProgress {
+                            if newOffset >= maxOffset * 1.0 && !hasTriggeredMarkProgress {
                                 // Set flag immediately to prevent multiple triggers
                                 hasTriggeredMarkProgress = true
 

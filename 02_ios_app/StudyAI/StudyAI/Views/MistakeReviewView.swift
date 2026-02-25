@@ -1825,7 +1825,7 @@ struct PracticeQuestionsView: View {
                                 isSliding = true
                             }
 
-                            if newOffset >= maxOffset * 0.95 && !hasTriggeredMarkProgress {
+                            if newOffset >= maxOffset * 1.0 && !hasTriggeredMarkProgress {
                                 hasTriggeredMarkProgress = true
                                 markProgress()
 
