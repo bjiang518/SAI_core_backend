@@ -85,6 +85,10 @@ class AppState: ObservableObject {
     /// Selected tab
     @Published var selectedTab: MainTab = .home
 
+    /// Set to true to dismiss the entire practice/question-generation stack before switching to chat.
+    /// QuestionGenerationView observes this and closes its fullScreenCover.
+    @Published var shouldDismissPracticeStack = false
+
     /// Power Saving Mode - disables all animations when enabled
     @Published var isPowerSavingMode: Bool {
         didSet {
@@ -105,8 +109,9 @@ class AppState: ObservableObject {
     func navigateToChatWithMessage(_ message: String, subject: String? = nil, useDeepMode: Bool = false) {
         pendingChatMessage = message
         pendingChatSubject = subject
-        pendingHomeworkContext = nil  // Clear homework context for regular chat
-        shouldUseDeepModeForFirstMessage = useDeepMode  // ✅ Set deep mode flag
+        pendingHomeworkContext = nil
+        shouldUseDeepModeForFirstMessage = useDeepMode
+        shouldDismissPracticeStack = true
         selectedTab = .chat
     }
 

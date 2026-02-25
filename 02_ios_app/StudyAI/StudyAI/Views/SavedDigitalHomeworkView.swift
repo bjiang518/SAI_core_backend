@@ -327,9 +327,10 @@ struct SavedQuestionCard: View {
 
                     // Student answer (only in graded mode)
                     if viewMode == .graded, let answer = questionWithGrade.question.studentAnswer, !answer.isEmpty {
-                        Text("答案：\(answer)")
+                        Text("答案：")
                             .font(.caption)
                             .foregroundColor(.secondary)
+                        MarkdownLaTeXText(answer, fontSize: 12)
                     }
                 }
             }
@@ -396,15 +397,15 @@ struct SavedSubquestionRow: View {
                     .foregroundColor(.secondary)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(subquestion.questionText)
-                        .font(.caption)
+                    MarkdownLaTeXText(subquestion.questionText, fontSize: 12)
                         .foregroundColor(.primary)
 
                     // Student answer (only in graded mode)
                     if viewMode == .graded, !subquestion.studentAnswer.isEmpty {
-                        Text("答案：\(subquestion.studentAnswer)")
+                        Text("答案：")
                             .font(.caption2)
                             .foregroundColor(.secondary)
+                        MarkdownLaTeXText(subquestion.studentAnswer, fontSize: 11)
                     }
                 }
 

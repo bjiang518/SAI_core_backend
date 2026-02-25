@@ -1302,7 +1302,7 @@
 "mistakeReview.gradingInstant" = "Instant";
 "mistakeReview.gradingAI" = "AI Analyzed";
 "mistakeReview.archived" = "Archived";
-"mistakeReview.archiveQuestion" = "Archive Question";
+"mistakeReview.archiveQuestion" = "Archive";
 "mistakeReview.followUp" = "Follow up";
 "mistakeReview.questionArchived" = "Question Archived";
 "mistakeReview.questionArchivedMessage" = "This practice question has been saved to your archive for future review.";

@@ -100,9 +100,7 @@ struct ModernUserMessageView: View {
         HStack {
             Spacer(minLength: 60)
 
-            Text(message["content"] ?? "")
-                .font(.system(size: 18))
-                .foregroundColor(.primary.opacity(0.95))
+            MarkdownLaTeXText(message["content"] ?? "", fontSize: 18, isStreaming: false)
                 .textSelection(.enabled)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)

@@ -434,6 +434,12 @@
 		7BEC08382F4E795500B6E573 /* AppConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC08372F4E795500B6E573 /* AppConfiguration.swift */; };
 		7BEC08392F4E795500B6E573 /* AppConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC08372F4E795500B6E573 /* AppConfiguration.swift */; };
 		7BEC083A2F4E795500B6E573 /* AppConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEC08372F4E795500B6E573 /* AppConfiguration.swift */; };
+		7BEC083C2F4F9D4400B6E573 /* mathjax.min.js in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC083B2F4F9D4400B6E573 /* mathjax.min.js */; };
+		7BEC083D2F4F9D4400B6E573 /* mathjax.min.js in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC083B2F4F9D4400B6E573 /* mathjax.min.js */; };
+		7BEC083E2F4F9D4400B6E573 /* mathjax.min.js in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC083B2F4F9D4400B6E573 /* mathjax.min.js */; };
+		7BEC08442F4FB42D00B6E573 /* mistakeNotebook.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC08432F4FB42D00B6E573 /* mistakeNotebook.json */; };
+		7BEC08452F4FB42D00B6E573 /* mistakeNotebook.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC08432F4FB42D00B6E573 /* mistakeNotebook.json */; };
+		7BEC08462F4FB42D00B6E573 /* mistakeNotebook.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC08432F4FB42D00B6E573 /* mistakeNotebook.json */; };
 		7BEDA6272E80B8C500D57B15 /* QuestionGenerationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEDA6262E80B8C500D57B15 /* QuestionGenerationService.swift */; };
 		7BEDA6282E80B8C500D57B15 /* QuestionGenerationDataAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEDA6252E80B8C500D57B15 /* QuestionGenerationDataAdapter.swift */; };
 		7BEDA62C2E80B91100D57B15 /* GeneratedQuestionsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEDA6292E80B91100D57B15 /* GeneratedQuestionsListView.swift */; };
@@ -730,6 +736,8 @@
 		7BEC080B2F4D7CB100B6E573 /* wronglistingcheck.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = wronglistingcheck.json; sourceTree = "<group>"; };
 		7BEC08332F4E780300B6E573 /* ActivityViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ActivityViewController.swift; path = StudyAI/Views/Components/ActivityViewController.swift; sourceTree = SOURCE_ROOT; };
 		7BEC08372F4E795500B6E573 /* AppConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppConfiguration.swift; path = StudyAI/Core/AppConfiguration.swift; sourceTree = SOURCE_ROOT; };
+		7BEC083B2F4F9D4400B6E573 /* mathjax.min.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = mathjax.min.js; sourceTree = "<group>"; };
+		7BEC08432F4FB42D00B6E573 /* mistakeNotebook.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = mistakeNotebook.json; sourceTree = "<group>"; };
 		7BEDA6252E80B8C500D57B15 /* QuestionGenerationDataAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QuestionGenerationDataAdapter.swift; path = StudyAI/Services/QuestionGenerationDataAdapter.swift; sourceTree = SOURCE_ROOT; };
 		7BEDA6262E80B8C500D57B15 /* QuestionGenerationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QuestionGenerationService.swift; path = StudyAI/Services/QuestionGenerationService.swift; sourceTree = SOURCE_ROOT; };
 		7BEDA6292E80B91100D57B15 /* GeneratedQuestionsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GeneratedQuestionsListView.swift; path = StudyAI/Views/GeneratedQuestionsListView.swift; sourceTree = SOURCE_ROOT; };
@@ -894,6 +902,7 @@
 		7B8353322EA6F0DA00199AC3 /* utils */ = {
 			isa = PBXGroup;
 			children = (
+				7BEC083B2F4F9D4400B6E573 /* mathjax.min.js */,
 				7B22491C2F39BE4E006ADD93 /* ThemeManager.swift */,
 				7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */,
 				7B8353332EA6F11400199AC3 /* AppLogger.swift */,
@@ -1202,6 +1211,7 @@
 		7BEEB6292E8EFFCA00957748 /* Lottie */ = {
 			isa = PBXGroup;
 			children = (
+				7BEC08432F4FB42D00B6E573 /* mistakeNotebook.json */,
 				7BEC08072F4D7CB100B6E573 /* createquiz.json */,
 				7BEC08082F4D7CB100B6E573 /* Imageicontadah.json */,
 				7BEC08092F4D7CB100B6E573 /* loadingtomato.json */,
@@ -1388,6 +1398,7 @@
 				7BEC07FB2F4C332900B6E573 /* Localizable_ja.strings in Resources */,
 				7BEC07FC2F4C332900B6E573 /* Localizable_de.strings in Resources */,
 				7BEC07FD2F4C332900B6E573 /* Localizable_es.strings in Resources */,
+				7BEC083E2F4F9D4400B6E573 /* mathjax.min.js in Resources */,
 				7BEC07FE2F4C332900B6E573 /* Localizable_fr.strings in Resources */,
 				7BEC07C12F42F9DB00B6E573 /* Star.json in Resources */,
 				7BEC07C22F42F9DB00B6E573 /* Star rating.json in Resources */,
@@ -1413,6 +1424,7 @@
 				7B9045202E8FB42E00E5DDFA /* Checklist.json in Resources */,
 				7B1961A92E93AD240024317A /* Wave Animation.json in Resources */,
 				7BEEB6272E8EFB9100957748 /* Holographic gradient.json in Resources */,
+				7BEC08442F4FB42D00B6E573 /* mistakeNotebook.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1431,6 +1443,7 @@
 				7BEC07CB2F42F9DB00B6E573 /* Correct.json in Resources */,
 				7BEC07CC2F42F9DB00B6E573 /* Question and Answer 2.json in Resources */,
 				7BEC07CD2F42F9DB00B6E573 /* Star.json in Resources */,
+				7BEC08462F4FB42D00B6E573 /* mistakeNotebook.json in Resources */,
 				7BEC07CE2F42F9DB00B6E573 /* Star rating.json in Resources */,
 				7BEC07CF2F42F9DB00B6E573 /* Target.json in Resources */,
 				7BEC07D02F42F9DB00B6E573 /* rocket 2.json in Resources */,
@@ -1445,6 +1458,7 @@
 				7B1961E02E94D96A0024317A /* Localizable.strings in Resources */,
 				7BEEB62C2E8EFFEB00957748 /* AI Spiral Loading.json in Resources */,
 				7B2248152F1970BE006ADD93 /* PrivacyInfo.xcprivacy in Resources */,
+				7BEC083C2F4F9D4400B6E573 /* mathjax.min.js in Resources */,
 				7BEEB61E2E8E411900957748 /* Education edit.json in Resources */,
 				7B90451C2E8FB1FE00E5DDFA /* Books.json in Resources */,
 				7B19619F2E9285F20024317A /* Sandy_Loading.json in Resources */,
@@ -1476,6 +1490,7 @@
 				7BEC07C52F42F9DB00B6E573 /* Correct.json in Resources */,
 				7BEC07C62F42F9DB00B6E573 /* Question and Answer 2.json in Resources */,
 				7BEC07C72F42F9DB00B6E573 /* Star.json in Resources */,
+				7BEC08452F4FB42D00B6E573 /* mistakeNotebook.json in Resources */,
 				7BEC07C82F42F9DB00B6E573 /* Star rating.json in Resources */,
 				7BEC07C92F42F9DB00B6E573 /* Target.json in Resources */,
 				7BEC07CA2F42F9DB00B6E573 /* rocket 2.json in Resources */,
@@ -1490,6 +1505,7 @@
 				7B1961E32E94D96A0024317A /* Localizable.strings in Resources */,
 				7BEEB62D2E8EFFEB00957748 /* AI Spiral Loading.json in Resources */,
 				7B2248162F1970BE006ADD93 /* PrivacyInfo.xcprivacy in Resources */,
+				7BEC083D2F4F9D4400B6E573 /* mathjax.min.js in Resources */,
 				7BEEB61D2E8E411900957748 /* Education edit.json in Resources */,
 				7B90451B2E8FB1FE00E5DDFA /* Books.json in Resources */,
 				7B19619D2E9285F20024317A /* Sandy_Loading.json in Resources */,

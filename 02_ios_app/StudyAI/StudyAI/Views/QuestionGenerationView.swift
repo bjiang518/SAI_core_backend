@@ -18,6 +18,7 @@ struct QuestionGenerationView: View {
     @StateObject private var libraryService = LibraryDataService.shared
     @StateObject private var mistakeService = MistakeReviewService()
     @StateObject private var sessionManager = PracticeSessionManager.shared  // ✅ FIX 2: Session persistence
+    @StateObject private var appState = AppState.shared
     @State private var inputSubject = ""
     @State private var selectedTemplate: TemplateType = .randomPractice
     @State private var showingQuestionsList = false
@@ -172,6 +173,12 @@ struct QuestionGenerationView: View {
             }
             .onAppear {
                 loadInitialData()
+            }
+            .onChange(of: appState.shouldDismissPracticeStack) { _, shouldDismiss in
+                if shouldDismiss {
+                    showingQuestionsList = false
+                    appState.shouldDismissPracticeStack = false
+                }
             }
     }
 
