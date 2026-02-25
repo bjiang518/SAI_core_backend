@@ -2839,18 +2839,6 @@ async function runDatabaseMigrations() {
           `);
         }
 
-        // Question sessions indexes (conditional on table existence)
-        const questionSessionsExists = await db.query(`
-          SELECT 1 FROM information_schema.tables WHERE table_name = 'question_sessions'
-        `);
-
-        if (questionSessionsExists.rows.length > 0) {
-          await db.query(`
-            CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_question_sessions_user_date_perf ON question_sessions(user_id, created_at DESC);
-            CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_question_sessions_user_subject_perf ON question_sessions(user_id, subject_name, created_at DESC);
-          `);
-        }
-
         // Partial indexes without NOW() function (use fixed date comparison instead)
         await db.query(`
           CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_active_sessions_perf ON user_sessions(user_id, created_at DESC);
@@ -3364,7 +3352,7 @@ async function runDatabaseMigrations() {
         SELECT table_name 
         FROM information_schema.tables 
         WHERE table_schema = 'public' 
-        AND table_name IN ('subject_progress', 'daily_subject_activities', 'question_sessions', 'subject_insights')
+        AND table_name IN ('subject_progress', 'daily_subject_activities')
       `);
       
       logger.debug(`📋 Found existing tables: ${existingTables.rows.map(r => r.table_name).join(', ') || 'none'}`);
@@ -3373,7 +3361,7 @@ async function runDatabaseMigrations() {
       const existingTypes = await db.query(`
         SELECT typname 
         FROM pg_type 
-        WHERE typname IN ('subject_progress', 'daily_subject_activities', 'question_sessions', 'subject_insights')
+        WHERE typname IN ('subject_progress', 'daily_subject_activities')
         AND typnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')
       `);
       
@@ -3419,38 +3407,6 @@ async function runDatabaseMigrations() {
             );
           `
         },
-        {
-          name: 'question_sessions',
-          sql: `
-            CREATE TABLE question_sessions (
-              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-              user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-              subject VARCHAR(100) NOT NULL,
-              session_date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-              questions_attempted INTEGER DEFAULT 0,
-              questions_correct INTEGER DEFAULT 0,
-              time_spent INTEGER DEFAULT 0,
-              confidence_level DECIMAL(3,2) DEFAULT 0.8,
-              session_type VARCHAR(50) DEFAULT 'homework',
-              created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-            );
-          `
-        },
-        {
-          name: 'subject_insights',
-          sql: `
-            CREATE TABLE subject_insights (
-              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-              user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-              subject VARCHAR(100) NOT NULL,
-              insight_type VARCHAR(50) NOT NULL,
-              insight_message TEXT NOT NULL,
-              confidence_level DECIMAL(3,2) DEFAULT 0.8,
-              action_recommended TEXT,
-              created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-            );
-          `
-        }
       ];
       
       for (const table of tablesToCreate) {
@@ -3482,11 +3438,6 @@ async function runDatabaseMigrations() {
           name: 'idx_daily_activities_user_date',
           sql: `CREATE INDEX IF NOT EXISTS idx_daily_activities_user_date ON daily_subject_activities(user_id, activity_date DESC);`,
           table: 'daily_subject_activities'
-        },
-        {
-          name: 'idx_question_sessions_user_subject',
-          sql: `CREATE INDEX IF NOT EXISTS idx_question_sessions_user_subject ON question_sessions(user_id, subject, session_date DESC);`,
-          table: 'question_sessions'
         }
       ];
       
@@ -3741,77 +3692,6 @@ async function runDatabaseMigrations() {
       logger.debug('   - Weekly/monthly milestone tracking');
     } else {
       logger.debug('✅ Progress enhancement migration already applied');
-    }
-
-    // Check if parent report narratives migration has been applied
-    const parentReportNarrativesCheck = await db.query(`
-      SELECT table_name
-      FROM information_schema.tables
-      WHERE table_name = 'parent_report_narratives'
-      AND table_schema = 'public'
-    `);
-
-    if (parentReportNarrativesCheck.rows.length === 0) {
-      logger.debug('📋 Applying parent report narratives migration...');
-
-      // Create parent report narratives table for human-readable reports
-      await db.query(`
-        -- Parent report narratives table for human-readable reports
-        CREATE TABLE parent_report_narratives (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          parent_report_id UUID NOT NULL REFERENCES parent_reports(id) ON DELETE CASCADE,
-          narrative_content TEXT NOT NULL,
-          report_summary TEXT NOT NULL,
-          key_insights JSONB DEFAULT '[]',
-          recommendations TEXT[] DEFAULT '{}',
-          tone_style VARCHAR(50) DEFAULT 'teacher_to_parent',
-          language VARCHAR(10) DEFAULT 'en',
-          generated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-          ai_model_version VARCHAR(50) DEFAULT 'claude-3.5-sonnet',
-          word_count INTEGER DEFAULT 0,
-          reading_level VARCHAR(20) DEFAULT 'grade_8',
-          generation_time_ms INTEGER DEFAULT 0,
-          is_complete BOOLEAN DEFAULT true,
-          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-          updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        );
-
-        -- Create indexes for better query performance
-        CREATE INDEX IF NOT EXISTS idx_parent_report_narratives_parent_report_id
-          ON parent_report_narratives(parent_report_id);
-        CREATE INDEX IF NOT EXISTS idx_parent_report_narratives_generated_at
-          ON parent_report_narratives(generated_at DESC);
-        CREATE INDEX IF NOT EXISTS idx_parent_report_narratives_tone_language
-          ON parent_report_narratives(tone_style, language);
-
-        -- Add comments to document the new table
-        COMMENT ON TABLE parent_report_narratives IS 'Human-readable narrative reports generated from analytics data';
-        COMMENT ON COLUMN parent_report_narratives.narrative_content IS 'Full human-readable report content in teacher-to-parent tone';
-        COMMENT ON COLUMN parent_report_narratives.report_summary IS 'Brief executive summary of the report';
-        COMMENT ON COLUMN parent_report_narratives.key_insights IS 'JSON array of key insights and highlights';
-        COMMENT ON COLUMN parent_report_narratives.recommendations IS 'Array of actionable recommendations for parents';
-        COMMENT ON COLUMN parent_report_narratives.tone_style IS 'Writing tone: teacher_to_parent, formal, casual, etc.';
-        COMMENT ON COLUMN parent_report_narratives.word_count IS 'Total word count of narrative content';
-        COMMENT ON COLUMN parent_report_narratives.reading_level IS 'Target reading level for accessibility';
-      `);
-
-      // Record the migration as completed
-      await db.query(`
-        INSERT INTO migration_history (migration_name)
-        VALUES ('004_parent_report_narratives')
-        ON CONFLICT (migration_name) DO NOTHING;
-      `);
-
-      logger.debug('✅ Parent report narratives migration completed successfully!');
-      logger.debug('📊 Parent report narratives table now supports:');
-      logger.debug('   - Human-readable narrative content');
-      logger.debug('   - Executive summaries for busy parents');
-      logger.debug('   - Key insights and recommendations');
-      logger.debug('   - Multiple tone styles and languages');
-      logger.debug('   - Reading level optimization');
-      logger.debug('   - Performance tracking and analytics');
-    } else {
-      logger.debug('✅ Parent report narratives migration already applied');
     }
 
     // ============================================
@@ -4662,34 +4542,6 @@ async function runDatabaseMigrations() {
           }
         }
 
-        // Step 3: Add retention policy to question_sessions table (if exists)
-        const questionSessionsExists = await db.query(`
-          SELECT EXISTS (
-            SELECT FROM information_schema.tables
-            WHERE table_name = 'question_sessions'
-          );
-        `);
-
-        if (questionSessionsExists.rows[0].exists) {
-          await db.query(`
-            ALTER TABLE question_sessions
-            ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP,
-            ADD COLUMN IF NOT EXISTS retention_expires_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP + INTERVAL '90 days');
-          `);
-
-          try {
-            await db.query(`
-              CREATE INDEX IF NOT EXISTS idx_question_sessions_retention
-              ON question_sessions(retention_expires_at)
-              WHERE deleted_at IS NULL;
-            `);
-          } catch (indexError) {
-            if (indexError.code !== '42P07') {
-              logger.warn('⚠️ Index idx_question_sessions_retention creation warning:', indexError.message);
-            }
-          }
-        }
-
         // Step 4: Add retention policy to sessions table
         await db.query(`
           ALTER TABLE sessions
@@ -4727,18 +4579,6 @@ async function runDatabaseMigrations() {
             deleted_count := (SELECT COUNT(*) FROM archived_conversations_new WHERE deleted_at >= CURRENT_TIMESTAMP - INTERVAL '1 second');
             RETURN NEXT;
 
-            -- Soft delete expired question sessions (if table exists)
-            IF EXISTS (SELECT FROM information_schema.tables WHERE information_schema.tables.table_name = 'question_sessions') THEN
-              UPDATE question_sessions
-              SET deleted_at = CURRENT_TIMESTAMP
-              WHERE retention_expires_at < CURRENT_TIMESTAMP
-                AND deleted_at IS NULL;
-
-              table_name := 'question_sessions';
-              deleted_count := (SELECT COUNT(*) FROM question_sessions WHERE deleted_at >= CURRENT_TIMESTAMP - INTERVAL '1 second');
-              RETURN NEXT;
-            END IF;
-
             -- Soft delete expired sessions
             UPDATE sessions
             SET deleted_at = CURRENT_TIMESTAMP
@@ -4768,16 +4608,6 @@ async function runDatabaseMigrations() {
             GET DIAGNOSTICS purged_count = ROW_COUNT;
             RETURN NEXT;
 
-            -- Hard delete question sessions deleted > 30 days ago (if table exists)
-            IF EXISTS (SELECT FROM information_schema.tables WHERE information_schema.tables.table_name = 'question_sessions') THEN
-              DELETE FROM question_sessions
-              WHERE deleted_at < (CURRENT_TIMESTAMP - INTERVAL '30 days');
-
-              table_name := 'question_sessions';
-              GET DIAGNOSTICS purged_count = ROW_COUNT;
-              RETURN NEXT;
-            END IF;
-
             -- Hard delete sessions deleted > 30 days ago
             DELETE FROM sessions
             WHERE deleted_at < (CURRENT_TIMESTAMP - INTERVAL '30 days');
@@ -4802,14 +4632,6 @@ async function runDatabaseMigrations() {
           WHERE retention_expires_at IS NULL;
         `);
 
-        if (questionSessionsExists.rows[0].exists) {
-          await db.query(`
-            UPDATE question_sessions
-            SET retention_expires_at = created_at + INTERVAL '90 days'
-            WHERE retention_expires_at IS NULL;
-          `);
-        }
-
         // Step 8: Create views for non-deleted data
         await db.query(`
           CREATE OR REPLACE VIEW active_conversations AS
@@ -4832,19 +4654,6 @@ async function runDatabaseMigrations() {
         await db.query(`
           COMMENT ON VIEW active_sessions IS 'Only shows non-deleted sessions for GDPR compliance';
         `);
-
-        if (questionSessionsExists.rows[0].exists) {
-          await db.query(`
-            CREATE OR REPLACE VIEW active_question_sessions AS
-            SELECT *
-            FROM question_sessions
-            WHERE deleted_at IS NULL;
-          `);
-
-          await db.query(`
-            COMMENT ON VIEW active_question_sessions IS 'Only shows non-deleted question sessions for GDPR compliance';
-          `);
-        }
 
         // Record migration completion
         await db.query(`
@@ -5099,6 +4908,54 @@ async function runDatabaseMigrations() {
       }
     } else {
       logger.debug('✅ Parent reports settings migration already applied');
+    }
+
+    // ============================================
+    // MIGRATION: Drop Dead Report Tables (2026-02-24)
+    // ============================================
+    const dropDeadTablesCheck = await db.query(`
+      SELECT 1 FROM migration_history WHERE migration_name = '015_drop_dead_report_tables'
+    `);
+
+    if (dropDeadTablesCheck.rows.length === 0) {
+      logger.debug('🧹 Applying dead report tables cleanup migration...');
+
+      const deadTables = [
+        'parent_report_narratives',  // Legacy narrative system — backend deleted
+        'parent_reports',            // Legacy report system — backend deleted
+        'question_sessions',         // Never queried in production code
+        'subject_insights',          // Never queried in production code
+      ];
+
+      let droppedCount = 0;
+      for (const tableName of deadTables) {
+        try {
+          const tableExists = await db.query(`
+            SELECT 1 FROM information_schema.tables
+            WHERE table_name = $1 AND table_schema = 'public'
+          `, [tableName]);
+
+          if (tableExists.rows.length > 0) {
+            await db.query(`DROP TABLE IF EXISTS ${tableName} CASCADE`);
+            droppedCount++;
+            logger.debug(`   ✅ Dropped dead table: ${tableName}`);
+          } else {
+            logger.debug(`   ⏭️  Table ${tableName} does not exist (skipped)`);
+          }
+        } catch (tableError) {
+          logger.debug(`   ⚠️  Could not drop ${tableName}: ${tableError.message}`);
+        }
+      }
+
+      await db.query(`
+        INSERT INTO migration_history (migration_name)
+        VALUES ('015_drop_dead_report_tables')
+        ON CONFLICT (migration_name) DO NOTHING;
+      `);
+
+      logger.debug(`✅ Dead report tables cleanup completed (${droppedCount} tables dropped)`);
+    } else {
+      logger.debug('✅ Dead report tables cleanup already applied');
     }
 
   } catch (error) {
@@ -5374,71 +5231,6 @@ async function createInlineSchema() {
         BEFORE UPDATE ON progress
         FOR EACH ROW
         EXECUTE FUNCTION update_updated_at_column();
-
-    -- Parent Reports Table (for weekly/monthly student progress reports)
-    -- Added to inline schema to ensure automatic creation on deployment
-    CREATE TABLE IF NOT EXISTS parent_reports (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        user_id UUID NOT NULL,
-        report_type VARCHAR(50) NOT NULL CHECK (report_type IN ('weekly', 'monthly', 'custom', 'progress')),
-        start_date DATE NOT NULL,
-        end_date DATE NOT NULL,
-
-        -- Core Report Data
-        report_data JSONB NOT NULL,
-
-        -- Progress Comparison Data
-        previous_report_id UUID REFERENCES parent_reports(id),
-        comparison_data JSONB,
-
-        -- Report Metadata
-        generated_at TIMESTAMP DEFAULT NOW(),
-        expires_at TIMESTAMP NOT NULL DEFAULT NOW() + INTERVAL '7 days',
-        report_version VARCHAR(10) DEFAULT '1.0',
-
-        -- Status and Settings
-        status VARCHAR(20) DEFAULT 'completed' CHECK (status IN ('generating', 'completed', 'failed', 'expired')),
-        generation_time_ms INTEGER,
-        ai_analysis_included BOOLEAN DEFAULT false,
-
-        -- Foreign Key
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-
-        -- Constraints
-        CHECK (start_date <= end_date),
-        CHECK (generated_at <= expires_at)
-    );
-
-    -- Parent Reports Indexes
-    CREATE INDEX IF NOT EXISTS idx_parent_reports_user_date ON parent_reports(user_id, start_date, end_date);
-    CREATE INDEX IF NOT EXISTS idx_parent_reports_user_generated ON parent_reports(user_id, generated_at DESC);
-    CREATE INDEX IF NOT EXISTS idx_parent_reports_status ON parent_reports(status, expires_at);
-
-    -- Parent Report Narratives Table (for human-readable reports)
-    -- Added to inline schema to ensure automatic creation on deployment
-    CREATE TABLE IF NOT EXISTS parent_report_narratives (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        parent_report_id UUID NOT NULL REFERENCES parent_reports(id) ON DELETE CASCADE,
-        narrative_content TEXT NOT NULL,
-        report_summary TEXT NOT NULL,
-        key_insights JSONB DEFAULT '[]',
-        recommendations TEXT[] DEFAULT '{}',
-        tone_style VARCHAR(50) DEFAULT 'teacher_to_parent',
-        language VARCHAR(10) DEFAULT 'en',
-        generated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        ai_model_version VARCHAR(50) DEFAULT 'claude-3.5-sonnet',
-        word_count INTEGER DEFAULT 0,
-        reading_level VARCHAR(20) DEFAULT 'grade_8',
-        generation_time_ms INTEGER DEFAULT 0,
-        is_complete BOOLEAN DEFAULT true,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-    );
-
-    -- Parent Report Narratives Indexes
-    CREATE INDEX IF NOT EXISTS idx_parent_report_narratives_parent_report_id ON parent_report_narratives(parent_report_id);
-    CREATE INDEX IF NOT EXISTS idx_parent_report_narratives_generated_at ON parent_report_narratives(generated_at DESC);
-    CREATE INDEX IF NOT EXISTS idx_parent_report_narratives_tone_language ON parent_report_narratives(tone_style, language);
 
     -- PASSIVE REPORTS SCHEMA (Scheduled Weekly/Monthly Reports)
     -- Added for automated parent report generation system
