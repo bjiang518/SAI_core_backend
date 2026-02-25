@@ -809,7 +809,10 @@ module.exports = async function (fastify, opts) {
                     };
 
                     if (geminiSocket && geminiSocket.readyState === WebSocket.OPEN) {
-                        geminiSocket.send(JSON.stringify(replayMessage));
+                        const replayJson = JSON.stringify(replayMessage);
+                        // Log full payload so we can see exactly what Gemini rejects
+                        logger.info({ sessionId, payload: replayJson }, '[Live] replaySessionContext: FULL PAYLOAD');
+                        geminiSocket.send(replayJson);
                         logger.info({ sessionId }, '[Live] replaySessionContext: sent');
                     }
                 } catch (error) {
