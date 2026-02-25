@@ -1050,7 +1050,7 @@ Return your response as a JSON object with a "questions" array. Each question mu
                 {{"label": "C", "text": "Third option", "is_correct": false}},
                 {{"label": "D", "text": "Fourth option", "is_correct": false}}
             ],
-            "correct_answer": "The correct answer (for MC: full text of correct option)",
+            "correct_answer": "STRICT FORMAT: For multiple_choice use 'B. full option text' (letter + dot + space + text of the correct option). For true_false use exactly 'True' or 'False'. For other types use the plain answer text.",
             "explanation": "Step-by-step explanation showing the solution process",
             "difficulty": "{difficulty}",
             "topic": "specific topic name from the focus areas",
@@ -1063,6 +1063,7 @@ CRITICAL:
 - Use "question_type" (not "type"), "multiple_choice_options" (not "options"), "estimated_time_minutes"
 - For MC: "multiple_choice_options" = [{{"label":"A","text":"...","is_correct":true/false}}]
 - For non-MC: set "multiple_choice_options" to null
+- ANSWER FORMAT: multiple_choice correct_answer MUST be "B. full option text" (letter + dot + space + exact option text). true_false MUST be exactly "True" or "False".
 {question_type_instruction}
 - Generate EXACTLY {question_count} questions
 
@@ -1237,8 +1238,7 @@ Return your response as a JSON object with a "questions" array. Each question mu
                 {{"label": "C", "text": "Third option", "is_correct": false}},
                 {{"label": "D", "text": "Fourth option", "is_correct": false}}
             ],
-            "correct_answer": "The correct answer",
-            "explanation": "Detailed explanation that addresses the common mistake and shows correct reasoning",
+            "correct_answer": "STRICT FORMAT: For multiple_choice use 'B. full option text' (letter + dot + space + text of the correct option). For true_false use exactly 'True' or 'False'. For other types use the plain answer text.",
             "difficulty": "beginner|intermediate|advanced",
             "topic": "specific topic from the mistake analysis",
             "tags": {unique_source_tags if unique_source_tags else "[]"},
@@ -1255,6 +1255,7 @@ CRITICAL REQUIREMENTS:
 - Use "question_type", "multiple_choice_options", "estimated_time_minutes"
 - For MC: "multiple_choice_options" = [{{"label":"A","text":"...","is_correct":true/false}}]
 - For non-MC: set "multiple_choice_options" to null
+- ANSWER FORMAT: multiple_choice correct_answer MUST be "B. full option text" (letter + dot + space + exact option text). true_false MUST be exactly "True" or "False".
 {question_type_instruction}
 {tags_note if unique_source_tags else ""}
 - Generate EXACTLY {question_count} questions
@@ -1348,7 +1349,7 @@ Return your response as a JSON object with a "questions" array. Each question mu
                 {{"label": "C", "text": "Third option", "is_correct": false}},
                 {{"label": "D", "text": "Fourth option", "is_correct": false}}
             ],
-            "correct_answer": "The correct answer",
+            "correct_answer": "STRICT FORMAT: For multiple_choice use 'B. full option text' (letter + dot + space + text of the correct option). For true_false use exactly 'True' or 'False'. For other types use the plain answer text.",
             "explanation": "Explanation connecting to the archived material",
             "difficulty": "beginner|intermediate|advanced",
             "topic": "specific topic from the archive",
@@ -1361,6 +1362,7 @@ CRITICAL:
 - Use "question_type", "multiple_choice_options", "estimated_time_minutes"
 - For MC: "multiple_choice_options" = [{{"label":"A","text":"...","is_correct":true/false}}]
 - For non-MC: set "multiple_choice_options" to null
+- ANSWER FORMAT: multiple_choice correct_answer MUST be "B. full option text" (letter + dot + space + exact option text). true_false MUST be exactly "True" or "False".
 {question_type_instruction}
 - Generate EXACTLY {question_count} questions
 

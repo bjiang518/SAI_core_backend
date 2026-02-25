@@ -96,62 +96,32 @@ class AnswerMatchingService {
 
     // MARK: - Type-Specific Matching
 
-    /// Match multiple choice answers (A, B, C, D)
+    /// Match multiple choice answers
+    /// Both userAnswer and correctAnswer are in "B. option text" format (letter + dot + space + text).
+    /// Direct string comparison after normalization — no AI grading needed.
     private func matchMultipleChoice(
         _ userAnswer: String,
         _ correctAnswer: String,
         _ options: [String: String]?
     ) -> (score: Double, isExact: Bool) {
 
-        // Extract option letter (A, B, C, D)
-        let userOption = extractOptionLetter(userAnswer)
-        let correctOption = extractOptionLetter(correctAnswer)
-
-        #if DEBUG
-        print("   MC: User option '\(userOption)' vs Correct '\(correctOption)'")
-        #endif
-
-        // Exact match on option letter
-        if userOption == correctOption && !userOption.isEmpty && !correctOption.isEmpty {
+        // Primary: direct normalized comparison ("b. option text" == "b. option text")
+        if !userAnswer.isEmpty && userAnswer == correctAnswer {
             return (1.0, true)
         }
 
-        // ✅ FIX: If correct answer has no letter prefix, strip the letter from user answer and compare text
-        // This handles: User="A. The answer" vs Correct="The answer"
-        if correctOption.isEmpty && !userOption.isEmpty {
-            let userTextOnly = stripOptionPrefix(userAnswer)
-            let normalizedUserText = normalizeAnswer(userTextOnly)
-            let normalizedCorrect = normalizeAnswer(correctAnswer)
+        // Secondary: compare just the option letters (handles edge cases)
+        let userLetter = extractOptionLetter(userAnswer)
+        let correctLetter = extractOptionLetter(correctAnswer)
 
-            #if DEBUG
-            print("   MC: Comparing text content only")
-            print("      User text: '\(userTextOnly)' → '\(normalizedUserText)'")
-            print("      Correct: '\(correctAnswer)' → '\(normalizedCorrect)'")
-            #endif
-
-            if normalizedUserText == normalizedCorrect {
-                return (1.0, true)
-            }
-
-            // Also check with fuzzy matching for minor typos
-            let similarity = calculateStringSimilarity(normalizedUserText, normalizedCorrect)
-            if similarity >= 0.95 {
-                return (1.0, false)
-            }
+        if !userLetter.isEmpty && !correctLetter.isEmpty && userLetter == correctLetter {
+            return (1.0, true)
         }
 
-        // Try matching against option text if available
-        if let opts = options {
-            // Check if user typed the full option text instead of letter
-            for (letter, text) in opts {
-                let normalizedText = normalizeAnswer(text)
-                if normalizedText == userAnswer && letter == correctOption {
-                    return (1.0, true)
-                }
-            }
-        }
+        #if DEBUG
+        print("   MC: No match — User: '\(userAnswer)' Correct: '\(correctAnswer)'")
+        #endif
 
-        // No match
         return (0.0, false)
     }
 
