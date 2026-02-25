@@ -497,18 +497,22 @@ class SessionManagementRoutes {
         reply.raw.write(chunk);
 
         // Extract clean AI text from SSE events for DB storage.
-        // The stream emits lines like: data: {"type":"text_chunk","text":"Hello"}
-        // We accumulate text_chunk pieces; the complete event has the full text too.
+        // AI Engine stream event types:
+        //   {"type":"start", ...}                          — preamble, ignore
+        //   {"type":"content", "delta":"chunk", "content":"accumulated"} — each token
+        //   {"type":"end", "content":"full text", ...}    — final, has complete text
+        //   {"type":"suggestions", ...}                   — follow-ups, ignore
         const lines = chunkStr.split('\n');
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue;
           try {
             const event = JSON.parse(line.slice(6));
-            if (event.type === 'text_chunk' && event.text) {
-              extractedAiText += event.text;
-            } else if (event.type === 'complete' && event.response) {
-              // complete event has the canonical full text — prefer it over accumulated chunks
-              extractedAiText = event.response;
+            if (event.type === 'end' && event.content) {
+              // end event has the canonical full text — prefer over delta accumulation
+              extractedAiText = event.content;
+            } else if (event.type === 'content' && event.delta) {
+              // fallback: accumulate deltas in case end event is missing
+              extractedAiText += event.delta;
             }
           } catch (_) { /* malformed line — skip */ }
         }

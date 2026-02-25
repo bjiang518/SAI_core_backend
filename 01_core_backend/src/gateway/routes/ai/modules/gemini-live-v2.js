@@ -732,30 +732,26 @@ module.exports = async function (fastify, opts) {
                     logger.info({ sessionId, rows: result.rows.length }, '[Live] replaySessionContext: replaying turns');
 
                     // Sanitize stored text before replaying.
-                    // Non-live streaming path may have stored raw SSE bytes
-                    // (e.g. "data: {\"type\":\"text_chunk\",\"text\":\"Hello\"}\\n\\n...").
-                    // Extract clean text from those rows so Gemini receives readable history.
+                    // Non-live streaming path stores raw SSE bytes if the extraction failed.
+                    // AI Engine SSE event types: start (ignore), content (delta), end (full text)
                     function sanitizeMessageText(raw) {
                         if (!raw) return '';
-                        // If it looks like SSE format, extract text from events
-                        if (raw.includes('data: {') || raw.startsWith('data:')) {
-                            let extracted = '';
-                            for (const line of raw.split('\n')) {
-                                if (!line.startsWith('data: ')) continue;
-                                try {
-                                    const event = JSON.parse(line.slice(6));
-                                    // Prefer complete event's full response
-                                    if (event.type === 'complete' && event.response) {
-                                        return event.response;
-                                    }
-                                    if (event.type === 'text_chunk' && event.text) {
-                                        extracted += event.text;
-                                    }
-                                } catch (_) {}
-                            }
-                            return extracted || raw; // fallback to raw if extraction fails
+                        if (!raw.includes('data: {')) return raw; // already clean text
+                        let endContent = '';
+                        let deltaAccum = '';
+                        for (const line of raw.split('\n')) {
+                            if (!line.startsWith('data: ')) continue;
+                            try {
+                                const event = JSON.parse(line.slice(6));
+                                if (event.type === 'end' && event.content) {
+                                    endContent = event.content; // canonical — prefer this
+                                } else if (event.type === 'content' && event.delta) {
+                                    deltaAccum += event.delta;  // fallback accumulation
+                                }
+                            } catch (_) {}
                         }
-                        return raw;
+                        const extracted = endContent || deltaAccum;
+                        return extracted || raw; // last resort: pass raw so Gemini can try
                     }
 
                     // Build multi-turn history as clientContent turns, skipping empty rows
