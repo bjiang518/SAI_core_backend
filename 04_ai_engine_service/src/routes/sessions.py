@@ -71,6 +71,10 @@ class SessionMessageRequest(BaseModel):
     question_context: Optional[Dict[str, Any]] = None
     deep_mode: Optional[bool] = False
     language: Optional[str] = "en"
+    # Prior turns from the gateway DB — used to reseed in-memory session after
+    # Live mode (or server restart) wiped the in-memory state.
+    # Each item: {"role": "user"|"assistant", "content": str, "image_data": str|None}
+    prior_turns: Optional[List[Dict[str, Any]]] = None
 
 
 class SessionMessageResponse(BaseModel):
@@ -197,6 +201,29 @@ Return ONLY the JSON array, no other text."""
 # Endpoints
 # ---------------------------------------------------------------------------
 
+
+async def _seed_session_from_prior_turns(session, session_id: str, prior_turns: List[Dict[str, Any]]):
+    """
+    Pre-populate a freshly-created in-memory session with prior turns fetched
+    from the gateway DB.  Called when is_new_session=True AND prior_turns is
+    provided (i.e. the AI Engine lost state after a Live mode session or restart).
+
+    Each item in prior_turns: {"role": "user"|"assistant", "content": str, "image_data": str|None}
+    """
+    seeded = 0
+    for turn in prior_turns:
+        role = turn.get("role", "")
+        content = turn.get("content", "").strip()
+        image_data = turn.get("image_data")  # base64 string or None
+        if role not in ("user", "assistant") or not content:
+            continue
+        session.add_message(role, content, image_data=image_data if role == "user" else None)
+        seeded += 1
+    import logging as _log
+    _log.getLogger("sessions").info(
+        f"[Session] seeded {seeded}/{len(prior_turns)} prior turns into in-memory session={session_id[:8]}"
+    )
+
 @router.post("/api/v1/sessions/create", response_model=SessionResponse)
 async def create_session(request: SessionCreateRequest):
     """Create a new study session. Sessions maintain conversation history and context."""
@@ -225,6 +252,7 @@ async def send_session_message(session_id: str, request: SessionMessageRequest):
     """
     try:
         session = await session_service.get_session(session_id)
+        is_new_session = session is None
         if not session:
             session = await session_service.create_session(
                 student_id="auto_created",
@@ -232,6 +260,11 @@ async def send_session_message(session_id: str, request: SessionMessageRequest):
             )
             session.session_id = session_id
             session_service.sessions[session_id] = session
+
+        # Reseed in-memory session from gateway DB turns when state was lost
+        # (e.g. after Live mode or server restart).
+        if is_new_session and request.prior_turns:
+            await _seed_session_from_prior_turns(session, session_id, request.prior_turns)
 
         await session_service.add_message_to_session(
             session_id=session_id,
@@ -338,9 +371,15 @@ async def send_session_message_stream(session_id: str, request: SessionMessageRe
         _logging.getLogger("sessions").info(
             f"[Session][stream] msg received | session={session_id[:8]} | "
             f"new_in_memory={is_new_session} | in_memory_msgs={in_memory_count} | "
+            f"prior_turns_received={len(request.prior_turns) if request.prior_turns else 0} | "
             f"last_4={in_memory_preview} | "
             f"user_msg={request.message[:80].replace(chr(10), ' ')!r}"
         )
+
+        # Reseed in-memory session from gateway DB turns when state was lost
+        # (e.g. after Live mode or server restart).
+        if is_new_session and request.prior_turns:
+            await _seed_session_from_prior_turns(session, session_id, request.prior_turns)
 
         await session_service.add_message_to_session(
             session_id=session_id,
