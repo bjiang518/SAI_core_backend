@@ -301,6 +301,32 @@ class SessionManagementRoutes {
         this.fastify.log.info(`📸 Forwarding image to AI Engine (${imageData.length} chars)`);
       }
 
+      // Fetch DB conversation history and include as prior_turns so the AI Engine
+      // can reseed its in-memory session if it lost state (e.g. after Live mode or restart).
+      const { db: dbForHistory } = require('../../../../utils/railway-database');
+      const dbRows = await dbForHistory.getConversationHistory(sessionId, 50);
+      const priorTurns = (dbRows || []).map(r => {
+        const turn = {
+          role: r.message_type === 'user' ? 'user' : 'assistant',
+          content: (r.message_text || '').replace(/^data:\S+\n\n/gm, '').trim()
+        };
+        // Include image data for user turns that have it stored in message_data
+        if (turn.role === 'user' && r.message_data) {
+          try {
+            const md = typeof r.message_data === 'string' ? JSON.parse(r.message_data) : r.message_data;
+            if (md.hasImage && md.image_data) {
+              turn.image_data = md.image_data.replace(/^data:image\/\w+;base64,/, '');
+            }
+          } catch (_) {}
+        }
+        return turn;
+      }).filter(t => t.content);
+
+      this.fastify.log.info({
+        sessionId: sessionId.substring(0, 8),
+        priorTurns: priorTurns.length
+      }, '[Session] forwarding prior_turns to AI Engine');
+
       // Send to AI Engine — it owns session state and conversation history
       const aiRequestPayload = {
         message: userMessage,
@@ -309,6 +335,7 @@ class SessionManagementRoutes {
         student_id: authenticatedUserId,
         language: userLanguage,
         deep_mode,
+        prior_turns: priorTurns,
         ...(imageData && { image_data: imageData }),
         ...(question_context && { question_context }),
         context: {
@@ -317,24 +344,6 @@ class SessionManagementRoutes {
           ...context
         }
       };
-
-      // ── CONTEXT FLOW LOG ──────────────────────────────────────────────────
-      // Shows what the gateway fetches from DB vs what is sent to the AI Engine.
-      // The AI Engine owns its OWN in-memory session history — the gateway does
-      // NOT forward DB rows. If Live mode turns were stored in DB but the AI
-      // Engine's in-memory session is missing them, context will be stale.
-      const { db: dbForLog } = require('../../../../utils/railway-database');
-      const dbRows = await dbForLog.getConversationHistory(sessionId, 50);
-      this.fastify.log.info({
-        sessionId: sessionId.substring(0, 8),
-        dbRows: dbRows?.length ?? 0,
-        dbPreview: (dbRows || []).slice(-4).map(r => ({
-          role: r.message_type,
-          preview: (r.message_text || '').slice(0, 60).replace(/\n/g, ' ')
-        })),
-        aiEngineEndpoint: `/api/v1/sessions/${sessionId}/message`,
-        note: 'AI Engine uses its own in-memory session — DB rows above are NOT forwarded'
-      }, '[Session] non-live message: context flow');
 
       const result = await this.aiClient.proxyRequest(
         'POST',
@@ -439,6 +448,31 @@ class SessionManagementRoutes {
         this.fastify.log.info(`📸 Forwarding image to AI Engine (${imageData.length} chars)`);
       }
 
+      // Fetch DB conversation history and include as prior_turns so the AI Engine
+      // can reseed its in-memory session if it lost state (e.g. after Live mode or restart).
+      const { db: dbForHistory } = require('../../../../utils/railway-database');
+      const dbRows = await dbForHistory.getConversationHistory(sessionId, 50);
+      const priorTurns = (dbRows || []).map(r => {
+        const turn = {
+          role: r.message_type === 'user' ? 'user' : 'assistant',
+          content: (r.message_text || '').replace(/^data:\S+\n\n/gm, '').trim()
+        };
+        if (turn.role === 'user' && r.message_data) {
+          try {
+            const md = typeof r.message_data === 'string' ? JSON.parse(r.message_data) : r.message_data;
+            if (md.hasImage && md.image_data) {
+              turn.image_data = md.image_data.replace(/^data:image\/\w+;base64,/, '');
+            }
+          } catch (_) {}
+        }
+        return turn;
+      }).filter(t => t.content);
+
+      this.fastify.log.info({
+        sessionId: sessionId.substring(0, 8),
+        priorTurns: priorTurns.length
+      }, '[Session] forwarding prior_turns to AI Engine (stream)');
+
       // Build request payload — AI Engine owns session state and conversation history
       const requestPayload = {
         message: userMessage,
@@ -447,6 +481,7 @@ class SessionManagementRoutes {
         student_id: authenticatedUserId,
         language: userLanguage,
         deep_mode,
+        prior_turns: priorTurns,
         ...(imageData && { image_data: imageData }),
         ...(question_context && { question_context }),
         context: {
