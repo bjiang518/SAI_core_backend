@@ -298,14 +298,6 @@ module.exports = async function (fastify, opts) {
 
                 const systemInstruction = buildSystemInstruction(subject, language);
 
-                // Fetch prior turns and append to systemInstruction as plain text context.
-                // This is the only reliable way to inject history into Gemini Live —
-                // clientContent with turns[] causes 1007, setup.history is not a valid field.
-                const historyContext = await buildHistoryContext();
-                const fullInstruction = historyContext
-                    ? systemInstruction + '\n\n' + historyContext
-                    : systemInstruction;
-
                 const setupMessage = {
                     setup: {
                         model: "models/gemini-2.5-flash-native-audio-preview-12-2025",
@@ -324,7 +316,7 @@ module.exports = async function (fastify, opts) {
                         inputAudioTranscription: {},
                         outputAudioTranscription: {},
                         systemInstruction: {
-                            parts: [{ text: fullInstruction }]
+                            parts: [{ text: systemInstruction }]
                         }
                     }
                 };
@@ -773,9 +765,107 @@ ${lines.join('\n')}
                 }
             }
 
-            // replaySessionContext no longer sends clientContent (causes 1007).
-            // History is now embedded in systemInstruction via buildHistoryContext().
-            async function replaySessionContext() {}
+            /**
+             * Replay prior conversation turns into Gemini after setupComplete.
+             *
+             * Per the Gemini Live API docs, context injection uses sendClientContent
+             * with turns sent as SEPARATE messages, each with turnComplete: false,
+             * except the final user turn which uses turnComplete: true.
+             *
+             * Doc example:
+             *   sendClientContent({ turns: historyTurns, turnComplete: false })
+             *   sendClientContent({ turns: [lastUserTurn], turnComplete: true })
+             *
+             * Rules:
+             *   - Each DB row → one clientContent message (turnComplete: false)
+             *   - Roles alternate user/model; consecutive same-role rows merged
+             *   - Last sent message must end on a user turn with turnComplete: true
+             *     so Gemini commits context but doesn't immediately respond
+             *   - If history ends on model, we add a silent user anchor turn
+             */
+            async function replaySessionContext() {
+                if (!sessionId) return;
+                try {
+                    const result = await db.query(`
+                        SELECT message_type, message_text
+                        FROM conversations
+                        WHERE session_id = $1
+                        ORDER BY created_at ASC
+                        LIMIT 50
+                    `, [sessionId]);
+
+                    if (result.rows.length === 0) {
+                        logger.info({ sessionId }, '[Live] replay: no prior turns');
+                        return;
+                    }
+
+                    function sanitize(raw) {
+                        if (!raw) return '';
+                        if (!raw.includes('data: {')) return raw;
+                        let endContent = '', deltaAccum = '';
+                        for (const line of raw.split('\n')) {
+                            if (!line.startsWith('data: ')) continue;
+                            try {
+                                const ev = JSON.parse(line.slice(6));
+                                if (ev.type === 'end' && ev.content) endContent = ev.content;
+                                else if (ev.type === 'content' && ev.delta) deltaAccum += ev.delta;
+                            } catch (_) {}
+                        }
+                        return endContent || deltaAccum || raw;
+                    }
+
+                    // Build turns, merging consecutive same-role rows into one
+                    const rawTurns = [];
+                    for (const row of result.rows) {
+                        const text = sanitize(row.message_text).trim().replace(/\s+/g, ' ');
+                        if (!text) continue;
+                        rawTurns.push({ role: row.message_type === 'user' ? 'user' : 'model', text });
+                    }
+                    if (rawTurns.length === 0) return;
+
+                    const turns = [];
+                    for (const t of rawTurns) {
+                        const last = turns[turns.length - 1];
+                        if (last && last.role === t.role) {
+                            last.parts[0].text += ' ' + t.text;
+                        } else {
+                            turns.push({ role: t.role, parts: [{ text: t.text }] });
+                        }
+                    }
+
+                    // Must start with user
+                    if (turns[0].role !== 'user') {
+                        turns.unshift({ role: 'user', parts: [{ text: '(conversation started)' }] });
+                    }
+
+                    // History must end with a user turn + turnComplete:true so Gemini
+                    // commits context without immediately generating a response.
+                    // If it ends on model, append a silent user anchor.
+                    if (turns[turns.length - 1].role !== 'user') {
+                        turns.push({ role: 'user', parts: [{ text: '(continuing our conversation)' }] });
+                    }
+
+                    if (!(geminiSocket && geminiSocket.readyState === WebSocket.OPEN)) return;
+
+                    logger.info({ sessionId, turns: turns.length, roles: turns.map(t => t.role) }, '[Live] replay: sending turns');
+
+                    // Send all turns except the last with turnComplete: false
+                    for (let i = 0; i < turns.length - 1; i++) {
+                        geminiSocket.send(JSON.stringify({
+                            clientContent: { turns: [turns[i]], turnComplete: false }
+                        }));
+                    }
+
+                    // Send the final user turn with turnComplete: true
+                    geminiSocket.send(JSON.stringify({
+                        clientContent: { turns: [turns[turns.length - 1]], turnComplete: true }
+                    }));
+
+                    logger.info({ sessionId }, '[Live] replay: done');
+                } catch (error) {
+                    logger.error({ error }, '[Live] replay: error');
+                }
+            }
 
             async function fetchHomeworkContext(sessionId) {
                 try {
