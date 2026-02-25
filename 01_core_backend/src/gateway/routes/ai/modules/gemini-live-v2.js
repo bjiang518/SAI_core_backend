@@ -772,10 +772,20 @@ module.exports = async function (fastify, opts) {
                         return;
                     }
 
+                    // Append a silent primer as the final model turn so Gemini doesn't
+                    // immediately respond to the history injection ("talk-back").
+                    turns.push({
+                        role: 'model',
+                        parts: [{ text: 'I have reviewed our previous conversation and I\'m ready to continue.' }]
+                    });
+
+                    // turnComplete: true — history injection, not an open user turn.
+                    // With false, Gemini treats the batch as incomplete and waits for
+                    // continuation instead of committing the turns to session memory.
                     const replayMessage = {
                         clientContent: {
                             turns,
-                            turnComplete: false  // history injection — not a new user turn
+                            turnComplete: true
                         }
                     };
 
