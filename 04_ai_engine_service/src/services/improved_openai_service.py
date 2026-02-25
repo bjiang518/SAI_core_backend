@@ -2087,6 +2087,49 @@ class EducationalAIService:
 
         return steps[:5]  # Limit to 5 steps
 
+    def _normalize_question_answers(self, questions: List[Dict]) -> List[Dict]:
+        """
+        Post-process questions to enforce stable correct_answer formats:
+        - multiple_choice: "B. option text" (letter + dot + space + exact option text)
+        - true_false: exactly "True" or "False"
+        This ensures deterministic client-side matching without AI grading.
+        """
+        for q in questions:
+            q_type = q.get("question_type", "").lower()
+            correct = q.get("correct_answer", "")
+            options = q.get("multiple_choice_options")  # list of {"label","text","is_correct"}
+
+            if q_type == "multiple_choice" and options:
+                # Find the correct option object
+                correct_option = None
+                for opt in options:
+                    if isinstance(opt, dict) and opt.get("is_correct"):
+                        correct_option = opt
+                        break
+
+                if correct_option:
+                    label = correct_option.get("label", "").strip().upper()
+                    text = correct_option.get("text", "").strip()
+                    q["correct_answer"] = f"{label}. {text}"
+                elif correct:
+                    # Try to extract letter from existing correct_answer and match to option
+                    letter_match = re.match(r'^([A-D])[.)]\s*', correct.strip(), re.IGNORECASE)
+                    if letter_match:
+                        letter = letter_match.group(1).upper()
+                        for opt in options:
+                            if isinstance(opt, dict) and opt.get("label", "").upper() == letter:
+                                q["correct_answer"] = f"{letter}. {opt.get('text', '').strip()}"
+                                break
+
+            elif q_type == "true_false":
+                lower = correct.lower().strip()
+                if lower in ("true", "t", "yes", "1", "correct"):
+                    q["correct_answer"] = "True"
+                elif lower in ("false", "f", "no", "0", "incorrect"):
+                    q["correct_answer"] = "False"
+
+        return questions
+
     def _parse_questions_from_text(self, raw_response: str) -> List[Dict]:
         """
         Parse questions from text using robust delimiter-based approach.
@@ -2726,6 +2769,9 @@ Focus on being helpful and educational while maintaining a conversational tone."
                         if field not in question:
                             raise ValueError(f"Question {i+1} missing required field: {field}")
 
+                # Enforce stable correct_answer formats (MC: "B. text", T/F: "True"/"False")
+                questions_json = self._normalize_question_answers(questions_json)
+
                 logger.debug(f"✅ === AI SERVICE: RANDOM QUESTIONS GENERATION SUCCESS ===")
                 logger.debug(f"🎯 Generated {len(questions_json)} questions")
 
@@ -2945,6 +2991,9 @@ Focus on being helpful and educational while maintaining a conversational tone."
                         if field not in question:
                             raise ValueError(f"Question {i+1} missing required field: {field}")
 
+                # Enforce stable correct_answer formats (MC: "B. text", T/F: "True"/"False")
+                questions_json = self._normalize_question_answers(questions_json)
+
                 # ✅ NEW: Log detailed error keys for each question
                 logger.debug(f"📊 === ERROR KEYS SUMMARY FOR GENERATED QUESTIONS ===")
                 for i, question in enumerate(questions_json, 1):
@@ -3088,6 +3137,9 @@ Focus on being helpful and educational while maintaining a conversational tone."
                     for field in required_fields:
                         if field not in question:
                             raise ValueError(f"Question {i+1} missing required field: {field}")
+
+                # Enforce stable correct_answer formats (MC: "B. text", T/F: "True"/"False")
+                questions_json = self._normalize_question_answers(questions_json)
 
                 logger.debug(f"✅ === AI SERVICE: CONVERSATION-BASED QUESTIONS GENERATION SUCCESS ===")
                 logger.debug(f"🎯 Generated {len(questions_json)} personalized questions")

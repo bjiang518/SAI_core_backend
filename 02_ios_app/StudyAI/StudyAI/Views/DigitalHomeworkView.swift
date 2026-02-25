@@ -2042,8 +2042,10 @@ struct QuestionCard: View {
                         .tint(.purple)
                         .disabled(questionWithGrade.isArchived || questionWithGrade.isGrading)  // ✅ Disable during grading to prevent multi-press
 
+                        Spacer()
+
                         Button(action: onArchive) {
-                            Label(questionWithGrade.isArchived ? NSLocalizedString("proMode.archived", comment: "Archived") : NSLocalizedString("proMode.archive", comment: "Archive"), systemImage: questionWithGrade.isArchived ? "checkmark.circle" : "archivebox")
+                            Image(systemName: questionWithGrade.isArchived ? "checkmark.circle" : "books.vertical.fill")
                                 .font(.caption)
                         }
                         .buttonStyle(.bordered)
@@ -2563,11 +2565,13 @@ struct SubquestionRow: View {
                                 .tint(.purple)
                                 .disabled(isArchived || isGrading)  // ✅ Disable during grading to prevent multi-press
 
+                                Spacer()
+
                                 // ✅ NEW: Archive button with action sheet
                                 Button(action: {
                                     showArchiveOptions = true
                                 }) {
-                                    Label(isArchived ? "Archived" : NSLocalizedString("proMode.archive", comment: "Archive"), systemImage: isArchived ? "checkmark.circle" : "archivebox")
+                                    Image(systemName: isArchived ? "checkmark.circle" : "books.vertical.fill")
                                         .font(.caption)
                                 }
                                 .buttonStyle(.bordered)

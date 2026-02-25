@@ -87,21 +87,19 @@ def _get_type_specific_instructions(question_type: str) -> str:
     type_prompts = {
         "multiple_choice": """
 📋 MULTIPLE CHOICE GRADING RULES:
-- Accept ONLY letter answers (A, B, C, D, etc.) or the exact option text
-- Answer must match one of the provided options exactly
-- Case-insensitive for letters (A = a)
-- If student wrote the full option text, validate it matches the correct option
-- Common errors: choosing option that sounds right but has subtle differences
-- Multiple choice is all-or-nothing UNLESS the question explicitly asks for reasoning/justification
-- If reasoning is required and shown, give partial credit: correct reasoning (0.3) + correct answer (0.7)
+- correct_answer is in "B. option text" format (letter + dot + space + option text)
+- student_answer is the full selected option in the same "B. option text" format
+- Compare: extract the letter from both sides and check if they match (case-insensitive)
+- If letters match → score 1.0 (correct). If they differ → score 0.0 (incorrect)
+- Multiple choice is always all-or-nothing
 """,
 
         "true_false": """
 📋 TRUE/FALSE GRADING RULES:
-- Accept: True/False, T/F, Yes/No, 对/错, 是/否
-- Must be unambiguous - reject unclear answers
-- Some questions may require justification - grade both answer and reasoning
-- Common student errors: confusing double negatives, misreading "always" vs "sometimes"
+- correct_answer is exactly "True" or "False"
+- student_answer is exactly "True" or "False"
+- Compare directly (case-insensitive): "true" == "true" → correct, else incorrect
+- All-or-nothing scoring
 """,
 
         "fill_blank": """
