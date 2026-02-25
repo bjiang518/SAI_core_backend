@@ -762,17 +762,21 @@ module.exports = async function (fastify, opts) {
                     const rawTurns = [];
                     for (const row of result.rows) {
                         const text = sanitize(row.message_text);
-                        if (!text.trim()) continue;
-                        rawTurns.push({ role: row.message_type === 'user' ? 'user' : 'model', text });
+                        // Clean: trim + collapse internal whitespace runs to single space
+                        const clean = text.trim().replace(/\s+/g, ' ');
+                        if (!clean) continue;
+                        rawTurns.push({ role: row.message_type === 'user' ? 'user' : 'model', text: clean });
                     }
                     if (rawTurns.length === 0) return [];
 
-                    // Merge consecutive same-role rows → one turn with multiple parts
+                    // Merge consecutive same-role rows → ONE turn with ONE text part (single string).
+                    // Gemini Live setup.history does not tolerate multiple text parts in one turn.
                     const merged = [];
                     for (const t of rawTurns) {
                         const last = merged[merged.length - 1];
                         if (last && last.role === t.role) {
-                            last.parts.push({ text: '\n' + t.text });
+                            // Append to the single text string (not a new part)
+                            last.parts[0].text += ' ' + t.text;
                         } else {
                             merged.push({ role: t.role, parts: [{ text: t.text }] });
                         }
@@ -783,9 +787,10 @@ module.exports = async function (fastify, opts) {
                         merged.unshift({ role: 'user', parts: [{ text: '(conversation started)' }] });
                     }
 
-                    // Must end with model (silent primer — prevents immediate talk-back)
+                    // Must end with model (silent primer — prevents immediate talk-back).
+                    // Append to the single text string, not a new part.
                     if (merged[merged.length - 1].role === 'model') {
-                        merged[merged.length - 1].parts.push({ text: '\nI have reviewed our previous conversation and I\'m ready to continue.' });
+                        merged[merged.length - 1].parts[0].text += ' I have reviewed our previous conversation and I\'m ready to continue.';
                     } else {
                         merged.push({ role: 'model', parts: [{ text: 'I have reviewed our previous conversation and I\'m ready to continue.' }] });
                     }
