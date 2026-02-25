@@ -160,6 +160,7 @@ module.exports = async function (fastify, opts) {
 
             geminiSocket.on('close', (code, reason) => {
                 const reasonStr = reason ? reason.toString() : 'No reason provided';
+                logger.warn({ code, reason: reasonStr, sessionId, userId }, '[Live] Gemini WebSocket closed');
                 if (code !== 1000) {
                     logger.error({ code, reason: reasonStr, userId }, 'Gemini WebSocket closed unexpectedly');
                 }
@@ -282,6 +283,7 @@ module.exports = async function (fastify, opts) {
              */
             async function handleStartSession(data) {
                 const { subject, language, character } = data;
+                logger.info({ sessionId, subject, language, character }, '[Live] handleStartSession');
 
                 currentSubject = subject || null;
 
@@ -371,6 +373,7 @@ module.exports = async function (fastify, opts) {
              * ✅ FIX: Send audioStreamEnd when mic stops to flush cached audio
              */
             function handleAudioStreamEnd() {
+                logger.info({ sessionId }, '[Live] handleAudioStreamEnd: flushing audio to Gemini');
                 const streamEnd = {
                     realtimeInput: {
                         audioStreamEnd: true
@@ -475,6 +478,7 @@ module.exports = async function (fastify, opts) {
                 // Handle setupComplete
                 if (message.setupComplete || message.setup_complete) {
                     isSetupComplete = true;
+                    logger.info({ sessionId }, '[Live] Gemini setupComplete received');
 
                     // Replay prior turns for this session so Gemini has full context.
                     // This is a no-op on first connect (no rows yet); on reconnect it restores
@@ -555,6 +559,7 @@ module.exports = async function (fastify, opts) {
                         currentUserTranscript = '';
                         currentAiTranscript = '';
 
+                        logger.info({ sessionId, userChars: userText.length, aiChars: aiText.length }, '[Live] turn_complete: storing');
                         if (userText) {
                             storeMessage('user', `🎙️ ${userText}`);
                         }
@@ -719,13 +724,22 @@ module.exports = async function (fastify, opts) {
                         LIMIT 50
                     `, [sessionId]);
 
-                    if (result.rows.length === 0) return;
+                    if (result.rows.length === 0) {
+                        logger.info({ sessionId }, '[Live] replaySessionContext: no prior turns, starting fresh');
+                        return;
+                    }
+
+                    logger.info({ sessionId, rows: result.rows.length }, '[Live] replaySessionContext: replaying turns');
 
                     // Build multi-turn history as clientContent turns
-                    const turns = result.rows.map(row => ({
-                        role: row.message_type === 'user' ? 'user' : 'model',
-                        parts: [{ text: row.message_text }]
-                    }));
+                    const turns = result.rows.map(row => {
+                        const preview = (row.message_text || '').slice(0, 80).replace(/\n/g, ' ');
+                        logger.info({ role: row.message_type, preview }, '[Live] replay turn');
+                        return {
+                            role: row.message_type === 'user' ? 'user' : 'model',
+                            parts: [{ text: row.message_text }]
+                        };
+                    });
 
                     const replayMessage = {
                         clientContent: {
@@ -736,11 +750,11 @@ module.exports = async function (fastify, opts) {
 
                     if (geminiSocket && geminiSocket.readyState === WebSocket.OPEN) {
                         geminiSocket.send(JSON.stringify(replayMessage));
-                        logger.info({ sessionId, turns: turns.length }, 'Replayed session context into Gemini');
+                        logger.info({ sessionId, turns: turns.length }, '[Live] replaySessionContext: sent to Gemini');
                     }
                 } catch (error) {
                     // Non-fatal — Gemini starts fresh if replay fails
-                    logger.error({ error }, 'Error replaying session context');
+                    logger.error({ error }, '[Live] replaySessionContext: error');
                 }
             }
 
