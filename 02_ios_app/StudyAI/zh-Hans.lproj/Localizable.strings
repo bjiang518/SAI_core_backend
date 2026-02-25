@@ -170,6 +170,7 @@
 "aiHomework.optimizing" = "优化图片中...";
 "aiHomework.cropping" = "正在图像分割...";
 "aiHomework.uploading" = "上传到AI中...";
+"aiHomework.autoDetecting" = "自动检测内容...";
 "aiHomework.analyzing" = "AI正在阅读作业...";
 "aiHomework.optimizing" = "📦 优化图片中...";
 "aiHomework.parsingHomework" = "🤖 AI正在解析作业...";

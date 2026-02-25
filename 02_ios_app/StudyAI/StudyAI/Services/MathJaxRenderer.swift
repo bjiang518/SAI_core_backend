@@ -62,28 +62,23 @@ class FullLaTeXRenderer: ObservableObject {
     private var mathjaxAvailable = true
 
     private init() {
-        print("📐 [MathJax] FullLaTeXRenderer initialized")
-        // Check if MathJax is available (network connectivity)
+        // Check if MathJax CDN is accessible
         checkMathJaxAvailability()
     }
 
     /// Check if MathJax CDN is accessible
     private func checkMathJaxAvailability() {
-        print("📐 [MathJax] Checking CDN availability...")
         Task {
             do {
                 let url = URL(string: "https://cdn.jsdelivr.net")!
                 let (_, response) = try await URLSession.shared.data(from: url)
                 if let httpResponse = response as? HTTPURLResponse {
                     mathjaxAvailable = (200...299).contains(httpResponse.statusCode)
-                    print("📐 [MathJax] CDN check: status \(httpResponse.statusCode), available: \(mathjaxAvailable)")
                 }
             } catch {
                 mathjaxAvailable = false
-                print("📐 [MathJax] CDN check failed: \(error.localizedDescription)")
             }
             isReady = true
-            print("📐 [MathJax] Renderer ready, MathJax available: \(mathjaxAvailable)")
         }
     }
 
@@ -477,7 +472,11 @@ struct MathJaxWebView: UIViewRepresentable {
         // Only load HTML if it's different from what's currently loaded
         // This prevents infinite re-rendering loops
         if html != context.coordinator.lastLoadedHTML {
-            webView.loadHTMLString(html, baseURL: nil)
+            // Provide a real baseURL so WKWebView allows CDN script loading.
+            // Without a baseURL the page runs in about:blank origin which blocks
+            // external network requests, preventing MathJax from loading.
+            let baseURL = URL(string: "https://cdn.jsdelivr.net")
+            webView.loadHTMLString(html, baseURL: baseURL)
             context.coordinator.lastLoadedHTML = html
         }
     }
@@ -560,8 +559,8 @@ struct SmartLaTeXView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear {
-            // Set timeout for MathJax rendering
-            DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+            // Set timeout for MathJax rendering — 12s to accommodate CDN load time
+            DispatchQueue.main.asyncAfter(deadline: .now() + 12.0) {
                 if isLoading {
                     // Timeout - fallback to simplified
                     usesFallback = true

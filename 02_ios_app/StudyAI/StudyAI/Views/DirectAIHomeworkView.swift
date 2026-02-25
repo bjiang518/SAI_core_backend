@@ -2049,6 +2049,7 @@ struct DirectAIHomeworkView: View {
         // ✅ Retry logic for network failures (max 3 attempts)
         var lastError: Error?
         let maxRetries = 3
+        var statusCycleTask: Task<Void, Never>? = nil
 
         for attempt in 1...maxRetries {
             do {
@@ -2064,12 +2065,27 @@ struct DirectAIHomeworkView: View {
                 // ✅ SMART ROUTING: Use batch endpoint for 2+ images, single endpoint for 1 image
                 let parseResponse: ParseHomeworkQuestionsResponse
 
-                // Update status to show AI is actively working
+                // Update status to show AI is actively working, cycling through messages
                 await MainActor.run {
                     stateManager.currentStage = .analyzing
-                    stateManager.processingStatus = base64Images.count >= 2
-                        ? String(format: NSLocalizedString("aiHomework.parsingPages", comment: "Parsing N pages"), base64Images.count)
-                        : NSLocalizedString("aiHomework.parsingHomework", comment: "AI parsing homework")
+                    stateManager.processingStatus = NSLocalizedString("aiHomework.uploading", comment: "")
+                }
+
+                // Cycle status messages while waiting for AI response
+                statusCycleTask = Task {
+                    let messages = [
+                        NSLocalizedString("aiHomework.uploading", comment: ""),
+                        NSLocalizedString("aiHomework.autoDetecting", comment: ""),
+                        NSLocalizedString("aiHomework.preparingResults", comment: ""),
+                    ]
+                    for message in messages.dropFirst() {
+                        try? await Task.sleep(nanoseconds: 2_000_000_000)
+                        if Task.isCancelled { return }
+                        await MainActor.run {
+                            stateManager.processingStatus = message
+                        }
+                    }
+                    // Hold on last message until parsing completes
                 }
 
                 if base64Images.count >= 2 {
@@ -2096,8 +2112,13 @@ struct DirectAIHomeworkView: View {
                 }
 
                 guard parseResponse.success else {
+                    statusCycleTask?.cancel()
+                    statusCycleTask = nil
                     throw ProgressiveGradingError.parsingFailed(parseResponse.error ?? "Unknown error")
                 }
+
+                statusCycleTask?.cancel()
+                statusCycleTask = nil
 
                 print("📚 Subject: \(parseResponse.subject)")
 
@@ -2115,6 +2136,8 @@ struct DirectAIHomeworkView: View {
                 return  // ✅ Success - exit retry loop
 
             } catch {
+                statusCycleTask?.cancel()
+                statusCycleTask = nil
                 lastError = error
                 let nsError = error as NSError
 

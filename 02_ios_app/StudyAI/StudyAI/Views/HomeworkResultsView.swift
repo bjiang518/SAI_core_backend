@@ -520,8 +520,8 @@ struct HomeworkResultsView: View {
                                         isSliding = true
                                     }
 
-                                    // Trigger at 95% completion
-                                    if newOffset >= maxOffset * 0.95 && !hasTriggeredMarkProgress {
+                                    // Trigger at 100% completion
+                                    if newOffset >= maxOffset * 1.0 && !hasTriggeredMarkProgress {
                                         hasTriggeredMarkProgress = true
 
                                         // Track homework usage

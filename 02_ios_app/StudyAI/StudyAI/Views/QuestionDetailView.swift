@@ -7,6 +7,7 @@
 
 import SwiftUI
 import os.log
+import AudioToolbox
 
 struct GeneratedQuestionDetailView: View {
     let question: QuestionGenerationService.GeneratedQuestion
@@ -40,6 +41,9 @@ struct GeneratedQuestionDetailView: View {
 
     // Mark progress state
     @State private var hasMarkedProgress = false
+    @State private var slideOffset: CGFloat = 0
+    @State private var isSliding = false
+    @State private var hasTriggeredSlide = false
     @ObservedObject private var pointsManager = PointsEarningManager.shared
     @ObservedObject private var appState = AppState.shared
     @ObservedObject private var themeManager = ThemeManager.shared  // ✅ ADD: Theme manager for cute mode colors
@@ -543,43 +547,24 @@ struct GeneratedQuestionDetailView: View {
 
     private var actionButtonsSection: some View {
         VStack(spacing: 16) {
-            // ✅ Mark Progress Button - Only shown on the last question
+            // ✅ Slide to Smart Organize - Only shown on the last question
             if isLastQuestion {
-                Button(action: {
-                    if !hasMarkedProgress {
-                        trackPracticeProgress()
-                        hasMarkedProgress = true
-                        saveProgressState()
+                if hasMarkedProgress {
+                    // Done state
+                    HStack {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                        Text(NSLocalizedString("questionDetail.marked", comment: ""))
+                            .font(.headline)
+                            .foregroundColor(.green)
                     }
-                    let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-                    impactFeedback.impactOccurred()
-                }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: hasMarkedProgress ? "checkmark.circle.fill" : "chart.line.uptrend.xyaxis")
-                            .font(.body)
-                        Text(hasMarkedProgress ? NSLocalizedString("questionDetail.marked", comment: "") : NSLocalizedString("questionDetail.markProgress", comment: ""))
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                    }
-                    .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    .background(
-                        LinearGradient(
-                            colors: hasMarkedProgress ?
-                                (themeManager.currentTheme == .cute ?
-                                    [DesignTokens.Colors.Cute.mint, DesignTokens.Colors.Cute.mint.opacity(0.8)] :
-                                    [Color.green, Color.green.opacity(0.8)]) :
-                                (themeManager.currentTheme == .cute ?
-                                    [DesignTokens.Colors.Cute.blue, DesignTokens.Colors.Cute.blue.opacity(0.8)] :
-                                    [Color.blue, Color.blue.opacity(0.8)]),
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
+                    .padding(.vertical, 16)
+                    .background(Color.green.opacity(0.1))
                     .cornerRadius(12)
+                } else {
+                    slideToSmartOrganizeTrack
                 }
-                .disabled(hasMarkedProgress)
             }
 
             // Ask AI Button - ✅ Changed text to "Follow up"
@@ -708,6 +693,100 @@ struct GeneratedQuestionDetailView: View {
             dismiss()
         }
         .font(.body.bold())
+    }
+
+    // Slide to Smart Organize track (matches DigitalHomeworkView style)
+    private var slideToSmartOrganizeTrack: some View {
+        GeometryReader { geometry in
+            let trackWidth = geometry.size.width
+            let sliderWidth: CGFloat = 60
+            let maxOffset = trackWidth - sliderWidth - 8
+
+            ZStack(alignment: .leading) {
+                // Background track
+                RoundedRectangle(cornerRadius: 30)
+                    .fill(.ultraThinMaterial)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 30)
+                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                    )
+                    .frame(height: 60)
+
+                // Progress fill
+                RoundedRectangle(cornerRadius: 30)
+                    .fill(Color.blue.opacity(0.1))
+                    .frame(width: slideOffset + sliderWidth + 4, height: 60)
+                    .opacity(slideOffset > 0 ? 1.0 : 0.0)
+
+                // Instruction text (fades as slider moves)
+                HStack {
+                    Spacer()
+                    Text(NSLocalizedString("questionDetail.markProgress", comment: ""))
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary.opacity(0.6))
+                        .opacity(1.0 - (slideOffset / maxOffset))
+                    Spacer()
+                }
+                .frame(height: 60)
+
+                // Sliding thumb - frosted glass circle
+                ZStack {
+                    Circle()
+                        .fill(.regularMaterial)
+                        .frame(width: sliderWidth, height: sliderWidth)
+                        .overlay(
+                            Circle()
+                                .stroke(Color.white.opacity(0.3), lineWidth: 1.5)
+                        )
+                        .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
+
+                    HStack(spacing: 6) {
+                        Image(systemName: "chevron.right")
+                            .font(.title3)
+                            .foregroundColor(.primary)
+                        Image(systemName: "chevron.right")
+                            .font(.title3)
+                            .foregroundColor(.primary.opacity(0.6))
+                        Image(systemName: "chevron.right")
+                            .font(.title3)
+                            .foregroundColor(.primary.opacity(0.3))
+                    }
+                }
+                .offset(x: slideOffset + 4, y: 0)
+                .gesture(
+                    DragGesture()
+                        .onChanged { value in
+                            let newOffset = max(0, min(value.translation.width, maxOffset))
+                            withAnimation(.interactiveSpring()) {
+                                slideOffset = newOffset
+                                isSliding = true
+                            }
+                            if newOffset >= maxOffset * 1.0 && !hasTriggeredSlide {
+                                hasTriggeredSlide = true
+                                trackPracticeProgress()
+                                hasMarkedProgress = true
+                                saveProgressState()
+                                AudioServicesPlaySystemSound(1100)
+                                let generator = UINotificationFeedbackGenerator()
+                                generator.notificationOccurred(.success)
+                                withAnimation(.spring()) {
+                                    slideOffset = 0
+                                    isSliding = false
+                                }
+                            }
+                        }
+                        .onEnded { _ in
+                            withAnimation(.spring()) {
+                                slideOffset = 0
+                                isSliding = false
+                            }
+                            hasTriggeredSlide = false
+                        }
+                )
+            }
+        }
+        .frame(height: 60)
     }
 
     private func canSubmit() -> Bool {

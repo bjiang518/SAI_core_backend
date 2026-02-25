@@ -37,8 +37,6 @@ struct LottieView: UIViewRepresentable {
         animationView.contentMode = .scaleAspectFit
         animationView.backgroundBehavior = .pauseAndRestore
 
-        print("🎬 [LottieView] makeUIView called for '\(animationName)' | isPowerSaving=\(isPowerSaving)")
-
         if let animation = LottieAnimation.named(animationName) {
             animationView.animation = animation
             animationView.loopMode = loopMode
@@ -49,13 +47,11 @@ struct LottieView: UIViewRepresentable {
 
             if !isPowerSaving {
                 animationView.play()
-                print("▶️ [LottieView] makeUIView → PLAYING '\(animationName)'")
             } else {
                 animationView.currentProgress = powerSavingProgress
-                print("🔋 [LottieView] makeUIView → FROZEN '\(animationName)' at \(Int(powerSavingProgress * 100))%")
             }
         } else {
-            print("❌ [LottieView] makeUIView → FAILED to load '\(animationName)'")
+            print("❌ [LottieView] Failed to load animation '\(animationName)'")
         }
 
         return animationView
@@ -69,22 +65,14 @@ struct LottieView: UIViewRepresentable {
             uiView.loopMode = loopMode
         }
 
-        print("🔄 [LottieView] updateUIView called for '\(animationName)' | isPowerSaving=\(isPowerSaving) | isPlaying=\(uiView.isAnimationPlaying)")
-
         if isPowerSaving {
             if uiView.isAnimationPlaying {
                 uiView.stop()
                 uiView.currentProgress = powerSavingProgress
-                print("🔋 [LottieView] updateUIView → STOPPED '\(animationName)' at \(Int(powerSavingProgress * 100))%")
-            } else {
-                print("🔋 [LottieView] updateUIView → already stopped, no-op")
             }
         } else {
             if !uiView.isAnimationPlaying && uiView.animation != nil {
                 uiView.play()
-                print("▶️ [LottieView] updateUIView → RESUMED '\(animationName)'")
-            } else {
-                print("▶️ [LottieView] updateUIView → already playing, no-op")
             }
         }
     }
