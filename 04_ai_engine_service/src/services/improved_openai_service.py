@@ -2096,11 +2096,11 @@ class EducationalAIService:
         """
         for q in questions:
             q_type = q.get("question_type", "").lower()
-            correct = q.get("correct_answer", "")
+            correct = q.get("correct_answer") or ""  # guard against None
             options = q.get("multiple_choice_options")  # list of {"label","text","is_correct"}
 
             if q_type == "multiple_choice" and options:
-                # Find the correct option object
+                # Find the correct option object (only works if options are dicts)
                 correct_option = None
                 for opt in options:
                     if isinstance(opt, dict) and opt.get("is_correct"):
@@ -2121,8 +2121,7 @@ class EducationalAIService:
                                 q["correct_answer"] = f"{letter}. {opt.get('text', '').strip()}"
                                 break
 
-            elif q_type == "true_false":
-                lower = correct.lower().strip()
+            elif q_type == "true_false" and correct:
                 if lower in ("true", "t", "yes", "1", "correct"):
                     q["correct_answer"] = "True"
                 elif lower in ("false", "f", "no", "0", "incorrect"):
