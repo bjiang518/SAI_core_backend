@@ -2122,6 +2122,7 @@ class EducationalAIService:
                                 break
 
             elif q_type == "true_false" and correct:
+                lower = correct.lower().strip()
                 if lower in ("true", "t", "yes", "1", "correct"):
                     q["correct_answer"] = "True"
                 elif lower in ("false", "f", "no", "0", "incorrect"):
@@ -2771,10 +2772,8 @@ Focus on being helpful and educational while maintaining a conversational tone."
                         if field not in question:
                             raise ValueError(f"Question {i+1} missing required field: {field}")
 
-                # Enforce stable correct_answer formats (MC: "B. text", T/F: "True"/"False")
-                questions_json = self._normalize_question_answers(questions_json)
-
-                # Enforce requested question type — AI sometimes ignores type instruction
+                # Enforce requested question type FIRST — AI sometimes ignores type instruction
+                # Must run before normalization so correct_answer format matches the enforced type
                 requested_types = config.get("question_types", [])
                 requested_type = config.get("question_type", "any")
                 if requested_type and requested_type != "any":
@@ -2783,6 +2782,19 @@ Focus on being helpful and educational while maintaining a conversational tone."
                 elif len(requested_types) == 1:
                     for question in questions_json:
                         question["question_type"] = requested_types[0]
+
+                # Enforce stable correct_answer formats (MC: "B. text", T/F: "True"/"False")
+                questions_json = self._normalize_question_answers(questions_json)
+
+                # Drop MC questions that have no options — AI generated wrong type and was overridden,
+                # leaving question_type="multiple_choice" with null/empty options which iOS can't render
+                questions_json = [
+                    q for q in questions_json
+                    if not (q.get("question_type", "").lower() == "multiple_choice"
+                            and not q.get("multiple_choice_options"))
+                ]
+                if not questions_json:
+                    raise ValueError("All questions were filtered out (MC requested but AI returned no options)")
 
                 logger.debug(f"✅ === AI SERVICE: RANDOM QUESTIONS GENERATION SUCCESS ===")
                 logger.debug(f"🎯 Generated {len(questions_json)} questions")
@@ -3006,10 +3018,7 @@ Focus on being helpful and educational while maintaining a conversational tone."
                         if field not in question:
                             raise ValueError(f"Question {i+1} missing required field: {field}")
 
-                # Enforce stable correct_answer formats (MC: "B. text", T/F: "True"/"False")
-                questions_json = self._normalize_question_answers(questions_json)
-
-                # Enforce requested question type — AI sometimes ignores type instruction
+                # Enforce requested question type FIRST — AI sometimes ignores type instruction
                 requested_types = config.get("question_types", [])
                 requested_type = config.get("question_type", "any")
                 if requested_type and requested_type != "any":
@@ -3018,6 +3027,18 @@ Focus on being helpful and educational while maintaining a conversational tone."
                 elif len(requested_types) == 1:
                     for question in questions_json:
                         question["question_type"] = requested_types[0]
+
+                # Enforce stable correct_answer formats (MC: "B. text", T/F: "True"/"False")
+                questions_json = self._normalize_question_answers(questions_json)
+
+                # Drop MC questions that have no options
+                questions_json = [
+                    q for q in questions_json
+                    if not (q.get("question_type", "").lower() == "multiple_choice"
+                            and not q.get("multiple_choice_options"))
+                ]
+                if not questions_json:
+                    raise ValueError("All questions were filtered out (MC requested but AI returned no options)")
 
                 # ✅ NEW: Log detailed error keys for each question
                 logger.debug(f"📊 === ERROR KEYS SUMMARY FOR GENERATED QUESTIONS ===")
@@ -3166,10 +3187,7 @@ Focus on being helpful and educational while maintaining a conversational tone."
                         if field not in question:
                             raise ValueError(f"Question {i+1} missing required field: {field}")
 
-                # Enforce stable correct_answer formats (MC: "B. text", T/F: "True"/"False")
-                questions_json = self._normalize_question_answers(questions_json)
-
-                # Enforce requested question type — AI sometimes ignores type instruction
+                # Enforce requested question type FIRST — AI sometimes ignores type instruction
                 requested_types = config.get("question_types", [])
                 requested_type = config.get("question_type", "any")
                 if requested_type and requested_type != "any":
@@ -3178,6 +3196,18 @@ Focus on being helpful and educational while maintaining a conversational tone."
                 elif len(requested_types) == 1:
                     for question in questions_json:
                         question["question_type"] = requested_types[0]
+
+                # Enforce stable correct_answer formats (MC: "B. text", T/F: "True"/"False")
+                questions_json = self._normalize_question_answers(questions_json)
+
+                # Drop MC questions that have no options
+                questions_json = [
+                    q for q in questions_json
+                    if not (q.get("question_type", "").lower() == "multiple_choice"
+                            and not q.get("multiple_choice_options"))
+                ]
+                if not questions_json:
+                    raise ValueError("All questions were filtered out (MC requested but AI returned no options)")
 
                 logger.debug(f"✅ === AI SERVICE: CONVERSATION-BASED QUESTIONS GENERATION SUCCESS ===")
                 logger.debug(f"🎯 Generated {len(questions_json)} personalized questions")
