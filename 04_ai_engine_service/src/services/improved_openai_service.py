@@ -2756,13 +2756,16 @@ Focus on being helpful and educational while maintaining a conversational tone."
                     raise ValueError("No valid questions could be extracted from response")
 
                 # Validate each question has required fields
-                required_fields = ["question", "question_type", "correct_answer", "explanation", "topic"]
+                required_fields = ["question", "question_type", "correct_answer", "topic"]
                 for i, question in enumerate(questions_json):
                     # Support both old and new field names for backward compatibility
                     if "type" in question and "question_type" not in question:
                         question["question_type"] = question["type"]
                     if "options" in question and "multiple_choice_options" not in question:
                         question["multiple_choice_options"] = question["options"]
+                    # Soft-fill explanation — AI sometimes names it differently or omits it
+                    if not question.get("explanation"):
+                        question["explanation"] = question.get("reasoning") or question.get("solution") or ""
 
                     for field in required_fields:
                         if field not in question:
@@ -2770,6 +2773,16 @@ Focus on being helpful and educational while maintaining a conversational tone."
 
                 # Enforce stable correct_answer formats (MC: "B. text", T/F: "True"/"False")
                 questions_json = self._normalize_question_answers(questions_json)
+
+                # Enforce requested question type — AI sometimes ignores type instruction
+                requested_types = config.get("question_types", [])
+                requested_type = config.get("question_type", "any")
+                if requested_type and requested_type != "any":
+                    for question in questions_json:
+                        question["question_type"] = requested_type
+                elif len(requested_types) == 1:
+                    for question in questions_json:
+                        question["question_type"] = requested_types[0]
 
                 logger.debug(f"✅ === AI SERVICE: RANDOM QUESTIONS GENERATION SUCCESS ===")
                 logger.debug(f"🎯 Generated {len(questions_json)} questions")
@@ -2978,13 +2991,16 @@ Focus on being helpful and educational while maintaining a conversational tone."
                             question['weakness_key'] = weakness_key
 
                 # Validate each question has required fields
-                required_fields = ["question", "question_type", "correct_answer", "explanation", "topic"]
+                required_fields = ["question", "question_type", "correct_answer", "topic"]
                 for i, question in enumerate(questions_json):
                     # Support both old and new field names for backward compatibility
                     if "type" in question and "question_type" not in question:
                         question["question_type"] = question["type"]
                     if "options" in question and "multiple_choice_options" not in question:
                         question["multiple_choice_options"] = question["options"]
+                    # Soft-fill explanation — AI sometimes names it differently or omits it
+                    if not question.get("explanation"):
+                        question["explanation"] = question.get("reasoning") or question.get("solution") or ""
 
                     for field in required_fields:
                         if field not in question:
@@ -2992,6 +3008,16 @@ Focus on being helpful and educational while maintaining a conversational tone."
 
                 # Enforce stable correct_answer formats (MC: "B. text", T/F: "True"/"False")
                 questions_json = self._normalize_question_answers(questions_json)
+
+                # Enforce requested question type — AI sometimes ignores type instruction
+                requested_types = config.get("question_types", [])
+                requested_type = config.get("question_type", "any")
+                if requested_type and requested_type != "any":
+                    for question in questions_json:
+                        question["question_type"] = requested_type
+                elif len(requested_types) == 1:
+                    for question in questions_json:
+                        question["question_type"] = requested_types[0]
 
                 # ✅ NEW: Log detailed error keys for each question
                 logger.debug(f"📊 === ERROR KEYS SUMMARY FOR GENERATED QUESTIONS ===")
@@ -3125,13 +3151,16 @@ Focus on being helpful and educational while maintaining a conversational tone."
                     raise ValueError("No valid questions could be extracted from response")
 
                 # Validate each question has required fields
-                required_fields = ["question", "question_type", "correct_answer", "explanation", "topic"]
+                required_fields = ["question", "question_type", "correct_answer", "topic"]
                 for i, question in enumerate(questions_json):
                     # Support both old and new field names for backward compatibility
                     if "type" in question and "question_type" not in question:
                         question["question_type"] = question["type"]
                     if "options" in question and "multiple_choice_options" not in question:
                         question["multiple_choice_options"] = question["options"]
+                    # Soft-fill explanation — AI sometimes names it differently or omits it
+                    if not question.get("explanation"):
+                        question["explanation"] = question.get("reasoning") or question.get("solution") or ""
 
                     for field in required_fields:
                         if field not in question:
@@ -3139,6 +3168,16 @@ Focus on being helpful and educational while maintaining a conversational tone."
 
                 # Enforce stable correct_answer formats (MC: "B. text", T/F: "True"/"False")
                 questions_json = self._normalize_question_answers(questions_json)
+
+                # Enforce requested question type — AI sometimes ignores type instruction
+                requested_types = config.get("question_types", [])
+                requested_type = config.get("question_type", "any")
+                if requested_type and requested_type != "any":
+                    for question in questions_json:
+                        question["question_type"] = requested_type
+                elif len(requested_types) == 1:
+                    for question in questions_json:
+                        question["question_type"] = requested_types[0]
 
                 logger.debug(f"✅ === AI SERVICE: CONVERSATION-BASED QUESTIONS GENERATION SUCCESS ===")
                 logger.debug(f"🎯 Generated {len(questions_json)} personalized questions")
