@@ -801,11 +801,12 @@ struct MistakeQuestionListView: View {
             print("   - Question Types: \(questionTypes.map { $0.rawValue }.joined(separator: ", "))")
             print("   - Topics: \(topics)")
 
-            let result = await QuestionGenerationService.shared.generateMistakeBasedQuestions(
+            let result = await QuestionGenerationService.shared.generateQuestionsV2(
                 subject: subject,
-                mistakes: mistakesData,
+                mode: 2,
                 config: config,
-                userProfile: userProfile
+                userProfile: userProfile,
+                mistakesData: mistakesData
             )
 
             switch result {
@@ -2807,7 +2808,7 @@ struct PracticeConfigurationSheet: View {
 
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 12) {
-                                ForEach([QuestionGenerationService.GeneratedQuestion.QuestionType.any] + QuestionGenerationService.GeneratedQuestion.QuestionType.allCases.filter { $0 != .any }, id: \.self) { type in
+                                ForEach([QuestionGenerationService.GeneratedQuestion.QuestionType.any] + QuestionGenerationService.GeneratedQuestion.QuestionType.generatableTypes.filter { $0 != .any }, id: \.self) { type in
                                     QuestionTypeChip(
                                         type: type,
                                         isSelected: selectedQuestionTypes.contains(type),

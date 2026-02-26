@@ -297,6 +297,10 @@ class QuestionGenerationService: ObservableObject {
             case matching = "matching"
             case any = "any"  // Allow AI to choose type dynamically
 
+            /// Types that can be requested for generation (v2 endpoint).
+            /// Excludes longAnswer, calculation, matching — kept for grading/display of existing questions only.
+            static let generatableTypes: [QuestionType] = [.any, .multipleChoice, .trueFalse, .shortAnswer]
+
             var displayName: String {
                 switch self {
                 case .multipleChoice: return NSLocalizedString("questionType.multipleChoice", comment: "")
@@ -1095,6 +1099,159 @@ class QuestionGenerationService: ObservableObject {
             return 4
         case .adaptive:
             return nil // Let backend auto-adjust
+        }
+    }
+
+    // MARK: - V2 Unified Endpoint (Typed Parallel Requests)
+
+    /// Build short-term context from the top active weakness for mode-1 generation.
+    /// Returns up to 2 recent wrong questions associated with the strongest active weakness.
+    func buildShortTermContext(subject: String) -> [[String: Any]] {
+        let weaknesses = ShortTermStatusService.shared.getTopActiveWeaknesses(limit: 3)
+        guard !weaknesses.isEmpty else { return [] }
+
+        let allLocalQuestions = QuestionLocalStorage.shared.getLocalQuestions()
+
+        var result: [[String: Any]] = []
+
+        for (weaknessKey, weaknessValue) in weaknesses {
+            guard result.count < 2 else { break }
+
+            for questionId in weaknessValue.recentQuestionIds.prefix(2) {
+                guard result.count < 2 else { break }
+
+                if let qDict = allLocalQuestions.first(where: { ($0["id"] as? String) == questionId }),
+                   let questionText = qDict["questionText"] as? String,
+                   !questionText.isEmpty {
+                    let entry: [String: Any] = [
+                        "question": questionText,
+                        "correct_answer": qDict["answerText"] as? String ?? "",
+                        "user_answer": qDict["studentAnswer"] as? String ?? "",
+                        "branch": weaknessKey
+                    ]
+                    result.append(entry)
+                }
+            }
+        }
+
+        return result
+    }
+
+    /// Generate practice questions using the v2 endpoint (typed parallel requests).
+    ///
+    /// - Parameters:
+    ///   - subject: Subject name
+    ///   - mode: 1 = Random, 2 = From Mistakes, 3 = From Archive
+    ///   - config: Question count, type, difficulty, topics
+    ///   - userProfile: Grade / location
+    ///   - shortTermContext: Recent wrong questions for mode 1 (pass `buildShortTermContext(subject:)`)
+    ///   - mistakesData: For mode 2
+    ///   - conversationData: For mode 3
+    ///   - questionData: For mode 3
+    func generateQuestionsV2(
+        subject: String,
+        mode: Int,
+        config: RandomQuestionsConfig,
+        userProfile: UserProfile,
+        shortTermContext: [[String: Any]] = [],
+        mistakesData: [MistakeData] = [],
+        conversationData: [ConversationData] = [],
+        questionData: [[String: Any]] = []
+    ) async -> Result<[GeneratedQuestion], QuestionGenerationError> {
+
+        await MainActor.run {
+            self.isGenerating = true
+            self.lastError = nil
+            self.generationProgress = "Generating questions for \(subject)..."
+        }
+
+        defer {
+            Task { @MainActor in
+                self.isGenerating = false
+                self.generationProgress = nil
+            }
+        }
+
+        let endpoint = "/api/ai/generate-questions/practice/v2"
+        guard let url = URL(string: "\(baseURL)\(endpoint)") else {
+            await MainActor.run { self.lastError = "Invalid URL" }
+            return .failure(.invalidURL)
+        }
+
+        var body: [String: Any] = [
+            "subject": subject,
+            "mode": mode,
+            "count": config.questionCount,
+            "question_type": config.questionType.rawValue,
+            "language": appLanguage,
+            "topic": config.topics.joined(separator: ", ")
+        ]
+
+        if let diffNum = mapDifficultyToNumber(config.difficulty) {
+            body["difficulty"] = diffNum
+        }
+
+        switch mode {
+        case 1:
+            if !shortTermContext.isEmpty {
+                body["short_term_context"] = shortTermContext
+            }
+        case 2:
+            body["mistakes_data"] = mistakesData.map { $0.dictionary }
+        case 3:
+            body["conversation_data"] = conversationData.map { $0.dictionary }
+            body["question_data"] = questionData
+        default:
+            break
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 150.0
+
+        guard let token = AuthenticationService.shared.getAuthToken() else {
+            await MainActor.run { self.lastError = "Authentication required" }
+            return .failure(.authenticationRequired)
+        }
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+            print("📤 [V2] Sending request to \(endpoint) (mode=\(mode), type=\(config.questionType.rawValue), count=\(config.questionCount))")
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            if let httpResponse = response as? HTTPURLResponse {
+                if httpResponse.statusCode == 200 {
+                    let responseResult = try parseQuestionResponse(data: data, generationType: "v2_mode\(mode)")
+                    if responseResult.success {
+                        await MainActor.run {
+                            self.lastGeneratedQuestions = responseResult.questions
+                            self.lastGenerationDate = Date()
+                            self.lastGenerationType = "V2 Practice"
+                        }
+                        print("🎉 [V2] Generated \(responseResult.questions.count) questions successfully")
+                        return .success(responseResult.questions)
+                    } else {
+                        let errorMsg = responseResult.error ?? "Unknown error from v2 endpoint"
+                        await MainActor.run { self.lastError = errorMsg }
+                        return .failure(.aiProcessingError(errorMsg))
+                    }
+                } else {
+                    let errorMsg = "Server error: HTTP \(httpResponse.statusCode)"
+                    await MainActor.run { self.lastError = errorMsg }
+                    return .failure(.serverError(httpResponse.statusCode))
+                }
+            }
+
+            await MainActor.run { self.lastError = "No response from server" }
+            return .failure(.networkError("No response from server"))
+
+        } catch {
+            let errorMsg = "Network error: \(error.localizedDescription)"
+            await MainActor.run { self.lastError = errorMsg }
+            return .failure(.networkError(error.localizedDescription))
         }
     }
 }

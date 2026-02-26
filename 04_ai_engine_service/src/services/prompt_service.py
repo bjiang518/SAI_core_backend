@@ -1373,3 +1373,150 @@ Generate now:"""
         print(f"📝 Generated Archive-Based Questions Prompt Length: {len(prompt)} characters")
         print("=" * 60)
         return prompt
+
+    def get_unified_questions_prompt(
+        self,
+        subject: str,
+        question_type: str,
+        count: int,
+        context_type: str,
+        context_data: dict,
+        language: str = "en"
+    ) -> str:
+        """
+        Generate a short, focused prompt for a single question type.
+
+        Args:
+            subject: Subject area (e.g., "Mathematics")
+            question_type: One of "multiple_choice", "true_false", "fill_in_the_blank", "short_answer"
+            count: Number of questions to generate
+            context_type: "random" | "mistake" | "archive"
+            context_data: Varies by context_type:
+                random:  { grade, topics, short_term_context }
+                mistake: { grade, mistakes_data }
+                archive: { grade, conversation_data, question_data }
+            language: Language code
+        """
+        from .prompt_i18n import normalize_language, RANDOM_QUESTIONS_LANG_INSTRUCTION
+
+        lang_key = normalize_language(language)
+        lang_instruction = RANDOM_QUESTIONS_LANG_INSTRUCTION.get(lang_key, RANDOM_QUESTIONS_LANG_INSTRUCTION["en"])
+
+        grade = context_data.get("grade", "High School")
+
+        # --- Context block ---
+        if context_type == "random":
+            topics = context_data.get("topics", [])
+            short_term_context = context_data.get("short_term_context", [])
+            topics_str = ", ".join(topics) if topics else "general"
+            if short_term_context:
+                context_lines = []
+                for item in short_term_context[:2]:
+                    q = item.get("question", "")[:120]
+                    ua = item.get("user_answer", "")[:60]
+                    ca = item.get("correct_answer", "")[:60]
+                    context_lines.append(f"- Q: {q}\n  Student answered: {ua} (correct: {ca})")
+                context_block = f"Recent weak areas (use to guide difficulty/topic):\n" + "\n".join(context_lines)
+            else:
+                context_block = f"Topics: {topics_str}"
+
+        elif context_type == "mistake":
+            mistakes_data = context_data.get("mistakes_data", [])
+            mistake_lines = []
+            for i, m in enumerate(mistakes_data[:3], 1):
+                q = m.get("original_question", m.get("question_text", ""))[:120]
+                ua = m.get("user_answer", m.get("student_answer", ""))[:60]
+                ca = m.get("correct_answer", "")[:60]
+                et = m.get("error_type", "")
+                bb = m.get("base_branch", "")
+                db = m.get("detailed_branch", "")
+                line = f"Mistake #{i}: {q}\n  Student: {ua} | Correct: {ca}"
+                if bb:
+                    line += f"\n  Topic: {bb}"
+                if db:
+                    line += f" > {db}"
+                if et:
+                    line += f"\n  Error type: {et}"
+                mistake_lines.append(line)
+            context_block = "Address these mistakes with targeted practice:\n" + "\n".join(mistake_lines)
+
+        elif context_type == "archive":
+            conv_data = context_data.get("conversation_data", [])
+            q_data = context_data.get("question_data", [])
+            parts = []
+            if conv_data:
+                topics_all = []
+                for c in conv_data[:2]:
+                    topics_all.extend(c.get("topics", []))
+                    kc = c.get("key_concepts", "")
+                    if kc:
+                        parts.append(f"Key concepts: {kc[:100]}")
+                if topics_all:
+                    parts.insert(0, f"Topics covered: {', '.join(set(topics_all[:6]))}")
+            if q_data:
+                wrong = [q for q in q_data[:5] if not q.get("is_correct", True)]
+                if wrong:
+                    parts.append(f"Previously wrong: {', '.join(q.get('question_text', '')[:60] for q in wrong[:2])}")
+            context_block = "\n".join(parts) if parts else "Based on archived study sessions"
+
+        else:
+            context_block = "General practice"
+
+        # --- Format block per type ---
+        format_blocks = {
+            "multiple_choice": """FORMAT — each question:
+{
+  "question": "Question text",
+  "question_type": "multiple_choice",
+  "multiple_choice_options": [
+    {"label": "A", "text": "First option", "is_correct": false},
+    {"label": "B", "text": "Correct option", "is_correct": true},
+    {"label": "C", "text": "Third option", "is_correct": false},
+    {"label": "D", "text": "Fourth option", "is_correct": false}
+  ],
+  "correct_answer": "B. Correct option text",
+  "explanation": "Why B is correct",
+  "topic": "specific topic",
+  "difficulty": "intermediate"
+}""",
+            "true_false": """FORMAT — each question:
+{
+  "question": "Statement to evaluate as true or false",
+  "question_type": "true_false",
+  "multiple_choice_options": null,
+  "correct_answer": "True",
+  "explanation": "Why it is true/false",
+  "topic": "specific topic",
+  "difficulty": "intermediate"
+}
+RULE: correct_answer MUST be exactly "True" or "False".""",
+            "short_answer": """FORMAT — each question:
+{
+  "question": "Question requiring a 1-2 sentence answer",
+  "question_type": "short_answer",
+  "multiple_choice_options": null,
+  "correct_answer": "1-2 sentence model answer",
+  "explanation": "Additional context",
+  "topic": "specific topic",
+  "difficulty": "intermediate"
+}""",
+        }
+
+        fmt = format_blocks.get(question_type, format_blocks["short_answer"])
+
+        prompt = f"""Generate {count} {subject} questions for a {grade} student.
+All questions MUST be type: {question_type}
+
+CONTEXT:
+{context_block}
+
+{fmt}
+
+CRITICAL:
+- Return a JSON array of exactly {count} objects. No markdown, no extra text.
+- All questions must be {question_type} type.
+- LANGUAGE: {lang_instruction}
+
+Generate now:"""
+
+        return prompt

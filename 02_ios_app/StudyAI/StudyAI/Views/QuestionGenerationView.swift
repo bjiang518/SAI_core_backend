@@ -323,7 +323,7 @@ struct QuestionGenerationView: View {
                         GridItem(.flexible()),
                         GridItem(.flexible())
                     ], spacing: 12) {
-                        ForEach(QuestionGenerationService.GeneratedQuestion.QuestionType.allCases, id: \.self) { type in
+                        ForEach(QuestionGenerationService.GeneratedQuestion.QuestionType.generatableTypes, id: \.self) { type in
                             Button(action: {
                                 selectedQuestionType = type
                             }) {
@@ -595,10 +595,12 @@ struct QuestionGenerationView: View {
             print("========================================\n")
 
 
-            let result = await questionService.generateRandomQuestions(
+            let result = await questionService.generateQuestionsV2(
                 subject: primarySubject,
+                mode: 1,
                 config: config,
-                userProfile: userProfile
+                userProfile: userProfile,
+                shortTermContext: questionService.buildShortTermContext(subject: primarySubject)
             )
 
             switch result {
@@ -710,12 +712,13 @@ struct QuestionGenerationView: View {
             )
 
             // ✅ FIX: Call with both conversation data AND question data
-            let result = await questionService.generateConversationBasedQuestions(
+            let result = await questionService.generateQuestionsV2(
                 subject: primarySubject,
-                conversations: conversationData,
-                questions: questionData,  // ✅ NEW: Pass question data
+                mode: 3,
                 config: config,
-                userProfile: userProfile
+                userProfile: userProfile,
+                conversationData: conversationData,
+                questionData: questionData
             )
 
             switch result {
@@ -820,12 +823,14 @@ struct GenerationTypeCard: View {
 
 struct QuestionGenerationPreviewCard: View {
     let question: QuestionGenerationService.GeneratedQuestion
+    @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Use SmartMathRenderer for proper math rendering
-            SmartMathRenderer(question.question, fontSize: 15)
-                .lineLimit(2)
+            // Use SmartLaTeXView for proper MathJax/LaTeX rendering
+            SmartLaTeXView(question.question, fontSize: 15, colorScheme: colorScheme)
+                .frame(maxHeight: 70)
+                .clipped()
 
             Text(question.topic)
                 .font(.caption)

@@ -3256,6 +3256,133 @@ Focus on being helpful and educational while maintaining a conversational tone."
             }
 
 
+    async def generate_questions_unified(
+        self,
+        subject: str,
+        question_type: str,
+        count: int,
+        context_type: str,
+        context_data: Dict,
+        language: str = "en"
+    ) -> Dict[str, Any]:
+        """
+        Unified question generation for a single question type.
+
+        Args:
+            subject: Subject area (e.g., "Mathematics")
+            question_type: "multiple_choice" | "true_false" | "fill_in_the_blank" | "short_answer"
+            count: Number of questions to generate
+            context_type: "random" | "mistake" | "archive"
+            context_data: Context-specific data dict (grade, topics, mistakes_data, etc.)
+            language: Language code
+
+        Returns:
+            Dict with success, questions[], generation_type, subject
+        """
+        try:
+            logger.debug(f"🎯 === UNIFIED QUESTIONS GENERATION: {question_type} x{count} ({context_type}) ===")
+            logger.debug(f"📚 Subject: {subject}, Language: {language}")
+
+            system_prompt = self.prompt_service.get_unified_questions_prompt(
+                subject=subject,
+                question_type=question_type,
+                count=count,
+                context_type=context_type,
+                context_data=context_data,
+                language=language
+            )
+
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"Generate {count} {question_type} questions for {subject} now. Return only a JSON array."}
+                ],
+                temperature=0.7,
+                max_tokens=3000,
+            )
+
+            raw_response = response.choices[0].message.content
+            tokens_used = response.usage.total_tokens if response.usage else 0
+
+            logger.debug(f"✅ Unified generation API call completed. Tokens: {tokens_used}")
+
+            # Parse questions using robust text parsing
+            questions_json = self._parse_questions_from_text(raw_response)
+
+            if not questions_json or len(questions_json) == 0:
+                raise ValueError("No valid questions extracted from response")
+
+            # Normalize field names (type → question_type, options → multiple_choice_options)
+            for q in questions_json:
+                if "type" in q and "question_type" not in q:
+                    q["question_type"] = q["type"]
+                if "options" in q and "multiple_choice_options" not in q:
+                    q["multiple_choice_options"] = q["options"]
+                if not q.get("explanation"):
+                    q["explanation"] = q.get("reasoning") or q.get("solution") or ""
+
+            # Enforce question type (AI may drift even with focused prompts)
+            for q in questions_json:
+                q["question_type"] = question_type
+
+            # Enforce answer formats
+            questions_json = self._normalize_question_answers(questions_json)
+
+            # Drop MC questions without options (AI generated wrong type)
+            if question_type == "multiple_choice":
+                questions_json = [
+                    q for q in questions_json
+                    if q.get("multiple_choice_options")
+                ]
+                if not questions_json:
+                    raise ValueError("MC questions generated but none had options")
+
+            # Inject error analysis keys for mistake-based generation
+            if context_type == "mistake":
+                mistakes_data = context_data.get("mistakes_data", [])
+                error_types = [m.get("error_type") for m in mistakes_data if m.get("error_type")]
+                base_branches = [m.get("base_branch") for m in mistakes_data if m.get("base_branch")]
+                detailed_branches = [m.get("detailed_branch") for m in mistakes_data if m.get("detailed_branch")]
+
+                most_common_error = max(set(error_types), key=error_types.count) if error_types else None
+                most_common_base = max(set(base_branches), key=base_branches.count) if base_branches else None
+                most_common_detailed = max(set(detailed_branches), key=detailed_branches.count) if detailed_branches else None
+                weakness_key = f"{most_common_base}|{most_common_detailed}" if (most_common_base and most_common_detailed) else None
+
+                for q in questions_json:
+                    if not q.get("error_type") and most_common_error:
+                        q["error_type"] = most_common_error
+                    if not q.get("base_branch") and most_common_base:
+                        q["base_branch"] = most_common_base
+                    if not q.get("detailed_branch") and most_common_detailed:
+                        q["detailed_branch"] = most_common_detailed
+                    if not q.get("weakness_key") and weakness_key:
+                        q["weakness_key"] = weakness_key
+
+            logger.debug(f"✅ Unified generation success: {len(questions_json)} {question_type} questions")
+
+            return {
+                "success": True,
+                "questions": questions_json,
+                "generation_type": f"unified_{question_type}",
+                "subject": subject,
+                "tokens_used": tokens_used,
+                "question_count": len(questions_json),
+            }
+
+        except Exception as e:
+            logger.debug(f"❌ Unified generation error: {str(e)}")
+            import traceback
+            logger.debug(traceback.format_exc())
+            return {
+                "success": False,
+                "error": f"Unified question generation failed: {str(e)}",
+                "generation_type": f"unified_{question_type}",
+                "subject": subject
+            }
+
+
     # ======================================================================
     # PROGRESSIVE HOMEWORK GRADING METHODS
     # ======================================================================

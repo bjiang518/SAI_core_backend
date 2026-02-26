@@ -10,7 +10,6 @@ import Foundation
 import SwiftUI
 import UIKit
 import Combine
-import PDFKit
 
 @MainActor
 class DigitalHomeworkViewModel: ObservableObject {
@@ -2000,60 +1999,9 @@ class DigitalHomeworkViewModel: ObservableObject {
 
     // MARK: - PDF Export
 
-    @Published var isExportingPDF = false
-    @Published var pdfExportProgress: Double = 0.0
-    @Published var exportedPDFDocument: PDFDocument?
+    /// Set to true to present DigitalHomeworkPDFPreviewView via fullScreenCover.
+    /// Generation and options customisation are handled inside the preview view.
     @Published var showPDFPreview = false
-
-    private let pdfExporter = ProModePDFExporter()
-
-    /// Export homework to PDF (local rendering, no AI/backend)
-    func exportToPDF() async {
-        logger.info("📄 [PDF Export] Starting PDF export...")
-
-        // Reset state
-        await MainActor.run {
-            isExportingPDF = true
-            pdfExportProgress = 0.0
-            exportedPDFDocument = nil
-            showPDFPreview = false
-        }
-
-        // Update progress from exporter
-        let cancellable = pdfExporter.$exportProgress.sink { [weak self] progress in
-            Task { @MainActor in
-                self?.pdfExportProgress = progress
-            }
-        }
-
-        // Export PDF
-        let pdfDocument = await pdfExporter.exportToPDF(
-            questions: questions,
-            subject: parseResults?.subject ?? "Homework",
-            totalQuestions: parseResults?.totalQuestions ?? questions.count,
-            croppedImages: croppedImages
-        )
-
-        cancellable.cancel()
-
-        await MainActor.run {
-            isExportingPDF = false
-        }
-
-        if let pdfDocument = pdfDocument {
-            logger.info("✅ [PDF Export] PDF export succeeded - \(pdfDocument.pageCount) pages")
-            await MainActor.run {
-                exportedPDFDocument = pdfDocument
-                // Show preview with a small delay to ensure state is updated
-                Task {
-                    try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 second
-                    showPDFPreview = true
-                }
-            }
-        } else {
-            logger.error("❌ [PDF Export] PDF export failed - nil document returned")
-        }
-    }
 
     // MARK: - Helper Methods
 

@@ -67,6 +67,18 @@ struct UnifiedLibraryView: View {
     @State private var customStartDate = Date()
     @State private var customEndDate = Date()
 
+    // Selection mode
+    @State private var isSelectMode = false
+    @State private var selectedItemIds: Set<String> = []
+    @State private var showingLibraryPDF = false
+    @State private var showingDeleteConfirm = false
+
+    // Navigation destination state
+    @State private var navigationSelectedQuestion: QuestionSummary? = nil
+    @State private var navigationSelectedConversation: ConversationLibraryItem? = nil
+    @State private var navigatingToQuestion = false
+    @State private var navigatingToConversation = false
+
     // Computed properties for filtered counts
     // These counts MUST reflect all active filters (time, subject, question type)
     private var filteredQuestionCount: Int {
@@ -248,7 +260,33 @@ struct UnifiedLibraryView: View {
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
+                    if isSelectMode {
+                        HStack(spacing: 16) {
+                            Button {
+                                showingDeleteConfirm = true
+                            } label: {
+                                Image(systemName: "trash")
+                                    .foregroundColor(selectedItemIds.isEmpty ? .gray : .red)
+                            }
+                            .disabled(selectedItemIds.isEmpty)
+
+                            Button("Done") {
+                                isSelectMode = false
+                                selectedItemIds = []
+                            }
+                            .fontWeight(.semibold)
+                        }
+                    } else {
                     Menu {
+                        Button {
+                            isSelectMode = true
+                            selectedItemIds = []
+                        } label: {
+                            Text(NSLocalizedString("library.select", comment: "Select"))
+                        }
+
+                        Divider()
+
                         Button(NSLocalizedString("library.refreshLibrary", comment: "")) {
                             Task {
                                 await refreshContent()
@@ -279,6 +317,7 @@ struct UnifiedLibraryView: View {
 
                     } label: {
                         Image(systemName: "ellipsis.circle")
+                    }
                     }
                 }
             }
@@ -315,6 +354,35 @@ struct UnifiedLibraryView: View {
                         Task { await performAdvancedSearch(searchFilters) }
                     }
                 )
+            }
+            .sheet(isPresented: $showingLibraryPDF) {
+                let selectedQuestions = filteredItems
+                    .compactMap { $0 as? QuestionSummary }
+                    .filter { selectedItemIds.contains($0.id) }
+                let pdfSubject = selectedQuestions.first?.normalizedSubject ?? "Library"
+                LibraryPDFPreviewView(questions: selectedQuestions, subject: pdfSubject)
+            }
+            .navigationDestination(isPresented: $navigatingToQuestion) {
+                if let q = navigationSelectedQuestion {
+                    QuestionDetailView(questionId: q.id, preloadedSummary: q)
+                }
+            }
+            .navigationDestination(isPresented: $navigatingToConversation) {
+                if let conv = navigationSelectedConversation {
+                    SessionDetailView(sessionId: conv.id, isConversation: conv.itemType == .conversation)
+                }
+            }
+            .confirmationDialog(
+                "Delete \(selectedItemIds.count) item\(selectedItemIds.count == 1 ? "" : "s")?",
+                isPresented: $showingDeleteConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Delete", role: .destructive) {
+                    Task { await deleteSelectedItems() }
+                }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("This cannot be undone.")
             }
         .task {
             await loadContent()
@@ -498,52 +566,131 @@ struct UnifiedLibraryView: View {
                     clearFilters()
                 }
             } else {
-                List(filteredItems, id: \.id) { item in
-                    ZStack {
-                        // Invisible NavigationLink
-                        if item.itemType == .question, let questionItem = item as? QuestionSummary {
-                            NavigationLink(destination: QuestionDetailView(questionId: questionItem.id, preloadedSummary: questionItem)) {
-                                EmptyView()
+                ZStack(alignment: .bottom) {
+                    List(filteredItems, id: \.id) { item in
+                        ZStack(alignment: .topLeading) {
+                            // Visible row content
+                            HStack(spacing: 12) {
+                                if isSelectMode {
+                                    Image(systemName: selectedItemIds.contains(item.id) ? "checkmark.circle.fill" : "circle")
+                                        .font(.title3)
+                                        .foregroundColor(selectedItemIds.contains(item.id) ? .blue : .gray)
+                                        .animation(.easeInOut(duration: 0.15), value: selectedItemIds.contains(item.id))
+                                }
+                                LibraryItemRow(item: item)
                             }
-                            .opacity(0)
-                        } else if item.itemType == .question, let sessionItem = item as? ConversationLibraryItem {
-                            NavigationLink(destination: SessionDetailView(sessionId: sessionItem.id, isConversation: false)) {
-                                EmptyView()
-                            }
-                            .opacity(0)
-                        } else if let conversationItem = item as? ConversationLibraryItem {
-                            NavigationLink(destination: SessionDetailView(sessionId: conversationItem.id, isConversation: true)) {
-                                EmptyView()
-                            }
-                            .opacity(0)
-                        }
 
-                        // Visible row
-                        LibraryItemRow(item: item)
-                    }
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                        Button(role: .destructive) {
-                            Task {
-                                await deleteLibraryItem(item)
+                            // Full-size transparent button overlay — sits above WKWebView
+                            // so taps register everywhere on the card, not just outside the WebView.
+                            Button {
+                                if isSelectMode {
+                                    if selectedItemIds.contains(item.id) {
+                                        selectedItemIds.remove(item.id)
+                                    } else {
+                                        selectedItemIds.insert(item.id)
+                                    }
+                                    return
+                                }
+                                if item.itemType == .question, let q = item as? QuestionSummary {
+                                    navigationSelectedQuestion = q
+                                    navigatingToQuestion = true
+                                } else if let conv = item as? ConversationLibraryItem {
+                                    navigationSelectedConversation = conv
+                                    navigatingToConversation = true
+                                }
+                            } label: {
+                                Color.clear
                             }
-                        } label: {
-                            Label(NSLocalizedString("common.delete", comment: ""), systemImage: "trash.fill")
+                        }
+                        .contentShape(Rectangle())
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.purple, lineWidth: 2)
+                                .padding(.horizontal, 4)
+                                .opacity(isSelectMode && selectedItemIds.contains(item.id) ? 1 : 0)
+                        )
+                        .listRowBackground(Color.clear)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            if !isSelectMode {
+                                Button(role: .destructive) {
+                                    Task { await deleteLibraryItem(item) }
+                                } label: {
+                                    Label(NSLocalizedString("common.delete", comment: ""), systemImage: "trash.fill")
+                                }
+                            }
                         }
                     }
-                }
-                .listStyle(.plain)
-                .overlay {
-                    if libraryService.isLoading {
-                        ProgressView(NSLocalizedString("library.updating", comment: ""))
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .background(Color(.systemBackground).opacity(0.8))
+                    .listStyle(.plain)
+                    .overlay {
+                        if libraryService.isLoading {
+                            ProgressView(NSLocalizedString("library.updating", comment: ""))
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .background(Color(.systemBackground).opacity(0.8))
+                        }
+                    }
+                    // Bottom padding so last item isn't hidden behind action bar
+                    .safeAreaInset(edge: .bottom) {
+                        if isSelectMode { Color.clear.frame(height: 80) }
+                    }
+
+                    // Sticky selection action bar
+                    if isSelectMode {
+                        selectionActionBar
                     }
                 }
             }
         }
     }
+
+    // MARK: - Selection Action Bar
+
+    private var selectionActionBar: some View {
+        VStack(spacing: 0) {
+            Divider()
+            HStack(spacing: 16) {
+                // Select / deselect all
+                Button {
+                    let allIds = Set(filteredItems.map { $0.id })
+                    if selectedItemIds == allIds {
+                        selectedItemIds = []
+                    } else {
+                        selectedItemIds = allIds
+                    }
+                } label: {
+                    let allSelected = selectedItemIds == Set(filteredItems.map { $0.id })
+                    Label(allSelected ? "Deselect All" : "Select All",
+                          systemImage: allSelected ? "checkmark.circle" : "checkmark.circle.fill")
+                        .font(.subheadline)
+                }
+                .foregroundColor(.blue)
+
+                Spacer()
+
+                let count = selectedItemIds.count
+                Text(count == 0 ? "None selected" : "\(count) selected")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+
+                Spacer()
+
+                // Generate PDF
+                Button {
+                    showingLibraryPDF = true
+                } label: {
+                    Label("PDF", systemImage: "doc.fill")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                }
+                .disabled(selectedItemIds.isEmpty)
+                .foregroundColor(selectedItemIds.isEmpty ? .gray : .blue)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(Color(.systemBackground))
+        }
+    }
+
+    // MARK: - Helpers
 
     private func loadContent() async {
         QuestionLocalStorage.shared.removeDuplicates()
@@ -585,6 +732,15 @@ struct UnifiedLibraryView: View {
         } else {
             print("❌ [Library] Failed to delete item")
         }
+    }
+
+    private func deleteSelectedItems() async {
+        let toDelete = filteredItems.filter { selectedItemIds.contains($0.id) }
+        for item in toDelete {
+            await deleteLibraryItem(item)
+        }
+        selectedItemIds = []
+        isSelectMode = false
     }
 
     private func clearFilters() {
@@ -798,50 +954,25 @@ struct LibraryItemRow: View {
                 .clipShape(Capsule())
             }
 
-            // Item type label / title — only shown for conversations
-            // (Questions already show their content via FullLaTeXText above)
-            if item.itemType == .conversation {
-                HStack {
-                    Text(labelForItem(item))
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.primary)
-                        .lineLimit(1)
-
-                    Spacer()
-
-                    if isClickable(item) {
-                        Text(NSLocalizedString("library.item.tapToReview", comment: ""))
-                            .font(.caption)
-                            .foregroundColor(colorForItem(item))
-                            .fontWeight(.medium)
-                    }
-                }
-            } else {
-                // For questions: just show "Tap to review" hint aligned right
-                if isClickable(item) {
-                    HStack {
-                        Spacer()
-                        Text(NSLocalizedString("library.item.tapToReview", comment: ""))
-                            .font(.caption)
-                            .foregroundColor(colorForItem(item))
-                            .fontWeight(.medium)
-                    }
-                }
-            }
-
-            // ✅ Subject tag at bottom (more opaque background for better contrast)
+            // ✅ Bottom row: subject tag (left) + "Tap to review" (right)
             HStack {
                 Text(NSLocalizedString("subject.\(item.subject.lowercased().replacingOccurrences(of: " ", with: ""))", value: item.subject, comment: ""))
                     .font(.caption)
                     .fontWeight(.semibold)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(Color.black.opacity(0.2))  // ✅ Darker background for better contrast
-                    .foregroundColor(.primary)  // ✅ Use primary color for better readability
+                    .background(Color.black.opacity(0.2))
+                    .foregroundColor(.primary)
                     .clipShape(Capsule())
 
                 Spacer()
+
+                if isClickable(item) {
+                    Text(NSLocalizedString("library.item.tapToReview", comment: ""))
+                        .font(.caption)
+                        .foregroundColor(colorForItem(item))
+                        .fontWeight(.medium)
+                }
             }
         }
         .padding(12)
@@ -921,11 +1052,11 @@ struct LibraryItemRow: View {
         }
     }
 
-    // ✅ Background colors for cards: Questions in yellow, Conversations in blue (very light, close to white)
+    // ✅ Background colors for cards: neutral white-ish for all types
     private func backgroundColorForItem(_ item: LibraryItem) -> Color {
         switch item.itemType {
         case .question:
-            return Color.yellow.opacity(0.08)  // ✅ Questions: very light yellow (close to white)
+            return Color(.secondarySystemBackground)
         case .conversation:
             return Color.blue.opacity(0.08)  // ✅ Conversations: very light blue (close to white)
         }

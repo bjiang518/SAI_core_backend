@@ -248,9 +248,7 @@ struct GeneratedQuestionDetailView: View {
                                 .font(.title3)
                                 .foregroundColor(selectedOption == option ? .blue : .secondary)
 
-                            Text(option)
-                                .font(.body)
-                                .foregroundColor(.primary)
+                            SmartLaTeXView(option, fontSize: 16, colorScheme: colorScheme)
                                 .multilineTextAlignment(.leading)
 
                             Spacer()

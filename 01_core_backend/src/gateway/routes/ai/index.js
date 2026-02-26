@@ -21,6 +21,7 @@ const ArchiveRetrievalRoutes = require('./modules/archive-retrieval');
 // REMOVED: Legacy question generation (moved to question-generation.js.legacy)
 // const QuestionGenerationRoutes = require('./modules/question-generation');
 const QuestionGenerationV2Routes = require('./modules/question-generation-v2'); // NEW: Assistants API support
+const QuestionGenerationV3Routes = require('./modules/question-generation-v3'); // NEW: Typed parallel requests
 const TTSRoutes = require('./modules/tts');
 const AnalyticsRoutes = require('./modules/analytics');
 const DiagramGenerationRoutes = require('./modules/diagram-generation'); // NEW: AI diagram generation
@@ -70,6 +71,14 @@ async function aiRoutes(fastify, opts) {
   } catch (error) {
     fastify.log.error(`  ❌ Failed to register Question Generation V2 routes:`, error);
     // Don't throw - allow app to continue with legacy routes
+  }
+
+  // Register v3 routes (NEW: Typed parallel requests)
+  try {
+    await fastify.register(QuestionGenerationV3Routes);
+    fastify.log.info(`  ✅ Question Generation V3 (Typed Parallel) routes registered`);
+  } catch (error) {
+    fastify.log.error(`  ❌ Failed to register Question Generation V3 routes:`, error);
   }
 
   // Register error analysis routes (NEW: Two-Pass Grading)
