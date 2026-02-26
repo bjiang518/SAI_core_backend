@@ -143,7 +143,7 @@ def select_chat_model(message: str, subject: str, conversation_length: int = 0):
     return ("gpt-3.5-turbo", 800)
 
 
-async def generate_follow_up_suggestions(ai_response: str, user_message: str, subject: str):
+async def generate_follow_up_suggestions(ai_response: str, user_message: str, subject: str, prior_messages=None):
     """Generate 3 contextual follow-up suggestions. Returns list of {key, value} dicts."""
     try:
         def detect_chinese(text: str) -> bool:
@@ -156,25 +156,58 @@ async def generate_follow_up_suggestions(ai_response: str, user_message: str, su
                 "CRITICAL: The AI response is in CHINESE. Generate all suggestions in CHINESE (简体中文). "
                 "All 'key' labels must be 2-4 Chinese characters. All 'value' questions must be in Chinese."
             )
+            diagram_instruction = (
+                "如果AI的解释涉及流程、结构、空间关系或可以用图表表达的内容，"
+                "必须将第3条建议设为生成图解，key为\"生成图解\"，value描述要画什么图。"
+            )
         else:
             language_instruction = (
                 "LANGUAGE: The AI response is in ENGLISH. Generate all suggestions in ENGLISH. "
                 "All 'key' labels must be 2-4 words. All 'value' questions must be in English."
             )
+            diagram_instruction = (
+                "If the AI explanation involves a process, structure, spatial relationship, or anything "
+                "that would benefit from a visual, you MUST make the 3rd suggestion a diagram request "
+                "with key \"Draw Diagram\" and a value describing exactly what to diagram."
+            )
 
-        suggestion_prompt = f"""Based on this educational conversation, generate 3 contextual follow-up questions.
+        # Build recent conversation context from prior messages (last 3 turns)
+        context_lines = []
+        if prior_messages:
+            recent = prior_messages[-6:] if len(prior_messages) > 6 else prior_messages
+            for msg in recent:
+                role = getattr(msg, 'role', None) or msg.get('role', '')
+                content = getattr(msg, 'content', None) or msg.get('content', '')
+                if role and content:
+                    label = "Student" if role == "user" else "Tutor"
+                    context_lines.append(f"{label}: {str(content)[:300]}")
+        context_block = "\n".join(context_lines) if context_lines else "(no prior context)"
 
-Student asked: {user_message[:200]}
-AI explained: {ai_response[:500]}
+        suggestion_prompt = f"""You are a curious student who just received this explanation from your tutor. Put yourself in the student's shoes and think: what are the top 3 questions you'd genuinely want to ask next to better understand this topic?
+
 Subject: {subject}
+
+Recent conversation:
+{context_block}
+
+Latest exchange:
+You asked: {user_message[:300]}
+Tutor explained: {ai_response[:1500]}
+
+As the student, what are your top 3 follow-up questions? Think about:
+- What part of the explanation is still unclear or confusing?
+- How would you apply or practise what was just explained?
+- What deeper "why" or "how" questions does this explanation raise?
+
+{diagram_instruction}
 
 {language_instruction}
 
 Format as JSON array:
 [
-  {{"key": "Short button label (2-4 words)", "value": "Full question to ask"}},
-  {{"key": "Short button label", "value": "Full question to ask"}},
-  {{"key": "Short button label", "value": "Full question to ask"}}
+  {{"key": "Short button label (2-4 words)", "value": "Full question you want to ask"}},
+  {{"key": "Short button label", "value": "Full question you want to ask"}},
+  {{"key": "Short button label", "value": "Full question you want to ask"}}
 ]
 
 Return ONLY the JSON array, no other text."""
@@ -182,9 +215,19 @@ Return ONLY the JSON array, no other text."""
         import re as _re
         response = await ai_service.client.chat.completions.create(
             model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": suggestion_prompt}],
-            temperature=0.7,
-            max_tokens=300
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a student who has just received a tutor's explanation. "
+                        "Generate the 3 most natural, genuine questions you would want to ask next "
+                        "to deepen your understanding. Questions must be specific to what was actually explained — never generic."
+                    )
+                },
+                {"role": "user", "content": suggestion_prompt}
+            ],
+            temperature=0.4,
+            max_tokens=400
         )
         suggestion_text = response.choices[0].message.content.strip()
         json_match = _re.search(r'\[.*\]', suggestion_text, _re.DOTALL)
@@ -317,7 +360,8 @@ async def send_session_message(session_id: str, request: SessionMessageRequest):
         suggestions = await generate_follow_up_suggestions(
             ai_response=ai_response,
             user_message=request.message,
-            subject=request.subject or session.subject
+            subject=request.subject or session.subject,
+            prior_messages=session.messages
         )
 
         updated_session = await session_service.add_message_to_session(
@@ -465,7 +509,8 @@ async def send_session_message_stream(session_id: str, request: SessionMessageRe
                             suggestions = await generate_follow_up_suggestions(
                                 ai_response=accumulated_content,
                                 user_message=request.message,
-                                subject=session.subject
+                                subject=session.subject,
+                                prior_messages=session.messages
                             )
 
                             if suggestions:

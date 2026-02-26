@@ -617,8 +617,8 @@ struct QuestionListCard: View {
 
                 // Question text - ✅ Use SmartLaTeXView for proper LaTeX/MathJax rendering
                 SmartLaTeXView(question.question, fontSize: 14, colorScheme: colorScheme)
-                    .multilineTextAlignment(.leading)
-                    .lineLimit(3)
+                    .frame(maxHeight: 80)
+                    .clipped()
 
                 // Topic and metadata
                 HStack {
@@ -649,12 +649,12 @@ struct QuestionListCard: View {
                             .foregroundColor(.yellow)
 
                         SmartLaTeXView(
-                            String(question.explanation.prefix(80)) + (question.explanation.count > 80 ? "..." : ""),
+                            String(question.explanation.prefix(120)) + (question.explanation.count > 120 ? "..." : ""),
                             fontSize: 12,
                             colorScheme: colorScheme
                         )
-                        .foregroundColor(.secondary)
-                        .lineLimit(2)
+                        .frame(maxHeight: 50)
+                        .clipped()
                     }
                     .padding(.top, 4)
                 }
@@ -741,7 +741,9 @@ struct PracticePDFPreviewView: View {
     @State private var showingPrintOptions = false
     @State private var showingEmailComposer = false
     @State private var showingShareSheet = false
+    @State private var showingOptions = false
     @State private var pdfURL: URL?
+    @State private var options = PDFExportOptions()
     @Environment(\.dismiss) private var dismiss
 
     var isLoading: Bool {
@@ -863,9 +865,23 @@ struct PracticePDFPreviewView: View {
                         dismiss()
                     }
                 }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        showingOptions = true
+                    } label: {
+                        Image(systemName: "slider.horizontal.3")
+                    }
+                    .disabled(isLoading)
+                }
             }
             .task {
                 await generatePDF()
+            }
+            .sheet(isPresented: $showingOptions) {
+                // Practice questions are text-only — no image section
+                PDFOptionsSheet(options: $options, hasImages: false) {
+                    Task { await generatePDF() }
+                }
             }
             .sheet(isPresented: $showingEmailComposer) {
                 if let url = pdfURL {
@@ -891,13 +907,12 @@ struct PracticePDFPreviewView: View {
         let document = await pdfGenerator.generatePracticePDF(
             questions: questions,
             subject: subject,
-            generationType: generationType
+            generationType: generationType,
+            options: options
         )
 
         await MainActor.run {
             self.pdfDocument = document
-
-            // Save PDF to temporary directory for sharing
             if let document = document {
                 savePDFForSharing(document)
             }

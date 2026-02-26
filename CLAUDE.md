@@ -546,6 +546,7 @@ Full audit run on 2026-02-21. Verification pass completed 2026-02-22. ~40% of iO
 | 🔴 CRITICAL | `src/gateway/routes/ai-proxy.js` | 3,393 | Imported but COMMENTED OUT in `gateway/index.js:457`. All routes now handled by modular `ai/modules/*`. Remove the `require` on line 25. |
 | 🔴 CRITICAL | `src/services/aiService.js` | 355 | Zero imports anywhere. Replaced by `ai-engine-client.js`. |
 | 🟠 HIGH | `src/gateway/routes/ai/modules/gemini-live.js` | 635 | v1 duplicate of `gemini-live-v2.js`. Only v2 is registered (`ai/index.js:28`). Both define same `/api/ai/gemini-live/connect` endpoint. |
+| 🟠 HIGH | `src/gateway/routes/ai/modules/chat-image.js` | — | **DISABLED** (import commented out in `ai/index.js`). Its only iOS caller was `QuestionView.swift` which is itself orphaned (zero external navigation). Safe to delete unless feature is revived. |
 | 🟠 HIGH | `src/services/report-generators/activity-report-generator.js` | 282 | Duplicate of root-level `activity-report-generator.js` (1,641 lines). Never imported. |
 | 🟠 HIGH | `src/services/report-generators/improvement-report-generator.js` | 278 | Duplicate of root-level `areas-of-improvement-generator.js`. Never imported. |
 | 🟡 MEDIUM | `src/services/report-export-service.js` | 647 | Zero imports anywhere. Not wired to any route. |
@@ -606,6 +607,7 @@ These are backup copies sitting as active-named files — they will be picked up
 #### Views/ — Confirmed or Very Likely Dead
 | File | Reason |
 |------|--------|
+| `Views/QuestionView.swift` | Zero external instantiations. Its only backend call (`processImageWithQuestion` → `POST /api/ai/chat-image`) hits a **disabled** endpoint. Entire file is orphaned. |
 | `Views/VoiceChatView.swift` | Replaced by inline Live mode. Zero external instantiations (preview only). |
 | `Views/HandwritingEvaluationView.swift` | Zero navigation references. Feature appears removed. |
 | `Views/ImageCropView.swift` | Likely replaced by `UnifiedImageEditorView`. Zero navigation references. |
@@ -783,3 +785,48 @@ All taxonomy files (`taxonomy_english.py`, `taxonomy_physics.py`, etc.) are impo
 | `src/main.py` | 3,064 | 24 endpoints in one file — split into route modules under `src/routes/` |
 | `src/services/improved_openai_service.py` | 3,712 | Two classes + grading + parsing + caching — split into `openai_api.py` + `response_parser.py` + `grading_engine.py` |
 | `src/services/prompt_service.py` | 1,362 | Template-heavy but acceptable |
+
+---
+
+## Database Table Audit (Feb 2026)
+
+Audit run on 2026-02-25. 41 tables total — 35 active, 6 confirmed unused.
+
+### Unused Tables (safe to DROP)
+
+| Table | Defined In | Reason |
+|-------|-----------|--------|
+| `archived_sessions` | `railway-schema.sql:156` | Superseded by `archived_questions` + `archived_conversations_new`. No queries anywhere. |
+| `sessions_summaries` | `railway-schema.sql:140` | Session analytics table, no endpoints read or write it. |
+| `evaluations` | `railway-schema.sql:107` | Answer evaluation data — now stored in `archived_questions`. No queries anywhere. |
+| `progress_milestones` | `railway-database.js:3602` | Gamification milestone tracking (weekly/monthly XP). Feature never implemented. |
+| `daily_assistant_costs` | `migrations/20251112_assistants_api_support_v2.sql:119` | Assistants API cost tracking. Created in migration but never queried by backend code. |
+| `report_notification_preferences` | `railway-database.js:4931` | Notification preferences for passive reports. No read/write endpoints exist. |
+
+### All 41 Tables — Quick Status
+
+```
+users                            ✅  user_sessions                    ✅
+email_verifications              ✅  profiles                         ✅
+sessions                         ✅  questions                        ✅
+conversations                    ✅  evaluations                      ❌ UNUSED
+progress                         ✅  sessions_summaries               ❌ UNUSED
+archived_questions               ✅  archived_conversations_new       ✅
+archived_sessions                ❌  migration_history                ✅
+subject_progress                 ✅  daily_subject_activities         ✅
+question_sessions                ✅  subject_insights                 ✅
+daily_progress                   ✅  progress_milestones              ❌ UNUSED
+user_achievements                ✅  user_levels                      ✅
+study_streaks                    ✅  daily_goals                      ✅
+parent_report_narratives         ✅  short_term_status                ✅
+parental_consents                ✅  age_verifications                ✅
+consent_audit_log                ✅  parent_report_batches            ✅
+passive_reports                  ✅  report_notification_preferences  ❌ UNUSED
+assistants_config                ✅  openai_threads                   ✅
+assistant_metrics                ✅  daily_assistant_costs            ❌ UNUSED
+function_call_cache              ✅  admin_users                      ✅
+user_progress                    ✅  session_diagrams                 ✅
+parent_reports                   ✅
+```
+
+**To drop unused tables**, add `DROP TABLE IF EXISTS` statements to the next migration in `railway-database.js`. Always use `IF EXISTS` to avoid errors on environments where a table may not have been created.

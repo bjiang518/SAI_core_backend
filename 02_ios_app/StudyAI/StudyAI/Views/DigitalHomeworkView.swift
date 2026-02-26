@@ -32,10 +32,6 @@ struct DigitalHomeworkView: View {
     // ✅ NEW: Revert confirmation alert
     @State private var showRevertConfirmation = false
 
-    // ✅ PDF export alert
-    @State private var showPDFExportError = false
-    @State private var pdfExportErrorMessage = ""
-
     // ✅ NEW: Deletion mode state
     @State private var isDeletionMode = false
     @State private var selectedQuestionsForDeletion: Set<String> = []
@@ -850,46 +846,25 @@ struct DigitalHomeworkView: View {
 
     private var exportPDFButton: some View {
         Button(action: {
-            Task {
-                await viewModel.exportToPDF()
-
-                // Check if export succeeded
-                if viewModel.exportedPDFDocument == nil {
-                    pdfExportErrorMessage = "Failed to generate PDF. Please try again."
-                    showPDFExportError = true
-                }
-            }
-
-            // Haptic feedback
+            viewModel.showPDFPreview = true
             let generator = UIImpactFeedbackGenerator(style: .medium)
             generator.impactOccurred()
         }) {
             HStack(spacing: 8) {
-                if viewModel.isExportingPDF {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        .scaleEffect(0.8)
-                    Text(String(format: NSLocalizedString("proMode.exportingProgress", comment: ""), Int(viewModel.pdfExportProgress * 100)))
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                } else {
-                    Image(systemName: "doc.fill")
-                        .font(.headline)
-                    Text(NSLocalizedString("proMode.exportToPDF", comment: ""))
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                }
+                Image(systemName: "doc.fill")
+                    .font(.headline)
+                Text(NSLocalizedString("proMode.exportToPDF", comment: ""))
+                    .font(.headline)
+                    .fontWeight(.semibold)
             }
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
             .background(
                 LinearGradient(
-                    colors: viewModel.isExportingPDF ?
-                        [Color.gray, Color.gray.opacity(0.8)] :
-                        (themeManager.currentTheme == .cute ?
-                            [DesignTokens.Colors.Cute.lavender, DesignTokens.Colors.Cute.lavender.opacity(0.8)] :
-                            [Color.blue, Color.blue.opacity(0.8)]),
+                    colors: themeManager.currentTheme == .cute ?
+                        [DesignTokens.Colors.Cute.lavender, DesignTokens.Colors.Cute.lavender.opacity(0.8)] :
+                        [Color.blue, Color.blue.opacity(0.8)],
                     startPoint: .leading,
                     endPoint: .trailing
                 )
@@ -902,21 +877,13 @@ struct DigitalHomeworkView: View {
                 radius: 6, x: 0, y: 3
             )
         }
-        .disabled(viewModel.isExportingPDF)
-        .opacity(viewModel.isExportingPDF ? 0.8 : 1.0)
         .fullScreenCover(isPresented: $viewModel.showPDFPreview) {
-            if let pdfDocument = viewModel.exportedPDFDocument {
-                DigitalHomeworkPDFPreviewView(
-                    pdfDocument: pdfDocument,
-                    subject: viewModel.subject,
-                    questionCount: viewModel.totalQuestions
-                )
-            }
-        }
-        .alert(NSLocalizedString("proMode.pdfExportFailed", comment: ""), isPresented: $showPDFExportError) {
-            Button(NSLocalizedString("common.ok", comment: ""), role: .cancel) {}
-        } message: {
-            Text(pdfExportErrorMessage)
+            DigitalHomeworkPDFPreviewView(
+                subject: viewModel.subject,
+                questionCount: viewModel.totalQuestions,
+                questions: viewModel.questions,
+                croppedImages: viewModel.croppedImages
+            )
         }
     }
 
@@ -2546,28 +2513,28 @@ struct SubquestionRow: View {
                                 .cornerRadius(6)
                                 .transition(.opacity.combined(with: .move(edge: .top)))
 
-                            // Action buttons (Follow Up + Regrade + Archive)
-                            HStack(spacing: 12) {
+                            // Action buttons (Follow Up + Regrade + Archive) — icon-only for narrow subquestion width
+                            HStack(spacing: 8) {
                                 // Follow Up button
                                 Button(action: onAskAI) {
-                                    Label(NSLocalizedString("proMode.followUp", comment: ""), systemImage: "message")
+                                    Image(systemName: "message")
                                         .font(.caption)
                                 }
                                 .buttonStyle(.bordered)
-                                .disabled(isArchived || isGrading)  // ✅ Disable during grading
+                                .disabled(isArchived || isGrading)
 
-                                // ✅ NEW: Regrade button
+                                // Regrade button
                                 Button(action: onRegrade) {
-                                    Label(NSLocalizedString("proMode.regrade", comment: ""), systemImage: "arrow.triangle.2.circlepath")
+                                    Image(systemName: "arrow.triangle.2.circlepath")
                                         .font(.caption)
                                 }
                                 .buttonStyle(.bordered)
                                 .tint(.purple)
-                                .disabled(isArchived || isGrading)  // ✅ Disable during grading to prevent multi-press
+                                .disabled(isArchived || isGrading)
 
                                 Spacer()
 
-                                // ✅ NEW: Archive button with action sheet
+                                // Archive button
                                 Button(action: {
                                     showArchiveOptions = true
                                 }) {
@@ -2575,7 +2542,7 @@ struct SubquestionRow: View {
                                         .font(.caption)
                                 }
                                 .buttonStyle(.bordered)
-                                .disabled(isArchived || isGrading)  // ✅ Disable during grading
+                                .disabled(isArchived || isGrading)
                             }
                         }
                     }

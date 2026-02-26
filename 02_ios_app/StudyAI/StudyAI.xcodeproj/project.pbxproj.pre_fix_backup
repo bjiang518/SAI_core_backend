@@ -90,7 +90,9 @@
 		7B2248152F1970BE006ADD93 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7B2248142F1970BE006ADD93 /* PrivacyInfo.xcprivacy */; };
 		7B2248162F1970BE006ADD93 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7B2248142F1970BE006ADD93 /* PrivacyInfo.xcprivacy */; };
 		7B2248172F1970BE006ADD93 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7B2248142F1970BE006ADD93 /* PrivacyInfo.xcprivacy */; };
-		ttPDFOPT001BUILD0000000001 /* PDFOptionsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = ttPDFOPT001FILEREF000000001 /* PDFOptionsSheet.swift */; };
+ttPDFOPT001BUILD0000000001 /* PDFOptionsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = PDFOPT001FILEREF000000001 /* PDFOptionsSheet.swift */; };
+ttPDFOPT001BUILD0000000002 /* PDFOptionsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = PDFOPT001FILEREF000000001 /* PDFOptionsSheet.swift */; };
+ttPDFOPT001BUILD0000000003 /* PDFOptionsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = PDFOPT001FILEREF000000001 /* PDFOptionsSheet.swift */; };
 		7B2248212F1CCEDB006ADD93 /* DigitalHomeworkPDFPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248202F1CCEDB006ADD93 /* DigitalHomeworkPDFPreviewView.swift */; };
 		7B2248222F1CCEDB006ADD93 /* DigitalHomeworkPDFPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248202F1CCEDB006ADD93 /* DigitalHomeworkPDFPreviewView.swift */; };
 		7B2248232F1CCEDB006ADD93 /* DigitalHomeworkPDFPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2248202F1CCEDB006ADD93 /* DigitalHomeworkPDFPreviewView.swift */; };
@@ -516,11 +518,9 @@
 		LRNP36652115E4F419FE4EEEA /* LearningProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = LRNP1132738F4C03AC421E7D /* LearningProgressView.swift */; };
 		MIST1234567890123456ABCD /* MistakeReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = MISTFILE1234567890ABCD12 /* MistakeReviewView.swift */; };
 		MSTS1234567890123456ABCD /* MistakeReviewService.swift in Sources */ = {isa = PBXBuildFile; fileRef = MSTSFILE1234567890ABCD12 /* MistakeReviewService.swift */; };
-		MATHJAXPDF001234567890AB /* MathJaxPDFRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = MATHJAXPDF00FILE0ABCD1234 /* MathJaxPDFRenderer.swift */; };
 		PDFG1234567890123456ABCD /* PDFGeneratorService.swift in Sources */ = {isa = PBXBuildFile; fileRef = PDFGFILE1234567890ABCD12 /* PDFGeneratorService.swift */; };
 		PDFP1234567890123456ABCD /* PDFPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PDFPFILE1234567890ABCD12 /* PDFPreviewView.swift */; };
 		EC13C4B1634147B49DEB198B /* PDFPreviewComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03102101A43A4BCFA64DF0F7 /* PDFPreviewComponents.swift */; };
-		B573CBF246134245A6DF42A5 /* LibraryPDFPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C3C2EED7834451198C33DC1 /* LibraryPDFPreviewView.swift */; };
 		PNTS789012345678EFGH0123 /* PointsEarningSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = PNTS456789012345EFGH0123 /* PointsEarningSystem.swift */; };
 		PRFS678901234567CDEF9012 /* ProfileService.swift in Sources */ = {isa = PBXBuildFile; fileRef = PRFS234567890123BCDE8901 /* ProfileService.swift */; };
 		PRNCSNT901234567890ABCD /* ParentalConsentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PRNCSNTVW1234567890ABCD /* ParentalConsentView.swift */; };
@@ -616,7 +616,7 @@
 		7B1961EF2E94E31A0024317A /* ParentModeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ParentModeManager.swift; path = StudyAI/Services/ParentModeManager.swift; sourceTree = SOURCE_ROOT; };
 		7B1ED8402E829B3700E5E57D /* ParentReportModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentReportModels.swift; sourceTree = "<group>"; };
 		7B2248142F1970BE006ADD93 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
-		ttPDFOPT001FILEREF000000001 /* PDFOptionsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PDFOptionsSheet.swift; path = StudyAI/Views/PDFOptionsSheet.swift; sourceTree = SOURCE_ROOT; };
+ttPDFOPT001FILEREF000000001 /* PDFOptionsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PDFOptionsSheet.swift; path = StudyAI/Views/PDFOptionsSheet.swift; sourceTree = SOURCE_ROOT; };
 		7B2248202F1CCEDB006ADD93 /* DigitalHomeworkPDFPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DigitalHomeworkPDFPreviewView.swift; path = StudyAI/Views/DigitalHomeworkPDFPreviewView.swift; sourceTree = SOURCE_ROOT; };
 		7B22484E2F20212C006ADD93 /* ParentReportsContainerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ParentReportsContainerView.swift; path = StudyAI/Views/ParentReportsContainerView.swift; sourceTree = SOURCE_ROOT; };
 		7B22484F2F20212C006ADD93 /* PassiveReportDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PassiveReportDetailView.swift; path = StudyAI/Views/PassiveReportDetailView.swift; sourceTree = SOURCE_ROOT; };
@@ -801,11 +801,9 @@
 		LRNP1132738F4C03AC421E7D /* LearningProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LearningProgressView.swift; path = StudyAI/Views/LearningProgressView.swift; sourceTree = SOURCE_ROOT; };
 		MISTFILE1234567890ABCD12 /* MistakeReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MistakeReviewView.swift; path = StudyAI/Views/MistakeReviewView.swift; sourceTree = SOURCE_ROOT; };
 		MSTSFILE1234567890ABCD12 /* MistakeReviewService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MistakeReviewService.swift; path = StudyAI/Services/MistakeReviewService.swift; sourceTree = SOURCE_ROOT; };
-		MATHJAXPDF00FILE0ABCD1234 /* MathJaxPDFRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MathJaxPDFRenderer.swift; path = StudyAI/Services/MathJaxPDFRenderer.swift; sourceTree = SOURCE_ROOT; };
 		PDFGFILE1234567890ABCD12 /* PDFGeneratorService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PDFGeneratorService.swift; path = StudyAI/Services/PDFGeneratorService.swift; sourceTree = SOURCE_ROOT; };
 		PDFPFILE1234567890ABCD12 /* PDFPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PDFPreviewView.swift; path = StudyAI/Views/PDFPreviewView.swift; sourceTree = SOURCE_ROOT; };
 		03102101A43A4BCFA64DF0F7 /* PDFPreviewComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PDFPreviewComponents.swift; path = StudyAI/Views/PDFPreviewComponents.swift; sourceTree = SOURCE_ROOT; };
-		2C3C2EED7834451198C33DC1 /* LibraryPDFPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LibraryPDFPreviewView.swift; path = StudyAI/Views/LibraryPDFPreviewView.swift; sourceTree = SOURCE_ROOT; };
 		PNTS456789012345EFGH0123 /* PointsEarningSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PointsEarningSystem.swift; path = StudyAI/Models/PointsEarningSystem.swift; sourceTree = SOURCE_ROOT; };
 		PRFS234567890123BCDE8901 /* ProfileService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ProfileService.swift; path = StudyAI/Services/ProfileService.swift; sourceTree = SOURCE_ROOT; };
 		PRNCSNTVW1234567890ABCD /* ParentalConsentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ParentalConsentView.swift; path = StudyAI/Views/ParentalConsentView.swift; sourceTree = SOURCE_ROOT; };
@@ -1084,7 +1082,6 @@
 				PRFS234567890123BCDE8901 /* ProfileService.swift */,
 				1ECE095FF4DB41A3B76FBE4F /* NetworkService.swift */,
 				MSTSFILE1234567890ABCD12 /* MistakeReviewService.swift */,
-				MATHJAXPDF00FILE0ABCD1234 /* MathJaxPDFRenderer.swift */,
 				PDFGFILE1234567890ABCD12 /* PDFGeneratorService.swift */,
 				7432D8F68917426DB11C0528 /* StudyAI/Services/ProModeImageStorage.swift */,
 			);
@@ -1116,7 +1113,7 @@
 				7B2248502F20212C006ADD93 /* PassiveReportsView.swift */,
 				DEEP12345678901234ABCDEF /* StudyAI/Views/DeepThinkingGestureHandler.swift */,
 				7B2248202F1CCEDB006ADD93 /* DigitalHomeworkPDFPreviewView.swift */,
-				ttPDFOPT001FILEREF000000001 /* PDFOptionsSheet.swift */,
+ttttPDFOPT001FILEREF000000001 /* PDFOptionsSheet.swift */,
 				7BD668C72EE6A7F000E09E55 /* DiagramMessageView.swift */,
 				7BD668C82EE6A7F000E09E55 /* DiagramRendererView.swift */,
 				7BD668B52ED9AC9D00E09E55 /* SavedDigitalHomeworkView.swift */,
@@ -1188,7 +1185,6 @@
 				MISTFILE1234567890ABCD12 /* MistakeReviewView.swift */,
 				PDFPFILE1234567890ABCD12 /* PDFPreviewView.swift */,
 				03102101A43A4BCFA64DF0F7 /* PDFPreviewComponents.swift */,
-				2C3C2EED7834451198C33DC1 /* LibraryPDFPreviewView.swift */,
 				CDEF345678901234GHIJ5678 /* UnifiedLibraryView.swift */,
 				B287EA8822554493B6AB2BBB /* TomatoGardenView.swift */,
 				F846B8FB0BD74877AF9F91FA /* PhysicsTomatoGardenView.swift */,
@@ -1616,8 +1612,11 @@
 				B67097AEC09C4CA4B5C82F10 /* TextToSpeechService.swift in Sources */,
 				9FF8A1F6F34E4BF786B5EAC3 /* VoiceInteractionService.swift in Sources */,
 				7B2249212F39BE97006ADD93 /* ThemeSelectionView.swift in Sources */,
-				ttPDFOPT001BUILD0000000001 /* PDFOptionsSheet.swift in Sources */,
+ttPDFOPT001BUILD0000000001 /* PDFOptionsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = PDFOPT001FILEREF000000001 /* PDFOptionsSheet.swift */; };
+ttPDFOPT001BUILD0000000002 /* PDFOptionsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = PDFOPT001FILEREF000000001 /* PDFOptionsSheet.swift */; };
+ttPDFOPT001BUILD0000000003 /* PDFOptionsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = PDFOPT001FILEREF000000001 /* PDFOptionsSheet.swift */; };
 				7B2248212F1CCEDB006ADD93 /* DigitalHomeworkPDFPreviewView.swift in Sources */,
+ttttPDFOPT001BUILD0000000001 /* PDFOptionsSheet.swift in Sources */,
 				12345678901234567890ABCD /* UserSessionManager.swift in Sources */,
 				7BEC07DB2F465EDE00B6E573 /* VoiceChatViewModel.swift in Sources */,
 				23456789012345678901BCDE /* LibraryDataService.swift in Sources */,
@@ -1708,14 +1707,12 @@
 				7B1961E92E94E2740024317A /* PasswordManagementView.swift in Sources */,
 				7B1961EA2E94E2740024317A /* ParentAuthenticationView.swift in Sources */,
 				MSTS1234567890123456ABCD /* MistakeReviewService.swift in Sources */,
-				MATHJAXPDF001234567890AB /* MathJaxPDFRenderer.swift in Sources */,
 				PDFG1234567890123456ABCD /* PDFGeneratorService.swift in Sources */,
 				7BEEB6122E8E3A3200957748 /* DesignTokens.swift in Sources */,
 				7B2249552F3AC54E006ADD93 /* CuteTabBar.swift in Sources */,
 				1C6A1BCA94774E52B859845F /* ViewModifiers.swift in Sources */,
 				PDFP1234567890123456ABCD /* PDFPreviewView.swift in Sources */,
 				EC13C4B1634147B49DEB198B /* PDFPreviewComponents.swift in Sources */,
-				B573CBF246134245A6DF42A5 /* LibraryPDFPreviewView.swift in Sources */,
 				7B83523A2E9625C900199AC3 /* ShareAppView.swift in Sources */,
 				7BDE567F2EC1C6E5004A8629 /* PomodoroCalendarService.swift in Sources */,
 				7B83523B2E9625C900199AC3 /* HelpCenterView.swift in Sources */,
@@ -1795,6 +1792,7 @@
 				7BFC71312EC5A91D00DB95A7 /* AssistantLogger.swift in Sources */,
 				7B2248A62F2DCDE4006ADD93 /* AppSessionManager.swift in Sources */,
 				7B2248232F1CCEDB006ADD93 /* DigitalHomeworkPDFPreviewView.swift in Sources */,
+ttttPDFOPT001BUILD0000000003 /* PDFOptionsSheet.swift in Sources */,
 				7B2248862F26FB06006ADD93 /* RecentMistakesSection.swift in Sources */,
 				7B2248872F26FB06006ADD93 /* WeaknessPracticeView.swift in Sources */,
 				7B6B2B0D2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */,
@@ -1911,6 +1909,7 @@
 				7B8E9EB12EAF38D000E83DA8 /* SessionManager.swift in Sources */,
 				7B2248722F26BE4C006ADD93 /* ErrorAnalysisQueueService.swift in Sources */,
 				7B2248222F1CCEDB006ADD93 /* DigitalHomeworkPDFPreviewView.swift in Sources */,
+ttttPDFOPT001BUILD0000000002 /* PDFOptionsSheet.swift in Sources */,
 				7B8E9E922EAB50F400E83DA8 /* HomeworkAlbumView.swift in Sources */,
 				7BDE56832EC1C718004A8629 /* PomodoroCalendarEvent.swift in Sources */,
 				7BDE565E2EC1C5C3004A8629 /* MathJaxRenderer.swift in Sources */,

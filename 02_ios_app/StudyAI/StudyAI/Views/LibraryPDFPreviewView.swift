@@ -1,32 +1,26 @@
 //
-//  DigitalHomeworkPDFPreviewView.swift
+//  LibraryPDFPreviewView.swift
 //  StudyAI
 //
-//  PDF Preview for Digital Homework Export.
-//  Includes a customisation sheet (PDFOptionsSheet) where the user can adjust
-//  font size, question gap, and image size. The image section is always shown
-//  here because this path always contains images.
+//  PDF preview for questions exported from the Library.
+//  Text-only path — image size controls are hidden.
 //
 
 import SwiftUI
 import PDFKit
 import MessageUI
 
-struct DigitalHomeworkPDFPreviewView: View {
+struct LibraryPDFPreviewView: View {
+    let questions: [QuestionSummary]
     let subject: String
-    let questionCount: Int
-    let questions: [ProgressiveQuestionWithGrade]
-    let croppedImages: [String: UIImage]
 
     @StateObject private var pdfGenerator = PDFGeneratorService()
     @State private var pdfDocument: PDFDocument?
     @State private var isLoading = true
-
     @State private var showingOptions = false
     @State private var showingEmailComposer = false
     @State private var showingShareSheet = false
     @State private var pdfURL: URL?
-
     @State private var options = PDFExportOptions()
 
     @Environment(\.dismiss) private var dismiss
@@ -46,11 +40,11 @@ struct DigitalHomeworkPDFPreviewView: View {
                     errorView
                 }
             }
-            .navigationTitle(NSLocalizedString("pdfPreview.title", comment: "PDF Preview"))
+            .navigationTitle("PDF Preview")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button(NSLocalizedString("common.done", comment: "Done")) { dismiss() }
+                    Button("Done") { dismiss() }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
@@ -61,22 +55,20 @@ struct DigitalHomeworkPDFPreviewView: View {
                     .disabled(isLoading)
                 }
             }
-            .task {
-                AppLogger.forFeature("PDFGen").info("▶︎ DigitalHomeworkPDFPreviewView appeared — questions=\(questions.count) croppedImages=\(croppedImages.count)")
-                await generatePDF()
-            }
+            .task { await generatePDF() }
             .sheet(isPresented: $showingOptions) {
-                PDFOptionsSheet(options: $options, hasImages: true) {
+                // Library questions are text-only — hide image controls
+                PDFOptionsSheet(options: $options, hasImages: false) {
                     Task { await generatePDF() }
                 }
             }
             .sheet(isPresented: $showingEmailComposer) {
                 if let url = pdfURL {
                     PDFMailComposeView(
-                        subject: "StudyMates - \(subject) Digital Homework",
+                        subject: "Library Questions — \(subject)",
                         messageBody: emailBody,
                         attachmentURL: url,
-                        attachmentName: "digital-homework-\(subject.lowercased().replacingOccurrences(of: " ", with: "-")).pdf"
+                        attachmentName: "library-questions-\(subject.lowercased().replacingOccurrences(of: " ", with: "-")).pdf"
                     )
                 }
             }
@@ -119,24 +111,9 @@ struct DigitalHomeworkPDFPreviewView: View {
 
     private var actionBar: some View {
         HStack(spacing: 16) {
-            ActionButton(
-                icon: "printer.fill",
-                title: NSLocalizedString("pdfPreview.print", comment: "Print"),
-                color: .blue,
-                action: { handlePrint() }
-            )
-            ActionButton(
-                icon: "envelope.fill",
-                title: NSLocalizedString("pdfPreview.email", comment: "Email"),
-                color: .green,
-                action: { showingEmailComposer = true }
-            )
-            ActionButton(
-                icon: "square.and.arrow.up.fill",
-                title: NSLocalizedString("pdfPreview.share", comment: "Share"),
-                color: .orange,
-                action: { showingShareSheet = true }
-            )
+            ActionButton(icon: "printer.fill",             title: "Print",  color: .blue,   action: handlePrint)
+            ActionButton(icon: "envelope.fill",            title: "Email",  color: .green,  action: { showingEmailComposer = true })
+            ActionButton(icon: "square.and.arrow.up.fill", title: "Share",  color: .orange, action: { showingShareSheet = true })
         }
         .padding()
         .background(Color(.systemBackground))
@@ -146,26 +123,20 @@ struct DigitalHomeworkPDFPreviewView: View {
     // MARK: - PDF Generation
 
     private func generatePDF() async {
-        let log = AppLogger.forFeature("PDFGen")
-        log.info("▶︎ DigitalHomeworkPDFPreviewView.generatePDF() — questions=\(questions.count) croppedImages=\(croppedImages.count) subject='\(subject)'")
-
         isLoading = true
         pdfURL = nil
-        let document = await pdfGenerator.generateProModePDF(
+        let document = await pdfGenerator.generateLibraryPDF(
             questions: questions,
             subject: subject,
-            croppedImages: croppedImages,
-            includeArchived: true,
             options: options
         )
-        log.info("  generateProModePDF returned: \(document != nil ? "✓ doc with \(document!.pageCount) pages" : "nil")")
         pdfDocument = document
         if let document = document { await savePDF(document) }
         isLoading = false
     }
 
     private func savePDF(_ document: PDFDocument) async {
-        let name = "digital-homework-\(subject.lowercased().replacingOccurrences(of: " ", with: "-"))-\(Date().timeIntervalSince1970).pdf"
+        let name = "library-\(subject.lowercased().replacingOccurrences(of: " ", with: "-"))-\(Date().timeIntervalSince1970).pdf"
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
         if let data = document.dataRepresentation() {
             try? data.write(to: url)
@@ -180,7 +151,7 @@ struct DigitalHomeworkPDFPreviewView: View {
         let printController = UIPrintInteractionController.shared
         let printInfo = UIPrintInfo.printInfo()
         printInfo.outputType = .general
-        printInfo.jobName = "StudyMates - \(subject) Digital Homework"
+        printInfo.jobName = "Library Questions — \(subject)"
         printController.printInfo = printInfo
         printController.printingItem = url
         printController.present(animated: true) { _, _, _ in }
@@ -190,26 +161,15 @@ struct DigitalHomeworkPDFPreviewView: View {
         """
         Hi there!
 
-        I've attached my digital homework for \(subject) from StudyMates.
+        I've attached \(questions.count) library question(s) for \(subject) from StudyMates.
 
-        Subject: \(subject)
-        Number of questions: \(questionCount)
-        Generated: \(DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .none))
-
-        Generated by StudyMates - Your AI Study Companion
+        Generated by StudyMates — Your AI Study Companion
 
         Best regards
         """
     }
 }
 
-// MARK: - Preview
-
 #Preview {
-    DigitalHomeworkPDFPreviewView(
-        subject: "Mathematics",
-        questionCount: 3,
-        questions: [],
-        croppedImages: [:]
-    )
+    LibraryPDFPreviewView(questions: [], subject: "Mathematics")
 }

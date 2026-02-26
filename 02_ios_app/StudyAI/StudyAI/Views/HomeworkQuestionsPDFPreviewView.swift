@@ -2,7 +2,9 @@
 //  HomeworkQuestionsPDFPreviewView.swift
 //  StudyAI
 //
-//  Created by Claude Code on 10/24/25.
+//  PDF Preview for homework album records.
+//  Automatically detects whether the record contains images (Pro Mode data)
+//  and shows/hides the image-size controls in the options sheet accordingly.
 //
 
 import SwiftUI
@@ -16,56 +18,54 @@ struct HomeworkQuestionsPDFPreviewView: View {
 
     @State private var pdfDocument: PDFDocument?
     @State private var isGenerating = false
+    @State private var showingOptions = false
     @State private var showingShareSheet = false
     @State private var showingEmailSheet = false
     @State private var pdfURL: URL?
     @State private var showingError = false
     @State private var errorMessage = ""
+    @State private var options = PDFExportOptions()
+
+    /// True when the record contains Pro Mode data with images.
+    /// Drives whether the Images section appears in the options sheet.
+    private var hasImages: Bool {
+        homeworkRecord.proModeData != nil
+    }
 
     var body: some View {
         NavigationView {
             VStack {
                 if isGenerating {
-                    // Loading state
                     VStack(spacing: 20) {
                         ProgressView(value: pdfGenerator.generationProgress)
                             .progressViewStyle(LinearProgressViewStyle())
                             .padding()
-
                         Text("Generating PDF...")
                             .font(.headline)
-
                         Text(String(format: "%.0f%%", pdfGenerator.generationProgress * 100))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
                     .padding()
                 } else if let document = pdfDocument {
-                    // PDF preview
                     PDFKitRepresentedView(document: document)
                         .ignoresSafeArea(edges: .bottom)
                 } else {
-                    // Error state
                     VStack(spacing: 16) {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.system(size: 50))
                             .foregroundColor(.orange)
-
                         Text("Unable to Generate PDF")
                             .font(.headline)
-
                         Text("No questions found in this homework record.")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
-
-                        Button("Close") {
-                            dismiss()
-                        }
-                        .padding()
-                        .background(Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(12)
+                        Button("Close") { dismiss() }
+                            .padding()
+                            .background(Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(12)
                     }
                     .padding()
                 }
@@ -74,31 +74,24 @@ struct HomeworkQuestionsPDFPreviewView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Close") {
-                        dismiss()
-                    }
+                    Button("Close") { dismiss() }
                 }
-
                 if pdfDocument != nil && !isGenerating {
                     ToolbarItem(placement: .navigationBarTrailing) {
                         HStack(spacing: 16) {
-                            // Print button
+                            Button {
+                                showingOptions = true
+                            } label: {
+                                Image(systemName: "slider.horizontal.3")
+                            }
                             Button(action: handlePrint) {
                                 Image(systemName: "printer")
                             }
-
-                            // Share button
-                            Button(action: {
-                                showingShareSheet = true
-                            }) {
+                            Button { showingShareSheet = true } label: {
                                 Image(systemName: "square.and.arrow.up")
                             }
-
-                            // Email button
                             if MFMailComposeViewController.canSendMail() {
-                                Button(action: {
-                                    showingEmailSheet = true
-                                }) {
+                                Button { showingEmailSheet = true } label: {
                                     Image(systemName: "envelope")
                                 }
                             }
@@ -107,10 +100,13 @@ struct HomeworkQuestionsPDFPreviewView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingShareSheet) {
-            if let url = pdfURL {
-                ShareSheet(items: [url])
+        .sheet(isPresented: $showingOptions) {
+            PDFOptionsSheet(options: $options, hasImages: hasImages) {
+                Task { await generatePDF() }
             }
+        }
+        .sheet(isPresented: $showingShareSheet) {
+            if let url = pdfURL { ShareSheet(items: [url]) }
         }
         .sheet(isPresented: $showingEmailSheet) {
             if let url = pdfURL {
@@ -127,9 +123,7 @@ struct HomeworkQuestionsPDFPreviewView: View {
         } message: {
             Text(errorMessage)
         }
-        .task {
-            await generatePDF()
-        }
+        .task { await generatePDF() }
     }
 
     // MARK: - PDF Generation
@@ -137,38 +131,25 @@ struct HomeworkQuestionsPDFPreviewView: View {
     private func generatePDF() async {
         isGenerating = true
 
-        // ✅ Priority 1: Check for Pro Mode data (full grading information)
-        if let proModeData = homeworkRecord.proModeData {
-            // Deserialize DigitalHomeworkData
-            do {
-                let digitalHomework = try JSONDecoder().decode(DigitalHomeworkData.self, from: proModeData)
-
-                // Generate PDF with full Pro Mode data (includes grades, feedback, images)
-                let document = await pdfGenerator.generateProModePDF(
-                    digitalHomework: digitalHomework,
-                    subject: homeworkRecord.subject,
-                    date: homeworkRecord.submittedDate
-                )
-
-                await MainActor.run {
-                    isGenerating = false
-
-                    if let document = document {
-                        pdfDocument = document
-                        savePDFToTemp(document)
-                    } else {
-                        errorMessage = "Failed to generate Pro Mode PDF."
-                        showingError = true
-                    }
-                }
-                return
-            } catch {
-                print("⚠️ [PDF] Failed to decode Pro Mode data: \(error.localizedDescription)")
-                // Fall through to rawQuestions if decode fails
+        if let proModeData = homeworkRecord.proModeData,
+           let digitalHomework = try? JSONDecoder().decode(DigitalHomeworkData.self, from: proModeData) {
+            let document = await pdfGenerator.generateProModePDF(
+                digitalHomework: digitalHomework,
+                subject: homeworkRecord.subject,
+                date: homeworkRecord.submittedDate,
+                options: options
+            )
+            isGenerating = false
+            if let document = document {
+                pdfDocument = document
+                savePDFToTemp(document)
+            } else {
+                errorMessage = "Failed to generate Pro Mode PDF."
+                showingError = true
             }
+            return
         }
 
-        // ✅ Priority 2: Fallback to raw questions (simple text-only)
         guard let rawQuestions = homeworkRecord.rawQuestions, !rawQuestions.isEmpty else {
             errorMessage = "No questions found in this homework record."
             isGenerating = false
@@ -177,48 +158,42 @@ struct HomeworkQuestionsPDFPreviewView: View {
 
         let document = await pdfGenerator.generateRawQuestionsPDF(
             rawQuestions: rawQuestions,
+            pageImages: homeworkRecord.imageFileNames.compactMap {
+                HomeworkImageStorageService.shared.loadImageByFileName($0)
+            },
             subject: homeworkRecord.subject,
             date: homeworkRecord.submittedDate,
             accuracy: homeworkRecord.accuracy,
-            questionCount: homeworkRecord.questionCount
+            questionCount: homeworkRecord.questionCount,
+            options: options
         )
-
-        await MainActor.run {
-            isGenerating = false
-
-            if let document = document {
-                pdfDocument = document
-                savePDFToTemp(document)
-            } else {
-                errorMessage = "Failed to generate PDF document."
-                showingError = true
-            }
+        isGenerating = false
+        if let document = document {
+            pdfDocument = document
+            savePDFToTemp(document)
+        } else {
+            errorMessage = "Failed to generate PDF document."
+            showingError = true
         }
     }
 
-    // MARK: - PDF Actions
+    // MARK: - Actions
 
     private func savePDFToTemp(_ document: PDFDocument) {
         let fileName = "Homework_Questions_\(homeworkRecord.subject)_\(UUID().uuidString).pdf"
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
-
-        if document.write(to: tempURL) {
-            pdfURL = tempURL
-        }
+        if document.write(to: tempURL) { pdfURL = tempURL }
     }
 
     private func handlePrint() {
         guard let url = pdfURL else { return }
-
         let printController = UIPrintInteractionController.shared
         let printInfo = UIPrintInfo.printInfo()
         printInfo.outputType = .general
         printInfo.jobName = "Homework Questions - \(homeworkRecord.subject)"
-
         printController.printInfo = printInfo
         printController.printingItem = url
-
-        printController.present(animated: true) { controller, completed, error in
+        printController.present(animated: true) { _, _, error in
             if let error = error {
                 errorMessage = "Print failed: \(error.localizedDescription)"
                 showingError = true

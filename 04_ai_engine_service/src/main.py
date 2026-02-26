@@ -11,6 +11,7 @@ All route handlers live in src/routes/:
                                 /reparse-question, /grade-question, /chat-image, /chat-image-stream
   sessions.py           — POST /api/v1/sessions/*, /homework-followup/*
   question_generation.py — POST /api/v1/generate-practice, /generate-questions/*
+  question_generation_v2.py — POST /api/v1/generate-questions  (unified typed endpoint)
   analytics.py          — POST /api/v1/analytics/insights
 
   diagram.py            — POST /api/v1/generate-diagram            (existing)
@@ -178,6 +179,7 @@ from src.routes.question_processing import router as question_processing_router
 from src.routes.homework import router as homework_router
 from src.routes.sessions import router as sessions_router
 from src.routes.question_generation import router as question_generation_router
+from src.routes.question_generation_v2 import router as question_generation_v2_router
 from src.routes.analytics import router as analytics_router
 from src.routes.diagram import router as diagram_router
 from src.routes.error_analysis import router as error_analysis_router
@@ -188,6 +190,7 @@ app.include_router(question_processing_router)
 app.include_router(homework_router)
 app.include_router(sessions_router)
 app.include_router(question_generation_router)
+app.include_router(question_generation_v2_router)
 app.include_router(analytics_router)
 app.include_router(diagram_router)
 app.include_router(error_analysis_router)
