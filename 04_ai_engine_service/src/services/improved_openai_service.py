@@ -430,13 +430,13 @@ class OptimizedEducationalAIService:
                                 elif isinstance(opt, str):
                                     options.append(opt)
                         else:
-                            # Fallback: extract quoted strings
-                            for opt in re.findall(r'"([^"]*)"', options_str):
-                                options.append(opt)
+                            # Fallback: extract only "text" field values to avoid capturing key names
+                            for text_val in re.findall(r'"text"\s*:\s*"([^"]*)"', options_str):
+                                options.append(text_val)
                     except:
-                        # Fallback: extract quoted strings
-                        for opt in re.findall(r'"([^"]*)"', options_str):
-                            options.append(opt)
+                        # Fallback: extract only "text" field values to avoid capturing key names
+                        for text_val in re.findall(r'"text"\s*:\s*"([^"]*)"', options_str):
+                            options.append(text_val)
 
                     current_question['multiple_choice_options'] = options
                 else:
@@ -473,13 +473,13 @@ class OptimizedEducationalAIService:
                                     elif isinstance(opt, str):
                                         options.append(opt)
                             else:
-                                # Fallback: extract quoted strings
-                                for opt in re.findall(r'"([^"]*)"', array_content):
-                                    options.append(opt)
+                                # Fallback: extract only "text" field values to avoid capturing key names
+                                for text_val in re.findall(r'"text"\s*:\s*"([^"]*)"', array_content):
+                                    options.append(text_val)
                         except:
-                            # Fallback: extract quoted strings
-                            for opt in re.findall(r'"([^"]*)"', array_content):
-                                options.append(opt)
+                            # Fallback: extract only "text" field values to avoid capturing key names
+                            for text_val in re.findall(r'"text"\s*:\s*"([^"]*)"', array_content):
+                                options.append(text_val)
 
                         current_question['multiple_choice_options'] = options
                         logger.debug(f"✅ Parsed multiline options array: {len(options)} options")
@@ -2221,13 +2221,13 @@ class EducationalAIService:
                                 elif isinstance(opt, str):
                                     options.append(opt)
                         else:
-                            # Fallback: extract quoted strings
-                            for opt in re.findall(r'"([^"]*)"', options_str):
-                                options.append(opt)
+                            # Fallback: extract only "text" field values to avoid capturing key names
+                            for text_val in re.findall(r'"text"\s*:\s*"([^"]*)"', options_str):
+                                options.append(text_val)
                     except:
-                        # Fallback: extract quoted strings
-                        for opt in re.findall(r'"([^"]*)"', options_str):
-                            options.append(opt)
+                        # Fallback: extract only "text" field values to avoid capturing key names
+                        for text_val in re.findall(r'"text"\s*:\s*"([^"]*)"', options_str):
+                            options.append(text_val)
 
                     current_question['multiple_choice_options'] = options
                 else:
@@ -2264,13 +2264,13 @@ class EducationalAIService:
                                     elif isinstance(opt, str):
                                         options.append(opt)
                             else:
-                                # Fallback: extract quoted strings
-                                for opt in re.findall(r'"([^"]*)"', array_content):
-                                    options.append(opt)
+                                # Fallback: extract only "text" field values to avoid capturing key names
+                                for text_val in re.findall(r'"text"\s*:\s*"([^"]*)"', array_content):
+                                    options.append(text_val)
                         except:
-                            # Fallback: extract quoted strings
-                            for opt in re.findall(r'"([^"]*)"', array_content):
-                                options.append(opt)
+                            # Fallback: extract only "text" field values to avoid capturing key names
+                            for text_val in re.findall(r'"text"\s*:\s*"([^"]*)"', array_content):
+                                options.append(text_val)
 
                         current_question['multiple_choice_options'] = options
                         logger.debug(f"✅ Parsed multiline options array: {len(options)} options")
@@ -3296,10 +3296,11 @@ Focus on being helpful and educational while maintaining a conversational tone."
                 model=self.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"Generate {count} {question_type} questions for {subject} now. Return only a JSON array."}
+                    {"role": "user", "content": f"Generate {count} {question_type} questions for {subject} now. Return only a JSON object with a 'questions' array."}
                 ],
                 temperature=0.7,
                 max_tokens=3000,
+                response_format={"type": "json_object"},
             )
 
             raw_response = response.choices[0].message.content

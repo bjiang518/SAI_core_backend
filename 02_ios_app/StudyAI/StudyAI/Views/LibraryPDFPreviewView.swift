@@ -25,6 +25,14 @@ struct LibraryPDFPreviewView: View {
 
     @Environment(\.dismiss) private var dismiss
 
+    /// True when any selected question has a non-empty image path — shows image size controls.
+    private var hasImages: Bool {
+        questions.contains { q in
+            if let url = q.questionImageUrl { return !url.isEmpty }
+            return false
+        }
+    }
+
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
@@ -40,11 +48,11 @@ struct LibraryPDFPreviewView: View {
                     errorView
                 }
             }
-            .navigationTitle("PDF Preview")
+            .navigationTitle(NSLocalizedString("pdfPreview.title", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Done") { dismiss() }
+                    Button(NSLocalizedString("common.done", comment: "")) { dismiss() }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
@@ -57,15 +65,14 @@ struct LibraryPDFPreviewView: View {
             }
             .task { await generatePDF() }
             .sheet(isPresented: $showingOptions) {
-                // Library questions are text-only — hide image controls
-                PDFOptionsSheet(options: $options, hasImages: false) {
+                PDFOptionsSheet(options: $options, hasImages: hasImages) {
                     Task { await generatePDF() }
                 }
             }
             .sheet(isPresented: $showingEmailComposer) {
                 if let url = pdfURL {
                     PDFMailComposeView(
-                        subject: "Library Questions — \(subject)",
+                        subject: String.localizedStringWithFormat(NSLocalizedString("library.pdf.email.subject", comment: ""), subject),
                         messageBody: emailBody,
                         attachmentURL: url,
                         attachmentName: "library-questions-\(subject.lowercased().replacingOccurrences(of: " ", with: "-")).pdf"
@@ -85,7 +92,7 @@ struct LibraryPDFPreviewView: View {
             ProgressView(value: pdfGenerator.generationProgress)
                 .progressViewStyle(LinearProgressViewStyle(tint: .blue))
                 .frame(width: 200)
-            Text("Generating PDF…")
+            Text(NSLocalizedString("library.pdf.generating", comment: ""))
                 .font(.headline)
                 .foregroundColor(.secondary)
             Text("\(Int(pdfGenerator.generationProgress * 100))%")
@@ -100,10 +107,10 @@ struct LibraryPDFPreviewView: View {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 48))
                 .foregroundColor(.red)
-            Text("Failed to generate PDF")
+            Text(NSLocalizedString("library.pdf.error", comment: ""))
                 .font(.headline)
                 .foregroundColor(.secondary)
-            Button("Retry") { Task { await generatePDF() } }
+            Button(NSLocalizedString("common.retry", comment: "")) { Task { await generatePDF() } }
                 .buttonStyle(.bordered)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -111,9 +118,9 @@ struct LibraryPDFPreviewView: View {
 
     private var actionBar: some View {
         HStack(spacing: 16) {
-            ActionButton(icon: "printer.fill",             title: "Print",  color: .blue,   action: handlePrint)
-            ActionButton(icon: "envelope.fill",            title: "Email",  color: .green,  action: { showingEmailComposer = true })
-            ActionButton(icon: "square.and.arrow.up.fill", title: "Share",  color: .orange, action: { showingShareSheet = true })
+            ActionButton(icon: "printer.fill",             title: NSLocalizedString("pdfPreview.print", comment: ""), color: .blue,   action: handlePrint)
+            ActionButton(icon: "envelope.fill",            title: NSLocalizedString("pdfPreview.email", comment: ""), color: .green,  action: { showingEmailComposer = true })
+            ActionButton(icon: "square.and.arrow.up.fill", title: NSLocalizedString("pdfPreview.share", comment: ""), color: .orange, action: { showingShareSheet = true })
         }
         .padding()
         .background(Color(.systemBackground))
@@ -151,22 +158,17 @@ struct LibraryPDFPreviewView: View {
         let printController = UIPrintInteractionController.shared
         let printInfo = UIPrintInfo.printInfo()
         printInfo.outputType = .general
-        printInfo.jobName = "Library Questions — \(subject)"
+        printInfo.jobName = String.localizedStringWithFormat(NSLocalizedString("library.pdf.email.subject", comment: ""), subject)
         printController.printInfo = printInfo
         printController.printingItem = url
         printController.present(animated: true) { _, _, _ in }
     }
 
     private var emailBody: String {
-        """
-        Hi there!
-
-        I've attached \(questions.count) library question(s) for \(subject) from StudyMates.
-
-        Generated by StudyMates — Your AI Study Companion
-
-        Best regards
-        """
+        String.localizedStringWithFormat(
+            NSLocalizedString("library.pdf.emailBody", comment: ""),
+            questions.count, subject
+        )
     }
 }
 

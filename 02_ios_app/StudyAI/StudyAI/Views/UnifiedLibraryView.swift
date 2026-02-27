@@ -578,6 +578,11 @@ struct UnifiedLibraryView: View {
                                         .animation(.easeInOut(duration: 0.15), value: selectedItemIds.contains(item.id))
                                 }
                                 LibraryItemRow(item: item)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.purple, lineWidth: 2)
+                                            .opacity(isSelectMode && selectedItemIds.contains(item.id) ? 1 : 0)
+                                    )
                             }
 
                             // Full-size transparent button overlay — sits above WKWebView
@@ -603,12 +608,6 @@ struct UnifiedLibraryView: View {
                             }
                         }
                         .contentShape(Rectangle())
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.purple, lineWidth: 2)
-                                .padding(.horizontal, 4)
-                                .opacity(isSelectMode && selectedItemIds.contains(item.id) ? 1 : 0)
-                        )
                         .listRowBackground(Color.clear)
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             if !isSelectMode {
@@ -644,6 +643,17 @@ struct UnifiedLibraryView: View {
 
     // MARK: - Selection Action Bar
 
+    private var allItemsSelected: Bool {
+        !filteredItems.isEmpty && selectedItemIds == Set(filteredItems.map { $0.id })
+    }
+
+    private var selectionCountText: String {
+        let count = selectedItemIds.count
+        return count == 0
+            ? NSLocalizedString("library.selection.noneSelected", comment: "")
+            : String.localizedStringWithFormat(NSLocalizedString("library.selection.countSelected", comment: ""), count)
+    }
+
     private var selectionActionBar: some View {
         VStack(spacing: 0) {
             Divider()
@@ -657,17 +667,19 @@ struct UnifiedLibraryView: View {
                         selectedItemIds = allIds
                     }
                 } label: {
-                    let allSelected = selectedItemIds == Set(filteredItems.map { $0.id })
-                    Label(allSelected ? "Deselect All" : "Select All",
-                          systemImage: allSelected ? "checkmark.circle" : "checkmark.circle.fill")
-                        .font(.subheadline)
+                    Label(
+                        allItemsSelected
+                            ? NSLocalizedString("common.deselectAll", comment: "")
+                            : NSLocalizedString("common.selectAll", comment: ""),
+                        systemImage: allItemsSelected ? "checkmark.circle" : "checkmark.circle.fill"
+                    )
+                    .font(.subheadline)
                 }
                 .foregroundColor(.blue)
 
                 Spacer()
 
-                let count = selectedItemIds.count
-                Text(count == 0 ? "None selected" : "\(count) selected")
+                Text(selectionCountText)
                     .font(.subheadline)
                     .foregroundColor(.secondary)
 
@@ -677,7 +689,7 @@ struct UnifiedLibraryView: View {
                 Button {
                     showingLibraryPDF = true
                 } label: {
-                    Label("PDF", systemImage: "doc.fill")
+                    Label(NSLocalizedString("library.selection.pdf", comment: ""), systemImage: "doc.fill")
                         .font(.subheadline)
                         .fontWeight(.semibold)
                 }
@@ -935,7 +947,8 @@ struct LibraryItemRow: View {
 
             // Enhanced preview content with full LaTeX/MathJax support
             FullLaTeXText(item.preview, fontSize: 15)
-                .lineLimit(3)
+                .frame(maxHeight: 80)
+                .clipped()
 
             // ✅ NEW: Red flag indicator for conversations with behavior concerns
             if let conversationItem = item as? ConversationLibraryItem,
