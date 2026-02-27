@@ -278,7 +278,7 @@ struct QuestionPreviewRow: View {
             VStack(alignment: .leading, spacing: 6) {
                 if question.isParentQuestion {
                     // Parent question
-                    Text(question.parentContent ?? "")
+                    Text(stripLatexDelimiters(question.parentContent ?? ""))
                         .font(.body)
                         .foregroundColor(.primary)
                         .lineLimit(2)
@@ -298,16 +298,16 @@ struct QuestionPreviewRow: View {
                     }
                 } else {
                     // Regular question
-                    Text(question.questionText ?? "")
+                    Text(stripLatexDelimiters(question.questionText ?? ""))
                         .font(.body)
                         .foregroundColor(.primary)
                         .lineLimit(2)
 
                     if let answer = question.studentAnswer, !answer.isEmpty {
-                        Text(String(format: NSLocalizedString("homeworkSummary.answer", comment: "Answer: X"), answer))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
+                        FullLaTeXText(
+                            String(format: NSLocalizedString("homeworkSummary.answer", comment: "Answer: X"), answer),
+                            fontSize: 11
+                        )
                     }
                 }
             }
@@ -328,6 +328,17 @@ struct QuestionPreviewRow: View {
             RoundedRectangle(cornerRadius: 14)
                 .stroke(Color(.separator).opacity(0.3), lineWidth: 0.5)
         )
+    }
+
+    private func stripLatexDelimiters(_ text: String) -> String {
+        var result = text
+        result = result.replacingOccurrences(of: "$$", with: "")
+        result = result.replacingOccurrences(of: "$", with: "")
+        result = result.replacingOccurrences(of: "\\[", with: "")
+        result = result.replacingOccurrences(of: "\\]", with: "")
+        result = result.replacingOccurrences(of: "\\(", with: "")
+        result = result.replacingOccurrences(of: "\\)", with: "")
+        return result
     }
 }
 

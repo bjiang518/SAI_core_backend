@@ -1924,9 +1924,7 @@ struct QuestionCard: View {
             // Question content - rest of original code stays here
             if questionWithGrade.question.isParentQuestion {
                     // Parent question with subquestions
-                    Text(questionWithGrade.question.parentContent ?? "")
-                        .font(.subheadline)
-                        .foregroundColor(.primary)
+                    FullLaTeXText(questionWithGrade.question.parentContent ?? "", fontSize: 14)
 
                     if let subquestions = questionWithGrade.question.subquestions {
                         ForEach(subquestions) { subquestion in
@@ -2098,9 +2096,7 @@ struct QuestionCard: View {
             let components = parseMultipleChoiceQuestion(questionText)
 
             // Question stem
-            Text(components.stem)
-                .font(.subheadline)
-                .foregroundColor(.primary)
+            FullLaTeXText(components.stem, fontSize: 14)
 
             // Options (A, B, C, D)
             VStack(alignment: .leading, spacing: 4) {
@@ -2112,8 +2108,7 @@ struct QuestionCard: View {
                             .foregroundColor(isStudentChoice(option.letter, answer: studentAnswer) ? .blue : .gray)
 
                         // Option text
-                        Text("\(option.letter)) \(option.text)")
-                            .font(.caption)
+                        FullLaTeXText("\(option.letter)) \(option.text)", fontSize: 12)
                             .foregroundColor(isStudentChoice(option.letter, answer: studentAnswer) ? .primary : .secondary)
                     }
                     .padding(.leading, 12)
@@ -2136,9 +2131,7 @@ struct QuestionCard: View {
     private func renderFillInBlank(questionText: String, studentAnswer: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             // Question text with blanks
-            Text(questionText)
-                .font(.subheadline)
-                .foregroundColor(.primary)
+            FullLaTeXText(questionText, fontSize: 14)
 
             // Parse multi-blank answers (separated by " | ")
             let answers = studentAnswer.components(separatedBy: " | ")
@@ -2152,8 +2145,7 @@ struct QuestionCard: View {
                                 .font(.caption)
                                 .foregroundColor(.secondary)
 
-                            Text(answers[index])
-                                .font(.caption)
+                            FullLaTeXText(answers[index], fontSize: 12)
                                 .foregroundColor(.primary)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 2)
@@ -2170,8 +2162,7 @@ struct QuestionCard: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
 
-                    Text(studentAnswer)
-                        .font(.caption)
+                    FullLaTeXText(studentAnswer, fontSize: 12)
                         .foregroundColor(.primary)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 2)
@@ -2188,16 +2179,12 @@ struct QuestionCard: View {
     private func renderCalculation(questionText: String, studentAnswer: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             // Question text
-            Text(questionText)
-                .font(.subheadline)
-                .foregroundColor(.primary)
+            FullLaTeXText(questionText, fontSize: 14)
 
             // Work shown (prominently displayed without label for consistency)
             VStack(alignment: .leading, spacing: 4) {
                 // Display student's calculation steps
-                Text(studentAnswer)
-                    .font(.caption)
-                    .foregroundColor(.primary)
+                FullLaTeXText(studentAnswer, fontSize: 12)
                     .padding(8)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color(.secondarySystemGroupedBackground))
@@ -2212,11 +2199,7 @@ struct QuestionCard: View {
     private func renderTrueFalse(questionText: String, studentAnswer: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             // Question text
-            Text(questionText)
-                .font(.subheadline)
-                .foregroundColor(.primary)
-
-            // True/False options
+            FullLaTeXText(questionText, fontSize: 14)
             HStack(spacing: 16) {
                 HStack(spacing: 6) {
                     Image(systemName: isTrue(studentAnswer) ? "checkmark.circle.fill" : "circle")
@@ -2253,15 +2236,11 @@ struct QuestionCard: View {
     @ViewBuilder
     private func renderGenericQuestion(questionText: String, studentAnswer: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(questionText)
-                .font(.subheadline)
-                .foregroundColor(.primary)
+            FullLaTeXText(questionText, fontSize: 14)
 
             if !studentAnswer.isEmpty {
                 // Just show the answer without label for consistency
-                Text(studentAnswer)
-                    .font(.caption)
-                    .foregroundColor(.primary)
+                FullLaTeXText(studentAnswer, fontSize: 12)
                     .padding(6)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color(.secondarySystemGroupedBackground))
@@ -2624,10 +2603,14 @@ struct SubquestionRow: View {
             let components = parseMultipleChoiceQuestion(questionText)
 
             // Question stem with expandable text
-            Text(components.stem)
-                .font(.caption)
-                .foregroundColor(.primary)
-                .lineLimit(isExpanded ? nil : 2)  // ✅ Limit to 2 lines when collapsed
+            if isExpanded {
+                FullLaTeXText(components.stem, fontSize: 12)
+            } else {
+                Text(stripLatexDelimiters(components.stem))
+                    .font(.caption)
+                    .foregroundColor(.primary)
+                    .lineLimit(2)
+            }
 
             // Options (compact for subquestions)
             if !components.options.isEmpty {
@@ -2647,12 +2630,6 @@ struct SubquestionRow: View {
                 }
             }
 
-            // Student selection
-            if !studentAnswer.isEmpty {
-                Text(String(format: NSLocalizedString("proMode.subquestionAnswer", comment: "Answer: X"), studentAnswer))
-                    .font(.caption2)
-                    .foregroundColor(.blue)
-            }
         }
     }
 
@@ -2661,10 +2638,14 @@ struct SubquestionRow: View {
     @ViewBuilder
     private func renderSubquestionFillInBlank(questionText: String, studentAnswer: String, isExpanded: Bool) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(questionText)
-                .font(.caption)
-                .foregroundColor(.primary)
-                .lineLimit(isExpanded ? nil : 2)  // ✅ Limit to 2 lines when collapsed
+            if isExpanded {
+                FullLaTeXText(questionText, fontSize: 12)
+            } else {
+                Text(stripLatexDelimiters(questionText))
+                    .font(.caption)
+                    .foregroundColor(.primary)
+                    .lineLimit(2)
+            }
 
             let answers = studentAnswer.components(separatedBy: " | ")
 
@@ -2699,19 +2680,31 @@ struct SubquestionRow: View {
     @ViewBuilder
     private func renderSubquestionCalculation(questionText: String, studentAnswer: String, isExpanded: Bool) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(questionText)
-                .font(.caption)
-                .foregroundColor(.primary)
-                .lineLimit(isExpanded ? nil : 2)  // ✅ Limit to 2 lines when collapsed
+            if isExpanded {
+                FullLaTeXText(questionText, fontSize: 12)
+            } else {
+                Text(stripLatexDelimiters(questionText))
+                    .font(.caption)
+                    .foregroundColor(.primary)
+                    .lineLimit(2)
+            }
 
             // Work shown (compact)
-            Text(studentAnswer)
-                .font(.caption2)
-                .foregroundColor(.primary)
-                .padding(4)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(.secondarySystemGroupedBackground))
-                .cornerRadius(4)
+            if isExpanded {
+                FullLaTeXText(studentAnswer, fontSize: 11)
+                    .padding(4)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(.secondarySystemGroupedBackground))
+                    .cornerRadius(4)
+            } else {
+                Text(stripLatexDelimiters(studentAnswer))
+                    .font(.caption2)
+                    .foregroundColor(.primary)
+                    .padding(4)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(.secondarySystemGroupedBackground))
+                    .cornerRadius(4)
+            }
         }
     }
 
@@ -2720,10 +2713,14 @@ struct SubquestionRow: View {
     @ViewBuilder
     private func renderSubquestionTrueFalse(questionText: String, studentAnswer: String, isExpanded: Bool) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(questionText)
-                .font(.caption)
-                .foregroundColor(.primary)
-                .lineLimit(isExpanded ? nil : 2)  // ✅ Limit to 2 lines when collapsed
+            if isExpanded {
+                FullLaTeXText(questionText, fontSize: 12)
+            } else {
+                Text(stripLatexDelimiters(questionText))
+                    .font(.caption)
+                    .foregroundColor(.primary)
+                    .lineLimit(2)
+            }
 
             // True/False options (compact)
             HStack(spacing: 12) {
@@ -2752,25 +2749,50 @@ struct SubquestionRow: View {
     @ViewBuilder
     private func renderSubquestionGeneric(questionText: String, studentAnswer: String, isExpanded: Bool) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(questionText)
-                .font(.caption)
-                .foregroundColor(.primary)
-                .lineLimit(isExpanded ? nil : 2)  // ✅ Limit to 2 lines when collapsed
+            if isExpanded {
+                FullLaTeXText(questionText, fontSize: 12)
+            } else {
+                Text(stripLatexDelimiters(questionText))
+                    .font(.caption)
+                    .foregroundColor(.primary)
+                    .lineLimit(2)
+            }
 
             if !studentAnswer.isEmpty {
                 // Just show the answer without label for consistency
-                Text(studentAnswer)
-                    .font(.caption2)
-                    .foregroundColor(.primary)
-                    .padding(4)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(.secondarySystemGroupedBackground))
-                    .cornerRadius(3)
+                if isExpanded {
+                    FullLaTeXText(studentAnswer, fontSize: 11)
+                        .padding(4)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(.secondarySystemGroupedBackground))
+                        .cornerRadius(3)
+                } else {
+                    Text(stripLatexDelimiters(studentAnswer))
+                        .font(.caption2)
+                        .foregroundColor(.primary)
+                        .padding(4)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(.secondarySystemGroupedBackground))
+                        .cornerRadius(3)
+                }
             }
         }
     }
 
     // MARK: - Helper Functions (Shared with QuestionCard)
+
+    /// Strip LaTeX delimiters for plain Text() views that can't render math.
+    /// Removes $...$, $$...$$, \(...\), \[...\] markers while keeping the content.
+    private func stripLatexDelimiters(_ text: String) -> String {
+        var result = text
+        result = result.replacingOccurrences(of: "$$", with: "")
+        result = result.replacingOccurrences(of: "$", with: "")
+        result = result.replacingOccurrences(of: "\\[", with: "")
+        result = result.replacingOccurrences(of: "\\]", with: "")
+        result = result.replacingOccurrences(of: "\\(", with: "")
+        result = result.replacingOccurrences(of: "\\)", with: "")
+        return result
+    }
 
     /// Check if question text is long enough to need expand/collapse
     /// Heuristic: >80 characters likely exceeds 2 lines in .caption font
