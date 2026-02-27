@@ -35,9 +35,8 @@ struct PDFExportOptions {
     var questionGap: CGFloat       = 32   // Vertical gap between consecutive questions
 
     // Images (Pro Mode / homework paths only)
-    var maxImageHeight: CGFloat    = 300  // Cap for main question image
-    var maxSubImageHeight: CGFloat = 200  // Cap for sub-question image
-    // Image width always fills the available content width — no separate param needed.
+    var maxImageSize: CGFloat    = 300  // Max width AND height for main question image (proportional)
+    var maxSubImageSize: CGFloat = 200  // Max width AND height for sub-question image (proportional)
 }
 
 // MARK: - Service
@@ -168,7 +167,7 @@ class PDFGeneratorService: ObservableObject {
 
                 let textH = multilineHeight(plainText(text), width: renderWidth, fontSize: options.questionFontSize)
                 let imgH: CGFloat = pageImage.map {
-                    scaledImageHeight($0, maxWidth: renderWidth, maxHeight: options.maxImageHeight)
+                    scaledImageHeight($0, maxWidth: renderWidth, maxHeight: options.maxImageSize)
                 } ?? 0
                 let blockH = options.labelFontSize + 8 + imgH + (imgH > 0 ? 10 : 0) + textH + 8
 
@@ -205,8 +204,15 @@ class PDFGeneratorService: ObservableObject {
             y += options.questionGap
 
             for (index, question) in questions.enumerated() {
-                let qImage: UIImage? = question.questionImageUrl.flatMap { UIImage(contentsOfFile: $0) }
-                let qImgH: CGFloat = qImage.map { scaledImageHeight($0, maxWidth: renderWidth, maxHeight: options.maxImageHeight) + 10 } ?? 0
+                let log = AppLogger.forFeature("PDFGen")
+                log.info("  [LibraryQ \(index+1)] questionImageUrl='\(question.questionImageUrl ?? "nil")' proMode=\(question.proMode ?? false) hasVisualElements=\(question.hasVisualElements)")
+                let qImage: UIImage? = question.questionImageUrl.flatMap {
+                    guard !$0.isEmpty else { return nil }
+                    let img = ProModeImageStorage.shared.loadImage(from: $0)
+                    log.info("  [LibraryQ \(index+1)] loadImage(from:'\($0)') → \(img != nil ? "✓ \(img!.size)" : "nil")")
+                    return img
+                }
+                let qImgH: CGFloat = qImage.map { scaledImageHeight($0, maxWidth: renderWidth, maxHeight: options.maxImageSize) + 10 } ?? 0
                 let textH = multilineHeight(plainText(question.questionText), width: renderWidth, fontSize: options.questionFontSize)
                 let optH = question.options.map { CGFloat($0.count) * (options.questionFontSize + 11) + 8 } ?? 0
                 let blockH = options.labelFontSize + 8 + qImgH + textH + 10 + optH
@@ -236,23 +242,19 @@ class PDFGeneratorService: ObservableObject {
         var y = startY
         withUIKitContext(ctx: ctx, pageRect: pageRect) {
             let w = contentWidth
-            let labelFont = UIFont.systemFont(ofSize: options.labelFontSize, weight: .semibold)
             let bodyFont  = UIFont.systemFont(ofSize: options.questionFontSize, weight: .regular)
 
-            // Label
-            y += drawString("Question \(number):", font: labelFont, color: .black, alignment: .left,
-                            x: margin, y: y, width: w) + 6
+            // Index + question body on one line: "1. Question text…"
+            y += drawMultiline("\(number). \(plainText(question.questionText))", font: bodyFont, x: margin, y: y, width: w) + 6
 
-            // Question image (Pro Mode cropped image)
+            // Question image (Pro Mode cropped image) — below the text
             if let img = qImage {
-                let iw = w - 20
-                let ih = scaledImageHeight(img, maxWidth: iw, maxHeight: options.maxImageHeight)
-                img.draw(in: CGRect(x: margin + 20, y: y, width: iw, height: ih))
-                y += ih + 10
+                let sz = scaledImageSize(img, maxWidth: w - 20, maxHeight: options.maxImageSize)
+                img.draw(in: CGRect(x: margin + 20, y: y, width: sz.width, height: sz.height))
+                y += sz.height + 10
+            } else {
+                y += 4
             }
-
-            // Question body
-            y += drawMultiline(plainText(question.questionText), font: bodyFont, x: margin + 20, y: y, width: w - 20) + 10
 
             // MCQ options
             if let opts = question.options, !opts.isEmpty {
@@ -526,15 +528,10 @@ class PDFGeneratorService: ObservableObject {
         var y = startY
         withUIKitContext(ctx: ctx, pageRect: pageRect) {
             let w = contentWidth
-            let labelFont  = UIFont.systemFont(ofSize: options.labelFontSize, weight: .semibold)
             let bodyFont   = UIFont.systemFont(ofSize: options.questionFontSize, weight: .regular)
 
-            // Label
-            y += drawString("Question \(number):", font: labelFont, color: .black, alignment: .left,
-                            x: margin, y: y, width: w) + 6
-
-            // Question body
-            y += drawMultiline(plainText(question.question), font: bodyFont, x: margin + 20, y: y, width: w - 20) + 10
+            // Index + question body on one line: "1. Question text…"
+            y += drawMultiline("\(number). \(plainText(question.question))", font: bodyFont, x: margin, y: y, width: w) + 10
 
             // Options
             if let opts = question.options, !opts.isEmpty {
@@ -563,14 +560,11 @@ class PDFGeneratorService: ObservableObject {
         var y = startY
         withUIKitContext(ctx: ctx, pageRect: pageRect) {
             let w = contentWidth
-            let labelFont = UIFont.systemFont(ofSize: options.labelFontSize, weight: .semibold)
             let bodyFont  = UIFont.systemFont(ofSize: options.questionFontSize, weight: .regular)
             let hintFont  = UIFont.systemFont(ofSize: options.hintFontSize, weight: .regular)
 
-            y += drawString("Question \(number):", font: labelFont, color: .black, alignment: .left,
-                            x: margin, y: y, width: w) + 6
-
-            y += drawMultiline(plainText(question.question), font: bodyFont, x: margin + 20, y: y, width: w - 20) + 10
+            // Index + question body on one line: "1. Question text…"
+            y += drawMultiline("\(number). \(plainText(question.question))", font: bodyFont, x: margin, y: y, width: w) + 10
 
             let hintText = "💡 You originally answered: \"\(question.studentAnswer.isEmpty ? "No answer" : question.studentAnswer)\""
             y += drawString(hintText, font: hintFont, color: .gray, alignment: .left,
@@ -593,23 +587,18 @@ class PDFGeneratorService: ObservableObject {
     ) -> CGFloat {
         var y = startY
         withUIKitContext(ctx: ctx, pageRect: pageRect) {
-            let labelFont = UIFont.systemFont(ofSize: options.labelFontSize, weight: .semibold)
             let bodyFont  = UIFont.systemFont(ofSize: options.questionFontSize, weight: .regular)
             let w = contentWidth
 
-            y += drawString("Question \(number):", font: labelFont, color: .black, alignment: .left,
-                            x: margin, y: y, width: w) + 6
+            // Index + question body on one line: "1. Question text…"
+            y += drawMultiline("\(number). \(plainText(fallbackText))", font: bodyFont, x: margin, y: y, width: w) + 6
 
-            // Draw homework page image if available
+            // Draw homework page image below the text
             if let img = pageImage {
-                let ih = scaledImageHeight(img, maxWidth: w - 20, maxHeight: options.maxImageHeight)
-                let iw = w - 20
-                img.draw(in: CGRect(x: margin + 20, y: y, width: iw, height: ih))
-                y += ih + 10
+                let sz = scaledImageSize(img, maxWidth: w - 20, maxHeight: options.maxImageSize)
+                img.draw(in: CGRect(x: margin + 20, y: y, width: sz.width, height: sz.height))
+                y += sz.height + 6
             }
-
-            // Always draw the question text below the image
-            y += drawMultiline(plainText(fallbackText), font: bodyFont, x: margin + 20, y: y, width: w - 20) + 6
         }
         return y
     }
@@ -628,7 +617,7 @@ class PDFGeneratorService: ObservableObject {
 
         // Main image
         if let img = image {
-            h += scaledImageHeight(img, maxWidth: contentWidth, maxHeight: options.maxImageHeight) + 12
+            h += scaledImageHeight(img, maxWidth: contentWidth, maxHeight: options.maxImageSize) + 12
         }
 
         // Question text
@@ -647,7 +636,7 @@ class PDFGeneratorService: ObservableObject {
                 h += options.labelFontSize + 4 + 6
                 let subImg = croppedImages[sub.id] ?? image
                 if let img = subImg {
-                    h += scaledImageHeight(img, maxWidth: subW, maxHeight: options.maxSubImageHeight) + 8
+                    h += scaledImageHeight(img, maxWidth: subW, maxHeight: options.maxSubImageSize) + 8
                 }
                 if !sub.questionText.isEmpty {
                     h += multilineHeight(sub.questionText, width: subW, fontSize: options.questionFontSize) + 8
@@ -681,10 +670,9 @@ class PDFGeneratorService: ObservableObject {
 
             // Main image
             if let img = image {
-                let ih = scaledImageHeight(img, maxWidth: w, maxHeight: options.maxImageHeight)
-                let iw = ih * (img.size.width / img.size.height)
-                img.draw(in: CGRect(x: margin, y: y, width: iw, height: ih))
-                y += ih + 12
+                let sz = scaledImageSize(img, maxWidth: w, maxHeight: options.maxImageSize)
+                img.draw(in: CGRect(x: margin, y: y, width: sz.width, height: sz.height))
+                y += sz.height + 12
             }
 
             // Question text
@@ -709,10 +697,9 @@ class PDFGeneratorService: ObservableObject {
 
                     let subImg = croppedImages[sub.id] ?? image
                     if let img = subImg {
-                        let ih = scaledImageHeight(img, maxWidth: subW, maxHeight: options.maxSubImageHeight)
-                        let iw = ih * (img.size.width / img.size.height)
-                        img.draw(in: CGRect(x: margin + indent + 20, y: y, width: iw, height: ih))
-                        y += ih + 8
+                        let sz = scaledImageSize(img, maxWidth: subW, maxHeight: options.maxSubImageSize)
+                        img.draw(in: CGRect(x: margin + indent + 20, y: y, width: sz.width, height: sz.height))
+                        y += sz.height + 8
                     }
 
                     if !sub.questionText.isEmpty {
@@ -844,15 +831,23 @@ class PDFGeneratorService: ObservableObject {
         ).height
     }
 
-    /// Scales image height to fit within maxWidth × maxHeight while preserving aspect ratio.
-    private func scaledImageHeight(_ image: UIImage, maxWidth: CGFloat, maxHeight: CGFloat) -> CGFloat {
+    /// Returns the proportionally-scaled (width, height) for an image
+    /// fitting within maxWidth × maxHeight while preserving aspect ratio.
+    private func scaledImageSize(_ image: UIImage, maxWidth: CGFloat, maxHeight: CGFloat) -> CGSize {
         let aspect = image.size.width / image.size.height
-        if aspect > 1 {
-            let h = maxWidth / aspect
-            return min(h, maxHeight)
+        // Fit inside the box: try width-constrained first, then height-constrained
+        let byWidth  = CGSize(width: maxWidth, height: maxWidth / aspect)
+        let byHeight = CGSize(width: maxHeight * aspect, height: maxHeight)
+        if byWidth.height <= maxHeight {
+            return byWidth
         } else {
-            return min(maxWidth / aspect, maxHeight)
+            return byHeight
         }
+    }
+
+    /// Convenience: height only (used by page-break height estimation).
+    private func scaledImageHeight(_ image: UIImage, maxWidth: CGFloat, maxHeight: CGFloat) -> CGFloat {
+        scaledImageSize(image, maxWidth: maxWidth, maxHeight: maxHeight).height
     }
 
     private func fillWhite(ctx: CGContext) {

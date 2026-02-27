@@ -22,12 +22,12 @@
 "settings.title" = "设定";
 "settings.account" = "帐户";
 "settings.editProfile" = "编辑资料";
-"settings.signOut" = "登出";
+"settings.signOut" = "退出";
 "settings.biometricLogin" = "%@ 登录";
 "settings.parentControls.message" = "验证家长身份以管理设置";
 "settings.appVersion" = "StudyMates v1.0";
 "settings.appTagline" = "搭载现代身份验证";
-"settings.appPoweredBy" = "由 OpenAI GPT-4 驱动";
+"settings.appPoweredBy" = "由AI驱动";
 "settings.security" = "安全与隐私";
 "settings.passwordManager" = "密码管理器";
 "settings.privacySettings" = "隐私设定";
@@ -57,7 +57,7 @@
 "studyReminders.permissions" = "权限";
 "studyReminders.notificationPermission" = "通知权限";
 "studyReminders.enabled" = "通知已启用";
-"studyReminders.denied" = "通知已拒絕";
+"studyReminders.denied" = "通知已拒绝";
 "studyReminders.notConfigured" = "未设定";
 "studyReminders.enable" = "启用通知";
 "studyReminders.description" = "启用通知以接收学习提醒，并保持学习进度。";
@@ -112,20 +112,20 @@
 "home.defaultStudentName" = "同学";
 "home.pleaseEditProfile" = "请编辑您的资料";
 "home.todaysProgress" = "今日进度";
-"home.startLearningMessage" = "开始学习以追蹤进度";
+"home.startLearningMessage" = "开始学习以追踪进度";
 "home.questions" = "题目";
 "home.accuracy" = "准确率";
 "home.streak" = "连续天数";
 "home.quickActions" = "快速操作";
 "home.moreFeatures" = "更多功能";
 "home.homeworkGrader" = "作业评分";
-"home.scanAndGrade" = "掃描并评分";
+"home.scanAndGrade" = "扫描并评分";
 "home.chat" = "拍照答疑";
 "home.conversationalAI" = "AI学习助手";
 "home.library" = "资料库";
 "home.studySessions" = "所有归档题目与对话记录";
 "home.progress" = "进度";
-"home.trackLearning" = "追蹤学习";
+"home.trackLearning" = "追踪学习";
 "home.practice" = "练习";
 "home.practiceDescription" = "生成 & 测试";
 "home.mistakeReview" = "错题复习";
@@ -138,7 +138,7 @@
 // Parent Reports
 "parentReport.title" = "家长报告";
 "parentReport.studyReports" = "学习报告";
-"parentReport.trackProgress" = "追蹤孩子的学习进度";
+"parentReport.trackProgress" = "追踪孩子的学习进度";
 "parentReport.quickActions" = "快速操作";
 "parentReport.weeklyReport" = "周报告";
 "parentReport.monthlyReport" = "月报告";
@@ -164,7 +164,7 @@
 // AI Homework
 "aiHomework.title" = "AI作业";
 "aiHomework.assistant.title" = "AI作业助手";
-"aiHomework.assistant.description" = "掃描作业图片，获得AI驅动的解答和分步講解";
+"aiHomework.assistant.description" = "扫描作业图片，获得AI驅动的解答和分步講解";
 "aiHomework.startAnalysis" = "开始作业分析";
 "aiHomework.selectImage" = "选择图片以分析作业";
 "aiHomework.optimizing" = "优化图片中...";
@@ -185,7 +185,7 @@
 "aiHomework.selectImageSource.title" = "选择图片来源";
 "aiHomework.selectImageSource.subtitle" = "选择您上传作业的方式";
 "aiHomework.imageSource.takePhoto" = "拍照";
-"aiHomework.imageSource.takePhotoSubtitle" = "使用相机掃描作业";
+"aiHomework.imageSource.takePhotoSubtitle" = "使用相机扫描作业";
 "aiHomework.imageSource.choosePhotos" = "从相簿选择";
 "aiHomework.imageSource.choosePhotosSubtitle" = "从照片图库中选择";
 "aiHomework.imageSource.chooseFiles" = "从档案选择";
@@ -213,18 +213,18 @@
 "aiHomework.parsingMode.progressive" = "专业";
 "aiHomework.parsingMode.hierarchical" = "详细";
 "aiHomework.parsingMode.baseline" = "快速";
-"aiHomework.parsingMode.fast" = "快速";  // ✅ Production: Fast Mode
+"aiHomework.parsingMode.fast" = "快速";
 "aiHomework.parsingMode.progressive.description" = "智慧数位作业本，按需评分。靈活且互动。";
 "aiHomework.parsingMode.hierarchical.description" = "准确解析题目及子题关係。最适合结构化作业。";
 "aiHomework.parsingMode.baseline.description" = "快速解析，平面题目结构。适合簡单作业。";
-"aiHomework.parsingMode.fast.description" = "使用 GPT-4o-mini 快速 AI 分析。快速结果，高准确度。";  // ✅ Production: Fast Mode description
+"aiHomework.parsingMode.fast.description" = "使用 GPT-4o-mini 快速 AI 分析。快速结果，高准确度。";
 "aiHomework.subject" = "科目";
 "aiHomework.model" = "模型";
 "aiHomework.mode" = "模式";
 "aiHomework.digitalHomework" = "AI数位作业本";
 "aiHomework.compressing" = "图片压缩中...";
-"aiHomework.scannedDocument.single" = "已掃描文件";
-"aiHomework.scannedDocument.multiple" = "已掃描多个文件";
+"aiHomework.scannedDocument.single" = "已扫描文件";
+"aiHomework.scannedDocument.multiple" = "已扫描多个文件";
 "aiHomework.results.complete" = "分析完成！";
 "aiHomework.results.analyzed" = "您的作业已分析完成";
 "aiHomework.results.subject" = "科目";
@@ -419,14 +419,14 @@
 
 // Chat Session Errors
 "error.session.creation" = "无法开始新的对话会话。请检查网路连线后重试。";
-"error.session.expired" = "会话已过期。别擔心 - 您的讯息已储存！点击重试在新会话中传送。";
+"error.session.expired" = "会话已过期。别擔心 - 您的信息已储存！点击重试在新会话中传送。";
 "error.session.loadInfo" = "无法载入会话资讯。会话仍在正常运作。";
-"error.session.archive" = "对话储存失敗。您的讯息很安全 - 请重试封存。";
+"error.session.archive" = "对话储存失敗。您的信息很安全 - 请重试封存。";
 
 // Message Errors
-"error.message.send" = "讯息未送达。点击重试按鈕重新传送。";
+"error.message.send" = "信息未送达。点击重试按鈕重新传送。";
 "error.message.network" = "网路连线问题。请检查您的网路连线后重试。";
-"error.message.noResponse" = "AI未回应。这可能是暫时性问题 - 请重试您的讯息。";
+"error.message.noResponse" = "AI未回应。这可能是暫时性问题 - 请重试您的信息。";
 
 // Image Processing Errors
 "error.image.prepare" = "无法准备上传图片。请嘗试选择其他图片。";
@@ -435,13 +435,13 @@
 
 // Loading States
 "loading.session.creating" = "开始新对话...";
-"loading.message.sending" = "传送讯息中...";
+"loading.message.sending" = "传送信息中...";
 "loading.image.processing" = "AI分析图片中...";
 "loading.archive.saving" = "储存对话中...";
 
 // Success Messages
 "success.session.created" = "✓ 新对话已开始";
-"success.message.sent" = "✓ 讯息已送达";
+"success.message.sent" = "✓ 信息已送达";
 "success.image.processed" = "✓ 图片分析成功";
 "success.archive.saved" = "✓ 对话已储存到图书馆";
 "success.grade.updated" = "✅ 成績已更新为 %@ (%@ 分)";
@@ -453,9 +453,9 @@
 "error.network.timeout" = "请求逾时。请检查网路连线后重试。";
 
 // Phase 2 可靠性 - 串流重试 (Phase 2.3)
-"error.streaming.interrupted" = "回应过程中连线中斷。部分讯息已储存。";
+"error.streaming.interrupted" = "回应过程中连线中斷。部分信息已储存。";
 "error.streaming.retry" = "重试";
-"success.streaming.recovered" = "连线已恢复。讯息完整。";
+"success.streaming.recovered" = "连线已恢复。信息完整。";
 "streaming.partialResponse" = "部分回应可用。点击重试继续。";
 
 // Phase 2 可靠性 - 斷路器 (Phase 2.1)
@@ -464,9 +464,9 @@
 "error.ai.timeout" = "AI处理时间超出预期。请重试。";
 
 // Phase 2 可靠性 - 资料库错误 (Phase 2.2)
-"error.database.writeFailed" = "无法储存您的讯息。请检查网路连线后重试。";
-"error.database.unavailable" = "资料库暫时无法使用。您的讯息将自动重试。";
-"error.database.saveFailed" = "对话储存失敗。您的讯息在记憶体中是安全的。";
+"error.database.writeFailed" = "无法储存您的信息。请检查网路连线后重试。";
+"error.database.unavailable" = "资料库暫时无法使用。您的信息将自动重试。";
+"error.database.saveFailed" = "对话储存失敗。您的信息在记憶体中是安全的。";
 
 // Phase 2 可靠性 - 权杖更新 (Phase 2.5)
 "error.token.expired" = "会话已过期。请重新登入。";
@@ -577,7 +577,7 @@
 "questionGeneration.loadingConversations" = "载入对话中...";
 "questionGeneration.conversationsAvailable" = "%d 个对话可用於生成题目";
 "questionGeneration.noConversationsFound" = "未找到归档对话。请先进行一些对话。";
-"questionGeneration.messagesInConversation" = "对话中有 %d 条讯息";
+"questionGeneration.messagesInConversation" = "对话中有 %d 条信息";
 "questionGeneration.studySession" = "学习会话";
 "questionGeneration.discussionAbout" = "关於 %@ 的讨论";
 "questionGeneration.questionType" = "题目类型";
@@ -790,18 +790,18 @@
 
 // Share App
 "shareApp.subtitle" = "帮助你的朋友在学习中取得优異成績！";
-"shareApp.messageTitle" = "分享讯息";
+"shareApp.messageTitle" = "分享信息";
 "shareApp.messagePreview" = "\"看看StudyAI-最好的AI驅动的作业助手！\"";
 "shareApp.feature1" = "✓ AI驅动的作业评分";
 "shareApp.feature2" = "✓ 互动式AI导师";
 "shareApp.feature3" = "✓ 错题复习和练习";
-"shareApp.feature4" = "✓ 进度追蹤";
+"shareApp.feature4" = "✓ 进度追踪";
 "shareApp.downloadLink" = "立即下载：https://studyai.app";
 "shareApp.shareViaTitle" = "分享方式...";
-"shareApp.shareViaSubtitle" = "讯息、电子郵件、社群媒体等";
+"shareApp.shareViaSubtitle" = "信息、电子郵件、社群媒体等";
 "shareApp.copyLinkTitle" = "复制应用程式连结";
 "shareApp.copyLinkSubtitle" = "在任何地方分享下载连结";
-"shareApp.scanToDownload" = "掃描下载";
+"shareApp.scanToDownload" = "扫描下载";
 "shareApp.qrCode" = "QR码";
 "shareApp.showQRCode" = "向朋友展示此QR码";
 "shareApp.comingSoonReferral" = "即将推出：推薦獎勵！";
@@ -871,7 +871,7 @@
 "chat.diagram.generating" = "正在生成示意图...";
 
 // Input
-"chat.input.placeholder" = "讯息";
+"chat.input.placeholder" = "信息";
 "chat.input.archiveTitle" = "输入封存标题...";
 "chat.input.archiveTopic" = "输入主题（例如 %@）...";
 "chat.input.archiveNotes" = "为此会话新增备注...";
@@ -879,7 +879,7 @@
 
 // Alerts
 "chat.alert.cameraPermission.title" = "相机权限";
-"chat.alert.cameraPermission.message" = "StudyAI需要相机存取权限来掃描作业题目。请在设定中启用相机权限。";
+"chat.alert.cameraPermission.message" = "StudyAI需要相机存取权限来扫描作业题目。请在设定中启用相机权限。";
 "chat.alert.currentChatExists.title" = "目前聊天存在";
 "chat.alert.currentChatExists.message" = "您有一个活躍的聊天会话。您想先封存它，还是捨弃它并使用此作业题目开始新会话？";
 "chat.alert.currentChatExists.archiveCurrent" = "封存目前聊天";
@@ -1186,7 +1186,7 @@
 "questionDetail.next" = "下一题";
 "questionDetail.progressMarked" = "已整理！";
 "questionDetail.progressUpdated" = "✅ 您的学习进度已更新！";
-"questionDetail.progressTip" = "💡 点击以在您的每日、每周和每月统计中追蹤此题目！";
+"questionDetail.progressTip" = "💡 点击以在您的每日、每周和每月统计中追踪此题目！";
 
 // Generated Questions List View
 "generatedQuestions.title" = "产生的题目";
@@ -1411,7 +1411,7 @@
 
 // Generated Questions - How to Use
 "generatedQuestions.howToUse.title" = "如何使用练习题";
-"generatedQuestions.howToUse.message" = "• 点击任意题目卡片开始答题\n• 阅读题目并选择答案\n• 提交后查看即时反饋和解析\n• 通过勾选标记追蹤进度\n• 使用'生成PDF'导出选定题目供離线练习\n• 使用上一题/下一题按鈕在题目间导航";
+"generatedQuestions.howToUse.message" = "• 点击任意题目卡片开始答题\n• 阅读题目并选择答案\n• 提交后查看即时反饋和解析\n• 通过勾选标记追踪进度\n• 使用'生成PDF'导出选定题目供離线练习\n• 使用上一题/下一题按鈕在题目间导航";
 
 // Focus Mode - Music Player
 "focus.nowPlaying" = "正在播放";
@@ -1663,12 +1663,12 @@
 "proMode.grading" = "正在批改 %d/%d";
 "proMode.deepGradingMode" = "深度批改模式";
 "proMode.deepMode" = "深度模式";
-"proMode.fastMode" = "快速模式";  // ✅ Production: Fast Mode (GPT Deep)
+"proMode.fastMode" = "快速模式";
 "proMode.deepGradingDescription" = "AI将深度推理分析 (较慢但更准确)";
-"proMode.deepModeDescription" = "深度分析与高级推理";  // ✅ Production: Deep Mode description
-"proMode.fastModeDescription" = "快速批改与逻辑检查";  // ✅ Production: Fast Mode description
-"proMode.quickGrade" = "快速批改";  // ✅ Production: Fast Mode button text
-"proMode.deepGrade" = "深度批改";  // ✅ Production: Deep Mode button text
+"proMode.deepModeDescription" = "深度分析与高级推理";
+"proMode.fastModeDescription" = "快速批改与逻辑检查";
+"proMode.quickGrade" = "快速批改";
+"proMode.deepGrade" = "深度批改";
 "proMode.standardGradingDescription" = "标准批改速度 (快速但可能不夠深入)";
 "proMode.gradeHomework" = "AI 批改作业";
 "proMode.deepGradeHomework" = "深度批改作业";
@@ -1720,7 +1720,7 @@
 "proMode.partial" = "部分正确";
 "proMode.incorrect" = "错误";
 
-// Pro Mode - 批改状态讯息
+// Pro Mode - 批改状态信息
 "proMode.grading.deepAnalyzing" = "深度分析题目中...";
 "proMode.grading.analyzing" = "正在分析题目中...";
 "proMode.grading.deepGrading" = "深度批改 Q%@...";
@@ -1734,6 +1734,34 @@
 "pdfPreview.print" = "打印";
 "pdfPreview.email" = "邮件";
 "pdfPreview.share" = "分享";
+
+// Common (additions)
+"common.apply" = "应用";
+
+// PDF Export Options Sheet
+"pdf.options.title" = "导出选项";
+"pdf.options.section.text" = "文字";
+"pdf.options.section.spacing" = "间距";
+"pdf.options.section.images" = "图片";
+"pdf.options.fontSize" = "字号";
+"pdf.options.gap" = "题目间距";
+"pdf.options.maxImageSize" = "最大图片尺寸";
+"pdf.options.maxSubImageSize" = "最大子图片尺寸";
+"pdf.options.reset" = "恢复默认";
+"pdf.options.footer" = "点击「应用」以使用新设置重新生成 PDF。";
+
+// Library PDF Preview
+"library.pdf.generating" = "正在生成 PDF…";
+"library.pdf.error" = "生成 PDF 失败";
+"library.pdf.email.subject" = "题库题目 — %@";
+"library.pdf.emailBody" = "您好！\n\n请查收附件中来自 StudyMates 的 %d 道 %@ 题目。\n\n由 StudyMates — 您的 AI 学习伙伴生成\n\n祝好";
+
+// Library Selection Bar
+"library.selection.selectAll" = "全选";
+"library.selection.deselectAll" = "取消全选";
+"library.selection.noneSelected" = "未选中";
+"library.selection.countSelected" = "已选 %d 项";
+"library.selection.pdf" = "PDF";
 
 // Theme Settings
 "theme.title" = "外观";

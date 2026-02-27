@@ -1735,6 +1735,34 @@
 "pdfPreview.email" = "郵件";
 "pdfPreview.share" = "分享";
 
+// Common (additions)
+"common.apply" = "套用";
+
+// PDF Export Options Sheet
+"pdf.options.title" = "匯出選項";
+"pdf.options.section.text" = "文字";
+"pdf.options.section.spacing" = "間距";
+"pdf.options.section.images" = "圖片";
+"pdf.options.fontSize" = "字型大小";
+"pdf.options.gap" = "題目間距";
+"pdf.options.maxImageSize" = "最大圖片尺寸";
+"pdf.options.maxSubImageSize" = "最大子圖片尺寸";
+"pdf.options.reset" = "恢復預設";
+"pdf.options.footer" = "點選「套用」以使用新設定重新產生 PDF。";
+
+// Library PDF Preview
+"library.pdf.generating" = "正在產生 PDF…";
+"library.pdf.error" = "產生 PDF 失敗";
+"library.pdf.email.subject" = "題庫題目 — %@";
+"library.pdf.emailBody" = "您好！\n\n請查收附件中來自 StudyMates 的 %d 道 %@ 題目。\n\n由 StudyMates — 您的 AI 學習夥伴產生\n\n祝好";
+
+// Library Selection Bar
+"library.selection.selectAll" = "全選";
+"library.selection.deselectAll" = "取消全選";
+"library.selection.noneSelected" = "未選取";
+"library.selection.countSelected" = "已選 %d 項";
+"library.selection.pdf" = "PDF";
+
 // Theme Settings
 "theme.title" = "外觀";
 "theme.day" = "日間模式";

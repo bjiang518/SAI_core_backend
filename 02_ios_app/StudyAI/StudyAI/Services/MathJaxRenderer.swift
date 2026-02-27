@@ -113,9 +113,12 @@ private enum MathHTML {
             var h = document.getElementById('content').scrollHeight;
             window.webkit.messageHandlers.resize.postMessage(h);
         }
-        new MutationObserver(updateHeight).observe(document.body,
-            {childList:true, subtree:true, attributes:true, characterData:true});
-        setTimeout(updateHeight, 50);
+        // Measure only after MathJax finishes typesetting.
+        // Avoids reading scrollHeight during intermediate render passes
+        // where MathJax inserts temporary elements that inflate the height.
+        MathJax.startup.promise.then(function() {
+            setTimeout(updateHeight, 50);
+        });
         </script>
         </body>
         </html>

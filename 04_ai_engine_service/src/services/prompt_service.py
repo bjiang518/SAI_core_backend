@@ -1513,8 +1513,9 @@ CONTEXT:
 {fmt}
 
 CRITICAL:
-- Return a JSON array of exactly {count} objects. No markdown, no extra text.
+- Return a JSON object with a "questions" key containing an array of exactly {count} objects. No markdown, no extra text.
 - All questions must be {question_type} type.
+- MATH FORMATTING: Wrap ALL math expressions in \\(...\\) delimiters. Examples: \\(x^2\\), \\(f(x) = 3x + 1\\), \\(\\frac{{1}}{{2}}\\), \\(\\sqrt{{x}}\\). Never use bare math notation without delimiters.
 - LANGUAGE: {lang_instruction}
 
 Generate now:"""

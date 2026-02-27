@@ -33,68 +33,68 @@ struct PDFOptionsSheet: View {
             Form {
                 Section {
                     LabeledSlider(
-                        label: "Font Size",
+                        label: NSLocalizedString("pdf.options.fontSize", comment: ""),
                         value: $draft.questionFontSize,
-                        range: 10...20,
+                        range: 6...30,
                         step: 1,
                         format: "%.0f pt"
                     )
                 } header: {
-                    Text("Text")
+                    Text(NSLocalizedString("pdf.options.section.text", comment: ""))
                 }
 
                 Section {
                     LabeledSlider(
-                        label: "Gap Between Questions",
+                        label: NSLocalizedString("pdf.options.gap", comment: ""),
                         value: $draft.questionGap,
-                        range: 16...64,
-                        step: 4,
+                        range: 10...150,
+                        step: 5,
                         format: "%.0f pt"
                     )
                 } header: {
-                    Text("Spacing")
+                    Text(NSLocalizedString("pdf.options.section.spacing", comment: ""))
                 }
 
                 if hasImages {
                     Section {
                         LabeledSlider(
-                            label: "Max Image Height",
-                            value: $draft.maxImageHeight,
-                            range: 100...500,
-                            step: 25,
+                            label: NSLocalizedString("pdf.options.maxImageSize", comment: ""),
+                            value: $draft.maxImageSize,
+                            range: 80...520,
+                            step: 20,
                             format: "%.0f pt"
                         )
                         LabeledSlider(
-                            label: "Max Sub-image Height",
-                            value: $draft.maxSubImageHeight,
-                            range: 80...300,
-                            step: 25,
+                            label: NSLocalizedString("pdf.options.maxSubImageSize", comment: ""),
+                            value: $draft.maxSubImageSize,
+                            range: 60...400,
+                            step: 20,
                             format: "%.0f pt"
                         )
                     } header: {
-                        Text("Images")
+                        Text(NSLocalizedString("pdf.options.section.images", comment: ""))
                     }
                 }
 
                 Section {
-                    Button("Reset to Defaults") {
+                    Button(NSLocalizedString("pdf.options.reset", comment: "")) {
                         draft = PDFExportOptions()
                     }
                     .foregroundColor(.orange)
                 } footer: {
-                    Text("Tap Apply to regenerate the PDF with these settings.")
+                    Text(NSLocalizedString("pdf.options.footer", comment: ""))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
             }
-            .navigationTitle("Export Options")
+            .navigationTitle(NSLocalizedString("pdf.options.title", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") { dismiss() }
+                    Button(NSLocalizedString("common.cancel", comment: "")) { dismiss() }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Apply") {
+                    Button(NSLocalizedString("common.apply", comment: "")) {
                         options = draft
                         dismiss()
                         onApply()
