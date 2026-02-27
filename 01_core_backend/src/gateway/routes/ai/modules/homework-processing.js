@@ -538,11 +538,16 @@ class HomeworkProcessingRoutes {
    */
   async parseHomeworkQuestions(request, reply) {
     const startTime = Date.now();
+    const reqId = `parse-${Date.now().toString(36)}`;
+    const { model_provider = 'gemini', parsing_mode = 'standard' } = request.body || {};
+    const payloadKB = (JSON.stringify(request.body).length / 1024).toFixed(1);
+
+    this.fastify.log.info(`[TIMING][${reqId}] ▶ PARSE START | model=${model_provider} mode=${parsing_mode} payload=${payloadKB}KB`);
 
     try {
-      this.fastify.log.info('📝 Parsing homework questions with coordinates...');
+      const t1 = Date.now();
+      this.fastify.log.info(`[TIMING][${reqId}] → Forwarding to AI Engine (+${t1 - startTime}ms)`);
 
-      // Forward to AI Engine
       const result = await this.aiClient.proxyRequest(
         'POST',
         '/api/v1/parse-homework-questions',
@@ -550,21 +555,29 @@ class HomeworkProcessingRoutes {
         { 'Content-Type': 'application/json' }
       );
 
-      const duration = Date.now() - startTime;
-      this.fastify.log.info(`✅ Question parsing completed: ${duration}ms`);
+      const t2 = Date.now();
+      const aiDuration = t2 - t1;
+      const totalDuration = t2 - startTime;
+      const questions = result.data?.total_questions ?? '?';
+
+      this.fastify.log.info(`[TIMING][${reqId}] ← AI Engine responded (+${aiDuration}ms) | questions=${questions}`);
+      this.fastify.log.info(`[TIMING][${reqId}] ■ PARSE DONE | ai=${aiDuration}ms total=${totalDuration}ms overhead=${totalDuration - aiDuration}ms`);
 
       return reply.send({
         ...result.data,
         _gateway: {
-          processTime: duration,
+          processTime: totalDuration,
+          aiEngineTime: aiDuration,
+          gatewayOverhead: totalDuration - aiDuration,
           service: 'ai-engine',
-          mode: 'progressive_phase1'
+          mode: 'progressive_phase1',
+          reqId
         }
       });
 
     } catch (error) {
       const duration = Date.now() - startTime;
-      this.fastify.log.error(`❌ Question parsing failed: ${error.message}`);
+      this.fastify.log.error(`[TIMING][${reqId}] ✗ PARSE FAILED after ${duration}ms: ${error.message}`);
       return this.handleProxyError(reply, error);
     }
   }
@@ -710,9 +723,15 @@ class HomeworkProcessingRoutes {
    */
   async gradeSingleQuestion(request, reply) {
     const startTime = Date.now();
+    const reqId = `grade-${Date.now().toString(36)}`;
+    const { model_provider = '?', use_deep_reasoning = false, question_type = '?' } = request.body || {};
+
+    this.fastify.log.info(`[TIMING][${reqId}] ▶ GRADE START | model=${model_provider} deep=${use_deep_reasoning} type=${question_type}`);
 
     try {
-      // Forward to AI Engine
+      const t1 = Date.now();
+      this.fastify.log.info(`[TIMING][${reqId}] → Forwarding to AI Engine (+${t1 - startTime}ms)`);
+
       const result = await this.aiClient.proxyRequest(
         'POST',
         '/api/v1/grade-question',
@@ -720,20 +739,29 @@ class HomeworkProcessingRoutes {
         { 'Content-Type': 'application/json' }
       );
 
-      const duration = Date.now() - startTime;
+      const t2 = Date.now();
+      const aiDuration = t2 - t1;
+      const totalDuration = t2 - startTime;
+      const isCorrect = result.data?.grade?.is_correct ?? '?';
+
+      this.fastify.log.info(`[TIMING][${reqId}] ← AI Engine responded (+${aiDuration}ms) | correct=${isCorrect}`);
+      this.fastify.log.info(`[TIMING][${reqId}] ■ GRADE DONE | ai=${aiDuration}ms total=${totalDuration}ms overhead=${totalDuration - aiDuration}ms`);
 
       return reply.send({
         ...result.data,
         _gateway: {
-          processTime: duration,
+          processTime: totalDuration,
+          aiEngineTime: aiDuration,
+          gatewayOverhead: totalDuration - aiDuration,
           service: 'ai-engine',
-          mode: 'progressive_phase2'
+          mode: 'progressive_phase2',
+          reqId
         }
       });
 
     } catch (error) {
       const duration = Date.now() - startTime;
-      this.fastify.log.error(`❌ Question grading failed: ${error.message}`);
+      this.fastify.log.error(`[TIMING][${reqId}] ✗ GRADE FAILED after ${duration}ms: ${error.message}`);
       return this.handleProxyError(reply, error);
     }
   }

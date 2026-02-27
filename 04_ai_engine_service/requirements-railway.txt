@@ -1,39 +1,24 @@
 # StudyAI AI Engine - Railway Deployment Requirements
 
-# Core Framework
-fastapi==0.104.1
-uvicorn==0.24.0
-pydantic==2.5.0
+fastapi>=0.109.0
+uvicorn>=0.27.0
+pydantic>=2.9.0,<3.0.0
 python-multipart==0.0.6
 
-# AI Integration
-openai>=1.50.0  # Updated for Responses API support (o4-mini compatibility)
-google-generativeai==0.8.5  # Gemini LEGACY API (supports gemini-2.0-flash and older)
-google-genai  # Gemini NEW API (supports gemini-2.5-flash, gemini-3-pro-preview)
+openai>=1.50.0
+google-genai>=1.47.0
+httpx>=0.28.1,<1.0.0
+tenacity==8.2.3
 tiktoken==0.5.1
 
-# Authentication & Security  
 PyJWT==2.8.0
 cryptography==41.0.7
-
-# Session Storage
 redis==5.0.1
-
-# System Monitoring
 psutil==5.9.6
-
-# Utilities
 python-dotenv==1.0.0
-httpx==0.25.2
-tenacity==8.2.3  # Retry logic for OpenAI API calls
 
-# Educational Processing (lightweight)
-numpy==1.25.2
-matplotlib==3.8.2  # NEW: For fast mathematical diagram generation
-graphviz==0.20.1  # Graph/tree/flowchart diagram generation
-Pillow==10.1.0  # Image processing for Gemini API
-
-# LaTeX to SVG Conversion (for diagram generation)
-# Note: Uses system pdflatex + pdf2svg via subprocess (installed in Dockerfile)
-# No Python package needed - direct system calls are more reliable
-cairosvg==2.7.1   # SVG optimization (optional)
+numpy>=2.0.2
+matplotlib>=3.9.0
+graphviz==0.20.1
+Pillow==10.1.0
+cairosvg==2.7.1

@@ -77,7 +77,7 @@ class GeminiEducationalAIService:
                 # Model names (NEW API uses different naming)
                 # - gemini-2.5-flash: Fast parsing AND standard grading (optimized for speed)
                 # - gemini-3-flash-preview: Gemini 3 Flash with advanced reasoning capabilities
-                self.model_name = "gemini-2.5-flash"  # UPGRADED: 2.0 → 2.5 for better parsing
+                self.model_name = "gemini-3-flash-preview"  # UPGRADED: 2.5 → 3 flash for better parsing
                 self.thinking_model_name = "gemini-3-flash-preview"  # Gemini 3 Flash for deep reasoning
                 self.grading_model_name = "gemini-2.5-flash"  # Fast grading (1.5-3s per question)
 
@@ -156,32 +156,24 @@ class GeminiEducationalAIService:
 
             # Store image dimensions for iOS coordinate scaling
             image_width, image_height = image.size
-            logger.debug(f"🖼️ Image loaded: {image.size} (width={image_width}, height={image_height})")
             logger.debug(f"🚀 Calling Gemini Vision API...")
 
-            import time
             start_time = time.time()
 
-            # Call Gemini with image and prompt
-            # Gemini 2.0 Flash configuration optimized for OCR + layout parsing
-            # SPEED FIX: Using gemini-2.0-flash instead of gemini-3-pro-preview
-            # - gemini-2.0-flash: 5-10s (FAST, no timeout) ✅
-            # - gemini-3-pro-preview: 30-60s (SLOW, timeout issues) ❌
-            #
-            # Configuration from GPT-4 recommendations:
-            # - temperature=0.0: OCR must be stable and deterministic
-            # - max_output_tokens=8192: INCREASED for large homework (prevents MAX_TOKENS)
-            # - top_k=32: Limit randomness for accurate text extraction
-            # - top_p=0.8: Control randomness while maintaining quality
-
             # Prepare generation config
-            generation_config = {
-                "temperature": 0.0,              # OCR must be 0 for stability
-                "top_p": 0.8,
-                "top_k": 32,
-                "max_output_tokens": 8192,      # INCREASED: 4096 → 8192 (hit MAX_TOKENS)
-                "candidate_count": 1
-            }
+            from google.genai import types
+            generation_config = types.GenerateContentConfig(
+                temperature=0,
+                top_p=0.95,
+                top_k=64,
+                max_output_tokens=8192,
+                response_mime_type="application/json",
+                thinking_config=types.ThinkingConfig(
+                    include_thoughts=False,
+                    thinking_level="minimal"
+                ),
+                media_resolution="MEDIA_RESOLUTION_MEDIUM",
+            )
 
             # Call Gemini API (NEW API only)
             response = self.client.models.generate_content(
@@ -191,17 +183,13 @@ class GeminiEducationalAIService:
             )
 
             api_duration = time.time() - start_time
-            logger.debug(f"✅ Gemini API completed in {api_duration:.2f}s")
+            logger.debug(f"✅ Gemini API responded in {int(api_duration * 1000)}ms")
 
             # Check finish_reason for token limit issues
             if response.candidates and len(response.candidates) > 0:
                 finish_reason = response.candidates[0].finish_reason
-                logger.debug(f"🔍 Finish reason: {finish_reason}")
 
                 if finish_reason == 3:  # MAX_TOKENS = 3 in FinishReason enum
-                    logger.debug(f"⚠️ WARNING: Response hit MAX_TOKENS limit!")
-                    logger.debug(f"   Consider: 1) Increase max_output_tokens")
-                    logger.debug(f"            2) Simplify prompt to reduce output")
                     return {
                         "success": False,
                         "error": "Gemini response exceeded token limit. Try uploading a smaller homework image or contact support."
@@ -212,8 +200,6 @@ class GeminiEducationalAIService:
 
             # Parse JSON
             result = self._extract_json_from_response(raw_response)
-
-            logger.debug(f"✅ Gemini parse: {result.get('total_questions', 0)} questions, Subject: {result.get('subject', 'Unknown')}")
 
             # Validate and fix total_questions count
             questions_array = result.get("questions", [])
@@ -346,7 +332,6 @@ class GeminiEducationalAIService:
             )
 
             logger.debug(f"🚀 Calling Gemini for grading...")
-            import time
             start_time = time.time()
 
             # Prepare content (text only or text + image)
@@ -551,63 +536,26 @@ class GeminiEducationalAIService:
 
     def _extract_response_text(self, response) -> str:
         """
-        Safely extract text from Gemini response.
+        Extract text from Gemini response, filtering out thought tokens.
 
-        Handles both simple and complex response formats:
-        - Simple: response.text (single Part)
-        - Complex: response.candidates[0].content.parts[0].text (multi-Part)
+        Gemini 3 with thinking_config returns parts where some have
+        part.thought=True (chain-of-thought). We skip those and only
+        concatenate the actual output parts.
         """
-        try:
-            # Try simple accessor first
-            return response.text
-        except ValueError as e:
-            # If simple accessor fails, use complex accessor
-            logger.debug(f"⚠️ Complex response detected, using parts accessor")
-            logger.debug(f"🔍 DEBUG: response type = {type(response)}")
-            logger.debug(f"🔍 DEBUG: response.candidates = {response.candidates if hasattr(response, 'candidates') else 'NO CANDIDATES'}")
+        if not response.candidates:
+            raise ValueError("Gemini response has no candidates")
 
-            if hasattr(response, 'candidates') and response.candidates and len(response.candidates) > 0:
-                candidate = response.candidates[0]
-                logger.debug(f"🔍 DEBUG: candidate type = {type(candidate)}")
-                logger.debug(f"🔍 DEBUG: candidate.content = {candidate.content if hasattr(candidate, 'content') else 'NO CONTENT'}")
+        parts = response.candidates[0].content.parts
+        text_parts = [
+            part.text
+            for part in parts
+            if not getattr(part, 'thought', False) and hasattr(part, 'text') and part.text
+        ]
 
-                if hasattr(candidate, 'content') and candidate.content:
-                    content = candidate.content
-                    logger.debug(f"🔍 DEBUG: content.parts = {content.parts if hasattr(content, 'parts') else 'NO PARTS'}")
+        if not text_parts:
+            raise ValueError("Gemini response has no non-thought text parts")
 
-                    if hasattr(content, 'parts') and content.parts and len(content.parts) > 0:
-                        logger.debug(f"🔍 DEBUG: Number of parts = {len(content.parts)}")
-
-                        # Concatenate all parts
-                        text_parts = []
-                        for i, part in enumerate(content.parts):
-                            logger.debug(f"🔍 DEBUG: Part {i} type = {type(part)}")
-                            logger.debug(f"🔍 DEBUG: Part {i} attributes = {dir(part)}")
-
-                            if hasattr(part, 'text'):
-                                part_text = part.text
-                                logger.debug(f"🔍 DEBUG: Part {i} text length = {len(part_text) if part_text else 0}")
-                                if part_text:
-                                    text_parts.append(part_text)
-                            else:
-                                logger.debug(f"⚠️ Part {i} has no 'text' attribute")
-
-                        if text_parts:
-                            full_text = ''.join(text_parts)
-                            logger.debug(f"✅ Extracted {len(full_text)} chars from {len(text_parts)} parts")
-                            return full_text
-                        else:
-                            logger.debug(f"❌ No text found in any parts")
-                    else:
-                        logger.debug(f"❌ content.parts is empty or missing")
-                else:
-                    logger.debug(f"❌ candidate.content is missing")
-            else:
-                logger.debug(f"❌ response.candidates is empty or missing")
-
-            # If all else fails, raise the original error with debug info
-            logger.debug(f"❌ Failed to extract text, raising original error")
-            raise e
+        return "".join(text_parts).strip()
 
     async def reparse_single_question(
         self,
@@ -760,12 +708,6 @@ Select the most specific subject from the predefined list:
    - Keep description SHORT (1-3 words max)
    - Be SPECIFIC (not "Others: Language" - use "Others: Spanish")
 
-✅ Examples:
-   - Algebra homework → "Math"
-   - Essay writing → "English"
-   - French vocabulary → "Others: French"
-   - Economics graphs → "Others: Economics"
-
 ================================================================================
 🖊️ HANDWRITING EVALUATION (Pro Mode)
 ================================================================================
@@ -775,12 +717,6 @@ Assess handwriting clarity using this 5-tier rubric:
 - 5-6: Readable - Some inconsistency but understandable
 - 3-4: Difficult - Hard to read, poor spacing/formation
 - 0-2: Illegible - Very difficult to decipher
-
-RULES:
-- If handwriting detected: Set has_handwriting=true, score=0-10, feedback="Brief comment"
-- If typed/printed/no handwriting: Set has_handwriting=false, score=null, feedback=null
-- Feedback MUST be <150 characters and constructive
-- Focus on clarity, spacing, consistency, and readability
 
 ================================================================================
 🌐 LANGUAGE PRESERVATION (CRITICAL)
@@ -888,14 +824,6 @@ TYPE 5 - LONG ANSWER (question_type: "long_answer"):
 - Extended response (paragraph+)
 - Extract full text
 
-TYPE 6 - CALCULATION (question_type: "calculation"):
-- Math problem with numerical answer
-- Include all work shown: "65 = 6 tens 5 ones" (not just "65")
-
-TYPE 7 - MATCHING (question_type: "matching"):
-- Connect items between columns
-- Extract: pairs or connections student made
-
 ================================================================================
 ANSWER EXTRACTION (CRITICAL)
 ================================================================================
@@ -904,6 +832,10 @@ ANSWER EXTRACTION (CRITICAL)
 - If unclear or cut off → set ""
 - For multi-blank: use " | " to separate (see TYPE 3 above)
 - For two-part question: label each answer with context
+
+MATHEMATICAL EXPRESSIONS:
+Use LaTeX for ALL mathematical formulas, symbols, and equations in question_text and student_answer.
+Example: use $\frac{{1}}{{2}}$ instead of 1/2, $x^2 + 3x = 0$ instead of x^2 + 3x = 0.
 
 {subject_rules}
 

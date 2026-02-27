@@ -9,7 +9,7 @@ python-multipart==0.0.6
 # AI and ML
 openai>=1.50.0  # Updated for Responses API support (o4-mini compatibility)
 google-generativeai==0.8.5  # Gemini LEGACY API (supports gemini-2.0-flash and older)
-google-genai  # Gemini NEW API (supports gemini-2.5-flash, gemini-3-pro-preview)
+google-genai>=1.47.0  # Gemini NEW API (ThinkingConfig, media_resolution require >=1.47.0)
 
 # Database and Caching
 redis==5.0.1

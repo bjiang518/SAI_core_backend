@@ -2544,7 +2544,7 @@ struct DirectAIHomeworkView: View {
 
         // Progressive dimension reduction strategy with more aggressive levels
         // Added smaller dimensions (512, 384, 256) to handle very large user-edited images
-        let dimensionLevels: [CGFloat] = [2048, 1536, 1024, 768, 512, 384, 256]
+        let dimensionLevels: [CGFloat] = [1024, 768, 512, 384, 256]
 
         for maxDimension in dimensionLevels {
             let resizedImage = resizeImage(image, maxDimension: maxDimension)

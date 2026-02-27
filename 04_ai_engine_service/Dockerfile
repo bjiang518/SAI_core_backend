@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y \
     graphviz \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
+# Copy requirements first so this layer is cached unless requirements change
 COPY requirements-railway.txt .
 RUN pip install --no-cache-dir -r requirements-railway.txt
 

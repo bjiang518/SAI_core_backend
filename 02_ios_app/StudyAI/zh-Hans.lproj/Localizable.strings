@@ -1471,11 +1471,11 @@
 "privacy.thirdParty.content" = "我们使用值得信賴的第三方服务进行身分验证、分析和雲端储存。这些服务经过精心挑选，符合适用的隐私法律。";
 "privacy.thirdParty.title" = "第三方服务";
 "privacy.title" = "隐私政策";
-"privacy.usage.content" = "我们使用您的资讯来提供和改进我们的教育服务、个人化您的学习体验、与您溝通并确保我们平台的安全。";
+"privacy.usage.content" = "我们使用您的资讯来提供和改进我们的教育服务、个人化您的学习体验、与您沟通并确保我们平台的安全。";
 "privacy.usage.title" = "我们如何使用您的资讯";
 
 // Terms of Service
-"terms.acceptable.content" = "您同意不将服务用於任何非法目的、傷害他人、上传惡意内容或干擾服务的运行。";
+"terms.acceptable.content" = "您同意不将服务用於任何非法目的、伤害他人、上传惡意内容或干扰服务的运行。";
 "terms.acceptable.title" = "可接受的使用";
 "terms.acceptance.content" = "存取或使用StudyAI即表示您同意受这些服务条款的約束。如果您不同意这些条款，请不要使用我们的应用程式。";
 "terms.acceptance.title" = "接受条款";
@@ -1483,9 +1483,9 @@
 "terms.accounts.title" = "使用者帐户";
 "terms.changes.content" = "我们保留随时修改这些条款的权利。我们将通知您重大变更，您的继续使用构成对更新条款的接受。";
 "terms.changes.title" = "条款变更";
-"terms.contact.content" = "有关这些服务条款的问题，请透过support@studymates.app联络我们";
+"terms.contact.content" = "有关这些服务条款的问题，请透过service@studymates.app联络我们";
 "terms.contact.title" = "联络资讯";
-"terms.disclaimer.content" = "StudyAI「按原样」提供，不提供任何形式的保证。虽然我们努力确保准确性，但我们不保证我们的AI生成内容是无错误或完整的。";
+"terms.disclaimer.content" = "StudyMates「按原样」提供，不提供任何形式的保证。虽然我们努力确保准确性，但我们不保证我们的AI生成内容是无错误或完整的。";
 "terms.disclaimer.title" = "免責声明";
 "terms.intellectual.content" = "StudyAI中的所有内容和材料均归我们或我们的授权方所有，并受智慧财产权法保护。未经許可，您不得复制、修改或分发我们的内容。";
 "terms.intellectual.title" = "智慧财产权";
@@ -1570,14 +1570,14 @@
 "focus.garden.sortBy" = "排序：";
 "focus.garden.totalFocusTime" = "总专注时间";
 "focus.garden.totalTrees" = "总樹木数";
-"focus.selectMusicSubtitle" = "选择音樂或建立播放清单来进行专注学习";
+"focus.selectMusicSubtitle" = "选择音乐或建立播放清单来进行专注学习";
 "focus.tree.ancientTree" = "古樹";
 "focus.tree.matureTree" = "成樹";
 "focus.tree.sapling" = "樹苗";
 "focus.tree.youngTree" = "小樹";
 "focus.volume" = "音量";
 "home.focusMode" = "专注模式";
-"home.focusModeDescription" = "专注音樂与计时器学习";
+"home.focusModeDescription" = "专注音乐与计时器学习";
 "settings.parentControls" = "家长控制";
 "settings.studySettings" = "学习设定";
 

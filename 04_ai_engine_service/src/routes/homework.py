@@ -357,7 +357,13 @@ async def parse_homework_questions(request: ParseHomeworkQuestionsRequest):
     Always uses Gemini with low-detail mode (5x faster, ~3-5 seconds).
     """
     start_time = _time.time()
+    img_kb = round(len(request.base64_image) * 3 / 4 / 1024, 1)
+    logger.info(f"[TIMING] ▶ PARSE START | mode={request.parsing_mode} img≈{img_kb}KB")
+
     try:
+        t1 = _time.time()
+        logger.info(f"[TIMING] → Calling Gemini parse (+{int((t1-start_time)*1000)}ms)")
+
         result = await gemini_service.parse_homework_questions_with_coordinates(
             base64_image=request.base64_image,
             parsing_mode=request.parsing_mode,
@@ -365,9 +371,14 @@ async def parse_homework_questions(request: ParseHomeworkQuestionsRequest):
             expected_questions=request.expected_questions
         )
 
+        t2 = _time.time()
+        gemini_ms = int((t2 - t1) * 1000)
+        logger.info(f"[TIMING] ← Gemini returned (+{gemini_ms}ms) | success={result.get('success')}")
+
         if not result["success"]:
             raise HTTPException(status_code=500, detail=result.get("error", "Question parsing failed"))
 
+        t3 = _time.time()
         # Clean up student answers to remove inconsistent prefixes
         questions = result.get("questions", [])
         for question in questions:
@@ -387,6 +398,10 @@ async def parse_homework_questions(request: ParseHomeworkQuestionsRequest):
                             subq.student_answer = clean_student_answer(subq.student_answer)
 
         processing_time = int((_time.time() - start_time) * 1000)
+        post_ms = int((_time.time() - t3) * 1000)
+        q_count = result.get("total_questions", 0)
+        logger.info(f"[TIMING] ■ PARSE DONE | gemini={gemini_ms}ms post_process={post_ms}ms total={processing_time}ms questions={q_count}")
+
         return ParseHomeworkQuestionsResponse(
             success=True,
             subject=result.get("subject", "Unknown"),
