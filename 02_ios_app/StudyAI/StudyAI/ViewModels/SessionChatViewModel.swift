@@ -102,6 +102,10 @@ class SessionChatViewModel: ObservableObject {
     @Published var lastGeneratedDiagramKey: String?  // Track last diagram for regenerate button
     @Published var regeneratingDiagramKey: String?  // Track which diagram is being regenerated (for loading state)
 
+    // Video search state
+    @Published var isSearchingVideo = false
+    @Published var videoSearchResults: [String: [VideoSearchResult]] = [:]  // videoKey -> results
+
     // UI refresh
     @Published var refreshTrigger = UUID()
 
@@ -790,6 +794,38 @@ class SessionChatViewModel: ObservableObject {
     /// Get diagram data for a given key
     func getDiagramData(for key: String) -> NetworkService.DiagramGenerationResponse? {
         return generatedDiagrams[key]
+    }
+
+    /// Search YouTube for educational videos and add results to conversation
+    func searchVideo(query: String) async {
+        logger.info("🎬 Searching video: \(query)")
+
+        await MainActor.run { isSearchingVideo = true }
+
+        let response = await networkService.searchVideo(query: query)
+
+        await MainActor.run {
+            isSearchingVideo = false
+
+            if response.success, let videos = response.videos, !videos.isEmpty {
+                let videoKey = "\(networkService.currentSessionId ?? "session")-\(Date().timeIntervalSince1970)"
+                videoSearchResults[videoKey] = videos
+
+                // Build the message dict with videoKey upfront so onMessageAdded fires with it
+                let videoDict: [String: String] = ["role": "assistant", "content": "", "videoKey": videoKey]
+                networkService.appendToConversationHistory(videoDict)
+                logger.info("🎬 Video search done, \(videos.count) results stored under key \(videoKey)")
+            } else {
+                let msg = response.error ?? "No videos found."
+                networkService.addToConversationHistory(role: "assistant", content: "Sorry, I couldn't find a relevant video: \(msg)")
+                logger.error("🎬 Video search failed: \(msg)")
+            }
+        }
+    }
+
+    /// Get video search results for a given key
+    func getVideoResults(for key: String) -> [VideoSearchResult]? {
+        return videoSearchResults[key]
     }
 
     /// Remove a diagram from the conversation

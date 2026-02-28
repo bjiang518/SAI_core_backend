@@ -66,9 +66,16 @@ function youtubeSearch(query, apiKey, maxFetch = 15) {
 }
 
 /**
- * Call YouTube Data API v3 videos.list to check status.embeddable.
- * Returns a Set of video IDs that are confirmed embeddable.
- * This is the definitive check — search.list's videoEmbeddable filter is unreliable.
+ * Call YouTube Data API v3 videos.list to filter unplayable videos.
+ *
+ * Checks performed (beyond the advisory search.list videoEmbeddable filter):
+ *   - status.embeddable === true            (definitive embeddability)
+ *   - status.privacyStatus === 'public'     (private/unlisted may not embed reliably)
+ *   - no active liveStreamingDetails        (live/upcoming streams are unstable in WKWebView)
+ *   - contentDetails.contentRating is empty (age-restricted content blocks in WKWebView)
+ *   - no regionRestriction.blocked list     (region-blocked videos fail silently)
+ *
+ * Returns a Set of video IDs that pass all checks.
  */
 function checkEmbeddable(videoIds, apiKey) {
   return new Promise((resolve) => {
@@ -77,7 +84,7 @@ function checkEmbeddable(videoIds, apiKey) {
       return;
     }
     const params = new URLSearchParams({
-      part: 'status',
+      part: 'snippet,status,contentDetails,liveStreamingDetails',
       id: videoIds.join(','),
       key: apiKey,
     });
@@ -91,9 +98,28 @@ function checkEmbeddable(videoIds, apiKey) {
           const data = JSON.parse(body);
           const embeddable = new Set();
           for (const item of (data.items || [])) {
-            if (item.status?.embeddable === true) {
-              embeddable.add(item.id);
-            }
+            const status = item.status || {};
+            const cd = item.contentDetails || {};
+            const live = item.liveStreamingDetails;
+
+            // Must be explicitly embeddable
+            if (status.embeddable !== true) continue;
+
+            // Only public videos (private/unlisted can be unreliable in embedded contexts)
+            if (status.privacyStatus !== 'public') continue;
+
+            // Skip live streams and upcoming premieres (unstable in WKWebView)
+            if (live && (live.actualStartTime || live.scheduledStartTime)) continue;
+
+            // Skip age-restricted / content-rated videos (WKWebView blocks these silently)
+            const rating = cd.contentRating || {};
+            if (Object.keys(rating).length > 0) continue;
+
+            // Skip region-blocked videos (blocked list present = blocked in some regions)
+            const regionRestriction = cd.regionRestriction || {};
+            if (regionRestriction.blocked && regionRestriction.blocked.length > 0) continue;
+
+            embeddable.add(item.id);
           }
           resolve(embeddable);
         } catch (e) {
@@ -162,6 +188,7 @@ class VideoSearchRoutes {
           title: decodeHtmlEntities(item.snippet.title),
           channelTitle: decodeHtmlEntities(item.snippet.channelTitle),
           channelId: item.snippet.channelId,
+          description: decodeHtmlEntities((item.snippet.description || '').slice(0, 160)),
           thumbnail: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url || null,
           url: `https://youtube.com/watch?v=${item.id.videoId}`,
         }));

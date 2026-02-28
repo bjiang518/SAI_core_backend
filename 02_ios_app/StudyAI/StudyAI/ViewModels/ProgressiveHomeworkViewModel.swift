@@ -44,14 +44,8 @@ class ProgressiveHomeworkViewModel: ObservableObject {
     // MARK: - Dependencies
 
     private let networkService = NetworkService.shared
-    private var selectedModelProvider: String = "openai"  // Track which AI model is being used
 
-    // IMPORTANT: Gemini has lower concurrent request limits than OpenAI
-    // - OpenAI: Can handle 5-10 concurrent requests reliably
-    // - Gemini: Should limit to 2 to avoid 503/rate limit errors (questions 4+ often skip)
-    private var concurrentLimit: Int {
-        return selectedModelProvider == "gemini" ? 2 : 5
-    }
+    private let concurrentLimit = 5
 
     // MARK: - Phase Enum
 
@@ -72,14 +66,8 @@ class ProgressiveHomeworkViewModel: ObservableObject {
     ///   - base64Image: Base64 encoded JPEG string
     ///   - preParsedQuestions: Optional pre-parsed questions from Pro Mode (skips Phase 1 if provided)
     ///   - modelProvider: AI model to use for grading ("openai" or "gemini")
-    func processHomework(originalImage: UIImage, base64Image: String, preParsedQuestions: ParseHomeworkQuestionsResponse? = nil, modelProvider: String = "openai") async {
+    func processHomework(originalImage: UIImage, base64Image: String, preParsedQuestions: ParseHomeworkQuestionsResponse? = nil) async {
         print("🚀 === STARTING PROGRESSIVE HOMEWORK GRADING ===")
-        print("🤖 AI Model: \(modelProvider)")
-
-        // Store model provider for concurrentLimit calculation
-        await MainActor.run {
-            self.selectedModelProvider = modelProvider
-        }
 
         do {
             // Phase 1: Parse questions (skip if Pro Mode already parsed)
@@ -88,7 +76,7 @@ class ProgressiveHomeworkViewModel: ObservableObject {
                 await usePreParsedQuestions(preParsed, originalImage: originalImage)
             } else {
                 print("📝 AUTO MODE: Parsing questions from scratch")
-                try await parseQuestions(originalImage: originalImage, base64Image: base64Image, modelProvider: modelProvider)
+                try await parseQuestions(originalImage: originalImage, base64Image: base64Image)
             }
 
             // Phase 2: Grade all questions in parallel
@@ -156,9 +144,8 @@ class ProgressiveHomeworkViewModel: ObservableObject {
 
     // MARK: - Phase 1: Parse Questions
 
-    private func parseQuestions(originalImage: UIImage, base64Image: String, modelProvider: String = "openai") async throws {
+    private func parseQuestions(originalImage: UIImage, base64Image: String) async throws {
         print("📝 === PHASE 1: PARSING QUESTIONS ===")
-        print("🤖 Using \(modelProvider) for parsing")
 
         await MainActor.run {
             self.currentPhase = .parsing
@@ -169,8 +156,7 @@ class ProgressiveHomeworkViewModel: ObservableObject {
         // Call backend to parse questions with selected AI model
         let parseResponse = try await networkService.parseHomeworkQuestions(
             base64Image: base64Image,
-            parsingMode: "standard",
-            modelProvider: modelProvider
+            parsingMode: "standard"
         )
 
         guard parseResponse.success else {
@@ -405,8 +391,7 @@ class ProgressiveHomeworkViewModel: ObservableObject {
 
     private func gradeAllQuestions() async {
         print("🚀 === PHASE 2: GRADING QUESTIONS ===")
-        print("🤖 AI Model: \(selectedModelProvider)")
-        print("⚡ Concurrent Limit: \(concurrentLimit) (optimized for \(selectedModelProvider.uppercased()))")
+        print("⚡ Concurrent Limit: \(concurrentLimit)")
 
         self.currentPhase = .grading
         self.loadingMessage = "Grading questions..."

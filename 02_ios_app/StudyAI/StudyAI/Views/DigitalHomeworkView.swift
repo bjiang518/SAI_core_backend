@@ -297,7 +297,7 @@ struct DigitalHomeworkView: View {
                                         isSelected: viewModel.selectedQuestionIds.contains(questionWithGrade.question.id),
                                         isDeletionMode: isDeletionMode,  // ✅ NEW: Pass deletion mode state
                                         isSelectedForDeletion: selectedQuestionsForDeletion.contains(questionWithGrade.question.id),  // ✅ NEW: Pass deletion selection state
-                                        modelType: viewModel.selectedAIModel,
+                                        modelType: viewModel.useDeepReasoning ? "gemini" : "openai",
                                         onAskAI: { subquestion in  // ✅ UPDATED: Accept optional subquestion
                                             viewModel.askAIForHelp(
                                                 questionId: questionWithGrade.question.id,
@@ -1446,7 +1446,7 @@ struct DigitalHomeworkView: View {
                     await viewModel.startGrading()
                 }
             }) {
-                Text(viewModel.selectedAIModel == "openai" ?
+                Text(!viewModel.useDeepReasoning ?
                     NSLocalizedString("proMode.quickGrade", comment: "Quick Grade") :
                     NSLocalizedString("proMode.deepGrade", comment: "Deep Grade"))
                     .font(.headline)
@@ -1456,7 +1456,7 @@ struct DigitalHomeworkView: View {
                     .padding(.vertical, 16)
                     .background(
                         LinearGradient(
-                            colors: viewModel.selectedAIModel == "openai" ?
+                            colors: !viewModel.useDeepReasoning ?
                                 [Color.blue, Color.blue.opacity(0.8)] :
                                 [Color.purple, Color.purple.opacity(0.8)],
                             startPoint: .leading,
@@ -1464,7 +1464,7 @@ struct DigitalHomeworkView: View {
                         )
                     )
                     .cornerRadius(16)
-                    .shadow(color: (viewModel.selectedAIModel == "openai" ? Color.blue : Color.purple).opacity(0.3), radius: 8, x: 0, y: 4)
+                    .shadow(color: (!viewModel.useDeepReasoning ? Color.blue : Color.purple).opacity(0.3), radius: 8, x: 0, y: 4)
             }
             .disabled(viewModel.isGrading)
             .opacity(viewModel.isGrading ? 0.6 : 1.0)
@@ -1496,7 +1496,7 @@ struct DigitalHomeworkView: View {
                         .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: viewModel.gradingAnimation)
 
                     // Use model-specific icon (gemini-icon or openai-light)
-                    Image(viewModel.selectedAIModel == "gemini" ? "gemini-icon" : "openai-light")
+                    Image(viewModel.useDeepReasoning ? "gemini-icon" : "openai-light")
                         .resizable()
                         .renderingMode(.template)
                         .aspectRatio(contentMode: .fit)
@@ -1606,7 +1606,7 @@ struct DigitalHomeworkView: View {
 
     private var modelDisplayName: String {
         // ✅ Production: Show mode name only, no AI model mentions
-        if viewModel.selectedAIModel == "gemini" {
+        if viewModel.useDeepReasoning {
             return NSLocalizedString("proMode.deepMode", comment: "Deep Mode")
         } else {
             return NSLocalizedString("proMode.fastMode", comment: "Fast Mode")
@@ -1622,7 +1622,7 @@ struct DigitalHomeworkView: View {
     // MARK: - AI Model Selector Card (NEW)
 
     private var aiModelSelectorCard: some View {
-        let currentModel = viewModel.selectedAIModel  // Capture value outside GeometryReader
+        let currentModel = viewModel.useDeepReasoning ? "gemini" : "openai"  // Capture value outside GeometryReader
 
         return HStack(spacing: 16) {
             // Liquid Glass Segmented Control for AI Model
@@ -1662,14 +1662,14 @@ struct DigitalHomeworkView: View {
     }
 
     private func aiModelButton(model: String, label: String, icon: String) -> some View {
-        let currentModel = viewModel.selectedAIModel  // Capture value
+        let currentModel = viewModel.useDeepReasoning ? "gemini" : "openai"  // Capture value
         let isSelected = currentModel == model
 
         return Button(action: {
             // Capture viewModel before animation closure
             let vm = self.viewModel
             withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-                vm.selectedAIModel = model
+                vm.useDeepReasoning = (model == "gemini")
 
                 // Haptic feedback
                 let generator = UIImpactFeedbackGenerator(style: .light)
@@ -1736,12 +1736,9 @@ struct DigitalHomeworkView: View {
     private var unifiedModeToggleCard: some View {
         // Computed binding: true = Deep Mode (Gemini), false = Fast Mode (GPT)
         let isDeepMode = Binding<Bool>(
-            get: { self.viewModel.selectedAIModel == "gemini" },
+            get: { self.viewModel.useDeepReasoning },
             set: { newValue in
-                // Set model based on toggle
-                self.viewModel.selectedAIModel = newValue ? "gemini" : "openai"
-                // Always enable deep reasoning in production mode
-                self.viewModel.useDeepReasoning = true
+                self.viewModel.useDeepReasoning = newValue
             }
         )
 

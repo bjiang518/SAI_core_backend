@@ -5547,6 +5547,7 @@ struct VideoSearchResult: Codable, Identifiable {
     let videoId: String
     let title: String
     let channelTitle: String
+    let description: String?
     let thumbnail: String?
     let url: String
     let isEduChannel: Bool
@@ -5558,13 +5559,14 @@ struct VideoSearchResult: Codable, Identifiable {
         videoId = try c.decode(String.self, forKey: .videoId)
         title = try c.decode(String.self, forKey: .title)
         channelTitle = try c.decode(String.self, forKey: .channelTitle)
+        description = try c.decodeIfPresent(String.self, forKey: .description)
         thumbnail = try c.decodeIfPresent(String.self, forKey: .thumbnail)
         url = try c.decode(String.self, forKey: .url)
         isEduChannel = try c.decodeIfPresent(Bool.self, forKey: .isEduChannel) ?? false
     }
 
     enum CodingKeys: String, CodingKey {
-        case videoId, title, channelTitle, thumbnail, url, isEduChannel
+        case videoId, title, channelTitle, description, thumbnail, url, isEduChannel
     }
 }
 
