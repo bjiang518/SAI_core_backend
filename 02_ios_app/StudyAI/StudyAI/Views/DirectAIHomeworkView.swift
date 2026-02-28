@@ -2538,71 +2538,13 @@ struct DirectAIHomeworkView: View {
     }
     
     private func compressPreprocessedImage(_ image: UIImage) -> Data? {
-        // Mobile-optimized limit: Maximum 500KB after compression for reliable uploads
-        // Prevents network timeouts on slow mobile connections
-        let maxSizeBytes = 500 * 1024 // 500KB limit for fast mobile uploads
-
-        // Progressive dimension reduction strategy with more aggressive levels
-        // Added smaller dimensions (512, 384, 256) to handle very large user-edited images
-        let dimensionLevels: [CGFloat] = [1024, 768, 512, 384, 256]
-
-        for maxDimension in dimensionLevels {
-            let resizedImage = resizeImage(image, maxDimension: maxDimension)
-
-            // For very small dimensions, allow lower quality to ensure compression succeeds
-            let minQuality: CGFloat = maxDimension <= 512 ? 0.3 : 0.5
-
-            // Binary search for optimal compression (much faster than linear search)
-            var low: CGFloat = minQuality
-            var high: CGFloat = 1.0
-            var bestData: Data? = nil
-            var iterations = 0
-
-            while high - low > 0.05 && iterations < 10 {
-                iterations += 1
-                let mid = (low + high) / 2.0
-
-                guard let data = resizedImage.jpegData(compressionQuality: mid) else {
-                    high = mid
-                    continue
-                }
-
-                if data.count <= maxSizeBytes {
-                    bestData = data
-                    low = mid  // Found acceptable, try higher quality
-                } else {
-                    high = mid  // Too large, try lower quality
-                }
-            }
-
-            if let finalData = bestData {
-                print("✅ [Compression] Successfully compressed to \(finalData.count / 1024)KB at \(Int(maxDimension))px")
-                return finalData
-            }
-
-            // Try fallback with minimum quality at this dimension
-            if let fallbackData = resizedImage.jpegData(compressionQuality: minQuality) {
-                if fallbackData.count <= maxSizeBytes {
-                    print("✅ [Compression] Used minimum quality fallback: \(fallbackData.count / 1024)KB at \(Int(maxDimension))px")
-                    return fallbackData
-                } else {
-                    print("⚠️ [Compression] Dimension \(Int(maxDimension))px still too large (\(fallbackData.count / 1024)KB), trying smaller...")
-                }
-            }
+        let resized = resizeImage(image, maxDimension: 1024)
+        guard let data = resized.jpegData(compressionQuality: 0.7) else {
+            print("❌ [Compression] Failed to compress image")
+            return nil
         }
-
-        // Last resort: Use smallest dimension with very low quality to ensure we always return something
-        // This ensures user-edited images always work, even if very large
-        print("⚠️ [Compression] All dimension levels failed, using emergency compression...")
-        let emergencyImage = resizeImage(image, maxDimension: 256)
-        if let emergencyData = emergencyImage.jpegData(compressionQuality: 0.2) {
-            print("✅ [Compression] Emergency compression: \(emergencyData.count / 1024)KB at 256px with 20% quality")
-            return emergencyData
-        }
-
-        // Only return nil if even emergency compression fails (extremely rare)
-        print("❌ [Compression] Complete failure - this should never happen")
-        return nil
+        print("✅ [Compression] Compressed to \(data.count / 1024)KB at 1024px quality 0.7")
+        return data
     }
     
     private func resizeImage(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
