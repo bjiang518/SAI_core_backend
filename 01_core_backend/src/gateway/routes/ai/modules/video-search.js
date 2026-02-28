@@ -10,9 +10,10 @@
 const AuthHelper = require('../utils/auth-helper');
 const https = require('https');
 
-// Whitelisted educational YouTube channel IDs
+// Whitelisted educational YouTube channel IDs.
+// NOTE: Khan Academy (UC4a-Gbdw7vOaccHmFo40b9g) intentionally disabled YouTube
+// embedding to drive traffic to khanacademy.org — their videos always fail in WKWebView.
 const EDU_CHANNEL_IDS = new Set([
-  'UC4a-Gbdw7vOaccHmFo40b9g', // Khan Academy
   'UCX6b17PVsYBQ0ip5gyeme-Q', // CrashCourse
   'UCYO_jab_esuFRV4b17AJtAg', // 3Blue1Brown
   'UCEBb1b_L6zDS3xTUrIALZOw', // MIT OpenCourseWare
@@ -21,6 +22,10 @@ const EDU_CHANNEL_IDS = new Set([
   'UCoHhuummRZaIVX7bD4t2czg', // Professor Leonard
   'UCnqYHKZF48zrusLqh_ohOOQ', // Professor Dave Explains
   'UCVUYXSnm0RYUKwXsEBXYoZg', // Amoeba Sisters (biology)
+  'UCHnyfMqiRRG1u-2MsSQLbXA', // Veritasium (science/math, allows embedding)
+  'UCoxcjq-8xIDTYp3uz647V5A', // Numberphile (math, allows embedding)
+  'UCUHW94eEFW7hkUMVaZz4eDg', // MinutePhysics (physics, allows embedding)
+  'UCZYTClx2T1of7BRZ86-8fow', // SciShow (science overview, allows embedding)
 ]);
 
 const YOUTUBE_SEARCH_BASE = 'https://www.googleapis.com/youtube/v3/search';

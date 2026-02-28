@@ -160,6 +160,12 @@ async def generate_follow_up_suggestions(ai_response: str, user_message: str, su
                 "如果AI的解释涉及流程、结构、空间关系或可以用图表表达的内容，"
                 "必须将第3条建议设为生成图解，key为\"生成图解\"，value描述要画什么图。"
             )
+            video_instruction = (
+                "第4条建议必须是搜索视频，key为\"搜索视频\"，"
+                "value为最佳YouTube英文搜索词，格式严格为：SEARCH_VIDEO:<搜索词>。"
+                "搜索词必须包含一个频道名（如CrashCourse、TED-Ed、3Blue1Brown、Veritasium）加上具体话题。"
+                "例如：SEARCH_VIDEO:CrashCourse mitosis cell division"
+            )
         else:
             language_instruction = (
                 "LANGUAGE: The AI response is in ENGLISH. Generate all suggestions in ENGLISH. "
@@ -167,8 +173,15 @@ async def generate_follow_up_suggestions(ai_response: str, user_message: str, su
             )
             diagram_instruction = (
                 "If the AI explanation involves a process, structure, spatial relationship, or anything "
-                "that would benefit from a visual, you MUST make the 3rd suggestion a diagram request "
+                "that would benefit from a visual, you MUST make suggestion 3 a diagram request "
                 "with key \"Draw Diagram\" and a value describing exactly what to diagram."
+            )
+            video_instruction = (
+                "Suggestion 4 MUST ALWAYS be a video search, no exceptions. "
+                "Use key \"Find Video\" and value in this exact format: SEARCH_VIDEO:<query>. "
+                "The query MUST start with a channel name (CrashCourse, TED-Ed, 3Blue1Brown, "
+                "Veritasium, The Organic Chemistry Tutor, or Numberphile) followed by the specific topic. "
+                "Example: SEARCH_VIDEO:CrashCourse mitosis cell division"
             )
 
         # Build recent conversation context from prior messages (last 3 turns)
@@ -183,7 +196,7 @@ async def generate_follow_up_suggestions(ai_response: str, user_message: str, su
                     context_lines.append(f"{label}: {str(content)[:300]}")
         context_block = "\n".join(context_lines) if context_lines else "(no prior context)"
 
-        suggestion_prompt = f"""You are a curious student who just received this explanation from your tutor. Put yourself in the student's shoes and think: what are the top 3 questions you'd genuinely want to ask next to better understand this topic?
+        suggestion_prompt = f"""You are a curious student who just received this explanation from your tutor. Generate exactly 4 follow-up suggestions.
 
 Subject: {subject}
 
@@ -194,20 +207,20 @@ Latest exchange:
 You asked: {user_message[:300]}
 Tutor explained: {ai_response[:1500]}
 
-As the student, what are your top 3 follow-up questions? Think about:
-- What part of the explanation is still unclear or confusing?
-- How would you apply or practise what was just explained?
-- What deeper "why" or "how" questions does this explanation raise?
-
-{diagram_instruction}
+Generate exactly 4 suggestions in this fixed structure:
+1. A question about something still unclear or confusing in the explanation
+2. A question about how to apply or practise what was just explained
+3. {diagram_instruction}
+4. {video_instruction}
 
 {language_instruction}
 
-Format as JSON array:
+Format as JSON array of exactly 4 items:
 [
-  {{"key": "Short button label (2-4 words)", "value": "Full question you want to ask"}},
-  {{"key": "Short button label", "value": "Full question you want to ask"}},
-  {{"key": "Short button label", "value": "Full question you want to ask"}}
+  {{"key": "Short label (2-4 words)", "value": "Full question"}},
+  {{"key": "Short label (2-4 words)", "value": "Full question"}},
+  {{"key": "Short label (2-4 words)", "value": "Full question or diagram description"}},
+  {{"key": "Find Video", "value": "SEARCH_VIDEO:<channel name> <specific topic>"}}
 ]
 
 Return ONLY the JSON array, no other text."""
@@ -227,14 +240,14 @@ Return ONLY the JSON array, no other text."""
                 {"role": "user", "content": suggestion_prompt}
             ],
             temperature=0.4,
-            max_tokens=400
+            max_tokens=500
         )
         suggestion_text = response.choices[0].message.content.strip()
         json_match = _re.search(r'\[.*\]', suggestion_text, _re.DOTALL)
         if json_match:
             suggestions = _json.loads(json_match.group())
             valid = [s for s in suggestions if isinstance(s, dict) and 'key' in s and 'value' in s]
-            return valid[:3]
+            return valid[:4]
         return []
     except Exception:
         return []
