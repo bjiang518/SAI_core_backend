@@ -2094,7 +2094,6 @@ struct DirectAIHomeworkView: View {
                     parseResponse = try await NetworkService.shared.parseHomeworkQuestionsBatch(
                         base64Images: base64Images,
                         parsingMode: "standard",
-                        modelProvider: selectedAIModel,
                         subject: nil
                     )
                     print("✅ Batch parsed \(base64Images.count) pages: \(parseResponse.totalQuestions) total questions")
@@ -2105,8 +2104,7 @@ struct DirectAIHomeworkView: View {
                         base64Image: base64Images[0],
                         parsingMode: "standard",
                         skipBboxDetection: true,
-                        expectedQuestions: nil,
-                        modelProvider: selectedAIModel
+                        expectedQuestions: nil
                     )
                     print("✅ Single parsed 1 page: \(parseResponse.totalQuestions) questions")
                 }

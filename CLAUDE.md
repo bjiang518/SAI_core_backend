@@ -48,7 +48,8 @@ open StudyAI.xcodeproj
 ```bash
 cd 04_ai_engine_service
 pip install -r requirements.txt
-python src/main.py  # Start FastAPI server
+python3 src/main.py  # Local dev (use python3, not python — system may be Python 2.7)
+# Production uses start.sh → Gunicorn with 3 UvicornWorker processes
 ```
 
 **AI Engine URL**: https://studyai-ai-engine-production.up.railway.app
@@ -190,6 +191,66 @@ daily_subject_activities (user_id, date, question_count)
 2. Send messages: `SessionChatView` -> `POST /api/ai/sessions/:id/message`
 3. AI responses maintain conversation context
 4. Archive on completion
+
+**Grading Mode Architecture (Feb 2026)**:
+
+Two grading modes, controlled by a single `useDeepReasoning: Bool` flag throughout the stack:
+
+| Mode | iOS flag | Backend `model_provider` | AI Engine service | Model |
+|------|----------|--------------------------|-------------------|-------|
+| Fast (normal) | `useDeepReasoning = false` | `"openai"` | `EducationalAIService` | GPT-4o-mini |
+| Deep | `useDeepReasoning = true` | `"gemini"` | `GeminiEducationalAIService` | gemini-3-flash-preview |
+
+**Rule**: `NetworkService.gradeSingleQuestion` derives `model_provider` from `useDeepReasoning` — it is the single source of truth. Never pass `modelProvider:` as a call-site argument.
+
+**Deep mode uses Gemini ThinkingConfig** (`thinking_budget=8192`) via the `google-genai` SDK v1.47.0+:
+```python
+# gemini_service.py — client init
+self.client = genai.Client(api_key=api_key, http_options={'api_version': 'v1alpha'})
+
+# grade_single_question — deep reasoning only (raises ValueError if use_deep_reasoning=False)
+config = genai_types.GenerateContentConfig(
+    thinking_config=genai_types.ThinkingConfig(thinking_budget=8192),
+    max_output_tokens=4096,
+    response_mime_type="application/json"
+)
+response = await self.client.aio.models.generate_content(model=self.thinking_model_name, ...)
+```
+
+**Parse always uses Gemini** (not affected by grading mode):
+```python
+# gemini_service.parse_homework_questions_with_coordinates
+response = await self.client.aio.models.generate_content(model=self.model_name, ...)
+# model_name = "gemini-3-flash-preview"
+# response_mime_type="application/json" forces full buffering — streaming parse has no benefit
+```
+
+**Image passing**: Use `genai_types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg")` — do NOT use PIL Image objects.
+
+**homework.py routing** (critical — easy to break):
+```python
+# Line 490 — must check BOTH conditions:
+selected_service = gemini_service if (request.model_provider == "gemini" and request.use_deep_reasoning) else ai_service
+```
+
+**iOS — `DigitalHomeworkView.swift`**: UI model selector reads/writes `viewModel.useDeepReasoning` directly. `GradingLoadingIndicator(modelType:)` receives `viewModel.useDeepReasoning ? "gemini" : "openai"`.
+
+**`NetworkService.parseHomeworkQuestions` and `parseHomeworkQuestionsBatch`** do NOT have a `modelProvider` parameter — parse always uses Gemini regardless of grading mode.
+
+**`NetworkService.processHomeworkImagesBatch`** (used by `DirectAIHomeworkView`) still has `modelProvider` parameter and `DirectAIHomeworkView` has its own `@AppStorage("selectedAIModel")` — this is separate from the grading mode toggle.
+
+---
+
+**Homework Image Compression (Feb 2026)**:
+
+`DirectAIHomeworkView.compressPreprocessedImage` uses a simple single-pass approach:
+```swift
+let resized = resizeImage(image, maxDimension: 1024)
+return resized.jpegData(compressionQuality: 0.7)  // ~100-200KB typical
+```
+No binary search — previous binary search loop was removed (Plan B).
+
+---
 
 ### Recent Major Features
 
@@ -370,10 +431,10 @@ Key files: `VoiceChatViewModel.swift`, `AudioStreamManager.swift`, `UnifiedChatM
 - **Animations**: Lottie
 
 ### AI Engine
-- **Framework**: FastAPI (Python 3.11)
-- **AI Model**: OpenAI GPT-4o-mini
-- **Image Processing**: OpenAI Vision API
-- **Deployment**: Railway
+- **Framework**: FastAPI (Python 3.11) + Gunicorn 3 workers (UvicornWorker)
+- **AI Models**: OpenAI GPT-4o-mini (standard) + Gemini (deep reasoning)
+- **Image Processing**: OpenAI Vision API / Gemini Vision
+- **Deployment**: Railway (via `start.sh` with Gunicorn)
 
 ## Common Development Patterns
 

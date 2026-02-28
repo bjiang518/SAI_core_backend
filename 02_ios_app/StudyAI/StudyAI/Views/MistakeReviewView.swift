@@ -1626,8 +1626,7 @@ struct PracticeQuestionsView: View {
                 questionType: question.type.rawValue,
                 contextImageBase64: nil,
                 parentQuestionContent: nil,
-                useDeepReasoning: true,  // Gemini deep mode for nuanced grading
-                modelProvider: "gemini"
+                useDeepReasoning: true  // Gemini deep mode for nuanced grading
             )
 
             #if DEBUG

@@ -487,7 +487,8 @@ async def grade_single_question(request: GradeSingleQuestionRequest):
     """
     start_time = _time.time()
     try:
-        selected_service = gemini_service if request.model_provider == "gemini" else ai_service
+        # Gemini only handles deep reasoning; standard grading always uses OpenAI
+        selected_service = gemini_service if (request.model_provider == "gemini" and request.use_deep_reasoning) else ai_service
 
         result = await selected_service.grade_single_question(
             question_text=request.question_text,

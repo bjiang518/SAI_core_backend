@@ -179,8 +179,7 @@ struct ProgressiveHomeworkView: View {
                     await viewModel.processHomework(
                         originalImage: originalImage,
                         base64Image: base64Image,
-                        preParsedQuestions: preParsedQuestions,
-                        modelProvider: selectedAIModel
+                        preParsedQuestions: preParsedQuestions
                     )
                 }
             } label: {

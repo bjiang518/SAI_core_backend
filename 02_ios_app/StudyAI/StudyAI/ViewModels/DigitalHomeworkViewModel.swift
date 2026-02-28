@@ -42,11 +42,8 @@ class DigitalHomeworkViewModel: ObservableObject {
     @Published var isArchiveMode = false
     @Published var selectedQuestionIds: Set<String> = []
 
-    // Deep reasoning mode (深度批改模式)
+    // deep → Gemini, normal → OpenAI
     @Published var useDeepReasoning = false
-
-    // AI model selection (NEW: OpenAI vs Gemini)
-    @Published var selectedAIModel: String = "gemini"  // "openai" or "gemini"
 
     // ✅ NEW: Enhanced grading animations
     @Published var currentGradingStatus = ""  // Dynamic status message during grading
@@ -699,7 +696,7 @@ class DigitalHomeworkViewModel: ObservableObject {
     // MARK: - AI Grading
 
     func startGrading() async {
-        logger.info("Starting AI grading: model=\(selectedAIModel), deepReasoning=\(useDeepReasoning), questions=\(questions.count)")
+        logger.info("Starting AI grading: mode=\(useDeepReasoning ? "deep/Gemini" : "normal/OpenAI"), questions=\(questions.count)")
 
         // Fold annotation panel when grading starts
         withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
@@ -739,14 +736,9 @@ class DigitalHomeworkViewModel: ObservableObject {
 
                     // ✅ NEW: Update status message dynamically
                     let questionNum = question.question.questionNumber ?? "?"
-                    let statusMessage: String
-                    if useDeepReasoning && selectedAIModel == "gemini" {
-                        statusMessage = String(format: NSLocalizedString("proMode.grading.deepGrading", comment: "Deep grading question"), questionNum)
-                    } else if selectedAIModel == "gemini" {
-                        statusMessage = String(format: NSLocalizedString("proMode.grading.geminiGrading", comment: "Gemini grading question"), questionNum)
-                    } else {
-                        statusMessage = String(format: NSLocalizedString("proMode.grading.grading", comment: "Grading question"), questionNum)
-                    }
+                    let statusMessage = useDeepReasoning
+                        ? String(format: NSLocalizedString("proMode.grading.deepGrading", comment: "Deep grading question"), questionNum)
+                        : String(format: NSLocalizedString("proMode.grading.grading", comment: "Grading question"), questionNum)
 
                     withAnimation(.easeInOut(duration: 0.2)) {
                         gradingAnimation = useDeepReasoning ? .thinking : .grading
@@ -890,8 +882,7 @@ class DigitalHomeworkViewModel: ObservableObject {
                     subject: subject,
                     questionType: question.questionType,  // Pass question type for specialized grading
                     contextImageBase64: contextImage,
-                    useDeepReasoning: useDeepReasoning,
-                    modelProvider: selectedAIModel
+                    useDeepReasoning: useDeepReasoning
                 )
 
                 if response.success, let grade = response.grade {
@@ -957,8 +948,7 @@ class DigitalHomeworkViewModel: ObservableObject {
                 questionType: subquestion.questionType,  // Pass question type for specialized grading
                 contextImageBase64: contextImage,
                 parentQuestionContent: parentContent,  // ✅ NEW: Pass parent question content
-                useDeepReasoning: useDeepReasoning,  // Pass deep reasoning mode
-                modelProvider: selectedAIModel  // NEW: Pass AI model selection
+                useDeepReasoning: useDeepReasoning  // Pass deep reasoning mode
             )
 
             if response.success, let grade = response.grade {
@@ -1124,8 +1114,7 @@ class DigitalHomeworkViewModel: ObservableObject {
                 subject: subject,
                 questionType: question.questionType,
                 contextImageBase64: contextImage,
-                useDeepReasoning: true,  // ✅ Force deep reasoning for regrade
-                modelProvider: "gemini"  // ✅ Force Gemini for deep mode
+                useDeepReasoning: true  // ✅ Force deep reasoning for regrade
             )
 
             await MainActor.run {
@@ -1225,8 +1214,7 @@ class DigitalHomeworkViewModel: ObservableObject {
                 questionType: subquestion.questionType,
                 contextImageBase64: contextImage,
                 parentQuestionContent: parentContent,
-                useDeepReasoning: true,  // ✅ Force deep reasoning for regrade
-                modelProvider: "gemini"  // ✅ Force Gemini for deep mode
+                useDeepReasoning: true  // ✅ Force deep reasoning for regrade
             )
 
             await MainActor.run {

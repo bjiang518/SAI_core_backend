@@ -639,8 +639,7 @@ struct WeaknessPracticeAnswerInput: View {
                 questionType: question.questionType,
                 contextImageBase64: nil,
                 parentQuestionContent: nil,
-                useDeepReasoning: true,  // Use Pro Mode
-                modelProvider: "gemini"
+                useDeepReasoning: true  // Use Pro Mode
             )
 
             if let grade = response.grade {

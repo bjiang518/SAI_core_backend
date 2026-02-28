@@ -940,8 +940,7 @@ struct GeneratedQuestionDetailView: View {
                 questionType: currentQuestion.type.rawValue,
                 contextImageBase64: nil,
                 parentQuestionContent: nil,
-                useDeepReasoning: true,  // Gemini deep mode for nuanced grading
-                modelProvider: "gemini"
+                useDeepReasoning: true  // Gemini deep mode for nuanced grading
             )
 
             print("✅ [Generation] RECEIVED AI GRADING RESPONSE")

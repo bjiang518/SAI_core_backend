@@ -24,11 +24,13 @@ logger = setup_logger(__name__)
 # Import NEW Gemini API (google-ai-generativelanguage >= 0.6.0)
 try:
     from google import genai
+    from google.genai import types as genai_types
     logger.debug(f"✅ NEW Gemini API imported successfully")
 except ImportError as e:
     logger.debug(f"❌ NEW Gemini API import failed: {e}")
     logger.debug("⚠️ Please install: pip install --upgrade google-generativeai")
     genai = None
+    genai_types = None
 
 # Import subject-specific prompt generator
 from .subject_prompts import get_subject_specific_rules
@@ -151,34 +153,71 @@ class GeminiEducationalAIService:
             import io
             from PIL import Image
 
-            image_data = base64.b64decode(base64_image)
-            image = Image.open(io.BytesIO(image_data))
+            image_bytes = base64.b64decode(base64_image)
 
-            # Store image dimensions for iOS coordinate scaling
-            image_width, image_height = image.size
+            # Read dimensions only (not passed to API)
+            _pil = Image.open(io.BytesIO(image_bytes))
+            image_width, image_height = _pil.size
+            _pil.close()
+
+            image_part = genai_types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg")
+
             logger.debug(f"🚀 Calling Gemini Vision API...")
 
             start_time = time.time()
 
             # Prepare generation config
-            from google.genai import types
-            generation_config = types.GenerateContentConfig(
+            generation_config = genai_types.GenerateContentConfig(
                 temperature=0,
                 top_p=0.95,
                 top_k=64,
                 max_output_tokens=8192,
                 response_mime_type="application/json",
-                thinking_config=types.ThinkingConfig(
+                thinking_config=genai_types.ThinkingConfig(
                     include_thoughts=False,
                     thinking_level="minimal"
                 ),
                 media_resolution="MEDIA_RESOLUTION_MEDIUM",
             )
 
+            # TTFT measurement: stream once, record first-chunk time, then fall through to full call
+            if parsing_mode == "measure_ttft":
+                ttft_config = genai_types.GenerateContentConfig(
+                    temperature=0,
+                    top_p=0.95,
+                    top_k=64,
+                    max_output_tokens=8192,
+                    thinking_config=genai_types.ThinkingConfig(
+                        include_thoughts=False,
+                        thinking_level="minimal"
+                    ),
+                    media_resolution="MEDIA_RESOLUTION_MEDIUM",
+                    # No response_mime_type — JSON mode disables streaming on some models
+                )
+                ttft_ms = None
+                total_chunks = 0
+                async for chunk in await self.client.aio.models.generate_content_stream(
+                    model=self.model_name,
+                    contents=[image_part, system_prompt],
+                    config=ttft_config
+                ):
+                    if ttft_ms is None:
+                        ttft_ms = int((time.time() - start_time) * 1000)
+                    total_chunks += 1
+                total_ms = int((time.time() - start_time) * 1000)
+                logger.debug(f"⏱️ [TTFT] First token: {ttft_ms}ms | Total stream: {total_ms}ms | Chunks: {total_chunks}")
+                return {
+                    "success": True,
+                    "ttft_ms": ttft_ms,
+                    "total_stream_ms": total_ms,
+                    "total_chunks": total_chunks,
+                    "note": "TTFT measurement only — no parsed questions returned"
+                }
+
             # Call Gemini API (async)
             response = await self.client.aio.models.generate_content(
                 model=self.model_name,
-                contents=[image, system_prompt],  # Image FIRST, then prompt
+                contents=[image_part, system_prompt],  # Image FIRST, then prompt
                 config=generation_config
             )
 
@@ -275,20 +314,15 @@ class GeminiEducationalAIService:
             Same format as OpenAI service: {success, grade: {score, is_correct, feedback, confidence, correct_answer}}
         """
 
-        # Select model based on reasoning mode
-        if use_deep_reasoning:
-            if not self.thinking_client:
-                raise Exception("Gemini Thinking client not initialized. Check GEMINI_API_KEY in environment.")
-            selected_client = self.thinking_client
-            model_name = self.thinking_model_name  # gemini-3-flash-preview
-            mode_label = "DEEP REASONING (GEMINI 3 FLASH)"
-        else:
-            # Use Gemini 2.5 Flash for standard grading (fast mode)
-            if not self.grading_client:
-                raise Exception("Gemini Grading client not initialized. Check GEMINI_API_KEY in environment.")
-            selected_client = self.grading_client
-            model_name = self.grading_model_name  # gemini-2.5-flash
-            mode_label = "STANDARD GRADING (GEMINI 2.5 FLASH)"
+        if not use_deep_reasoning:
+            raise ValueError("grade_single_question on GeminiService only supports use_deep_reasoning=True. "
+                             "Standard grading is handled by OpenAI service.")
+
+        if not self.client:
+            raise Exception("Gemini client not initialized. Check GEMINI_API_KEY in environment.")
+
+        model_name = self.thinking_model_name  # gemini-3-flash-preview
+        mode_label = "DEEP REASONING (GEMINI 3 FLASH)"
 
         logger.debug(f"📝 === GRADING WITH GEMINI ({mode_label}) ===")
         logger.debug(f"🤖 Model: {model_name}")
@@ -338,108 +372,41 @@ class GeminiEducationalAIService:
             content = [grading_prompt]
 
             if context_image:
-                # Decode and add image
-                import io
-                from PIL import Image
+                image_bytes = base64.b64decode(context_image)
+                content.append(genai_types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"))
 
-                image_data = base64.b64decode(context_image)
-                image = Image.open(io.BytesIO(image_data))
-                content.append(image)
+            # GEMINI 3 DEEP REASONING MODE — async API + ThinkingConfig
+            generation_config = genai_types.GenerateContentConfig(
+                thinking_config=genai_types.ThinkingConfig(thinking_budget=8192),
+                max_output_tokens=4096,
+                candidate_count=1,
+                response_mime_type="application/json"
+                # No temperature — Gemini thinking mode requires default 1.0
+            )
+            timeout = 100  # Extended timeout for deep reasoning
 
-            # Call Gemini with mode-specific configuration
-            generation_config = {}
-            timeout = 60  # Default timeout for standard grading
-
-            if use_deep_reasoning:
-                # GEMINI 3 DEEP REASONING MODE — async API + ThinkingConfig
-                from google.genai import types
-                generation_config = types.GenerateContentConfig(
-                    thinking_config=types.ThinkingConfig(thinking_budget=8192),
-                    max_output_tokens=4096,
-                    candidate_count=1,
-                    response_mime_type="application/json"
-                    # No temperature — Gemini thinking mode requires default 1.0
-                )
-                timeout = 100  # Extended timeout for deep reasoning
-            else:
-                # GEMINI 2.5 STANDARD GRADING MODE
-                # Uses gemini-2.5-flash model for quick grading (1.5-3s per question)
-                generation_config = {
-                    "temperature": 0.2,     # Low temperature for deterministic math grading (Gemini 2.5)
-                    "top_p": 0.9,
-                    "top_k": 40,
-                    "max_output_tokens": 4096,  # INCREASED: 800 → 2048 → 4096 for specialized type × subject grading prompts
-                    "candidate_count": 1,
-                    "response_mime_type": "application/json"  # Force JSON output
-                }
-                timeout = 30  # Fast timeout for Flash model
-
-            # Call Gemini API
+            # Call Gemini API (async)
             response = None
             fallback_attempted = False
 
-            if use_deep_reasoning:
-                # Deep mode: native async (no thread pool needed)
-                try:
+            try:
+                response = await self.client.aio.models.generate_content(
+                    model=model_name,
+                    contents=content,
+                    config=generation_config
+                )
+            except Exception as e:
+                if "503" in str(e) or "UNAVAILABLE" in str(e) or "overloaded" in str(e):
+                    logger.debug(f"⚠️ Model {model_name} unavailable (503), falling back to gemini-2.5-flash...")
+                    fallback_attempted = True
                     response = await self.client.aio.models.generate_content(
-                        model=model_name,
+                        model="gemini-2.5-flash",
                         contents=content,
                         config=generation_config
                     )
-                except Exception as e:
-                    if "503" in str(e) or "UNAVAILABLE" in str(e) or "overloaded" in str(e):
-                        logger.debug(f"⚠️ Model {model_name} unavailable (503), falling back to gemini-2.5-flash...")
-                        fallback_attempted = True
-                        response = await self.client.aio.models.generate_content(
-                            model="gemini-2.5-flash",
-                            contents=content,
-                            config=generation_config
-                        )
-                        logger.debug(f"✅ Fallback to gemini-2.5-flash successful")
-                    else:
-                        raise
-            else:
-                # Standard mode: existing synchronous wrapper (unchanged)
-                try:
-                    import concurrent.futures
-
-                    def _call_gemini():
-                        return selected_client.models.generate_content(
-                            model=model_name,
-                            contents=content,
-                            config=generation_config
-                        )
-
-                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                        future = executor.submit(_call_gemini)
-                        try:
-                            response = future.result(timeout=timeout)
-                        except concurrent.futures.TimeoutError:
-                            raise Exception(f"Gemini API timeout after {timeout}s. Try reducing homework size or using a different model.")
-                except Exception as e:
-                    if "503" in str(e) or "UNAVAILABLE" in str(e) or "overloaded" in str(e):
-                        logger.debug(f"⚠️ Model {model_name} unavailable (503), falling back to gemini-2.5-flash...")
-                        fallback_attempted = True
-                        fallback_model = "gemini-2.5-flash"
-
-                        import concurrent.futures
-
-                        def _call_gemini_fallback():
-                            return selected_client.models.generate_content(
-                                model=fallback_model,
-                                contents=content,
-                                config=generation_config
-                            )
-
-                        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                            future = executor.submit(_call_gemini_fallback)
-                            try:
-                                response = future.result(timeout=timeout)
-                            except concurrent.futures.TimeoutError:
-                                raise Exception(f"Gemini fallback API timeout after {timeout}s")
-                        logger.debug(f"✅ Fallback to {fallback_model} successful")
-                    else:
-                        raise
+                    logger.debug(f"✅ Fallback to gemini-2.5-flash successful")
+                else:
+                    raise
 
             api_duration = time.time() - start_time
             if fallback_attempted:

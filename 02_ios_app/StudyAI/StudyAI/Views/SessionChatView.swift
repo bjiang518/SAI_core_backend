@@ -2760,12 +2760,14 @@ struct VideoResultCard: View {
             Text(NSLocalizedString("chat.video.results_header", value: "Educational Videos", comment: ""))
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(.secondary)
+                .padding(.horizontal, 12)
 
             ForEach(videos) { video in
                 VideoRowView(video: video)
             }
+            .padding(.horizontal, 12)
         }
-        .padding(12)
+        .padding(.vertical, 12)
         .background(themeManager.cardBackground)
         .cornerRadius(12)
         .overlay(
@@ -2815,7 +2817,7 @@ struct VideoRowView: View {
                 }
                 .buttonStyle(.plain)
 
-                // Title + channel
+                // Title + channel + description
                 VStack(alignment: .leading, spacing: 3) {
                     Text(video.title)
                         .font(.system(size: 13, weight: .medium))
@@ -2831,6 +2833,13 @@ struct VideoRowView: View {
                         Text(video.channelTitle)
                             .font(.system(size: 11))
                             .foregroundColor(.secondary)
+                    }
+
+                    if let desc = video.description, !desc.isEmpty {
+                        Text(desc)
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary.opacity(0.8))
+                            .lineLimit(2)
                     }
                 }
 
@@ -2874,7 +2883,9 @@ struct VideoRowView: View {
                     YouTubePlayerView(videoId: video.videoId) {
                         embedBlocked = true
                     }
-                    .frame(height: 220)
+                    .aspectRatio(16/9, contentMode: .fit)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, -12)  // bleed past the card's horizontal padding
                     .cornerRadius(8)
                     .padding(.top, 8)
                 }
@@ -2920,29 +2931,79 @@ struct YouTubePlayerView: UIViewRepresentable {
         config.allowsInlineMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = []
 
+        // Message handler: receives events from IFrame API JS bridge
+        config.userContentController.add(context.coordinator, name: "ytBridge")
+
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.scrollView.isScrollEnabled = false
         webView.backgroundColor = .black
         webView.isOpaque = false
         webView.navigationDelegate = context.coordinator
+        webView.customUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
         return webView
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
         // Guard: only load once per videoId — updateUIView fires on every SwiftUI re-render
-        // and reloading interrupts in-progress playback.
         guard context.coordinator.loadedVideoId != videoId else { return }
         context.coordinator.loadedVideoId = videoId
 
-        // Load the embed URL directly — avoids the JS API origin trust issue
-        // that occurs when using loadHTMLString with a fake baseURL.
-        let urlString = "https://www.youtube.com/embed/\(videoId)?playsinline=1&rel=0&modestbranding=1"
-        print("[YT-DEBUG] Loading embed URL directly: \(urlString)")
-        guard let url = URL(string: urlString) else { return }
-        webView.load(URLRequest(url: url))
+        // Load a self-contained HTML page that hosts the IFrame Player.
+        // Using a local baseURL (app scheme) so origin= correctly reflects the actual host.
+        // The JS bridge posts ready/stateChange/error events back via window.webkit.messageHandlers.ytBridge.
+        let html = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+        <style>
+          * { margin:0; padding:0; box-sizing:border-box; }
+          body { background:#000; }
+          #player { width:100%; height:100%; }
+        </style>
+        </head>
+        <body>
+        <div id="player"></div>
+        <script>
+          var tag = document.createElement('script');
+          tag.src = 'https://www.youtube.com/iframe_api';
+          document.head.appendChild(tag);
+
+          var player;
+          function onYouTubeIframeAPIReady() {
+            player = new YT.Player('player', {
+              videoId: '\(videoId)',
+              playerVars: {
+                playsinline: 1,
+                rel: 0,
+                modestbranding: 1,
+                enablejsapi: 1,
+                origin: 'https://study-mates.net'
+              },
+              events: {
+                onReady: function(e) {
+                  window.webkit.messageHandlers.ytBridge.postMessage({event:'ready'});
+                },
+                onStateChange: function(e) {
+                  window.webkit.messageHandlers.ytBridge.postMessage({event:'stateChange', data:e.data});
+                },
+                onError: function(e) {
+                  window.webkit.messageHandlers.ytBridge.postMessage({event:'error', data:e.data});
+                }
+              }
+            });
+          }
+        </script>
+        </body>
+        </html>
+        """
+        // baseURL is nil — the page has no real origin, so YouTube's player
+        // won't see a mismatched youtube.com security context.
+        // origin in playerVars is set to 'https://study-mates.net' (app's domain) to match.
+        webView.loadHTMLString(html, baseURL: nil)
     }
 
-    class Coordinator: NSObject, WKNavigationDelegate {
+    class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         let videoId: String
         let onEmbedBlocked: () -> Void
         var loadedVideoId: String? = nil
@@ -2952,41 +3013,40 @@ struct YouTubePlayerView: UIViewRepresentable {
             self.onEmbedBlocked = onEmbedBlocked
         }
 
-        func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
-            print("[YT-DEBUG] Navigation started: \(webView.url?.absoluteString ?? "nil")")
-        }
-
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            print("[YT-DEBUG] Navigation finished: \(webView.url?.absoluteString ?? "nil")")
-            // Check page title — YouTube sets it to "YouTube" on error pages
-            webView.evaluateJavaScript("document.title") { result, _ in
-                print("[YT-DEBUG] Page title: \(result ?? "nil")")
-            }
-            // Check if the error div is present (YouTube injects .ytp-error on blocked videos)
-            webView.evaluateJavaScript("document.querySelector('.ytp-error') !== null") { result, _ in
-                print("[YT-DEBUG] Error div present: \(result ?? "nil")")
-                if let blocked = result as? Bool, blocked {
-                    print("[YT-DEBUG] Embed blocked for videoId: \(self.videoId)")
-                    DispatchQueue.main.async { self.onEmbedBlocked() }
-                }
+        // IFrame API events arrive here via window.webkit.messageHandlers.ytBridge
+        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+            guard let body = message.body as? [String: Any],
+                  let event = body["event"] as? String else { return }
+            switch event {
+            case "ready":
+                print("[YT] Player ready for videoId: \(videoId)")
+            case "stateChange":
+                print("[YT] State change: \(body["data"] ?? "?")")
+            case "error":
+                // IFrame API error codes: 2=bad param, 5=HTML5 error, 100=not found,
+                // 101/150=embedding not allowed by owner
+                let code = body["data"] as? Int ?? -1
+                print("[YT] IFrame error code \(code) for videoId: \(videoId)")
+                DispatchQueue.main.async { self.onEmbedBlocked() }
+            default:
+                break
             }
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-            print("[YT-DEBUG] Navigation FAILED: \(error.localizedDescription)")
+            print("[YT] Navigation FAILED: \(error.localizedDescription)")
         }
 
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-            print("[YT-DEBUG] Provisional navigation FAILED: \(error.localizedDescription)")
+            print("[YT] Provisional navigation FAILED: \(error.localizedDescription)")
         }
 
-        // Detect redirect to youtube.com/watch (happens when embedding is disabled)
+        // Cancel any redirect out to youtube.com/watch (shouldn't happen with local HTML,
+        // but keep as safety net)
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
             let url = navigationAction.request.url?.absoluteString ?? ""
-            print("[YT-DEBUG] Navigation policy for: \(url)")
-            // YouTube redirects /embed/ to /watch? when embedding is blocked
             if url.contains("youtube.com/watch") {
-                print("[YT-DEBUG] Redirected to watch URL — embed blocked for videoId: \(videoId)")
+                print("[YT] Blocked redirect to watch URL — embed disallowed for videoId: \(videoId)")
                 DispatchQueue.main.async { self.onEmbedBlocked() }
                 decisionHandler(.cancel)
                 return
