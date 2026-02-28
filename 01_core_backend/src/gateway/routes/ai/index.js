@@ -25,6 +25,7 @@ const QuestionGenerationV3Routes = require('./modules/question-generation-v3'); 
 const TTSRoutes = require('./modules/tts');
 const AnalyticsRoutes = require('./modules/analytics');
 const DiagramGenerationRoutes = require('./modules/diagram-generation'); // NEW: AI diagram generation
+const VideoSearchRoutes = require('./modules/video-search'); // NEW: Educational video search
 const ErrorAnalysisRoutes = require('./modules/error-analysis'); // NEW: Pass 2 error analysis
 const WeaknessDescriptionRoutes = require('./modules/weakness-description'); // NEW: Weakness description generation
 const ConceptExtractionRoutes = require('./modules/concept-extraction'); // NEW: Bidirectional status tracking
@@ -51,6 +52,7 @@ async function aiRoutes(fastify, opts) {
     { name: 'Text-to-Speech', Class: TTSRoutes },
     { name: 'Analytics', Class: AnalyticsRoutes },
     { name: 'Diagram Generation', Class: DiagramGenerationRoutes }, // NEW: AI diagram generation
+    { name: 'Video Search', Class: VideoSearchRoutes }, // NEW: Educational video search
   ];
 
   for (const module of classModules) {
