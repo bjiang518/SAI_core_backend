@@ -866,7 +866,13 @@ struct SessionChatView: View {
                                             .id(msg.id)
                                     }
                                 } else {
-                                    if let diagramKey = message["diagramKey"] {
+                                    if let videoKey = message["videoKey"] {
+                                        // Video search result card
+                                        let videos = viewModel.getVideoResults(for: videoKey) ?? []
+                                        VideoResultCard(videos: videos)
+                                            .padding(.horizontal, 16)
+                                            .id(msg.id)
+                                    } else if let diagramKey = message["diagramKey"] {
                                         let diagramData = viewModel.getDiagramData(for: diagramKey)
                                         let isRegenerating = viewModel.regeneratingDiagramKey == diagramKey
                                         if isRegenerating {
@@ -978,6 +984,20 @@ struct SessionChatView: View {
                             .padding()
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .id("diagram-generation")
+                        }
+
+                        // Video search loading indicator
+                        if viewModel.isSearchingVideo {
+                            HStack(spacing: 10) {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                                Text(NSLocalizedString("chat.video.searching", value: "Finding educational video...", comment: ""))
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .id("video-search")
                         }
 
                         // Live streaming transcription (while AI is speaking)
@@ -1602,8 +1622,15 @@ struct SessionChatView: View {
                 // ✅ FIX: Only show suggestions after streaming completes to prevent position switching
                 // ✅ FIX: Use stable suggestions that don't change while keyboard is active
                 let responseIsChinese = detectChinese(in: lastMessage)
+                // Exempt special-action suggestions (video/diagram) from language check — their keys
+                // are fixed strings that don't reflect the response language.
                 let suggestionsMatchLanguage = !stableSuggestions.isEmpty &&
-                    (stableSuggestions.allSatisfy { responseIsChinese == detectChinese(in: $0.key) })
+                    (stableSuggestions.allSatisfy { suggestion in
+                        suggestion.value == "__REGENERATE_DIAGRAM__" ||
+                        isVideoSearchRequest(suggestion.value) ||
+                        isDiagramGenerationRequest(suggestion.key) ||
+                        (responseIsChinese == detectChinese(in: suggestion.key))
+                    })
 
                 if viewModel.isStreamingComplete && !stableSuggestions.isEmpty && suggestionsMatchLanguage {
                     // ✅ STABILITY: Already sorted alphabetically in stableSuggestions
@@ -1611,6 +1638,12 @@ struct SessionChatView: View {
                         // Skip the regenerate suggestion if we already showed it above
                         if suggestion.value == "__REGENERATE_DIAGRAM__" {
                             EmptyView()
+                        } else if isVideoSearchRequest(suggestion.value) {
+                            Button(suggestion.key) {
+                                isMessageInputFocused = false
+                                handleVideoSearchRequest(suggestion)
+                            }
+                            .modernButtonStyle()
                         } else if isDiagramGenerationRequest(suggestion.key) {
                             Button(suggestion.key) {
                                 // Handle new diagram generation
@@ -2697,9 +2730,271 @@ struct SessionChatView: View {
             await viewModel.generateDiagram(request: suggestion.value)
         }
     }
+
+    // MARK: - Video Search Helpers
+
+    private func isVideoSearchRequest(_ value: String) -> Bool {
+        return value.hasPrefix("SEARCH_VIDEO:")
+    }
+
+    private func handleVideoSearchRequest(_ suggestion: NetworkService.FollowUpSuggestion) {
+        // value format: "SEARCH_VIDEO:<query>"
+        let query = suggestion.value.replacingOccurrences(of: "SEARCH_VIDEO:", with: "").trimmingCharacters(in: .whitespaces)
+        guard !query.isEmpty else { return }
+        Task {
+            await viewModel.searchVideo(query: query)
+        }
+    }
 }
 
 // MARK: - Modern Message Components (ChatGPT Style)
+
+// MARK: - Video Result Card
+
+struct VideoResultCard: View {
+    let videos: [VideoSearchResult]
+    @StateObject private var themeManager = ThemeManager.shared
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(NSLocalizedString("chat.video.results_header", value: "Educational Videos", comment: ""))
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(.secondary)
+
+            ForEach(videos) { video in
+                VideoRowView(video: video)
+            }
+        }
+        .padding(12)
+        .background(themeManager.cardBackground)
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
+        )
+    }
+}
+
+struct VideoRowView: View {
+    let video: VideoSearchResult
+    @StateObject private var themeManager = ThemeManager.shared
+    @State private var thumbnail: UIImage? = nil
+    @State private var isExpanded = false
+    @State private var embedBlocked = false  // true when video owner disabled embedding
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Collapsed row — thumbnail + title + buttons
+            HStack(spacing: 10) {
+                // Thumbnail (tap to expand player)
+                Button { isExpanded.toggle() } label: {
+                    Group {
+                        if let img = thumbnail {
+                            Image(uiImage: img)
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        } else {
+                            Rectangle()
+                                .fill(Color.secondary.opacity(0.15))
+                                .overlay(
+                                    Image(systemName: "play.rectangle.fill")
+                                        .foregroundColor(.secondary.opacity(0.5))
+                                        .font(.system(size: 20))
+                                )
+                        }
+                    }
+                    .frame(width: 80, height: 54)
+                    .cornerRadius(6)
+                    .clipped()
+                    .overlay(
+                        Image(systemName: isExpanded ? "chevron.down.circle.fill" : "play.circle.fill")
+                            .font(.system(size: 22))
+                            .foregroundColor(.white.opacity(0.9))
+                            .shadow(radius: 2)
+                    )
+                }
+                .buttonStyle(.plain)
+
+                // Title + channel
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(video.title)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(themeManager.primaryText)
+                        .lineLimit(2)
+
+                    HStack(spacing: 4) {
+                        if video.isEduChannel {
+                            Image(systemName: "checkmark.seal.fill")
+                                .font(.system(size: 10))
+                                .foregroundColor(Color(hex: "#7EC8E3"))
+                        }
+                        Text(video.channelTitle)
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                Spacer()
+
+                // Open in YouTube button
+                Button { openInYouTube(video) } label: {
+                    Image(systemName: "arrow.up.right.square")
+                        .font(.system(size: 16))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.vertical, 4)
+
+            // Inline player or fallback
+            if isExpanded {
+                if embedBlocked {
+                    // Embedding disabled — show friendly fallback
+                    VStack(spacing: 10) {
+                        Image(systemName: "exclamationmark.circle")
+                            .font(.system(size: 28))
+                            .foregroundColor(.secondary)
+                        Text("This video can't be played in-app.")
+                            .font(.system(size: 13))
+                            .foregroundColor(.secondary)
+                        Button("Open in YouTube") { openInYouTube(video) }
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 8)
+                            .background(Color(hex: "#FF0000").opacity(0.85))
+                            .cornerRadius(8)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 140)
+                    .background(Color.black.opacity(0.05))
+                    .cornerRadius(8)
+                    .padding(.top, 8)
+                } else {
+                    YouTubePlayerView(videoId: video.videoId) {
+                        embedBlocked = true
+                    }
+                    .frame(height: 220)
+                    .cornerRadius(8)
+                    .padding(.top, 8)
+                }
+            }
+        }
+        .task { await loadThumbnail() }
+        .animation(.easeInOut(duration: 0.25), value: isExpanded)
+        .animation(.easeInOut(duration: 0.2), value: embedBlocked)
+    }
+
+    private func openInYouTube(_ video: VideoSearchResult) {
+        let appURL = URL(string: "youtube://\(video.videoId)")!
+        let webURL = URL(string: video.url)!
+        if UIApplication.shared.canOpenURL(appURL) {
+            UIApplication.shared.open(appURL)
+        } else {
+            UIApplication.shared.open(webURL)
+        }
+    }
+
+    private func loadThumbnail() async {
+        guard let urlString = video.thumbnail, let url = URL(string: urlString) else { return }
+        guard let (data, _) = try? await URLSession.shared.data(from: url),
+              let img = UIImage(data: data) else { return }
+        await MainActor.run { thumbnail = img }
+    }
+}
+
+// MARK: - YouTube WKWebView Player
+
+import WebKit
+
+struct YouTubePlayerView: UIViewRepresentable {
+    let videoId: String
+    let onEmbedBlocked: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(videoId: videoId, onEmbedBlocked: onEmbedBlocked)
+    }
+
+    func makeUIView(context: Context) -> WKWebView {
+        let config = WKWebViewConfiguration()
+        config.allowsInlineMediaPlayback = true
+        config.mediaTypesRequiringUserActionForPlayback = []
+
+        let webView = WKWebView(frame: .zero, configuration: config)
+        webView.scrollView.isScrollEnabled = false
+        webView.backgroundColor = .black
+        webView.isOpaque = false
+        webView.navigationDelegate = context.coordinator
+        return webView
+    }
+
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        // Guard: only load once per videoId — updateUIView fires on every SwiftUI re-render
+        // and reloading interrupts in-progress playback.
+        guard context.coordinator.loadedVideoId != videoId else { return }
+        context.coordinator.loadedVideoId = videoId
+
+        // Load the embed URL directly — avoids the JS API origin trust issue
+        // that occurs when using loadHTMLString with a fake baseURL.
+        let urlString = "https://www.youtube.com/embed/\(videoId)?playsinline=1&rel=0&modestbranding=1"
+        print("[YT-DEBUG] Loading embed URL directly: \(urlString)")
+        guard let url = URL(string: urlString) else { return }
+        webView.load(URLRequest(url: url))
+    }
+
+    class Coordinator: NSObject, WKNavigationDelegate {
+        let videoId: String
+        let onEmbedBlocked: () -> Void
+        var loadedVideoId: String? = nil
+
+        init(videoId: String, onEmbedBlocked: @escaping () -> Void) {
+            self.videoId = videoId
+            self.onEmbedBlocked = onEmbedBlocked
+        }
+
+        func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+            print("[YT-DEBUG] Navigation started: \(webView.url?.absoluteString ?? "nil")")
+        }
+
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            print("[YT-DEBUG] Navigation finished: \(webView.url?.absoluteString ?? "nil")")
+            // Check page title — YouTube sets it to "YouTube" on error pages
+            webView.evaluateJavaScript("document.title") { result, _ in
+                print("[YT-DEBUG] Page title: \(result ?? "nil")")
+            }
+            // Check if the error div is present (YouTube injects .ytp-error on blocked videos)
+            webView.evaluateJavaScript("document.querySelector('.ytp-error') !== null") { result, _ in
+                print("[YT-DEBUG] Error div present: \(result ?? "nil")")
+                if let blocked = result as? Bool, blocked {
+                    print("[YT-DEBUG] Embed blocked for videoId: \(self.videoId)")
+                    DispatchQueue.main.async { self.onEmbedBlocked() }
+                }
+            }
+        }
+
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            print("[YT-DEBUG] Navigation FAILED: \(error.localizedDescription)")
+        }
+
+        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            print("[YT-DEBUG] Provisional navigation FAILED: \(error.localizedDescription)")
+        }
+
+        // Detect redirect to youtube.com/watch (happens when embedding is disabled)
+        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+            let url = navigationAction.request.url?.absoluteString ?? ""
+            print("[YT-DEBUG] Navigation policy for: \(url)")
+            // YouTube redirects /embed/ to /watch? when embedding is blocked
+            if url.contains("youtube.com/watch") {
+                print("[YT-DEBUG] Redirected to watch URL — embed blocked for videoId: \(videoId)")
+                DispatchQueue.main.async { self.onEmbedBlocked() }
+                decisionHandler(.cancel)
+                return
+            }
+            decisionHandler(.allow)
+        }
+    }
+}
 
 // MARK: - Button Style Extensions
 
