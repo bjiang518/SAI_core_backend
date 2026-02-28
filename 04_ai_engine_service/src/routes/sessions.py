@@ -163,8 +163,8 @@ async def generate_follow_up_suggestions(ai_response: str, user_message: str, su
             video_instruction = (
                 "第4条建议必须是搜索视频，key为\"搜索视频\"，"
                 "value为最佳YouTube英文搜索词，格式严格为：SEARCH_VIDEO:<搜索词>。"
-                "搜索词应简洁精准，直接描述话题，不需要加频道名。"
-                "例如：SEARCH_VIDEO:mitosis cell division explained"
+                "搜索词只能是话题关键词，绝对不能包含任何频道名（如Khan Academy、CrashCourse等）。"
+                "例如：SEARCH_VIDEO:Newton laws of motion tutorial"
             )
         else:
             language_instruction = (
@@ -179,8 +179,10 @@ async def generate_follow_up_suggestions(ai_response: str, user_message: str, su
             video_instruction = (
                 "Suggestion 4 MUST ALWAYS be a video search, no exceptions. "
                 "Use key \"Find Video\" and value in this exact format: SEARCH_VIDEO:<query>. "
-                "The query should be concise and topic-focused — no channel name needed. "
-                "Example: SEARCH_VIDEO:mitosis cell division explained"
+                "The query must be topic keywords ONLY — do NOT include any channel name, "
+                "do NOT include 'Khan Academy', 'CrashCourse', or any other channel. "
+                "Just describe the topic clearly. "
+                "Example: SEARCH_VIDEO:Newton laws of motion tutorial"
             )
 
         # Build recent conversation context from prior messages (last 3 turns)
@@ -219,7 +221,7 @@ Format as JSON array of exactly 4 items:
   {{"key": "Short label (2-4 words)", "value": "Full question"}},
   {{"key": "Short label (2-4 words)", "value": "Full question"}},
   {{"key": "Short label (2-4 words)", "value": "Full question or diagram description"}},
-  {{"key": "Find Video", "value": "SEARCH_VIDEO:<channel name> <specific topic>"}}
+  {{"key": "Find Video", "value": "SEARCH_VIDEO:<topic keywords only, no channel name>"}}
 ]
 
 Return ONLY the JSON array, no other text."""
