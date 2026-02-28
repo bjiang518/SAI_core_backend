@@ -163,8 +163,8 @@ async def generate_follow_up_suggestions(ai_response: str, user_message: str, su
             video_instruction = (
                 "第4条建议必须是搜索视频，key为\"搜索视频\"，"
                 "value为最佳YouTube英文搜索词，格式严格为：SEARCH_VIDEO:<搜索词>。"
-                "搜索词必须包含一个频道名（如CrashCourse、TED-Ed、3Blue1Brown、Veritasium）加上具体话题。"
-                "例如：SEARCH_VIDEO:CrashCourse mitosis cell division"
+                "搜索词应简洁精准，直接描述话题，不需要加频道名。"
+                "例如：SEARCH_VIDEO:mitosis cell division explained"
             )
         else:
             language_instruction = (
@@ -179,9 +179,8 @@ async def generate_follow_up_suggestions(ai_response: str, user_message: str, su
             video_instruction = (
                 "Suggestion 4 MUST ALWAYS be a video search, no exceptions. "
                 "Use key \"Find Video\" and value in this exact format: SEARCH_VIDEO:<query>. "
-                "The query MUST start with a channel name (CrashCourse, TED-Ed, 3Blue1Brown, "
-                "Veritasium, The Organic Chemistry Tutor, or Numberphile) followed by the specific topic. "
-                "Example: SEARCH_VIDEO:CrashCourse mitosis cell division"
+                "The query should be concise and topic-focused — no channel name needed. "
+                "Example: SEARCH_VIDEO:mitosis cell division explained"
             )
 
         # Build recent conversation context from prior messages (last 3 turns)
