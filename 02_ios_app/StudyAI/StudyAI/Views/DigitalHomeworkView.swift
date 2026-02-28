@@ -258,15 +258,11 @@ struct DigitalHomeworkView: View {
     private var previewScrollMode: some View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
-                // 上方 1/3: 缩略图区域 (可隐藏)
-                if viewModel.showImagePreview {
-                    thumbnailSection
-                        .frame(height: geometry.size.height * 0.33)
-                        .background(Color(.systemGroupedBackground))
-                        .transition(.move(edge: .top).combined(with: .opacity))
+                // Annotation section: always visible, collapsible
+                annotationCollapsibleSection(geometry: geometry)
+                    .background(Color(.systemGroupedBackground))
 
-                    Divider()
-                }
+                Divider()
 
                 // 题目列表区域 (动态高度，包含底部卡片) - 可滚动
                 ScrollViewReader { scrollProxy in
@@ -399,7 +395,13 @@ struct DigitalHomeworkView: View {
                         }
                     }
                 }
-                .frame(height: viewModel.showImagePreview ? geometry.size.height * 0.67 : geometry.size.height)
+                .frame(height: geometry.size.height - (viewModel.isAnnotationSectionExpanded ? geometry.size.height * 0.33 : 44) - 1)
+            }
+            .onAppear {
+                // Default: expanded if any question needs an image, collapsed otherwise
+                if !viewModel.isGrading && !viewModel.allQuestionsGraded {
+                    viewModel.isAnnotationSectionExpanded = viewModel.anyQuestionNeedsImage
+                }
             }
         }
     }
@@ -885,6 +887,69 @@ struct DigitalHomeworkView: View {
                 croppedImages: viewModel.croppedImages
             )
         }
+    }
+
+    // MARK: - Annotation Collapsible Section
+
+    private func annotationCollapsibleSection(geometry: GeometryProxy) -> some View {
+        let collapsedHeight: CGFloat = 44
+        let expandedHeight = geometry.size.height * 0.33
+
+        return VStack(spacing: 0) {
+            // Header row — always visible; tap to expand/collapse
+            Button(action: {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                    viewModel.isAnnotationSectionExpanded.toggle()
+                }
+            }) {
+                HStack(spacing: 10) {
+                    Image(systemName: "photo.on.rectangle.angled")
+                        .font(.system(size: 15))
+                        .foregroundColor(.blue)
+
+                    Text(viewModel.annotations.isEmpty
+                        ? NSLocalizedString("proMode.addAnnotation", comment: "Add Annotation")
+                        : String(format: NSLocalizedString("proMode.editAnnotations", comment: ""), viewModel.annotations.count))
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.primary)
+
+                    Spacer()
+
+                    if !viewModel.annotations.isEmpty {
+                        Text("\(viewModel.annotations.count)")
+                            .font(.caption2)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 3)
+                            .background(Color.blue)
+                            .cornerRadius(8)
+                    } else if viewModel.anyQuestionNeedsImage {
+                        Image(systemName: "exclamationmark.circle.fill")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
+
+                    Image(systemName: viewModel.isAnnotationSectionExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.secondary)
+                }
+                .frame(height: collapsedHeight)
+                .padding(.horizontal, 16)
+            }
+            .buttonStyle(.plain)
+
+            // Expanded image + annotation button
+            if viewModel.isAnnotationSectionExpanded {
+                thumbnailSection
+                    .frame(height: expandedHeight - collapsedHeight)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .frame(height: viewModel.isAnnotationSectionExpanded ? expandedHeight : collapsedHeight, alignment: .top)
+        .clipped()
+        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.isAnnotationSectionExpanded)
     }
 
     // MARK: - Thumbnail Section (缩略图)

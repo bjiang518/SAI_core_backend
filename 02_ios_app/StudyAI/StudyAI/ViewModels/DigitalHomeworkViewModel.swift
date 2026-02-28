@@ -36,6 +36,7 @@ class DigitalHomeworkViewModel: ObservableObject {
     @Published var showAnnotationMode = false
     @Published var showImageInFullScreen = false
     @Published var showImagePreview = true  // 控制图片预览显示
+    @Published var isAnnotationSectionExpanded: Bool = false  // Fold/unfold annotation panel
 
     // Archive selection mode
     @Published var isArchiveMode = false
@@ -700,9 +701,9 @@ class DigitalHomeworkViewModel: ObservableObject {
     func startGrading() async {
         logger.info("Starting AI grading: model=\(selectedAIModel), deepReasoning=\(useDeepReasoning), questions=\(questions.count)")
 
-        // 隐藏图片预览（触发向上飞走动画）
+        // Fold annotation panel when grading starts
         withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-            showImagePreview = false
+            isAnnotationSectionExpanded = false
         }
 
         isGrading = true

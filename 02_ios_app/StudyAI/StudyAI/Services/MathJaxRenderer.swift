@@ -327,8 +327,26 @@ public struct FullLaTeXText: View {
         self.isStreaming = isStreaming
     }
 
+    /// Returns true if content contains any LaTeX math markers.
+    /// If false, a plain Text() is used instead — no WKWebView spawned.
+    private var containsLatex: Bool {
+        content.contains("$") ||
+        content.contains("\\[") ||
+        content.contains("\\(") ||
+        content.contains("\\frac") ||
+        content.contains("\\sqrt") ||
+        content.contains("\\sum")
+    }
+
     public var body: some View {
-        MathContentView(content: content, fontSize: fontSize, isStreaming: isStreaming)
+        if containsLatex {
+            MathContentView(content: content, fontSize: fontSize, isStreaming: isStreaming)
+        } else {
+            Text(content)
+                .font(.system(size: fontSize))
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 }
 
@@ -344,8 +362,26 @@ public struct MarkdownLaTeXText: View {
         self.isStreaming = isStreaming
     }
 
+    private var containsLatexOrMarkdown: Bool {
+        content.contains("$") ||
+        content.contains("\\[") ||
+        content.contains("\\(") ||
+        content.contains("\\frac") ||
+        content.contains("\\sqrt") ||
+        content.contains("**") ||
+        content.contains("##") ||
+        content.contains("- ")
+    }
+
     public var body: some View {
-        MathContentView(content: content, fontSize: fontSize, isStreaming: isStreaming)
+        if containsLatexOrMarkdown {
+            MathContentView(content: content, fontSize: fontSize, isStreaming: isStreaming)
+        } else {
+            Text(content)
+                .font(.system(size: fontSize))
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 }
 

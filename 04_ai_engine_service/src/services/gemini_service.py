@@ -72,7 +72,7 @@ class GeminiEducationalAIService:
             if genai:
                 logger.debug("📱 Using NEW Gemini API: from google import genai")
                 # Initialize client
-                self.gemini_client = genai.Client(api_key=api_key)
+                self.gemini_client = genai.Client(api_key=api_key, http_options={'api_version': 'v1alpha'})
 
                 # Model names (NEW API uses different naming)
                 # - gemini-2.5-flash: Fast parsing AND standard grading (optimized for speed)
@@ -175,8 +175,8 @@ class GeminiEducationalAIService:
                 media_resolution="MEDIA_RESOLUTION_MEDIUM",
             )
 
-            # Call Gemini API (NEW API only)
-            response = self.client.models.generate_content(
+            # Call Gemini API (async)
+            response = await self.client.aio.models.generate_content(
                 model=self.model_name,
                 contents=[image, system_prompt],  # Image FIRST, then prompt
                 config=generation_config
@@ -351,18 +351,16 @@ class GeminiEducationalAIService:
             timeout = 60  # Default timeout for standard grading
 
             if use_deep_reasoning:
-                # GEMINI 3 DEEP REASONING MODE
-                # Uses gemini-3-flash-preview for advanced reasoning
-                # CRITICAL: Gemini 3 docs recommend using default temperature (1.0) for reasoning
-                # NOTE: thinking_level parameter requires v1alpha API, not available in stable SDK yet
-                generation_config = {
-                    "max_output_tokens": 4096,  # Extended tokens for deep reasoning with step-by-step solution
-                    "candidate_count": 1,
-                    "response_mime_type": "application/json"  # Force JSON output
-                    # NO temperature - Gemini 3 uses default 1.0 for optimal reasoning
-                    # thinking_level not supported in current SDK version
-                }
-                timeout = 100  # Extended timeout for Gemini 3 thinking model processing
+                # GEMINI 3 DEEP REASONING MODE — async API + ThinkingConfig
+                from google.genai import types
+                generation_config = types.GenerateContentConfig(
+                    thinking_config=types.ThinkingConfig(thinking_budget=8192),
+                    max_output_tokens=4096,
+                    candidate_count=1,
+                    response_mime_type="application/json"
+                    # No temperature — Gemini thinking mode requires default 1.0
+                )
+                timeout = 100  # Extended timeout for deep reasoning
             else:
                 # GEMINI 2.5 STANDARD GRADING MODE
                 # Uses gemini-2.5-flash model for quick grading (1.5-3s per question)
@@ -376,58 +374,72 @@ class GeminiEducationalAIService:
                 }
                 timeout = 30  # Fast timeout for Flash model
 
-            # Call Gemini API (NEW API only) with fallback on 503 errors
+            # Call Gemini API
             response = None
             fallback_attempted = False
 
-            try:
-                # NEW API: client.models.generate_content(model="...", contents=...)
-                # Note: NEW API doesn't support timeout in config, use concurrent.futures for timeout control
-                import concurrent.futures
-
-                def _call_gemini():
-                    return selected_client.models.generate_content(
+            if use_deep_reasoning:
+                # Deep mode: native async (no thread pool needed)
+                try:
+                    response = await self.client.aio.models.generate_content(
                         model=model_name,
                         contents=content,
                         config=generation_config
                     )
-
-                # Execute with timeout using ThreadPoolExecutor
-                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                    future = executor.submit(_call_gemini)
-                    try:
-                        response = future.result(timeout=timeout)
-                    except concurrent.futures.TimeoutError:
-                        raise Exception(f"Gemini API timeout after {timeout}s. Try reducing homework size or using a different model.")
-            except Exception as e:
-                # Check if it's a 503 error (model overloaded/unavailable)
-                if "503" in str(e) or "UNAVAILABLE" in str(e) or "overloaded" in str(e):
-                    logger.debug(f"⚠️ Model {model_name} unavailable (503), falling back to gemini-2.5-flash...")
-                    fallback_attempted = True
-
-                    # Fallback to gemini-2.5-flash (fast and reliable)
-                    fallback_model = "gemini-2.5-flash"
-
-                    # NEW API with timeout wrapper
+                except Exception as e:
+                    if "503" in str(e) or "UNAVAILABLE" in str(e) or "overloaded" in str(e):
+                        logger.debug(f"⚠️ Model {model_name} unavailable (503), falling back to gemini-2.5-flash...")
+                        fallback_attempted = True
+                        response = await self.client.aio.models.generate_content(
+                            model="gemini-2.5-flash",
+                            contents=content,
+                            config=generation_config
+                        )
+                        logger.debug(f"✅ Fallback to gemini-2.5-flash successful")
+                    else:
+                        raise
+            else:
+                # Standard mode: existing synchronous wrapper (unchanged)
+                try:
                     import concurrent.futures
 
-                    def _call_gemini_fallback():
+                    def _call_gemini():
                         return selected_client.models.generate_content(
-                            model=fallback_model,
+                            model=model_name,
                             contents=content,
                             config=generation_config
                         )
 
                     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                        future = executor.submit(_call_gemini_fallback)
+                        future = executor.submit(_call_gemini)
                         try:
                             response = future.result(timeout=timeout)
                         except concurrent.futures.TimeoutError:
-                            raise Exception(f"Gemini fallback API timeout after {timeout}s")
-                    logger.debug(f"✅ Fallback to {fallback_model} successful")
-                else:
-                    # Re-raise other errors
-                    raise
+                            raise Exception(f"Gemini API timeout after {timeout}s. Try reducing homework size or using a different model.")
+                except Exception as e:
+                    if "503" in str(e) or "UNAVAILABLE" in str(e) or "overloaded" in str(e):
+                        logger.debug(f"⚠️ Model {model_name} unavailable (503), falling back to gemini-2.5-flash...")
+                        fallback_attempted = True
+                        fallback_model = "gemini-2.5-flash"
+
+                        import concurrent.futures
+
+                        def _call_gemini_fallback():
+                            return selected_client.models.generate_content(
+                                model=fallback_model,
+                                contents=content,
+                                config=generation_config
+                            )
+
+                        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                            future = executor.submit(_call_gemini_fallback)
+                            try:
+                                response = future.result(timeout=timeout)
+                            except concurrent.futures.TimeoutError:
+                                raise Exception(f"Gemini fallback API timeout after {timeout}s")
+                        logger.debug(f"✅ Fallback to {fallback_model} successful")
+                    else:
+                        raise
 
             api_duration = time.time() - start_time
             if fallback_attempted:
@@ -436,6 +448,9 @@ class GeminiEducationalAIService:
                 logger.debug(f"✅ Grading completed in {api_duration:.2f}s")
 
             # Check finish_reason for token limit issues BEFORE extracting text
+            _log_max_tokens = (getattr(generation_config, 'max_output_tokens', None)
+                               if hasattr(generation_config, 'max_output_tokens')
+                               else generation_config.get('max_output_tokens', 'unknown'))
             if response.candidates and len(response.candidates) > 0:
                 finish_reason = response.candidates[0].finish_reason
                 finish_reason_str = str(finish_reason)
@@ -443,7 +458,7 @@ class GeminiEducationalAIService:
 
                 # Log response metadata for debugging
                 logger.debug(f"   📊 Model used: {model_name}")
-                logger.debug(f"   📊 Max output tokens configured: {generation_config.get('max_output_tokens', 'unknown')}")
+                logger.debug(f"   📊 Max output tokens configured: {_log_max_tokens}")
                 logger.debug(f"   📊 Response candidates count: {len(response.candidates)}")
 
                 # Check for MAX_TOKENS error (NEW API uses enum, not int)
@@ -451,11 +466,11 @@ class GeminiEducationalAIService:
                 # FinishReason enum: FINISH_REASON_UNSPECIFIED=0, STOP=1, MAX_TOKENS=2, SAFETY=3, RECITATION=4, OTHER=5
                 if "MAX_TOKENS" in finish_reason_str or finish_reason == 2:  # ⚠️ FIXED: MAX_TOKENS = 2, not 3
                     logger.debug(f"⚠️ WARNING: Grading response hit MAX_TOKENS limit!")
-                    logger.debug(f"   Current max_output_tokens: {generation_config.get('max_output_tokens', 'unknown')}")
+                    logger.debug(f"   Current max_output_tokens: {_log_max_tokens}")
                     logger.debug(f"   Question text length: {len(question_text)} chars")
                     logger.debug(f"   Student answer length: {len(student_answer)} chars")
                     logger.debug(f"   Finish reason: {finish_reason} / {finish_reason_str}")
-                    logger.debug(f"   Consider: 1) Increase max_output_tokens (currently {generation_config.get('max_output_tokens', 'N/A')})")
+                    logger.debug(f"   Consider: 1) Increase max_output_tokens (currently {_log_max_tokens})")
                     logger.debug(f"            2) Simplify grading prompt")
 
                     # Try to extract partial response for debugging
@@ -467,7 +482,7 @@ class GeminiEducationalAIService:
 
                     return {
                         "success": False,
-                        "error": f"Token limit (finish_reason={finish_reason}/{finish_reason_str}, max_tokens={generation_config.get('max_output_tokens', 'N/A')}). Model: {model_name}"
+                        "error": f"Token limit (finish_reason={finish_reason}/{finish_reason_str}, max_tokens={_log_max_tokens}). Model: {model_name}"
                     }
                 elif finish_reason == 3:  # SAFETY
                     logger.debug(f"⚠️ Response blocked by SAFETY filter")
