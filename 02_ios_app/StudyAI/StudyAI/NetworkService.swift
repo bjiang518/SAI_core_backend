@@ -2777,12 +2777,10 @@ class NetworkService: ObservableObject {
         parsingMode: String = "standard",
         skipBboxDetection: Bool = false,
         expectedQuestions: [Int]? = nil,
-        modelProvider: String = "openai",  // NEW: AI model selection (openai/gemini)
-        subject: String? = nil  // NEW: Subject-specific parsing rules (Math, Physics, etc.)
+        subject: String? = nil
     ) async throws -> ParseHomeworkQuestionsResponse {
         print("📝 === PHASE 1: PARSING HOMEWORK QUESTIONS ===")
         print("🔧 Mode: \(parsingMode)")
-        print("🤖 AI Model: \(modelProvider)")
         if let subj = subject {
             print("📚 Subject: \(subj)")
         }
@@ -2808,8 +2806,7 @@ class NetworkService: ObservableObject {
 
         var requestData: [String: Any] = [
             "base64_image": base64Image,
-            "parsing_mode": parsingMode,
-            "model_provider": modelProvider  // NEW: Pass selected AI model
+            "parsing_mode": parsingMode
         ]
 
         // Add Pro Mode parameters if provided
@@ -2918,7 +2915,6 @@ class NetworkService: ObservableObject {
     func parseHomeworkQuestionsBatch(
         base64Images: [String],
         parsingMode: String = "standard",
-        modelProvider: String = "openai",
         subject: String? = nil
     ) async throws -> ParseHomeworkQuestionsResponse {
         guard base64Images.count >= 2 else {
@@ -2927,7 +2923,6 @@ class NetworkService: ObservableObject {
 
         print("📝 === PHASE 1: BATCH PARSING (\(base64Images.count) PAGES) ===")
         print("🔧 Mode: \(parsingMode)")
-        print("🤖 AI Model: \(modelProvider)")
         if let subj = subject {
             print("📚 Subject: \(subj)")
         }
@@ -2947,8 +2942,7 @@ class NetworkService: ObservableObject {
 
         var requestData: [String: Any] = [
             "base64_images": base64Images,
-            "parsing_mode": parsingMode,
-            "model_provider": modelProvider
+            "parsing_mode": parsingMode
         ]
 
         if let subj = subject {
@@ -3055,11 +3049,10 @@ class NetworkService: ObservableObject {
         questionText: String,
         studentAnswer: String,
         subject: String?,
-        questionType: String? = nil,  // NEW: Question type for specialized grading (e.g., "multiple_choice", "calculation")
+        questionType: String? = nil,
         contextImageBase64: String? = nil,
-        parentQuestionContent: String? = nil,  // NEW: Parent question context for subquestions
-        useDeepReasoning: Bool = false,
-        modelProvider: String = "gemini"  // NEW: "openai" or "gemini"
+        parentQuestionContent: String? = nil,
+        useDeepReasoning: Bool = false
     ) async throws -> GradeSingleQuestionResponse {
 
         guard let url = URL(string: "\(baseURL)/api/ai/grade-question") else {
@@ -3071,9 +3064,8 @@ class NetworkService: ObservableObject {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        // Increase timeout for grading - Pro Mode needs sufficient time
-        // Standard: 90s (gemini-2.5-flash: 1.5-3s/question + network latency)
-        // Deep reasoning: 120s (extended thinking mode)
+        // deep → Gemini (120s), normal → OpenAI (90s)
+        let modelProvider = useDeepReasoning ? "gemini" : "openai"
         request.timeoutInterval = useDeepReasoning ? 120.0 : 90.0
 
         // Add auth token if available
@@ -3676,6 +3668,42 @@ class NetworkService: ObservableObject {
     /// 2. Save to local storage IMMEDIATELY so the Library shows the entry right away
     /// 3. Fire backend AI analysis in the background (doesn't block the caller)
     /// 4. Patch the local record with summary + behavior insights once analysis returns
+
+    // MARK: - Video Search
+
+    /// Search YouTube for educational videos matching a query.
+    /// Returns up to `maxResults` results, prioritising whitelisted edu channels.
+    func searchVideo(query: String, maxResults: Int = 3) async -> VideoSearchResponse {
+        guard AuthenticationService.shared.getAuthToken() != nil else {
+            return VideoSearchResponse(success: false, videos: nil, error: "Authentication required")
+        }
+
+        guard let url = URL(string: "\(baseURL)/api/ai/search-video") else {
+            return VideoSearchResponse(success: false, videos: nil, error: "Invalid URL")
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 15.0
+        addAuthHeader(to: &request)
+
+        let body: [String: Any] = ["query": query, "max_results": maxResults]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let http = response as? HTTPURLResponse, http.statusCode != 200 {
+                logger.error("Video search HTTP \(http.statusCode)")
+                return VideoSearchResponse(success: false, videos: nil, error: "Server error \(http.statusCode)")
+            }
+            return try JSONDecoder().decode(VideoSearchResponse.self, from: data)
+        } catch {
+            logger.error("Video search error: \(error.localizedDescription)")
+            return VideoSearchResponse(success: false, videos: nil, error: error.localizedDescription)
+        }
+    }
+
     func archiveSession(sessionId: String, title: String? = nil, topic: String? = nil, subject: String? = nil, notes: String? = nil, diagrams: [String: DiagramGenerationResponse]? = nil, liveConversationContent: String? = nil, voiceAudioFiles: [String: String]? = nil) async -> (success: Bool, message: String, conversation: [String: Any]?) {
         print("📦 === ARCHIVE CONVERSATION SESSION (local-first) ===")
         print("📁 Session ID: \(sessionId)")
@@ -5511,6 +5539,39 @@ class NetworkService: ObservableObject {
             return (false, "Network error: \(error.localizedDescription)")
         }
     }
+}
+
+// MARK: - Video Search Models
+
+struct VideoSearchResult: Codable, Identifiable {
+    let videoId: String
+    let title: String
+    let channelTitle: String
+    let thumbnail: String?
+    let url: String
+    let isEduChannel: Bool
+
+    var id: String { videoId }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        videoId = try c.decode(String.self, forKey: .videoId)
+        title = try c.decode(String.self, forKey: .title)
+        channelTitle = try c.decode(String.self, forKey: .channelTitle)
+        thumbnail = try c.decodeIfPresent(String.self, forKey: .thumbnail)
+        url = try c.decode(String.self, forKey: .url)
+        isEduChannel = try c.decodeIfPresent(Bool.self, forKey: .isEduChannel) ?? false
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case videoId, title, channelTitle, thumbnail, url, isEduChannel
+    }
+}
+
+struct VideoSearchResponse: Codable {
+    let success: Bool
+    let videos: [VideoSearchResult]?
+    let error: String?
 }
 
 // MARK: - Weakness Description Models
