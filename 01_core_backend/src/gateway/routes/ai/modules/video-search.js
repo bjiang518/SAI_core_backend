@@ -23,7 +23,8 @@ const EDU_CHANNEL_IDS = new Set([
   'UCVUYXSnm0RYUKwXsEBXYoZg', // Amoeba Sisters (biology)
 ]);
 
-const YOUTUBE_API_BASE = 'https://www.googleapis.com/youtube/v3/search';
+const YOUTUBE_SEARCH_BASE = 'https://www.googleapis.com/youtube/v3/search';
+const YOUTUBE_VIDEOS_BASE = 'https://www.googleapis.com/youtube/v3/videos';
 
 /**
  * Decode HTML entities in a string (e.g. &amp; -> &, &#39; -> ')
@@ -48,13 +49,13 @@ function youtubeSearch(query, apiKey, maxFetch = 15) {
       q: query,
       type: 'video',
       videoDuration: 'medium',     // 4–20 min — best for educational content
-      videoEmbeddable: 'true',
+      videoEmbeddable: 'true',     // advisory pre-filter (not definitive)
       relevanceLanguage: 'en',
       maxResults: String(maxFetch),
       key: apiKey,
     });
 
-    const url = `${YOUTUBE_API_BASE}?${params.toString()}`;
+    const url = `${YOUTUBE_SEARCH_BASE}?${params.toString()}`;
 
     https.get(url, (res) => {
       let body = '';
@@ -72,6 +73,49 @@ function youtubeSearch(query, apiKey, maxFetch = 15) {
         }
       });
     }).on('error', reject);
+  });
+}
+
+/**
+ * Call YouTube Data API v3 videos.list to check status.embeddable.
+ * Returns a Set of video IDs that are confirmed embeddable.
+ * This is the definitive check — search.list's videoEmbeddable filter is unreliable.
+ */
+function checkEmbeddable(videoIds, apiKey) {
+  return new Promise((resolve) => {
+    if (videoIds.length === 0) {
+      resolve(new Set());
+      return;
+    }
+    const params = new URLSearchParams({
+      part: 'status',
+      id: videoIds.join(','),
+      key: apiKey,
+    });
+    const url = `${YOUTUBE_VIDEOS_BASE}?${params.toString()}`;
+
+    https.get(url, (res) => {
+      let body = '';
+      res.on('data', chunk => { body += chunk; });
+      res.on('end', () => {
+        try {
+          const data = JSON.parse(body);
+          const embeddable = new Set();
+          for (const item of (data.items || [])) {
+            if (item.status?.embeddable === true) {
+              embeddable.add(item.id);
+            }
+          }
+          resolve(embeddable);
+        } catch (e) {
+          // On parse error, allow all (degrade gracefully, fallback still catches bad ones)
+          resolve(new Set(videoIds));
+        }
+      });
+    }).on('error', () => {
+      // On network error, allow all (degrade gracefully)
+      resolve(new Set(videoIds));
+    });
   });
 }
 
@@ -120,7 +164,7 @@ class VideoSearchRoutes {
       this.fastify.log.info(`🎬 Video search: "${query}" (user=${userId})`);
 
       // Fetch more than needed so filtering doesn't leave us empty
-      const data = await youtubeSearch(query.trim(), apiKey, max_results * 4);
+      const data = await youtubeSearch(query.trim(), apiKey, max_results * 5);
 
       const items = data.items || [];
 
@@ -155,9 +199,16 @@ class VideoSearchRoutes {
 
       // Prefer edu results; only fall back to open web if edu results are sparse
       const combined = [...eduResults, ...otherResults];
-      const videos = combined.slice(0, max_results);
 
-      this.fastify.log.info(`🎬 Found ${eduResults.length} edu + ${otherResults.length} other results, returning ${videos.length}`);
+      // Definitive embeddability check via videos.list?part=status.
+      // search.list videoEmbeddable=true is advisory and often wrong.
+      const allVideoIds = combined.map(v => v.videoId);
+      const embeddableIds = await checkEmbeddable(allVideoIds, apiKey);
+      const embeddable = combined.filter(v => embeddableIds.has(v.videoId));
+
+      const videos = embeddable.slice(0, max_results);
+
+      this.fastify.log.info(`🎬 Found ${eduResults.length} edu + ${otherResults.length} other, ${embeddableIds.size}/${allVideoIds.length} embeddable, returning ${videos.length}`);
 
       return { success: true, videos };
 
