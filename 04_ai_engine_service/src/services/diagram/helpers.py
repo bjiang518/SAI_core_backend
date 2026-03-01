@@ -6,12 +6,6 @@ import json as _json
 import re
 from typing import Dict, Optional
 
-# PRODUCTION: Structured logging
-from ..logger import setup_logger
-
-# Initialize logger
-logger = setup_logger(__name__)
-
 
 def extract_json_from_responses(response):
     """
@@ -21,100 +15,58 @@ def extract_json_from_responses(response):
     - SDK 1.x (>=1.50.0): Uses response.output_parsed
     - SDK 2.x (>=2.0.0): Extracts from response.output[*].content[*].json
 
-    ✅ SALVAGE MODE: Prefers output_json but will salvage valid JSON from output_text.
+    SALVAGE MODE: Prefers output_json but will salvage valid JSON from output_text.
     SDK 2.x sometimes wraps valid JSON as output_text - we validate and extract it.
-    Validates all required keys and types before accepting salvaged JSON.
     """
-    # Required keys and valid types for diagram schema
     REQUIRED_KEYS = {"type", "content", "title", "explanation", "width", "height"}
     VALID_TYPES = {"matplotlib", "svg", "latex", "graphviz"}
 
     def validate_diagram_json(obj):
-        """Validate diagram JSON has all required keys with correct types."""
         if not isinstance(obj, dict):
             return False
-
-        # Check all required keys present
         if not REQUIRED_KEYS.issubset(obj.keys()):
-            missing = REQUIRED_KEYS - obj.keys()
-            logger.debug(f"⚠️ Missing required keys: {missing}")
             return False
-
-        # Validate types
         if obj["type"] not in VALID_TYPES:
-            logger.debug(f"⚠️ Invalid type: {obj['type']} (must be one of {VALID_TYPES})")
             return False
-
         if not isinstance(obj["content"], str) or len(obj["content"]) == 0:
-            logger.debug(f"⚠️ content must be non-empty string")
             return False
-
         if not isinstance(obj["width"], int) or not (200 <= obj["width"] <= 4096):
-            logger.debug(f"⚠️ width must be int in range [200, 4096]")
             return False
-
         if not isinstance(obj["height"], int) or not (200 <= obj["height"] <= 4096):
-            logger.debug(f"⚠️ height must be int in range [200, 4096]")
             return False
-
         return True
 
-    # 1.x path: output_parsed is available
+    # SDK 1.x path
     if hasattr(response, "output_parsed") and response.output_parsed is not None:
-        logger.debug("✅ Using output_parsed (SDK 1.x >=1.50.0)")
         return response.output_parsed
 
-    # 2.x path: walk output blocks and find json content
+    # SDK 2.x path
     if hasattr(response, "output") and response.output:
-        logger.debug("⚠️ output_parsed not available, walking output blocks (SDK 2.x)")
         for item in response.output:
-            # item.content is usually a list of content parts
             content = getattr(item, "content", None)
             if not content:
                 continue
             for part in content:
-                # In schema mode (SDK 2.x), this is usually "output_json" or "json"
                 part_type = getattr(part, "type", None)
 
-                # ✅ PRIORITY: Accept proper schema output (output_json or json)
                 if part_type in ("output_json", "json"):
-                    # SDK 2.x: access part.json directly (already parsed dict)
                     if hasattr(part, "json"):
-                        result = part.json
-                        logger.debug(f"✅ Extracted from part.json (type={part_type})")
-                        return result
+                        return part.json
 
-                # ✅ SALVAGE: Try to parse JSON from output_text before rejecting
-                # SDK 2.x sometimes wraps valid JSON as output_text instead of output_json
                 if part_type in ("output_text", "text") and hasattr(part, "text"):
                     text = part.text.strip()
-
-                    # Handle leading/trailing junk: find first { and last }
                     first_brace = text.find("{")
                     last_brace = text.rfind("}")
-
                     if first_brace != -1 and last_brace != -1 and first_brace < last_brace:
                         json_candidate = text[first_brace:last_brace+1]
                         try:
                             obj = _json.loads(json_candidate)
-
-                            # Validate it has all required diagram schema keys with correct types
                             if validate_diagram_json(obj):
-                                logger.debug(f"✅ Salvaged valid JSON from {part_type} block (SDK 2.x behavior)")
-                                if first_brace > 0 or last_brace < len(text) - 1:
-                                    logger.debug(f"   (stripped {first_brace} leading + {len(text)-last_brace-1} trailing chars)")
                                 return obj
-                            else:
-                                logger.debug(f"❌ Salvaged JSON failed validation")
-                        except _json.JSONDecodeError as e:
-                            logger.debug(f"⚠️ Found braces but invalid JSON: {e}")
-                            pass  # Not valid JSON, continue to error
-
-                    # If we get here, it's truly non-JSON text (preamble/explanation)
-                    logger.debug(f"❌ Schema violation: Received {part_type} block with non-JSON content")
+                        except _json.JSONDecodeError:
+                            pass
                     raise ValueError(f"Schema mode failed: received {part_type} block instead of output_json")
 
-    # If we reach here, schema was not respected - raise error to trigger fallback
     raise ValueError("Schema output missing (no output_json block found) - SDK version may be incompatible or schema not enforced")
 
 
@@ -125,23 +77,17 @@ async def generate_diagram_unified(conversation_text: str, diagram_request: str,
     Unified diagram generation: AI chooses tool AND generates code in one call.
 
     Two modes:
-    - Initial generation (regenerate=False): gpt-4o-mini, one-step, fast (optimized for speed)
-    - Regeneration (regenerate=True): o4-mini, two-step reasoning (optimized for quality)
+    - Initial generation (regenerate=False): gpt-5.2, one-step
+    - Regeneration (regenerate=True): gpt-5.2, quality-focused
 
-    Returns structured output: {"type": "matplotlib|svg|graphviz|latex", "content": "...", "reasoning": "..."}
+    Returns structured output: {"type": "matplotlib|svg|graphviz|latex", "content": "..."}
     """
-    # Language-specific instructions for explanations (NOT for diagram code)
     explanation_language_map = {
         'en': 'English',
         'zh-Hans': '简体中文 (Simplified Chinese)',
         'zh-Hant': '繁體中文 (Traditional Chinese)'
     }
-
     explanation_lang = explanation_language_map.get(language, 'English')
-
-    # ✅ FIX: Use SAME prompt structure for both modes (no reasoning requirement)
-    # Only difference: regenerate=True uses o4-mini for better quality
-    # Both use Responses API with strict schema (no reasoning field - avoids schema violations)
 
     prompt = f"""You are an expert educational diagram generator.
 
@@ -187,8 +133,6 @@ async def generate_diagram_unified(conversation_text: str, diagram_request: str,
 **Required JSON keys**: type, content, title, explanation, width, height"""
 
     try:
-        # ✅ FIX: Define strict JSON schema WITHOUT reasoning field
-        # Same schema for both generation and regeneration (no reasoning = no schema violations)
         diagram_schema = {
             "type": "object",
             "properties": {
@@ -229,99 +173,54 @@ async def generate_diagram_unified(conversation_text: str, diagram_request: str,
             "additionalProperties": False
         }
 
-        # Choose model and parameters based on regeneration mode
         has_responses_api = hasattr(ai_service.client, 'responses')
+        model = "gpt-5.2"
 
         if regenerate:
-            # ✅ GPT-5.2 REGENERATION PATH (quality-focused)
-            model = "gpt-5.2"
-            max_completion_tokens = 1500
-            logger.debug(f"🤖 Using model: {model} (regenerate=True, quality-focused)")
-
-            # Required keys for validation
             REQUIRED_KEYS = {"type", "content", "title", "explanation", "width", "height"}
 
             def is_valid_response(text: str) -> tuple[bool, str]:
-                """
-                Validate o4-mini response is usable.
-                Returns: (is_valid, error_message)
-                """
-                # Check empty/whitespace
                 if not text or text.strip() == "":
                     return False, "empty or whitespace-only"
-
-                # Check null
                 if text.strip().lower() == "null":
                     return False, "returned 'null'"
-
-                # Try to parse JSON
                 try:
                     obj = _json.loads(text)
                 except _json.JSONDecodeError as e:
                     return False, f"JSON parse error: {e}"
-
-                # Check if empty object
                 if obj == {}:
                     return False, "empty object '{}'"
-
-                # Check required keys
                 if not isinstance(obj, dict):
                     return False, f"not a dict, got {type(obj).__name__}"
-
                 missing_keys = REQUIRED_KEYS - obj.keys()
                 if missing_keys:
                     return False, f"missing required keys: {missing_keys}"
-
                 return True, ""
 
-            # ✅ RETRY: o4-mini with comprehensive validation
             result_text = None
             for attempt in range(2):
                 response = await ai_service.client.chat.completions.create(
                     model=model,
                     messages=[{"role": "user", "content": prompt + ("\n\nReturn JSON now." if attempt > 0 else "")}],
-                    max_completion_tokens=max_completion_tokens,
+                    max_completion_tokens=1500,
                     response_format={"type": "json_object"}
                 )
                 candidate_text = response.choices[0].message.content.strip()
-
-                # 🔍 DEBUG: Log raw o4-mini output
-                logger.debug(f"🔍 [DEBUG] o4-mini attempt {attempt + 1} raw response (first 500 chars):")
-                logger.debug(f"🔍 {candidate_text[:500]}")
-                logger.debug(f"🔍 [DEBUG] Response type: {type(candidate_text)}, Length: {len(candidate_text)} chars")
-
-                # Validate response
-                is_valid, error_reason = is_valid_response(candidate_text)
-
+                is_valid, _ = is_valid_response(candidate_text)
                 if is_valid:
                     result_text = candidate_text
-                    logger.debug(f"✅ o4-mini attempt {attempt + 1} returned valid JSON")
                     break
-                else:
-                    logger.debug(f"❌ o4-mini attempt {attempt + 1} failed: {error_reason}")
-                    if attempt < 1:
-                        logger.debug(f"🔄 Retrying with explicit reminder...")
 
-            # Final check after retries
             if not result_text:
-                logger.debug(f"❌ o4-mini failed after 2 attempts - using emergency fallback")
-                raise ValueError("o4-mini returned invalid response after retries")
+                raise ValueError("gpt-5.2 returned invalid response after retries")
         else:
-            # ✅ GPT-5.2 INITIAL GENERATION PATH (quality + tool selection)
-            model = "gpt-5.2"
-            max_tokens = 1500
-            temperature = 0.2
-            print(f"🤖 Using model: {model} (regenerate=False)")
-
             if has_responses_api:
-                # Responses API with strict JSON schema
-                logger.debug(f"✅ Using Responses API with strict JSON schema")
                 try:
                     response = await ai_service.client.responses.create(
                         model=model,
                         input=prompt,
-                        temperature=temperature,
-                        max_output_tokens=max_tokens,
+                        temperature=0.2,
+                        max_output_tokens=1500,
                         text={
                             "format": {
                                 "type": "json_schema",
@@ -331,81 +230,41 @@ async def generate_diagram_unified(conversation_text: str, diagram_request: str,
                             }
                         }
                     )
-
-                    # ✅ Use cross-version helper to extract JSON
                     result_obj = extract_json_from_responses(response)
-                    result_text = _json.dumps(result_obj)  # Convert to JSON string for downstream code
-
-                    # 🔍 DEBUG: Log raw Responses API output
-                    print(f"🔍 [DiagramGen] {model} selected: {result_obj.get('type', 'unknown')}, content length: {len(result_obj.get('content', ''))} chars")
-
-                except Exception as e:
-                    print(f"❌ {model} Responses API failed: {type(e).__name__}: {e}")
-                    print(f"⚠️ Falling back to chat.completions")
-                    # Fallback to chat.completions
+                    result_text = _json.dumps(result_obj)
+                except Exception:
                     response = await ai_service.client.chat.completions.create(
                         model=model,
                         messages=[{"role": "user", "content": prompt}],
-                        temperature=temperature,
-                        max_tokens=max_tokens,
+                        temperature=0.2,
+                        max_tokens=1500,
                         response_format={"type": "json_object"}
                     )
                     result_text = response.choices[0].message.content.strip()
-
-                    # 🔍 DEBUG: Log fallback output
-                    print(f"🔍 [DiagramGen] {model} chat.completions fallback, length: {len(result_text)} chars")
             else:
-                # Fallback to chat.completions for old SDK
-                logger.debug(f"⚠️ Responses API not available, using chat.completions (upgrade openai SDK to >=1.50.0)")
                 response = await ai_service.client.chat.completions.create(
                     model=model,
                     messages=[{"role": "user", "content": prompt}],
-                    temperature=temperature,
-                    max_tokens=max_tokens,
+                    temperature=0.2,
+                    max_tokens=1500,
                     response_format={"type": "json_object"}
                 )
                 result_text = response.choices[0].message.content.strip()
 
-                # 🔍 DEBUG: Log old SDK output
-                logger.debug(f"🔍 [DEBUG] gpt-4o-mini old SDK chat.completions (first 500 chars):")
-                logger.debug(f"🔍 {result_text[:500]}")
-                logger.debug(f"🔍 [DEBUG] Response type: {type(result_text)}, Length: {len(result_text)} chars")
-
-        # Parse JSON response
-        # 🔍 DEBUG: Final consolidated log before parsing
-        logger.debug(f"🔍 [DEBUG] === FINAL JSON TO PARSE (first 800 chars) ===")
-        logger.debug(f"🔍 {result_text[:800]}")
-        logger.debug(f"🔍 [DEBUG] === END RAW OUTPUT ===")
-
         result = _json.loads(result_text)
 
-        # Validate tool choice
         valid_tools = ['matplotlib', 'svg', 'latex', 'graphviz']
         chosen_tool = result.get('type', 'svg').lower()
-
         if chosen_tool not in valid_tools:
-            logger.debug(f"⚠️ Invalid tool '{chosen_tool}', defaulting to SVG")
             chosen_tool = 'svg'
+        result['type'] = chosen_tool
 
-        logger.debug(f"✅ AI chose: {chosen_tool}")
-        logger.debug(f"   Title: {result.get('title', 'Untitled')}")
-
-        # 🔍 DEBUG: Log the actual generated code
-        generated_code = result.get('content', '')
-        logger.debug(f"🔍 [DEBUG] === GENERATED {chosen_tool.upper()} CODE (first 800 chars) ===")
-        logger.debug(f"🔍 {generated_code[:800]}")
-        logger.debug(f"🔍 [DEBUG] === END GENERATED CODE ===")
-        logger.debug(f"🔍 [DEBUG] Full code length: {len(generated_code)} chars")
-
-        # ✅ FIX: Safe token accounting across SDK versions
         tokens = getattr(getattr(response, "usage", None), "total_tokens", None)
         result['tokens_used'] = tokens if tokens is not None else 0
 
         return result
 
     except Exception as e:
-        logger.debug(f"❌ Unified generation failed: {e}")
-        # Fallback to SVG
         return {
             'type': 'svg',
             'content': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle">Diagram generation failed</text></svg>',
@@ -420,69 +279,41 @@ async def generate_diagram_unified(conversation_text: str, diagram_request: str,
 def analyze_content_for_diagram_type(conversation_text: str, subject: str) -> Dict[str, str]:
     """
     Smart routing: Choose the RIGHT tool for each diagram type.
-
-    PHILOSOPHY: Match tool to task for 90%+ success rate
-    - Geometric shapes → SVG (vector graphics, perfect for shapes)
-    - Math functions → Matplotlib (data plotting, perfect for graphs)
-    - Geometric proofs → LaTeX (rare, precise constructions)
     """
     content_lower = conversation_text.lower()
 
-    # 🎯 PRIORITY 1: Geometric SHAPES → SVG (best tool for vector shapes)
     geometric_shapes = ['triangle', '三角形', 'circle', '圆', 'rectangle', '矩形', 'square', '正方形',
                        'pentagon', '五边形', 'hexagon', '六边形', 'polygon', '多边形', 'ellipse', '椭圆',
                        'diamond', '菱形', 'trapezoid', '梯形', 'parallelogram', '平行四边形']
-
     shape_verbs = ['draw', 'sketch', 'show', 'illustrate', '画', '绘制', '显示']
-
-    # Check if this is a request to draw a geometric shape
     has_shape_request = any(shape in content_lower for shape in geometric_shapes)
     has_draw_verb = any(verb in content_lower for verb in shape_verbs)
-
-    # Check if it's a math function (should use matplotlib instead)
     has_math_function = any(indicator in content_lower for indicator in
                            ['y =', 'f(x) =', 'f(x)=', 'y=', 'plot', 'graph the', '绘制函数', '函数图像'])
 
-    # If drawing geometric shapes (not math functions) → SVG
     if has_shape_request and not has_math_function:
-        logger.debug(f"📊 [Routing] Geometric shape detected → SVG")
         return {'diagram_type': 'svg', 'complexity': 'medium'}
 
-    # 📈 PRIORITY 2: Mathematical FUNCTIONS → Matplotlib (best for data plots)
     math_function_indicators = [
-        'y =', 'f(x) =', 'f(x)=', 'y=', 'g(x) =',  # Function notation
-        'plot', 'graph', 'curve', '函数', '图像', '曲线',  # Plotting keywords
-        'parabola', 'quadratic', 'linear', 'exponential', 'logarithmic',  # Function types
-        'sin(', 'cos(', 'tan(', 'e^', 'ln(', 'log(',  # Math functions
-        'derivative', '导数', 'integral', '积分'  # Calculus
+        'y =', 'f(x) =', 'f(x)=', 'y=', 'g(x) =',
+        'plot', 'graph', 'curve', '函数', '图像', '曲线',
+        'parabola', 'quadratic', 'linear', 'exponential', 'logarithmic',
+        'sin(', 'cos(', 'tan(', 'e^', 'ln(', 'log(',
+        'derivative', '导数', 'integral', '积分'
     ]
-
     if any(indicator in content_lower for indicator in math_function_indicators):
-        logger.debug(f"📊 [Routing] Mathematical function detected → Matplotlib")
         return {'diagram_type': 'matplotlib', 'complexity': 'high'}
 
-    # 📐 PRIORITY 3: Geometric PROOFS → LaTeX (rare, precise constructions)
     latex_indicators = ['proof', '证明', 'theorem', '定理', 'perpendicular', '垂直',
                        'parallel', '平行', 'congruent', '全等', 'similar', '相似']
-
     if any(indicator in content_lower for indicator in latex_indicators):
-        logger.debug(f"📊 [Routing] Geometric proof detected → LaTeX")
         return {'diagram_type': 'latex', 'complexity': 'high'}
 
-    # 📊 PRIORITY 4: Subject-based defaults
     if subject in ['mathematics', 'math', '数学']:
-        # Math subject: Try matplotlib first (good for most math content)
-        logger.debug(f"📊 [Routing] Math subject → Matplotlib")
         return {'diagram_type': 'matplotlib', 'complexity': 'medium'}
-
     if subject in ['physics', '物理', 'chemistry', '化学']:
-        # Science subjects: SVG is flexible for diagrams
-        logger.debug(f"📊 [Routing] Science subject → SVG")
         return {'diagram_type': 'svg', 'complexity': 'medium'}
 
-    # 🎨 DEFAULT: SVG (most flexible for general diagrams)
-    # SVG handles: shapes, concepts, flowcharts, diagrams, illustrations
-    logger.debug(f"📊 [Routing] General request → SVG (default)")
     return {'diagram_type': 'svg', 'complexity': 'medium'}
 
 
@@ -497,7 +328,6 @@ async def generate_latex_diagram(conversation_text: str, diagram_request: str,
         'zh-Hans': '使用简体中文生成注释和标签。',
         'zh-Hant': '使用繁體中文生成註釋和標籤。'
     }
-
     language_instruction = language_instructions.get(language, language_instructions['en'])
 
     prompt = f"""Based on this educational conversation, generate LaTeX/TikZ code for rendering.
@@ -537,16 +367,13 @@ Format your response as a JSON object with the structure shown above.
 
 IMPORTANT: Return ONLY the JSON object, no other text."""
 
-    # ✅ STABILITY IMPROVEMENT: Add retry logic for better reliability
     max_retries = 2
     last_error = None
 
     for attempt in range(max_retries):
         try:
-            logger.debug(f"🎨 [LaTeXDiagram] Attempt {attempt + 1}/{max_retries}")
-
             response = await ai_service.client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-5.2",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.2,
                 max_tokens=2000,
@@ -554,26 +381,16 @@ IMPORTANT: Return ONLY the JSON object, no other text."""
             )
 
             result_text = response.choices[0].message.content.strip()
-            logger.debug(f"🎨 [LaTeXDiagram] Response length: {len(result_text)} chars")
-
-            # Parse JSON response
             result = _json.loads(result_text)
 
-            # ✅ VALIDATION: Check for required fields
             if not result.get('diagram_code'):
                 raise ValueError("Missing diagram_code in response")
 
-            # ✅ VALIDATION: Check if LaTeX code is valid
             latex_code = result['diagram_code']
-            required_patterns = ['\\begin{', '\\end{']
-            if not any(pattern in latex_code for pattern in required_patterns):
-                raise ValueError(f"Invalid LaTeX format - missing \\begin or \\end tags")
+            if not any(p in latex_code for p in ['\\begin{', '\\end{']):
+                raise ValueError("Invalid LaTeX format - missing \\begin or \\end tags")
 
             result['tokens_used'] = response.usage.total_tokens
-            logger.debug(f"✅ [LaTeXDiagram] Valid LaTeX generated on attempt {attempt + 1}")
-
-            # 🚀 Convert LaTeX to SVG for client-side rendering
-            logger.debug(f"🔄 [LaTeXDiagram] Converting LaTeX to SVG...")
 
             conversion_result = await latex_converter.convert_tikz_to_svg(
                 tikz_code=latex_code,
@@ -583,27 +400,15 @@ IMPORTANT: Return ONLY the JSON object, no other text."""
             )
 
             if conversion_result['success']:
-                # Return as SVG so iOS can render it easily
-                logger.debug(f"✅ [LaTeXDiagram] Converted to SVG successfully")
-                result['diagram_type'] = 'svg'  # Change type to SVG
+                result['diagram_type'] = 'svg'
                 result['diagram_code'] = conversion_result['svg_code']
-                result['latex_source'] = latex_code  # Keep original LaTeX for reference
-                return result
-            else:
-                # Conversion failed, return original LaTeX (iOS will try to render)
-                logger.debug(f"⚠️ [LaTeXDiagram] SVG conversion failed: {conversion_result['error']}")
-                logger.debug(f"   Returning original LaTeX code for client-side rendering")
-                return result
+                result['latex_source'] = latex_code
+            return result
 
         except Exception as e:
             last_error = e
-            logger.debug(f"⚠️ [LaTeXDiagram] Attempt {attempt + 1} failed: {str(e)}")
-            if attempt < max_retries - 1:
-                logger.debug(f"🔄 [LaTeXDiagram] Retrying...")
-                continue
+            continue
 
-    # All retries failed - return error fallback
-    logger.debug(f"❌ [LaTeXDiagram] All {max_retries} attempts failed: {last_error}")
     return {
         'diagram_type': 'latex',
         'diagram_code': '\\text{Diagram generation failed. Please try again.}',
@@ -626,13 +431,7 @@ async def generate_svg_diagram(conversation_text: str, diagram_request: str,
         'zh-Hans': '使用简体中文作为所有文字标签和注释。',
         'zh-Hant': '使用繁體中文作為所有文字標籤和註釋。'
     }
-
     language_instruction = language_instructions.get(language, language_instructions['en'])
-
-    # ✅ VALIDATION: Check if this should actually be LaTeX
-    if any(kw in conversation_text.lower() for kw in ['y =', 'f(x) =', 'parabola', 'quadratic function']):
-        logger.debug(f"⚠️ [SVGDiagram] Warning: Mathematical function detected, LaTeX might be better")
-        logger.debug(f"   Conversation contains function notation - consider using LaTeX instead")
 
     prompt = f"""Based on this educational conversation, generate an SVG diagram to help visualize the concept.
 
@@ -669,16 +468,13 @@ Format your response as a JSON object:
 
 IMPORTANT: Return ONLY the JSON object, no other text."""
 
-    # ✅ STABILITY IMPROVEMENT: Add retry logic for better reliability
     max_retries = 2
     last_error = None
 
     for attempt in range(max_retries):
         try:
-            logger.debug(f"🎨 [SVGDiagram] Attempt {attempt + 1}/{max_retries}")
-
             response = await ai_service.client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-5.2",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.2,
                 max_tokens=1800,
@@ -686,37 +482,24 @@ IMPORTANT: Return ONLY the JSON object, no other text."""
             )
 
             result_text = response.choices[0].message.content.strip()
-            logger.debug(f"🎨 [SVGDiagram] Response length: {len(result_text)} chars")
-
-            # Parse JSON response
             result = _json.loads(result_text)
 
-            # ✅ VALIDATION: Check for required fields
             if not result.get('diagram_code'):
                 raise ValueError("Missing diagram_code in response")
 
-            # ✅ VALIDATION: Check if SVG code is valid
             svg_code = result['diagram_code']
             if not svg_code.strip().lower().startswith('<svg'):
-                raise ValueError(f"Invalid SVG format - missing <svg> tag")
-
-            # ✅ VALIDATION: Check for closing tag
+                raise ValueError("Invalid SVG format - missing <svg> tag")
             if '</svg>' not in svg_code.lower():
-                raise ValueError(f"Invalid SVG format - missing </svg> tag")
+                raise ValueError("Invalid SVG format - missing </svg> tag")
 
             result['tokens_used'] = response.usage.total_tokens
-            logger.debug(f"✅ [SVGDiagram] Valid SVG generated on attempt {attempt + 1}")
             return result
 
         except Exception as e:
             last_error = e
-            logger.debug(f"⚠️ [SVGDiagram] Attempt {attempt + 1} failed: {str(e)}")
-            if attempt < max_retries - 1:
-                logger.debug(f"🔄 [SVGDiagram] Retrying...")
-                continue
+            continue
 
-    # All retries failed - return error fallback
-    logger.debug(f"❌ [SVGDiagram] All {max_retries} attempts failed: {last_error}")
     return {
         'diagram_type': 'svg',
         'diagram_code': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><rect width="400" height="300" fill="white"/><text x="200" y="150" text-anchor="middle" font-size="14" fill="gray">Diagram generation failed. Please try again.</text></svg>',
