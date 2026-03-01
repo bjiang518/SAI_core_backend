@@ -335,11 +335,6 @@ struct SessionChatView: View {
                         viewModel.startNewSession()
                     }
 
-                    Button(NSLocalizedString("chat.menu.sessionInfo", comment: "")) {
-                        viewModel.loadSessionInfo()
-                        showingSessionInfo = true
-                    }
-
                     Divider()
 
                     Button(NSLocalizedString("chat.menu.voiceSettings", comment: "")) {
@@ -356,19 +351,16 @@ struct SessionChatView: View {
                             interactiveModeSettings.save()
                         }
 
-                    Divider()
-
-                    Button(NSLocalizedString("chat.menu.archiveSession", comment: "")) {
-                        showingArchiveProgress = true
-                    }
-                    .disabled(
-                        isLiveMode
-                            ? (liveVMHolder.vm?.messages.isEmpty ?? true)
-                            : (networkService.currentSessionId == nil || networkService.conversationHistory.isEmpty)
-                    )
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
+            }
+
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: { showingArchiveProgress = true }) {
+                    Image(systemName: "books.vertical")
+                }
+                .disabled(networkService.currentSessionId == nil || allMessages.isEmpty)
             }
     }
 
@@ -867,11 +859,12 @@ struct SessionChatView: View {
                                     }
                                 } else {
                                     if let videoKey = message["videoKey"] {
-                                        // Video search result card
+                                        // Each video renders as its own independent card
                                         let videos = viewModel.getVideoResults(for: videoKey) ?? []
-                                        VideoResultCard(videos: videos)
-                                            .padding(.horizontal, 16)
-                                            .id(msg.id)
+                                        ForEach(videos) { video in
+                                            VideoRowView(video: video)
+                                                .padding(.horizontal, 16)
+                                        }
                                     } else if let diagramKey = message["diagramKey"] {
                                         let diagramData = viewModel.getDiagramData(for: diagramKey)
                                         let isRegenerating = viewModel.regeneratingDiagramKey == diagramKey
@@ -1543,8 +1536,7 @@ struct SessionChatView: View {
     /// saves locally immediately, then fires backend AI analysis in the background.
     @MainActor
     private func archiveLiveSessionAsync() async {
-        guard let sessionId = networkService.currentSessionId,
-              let vm = liveVMHolder.vm else { return }
+        guard let sessionId = networkService.currentSessionId else { return }
 
         // Assign a stable archive ID so audio files are grouped under it
         let archiveID = UUID().uuidString
@@ -1552,36 +1544,54 @@ struct SessionChatView: View {
             .appendingPathComponent("LiveAudio", isDirectory: true)
         try? FileManager.default.createDirectory(at: audioDir, withIntermediateDirectories: true)
 
-        // Walk messages in order, build content lines and save audio files
+        // Walk ALL messages (both text and voice) in chronological order
         var contentLines: [String] = []
         var voiceAudioFiles: [String: String] = [:]  // "msgIndex" → absolute file path
-        var msgIndex = 0
+        var voiceIndex = 0  // Only incremented for voice messages (for audio file keying)
 
-        for msg in vm.messages {
-            switch msg.role {
-            case .user:
-                if msg.imageData != nil { continue }
-                let transcript = msg.text.trimmingCharacters(in: .whitespacesAndNewlines)
-                contentLines.append("USER: 🎙️ \(transcript.isEmpty ? "[voice]" : transcript)")
-
-                // Save WAV audio directly from the message (embedded at recording time)
-                if let wavData = msg.audioData {
-                    let fileName = "\(archiveID)_\(msgIndex).wav"
-                    let fileURL = audioDir.appendingPathComponent(fileName)
-                    try? wavData.write(to: fileURL)
-                    voiceAudioFiles["\(msgIndex)"] = fileURL.path
+        for unified in allMessages {
+            switch unified {
+            case .text(_, let dict):
+                // Non-live text message from conversationHistory
+                let role = dict["role"] ?? ""
+                let content = (dict["content"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !content.isEmpty else { continue }
+                if role == "user" {
+                    contentLines.append("USER: \(content)")
+                } else if role == "assistant" {
+                    contentLines.append("AI: \(content)")
                 }
-                msgIndex += 1
 
-            case .assistant:
-                let text = msg.text.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !text.isEmpty else { continue }
-                contentLines.append("AI: \(text)")
-                msgIndex += 1
+            case .voice(let msg, let audioData):
+                // Live voice message
+                switch msg.role {
+                case .user:
+                    if msg.imageData != nil { continue }
+                    let transcript = msg.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                    contentLines.append("USER: 🎙️ \(transcript.isEmpty ? "[voice]" : transcript)")
+
+                    // Save WAV audio directly from the message
+                    let wavData = audioData ?? msg.audioData
+                    if let wavData = wavData {
+                        let fileName = "\(archiveID)_\(voiceIndex).wav"
+                        let fileURL = audioDir.appendingPathComponent(fileName)
+                        try? wavData.write(to: fileURL)
+                        voiceAudioFiles["\(voiceIndex)"] = fileURL.path
+                    }
+                    voiceIndex += 1
+
+                case .assistant:
+                    let text = msg.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !text.isEmpty else { continue }
+                    contentLines.append("AI: \(text)")
+                    voiceIndex += 1
+                }
             }
         }
 
         let conversationContent = contentLines.joined(separator: "\n\n")
+
+        let allVideos = Array(viewModel.videoSearchResults.values).flatMap { $0 }
 
         let result = await networkService.archiveSession(
             sessionId: sessionId,
@@ -1591,10 +1601,12 @@ struct SessionChatView: View {
             notes: nil,
             diagrams: nil,
             liveConversationContent: conversationContent.isEmpty ? nil : conversationContent,
-            voiceAudioFiles: voiceAudioFiles.isEmpty ? nil : voiceAudioFiles
+            voiceAudioFiles: voiceAudioFiles.isEmpty ? nil : voiceAudioFiles,
+            videos: allVideos.isEmpty ? nil : allVideos
         )
 
         if result.success {
+            viewModel.videoSearchResults.removeAll()
             exitLiveMode()
         }
     }
@@ -2614,7 +2626,7 @@ struct SessionChatView: View {
     /// the same vertical space as UIKit navigation bar items like the ⋯ button.
     @ViewBuilder
     private var floatingAvatarOverlay: some View {
-        if hasConversationStarted && !isLiveMode {
+        if hasConversationStarted && !isLiveMode && !showingArchiveProgress {
             ZStack(alignment: .center) {
                 // Tap area — large invisible circle
                 Circle()
@@ -2753,43 +2765,27 @@ struct SessionChatView: View {
 
 struct VideoResultCard: View {
     let videos: [VideoSearchResult]
-    @StateObject private var themeManager = ThemeManager.shared
-
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(NSLocalizedString("chat.video.results_header", value: "Educational Videos", comment: ""))
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(.secondary)
-                .padding(.horizontal, 12)
-
-            ForEach(videos) { video in
-                VideoRowView(video: video)
-            }
-            .padding(.horizontal, 12)
+        VStack(spacing: 8) {
+            ForEach(videos) { video in VideoRowView(video: video) }
         }
-        .padding(.vertical, 12)
-        .background(themeManager.cardBackground)
-        .cornerRadius(12)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
-        )
     }
 }
+
+// MARK: - Individual Video Row Card
 
 struct VideoRowView: View {
     let video: VideoSearchResult
     @StateObject private var themeManager = ThemeManager.shared
     @State private var thumbnail: UIImage? = nil
     @State private var isExpanded = false
-    @State private var embedBlocked = false  // true when video owner disabled embedding
+    @State private var embedBlocked = false
 
     var body: some View {
         VStack(spacing: 0) {
-            // Collapsed row — thumbnail + title + buttons
-            HStack(spacing: 10) {
-                // Thumbnail (tap to expand player)
-                Button { isExpanded.toggle() } label: {
+            // Collapsed row — tapping toggles the inline player
+            Button { withAnimation(.easeInOut(duration: 0.25)) { isExpanded.toggle() } } label: {
+                HStack(spacing: 12) {
                     Group {
                         if let img = thumbnail {
                             Image(uiImage: img)
@@ -2800,110 +2796,116 @@ struct VideoRowView: View {
                                 .fill(Color.secondary.opacity(0.15))
                                 .overlay(
                                     Image(systemName: "play.rectangle.fill")
-                                        .foregroundColor(.secondary.opacity(0.5))
-                                        .font(.system(size: 20))
+                                        .foregroundColor(.secondary.opacity(0.4))
+                                        .font(.system(size: 22))
                                 )
                         }
                     }
-                    .frame(width: 80, height: 54)
+                    .frame(width: 100, height: 68)
                     .cornerRadius(6)
                     .clipped()
                     .overlay(
-                        Image(systemName: isExpanded ? "chevron.down.circle.fill" : "play.circle.fill")
-                            .font(.system(size: 22))
-                            .foregroundColor(.white.opacity(0.9))
-                            .shadow(radius: 2)
+                        Image(systemName: isExpanded ? "pause.circle.fill" : "play.circle.fill")
+                            .font(.system(size: 26))
+                            .foregroundColor(.white.opacity(0.85))
+                            .shadow(radius: 2),
+                        alignment: .center
                     )
-                }
-                .buttonStyle(.plain)
 
-                // Title + channel + description
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(video.title)
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(themeManager.primaryText)
-                        .lineLimit(2)
-
-                    HStack(spacing: 4) {
-                        if video.isEduChannel {
-                            Image(systemName: "checkmark.seal.fill")
-                                .font(.system(size: 10))
-                                .foregroundColor(Color(hex: "#7EC8E3"))
-                        }
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(video.title)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(themeManager.primaryText)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
                         Text(video.channelTitle)
                             .font(.system(size: 11))
                             .foregroundColor(.secondary)
+                        if let desc = video.description, !desc.isEmpty {
+                            Text(desc)
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary.opacity(0.8))
+                                .lineLimit(2)
+                                .multilineTextAlignment(.leading)
+                        }
                     }
 
-                    if let desc = video.description, !desc.isEmpty {
-                        Text(desc)
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary.opacity(0.8))
-                            .lineLimit(2)
+                    Spacer(minLength: 0)
+
+                    // Open in YouTube external link
+                    Button {
+                        let appURL = URL(string: "youtube://\(video.videoId)")!
+                        let webURL = URL(string: video.url)!
+                        if UIApplication.shared.canOpenURL(appURL) {
+                            UIApplication.shared.open(appURL)
+                        } else {
+                            UIApplication.shared.open(webURL)
+                        }
+                    } label: {
+                        Image(systemName: "arrow.up.right.square")
+                            .font(.system(size: 16))
+                            .foregroundColor(.secondary.opacity(0.6))
                     }
+                    .buttonStyle(.plain)
                 }
-
-                Spacer()
-
-                // Open in YouTube button
-                Button { openInYouTube(video) } label: {
-                    Image(systemName: "arrow.up.right.square")
-                        .font(.system(size: 16))
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
+                .padding(12)
             }
-            .padding(.vertical, 4)
+            .buttonStyle(.plain)
 
-            // Inline player or fallback
+            // Inline player — bleeds past the outer .padding(.horizontal, 16) to fill screen width
             if isExpanded {
                 if embedBlocked {
-                    // Embedding disabled — show friendly fallback
-                    VStack(spacing: 10) {
+                    VStack(spacing: 14) {
                         Image(systemName: "exclamationmark.circle")
-                            .font(.system(size: 28))
+                            .font(.system(size: 36))
                             .foregroundColor(.secondary)
                         Text("This video can't be played in-app.")
                             .font(.system(size: 13))
                             .foregroundColor(.secondary)
-                        Button("Open in YouTube") { openInYouTube(video) }
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 8)
-                            .background(Color(hex: "#FF0000").opacity(0.85))
-                            .cornerRadius(8)
+                        Button("Open in YouTube") {
+                            let appURL = URL(string: "youtube://\(video.videoId)")!
+                            let webURL = URL(string: video.url)!
+                            if UIApplication.shared.canOpenURL(appURL) {
+                                UIApplication.shared.open(appURL)
+                            } else {
+                                UIApplication.shared.open(webURL)
+                            }
+                        }
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 8)
+                        .background(Color(hex: "#FF0000").opacity(0.85))
+                        .cornerRadius(8)
                     }
                     .frame(maxWidth: .infinity)
                     .frame(height: 140)
                     .background(Color.black.opacity(0.05))
-                    .cornerRadius(8)
-                    .padding(.top, 8)
+                    .cornerRadius(0)
+                    // Bleed 16 pt on each side to cancel the outer horizontal padding
+                    .padding(.horizontal, -16)
                 } else {
                     YouTubePlayerView(videoId: video.videoId) {
-                        embedBlocked = true
+                        withAnimation { embedBlocked = true }
                     }
                     .aspectRatio(16/9, contentMode: .fit)
                     .frame(maxWidth: .infinity)
-                    .padding(.horizontal, -12)  // bleed past the card's horizontal padding
-                    .cornerRadius(8)
-                    .padding(.top, 8)
+                    // Bleed 16 pt on each side to cancel the outer horizontal padding
+                    .padding(.horizontal, -16)
                 }
             }
         }
+        .background(themeManager.cardBackground)
+        .cornerRadius(isExpanded ? 0 : 12)
+        .overlay(
+            RoundedRectangle(cornerRadius: isExpanded ? 0 : 12)
+                .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
+        )
+        // Only clip in collapsed state — expanded player must not be clipped or
+        // the controls and fullscreen button get cut off at the edges
+        .clipShape(RoundedRectangle(cornerRadius: isExpanded ? 0 : 12))
         .task { await loadThumbnail() }
-        .animation(.easeInOut(duration: 0.25), value: isExpanded)
         .animation(.easeInOut(duration: 0.2), value: embedBlocked)
-    }
-
-    private func openInYouTube(_ video: VideoSearchResult) {
-        let appURL = URL(string: "youtube://\(video.videoId)")!
-        let webURL = URL(string: video.url)!
-        if UIApplication.shared.canOpenURL(appURL) {
-            UIApplication.shared.open(appURL)
-        } else {
-            UIApplication.shared.open(webURL)
-        }
     }
 
     private func loadThumbnail() async {
@@ -2913,6 +2915,7 @@ struct VideoRowView: View {
         await MainActor.run { thumbnail = img }
     }
 }
+
 
 // MARK: - YouTube WKWebView Player
 
@@ -2936,6 +2939,8 @@ struct YouTubePlayerView: UIViewRepresentable {
 
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.scrollView.isScrollEnabled = false
+        webView.scrollView.contentInset = .zero
+        webView.scrollView.scrollIndicatorInsets = .zero
         webView.backgroundColor = .black
         webView.isOpaque = false
         webView.navigationDelegate = context.coordinator
@@ -2958,8 +2963,9 @@ struct YouTubePlayerView: UIViewRepresentable {
         <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
         <style>
           * { margin:0; padding:0; box-sizing:border-box; }
-          body { background:#000; }
+          html, body { width:100%; height:100%; background:#000; overflow:hidden; }
           #player { width:100%; height:100%; }
+          iframe { display:block; }
         </style>
         </head>
         <body>
@@ -2978,6 +2984,7 @@ struct YouTubePlayerView: UIViewRepresentable {
                 rel: 0,
                 modestbranding: 1,
                 enablejsapi: 1,
+                fs: 1,
                 origin: 'https://study-mates.net'
               },
               events: {

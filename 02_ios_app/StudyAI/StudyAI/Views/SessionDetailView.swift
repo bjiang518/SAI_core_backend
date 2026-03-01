@@ -91,7 +91,8 @@ struct SessionDetailView: View {
                         archivedDate: ISO8601DateFormatter().date(from: localConversation["archivedDate"] as? String ?? "") ?? Date(),
                         createdAt: ISO8601DateFormatter().date(from: localConversation["createdAt"] as? String ?? "") ?? Date(),
                         diagrams: localConversation["diagrams"] as? [[String: Any]],
-                        voiceAudioFiles: rawAudioFiles
+                        voiceAudioFiles: rawAudioFiles,
+                        recommendedVideos: localConversation["recommendedVideos"] as? [[String: String]]
                     )
 
                     await MainActor.run {
@@ -416,6 +417,37 @@ struct ConversationDetailContent: View {
                     .padding()
                     .background(Color.gray.opacity(0.05))
                     .cornerRadius(8)
+                }
+
+                // Recommended Videos Section
+                if let recVideos = conversation.recommendedVideos, !recVideos.isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "play.rectangle.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(.red.opacity(0.8))
+                            Text(NSLocalizedString("sessionDetail.recommendedVideos", value: "Recommended Videos", comment: ""))
+                                .font(.headline)
+                        }
+
+                        ForEach(recVideos, id: \.["videoId"]) { vDict in
+                            if let videoId = vDict["videoId"],
+                               let title = vDict["title"],
+                               let channelTitle = vDict["channelTitle"],
+                               let url = vDict["url"] {
+                                let video = VideoSearchResult(
+                                    videoId: videoId,
+                                    title: title,
+                                    channelTitle: channelTitle,
+                                    description: vDict["description"],
+                                    thumbnail: vDict["thumbnail"],
+                                    url: url,
+                                    isEduChannel: false
+                                )
+                                VideoRowView(video: video)
+                            }
+                        }
+                    }
                 }
             }
             .padding()
