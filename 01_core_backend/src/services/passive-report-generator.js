@@ -620,7 +620,7 @@ class PassiveReportGenerator {
 
         logger.info(`   Graded questions: ${gradedQuestions.length}, Correct: ${correctQuestions.length}`);
 
-        // Calculate overall grade based on accuracy
+        // Calculate overall grade based on accuracy — minimum grade is B-
         let overallGrade = null;
         if (overallAccuracy !== null) {
             if (overallAccuracy >= 0.97) overallGrade = 'A+';
@@ -628,13 +628,7 @@ class PassiveReportGenerator {
             else if (overallAccuracy >= 0.90) overallGrade = 'A-';
             else if (overallAccuracy >= 0.87) overallGrade = 'B+';
             else if (overallAccuracy >= 0.83) overallGrade = 'B';
-            else if (overallAccuracy >= 0.80) overallGrade = 'B-';
-            else if (overallAccuracy >= 0.77) overallGrade = 'C+';
-            else if (overallAccuracy >= 0.73) overallGrade = 'C';
-            else if (overallAccuracy >= 0.70) overallGrade = 'C-';
-            else if (overallAccuracy >= 0.67) overallGrade = 'D+';
-            else if (overallAccuracy >= 0.60) overallGrade = 'D';
-            else overallGrade = 'F';
+            else overallGrade = 'B-';
         }
 
         // Calculate study time (estimated: 2 minutes per question average)

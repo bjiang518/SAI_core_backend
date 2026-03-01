@@ -594,6 +594,79 @@ Report types: `activity`, `areas_of_improvement`, `mental_health`, `summary` (4 
 
 ---
 
+## AI Avatar & TTS Audio System (Mar 2026)
+
+### Avatar
+
+The AI avatar is a small (30×30 pt) floating Lottie animation overlay in `SessionChatView`, draggable and edge-snapping. Character is selected via `VoiceSettings.voiceType`.
+
+**Key file**: `02_ios_app/StudyAI/Models/AIAvatarAnimation.swift`
+
+**States** (`AIAvatarState` enum):
+
+| State | Visual | Trigger |
+|-------|--------|---------|
+| `idle` | 0.5x speed, 0.12 scale | No activity |
+| `waiting` | 2.5x, shrink pulse + blink | Typing indicator (AI thinking) |
+| `processing` | 2.5x, no pulse | First streaming chunk arrives |
+| `speaking` | 2.5x, zoom pulse (→1.3x) | TTS audio playing |
+| `paused` | 0.3x, 0.45 opacity | User tapped avatar to pause |
+
+**Characters and their Lottie files:**
+- **Adam**: Siri Animation (idle/waiting/processing/paused) — OpenAI `echo` voice
+- **Eva**: AI Spiral Loading (idle/waiting/processing/paused) + Wave Animation (speaking) — OpenAI `nova` voice
+- **Max**: Fire (idle/waiting/processing/paused) + Fire_moving (speaking) — ElevenLabs
+- **Mia**: Foriday (idle/waiting/processing/paused) + Wave Animation (speaking) — ElevenLabs
+
+### Avatar Tap Behavior (Mar 2026)
+
+Single tap = **pause/resume toggle**. Queue is never destroyed by a tap.
+
+```
+speaking  →  tap  →  paused   (audio paused, queue intact)
+paused    →  tap  →  speaking (audio resumes)
+idle      →  tap  →  speaking (play latest message, if not yet spoken)
+```
+
+**Implementation**:
+- `toggleTopAvatarTTS()` in `SessionChatView.swift` — tap handler
+- `TTSQueueService.pauseResumeTTS()` — toggles `isPaused`, calls `EnhancedTTSService.pauseSpeech()` / `resumeSpeech()`
+- `playNextTTSChunk()` guards on `isPaused` — new sentences arriving during pause stay queued
+- `clearQueue()` and `stopAllTTS()` both reset `isPaused = false`
+
+### TTS Audio Pipeline
+
+```
+Streaming text chunk
+    → StreamingMessageService (sentence boundary detection)
+    → TTSQueueService.enqueueTTSChunk()
+    → EnhancedTTSService.generateOpenAIAudio()
+        → memory cache (NSCache, 50 items)
+        → disk cache (Documents/StudyAI_TTS/)
+        → network: POST /api/ai/tts/generate (15s timeout, fallback to AVSpeechSynthesizer)
+    → AVAudioPlayer.play()
+    → VoiceInteractionService.interactionState → .speaking
+    → avatarState.animationState → .speaking
+```
+
+**Key services:**
+- `TTSQueueService.swift` — sentence-level queue, watchdog (20s), prefetch (next 1-2 chunks), O(1) memory tracking
+- `EnhancedTTSService.swift` — audio fetch, `AVAudioPlayer`, `pendingAudioQueue` for serial chunk playback, `pauseSpeech()`/`resumeSpeech()`
+- `VoiceInteractionService.swift` — combines `EnhancedTTSService.$isSpeaking` + `TextToSpeechService.$isSpeaking` → single `interactionState` publisher observed by `SessionChatView`
+
+**Avatar ↔ audio sync** — entirely reactive:
+```
+EnhancedTTSService.$isSpeaking ─┐
+                                 ├─► VoiceInteractionService.interactionState
+TextToSpeechService.$isSpeaking ─┘         ↓
+                                   SessionChatView.onReceive()
+                                         ↓
+                                   avatarState.animationState
+```
+The `onReceive` handler skips the `.speaking` → `.idle` transition when `ttsQueueService.isPaused` is true, so the avatar stays in `.paused` at chunk boundaries.
+
+---
+
 ## Zombie Code Audit (Feb 2026)
 
 Full audit run on 2026-02-21. Verification pass completed 2026-02-22. ~40% of iOS files and ~15% of backend are dead code.
