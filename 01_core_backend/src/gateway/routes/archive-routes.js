@@ -96,6 +96,7 @@ class ArchiveRoutes {
 
     // Update review count
     this.fastify.patch('/api/archive/sessions/:id/review', {
+      preHandler: authPreHandler,
       schema: {
         description: 'Increment session review count',
         tags: ['Archive'],
@@ -110,6 +111,7 @@ class ArchiveRoutes {
 
     // Get statistics
     this.fastify.get('/api/archive/stats', {
+      preHandler: authPreHandler,
       schema: {
         description: 'Get user study statistics',
         tags: ['Archive']
