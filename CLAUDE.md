@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 StudyAI is a comprehensive AI-powered educational platform with three main components:
 - **iOS App** (SwiftUI): Native homework assistance and AI tutoring app
 - **Backend Gateway** (Node.js/Fastify): API orchestration and data management
-- **AI Engine** (Python/FastAPI): Educational AI processing with OpenAI GPT-4o-mini
+- **AI Engine** (Python/FastAPI): Educational AI processing with OpenAI gpt-5.2
 
 ## Repository Structure
 
@@ -432,7 +432,7 @@ Key files: `VoiceChatViewModel.swift`, `AudioStreamManager.swift`, `UnifiedChatM
 
 ### AI Engine
 - **Framework**: FastAPI (Python 3.11) + Gunicorn 3 workers (UvicornWorker)
-- **AI Models**: OpenAI GPT-4o-mini (standard) + Gemini (deep reasoning)
+- **AI Models**: OpenAI gpt-5.2 (all diagram generation, initial + regenerate)
 - **Image Processing**: OpenAI Vision API / Gemini Vision
 - **Deployment**: Railway (via `start.sh` with Gunicorn)
 
@@ -891,3 +891,77 @@ parent_reports                   ✅
 ```
 
 **To drop unused tables**, add `DROP TABLE IF EXISTS` statements to the next migration in `railway-database.js`. Always use `IF EXISTS` to avoid errors on environments where a table may not have been created.
+
+---
+
+## Diagram Generation System (Mar 2026)
+
+### Overview
+
+Diagram generation is a fully working feature. Users tap a "Generate Diagram" button in `SessionChatView`, which calls `POST /api/ai/generate-diagram` on the backend, which proxies to the AI Engine `POST /api/v1/generate-diagram`.
+
+**Key files:**
+```
+04_ai_engine_service/src/routes/diagram.py         # FastAPI endpoint, renderer routing, fallback chain
+04_ai_engine_service/src/services/diagram/helpers.py  # AI prompt, model call, JSON schema
+02_ios_app/.../Views/Components/DiagramRendererView.swift  # iOS rendering (PNG/SVG/LaTeX)
+02_ios_app/.../ViewModels/SessionChatViewModel.swift       # generateDiagram(), diagramKey injection
+```
+
+### AI Model
+
+Both initial generation and regeneration use **gpt-5.2** (as of Mar 2026). Previously gpt-4o-mini (initial) and o4-mini (regenerate).
+
+### Tool Selection (Decision Tree)
+
+The prompt in `helpers.py` forces the model to follow this priority order:
+
+1. **matplotlib** — any math functions, plots, graphs, physics graphs, axes with numbers
+2. **graphviz** — trees, flowcharts, hierarchies, directed graphs
+3. **latex** (TikZ) — formal geometric proofs with precise measurements
+4. **svg** — LAST RESORT ONLY: molecules, pure shape illustrations
+
+The prompt includes an explicit `⚠️ DEFAULT TRAP` warning to prevent the model from defaulting to SVG for math requests.
+
+### Fallback Chain (Guaranteed Output)
+
+Every request always returns a diagram — never an error state to iOS:
+
+```
+AI generates code
+    ↓
+[matplotlib/graphviz]: non-ASCII check → _retry_as_svg()
+    ↓
+Route to renderer (matplotlib → execute_code_safely, graphviz → execute_code_safely, latex → convert_tikz_to_svg, svg → optimize_svg_for_display)
+    ↓
+Renderer fails → _retry_as_svg() (re-calls AI with "Use SVG format" instruction)
+    ↓
+SVG regen fails → _make_fallback_svg() placeholder (title + "Diagram (simplified view)")
+    ↓
+Outer exception → _make_fallback_svg() with "Service error"
+```
+
+On iOS, `DiagramRendererView` has its own fallback: primary render fails → `renderFallbackSVG()` (inline placeholder) → only then shows error state.
+
+### Critical Bug History (avoid re-introducing)
+
+**Swift value semantics bug** (fixed Mar 2026):
+- `addToConversationHistory(role:content:)` fires `onMessageAdded` before `diagramKey` can be added to the dict. The `allMessages` array captures a value copy without `diagramKey`, so `getDiagramData()` returns nil and the diagram never renders.
+- **Fix**: use `appendToConversationHistory(["role": "assistant", "content": "", "diagramKey": diagramKey])` so the complete dict is passed to the callback from the start.
+
+**Routing if/elif corruption** (fixed Mar 2026):
+- A comment was accidentally merged onto the same line as `if diagram_type == "matplotlib":`, making the entire routing block dead code. All types fell through to `else: # svg`.
+- **Symptom**: Railway logs show `🎨 AI selected tool: matplotlib` but iOS receives SVG with length ~572 chars (the placeholder size). SVG padding warnings appear even for matplotlib requests.
+
+### matplotlib Sandbox
+
+`plt` and `np` are pre-injected into the execution sandbox. The AI must NOT include import statements — they are stripped before execution:
+```python
+# diagram.py strips these before calling execute_code_safely():
+import matplotlib*, import numpy*, from matplotlib*, from numpy*, import np, import plt
+```
+Code must use ASCII-only labels (no `²`, `×`, Chinese characters) — server has no unicode font support. Use matplotlib's LaTeX syntax instead: `$x^2 + 2x + 1$` is valid (all ASCII).
+
+### No Logging
+
+`diagram.py` and `helpers.py` have no `print()` or `logger.*` calls (removed Mar 2026). The only output is `traceback.print_exc()` in the outer exception handler of `diagram.py`. Railway logs will be silent for normal diagram generation.
