@@ -233,8 +233,8 @@ async def generate_diagram_unified(conversation_text: str, diagram_request: str,
         has_responses_api = hasattr(ai_service.client, 'responses')
 
         if regenerate:
-            # ✅ O4-MINI REGENERATION PATH (quality-focused)
-            model = "o4-mini"
+            # ✅ GPT-5.2 REGENERATION PATH (quality-focused)
+            model = "gpt-5.2"
             max_completion_tokens = 1500
             logger.debug(f"🤖 Using model: {model} (regenerate=True, quality-focused)")
 
@@ -307,8 +307,8 @@ async def generate_diagram_unified(conversation_text: str, diagram_request: str,
                 logger.debug(f"❌ o4-mini failed after 2 attempts - using emergency fallback")
                 raise ValueError("o4-mini returned invalid response after retries")
         else:
-            # ✅ GPT-4O INITIAL GENERATION PATH (quality + tool selection)
-            model = "gpt-4o"
+            # ✅ GPT-5.2 INITIAL GENERATION PATH (quality + tool selection)
+            model = "gpt-5.2"
             max_tokens = 1500
             temperature = 0.2
             print(f"🤖 Using model: {model} (regenerate=False)")
