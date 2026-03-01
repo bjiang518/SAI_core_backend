@@ -354,7 +354,7 @@ class SummaryReportGenerator {
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background: #f8fafc;
-            padding: 12px;
+            padding: 12px 4px;
             color: #1a1a1a;
             line-height: 1.7;
             font-size: 16px;
@@ -544,7 +544,7 @@ class SummaryReportGenerator {
         .ai-insight {
             background: linear-gradient(135deg, #C9A0DC 0%, #7EC8E3 100%);
             border-radius: 8px;
-            padding: 16px;
+            padding: 12px 8px;
             margin-bottom: 12px;
             color: white;
         }
@@ -559,7 +559,7 @@ class SummaryReportGenerator {
         .ai-insight p {
             background: rgba(255, 255, 255, 0.97);
             border-radius: 6px;
-            padding: 14px;
+            padding: 10px 8px;
             color: #1a1a1a;
             line-height: 1.7;
             font-size: 15px;
@@ -569,7 +569,7 @@ class SummaryReportGenerator {
         .ai-insight ul {
             background: rgba(255, 255, 255, 0.97);
             border-radius: 6px;
-            padding: 14px 14px 14px 34px;
+            padding: 10px 8px 10px 24px;
             color: #1a1a1a;
             line-height: 1.7;
             font-size: 15px;

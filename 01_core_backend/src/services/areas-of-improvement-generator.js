@@ -842,7 +842,7 @@ class AreasOfImprovementGenerator {
                                 <div class="error-type-body">
                                     ${errors.slice(0, 2).map(err => `
                                         <div class="example">
-                                            <strong>${ti.questionLabel}</strong> ${err.question.substring(0, 100)}...
+                                            <strong>${ti.questionLabel}</strong> ${err.question}
                                             <br><strong>${ti.studentLabel}</strong> "${err.studentAnswer}"
                                             <br><strong>${ti.correctLabel}</strong> "${err.correctAnswer}"
                                         </div>
