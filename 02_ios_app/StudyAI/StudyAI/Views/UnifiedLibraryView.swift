@@ -705,7 +705,7 @@ struct UnifiedLibraryView: View {
     // MARK: - Helpers
 
     private func loadContent() async {
-        QuestionLocalStorage.shared.removeDuplicates()
+        currentUserQuestionStorage().removeDuplicates()
         libraryContent = await libraryService.fetchLibraryContent()
     }
 

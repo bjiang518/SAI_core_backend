@@ -3798,7 +3798,7 @@ class NetworkService: ObservableObject {
         // ──────────────────────────────────────────────
         // STEP 3: Save to local storage IMMEDIATELY
         // ──────────────────────────────────────────────
-        ConversationLocalStorage.shared.saveConversation(conversationData)
+        currentUserConversationStorage().saveConversation(conversationData)
         invalidateCache()
         print("✅ [Archive] Saved conversation locally (ID: \(conversationId), \(finalMessageCount) messages)")
 
@@ -3821,7 +3821,7 @@ class NetworkService: ObservableObject {
             if let insights = backendResult.behaviorInsights { patch["behaviorSummary"] = insights }
             if !patch.isEmpty {
                 await MainActor.run {
-                    ConversationLocalStorage.shared.updateConversation(withId: conversationId, fields: patch)
+                    currentUserConversationStorage().updateConversation(withId: conversationId, fields: patch)
                     self.invalidateCache()
                     print("✨ [Archive] Patched local record with AI summary + insights")
                 }

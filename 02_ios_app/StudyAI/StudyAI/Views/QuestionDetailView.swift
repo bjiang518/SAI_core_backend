@@ -81,17 +81,18 @@ struct GeneratedQuestionDetailView: View {
         return currentQuestionIndex == allQuestions.count - 1
     }
 
-    // UserDefaults keys
+    // UserDefaults keys — per-user scoped to prevent answers leaking across accounts
+    private var uid: String { AuthenticationService.shared.currentUser?.id ?? "anonymous" }
     private var progressMarkedKey: String {
-        return "question_progress_marked_\(currentQuestion.id)"
+        return "question_progress_marked_\(currentQuestion.id)_\(uid)"
     }
 
     private var archivedStateKey: String {
-        return "question_archived_\(currentQuestion.id)"
+        return "question_archived_\(currentQuestion.id)_\(uid)"
     }
 
     private var answerPersistenceKey: String {
-        return "question_answer_\(currentQuestion.id.uuidString)"
+        return "question_answer_\(currentQuestion.id.uuidString)_\(uid)"
     }
 
     // Default initializer without callback (for backwards compatibility)
@@ -1410,7 +1411,7 @@ Question: \(currentQuestion.question)
             print("📚 [Archive] Archive data - Subject: \(subject), Topic: \(currentQuestion.topic), Correct: \(isCorrect), Has error keys: \(currentQuestion.errorType != nil)")
 
             // Save to local storage
-            _ = QuestionLocalStorage.shared.saveQuestions([questionData])
+            _ = currentUserQuestionStorage().saveQuestions([questionData])
 
             // Route through error analysis pipeline (same as AI homework grader)
             // This ensures base_branch, detailed_branch, error_type, and weaknessKey

@@ -142,6 +142,9 @@ class SecretsManager {
   getServiceJWTSecret() {
     let secret = this.getSecret('SERVICE_JWT_SECRET');
     if (!secret) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('FATAL: SERVICE_JWT_SECRET environment variable is not set. Refusing to start in production without a service JWT secret.');
+      }
       // Generate a secure secret for development
       secret = crypto.randomBytes(64).toString('hex');
       this.setSecret('SERVICE_JWT_SECRET', secret);

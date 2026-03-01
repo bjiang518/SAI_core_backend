@@ -703,8 +703,10 @@ final class AuthenticationService: ObservableObject {
     
     // MARK: - Biometric Authentication
 
-    private let faceIDEnabledKey = "faceIDEnabled"
-
+    private var faceIDEnabledKey: String {
+        let userId = currentUser?.id ?? keychainService.getUser()?.id ?? "anonymous"
+        return "faceIDEnabled_\(userId)"
+    }
     func signInWithBiometrics() async throws {
         guard biometricAuth.isBiometricAvailable() else {
             throw AuthError.biometricNotAvailable
@@ -799,6 +801,13 @@ final class AuthenticationService: ObservableObject {
 
     func signOut() {
         keychainService.clearAll()
+
+        // Clear cached user profile so the next account gets a fresh load
+        ProfileService.shared.clearCachedProfile()
+
+        // Clear avatar UserDefaults keys (global keys that would leak between accounts)
+        UserDefaults.standard.removeObject(forKey: "selectedAvatarId")
+        UserDefaults.standard.removeObject(forKey: "localAvatarFilename")
 
         // ✅ NEW: End session on sign out
         sessionManager.endSession()

@@ -293,21 +293,28 @@ class PointsEarningManager: ObservableObject {
     private var dayChangeObserver: NSObjectProtocol?
     
     private let userDefaults = UserDefaults.standard
-    private let pointsKey = "studyai_current_points"
-    private let totalPointsKey = "studyai_total_points"
-    private let goalsKey = "studyai_learning_goals"
-    private let checkoutHistoryKey = "studyai_checkout_history"
-    private let streakKey = "studyai_current_streak"
-    private let weeklyProgressKey = "studyai_current_weekly_progress"
-    private let lastTimezoneKey = "studyai_last_timezone"
-    private let todayProgressKey = "studyai_today_progress"
-    private let thisWeekProgressKey = "studyai_this_week_progress"
-    private let thisMonthProgressKey = "studyai_this_month_progress"
-    private let lastResetDateKey = "studyai_last_reset_date"
-    private let dailyPointsEarnedKey = "studyai_daily_points_earned"
-    private let lastStreakUpdateDateKey = "studyai_last_streak_update_date"
-    private let updatedTodayKey = "studyai_updated_today"
-    private let lastLoginDateKey = "studyai_last_login_date"
+    private var authCancellable: AnyCancellable?
+
+    // MARK: - Per-user UserDefaults key prefix
+    private var userKeyPrefix: String {
+        let userId = AuthenticationService.shared.currentUser?.id ?? "anonymous"
+        return "studyai_\(userId)_"
+    }
+    private var pointsKey: String { userKeyPrefix + "current_points" }
+    private var totalPointsKey: String { userKeyPrefix + "total_points" }
+    private var goalsKey: String { userKeyPrefix + "learning_goals" }
+    private var checkoutHistoryKey: String { userKeyPrefix + "checkout_history" }
+    private var streakKey: String { userKeyPrefix + "current_streak" }
+    private var weeklyProgressKey: String { userKeyPrefix + "current_weekly_progress" }
+    private var lastTimezoneKey: String { userKeyPrefix + "last_timezone" }
+    private var todayProgressKey: String { userKeyPrefix + "today_progress" }
+    private var thisWeekProgressKey: String { userKeyPrefix + "this_week_progress" }
+    private var thisMonthProgressKey: String { userKeyPrefix + "this_month_progress" }
+    private var lastResetDateKey: String { userKeyPrefix + "last_reset_date" }
+    private var dailyPointsEarnedKey: String { userKeyPrefix + "daily_points_earned" }
+    private var lastStreakUpdateDateKey: String { userKeyPrefix + "last_streak_update_date" }
+    private var updatedTodayKey: String { userKeyPrefix + "updated_today" }
+    private var lastLoginDateKey: String { userKeyPrefix + "last_login_date" }
 
     deinit {
         // Clean up timer and observers
@@ -337,9 +344,27 @@ class PointsEarningManager: ObservableObject {
         // Setup day change notifications
         setupDayChangeNotifications()
 
+        // Reload data when user logs in so progress is scoped per account
+        authCancellable = AuthenticationService.shared.$isAuthenticated
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.reloadForCurrentUser()
+            }
+
         // ✅ LOCAL-ONLY: Removed server loads from init
         // All progress data is now loaded from local storage only
         // Use StorageSyncService to sync progress with server
+    }
+
+    /// Reload all progress data for the currently authenticated user.
+    /// Called automatically when the user logs in or switches accounts.
+    func reloadForCurrentUser() {
+        forceSave() // flush any pending writes for the previous user first
+        loadStoredData()
+        setupDefaultGoals()
+        checkDailyReset()
+        checkWeeklyReset()
     }
 
     /// Setup app termination handling to ensure data is saved

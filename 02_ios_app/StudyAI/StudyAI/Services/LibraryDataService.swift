@@ -8,6 +8,22 @@
 import Foundation
 import Combine
 
+// MARK: - User-Scoped Local Storage Helpers
+// Always use these instead of .shared to ensure data is isolated per user account.
+
+/// Returns a QuestionLocalStorage scoped to the currently logged-in user.
+/// Falls back to "anonymous" if no user is logged in (data will not leak between real accounts).
+func currentUserQuestionStorage() -> QuestionLocalStorage {
+    let userId = AuthenticationService.shared.currentUser?.id ?? "anonymous"
+    return QuestionLocalStorage.forUser(userId)
+}
+
+/// Returns a ConversationLocalStorage scoped to the currently logged-in user.
+func currentUserConversationStorage() -> ConversationLocalStorage {
+    let userId = AuthenticationService.shared.currentUser?.id ?? "anonymous"
+    return ConversationLocalStorage.forUser(userId)
+}
+
 // MARK: - Production Logging Safety
 // Disable debug print statements in production builds to prevent user study history exposure
 #if !DEBUG
@@ -175,7 +191,7 @@ class LibraryDataService: ObservableObject {
         print("🔍 [Search] Filters: searchText=\(filters.searchText ?? "none"), subjects=\(filters.selectedSubjects.count), grade=\(filters.gradeFilter?.rawValue ?? "none")")
 
         // ✅ LOCAL-ONLY: Load from local storage
-        let localStorage = QuestionLocalStorage.shared
+        let localStorage = currentUserQuestionStorage()
         let localQuestions = localStorage.getLocalQuestions()
 
         print("🔍 [Search] Step 1: Retrieved \(localQuestions.count) questions from local storage")
@@ -299,7 +315,7 @@ class LibraryDataService: ObservableObject {
         // Determine item type and delete accordingly
         if item.itemType == .question {
             // Delete question
-            QuestionLocalStorage.shared.removeQuestion(withId: item.id)
+            currentUserQuestionStorage().removeQuestion(withId: item.id)
 
             // Update cache
             await MainActor.run {
@@ -310,7 +326,7 @@ class LibraryDataService: ObservableObject {
             return true
         } else {
             // Delete conversation
-            ConversationLocalStorage.shared.removeConversation(withId: item.id)
+            currentUserConversationStorage().removeConversation(withId: item.id)
 
             // Update cache
             await MainActor.run {
@@ -587,7 +603,7 @@ class LibraryDataService: ObservableObject {
     private func fetchQuestions() async -> (data: [QuestionSummary], error: String?) {
         // ✅ FIX: Library should ONLY read from local storage
         // Sync feature handles downloading from server to local storage
-        let localStorage = QuestionLocalStorage.shared
+        let localStorage = currentUserQuestionStorage()
         let localQuestions = localStorage.getLocalQuestions()
 
         // Convert local questions to QuestionSummary
@@ -614,7 +630,7 @@ class LibraryDataService: ObservableObject {
     private func fetchConversations() async -> (data: [[String: Any]], error: String?) {
         // ✅ FIX: Library should ONLY read from local storage
         // Sync feature handles downloading from server to local storage
-        let localStorage = ConversationLocalStorage.shared
+        let localStorage = currentUserConversationStorage()
         let localConversations = localStorage.getLocalConversations()
 
         return (localConversations, nil)
@@ -1059,13 +1075,20 @@ import Foundation
 /// Local storage manager for archived conversations
 /// Provides immediate access to recently archived conversations while backend replication syncs
 class ConversationLocalStorage {
-    static let shared = ConversationLocalStorage()
+    static let shared = ConversationLocalStorage(userId: "anonymous")
+
+    /// Return a user-scoped instance. All reads/writes are isolated to this userId.
+    static func forUser(_ userId: String) -> ConversationLocalStorage {
+        return ConversationLocalStorage(userId: userId)
+    }
 
     private let userDefaults = UserDefaults.standard
-    private let conversationsKey = "localArchivedConversations"
+    private let conversationsKey: String
     private let maxLocalConversations = 50 // Keep last 50 conversations locally
 
-    private init() {}
+    private init(userId: String) {
+        self.conversationsKey = "localArchivedConversations_\(userId)"
+    }
 
     // MARK: - Save to Local Storage
 
@@ -1213,11 +1236,16 @@ import CryptoKit
 /// Local storage manager for archived questions
 /// Provides immediate access to recently archived questions while backend replication syncs
 class QuestionLocalStorage {
-    static let shared = QuestionLocalStorage()
+    static let shared = QuestionLocalStorage(userId: "anonymous")
+
+    /// Return a user-scoped instance. All reads/writes are isolated to this userId.
+    static func forUser(_ userId: String) -> QuestionLocalStorage {
+        return QuestionLocalStorage(userId: userId)
+    }
 
     private let userDefaults = UserDefaults.standard
-    private let questionsKey = "localArchivedQuestions"
-    private let hashSetKey = "localArchivedQuestionHashes"
+    private let questionsKey: String
+    private let hashSetKey: String
 
     // ✅ CRITICAL: Serial queue for thread-safe access
     private let storageQueue = DispatchQueue(label: "com.studyai.questionStorage", qos: .userInitiated)
@@ -1234,7 +1262,10 @@ class QuestionLocalStorage {
     private var dateCache: [String: Date] = [:]
     private let dateCacheLimit = AppConstants.dateCacheSizeLimit
 
-    private init() {}
+    private init(userId: String) {
+        self.questionsKey = "localArchivedQuestions_\(userId)"
+        self.hashSetKey = "localArchivedQuestionHashes_\(userId)"
+    }
 
     // MARK: - Content Hash
 
@@ -1951,7 +1982,7 @@ import SwiftUI
 class LocalProgressService {
     static let shared = LocalProgressService()
 
-    private let questionLocalStorage = QuestionLocalStorage.shared
+    private var questionLocalStorage: QuestionLocalStorage { currentUserQuestionStorage() }
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"

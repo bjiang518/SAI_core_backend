@@ -18,11 +18,20 @@ class TomatoGardenService: ObservableObject {
 
     // MARK: - Private Properties
     private let userDefaults = UserDefaults.standard
-    private let tomatoesKey = "user_tomato_garden"
+    private var authCancellable: AnyCancellable?
+    private var uid: String { AuthenticationService.shared.currentUser?.id ?? "anonymous" }
+    private var tomatoesKey: String { "user_tomato_garden_\(uid)" }
 
     private init() {
         loadTomatoes()
         updateStats()
+        authCancellable = AuthenticationService.shared.$isAuthenticated
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.loadTomatoes()
+                self?.updateStats()
+            }
     }
 
     // MARK: - Core Functions

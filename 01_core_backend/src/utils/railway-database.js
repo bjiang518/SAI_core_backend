@@ -551,6 +551,8 @@ const db = {
    * Store verification code for email verification
    */
   async storeVerificationCode(email, code, name, expiresAt) {
+    const bcrypt = require('bcryptjs');
+    const codeHash = await bcrypt.hash(code, 10);
     const query = `
       INSERT INTO email_verifications (email, code, name, expires_at, attempts)
       VALUES ($1, $2, $3, $4, 0)
@@ -564,7 +566,7 @@ const db = {
       RETURNING *
     `;
 
-    const result = await this.query(query, [email, code, name, expiresAt]);
+    const result = await this.query(query, [email, codeHash, name, expiresAt]);
     return result.rows[0];
   },
 
@@ -595,8 +597,10 @@ const db = {
       return false;
     }
 
-    // Check code match
-    if (verification.code !== code) {
+    // Check code match using timing-safe bcrypt compare
+    const bcrypt = require('bcryptjs');
+    const codeMatch = await bcrypt.compare(code, verification.code);
+    if (!codeMatch) {
       // Only increment attempts on wrong code
       await this.query(
         'UPDATE email_verifications SET attempts = attempts + 1 WHERE email = $1',

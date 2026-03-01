@@ -1110,7 +1110,7 @@ class QuestionGenerationService: ObservableObject {
         let weaknesses = ShortTermStatusService.shared.getTopActiveWeaknesses(limit: 3)
         guard !weaknesses.isEmpty else { return [] }
 
-        let allLocalQuestions = QuestionLocalStorage.shared.getLocalQuestions()
+        let allLocalQuestions = currentUserQuestionStorage().getLocalQuestions()
 
         var result: [[String: Any]] = []
 

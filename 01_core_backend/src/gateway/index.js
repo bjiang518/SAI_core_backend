@@ -110,17 +110,16 @@ fastify.register(require('@fastify/static'), {
 fastify.log.info('✅ Static file serving registered (privacy policy at /legal/)');
 
 // Register CORS with strict origin whitelist for security
+const corsOrigins = [
+  'https://sai-backend-production.up.railway.app',
+  // Admin Dashboard
+  'https://studyai-admin-dashboard-production.up.railway.app',
+];
+if (process.env.NODE_ENV !== 'production') {
+  corsOrigins.push('http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001');
+}
 fastify.register(require('@fastify/cors'), {
-  origin: [
-    'https://sai-backend-production.up.railway.app',
-    // Admin Dashboard
-    'https://studyai-admin-dashboard-production.up.railway.app',
-    // Add localhost for development
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'http://127.0.0.1:3000',
-    'http://127.0.0.1:3001'
-  ],
+  origin: corsOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],

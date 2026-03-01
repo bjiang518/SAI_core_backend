@@ -5,6 +5,12 @@
 
 const { db } = require('../../utils/railway-database');
 const PIIMasking = require('../../utils/pii-masking');
+const { OAuth2Client } = require('google-auth-library');
+const appleSignin = require('apple-signin-auth');
+
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const APPLE_BUNDLE_ID = 'com.OliOli.StudyMatesAI';
+const googleAuthClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 class AuthRoutes {
   constructor(fastify) {
@@ -17,6 +23,16 @@ class AuthRoutes {
 
     // Login endpoint
     this.fastify.post('/api/auth/login', {
+      config: {
+        rateLimit: {
+          max: 5,
+          timeWindow: '15 minutes',
+          errorResponseBuilder: () => ({
+            success: false,
+            message: 'Too many login attempts. Please try again in 15 minutes.'
+          })
+        }
+      },
       schema: {
         description: 'User login',
         tags: ['Authentication'],
@@ -577,13 +593,35 @@ class AuthRoutes {
         });
       }
 
+      // Verify idToken with Google's servers
+      let googlePayload;
+      try {
+        const ticket = await googleAuthClient.verifyIdToken({
+          idToken: idToken,
+          audience: GOOGLE_CLIENT_ID,
+        });
+        googlePayload = ticket.getPayload();
+      } catch (verifyError) {
+        this.fastify.log.warn(`🔐 Google token verification failed: ${verifyError.message}`);
+        return reply.status(401).send({
+          success: false,
+          message: 'Google authentication failed: invalid token'
+        });
+      }
+
+      // Use verified values from Google, not client-supplied ones
+      const verifiedEmail = googlePayload.email;
+      const verifiedGoogleId = googlePayload.sub;
+      const verifiedName = googlePayload.name || name || this.extractNameFromEmail(verifiedEmail);
+      const verifiedProfileImageUrl = googlePayload.picture || profileImageUrl;
+
       // Create or update user in database
       const userData = {
-        email: email,
-        name: name || this.extractNameFromEmail(email),
-        profileImageUrl: profileImageUrl,
+        email: verifiedEmail,
+        name: verifiedName,
+        profileImageUrl: verifiedProfileImageUrl,
         authProvider: 'google',
-        googleId: this.extractGoogleIdFromToken(idToken)
+        googleId: verifiedGoogleId
       };
 
       const user = await db.createOrUpdateUser(userData);
@@ -597,7 +635,7 @@ class AuthRoutes {
 
       const session = await db.createUserSession(user.id, deviceInfo, clientIP);
 
-      this.fastify.log.info(`✅ Google login successful for: ${PIIMasking.maskEmail(email)} (User ID: ${PIIMasking.maskUserId(user.id)})`);
+      this.fastify.log.info(`✅ Google login successful for: ${PIIMasking.maskEmail(verifiedEmail)} (User ID: ${PIIMasking.maskUserId(user.id)})`);
 
       return reply.send({
         success: true,
@@ -641,12 +679,40 @@ class AuthRoutes {
         });
       }
 
+      // Verify identityToken with Apple's public keys
+      let applePayload;
+      try {
+        applePayload = await appleSignin.verifyIdToken(identityToken, {
+          audience: APPLE_BUNDLE_ID,
+          ignoreExpiration: false,
+        });
+      } catch (verifyError) {
+        this.fastify.log.warn(`🍏 ❌ Apple token verification failed: ${verifyError.message}`);
+        return reply.status(401).send({
+          success: false,
+          message: 'Apple authentication failed: invalid token'
+        });
+      }
+
+      // Verify that the token's subject matches the provided userIdentifier
+      if (applePayload.sub !== userIdentifier) {
+        this.fastify.log.warn(`🍏 ❌ Apple userIdentifier mismatch`);
+        return reply.status(401).send({
+          success: false,
+          message: 'Apple authentication failed: user identifier mismatch'
+        });
+      }
+
+      // Use verified values from Apple token
+      const verifiedAppleId = applePayload.sub;
+      const verifiedEmail = applePayload.email || email;
+
       // Create or update user in database
       const userData = {
-        email: email,
-        name: name || this.extractNameFromEmail(email),
+        email: verifiedEmail,
+        name: name || this.extractNameFromEmail(verifiedEmail),
         authProvider: 'apple',
-        appleId: userIdentifier  // Store Apple's unique user identifier
+        appleId: verifiedAppleId
       };
 
       this.fastify.log.info(`🍏 Creating/updating user with data:`, userData);
@@ -664,7 +730,7 @@ class AuthRoutes {
 
       const session = await db.createUserSession(user.id, deviceInfo, clientIP);
 
-      this.fastify.log.info(`🍏 ✅ Apple login successful for: ${PIIMasking.maskEmail(email)} (User ID: ${PIIMasking.maskUserId(user.id)})`);
+      this.fastify.log.info(`🍏 ✅ Apple login successful for: ${PIIMasking.maskEmail(verifiedEmail)} (User ID: ${PIIMasking.maskUserId(user.id)})`);
       this.fastify.log.info(`🍏 Token generated: ${session.token.substring(0, 30)}...`);
 
       return reply.send({
@@ -1904,12 +1970,6 @@ The Study Mates Team
   extractNameFromEmail(email) {
     // Extract name from email (everything before @)
     return email.split('@')[0].replace(/[.\-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-  }
-
-  extractGoogleIdFromToken(idToken) {
-    // In production, decode the JWT to get the Google user ID
-    // For demo purposes, generate a fake ID based on the token
-    return 'google_' + Buffer.from(idToken.substring(0, 20)).toString('base64').substring(0, 10);
   }
 
   // ==============================

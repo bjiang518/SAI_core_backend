@@ -8,8 +8,6 @@
  * - HALF_OPEN: Testing if AI Engine recovered
  */
 
-const fetch = require('node-fetch');
-
 class AIEngineCircuitBreaker {
   constructor() {
     this.state = 'CLOSED'; // CLOSED, OPEN, HALF_OPEN

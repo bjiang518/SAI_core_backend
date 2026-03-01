@@ -177,11 +177,11 @@ class QuestionArchiveService: ObservableObject {
         }
 
         // ✅ Save to local storage ONLY - no server request
-        _ = QuestionLocalStorage.shared.saveQuestions(questionDataForLocalStorage)
+        _ = currentUserQuestionStorage().saveQuestions(questionDataForLocalStorage)
 
         // ✅ DEBUG: Verify what was saved
         print("\n🔍 [DEBUG] === VERIFYING SAVED DATA ===")
-        let savedQuestions = QuestionLocalStorage.shared.getLocalQuestions()
+        let savedQuestions = currentUserQuestionStorage().getLocalQuestions()
         print("🔍 [DEBUG] Total questions in storage after save: \(savedQuestions.count)")
 
         if let firstSaved = savedQuestions.first {
@@ -194,7 +194,7 @@ class QuestionArchiveService: ObservableObject {
         }
 
         // Check how many mistakes are in storage
-        let mistakes = QuestionLocalStorage.shared.getMistakeQuestions()
+        let mistakes = currentUserQuestionStorage().getMistakeQuestions()
         print("🔍 [DEBUG] Total mistakes in storage: \(mistakes.count)")
         print("🔍 [DEBUG] === END VERIFICATION ===\n")
 
@@ -211,7 +211,7 @@ class QuestionArchiveService: ObservableObject {
         print("🔍 [Archive] Fetching questions from LOCAL storage only")
 
         // ✅ Get local questions only (no server fetch)
-        let localStorage = QuestionLocalStorage.shared
+        let localStorage = currentUserQuestionStorage()
         let localQuestions = localStorage.getLocalQuestions()
         print("   💾 [Archive] Found \(localQuestions.count) questions in local storage")
 
@@ -235,7 +235,7 @@ class QuestionArchiveService: ObservableObject {
         print("🔍 [Archive] Fetching question details from LOCAL storage: \(questionId)")
 
         // ✅ Get from local storage only (no server fetch)
-        guard let localQuestion = QuestionLocalStorage.shared.getQuestionById(questionId) else {
+        guard let localQuestion = currentUserQuestionStorage().getQuestionById(questionId) else {
             print("   ❌ [Archive] Question not found in local storage")
             throw QuestionArchiveError.questionNotFound
         }

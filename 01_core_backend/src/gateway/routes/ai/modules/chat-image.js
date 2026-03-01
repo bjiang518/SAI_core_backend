@@ -134,7 +134,6 @@ class ChatImageRoutes {
    */
   async processChatImageStream(request, reply) {
     const startTime = Date.now();
-    const fetch = require('node-fetch');
 
     try {
       // Validate payload size (prevent DoS attacks with huge payloads)

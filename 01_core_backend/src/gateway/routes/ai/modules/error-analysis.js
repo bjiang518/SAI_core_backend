@@ -9,7 +9,6 @@
  * - Backend does NOT queue anything (iOS handles queueing)
  */
 
-const fetch = require('node-fetch');
 const { getUserId } = require('../utils/auth-helper');
 
 module.exports = async function (fastify, opts) {

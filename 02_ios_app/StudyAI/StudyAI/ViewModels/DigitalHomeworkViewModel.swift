@@ -1507,7 +1507,7 @@ class DigitalHomeworkViewModel: ObservableObject {
             questionsToArchive.append(questionData)
         }
 
-        let idMappings = QuestionLocalStorage.shared.saveQuestions(questionsToArchive)
+        let idMappings = currentUserQuestionStorage().saveQuestions(questionsToArchive)
         let skipped = idMappings.filter { $0.originalId != $0.savedId }.count
         let added   = idMappings.count - skipped
         log.info("🗂️ [SMART ORGANIZE]   💾 \(pLabel) subquestions — added: \(added), skipped (duplicate): \(skipped)")
@@ -1645,7 +1645,7 @@ class DigitalHomeworkViewModel: ObservableObject {
         log.info("🗂️ [SMART ORGANIZE]   Prepared \(questionsToArchive.count) regular + \(subquestionsToArchive.count) parent(s) for storage")
 
         // Pass 1: save to local storage
-        let idMappings = QuestionLocalStorage.shared.saveQuestions(questionsToArchive)
+        let idMappings = currentUserQuestionStorage().saveQuestions(questionsToArchive)
 
         let skipped = idMappings.filter { $0.originalId != $0.savedId }.count
         let added   = idMappings.count - skipped

@@ -25,26 +25,22 @@ class ShortTermStatusService: ObservableObject {
 
     private let logger = AppLogger.forFeature("ShortTermStatus")
     private var midnightCheckTimer: Timer?
+    private var authCancellable: AnyCancellable?
+
+    // Per-user UserDefaults keys
+    private var uid: String { AuthenticationService.shared.currentUser?.id ?? "anonymous" }
+    private var shortTermStatusKey: String { ShortTermStatusStorageKeys.shortTermStatus + "_\(uid)" }
+    private var weaknessFolderKey: String { ShortTermStatusStorageKeys.weaknessPointFolder + "_\(uid)" }
+    private var migrationDateKey: String { ShortTermStatusStorageKeys.lastMigrationDate + "_\(uid)" }
+    private var handwritingHistoryKey: String { ShortTermStatusStorageKeys.handwritingHistory + "_\(uid)" }
 
     private init() {
-        // Load from UserDefaults
-        if let data = UserDefaults.standard.data(forKey: ShortTermStatusStorageKeys.shortTermStatus),
-           let decoded = try? JSONDecoder().decode(ShortTermStatus.self, from: data) {
-            self.status = decoded
-            logger.info("Loaded short-term status: \(decoded.activeWeaknesses.count) active weaknesses")
-        } else {
-            self.status = ShortTermStatus()
-            logger.info("Initialized new short-term status")
-        }
+        // Initialize defaults first (required before computed vars are accessible)
+        self.status = ShortTermStatus()
+        self.weaknessFolder = WeaknessPointFolder()
 
-        if let data = UserDefaults.standard.data(forKey: ShortTermStatusStorageKeys.weaknessPointFolder),
-           let decoded = try? JSONDecoder().decode(WeaknessPointFolder.self, from: data) {
-            self.weaknessFolder = decoded
-            logger.info("Loaded weakness point folder: \(decoded.weaknessPoints.count) points")
-        } else {
-            self.weaknessFolder = WeaknessPointFolder()
-            logger.info("Initialized new weakness point folder")
-        }
+        // Reload from per-user storage
+        reloadFromStorage()
 
         // ✅ FIX #7: Triple-layered migration triggers
         // Layer 1: Check on app launch (ALWAYS runs)
@@ -58,6 +54,33 @@ class ShortTermStatusService: ObservableObject {
 
         // BATTERY OPTIMIZATION: Stop timer when app goes to background
         setupLifecycleObservers()
+
+        // Reload when user logs in/out
+        authCancellable = AuthenticationService.shared.$isAuthenticated
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.reloadFromStorage() }
+    }
+
+    /// Reload status and weakness folder from the current user's storage.
+    func reloadFromStorage() {
+        if let data = UserDefaults.standard.data(forKey: shortTermStatusKey),
+           let decoded = try? JSONDecoder().decode(ShortTermStatus.self, from: data) {
+            self.status = decoded
+            logger.info("Loaded short-term status: \(decoded.activeWeaknesses.count) active weaknesses")
+        } else {
+            self.status = ShortTermStatus()
+            logger.info("Initialized new short-term status")
+        }
+
+        if let data = UserDefaults.standard.data(forKey: weaknessFolderKey),
+           let decoded = try? JSONDecoder().decode(WeaknessPointFolder.self, from: data) {
+            self.weaknessFolder = decoded
+            logger.info("Loaded weakness point folder: \(decoded.weaknessPoints.count) points")
+        } else {
+            self.weaknessFolder = WeaknessPointFolder()
+            logger.info("Initialized new weakness point folder")
+        }
     }
 
     private func setupLifecycleObservers() {
@@ -87,10 +110,10 @@ class ShortTermStatusService: ObservableObject {
         status.lastUpdated = Date()
 
         if let encoded = try? JSONEncoder().encode(status) {
-            UserDefaults.standard.set(encoded, forKey: ShortTermStatusStorageKeys.shortTermStatus)
+            UserDefaults.standard.set(encoded, forKey: shortTermStatusKey)
         }
         if let encoded = try? JSONEncoder().encode(weaknessFolder) {
-            UserDefaults.standard.set(encoded, forKey: ShortTermStatusStorageKeys.weaknessPointFolder)
+            UserDefaults.standard.set(encoded, forKey: weaknessFolderKey)
         }
 
         logger.debug("Saved status: \(status.activeWeaknesses.count) active, \(weaknessFolder.weaknessPoints.count) points")
@@ -353,7 +376,7 @@ class ShortTermStatusService: ObservableObject {
 
     private func getRecentAttempts(key: String, hours: Int) -> Set<String> {
         // Get questions from local storage that match this weakness key in the last N hours
-        let allQuestions = QuestionLocalStorage.shared.getLocalQuestions()
+        let allQuestions = currentUserQuestionStorage().getLocalQuestions()
         let cutoffDate = Date().addingTimeInterval(-Double(hours * 3600))
 
         let recentQuestionIds = allQuestions
@@ -375,7 +398,7 @@ class ShortTermStatusService: ObservableObject {
 
     // ✅ FIX #7: LAYER 1 - Check on app launch
     func checkAndRunMigrationIfNeeded() {
-        let lastMigration = UserDefaults.standard.object(forKey: ShortTermStatusStorageKeys.lastMigrationDate) as? Date
+        let lastMigration = UserDefaults.standard.object(forKey: migrationDateKey) as? Date
         let now = Date()
 
         // Check if it's been >24 hours since last migration
@@ -464,7 +487,7 @@ class ShortTermStatusService: ObservableObject {
 
         if keysToMigrate.isEmpty {
             logger.info("✅ No weaknesses eligible for migration")
-            UserDefaults.standard.set(now, forKey: ShortTermStatusStorageKeys.lastMigrationDate)
+            UserDefaults.standard.set(now, forKey: migrationDateKey)
             return
         }
 
@@ -477,7 +500,7 @@ class ShortTermStatusService: ObservableObject {
         }
 
         save()
-        UserDefaults.standard.set(now, forKey: ShortTermStatusStorageKeys.lastMigrationDate)
+        UserDefaults.standard.set(now, forKey: migrationDateKey)
 
         logger.info("✅ Migration complete: \(keysToMigrate.count) weaknesses migrated")
 
@@ -598,7 +621,7 @@ class ShortTermStatusService: ObservableObject {
     }
 
     private func getErrorHistoryForKey(_ key: String, limit: Int) -> [[String: Any]] {
-        let allQuestions = QuestionLocalStorage.shared.getLocalQuestions()
+        let allQuestions = currentUserQuestionStorage().getLocalQuestions()
 
         return allQuestions
             .filter { question in
@@ -701,7 +724,7 @@ class ShortTermStatusService: ObservableObject {
     // MARK: - Top Weaknesses
 
     func getTopActiveWeaknesses(limit: Int = 5) -> [(key: String, value: WeaknessValue)] {
-        let localStorage = QuestionLocalStorage.shared
+        let localStorage = currentUserQuestionStorage()
         let allQuestions = localStorage.getLocalQuestions()
 
         // ✅ Filter out weaknesses that have no associated questions
@@ -865,7 +888,7 @@ class ShortTermStatusService: ObservableObject {
     // MARK: - Handwriting History Storage
 
     private func loadHandwritingHistory() -> HandwritingHistory {
-        if let data = UserDefaults.standard.data(forKey: ShortTermStatusStorageKeys.handwritingHistory),
+        if let data = UserDefaults.standard.data(forKey: handwritingHistoryKey),
            let decoded = try? JSONDecoder().decode(HandwritingHistory.self, from: data) {
             return decoded
         }
@@ -874,7 +897,7 @@ class ShortTermStatusService: ObservableObject {
 
     private func saveHandwritingHistory(_ history: HandwritingHistory) {
         if let encoded = try? JSONEncoder().encode(history) {
-            UserDefaults.standard.set(encoded, forKey: ShortTermStatusStorageKeys.handwritingHistory)
+            UserDefaults.standard.set(encoded, forKey: handwritingHistoryKey)
         }
     }
 

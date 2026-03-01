@@ -27,14 +27,16 @@ struct VoiceSettings: Codable {
     
     // Save to UserDefaults
     func save() {
+        let uid = AuthenticationService.shared.currentUser?.id ?? "anonymous"
         if let encoded = try? JSONEncoder().encode(self) {
-            UserDefaults.standard.set(encoded, forKey: "voice_settings")
+            UserDefaults.standard.set(encoded, forKey: "voice_settings_\(uid)")
         }
     }
-    
+
     // Load from UserDefaults
     static func load() -> VoiceSettings {
-        guard let data = UserDefaults.standard.data(forKey: "voice_settings"),
+        let uid = AuthenticationService.shared.currentUser?.id ?? "anonymous"
+        guard let data = UserDefaults.standard.data(forKey: "voice_settings_\(uid)"),
               let settings = try? JSONDecoder().decode(VoiceSettings.self, from: data) else {
             return VoiceSettings() // Return default
         }

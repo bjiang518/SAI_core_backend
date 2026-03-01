@@ -21,7 +21,7 @@ class BackgroundMusicService: NSObject, ObservableObject {
     @Published var volume: Float = 0.5 {
         didSet {
             audioPlayer?.volume = volume
-            UserDefaults.standard.set(volume, forKey: "focus_music_volume")
+            UserDefaults.standard.set(volume, forKey: volumeKey)
         }
     }
 
@@ -31,6 +31,10 @@ class BackgroundMusicService: NSObject, ObservableObject {
     private var playlists: [MusicPlaylist] = []
     private let downloadService = MusicDownloadService.shared
     private let libraryService = MusicLibraryService.shared
+    private var authCancellable: AnyCancellable?
+    private var uid: String { AuthenticationService.shared.currentUser?.id ?? "anonymous" }
+    private var volumeKey: String { "focus_music_volume_\(uid)" }
+    private var playlistsKey: String { "focus_music_playlists_\(uid)" }
 
     // MARK: - Available Tracks
     var availableTracks: [BackgroundMusicTrack] {
@@ -111,14 +115,24 @@ class BackgroundMusicService: NSObject, ObservableObject {
     private override init() {
         super.init()
 
-        // Load saved volume preference
-        let savedVolume = UserDefaults.standard.float(forKey: "focus_music_volume")
+        // Load saved volume preference for current user
+        let savedVolume = UserDefaults.standard.float(forKey: volumeKey)
         if savedVolume > 0 {
             volume = savedVolume
         }
 
         loadPlaylists()
         configureAudioSession()
+
+        authCancellable = AuthenticationService.shared.$isAuthenticated
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self = self else { return }
+                let saved = UserDefaults.standard.float(forKey: self.volumeKey)
+                if saved > 0 { self.volume = saved }
+                self.loadPlaylists()
+            }
     }
 
     // MARK: - Audio Session Configuration
@@ -363,12 +377,12 @@ class BackgroundMusicService: NSObject, ObservableObject {
 
     private func savePlaylists() {
         if let encoded = try? JSONEncoder().encode(playlists) {
-            UserDefaults.standard.set(encoded, forKey: "focus_music_playlists")
+            UserDefaults.standard.set(encoded, forKey: playlistsKey)
         }
     }
 
     private func loadPlaylists() {
-        guard let data = UserDefaults.standard.data(forKey: "focus_music_playlists"),
+        guard let data = UserDefaults.standard.data(forKey: playlistsKey),
               let loadedPlaylists = try? JSONDecoder().decode([MusicPlaylist].self, from: data) else {
             print("📂 No saved playlists found")
             return

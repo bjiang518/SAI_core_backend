@@ -248,7 +248,7 @@ struct StorageControlView: View {
 
     private func calculateStorageSizes() {
         // Calculate archived questions size
-        let questionsData = QuestionLocalStorage.shared.getLocalQuestions()
+        let questionsData = currentUserQuestionStorage().getLocalQuestions()
         let questionsSize = calculateDataSize(questionsData)
         archivedQuestionsSize = formatBytes(questionsSize)
 
@@ -257,7 +257,7 @@ struct StorageControlView: View {
         progressDataSize = formatBytes(progressSize)
 
         // Calculate conversations size
-        let conversationsData = ConversationLocalStorage.shared.getLocalConversations()
+        let conversationsData = currentUserConversationStorage().getLocalConversations()
         let conversationsStorageSize = calculateDataSize(conversationsData)
         conversationsSize = formatBytes(conversationsStorageSize)
 
@@ -344,7 +344,7 @@ struct StorageControlView: View {
                 print("🗑️ [StorageControl] Deleted \(deletedCount) questions from server")
 
                 // Then clear local storage
-                QuestionLocalStorage.shared.clearAll()
+                currentUserQuestionStorage().clearAll()
 
                 clearMessage = NSLocalizedString("storage.clearQuestions.success", comment: "")
                 showingClearSuccess = true
@@ -363,15 +363,15 @@ struct StorageControlView: View {
     }
 
     private func clearArchivedConversations() {
-        ConversationLocalStorage.shared.clearAll()
+        currentUserConversationStorage().clearAll()
         clearMessage = NSLocalizedString("storage.clearConversations.success", comment: "")
         showingClearSuccess = true
     }
 
     private func clearAllData() {
-        QuestionLocalStorage.shared.clearAll()
+        currentUserQuestionStorage().clearAll()
         pointsManager.resetProgress()
-        ConversationLocalStorage.shared.clearAll()
+        currentUserConversationStorage().clearAll()
         clearMessage = NSLocalizedString("storage.clearAll.success", comment: "")
         showingClearSuccess = true
     }

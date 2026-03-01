@@ -296,13 +296,15 @@ class FocusSessionService: ObservableObject {
         sessions.append(session)
 
         if let encoded = try? JSONEncoder().encode(sessions) {
-            UserDefaults.standard.set(encoded, forKey: "focus_sessions")
+            let userId = AuthenticationService.shared.currentUser?.id ?? "anonymous"
+            UserDefaults.standard.set(encoded, forKey: "focus_sessions_\(userId)")
             print("💾 Session saved to UserDefaults")
         }
     }
 
     func loadAllSessions() -> [FocusSession] {
-        guard let data = UserDefaults.standard.data(forKey: "focus_sessions"),
+        let userId = AuthenticationService.shared.currentUser?.id ?? "anonymous"
+        guard let data = UserDefaults.standard.data(forKey: "focus_sessions_\(userId)"),
               let sessions = try? JSONDecoder().decode([FocusSession].self, from: data) else {
             return []
         }
