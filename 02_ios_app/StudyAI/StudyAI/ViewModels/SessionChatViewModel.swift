@@ -758,14 +758,13 @@ class SessionChatViewModel: ObservableObject {
                 diagramRequests[diagramKey] = request  // Store original request for regeneration
                 lastGeneratedDiagramKey = diagramKey  // Track for regenerate button
 
-                // Add diagram as AI message to conversation history (empty content, diagram will be displayed separately)
-                networkService.addToConversationHistory(role: "assistant", content: "")
-
-                // Store diagram reference in message for rendering
-                if let lastIndex = networkService.conversationHistory.indices.last {
-                    // Add diagram reference to the message
-                    networkService.conversationHistory[lastIndex]["diagramKey"] = diagramKey
-                }
+                // Add diagram as AI message to conversation history.
+                // IMPORTANT: include diagramKey in the dict BEFORE firing onMessageAdded,
+                // because allMessages captures the dict by value at the moment of the callback.
+                // Adding diagramKey after the fact only updates conversationHistory, not allMessages.
+                networkService.appendToConversationHistory(
+                    ["role": "assistant", "content": "", "diagramKey": diagramKey]
+                )
 
                 // ✅ FIX: Preserve existing AI suggestions and add regenerate button at the beginning
                 // This ensures we show: [Regenerate] [Suggestion 1] [Suggestion 2] [Suggestion 3]

@@ -157,12 +157,20 @@ struct DiagramRendererView: View {
                     isLoading = false
                 }
             } catch {
-                print("❌ [DiagramRenderer] Rendering failed: \(error.localizedDescription)")
-
-                await MainActor.run {
-                    hasError = true
-                    errorMessage = error.localizedDescription
-                    isLoading = false
+                print("⚠️ [DiagramRenderer] Primary render failed for \(diagramType): \(error.localizedDescription)")
+                // Fallback: render a simple SVG placeholder so the chat never shows a hard error state
+                do {
+                    let fallback = try await renderFallbackSVG()
+                    await MainActor.run {
+                        renderedImage = fallback
+                        isLoading = false
+                    }
+                } catch {
+                    await MainActor.run {
+                        hasError = true
+                        errorMessage = error.localizedDescription
+                        isLoading = false
+                    }
                 }
             }
         }
@@ -187,6 +195,30 @@ struct DiagramRendererView: View {
             print("🎨 [DiagramImage] ❌ Unsupported format: \(diagramType)")
             throw DiagramError.unsupportedFormat(diagramType)
         }
+    }
+
+    private func renderFallbackSVG() async throws -> UIImage {
+        let title = (diagramTitle ?? "Diagram")
+            .replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+            .replacingOccurrences(of: "\"", with: "&quot;")
+        let displayTitle = title.count > 45 ? String(title.prefix(42)) + "..." : title
+        let typeLabel = diagramType.uppercased()
+
+        let fallbackSVG = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 180">
+            <rect width="400" height="180" fill="#f0f4ff" rx="12" stroke="#b3c5f7" stroke-width="1.5"/>
+            <text x="200" y="72" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#2c3e7a">\(displayTitle)</text>
+            <text x="200" y="102" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#5a6899">\(typeLabel) Diagram</text>
+            <text x="200" y="132" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#8895b3">Simplified view</text>
+        </svg>
+        """
+        print("🎨 [DiagramRenderer] Rendering fallback SVG for \(diagramType)")
+        return try await SVGRenderer.shared.renderSVG(
+            fallbackSVG,
+            hint: NetworkService.DiagramRenderingHint(width: 400, height: 180, background: "white", scaleFactor: 1.0)
+        )
     }
 
     private func calculateMaxHeight() -> CGFloat {
@@ -289,34 +321,46 @@ class LaTeXRenderer {
             print("🎨 [LaTeXRenderer] Size: \(hint.width)x\(hint.height)")
         }
 
-        // For LaTeX rendering, we'll use a WebView with MathJax
-        return try await withCheckedThrowingContinuation { continuation in
-            DispatchQueue.main.async {
-                print("🎨 [LaTeXRenderer] Creating WebView renderer...")
+        // For LaTeX rendering, we'll use a WebView with MathJax.
+        // Wrap with a hard timeout so the continuation can't hang forever if the WebView stalls.
+        return try await withThrowingTaskGroup(of: UIImage.self) { group in
+            group.addTask { [self] in
+                return try await withCheckedThrowingContinuation { continuation in
+                    DispatchQueue.main.async {
+                        print("🎨 [LaTeXRenderer] Creating WebView renderer...")
 
-                let renderer = LaTeXWebRenderer(
-                    latexCode: code,
-                    hint: hint,
-                    completion: { [weak self] result in
-                        print("🎨 [LaTeXRenderer] ✅ Renderer completion called for \(continuationId)")
-                        continuation.resume(with: result)
+                        let renderer = LaTeXWebRenderer(
+                            latexCode: code,
+                            hint: hint,
+                            completion: { [weak self] result in
+                                print("🎨 [LaTeXRenderer] ✅ Renderer completion called for \(continuationId)")
+                                continuation.resume(with: result)
 
-                        // ✅ FIX: Remove renderer from active list after completion
-                        self?.queue.async {
-                            self?.activeRenderers.removeValue(forKey: continuationId)
-                            print("🎨 [LaTeXRenderer] ✅ Removed renderer \(continuationId) from active list (count: \(self?.activeRenderers.count ?? 0))")
+                                // ✅ FIX: Remove renderer from active list after completion
+                                self?.queue.async {
+                                    self?.activeRenderers.removeValue(forKey: continuationId)
+                                    print("🎨 [LaTeXRenderer] ✅ Removed renderer \(continuationId) from active list (count: \(self?.activeRenderers.count ?? 0))")
+                                }
+                            }
+                        )
+
+                        // ✅ FIX: Store renderer in active list to prevent deallocation
+                        self.queue.async {
+                            self.activeRenderers[continuationId] = renderer
+                            print("🎨 [LaTeXRenderer] ✅ Stored renderer \(continuationId) in active list (count: \(self.activeRenderers.count))")
                         }
+
+                        print("🎨 [LaTeXRenderer] WebView renderer created and started")
                     }
-                )
-
-                // ✅ FIX: Store renderer in active list to prevent deallocation
-                self.queue.async {
-                    self.activeRenderers[continuationId] = renderer
-                    print("🎨 [LaTeXRenderer] ✅ Stored renderer \(continuationId) in active list (count: \(self.activeRenderers.count))")
                 }
-
-                print("🎨 [LaTeXRenderer] WebView renderer created and started")
             }
+            group.addTask {
+                try await Task.sleep(nanoseconds: 10_000_000_000) // 10-second hard timeout
+                throw DiagramError.renderingFailed("LaTeX rendering timeout (10s)")
+            }
+            let image = try await group.next()!
+            group.cancelAll()
+            return image
         }
     }
 }
@@ -419,6 +463,15 @@ class SVGRenderer {
     }
 }
 
+// Weak proxy prevents WKWebView from retaining LaTeXWebRenderer strongly via the message handler
+private class WeakScriptMessageHandler: NSObject, WKScriptMessageHandler {
+    weak var delegate: WKScriptMessageHandler?
+    init(_ delegate: WKScriptMessageHandler) { self.delegate = delegate }
+    func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+        delegate?.userContentController(controller, didReceive: message)
+    }
+}
+
 // MARK: - LaTeX Web Renderer
 
 /// WebKit-based LaTeX renderer using MathJax
@@ -442,6 +495,8 @@ class LaTeXWebRenderer: NSObject, WKNavigationDelegate {
 
         super.init()
 
+        // Register renderComplete handler before loading HTML so local-bundle callbacks aren't missed
+        config.userContentController.add(WeakScriptMessageHandler(self), name: "renderComplete")
         webView.navigationDelegate = self
         setupWebView()
     }
@@ -462,14 +517,20 @@ class LaTeXWebRenderer: NSObject, WKNavigationDelegate {
     private func generateHTMLForLaTeX() -> String {
         let backgroundColor = hint?.background ?? "white"
 
+        // Use local bundle to avoid CDN latency and work offline
+        let mathJaxScriptTag: String
+        if let bundleURL = Bundle.main.url(forResource: "mathjax.min", withExtension: "js") {
+            mathJaxScriptTag = "<script src=\"\(bundleURL.absoluteString)\"></script>"
+        } else {
+            mathJaxScriptTag = "<script id=\"MathJax-script\" async src=\"https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js\"></script>"
+        }
+
         return """
         <!DOCTYPE html>
         <html>
         <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1">
-            <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-            <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
             <script>
                 window.MathJax = {
                     tex: {
@@ -484,14 +545,13 @@ class LaTeXWebRenderer: NSObject, WKNavigationDelegate {
                         ready: function () {
                             MathJax.startup.defaultReady();
                             MathJax.startup.promise.then(function () {
-                                setTimeout(function() {
-                                    window.webkit.messageHandlers.renderComplete.postMessage('ready');
-                                }, 100);
+                                window.webkit.messageHandlers.renderComplete.postMessage('ready');
                             });
                         }
                     }
                 };
             </script>
+            \(mathJaxScriptTag)
             <style>
                 body {
                     margin: 0;
@@ -519,22 +579,10 @@ class LaTeXWebRenderer: NSObject, WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        print("🎨 [LaTeXWebRenderer] WebView finished loading HTML")
-
-        // Add message handler for render completion
-        let script = WKUserScript(
-            source: "window.webkit.messageHandlers.renderComplete.postMessage('loaded');",
-            injectionTime: .atDocumentEnd,
-            forMainFrameOnly: true
-        )
-        webView.configuration.userContentController.addUserScript(script)
-        webView.configuration.userContentController.add(self, name: "renderComplete")
-
-        print("🎨 [LaTeXWebRenderer] Added MathJax message handler")
-
-        // Capture the rendered content after a delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            print("🎨 [LaTeXWebRenderer] Starting snapshot capture (fallback)")
+        // renderComplete message handler already registered in init.
+        // Safety-net: if MathJax silently fails to fire, capture after 3s.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+            guard let self, !self.hasCompleted else { return }
             self.captureWebViewImage()
         }
     }
@@ -602,12 +650,8 @@ extension LaTeXWebRenderer: WKScriptMessageHandler {
         print("🎨 [LaTeXWebRenderer] Received message: '\(message.name)' = '\(message.body)'")
 
         if message.name == "renderComplete" {
-            print("🎨 [LaTeXWebRenderer] MathJax rendering completed")
-            // MathJax has finished rendering
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                print("🎨 [LaTeXWebRenderer] Starting snapshot capture (MathJax ready)")
-                self.captureWebViewImage()
-            }
+            // MathJax has finished typesetting — capture immediately
+            captureWebViewImage()
         }
     }
 }
