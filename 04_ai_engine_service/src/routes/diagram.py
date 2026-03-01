@@ -19,6 +19,23 @@ from src.services.diagram import (
 router = APIRouter()
 
 
+def _make_fallback_svg(title: str, reason: str = "") -> str:
+    """Generate a minimal informational SVG when all diagram renderers fail."""
+    safe_title = (title or "Diagram")[:50].replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;')
+    reason_text = ""
+    if reason:
+        safe_reason = reason[:55].replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;').replace("'", ' ')
+        reason_text = f'<text x="200" y="155" text-anchor="middle" font-family="Arial" font-size="10" fill="#8895b3">{safe_reason}</text>'
+    return (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200">'
+        '<rect width="400" height="200" fill="#f0f4ff" rx="12" stroke="#b3c5f7" stroke-width="1.5"/>'
+        f'<text x="200" y="85" text-anchor="middle" font-family="Arial" font-size="15" font-weight="bold" fill="#2c3e7a">{safe_title}</text>'
+        '<text x="200" y="118" text-anchor="middle" font-family="Arial" font-size="12" fill="#5a6899">Diagram (simplified view)</text>'
+        f'{reason_text}'
+        '</svg>'
+    )
+
+
 # Request/Response Models
 class DiagramGenerationRequest(BaseModel):
     conversation_history: List[Dict[str, str]]  # Array of {role: "user|assistant", content: "..."}
@@ -178,51 +195,60 @@ async def generate_diagram(request: DiagramGenerationRequest):
         def contains_non_ascii(s: str) -> bool:
             return any(ord(c) > 127 for c in s)
 
-        # ASCII validation for renderers without unicode font support
-        if diagram_type in ["matplotlib", "graphviz"] and contains_non_ascii(diagram_content):
-            print(f"❌ Non-ASCII characters detected in {diagram_type} code")
-            result = {
+        async def _retry_as_svg(failure_reason: str) -> dict:
+            """Re-generate as SVG when the primary renderer fails. Always returns a result."""
+            print(f"⚠️ [DiagramFallback] {failure_reason} — re-generating as SVG")
+            try:
+                svg_regen = await generate_diagram_unified(
+                    conversation_text=conversation_text,
+                    diagram_request=request.diagram_request + " [Use SVG format with English labels only]",
+                    subject=request.subject,
+                    language="en",
+                    regenerate=False,
+                    ai_service=ai_service
+                )
+                svg_code = svg_regen.get('content', '').replace("\r\n", "\n").replace("\r", "\n")
+                if '<svg' in svg_code.lower():
+                    print(f"✅ [DiagramFallback] SVG regeneration succeeded")
+                    return {
+                        'success': True,
+                        'diagram_type': 'svg',
+                        'diagram_code': optimize_svg_for_display(svg_code, padding=20),
+                        'diagram_title': ai_output.get('title', 'Diagram'),
+                        'explanation': ai_output.get('explanation', ''),
+                        'width': svg_regen.get('width', 400),
+                        'height': svg_regen.get('height', 300),
+                        'tokens_used': (ai_output.get('tokens_used') or 0) + (svg_regen.get('tokens_used') or 0)
+                    }
+                print(f"⚠️ [DiagramFallback] SVG regen returned non-SVG content, using placeholder")
+            except Exception as retry_err:
+                print(f"❌ [DiagramFallback] SVG regen also failed: {retry_err}")
+            # Last resort: minimal informational placeholder SVG
+            return {
                 'success': True,
                 'diagram_type': 'svg',
-                'diagram_code': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle" font-size="14">Error: Non-ASCII characters in code</text></svg>',
-                'diagram_title': ai_output.get('title', 'Error'),
-                'explanation': f'Code contains non-ASCII characters. {diagram_type} requires English/ASCII labels only.',
+                'diagram_code': _make_fallback_svg(str(ai_output.get('title') or request.diagram_request)[:50], failure_reason[:50]),
+                'diagram_title': str(ai_output.get('title') or 'Diagram'),
+                'explanation': failure_reason,
                 'width': 400,
-                'height': 300,
-                'tokens_used': ai_output.get('tokens_used', 0)
+                'height': 200,
+                'tokens_used': ai_output.get('tokens_used') or 0
             }
+
+        if diagram_type in ["matplotlib", "graphviz"] and contains_non_ascii(diagram_content):
+            print(f"❌ Non-ASCII characters in {diagram_type} code, retrying as SVG")
+            result = await _retry_as_svg(f'{diagram_type} non-ASCII labels')
         else:
-            # Graphviz label sanitization
-            if diagram_type == "graphviz":
-                diagram_content = re.sub(
-                    r'label=([^"\s\[\],;]+)',
-                    lambda m: f'label="{m.group(1)}"' if not (m.group(1).startswith('"') or m.group(1).startswith('<') or ' ' in m.group(1)) else m.group(0),
-                    diagram_content
-                )
-                ai_output['content'] = diagram_content
-
             # Route to appropriate renderer
-            def error_svg(msg):
-                return {
-                    'success': True, 'diagram_type': 'svg',
-                    'diagram_code': f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><text x="200" y="150" text-anchor="middle">{msg}</text></svg>',
-                    'diagram_title': ai_output.get('title', 'Error'), 'explanation': msg,
-                    'width': 400, 'height': 300, 'tokens_used': ai_output.get('tokens_used', 0)
-                }
-
             if diagram_type == "matplotlib":
                 if not MATPLOTLIB_AVAILABLE or matplotlib_generator is None:
-                    result = error_svg('Matplotlib not available')
+                    result = await _retry_as_svg('Matplotlib not available on server')
                 else:
-                    # ✅ CRITICAL FIX: Strip import statements before execution
-                    # The unified generation path bypasses matplotlib_generator.generate_diagram_code()
-                    # which normally strips imports. We must do it here.
-                    # plt and np are already provided in the sandbox environment.
+                    # Strip import statements — plt and np are pre-loaded in the sandbox
                     lines = diagram_content.split('\n')
                     filtered_lines = []
                     for line in lines:
                         stripped = line.strip()
-                        # Skip import statements - plt and np already available in sandbox
                         if stripped.startswith('import matplotlib') or \
                            stripped.startswith('import numpy') or \
                            stripped.startswith('from matplotlib') or \
@@ -235,17 +261,47 @@ async def generate_diagram(request: DiagramGenerationRequest):
                     cleaned_code = '\n'.join(filtered_lines)
 
                     exec_result = matplotlib_generator.execute_code_safely(cleaned_code, timeout_seconds=5)
-                    result = {
-                        'success': True,
-                        'diagram_type': 'matplotlib' if exec_result['success'] else 'svg',
-                        'diagram_code': exec_result['image_data'] if exec_result['success'] else error_svg(f"Execution error: {exec_result.get('error', 'Unknown')}")['diagram_code'],
-                        'diagram_format': 'png_base64' if exec_result['success'] else None,
-                        'diagram_title': ai_output.get('title', 'Matplotlib Visualization'),
-                        'explanation': ai_output.get('explanation', '') if exec_result['success'] else f"Execution error: {exec_result.get('error', 'Unknown')}",
-                        'width': ai_output.get('width', 800) if exec_result['success'] else 400,
-                        'height': ai_output.get('height', 600) if exec_result['success'] else 300,
-                        'tokens_used': ai_output.get('tokens_used', 0)
-                    }
+                    if exec_result['success']:
+                        result = {
+                            'success': True,
+                            'diagram_type': 'matplotlib',
+                            'diagram_code': exec_result['image_data'],
+                            'diagram_format': 'png_base64',
+                            'diagram_title': ai_output.get('title', 'Matplotlib Visualization'),
+                            'explanation': ai_output.get('explanation', ''),
+                            'width': ai_output.get('width', 800),
+                            'height': ai_output.get('height', 600),
+                            'tokens_used': ai_output.get('tokens_used', 0)
+                        }
+                    else:
+                        print(f"⚠️ matplotlib execution failed: {exec_result.get('error', 'Unknown')}")
+                        result = await _retry_as_svg(f"matplotlib: {str(exec_result.get('error', 'execution failed'))[:50]}")
+
+            elif diagram_type == "graphviz":
+                diagram_content = re.sub(
+                    r'label=([^"\s\[\],;]+)',
+                    lambda m: f'label="{m.group(1)}"' if not (m.group(1).startswith('"') or m.group(1).startswith('<') or ' ' in m.group(1)) else m.group(0),
+                    diagram_content
+                )
+                if not GRAPHVIZ_AVAILABLE or graphviz_generator is None:
+                    result = await _retry_as_svg('Graphviz not installed on server')
+                else:
+                    exec_result = graphviz_generator.execute_code_safely(diagram_content, timeout_seconds=5)
+                    if exec_result['success']:
+                        result = {
+                            'success': True,
+                            'diagram_type': 'png',
+                            'diagram_code': exec_result['image_data'],
+                            'graphviz_source': diagram_content,
+                            'diagram_title': ai_output.get('title', 'Graphviz Diagram'),
+                            'explanation': ai_output.get('explanation', ''),
+                            'width': ai_output.get('width', 600),
+                            'height': ai_output.get('height', 400),
+                            'tokens_used': ai_output.get('tokens_used', 0)
+                        }
+                    else:
+                        print(f"⚠️ graphviz execution failed: {exec_result.get('error', 'Unknown')}")
+                        result = await _retry_as_svg(f"graphviz: {str(exec_result.get('error', 'execution failed'))[:50]}")
 
             elif diagram_type == "latex":
                 conversion_result = await latex_converter.convert_tikz_to_svg(
@@ -254,36 +310,21 @@ async def generate_diagram(request: DiagramGenerationRequest):
                     width=ai_output.get('width', 400),
                     height=ai_output.get('height', 300)
                 )
-                result = {
-                    'success': True,
-                    'diagram_type': 'svg' if conversion_result['success'] else 'latex',
-                    'diagram_code': conversion_result.get('svg_code', diagram_content) if conversion_result['success'] else diagram_content,
-                    'diagram_title': ai_output.get('title', 'LaTeX Diagram'),
-                    'explanation': ai_output.get('explanation', ''),
-                    'width': ai_output.get('width', 400),
-                    'height': ai_output.get('height', 300),
-                    'tokens_used': ai_output.get('tokens_used', 0)
-                }
                 if conversion_result['success']:
-                    result['latex_source'] = diagram_content
-
-            elif diagram_type == "graphviz":
-                if not GRAPHVIZ_AVAILABLE or graphviz_generator is None:
-                    result = error_svg('Graphviz not installed')
-                else:
-                    exec_result = graphviz_generator.execute_code_safely(diagram_content, timeout_seconds=5)
                     result = {
                         'success': True,
-                        'diagram_type': 'png' if exec_result['success'] else 'svg',
-                        'diagram_code': exec_result['image_data'] if exec_result['success'] else error_svg(f"Execution error: {exec_result.get('error', 'Unknown')}")['diagram_code'],
-                        'diagram_title': ai_output.get('title', 'Graphviz Diagram'),
-                        'explanation': ai_output.get('explanation', '') if exec_result['success'] else f"Execution error: {exec_result.get('error', 'Unknown')}",
-                        'width': ai_output.get('width', 600) if exec_result['success'] else 400,
-                        'height': ai_output.get('height', 400) if exec_result['success'] else 300,
+                        'diagram_type': 'svg',
+                        'diagram_code': conversion_result['svg_code'],
+                        'latex_source': diagram_content,
+                        'diagram_title': ai_output.get('title', 'LaTeX Diagram'),
+                        'explanation': ai_output.get('explanation', ''),
+                        'width': ai_output.get('width', 400),
+                        'height': ai_output.get('height', 300),
                         'tokens_used': ai_output.get('tokens_used', 0)
                     }
-                    if exec_result['success']:
-                        result['graphviz_source'] = diagram_content
+                else:
+                    print(f"⚠️ LaTeX conversion failed: {conversion_result.get('error', 'Unknown')}")
+                    result = await _retry_as_svg("LaTeX conversion unavailable")
 
             else:  # svg
                 result = {
@@ -316,11 +357,17 @@ async def generate_diagram(request: DiagramGenerationRequest):
 
     except Exception as e:
         processing_time = int((time.time() - start_time) * 1000)
-        error_message = f"Diagram generation failed: {str(e)}"
         print(f"❌ Diagram: Failed ({processing_time}ms) - {str(e)}")
+        import traceback; traceback.print_exc()
 
+        # Return an informational SVG so iOS always has something to render
+        title_raw = getattr(request, 'diagram_request', 'Diagram')[:40]
         return DiagramGenerationResponse(
-            success=False,
+            success=True,
+            diagram_type='svg',
+            diagram_code=_make_fallback_svg(title_raw, 'Service error'),
+            diagram_title=title_raw,
+            explanation=f'Generation error: {str(e)[:100]}',
             processing_time_ms=processing_time,
-            error=error_message
+            error=str(e)
         )
