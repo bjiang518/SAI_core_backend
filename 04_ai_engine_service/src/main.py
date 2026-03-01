@@ -157,10 +157,13 @@ if os.getenv('ENABLE_RESPONSE_COMPRESSION', 'true').lower() == 'true':
 else:
     logger.debug("ℹ️ GZip compression disabled")
 
-# CORS
+# CORS — restrict to backend gateway only
+ALLOWED_ORIGINS = [
+    "https://sai-backend-production.up.railway.app",
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

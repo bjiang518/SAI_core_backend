@@ -1211,6 +1211,11 @@ class ArchiveRoutes {
   async getMistakeSubjects(request, reply) {
     try {
       const { userId } = request.params;
+      const authenticatedUserId = request.user?.id;
+
+      if (!authenticatedUserId || authenticatedUserId !== userId) {
+        return reply.code(403).send({ success: false, error: 'Access denied' });
+      }
 
       this.fastify.log.info(`📊 Fetching mistake subjects for user: ${PIIMasking.maskUserId(userId)}`);
 
@@ -1267,6 +1272,12 @@ class ArchiveRoutes {
   async getMistakes(request, reply) {
     try {
       const { userId } = request.params;
+      const authenticatedUserId = request.user?.id;
+
+      if (!authenticatedUserId || authenticatedUserId !== userId) {
+        return reply.code(403).send({ success: false, error: 'Access denied' });
+      }
+
       const { subject, range } = request.query;
 
       this.fastify.log.info(`📚 Fetching mistakes/review questions for user: ${PIIMasking.maskUserId(userId)}, subject: ${subject}, range: ${range}`);
@@ -1344,6 +1355,11 @@ class ArchiveRoutes {
   async getMistakeStats(request, reply) {
     try {
       const { userId } = request.params;
+      const authenticatedUserId = request.user?.id;
+
+      if (!authenticatedUserId || authenticatedUserId !== userId) {
+        return reply.code(403).send({ success: false, error: 'Access denied' });
+      }
 
       this.fastify.log.info(`📈 Fetching mistake statistics for user: ${PIIMasking.maskUserId(userId)}`);
 
