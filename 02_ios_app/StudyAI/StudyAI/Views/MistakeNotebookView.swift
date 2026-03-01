@@ -160,7 +160,7 @@ class MistakeNotebookViewModel: ObservableObject {
     @Published var mistakeGroups: [MistakeGroup] = []
     @Published var isLoading = false
 
-    private let localStorage = QuestionLocalStorage.shared
+    private let localStorage = currentUserQuestionStorage()
 
     /// Load mistakes from LOCAL storage (primary source)
     func loadLocalMistakes() async {

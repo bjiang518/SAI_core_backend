@@ -12,6 +12,9 @@ class EncryptionService {
     const encryptionKey = process.env.ENCRYPTION_KEY;
 
     if (!encryptionKey) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('FATAL: ENCRYPTION_KEY environment variable is not set. Refusing to start in production without an encryption key.');
+      }
       console.warn('⚠️ ENCRYPTION_KEY not set - using default (NOT SECURE FOR PRODUCTION!)');
       // Generate a random key for development (NOT for production!)
       this.masterKey = crypto.randomBytes(32);

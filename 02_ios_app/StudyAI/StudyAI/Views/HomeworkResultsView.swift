@@ -49,14 +49,15 @@ struct HomeworkResultsView: View {
         return String(combinedString.hashValue)
     }
 
-    // Key for storing progress state in UserDefaults
+    // Keys for storing state in UserDefaults — per-user scoped
+    private var uid: String { AuthenticationService.shared.currentUser?.id ?? "anonymous" }
     private var progressMarkedKey: String {
-        return "homework_progress_marked_\(sessionId)"
+        return "homework_progress_marked_\(sessionId)_\(uid)"
     }
 
     // Key for storing album save state in UserDefaults
     private var albumSavedKey: String {
-        return "homework_album_saved_\(sessionId)"
+        return "homework_album_saved_\(sessionId)_\(uid)"
     }
 
     // Dynamic navigation title with subject

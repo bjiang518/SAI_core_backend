@@ -538,8 +538,8 @@ struct PrivacySettingsView: View {
 
                     await MainActor.run {
                         // Clear local storage
-                        QuestionLocalStorage.shared.clearAll()
-                        ConversationLocalStorage.shared.clearAll()
+                        currentUserQuestionStorage().clearAll()
+                        currentUserConversationStorage().clearAll()
 
                         // Log out user
                         AuthenticationService.shared.signOut()

@@ -51,12 +51,18 @@ class ParentModeManager: ObservableObject {
 
     private let logger = Logger(subsystem: "com.studyai", category: "ParentModeManager")
     private let biometricAuth = BiometricAuthService.shared
+    private let keychainService = KeychainService.shared
 
-    // UserDefaults keys
-    private let parentPasswordKey = "parent_password"
-    private let parentModeEnabledKey = "parent_mode_enabled"
-    private let protectedFeaturesKey = "parent_protected_features"
-    private let parentFaceIDEnabledKey = "parent_faceid_enabled"
+    // Per-user identifiers
+    private var uid: String { AuthenticationService.shared.currentUser?.id ?? "anonymous" }
+
+    // Keychain key for parent password (sensitive — never stored in UserDefaults)
+    private var parentPasswordKeychainKey: String { "parent_password_\(uid)" }
+
+    // UserDefaults keys — per-user scoped so settings don't leak across accounts
+    private var parentModeEnabledKey: String { "parent_mode_enabled_\(uid)" }
+    private var protectedFeaturesKey: String { "parent_protected_features_\(uid)" }
+    private var parentFaceIDEnabledKey: String { "parent_faceid_enabled_\(uid)" }
 
     private init() {
         loadParentModeStatus()
@@ -71,7 +77,7 @@ class ParentModeManager: ObservableObject {
     }
 
     func isParentPasswordSet() -> Bool {
-        return UserDefaults.standard.string(forKey: parentPasswordKey) != nil
+        return (try? keychainService.load(for: parentPasswordKeychainKey)) != nil
     }
 
     // MARK: - Password Management
@@ -83,8 +89,17 @@ class ParentModeManager: ObservableObject {
             return false
         }
 
-        // Store password (in production, should use Keychain for security)
-        UserDefaults.standard.set(password, forKey: parentPasswordKey)
+        // Store password securely in Keychain
+        guard let data = password.data(using: .utf8) else {
+            logger.error("❌ Failed to encode parent password")
+            return false
+        }
+        do {
+            try keychainService.save(data, for: parentPasswordKeychainKey)
+        } catch {
+            logger.error("❌ Failed to save parent password to Keychain: \(error.localizedDescription)")
+            return false
+        }
         UserDefaults.standard.set(true, forKey: parentModeEnabledKey)
 
         isParentModeEnabled = true
@@ -94,7 +109,8 @@ class ParentModeManager: ObservableObject {
 
     /// Verify parent password
     func verifyParentPassword(_ password: String) -> Bool {
-        guard let storedPassword = UserDefaults.standard.string(forKey: parentPasswordKey) else {
+        guard let data = try? keychainService.load(for: parentPasswordKeychainKey),
+              let storedPassword = String(data: data, encoding: .utf8) else {
             logger.warning("⚠️ No parent password set")
             return false
         }
@@ -121,8 +137,15 @@ class ParentModeManager: ObservableObject {
             return (false, "New password must be 6 digits")
         }
 
-        // Update password
-        UserDefaults.standard.set(newPassword, forKey: parentPasswordKey)
+        // Update password in Keychain
+        guard let data = newPassword.data(using: .utf8) else {
+            return (false, "Failed to encode new password")
+        }
+        do {
+            try keychainService.save(data, for: parentPasswordKeychainKey)
+        } catch {
+            return (false, "Failed to save new password")
+        }
         logger.info("✅ Parent password changed successfully")
         return (true, nil)
     }
@@ -134,7 +157,7 @@ class ParentModeManager: ObservableObject {
             return false
         }
 
-        UserDefaults.standard.removeObject(forKey: parentPasswordKey)
+        try? keychainService.delete(for: parentPasswordKeychainKey)
         UserDefaults.standard.set(false, forKey: parentModeEnabledKey)
 
         isParentModeEnabled = false

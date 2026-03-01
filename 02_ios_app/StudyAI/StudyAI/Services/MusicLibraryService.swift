@@ -17,11 +17,19 @@ class MusicLibraryService: ObservableObject {
     @Published var authorizationStatus: MPMediaLibraryAuthorizationStatus = .notDetermined
     @Published var userTracks: [BackgroundMusicTrack] = []
 
+    private var authCancellable: AnyCancellable?
+    private var uid: String { AuthenticationService.shared.currentUser?.id ?? "anonymous" }
+    private var userTracksKey: String { "user_music_library_tracks_\(uid)" }
+
     // MARK: - Initialization
 
     private init() {
         checkAuthorizationStatus()
         loadUserTracks()
+        authCancellable = AuthenticationService.shared.$isAuthenticated
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.loadUserTracks() }
     }
 
     // MARK: - Authorization
@@ -107,12 +115,12 @@ class MusicLibraryService: ObservableObject {
 
     private func saveUserTracks() {
         if let encoded = try? JSONEncoder().encode(userTracks) {
-            UserDefaults.standard.set(encoded, forKey: "user_music_library_tracks")
+            UserDefaults.standard.set(encoded, forKey: userTracksKey)
         }
     }
 
     private func loadUserTracks() {
-        if let data = UserDefaults.standard.data(forKey: "user_music_library_tracks"),
+        if let data = UserDefaults.standard.data(forKey: userTracksKey),
            let tracks = try? JSONDecoder().decode([BackgroundMusicTrack].self, from: data) {
             userTracks = tracks
             print("📂 Loaded \(userTracks.count) user tracks")

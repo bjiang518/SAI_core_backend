@@ -11,7 +11,7 @@ import os.log
 class MistakeDetectionHelper {
     static let shared = MistakeDetectionHelper()
 
-    private let localStorage = QuestionLocalStorage.shared
+    private let localStorage = currentUserQuestionStorage()
     private let logger = Logger(subsystem: "com.studyai", category: "MistakeDetection")
 
     private init() {

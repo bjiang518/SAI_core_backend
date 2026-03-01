@@ -242,7 +242,7 @@ struct MistakeReviewView: View {
     private func calculateFilteredMistakeCount() -> Int {
         guard let selectedSubject = selectedSubject else { return 0 }
 
-        let localStorage = QuestionLocalStorage.shared
+        let localStorage = currentUserQuestionStorage()
         var allMistakes = localStorage.getMistakeQuestions(subject: selectedSubject)
 
         // Filter by time range
@@ -2497,7 +2497,7 @@ struct PracticeQuestionCard: View {
             print("📚 [Archive] Archive data - Subject: \(subject), Correct: \(isCorrect)")
 
             // Save to local storage
-            _ = QuestionLocalStorage.shared.saveQuestions([questionData])
+            _ = currentUserQuestionStorage().saveQuestions([questionData])
 
             await MainActor.run {
                 isArchiving = false

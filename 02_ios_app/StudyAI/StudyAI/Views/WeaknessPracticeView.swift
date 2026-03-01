@@ -714,7 +714,7 @@ class WeaknessPracticeViewModel: ObservableObject {
             }
 
             // ✅ Load original mistake questions from local storage
-            let localStorage = QuestionLocalStorage.shared
+            let localStorage = currentUserQuestionStorage()
             let allQuestions = localStorage.getLocalQuestions()
 
             print("   📊 Total questions in storage: \(allQuestions.count)")
@@ -894,7 +894,7 @@ class WeaknessPracticeViewModel: ObservableObject {
             print("   📚 Subject: \(subject), Base: \(baseBranch), Detail: \(detailedBranch)")
 
             // ✅ Load original mistake questions with error analysis from local storage
-            let localStorage = QuestionLocalStorage.shared
+            let localStorage = currentUserQuestionStorage()
             let allQuestions = localStorage.getLocalQuestions()
 
             // Filter for questions matching this weakness key

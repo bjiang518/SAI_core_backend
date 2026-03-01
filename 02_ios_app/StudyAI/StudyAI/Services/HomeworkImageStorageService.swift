@@ -20,17 +20,19 @@ final class HomeworkImageStorageService: ObservableObject {
     @Published private(set) var homeworkImages: [HomeworkImageRecord] = []
 
     private let fileManager = FileManager.default
-    private let metadataKey = "homework_images_metadata"
     private let maxStoredImages = 100 // Limit to prevent excessive storage
     private let logger = Logger(subsystem: "com.studyai", category: "HomeworkImageStorage")
+    private var authCancellable: AnyCancellable?
+    private var uid: String { AuthenticationService.shared.currentUser?.id ?? "anonymous" }
+    private var metadataKey: String { "homework_images_metadata_\(uid)" }
 
-    // Directories
+    // Directories — scoped per user so images don't bleed across accounts
     private var documentsDirectory: URL {
         fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
     }
 
     private var homeworkImagesDirectory: URL {
-        documentsDirectory.appendingPathComponent("HomeworkImages", isDirectory: true)
+        documentsDirectory.appendingPathComponent("HomeworkImages_\(uid)", isDirectory: true)
     }
 
     private var thumbnailsDirectory: URL {
@@ -40,6 +42,13 @@ final class HomeworkImageStorageService: ObservableObject {
     private init() {
         createDirectoriesIfNeeded()
         loadMetadata()
+        authCancellable = AuthenticationService.shared.$isAuthenticated
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.createDirectoriesIfNeeded()
+                self?.loadMetadata()
+            }
     }
 
     // MARK: - Directory Management

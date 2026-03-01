@@ -19,7 +19,7 @@ class MistakeReviewService: ObservableObject {
     @Published var mistakes: [MistakeQuestion] = []
     @Published var errorMessage: String?
 
-    private let questionLocalStorage = QuestionLocalStorage.shared
+    private let questionLocalStorage = currentUserQuestionStorage()
 
     /// Fetch subjects with mistake counts from LOCAL STORAGE ONLY
     func fetchSubjectsWithMistakes(timeRange: MistakeTimeRange? = nil) async {
@@ -293,7 +293,7 @@ class MistakeReviewService: ObservableObject {
             }
 
             // ✅ Use cached date parsing for performance
-            guard let mistakeDate = QuestionLocalStorage.shared.getDateCached(archivedAtString) else {
+            guard let mistakeDate = currentUserQuestionStorage().getDateCached(archivedAtString) else {
                 failedParseCount += 1
                 #if DEBUG
                 if failedParseCount <= 3 {

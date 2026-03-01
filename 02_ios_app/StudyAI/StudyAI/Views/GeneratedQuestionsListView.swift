@@ -151,8 +151,9 @@ struct GeneratedQuestionsListView: View {
                 // Pre-populate answered state from UserDefaults (per-question persistence).
                 // Covers both the resume path (resumeSessionId set) and re-entry after navigating
                 // away — any question that was submitted will have saved state in UserDefaults.
+                let uid = AuthenticationService.shared.currentUser?.id ?? "anonymous"
                 for question in questions {
-                    let key = "question_answer_\(question.id.uuidString)"
+                    let key = "question_answer_\(question.id.uuidString)_\(uid)"
                     guard let data = UserDefaults.standard.data(forKey: key),
                           let answerData = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                           let hasSubmitted = answerData["hasSubmitted"] as? Bool,

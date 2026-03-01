@@ -16,12 +16,21 @@ class FocusTreeGardenService: ObservableObject {
     @Published var statistics: GardenStatistics = GardenStatistics()
 
     // MARK: - Private Properties
-    private let treesKey = "focus_garden_trees"
-    private let statisticsKey = "focus_garden_statistics"
+    private var authCancellable: AnyCancellable?
+    private var uid: String { AuthenticationService.shared.currentUser?.id ?? "anonymous" }
+    private var treesKey: String { "focus_garden_trees_\(uid)" }
+    private var statisticsKey: String { "focus_garden_statistics_\(uid)" }
 
     private init() {
         loadTrees()
         loadStatistics()
+        authCancellable = AuthenticationService.shared.$isAuthenticated
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.loadTrees()
+                self?.loadStatistics()
+            }
     }
 
     // MARK: - Tree Management

@@ -15,7 +15,9 @@ class PracticeSessionManager: ObservableObject {
     static let shared = PracticeSessionManager()
 
     private let userDefaults = UserDefaults.standard
-    private let sessionsKey = "practice_sessions"
+    private var authCancellable: AnyCancellable?
+    private var uid: String { AuthenticationService.shared.currentUser?.id ?? "anonymous" }
+    private var sessionsKey: String { "practice_sessions_\(uid)" }
     private let logger = AppLogger.forFeature("PracticeSession")
 
     @Published var hasIncompleteSessions = false
@@ -23,6 +25,10 @@ class PracticeSessionManager: ObservableObject {
 
     private init() {
         loadSessions()
+        authCancellable = AuthenticationService.shared.$isAuthenticated
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.loadSessions() }
     }
 
     // MARK: - Session Management

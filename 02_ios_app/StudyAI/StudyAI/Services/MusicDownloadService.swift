@@ -20,6 +20,8 @@ class MusicDownloadService: NSObject, ObservableObject {
     private var urlSession: URLSession!
     private var activeDownloads: [String: URLSessionDownloadTask] = [:]
     private let cacheDirectory: URL
+    private var uid: String { AuthenticationService.shared.currentUser?.id ?? "anonymous" }
+    private var downloadedTracksKey: String { "downloaded_music_tracks_\(uid)" }
 
     // MARK: - Initialization
 
@@ -138,11 +140,11 @@ class MusicDownloadService: NSObject, ObservableObject {
 
     private func saveDownloadedTracks() {
         let trackIds = Array(downloadedTracks)
-        UserDefaults.standard.set(trackIds, forKey: "downloaded_music_tracks")
+        UserDefaults.standard.set(trackIds, forKey: downloadedTracksKey)
     }
 
     private func loadDownloadedTracks() {
-        if let trackIds = UserDefaults.standard.array(forKey: "downloaded_music_tracks") as? [String] {
+        if let trackIds = UserDefaults.standard.array(forKey: downloadedTracksKey) as? [String] {
             downloadedTracks = Set(trackIds)
             print("📂 Loaded \(downloadedTracks.count) downloaded tracks")
         }

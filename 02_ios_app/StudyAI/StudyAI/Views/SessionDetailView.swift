@@ -78,7 +78,7 @@ struct SessionDetailView: View {
         do {
             if isConversation {
                 // ✅ Try loading from LOCAL storage first (for archived conversations)
-                let localConversations = ConversationLocalStorage.shared.getLocalConversations()
+                let localConversations = currentUserConversationStorage().getLocalConversations()
                 if let localConversation = localConversations.first(where: { ($0["id"] as? String) == sessionId }) {
                     let rawAudioFiles = localConversation["voiceAudioFiles"] as? [String: String]
 

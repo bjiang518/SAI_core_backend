@@ -27,8 +27,10 @@ class ReportAvailabilityChecker: ObservableObject {
     // Check interval (default: every 30 minutes)
     private let checkInterval: TimeInterval = 30 * 60
 
-    // UserDefaults key for last check time
-    private let lastCheckTimeKey = "com.studyai.lastReportCheckTime"
+    // UserDefaults keys — per-user scoped
+    private var uid: String { AuthenticationService.shared.currentUser?.id ?? "anonymous" }
+    private var lastCheckTimeKey: String { "com.studyai.lastReportCheckTime_\(uid)" }
+    private var lastKnownBatchIdsKey: String { "com.studyai.lastKnownBatchIds_\(uid)" }
 
     // MARK: - Initialization
 
@@ -165,14 +167,14 @@ class ReportAvailabilityChecker: ObservableObject {
     // MARK: - Persistence
 
     private func loadLastKnownBatchIds() {
-        if let stored = UserDefaults.standard.stringArray(forKey: "com.studyai.lastKnownBatchIds") {
+        if let stored = UserDefaults.standard.stringArray(forKey: lastKnownBatchIdsKey) {
             lastKnownBatchIds = Set(stored)
             print("📊 ReportAvailabilityChecker: Loaded \(lastKnownBatchIds.count) known batch IDs")
         }
     }
 
     private func saveLastKnownBatchIds() {
-        UserDefaults.standard.set(Array(lastKnownBatchIds), forKey: "com.studyai.lastKnownBatchIds")
+        UserDefaults.standard.set(Array(lastKnownBatchIds), forKey: lastKnownBatchIdsKey)
         print("📊 ReportAvailabilityChecker: Saved \(lastKnownBatchIds.count) known batch IDs")
     }
 }

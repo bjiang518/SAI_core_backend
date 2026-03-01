@@ -16,7 +16,7 @@ class ErrorAnalysisQueueService: ObservableObject {
     @Published var isAnalyzing = false
     @Published var analysisProgress: Double = 0.0
 
-    private let localStorage = QuestionLocalStorage.shared
+    private let localStorage = currentUserQuestionStorage()
     private var analysisTask: Task<Void, Never>?
 
     // ✅ NEW: Queue to accumulate questions while analysis is running

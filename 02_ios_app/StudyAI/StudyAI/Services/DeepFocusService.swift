@@ -24,9 +24,13 @@ class DeepFocusService: ObservableObject {
     private var previousBrightness: CGFloat = UIScreen.main.brightness
     private var originalNotificationSettings: UNNotificationSettings?
 
-    // MARK: - UserDefaults Keys
-    private let deepFocusEnabledKey = "deepFocusEnabled"
-    private let autoEnableDeepFocusKey = "autoEnableDeepFocus"
+    // MARK: - UserDefaults Keys (per-user)
+    private var userKeyPrefix: String {
+        let userId = AuthenticationService.shared.currentUser?.id ?? "anonymous"
+        return "studyai_\(userId)_"
+    }
+    private var deepFocusEnabledKey: String { userKeyPrefix + "deepFocusEnabled" }
+    private var autoEnableDeepFocusKey: String { userKeyPrefix + "autoEnableDeepFocus" }
 
     private init() {
         loadSettings()
@@ -308,9 +312,9 @@ extension DeepFocusService {
     /// 获取深度专注统计数据
     func getStatistics() -> FocusStatistics {
         return FocusStatistics(
-            totalSessions: UserDefaults.standard.integer(forKey: "deepFocusSessions"),
-            totalFocusTime: UserDefaults.standard.double(forKey: "deepFocusTotalTime"),
-            notificationsBlocked: UserDefaults.standard.integer(forKey: "deepFocusBlockedNotifications")
+            totalSessions: UserDefaults.standard.integer(forKey: userKeyPrefix + "deepFocusSessions"),
+            totalFocusTime: UserDefaults.standard.double(forKey: userKeyPrefix + "deepFocusTotalTime"),
+            notificationsBlocked: UserDefaults.standard.integer(forKey: userKeyPrefix + "deepFocusBlockedNotifications")
         )
     }
 
@@ -321,9 +325,9 @@ extension DeepFocusService {
         stats.totalFocusTime += duration
         stats.notificationsBlocked += blockedNotificationsCount
 
-        UserDefaults.standard.set(stats.totalSessions, forKey: "deepFocusSessions")
-        UserDefaults.standard.set(stats.totalFocusTime, forKey: "deepFocusTotalTime")
-        UserDefaults.standard.set(stats.notificationsBlocked, forKey: "deepFocusBlockedNotifications")
+        UserDefaults.standard.set(stats.totalSessions, forKey: userKeyPrefix + "deepFocusSessions")
+        UserDefaults.standard.set(stats.totalFocusTime, forKey: userKeyPrefix + "deepFocusTotalTime")
+        UserDefaults.standard.set(stats.notificationsBlocked, forKey: userKeyPrefix + "deepFocusBlockedNotifications")
 
         print("📊 Recorded deep focus session: \(duration)s")
     }

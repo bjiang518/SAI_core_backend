@@ -12,7 +12,6 @@
  * bidirectional weakness tracking (positive = weakness, negative = mastery)
  */
 
-const fetch = require('node-fetch');
 const { getUserId } = require('../utils/auth-helper');
 
 module.exports = async function (fastify, opts) {

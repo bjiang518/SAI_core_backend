@@ -92,7 +92,7 @@ class StorageSyncService {
 
         // STEP 2: Get local questions
         print("📱 [Sync] Step 2: Getting local questions...")
-        let localStorage = QuestionLocalStorage.shared
+        let localStorage = currentUserQuestionStorage()
         let localQuestions = localStorage.getLocalQuestions()
         print("   ✅ [Sync] Found \(localQuestions.count) local questions")
 
@@ -240,7 +240,7 @@ class StorageSyncService {
                 // Update local storage with server ID
                 var updatedQuestion = questionData
                 updatedQuestion["id"] = serverId
-                _ = QuestionLocalStorage.shared.saveQuestions([updatedQuestion])
+                _ = currentUserQuestionStorage().saveQuestions([updatedQuestion])
 
                 syncedToServerCount += 1
                 print("   ✅ [Sync] Successfully uploaded question (Server ID: \(serverId))")
@@ -334,7 +334,7 @@ class StorageSyncService {
 
         // STEP 2: Get local conversations
         print("📱 [Sync] Step 2: Getting local conversations...")
-        let localStorage = ConversationLocalStorage.shared
+        let localStorage = currentUserConversationStorage()
         let localConversations = localStorage.getLocalConversations()
         print("   ✅ [Sync] Found \(localConversations.count) local conversations")
 
