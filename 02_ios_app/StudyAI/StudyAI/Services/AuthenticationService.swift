@@ -800,6 +800,11 @@ final class AuthenticationService: ObservableObject {
     // MARK: - Sign Out
 
     func signOut() {
+        // Clear parent password from Keychain before currentUser is nil
+        if let uid = currentUser?.id {
+            try? keychainService.delete(for: "parent_password_\(uid)")
+        }
+
         keychainService.clearAll()
 
         // Clear cached user profile so the next account gets a fresh load
