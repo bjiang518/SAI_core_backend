@@ -151,41 +151,40 @@ async def generate_diagram_unified(conversation_text: str, diagram_request: str,
 
 ---
 
-**AVAILABLE TOOLS**:
+**TOOL SELECTION — follow this decision tree in order:**
 
-1. **matplotlib** - Math functions, graphs, plots, data visualization
-   Best for: y = x^2, sin(x), histograms, scatter plots
+1. **matplotlib** → USE when the request involves ANY of:
+   - Mathematical functions or curves (y=x², sin(x), parabola, exponential, etc.)
+   - Data plots, scatter plots, bar charts, histograms, pie charts
+   - Physics graphs (velocity-time, force-distance, wave, etc.)
+   - Statistical visualizations
+   - Anything that requires plotted axes with numbers
 
-2. **svg** - Geometric shapes, concept diagrams, simple illustrations
-   Best for: triangles, circles, concept diagrams
+2. **graphviz** → USE when the request involves ANY of:
+   - Trees (binary tree, decision tree, family tree, parse tree)
+   - Flowcharts, state machines, directed/undirected graphs
+   - Hierarchies, dependency graphs, network diagrams
 
-3. **latex** (TikZ) - Geometric proofs, formal constructions
-   Best for: theorem proofs, precise geometric diagrams
+3. **latex** (TikZ) → USE when the request involves:
+   - Formal geometric proofs requiring precise measurements
+   - Diagrams that need exact angles, lengths, and labeled constructions
 
-4. **graphviz** - Trees, graphs, flowcharts, hierarchies
-   Best for: binary trees, flowcharts, state diagrams
+4. **svg** → USE ONLY when none of the above tools fit:
+   - Simple molecular/atomic diagrams (e.g., water molecule, benzene ring)
+   - Basic shape arrangements that are purely illustrative
+   - Diagrams with custom styling that matplotlib/graphviz cannot produce
+
+**⚠️ DEFAULT TRAP**: Do NOT default to svg just because it "could work". If the request has equations, functions, or data → matplotlib. If it has relationships or flows → graphviz.
 
 ---
 
-**⚠️ CRITICAL: ASCII-ONLY TEXT IN CODE**
-Server has NO unicode fonts. Use English/ASCII labels ONLY in diagram code.
-- ❌ WRONG: plt.xlabel('函数') or 'café' or '関数' → FAILS
-- ✅ CORRECT: plt.xlabel('Function') or 'cafe' → WORKS
-- Title/explanation fields CAN use {explanation_lang} (user-facing)
-- Code text (labels, legends, nodes) MUST be English/ASCII (rendering)
+**CODE RULES**:
+- All text labels inside code (axis labels, node text, annotations) MUST be English/ASCII only — the server has no unicode font support. Title and explanation fields CAN be in {explanation_lang}.
+- Generate COMPLETE, executable code (no imports needed for matplotlib — plt and np are pre-loaded)
+- NO placeholders, TODOs, markdown fences
+- Valid JSON output only
 
-**REQUIREMENTS**:
-- Choose appropriate "type": matplotlib, svg, latex, or graphviz
-- Generate COMPLETE, executable code (imports, setup, all details)
-- NO placeholders, TODOs, markdown fences, or backslash line continuations
-- Output must be valid json (lowercase required)
-
-**OUTPUT FORMAT**:
-Return JSON only - no preamble, no markdown, no extra text.
-
-Required keys (all must be present): type, content, title, explanation, width, height
-
-Note: If a specific diagram type is truly impossible (e.g., 3D animation), choose the closest alternative tool."""
+**Required JSON keys**: type, content, title, explanation, width, height"""
 
     try:
         # ✅ FIX: Define strict JSON schema WITHOUT reasoning field
@@ -308,11 +307,11 @@ Note: If a specific diagram type is truly impossible (e.g., 3D animation), choos
                 logger.debug(f"❌ o4-mini failed after 2 attempts - using emergency fallback")
                 raise ValueError("o4-mini returned invalid response after retries")
         else:
-            # ✅ GPT-4O-MINI INITIAL GENERATION PATH (speed-focused)
-            model = "gpt-4o-mini"
-            max_tokens = 1200
+            # ✅ GPT-4O INITIAL GENERATION PATH (quality + tool selection)
+            model = "gpt-4o"
+            max_tokens = 1500
             temperature = 0.2
-            logger.debug(f"🤖 Using model: {model} (regenerate=False, speed-focused)")
+            print(f"🤖 Using model: {model} (regenerate=False)")
 
             if has_responses_api:
                 # Responses API with strict JSON schema
@@ -338,16 +337,11 @@ Note: If a specific diagram type is truly impossible (e.g., 3D animation), choos
                     result_text = _json.dumps(result_obj)  # Convert to JSON string for downstream code
 
                     # 🔍 DEBUG: Log raw Responses API output
-                    logger.debug(f"🔍 [DEBUG] gpt-4o-mini Responses API result (first 500 chars):")
-                    logger.debug(f"🔍 {result_text[:500]}")
-                    logger.debug(f"🔍 [DEBUG] Parsed type: {result_obj.get('type', 'unknown')}, Content length: {len(result_obj.get('content', ''))} chars")
-
-                    logger.debug(f"✅ Got result: {result_obj.get('type', 'unknown')} diagram")
-                    logger.debug(f"✅ Content length: {len(result_obj.get('content', ''))} chars")
+                    print(f"🔍 [DiagramGen] {model} selected: {result_obj.get('type', 'unknown')}, content length: {len(result_obj.get('content', ''))} chars")
 
                 except Exception as e:
-                    logger.debug(f"❌ {model} Responses API failed: {type(e).__name__}: {e}")
-                    logger.debug(f"⚠️ Falling back to chat.completions")
+                    print(f"❌ {model} Responses API failed: {type(e).__name__}: {e}")
+                    print(f"⚠️ Falling back to chat.completions")
                     # Fallback to chat.completions
                     response = await ai_service.client.chat.completions.create(
                         model=model,
@@ -359,9 +353,7 @@ Note: If a specific diagram type is truly impossible (e.g., 3D animation), choos
                     result_text = response.choices[0].message.content.strip()
 
                     # 🔍 DEBUG: Log fallback output
-                    logger.debug(f"🔍 [DEBUG] gpt-4o-mini chat.completions fallback (first 500 chars):")
-                    logger.debug(f"🔍 {result_text[:500]}")
-                    logger.debug(f"🔍 [DEBUG] Response type: {type(result_text)}, Length: {len(result_text)} chars")
+                    print(f"🔍 [DiagramGen] {model} chat.completions fallback, length: {len(result_text)} chars")
             else:
                 # Fallback to chat.completions for old SDK
                 logger.debug(f"⚠️ Responses API not available, using chat.completions (upgrade openai SDK to >=1.50.0)")
