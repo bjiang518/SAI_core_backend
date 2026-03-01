@@ -14,13 +14,19 @@ module.exports = async function (fastify, opts) {
   const { db } = require('../../utils/railway-database');
 
   // Admin JWT secret (separate from user JWT secret)
-  const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET || 'admin-jwt-secret-change-in-production';
+  const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET;
+  if (!ADMIN_JWT_SECRET) {
+    fastify.log.error('FATAL: ADMIN_JWT_SECRET environment variable is not set. Admin routes are disabled.');
+  }
 
   // ============================================================================
   // MIDDLEWARE: Admin Authentication
   // ============================================================================
 
   async function verifyAdmin(request, reply) {
+    if (!ADMIN_JWT_SECRET) {
+      return reply.code(503).send({ success: false, error: 'Admin authentication is not configured' });
+    }
     try {
       const authHeader = request.headers.authorization;
 
@@ -56,47 +62,11 @@ module.exports = async function (fastify, opts) {
       return reply.code(400).send({ success: false, error: 'Email and password required' });
     }
 
+    if (!ADMIN_JWT_SECRET) {
+      return reply.code(503).send({ success: false, error: 'Admin authentication is not configured' });
+    }
+
     try {
-      // Check if admin_users table exists, if not, use mock auth for demo
-      const tableCheck = await db.query(`
-        SELECT EXISTS (
-          SELECT FROM information_schema.tables
-          WHERE table_name = 'admin_users'
-        );
-      `);
-
-      const tableExists = tableCheck.rows[0].exists;
-
-      if (!tableExists) {
-        // Mock authentication for demo/development
-        // TODO: Create admin_users table and implement real authentication
-        fastify.log.warn('Admin users table does not exist. Using mock authentication.');
-
-        const token = jwt.sign(
-          {
-            id: 'mock-admin-id',
-            email: email,
-            role: 'admin'
-          },
-          ADMIN_JWT_SECRET,
-          { expiresIn: '24h' }
-        );
-
-        return reply.send({
-          success: true,
-          data: {
-            token,
-            user: {
-              id: 'mock-admin-id',
-              email: email,
-              name: 'Admin User',
-              role: 'admin'
-            }
-          }
-        });
-      }
-
-      // Real authentication (when table exists)
       const result = await db.query(
         'SELECT * FROM admin_users WHERE email = $1',
         [email]
