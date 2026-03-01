@@ -3552,9 +3552,8 @@ Focus on being helpful and educational while maintaining a conversational tone."
         iOS calls this endpoint for each question with concurrency limit = 5.
 
         SMART MODEL SELECTION:
-        - Standard mode (text-only): gpt-4o-mini (fast & cheap ~$0.0009)
-        - Standard mode (with image): gpt-4o (better vision understanding ~$0.015)
-        - Deep reasoning mode: gpt-4o (always, for best accuracy)
+        - Standard mode (text-only + image): gpt-5.2
+        - Deep reasoning mode: o4-mini (always, for best accuracy)
 
         Args:
             question_text: The question to grade
@@ -3576,7 +3575,7 @@ Focus on being helpful and educational while maintaining a conversational tone."
             selected_model = self.model_reasoning  # o4-mini for deep reasoning
             mode_label = "DEEP REASONING (O4-MINI)"
         else:
-            selected_model = "gpt-4o" if context_image else "gpt-4o-mini"
+            selected_model = "gpt-5.2"
             mode_label = "STANDARD"
 
         logger.debug(f"📝 === GRADING SINGLE QUESTION (OPENAI) ===")
@@ -3662,15 +3661,14 @@ Focus on being helpful and educational while maintaining a conversational tone."
                     max_completion_tokens=4096  # ✅ INCREASED: Match Gemini's token budget (was 2048)
                 )
             else:
-                # OPTIMIZED: Improved accuracy for simple math problems
-                # - temperature: 0.3 → 0.2 (more deterministic for math)
-                # - max_tokens: 300 → 500 → 4096 (match Gemini's capacity)
+                # gpt-5.2 follows newer Responses-style token controls (same as o4-mini)
+                # - no temperature (unsupported/ignored on post-4o architecture)
+                # - max_completion_tokens instead of max_tokens
                 response = await self.client.chat.completions.create(
                     model=selected_model,
                     messages=messages,
                     response_format={"type": "json_object"},
-                    temperature=0.2,  # More deterministic for math grading (was 0.3)
-                    max_tokens=4096   # ✅ INCREASED: Match Gemini's token budget (was 500)
+                    max_completion_tokens=4096
                 )
 
             api_duration = time.time() - start_time

@@ -198,7 +198,7 @@ Two grading modes, controlled by a single `useDeepReasoning: Bool` flag througho
 
 | Mode | iOS flag | Backend `model_provider` | AI Engine service | Model |
 |------|----------|--------------------------|-------------------|-------|
-| Fast (normal) | `useDeepReasoning = false` | `"openai"` | `EducationalAIService` | GPT-4o-mini |
+| Fast (normal) | `useDeepReasoning = false` | `"openai"` | `EducationalAIService` | gpt-5.2 |
 | Deep | `useDeepReasoning = true` | `"gemini"` | `GeminiEducationalAIService` | gemini-3-flash-preview |
 
 **Rule**: `NetworkService.gradeSingleQuestion` derives `model_provider` from `useDeepReasoning` — it is the single source of truth. Never pass `modelProvider:` as a call-site argument.

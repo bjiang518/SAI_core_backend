@@ -58,6 +58,9 @@ class TTSQueueService: ObservableObject {
     /// Flag indicating if TTS is currently active
     @Published var isPlayingTTS = false
 
+    /// Flag indicating if TTS is paused (queue intact, audio player paused)
+    @Published var isPaused = false
+
     /// Track which session's TTS is currently playing
     @Published var currentSessionIdForTTS: String?
 
@@ -242,8 +245,14 @@ class TTSQueueService: ObservableObject {
         print("🎬 [TTSQueue] playNextTTSChunk() called")
         print("   └─ Queue size: \(effectiveQueueSize)")
         print("   └─ isPlayingTTS: \(isPlayingTTS)")
+        print("   └─ isPaused: \(isPaused)")
         print("   └─ voiceEnabled: \(voiceService.isVoiceEnabled)")
         print("   └─ voiceService.isProcessingTTS: \(voiceService.isProcessingTTS)")
+
+        guard !isPaused else {
+            print("⏸️ [TTSQueue] Paused — not advancing queue")
+            return
+        }
 
         guard effectiveQueueSize > 0 else {
             // ✅ Phase 3.8 (2026-02-18): CRITICAL FIX - Don't stop if EnhancedTTS is still processing!
@@ -322,8 +331,27 @@ class TTSQueueService: ObservableObject {
         if Self.debugMode {
         print("🎵 [TTSQueueService] Stopping all TTS playback")
         }
+        isPaused = false
         voiceService.stopSpeech()
         clearQueue()
+    }
+
+    /// Toggle pause/resume. Queue is preserved; only playback is suspended.
+    func pauseResumeTTS() {
+        if isPaused {
+            isPaused = false
+            print("▶️ [TTSQueue] Resumed")
+            enhancedTTS.resumeSpeech()
+            // If the audio player has nothing left to resume (chunk boundary),
+            // advance the queue normally.
+            if !enhancedTTS.isSpeaking {
+                playNextTTSChunk()
+            }
+        } else {
+            isPaused = true
+            print("⏸️ [TTSQueue] Paused")
+            enhancedTTS.pauseSpeech()
+        }
     }
 
     /// Clear TTS queue for a specific session
@@ -364,6 +392,7 @@ class TTSQueueService: ObservableObject {
         queueStorage.removeAll(keepingCapacity: true)
         headIndex = 0
         isPlayingTTS = false
+        isPaused = false
         currentSessionIdForTTS = nil
         totalQueueMemoryBytes = 0  // ✅ Phase 3.6: Reset memory counter
         prefetchingMessageIds.removeAll()  // ✅ Phase 3.9: Clear prefetch tracking

@@ -3116,8 +3116,9 @@ class NetworkService: ObservableObject {
         // ========================================
         // 🔍 RAW RESPONSE LOGGING - PHASE 2
         // ========================================
+        let modelLabel = useDeepReasoning ? "gemini-3-flash-preview (deep)" : "gpt-5.2 (fast)"
         print("\n" + String(repeating: "=", count: 80))
-        print("🔍 === RAW AI ENGINE RESPONSE - PHASE 2 (GRADING) ===")
+        print("🔍 === RAW AI ENGINE RESPONSE - PHASE 2 (GRADING) === model: \(modelLabel)")
         print(String(repeating: "=", count: 80))
 
         // Log raw JSON response
