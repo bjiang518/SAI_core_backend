@@ -1461,14 +1461,23 @@
 "privacy.gdpr.title" = "GDPR權利";
 "privacy.intro.content" = "StudyAI致力於保護您的隱私。本隱私政策說明我們如何收集、使用、披露和保護您在使用我們的教育應用程式時的資訊。";
 "privacy.intro.title" = "簡介";
-"privacy.lastUpdated" = "最後更新：2025年1月";
+"privacy.lastUpdated" = "最後更新：2026年3月";
 "privacy.retention.content" = "我們保留您的個人資訊的時間僅限於提供我們的服務和遵守法律義務所必需的時間。您可以隨時請求刪除您的資料。";
 "privacy.retention.title" = "資料保留";
 "privacy.rights.content" = "您有權存取、更正或刪除您的個人資訊。您還可以反對處理並請求資料可攜性。請聯絡我們行使這些權利。";
 "privacy.rights.title" = "您的權利";
 "privacy.security.content" = "我們實施業界標準的安全措施，包括加密、安全身分驗證和定期安全稽核，以保護您的資料免受未經授權的存取。";
 "privacy.security.title" = "資料安全";
-"privacy.thirdParty.content" = "我們使用值得信賴的第三方服務進行身分驗證、分析和雲端儲存。這些服務經過精心挑選，符合適用的隱私法律。";
+"privacy.thirdParty.content" = "我們使用以下第三方服務提供功能：
+
+• OpenAI（openai.com）—— 處理作業照片、學生文字和語音轉錄，用於AI輔導和評分
+• Google Gemini（deepmind.google）—— 支援即時語音對話和進階AI回覆
+• ElevenLabs（elevenlabs.io）—— 將AI文字回覆轉換為語音
+• Google登入（google.com）—— 可選的帳戶登入方式
+• Apple登入（apple.com）—— 可選的帳戶登入方式
+• Railway（railway.app）—— 安全的雲端託管和資料庫儲存
+
+所有資料均透過加密的HTTPS連線傳輸。我們不出售您的資料。對於13歲以下的使用者，在任何資料被上述服務處理之前，需要獲得可驗證的家長同意。";
 "privacy.thirdParty.title" = "第三方服務";
 "privacy.title" = "隱私政策";
 "privacy.usage.content" = "我們使用您的資訊來提供和改進我們的教育服務、個人化您的學習體驗、與您溝通並確保我們平台的安全。";
