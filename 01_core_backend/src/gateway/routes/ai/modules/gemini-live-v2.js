@@ -881,7 +881,7 @@ ${lines.join('\n')}
 
                     geminiSocket.send(JSON.stringify({
                         clientContent: {
-                            turns: [{ role: 'user', parts: [{ text: 'Please wait for me to speak before responding.' }] }],
+                            turns: [{ role: 'user', parts: [{ text: 'For the next turn, you need to say "I\'m ready now" + short greeting.' }] }],
                             turnComplete: true
                         }
                     }));

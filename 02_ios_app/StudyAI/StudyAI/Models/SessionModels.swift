@@ -292,23 +292,24 @@ struct ArchivedConversation: Codable, Identifiable {
     let conversationContent: String
     let archivedDate: Date
     let createdAt: Date
-    let diagrams: [[String: Any]]?  // ✅ EXISTING: Store diagram data
-    let voiceAudioFiles: [String: String]?  // msgIndex → file path (Live mode only)
+    let diagrams: [[String: Any]]?
+    let voiceAudioFiles: [String: String]?
+    let recommendedVideos: [[String: String]]?  // videoId, title, channelTitle, thumbnail, url
 
-    // ✅ NEW: AI-generated summary and analysis fields
-    let summary: String?                    // AI-generated summary (50-100 chars)
-    let keyTopics: [String]?               // Key topics discussed
-    let learningOutcomes: [String]?        // Learning outcomes achieved
-    let estimatedDuration: Int?            // Session duration in minutes
-    let behaviorSummary: BehaviorSummary?  // Behavior insights
+    // AI-generated summary and analysis fields
+    let summary: String?
+    let keyTopics: [String]?
+    let learningOutcomes: [String]?
+    let estimatedDuration: Int?
+    let behaviorSummary: BehaviorSummary?
 
     enum CodingKeys: String, CodingKey {
         case id, userId, subject, topic, conversationContent, archivedDate, createdAt, diagrams
-        case voiceAudioFiles
+        case voiceAudioFiles, recommendedVideos
         case summary, keyTopics, learningOutcomes, estimatedDuration, behaviorSummary
     }
 
-    init(id: String, userId: String, subject: String, topic: String?, conversationContent: String, archivedDate: Date, createdAt: Date, diagrams: [[String: Any]]? = nil, voiceAudioFiles: [String: String]? = nil, summary: String? = nil, keyTopics: [String]? = nil, learningOutcomes: [String]? = nil, estimatedDuration: Int? = nil, behaviorSummary: BehaviorSummary? = nil) {
+    init(id: String, userId: String, subject: String, topic: String?, conversationContent: String, archivedDate: Date, createdAt: Date, diagrams: [[String: Any]]? = nil, voiceAudioFiles: [String: String]? = nil, recommendedVideos: [[String: String]]? = nil, summary: String? = nil, keyTopics: [String]? = nil, learningOutcomes: [String]? = nil, estimatedDuration: Int? = nil, behaviorSummary: BehaviorSummary? = nil) {
         self.id = id
         self.userId = userId
         self.subject = subject
@@ -318,6 +319,7 @@ struct ArchivedConversation: Codable, Identifiable {
         self.createdAt = createdAt
         self.diagrams = diagrams
         self.voiceAudioFiles = voiceAudioFiles
+        self.recommendedVideos = recommendedVideos
         self.summary = summary
         self.keyTopics = keyTopics
         self.learningOutcomes = learningOutcomes
@@ -335,7 +337,6 @@ struct ArchivedConversation: Codable, Identifiable {
         archivedDate = try container.decode(Date.self, forKey: .archivedDate)
         createdAt = try container.decode(Date.self, forKey: .createdAt)
 
-        // Decode diagrams as [[String: Any]]
         if let diagramsData = try? container.decodeIfPresent(Data.self, forKey: .diagrams) {
             diagrams = try? JSONSerialization.jsonObject(with: diagramsData) as? [[String: Any]]
         } else {
@@ -343,8 +344,8 @@ struct ArchivedConversation: Codable, Identifiable {
         }
 
         voiceAudioFiles = try container.decodeIfPresent([String: String].self, forKey: .voiceAudioFiles)
+        recommendedVideos = try container.decodeIfPresent([[String: String]].self, forKey: .recommendedVideos)
 
-        // NEW: Decode summary fields
         summary = try container.decodeIfPresent(String.self, forKey: .summary)
         keyTopics = try container.decodeIfPresent([String].self, forKey: .keyTopics)
         learningOutcomes = try container.decodeIfPresent([String].self, forKey: .learningOutcomes)
@@ -362,15 +363,14 @@ struct ArchivedConversation: Codable, Identifiable {
         try container.encode(archivedDate, forKey: .archivedDate)
         try container.encode(createdAt, forKey: .createdAt)
 
-        // Encode diagrams
         if let diagrams = diagrams {
             let diagramsData = try? JSONSerialization.data(withJSONObject: diagrams)
             try container.encodeIfPresent(diagramsData, forKey: .diagrams)
         }
 
         try container.encodeIfPresent(voiceAudioFiles, forKey: .voiceAudioFiles)
+        try container.encodeIfPresent(recommendedVideos, forKey: .recommendedVideos)
 
-        // NEW: Encode summary fields
         try container.encodeIfPresent(summary, forKey: .summary)
         try container.encodeIfPresent(keyTopics, forKey: .keyTopics)
         try container.encodeIfPresent(learningOutcomes, forKey: .learningOutcomes)

@@ -3704,7 +3704,7 @@ class NetworkService: ObservableObject {
         }
     }
 
-    func archiveSession(sessionId: String, title: String? = nil, topic: String? = nil, subject: String? = nil, notes: String? = nil, diagrams: [String: DiagramGenerationResponse]? = nil, liveConversationContent: String? = nil, voiceAudioFiles: [String: String]? = nil) async -> (success: Bool, message: String, conversation: [String: Any]?) {
+    func archiveSession(sessionId: String, title: String? = nil, topic: String? = nil, subject: String? = nil, notes: String? = nil, diagrams: [String: DiagramGenerationResponse]? = nil, liveConversationContent: String? = nil, voiceAudioFiles: [String: String]? = nil, videos: [VideoSearchResult]? = nil) async -> (success: Bool, message: String, conversation: [String: Any]?) {
         print("📦 === ARCHIVE CONVERSATION SESSION (local-first) ===")
         print("📁 Session ID: \(sessionId)")
         print("📚 Subject: \(subject ?? "General")")
@@ -3748,6 +3748,17 @@ class NetworkService: ObservableObject {
         // Voice audio file paths (Live mode only) — keyed by message index string
         if let audioFiles = voiceAudioFiles, !audioFiles.isEmpty {
             conversationData["voiceAudioFiles"] = audioFiles
+        }
+
+        // Recommended videos shown during the session
+        if let vids = videos, !vids.isEmpty {
+            let deduped = Array(Dictionary(vids.map { ($0.videoId, $0) }, uniquingKeysWith: { a, _ in a }).values)
+            conversationData["recommendedVideos"] = deduped.map { v -> [String: String] in
+                var d: [String: String] = ["videoId": v.videoId, "title": v.title, "channelTitle": v.channelTitle, "url": v.url]
+                if let thumb = v.thumbnail { d["thumbnail"] = thumb }
+                if let desc = v.description { d["description"] = desc }
+                return d
+            }
         }
 
         // Title
@@ -5563,6 +5574,17 @@ struct VideoSearchResult: Codable, Identifiable {
         thumbnail = try c.decodeIfPresent(String.self, forKey: .thumbnail)
         url = try c.decode(String.self, forKey: .url)
         isEduChannel = try c.decodeIfPresent(Bool.self, forKey: .isEduChannel) ?? false
+    }
+
+    // Memberwise init for constructing from archived dict
+    init(videoId: String, title: String, channelTitle: String, description: String?, thumbnail: String?, url: String, isEduChannel: Bool) {
+        self.videoId = videoId
+        self.title = title
+        self.channelTitle = channelTitle
+        self.description = description
+        self.thumbnail = thumbnail
+        self.url = url
+        self.isEduChannel = isEduChannel
     }
 
     enum CodingKeys: String, CodingKey {

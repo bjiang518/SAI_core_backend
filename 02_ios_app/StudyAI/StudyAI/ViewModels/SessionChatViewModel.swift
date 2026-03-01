@@ -495,7 +495,8 @@ class SessionChatViewModel: ObservableObject {
             topic: archiveTopic.isEmpty ? nil : archiveTopic,
             subject: selectedSubject,
             notes: archiveNotes.isEmpty ? nil : archiveNotes,
-            diagrams: generatedDiagrams
+            diagrams: generatedDiagrams,
+            videos: Array(videoSearchResults.values).flatMap { $0 }
         )
 
         isArchiving = false
@@ -510,6 +511,7 @@ class SessionChatViewModel: ObservableObject {
             networkService.currentSessionId = nil
             networkService.conversationHistory.removeAll()
             generatedDiagrams.removeAll()
+            videoSearchResults.removeAll()
         } else {
             errorMessage = NSLocalizedString("error.session.archive", comment: "")
         }
@@ -532,7 +534,8 @@ class SessionChatViewModel: ObservableObject {
                 topic: archiveTopic.isEmpty ? nil : archiveTopic,
                 subject: selectedSubject,
                 notes: archiveNotes.isEmpty ? nil : archiveNotes,
-                diagrams: generatedDiagrams  // ✅ NEW: Pass diagrams for archiving
+                diagrams: generatedDiagrams,
+                videos: Array(videoSearchResults.values).flatMap { $0 }
             )
 
             isArchiving = false
