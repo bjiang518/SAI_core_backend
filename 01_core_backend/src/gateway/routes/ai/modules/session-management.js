@@ -6,6 +6,7 @@
  * Extracted from ai-proxy.js lines 284-2022
  */
 
+const { Readable } = require('stream');
 const AIServiceClient = require('../../../services/ai-client');
 const AuthHelper = require('../utils/auth-helper');
 const SessionHelper = require('../utils/session-helper');
@@ -397,7 +398,6 @@ class SessionManagementRoutes {
     const startTime = Date.now();
     const { sessionId } = request.params;
     const { message, context, language, question_context, deep_mode = false } = request.body;
-    const fetch = require('node-fetch');
 
     try {
       // Authenticate user
@@ -538,12 +538,15 @@ class SessionManagementRoutes {
         'X-Accel-Buffering': 'no'
       });
 
+      // Convert Web ReadableStream (native fetch) to Node.js Readable so we can use .on()
+      const bodyStream = Readable.fromWeb(response.body);
+
       // Stream response
       let hasReceivedData = false;
       let fullResponse = '';       // raw SSE bytes — forwarded to iOS as-is
       let extractedAiText = '';    // clean AI text — extracted for DB storage
 
-      response.body.on('data', (chunk) => {
+      bodyStream.on('data', (chunk) => {
         hasReceivedData = true;
         const chunkStr = chunk.toString();
         fullResponse += chunkStr;
@@ -571,7 +574,7 @@ class SessionManagementRoutes {
         }
       });
 
-      response.body.on('end', async () => {
+      bodyStream.on('end', async () => {
         const duration = Date.now() - startTime;
         this.fastify.log.info(`✅ Streaming complete: ${duration}ms`);
 
@@ -603,7 +606,7 @@ class SessionManagementRoutes {
         }
       });
 
-      response.body.on('error', (error) => {
+      bodyStream.on('error', (error) => {
         this.fastify.log.error('❌ Stream error:', error);
         if (!hasReceivedData) {
           const errorEvent = `data: ${JSON.stringify({
@@ -618,7 +621,7 @@ class SessionManagementRoutes {
 
       request.raw.on('close', () => {
         this.fastify.log.info('⚠️ Client disconnected from stream');
-        response.body.destroy();
+        bodyStream.destroy();
       });
 
     } catch (error) {
