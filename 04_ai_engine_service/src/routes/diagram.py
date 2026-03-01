@@ -43,7 +43,7 @@ class DiagramGenerationRequest(BaseModel):
     session_id: Optional[str] = None  # Current chat session ID for context
     subject: Optional[str] = "general"  # Subject context (mathematics, physics, etc.)
     language: Optional[str] = "en"  # Display language
-    regenerate: Optional[bool] = False  # If True, use better model (o4-mini) for two-step reasoning
+    regenerate: Optional[bool] = False  # If True, use better model for two-step reasoning
     student_id: Optional[str] = None  # For logging purposes
     context: Optional[Dict[str, Any]] = None  # Additional context
 
@@ -73,26 +73,20 @@ async def generate_diagram(request: DiagramGenerationRequest):
     """
     Generate educational diagrams (Matplotlib/LaTeX/SVG) from conversation context.
 
-    This endpoint analyzes the conversation history and generates appropriate
-    visual representations to help students understand complex concepts.
-
     Features:
     - Multi-pathway system: Matplotlib (best for math graphs) > LaTeX (geometry) > SVG (concepts)
     - Intelligent format selection based on content analysis
     - Multi-language support for diagram annotations
     - Subject-specific diagram generation
-    - Conversation context analysis for relevant visual aids
     - Automatic fallback if primary pathway fails
     """
     start_time = time.time()
 
     try:
-        # Import services that need to be injected
         from src.services.improved_openai_service import EducationalAIService
         from src.services.latex_converter import latex_converter
         from src.services.svg_utils import optimize_svg_for_display
 
-        # Import matplotlib and graphviz generators
         try:
             from src.services.matplotlib_generator import matplotlib_generator, MATPLOTLIB_AVAILABLE
         except ImportError:
@@ -107,39 +101,30 @@ async def generate_diagram(request: DiagramGenerationRequest):
 
         ai_service = EducationalAIService()
 
-        # Extract the most recent relevant content for context
-        # ✅ OPTIMIZATION: Focus on the most recent 2 messages for faster processing
-        conversation_text = ""
-
-        # Get last 2 messages (1 Q&A pair) for focused context
+        # Focus on the most recent 2 messages for context
         recent_messages = request.conversation_history[-2:] if len(request.conversation_history) >= 2 else request.conversation_history
 
-        # ✅ FIX: Track if we've seen specific diagram requests to avoid context contamination
         has_previous_math_content = False
         previous_functions = []
+        conversation_text = ""
 
         for msg in recent_messages:
             role = msg.get('role', 'unknown')
             content = msg.get('content', '')
 
-            # Skip messages that reference old diagrams
             if 'generated diagram:' in content.lower() or 'diagram request context' in content.lower():
                 continue
 
-            # ✅ NEW: Detect previous mathematical function discussions
             content_lower = content.lower()
             if any(indicator in content_lower for indicator in ['y =', 'f(x) =', 'equation', 'function', 'quadratic', 'parabola']):
                 has_previous_math_content = True
-                # Extract function patterns for logging
                 function_patterns = re.findall(r'y\s*=\s*[^,\n]+', content, re.IGNORECASE)
                 previous_functions.extend(function_patterns[:2])
 
             conversation_text += f"{role.upper()}: {content}\n\n"
 
-        # ✅ Add the specific diagram request at the end
         conversation_text += f"\nDIAGRAM REQUEST: {request.diagram_request}\n"
 
-        # ✅ CRITICAL FIX: If geometric request but context has old math functions, add isolation instruction
         geometric_requests = ['triangle', 'circle', 'rectangle', 'square', 'pentagon', 'hexagon',
                             'polygon', '三角形', '圆', '矩形', '正方形', '多边形']
 
@@ -147,18 +132,11 @@ async def generate_diagram(request: DiagramGenerationRequest):
         is_geometric_request = any(shape.lower() in req_lower for shape in geometric_requests if isinstance(shape, str))
 
         if is_geometric_request and has_previous_math_content:
-            print(f"⚠️ [DiagramGen] Geometric request detected with previous math context")
-            print(f"   Previous functions: {previous_functions}")
-            print(f"   Current request: {request.diagram_request}")
-
             conversation_text += f"\n⚠️ CRITICAL INSTRUCTION: The user is requesting a NEW geometric shape ({request.diagram_request}).\n"
             conversation_text += f"IGNORE all previous mathematical functions in the conversation history.\n"
             conversation_text += f"DO NOT draw any previous equations or functions.\n"
             conversation_text += f"Focus EXCLUSIVELY on: {request.diagram_request}\n"
 
-        # 🚀 UNIFIED GENERATION: AI chooses tool and generates code in single call
-        print(f"🎨 === UNIFIED DIAGRAM GENERATION ===")
-        print(f"🔄 Regenerate mode: {request.regenerate}")
         ai_output = await generate_diagram_unified(
             conversation_text=conversation_text,
             diagram_request=request.diagram_request,
@@ -168,36 +146,22 @@ async def generate_diagram(request: DiagramGenerationRequest):
             ai_service=ai_service
         )
 
-        # Extract type and content from AI response
         diagram_type = ai_output.get('type', 'svg').lower()
         diagram_content = ai_output.get('content', '')
 
-        print(f"🎨 AI selected tool: {diagram_type}")
-        print(f"🎨 Content length: {len(diagram_content)} chars")
-
-        # ✅ FIX: Validate and normalize code before execution
-        # 1. Strip markdown code fences
+        # Strip markdown code fences if present
         if "```" in diagram_content:
-            print(f"⚠️ Stripping markdown code fences from content")
             lines = diagram_content.split('\n')
-            cleaned_lines = []
-            for line in lines:
-                stripped = line.strip()
-                if stripped.startswith('```'):
-                    continue
-                cleaned_lines.append(line)
-            diagram_content = '\n'.join(cleaned_lines)
+            diagram_content = '\n'.join(line for line in lines if not line.strip().startswith('```'))
 
-        # 2. Normalize newlines
+        # Normalize newlines
         diagram_content = diagram_content.replace("\r\n", "\n").replace("\r", "\n")
 
-        # 3. Check for ASCII-only in code (matplotlib/graphviz only)
         def contains_non_ascii(s: str) -> bool:
             return any(ord(c) > 127 for c in s)
 
         async def _retry_as_svg(failure_reason: str) -> dict:
             """Re-generate as SVG when the primary renderer fails. Always returns a result."""
-            print(f"⚠️ [DiagramFallback] {failure_reason} — re-generating as SVG")
             try:
                 svg_regen = await generate_diagram_unified(
                     conversation_text=conversation_text,
@@ -209,7 +173,6 @@ async def generate_diagram(request: DiagramGenerationRequest):
                 )
                 svg_code = svg_regen.get('content', '').replace("\r\n", "\n").replace("\r", "\n")
                 if '<svg' in svg_code.lower():
-                    print(f"✅ [DiagramFallback] SVG regeneration succeeded")
                     return {
                         'success': True,
                         'diagram_type': 'svg',
@@ -220,10 +183,8 @@ async def generate_diagram(request: DiagramGenerationRequest):
                         'height': svg_regen.get('height', 300),
                         'tokens_used': (ai_output.get('tokens_used') or 0) + (svg_regen.get('tokens_used') or 0)
                     }
-                print(f"⚠️ [DiagramFallback] SVG regen returned non-SVG content, using placeholder")
-            except Exception as retry_err:
-                print(f"❌ [DiagramFallback] SVG regen also failed: {retry_err}")
-            # Last resort: minimal informational placeholder SVG
+            except Exception:
+                pass
             return {
                 'success': True,
                 'diagram_type': 'svg',
@@ -236,7 +197,6 @@ async def generate_diagram(request: DiagramGenerationRequest):
             }
 
         if diagram_type in ["matplotlib", "graphviz"] and contains_non_ascii(diagram_content):
-            print(f"❌ Non-ASCII characters in {diagram_type} code, retrying as SVG")
             result = await _retry_as_svg(f'{diagram_type} non-ASCII labels')
         else:
             # Route to appropriate renderer
@@ -245,19 +205,11 @@ async def generate_diagram(request: DiagramGenerationRequest):
                     result = await _retry_as_svg('Matplotlib not available on server')
                 else:
                     # Strip import statements — plt and np are pre-loaded in the sandbox
-                    lines = diagram_content.split('\n')
-                    filtered_lines = []
-                    for line in lines:
-                        stripped = line.strip()
-                        if stripped.startswith('import matplotlib') or \
-                           stripped.startswith('import numpy') or \
-                           stripped.startswith('from matplotlib') or \
-                           stripped.startswith('from numpy') or \
-                           stripped.startswith('import np') or \
-                           stripped.startswith('import plt'):
-                            print(f"🔧 [Matplotlib] Stripped import: {stripped}")
-                            continue
-                        filtered_lines.append(line)
+                    filtered_lines = [
+                        line for line in diagram_content.split('\n')
+                        if not line.strip().startswith(('import matplotlib', 'import numpy',
+                            'from matplotlib', 'from numpy', 'import np', 'import plt'))
+                    ]
                     cleaned_code = '\n'.join(filtered_lines)
 
                     exec_result = matplotlib_generator.execute_code_safely(cleaned_code, timeout_seconds=5)
@@ -274,7 +226,6 @@ async def generate_diagram(request: DiagramGenerationRequest):
                             'tokens_used': ai_output.get('tokens_used', 0)
                         }
                     else:
-                        print(f"⚠️ matplotlib execution failed: {exec_result.get('error', 'Unknown')}")
                         result = await _retry_as_svg(f"matplotlib: {str(exec_result.get('error', 'execution failed'))[:50]}")
 
             elif diagram_type == "graphviz":
@@ -300,7 +251,6 @@ async def generate_diagram(request: DiagramGenerationRequest):
                             'tokens_used': ai_output.get('tokens_used', 0)
                         }
                     else:
-                        print(f"⚠️ graphviz execution failed: {exec_result.get('error', 'Unknown')}")
                         result = await _retry_as_svg(f"graphviz: {str(exec_result.get('error', 'execution failed'))[:50]}")
 
             elif diagram_type == "latex":
@@ -323,7 +273,6 @@ async def generate_diagram(request: DiagramGenerationRequest):
                         'tokens_used': ai_output.get('tokens_used', 0)
                     }
                 else:
-                    print(f"⚠️ LaTeX conversion failed: {conversion_result.get('error', 'Unknown')}")
                     result = await _retry_as_svg("LaTeX conversion unavailable")
 
             else:  # svg
@@ -357,10 +306,8 @@ async def generate_diagram(request: DiagramGenerationRequest):
 
     except Exception as e:
         processing_time = int((time.time() - start_time) * 1000)
-        print(f"❌ Diagram: Failed ({processing_time}ms) - {str(e)}")
         import traceback; traceback.print_exc()
 
-        # Return an informational SVG so iOS always has something to render
         title_raw = getattr(request, 'diagram_request', 'Diagram')[:40]
         return DiagramGenerationResponse(
             success=True,
