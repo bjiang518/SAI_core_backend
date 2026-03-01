@@ -38,11 +38,11 @@
 		</dict>
 	</array>
 	<key>NSCalendarsUsageDescription</key>
-	<string>StudyMates需要访问您的日历，以便添加和查看番茄专注时间段，帮助您更好地安排学习计划。</string>
+	<string>StudyMates needs calendar access to add and view Pomodoro focus sessions, helping you plan your study schedule.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>StudyMates需要完整的日历访问权限，以便为您添加番茄专注提醒并查看您的日程安排。</string>
+	<string>StudyMates needs full calendar access to add Pomodoro focus reminders and view your schedule.</string>
 	<key>NSRemindersUsageDescription</key>
-	<string>StudyMates需要访问提醒事项，以便为您的专注时间段设置提醒通知。</string>
+	<string>StudyMates needs reminders access to set notifications for your focus sessions.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>StudyMates needs camera access to capture homework photos for AI-powered question analysis and solving.</string>
 	<key>NSMicrophoneUsageDescription</key>
