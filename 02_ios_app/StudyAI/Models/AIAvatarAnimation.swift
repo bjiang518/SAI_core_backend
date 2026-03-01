@@ -13,6 +13,7 @@ enum AIAvatarState: Equatable {
     case waiting           // Fast, small, blinking (waiting for AI response)
     case processing        // Fast, small, no blinking (AI text received)
     case speaking          // Wave animation (TTS playing)
+    case paused            // Slow, dimmed (TTS paused, queue intact)
 }
 
 struct AIAvatarAnimation: View {
@@ -133,6 +134,18 @@ struct AIAvatarAnimation: View {
                     pulseScale = 1.0
                     blinkingOpacity = 1.0
                 }
+
+            case .paused:
+                // Paused state - Siri Animation (slow, dimmed — queue intact)
+                LottieView(
+                    animationName: "Siri Animation",
+                    loopMode: .loop,
+                    animationSpeed: 0.3
+                )
+                .frame(width: 60, height: 60)
+                .scaleEffect(0.12)
+                .opacity(0.45)
+                .transition(.opacity)
             }
         }
     }
@@ -219,6 +232,18 @@ struct AIAvatarAnimation: View {
                     // Reset animation when speaking finishes
                     pulseScale = 1.0
                 }
+
+            case .paused:
+                // Paused state - AI Spiral Loading (slow, dimmed — queue intact)
+                LottieView(
+                    animationName: "AI Spiral Loading",
+                    loopMode: .loop,
+                    animationSpeed: 0.3
+                )
+                .frame(width: 60, height: 60)
+                .scaleEffect(0.12)
+                .opacity(0.45)
+                .transition(.opacity)
             }
         }
     }
@@ -293,6 +318,18 @@ struct AIAvatarAnimation: View {
                 .frame(width: 60, height: 60)
                 .scaleEffect(0.15)  // Fixed size, no zoom in/out
                 .offset(y: -1)  // Move up slightly
+                .transition(.opacity)
+
+            case .paused:
+                // Paused state - Fire (slow, dimmed — queue intact)
+                LottieView(
+                    animationName: "Fire",
+                    loopMode: .loop,
+                    animationSpeed: 0.3
+                )
+                .frame(width: 60, height: 60)
+                .scaleEffect(0.10)
+                .opacity(0.45)
                 .transition(.opacity)
             }
         }
@@ -381,6 +418,18 @@ struct AIAvatarAnimation: View {
                     // Reset animation when speaking finishes
                     pulseScale = 1.0
                 }
+
+            case .paused:
+                // Paused state - Foriday (slow, dimmed — queue intact)
+                LottieView(
+                    animationName: "Foriday",
+                    loopMode: .loop,
+                    animationSpeed: 0.3
+                )
+                .frame(width: 60, height: 60)
+                .scaleEffect(0.12)
+                .opacity(0.45)
+                .transition(.opacity)
             }
         }
     }

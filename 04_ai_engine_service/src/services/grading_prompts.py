@@ -523,7 +523,7 @@ STUDENT ANSWER: {student_answer}
 
     prompt_parts.append(grading_task)
 
-    # Output format instructions
+    # Output format instructions — same structured reasoning for both modes
     if use_deep_reasoning:
         output_format = """
 DEEP REASONING MODE - Follow this structured process and return JSON:
@@ -546,35 +546,37 @@ Based on your comparison, assign a grade from 0.0 to 1.0:
 - 0.0-0.2 = Incorrect, fundamental misunderstanding
 
 STEP 4 - PROVIDE FEEDBACK:
-Write feedback (50-100 words) that:
-- Explains what the student did correctly
-- Points out specific errors or misconceptions
-- Guides student toward correct understanding
+- If the answer is incorrect (score < 0.9): write 50-100 words explaining what the student did wrong, pointing out specific errors or misconceptions, and guiding them toward the correct understanding.
+- If the answer is correct (score >= 0.9): write under 50 words briefly confirming what the student did well.
 
 Return your response in JSON format with score, is_correct, feedback, confidence, and correct_answer fields.
 """
     else:
         output_format = """
-GRADING INSTRUCTIONS:
-1. Evaluate the student's answer against the correct answer
-2. Assign a score from 0.0 (completely wrong) to 1.0 (perfect)
-3. Provide brief, specific feedback (15-30 words)
-4. Consider question complexity when evaluating completeness of response
+DEEP REASONING MODE - Follow this structured process and return JSON:
 
-Return ONLY a valid JSON object with this exact structure:
-{
-  "score": 0.85,
-  "is_correct": false,
-  "feedback": "Your approach is correct but you made a calculation error in step 2.",
-  "confidence": 0.9,
-  "correct_answer": "42"
-}
+STEP 1 - SOLVE THE PROBLEM:
+First, work through the problem yourself to determine the correct answer.
+Show your reasoning and explain the solution approach.
 
-IMPORTANT:
-- Return ONLY the JSON object, no other text
-- is_correct should be true only if score >= 0.9
-- Keep feedback concise (15-30 words)
-- Always include correct_answer field
+STEP 2 - COMPARE TO STUDENT ANSWER:
+Compare your solution to the student's answer.
+Identify what the student got right and what they got wrong.
+
+STEP 3 - DETERMINE GRADE:
+Based on your comparison, assign a grade from 0.0 to 1.0:
+- 1.0 = Perfect, completely correct
+- 0.9 = Excellent, minor issue but substantially correct
+- 0.7-0.8 = Good, correct core understanding with some errors
+- 0.5-0.6 = Partial credit, some understanding but significant gaps
+- 0.3-0.4 = Poor, major misunderstanding but some relevant content
+- 0.0-0.2 = Incorrect, fundamental misunderstanding
+
+STEP 4 - PROVIDE FEEDBACK:
+- If the answer is incorrect (score < 0.9): write 50-100 words explaining what the student did wrong, pointing out specific errors or misconceptions, and guiding them toward the correct understanding.
+- If the answer is correct (score >= 0.9): write under 50 words briefly confirming what the student did well.
+
+Return your response in JSON format with score, is_correct, feedback, confidence, and correct_answer fields.
 """
 
     prompt_parts.append(output_format)

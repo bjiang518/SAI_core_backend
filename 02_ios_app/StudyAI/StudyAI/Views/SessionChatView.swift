@@ -2492,48 +2492,26 @@ struct SessionChatView: View {
         let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
         impactFeedback.impactOccurred()
 
-        if Self.debugMode {
-        print("👆 [Avatar] Avatar tapped - message available")
-        print("👆 [Avatar] VoiceService state: \(voiceService.interactionState)")
-        print("👆 [Avatar] Latest message length: \(avatarState.latestMessage.count)")
-        }
-
-        // If any audio is currently playing, stop it
-        if voiceService.interactionState == .speaking {
-            if Self.debugMode {
-            print("🛑 [Avatar] Stopping current audio")
-            }
-
-            // Stronger haptic feedback for stopping
-            let notificationFeedback = UINotificationFeedbackGenerator()
-            notificationFeedback.notificationOccurred(.warning)
-
-            voiceService.stopSpeech()
-            ttsQueueService.stopAllTTS()  // Stop any queued TTS as well
-            avatarState.animationState = .idle
+        if voiceService.interactionState == .speaking || ttsQueueService.isPlayingTTS {
+            // Audio is playing — pause it, queue stays intact
+            ttsQueueService.pauseResumeTTS()
+            avatarState.animationState = .paused
+        } else if ttsQueueService.isPaused {
+            // Currently paused — resume
+            ttsQueueService.pauseResumeTTS()
+            avatarState.animationState = .speaking
         } else {
-            // ✅ FIX: Check if this message has already been spoken
+            // Idle — play the latest message if not already spoken
             if let messageId = avatarState.latestMessageId, avatarState.spokenMessageIds.contains(messageId) {
                 if Self.debugMode {
                 print("⏭️ [Avatar] Message already spoken - skipping TTS (ID: \(messageId))")
-                print("⏭️ [Avatar] Already spoken count: \(avatarState.spokenMessageIds.count)")
                 }
-
-                // Provide different haptic feedback to indicate it was already spoken
                 let notificationFeedback = UINotificationFeedbackGenerator()
                 notificationFeedback.notificationOccurred(.warning)
                 return
             }
-
-            // No audio playing and not yet spoken - start playing the latest message
-            if Self.debugMode {
-            print("▶️ [Avatar] Starting playback of latest message")
-            }
-
-            // Success haptic feedback for starting playback
             let notificationFeedback = UINotificationFeedbackGenerator()
             notificationFeedback.notificationOccurred(.success)
-
             playLatestMessage()
         }
     }
@@ -2700,10 +2678,14 @@ struct SessionChatView: View {
                 }
                 switch state {
                 case .speaking:
-                    avatarState.animationState = .speaking
+                    // Don't override .paused — pause was set by user tap
+                    if avatarState.animationState != .paused {
+                        avatarState.animationState = .speaking
+                    }
                 case .idle:
+                    // Only return to idle if we weren't deliberately paused
                     if avatarState.animationState == .speaking {
-                        avatarState.animationState = .idle
+                        avatarState.animationState = ttsQueueService.isPaused ? .paused : .idle
                     }
                 default:
                     break
