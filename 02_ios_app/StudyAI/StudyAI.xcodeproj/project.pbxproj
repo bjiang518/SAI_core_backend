@@ -303,6 +303,9 @@
 		7BD668CC2EE6A7F000E09E55 /* DiagramRendererView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD668C82EE6A7F000E09E55 /* DiagramRendererView.swift */; };
 		7BD668CD2EE6A7F000E09E55 /* DiagramMessageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD668C72EE6A7F000E09E55 /* DiagramMessageView.swift */; };
 		7BD668CE2EE6A7F000E09E55 /* DiagramRendererView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD668C82EE6A7F000E09E55 /* DiagramRendererView.swift */; };
+		80F783CCBBAAA229386965EF /* ChatOnboardingOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AA716BBAE810E4B3CB0CBC0 /* ChatOnboardingOverlay.swift */; };
+		50A2A95A7C83265E127F4731 /* ChatOnboardingOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AA716BBAE810E4B3CB0CBC0 /* ChatOnboardingOverlay.swift */; };
+		81708204B8473890B4386397 /* ChatOnboardingOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AA716BBAE810E4B3CB0CBC0 /* ChatOnboardingOverlay.swift */; };
 		7BDE565E2EC1C5C3004A8629 /* MathJaxRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDE565D2EC1C5C3004A8629 /* MathJaxRenderer.swift */; };
 		7BDE565F2EC1C5C3004A8629 /* MathJaxRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDE565D2EC1C5C3004A8629 /* MathJaxRenderer.swift */; };
 		7BDE56602EC1C5C3004A8629 /* MathJaxRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDE565D2EC1C5C3004A8629 /* MathJaxRenderer.swift */; };
@@ -695,6 +698,7 @@
 		7BD668B52ED9AC9D00E09E55 /* SavedDigitalHomeworkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SavedDigitalHomeworkView.swift; path = StudyAI/Views/SavedDigitalHomeworkView.swift; sourceTree = SOURCE_ROOT; };
 		7BD668C72EE6A7F000E09E55 /* DiagramMessageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DiagramMessageView.swift; path = StudyAI/Views/Components/DiagramMessageView.swift; sourceTree = SOURCE_ROOT; };
 		7BD668C82EE6A7F000E09E55 /* DiagramRendererView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DiagramRendererView.swift; path = StudyAI/Views/Components/DiagramRendererView.swift; sourceTree = SOURCE_ROOT; };
+		2AA716BBAE810E4B3CB0CBC0 /* ChatOnboardingOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChatOnboardingOverlay.swift; path = StudyAI/Views/Components/ChatOnboardingOverlay.swift; sourceTree = SOURCE_ROOT; };
 		7BDE565D2EC1C5C3004A8629 /* MathJaxRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MathJaxRenderer.swift; path = StudyAI/Services/MathJaxRenderer.swift; sourceTree = SOURCE_ROOT; };
 		7BDE56612EC1C617004A8629 /* PomodoroDeepLinkHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PomodoroDeepLinkHandler.swift; path = StudyAI/Services/PomodoroDeepLinkHandler.swift; sourceTree = SOURCE_ROOT; };
 		7BDE56652EC1C64D004A8629 /* StreamingMessageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StreamingMessageService.swift; path = StudyAI/Services/StreamingMessageService.swift; sourceTree = SOURCE_ROOT; };
@@ -1121,6 +1125,7 @@
 				ttPDFOPT001FILEREF000000001 /* PDFOptionsSheet.swift */,
 				7BD668C72EE6A7F000E09E55 /* DiagramMessageView.swift */,
 				7BD668C82EE6A7F000E09E55 /* DiagramRendererView.swift */,
+				2AA716BBAE810E4B3CB0CBC0 /* ChatOnboardingOverlay.swift */,
 				7BD668B52ED9AC9D00E09E55 /* SavedDigitalHomeworkView.swift */,
 				7BD6687B2ED05FD400E09E55 /* ZoomableImageView.swift */,
 				7BD668732ED05FAE00E09E55 /* DigitalHomeworkView.swift */,
@@ -1639,6 +1644,7 @@
 				7B8E9EA32EAC163B00E83DA8 /* HomeworkQuestionsPDFPreviewView.swift in Sources */,
 				7BD668CB2EE6A7F000E09E55 /* DiagramMessageView.swift in Sources */,
 				7BD668CC2EE6A7F000E09E55 /* DiagramRendererView.swift in Sources */,
+				50A2A95A7C83265E127F4731 /* ChatOnboardingOverlay.swift in Sources */,
 				7B2248712F26BE4C006ADD93 /* ErrorAnalysisQueueService.swift in Sources */,
 				7B8E9E9F2EAB518100E83DA8 /* HomeworkImageStorageService.swift in Sources */,
 				LGLS901234567890GHIJ2345 /* LearningGoalsSettingsView.swift in Sources */,
@@ -1761,6 +1767,7 @@
 				7B2248732F26BE4C006ADD93 /* ErrorAnalysisQueueService.swift in Sources */,
 				7BD668C92EE6A7F000E09E55 /* DiagramMessageView.swift in Sources */,
 				7BD668CA2EE6A7F000E09E55 /* DiagramRendererView.swift in Sources */,
+				80F783CCBBAAA229386965EF /* ChatOnboardingOverlay.swift in Sources */,
 				7B22487E2F26F821006ADD93 /* ShortTermStatusModels.swift in Sources */,
 				7B83534A2EA7509000199AC3 /* QuestionTypeRenderers.swift in Sources */,
 				7B1961EB2E94E2740024317A /* PasswordManagementView.swift in Sources */,
@@ -1881,6 +1888,7 @@
 				7B22487F2F26F821006ADD93 /* ShortTermStatusModels.swift in Sources */,
 				7BD668CD2EE6A7F000E09E55 /* DiagramMessageView.swift in Sources */,
 				7BD668CE2EE6A7F000E09E55 /* DiagramRendererView.swift in Sources */,
+				81708204B8473890B4386397 /* ChatOnboardingOverlay.swift in Sources */,
 				7B2248A32F2DCDAC006ADD93 /* LoadingAnimationView.swift in Sources */,
 				7BEEB6132E8E3A3200957748 /* DesignTokens.swift in Sources */,
 				7BFC71332EC5A91D00DB95A7 /* AssistantLogger.swift in Sources */,

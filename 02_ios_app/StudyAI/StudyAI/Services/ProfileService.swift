@@ -186,18 +186,29 @@ class ProfileService: ObservableObject {
     
     // MARK: - Profile Auto-Loading
     
-    /// Load profile automatically after login
+    /// Cache a profile built from a server response dictionary (no network call).
+    /// Call this right after a successful profile save to populate local storage
+    /// from the response data, avoiding a redundant fetch round-trip.
+    func cacheProfileFromResponse(_ dict: [String: Any]) {
+        guard let profile = try? UserProfile.fromDictionary(dict) else { return }
+        try? saveProfileLocally(profile)
+        Task { @MainActor in
+            currentProfile = profile
+        }
+    }
+
+    /// Load profile automatically after login.
+    /// Shows cached data instantly, then refreshes from the network in the background.
     func loadProfileAfterLogin() async {
+        // Show cached profile immediately so UI is never blank
+        if let cachedProfile = loadCachedProfile() {
+            await MainActor.run { currentProfile = cachedProfile }
+        }
+        // Silently refresh from network
         do {
             _ = try await getUserProfile()
         } catch {
-            print("⚠️ Auto profile loading failed: \(error)")
-            // Try to load cached profile
-            if let cachedProfile = loadCachedProfile() {
-                await MainActor.run {
-                    currentProfile = cachedProfile
-                }
-            }
+            // Cached profile is already visible — no action needed
         }
     }
     

@@ -181,6 +181,13 @@ struct ContentView: View {
         guard !hasCheckedOnboardingOnce else { return }
         hasCheckedOnboardingOnce = true
 
+        // Fast path: check local flag to avoid a network round-trip for returning users
+        let email = authService.currentUser?.email ?? ""
+        if !email.isEmpty && UserDefaults.standard.bool(forKey: "onboardingCompleted_\(email)") {
+            checkParentalConsent()
+            return
+        }
+
         Task {
             let result = await networkService.checkProfileCompletion()
             await MainActor.run {
@@ -188,7 +195,10 @@ struct ContentView: View {
                     print("🎯 [ContentView] Onboarding not completed — showing FirstTimeOnboardingView")
                     showingOnboarding = true
                 } else {
-                    // Already onboarded — proceed to parental-consent check as normal
+                    // Cache locally so future launches skip this check
+                    if !email.isEmpty {
+                        UserDefaults.standard.set(true, forKey: "onboardingCompleted_\(email)")
+                    }
                     checkParentalConsent()
                 }
             }

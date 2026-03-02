@@ -134,6 +134,9 @@ struct FirstTimeOnboardingView: View {
             }
             .animation(.easeInOut(duration: 0.2), value: currentStep)
         }
+        .onTapGesture {
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        }
         .background(DesignTokens.Colors.Cute.backgroundCream.ignoresSafeArea())
         .sheet(isPresented: $showingPrivacyPolicy) { PrivacyPolicyView() }
         .alert("Error", isPresented: $showingError) { Button("OK") {} } message: { Text(errorMessage) }
@@ -571,12 +574,14 @@ struct FirstTimeOnboardingView: View {
     // MARK: - Navigation
 
     private func advance() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         withAnimation(.easeInOut(duration: 0.2)) {
             currentStep = min(currentStep + 1, totalSteps - 1)
         }
     }
 
     private func goBack() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         withAnimation(.easeInOut(duration: 0.2)) {
             currentStep = max(currentStep - 1, 0)
         }
@@ -610,8 +615,14 @@ struct FirstTimeOnboardingView: View {
 
             let result = await networkService.updateUserProfile(data)
             if result.success {
-                // Refresh ProfileService so Settings reflects updated data
-                _ = try? await ProfileService.shared.getUserProfile()
+                // Cache locally from the save response — no extra network round-trip needed
+                if let profileDict = result.profile {
+                    ProfileService.shared.cacheProfileFromResponse(profileDict)
+                }
+                // Mark onboarding done locally so future launches skip the network check
+                if let email = authService.currentUser?.email, !email.isEmpty {
+                    UserDefaults.standard.set(true, forKey: "onboardingCompleted_\(email)")
+                }
                 await MainActor.run {
                     isSaving = false
                     isMinor ? onNeedsParentalConsent(dobString) : onComplete()

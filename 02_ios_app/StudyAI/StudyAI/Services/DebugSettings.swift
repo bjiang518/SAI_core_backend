@@ -173,6 +173,11 @@ struct DebugSettingsView: View {
                     debugSettings.resetToDefaults()
                 }
 
+                Button("Reset Chat Onboarding") {
+                    UserDefaults.standard.removeObject(forKey: "chat_onboarding_v1_done")
+                }
+                .foregroundColor(.orange)
+
                 #if os(macOS)
                 Button("View Console Output") {
                     // Open Console.app via AppleScript (works on macOS only)
