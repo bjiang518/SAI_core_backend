@@ -1875,7 +1875,7 @@ const db = {
       firstName: processField('firstName', profileData.firstName, 'string'),
       lastName: processField('lastName', profileData.lastName, 'string'),
       displayName: processField('displayName', profileData.displayName, 'string'),
-      gradeLevel: processField('gradeLevel', profileData.gradeLevel, 'string'),
+      gradeLevel: processField('gradeLevel', profileData.gradeLevel, 'number'),
       dateOfBirth: processField('dateOfBirth', profileData.dateOfBirth, 'string'),
       kidsAges: processField('kidsAges', profileData.kidsAges, 'array'),
       gender: processField('gender', profileData.gender, 'string'),
@@ -1995,10 +1995,10 @@ const db = {
     } else {
       // INSERT new profile with only provided fields
       // Reset values array for INSERT (don't reuse UPDATE values)
-      const insertValues = [userEmail]; // Email is always first
-      const columns = ['email', 'created_at', 'updated_at'];
-      const placeholders = ['$1', 'NOW()', 'NOW()'];
-      let insertParamIndex = 2; // Start at $2 since $1 is email
+      const insertValues = [userId, userEmail]; // user_id first, then email
+      const columns = ['user_id', 'email', 'created_at', 'updated_at'];
+      const placeholders = ['$1', '$2', 'NOW()', 'NOW()'];
+      let insertParamIndex = 3; // Start at $3 since $1=user_id, $2=email
 
       // Add provided fields to INSERT (using processed values)
       const fieldMappings = [
