@@ -82,6 +82,16 @@ struct SessionDetailView: View {
                 if let localConversation = localConversations.first(where: { ($0["id"] as? String) == sessionId }) {
                     let rawAudioFiles = localConversation["voiceAudioFiles"] as? [String: String]
 
+                    // NSArray<NSDictionary> from JSONSerialization round-trip does not bridge directly
+                    // to [[String: Any]] via `as?`. Decode element-by-element instead.
+                    let decodedDiagrams: [[String: Any]]? = {
+                        guard let raw = localConversation["diagrams"] else { return nil }
+                        if let direct = raw as? [[String: Any]] { return direct }
+                        guard let nsArray = raw as? [Any] else { return nil }
+                        let dicts = nsArray.compactMap { $0 as? [String: Any] }
+                        return dicts.isEmpty ? nil : dicts
+                    }()
+
                     let archivedConversation = ArchivedConversation(
                         id: localConversation["id"] as? String ?? sessionId,
                         userId: "",
@@ -90,7 +100,7 @@ struct SessionDetailView: View {
                         conversationContent: localConversation["conversationContent"] as? String ?? "",
                         archivedDate: ISO8601DateFormatter().date(from: localConversation["archivedDate"] as? String ?? "") ?? Date(),
                         createdAt: ISO8601DateFormatter().date(from: localConversation["createdAt"] as? String ?? "") ?? Date(),
-                        diagrams: localConversation["diagrams"] as? [[String: Any]],
+                        diagrams: decodedDiagrams,
                         voiceAudioFiles: rawAudioFiles,
                         recommendedVideos: localConversation["recommendedVideos"] as? [[String: String]]
                     )

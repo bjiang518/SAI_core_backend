@@ -5288,6 +5288,38 @@ class NetworkService: ObservableObject {
         }
     }
 
+    // MARK: - Profile Completion / Onboarding
+
+    /// Check whether the user has completed first-time onboarding.
+    /// Calls GET /api/user/profile-completion and returns the two fields
+    /// most relevant to the onboarding gate.
+    func checkProfileCompletion() async -> (onboardingCompleted: Bool, percentage: Int) {
+        guard let url = URL(string: "\(baseURL)/api/user/profile-completion") else {
+            return (false, 0)
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        if let token = AuthenticationService.shared.getAuthToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200,
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let completion = json["completion"] as? [String: Any] else {
+                print("⚠️ [NetworkService] checkProfileCompletion: unexpected response")
+                return (false, 0)
+            }
+            let onboardingCompleted = completion["onboardingCompleted"] as? Bool ?? false
+            let percentage = completion["percentage"] as? Int ?? 0
+            print("📋 [NetworkService] Profile completion: onboardingCompleted=\(onboardingCompleted), \(percentage)%")
+            return (onboardingCompleted, percentage)
+        } catch {
+            print("❌ [NetworkService] checkProfileCompletion error: \(error.localizedDescription)")
+            return (false, 0)
+        }
+    }
+
     // MARK: - Error Analysis (Pass 2)
 
     /// Analyze errors for wrong answers (Pass 2 of two-pass grading)

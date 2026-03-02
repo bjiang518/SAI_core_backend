@@ -62,6 +62,11 @@ struct ContentView: View {
     @State private var showingFaceIDReauth = false  // ✅ NEW: Face ID re-auth sheet
     @State private var showLoadingAnimation = false  // ✅ NEW: Control loading animation display
 
+    // First-time onboarding
+    @State private var showingOnboarding = false
+    @State private var hasCheckedOnboardingOnce = false
+    @State private var pendingConsentChildDOB: String? = nil
+
     // COPPA Parental Consent
     @State private var showingParentalConsent = false
     @State private var requiresParentalConsent = false
@@ -79,16 +84,32 @@ struct ContentView: View {
                     .onAppear {
                         // MainTabView appeared
                     }
+                    .fullScreenCover(isPresented: $showingOnboarding) {
+                        FirstTimeOnboardingView(
+                            onComplete: {
+                                showingOnboarding = false
+                                checkParentalConsent()
+                            },
+                            onNeedsParentalConsent: { dob in
+                                pendingConsentChildDOB = dob
+                                showingOnboarding = false
+                                // Small delay lets the dismiss animation finish before
+                                // presenting the next fullScreenCover.
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                    showingParentalConsent = true
+                                }
+                            }
+                        )
+                    }
                     .fullScreenCover(isPresented: $showingParentalConsent) {
                         ParentalConsentView(
                             childEmail: authService.currentUser?.email ?? "",
-                            childDateOfBirth: getUserDateOfBirth(),
+                            childDateOfBirth: pendingConsentChildDOB ?? getUserDateOfBirth(),
                             onConsentGranted: {
                                 // Consent granted - dismiss and refresh
                                 showingParentalConsent = false
                                 requiresParentalConsent = false
-
-                                // User data will be updated automatically after consent verification
+                                pendingConsentChildDOB = nil
                             }
                         )
                     }
@@ -130,24 +151,46 @@ struct ContentView: View {
             }
         }
         .onChange(of: authService.isAuthenticated) { _, isAuthenticated in
-            // Check parental consent when user authenticates
+            // Check onboarding (and then parental consent) when user authenticates
             if isAuthenticated {
-                checkParentalConsent()
+                checkOnboardingStatus()
             } else {
-                // Reset consent state on logout
-                hasCheckedConsentOnce = false
-                requiresParentalConsent = false
+                // Reset all modal state on logout
+                hasCheckedOnboardingOnce = false
+                hasCheckedConsentOnce    = false
+                requiresParentalConsent  = false
+                pendingConsentChildDOB   = nil
             }
         }
         .onAppear {
-            // ContentView appeared - check consent if authenticated
-            if authService.isAuthenticated && !hasCheckedConsentOnce {
-                checkParentalConsent()
+            // ContentView appeared - run checks if already authenticated
+            if authService.isAuthenticated && !hasCheckedOnboardingOnce {
+                checkOnboardingStatus()
             }
 
             // ✅ Show loading animation on first launch or new session
             if appSessionManager.shouldShowLoadingAnimation {
                 showLoadingAnimation = true
+            }
+        }
+    }
+
+    // MARK: - Onboarding Check
+
+    private func checkOnboardingStatus() {
+        guard !hasCheckedOnboardingOnce else { return }
+        hasCheckedOnboardingOnce = true
+
+        Task {
+            let result = await networkService.checkProfileCompletion()
+            await MainActor.run {
+                if !result.onboardingCompleted {
+                    print("🎯 [ContentView] Onboarding not completed — showing FirstTimeOnboardingView")
+                    showingOnboarding = true
+                } else {
+                    // Already onboarded — proceed to parental-consent check as normal
+                    checkParentalConsent()
+                }
             }
         }
     }
