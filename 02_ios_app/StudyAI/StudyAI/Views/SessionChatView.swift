@@ -148,6 +148,11 @@ struct SessionChatView: View {
     @State private var avatarPosition: CGPoint = CGPoint(x: 0, y: 0)
     @State private var avatarDragOffset: CGSize = .zero
 
+    // Chat onboarding
+    @AppStorage("chat_onboarding_v1_done") private var chatOnboardingDone: Bool = false
+    @State private var chatOnboardingStep: ChatOnboardingStep? = nil
+    @State private var chatOnboardingAnchors: [String: CGRect] = [:]
+
     // MARK: - Avatar State Struct
     private struct AvatarState {
         var animationState: AIAvatarState = .idle
@@ -225,6 +230,23 @@ struct SessionChatView: View {
         .overlay(alignment: .topLeading) {
             floatingAvatarOverlay
         }
+        // Chat onboarding overlay
+        .overlay {
+            if let step = chatOnboardingStep, !isLiveMode, !showingArchiveProgress {
+                ChatOnboardingOverlayView(
+                    step: step,
+                    anchors: chatOnboardingAnchors,
+                    voiceType: voiceService.voiceSettings.voiceType,
+                    onNext: advanceChatOnboarding,
+                    onSkip: completeChatOnboarding,
+                    onStepChange: handleOnboardingStepChange
+                )
+                .transition(.opacity)
+            }
+        }
+        .onPreferenceChange(ChatOnboardingAnchorKey.self) { newAnchors in
+            chatOnboardingAnchors = newAnchors
+        }
     }
 
     @ToolbarContentBuilder
@@ -251,6 +273,7 @@ struct SessionChatView: View {
                                 .stroke(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender.opacity(0.3) : Color.primary.opacity(0.15), lineWidth: 1)
                         )
                     }
+                    .chatOnboardingAnchor("onboarding_subjectPicker")
                 }
             }
 
@@ -274,6 +297,17 @@ struct SessionChatView: View {
 
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
+                    // View Tutorial
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            chatOnboardingStep = .subjectPicker
+                        }
+                    }) {
+                        Label(NSLocalizedString("chat.menu.viewTutorial", value: "View Tutorial", comment: ""), systemImage: "sparkles")
+                    }
+
+                    Divider()
+
                     // Live Talk / End Live toggle
                     if isLiveMode {
                         Button(role: .destructive, action: exitLiveMode) {
@@ -528,6 +562,15 @@ struct SessionChatView: View {
                     if networkService.currentSessionId == nil {
                         hasConversationStarted = false
                         viewModel.startNewSession()
+                    }
+                }
+
+                // Show onboarding on first launch (after layout settles)
+                if !chatOnboardingDone {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            chatOnboardingStep = .subjectPicker
+                        }
                     }
                 }
             }
@@ -1188,6 +1231,7 @@ struct SessionChatView: View {
                             .clipShape(Circle())
                     }
                     .disabled(networkService.currentSessionId == nil || viewModel.isSubmitting || viewModel.isProcessingImage)
+                    .chatOnboardingAnchor("onboarding_cameraButton")
 
                     // Wide text input field with microphone/send button inside
                     HStack(spacing: 8) {
@@ -1228,6 +1272,7 @@ struct SessionChatView: View {
                         )
                         .disabled(viewModel.isSubmitting && !viewModel.messageText.isEmpty)
                         .padding(.trailing, 4)
+                        .chatOnboardingAnchor("onboarding_micButton")
                     }
                     .background(
                         RoundedRectangle(cornerRadius: 25)
@@ -1261,6 +1306,7 @@ struct SessionChatView: View {
                                 .allowsHitTesting(false)  // ✅ FIX: Don't block emoji variant selector
                         }
                     }
+                    .chatOnboardingAnchor("onboarding_inputField")
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, -5)
@@ -2737,6 +2783,44 @@ struct SessionChatView: View {
         guard !query.isEmpty else { return }
         Task {
             await viewModel.searchVideo(query: query)
+        }
+    }
+
+    // MARK: - Chat Onboarding
+
+    private func advanceChatOnboarding() {
+        guard let step = chatOnboardingStep else { return }
+        withAnimation(.easeInOut(duration: 0.25)) {
+            if step.isLast {
+                completeChatOnboarding()
+            } else {
+                chatOnboardingStep = ChatOnboardingStep(rawValue: step.rawValue + 1)
+            }
+        }
+    }
+
+    private func completeChatOnboarding() {
+        withAnimation(.easeInOut(duration: 0.25)) {
+            chatOnboardingStep = nil
+        }
+        // Clear any pre-filled demo text left by the deepMode step
+        if viewModel.messageText == NSLocalizedString("onboarding.chat.deepmode.prefill",
+                                                      value: "Hello, give me a math question",
+                                                      comment: "") {
+            viewModel.messageText = ""
+        }
+        chatOnboardingDone = true
+    }
+
+    /// Pre-fills or clears the input field based on the active onboarding step.
+    private func handleOnboardingStepChange(_ step: ChatOnboardingStep) {
+        let demoText = NSLocalizedString("onboarding.chat.deepmode.prefill",
+                                         value: "Hello, give me a math question",
+                                         comment: "")
+        if step == .deepMode {
+            viewModel.messageText = demoText
+        } else if viewModel.messageText == demoText {
+            viewModel.messageText = ""
         }
     }
 }
