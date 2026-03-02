@@ -1887,7 +1887,9 @@ const db = {
       timezone: processField('timezone', profileData.timezone, 'string'),
       languagePreference: processField('languagePreference', profileData.languagePreference, 'string'),
       avatarId: processField('avatarId', profileData.avatarId, 'number'),
-      customAvatarUrl: processField('customAvatarUrl', profileData.customAvatarUrl, 'string')
+      customAvatarUrl: processField('customAvatarUrl', profileData.customAvatarUrl, 'string'),
+      onboardingCompleted: processField('onboardingCompleted', profileData.onboardingCompleted, 'number'),
+      dataSharingConsent: processField('dataSharingConsent', profileData.dataSharingConsent, 'number')
     };
 
     // Only update fields that are explicitly provided (not undefined)
@@ -1971,6 +1973,16 @@ const db = {
       values.push(processedFields.customAvatarUrl);
     }
 
+    if (processedFields.onboardingCompleted !== null && profileData.onboardingCompleted !== undefined) {
+      updates.push(`onboarding_completed = $${paramIndex++}`);
+      values.push(processedFields.onboardingCompleted);
+    }
+
+    if (processedFields.dataSharingConsent !== null && profileData.dataSharingConsent !== undefined) {
+      updates.push(`data_sharing_consent = $${paramIndex++}`);
+      values.push(processedFields.dataSharingConsent);
+    }
+
     // Always update the updated_at timestamp
     updates.push(`updated_at = NOW()`);
 
@@ -2016,7 +2028,9 @@ const db = {
         { name: 'learning_style', value: processedFields.learningStyle, provided: profileData.learningStyle !== undefined },
         { name: 'timezone', value: processedFields.timezone, provided: profileData.timezone !== undefined },
         { name: 'language_preference', value: processedFields.languagePreference, provided: profileData.languagePreference !== undefined },
-        { name: 'avatar_id', value: processedFields.avatarId, provided: profileData.avatarId !== undefined }
+        { name: 'avatar_id', value: processedFields.avatarId, provided: profileData.avatarId !== undefined },
+        { name: 'onboarding_completed', value: processedFields.onboardingCompleted, provided: profileData.onboardingCompleted !== undefined },
+        { name: 'data_sharing_consent', value: processedFields.dataSharingConsent, provided: profileData.dataSharingConsent !== undefined }
       ];
 
       for (const field of fieldMappings) {
