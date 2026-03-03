@@ -91,10 +91,15 @@ class ErrorAnalysisService:
                     print(f"⚠️ Invalid taxonomy path for {subject}, using fallback: {base}/{result['detailed_branch']}")
                 else:
                     # Base branch also invalid, use first available
-                    if base_branches and base_branches[0] in detailed_branches:
+                    if base_branches and base_branches[0] in detailed_branches and detailed_branches[base_branches[0]]:
                         result['base_branch'] = base_branches[0]
                         result['detailed_branch'] = detailed_branches[base_branches[0]][0]
                         print(f"⚠️ Invalid base branch for {subject}, using fallback: {result['base_branch']}/{result['detailed_branch']}")
+                    else:
+                        # Final safety net — cannot resolve taxonomy, use generic labels so weaknessKey is still generated
+                        result['base_branch'] = result.get('base_branch') or "Other"
+                        result['detailed_branch'] = result.get('detailed_branch') or "Other"
+                        print(f"⚠️ Could not resolve taxonomy for {subject}, using generic fallback")
 
             # Validate error_type
             if result.get('error_type') not in get_error_type_list():
@@ -109,14 +114,26 @@ class ErrorAnalysisService:
 
         except Exception as e:
             print(f"Error analysis failed: {e}")
+            # Use taxonomy fallback so iOS can still generate a weaknessKey and categorize the mistake
+            try:
+                base_branches, detailed_branches = get_taxonomy_for_subject(subject)
+                fallback_base = base_branches[0] if base_branches else "Other"
+                fallback_detailed = (
+                    detailed_branches[fallback_base][0]
+                    if fallback_base in detailed_branches and detailed_branches[fallback_base]
+                    else "Other"
+                )
+            except Exception:
+                fallback_base = "Other"
+                fallback_detailed = "Other"
             return {
-                "base_branch": None,
-                "detailed_branch": None,
-                "error_type": None,
+                "base_branch": fallback_base,
+                "detailed_branch": fallback_detailed,
+                "error_type": "execution_error",
                 "specific_issue": None,
                 "evidence": None,
                 "learning_suggestion": None,
-                "confidence": 0.0,
+                "confidence": 0.3,
                 "analysis_failed": True
             }
 
@@ -253,14 +270,28 @@ Now analyze the student's mistake above using ONLY the predefined taxonomy optio
         for i, result in enumerate(results):
             if isinstance(result, Exception):
                 print(f"Analysis failed for question {i}: {result}")
+                # Use taxonomy fallback for the subject of this question (if available)
+                q = questions_data[i] if i < len(questions_data) else {}
+                subj = q.get('subject', 'Math')
+                try:
+                    base_branches, detailed_branches = get_taxonomy_for_subject(subj)
+                    fallback_base = base_branches[0] if base_branches else "Other"
+                    fallback_detailed = (
+                        detailed_branches[fallback_base][0]
+                        if fallback_base in detailed_branches and detailed_branches[fallback_base]
+                        else "Other"
+                    )
+                except Exception:
+                    fallback_base = "Other"
+                    fallback_detailed = "Other"
                 processed_results.append({
-                    "base_branch": None,
-                    "detailed_branch": None,
-                    "error_type": None,
+                    "base_branch": fallback_base,
+                    "detailed_branch": fallback_detailed,
+                    "error_type": "execution_error",
                     "specific_issue": None,
                     "evidence": None,
                     "learning_suggestion": None,
-                    "confidence": 0.0,
+                    "confidence": 0.3,
                     "analysis_failed": True
                 })
             else:

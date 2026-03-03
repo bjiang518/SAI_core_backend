@@ -711,7 +711,7 @@ Assess handwriting clarity using this 5-tier rubric:
 - Keep mathematical symbols, LaTeX, and numbers unchanged
 
 FIELD RULES:
-- id: ALWAYS string ("1", "2", "1a", "1b")
+- id: ALWAYS string. Top-level questions: the question_number exactly ("1", "5", "12"). Subquestions: MUST use the ACTUAL parent question_number as prefix + letter suffix — e.g. subquestions of question 5 → "5a", "5b", "5c". NEVER use "1" as the prefix for subquestions of a non-first question.
 - Regular questions: MUST have question_text, student_answer, question_type, need_image
 - Parent questions: MUST have is_parent, has_subquestions, parent_content, subquestions
 - need_image: true ONLY if question references a diagram, graph, chart, or figure the student must annotate; false otherwise

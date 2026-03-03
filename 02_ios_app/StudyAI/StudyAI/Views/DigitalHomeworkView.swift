@@ -262,28 +262,29 @@ struct DigitalHomeworkView: View {
                 annotationCollapsibleSection(geometry: geometry)
                     .background(Color(.systemGroupedBackground))
 
+                // Floating action bar: shown below annotation section, above scroll content
+                if viewModel.isArchiveMode {
+                    batchArchiveButtonSection
+                        .padding(.horizontal)
+                        .padding(.vertical, 8)
+                        .background(Color(.systemGroupedBackground))
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+
+                if isDeletionMode {
+                    deleteSelectedButtonSection
+                        .padding(.horizontal)
+                        .padding(.vertical, 8)
+                        .background(Color(.systemGroupedBackground))
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+
                 Divider()
 
                 // 题目列表区域 (动态高度，包含底部卡片) - 可滚动
                 ScrollViewReader { scrollProxy in
                     ScrollView {
                         VStack(spacing: 0) {
-                            // Batch archive button (only in archive mode)
-                            if viewModel.isArchiveMode {
-                                batchArchiveButtonSection
-                                    .padding(.horizontal)
-                                    .padding(.top, 12)
-                                    .transition(.move(edge: .top).combined(with: .opacity))
-                            }
-
-                            // ✅ NEW: Delete selected button (only in deletion mode)
-                            if isDeletionMode {
-                                deleteSelectedButtonSection
-                                    .padding(.horizontal)
-                                    .padding(.top, 12)
-                                    .transition(.move(edge: .top).combined(with: .opacity))
-                            }
-
                             // Question list
                             LazyVStack(spacing: 12) {
                                 ForEach(viewModel.questions) { questionWithGrade in
@@ -437,8 +438,9 @@ struct DigitalHomeworkView: View {
                 await viewModel.batchArchiveSelected()
             }
         }) {
+            let themeBlue = themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary
             HStack(spacing: 12) {
-                Image(systemName: "archivebox.fill")
+                Image(systemName: "books.vertical.fill")
                     .font(.title3)
                 Text(String(format: NSLocalizedString("proMode.batchArchiveCount", comment: "Batch Archive (count)"), viewModel.selectedQuestionIds.count))
                     .font(.headline)
@@ -449,13 +451,13 @@ struct DigitalHomeworkView: View {
             .padding(.vertical, 14)
             .background(
                 LinearGradient(
-                    colors: [Color.blue, Color.blue.opacity(0.8)],
+                    colors: [themeBlue, themeBlue.opacity(0.8)],
                     startPoint: .leading,
                     endPoint: .trailing
                 )
             )
             .cornerRadius(12)
-            .shadow(color: Color.blue.opacity(0.3), radius: 6, x: 0, y: 3)
+            .shadow(color: themeBlue.opacity(0.3), radius: 6, x: 0, y: 3)
         }
         .disabled(viewModel.selectedQuestionIds.isEmpty)
         .opacity(viewModel.selectedQuestionIds.isEmpty ? 0.5 : 1.0)
@@ -687,7 +689,7 @@ struct DigitalHomeworkView: View {
 
                 // Progress fill (grows as user slides) - Subtle glass glow
                 RoundedRectangle(cornerRadius: 30)
-                    .fill(Color.blue.opacity(0.1))
+                    .fill((themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary).opacity(0.1))
                     .frame(width: slideOffset + sliderWidth + 4, height: 60)
                     .opacity(slideOffset > 0 ? 1.0 : 0.0)
 
@@ -923,7 +925,7 @@ struct DigitalHomeworkView: View {
                             .foregroundColor(.white)
                             .padding(.horizontal, 7)
                             .padding(.vertical, 3)
-                            .background(Color.blue)
+                            .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary)
                             .cornerRadius(8)
                     } else if viewModel.anyQuestionNeedsImage {
                         Image(systemName: "exclamationmark.circle.fill")
@@ -991,13 +993,14 @@ struct DigitalHomeworkView: View {
                     .padding(.vertical, 10)
                     .background(
                         LinearGradient(
-                            colors: [Color.blue, Color.blue.opacity(0.8)],
+                            colors: [themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary,
+                                     (themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary).opacity(0.8)],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
                     )
                     .cornerRadius(20)
-                    .shadow(color: Color.blue.opacity(annotationGlowPulse ? 0.75 : 0.3),
+                    .shadow(color: (themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary).opacity(annotationGlowPulse ? 0.75 : 0.3),
                             radius: annotationGlowPulse ? 12 : 4, x: 0, y: 2)
                     .scaleEffect(annotationGlowPulse ? 1.04 : 1.0)
                     .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true),
@@ -1076,9 +1079,9 @@ struct DigitalHomeworkView: View {
                                     .clipShape(RoundedRectangle(cornerRadius: 12))
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 12)
-                                            .stroke(isSelected ? Color.blue : Color.clear, lineWidth: isSelected ? 3 : 0)
+                                            .stroke(isSelected ? (themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary) : Color.clear, lineWidth: isSelected ? 3 : 0)
                                     )
-                                    .shadow(color: isSelected ? Color.blue.opacity(0.3) : Color.black.opacity(0.2), radius: isSelected ? 12 : 6, x: 0, y: isSelected ? 6 : 3)
+                                    .shadow(color: isSelected ? (themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary).opacity(0.3) : Color.black.opacity(0.2), radius: isSelected ? 12 : 6, x: 0, y: isSelected ? 6 : 3)
                                     .scaleEffect(isSelected ? 1.0 : 0.95)
                                     .animation(.spring(response: 0.35, dampingFraction: 0.75), value: selectedImageIndex)
                                 }
@@ -1109,7 +1112,7 @@ struct DigitalHomeworkView: View {
                     HStack(spacing: 8) {
                         ForEach(0..<originalImages.count, id: \.self) { index in
                             Circle()
-                                .fill(index == selectedImageIndex ? Color.blue : Color.white.opacity(0.5))
+                                .fill(index == selectedImageIndex ? (themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary) : Color.white.opacity(0.5))
                                 .frame(width: index == selectedImageIndex ? 10 : 8, height: index == selectedImageIndex ? 10 : 8)
                                 .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
                                 .animation(.spring(response: 0.3, dampingFraction: 0.7), value: selectedImageIndex)
@@ -1390,7 +1393,7 @@ struct DigitalHomeworkView: View {
                         }
                     }
                     .padding(6)
-                    .background(isTarget ? Color.blue.opacity(0.08) : Color.clear)
+                    .background(isTarget ? (themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary).opacity(0.08) : Color.clear)
                     .cornerRadius(8)
                 }
             }
@@ -1457,14 +1460,15 @@ struct DigitalHomeworkView: View {
                     .background(
                         LinearGradient(
                             colors: !viewModel.useDeepReasoning ?
-                                [Color.blue, Color.blue.opacity(0.8)] :
-                                [Color.purple, Color.purple.opacity(0.8)],
+                                [themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary,
+                                 (themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary).opacity(0.8)] :
+                                [DesignTokens.Colors.Cute.lavender, DesignTokens.Colors.Cute.lavender.opacity(0.8)],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
                     )
                     .cornerRadius(16)
-                    .shadow(color: (!viewModel.useDeepReasoning ? Color.blue : Color.purple).opacity(0.3), radius: 8, x: 0, y: 4)
+                    .shadow(color: (!viewModel.useDeepReasoning ? (themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary) : DesignTokens.Colors.Cute.lavender).opacity(0.3), radius: 8, x: 0, y: 4)
             }
             .disabled(viewModel.isGrading)
             .opacity(viewModel.isGrading ? 0.6 : 1.0)
@@ -1722,11 +1726,11 @@ struct DigitalHomeworkView: View {
         .padding(.vertical, 12)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(viewModel.useDeepReasoning ? Color.purple.opacity(0.1) : Color(.systemGray6))
+                .fill(viewModel.useDeepReasoning ? DesignTokens.Colors.Cute.lavender.opacity(0.1) : Color(.systemGray6))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(viewModel.useDeepReasoning ? Color.purple.opacity(0.3) : Color.clear, lineWidth: 1)
+                .stroke(viewModel.useDeepReasoning ? DesignTokens.Colors.Cute.lavender.opacity(0.3) : Color.clear, lineWidth: 1)
         )
     }
 
@@ -1773,14 +1777,14 @@ struct DigitalHomeworkView: View {
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(isDeepMode.wrappedValue ?
-                    Color.purple.opacity(0.1) :
-                    Color.blue.opacity(0.1))
+                    DesignTokens.Colors.Cute.lavender.opacity(0.1) :
+                    (themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary).opacity(0.1))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(isDeepMode.wrappedValue ?
-                    Color.purple.opacity(0.3) :
-                    Color.blue.opacity(0.3),
+                    DesignTokens.Colors.Cute.lavender.opacity(0.3) :
+                    (themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary).opacity(0.3),
                     lineWidth: 1.5)
         )
     }
@@ -3009,11 +3013,11 @@ struct GradingLoadingIndicator: View {
     private var glowColor: Color {
         switch modelType {
         case "gemini":
-            return Color.blue
+            return DesignTokens.Colors.Cute.blue
         case "openai":
-            return Color.green
+            return DesignTokens.Colors.Cute.mint
         default:
-            return Color.blue
+            return DesignTokens.Colors.Cute.blue
         }
     }
 

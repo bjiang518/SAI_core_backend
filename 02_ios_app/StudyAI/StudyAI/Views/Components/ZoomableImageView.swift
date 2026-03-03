@@ -203,23 +203,26 @@ struct AnnotationOverlay: View {
                 .contentShape(Rectangle())
                 .onTapGesture { p in addAnnotation(at: p) }
 
-            // Existing annotation boxes
-            ForEach(Array(annotations.enumerated()), id: \.element.id) { index, ann in
-                InteractiveAnnotationBox(
-                    annotation: $annotations[index],
-                    isSelected: selectedAnnotationId == ann.id,
-                    imageSize: fittedImageSize,
-                    scale: scale,
-                    onSelect: { selectedAnnotationId = ann.id },
-                    onRectChanged: { rect in updateAnnotationRect(id: ann.id, newRect: rect) }
-                )
+            // Existing annotation boxes — only show boxes belonging to this page
+            ForEach(Array(annotations.filter { $0.pageIndex == pageIndex }.enumerated()), id: \.element.id) { index, ann in
+                // Find the real index in the full annotations array for the binding
+                if let realIndex = annotations.firstIndex(where: { $0.id == ann.id }) {
+                    InteractiveAnnotationBox(
+                        annotation: $annotations[realIndex],
+                        isSelected: selectedAnnotationId == ann.id,
+                        imageSize: fittedImageSize,
+                        scale: scale,
+                        onSelect: { selectedAnnotationId = ann.id },
+                        onRectChanged: { rect in updateAnnotationRect(id: ann.id, newRect: rect) }
+                    )
+                }
             }
         }
         .frame(width: fittedImageSize.width, height: fittedImageSize.height)
     }
 
     private let colorPalette: [Color] = [
-        .blue, .green, .orange, .purple, .pink, .cyan, .indigo, .mint
+        DesignTokens.Colors.Cute.blue, .green, .orange, .purple, .pink, .cyan, .indigo, .mint
     ]
 
     // MARK: - Add annotation
@@ -397,7 +400,7 @@ extension CGRect {
 // MARK: - QuestionAnnotation Helpers
 
 extension QuestionAnnotation {
-    static func from(rect: CGRect, in size: CGSize, color: Color = .blue, pageIndex: Int = 0) -> QuestionAnnotation {
+    static func from(rect: CGRect, in size: CGSize, color: Color = DesignTokens.Colors.Cute.blue, pageIndex: Int = 0) -> QuestionAnnotation {
         QuestionAnnotation(
             topLeft: [Double(rect.minX / size.width), Double(rect.minY / size.height)],
             bottomRight: [Double(rect.maxX / size.width), Double(rect.maxY / size.height)],

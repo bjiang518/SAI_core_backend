@@ -297,18 +297,19 @@ final class HomeworkImageStorageService: ObservableObject {
 
     /// Delete a homework image
     func deleteHomeworkImage(record: HomeworkImageRecord) {
-        // Delete files
-        let imageURL = homeworkImagesDirectory.appendingPathComponent(record.imageFileName)
+        // Delete all page files (multi-page support)
+        for fileName in record.imageFileNames {
+            let imageURL = homeworkImagesDirectory.appendingPathComponent(fileName)
+            try? fileManager.removeItem(at: imageURL)
+        }
         let thumbnailURL = thumbnailsDirectory.appendingPathComponent(record.thumbnailFileName)
-
-        try? fileManager.removeItem(at: imageURL)
         try? fileManager.removeItem(at: thumbnailURL)
 
         // Remove from metadata
         homeworkImages.removeAll { $0.id == record.id }
         saveMetadata()
 
-        print("✅ Deleted homework image: \(record.id)")
+        print("✅ Deleted homework image: \(record.id) (\(record.imageFileNames.count) page(s))")
     }
 
     /// Delete multiple homework images
@@ -380,7 +381,8 @@ final class HomeworkImageStorageService: ObservableObject {
             return
         }
 
-        let metadataFileNames = Set(homeworkImages.map { $0.imageFileName })
+        // ✅ FIX: Include ALL page file names from every record, not just the first page
+        let metadataFileNames = Set(homeworkImages.flatMap { $0.imageFileNames })
 
         for fileURL in imageFiles {
             let fileName = fileURL.lastPathComponent
