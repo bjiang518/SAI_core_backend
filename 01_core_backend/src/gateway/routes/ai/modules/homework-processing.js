@@ -651,7 +651,7 @@ class HomeworkProcessingRoutes {
           // Add page number to each question and renumber globally
           const pageQuestions = result.questions.map((q, qIndex) => ({
             ...q,
-            id: questionIdOffset + qIndex + 1,  // Global question numbering
+            id: String(questionIdOffset + qIndex + 1),  // Global question numbering (String to match iOS model)
             pageNumber: result.index + 1,  // Track which page this question is from
             questionNumber: q.questionNumber || `${questionIdOffset + qIndex + 1}`  // Fallback numbering
           }));

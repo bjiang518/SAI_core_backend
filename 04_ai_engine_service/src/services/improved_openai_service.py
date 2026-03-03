@@ -3623,59 +3623,58 @@ Focus on being helpful and educational while maintaining a conversational tone."
                 language=language
             )
 
-            # Prepare messages based on image context
+            # Prepare input for Responses API (system + user separated)
+            system_prompt = "You are an expert educational grader. Grade student answers carefully and fairly."
+
             if context_image:
-                messages = [
+                input_messages = [
+                    {"role": "system", "content": system_prompt},
                     {
                         "role": "user",
                         "content": [
-                            {"type": "text", "text": full_prompt},
+                            {"type": "input_text", "text": full_prompt},
                             {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/jpeg;base64,{context_image}",
-                                    "detail": "low"  # Low detail for cropped images (save cost)
-                                }
+                                "type": "input_image",
+                                "image_url": f"data:image/jpeg;base64,{context_image}"
                             }
                         ]
                     }
                 ]
             else:
-                messages = [{"role": "user", "content": full_prompt}]
+                input_messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": full_prompt}
+                ]
+
+            # Legacy chat.completions format still used by o4-mini deep reasoning
+            messages = input_messages
 
             logger.debug(f"🚀 Calling {selected_model}...")
             start_time = time.time()
 
             # Call selected model with mode-specific configuration
             if use_deep_reasoning:
-                # O4-MINI DEEP REASONING MODE
-                # - Uses o4-mini reasoning model (step-by-step thinking)
-                # - No temperature parameter (reasoning models use fixed temperature)
-                # - Uses max_completion_tokens instead of max_tokens
-                # - Messages: user role only (no system message for reasoning models)
-
+                # O4-MINI DEEP REASONING MODE (chat.completions — o4-mini not yet on Responses API)
                 response = await self.client.chat.completions.create(
                     model=selected_model,  # o4-mini
-                    messages=messages,  # Already formatted with full prompt
-                    response_format={"type": "json_object"},
-                    max_completion_tokens=4096  # ✅ INCREASED: Match Gemini's token budget (was 2048)
-                )
-            else:
-                # gpt-5.2 follows newer Responses-style token controls (same as o4-mini)
-                # - no temperature (unsupported/ignored on post-4o architecture)
-                # - max_completion_tokens instead of max_tokens
-                response = await self.client.chat.completions.create(
-                    model=selected_model,
                     messages=messages,
                     response_format={"type": "json_object"},
                     max_completion_tokens=4096
                 )
+                raw_response = response.choices[0].message.content
+            else:
+                # gpt-5.2 FAST MODE — Responses API
+                response = await self.client.responses.create(
+                    model=selected_model,  # gpt-5.2
+                    input=input_messages,
+                    reasoning={"effort": "high"},
+                    text={"format": {"type": "json_object"}},
+                    max_output_tokens=1024
+                )
+                raw_response = response.output_text
 
             api_duration = time.time() - start_time
             logger.debug(f"✅ Grading completed in {api_duration:.2f}s")
-
-            # Parse result
-            raw_response = response.choices[0].message.content
             grade_data = json.loads(raw_response)
 
             logger.debug(f"✅ Grade: score={grade_data.get('score', 0.0)}, correct={grade_data.get('is_correct', False)}, feedback={len(grade_data.get('feedback', ''))} chars")

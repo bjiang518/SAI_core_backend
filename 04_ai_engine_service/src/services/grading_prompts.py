@@ -474,8 +474,8 @@ def build_complete_grading_prompt(
     # Build prompt components
     prompt_parts = []
 
-    # Header
-    prompt_parts.append("""You are an expert educational grader. Grade the following student answer carefully and fairly.
+    # Header (role description omitted — already set as system message in Responses API)
+    prompt_parts.append("""Grade the following student answer carefully and fairly.
 
 GRADING PRINCIPLES:
 - Be consistent: Apply the same standards to similar answers
@@ -523,21 +523,10 @@ STUDENT ANSWER: {student_answer}
 
     prompt_parts.append(grading_task)
 
-    # Output format instructions — same structured reasoning for both modes
-    if use_deep_reasoning:
-        output_format = """
-DEEP REASONING MODE - Follow this structured process and return JSON:
-
-STEP 1 - SOLVE THE PROBLEM:
-First, work through the problem yourself to determine the correct answer.
-Show your reasoning and explain the solution approach.
-
-STEP 2 - COMPARE TO STUDENT ANSWER:
-Compare your solution to the student's answer.
-Identify what the student got right and what they got wrong.
-
-STEP 3 - DETERMINE GRADE:
-Based on your comparison, assign a grade from 0.0 to 1.0:
+    # Output format instructions — identical for both fast and deep mode
+    # (quality difference comes from the model, not the prompt)
+    output_format = """
+Assign a grade from 0.0 to 1.0:
 - 1.0 = Perfect, completely correct
 - 0.9 = Excellent, minor issue but substantially correct
 - 0.7-0.8 = Good, correct core understanding with some errors
@@ -545,38 +534,11 @@ Based on your comparison, assign a grade from 0.0 to 1.0:
 - 0.3-0.4 = Poor, major misunderstanding but some relevant content
 - 0.0-0.2 = Incorrect, fundamental misunderstanding
 
-STEP 4 - PROVIDE FEEDBACK:
-- If the answer is incorrect (score < 0.9): write 50-100 words explaining what the student did wrong, pointing out specific errors or misconceptions, and guiding them toward the correct understanding.
-- If the answer is correct (score >= 0.9): write under 50 words briefly confirming what the student did well.
+FEEDBACK REQUIREMENT (mandatory, must not be empty):
+- If incorrect (score < 0.9): write 50-100 words explaining the specific error and guiding toward the correct understanding.
+- If correct (score >= 0.9): write under 50 words confirming what the student did well.
 
-Return your response in JSON format with score, is_correct, feedback, confidence, and correct_answer fields.
-"""
-    else:
-        output_format = """
-DEEP REASONING MODE - Follow this structured process and return JSON:
-
-STEP 1 - SOLVE THE PROBLEM:
-First, work through the problem yourself to determine the correct answer.
-Show your reasoning and explain the solution approach.
-
-STEP 2 - COMPARE TO STUDENT ANSWER:
-Compare your solution to the student's answer.
-Identify what the student got right and what they got wrong.
-
-STEP 3 - DETERMINE GRADE:
-Based on your comparison, assign a grade from 0.0 to 1.0:
-- 1.0 = Perfect, completely correct
-- 0.9 = Excellent, minor issue but substantially correct
-- 0.7-0.8 = Good, correct core understanding with some errors
-- 0.5-0.6 = Partial credit, some understanding but significant gaps
-- 0.3-0.4 = Poor, major misunderstanding but some relevant content
-- 0.0-0.2 = Incorrect, fundamental misunderstanding
-
-STEP 4 - PROVIDE FEEDBACK:
-- If the answer is incorrect (score < 0.9): write 50-100 words explaining what the student did wrong, pointing out specific errors or misconceptions, and guiding them toward the correct understanding.
-- If the answer is correct (score >= 0.9): write under 50 words briefly confirming what the student did well.
-
-Return your response in JSON format with score, is_correct, feedback, confidence, and correct_answer fields.
+Return JSON with: score, is_correct, feedback, confidence, correct_answer
 """
 
     prompt_parts.append(output_format)
