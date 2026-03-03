@@ -1831,15 +1831,28 @@ const db = {
       // Skip undefined fields (not provided)
       if (normalized === undefined) return null;
 
-      // Validate based on type
+      // Validate and coerce based on type
       if (fieldType === 'string' && normalized !== null && typeof normalized !== 'string') {
-        logger.warn(`⚠️ Field ${fieldName} expected string, got ${typeof normalized}. Converting to string.`);
+        logger.warn({ field: fieldName, got: typeof normalized }, `⚠️ Field expected string — converting`);
         return String(normalized);
       }
 
       if (fieldType === 'array' && normalized !== null && !Array.isArray(normalized)) {
-        logger.warn(`⚠️ Field ${fieldName} expected array, got ${typeof normalized}. Converting to array.`);
-        return Array.isArray(normalized) ? normalized : [normalized];
+        logger.warn({ field: fieldName, got: typeof normalized }, `⚠️ Field expected array — converting`);
+        return [normalized];
+      }
+
+      if (fieldType === 'number' && normalized !== null && typeof normalized !== 'number') {
+        const coerced = Number(normalized);
+        if (isNaN(coerced)) {
+          logger.warn({ field: fieldName, value: normalized }, `⚠️ Field expected number but cannot coerce — skipping`);
+          return null;
+        }
+        return coerced;
+      }
+
+      if (fieldType === 'boolean' && normalized !== null) {
+        return Boolean(normalized);
       }
 
       return normalized;
@@ -1870,12 +1883,26 @@ const db = {
     const values = [];
     let paramIndex = 1;
 
+    // Coerce gradeLevel to integer before field processing.
+    // iOS sends it as a numeric string ("0", "14", etc.). PostgreSQL INTEGER
+    // columns do not accept string parameters, and the pg driver does not
+    // auto-cast. We convert here so the INSERT/UPDATE never sends a string.
+    let normalizedGradeLevel = profileData.gradeLevel;
+    if (normalizedGradeLevel !== undefined && normalizedGradeLevel !== null) {
+      if (typeof normalizedGradeLevel === 'string') {
+        const parsed = parseInt(normalizedGradeLevel, 10);
+        normalizedGradeLevel = isNaN(parsed)
+          ? (gradeLevelMap[normalizedGradeLevel] ?? 0)  // named string → int
+          : parsed;                                       // numeric string → int
+      }
+    }
+
     // Process each field with validation and normalization
     const processedFields = {
       firstName: processField('firstName', profileData.firstName, 'string'),
       lastName: processField('lastName', profileData.lastName, 'string'),
       displayName: processField('displayName', profileData.displayName, 'string'),
-      gradeLevel: processField('gradeLevel', profileData.gradeLevel, 'number'),
+      gradeLevel: processField('gradeLevel', normalizedGradeLevel, 'number'),
       dateOfBirth: processField('dateOfBirth', profileData.dateOfBirth, 'string'),
       kidsAges: processField('kidsAges', profileData.kidsAges, 'array'),
       gender: processField('gender', profileData.gender, 'string'),
@@ -2120,16 +2147,20 @@ const db = {
         }
       }
 
-      // Re-throw other errors with detailed context
-      logger.error(`\n❌ === PROFILE UPDATE FAILED ===`);
-      logger.error(`❌ User: ${userEmail}`);
-      logger.error(`❌ Operation: ${existingProfile && existingProfile.email ? 'UPDATE' : 'INSERT'}`);
-      logger.error(`❌ Fields attempted:`, Object.keys(profileData).filter(k => profileData[k] !== undefined));
-      logger.error(`❌ Processed values:`, Object.entries(processedFields).filter(([k, v]) => v !== null).map(([k, v]) => `${k}=${JSON.stringify(v)}`));
-      logger.error(`❌ SQL Query:`, query.replace(/\s+/g, ' ').trim());
-      logger.error(`❌ Values:`, values);
-      logger.error(`❌ Error:`, error.message);
-      logger.error(`❌ Error code:`, error.code);
+      // Re-throw with full structured context (Pino requires object as first arg)
+      logger.error({
+        user: userEmail,
+        operation: existingProfile && existingProfile.email ? 'UPDATE' : 'INSERT',
+        fieldsAttempted: Object.keys(profileData).filter(k => profileData[k] !== undefined),
+        processedValues: Object.entries(processedFields)
+          .filter(([, v]) => v !== null)
+          .map(([k, v]) => `${k}=${JSON.stringify(v)}`),
+        sql: query ? query.replace(/\s+/g, ' ').trim() : 'not built',
+        sqlValues: values,
+        errorMessage: error.message,
+        errorCode: error.code,
+        errorStack: error.stack
+      }, '❌ PROFILE UPDATE FAILED');
       throw error;
     }
   },
