@@ -1888,8 +1888,8 @@ const db = {
       languagePreference: processField('languagePreference', profileData.languagePreference, 'string'),
       avatarId: processField('avatarId', profileData.avatarId, 'number'),
       customAvatarUrl: processField('customAvatarUrl', profileData.customAvatarUrl, 'string'),
-      onboardingCompleted: processField('onboardingCompleted', profileData.onboardingCompleted, 'number'),
-      dataSharingConsent: processField('dataSharingConsent', profileData.dataSharingConsent, 'number')
+      onboardingCompleted: processField('onboardingCompleted', profileData.onboardingCompleted, 'boolean'),
+      dataSharingConsent: processField('dataSharingConsent', profileData.dataSharingConsent, 'boolean')
     };
 
     // Only update fields that are explicitly provided (not undefined)
@@ -4384,6 +4384,36 @@ async function runDatabaseMigrations() {
           END $$;
         `);
         logger.debug('✅ Added custom_avatar_url column to profiles table');
+
+        // Add onboarding_completed column if it doesn't exist
+        await db.query(`
+          DO $$
+          BEGIN
+            IF NOT EXISTS (
+              SELECT 1 FROM information_schema.columns
+              WHERE table_name = 'profiles' AND column_name = 'onboarding_completed'
+            ) THEN
+              ALTER TABLE profiles ADD COLUMN onboarding_completed BOOLEAN DEFAULT false;
+              COMMENT ON COLUMN profiles.onboarding_completed IS 'Whether user has completed onboarding';
+            END IF;
+          END $$;
+        `);
+        logger.debug('✅ Added onboarding_completed column to profiles table');
+
+        // Add data_sharing_consent column if it doesn't exist
+        await db.query(`
+          DO $$
+          BEGIN
+            IF NOT EXISTS (
+              SELECT 1 FROM information_schema.columns
+              WHERE table_name = 'profiles' AND column_name = 'data_sharing_consent'
+            ) THEN
+              ALTER TABLE profiles ADD COLUMN data_sharing_consent BOOLEAN DEFAULT false;
+              COMMENT ON COLUMN profiles.data_sharing_consent IS 'Whether user consented to data sharing';
+            END IF;
+          END $$;
+        `);
+        logger.debug('✅ Added data_sharing_consent column to profiles table');
 
         // Create enum types with proper error handling to avoid duplicate errors
         await db.query(`
