@@ -4416,36 +4416,6 @@ async function runDatabaseMigrations() {
         `);
         logger.debug('✅ Added custom_avatar_url column to profiles table');
 
-        // Add onboarding_completed column if it doesn't exist
-        await db.query(`
-          DO $$
-          BEGIN
-            IF NOT EXISTS (
-              SELECT 1 FROM information_schema.columns
-              WHERE table_name = 'profiles' AND column_name = 'onboarding_completed'
-            ) THEN
-              ALTER TABLE profiles ADD COLUMN onboarding_completed BOOLEAN DEFAULT false;
-              COMMENT ON COLUMN profiles.onboarding_completed IS 'Whether user has completed onboarding';
-            END IF;
-          END $$;
-        `);
-        logger.debug('✅ Added onboarding_completed column to profiles table');
-
-        // Add data_sharing_consent column if it doesn't exist
-        await db.query(`
-          DO $$
-          BEGIN
-            IF NOT EXISTS (
-              SELECT 1 FROM information_schema.columns
-              WHERE table_name = 'profiles' AND column_name = 'data_sharing_consent'
-            ) THEN
-              ALTER TABLE profiles ADD COLUMN data_sharing_consent BOOLEAN DEFAULT false;
-              COMMENT ON COLUMN profiles.data_sharing_consent IS 'Whether user consented to data sharing';
-            END IF;
-          END $$;
-        `);
-        logger.debug('✅ Added data_sharing_consent column to profiles table');
-
         // Create enum types with proper error handling to avoid duplicate errors
         await db.query(`
           DO $$
@@ -5035,6 +5005,55 @@ async function runDatabaseMigrations() {
       logger.debug(`✅ Dead report tables cleanup completed (${droppedCount} tables dropped)`);
     } else {
       logger.debug('✅ Dead report tables cleanup already applied');
+    }
+
+    // ============================================
+    // MIGRATION: Add onboarding_completed and data_sharing_consent columns (2026-03-03)
+    // ============================================
+    const onboardingColumnsCheck = await db.query(`
+      SELECT 1 FROM migration_history WHERE migration_name = '016_add_onboarding_consent_columns'
+    `);
+
+    if (onboardingColumnsCheck.rows.length === 0) {
+      logger.debug('📋 Applying onboarding/consent columns migration...');
+
+      try {
+        await db.query(`
+          DO $$
+          BEGIN
+            IF NOT EXISTS (
+              SELECT 1 FROM information_schema.columns
+              WHERE table_name = 'profiles' AND column_name = 'onboarding_completed'
+            ) THEN
+              ALTER TABLE profiles ADD COLUMN onboarding_completed BOOLEAN DEFAULT false;
+            END IF;
+          END $$;
+        `);
+
+        await db.query(`
+          DO $$
+          BEGIN
+            IF NOT EXISTS (
+              SELECT 1 FROM information_schema.columns
+              WHERE table_name = 'profiles' AND column_name = 'data_sharing_consent'
+            ) THEN
+              ALTER TABLE profiles ADD COLUMN data_sharing_consent BOOLEAN DEFAULT false;
+            END IF;
+          END $$;
+        `);
+
+        await db.query(`
+          INSERT INTO migration_history (migration_name)
+          VALUES ('016_add_onboarding_consent_columns')
+          ON CONFLICT (migration_name) DO NOTHING;
+        `);
+
+        logger.debug('✅ onboarding_completed and data_sharing_consent columns added');
+      } catch (migrationError) {
+        logger.error({ err: migrationError }, '❌ Migration 016 failed');
+      }
+    } else {
+      logger.debug('✅ Onboarding/consent columns migration already applied');
     }
 
   } catch (error) {
