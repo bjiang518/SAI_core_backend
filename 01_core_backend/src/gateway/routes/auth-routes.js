@@ -1138,7 +1138,13 @@ class AuthRoutes {
       });
 
     } catch (error) {
-      this.fastify.log.error('❌ Update user profile error:', error);
+      this.fastify.log.error({
+        err: error,
+        errorMessage: error.message,
+        errorCode: error.code,
+        errorStack: error.stack,
+        userId: sessionData?.user_id
+      }, '❌ Update user profile error');
       return reply.status(500).send({
         success: false,
         message: 'Failed to update profile',
