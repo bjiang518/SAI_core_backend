@@ -2012,7 +2012,7 @@ struct QuestionAnnotation: Identifiable, Codable {
 
     // ✅ NEW: Computed property to get Color from index
     var color: Color {
-        let colors: [Color] = [.blue, .green, .orange, .purple, .pink, .cyan, .indigo, .mint]
+        let colors: [Color] = [DesignTokens.Colors.Cute.blue, .green, .orange, .purple, .pink, .cyan, .indigo, .mint]
         return colors[colorIndex % colors.count]
     }
 

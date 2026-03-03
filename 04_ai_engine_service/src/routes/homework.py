@@ -209,6 +209,35 @@ def clean_student_answer(answer: str) -> str:
     return cleaned.strip()
 
 
+def normalize_subquestion_ids(questions: list) -> None:
+    """Fix subquestion IDs so they always use the actual parent question number as prefix.
+
+    AI models tend to copy the schema example ("1a", "1b") verbatim regardless of the
+    real parent question number.  This pass replaces the numeric prefix with the true
+    parent question_number, leaving only the letter suffix intact.
+
+    Examples of inputs that are corrected:
+      parent id="5"  subq id="1a"  →  "5a"
+      parent id="5"  subq id="1.b" →  "5b"
+      parent id="5"  subq id="a"   →  "5a"
+    """
+    for question in questions:
+        if not isinstance(question, dict):
+            continue
+        parent_num = question.get('question_number') or question.get('id', '')
+        subquestions = question.get('subquestions')
+        if not parent_num or not subquestions:
+            continue
+        for i, subq in enumerate(subquestions):
+            if not isinstance(subq, dict):
+                continue
+            sub_id = subq.get('id', '')
+            # Extract the first alphabetic character(s) — handles "1a", "1.b", "(c)", "a" etc.
+            letter_match = re.search(r'[a-zA-Z]', sub_id)
+            letter = letter_match.group(0).lower() if letter_match else chr(ord('a') + i)
+            subq['id'] = f"{parent_num}{letter}"
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -397,6 +426,9 @@ async def parse_homework_questions(request: ParseHomeworkQuestionsRequest):
                         if hasattr(subq, 'student_answer') and subq.student_answer:
                             subq.student_answer = clean_student_answer(subq.student_answer)
 
+        # Fix subquestion IDs so they always use the actual parent question number
+        normalize_subquestion_ids(questions)
+
         processing_time = int((_time.time() - start_time) * 1000)
         post_ms = int((_time.time() - t3) * 1000)
         q_count = result.get("total_questions", 0)
@@ -462,6 +494,8 @@ async def reparse_question(request: ReparseQuestionRequest):
                 for subq in q["subquestions"]:
                     if isinstance(subq, dict) and subq.get("student_answer"):
                         subq["student_answer"] = clean_student_answer(subq["student_answer"])
+                # Fix subquestion IDs to use the actual parent question number
+                normalize_subquestion_ids([q])
 
         return ReparseQuestionResponse(
             success=True, question=q, processing_time_ms=processing_time

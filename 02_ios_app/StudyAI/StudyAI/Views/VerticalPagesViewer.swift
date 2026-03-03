@@ -31,18 +31,56 @@ struct VerticalPagesViewer: View {
                 Text("Failed to load pages")
                     .foregroundColor(.white)
             } else if loadedImages.count == 1 {
-                // ✅ Single page: Use simple centered zoomable view (original working implementation)
+                // Single page: Use simple centered zoomable view (original working implementation)
                 SinglePageZoomableView(
                     image: loadedImages[0],
                     onTap: onToolbarToggle
                 )
             } else {
-                // ✅ Multi-page: iOS-quality vertical paging with UIViewRepresentable
+                // Multi-page: iOS-quality vertical paging with UIViewRepresentable
                 NativeVerticalImagePager(
                     images: loadedImages,
                     currentPage: $currentPageIndex,
                     onTap: onToolbarToggle
                 )
+
+                // Page indicator — shown when there are multiple pages
+                VStack {
+                    HStack {
+                        Spacer()
+                        HStack(spacing: 6) {
+                            Image(systemName: "doc.on.doc.fill")
+                                .font(.caption2)
+                            Text("\(currentPageIndex + 1) / \(loadedImages.count)")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule().fill(Color.black.opacity(0.55))
+                        )
+                        .padding(.trailing, 16)
+                        .padding(.top, 16)
+                    }
+                    Spacer()
+                    // Swipe-up hint — only on the last visible page (page 1 of N)
+                    if currentPageIndex == 0 {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.compact.up")
+                                .font(.caption)
+                            Text(NSLocalizedString("homeworkAlbum.swipeForMorePages",
+                                                   value: "Swipe up for more pages",
+                                                   comment: "Hint shown below first page of multi-page homework"))
+                                .font(.caption)
+                        }
+                        .foregroundColor(.white.opacity(0.7))
+                        .padding(.bottom, 80)
+                        .transition(.opacity)
+                    }
+                }
+                .animation(.easeInOut(duration: 0.2), value: currentPageIndex)
             }
         }
         .onAppear {
