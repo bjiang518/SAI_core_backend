@@ -89,6 +89,10 @@ class AppState: ObservableObject {
     /// QuestionGenerationView observes this and closes its fullScreenCover.
     @Published var shouldDismissPracticeStack = false
 
+    /// Incremented when the home tab is tapped while already selected.
+    /// HomeView observes this to pop its navigation stack back to root.
+    @Published var homeNavResetToken = 0
+
     /// Power Saving Mode - disables all animations when enabled
     @Published var isPowerSavingMode: Bool {
         didSet {

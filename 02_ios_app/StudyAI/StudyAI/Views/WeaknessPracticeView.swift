@@ -12,6 +12,8 @@ import Combine
 struct WeaknessPracticeView: View {
     let weaknessKey: String
     let weaknessValue: WeaknessValue
+    /// Non-nil only in retry mode — assigned to ViewModel in .task to avoid @StateObject re-init race.
+    private let preloadedQuestions: [WeaknessPracticeQuestion]?
 
     @StateObject private var viewModel: WeaknessPracticeViewModel
     @Environment(\.dismiss) private var dismiss
@@ -19,7 +21,19 @@ struct WeaknessPracticeView: View {
     init(weaknessKey: String, weaknessValue: WeaknessValue) {
         self.weaknessKey = weaknessKey
         self.weaknessValue = weaknessValue
+        self.preloadedQuestions = nil
         self._viewModel = StateObject(wrappedValue: WeaknessPracticeViewModel(weaknessKey: weaknessKey))
+    }
+
+    /// Retry-mode init: re-attempt selected original mistakes directly, no AI generation.
+    init(subject: String, preloadedQuestions: [WeaknessPracticeQuestion]) {
+        self.weaknessKey = subject
+        self.weaknessValue = WeaknessValue(value: 0, firstDetected: Date(), lastAttempt: Date(),
+                                           totalAttempts: 0, correctAttempts: 0)
+        self.preloadedQuestions = preloadedQuestions
+        // ViewModel starts without preloaded questions — they are pushed in .task to survive
+        // SwiftUI's @StateObject re-init (which ignores init parameters on re-renders).
+        self._viewModel = StateObject(wrappedValue: WeaknessPracticeViewModel(weaknessKey: subject))
     }
 
     var body: some View {
@@ -42,12 +56,13 @@ struct WeaknessPracticeView: View {
                             WeaknessPracticeQuestionCard(
                                 question: question,
                                 questionNumber: index + 1,
-                                weaknessKey: weaknessKey
+                                weaknessKey: weaknessKey,
+                                isRetryMode: viewModel.isRetryMode
                             )
                         }
 
-                        // ✅ "Generate More" button with loading state
-                        if !viewModel.questions.isEmpty {
+                        // ✅ "Generate More" button — hidden in retry mode
+                        if !viewModel.questions.isEmpty && !viewModel.isRetryMode {
                             Button {
                                 Task {
                                     await viewModel.generateMoreQuestions()
@@ -78,7 +93,7 @@ struct WeaknessPracticeView: View {
                 }
                 .padding()
             }
-            .navigationTitle("Practice")
+            .navigationTitle(viewModel.isRetryMode ? "Do Them Again" : "Practice")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -89,9 +104,12 @@ struct WeaknessPracticeView: View {
             }
         }
         .task {
-            // ✅ DEBUG: Print short-term status for debugging bidirectional tracking
             printShortTermStatusDebugInfo()
 
+            if let questions = preloadedQuestions {
+                viewModel.loadPreloadedQuestions(questions)
+                return
+            }
             await viewModel.loadPracticeQuestions()
         }
     }
@@ -214,6 +232,7 @@ struct WeaknessPracticeQuestionCard: View {
     let question: WeaknessPracticeQuestion
     let questionNumber: Int
     let weaknessKey: String
+    let isRetryMode: Bool
 
     @Environment(\.colorScheme) var colorScheme
 
@@ -282,6 +301,7 @@ struct WeaknessPracticeQuestionCard: View {
                 question: question,
                 questionNumber: questionNumber,
                 weaknessKey: weaknessKey,
+                isRetryMode: isRetryMode,
                 onAnswerSubmitted: { /* Handle answer submission */ }
             )
         }
@@ -410,6 +430,7 @@ struct WeaknessPracticeAnswerInput: View {
     let question: WeaknessPracticeQuestion
     let questionNumber: Int
     let weaknessKey: String
+    let isRetryMode: Bool
     let onAnswerSubmitted: () -> Void
 
     @State private var studentAnswer = ""
@@ -580,6 +601,9 @@ struct WeaknessPracticeAnswerInput: View {
 
         logger.info("Submitting answer for practice question")
 
+        // Resolve the weakness key: per-question key takes priority (retry mode spans multiple keys)
+        let effectiveWeaknessKey = question.weaknessKey ?? weaknessKey
+
         do {
             // ✅ FIX: Try client-side matching first to avoid unnecessary API calls
             if question.questionType.lowercased() == "multiple_choice" ||
@@ -610,19 +634,25 @@ struct WeaknessPracticeAnswerInput: View {
 
                     // Update weakness tracking
                     if matchResult.isCorrect {
-                        ShortTermStatusService.shared.recordCorrectAttempt(
-                            key: weaknessKey,
-                            retryType: .explicitPractice,
-                            questionId: question.id.uuidString
-                        )
-                        logger.info("✅ Correct answer (instant graded) - weakness value decreased")
+                        if !isRetryMode {
+                            // Normal mode: reduce weakness value
+                            ShortTermStatusService.shared.recordCorrectAttempt(
+                                key: effectiveWeaknessKey,
+                                retryType: .explicitPractice,
+                                questionId: question.id.uuidString
+                            )
+                            logger.info("✅ Correct answer (instant graded) - weakness value decreased")
+                        } else {
+                            logger.info("✅ Correct answer in retry mode (instant graded) - no status update")
+                        }
                     } else {
+                        // Wrong answer: always record, use conceptual_gap in retry mode (large weight)
                         ShortTermStatusService.shared.recordMistake(
-                            key: weaknessKey,
-                            errorType: "practice_error",
+                            key: effectiveWeaknessKey,
+                            errorType: isRetryMode ? "conceptual_gap" : "practice_error",
                             questionId: question.id.uuidString
                         )
-                        logger.info("❌ Incorrect answer (instant graded) - weakness value increased")
+                        logger.info("❌ Incorrect answer (instant graded) - weakness value increased\(isRetryMode ? " [retry mode: conceptual_gap]" : "")")
                     }
 
                     onAnswerSubmitted()
@@ -635,11 +665,11 @@ struct WeaknessPracticeAnswerInput: View {
             let response = try await networkService.gradeSingleQuestion(
                 questionText: question.questionText,
                 studentAnswer: currentAnswer,
-                subject: nil,  // Can be extracted from weaknessKey if needed
+                subject: nil,
                 questionType: question.questionType,
                 contextImageBase64: nil,
                 parentQuestionContent: nil,
-                useDeepReasoning: true  // Use Pro Mode
+                useDeepReasoning: false  // Fast grading — stored correct answer is available
             )
 
             if let grade = response.grade {
@@ -647,19 +677,25 @@ struct WeaknessPracticeAnswerInput: View {
 
                 // Update weakness tracking
                 if grade.isCorrect {
-                    ShortTermStatusService.shared.recordCorrectAttempt(
-                        key: weaknessKey,
-                        retryType: .explicitPractice,
-                        questionId: question.id.uuidString
-                    )
-                    logger.info("✅ Correct answer - weakness value decreased")
+                    if !isRetryMode {
+                        // Normal mode: reduce weakness value
+                        ShortTermStatusService.shared.recordCorrectAttempt(
+                            key: effectiveWeaknessKey,
+                            retryType: .explicitPractice,
+                            questionId: question.id.uuidString
+                        )
+                        logger.info("✅ Correct answer - weakness value decreased")
+                    } else {
+                        logger.info("✅ Correct answer in retry mode - no status update")
+                    }
                 } else {
+                    // Wrong answer: always record, use conceptual_gap in retry mode (large weight)
                     ShortTermStatusService.shared.recordMistake(
-                        key: weaknessKey,
-                        errorType: "practice_error",
+                        key: effectiveWeaknessKey,
+                        errorType: isRetryMode ? "conceptual_gap" : "practice_error",
                         questionId: question.id.uuidString
                     )
-                    logger.info("❌ Incorrect answer - weakness value increased")
+                    logger.info("❌ Incorrect answer - weakness value increased\(isRetryMode ? " [retry mode: conceptual_gap]" : "")")
                 }
 
                 onAnswerSubmitted()
@@ -693,11 +729,25 @@ class WeaknessPracticeViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var isGenerating = false
     @Published var error: String?
+    @Published var isRetryMode = false
 
     private let logger = AppLogger.forFeature("WeaknessPractice")
 
     init(weaknessKey: String) {
         self.weaknessKey = weaknessKey
+    }
+
+    /// Retry-mode init: skip local-storage loading, use preloaded questions directly.
+    init(weaknessKey: String, preloadedQuestions: [WeaknessPracticeQuestion]) {
+        self.weaknessKey = weaknessKey
+        self.questions = preloadedQuestions
+        self.isRetryMode = true
+    }
+
+    /// Called from the view's .task when in retry mode — guaranteed to run after @StateObject is live.
+    func loadPreloadedQuestions(_ questions: [WeaknessPracticeQuestion]) {
+        self.questions = questions
+        self.isRetryMode = true
     }
 
     func loadPracticeQuestions() async {
@@ -1034,6 +1084,7 @@ struct WeaknessPracticeQuestion: Identifiable {
     var studentAnswer: String? = nil  // Original student answer (for mistakes)
     var questionImageUrl: String? = nil  // Image URL if present
     var rawQuestionText: String? = nil  // Full raw question text
+    var weaknessKey: String? = nil  // Per-question weakness key for retry mode
     var result: WeaknessPracticeQuestionResult?
 
     // ✅ Convert to ParsedQuestion for use with question rendering system

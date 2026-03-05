@@ -580,6 +580,16 @@
 "questionGeneration.messagesInConversation" = "对话中有 %d 条信息";
 "questionGeneration.studySession" = "学习会话";
 "questionGeneration.discussionAbout" = "关于 %@ 的讨论";
+"questionGeneration.filter.all" = "全部";
+"questionGeneration.filter.conversations" = "对话";
+"questionGeneration.filter.questions" = "题目";
+"questionGeneration.filter.subject" = "科目";
+"questionGeneration.filter.archiveType" = "归档类型";
+"questionGeneration.filter.noResults" = "没有符合所选筛选条件的项目。";
+"questionGeneration.timeFilter.thisWeek" = "本周";
+"questionGeneration.timeFilter.thisMonth" = "本月";
+"questionGeneration.timeFilter.thisYear" = "本年";
+"questionGeneration.timeFilter.allTime" = "所有时间";
 "questionGeneration.questionType" = "题目类型";
 
 "settings.textSize" = "文字大小";
@@ -679,6 +689,7 @@
 "library.allSubjects" = "全部科目";
 "library.debugInfo" = "偵错资讯";
 "library.searchPlaceholder" = "搜寻题目、科目或内容...";
+"library.select" = "选择";
 "library.updating" = "更新中...";
 
 // Content Type Filters

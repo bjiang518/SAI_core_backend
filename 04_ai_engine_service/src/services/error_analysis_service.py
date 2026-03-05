@@ -182,7 +182,7 @@ Be precise, empathetic, and curriculum-aligned."""
             lang_name = "Simplified Chinese (简体中文)" if language in ("zh-Hans", "zh-cn") \
                 else "Traditional Chinese (繁體中文)" if language in ("zh-Hant", "zh-tw") \
                 else language
-            prompt += f"\n\nLANGUAGE: Write 'specific_issue' and 'learning_suggestion' values in {lang_name}. Keep all other field values (base_branch, detailed_branch, error_type, evidence) in English."
+            prompt += f"\n\nLANGUAGE: Write 'specific_issue', 'learning_suggestion', and 'evidence' values in {lang_name}. Keep structural taxonomy fields (base_branch, detailed_branch, error_type) in English — these are used as data keys."
         return prompt
 
     def _build_analysis_prompt(self, question, student_ans, correct_ans, subject):

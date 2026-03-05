@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import UIKit
 import Combine
 
 // MARK: - Debug Configuration
@@ -335,6 +336,11 @@ struct MainTabView: View {
                 // Home Tab
                 NavigationStack {
                     HomeView(onSelectTab: selectTab)
+                        .background(
+                            SameTabTapBridge { idx in
+                                if idx == MainTab.home.rawValue { handleHomeTabSameTap() }
+                            }
+                        )
                         .onAppear {
                             sessionManager.updateActivity()
                         }
@@ -407,7 +413,10 @@ struct MainTabView: View {
                         CuteTabBar.TabItem(icon: MainTab.home.icon, tag: MainTab.home.rawValue, title: MainTab.home.title),
                         CuteTabBar.TabItem(icon: MainTab.progress.icon, tag: MainTab.progress.rawValue, title: MainTab.progress.title),
                         CuteTabBar.TabItem(icon: MainTab.library.icon, tag: MainTab.library.rawValue, title: MainTab.library.title)
-                    ]
+                    ],
+                    onSameTabTapped: { tag in
+                        if tag == MainTab.home.rawValue { handleHomeTabSameTap() }
+                    }
                 )
                 .transition(AnyTransition.move(edge: .bottom).combined(with: .opacity))
                 .zIndex(1)  // ✅ Ensure custom bar appears above hidden iOS TabBar
@@ -451,6 +460,61 @@ struct MainTabView: View {
     private func selectTab(_ tab: MainTab) {
         appState.selectedTab = tab
     }
+
+    private func handleHomeTabSameTap() {
+        appState.homeNavResetToken += 1
+    }
+}
+
+// MARK: - UIKit bridge: fires callback when user taps the already-selected tab
+// Installs a delegate proxy on the UITabBarController so we can detect same-tab taps
+// without interfering with SwiftUI's internal tab-bar management.
+private final class _SameTabCoordinator: NSObject, UITabBarControllerDelegate {
+    var handler: (Int) -> Void
+    weak var original: UITabBarControllerDelegate?
+
+    init(_ h: @escaping (Int) -> Void) { handler = h }
+
+    func tabBarController(_ tc: UITabBarController, shouldSelect vc: UIViewController) -> Bool {
+        if tc.selectedViewController === vc {
+            let idx = tc.selectedIndex
+            DispatchQueue.main.async { self.handler(idx) }
+        }
+        return original?.tabBarController?(tc, shouldSelect: vc) ?? true
+    }
+
+    func tabBarController(_ tc: UITabBarController, didSelect vc: UIViewController) {
+        original?.tabBarController?(tc, didSelect: vc)
+    }
+}
+
+private struct SameTabTapBridge: UIViewControllerRepresentable {
+    let onSameTabTapped: (Int) -> Void
+
+    func makeCoordinator() -> _SameTabCoordinator { _SameTabCoordinator(onSameTabTapped) }
+    func makeUIViewController(context: Context) -> _BridgeVC { _BridgeVC(context.coordinator) }
+    func updateUIViewController(_ vc: _BridgeVC, context: Context) {
+        vc.coordinator.handler = onSameTabTapped
+    }
+
+    final class _BridgeVC: UIViewController {
+        unowned let coordinator: _SameTabCoordinator
+        init(_ c: _SameTabCoordinator) { coordinator = c; super.init(nibName: nil, bundle: nil) }
+        required init?(coder: NSCoder) { fatalError() }
+
+        override func viewDidAppear(_ animated: Bool) {
+            super.viewDidAppear(animated)
+            var p: UIViewController? = parent
+            while let c = p {
+                if let tb = c as? UITabBarController, tb.delegate !== coordinator {
+                    coordinator.original = tb.delegate
+                    tb.delegate = coordinator
+                    return
+                }
+                p = c.parent
+            }
+        }
+    }
 }
 
 struct ModernProfileView: View {
@@ -487,7 +551,8 @@ struct ModernProfileView: View {
                             let _ = avatarLog("🖼️ [ContentView] Loading avatar (local-first approach)")
 
                             // Priority 1: Try to load custom avatar from local filename
-                            if let localFilename = UserDefaults.standard.string(forKey: "localAvatarFilename"),
+                            let localAvatarKey = "localAvatarFilename_\(authService.currentUser?.id ?? "anonymous")"
+                            if let localFilename = UserDefaults.standard.string(forKey: localAvatarKey),
                                let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
                                 let fileURL = documentsDirectory.appendingPathComponent(localFilename)
                                 let _ = avatarLog("📁 [ContentView] Trying LOCAL custom avatar: \(localFilename)")

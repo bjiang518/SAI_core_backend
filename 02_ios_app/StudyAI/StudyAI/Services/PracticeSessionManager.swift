@@ -58,10 +58,14 @@ class PracticeSessionManager: ObservableObject {
         var sessions = loadAllSessions()
         sessions.append(session)
 
-        // Keep only last 10 sessions
-        if sessions.count > 10 {
-            sessions = Array(sessions.suffix(10))
-        }
+        // Keep only the most recent session per generation type.
+        // Older sessions of the same type are replaced so the user always resumes
+        // the latest run — not an accumulation of stale sessions.
+        var seen = Set<String>()
+        let deduplicated = sessions
+            .sorted { $0.lastAccessedDate > $1.lastAccessedDate }
+            .filter { seen.insert($0.generationType).inserted }
+        sessions = deduplicated
 
         saveSessions(sessions)
         updatePublishedState()

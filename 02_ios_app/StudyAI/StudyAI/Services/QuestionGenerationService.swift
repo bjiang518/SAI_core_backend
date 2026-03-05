@@ -565,11 +565,18 @@ class QuestionGenerationService: ObservableObject {
                     let responseResult = try parseQuestionResponse(data: data, generationType: "mistake_based")
 
                     if responseResult.success {
+                        let sessionId = PracticeSessionManager.shared.saveSession(
+                            questions: responseResult.questions,
+                            generationType: "Mistake-Based Practice",
+                            subject: subject,
+                            config: config
+                        )
                         // Update last generated questions (replaces previous)
                         await MainActor.run {
                             self.lastGeneratedQuestions = responseResult.questions
                             self.lastGenerationDate = Date()
                             self.lastGenerationType = "Mistake-Based Practice"
+                            self.currentSessionId = sessionId
                         }
 
                         print("🎉 Generated \(responseResult.questions.count) mistake-based questions successfully")
@@ -1226,10 +1233,23 @@ class QuestionGenerationService: ObservableObject {
                 if httpResponse.statusCode == 200 {
                     let responseResult = try parseQuestionResponse(data: data, generationType: "v2_mode\(mode)")
                     if responseResult.success {
+                        let generationType: String
+                        switch mode {
+                        case 2: generationType = "Mistake-Based Practice"
+                        case 3: generationType = "Conversation-Based Practice"
+                        default: generationType = "Random Practice"
+                        }
+                        let sessionId = PracticeSessionManager.shared.saveSession(
+                            questions: responseResult.questions,
+                            generationType: generationType,
+                            subject: subject,
+                            config: config
+                        )
                         await MainActor.run {
                             self.lastGeneratedQuestions = responseResult.questions
                             self.lastGenerationDate = Date()
-                            self.lastGenerationType = "V2 Practice"
+                            self.lastGenerationType = generationType
+                            self.currentSessionId = sessionId
                         }
                         print("🎉 [V2] Generated \(responseResult.questions.count) questions successfully")
                         return .success(responseResult.questions)

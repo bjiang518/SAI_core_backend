@@ -580,6 +580,16 @@
 "questionGeneration.messagesInConversation" = "對話中有 %d 條訊息";
 "questionGeneration.studySession" = "學習會話";
 "questionGeneration.discussionAbout" = "關於 %@ 的討論";
+"questionGeneration.filter.all" = "全部";
+"questionGeneration.filter.conversations" = "對話";
+"questionGeneration.filter.questions" = "題目";
+"questionGeneration.filter.subject" = "科目";
+"questionGeneration.filter.archiveType" = "歸檔類型";
+"questionGeneration.filter.noResults" = "沒有符合所選篩選條件的項目。";
+"questionGeneration.timeFilter.thisWeek" = "本週";
+"questionGeneration.timeFilter.thisMonth" = "本月";
+"questionGeneration.timeFilter.thisYear" = "本年";
+"questionGeneration.timeFilter.allTime" = "所有時間";
 "questionGeneration.questionType" = "題目類型";
 
 "settings.textSize" = "文字大小";
@@ -679,6 +689,7 @@
 "library.allSubjects" = "全部科目";
 "library.debugInfo" = "偵錯資訊";
 "library.searchPlaceholder" = "搜尋題目、科目或內容...";
+"library.select" = "選擇";
 "library.updating" = "更新中...";
 
 // Content Type Filters
