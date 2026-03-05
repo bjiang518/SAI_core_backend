@@ -579,8 +579,18 @@
 "questionGeneration.conversationsAvailable" = "%d conversations available for question generation";
 "questionGeneration.noConversationsFound" = "No archived conversations found. Have some conversations first.";
 "questionGeneration.messagesInConversation" = "%d messages in conversation";
-"questionGeneration.studySession" = "Study session";
-"questionGeneration.discussionAbout" = "Discussion about %@";
+"questionGeneration.studySession" = "学習セッション";
+"questionGeneration.discussionAbout" = "%@についての議論";
+"questionGeneration.filter.all" = "すべて";
+"questionGeneration.filter.conversations" = "会話";
+"questionGeneration.filter.questions" = "問題";
+"questionGeneration.filter.subject" = "科目";
+"questionGeneration.filter.archiveType" = "アーカイブの種類";
+"questionGeneration.filter.noResults" = "選択したフィルターに一致する項目がありません。";
+"questionGeneration.timeFilter.thisWeek" = "今週";
+"questionGeneration.timeFilter.thisMonth" = "今月";
+"questionGeneration.timeFilter.thisYear" = "今年";
+"questionGeneration.timeFilter.allTime" = "すべての期間";
 
 // Question Detail View
 "questionDetail.title" = "Question Details";
@@ -681,6 +691,7 @@
 
 "library.info.title" = "How to Use ライブラリ";
 "library.info.message" = "📚 Your Learning Archive:\n\n• Content Types: Switch between All Sessions, Questions Only, or Conversations Only using the tabs\n• Search: Use the search bar to find specific content\n• Quick Filters: Filter by subject, date range, or content with images\n• Advanced Search: Tap the three-dot menu for detailed filtering options\n• Subject Filter: Filter content by specific subjects from the menu\n\n💡 Tips:\n• Pull down to refresh your library content\n• Tap any item to view full details, answers, and explanations\n• Use 'Clear Filters' from the menu to reset all active filters\n• Statistics at the top show your total questions and conversations";
+"library.select" = "選択";
 
 "homeworkResults.info.title" = "Understanding Your Results";
 "homeworkResults.info.message" = "📝 ホームwork Analysis Results:\n\n• Question Cards: Tap any card to expand and see full details, answers, and explanations\n• Checkboxes: Select questions you want to archive for later review\n• Color Indicators:\n  - Green: Correct answer\n  - Orange: Partially correct\n  - Red: Incorrect answer\n• Archive Button: Tap the book icon to save selected questions to your library\n\n💡 Tips:\n• Review incorrect answers carefully to understand mistakes\n• Use archived questions for focused practice later\n• Each question can be expanded to see step-by-step solutions\n• 進捗 is automatically tracked for learning analytics";

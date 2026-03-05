@@ -108,6 +108,10 @@ struct HomeView: View {
             .navigationDestination(isPresented: $showingQuestionGeneration) {
                 QuestionGenerationView()
             }
+            .onChange(of: appState.homeNavResetToken) { _, _ in
+                showingMistakeReview = false
+                showingQuestionGeneration = false
+            }
             .sheet(isPresented: $showingParentReports) {
                 NavigationView {
                     ParentReportsContainerView()

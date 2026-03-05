@@ -360,6 +360,13 @@ struct MistakeReviewView: View {
 }
 
 // MARK: - Mistake Question List View
+
+/// Thin Identifiable wrapper so [WeaknessPracticeQuestion] can drive .sheet(item:).
+private struct DoThemAgainItem: Identifiable {
+    let id = UUID()
+    let questions: [WeaknessPracticeQuestion]
+}
+
 struct MistakeQuestionListView: View {
     let subject: String
     let selectedDetailedBranches: Set<String>
@@ -383,6 +390,9 @@ struct MistakeQuestionListView: View {
     @State private var generationError: String? = nil
     @State private var currentSessionId: String? = nil   // session ID for newly generated set
     @State private var resumeSessionId: String? = nil    // session ID being resumed
+    /// Non-nil triggers the "Do them again" sheet; questions are carried in the item so they're
+    /// guaranteed present when the sheet's WeaknessPracticeView init runs.
+    @State private var doThemAgainItem: DoThemAgainItem? = nil
     @Environment(\.dismiss) private var dismiss
 
     // MARK: - Computed Properties
@@ -390,7 +400,7 @@ struct MistakeQuestionListView: View {
     /// The most recent incomplete mistake-based session for this subject, if any.
     private var incompleteSession: PracticeSession? {
         sessionManager.incompleteSessions.first {
-            $0.generationType == "Mistake-Based" && $0.subject == subject
+            ($0.generationType == "Mistake-Based Practice" || $0.generationType == "Mistake-Based") && $0.subject == subject
         }
     }
 
@@ -591,32 +601,54 @@ struct MistakeQuestionListView: View {
 
                 //✅ Generate Practice Button (ENHANCED with configuration UI)
                 if isSelectionMode && !selectedQuestions.isEmpty {
-                    Button(action: {
-                        // Show configuration sheet instead of immediately generating
-                        showingConfigurationSheet = true
-                    }) {
-                        HStack {
-                            if isGeneratingPractice {
-                                ProgressView()
-                                    .tint(.white)
-                                    .scaleEffect(0.8)
-                            } else {
-                                Image(systemName: "brain.head.profile")
-                                    .font(.title3)
+                    VStack(spacing: 10) {
+                        Button(action: {
+                            // Show configuration sheet instead of immediately generating
+                            showingConfigurationSheet = true
+                        }) {
+                            HStack {
+                                if isGeneratingPractice {
+                                    ProgressView()
+                                        .tint(.white)
+                                        .scaleEffect(0.8)
+                                } else {
+                                    Image(systemName: "brain.head.profile")
+                                        .font(.title3)
 
-                                Text(String(format: NSLocalizedString("mistakeReview.generatePractice", comment: ""), selectedQuestions.count))
+                                    Text(String(format: NSLocalizedString("mistakeReview.generatePractice", comment: ""), selectedQuestions.count))
+                                        .font(.body)
+                                        .fontWeight(.semibold)
+                                }
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 56)
+                            .background(isGeneratingPractice ? Color.gray : themeManager.accentColor)
+                            .cornerRadius(12)
+                        }
+                        .disabled(isGeneratingPractice)
+                        .buttonStyle(PlainButtonStyle())
+
+                        Button(action: { doThemAgain() }) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "arrow.counterclockwise")
+                                    .font(.title3)
+                                Text("Do them again (\(selectedQuestions.count))")
                                     .font(.body)
                                     .fontWeight(.semibold)
                             }
+                            .foregroundColor(themeManager.accentColor)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 56)
+                            .background(themeManager.accentColor.opacity(0.12))
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(themeManager.accentColor.opacity(0.3), lineWidth: 1)
+                            )
                         }
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 56)
-                        .background(isGeneratingPractice ? Color.gray : themeManager.accentColor)
-                        .cornerRadius(12)
+                        .buttonStyle(PlainButtonStyle())
                     }
-                    .disabled(isGeneratingPractice)
-                    .buttonStyle(PlainButtonStyle())
                     .padding(.horizontal)
                     .padding(.bottom)
                 }
@@ -654,6 +686,9 @@ struct MistakeQuestionListView: View {
                 if shouldDismiss {
                     showingPracticeQuestions = false
                 }
+            }
+            .sheet(item: $doThemAgainItem) { item in
+                WeaknessPracticeView(subject: subject, preloadedQuestions: item.questions)
             }
             .sheet(isPresented: $showingConfigurationSheet) {
                 // ✅ NEW: Show configuration sheet before generating
@@ -724,6 +759,74 @@ struct MistakeQuestionListView: View {
         }
         }
         .animation(.easeInOut(duration: 0.3), value: isGeneratingPractice)
+    }
+
+    /// Re-attempt the selected original mistake questions using the existing WeaknessPracticeView.
+    /// Loads full question data (including questionType/options) from local storage by ID.
+    private func doThemAgain() {
+        let selected = filteredMistakes.filter { selectedQuestions.contains($0.id) }
+        guard !selected.isEmpty else { return }
+
+        let localStorage = currentUserQuestionStorage()
+        let allStoredQuestions = localStorage.getLocalQuestions()
+        let idSet = Set(selected.map { $0.id })
+
+        // Build a lookup dict for O(1) access
+        var storedById: [[String: Any]] = []
+        for storedQ in allStoredQuestions {
+            guard let qId = storedQ["id"] as? String, idSet.contains(qId) else { continue }
+            storedById.append(storedQ)
+        }
+
+        // Preserve selection order by iterating the ordered selected array
+        var result: [WeaknessPracticeQuestion] = []
+        for mistake in selected {
+            // Find matching stored question by ID
+            guard let storedQ = storedById.first(where: { ($0["id"] as? String) == mistake.id }),
+                  let questionText = storedQ["questionText"] as? String,
+                  let correctAnswer = storedQ["answerText"] as? String else {
+                // Fallback: build from MistakeQuestion fields (no questionType/options)
+                let pq = WeaknessPracticeQuestion(
+                    id: UUID(uuidString: mistake.id) ?? UUID(),
+                    questionText: mistake.question,
+                    questionType: "short_answer",
+                    options: nil,
+                    correctAnswer: mistake.correctAnswer,
+                    isOriginalMistake: true,
+                    originalQuestionId: mistake.id,
+                    studentAnswer: mistake.studentAnswer,
+                    questionImageUrl: mistake.questionImageUrl,
+                    rawQuestionText: mistake.rawQuestionText.isEmpty ? nil : mistake.rawQuestionText,
+                    weaknessKey: mistake.weaknessKey
+                )
+                result.append(pq)
+                continue
+            }
+
+            let questionType = storedQ["questionType"] as? String ?? "short_answer"
+            let options = storedQ["options"] as? [String]
+            let studentAnswer = storedQ["studentAnswer"] as? String
+            let questionImageUrl = storedQ["questionImageUrl"] as? String
+            let rawText = storedQ["rawQuestionText"] as? String
+            let weaknessKey = storedQ["weaknessKey"] as? String ?? mistake.weaknessKey
+
+            let pq = WeaknessPracticeQuestion(
+                id: UUID(uuidString: mistake.id) ?? UUID(),
+                questionText: questionText,
+                questionType: questionType,
+                options: options,
+                correctAnswer: correctAnswer,
+                isOriginalMistake: true,
+                originalQuestionId: mistake.id,
+                studentAnswer: studentAnswer,
+                questionImageUrl: questionImageUrl,
+                rawQuestionText: (rawText?.isEmpty == false) ? rawText : questionText,
+                weaknessKey: weaknessKey
+            )
+            result.append(pq)
+        }
+
+        doThemAgainItem = DoThemAgainItem(questions: result)
     }
 
     // ✅ OPTIMIZED: Generate practice from selected mistakes with user-configured parameters
@@ -812,23 +915,9 @@ struct MistakeQuestionListView: View {
             switch result {
             case .success(let questions):
                 await MainActor.run {
-                    // ✅ FIX: Keep full GeneratedQuestion objects instead of just text
                     generatedQuestions = questions
-                    // Save session for resume support
-                    let config = QuestionGenerationService.RandomQuestionsConfig(
-                        topics: [],
-                        focusNotes: nil,
-                        difficulty: difficulty,
-                        questionCount: questionCount,
-                        questionType: questionTypes.first ?? .any
-                    )
-                    let sid = sessionManager.saveSession(
-                        questions: questions,
-                        generationType: "Mistake-Based",
-                        subject: subject,
-                        config: config
-                    )
-                    currentSessionId = sid
+                    // Session already saved by QuestionGenerationService with type "Mistake-Based Practice"
+                    currentSessionId = QuestionGenerationService.shared.currentSessionId
                     resumeSessionId = nil  // fresh session, not a resume
                     showingPracticeQuestions = true
                 }

@@ -326,6 +326,10 @@ module.exports = async function (fastify, opts) {
 
         allQuestions = results.flat();
         shuffle(allQuestions); // interleave types
+
+        if (allQuestions.length === 0) {
+          throw new Error('All question type calls failed — AI engine returned no questions');
+        }
       }
 
       const totalLatency = Date.now() - startTime;

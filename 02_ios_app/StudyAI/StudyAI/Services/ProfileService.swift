@@ -150,11 +150,11 @@ class ProfileService: ObservableObject {
     
     // MARK: - Local Persistence
 
-    private let profileFilename = "user_profile.json"
-
+    /// Per-user profile file URL — keyed by user ID so different accounts never share a file.
     private var profileFileURL: URL? {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?
-            .appendingPathComponent(profileFilename)
+        let userId = authService.currentUser?.id ?? "anonymous"
+        return FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("user_profile_\(userId).json")
     }
 
     /// Write profile to disk as JSON (Documents/user_profile.json).
@@ -181,6 +181,14 @@ class ProfileService: ObservableObject {
         do {
             let data = try Data(contentsOf: url)
             let profile = try JSONDecoder().decode(UserProfile.self, from: data)
+            // Defense-in-depth: the filename includes the user ID, but guard against
+            // stale files left over from a missed logout or an edge-case race condition.
+            if let currentUserId = authService.currentUser?.id, !currentUserId.isEmpty,
+               profile.id != currentUserId {
+                AppLogger.auth.warning("⚠️ [ProfileService] loadCachedProfile — ID mismatch (cached=\(profile.id) current=\(currentUserId)), discarding stale file")
+                try? FileManager.default.removeItem(at: url)
+                return nil
+            }
             AppLogger.auth.info("📂 [ProfileService] loadCachedProfile — read from disk: firstName=\(profile.firstName ?? "nil")")
             return profile
         } catch {
@@ -190,8 +198,13 @@ class ProfileService: ObservableObject {
     }
 
     /// Delete profile file from disk — called on sign-out.
-    func clearCachedProfile() async {
-        if let url = profileFileURL {
+    /// Pass the userId explicitly from the sign-out path so there is no race condition
+    /// between this async Task and the `currentUser = nil` assignment.
+    func clearCachedProfile(userId: String? = nil) async {
+        let resolvedId = userId ?? authService.currentUser?.id ?? "anonymous"
+        let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("user_profile_\(resolvedId).json")
+        if let url = url {
             try? FileManager.default.removeItem(at: url)
         }
         // Also clear the legacy UserDefaults entry if it still exists
@@ -234,9 +247,13 @@ class ProfileService: ObservableObject {
             }
         }
 
-        // Retry pending avatar upload if a previous attempt was interrupted
-        if UserDefaults.standard.bool(forKey: "avatarSyncPending"),
-           let filename = UserDefaults.standard.string(forKey: "localAvatarFilename"),
+        // Retry pending avatar upload if a previous attempt was interrupted.
+        // Use user-scoped keys so pending uploads from different accounts never cross.
+        let userId = authService.currentUser?.id ?? "anonymous"
+        let avatarPendingKey  = "avatarSyncPending_\(userId)"
+        let avatarFilenameKey = "localAvatarFilename_\(userId)"
+        if UserDefaults.standard.bool(forKey: avatarPendingKey),
+           let filename = UserDefaults.standard.string(forKey: avatarFilenameKey),
            let documentsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
             let fileURL = documentsDir.appendingPathComponent(filename)
             Task.detached {
@@ -244,7 +261,7 @@ class ProfileService: ObservableObject {
                 let base64 = imageData.base64EncodedString()
                 let result = await NetworkService.shared.uploadCustomAvatar(base64Image: base64)
                 if result.success {
-                    UserDefaults.standard.set(false, forKey: "avatarSyncPending")
+                    UserDefaults.standard.set(false, forKey: avatarPendingKey)
                 }
             }
         }

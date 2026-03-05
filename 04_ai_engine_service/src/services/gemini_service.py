@@ -536,13 +536,82 @@ class GeminiEducationalAIService:
         """
         Generate practice questions using gemini-3-flash-preview.
 
-        Mirrors EducationalAIService.generate_questions_unified but uses the
-        Gemini API instead of OpenAI, giving significantly better question quality.
+        Retries once with simplified random context if the first attempt fails,
+        so that missing or malformed context never permanently blocks generation.
+        """
+        if not self.client:
+            return {
+                "success": False,
+                "error": "Gemini client not initialized — check GEMINI_API_KEY",
+                "generation_type": f"unified_{question_type}",
+                "subject": subject,
+            }
+
+        # Clamp count to a safe range
+        count = max(1, min(count, 10))
+
+        # Two attempts:
+        #   Attempt 0 — full original context
+        #   Attempt 1 — simplified random context (fallback when context data is bad)
+        attempt_plans = [
+            (context_type, context_data),
+            ("random", {"grade": context_data.get("grade", "High School")}),
+        ]
+
+        last_result: Dict[str, Any] = {
+            "success": False,
+            "error": "No attempts made",
+            "generation_type": f"unified_{question_type}",
+            "subject": subject,
+        }
+
+        for attempt_idx, (eff_ctx_type, eff_ctx_data) in enumerate(attempt_plans):
+            if attempt_idx > 0:
+                logger.debug(
+                    f"🔄 Retrying {question_type} generation with simplified random context "
+                    f"(original_context_type={context_type})"
+                )
+                await asyncio.sleep(0.5)
+
+            last_result = await self._attempt_generate_questions(
+                subject=subject,
+                question_type=question_type,
+                count=count,
+                context_type=eff_ctx_type,
+                context_data=eff_ctx_data,
+                original_context_type=context_type,
+                original_context_data=context_data,
+                language=language,
+            )
+
+            if last_result.get("success"):
+                return last_result
+
+            logger.debug(
+                f"⚠️ Attempt {attempt_idx + 1}/{len(attempt_plans)} failed: "
+                f"{last_result.get('error', 'unknown')}"
+            )
+
+        return last_result
+
+    async def _attempt_generate_questions(
+        self,
+        subject: str,
+        question_type: str,
+        count: int,
+        context_type: str,
+        context_data: Dict,
+        original_context_type: str,
+        original_context_data: Dict,
+        language: str = "en",
+    ) -> Dict[str, Any]:
+        """
+        Single Gemini API call attempt for question generation.
+        Returns a success/failure dict; never raises.
+        Error-analysis injection always uses original_context_* so mistake metadata
+        is preserved even when the prompt used a fallback context.
         """
         try:
-            if not self.client:
-                raise RuntimeError("Gemini client not initialized — check GEMINI_API_KEY")
-
             # Lazy import to avoid circular dependency
             from .prompt_service import AdvancedPromptService
             _prompt_svc = AdvancedPromptService()
@@ -562,7 +631,7 @@ class GeminiEducationalAIService:
 
             config = genai_types.GenerateContentConfig(
                 temperature=1.0,
-                max_output_tokens=4096,
+                max_output_tokens=8192,
                 response_mime_type="application/json",
             )
 
@@ -579,19 +648,7 @@ class GeminiEducationalAIService:
 
             raw_text = self._extract_response_text(response)
             raw_text = self._repair_latex_json(raw_text)
-
-            # Parse JSON — response_mime_type="application/json" means this is usually clean
-            try:
-                parsed = json.loads(raw_text)
-            except json.JSONDecodeError:
-                m = re.search(r'\{.*\}', raw_text, re.DOTALL)
-                if not m:
-                    raise ValueError(f"No JSON in Gemini response: {raw_text[:300]}")
-                parsed = json.loads(m.group())
-
-            questions_json = parsed.get("questions", parsed) if isinstance(parsed, dict) else parsed
-            if not isinstance(questions_json, list) or not questions_json:
-                raise ValueError("No valid questions array in Gemini response")
+            questions_json = self._parse_questions_json(raw_text, question_type)
 
             # Normalise field names
             for q in questions_json:
@@ -602,17 +659,33 @@ class GeminiEducationalAIService:
                 if not q.get("explanation"):
                     q["explanation"] = q.get("reasoning") or q.get("solution") or ""
                 q["question_type"] = question_type
-                q.pop("hints", None)  # hints field removed
+                q.pop("hints", None)
 
-            # Drop MC questions missing options
+            # For MC: keep only questions with valid options arrays.
+            # If none have options after normalisation, keep all rather than discarding
+            # everything — downstream can handle option-less MC more gracefully.
             if question_type == "multiple_choice":
-                questions_json = [q for q in questions_json if q.get("multiple_choice_options")]
-                if not questions_json:
-                    raise ValueError("MC questions generated but none had options")
+                with_opts = [q for q in questions_json if q.get("multiple_choice_options")]
+                if with_opts:
+                    questions_json = with_opts
+                else:
+                    logger.debug(
+                        "⚠️ MC questions have no options after normalisation — "
+                        "keeping questions for downstream handling"
+                    )
 
-            # Inject error-analysis keys for mistake-based context
-            if context_type == "mistake":
-                mistakes_data = context_data.get("mistakes_data", [])
+            if not questions_json:
+                return {
+                    "success": False,
+                    "error": "No valid questions in Gemini response",
+                    "generation_type": f"unified_{question_type}",
+                    "subject": subject,
+                }
+
+            # Inject error-analysis keys using the ORIGINAL context so that mistake
+            # metadata is preserved even when the prompt used a fallback context.
+            if original_context_type == "mistake":
+                mistakes_data = original_context_data.get("mistakes_data", [])
                 error_types   = [m.get("error_type")       for m in mistakes_data if m.get("error_type")]
                 base_branches = [m.get("base_branch")      for m in mistakes_data if m.get("base_branch")]
                 detailed      = [m.get("detailed_branch")  for m in mistakes_data if m.get("detailed_branch")]
@@ -641,7 +714,7 @@ class GeminiEducationalAIService:
             }
 
         except Exception as e:
-            logger.debug(f"❌ Gemini question generation error: {str(e)}")
+            logger.debug(f"❌ Gemini question generation attempt error: {str(e)}")
             import traceback
             traceback.print_exc()
             return {
@@ -654,14 +727,17 @@ class GeminiEducationalAIService:
     @staticmethod
     def _repair_latex_json(raw: str) -> str:
         """
-        Fix single-backslash LaTeX commands in AI-generated JSON before parsing.
+        Fix single-backslash sequences that are invalid JSON escapes.
 
-        In JSON, \\f = form feed, \\t = tab, \\n = newline, etc.
-        When the AI writes \\frac it becomes [form-feed]rac after json.loads.
-        This repairs by doubling backslashes before known LaTeX command names.
-        Safe: the negative lookbehind (?<!\\\\) skips already-doubled sequences.
+        Pass 1 (regex): double known named LaTeX commands (\frac, \sqrt, etc.)
+        Pass 2 (char-by-char): catch-all for anything else — covers \( \) \[ \]
+        \{ \} and any other non-standard escape the model may produce.
+
+        Valid JSON escapes after \: " \\ / b f n r t u
+        Everything else must be doubled so json.loads treats it as a literal \.
         """
-        return re.sub(
+        # Pass 1 — named commands (fast path for alphabetic LaTeX sequences)
+        raw = re.sub(
             r'(?<!\\)\\(frac|sqrt|text|times|cdot|left|right|leq|geq|neq|approx|pm|mp|'
             r'alpha|beta|gamma|delta|epsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|'
             r'pi|rho|sigma|tau|upsilon|phi|chi|psi|omega|'
@@ -678,18 +754,109 @@ class GeminiEducationalAIService:
             raw
         )
 
+        # Pass 2 — catch-all: fix any remaining \X where X is not a valid JSON
+        # escape character (handles \( \) \[ \] \{ \} \, \; etc.)
+        _valid_json_escapes = frozenset('"\\\/bfnrtu')
+        result = []
+        i = 0
+        while i < len(raw):
+            c = raw[i]
+            if c == '\\' and i + 1 < len(raw):
+                nxt = raw[i + 1]
+                if nxt in _valid_json_escapes:
+                    result.append(c)
+                    result.append(nxt)
+                else:
+                    result.append('\\\\')   # double the backslash
+                    result.append(nxt)
+                i += 2
+            else:
+                result.append(c)
+                i += 1
+        return ''.join(result)
+
+    @staticmethod
+    def _parse_questions_json(raw_text: str, question_type: str) -> list:
+        """
+        Extract a question list from raw Gemini output using three fallback strategies:
+
+          1. Parse the full text as JSON directly.
+          2. Find the outermost {...} block and parse it.
+          3. Recover from truncated responses by closing the array at the last
+             complete question object (handles token-limit cut-offs).
+
+        Raises ValueError only if all three strategies are exhausted.
+        """
+        def _extract_list(parsed) -> list:
+            if isinstance(parsed, dict):
+                return parsed.get("questions") or parsed.get("items") or []
+            if isinstance(parsed, list):
+                return parsed
+            return []
+
+        # Strategy 1: parse the full text directly
+        try:
+            qs = _extract_list(json.loads(raw_text))
+            if qs:
+                return qs
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+        # Strategy 2: find the outermost {...} block
+        m = re.search(r'\{.+\}', raw_text, re.DOTALL)
+        if m:
+            try:
+                qs = _extract_list(json.loads(m.group()))
+                if qs:
+                    return qs
+            except (json.JSONDecodeError, ValueError):
+                pass
+
+        # Strategy 3: recover from a truncated response.
+        # Find the last complete question object (ends with `},` or `}`) and close
+        # the surrounding array at that point.
+        last_close = raw_text.rfind('},')
+        if last_close == -1:
+            last_close = raw_text.rfind('}')
+        if last_close > 10:
+            arr_open = raw_text.rfind('[', 0, last_close)
+            obj_open = raw_text.rfind('{', 0, arr_open) if arr_open > 0 else -1
+            if obj_open >= 0:
+                candidate = raw_text[obj_open: last_close + 1] + "]}"
+                try:
+                    qs = _extract_list(json.loads(candidate))
+                    if qs:
+                        logger.debug(
+                            f"⚠️ Recovered {len(qs)} questions from truncated JSON response"
+                        )
+                        return qs
+                except (json.JSONDecodeError, ValueError):
+                    pass
+
+        raise ValueError(
+            f"Unable to extract {question_type} questions from Gemini response "
+            f"({len(raw_text)} chars)"
+        )
+
     def _extract_response_text(self, response) -> str:
         """
         Extract text from Gemini response, filtering out thought tokens.
-
-        Gemini 3 with thinking_config returns parts where some have
-        part.thought=True (chain-of-thought). We skip those and only
-        concatenate the actual output parts.
+        Handles safety-blocked responses and missing content defensively.
         """
         if not response.candidates:
             raise ValueError("Gemini response has no candidates")
 
-        parts = response.candidates[0].content.parts
+        candidate = response.candidates[0]
+
+        # Guard against safety-filtered or otherwise empty candidates.
+        # When Gemini blocks a response, candidate.content can be None.
+        if not candidate.content or not candidate.content.parts:
+            finish_reason = getattr(candidate, 'finish_reason', 'unknown')
+            raise ValueError(
+                f"Gemini candidate has no content (finish_reason={finish_reason})"
+            )
+
+        parts = candidate.content.parts
         text_parts = [
             part.text
             for part in parts

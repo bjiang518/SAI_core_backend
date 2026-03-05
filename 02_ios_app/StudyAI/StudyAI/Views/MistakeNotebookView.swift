@@ -223,34 +223,31 @@ struct MistakeGroup: Identifiable {
     let count: Int
 
     var displayName: String {
-        errorType.replacingOccurrences(of: "_", with: " ").capitalized
+        switch errorType {
+        case "execution_error":  return NSLocalizedString("mistakeReview.errorType.executionError", comment: "")
+        case "conceptual_gap":   return NSLocalizedString("mistakeReview.errorType.conceptualGap", comment: "")
+        case "needs_refinement": return NSLocalizedString("mistakeReview.errorType.needsRefinement", comment: "")
+        default: return errorType.replacingOccurrences(of: "_", with: " ").capitalized
+        }
     }
 
     var icon: String {
         switch errorType {
-        case "conceptual_misunderstanding": return "brain.head.profile"
-        case "procedural_error": return "list.bullet.clipboard"
-        case "calculation_mistake": return "function"
-        case "reading_comprehension": return "book.closed"
-        case "notation_error": return "textformat"
-        case "incomplete_work": return "doc.text"
-        case "careless_mistake": return "exclamationmark.triangle"
-        case "analyzing": return "ellipsis.circle"
-        default: return "questionmark.circle"
+        case "execution_error":  return "exclamationmark.triangle"
+        case "conceptual_gap":   return "brain.head.profile"
+        case "needs_refinement": return "sparkles"
+        case "analyzing":        return "ellipsis.circle"
+        default:                 return "questionmark.circle"
         }
     }
 
     var color: Color {
         switch errorType {
-        case "conceptual_misunderstanding": return .purple
-        case "procedural_error": return .orange
-        case "calculation_mistake": return .red
-        case "reading_comprehension": return .blue
-        case "notation_error": return .green
-        case "incomplete_work": return .yellow
-        case "careless_mistake": return .pink
-        case "analyzing": return .gray
-        default: return .secondary
+        case "execution_error":  return .orange
+        case "conceptual_gap":   return .purple
+        case "needs_refinement": return .blue
+        case "analyzing":        return .gray
+        default:                 return .secondary
         }
     }
 }

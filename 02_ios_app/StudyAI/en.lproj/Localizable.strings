@@ -581,6 +581,16 @@
 "questionGeneration.messagesInConversation" = "%d messages in conversation";
 "questionGeneration.studySession" = "Study session";
 "questionGeneration.discussionAbout" = "Discussion about %@";
+"questionGeneration.filter.all" = "All";
+"questionGeneration.filter.conversations" = "Conversations";
+"questionGeneration.filter.questions" = "Questions";
+"questionGeneration.filter.subject" = "Subject";
+"questionGeneration.filter.archiveType" = "Archive Type";
+"questionGeneration.filter.noResults" = "No items match the selected filters.";
+"questionGeneration.timeFilter.thisWeek" = "This Week";
+"questionGeneration.timeFilter.thisMonth" = "This Month";
+"questionGeneration.timeFilter.thisYear" = "This Year";
+"questionGeneration.timeFilter.allTime" = "All Time";
 
 // Question Detail View
 "questionDetail.title" = "Question Details";

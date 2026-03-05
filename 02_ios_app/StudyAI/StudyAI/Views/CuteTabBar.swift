@@ -10,6 +10,7 @@ import SwiftUI
 struct CuteTabBar: View {
     @Binding var selectedTab: Int
     let tabs: [TabItem]
+    var onSameTabTapped: ((Int) -> Void)? = nil
 
     struct TabItem {
         let icon: String
@@ -58,6 +59,9 @@ struct CuteTabBar: View {
                 HStack(spacing: 0) {
                     ForEach(tabs.indices, id: \.self) { index in
                         Button(action: {
+                            if selectedTab == tabs[index].tag {
+                                onSameTabTapped?(tabs[index].tag)
+                            }
                             // Simple smooth spring animation
                             withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                                 selectedTab = tabs[index].tag

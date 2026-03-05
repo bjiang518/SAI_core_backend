@@ -56,6 +56,10 @@ struct EditProfileView: View {
     @State private var isUploadingAvatar = false
     @State private var imageToEdit: UIImage? = nil
 
+    // User-scoped UserDefaults keys so avatar data never leaks between accounts on the same device.
+    private var localAvatarFilenameKey: String { "localAvatarFilename_\(authService.currentUser?.id ?? "anonymous")" }
+    private var avatarSyncPendingKey:   String { "avatarSyncPending_\(authService.currentUser?.id ?? "anonymous")" }
+
     // Sheet presentation
     enum SheetType: Identifiable {
         case camera
@@ -767,7 +771,7 @@ struct EditProfileView: View {
             }
 
             // ✅ LOCAL-FIRST: Load custom avatar from local filename
-            if let localFilename = UserDefaults.standard.string(forKey: "localAvatarFilename") {
+            if let localFilename = UserDefaults.standard.string(forKey: localAvatarFilenameKey) {
                 if let localImage = loadAvatarLocally(from: localFilename) {
                     customAvatarImage = localImage
                     avatarLog("✅ [EditProfileView] Custom avatar loaded from LOCAL file")
@@ -815,7 +819,7 @@ struct EditProfileView: View {
             avatarLog("📸 [EditProfileView] Processing custom avatar...")
 
             // Delete old avatar file if it exists
-            if let oldFilename = UserDefaults.standard.string(forKey: "localAvatarFilename") {
+            if let oldFilename = UserDefaults.standard.string(forKey: localAvatarFilenameKey) {
                 deleteOldAvatarFile(oldFilename)
             }
 
@@ -829,7 +833,7 @@ struct EditProfileView: View {
             }
 
             // ✅ Store filename LOCALLY ONLY (not sent to backend)
-            UserDefaults.standard.set(filename, forKey: "localAvatarFilename")
+            UserDefaults.standard.set(filename, forKey: localAvatarFilenameKey)
             // ✅ Clear preset avatar ID since we're using custom
             UserDefaults.standard.removeObject(forKey: "selectedAvatarId")
             avatarLog("✅ [EditProfileView] Local avatar filename saved: \(filename ?? "nil")")
@@ -838,7 +842,7 @@ struct EditProfileView: View {
             avatarLog("🎨 [EditProfileView] Saving preset avatar ID: \(avatarId)")
             UserDefaults.standard.set(avatarId, forKey: "selectedAvatarId")
             // ✅ Clear custom avatar filename since we're using preset
-            UserDefaults.standard.removeObject(forKey: "localAvatarFilename")
+            UserDefaults.standard.removeObject(forKey: localAvatarFilenameKey)
             avatarLog("✅ [EditProfileView] Preset avatar ID saved locally")
         } else {
             avatarLog("ℹ️ [EditProfileView] No avatar selected")
@@ -1095,7 +1099,7 @@ struct EditProfileView: View {
         avatarLog("✅ [EditProfileView] Avatar saved locally with filename: \(filename)")
 
         // Mark sync as pending so ProfileService can retry on next launch if upload fails
-        UserDefaults.standard.set(true, forKey: "avatarSyncPending")
+        UserDefaults.standard.set(true, forKey: avatarSyncPendingKey)
 
         // STEP 2: Upload to server in background (for backup/sync)
         Task {
@@ -1116,7 +1120,7 @@ struct EditProfileView: View {
 
                 if result.success {
                     avatarLog("✅ [EditProfileView] Background server sync successful")
-                    UserDefaults.standard.set(false, forKey: "avatarSyncPending")
+                    UserDefaults.standard.set(false, forKey: avatarSyncPendingKey)
                 } else {
                     avatarLog("⚠️ [EditProfileView] Background server sync failed (local copy still available): \(result.message)")
                 }

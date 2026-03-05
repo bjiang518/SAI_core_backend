@@ -812,16 +812,21 @@ final class AuthenticationService: ObservableObject {
         keychainService.clearAll()
 
         // Clear cached user profile so the next account gets a fresh load.
-        Task { await ProfileService.shared.clearCachedProfile() }
+        // Capture the user ID NOW (before currentUser is nilled out in the async Task below)
+        // so clearCachedProfile can locate the right file without a race condition.
+        let logoutUserId = currentUser?.id
+        Task { await ProfileService.shared.clearCachedProfile(userId: logoutUserId) }
 
         // Evict the QuestionLocalStorage singleton for this user so the next account
         // starts with a fresh instance (and fresh in-memory cache).
         if let uid = currentUser?.id {
             QuestionLocalStorage.evictInstance(for: uid)
         }
-        // Clear avatar UserDefaults keys (global keys that would leak between accounts)
+        // Clear avatar UserDefaults keys (user-scoped to prevent cross-account leakage)
         UserDefaults.standard.removeObject(forKey: "selectedAvatarId")
-        UserDefaults.standard.removeObject(forKey: "localAvatarFilename")
+        let avatarUserId = currentUser?.id ?? "anonymous"
+        UserDefaults.standard.removeObject(forKey: "localAvatarFilename_\(avatarUserId)")
+        UserDefaults.standard.removeObject(forKey: "avatarSyncPending_\(avatarUserId)")
 
         // ✅ NEW: End session on sign out
         sessionManager.endSession()

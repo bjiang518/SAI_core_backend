@@ -1422,23 +1422,29 @@ Generate now:"""
 
         elif context_type == "mistake":
             mistakes_data = context_data.get("mistakes_data", [])
-            mistake_lines = []
-            for i, m in enumerate(mistakes_data[:3], 1):
-                q = m.get("original_question", m.get("question_text", ""))[:120]
-                ua = m.get("user_answer", m.get("student_answer", ""))[:60]
-                ca = m.get("correct_answer", "")[:60]
-                et = m.get("error_type", "")
-                bb = m.get("base_branch", "")
-                db = m.get("detailed_branch", "")
-                line = f"Mistake #{i}: {q}\n  Student: {ua} | Correct: {ca}"
-                if bb:
-                    line += f"\n  Topic: {bb}"
-                if db:
-                    line += f" > {db}"
-                if et:
-                    line += f"\n  Error type: {et}"
-                mistake_lines.append(line)
-            context_block = "Address these mistakes with targeted practice:\n" + "\n".join(mistake_lines)
+            if not mistakes_data:
+                context_block = (
+                    f"Generate targeted {subject} practice questions focusing on "
+                    f"commonly difficult concepts for a {grade} student."
+                )
+            else:
+                mistake_lines = []
+                for i, m in enumerate(mistakes_data[:3], 1):
+                    q = m.get("original_question", m.get("question_text", ""))[:120]
+                    ua = m.get("user_answer", m.get("student_answer", ""))[:60]
+                    ca = m.get("correct_answer", "")[:60]
+                    et = m.get("error_type", "")
+                    bb = m.get("base_branch", "")
+                    db = m.get("detailed_branch", "")
+                    line = f"Mistake #{i}: {q}\n  Student: {ua} | Correct: {ca}"
+                    if bb:
+                        line += f"\n  Topic: {bb}"
+                    if db:
+                        line += f" > {db}"
+                    if et:
+                        line += f"\n  Error type: {et}"
+                    mistake_lines.append(line)
+                context_block = "Address these mistakes with targeted practice:\n" + "\n".join(mistake_lines)
 
         elif context_type == "archive":
             conv_data = context_data.get("conversation_data", [])

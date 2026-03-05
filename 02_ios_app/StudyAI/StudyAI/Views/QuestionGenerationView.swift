@@ -82,9 +82,12 @@ struct QuestionGenerationView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 32) {
-                    // ✅ FIX 2: Resume Session Banner
-                    if sessionManager.hasIncompleteSessions,
-                       let latestSession = sessionManager.incompleteSessions.first {
+                    // ✅ FIX 2: Resume Session Banner — Random and Archive-based only.
+                    // Mistake-based sessions are resumed via MistakeReviewView's own banner.
+                    let nonMistakeSessions = sessionManager.incompleteSessions.filter {
+                        $0.generationType != "Mistake-Based Practice" && $0.generationType != "Mistake-Based"
+                    }
+                    if let latestSession = nonMistakeSessions.first {
                         ResumeSessionBanner(
                             session: latestSession,
                             onResume: {
@@ -1310,10 +1313,19 @@ struct ArchiveSelectionView: View {
     @State private var selectedTimeFilter: TimeFilter = .allTime
 
     enum TimeFilter: String, CaseIterable {
-        case thisWeek  = "This Week"
-        case thisMonth = "This Month"
-        case thisYear  = "This Year"
-        case allTime   = "All Time"
+        case thisWeek  = "thisWeek"
+        case thisMonth = "thisMonth"
+        case thisYear  = "thisYear"
+        case allTime   = "allTime"
+
+        var localizedName: String {
+            switch self {
+            case .thisWeek:  return NSLocalizedString("questionGeneration.timeFilter.thisWeek", comment: "")
+            case .thisMonth: return NSLocalizedString("questionGeneration.timeFilter.thisMonth", comment: "")
+            case .thisYear:  return NSLocalizedString("questionGeneration.timeFilter.thisYear", comment: "")
+            case .allTime:   return NSLocalizedString("questionGeneration.timeFilter.allTime", comment: "")
+            }
+        }
     }
 
     // All distinct subjects across both conversations and questions
@@ -1405,7 +1417,7 @@ struct ArchiveSelectionView: View {
                     .padding()
                 } else {
                     // Row 1: Content type segmented control
-                    Picker("Archive Type", selection: $selectedFilter) {
+                    Picker(NSLocalizedString("questionGeneration.filter.archiveType", comment: ""), selection: $selectedFilter) {
                         ForEach(ArchiveFilter.allCases, id: \.self) { filter in
                             Text(filter.localizedName).tag(filter)
                         }
@@ -1421,7 +1433,7 @@ struct ArchiveSelectionView: View {
                             ForEach(availableSubjects, id: \.self) { subject in
                                 Button(action: { selectedSubject = subject }) {
                                     HStack {
-                                        Text(subject)
+                                        Text(subject == "All" ? NSLocalizedString("questionGeneration.filter.all", value: "All", comment: "") : subject)
                                         if selectedSubject == subject {
                                             Image(systemName: "checkmark")
                                         }
@@ -1432,7 +1444,7 @@ struct ArchiveSelectionView: View {
                             HStack(spacing: 4) {
                                 Image(systemName: "book.closed")
                                     .font(.caption)
-                                Text(selectedSubject == "All" ? "Subject" : selectedSubject)
+                                Text(selectedSubject == "All" ? NSLocalizedString("questionGeneration.filter.subject", comment: "") : selectedSubject)
                                     .font(.subheadline)
                                     .lineLimit(1)
                                 Image(systemName: "chevron.down")
@@ -1450,7 +1462,7 @@ struct ArchiveSelectionView: View {
                             ForEach(TimeFilter.allCases, id: \.self) { tf in
                                 Button(action: { selectedTimeFilter = tf }) {
                                     HStack {
-                                        Text(tf.rawValue)
+                                        Text(tf.localizedName)
                                         if selectedTimeFilter == tf {
                                             Image(systemName: "checkmark")
                                         }
@@ -1461,7 +1473,7 @@ struct ArchiveSelectionView: View {
                             HStack(spacing: 4) {
                                 Image(systemName: "calendar")
                                     .font(.caption)
-                                Text(selectedTimeFilter.rawValue)
+                                Text(selectedTimeFilter.localizedName)
                                     .font(.subheadline)
                                 Image(systemName: "chevron.down")
                                     .font(.caption2)
@@ -1556,7 +1568,7 @@ struct ArchiveSelectionView: View {
                         // Empty state when filters yield no results
                         if filteredConversations.isEmpty && filteredQuestions.isEmpty {
                             Section {
-                                Text("No items match the selected filters.")
+                                Text(NSLocalizedString("questionGeneration.filter.noResults", comment: ""))
                                     .font(.subheadline)
                                     .foregroundColor(.secondary)
                                     .frame(maxWidth: .infinity, alignment: .center)
