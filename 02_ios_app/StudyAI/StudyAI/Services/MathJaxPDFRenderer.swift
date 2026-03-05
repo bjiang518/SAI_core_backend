@@ -28,6 +28,7 @@ final class MathJaxPDFRenderer: NSObject {
     private var continuation: CheckedContinuation<UIImage?, Never>?
     private var pendingWidth: CGFloat = 504
     private var timeoutTask: Task<Void, Never>?
+    private var pendingTempURL: URL?
 
     // MARK: - Public API
 
@@ -65,9 +66,23 @@ final class MathJaxPDFRenderer: NSObject {
         }
 
         let html = makeHTML(text: text, fontSize: fontSize * scale)
-        let baseURL = Bundle.main.resourceURL
-        log.info("  loadHTMLString() — baseURL=\(baseURL?.path ?? "nil") html.count=\(html.count)")
-        wv.loadHTMLString(html, baseURL: baseURL)
+
+        // Write HTML to a temp file and use loadFileURL so the WebContent process
+        // gets explicit read access to Bundle.main.bundleURL. This is required on
+        // physical devices where loadHTMLString(baseURL:) does NOT grant the sandboxed
+        // WebContent process access to app-bundle font files (woff2 / woff).
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString + ".html")
+        do {
+            try html.write(to: tempURL, atomically: true, encoding: .utf8)
+        } catch {
+            log.error("  Failed to write temp HTML file: \(error)")
+            cleanup()
+            return nil
+        }
+        pendingTempURL = tempURL
+        log.info("  loadFileURL() — tempURL=\(tempURL.path) allowingReadAccessTo=\(Bundle.main.bundleURL.path) html.count=\(html.count)")
+        wv.loadFileURL(tempURL, allowingReadAccessTo: Bundle.main.bundleURL)
 
         // Arm a 10-second timeout so the continuation always resumes
         let capturedLog = log
@@ -177,6 +192,11 @@ final class MathJaxPDFRenderer: NSObject {
                 ready() {
                     MathJax.startup.defaultReady();
                     MathJax.startup.promise.then(() => {
+                        // Wait for fonts to finish loading before signalling ready.
+                        // Without this, CHTML snapshots are taken before font metrics
+                        // are available, producing near-zero-height images on device.
+                        return document.fonts.ready;
+                    }).then(() => {
                         var h = document.body.scrollHeight;
                         window.webkit.messageHandlers.resize.postMessage(h);
                         window.webkit.messageHandlers.mathJaxReady.postMessage('ready');
@@ -252,6 +272,10 @@ final class MathJaxPDFRenderer: NSObject {
     private func cleanup() {
         webView?.removeFromSuperview()
         webView = nil
+        if let url = pendingTempURL {
+            try? FileManager.default.removeItem(at: url)
+            pendingTempURL = nil
+        }
         log.info("  cleanup() — webView removed from superview")
     }
 }

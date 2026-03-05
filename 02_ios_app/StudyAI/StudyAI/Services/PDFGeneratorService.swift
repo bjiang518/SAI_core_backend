@@ -181,7 +181,7 @@ class PDFGeneratorService: ObservableObject {
         }
     }
 
-    /// Path 5 — Library questions (QuestionSummary array, text-only)
+    /// Path 5 — Library questions (QuestionSummary array)
     func generateLibraryPDF(
         questions: [QuestionSummary],
         subject: String,
@@ -193,6 +193,26 @@ class PDFGeneratorService: ObservableObject {
         defer { isGenerating = false; generationProgress = 0.0 }
 
         let renderWidth = contentWidth - 20
+        let log = AppLogger.forFeature("PDFGen")
+
+        // Phase 1 (0–60%): Pre-render questions containing LaTeX using MathJax.
+        // buildVectorPDF's body is synchronous so all async work must happen here.
+        var renderedContent: [Int: UIImage] = [:]
+        for (index, question) in questions.enumerated() {
+            let content = buildQuestionContent(question: question, number: index + 1)
+            if containsLaTeX(content) {
+                log.info("  [LibraryQ \(index+1)] LaTeX detected — rendering with MathJax")
+                if let img = await MathJaxPDFRenderer.shared.render(content, width: renderWidth, fontSize: options.questionFontSize) {
+                    renderedContent[index] = img
+                    log.info("  [LibraryQ \(index+1)] MathJax render ✓ size=\(img.size)")
+                } else {
+                    log.warning("  [LibraryQ \(index+1)] MathJax render failed — will fall back to plain text")
+                }
+            }
+            generationProgress = Double(index + 1) / Double(questions.count) * 0.6
+        }
+
+        // Phase 2 (60–100%): Build the vector PDF.
         return buildVectorPDF(options: options, totalItems: questions.count) { ctx, pageRect, addPage in
             var y: CGFloat = margin
             y = drawPageHeader(
@@ -204,7 +224,6 @@ class PDFGeneratorService: ObservableObject {
             y += options.questionGap
 
             for (index, question) in questions.enumerated() {
-                let log = AppLogger.forFeature("PDFGen")
                 log.info("  [LibraryQ \(index+1)] questionImageUrl='\(question.questionImageUrl ?? "nil")' proMode=\(question.proMode ?? false) hasVisualElements=\(question.hasVisualElements)")
                 let qImage: UIImage? = question.questionImageUrl.flatMap {
                     guard !$0.isEmpty else { return nil }
@@ -212,17 +231,26 @@ class PDFGeneratorService: ObservableObject {
                     log.info("  [LibraryQ \(index+1)] loadImage(from:'\($0)') → \(img != nil ? "✓ \(img!.size)" : "nil")")
                     return img
                 }
+                let rendered = renderedContent[index]
+
+                // Height estimation for page-break check
                 let qImgH: CGFloat = qImage.map { scaledImageHeight($0, maxWidth: renderWidth, maxHeight: options.maxImageSize) + 10 } ?? 0
-                let textH = multilineHeight(plainText(question.questionText), width: renderWidth, fontSize: options.questionFontSize)
-                let optH = question.options.map { CGFloat($0.count) * (options.questionFontSize + 11) + 8 } ?? 0
-                let blockH = options.labelFontSize + 8 + qImgH + textH + 10 + optH
+                let contentH: CGFloat
+                if let r = rendered {
+                    contentH = scaledImageHeight(r, maxWidth: renderWidth, maxHeight: 4000)
+                } else {
+                    let textH = multilineHeight(plainText(question.questionText), width: renderWidth, fontSize: options.questionFontSize)
+                    let optH = question.options.map { CGFloat($0.count) * (options.questionFontSize + 11) + 8 } ?? 0
+                    contentH = textH + 10 + optH
+                }
+                let blockH = contentH + qImgH
 
                 if y + blockH > pageSize.height - margin { addPage(); y = margin }
 
                 y = drawLibraryQuestion(ctx: ctx, pageRect: pageRect, question: question,
-                    qImage: qImage, number: index + 1, startY: y, options: options)
+                    qImage: qImage, renderedContent: rendered, number: index + 1, startY: y, options: options)
                 y += options.questionGap
-                generationProgress = Double(index + 1) / Double(questions.count)
+                generationProgress = 0.6 + Double(index + 1) / Double(questions.count) * 0.4
             }
         }
     }
@@ -235,6 +263,7 @@ class PDFGeneratorService: ObservableObject {
         pageRect: CGRect,
         question: QuestionSummary,
         qImage: UIImage?,
+        renderedContent: UIImage?,
         number: Int,
         startY: CGFloat,
         options: PDFExportOptions
@@ -242,12 +271,27 @@ class PDFGeneratorService: ObservableObject {
         var y = startY
         withUIKitContext(ctx: ctx, pageRect: pageRect) {
             let w = contentWidth
-            let bodyFont  = UIFont.systemFont(ofSize: options.questionFontSize, weight: .regular)
 
-            // Index + question body on one line: "1. Question text…"
-            y += drawMultiline("\(number). \(plainText(question.questionText))", font: bodyFont, x: margin, y: y, width: w) + 6
+            if let img = renderedContent {
+                // MathJax-rendered image: contains question number + text + MCQ options
+                let sz = scaledImageSize(img, maxWidth: w, maxHeight: 4000)
+                img.draw(in: CGRect(x: margin, y: y, width: sz.width, height: sz.height))
+                y += sz.height + 6
+            } else {
+                // Plain text fallback
+                let bodyFont = UIFont.systemFont(ofSize: options.questionFontSize, weight: .regular)
+                y += drawMultiline("\(number). \(plainText(question.questionText))", font: bodyFont, x: margin, y: y, width: w) + 6
 
-            // Question image (Pro Mode cropped image) — below the text
+                if let opts = question.options, !opts.isEmpty {
+                    for (i, opt) in opts.enumerated() {
+                        let label = "\(String(UnicodeScalar(65 + i)!))) \(plainText(opt))"
+                        y += drawMultiline(label, font: bodyFont, x: margin + 30, y: y, width: w - 30) + 5
+                    }
+                    y += 6
+                }
+            }
+
+            // Pro Mode cropped image — always drawn below the question content
             if let img = qImage {
                 let sz = scaledImageSize(img, maxWidth: w - 20, maxHeight: options.maxImageSize)
                 img.draw(in: CGRect(x: margin + 20, y: y, width: sz.width, height: sz.height))
@@ -255,17 +299,33 @@ class PDFGeneratorService: ObservableObject {
             } else {
                 y += 4
             }
-
-            // MCQ options
-            if let opts = question.options, !opts.isEmpty {
-                for (i, opt) in opts.enumerated() {
-                    let label = "\(String(UnicodeScalar(65 + i)!))) \(plainText(opt))"
-                    y += drawMultiline(label, font: bodyFont, x: margin + 30, y: y, width: w - 30) + 5
-                }
-                y += 6
-            }
         }
         return y
+    }
+
+    // MARK: - LaTeX Helpers
+
+    /// Returns true if `text` contains LaTeX math delimiters or common commands.
+    private func containsLaTeX(_ text: String) -> Bool {
+        if text.contains("\\(") || text.contains("\\[") || text.contains("$$") { return true }
+        let commands = ["\\frac", "\\sqrt", "\\sum", "\\int", "\\alpha", "\\beta",
+                        "\\theta", "\\pi", "\\times", "\\div", "\\cdot", "\\vec",
+                        "\\hat", "\\bar", "\\infty", "\\leq", "\\geq", "\\neq"]
+        if commands.contains(where: { text.contains($0) }) { return true }
+        // Two or more $ signs likely mean inline math delimiters
+        return text.filter({ $0 == "$" }).count >= 2
+    }
+
+    /// Builds a single plain-text content string (number + question text + options)
+    /// suitable for passing to MathJaxPDFRenderer. LaTeX delimiters are preserved.
+    private func buildQuestionContent(question: QuestionSummary, number: Int) -> String {
+        var lines = ["\(number). \(question.questionText)"]
+        if let opts = question.options, !opts.isEmpty {
+            for (i, opt) in opts.enumerated() {
+                lines.append("    \(String(UnicodeScalar(65 + i)!))) \(opt)")
+            }
+        }
+        return lines.joined(separator: "\n")
     }
 
 

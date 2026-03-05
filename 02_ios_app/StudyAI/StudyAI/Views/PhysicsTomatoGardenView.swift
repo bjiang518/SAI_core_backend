@@ -80,7 +80,7 @@ struct PhysicsTomatoGardenView: View {
 
             StatBubble(
                 icon: "🔥",
-                value: "\(gardenService.getTomatoesSortedByDate().count)",
+                value: "\(gardenService.getTodayTomatoes().count)",
                 label: NSLocalizedString("tomato.garden.todayNew", comment: ""),
                 themeManager: themeManager
             )

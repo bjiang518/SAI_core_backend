@@ -154,8 +154,7 @@ class TTSQueueService: ObservableObject {
                     // ✅ Release lock after chunk starts (500ms delay allows audio to start)
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                         self.isProcessingNextChunk = false
-                        print("🎵 [TTSQueue] Re-entrance guard released")
-                    }
+                }
                 }
             }
             .store(in: &cancellables)
@@ -169,7 +168,6 @@ class TTSQueueService: ObservableObject {
 
                 // When processing finishes (audio starts playing), reset watchdog
                 if !isProcessing && self.isPlayingTTS {
-                    print("🐕 [TTSQueue] Audio started playing - RESETTING watchdog")
                     self.resetWatchdog()
                 }
             }
@@ -453,8 +451,6 @@ class TTSQueueService: ObservableObject {
             prefetchingMessageIds.insert(item.messageId)
 
             let textPreview = item.text.prefix(50).replacingOccurrences(of: "\n", with: " ")
-            print("🔮 [Prefetch] Starting prefetch for chunk (offset +\(offset))")
-            print("   └─ Preview: \"\(textPreview)...\" (\(item.text.count) chars)")
 
             // Trigger async prefetch (doesn't block)
             Task { @MainActor in
@@ -467,8 +463,7 @@ class TTSQueueService: ObservableObject {
 
                     let timestamp = Date()
                     let timeStr = DateFormatter.localizedString(from: timestamp, dateStyle: .none, timeStyle: .medium)
-                    print("✅ [Prefetch] [\(timeStr)] Chunk cached successfully")
-                    print("   └─ Text: \"\(textPreview)...\"")
+                    _ = timeStr
 
                     // Remove from prefetching set
                     self.prefetchingMessageIds.remove(item.messageId)
@@ -515,11 +510,6 @@ class TTSQueueService: ObservableObject {
     /// Reset watchdog timer (called when progress is made)
     private func resetWatchdog() {
         if watchdogTimer != nil {
-            let timestamp = Date()
-            let timeStr = DateFormatter.localizedString(from: timestamp, dateStyle: .none, timeStyle: .medium)
-            print("🐕 [TTSQueue] [\(timeStr)] Watchdog RESET - progress detected")
-            print("   └─ Queue size: \(effectiveQueueSize)")
-            print("   └─ isProcessingTTS: \(voiceService.isProcessingTTS)")
             startWatchdog()
         }
     }

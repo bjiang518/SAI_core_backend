@@ -246,8 +246,6 @@ class EnhancedTTSService: NSObject, ObservableObject {
 
         if pendingCount > 0 {
             print("🛑 [Stop] [\(timeStr)] Stopped playback - CLEARED \(pendingCount) pending chunks")
-        } else {
-            print("🛑 [Stop] [\(timeStr)] Stopped playback - no pending chunks")
         }
 
         // Reset chunk tracking
@@ -309,9 +307,6 @@ class EnhancedTTSService: NSObject, ObservableObject {
 
         // Check disk cache
         if let diskData = loadFromDiskCache(cacheKey: cacheKey) {
-            let textPreview = request.text.prefix(50).replacingOccurrences(of: "\n", with: " ")
-            print("📦 [Chunk #\(thisChunkNumber)] [\(timeStr)] Retrieved from DISK cache")
-            print("   └─ Text: \"\(textPreview)...\"")
             // Store in memory cache for faster access next time
             audioCache.setObject(diskData as NSData, forKey: cacheKey as NSString)
             // ✅ Phase 3.6: Keep processing=true during playback setup
@@ -490,11 +485,6 @@ class EnhancedTTSService: NSObject, ObservableObject {
             self.isCurrentlyPlayingAudio = true
             self.currentChunkNumber = chunkNumber
 
-            let timestamp = Date()
-            let timeStr = DateFormatter.localizedString(from: timestamp, dateStyle: .none, timeStyle: .medium)
-            print("🎬 [Chunk #\(chunkNumber)] [\(timeStr)] Setting up audio playback...")
-            print("   └─ Pending queue size: \(self.pendingAudioQueue.count) chunks")
-
             // ✅ Phase 3.7 (2026-02-18): FORCE audio session to playback mode
             // InteractiveTTS changes it to .record, breaking playback
             do {
@@ -503,10 +493,6 @@ class EnhancedTTSService: NSObject, ObservableObject {
                 // Force playback category every time (InteractiveTTS changes it to .record)
                 try audioSession.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
                 try audioSession.setActive(true)
-
-                print("🎵 [EnhancedTTS] Audio session FORCED to playback mode")
-                print("   └─ Category: \(audioSession.category)")
-                print("   └─ Active: \(audioSession.isOtherAudioPlaying)")
             } catch {
                 print("⚠️ [EnhancedTTS] Failed to configure audio session: \(error)")
                 print("   └─ This will likely cause playback to fail")
@@ -518,22 +504,13 @@ class EnhancedTTSService: NSObject, ObservableObject {
                 self.audioPlayer?.delegate = self
                 self.audioPlayer?.volume = request.voiceSettings.volume
 
-                print("🎵 [EnhancedTTS] AVAudioPlayer initialized, delegate set to self")
-                print("🎵 [EnhancedTTS] Audio duration: \(self.audioPlayer?.duration ?? 0)s")
-
                 // ✅ Phase 3.7 (2026-02-18): CRITICAL FIX - Check if playback actually starts
                 // AVAudioPlayer.play() returns Bool - false means playback failed to start
                 let didStart = self.audioPlayer?.play() ?? false
 
                 if didStart {
                     let startTime = Date()
-                    let timeStr = DateFormatter.localizedString(from: startTime, dateStyle: .none, timeStyle: .medium)
                     self.chunkStartTime = startTime
-
-                    let duration = self.audioPlayer?.duration ?? 0
-                    print("▶️ [Chunk #\(chunkNumber)] [\(timeStr)] PLAYBACK STARTED")
-                    print("   └─ Duration: \(String(format: "%.1f", duration))s")
-                    print("   └─ Delegate: \(self.audioPlayer?.delegate != nil ? "SET ✅" : "NIL ❌")")
 
                     self.isSpeaking = true
                     // ✅ Phase 3.6 (2026-02-16): Clear processing flag when audio actually starts

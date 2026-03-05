@@ -286,7 +286,7 @@ class SessionManagementRoutes {
 
       // Fetch user profile for personalization (learning style, name, grade)
       const { db: dbForProfile } = require('../../../../utils/railway-database');
-      const userProfile = await dbForProfile.getUserProfileById(authenticatedUserId).catch(() => null);
+      const userProfile = await dbForProfile.getEnhancedUserProfile(authenticatedUserId).catch(() => null);
       const learningStyle = userProfile?.learning_style || 'heuristic';
       const studentName = userProfile?.display_name || userProfile?.first_name || null;
       const gradeLevel = userProfile?.grade_level ?? null;
@@ -446,7 +446,7 @@ class SessionManagementRoutes {
 
       // Fetch user profile for personalization (learning style, name, grade)
       const { db: dbForProfile } = require('../../../../utils/railway-database');
-      const userProfile = await dbForProfile.getUserProfileById(authenticatedUserId).catch(() => null);
+      const userProfile = await dbForProfile.getEnhancedUserProfile(authenticatedUserId).catch(() => null);
       const learningStyle = userProfile?.learning_style || 'heuristic';
       const studentName = userProfile?.display_name || userProfile?.first_name || null;
       const gradeLevel = userProfile?.grade_level ?? null;

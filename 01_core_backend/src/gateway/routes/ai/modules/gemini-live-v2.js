@@ -39,6 +39,7 @@ module.exports = async function (fastify, opts) {
         const messageQueue = []; // Queue messages until Gemini is ready
         let pendingStartSession = null; // Store start_session until Gemini WS is open
         let currentSubject = null; // Set on start_session; used to give image context
+        let studentName = null;   // Set on start_session; used for personalised greeting
 
         // Accumulators for the current turn — reset on turn_complete / interrupted
         let currentUserTranscript = '';   // built from inputTranscription chunks
@@ -287,6 +288,10 @@ module.exports = async function (fastify, opts) {
 
                 currentSubject = subject || null;
 
+                // Fetch student name for personalised greeting
+                const userProfile = await db.getEnhancedUserProfile(userId).catch(() => null);
+                studentName = userProfile?.display_name || userProfile?.first_name || null;
+
                 // Map iOS character to Gemini prebuilt voice name
                 const geminiVoiceMap = {
                     adam: 'Schedar',
@@ -393,14 +398,16 @@ module.exports = async function (fastify, opts) {
              * stores it in session history and can reference it in all subsequent turns.
              */
             function handleImageChunk(data) {
-                const { imageBase64, mimeType = 'image/jpeg' } = data;
+                const { imageBase64, mimeType = 'image/jpeg', prompt } = data;
 
                 if (!imageBase64) return;
 
                 if (!geminiSocket || geminiSocket.readyState !== WebSocket.OPEN) return;
 
                 const subjectHint = currentSubject ? `This is a ${currentSubject} problem.` : '';
-                const instruction = `${subjectHint} Please look at this image carefully and help me with it. I may ask follow-up questions by voice.`.trim();
+                const userPrompt = (prompt && prompt.trim()) ? prompt.trim() : '';
+                const fallback = 'Please look at this image carefully and help me with it. I may ask follow-up questions by voice.';
+                const instruction = [subjectHint, userPrompt || fallback].filter(Boolean).join(' ');
 
                 // text part BEFORE inlineData (BidiGenerateContentClientContent spec order)
                 const clientContent = {
@@ -881,7 +888,7 @@ ${lines.join('\n')}
 
                     geminiSocket.send(JSON.stringify({
                         clientContent: {
-                            turns: [{ role: 'user', parts: [{ text: 'For the next turn, you need to say "I\'m ready now" + short greeting.' }] }],
+                            turns: [{ role: 'user', parts: [{ text: `For the next turn, greet the student. Start with "Hi${studentName ? ' ' + studentName : ''}" then add a short, warm greeting.` }] }],
                             turnComplete: true
                         }
                     }));
