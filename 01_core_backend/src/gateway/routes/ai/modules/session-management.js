@@ -11,7 +11,7 @@ const AIServiceClient = require('../../../services/ai-client');
 const AuthHelper = require('../utils/auth-helper');
 const SessionHelper = require('../utils/session-helper');
 const BehaviorAnalyzer = require('../utils/behavior-analyzer');
-const { TUTORING_SYSTEM_PROMPT, MATH_FORMATTING_SYSTEM_PROMPT } = require('../utils/prompts');
+const { MATH_FORMATTING_SYSTEM_PROMPT, buildSystemPrompt } = require('../utils/prompts');
 const PIIMasking = require('../../../../utils/pii-masking');
 const aiEngineCircuitBreaker = require('../../../../utils/ai-engine-client');
 const { v4: uuidv4 } = require('uuid');
@@ -283,7 +283,15 @@ class SessionManagementRoutes {
       // Build system prompt (AI Engine owns conversation history and context)
       const subject = (sessionInfo.subject || '').toLowerCase();
       const isMathSubject = ['mathematics', 'math', 'physics', 'chemistry'].includes(subject);
-      let systemPrompt = TUTORING_SYSTEM_PROMPT;
+
+      // Fetch user profile for personalization (learning style, name, grade)
+      const { db: dbForProfile } = require('../../../../utils/railway-database');
+      const userProfile = await dbForProfile.getUserProfileById(authenticatedUserId).catch(() => null);
+      const learningStyle = userProfile?.learning_style || 'heuristic';
+      const studentName = userProfile?.display_name || userProfile?.first_name || null;
+      const gradeLevel = userProfile?.grade_level ?? null;
+
+      let systemPrompt = buildSystemPrompt({ style: learningStyle, studentName, gradeLevel });
       if (isMathSubject) {
         systemPrompt += '\n' + MATH_FORMATTING_SYSTEM_PROMPT;
       }
@@ -435,7 +443,15 @@ class SessionManagementRoutes {
       // Build system prompt
       const subject = (sessionInfo.subject || '').toLowerCase();
       const isMathSubject = ['mathematics', 'math', 'physics', 'chemistry'].includes(subject);
-      let systemPrompt = TUTORING_SYSTEM_PROMPT;
+
+      // Fetch user profile for personalization (learning style, name, grade)
+      const { db: dbForProfile } = require('../../../../utils/railway-database');
+      const userProfile = await dbForProfile.getUserProfileById(authenticatedUserId).catch(() => null);
+      const learningStyle = userProfile?.learning_style || 'heuristic';
+      const studentName = userProfile?.display_name || userProfile?.first_name || null;
+      const gradeLevel = userProfile?.grade_level ?? null;
+
+      let systemPrompt = buildSystemPrompt({ style: learningStyle, studentName, gradeLevel });
       if (isMathSubject) {
         systemPrompt += '\n' + MATH_FORMATTING_SYSTEM_PROMPT;
       }

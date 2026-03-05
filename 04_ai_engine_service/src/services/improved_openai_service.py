@@ -101,7 +101,7 @@ class OptimizedEducationalAIService:
             self.client = openai.AsyncOpenAI(
                 api_key=api_key,
                 max_retries=3,
-                timeout=120.0  # 2 minutes for complex homework parsing (was 60s)
+                timeout=180.0
             )
             logger.debug(f"✅ OpenAI AsyncClient initialized with 120s timeout: {type(self.client)}")
         except Exception as e:
@@ -1879,7 +1879,7 @@ class EducationalAIService:
         self.client = openai.AsyncOpenAI(
             api_key=os.getenv('OPENAI_API_KEY'),
             max_retries=3,
-            timeout=120.0  # Match timeout with OptimizedEducationalAIService
+            timeout=180.0
         )
         self.prompt_service = AdvancedPromptService()
         self.model = "gpt-4o-mini"

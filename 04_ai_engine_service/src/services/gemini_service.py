@@ -7,9 +7,11 @@ Alternative to OpenAI for homework parsing and grading.
 """
 
 import os
+import re
 import json
 import base64
 import time
+import asyncio
 from typing import Dict, List, Optional, Any
 from dotenv import load_dotenv
 
@@ -80,7 +82,7 @@ class GeminiEducationalAIService:
                 # - gemini-2.5-flash: Fast parsing AND standard grading (optimized for speed)
                 # - gemini-3-flash-preview: Gemini 3 Flash with advanced reasoning capabilities
                 self.model_name = "gemini-3-flash-preview"  # UPGRADED: 2.5 → 3 flash for better parsing
-                self.thinking_model_name = "gemini-3-flash-preview"  # Gemini 3 Flash for deep reasoning
+                self.thinking_model_name = "gemini-3.1-pro-preview"  # Gemini 3.1 Pro Preview for deep reasoning grading
                 self.grading_model_name = "gemini-2.5-flash"  # Fast grading (1.5-3s per question)
 
                 # Set client references (for compatibility)
@@ -90,7 +92,7 @@ class GeminiEducationalAIService:
 
                 logger.debug(f"✅ Gemini parsing model: {self.model_name} (Flash 2.5 - Fast parsing)")
                 logger.debug(f"✅ Gemini grading model: {self.grading_model_name} (Flash 2.5 - Fast grading)")
-                logger.debug(f"✅ Gemini thinking model: {self.thinking_model_name} (Gemini 3 Flash - Advanced Reasoning)")
+                logger.debug(f"✅ Gemini thinking model: {self.thinking_model_name} (Gemini 3.1 Pro - Deep Reasoning Grading)")
                 logger.debug(f"📊 Gemini 3 optimized: Default temperature 1.0, extended tokens")
             else:
                 logger.debug("❌ NEW Gemini API not available. Please upgrade google-generativeai package:")
@@ -198,7 +200,7 @@ class GeminiEducationalAIService:
                 total_chunks = 0
                 async for chunk in await self.client.aio.models.generate_content_stream(
                     model=self.model_name,
-                    contents=[image_part, system_prompt],
+                    contents=[image_part, genai_types.Part.from_text(text=system_prompt)],
                     config=ttft_config
                 ):
                     if ttft_ms is None:
@@ -217,7 +219,7 @@ class GeminiEducationalAIService:
             # Call Gemini API (async)
             response = await self.client.aio.models.generate_content(
                 model=self.model_name,
-                contents=[image_part, system_prompt],  # Image FIRST, then prompt
+                contents=[image_part, genai_types.Part.from_text(text=system_prompt)],  # Image FIRST, then prompt
                 config=generation_config
             )
 
@@ -294,7 +296,7 @@ class GeminiEducationalAIService:
            - Best for: Most homework questions (95% of cases)
 
         2. Deep Reasoning (use_deep_reasoning=True):
-           - Model: gemini-3-flash-preview (Gemini 3 Flash, 3-6s per question)
+           - Model: gemini-3.1-pro (Gemini 3.1 Pro, 3-8s per question)
            - Configuration: Default temperature (1.0 recommended by Gemini 3)
            - max_output_tokens=4096: Extended reasoning explanation (50-100 words)
            - timeout=100s: Extended timeout for complex analysis
@@ -321,8 +323,8 @@ class GeminiEducationalAIService:
         if not self.client:
             raise Exception("Gemini client not initialized. Check GEMINI_API_KEY in environment.")
 
-        model_name = self.thinking_model_name  # gemini-3-flash-preview
-        mode_label = "DEEP REASONING (GEMINI 3 FLASH)"
+        model_name = self.thinking_model_name  # gemini-3.1-pro-preview
+        mode_label = "DEEP REASONING (GEMINI 3.1 PRO PREVIEW)"
 
         logger.debug(f"📝 === GRADING WITH GEMINI ({mode_label}) ===")
         logger.debug(f"🤖 Model: {model_name}")
@@ -369,7 +371,7 @@ class GeminiEducationalAIService:
             start_time = time.time()
 
             # Prepare content (text only or text + image)
-            content = [grading_prompt]
+            content = [genai_types.Part.from_text(text=grading_prompt)]
 
             if context_image:
                 image_bytes = base64.b64decode(context_image)
@@ -383,26 +385,32 @@ class GeminiEducationalAIService:
                 response_mime_type="application/json"
                 # No temperature — Gemini thinking mode requires default 1.0
             )
-            timeout = 100  # Extended timeout for deep reasoning
+            timeout = 180  # Extended timeout for deep reasoning
 
             # Call Gemini API (async)
             response = None
             fallback_attempted = False
 
             try:
-                response = await self.client.aio.models.generate_content(
-                    model=model_name,
-                    contents=content,
-                    config=generation_config
+                response = await asyncio.wait_for(
+                    self.client.aio.models.generate_content(
+                        model=model_name,
+                        contents=content,
+                        config=generation_config
+                    ),
+                    timeout=timeout
                 )
             except Exception as e:
                 if "503" in str(e) or "UNAVAILABLE" in str(e) or "overloaded" in str(e):
                     logger.debug(f"⚠️ Model {model_name} unavailable (503), falling back to gemini-2.5-flash...")
                     fallback_attempted = True
-                    response = await self.client.aio.models.generate_content(
-                        model="gemini-2.5-flash",
-                        contents=content,
-                        config=generation_config
+                    response = await asyncio.wait_for(
+                        self.client.aio.models.generate_content(
+                            model="gemini-2.5-flash",
+                            contents=content,
+                            config=generation_config
+                        ),
+                        timeout=timeout
                     )
                     logger.debug(f"✅ Fallback to gemini-2.5-flash successful")
                 else:
@@ -515,6 +523,160 @@ class GeminiEducationalAIService:
                 "success": False,
                 "error": f"Gemini grading failed: {str(e)}"
             }
+
+    async def generate_questions_unified(
+        self,
+        subject: str,
+        question_type: str,
+        count: int,
+        context_type: str,
+        context_data: Dict,
+        language: str = "en"
+    ) -> Dict[str, Any]:
+        """
+        Generate practice questions using gemini-3-flash-preview.
+
+        Mirrors EducationalAIService.generate_questions_unified but uses the
+        Gemini API instead of OpenAI, giving significantly better question quality.
+        """
+        try:
+            if not self.client:
+                raise RuntimeError("Gemini client not initialized — check GEMINI_API_KEY")
+
+            # Lazy import to avoid circular dependency
+            from .prompt_service import AdvancedPromptService
+            _prompt_svc = AdvancedPromptService()
+
+            system_prompt = _prompt_svc.get_unified_questions_prompt(
+                subject=subject,
+                question_type=question_type,
+                count=count,
+                context_type=context_type,
+                context_data=context_data,
+                language=language
+            )
+            user_msg = (
+                f"Generate {count} {question_type} questions for {subject}. "
+                "Return ONLY a JSON object with a 'questions' array."
+            )
+
+            config = genai_types.GenerateContentConfig(
+                temperature=1.0,
+                max_output_tokens=4096,
+                response_mime_type="application/json",
+            )
+
+            response = await self.client.aio.models.generate_content(
+                model=self.model_name,  # gemini-3-flash-preview
+                contents=[
+                    genai_types.Content(
+                        role="user",
+                        parts=[genai_types.Part.from_text(text=system_prompt + "\n\n" + user_msg)]
+                    )
+                ],
+                config=config,
+            )
+
+            raw_text = self._extract_response_text(response)
+            raw_text = self._repair_latex_json(raw_text)
+
+            # Parse JSON — response_mime_type="application/json" means this is usually clean
+            try:
+                parsed = json.loads(raw_text)
+            except json.JSONDecodeError:
+                m = re.search(r'\{.*\}', raw_text, re.DOTALL)
+                if not m:
+                    raise ValueError(f"No JSON in Gemini response: {raw_text[:300]}")
+                parsed = json.loads(m.group())
+
+            questions_json = parsed.get("questions", parsed) if isinstance(parsed, dict) else parsed
+            if not isinstance(questions_json, list) or not questions_json:
+                raise ValueError("No valid questions array in Gemini response")
+
+            # Normalise field names
+            for q in questions_json:
+                if "type" in q and "question_type" not in q:
+                    q["question_type"] = q["type"]
+                if "options" in q and "multiple_choice_options" not in q:
+                    q["multiple_choice_options"] = q["options"]
+                if not q.get("explanation"):
+                    q["explanation"] = q.get("reasoning") or q.get("solution") or ""
+                q["question_type"] = question_type
+                q.pop("hints", None)  # hints field removed
+
+            # Drop MC questions missing options
+            if question_type == "multiple_choice":
+                questions_json = [q for q in questions_json if q.get("multiple_choice_options")]
+                if not questions_json:
+                    raise ValueError("MC questions generated but none had options")
+
+            # Inject error-analysis keys for mistake-based context
+            if context_type == "mistake":
+                mistakes_data = context_data.get("mistakes_data", [])
+                error_types   = [m.get("error_type")       for m in mistakes_data if m.get("error_type")]
+                base_branches = [m.get("base_branch")      for m in mistakes_data if m.get("base_branch")]
+                detailed      = [m.get("detailed_branch")  for m in mistakes_data if m.get("detailed_branch")]
+                most_err  = max(set(error_types),   key=error_types.count)   if error_types   else None
+                most_base = max(set(base_branches), key=base_branches.count) if base_branches else None
+                most_det  = max(set(detailed),      key=detailed.count)      if detailed      else None
+                wk = f"{most_base}|{most_det}" if (most_base and most_det) else None
+                for q in questions_json:
+                    if not q.get("error_type")      and most_err:  q["error_type"]      = most_err
+                    if not q.get("base_branch")     and most_base: q["base_branch"]     = most_base
+                    if not q.get("detailed_branch") and most_det:  q["detailed_branch"] = most_det
+                    if not q.get("weakness_key")    and wk:        q["weakness_key"]    = wk
+
+            tokens_used = 0
+            if hasattr(response, 'usage_metadata') and response.usage_metadata:
+                tokens_used = getattr(response.usage_metadata, 'total_token_count', 0)
+
+            logger.debug(f"✅ Gemini question gen: {len(questions_json)} {question_type} for {subject}")
+            return {
+                "success": True,
+                "questions": questions_json,
+                "generation_type": f"unified_{question_type}",
+                "subject": subject,
+                "tokens_used": tokens_used,
+                "question_count": len(questions_json),
+            }
+
+        except Exception as e:
+            logger.debug(f"❌ Gemini question generation error: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return {
+                "success": False,
+                "error": f"Gemini question generation failed: {str(e)}",
+                "generation_type": f"unified_{question_type}",
+                "subject": subject,
+            }
+
+    @staticmethod
+    def _repair_latex_json(raw: str) -> str:
+        """
+        Fix single-backslash LaTeX commands in AI-generated JSON before parsing.
+
+        In JSON, \\f = form feed, \\t = tab, \\n = newline, etc.
+        When the AI writes \\frac it becomes [form-feed]rac after json.loads.
+        This repairs by doubling backslashes before known LaTeX command names.
+        Safe: the negative lookbehind (?<!\\\\) skips already-doubled sequences.
+        """
+        return re.sub(
+            r'(?<!\\)\\(frac|sqrt|text|times|cdot|left|right|leq|geq|neq|approx|pm|mp|'
+            r'alpha|beta|gamma|delta|epsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|'
+            r'pi|rho|sigma|tau|upsilon|phi|chi|psi|omega|'
+            r'Gamma|Delta|Theta|Lambda|Xi|Pi|Sigma|Upsilon|Phi|Psi|Omega|'
+            r'sin|cos|tan|cot|sec|csc|arcsin|arccos|arctan|log|ln|exp|lim|'
+            r'sum|prod|int|oint|partial|nabla|infty|forall|exists|'
+            r'vec|hat|bar|tilde|dot|ddot|widehat|widetilde|overline|underline|'
+            r'mathbb|mathrm|mathbf|mathit|mathcal|'
+            r'begin|end|binom|choose|quad|qquad|ldots|cdots|vdots|ddots|'
+            r'rightarrow|leftarrow|Rightarrow|Leftarrow|leftrightarrow|'
+            r'cup|cap|subset|supset|in|notin|'
+            r'over|under|limits|nolimits)',
+            r'\\\\\\1',
+            raw
+        )
 
     def _extract_response_text(self, response) -> str:
         """

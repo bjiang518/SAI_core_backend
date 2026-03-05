@@ -800,16 +800,25 @@ final class AuthenticationService: ObservableObject {
     // MARK: - Sign Out
 
     func signOut() {
-        // Clear parent password from Keychain before currentUser is nil
+        // Clear per-user data BEFORE currentUser is nilled out
         if let uid = currentUser?.id {
-            try? keychainService.delete(for: "parent_password_\(uid)")
+            UserDefaults.standard.removeObject(forKey: "faceIDEnabled_\(uid)")
+            UserDefaults.standard.removeObject(forKey: "voice_settings_\(uid)")
+        }
+        if let email = currentUser?.email, !email.isEmpty {
+            UserDefaults.standard.removeObject(forKey: "onboardingCompleted_\(email)")
         }
 
         keychainService.clearAll()
 
-        // Clear cached user profile so the next account gets a fresh load
-        ProfileService.shared.clearCachedProfile()
+        // Clear cached user profile so the next account gets a fresh load.
+        Task { await ProfileService.shared.clearCachedProfile() }
 
+        // Evict the QuestionLocalStorage singleton for this user so the next account
+        // starts with a fresh instance (and fresh in-memory cache).
+        if let uid = currentUser?.id {
+            QuestionLocalStorage.evictInstance(for: uid)
+        }
         // Clear avatar UserDefaults keys (global keys that would leak between accounts)
         UserDefaults.standard.removeObject(forKey: "selectedAvatarId")
         UserDefaults.standard.removeObject(forKey: "localAvatarFilename")
@@ -827,6 +836,16 @@ final class AuthenticationService: ObservableObject {
             isAuthenticated = false
             errorMessage = nil
             requiresFaceIDReauth = false
+        }
+    }
+
+    /// Called whenever a 401 is received on any authenticated endpoint.
+    /// Signs the user out and shows a session-expired message on the login screen.
+    func handleExpiredSession() {
+        authLogger.warning("⚠️ [Auth] Session expired — signing out user")
+        Task { @MainActor in
+            errorMessage = "Your session has expired. Please sign in again."
+            signOut()
         }
     }
 
@@ -1091,10 +1110,6 @@ class KeychainService {
     private init() {}
 
     func saveAuthToken(_ token: String) throws {
-        authLogger.info("💾 [Keychain] Saving auth token (length: \(token.count))")
-
-        // CRITICAL: Validate token format BEFORE saving
-        // Backend uses 64-character hex session tokens (32 bytes)
         let trimmedToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard !trimmedToken.isEmpty else {
@@ -1102,27 +1117,21 @@ class KeychainService {
             throw AuthError.keychainError
         }
 
-        // Validate token is reasonable length (hex tokens are 64 chars, JWTs are 200-500+ chars)
         guard trimmedToken.count >= 32 && trimmedToken.count <= 1024 else {
             authLogger.error("❌ [Keychain] INVALID TOKEN LENGTH: \(trimmedToken.count) (expected 32-1024)")
             authLogger.error("   Token preview: \(trimmedToken.prefix(50))...")
             throw AuthError.keychainError
         }
 
-        authLogger.debug("✅ [Keychain] Token format validated (length: \(trimmedToken.count))")
-
-        // Convert to data with error handling
         guard let data = trimmedToken.data(using: .utf8) else {
             authLogger.error("❌ [Keychain] Failed to encode token to UTF-8")
             throw AuthError.keychainError
         }
 
-        // Save to keychain (thread-safe)
         try keychainQueue.sync {
             try saveToKeychain(key: tokenKey, data: data)
         }
 
-        // CRITICAL: Verify the token was saved correctly by reading it back
         guard let retrievedToken = getAuthToken() else {
             authLogger.error("❌ [Keychain] Verification FAILED: Token not found after save")
             throw AuthError.keychainError
@@ -1134,37 +1143,27 @@ class KeychainService {
             authLogger.error("   Retrieved length: \(retrievedToken.count)")
             throw AuthError.keychainError
         }
-
-        authLogger.debug("✅ [Keychain] Token saved and verified successfully")
     }
 
     func getAuthToken() -> String? {
         return keychainQueue.sync {
             guard let data = getFromKeychain(key: tokenKey) else {
-                authLogger.debug("ℹ️ [Keychain] No auth token found in keychain")
                 return nil
             }
 
-            authLogger.debug("📖 [Keychain] Retrieved token data (\(data.count) bytes)")
-
-            // Convert data to string
             guard let token = String(data: data, encoding: .utf8) else {
                 authLogger.error("❌ [Keychain] Failed to decode token from UTF-8")
                 return nil
             }
 
             let trimmedToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
-            authLogger.debug("   Token length: \(trimmedToken.count)")
 
-            // CRITICAL: Validate token format BEFORE returning
-            // Backend uses 64-character hex session tokens
             guard !trimmedToken.isEmpty else {
                 authLogger.error("❌ [Keychain] EMPTY TOKEN on retrieval")
                 deleteFromKeychain(key: tokenKey)
                 return nil
             }
 
-            // Validate reasonable length
             guard trimmedToken.count >= 32 && trimmedToken.count <= 1024 else {
                 authLogger.error("❌ [Keychain] INVALID TOKEN LENGTH on retrieval: \(trimmedToken.count)")
                 authLogger.error("   Token preview: \(trimmedToken.prefix(50))...")
@@ -1173,7 +1172,6 @@ class KeychainService {
                 return nil
             }
 
-            authLogger.debug("✅ [Keychain] Token format validated on retrieval (length: \(trimmedToken.count))")
             return trimmedToken
         }
     }
@@ -1206,10 +1204,27 @@ class KeychainService {
             deleteFromKeychain(key: userKey)
         }
     }
-    
-    private func saveToKeychain(key: String, data: Data) throws {
-        authLogger.debug("💾 [Keychain] saveToKeychain called for key: \(key), data size: \(data.count) bytes")
 
+    // MARK: - Generic Data Storage (used by ParentModeManager)
+
+    func save(_ data: Data, for key: String) throws {
+        var saveError: Error?
+        keychainQueue.sync { do { try saveToKeychain(key: key, data: data) } catch { saveError = error } }
+        if let error = saveError { throw error }
+    }
+
+    func load(for key: String) throws -> Data {
+        guard let data = keychainQueue.sync(execute: { getFromKeychain(key: key) }) else {
+            throw AuthError.keychainError
+        }
+        return data
+    }
+
+    func delete(for key: String) {
+        keychainQueue.sync { deleteFromKeychain(key: key) }
+    }
+
+    private func saveToKeychain(key: String, data: Data) throws {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -1219,24 +1234,18 @@ class KeychainService {
         ]
 
         // Delete existing item first
-        let deleteStatus = SecItemDelete(query as CFDictionary)
-        authLogger.debug("   Delete status: \(deleteStatus) (\(deleteStatus == errSecSuccess ? "success" : deleteStatus == errSecItemNotFound ? "not found" : "error"))")
+        SecItemDelete(query as CFDictionary)
 
         // Add new item
         let addStatus = SecItemAdd(query as CFDictionary, nil)
-        authLogger.debug("   Add status: \(addStatus) (\(addStatus == errSecSuccess ? "success" : "error"))")
 
         if addStatus != errSecSuccess {
             authLogger.error("❌ [Keychain] SecItemAdd failed with status: \(addStatus)")
             throw AuthError.keychainError
         }
-
-        authLogger.debug("✅ [Keychain] Item saved successfully")
     }
 
     private func getFromKeychain(key: String) -> Data? {
-        authLogger.debug("📖 [Keychain] getFromKeychain called for key: \(key)")
-
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -1248,11 +1257,8 @@ class KeychainService {
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
 
-        authLogger.debug("   Retrieve status: \(status) (\(status == errSecSuccess ? "success" : status == errSecItemNotFound ? "not found" : "error"))")
-
         if status == errSecSuccess {
             if let data = result as? Data {
-                authLogger.debug("   Retrieved \(data.count) bytes")
                 return data
             } else {
                 authLogger.error("❌ [Keychain] Result is not Data type")
@@ -1261,18 +1267,15 @@ class KeychainService {
         }
         return nil
     }
-    
-    private func deleteFromKeychain(key: String) {
-        authLogger.debug("🗑️ [Keychain] deleteFromKeychain called for key: \(key)")
 
+    private func deleteFromKeychain(key: String) {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: key
         ]
 
-        let status = SecItemDelete(query as CFDictionary)
-        authLogger.debug("   Delete status: \(status) (\(status == errSecSuccess ? "success" : status == errSecItemNotFound ? "not found" : "error"))")
+        SecItemDelete(query as CFDictionary)
     }
 }
 

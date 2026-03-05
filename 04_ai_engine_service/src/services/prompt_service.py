@@ -1013,7 +1013,7 @@ Remember: Be patient, clear, and supportive. Focus on helping the student learn 
         # ALWAYS include LaTeX formatting instructions for ALL question types
         # True/false, multiple choice, etc. can all contain mathematical notation
         # Build math formatting instruction (can't use backslashes in f-string)
-        math_note = "FORMATTING: Use \\(...\\) delimiters for ANY math symbols or equations. LaTeX commands use SINGLE backslash: \\frac{1}{2}, \\sqrt{x}, x^2, \\alpha, \\leq (NOT double \\\\)"
+        math_note = "FORMATTING: This is JSON output — backslashes must be doubled. Use \\\\(...\\\\) for math. Examples: \\\\(\\\\frac{1}{2}\\\\), \\\\(x^2\\\\), \\\\(\\\\sqrt{x}\\\\). Never use single backslash in JSON."
         focus_line = f"Focus: {focus_notes}" if focus_notes else ""
 
         # Build question type instruction
@@ -1206,7 +1206,7 @@ Focus on helping the student master the specific topic they struggled with.
         # ALWAYS include LaTeX formatting instructions for ALL question types
         # True/false, multiple choice, etc. can all contain mathematical notation
         # Build math formatting instruction (can't use backslashes in f-string)
-        math_note = "FORMATTING: Use \\(...\\) delimiters for ANY math symbols or equations. LaTeX commands use SINGLE backslash: \\frac{1}{2}, \\sqrt{x}, x^2, \\alpha, \\leq (NOT double \\\\)"
+        math_note = "FORMATTING: This is JSON output — backslashes must be doubled. Use \\\\(...\\\\) for math. Examples: \\\\(\\\\frac{1}{2}\\\\), \\\\(x^2\\\\), \\\\(\\\\sqrt{x}\\\\). Never use single backslash in JSON."
         tags_note = f"TAGS: Use EXACTLY these tags: {str(unique_source_tags)} (copy exactly, no new tags)" if unique_source_tags else ""
 
         # Build question type instruction
@@ -1318,7 +1318,7 @@ Generate now:"""
         context_block = chr(10).join(archive_items) if archive_items else "No prior archive data provided."
 
         # LaTeX formatting instruction
-        math_note = "FORMATTING: Use \\(...\\) delimiters for ANY math symbols or equations. LaTeX commands use SINGLE backslash: \\frac{1}{2}, \\sqrt{x}, x^2, \\alpha, \\leq (NOT double \\\\)"
+        math_note = "FORMATTING: This is JSON output — backslashes must be doubled. Use \\\\(...\\\\) for math. Examples: \\\\(\\\\frac{1}{2}\\\\), \\\\(x^2\\\\), \\\\(\\\\sqrt{x}\\\\). Never use single backslash in JSON."
 
         # Build question type instruction
         if len(question_types) == 1:
@@ -1515,7 +1515,7 @@ CONTEXT:
 CRITICAL:
 - Return a JSON object with a "questions" key containing an array of exactly {count} objects. No markdown, no extra text.
 - All questions must be {question_type} type.
-- MATH FORMATTING: Wrap ALL math expressions in \\(...\\) delimiters. Examples: \\(x^2\\), \\(f(x) = 3x + 1\\), \\(\\frac{{1}}{{2}}\\), \\(\\sqrt{{x}}\\). Never use bare math notation without delimiters.
+- MATH FORMATTING: This is JSON output — backslashes must be doubled. Use \\\\(...\\\\) for math. Examples: \\\\(x^2\\\\), \\\\(\\\\frac{{1}}{{2}}\\\\), \\\\(\\\\sqrt{{x}}\\\\), \\\\(\\\\alpha\\\\). Never use a single backslash in JSON string values.
 - LANGUAGE: {lang_instruction}
 
 Generate now:"""

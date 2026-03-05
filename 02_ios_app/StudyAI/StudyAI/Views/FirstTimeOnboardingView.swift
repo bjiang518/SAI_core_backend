@@ -5,27 +5,10 @@
 
 import SwiftUI
 
-// MARK: - LearningStyle onboarding helpers
+// MARK: - UserRole
 
-private extension LearningStyle {
-    var shortName: String {
-        switch self {
-        case .visual:      return "Visual"
-        case .auditory:    return "Auditory"
-        case .kinesthetic: return "Hands-on"
-        case .reading:     return "Reading"
-        case .adaptive:    return "Adaptive"
-        }
-    }
-    var icon: String {
-        switch self {
-        case .visual:      return "eye.fill"
-        case .auditory:    return "ear.fill"
-        case .kinesthetic: return "hand.raised.fill"
-        case .reading:     return "book.fill"
-        case .adaptive:    return "sparkles"
-        }
-    }
+private enum UserRole {
+    case parent, student
 }
 
 struct FirstTimeOnboardingView: View {
@@ -35,47 +18,79 @@ struct FirstTimeOnboardingView: View {
     let onComplete: () -> Void
     let onNeedsParentalConsent: (_ dob: String) -> Void
 
-    // MARK: - State
+    // MARK: - Step indices
+    // 0: role selection
+    // 1: parent setup (parent path only)
+    // 2: student age   (common)
+    // 3: language      (common)
+    // 4: subjects      (common)
+    // 5: learning style(common)
+    // 6: consent       (common, mandatory)
+    private let maxStep = 6
 
     @State private var currentStep = 0
-    private let totalSteps = 5
 
-    // Step 0 – Birthday
-    @State private var selectedDate  = Calendar.current.date(byAdding: .year, value: -13, to: Date()) ?? Date()
-    @State private var dateSelected  = false
+    // Step 0 — Role
+    @State private var selectedRole: UserRole? = nil
 
-    // Step 1 – Name & Avatar
-    @State private var firstName     = ""
-    @State private var lastName      = ""
-    @State private var displayName   = ""
-    @State private var selectedAvatarId: Int? = nil
+    // Step 1 — Parent setup
+    @State private var parentAge: String = ""
+    @State private var parentFirstName: String = ""
+    @State private var parentPIN: String = ""
+    @State private var confirmParentPIN: String = ""
+    @State private var showParentPIN: Bool = false
+    @State private var pinMismatch: Bool = false
+    // Parental control toggles — keyed by ProtectedFeature
+    @State private var controlChat: Bool = true
+    @State private var controlGrader: Bool = true
+    @State private var controlReports: Bool = true
 
-    // Step 2 – Learning
-    @State private var selectedGrade: GradeLevel?    = nil
-    @State private var selectedLearningStyle: LearningStyle? = nil
+    // Step 2 — Student age (common)
+    @State private var studentAge: String = ""
 
-    // Step 3 – Subjects
+    // Step 3 — Language (common)
+    @State private var languagePreference: String = ""
+
+    // Step 4 — Subjects (common)
     @State private var selectedSubjects: Set<Subject> = []
 
-    // Step 4 – Privacy
-    @State private var agreedToPrivacy   = false
+    // Step 5 — Learning style (two-value: heuristic | straightforward)
+    @State private var learningStyle: String = ""
+
+    // Step 6 — Consent (mandatory)
+    @State private var agreedToConsent: Bool = false
 
     // UI
-    @State private var isSaving          = false
-    @State private var showingError      = false
-    @State private var errorMessage      = ""
+    @State private var isSaving = false
+    @State private var showingError = false
+    @State private var errorMessage = ""
     @State private var showingPrivacyPolicy = false
 
-    // MARK: - Helpers
+    // MARK: - Computed helpers
 
-    private var isMinor: Bool {
-        guard dateSelected else { return false }
-        return (Calendar.current.dateComponents([.year], from: selectedDate, to: Date()).year ?? 0) < 13
+    private var deviceLanguageCode: String {
+        let code = Locale.preferredLanguages.first?.components(separatedBy: "-").first ?? "en"
+        return ["en", "es", "fr", "de", "zh", "ja"].contains(code) ? code : "en"
     }
 
-    private var dobString: String {
-        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
-        return f.string(from: selectedDate)
+    /// Visible progress index (student skips step 1)
+    private var visibleStepIndex: Int {
+        if selectedRole == .student {
+            switch currentStep {
+            case 0: return 0
+            case 2: return 1
+            case 3: return 2
+            case 4: return 3
+            case 5: return 4
+            case 6: return 5
+            default: return currentStep
+            }
+        }
+        return currentStep
+    }
+
+    private var totalVisibleSteps: Int {
+        selectedRole == .student ? 6 : 7
     }
 
     private var canGoBack: Bool { currentStep > 0 }
@@ -112,7 +127,9 @@ struct FirstTimeOnboardingView: View {
                                 )
                             )
                             .frame(
-                                width: geo.size.width * CGFloat(currentStep + 1) / CGFloat(totalSteps),
+                                width: geo.size.width
+                                    * CGFloat(visibleStepIndex + 1)
+                                    / CGFloat(totalVisibleSteps),
                                 height: 5
                             )
                             .animation(.easeInOut(duration: 0.28), value: currentStep)
@@ -126,11 +143,13 @@ struct FirstTimeOnboardingView: View {
 
             // ── Step content ─────────────────────────────────────
             ZStack {
-                birthdayStep   .opacity(currentStep == 0 ? 1 : 0).allowsHitTesting(currentStep == 0)
-                nameAvatarStep .opacity(currentStep == 1 ? 1 : 0).allowsHitTesting(currentStep == 1)
-                learningStep   .opacity(currentStep == 2 ? 1 : 0).allowsHitTesting(currentStep == 2)
-                subjectsStep   .opacity(currentStep == 3 ? 1 : 0).allowsHitTesting(currentStep == 3)
-                privacyStep    .opacity(currentStep == 4 ? 1 : 0).allowsHitTesting(currentStep == 4)
+                roleStep         .opacity(currentStep == 0 ? 1 : 0).allowsHitTesting(currentStep == 0)
+                parentSetupStep  .opacity(currentStep == 1 ? 1 : 0).allowsHitTesting(currentStep == 1)
+                studentAgeStep   .opacity(currentStep == 2 ? 1 : 0).allowsHitTesting(currentStep == 2)
+                languageStep     .opacity(currentStep == 3 ? 1 : 0).allowsHitTesting(currentStep == 3)
+                subjectsStep     .opacity(currentStep == 4 ? 1 : 0).allowsHitTesting(currentStep == 4)
+                learningStyleStep.opacity(currentStep == 5 ? 1 : 0).allowsHitTesting(currentStep == 5)
+                consentStep      .opacity(currentStep == 6 ? 1 : 0).allowsHitTesting(currentStep == 6)
             }
             .animation(.easeInOut(duration: 0.2), value: currentStep)
         }
@@ -140,42 +159,42 @@ struct FirstTimeOnboardingView: View {
         .background(DesignTokens.Colors.Cute.backgroundCream.ignoresSafeArea())
         .sheet(isPresented: $showingPrivacyPolicy) { PrivacyPolicyView() }
         .alert("Error", isPresented: $showingError) { Button("OK") {} } message: { Text(errorMessage) }
-        .onAppear { displayName = authService.currentUser?.name ?? "" }
+        .onAppear { languagePreference = deviceLanguageCode }
     }
 
-    // MARK: - Step 1: Birthday
+    // MARK: - Step 0: Role Selection
 
-    private var birthdayStep: some View {
+    private var roleStep: some View {
         VStack(spacing: 0) {
             ScrollView {
-                VStack(spacing: 20) {
-                    stepTitle("Your birthday")
+                VStack(spacing: 28) {
+                    VStack(spacing: 8) {
+                        Text("Welcome!")
+                            .font(.title2).fontWeight(.bold)
+                            .foregroundColor(DesignTokens.Colors.Cute.textPrimary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Text("Who's setting up the app?")
+                            .font(.subheadline)
+                            .foregroundColor(DesignTokens.Colors.Cute.textSecondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
 
-                    DatePicker(
-                        "",
-                        selection: Binding(
-                            get: { selectedDate },
-                            set: { selectedDate = $0; dateSelected = true }
-                        ),
-                        in: ...Date(),
-                        displayedComponents: .date
-                    )
-                    .datePickerStyle(.wheel)
-                    .labelsHidden()
-                    .frame(maxWidth: .infinity)
-                    .background(DesignTokens.Colors.Cute.backgroundSoftPink)
-                    .cornerRadius(16)
+                    VStack(spacing: 14) {
+                        roleCard(
+                            title: "I'm a Student",
+                            subtitle: "Learning on my own",
+                            icon: "graduationcap.fill",
+                            color: DesignTokens.Colors.Cute.blue,
+                            isSelected: selectedRole == .student
+                        ) { selectedRole = .student }
 
-                    if dateSelected && isMinor {
-                        HStack(spacing: 8) {
-                            Image(systemName: "info.circle.fill")
-                                .foregroundColor(DesignTokens.Colors.Cute.peach)
-                            Text("Parent approval will be required")
-                                .font(.caption)
-                                .foregroundColor(DesignTokens.Colors.Cute.textSecondary)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .transition(.opacity)
+                        roleCard(
+                            title: "I'm a Parent",
+                            subtitle: "Setting up for my child",
+                            icon: "person.2.fill",
+                            color: DesignTokens.Colors.Cute.peach,
+                            isSelected: selectedRole == .parent
+                        ) { selectedRole = .parent }
                     }
                 }
                 .padding(.horizontal, 24)
@@ -183,69 +202,218 @@ struct FirstTimeOnboardingView: View {
             }
 
             bottomBar {
-                primaryButton("Continue", disabled: !dateSelected) { advance() }
+                primaryButton("Continue", disabled: selectedRole == nil) {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        currentStep = selectedRole == .student ? 2 : 1
+                    }
+                }
             }
         }
     }
 
-    // MARK: - Step 2: Name & Avatar
+    @ViewBuilder
+    private func roleCard(
+        title: String,
+        subtitle: String,
+        icon: String,
+        color: Color,
+        isSelected: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 16) {
+                ZStack {
+                    Circle()
+                        .fill(color.opacity(0.15))
+                        .frame(width: 54, height: 54)
+                    Image(systemName: icon)
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundColor(color)
+                }
 
-    private var nameAvatarStep: some View {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.headline)
+                        .foregroundColor(DesignTokens.Colors.Cute.textPrimary)
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundColor(DesignTokens.Colors.Cute.textSecondary)
+                }
+
+                Spacer()
+
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 22))
+                    .foregroundColor(isSelected ? color : DesignTokens.Colors.Cute.peachLight)
+            }
+            .padding(18)
+            .background(
+                isSelected
+                    ? color.opacity(0.08)
+                    : DesignTokens.Colors.Cute.backgroundSoftPink
+            )
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(
+                        isSelected ? color : DesignTokens.Colors.Cute.peachLight,
+                        lineWidth: isSelected ? 2 : 1
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+        .animation(.easeInOut(duration: 0.15), value: isSelected)
+    }
+
+    // MARK: - Step 1: Parent Setup
+
+    private var parentSetupStep: some View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(spacing: 20) {
-                    stepTitle("Your profile")
+                    VStack(spacing: 6) {
+                        stepTitle("Parent setup")
+                        Text("Secure your parental controls")
+                            .font(.subheadline)
+                            .foregroundColor(DesignTokens.Colors.Cute.textSecondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
 
-                    // Name fields
-                    VStack(spacing: 0) {
-                        HStack(spacing: 0) {
-                            TextField("First name", text: $firstName)
-                                .textContentType(.givenName)
+                    // Age + Name
+                    HStack(spacing: 10) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            fieldLabel("Your age")
+                            TextField("e.g. 35", text: $parentAge)
+                                .keyboardType(.numberPad)
+                                .padding(12)
+                                .background(DesignTokens.Colors.Cute.backgroundSoftPink)
+                                .cornerRadius(12)
+                        }
+                        .frame(maxWidth: .infinity)
+
+                        VStack(alignment: .leading, spacing: 6) {
+                            fieldLabel("Name (optional)")
+                            TextField("Your name", text: $parentFirstName)
                                 .autocapitalization(.words)
+                                .padding(12)
+                                .background(DesignTokens.Colors.Cute.backgroundSoftPink)
+                                .cornerRadius(12)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+
+                    // PIN
+                    VStack(alignment: .leading, spacing: 10) {
+                        fieldLabel("Parent PIN (6 digits)")
+
+                        VStack(spacing: 0) {
+                            HStack {
+                                Group {
+                                    if showParentPIN {
+                                        TextField("Enter 6-digit PIN", text: $parentPIN)
+                                    } else {
+                                        SecureField("Enter 6-digit PIN", text: $parentPIN)
+                                    }
+                                }
+                                .keyboardType(.numberPad)
                                 .foregroundColor(DesignTokens.Colors.Cute.textPrimary)
-                                .padding()
-                                .frame(maxWidth: .infinity)
+                                .onChange(of: parentPIN) { _, v in
+                                    if v.count > 6 { parentPIN = String(v.prefix(6)) }
+                                }
+                                Button { showParentPIN.toggle() } label: {
+                                    Image(systemName: showParentPIN ? "eye.slash.fill" : "eye.fill")
+                                        .foregroundColor(DesignTokens.Colors.Cute.textSecondary)
+                                        .font(.system(size: 15))
+                                }
+                            }
+                            .padding(12)
+                            .background(DesignTokens.Colors.Cute.backgroundSoftPink)
 
                             Divider()
                                 .background(DesignTokens.Colors.Cute.peachLight)
 
-                            TextField("Last name", text: $lastName)
-                                .textContentType(.familyName)
-                                .autocapitalization(.words)
+                            HStack {
+                                Group {
+                                    if showParentPIN {
+                                        TextField("Confirm PIN", text: $confirmParentPIN)
+                                    } else {
+                                        SecureField("Confirm PIN", text: $confirmParentPIN)
+                                    }
+                                }
+                                .keyboardType(.numberPad)
                                 .foregroundColor(DesignTokens.Colors.Cute.textPrimary)
-                                .padding()
-                                .frame(maxWidth: .infinity)
+                                .onChange(of: confirmParentPIN) { _, v in
+                                    if v.count > 6 { confirmParentPIN = String(v.prefix(6)) }
+                                    pinMismatch = !v.isEmpty && v != parentPIN
+                                }
+
+                                if !confirmParentPIN.isEmpty {
+                                    Image(systemName: confirmParentPIN == parentPIN
+                                          ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                        .foregroundColor(
+                                            confirmParentPIN == parentPIN
+                                                ? DesignTokens.Colors.Cute.mint : .red
+                                        )
+                                        .font(.system(size: 15))
+                                }
+                            }
+                            .padding(12)
+                            .background(DesignTokens.Colors.Cute.backgroundSoftPink)
+                        }
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(
+                                    pinMismatch
+                                        ? Color.red.opacity(0.4)
+                                        : DesignTokens.Colors.Cute.peachLight,
+                                    lineWidth: 1
+                                )
+                        )
+
+                        if pinMismatch {
+                            Text("PINs don't match")
+                                .font(.caption)
+                                .foregroundColor(.red)
+                        }
+
+                        Text("6-digit PIN to lock parental controls so your child can't change them.")
+                            .font(.caption)
+                            .foregroundColor(DesignTokens.Colors.Cute.textSecondary)
+                    }
+
+                    // Control items — mirrors ProtectedFeature cases
+                    VStack(alignment: .leading, spacing: 10) {
+                        fieldLabel("Parental controls")
+
+                        VStack(spacing: 0) {
+                            controlToggleRow(
+                                "Protect AI chat",
+                                icon: "message.fill",
+                                color: DesignTokens.Colors.Cute.blue,
+                                isOn: $controlChat
+                            )
+                            Divider()
+                                .background(DesignTokens.Colors.Cute.peachLight)
+                                .padding(.leading, 44)
+                            controlToggleRow(
+                                "Protect homework grader",
+                                icon: "camera.fill",
+                                color: DesignTokens.Colors.Cute.mint,
+                                isOn: $controlGrader
+                            )
+                            Divider()
+                                .background(DesignTokens.Colors.Cute.peachLight)
+                                .padding(.leading, 44)
+                            controlToggleRow(
+                                "Protect parent reports",
+                                icon: "figure.2.and.child.holdinghands",
+                                color: DesignTokens.Colors.Cute.lavender,
+                                isOn: $controlReports
+                            )
                         }
                         .background(DesignTokens.Colors.Cute.backgroundSoftPink)
-
-                        Divider()
-                            .background(DesignTokens.Colors.Cute.peachLight)
-                            .padding(.leading, 16)
-
-                        TextField("Display name (optional)", text: $displayName)
-                            .textContentType(.nickname)
-                            .autocapitalization(.words)
-                            .foregroundColor(DesignTokens.Colors.Cute.textPrimary)
-                            .padding()
-                            .background(DesignTokens.Colors.Cute.backgroundSoftPink)
-                    }
-                    .cornerRadius(16)
-
-                    // Avatar picker
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Choose an avatar")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundColor(DesignTokens.Colors.Cute.textSecondary)
-
-                        LazyVGrid(
-                            columns: Array(repeating: GridItem(.flexible()), count: 3),
-                            spacing: 12
-                        ) {
-                            ForEach(ProfileAvatar.allCases, id: \.self) { avatar in
-                                avatarCell(avatar)
-                            }
-                        }
+                        .cornerRadius(12)
                     }
                 }
                 .padding(.horizontal, 24)
@@ -253,76 +421,119 @@ struct FirstTimeOnboardingView: View {
             }
 
             bottomBar {
-                primaryButton("Continue", disabled: false) { advance() }
-                skipButton { firstName = ""; lastName = ""; selectedAvatarId = nil; advance() }
+                let canContinue = parentPIN.count == 6
+                    && parentPIN == confirmParentPIN
+                    && parentPIN.allSatisfy(\.isNumber)
+                primaryButton("Continue", disabled: !canContinue) { advance() }
+                skipButton { parentPIN = ""; confirmParentPIN = ""; advance() }
             }
         }
     }
 
-    @ViewBuilder
-    private func avatarCell(_ avatar: ProfileAvatar) -> some View {
-        let selected = selectedAvatarId == avatar.rawValue
-        Button { selectedAvatarId = selected ? nil : avatar.rawValue } label: {
-            Image(avatar.imageName)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 72, height: 72)
-                .clipShape(Circle())
-                .overlay(
-                    Circle()
-                        .stroke(
-                            selected ? DesignTokens.Colors.Cute.blue : Color.clear,
-                            lineWidth: 3
-                        )
-                )
-                .shadow(
-                    color: selected ? DesignTokens.Colors.Cute.blue.opacity(0.3) : .clear,
-                    radius: 6
-                )
+    private func controlToggleRow(
+        _ text: String,
+        icon: String,
+        color: Color,
+        isOn: Binding<Bool>
+    ) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .foregroundColor(color)
+                .frame(width: 22, height: 22)
+            Text(text)
+                .font(.subheadline)
+                .foregroundColor(DesignTokens.Colors.Cute.textPrimary)
+            Spacer()
+            Toggle("", isOn: isOn)
+                .tint(DesignTokens.Colors.Cute.blue)
+                .labelsHidden()
         }
-        .buttonStyle(.plain)
-        .animation(.easeInOut(duration: 0.1), value: selected)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 13)
     }
 
-    // MARK: - Step 3: Learning
+    // MARK: - Step 2: Student Age
 
-    private var learningStep: some View {
+    private var studentAgeStep: some View {
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(spacing: 28) {
+                    VStack(spacing: 8) {
+                        stepTitle("How old is the student?")
+                        Text("Helps us personalise the experience")
+                            .font(.subheadline)
+                            .foregroundColor(DesignTokens.Colors.Cute.textSecondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    VStack(spacing: 16) {
+                        ZStack {
+                            Circle()
+                                .fill(DesignTokens.Colors.Cute.peach.opacity(0.15))
+                                .frame(width: 120, height: 120)
+                            if studentAge.isEmpty {
+                                Image(systemName: "person.fill")
+                                    .font(.system(size: 44))
+                                    .foregroundColor(DesignTokens.Colors.Cute.peach.opacity(0.4))
+                            } else {
+                                Text(studentAge)
+                                    .font(.system(size: 52, weight: .bold))
+                                    .foregroundColor(DesignTokens.Colors.Cute.peach)
+                            }
+                        }
+                        .animation(.easeInOut(duration: 0.15), value: studentAge)
+
+                        TextField("Enter age", text: $studentAge)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.center)
+                            .font(.title2)
+                            .foregroundColor(DesignTokens.Colors.Cute.textPrimary)
+                            .padding(16)
+                            .frame(maxWidth: 160)
+                            .background(DesignTokens.Colors.Cute.backgroundSoftPink)
+                            .cornerRadius(14)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
+            }
+
+            bottomBar {
+                primaryButton("Continue", disabled: false) { advance() }
+                skipButton { studentAge = ""; advance() }
+            }
+        }
+    }
+
+    // MARK: - Step 3: Language
+
+    private let languageOptions: [(code: String, name: String, flag: String)] = [
+        ("en", "English",   "🇺🇸"),
+        ("es", "Español",   "🇪🇸"),
+        ("fr", "Français",  "🇫🇷"),
+        ("de", "Deutsch",   "🇩🇪"),
+        ("zh", "中文",       "🇨🇳"),
+        ("ja", "日本語",     "🇯🇵"),
+    ]
+
+    private var languageStep: some View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(spacing: 24) {
-                    stepTitle("How you learn")
-
-                    // Grade level
-                    VStack(spacing: 0) {
-                        Picker("Grade", selection: $selectedGrade) {
-                            Text("Grade / Year")
-                                .foregroundColor(DesignTokens.Colors.Cute.textSecondary)
-                                .tag(Optional<GradeLevel>(nil))
-                            ForEach(GradeLevel.allCases, id: \.self) { g in
-                                Text(g.displayName)
-                                    .foregroundColor(DesignTokens.Colors.Cute.textPrimary)
-                                    .tag(Optional(g))
-                            }
-                        }
-                        .pickerStyle(.wheel)
-                        .frame(height: 140)
-                        .background(DesignTokens.Colors.Cute.backgroundSoftPink)
-                    }
-                    .cornerRadius(16)
-
-                    // Learning style
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Learning style")
+                    VStack(spacing: 8) {
+                        stepTitle("Preferred language")
+                        Text("We've selected your device language as default")
                             .font(.subheadline)
-                            .fontWeight(.medium)
                             .foregroundColor(DesignTokens.Colors.Cute.textSecondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
 
-                        LazyVGrid(
-                            columns: [GridItem(.flexible()), GridItem(.flexible())],
-                            spacing: 10
-                        ) {
-                            ForEach(LearningStyle.allCases, id: \.self) { learningStyleChip($0) }
-                        }
+                    LazyVGrid(
+                        columns: [GridItem(.flexible()), GridItem(.flexible())],
+                        spacing: 10
+                    ) {
+                        ForEach(languageOptions, id: \.code) { languageCard($0) }
                     }
                 }
                 .padding(.horizontal, 24)
@@ -331,34 +542,41 @@ struct FirstTimeOnboardingView: View {
 
             bottomBar {
                 primaryButton("Continue", disabled: false) { advance() }
-                skipButton { selectedGrade = nil; selectedLearningStyle = nil; advance() }
             }
         }
     }
 
     @ViewBuilder
-    private func learningStyleChip(_ style: LearningStyle) -> some View {
-        let on = selectedLearningStyle == style
-        Button {
-            selectedLearningStyle = on ? nil : style
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: style.icon)
-                    .font(.system(size: 15))
-                Text(style.shortName)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+    private func languageCard(_ option: (code: String, name: String, flag: String)) -> some View {
+        let on = languagePreference == option.code
+        Button { languagePreference = option.code } label: {
+            HStack(spacing: 10) {
+                Text(option.flag)
+                    .font(.title2)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(option.name)
+                        .font(.subheadline).fontWeight(.medium)
+                        .foregroundColor(on ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.Cute.textPrimary)
+                }
+                Spacer()
+                if on {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(DesignTokens.Colors.Cute.blue)
+                        .font(.system(size: 16))
+                }
             }
-            .frame(maxWidth: .infinity)
-            .frame(height: 52)
-            .background(on ? DesignTokens.Colors.Cute.blue.opacity(0.15) : DesignTokens.Colors.Cute.backgroundSoftPink)
-            .foregroundColor(on ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.Cute.textPrimary)
+            .padding(14)
+            .background(
+                on
+                    ? DesignTokens.Colors.Cute.blue.opacity(0.08)
+                    : DesignTokens.Colors.Cute.backgroundSoftPink
+            )
             .cornerRadius(12)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
                     .stroke(
                         on ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.Cute.peachLight,
-                        lineWidth: 1.5
+                        lineWidth: on ? 1.5 : 1
                     )
             )
         }
@@ -408,8 +626,14 @@ struct FirstTimeOnboardingView: View {
             }
             .frame(maxWidth: .infinity)
             .frame(height: 68)
-            .background(on ? DesignTokens.Colors.Cute.blue.opacity(0.15) : DesignTokens.Colors.Cute.backgroundSoftPink)
-            .foregroundColor(on ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.Cute.textPrimary)
+            .background(
+                on
+                    ? DesignTokens.Colors.Cute.blue.opacity(0.15)
+                    : DesignTokens.Colors.Cute.backgroundSoftPink
+            )
+            .foregroundColor(
+                on ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.Cute.textPrimary
+            )
             .cornerRadius(12)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
@@ -423,13 +647,130 @@ struct FirstTimeOnboardingView: View {
         .animation(.easeInOut(duration: 0.1), value: on)
     }
 
-    // MARK: - Step 5: Privacy
+    // MARK: - Step 5: Learning Style (two-value bar)
 
-    private var privacyStep: some View {
+    private var learningStyleStep: some View {
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(spacing: 28) {
+                    VStack(spacing: 8) {
+                        stepTitle("Your learning style")
+                        Text("How do you prefer to approach problems?")
+                            .font(.subheadline)
+                            .foregroundColor(DesignTokens.Colors.Cute.textSecondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    // Two-value split button
+                    HStack(spacing: 0) {
+                        learningHalf(
+                            label: "Heuristic",
+                            icon: "lightbulb.fill",
+                            value: "heuristic",
+                            activeGradient: [DesignTokens.Colors.Cute.peach, DesignTokens.Colors.Cute.pink],
+                            isLeft: true
+                        )
+                        Divider()
+                            .frame(width: 1)
+                            .background(DesignTokens.Colors.Cute.peachLight)
+                        learningHalf(
+                            label: "Straightforward",
+                            icon: "arrow.right.circle.fill",
+                            value: "straightforward",
+                            activeGradient: [DesignTokens.Colors.Cute.blue, DesignTokens.Colors.Cute.lavender],
+                            isLeft: false
+                        )
+                    }
+                    .frame(height: 110)
+                    .background(DesignTokens.Colors.Cute.backgroundSoftPink)
+                    .cornerRadius(16)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(DesignTokens.Colors.Cute.peachLight, lineWidth: 1)
+                    )
+
+                    // Contextual description
+                    if !learningStyle.isEmpty {
+                        HStack(spacing: 12) {
+                            Image(systemName: learningStyle == "heuristic"
+                                  ? "lightbulb.fill" : "arrow.right.circle.fill")
+                                .font(.system(size: 18))
+                                .foregroundColor(
+                                    learningStyle == "heuristic"
+                                        ? DesignTokens.Colors.Cute.peach
+                                        : DesignTokens.Colors.Cute.blue
+                                )
+                            Text(learningStyle == "heuristic"
+                                ? "You like to explore and discover answers through curiosity."
+                                : "You prefer clear steps and direct, structured explanations.")
+                                .font(.subheadline)
+                                .foregroundColor(DesignTokens.Colors.Cute.textSecondary)
+                        }
+                        .padding(16)
+                        .background(
+                            (learningStyle == "heuristic"
+                                ? DesignTokens.Colors.Cute.peach
+                                : DesignTokens.Colors.Cute.blue).opacity(0.08)
+                        )
+                        .cornerRadius(12)
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    }
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
+            }
+
+            bottomBar {
+                primaryButton("Continue", disabled: false) { advance() }
+                skipButton { learningStyle = ""; advance() }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func learningHalf(
+        label: String,
+        icon: String,
+        value: String,
+        activeGradient: [Color],
+        isLeft: Bool
+    ) -> some View {
+        let on = learningStyle == value
+        Button {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                learningStyle = value
+            }
+        } label: {
+            VStack(spacing: 7) {
+                Image(systemName: icon)
+                    .font(.system(size: 22, weight: .semibold))
+                Text(label)
+                    .font(.subheadline).fontWeight(.semibold)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(
+                on
+                    ? AnyView(
+                        LinearGradient(
+                            colors: activeGradient,
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    : AnyView(Color.clear)
+            )
+            .foregroundColor(on ? .white : DesignTokens.Colors.Cute.textPrimary)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Step 6: Consent (mandatory — no skip, no do-it-later)
+
+    private var consentStep: some View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(spacing: 20) {
-                    stepTitle("Almost done")
+                    stepTitle("Almost done!")
 
                     VStack(spacing: 0) {
                         privacyRow("Questions & answers",
@@ -459,39 +800,48 @@ struct FirstTimeOnboardingView: View {
                     }
                     .buttonStyle(.plain)
 
-                    if isMinor {
-                        HStack(spacing: 10) {
-                            Image(systemName: "person.badge.shield.checkmark.fill")
-                                .foregroundColor(DesignTokens.Colors.Cute.peach)
-                            Text("You'll set up parent approval on the next screen.")
-                                .font(.subheadline)
-                                .foregroundColor(DesignTokens.Colors.Cute.textSecondary)
-                        }
-                        .padding()
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(DesignTokens.Colors.Cute.peachLight.opacity(0.4))
-                        .cornerRadius(12)
-                    } else {
-                        Toggle(isOn: $agreedToPrivacy) {
+                    // Consent toggle — always visible, required to proceed
+                    Toggle(isOn: $agreedToConsent) {
+                        VStack(alignment: .leading, spacing: 3) {
                             Text("I agree to data collection for learning")
                                 .font(.subheadline)
                                 .foregroundColor(DesignTokens.Colors.Cute.textPrimary)
+                            Text("Required to use StudyAI")
+                                .font(.caption)
+                                .foregroundColor(agreedToConsent ? DesignTokens.Colors.Cute.textSecondary : .red)
                         }
-                        .tint(DesignTokens.Colors.Cute.blue)
-                        .padding()
-                        .background(DesignTokens.Colors.Cute.backgroundSoftPink)
-                        .cornerRadius(12)
                     }
+                    .tint(DesignTokens.Colors.Cute.blue)
+                    .padding()
+                    .background(DesignTokens.Colors.Cute.backgroundSoftPink)
+                    .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(
+                                !agreedToConsent ? Color.red.opacity(0.35) : Color.clear,
+                                lineWidth: 1.5
+                            )
+                    )
+                    .animation(.easeInOut(duration: 0.15), value: agreedToConsent)
 
-                    Text("Complete your profile anytime in Settings → My Account")
-                        .font(.caption)
-                        .foregroundColor(DesignTokens.Colors.Cute.textSecondary)
+                    if !agreedToConsent {
+                        HStack(spacing: 8) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange)
+                                .font(.system(size: 13))
+                            Text("You must agree to continue using StudyAI")
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                        }
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .transition(.opacity)
+                    }
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 24)
             }
 
+            // No "Do it later" — consent is mandatory
             bottomBar {
                 Button(action: saveAndComplete) {
                     ZStack {
@@ -506,13 +856,13 @@ struct FirstTimeOnboardingView: View {
                     }
                     .frame(maxWidth: .infinity).frame(height: 52)
                     .background(
-                        ((!isMinor && !agreedToPrivacy) || isSaving)
+                        (!agreedToConsent || isSaving)
                             ? DesignTokens.Colors.Cute.softBlack.opacity(0.3)
                             : DesignTokens.Colors.Cute.buttonBlack
                     )
                     .cornerRadius(14)
                 }
-                .disabled((!isMinor && !agreedToPrivacy) || isSaving)
+                .disabled(!agreedToConsent || isSaving)
             }
         }
     }
@@ -529,13 +879,19 @@ struct FirstTimeOnboardingView: View {
         .padding(.vertical, 13)
     }
 
-    // MARK: - Shared Components
+    // MARK: - Shared UI Components
 
     private func stepTitle(_ title: String) -> some View {
         Text(title)
             .font(.title2).fontWeight(.bold)
             .foregroundColor(DesignTokens.Colors.Cute.textPrimary)
             .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func fieldLabel(_ text: String) -> some View {
+        Text(text)
+            .font(.subheadline).fontWeight(.medium)
+            .foregroundColor(DesignTokens.Colors.Cute.textSecondary)
     }
 
     private func bottomBar<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
@@ -576,14 +932,19 @@ struct FirstTimeOnboardingView: View {
     private func advance() {
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         withAnimation(.easeInOut(duration: 0.2)) {
-            currentStep = min(currentStep + 1, totalSteps - 1)
+            currentStep = min(currentStep + 1, maxStep)
         }
     }
 
     private func goBack() {
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         withAnimation(.easeInOut(duration: 0.2)) {
-            currentStep = max(currentStep - 1, 0)
+            // Student skips step 1, so going back from step 2 returns to step 0
+            if currentStep == 2 && selectedRole == .student {
+                currentStep = 0
+            } else {
+                currentStep = max(currentStep - 1, 0)
+            }
         }
     }
 
@@ -593,51 +954,67 @@ struct FirstTimeOnboardingView: View {
         isSaving = true
         Task {
             var data: [String: Any] = [
-                "dateOfBirth":         dobString,
                 "onboardingCompleted": true,
-                "dataSharingConsent":  !isMinor && agreedToPrivacy
+                "dataSharingConsent":  true,
+                "languagePreference":  languagePreference,
             ]
-            let first = firstName.trimmingCharacters(in: .whitespacesAndNewlines)
-            let last  = lastName.trimmingCharacters(in: .whitespacesAndNewlines)
-            let dname = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !first.isEmpty             { data["firstName"]        = first }
-            if !last.isEmpty              { data["lastName"]         = last }
-            if !dname.isEmpty             { data["displayName"]      = dname }
-            if let id = selectedAvatarId  { data["avatarId"]         = id }
-            if let g = selectedGrade      { data["gradeLevel"]       = g.integerValue }
-            if let ls = selectedLearningStyle { data["learningStyle"] = ls.rawValue }
-            if !selectedSubjects.isEmpty  { data["favoriteSubjects"] = selectedSubjects.map { $0.rawValue } }
 
-            // Persist avatar locally so the header updates immediately
-            if let id = selectedAvatarId {
-                UserDefaults.standard.set(id, forKey: "selectedAvatarId")
+            if !selectedSubjects.isEmpty {
+                data["favoriteSubjects"] = selectedSubjects.map { $0.rawValue }
+            }
+            if !learningStyle.isEmpty {
+                data["learningStyle"] = learningStyle
+            }
+            if !studentAge.isEmpty, let age = Int(studentAge), age >= 1 && age <= 99 {
+                data["kidsAges"] = [age]
+            }
+
+            // Parent-specific: set PIN and protected features via ParentModeManager
+            if selectedRole == .parent {
+                let name = parentFirstName.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !name.isEmpty { data["firstName"] = name }
+
+                if !parentPIN.isEmpty {
+                    _ = ParentModeManager.shared.setParentPassword(parentPIN)
+                    var features: Set<ProtectedFeature> = []
+                    if controlChat    { features.insert(.chatFunction) }
+                    if controlGrader  { features.insert(.homeworkGrader) }
+                    if controlReports { features.insert(.parentReports) }
+                    for feature in ProtectedFeature.allCases {
+                        ParentModeManager.shared.setFeatureProtection(feature, protected: features.contains(feature))
+                    }
+                }
+            }
+
+            // Write profile to local disk immediately
+            if let user = authService.currentUser {
+                var diskData = data
+                diskData["id"]           = user.id
+                diskData["email"]        = user.email
+                diskData["name"]         = user.name
+                diskData["authProvider"] = user.authProvider.rawValue
+                ProfileService.shared.cacheProfileFromResponse(diskData)
             }
 
             let result = await networkService.updateUserProfile(data)
             if result.success {
-                // Cache locally from the save response — no extra network round-trip needed
                 if let profileDict = result.profile {
                     ProfileService.shared.cacheProfileFromResponse(profileDict)
                 }
-                // Mark onboarding done locally so future launches skip the network check
                 if let email = authService.currentUser?.email, !email.isEmpty {
                     UserDefaults.standard.set(true, forKey: "onboardingCompleted_\(email)")
                 }
                 await MainActor.run {
                     isSaving = false
-                    isMinor ? onNeedsParentalConsent(dobString) : onComplete()
+                    onComplete()
                 }
             } else {
                 await MainActor.run {
                     isSaving = false
                     errorMessage = result.message
-                    showingError  = true
+                    showingError = true
                 }
             }
         }
     }
-}
-
-#Preview {
-    FirstTimeOnboardingView(onComplete: {}, onNeedsParentalConsent: { _ in })
 }

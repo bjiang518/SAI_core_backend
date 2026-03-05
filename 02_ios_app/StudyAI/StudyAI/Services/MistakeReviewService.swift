@@ -19,7 +19,7 @@ class MistakeReviewService: ObservableObject {
     @Published var mistakes: [MistakeQuestion] = []
     @Published var errorMessage: String?
 
-    private let questionLocalStorage = currentUserQuestionStorage()
+    private var questionLocalStorage: QuestionLocalStorage { currentUserQuestionStorage() }
 
     /// Fetch subjects with mistake counts from LOCAL STORAGE ONLY
     func fetchSubjectsWithMistakes(timeRange: MistakeTimeRange? = nil) async {

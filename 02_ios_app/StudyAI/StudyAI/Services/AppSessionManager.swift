@@ -29,8 +29,6 @@ class AppSessionManager: ObservableObject {
         let lastBackgroundTime = UserDefaults.standard.double(forKey: sessionTimeoutKey)
 
         if lastBackgroundTime == 0 {
-            // First app launch ever
-            print("🎬 [AppSession] First app launch - showing loading animation")
             shouldShowLoadingAnimation = true
             return
         }
@@ -38,12 +36,8 @@ class AppSessionManager: ObservableObject {
         let timeSinceBackground = Date().timeIntervalSince1970 - lastBackgroundTime
 
         if timeSinceBackground > sessionTimeout {
-            // Session expired - treat as new session
-            print("🎬 [AppSession] Session expired (\(Int(timeSinceBackground/60)) min) - showing loading animation")
             shouldShowLoadingAnimation = true
         } else {
-            // Continuous session - skip loading animation
-            print("🎬 [AppSession] Continuous session (\(Int(timeSinceBackground)) sec) - skipping loading animation")
             shouldShowLoadingAnimation = false
         }
     }
@@ -52,12 +46,10 @@ class AppSessionManager: ObservableObject {
     func appDidEnterBackground() {
         let currentTime = Date().timeIntervalSince1970
         UserDefaults.standard.set(currentTime, forKey: sessionTimeoutKey)
-        print("🎬 [AppSession] App entered background at \(currentTime)")
     }
 
     /// Mark app as becoming active
     func appDidBecomeActive() {
-        print("🎬 [AppSession] App became active")
         // Session status is checked on init, no need to update here
     }
 
@@ -65,6 +57,5 @@ class AppSessionManager: ObservableObject {
     func resetSession() {
         UserDefaults.standard.removeObject(forKey: sessionTimeoutKey)
         shouldShowLoadingAnimation = true
-        print("🎬 [AppSession] Session reset - will show loading animation")
     }
 }

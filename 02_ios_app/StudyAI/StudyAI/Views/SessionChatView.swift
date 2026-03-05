@@ -388,12 +388,14 @@ struct SessionChatView: View {
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
+                .chatOnboardingAnchor("onboarding_liveMode")
             }
 
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: { showingArchiveProgress = true }) {
                     Image(systemName: "books.vertical")
                 }
+                .chatOnboardingAnchor("onboarding_libraryButton")
                 .disabled(networkService.currentSessionId == nil || allMessages.isEmpty)
             }
     }

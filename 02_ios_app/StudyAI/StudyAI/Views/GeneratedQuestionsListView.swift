@@ -27,6 +27,7 @@ struct GeneratedQuestionsListView: View {
 
     // Progress tracking state
     @State private var answeredQuestions: [UUID: QuestionResult] = [:]
+    @State private var archivedQuestions: Set<UUID> = []
     @State private var showingInfoAlert = false
 
     private let logger = Logger(subsystem: "com.studyai", category: "GeneratedQuestionsList")
@@ -168,10 +169,13 @@ struct GeneratedQuestionsListView: View {
                 if !answeredQuestions.isEmpty {
                     logger.info("✅ Restored \(answeredQuestions.count)/\(questions.count) answered questions from saved state")
                 }
+
+                loadArchivedState()
             }
             .onChange(of: showingQuestionDetail) { _, newValue in
                 if !newValue {
                     logger.debug("🔄 Question detail dismissed")
+                    loadArchivedState()  // Refresh archived state when detail closes
                 }
             }
         }
@@ -356,17 +360,50 @@ struct GeneratedQuestionsListView: View {
                         .buttonStyle(PlainButtonStyle())
                         .contentShape(Rectangle())
                     }
-                    .background(DesignTokens.AdaptiveColors.cardBackground)
+                    .background(
+                        archivedQuestions.contains(question.id)
+                            ? Color(.systemGray5)
+                            : DesignTokens.AdaptiveColors.cardBackground
+                    )
                     .cornerRadius(12)
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
                             .stroke(
-                                isSelectionMode && selectedQuestions.contains(question.id)
-                                    ? Color.blue
-                                    : DesignTokens.AdaptiveColors.border(colorScheme: colorScheme),
-                                lineWidth: isSelectionMode && selectedQuestions.contains(question.id) ? 3 : 2
+                                archivedQuestions.contains(question.id)
+                                    ? Color.green.opacity(0.5)
+                                    : (isSelectionMode && selectedQuestions.contains(question.id)
+                                        ? Color.blue
+                                        : DesignTokens.AdaptiveColors.border(colorScheme: colorScheme)),
+                                lineWidth: (archivedQuestions.contains(question.id) || (isSelectionMode && selectedQuestions.contains(question.id))) ? 2 : 2
                             )
                     )
+                    .overlay(
+                        // Archived badge — bottom-right corner
+                        Group {
+                            if archivedQuestions.contains(question.id) {
+                                VStack {
+                                    Spacer()
+                                    HStack {
+                                        Spacer()
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "books.vertical.fill")
+                                                .font(.caption2)
+                                            Text("Archived")
+                                                .font(.caption2)
+                                                .fontWeight(.medium)
+                                        }
+                                        .foregroundColor(.green)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(Color.green.opacity(0.12))
+                                        .cornerRadius(8)
+                                        .padding(8)
+                                    }
+                                }
+                            }
+                        }
+                    )
+                    .opacity(archivedQuestions.contains(question.id) ? 0.75 : 1.0)
                     .shadow(
                         color: isSelectionMode && selectedQuestions.contains(question.id)
                             ? Color.blue.opacity(0.3)
@@ -496,6 +533,20 @@ struct GeneratedQuestionsListView: View {
         let topicCounts = Dictionary(grouping: questions) { $0.topic }
         let mostCommonTopic = topicCounts.max(by: { $0.value.count < $1.value.count })?.key ?? "Practice"
         return mostCommonTopic
+    }
+
+    /// Reload which questions have been archived from UserDefaults.
+    /// Called on appear and whenever the question detail sheet closes.
+    private func loadArchivedState() {
+        let uid = AuthenticationService.shared.currentUser?.id ?? "anonymous"
+        var updated: Set<UUID> = []
+        for question in questions {
+            let key = "question_archived_\(question.id)_\(uid)"
+            if UserDefaults.standard.bool(forKey: key) {
+                updated.insert(question.id)
+            }
+        }
+        archivedQuestions = updated
     }
 
     @ViewBuilder

@@ -91,28 +91,10 @@ struct HomeView: View {
             .navigationBarHidden(true)
             .onAppear {
                 lottieRefreshID += 1
-                // Load user name from ProfileService - always show display name or first name
-                if let profile = profileService.currentProfile {
-                    // Determine display name
-                    if let displayName = profile.displayName, !displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        userName = displayName
-                    } else if let firstName = profile.firstName, !firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        userName = firstName
-                    } else {
-                        userName = NSLocalizedString("home.defaultStudentName", comment: "")
-                    }
-                } else if let cachedProfile = profileService.loadCachedProfile() {
-                    // Determine display name
-                    if let displayName = cachedProfile.displayName, !displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        userName = displayName
-                    } else if let firstName = cachedProfile.firstName, !firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        userName = firstName
-                    } else {
-                        userName = NSLocalizedString("home.defaultStudentName", comment: "")
-                    }
-                } else {
-                    userName = NSLocalizedString("home.defaultStudentName", comment: "")
-                }
+                updateUserName(from: profileService.currentProfile ?? profileService.loadCachedProfile())
+            }
+            .onReceive(profileService.$currentProfile) { profile in
+                updateUserName(from: profile)
             }
             .sheet(isPresented: $showingProfile) {
                 ModernProfileView(onLogout: {
@@ -387,6 +369,20 @@ struct HomeView: View {
         case 0..<12: return NSLocalizedString("home.goodMorning", comment: "")
         case 12..<17: return NSLocalizedString("home.goodAfternoon", comment: "")
         default: return NSLocalizedString("home.goodEvening", comment: "")
+        }
+    }
+
+    private func updateUserName(from profile: UserProfile?) {
+        guard let profile = profile else {
+            userName = NSLocalizedString("home.defaultStudentName", comment: "")
+            return
+        }
+        if let displayName = profile.displayName, !displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            userName = displayName
+        } else if let firstName = profile.firstName, !firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            userName = firstName
+        } else {
+            userName = NSLocalizedString("home.defaultStudentName", comment: "")
         }
     }
 }

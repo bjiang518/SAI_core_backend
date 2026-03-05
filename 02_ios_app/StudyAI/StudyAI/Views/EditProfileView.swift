@@ -23,6 +23,11 @@ private func avatarLog(_ message: String) {
     #endif
 }
 
+/// Always-on debug logger for profile load/save tracing (mirrors AppLogger.auth.info level)
+private func profileLog(_ message: String) {
+    AppLogger.auth.info(message)
+}
+
 struct EditProfileView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var profileService = ProfileService.shared
@@ -32,18 +37,18 @@ struct EditProfileView: View {
     @State private var firstName: String = ""
     @State private var lastName: String = ""
     @State private var displayName: String = ""
-    @State private var gradeLevel: String = ""
+    @State private var selectedGradeLevel: GradeLevel? = nil
     @State private var dateOfBirth: Date = Date()
-    @State private var hasDateOfBirth: Bool = false
     @State private var childAge: String = ""  // Single child age as string
+    @State private var childAgeEdited = false  // True once the user has typed in the field
     @State private var gender: String = ""
     @State private var city: String = ""
     @State private var stateProvince: String = ""
     @State private var country: String = ""
-    @State private var favoriteSubjects: Set<String> = []
+    @State private var favoriteSubjects: Set<Subject> = []
     @State private var learningStyle: String = ""
     @State private var timezone: String = "UTC"
-    @State private var languagePreference: String = "en"
+    @State private var languagePreference: String = ""
     @State private var selectedAvatarId: Int? = nil
 
     // Custom avatar states
@@ -72,7 +77,6 @@ struct EditProfileView: View {
     @State private var showingError = false
     @State private var errorMessage = ""
     @State private var showingSaveSuccess = false
-    @State private var showingSubjectPicker = false
     
     var body: some View {
         NavigationView {
@@ -80,20 +84,11 @@ struct EditProfileView: View {
                 // Avatar Selection Section
                 avatarSelectionSection
 
-                // Personal Information Section
+                // Personal Information Section (includes location)
                 personalInformationSection
 
-                // Children Information Section (for parents)
-                childrenInformationSection
-
-                // Location Section
-                locationSection
-
-                // Academic Preferences Section
-                academicPreferencesSection
-
-                // Optional Information Section
-                optionalInformationSection
+                // Student Information Section
+                studentInformationSection
             }
             .listStyle(.plain)  // Remove default Form spacing
             .padding(.top, -20)  // Reduce top gap
@@ -383,54 +378,23 @@ struct EditProfileView: View {
 
                 // Date of Birth
                 VStack(alignment: .leading, spacing: 8) {
-                    Toggle(NSLocalizedString("editProfile.addDateOfBirth", comment: ""), isOn: $hasDateOfBirth)
-                        .font(.subheadline)
-
-                    if hasDateOfBirth {
-                        DatePicker(NSLocalizedString("editProfile.dateOfBirth", comment: ""), selection: $dateOfBirth, displayedComponents: .date)
-                            .datePickerStyle(.compact)
-                    }
-                }
-            }
-        }
-    }
-    
-    // MARK: - Children Information Section
-
-    private var childrenInformationSection: some View {
-        Section {
-            VStack(alignment: .leading, spacing: 16) {
-                Text(NSLocalizedString("editProfile.childrenInfo", comment: ""))
-                    .font(.headline)
-                    .foregroundColor(.primary)
-
-                Text(NSLocalizedString("editProfile.childrenInfoDescription", comment: ""))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(NSLocalizedString("editProfile.childAge", comment: ""))
+                    Text(NSLocalizedString("editProfile.dateOfBirth", comment: ""))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
-
-                    TextField(NSLocalizedString("editProfile.childAgePlaceholder", comment: ""), text: $childAge)
-                        .textFieldStyle(.roundedBorder)
-                        .keyboardType(.numberPad)
+                    DatePicker(NSLocalizedString("editProfile.dateOfBirth", comment: ""), selection: $dateOfBirth, displayedComponents: .date)
+                        .datePickerStyle(.compact)
+                        .labelsHidden()
                 }
-            }
-        }
-    }
-    
-    // MARK: - Location Section
-    
-    private var locationSection: some View {
-        Section {
-            VStack(alignment: .leading, spacing: 16) {
-                Text(NSLocalizedString("editProfile.location", comment: ""))
-                    .font(.headline)
-                    .foregroundColor(.primary)
 
+                Divider()
+
+                // Location
                 VStack(alignment: .leading, spacing: 12) {
+                    Text(NSLocalizedString("editProfile.location", comment: ""))
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.secondary)
+
                     VStack(alignment: .leading, spacing: 4) {
                         Text(NSLocalizedString("editProfile.city", comment: ""))
                             .font(.subheadline)
@@ -459,160 +423,315 @@ struct EditProfileView: View {
         }
     }
     
-    // MARK: - Academic Preferences Section
-    
-    private var academicPreferencesSection: some View {
+    // MARK: - Student Information Section
+
+    private var studentInformationSection: some View {
         Section {
-            VStack(alignment: .leading, spacing: 16) {
-                Text(NSLocalizedString("editProfile.academicPreferences", comment: ""))
-                    .font(.headline)
-                    .foregroundColor(.primary)
+            VStack(spacing: 14) {
 
-                // Grade Level
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(NSLocalizedString("editProfile.gradeLevel", comment: ""))
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-
-                    Picker(NSLocalizedString("editProfile.gradeLevelPicker", comment: ""), selection: $gradeLevel) {
-                        Text(NSLocalizedString("editProfile.selectGradeLevel", comment: "")).tag("")
-                        ForEach(GradeLevel.allCases, id: \.rawValue) { grade in
-                            Text(grade.displayName).tag(String(grade.integerValue))
-                        }
-                    }
-                    .pickerStyle(.menu)
+                // Section header
+                HStack(spacing: 10) {
+                    Image(systemName: "person.crop.rectangle.badge.checkmark")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(DesignTokens.Colors.Cute.blue)
+                    Text("Student Information")
+                        .font(.headline).fontWeight(.bold)
+                        .foregroundColor(DesignTokens.Colors.Cute.textPrimary)
+                    Spacer()
                 }
+                .padding(.bottom, 2)
 
-                // Favorite Subjects
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text(NSLocalizedString("editProfile.favoriteSubjects", comment: ""))
+                // Row 1 — Age + Grade
+                HStack(spacing: 10) {
+                    // Age card
+                    studentCard(
+                        icon: "calendar.badge.clock",
+                        iconColor: DesignTokens.Colors.Cute.peach,
+                        label: "Age"
+                    ) {
+                        TextField("e.g. 14", text: $childAge)
+                            .keyboardType(.numberPad)
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
-
-                        Spacer()
-
-                        Button(NSLocalizedString("editProfile.addSubjects", comment: "")) {
-                            showingSubjectPicker = true
-                        }
-                        .font(.caption)
-                        .foregroundColor(.blue)
+                            .onChange(of: childAge) { _ in childAgeEdited = true }
                     }
 
-                    if !favoriteSubjects.isEmpty {
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 8) {
-                            ForEach(Array(favoriteSubjects), id: \.self) { subject in
-                                HStack {
-                                    Text(subject)
-                                        .font(.caption)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(Color.green.opacity(0.1))
-                                        .foregroundColor(.green)
-                                        .cornerRadius(8)
-
-                                    Button(action: {
-                                        favoriteSubjects.remove(subject)
-                                    }) {
-                                        Image(systemName: "xmark.circle.fill")
-                                            .font(.caption)
-                                            .foregroundColor(.red)
-                                    }
-                                }
+                    // Grade card
+                    studentCard(
+                        icon: "graduationcap.fill",
+                        iconColor: DesignTokens.Colors.Cute.blue,
+                        label: NSLocalizedString("editProfile.gradeLevel", comment: "")
+                    ) {
+                        Picker("", selection: $selectedGradeLevel) {
+                            Text("—").tag(Optional<GradeLevel>(nil))
+                            ForEach(GradeLevel.allCases, id: \.rawValue) { grade in
+                                Text(grade.displayName).tag(Optional(grade))
                             }
                         }
+                        .pickerStyle(.menu)
+                        .font(.subheadline)
                     }
                 }
 
-                // Learning Style
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(NSLocalizedString("editProfile.learningStyle", comment: ""))
+                // Row 2 — Gender + Language
+                HStack(spacing: 10) {
+                    // Gender card
+                    studentCard(
+                        icon: "figure.stand",
+                        iconColor: DesignTokens.Colors.Cute.lavender,
+                        label: NSLocalizedString("editProfile.gender", comment: "")
+                    ) {
+                        Picker("", selection: $gender) {
+                            Text("—").tag("")
+                            Text(NSLocalizedString("editProfile.genderFemale", comment: "")).tag("Female")
+                            Text(NSLocalizedString("editProfile.genderMale", comment: "")).tag("Male")
+                            Text(NSLocalizedString("editProfile.genderNonBinary", comment: "")).tag("Non-binary")
+                            Text(NSLocalizedString("editProfile.genderOther", comment: "")).tag("Other")
+                        }
+                        .pickerStyle(.menu)
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                    }
 
-                    Picker(NSLocalizedString("editProfile.learningStyle", comment: ""), selection: $learningStyle) {
-                        Text(NSLocalizedString("editProfile.selectLearningStyle", comment: "")).tag("")
-                        ForEach(LearningStyle.allCases, id: \.rawValue) { style in
-                            Text(style.displayName).tag(style.rawValue)
+                    // Language card
+                    studentCard(
+                        icon: "globe",
+                        iconColor: DesignTokens.Colors.Cute.mint,
+                        label: "Language"
+                    ) {
+                        Picker("", selection: $languagePreference) {
+                            Text(NSLocalizedString("editProfile.languageEnglish", comment: "")).tag("en")
+                            Text(NSLocalizedString("editProfile.languageSpanish", comment: "")).tag("es")
+                            Text(NSLocalizedString("editProfile.languageFrench", comment: "")).tag("fr")
+                            Text(NSLocalizedString("editProfile.languageGerman", comment: "")).tag("de")
+                            Text(NSLocalizedString("editProfile.languageChinese", comment: "")).tag("zh")
+                            Text(NSLocalizedString("editProfile.languageJapanese", comment: "")).tag("ja")
+                        }
+                        .pickerStyle(.menu)
+                        .font(.subheadline)
+                    }
+                }
+
+                // Row 3 — Favorite Subjects (full width)
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(Color(hex: "D4A017"))
+                            .frame(width: 26, height: 26)
+                            .background(DesignTokens.Colors.Cute.yellow.opacity(0.3))
+                            .clipShape(Circle())
+                        Text(NSLocalizedString("editProfile.favoriteSubjects", comment: ""))
+                            .font(.subheadline).fontWeight(.semibold)
+                            .foregroundColor(DesignTokens.Colors.Cute.textPrimary)
+                        Spacer()
+                        if !favoriteSubjects.isEmpty {
+                            Text("\(favoriteSubjects.count) selected")
+                                .font(.caption2)
+                                .foregroundColor(DesignTokens.Colors.Cute.textSecondary)
                         }
                     }
-                    .pickerStyle(.menu)
+                    LazyVGrid(
+                        columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())],
+                        spacing: 8
+                    ) {
+                        ForEach(Subject.allCases, id: \.self) { subjectChipInline($0) }
+                    }
                 }
+                .padding(14)
+                .background(DesignTokens.Colors.Cute.yellow.opacity(0.12))
+                .cornerRadius(16)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(DesignTokens.Colors.Cute.yellow.opacity(0.35), lineWidth: 1)
+                )
+
+                // Row 4 — Learning Style bar (full width)
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "brain.head.profile")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(DesignTokens.Colors.Cute.pink)
+                            .frame(width: 26, height: 26)
+                            .background(DesignTokens.Colors.Cute.pink.opacity(0.2))
+                            .clipShape(Circle())
+                        Text("Learning Style")
+                            .font(.subheadline).fontWeight(.semibold)
+                            .foregroundColor(DesignTokens.Colors.Cute.textPrimary)
+                    }
+
+                    HStack(spacing: 0) {
+                        // Heuristic side
+                        Button { learningStyle = "heuristic" } label: {
+                            VStack(spacing: 4) {
+                                Image(systemName: "lightbulb.fill")
+                                    .font(.system(size: 16))
+                                Text("Heuristic")
+                                    .font(.subheadline).fontWeight(.semibold)
+                                Text("Guided discovery")
+                                    .font(.caption2)
+                                    .opacity(0.8)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(
+                                learningStyle == "heuristic"
+                                    ? LinearGradient(
+                                        colors: [DesignTokens.Colors.Cute.peach, DesignTokens.Colors.Cute.pink],
+                                        startPoint: .topLeading, endPoint: .bottomTrailing
+                                      )
+                                    : LinearGradient(
+                                        colors: [Color.clear, Color.clear],
+                                        startPoint: .topLeading, endPoint: .bottomTrailing
+                                      )
+                            )
+                            .foregroundColor(learningStyle == "heuristic" ? .white : DesignTokens.Colors.Cute.textSecondary)
+                        }
+                        .buttonStyle(.plain)
+                        .cornerRadius(12)
+
+                        // Straightforward side
+                        Button { learningStyle = "straightforward" } label: {
+                            VStack(spacing: 4) {
+                                Image(systemName: "arrow.right.circle.fill")
+                                    .font(.system(size: 16))
+                                Text("Straightforward")
+                                    .font(.subheadline).fontWeight(.semibold)
+                                Text("Direct answers")
+                                    .font(.caption2)
+                                    .opacity(0.8)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(
+                                learningStyle == "straightforward"
+                                    ? LinearGradient(
+                                        colors: [DesignTokens.Colors.Cute.blue, DesignTokens.Colors.Cute.lavender],
+                                        startPoint: .topLeading, endPoint: .bottomTrailing
+                                      )
+                                    : LinearGradient(
+                                        colors: [Color.clear, Color.clear],
+                                        startPoint: .topLeading, endPoint: .bottomTrailing
+                                      )
+                            )
+                            .foregroundColor(learningStyle == "straightforward" ? .white : DesignTokens.Colors.Cute.textSecondary)
+                        }
+                        .buttonStyle(.plain)
+                        .cornerRadius(12)
+                    }
+                    .background(DesignTokens.Colors.Cute.backgroundSoftPink)
+                    .cornerRadius(12)
+                    .animation(.easeInOut(duration: 0.2), value: learningStyle)
+                }
+                .padding(14)
+                .background(
+                    LinearGradient(
+                        colors: [DesignTokens.Colors.Cute.pink.opacity(0.08), DesignTokens.Colors.Cute.lavender.opacity(0.08)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    )
+                )
+                .cornerRadius(16)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(DesignTokens.Colors.Cute.pink.opacity(0.25), lineWidth: 1)
+                )
             }
         }
-        .sheet(isPresented: $showingSubjectPicker) {
-            SubjectPickerView(selectedSubjects: $favoriteSubjects)
-        }
+        .listRowBackground(Color.clear)
+        .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 16, trailing: 16))
     }
-    
-    // MARK: - Optional Information Section
-    
-    private var optionalInformationSection: some View {
-        Section {
-            VStack(alignment: .leading, spacing: 16) {
-                Text(NSLocalizedString("editProfile.optionalInfo", comment: ""))
-                    .font(.headline)
-                    .foregroundColor(.primary)
 
-                // Gender
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(NSLocalizedString("editProfile.gender", comment: ""))
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-
-                    Picker(NSLocalizedString("editProfile.genderPicker", comment: ""), selection: $gender) {
-                        Text(NSLocalizedString("editProfile.genderPreferNotToSpecify", comment: "")).tag("")
-                        Text(NSLocalizedString("editProfile.genderFemale", comment: "")).tag("Female")
-                        Text(NSLocalizedString("editProfile.genderMale", comment: "")).tag("Male")
-                        Text(NSLocalizedString("editProfile.genderNonBinary", comment: "")).tag("Non-binary")
-                        Text(NSLocalizedString("editProfile.genderOther", comment: "")).tag("Other")
-                    }
-                    .pickerStyle(.menu)
-                }
-
-                // Language Preference
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(NSLocalizedString("editProfile.languagePreference", comment: ""))
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-
-                    Picker(NSLocalizedString("editProfile.languagePicker", comment: ""), selection: $languagePreference) {
-                        Text(NSLocalizedString("editProfile.languageEnglish", comment: "")).tag("en")
-                        Text(NSLocalizedString("editProfile.languageSpanish", comment: "")).tag("es")
-                        Text(NSLocalizedString("editProfile.languageFrench", comment: "")).tag("fr")
-                        Text(NSLocalizedString("editProfile.languageGerman", comment: "")).tag("de")
-                        Text(NSLocalizedString("editProfile.languageChinese", comment: "")).tag("zh")
-                        Text(NSLocalizedString("editProfile.languageJapanese", comment: "")).tag("ja")
-                    }
-                    .pickerStyle(.menu)
-                }
+    /// Generic two-row mini-card for a labelled student field.
+    @ViewBuilder
+    private func studentCard<Content: View>(
+        icon: String,
+        iconColor: Color,
+        label: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(iconColor)
+                    .frame(width: 22, height: 22)
+                    .background(iconColor.opacity(0.18))
+                    .clipShape(Circle())
+                Text(label)
+                    .font(.caption).fontWeight(.semibold)
+                    .foregroundColor(DesignTokens.Colors.Cute.textSecondary)
             }
+            content()
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(iconColor.opacity(0.08))
+        .cornerRadius(14)
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(iconColor.opacity(0.25), lineWidth: 1)
+        )
+    }
+
+    @ViewBuilder
+    private func subjectChipInline(_ subject: Subject) -> some View {
+        let on = favoriteSubjects.contains(subject)
+        Button {
+            if on { favoriteSubjects.remove(subject) } else { favoriteSubjects.insert(subject) }
+        } label: {
+            VStack(spacing: 4) {
+                Image(systemName: subject.icon)
+                    .font(.system(size: 16))
+                    .foregroundColor(on ? Color(hex: "D4A017") : DesignTokens.Colors.Cute.textSecondary)
+                Text(subject.displayName)
+                    .font(.caption2)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .foregroundColor(on ? DesignTokens.Colors.Cute.textPrimary : DesignTokens.Colors.Cute.textSecondary)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 62)
+            .background(on ? DesignTokens.Colors.Cute.yellow.opacity(0.25) : DesignTokens.Colors.Cute.backgroundSoftPink)
+            .cornerRadius(10)
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(
+                        on ? DesignTokens.Colors.Cute.yellow : DesignTokens.Colors.Cute.peachLight,
+                        lineWidth: on ? 1.5 : 1
+                    )
+            )
+            .scaleEffect(on ? 1.02 : 1.0)
+        }
+        .buttonStyle(.plain)
+        .animation(.spring(response: 0.25, dampingFraction: 0.65), value: on)
     }
     
     // MARK: - Helper Methods
     
+    private var deviceLanguageCode: String {
+        let code = Locale.preferredLanguages.first?.components(separatedBy: "-").first ?? "en"
+        return ["en", "es", "fr", "de", "zh", "ja"].contains(code) ? code : "en"
+    }
+
     private func loadCurrentProfile() {
         avatarLog("🔵 [EditProfileView] loadCurrentProfile() called")
+        profileLog("📋 [EditProfile] loadCurrentProfile() — ENTERING. profileService.currentProfile=\(profileService.currentProfile == nil ? "NIL ⚠️" : "present")")
 
         if let profile = profileService.currentProfile {
-            avatarLog("📦 [EditProfileView] Loading profile from ProfileService")
-            avatarLog("   - City: \(profile.city ?? "nil")")
-            avatarLog("   - State/Province: \(profile.stateProvince ?? "nil")")
-            avatarLog("   - Country: \(profile.country ?? "nil")")
-            avatarLog("   - Kids Ages: \(profile.kidsAges)")
-            avatarLog("   - Display Location: \(profile.displayLocation ?? "nil")")
+            profileLog("📋 [EditProfile] source: ProfileService.currentProfile — firstName=\(profile.firstName ?? "nil") lastName=\(profile.lastName ?? "nil") gradeLevel=\(profile.gradeLevel ?? "nil") city=\(profile.city ?? "nil") country=\(profile.country ?? "nil")")
 
             firstName = profile.firstName ?? ""
             lastName = profile.lastName ?? ""
             displayName = profile.displayName ?? ""
 
-            // Load grade level as integer string
-            gradeLevel = profile.gradeLevel ?? ""
+            // Load grade level as enum value
+            if let gl = profile.gradeLevel {
+                selectedGradeLevel = GradeLevel.from(string: gl)
+            } else {
+                selectedGradeLevel = nil
+            }
 
             if let dob = profile.dateOfBirth {
                 dateOfBirth = dob
-                hasDateOfBirth = true
             }
 
             // Load first child age if available
@@ -624,10 +743,17 @@ struct EditProfileView: View {
             city = profile.city ?? ""
             stateProvince = profile.stateProvince ?? ""
             country = profile.country ?? ""
-            favoriteSubjects = Set(profile.favoriteSubjects)
-            learningStyle = profile.learningStyle ?? ""
+
+            // Map stored string array to Subject enum set
+            favoriteSubjects = Set(profile.favoriteSubjects.compactMap { Subject(rawValue: $0) })
+
+            // Map stored learning style to heuristic/straightforward; leave empty for other legacy values
+            let stored = profile.learningStyle ?? ""
+            learningStyle = (stored == "heuristic" || stored == "straightforward") ? stored : ""
+
             timezone = profile.timezone ?? "UTC"
-            languagePreference = profile.languagePreference ?? "en"
+            // Default to device language when no preference is stored
+            languagePreference = profile.languagePreference.flatMap { $0.isEmpty ? nil : $0 } ?? deviceLanguageCode
 
             // ✅ LOCAL-FIRST: Load avatar selection from UserDefaults (not server)
             if let localAvatarId = UserDefaults.standard.object(forKey: "selectedAvatarId") as? Int {
@@ -642,31 +768,24 @@ struct EditProfileView: View {
 
             // ✅ LOCAL-FIRST: Load custom avatar from local filename
             if let localFilename = UserDefaults.standard.string(forKey: "localAvatarFilename") {
-                avatarLog("📁 [EditProfileView] Loading custom avatar from LOCAL filename: \(localFilename)")
-                if loadAvatarLocally(from: localFilename) != nil {
-                    if let localImage = loadAvatarLocally(from: localFilename) {
-                        customAvatarImage = localImage
-                        avatarLog("✅ [EditProfileView] Custom avatar loaded from LOCAL file")
-                    } else {
-                        avatarLog("⚠️ [EditProfileView] Failed to load custom avatar from LOCAL file")
-                    }
+                if let localImage = loadAvatarLocally(from: localFilename) {
+                    customAvatarImage = localImage
+                    avatarLog("✅ [EditProfileView] Custom avatar loaded from LOCAL file")
                 }
             }
 
-            avatarLog("✅ [EditProfileView] Profile loaded into @State variables")
-            avatarLog("   - @State city: \(city)")
-            avatarLog("   - @State stateProvince: \(stateProvince)")
-            avatarLog("   - @State country: \(country)")
-            avatarLog("   - @State childAge: \(childAge)")
+            profileLog("📋 [EditProfile] @State after load — firstName=\(firstName) lastName=\(lastName) gradeLevel=\(selectedGradeLevel?.rawValue ?? "nil") city=\(city)")
         } else {
-            avatarLog("⚠️ [EditProfileView] No profile in ProfileService.currentProfile")
+            profileLog("📋 [EditProfile] loadCurrentProfile() — profileService.currentProfile is NIL, falling back to currentUser name only ⚠️")
 
             // Load from current user if no profile exists
             if let user = authService.currentUser {
                 firstName = extractFirstName(from: user.name)
                 lastName = extractLastName(from: user.name)
-                avatarLog("ℹ️ [EditProfileView] Loaded name from currentUser: \(firstName) \(lastName)")
             }
+
+            // Default language to device language for new users
+            languagePreference = deviceLanguageCode
         }
     }
 
@@ -725,10 +844,17 @@ struct EditProfileView: View {
             avatarLog("ℹ️ [EditProfileView] No avatar selected")
         }
 
-        // Convert child age to array (empty or single element)
-        var kidsAgesArray: [Int] = []
-        if !childAge.isEmpty, let age = Int(childAge), age >= 1 && age <= 18 {
-            kidsAgesArray = [age]
+        // Convert child age to array only if the user edited the field;
+        // otherwise preserve the existing value so multi-child arrays aren't overwritten.
+        let kidsAgesArray: [Int]
+        if childAgeEdited {
+            if !childAge.isEmpty, let age = Int(childAge), age >= 1 && age <= 18 {
+                kidsAgesArray = [age]
+            } else {
+                kidsAgesArray = []
+            }
+        } else {
+            kidsAgesArray = profileService.currentProfile?.kidsAges ?? []
         }
 
         // Create updated profile
@@ -741,41 +867,29 @@ struct EditProfileView: View {
             firstName: firstName.trimmingCharacters(in: .whitespacesAndNewlines),
             lastName: lastName.trimmingCharacters(in: .whitespacesAndNewlines),
             displayName: displayName.isEmpty ? nil : displayName.trimmingCharacters(in: .whitespacesAndNewlines),
-            gradeLevel: gradeLevel.isEmpty ? nil : gradeLevel,
-            dateOfBirth: hasDateOfBirth ? dateOfBirth : nil,
+            gradeLevel: selectedGradeLevel.map { String($0.integerValue) },
+            dateOfBirth: dateOfBirth,
             kidsAges: kidsAgesArray,
             gender: gender.isEmpty ? nil : gender,
             city: city.isEmpty ? nil : city.trimmingCharacters(in: .whitespacesAndNewlines),
             stateProvince: stateProvince.isEmpty ? nil : stateProvince.trimmingCharacters(in: .whitespacesAndNewlines),
             country: country.isEmpty ? nil : country.trimmingCharacters(in: .whitespacesAndNewlines),
-            favoriteSubjects: Array(favoriteSubjects),
+            favoriteSubjects: favoriteSubjects.map { $0.rawValue },
             learningStyle: learningStyle.isEmpty ? nil : learningStyle,
             timezone: timezone,
             languagePreference: languagePreference,
             profileCompletionPercentage: 0, // Will be calculated by server
             lastUpdated: Date(),
-            avatarId: customAvatarImage != nil ? nil : selectedAvatarId,  // Clear avatarId if custom avatar uploaded
-            customAvatarUrl: nil  // ✅ Never send filename to backend (local-first approach)
+            avatarId: customAvatarImage != nil ? nil : selectedAvatarId,
+            customAvatarUrl: nil
         )
+        profileLog("💾 [EditProfile] saveProfile() — built updatedProfile: firstName=\(updatedProfile.firstName ?? "nil") lastName=\(updatedProfile.lastName ?? "nil") gradeLevel=\(updatedProfile.gradeLevel ?? "nil") city=\(updatedProfile.city ?? "nil") country=\(updatedProfile.country ?? "nil")")
 
         do {
             avatarLog("💾 [EditProfileView] Updating profile...")
             _ = try await profileService.updateUserProfile(updatedProfile)
-            avatarLog("✅ [EditProfileView] Profile updated on backend")
-
-            // Reload profile to get the updated data including custom avatar URL
-            avatarLog("🔄 [EditProfileView] Reloading profile from backend...")
-            _ = try? await profileService.getUserProfile()
-            avatarLog("✅ [EditProfileView] Profile reloaded")
-
-            if let reloadedProfile = profileService.currentProfile {
-                avatarLog("📦 [EditProfileView] Reloaded profile has custom avatar: \(reloadedProfile.customAvatarUrl != nil ? "YES" : "NO")")
-                if let customUrl = reloadedProfile.customAvatarUrl {
-                    avatarLog("📦 [EditProfileView] Custom avatar URL: \(customUrl.prefix(100))...")
-                }
-            } else {
-                avatarLog("⚠️ [EditProfileView] No profile in ProfileService after reload!")
-            }
+            avatarLog("✅ [EditProfileView] Profile updated on backend and cached locally")
+            profileLog("💾 [EditProfile] saveProfile() — profileService.updateUserProfile returned ✅. currentProfile.firstName=\(profileService.currentProfile?.firstName ?? "nil")")
 
             // Force UI update by posting notification
             await MainActor.run {
@@ -784,6 +898,7 @@ struct EditProfileView: View {
                 showingSaveSuccess = true
             }
         } catch {
+            profileLog("💾 [EditProfile] saveProfile() — updateUserProfile threw error: \(error.localizedDescription) ❌")
             await MainActor.run {
                 errorMessage = error.localizedDescription
                 showingError = true
@@ -979,6 +1094,9 @@ struct EditProfileView: View {
         let filename = localFileURL.lastPathComponent
         avatarLog("✅ [EditProfileView] Avatar saved locally with filename: \(filename)")
 
+        // Mark sync as pending so ProfileService can retry on next launch if upload fails
+        UserDefaults.standard.set(true, forKey: "avatarSyncPending")
+
         // STEP 2: Upload to server in background (for backup/sync)
         Task {
             do {
@@ -998,6 +1116,7 @@ struct EditProfileView: View {
 
                 if result.success {
                     avatarLog("✅ [EditProfileView] Background server sync successful")
+                    UserDefaults.standard.set(false, forKey: "avatarSyncPending")
                 } else {
                     avatarLog("⚠️ [EditProfileView] Background server sync failed (local copy still available): \(result.message)")
                 }
@@ -1009,51 +1128,6 @@ struct EditProfileView: View {
     }
 
     /// Load custom avatar from URL
-}
-
-// MARK: - Subject Picker View
-
-struct SubjectPickerView: View {
-    @Environment(\.dismiss) private var dismiss
-    @Binding var selectedSubjects: Set<String>
-
-    var body: some View {
-        NavigationView {
-            List {
-                ForEach(Subject.allCases, id: \.rawValue) { subject in
-                    HStack {
-                        Text(subject.displayName)
-
-                        Spacer()
-
-                        if selectedSubjects.contains(subject.rawValue) {
-                            Image(systemName: "checkmark")
-                                .foregroundColor(.blue)
-                        }
-                    }
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        if selectedSubjects.contains(subject.rawValue) {
-                            selectedSubjects.remove(subject.rawValue)
-                        } else {
-                            selectedSubjects.insert(subject.rawValue)
-                        }
-                    }
-                }
-            }
-            .navigationTitle(NSLocalizedString("editProfile.selectSubjects", comment: ""))
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(NSLocalizedString("common.done", comment: "")) {
-                        dismiss()
-                    }
-                    .fontWeight(.semibold)
-                }
-            }
-            .adaptiveNavigationBar() // iOS 18+ liquid glass / iOS < 18 solid background
-        }
-    }
 }
 
 // MARK: - Loading Overlay

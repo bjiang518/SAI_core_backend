@@ -7,6 +7,13 @@
 
 import Foundation
 
+// MARK: - Shared date formatters (allocated once, not per-call)
+
+private let ymdFormatter: DateFormatter = {
+    let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f
+}()
+private let isoFormatter = ISO8601DateFormatter()
+
 // MARK: - Enhanced User Profile Model
 
 struct UserProfile: Codable {
@@ -35,6 +42,7 @@ struct UserProfile: Codable {
     let lastUpdated: Date?
     let avatarId: Int? // Profile avatar selection (1-6)
     let customAvatarUrl: String? // Custom uploaded avatar URL
+    let onboardingCompleted: Bool
 
     // Computed properties for display
     var fullName: String {
@@ -74,7 +82,7 @@ struct UserProfile: Codable {
         case dateOfBirth, kidsAges, gender, city
         case stateProvince = "stateProvince"
         case country, favoriteSubjects, learningStyle, timezone, languagePreference
-        case profileCompletionPercentage, lastUpdated, avatarId, customAvatarUrl
+        case profileCompletionPercentage, lastUpdated, avatarId, customAvatarUrl, onboardingCompleted
     }
     
     // Custom date handling for JSON
@@ -93,9 +101,7 @@ struct UserProfile: Codable {
         
         // Handle date decoding
         if let dateString = try container.decodeIfPresent(String.self, forKey: .dateOfBirth) {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd"
-            dateOfBirth = formatter.date(from: dateString)
+            dateOfBirth = ymdFormatter.date(from: dateString)
         } else {
             dateOfBirth = nil
         }
@@ -112,11 +118,11 @@ struct UserProfile: Codable {
         profileCompletionPercentage = try container.decodeIfPresent(Int.self, forKey: .profileCompletionPercentage) ?? 0
         avatarId = try container.decodeIfPresent(Int.self, forKey: .avatarId)
         customAvatarUrl = try container.decodeIfPresent(String.self, forKey: .customAvatarUrl)
+        onboardingCompleted = try container.decodeIfPresent(Bool.self, forKey: .onboardingCompleted) ?? false
 
         // Handle lastUpdated date
         if let lastUpdatedString = try container.decodeIfPresent(String.self, forKey: .lastUpdated) {
-            let formatter = ISO8601DateFormatter()
-            lastUpdated = formatter.date(from: lastUpdatedString)
+            lastUpdated = isoFormatter.date(from: lastUpdatedString)
         } else {
             lastUpdated = nil
         }
@@ -137,9 +143,7 @@ struct UserProfile: Codable {
         
         // Handle date encoding
         if let dateOfBirth = dateOfBirth {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd"
-            try container.encode(formatter.string(from: dateOfBirth), forKey: .dateOfBirth)
+            try container.encode(ymdFormatter.string(from: dateOfBirth), forKey: .dateOfBirth)
         }
         
         try container.encode(kidsAges, forKey: .kidsAges)
@@ -154,11 +158,11 @@ struct UserProfile: Codable {
         try container.encode(profileCompletionPercentage, forKey: .profileCompletionPercentage)
         try container.encodeIfPresent(avatarId, forKey: .avatarId)
         try container.encodeIfPresent(customAvatarUrl, forKey: .customAvatarUrl)
+        try container.encode(onboardingCompleted, forKey: .onboardingCompleted)
 
         // Handle lastUpdated encoding
         if let lastUpdated = lastUpdated {
-            let formatter = ISO8601DateFormatter()
-            try container.encode(formatter.string(from: lastUpdated), forKey: .lastUpdated)
+            try container.encode(isoFormatter.string(from: lastUpdated), forKey: .lastUpdated)
         }
     }
 }
@@ -191,9 +195,7 @@ struct ProfileUpdateRequest: Codable {
         
         // Convert date to string
         if let dateOfBirth = profile.dateOfBirth {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd"
-            self.dateOfBirth = formatter.string(from: dateOfBirth)
+            self.dateOfBirth = ymdFormatter.string(from: dateOfBirth)
         } else {
             self.dateOfBirth = nil
         }
@@ -526,22 +528,18 @@ extension UserProfile {
         var dateOfBirth: Date?
         if let dobString = dict["dateOfBirth"] as? String ?? dict["date_of_birth"] as? String {
             // Try ISO8601 format first
-            let iso8601Formatter = ISO8601DateFormatter()
-            dateOfBirth = iso8601Formatter.date(from: dobString)
-            
+            dateOfBirth = isoFormatter.date(from: dobString)
+
             // If that fails, try date-only format (YYYY-MM-DD)
             if dateOfBirth == nil {
-                let dateFormatter = DateFormatter()
-                dateFormatter.dateFormat = "yyyy-MM-dd"
-                dateOfBirth = dateFormatter.date(from: dobString)
+                dateOfBirth = ymdFormatter.date(from: dobString)
             }
         }
-        
+
         // Parse last updated
         var lastUpdated: Date?
         if let lastUpdatedString = dict["lastUpdated"] as? String ?? dict["last_updated"] as? String {
-            let formatter = ISO8601DateFormatter()
-            lastUpdated = formatter.date(from: lastUpdatedString)
+            lastUpdated = isoFormatter.date(from: lastUpdatedString)
         }
         
         // Parse kids ages array
@@ -580,6 +578,9 @@ extension UserProfile {
         // Parse customAvatarUrl
         let customAvatarUrl = dict["customAvatarUrl"] as? String ?? dict["custom_avatar_url"] as? String
 
+        // Parse onboardingCompleted
+        let onboardingCompleted = dict["onboardingCompleted"] as? Bool ?? dict["onboarding_completed"] as? Bool ?? false
+
         return UserProfile(
             id: id,
             email: email,
@@ -603,7 +604,8 @@ extension UserProfile {
             profileCompletionPercentage: dict["profileCompletionPercentage"] as? Int ?? dict["profile_completion_percentage"] as? Int ?? 0,
             lastUpdated: lastUpdated,
             avatarId: avatarId,
-            customAvatarUrl: customAvatarUrl
+            customAvatarUrl: customAvatarUrl,
+            onboardingCompleted: onboardingCompleted
         )
     }
     
@@ -674,6 +676,7 @@ extension UserProfile {
         if let customAvatarUrl = customAvatarUrl {
             dict["customAvatarUrl"] = customAvatarUrl
         }
+        dict["onboardingCompleted"] = onboardingCompleted
 
         return dict
     }
@@ -702,7 +705,8 @@ extension UserProfile {
         profileCompletionPercentage: Int = 0,
         lastUpdated: Date? = nil,
         avatarId: Int? = nil,
-        customAvatarUrl: String? = nil
+        customAvatarUrl: String? = nil,
+        onboardingCompleted: Bool = false
     ) {
         self.id = id
         self.email = email
@@ -727,6 +731,7 @@ extension UserProfile {
         self.lastUpdated = lastUpdated
         self.avatarId = avatarId
         self.customAvatarUrl = customAvatarUrl
+        self.onboardingCompleted = onboardingCompleted
     }
 }
 
@@ -738,28 +743,12 @@ extension ProfileCompletion {
         let percentage = dict["percentage"] as? Int ?? dict["completionPercentage"] as? Int ?? dict["completion_percentage"] as? Int ?? 0
         let isComplete = dict["isComplete"] as? Bool ?? dict["is_complete"] as? Bool ?? false
         let onboardingCompleted = dict["onboardingCompleted"] as? Bool ?? dict["onboarding_completed"] as? Bool ?? false
-        
-        // Create JSON data and decode it to construct ProfileCompletion
-        let jsonDict: [String: Any] = [
-            "percentage": percentage,
-            "isComplete": isComplete,
-            "onboardingCompleted": onboardingCompleted
-        ]
-        
-        do {
-            let jsonData = try JSONSerialization.data(withJSONObject: jsonDict)
-            let decoder = JSONDecoder()
-            return try decoder.decode(ProfileCompletion.self, from: jsonData)
-        } catch {
-            // Fallback: return a default ProfileCompletion
-            print("⚠️ Failed to decode ProfileCompletion: \(error)")
-            // Return safe default values without force unwrapping
-            return ProfileCompletion(
-                percentage: 0,
-                isComplete: false,
-                onboardingCompleted: false
-            )
-        }
+
+        return ProfileCompletion(
+            percentage: percentage,
+            isComplete: isComplete,
+            onboardingCompleted: onboardingCompleted
+        )
     }
 }
 

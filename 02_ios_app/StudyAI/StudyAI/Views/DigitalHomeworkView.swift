@@ -40,6 +40,9 @@ struct DigitalHomeworkView: View {
     // Annotation button glow pulse animation
     @State private var annotationGlowPulse = false
 
+    // Annotation question picker sheet
+    @State private var showAnnotationPicker = false
+
     // ✅ Archive / Smart Organize result toast
     @State private var showResultToast = false
     @State private var resultToastLines: [String] = []
@@ -580,8 +583,10 @@ struct DigitalHomeworkView: View {
                     // Accuracy percentage
                     VStack(spacing: 4) {
                         Text(String(format: "%.0f%%", accuracy))
-                            .font(.system(size: 48, weight: .bold))
+                            .font(.system(size: 36, weight: .bold))
                             .foregroundColor(.green)
+                            .lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
                         Text(NSLocalizedString("proMode.accuracy", comment: "Accuracy"))
                             .font(.caption)
                             .foregroundColor(.secondary)
@@ -1149,6 +1154,7 @@ struct DigitalHomeworkView: View {
 
     private var annotationFullScreenMode: some View {
         GeometryReader { geometry in
+            ZStack(alignment: .bottom) {
             VStack(spacing: 0) {
                 // 上方 70%: 图片 + 标注层
                 ZStack {
@@ -1232,6 +1238,22 @@ struct DigitalHomeworkView: View {
                 .frame(maxHeight: .infinity)
                 .background(Color(.systemGroupedBackground))
             }
+
+                // Floating dropdown for question ID picker
+                if showAnnotationPicker,
+                   let selectedId = viewModel.selectedAnnotationId,
+                   let annotation = viewModel.annotations.first(where: { $0.id == selectedId }) {
+                    Color.black.opacity(0.001)
+                        .ignoresSafeArea()
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            withAnimation(.easeOut(duration: 0.15)) { showAnnotationPicker = false }
+                        }
+                    annotationDropdown(annotationId: annotation.id, currentQuestionNumber: annotation.questionNumber)
+                        .padding(.bottom, 60)
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
+                }
+            }
         }
         .navigationBarHidden(true)
     }
@@ -1248,27 +1270,9 @@ struct DigitalHomeworkView: View {
                     .fill(annotation.color)
                     .frame(width: 28, height: 28)
 
-                // Question number picker — hierarchical (parent + subquestions with indent)
-                Menu {
-                    Section(header: Text(NSLocalizedString("proMode.selectQuestionNumber", comment: "Select Question Number"))) {
-                        ForEach(viewModel.availableAnnotationTargets.reversed(), id: \.annotationQuestionNumber) { target in
-                            Button(action: {
-                                viewModel.updateAnnotationQuestionNumber(annotationId: annotation.id, questionNumber: target.annotationQuestionNumber)
-                            }) {
-                                HStack {
-                                    Text(target.displayLabel)
-                                        .lineLimit(2)
-                                        .fixedSize(horizontal: false, vertical: true)
-
-                                    Spacer()
-
-                                    if annotation.questionNumber == target.annotationQuestionNumber {
-                                        Image(systemName: "checkmark")
-                                    }
-                                }
-                            }
-                        }
-                    }
+                // Question number picker — opens sheet with LaTeX rendering
+                Button {
+                    withAnimation(.easeOut(duration: 0.15)) { showAnnotationPicker.toggle() }
                 } label: {
                     HStack(spacing: 6) {
                         Text(annotation.questionNumber ?? NSLocalizedString("proMode.selectQuestionNumber", comment: "Select Question Number"))
@@ -1329,6 +1333,70 @@ struct DigitalHomeworkView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
+    }
+
+    // MARK: - Annotation Question Picker Dropdown (with LaTeX rendering)
+
+    private func annotationDropdown(annotationId: UUID, currentQuestionNumber: String?) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text(NSLocalizedString("proMode.selectQuestionNumber", comment: "Select Question Number"))
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
+                Spacer()
+                Button {
+                    withAnimation(.easeOut(duration: 0.15)) { showAnnotationPicker = false }
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(Color(.tertiaryLabel))
+                        .font(.system(size: 18))
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+
+            Divider()
+
+            ScrollView {
+                VStack(spacing: 0) {
+                    ForEach(viewModel.availableAnnotationTargets, id: \.annotationQuestionNumber) { target in
+                        Button {
+                            viewModel.updateAnnotationQuestionNumber(annotationId: annotationId, questionNumber: target.annotationQuestionNumber)
+                            withAnimation(.easeOut(duration: 0.15)) { showAnnotationPicker = false }
+                        } label: {
+                            HStack(alignment: .center, spacing: 8) {
+                                FullLaTeXText(target.displayLabel, fontSize: 14)
+                                    .padding(.leading, target.indentLevel == 1 ? 16 : 0)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                if currentQuestionNumber == target.annotationQuestionNumber {
+                                    Image(systemName: "checkmark")
+                                        .foregroundColor(.blue)
+                                        .font(.subheadline)
+                                }
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 10)
+                            .background(
+                                currentQuestionNumber == target.annotationQuestionNumber
+                                    ? Color.blue.opacity(0.08) : Color.clear
+                            )
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+
+                        Divider().padding(.leading, 12)
+                    }
+                }
+            }
+            .frame(maxHeight: 220)
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 4)
+        )
+        .padding(.horizontal, 16)
     }
 
     // MARK: - Compact Question Preview (紧凑版题目预览)

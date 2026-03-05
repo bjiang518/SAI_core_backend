@@ -2662,7 +2662,7 @@ async function runDatabaseMigrations() {
           CREATE TABLE email_verifications (
             id SERIAL PRIMARY KEY,
             email VARCHAR(255) NOT NULL UNIQUE,
-            code VARCHAR(6) NOT NULL,
+            code VARCHAR(100) NOT NULL,
             name VARCHAR(255) NOT NULL,
             attempts INTEGER DEFAULT 0,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -4617,6 +4617,9 @@ async function runDatabaseMigrations() {
             table_name TEXT,
             deleted_count BIGINT
           ) AS $$
+          DECLARE
+            v_table_name TEXT;
+            v_deleted_count BIGINT;
           BEGIN
             -- Soft delete expired conversations
             UPDATE archived_conversations_new
@@ -4624,8 +4627,10 @@ async function runDatabaseMigrations() {
             WHERE retention_expires_at < CURRENT_TIMESTAMP
               AND deleted_at IS NULL;
 
-            table_name := 'archived_conversations_new';
-            deleted_count := (SELECT COUNT(*) FROM archived_conversations_new WHERE deleted_at >= CURRENT_TIMESTAMP - INTERVAL '1 second');
+            v_table_name := 'archived_conversations_new';
+            v_deleted_count := (SELECT COUNT(*) FROM archived_conversations_new WHERE deleted_at >= CURRENT_TIMESTAMP - INTERVAL '1 second');
+            table_name := v_table_name;
+            deleted_count := v_deleted_count;
             RETURN NEXT;
 
             -- Soft delete expired sessions
@@ -4634,8 +4639,10 @@ async function runDatabaseMigrations() {
             WHERE retention_expires_at < CURRENT_TIMESTAMP
               AND deleted_at IS NULL;
 
-            table_name := 'sessions';
-            deleted_count := (SELECT COUNT(*) FROM sessions WHERE deleted_at >= CURRENT_TIMESTAMP - INTERVAL '1 second');
+            v_table_name := 'sessions';
+            v_deleted_count := (SELECT COUNT(*) FROM sessions WHERE deleted_at >= CURRENT_TIMESTAMP - INTERVAL '1 second');
+            table_name := v_table_name;
+            deleted_count := v_deleted_count;
             RETURN NEXT;
           END;
           $$ LANGUAGE plpgsql;
@@ -4648,21 +4655,28 @@ async function runDatabaseMigrations() {
             table_name TEXT,
             purged_count BIGINT
           ) AS $$
+          DECLARE
+            v_table_name TEXT;
+            v_purged_count BIGINT;
           BEGIN
             -- Hard delete conversations deleted > 30 days ago
             DELETE FROM archived_conversations_new
             WHERE deleted_at < (CURRENT_TIMESTAMP - INTERVAL '30 days');
 
-            table_name := 'archived_conversations_new';
-            GET DIAGNOSTICS purged_count = ROW_COUNT;
+            v_table_name := 'archived_conversations_new';
+            GET DIAGNOSTICS v_purged_count = ROW_COUNT;
+            table_name := v_table_name;
+            purged_count := v_purged_count;
             RETURN NEXT;
 
             -- Hard delete sessions deleted > 30 days ago
             DELETE FROM sessions
             WHERE deleted_at < (CURRENT_TIMESTAMP - INTERVAL '30 days');
 
-            table_name := 'sessions';
-            GET DIAGNOSTICS purged_count = ROW_COUNT;
+            v_table_name := 'sessions';
+            GET DIAGNOSTICS v_purged_count = ROW_COUNT;
+            table_name := v_table_name;
+            purged_count := v_purged_count;
             RETURN NEXT;
           END;
           $$ LANGUAGE plpgsql;
@@ -5056,6 +5070,67 @@ async function runDatabaseMigrations() {
       logger.debug('✅ Onboarding/consent columns migration already applied');
     }
 
+    // MIGRATION 017: Widen email_verifications.code for bcrypt hashes (2026-03-03)
+    const emailVerificationCodeCheck = await db.query(`
+      SELECT 1 FROM migration_history WHERE migration_name = '017_widen_email_verification_code'
+    `);
+
+    if (emailVerificationCodeCheck.rows.length === 0) {
+      logger.debug('📋 Applying email_verifications.code column widening migration...');
+
+      try {
+        await db.query(`
+          ALTER TABLE email_verifications
+            ALTER COLUMN code TYPE VARCHAR(100);
+        `);
+
+        await db.query(`
+          INSERT INTO migration_history (migration_name)
+          VALUES ('017_widen_email_verification_code')
+          ON CONFLICT (migration_name) DO NOTHING;
+        `);
+
+        logger.debug('✅ email_verifications.code widened to VARCHAR(100)');
+      } catch (migrationError) {
+        logger.error({ err: migrationError }, '❌ Migration 017 failed');
+      }
+    } else {
+      logger.debug('✅ email_verifications.code migration already applied');
+    }
+
+    // MIGRATION 018: Backfill onboarding_completed for pre-migration users (2026-03-04)
+    // Migration 016 added the column with DEFAULT false, so existing users who completed
+    // onboarding before that migration have the flag as false even though they are onboarded.
+    // Backfill: any profile that has first_name set (collected during onboarding) is considered done.
+    const onboardingBackfillCheck = await db.query(`
+      SELECT 1 FROM migration_history WHERE migration_name = '018_backfill_onboarding_completed'
+    `);
+
+    if (onboardingBackfillCheck.rows.length === 0) {
+      logger.debug('📋 Applying onboarding_completed backfill migration...');
+
+      try {
+        await db.query(`
+          UPDATE profiles
+          SET onboarding_completed = true
+          WHERE onboarding_completed = false
+            AND (first_name IS NOT NULL OR language_preference IS NOT NULL);
+        `);
+
+        await db.query(`
+          INSERT INTO migration_history (migration_name)
+          VALUES ('018_backfill_onboarding_completed')
+          ON CONFLICT (migration_name) DO NOTHING;
+        `);
+
+        logger.debug('✅ onboarding_completed backfilled for existing users');
+      } catch (migrationError) {
+        logger.error({ err: migrationError }, '❌ Migration 018 failed');
+      }
+    } else {
+      logger.debug('✅ onboarding_completed backfill already applied');
+    }
+
   } catch (error) {
     logger.error('❌ Database migration failed:', error);
     // Don't throw - let the app continue with what it has
@@ -5096,7 +5171,7 @@ async function createInlineSchema() {
     CREATE TABLE IF NOT EXISTS email_verifications (
       id SERIAL PRIMARY KEY,
       email VARCHAR(255) NOT NULL UNIQUE,
-      code VARCHAR(6) NOT NULL,
+      code VARCHAR(100) NOT NULL,
       name VARCHAR(255) NOT NULL,
       attempts INTEGER DEFAULT 0,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

@@ -173,7 +173,6 @@ struct PracticeQuestion: Codable, Identifiable {
     let estimatedTimeMinutes: Int
     let subject: String
     let topic: String
-    let hints: [String]
     let correctAnswer: String?
     let explanation: String
     let multipleChoiceOptions: [MultipleChoiceOption]?
@@ -182,7 +181,7 @@ struct PracticeQuestion: Codable, Identifiable {
     let latexRendering: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, question, difficulty, subject, topic, hints, explanation, tags
+        case id, question, difficulty, subject, topic, explanation, tags
         case questionType = "question_type"
         case estimatedTimeMinutes = "estimated_time_minutes"
         case correctAnswer = "correct_answer"
