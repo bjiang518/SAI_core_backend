@@ -221,8 +221,6 @@ struct ContentView: View {
             await MainActor.run {
                 isCheckingConsent = false
 
-                print("📋 [ContentView] Consent check result: requires=\(result.requiresConsent), status=\(result.consentStatus ?? "none"), restricted=\(result.isRestricted)")
-
                 // Show consent screen if:
                 // 1. User requires parental consent AND
                 // 2. Consent is not yet granted (pending, required, or denied)
@@ -467,7 +465,6 @@ struct ModernProfileView: View {
     @State private var showingNotificationSettings = false
     @State private var showingLanguageSettings = false
     @State private var showingPasswordManagement = false
-    @State private var showingParentControls = false
     @State private var showingHelpCenter = false
     @State private var showingContactSupport = false
     @State private var showingShareSheet = false
@@ -476,6 +473,7 @@ struct ModernProfileView: View {
     @State private var showingDebugSettings = false
     @State private var showingThemeSelection = false
     @State private var refreshID = UUID()  // Force refresh when profile updates
+    @State private var selectedGradeLevel: GradeLevel? = nil
 
     var body: some View {
         NavigationView {
@@ -577,10 +575,6 @@ struct ModernProfileView: View {
                                         .foregroundColor(.primary)
                                 }
 
-                                Text(authService.currentUser?.email ?? "user@example.com")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-
                                 // Auth provider badge
                                 if let provider = authService.currentUser?.authProvider {
                                     HStack(spacing: 4) {
@@ -607,6 +601,37 @@ struct ModernProfileView: View {
                         .padding(.vertical, 8)
                     }
                     .buttonStyle(.plain)
+
+                    // Grade level picker — inline in the profile card
+                    HStack(spacing: 12) {
+                        ZStack {
+                            Circle()
+                                .fill(Color(hex: "7EC8E3").opacity(0.18))
+                                .frame(width: 34, height: 34)
+                            Image(systemName: "graduationcap.fill")
+                                .font(.system(size: 15))
+                                .foregroundColor(Color(hex: "7EC8E3"))
+                        }
+
+                        Text("Grade")
+                            .font(.body)
+                            .foregroundColor(.primary)
+
+                        Spacer()
+
+                        Picker("", selection: $selectedGradeLevel) {
+                            Text("Not set").tag(Optional<GradeLevel>(nil))
+                            ForEach(GradeLevel.allCases, id: \.self) { grade in
+                                Text(grade.displayName).tag(Optional(grade))
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .tint(.secondary)
+                        .onChange(of: selectedGradeLevel) { _, newGrade in
+                            saveGrade(newGrade)
+                        }
+                    }
+                    .padding(.vertical, 4)
                 }
 
                 // STUDY SETTINGS SECTION (Voice + Learning Goals combined)
@@ -693,14 +718,7 @@ struct ModernProfileView: View {
                     Button(action: {
                         showingPasswordManagement = true
                     }) {
-                        SettingsRow(icon: "key.fill", title: NSLocalizedString("settings.passwordManager", comment: ""), color: .blue)
-                    }
-                    .buttonStyle(.plain)
-
-                    Button(action: {
-                        showingParentControls = true
-                    }) {
-                        SettingsRow(icon: "person.2.fill", title: NSLocalizedString("settings.parentControls", comment: ""), color: .purple)
+                        SettingsRow(icon: "lock.shield.fill", title: NSLocalizedString("settings.parentControls", comment: ""), color: .purple)
                     }
                     .buttonStyle(.plain)
 
@@ -779,6 +797,7 @@ struct ModernProfileView: View {
             }
             .navigationTitle(NSLocalizedString("settings.title", comment: ""))
             .onAppear {
+                loadGradeFromProfile(profileService.currentProfile)
                 Task {
                     await profileService.loadProfileAfterLogin()
                 }
@@ -795,6 +814,10 @@ struct ModernProfileView: View {
                     avatarLog("🔄 [ContentView] Profile reloaded after Edit Profile dismissed")
                 }
             }
+        }
+        .onReceive(profileService.$currentProfile) { profile in
+            // Sync grade picker whenever the profile object changes
+            loadGradeFromProfile(profile)
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ProfileUpdated"))) { _ in
             // Force UI refresh when profile is updated
@@ -819,16 +842,6 @@ struct ModernProfileView: View {
         .sheet(isPresented: $showingPasswordManagement) {
             PasswordManagementView()
         }
-        .sheet(isPresented: $showingParentControls) {
-            ParentAuthenticationView(
-                title: NSLocalizedString("settings.parentControls", comment: ""),
-                message: NSLocalizedString("settings.parentControls.message", comment: ""),
-                onSuccess: {
-                    // Parent authenticated - show controls
-                    showingParentControls = false
-                }
-            )
-        }
         .sheet(isPresented: $showingHelpCenter) {
             HelpCenterView()
         }
@@ -852,8 +865,49 @@ struct ModernProfileView: View {
         // #endif
     }
 
+    private func loadGradeFromProfile(_ profile: UserProfile?) {
+        guard let gl = profile?.gradeLevel else { return }
+        let grade = GradeLevel.from(string: gl)
+        if grade != selectedGradeLevel {
+            selectedGradeLevel = grade
+        }
+    }
+
+    private func saveGrade(_ grade: GradeLevel?) {
+        guard let profile = profileService.currentProfile else { return }
+        let newGradeStr = grade.map { String($0.integerValue) }
+        guard newGradeStr != profile.gradeLevel else { return }
+
+        let updated = UserProfile(
+            id: profile.id,
+            email: profile.email,
+            name: profile.name,
+            profileImageUrl: profile.profileImageUrl,
+            authProvider: profile.authProvider,
+            firstName: profile.firstName,
+            lastName: profile.lastName,
+            displayName: profile.displayName,
+            gradeLevel: newGradeStr,
+            dateOfBirth: profile.dateOfBirth,
+            kidsAges: profile.kidsAges,
+            gender: profile.gender,
+            city: profile.city,
+            stateProvince: profile.stateProvince,
+            country: profile.country,
+            favoriteSubjects: profile.favoriteSubjects,
+            learningStyle: profile.learningStyle,
+            timezone: profile.timezone ?? "UTC",
+            languagePreference: profile.languagePreference ?? "en",
+            profileCompletionPercentage: profile.profileCompletionPercentage,
+            lastUpdated: Date(),
+            avatarId: profile.avatarId,
+            customAvatarUrl: profile.customAvatarUrl
+        )
+        Task { try? await profileService.updateUserProfile(updated) }
+    }
+
     private func rateApp() {
-        if let url = URL(string: "https://apps.apple.com/app/id6504105201?action=write-review") {
+        if let url = URL(string: "itms-apps://itunes.apple.com/app/id") {
             UIApplication.shared.open(url)
         }
     }

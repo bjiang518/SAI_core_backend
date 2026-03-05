@@ -307,74 +307,56 @@ module.exports = async function (fastify, opts) {
 // ============================================
 
 /**
- * Generate random questions using AI Engine
+ * Shared helper: call the unified Gemini question generation endpoint
+ */
+async function callUnifiedEndpoint(subject, questionType, count, contextType, contextData, language, aiClient) {
+  const qt = (questionType === 'any' || !questionType) ? 'multiple_choice' : questionType;
+  const response = await aiClient.proxyRequest(
+    'POST',
+    '/api/v1/generate-questions',
+    {
+      subject,
+      question_type: qt,
+      count: count || 5,
+      context_type: contextType,
+      context_data: contextData,
+      user_profile: { grade: 'High School' },
+      language: language || 'en'
+    }
+  );
+  const data = response.data || response;
+  if (!data || !data.questions) {
+    throw new Error('AI Engine returned invalid response: missing questions array');
+  }
+  return data;
+}
+
+/**
+ * Generate random questions using AI Engine (MODE 1)
  */
 async function generateQuestionsWithAIEngine(userId, subject, topic, difficulty, count, language, questionType, aiClient) {
   try {
-    console.log('🔄 Calling AI Engine /api/v1/generate-questions/random...');
-    console.log('📊 Parameters:', { userId, subject, topic, difficulty, count, language, questionType });
-
-    // Map questionType to AI Engine format
-    let questionTypes = [];
-    if (questionType === 'any' || !questionType) {
-      // Mixed types - let AI choose
-      questionTypes = ['multiple_choice', 'short_answer', 'calculation', 'fill_blank'];
-    } else {
-      // Specific type requested
-      questionTypes = [questionType];
-    }
-
-    const response = await aiClient.proxyRequest(
-      'POST',
-      '/api/v1/generate-questions/random',
-      {
-        student_id: userId,
-        subject,
-        language,
-        config: {
-          topics: topic ? [topic] : [],
-          question_count: count || 5,  // ✅ AI Engine expects this in config
-          difficulty: difficulty || 'intermediate',
-          question_types: questionTypes,  // ✅ Dynamic question types from iOS
-          include_hints: true,
-          include_explanations: true
-        },
-        user_profile: {
-          grade: 'High School',
-          location: 'US',
-          subject_proficiency: {}
-        }
-      }
+    console.log('🔄 Calling AI Engine /api/v1/generate-questions (random)...');
+    const aiEngineData = await callUnifiedEndpoint(
+      subject, questionType, count, 'random',
+      { topics: topic ? [topic] : [], grade: 'High School' },
+      language, aiClient
     );
-
-    // AI Engine wraps response in a 'data' field
-    const aiEngineData = response.data || response;
-
-    console.log(`✅ AI Engine returned ${aiEngineData?.questions?.length || 0} questions`);
-
-    // Validate response
-    if (!aiEngineData || !aiEngineData.questions) {
-      console.error('❌ AI Engine response invalid:', { response, aiEngineData });
-      throw new Error('AI Engine returned invalid response: missing questions array');
-    }
-
+    console.log(`✅ AI Engine returned ${aiEngineData.questions.length} questions`);
     return {
-      questions: aiEngineData.questions || [],
+      questions: aiEngineData.questions,
       metadata: {
-        total_questions: aiEngineData.questions?.length || 0,
+        total_questions: aiEngineData.questions.length,
         language,
         tokens_used: aiEngineData.tokens_used,
         generation_type: aiEngineData.generation_type
       },
-      model: aiEngineData.model || 'gpt-4o-mini',
-      tokens: {
-        input: aiEngineData.input_tokens || 0,
-        output: aiEngineData.output_tokens || 0
-      }
+      model: 'gemini-3-flash-preview',
+      tokens: { input: 0, output: aiEngineData.tokens_used || 0 }
     };
   } catch (error) {
     console.error('❌ AI Engine request failed:', error);
-    throw new Error(`AI Engine fallback failed: ${error.message}`);
+    throw new Error(`AI Engine request failed: ${error.message}`);
   }
 }
 
@@ -383,51 +365,24 @@ async function generateQuestionsWithAIEngine(userId, subject, topic, difficulty,
  */
 async function generateMistakeQuestionsWithAIEngine(userId, subject, mistakes_data, difficulty, count, language, questionType, aiClient) {
   try {
-    console.log('🔄 Calling AI Engine /api/v1/generate-questions/mistakes...');
-    console.log('📊 Parameters:', { userId, subject, mistakesCount: mistakes_data?.length, difficulty, count, language, questionType });
-
-    const response = await aiClient.proxyRequest(
-      'POST',
-      '/api/v1/generate-questions/mistakes',
-      {
-        subject,
-        language,
-        mistakes_data: mistakes_data || [],
-        config: {
-          question_count: count || 5,
-          difficulty: difficulty || 'intermediate',
-          question_type: questionType || 'any'
-        },
-        user_profile: {
-          grade: 'High School',
-          location: 'US',
-          subject_proficiency: {}
-        }
-      }
+    console.log('🔄 Calling AI Engine /api/v1/generate-questions (mistake)...');
+    const aiEngineData = await callUnifiedEndpoint(
+      subject, questionType, count, 'mistake',
+      { mistakes_data: mistakes_data || [], grade: 'High School' },
+      language, aiClient
     );
-
-    const aiEngineData = response.data || response;
-    console.log(`✅ AI Engine returned ${aiEngineData?.questions?.length || 0} mistake-based questions`);
-
-    if (!aiEngineData || !aiEngineData.questions) {
-      console.error('❌ AI Engine response invalid:', { response, aiEngineData });
-      throw new Error('AI Engine returned invalid response: missing questions array');
-    }
-
+    console.log(`✅ AI Engine returned ${aiEngineData.questions.length} mistake-based questions`);
     return {
-      questions: aiEngineData.questions || [],
+      questions: aiEngineData.questions,
       metadata: {
-        total_questions: aiEngineData.questions?.length || 0,
+        total_questions: aiEngineData.questions.length,
         language,
         tokens_used: aiEngineData.tokens_used,
         generation_type: aiEngineData.generation_type || 'mistake_based',
         mistakes_analyzed: mistakes_data?.length || 0
       },
-      model: aiEngineData.model || 'gpt-4o-mini',
-      tokens: {
-        input: aiEngineData.input_tokens || 0,
-        output: aiEngineData.output_tokens || 0
-      }
+      model: 'gemini-3-flash-preview',
+      tokens: { input: 0, output: aiEngineData.tokens_used || 0 }
     };
   } catch (error) {
     console.error('❌ AI Engine mistake questions failed:', error);
@@ -440,53 +395,31 @@ async function generateMistakeQuestionsWithAIEngine(userId, subject, mistakes_da
  */
 async function generateConversationQuestionsWithAIEngine(userId, subject, conversation_data, question_data, difficulty, count, language, questionType, aiClient) {
   try {
-    console.log('🔄 Calling AI Engine /api/v1/generate-questions/conversations...');
-    console.log('📊 Parameters:', { userId, subject, conversationsCount: conversation_data?.length, questionsCount: question_data?.length, difficulty, count, language, questionType });
-
-    const response = await aiClient.proxyRequest(
-      'POST',
-      '/api/v1/generate-questions/conversations',
-      {
-        subject,
-        language,
-        conversation_data: conversation_data || [],
-        question_data: question_data || [],
-        config: {
-          question_count: count || 5,
-          difficulty: difficulty || 'intermediate',
-          question_type: questionType || 'any'
-        },
-        user_profile: {
-          grade: 'High School',
-          location: 'US',
-          subject_proficiency: {}
-        }
-      }
+    console.log('🔄 Calling AI Engine /api/v1/generate-questions (archive)...');
+    const aiEngineData = await callUnifiedEndpoint(
+      subject, questionType, count, 'archive',
+      { conversation_data: conversation_data || [], question_data: question_data || [], grade: 'High School' },
+      language, aiClient
     );
-
-    const aiEngineData = response.data || response;
-    console.log(`✅ AI Engine returned ${aiEngineData?.questions?.length || 0} archive-based questions`);
+    console.log(`✅ AI Engine returned ${aiEngineData.questions.length} archive-based questions`);
 
     if (!aiEngineData || !aiEngineData.questions) {
-      console.error('❌ AI Engine response invalid:', { response, aiEngineData });
+      console.error('❌ AI Engine response invalid:', { aiEngineData });
       throw new Error('AI Engine returned invalid response: missing questions array');
     }
 
     return {
-      questions: aiEngineData.questions || [],
+      questions: aiEngineData.questions,
       metadata: {
-        total_questions: aiEngineData.questions?.length || 0,
+        total_questions: aiEngineData.questions.length,
         language,
         tokens_used: aiEngineData.tokens_used,
         generation_type: aiEngineData.generation_type || 'archive_based',
         conversations_analyzed: conversation_data?.length || 0,
         questions_analyzed: question_data?.length || 0
       },
-      model: aiEngineData.model || 'gpt-4o-mini',
-      tokens: {
-        input: aiEngineData.input_tokens || 0,
-        output: aiEngineData.output_tokens || 0
-      }
+      model: 'gemini-3-flash-preview',
+      tokens: { input: 0, output: aiEngineData.tokens_used || 0 }
     };
   } catch (error) {
     console.error('❌ AI Engine archive questions failed:', error);

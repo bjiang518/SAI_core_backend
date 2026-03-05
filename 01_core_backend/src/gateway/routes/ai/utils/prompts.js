@@ -30,18 +30,82 @@ FORMATTING RULES:
 - ALWAYS wrap math expressions in \\( \\) or \\[ \\]
 `;
 
-const TUTORING_SYSTEM_PROMPT = `
+// Heuristic style: Socratic guided discovery — student does the thinking
+const TUTORING_SYSTEM_PROMPT_HEURISTIC = `
 You are an AI tutor helping students learn effectively.
 
-TUTORING GUIDELINES:
-- For academic questions: Do NOT give direct answers. Instead, provide hints and guide the student to solve problems themselves through Socratic questioning.
+TUTORING APPROACH — GUIDED DISCOVERY:
+- For academic questions: Do NOT give direct answers. Provide hints and guide the student to solve problems themselves through Socratic questioning.
+- Ask guiding questions that help the student think through the problem step-by-step.
+- Only reveal the answer after the student has made genuine effort and is close to the solution.
+- Be encouraging and supportive. Focus on helping the student develop independent problem-solving skills.
 - For greetings or casual conversation: Respond naturally and warmly.
-- Be encouraging and supportive. Focus on helping students develop problem-solving skills.
-- Ask guiding questions that help students think through the problem step-by-step.
-- Only reveal answers after the student has made genuine effort and is close to the solution.
 `;
+
+// Straightforward style: direct explanations, answers, and evaluations
+const TUTORING_SYSTEM_PROMPT_STRAIGHTFORWARD = `
+You are an AI tutor helping students learn effectively.
+
+TUTORING APPROACH — DIRECT HELP:
+- For academic questions: Provide clear, direct explanations and complete solutions with step-by-step reasoning.
+- Show your work fully so the student can follow along and learn from the process.
+- Give honest, direct evaluations — clearly state what is correct, what is wrong, and exactly how to fix it.
+- Be friendly and encouraging while being efficient and precise.
+- For greetings or casual conversation: Respond naturally and warmly.
+`;
+
+/**
+ * Convert integer grade level stored in DB to a human-readable string.
+ * DB stores: K=0, grades 1–12 as integers, 13=University/College.
+ */
+function formatGradeLevel(gradeLevel) {
+  if (gradeLevel === null || gradeLevel === undefined) return null;
+  const g = parseInt(gradeLevel, 10);
+  if (isNaN(g)) return String(gradeLevel); // pass through unexpected strings
+  if (g === 0) return 'Kindergarten';
+  if (g >= 1 && g <= 12) {
+    const suffixes = { 1: 'st', 2: 'nd', 3: 'rd' };
+    const suffix = g <= 3 ? suffixes[g] : 'th';
+    return `${g}${suffix} Grade`;
+  }
+  if (g === 13) return 'University/College';
+  return `Grade ${g}`;
+}
+
+/**
+ * Build a personalized system prompt.
+ *
+ * @param {object} opts
+ * @param {'heuristic'|'straightforward'|string} opts.style  - learning style from user profile
+ * @param {string|null} opts.studentName  - display_name or first_name from profile
+ * @param {number|null} opts.gradeLevel   - integer grade level from profile
+ * @returns {string}
+ */
+function buildSystemPrompt({ style, studentName, gradeLevel }) {
+  const basePrompt = style === 'straightforward'
+    ? TUTORING_SYSTEM_PROMPT_STRAIGHTFORWARD
+    : TUTORING_SYSTEM_PROMPT_HEURISTIC;
+
+  const name = studentName || null;
+  const grade = formatGradeLevel(gradeLevel);
+
+  const lines = [];
+  if (name || grade) {
+    lines.push('STUDENT CONTEXT:');
+    if (name) lines.push(`- The student's name is ${name}. You can address them directly by name during the conversation.`);
+    if (grade) lines.push(`- They are currently in ${grade}. Calibrate your language, examples, and complexity accordingly.`);
+  }
+
+  return lines.length > 0
+    ? `${basePrompt}\n${lines.join('\n')}`
+    : basePrompt;
+}
 
 module.exports = {
   MATH_FORMATTING_SYSTEM_PROMPT,
-  TUTORING_SYSTEM_PROMPT
+  // Legacy export so other files importing TUTORING_SYSTEM_PROMPT keep working
+  TUTORING_SYSTEM_PROMPT: TUTORING_SYSTEM_PROMPT_HEURISTIC,
+  TUTORING_SYSTEM_PROMPT_HEURISTIC,
+  TUTORING_SYSTEM_PROMPT_STRAIGHTFORWARD,
+  buildSystemPrompt,
 };

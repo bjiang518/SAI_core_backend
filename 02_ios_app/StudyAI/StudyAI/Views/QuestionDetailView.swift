@@ -911,6 +911,9 @@ struct GeneratedQuestionDetailView: View {
             let maxPoints = currentQuestion.points ?? 1
             onAnswerSubmitted?(isCorrect, maxPoints)
 
+            // Auto-archive correct answers for concept extraction
+            archiveQuestion()
+
             return  // Skip AI grading
         }
 
@@ -974,6 +977,9 @@ struct GeneratedQuestionDetailView: View {
                     let earnedPoints = Int(Double(maxPoints) * partialCredit)
                     onAnswerSubmitted?(isCorrect, earnedPoints)
 
+                    // Auto-archive wrong answers for error analysis; correct for concept extraction
+                    archiveQuestion()
+
                     // Haptic feedback
                     let generator = UINotificationFeedbackGenerator()
                     generator.notificationOccurred(isCorrect ? .success : .error)
@@ -1005,6 +1011,9 @@ struct GeneratedQuestionDetailView: View {
                 let maxPoints = currentQuestion.points ?? 1
                 let earnedPoints = Int(Double(maxPoints) * partialCredit)
                 onAnswerSubmitted?(isCorrect, earnedPoints)
+
+                // Auto-archive (fallback grading path)
+                archiveQuestion()
             }
         }
     }
@@ -1373,6 +1382,7 @@ Question: \(currentQuestion.question)
     /// Archive the answered question to local storage
     private func archiveQuestion() {
         guard hasSubmitted else { return }
+        guard !isArchived, !isArchiving else { return }  // Prevent double-archive
 
         isArchiving = true
 
@@ -1381,7 +1391,7 @@ Question: \(currentQuestion.question)
 
         Task {
             // Build question data for archiving
-            let questionData: [String: Any] = [
+            var questionData: [String: Any] = [
                 "id": UUID().uuidString,
                 "subject": subject,                          // Top-level subject for grouping in mistake review
                 "questionText": currentQuestion.question,
@@ -1410,8 +1420,15 @@ Question: \(currentQuestion.question)
             // ✅ DEBUG: Log archiving data
             print("📚 [Archive] Archive data - Subject: \(subject), Topic: \(currentQuestion.topic), Correct: \(isCorrect), Has error keys: \(currentQuestion.errorType != nil)")
 
-            // Save to local storage
-            _ = currentUserQuestionStorage().saveQuestions([questionData])
+            // Save to local storage — capture ID mappings to handle content-hash deduplication.
+            // If the exact same question+answer was saved before, savedId ≠ originalId.
+            // We must pass the effective savedId to the error analysis pipeline so it can
+            // update the correct record in local storage.
+            let idMappings = currentUserQuestionStorage().saveQuestions([questionData])
+            if let mapping = idMappings.first, mapping.savedId != mapping.originalId {
+                questionData["id"] = mapping.savedId
+                print("📚 [Archive] Remapped question ID: \(mapping.originalId.prefix(8))… → \(mapping.savedId.prefix(8))… (duplicate content)")
+            }
 
             // Route through error analysis pipeline (same as AI homework grader)
             // This ensures base_branch, detailed_branch, error_type, and weaknessKey

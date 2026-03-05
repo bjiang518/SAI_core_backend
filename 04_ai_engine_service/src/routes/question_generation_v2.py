@@ -14,16 +14,13 @@ from typing import Dict
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from src.services.improved_openai_service import EducationalAIService
+from src.services.gemini_service import gemini_service
 from src.middleware.service_auth import optional_service_auth
 from src.services.logger import setup_logger
 
 logger = setup_logger(__name__)
 
 router = APIRouter()
-
-# Service singleton for this module
-ai_service = EducationalAIService()
 
 
 # ---------------------------------------------------------------------------
@@ -87,7 +84,7 @@ async def generate_questions_unified(
     if "grade" not in context_data and request.user_profile:
         context_data["grade"] = request.user_profile.get("grade", "High School")
 
-    result = await ai_service.generate_questions_unified(
+    result = await gemini_service.generate_questions_unified(
         subject=request.subject,
         question_type=request.question_type,
         count=request.count,

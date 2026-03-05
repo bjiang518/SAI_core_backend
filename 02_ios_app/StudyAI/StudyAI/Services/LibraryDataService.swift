@@ -1238,9 +1238,30 @@ import CryptoKit
 class QuestionLocalStorage {
     static let shared = QuestionLocalStorage(userId: "anonymous")
 
-    /// Return a user-scoped instance. All reads/writes are isolated to this userId.
+    // ✅ FIX: Singleton-per-user registry so all callers share one cache per userId.
+    // Previously every call to forUser() created a fresh instance with an empty cache,
+    // causing stale-cache misses when different call sites (e.g. archiveQuestion() vs
+    // ErrorAnalysisQueueService) used separate instances backed by the same UserDefaults key.
+    private static var instances: [String: QuestionLocalStorage] = [:]
+    private static let instancesLock = NSLock()
+
+    /// Return the shared instance for this userId. Creates one on first call; reuses thereafter.
     static func forUser(_ userId: String) -> QuestionLocalStorage {
-        return QuestionLocalStorage(userId: userId)
+        instancesLock.lock()
+        defer { instancesLock.unlock() }
+        if let existing = instances[userId] {
+            return existing
+        }
+        let new = QuestionLocalStorage(userId: userId)
+        instances[userId] = new
+        return new
+    }
+
+    /// Evict the cached instance for a userId (call on sign-out to free memory).
+    static func evictInstance(for userId: String) {
+        instancesLock.lock()
+        defer { instancesLock.unlock() }
+        instances.removeValue(forKey: userId)
     }
 
     private let userDefaults = UserDefaults.standard

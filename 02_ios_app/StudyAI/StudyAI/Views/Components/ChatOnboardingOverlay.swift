@@ -37,8 +37,8 @@ enum ChatOnboardingStep: Int, CaseIterable {
         case .cameraButton:   return "onboarding_cameraButton"
         case .deepMode:       return "onboarding_inputField"
         case .micButton:      return "onboarding_micButton"
-        case .liveMode:       return nil
-        case .libraryButton:  return nil
+        case .liveMode:       return "onboarding_liveMode"
+        case .libraryButton:  return "onboarding_libraryButton"
         }
     }
 
@@ -262,6 +262,7 @@ struct ChatOnboardingOverlayView: View {
     // Mic step animation
     @State private var micTranscriptCount: Int = 0
     @State private var micSwipePhase: Int = 0   // 0=idle 1=deep 2=cancel 3=reset
+    @State private var cachedSyncData: UIKitSyncData = UIKitSyncData(spotlightRect: .zero, cardRect: .zero, spotlightRadius: 18)
 
     var body: some View {
         GeometryReader { geo in
@@ -314,6 +315,7 @@ struct ChatOnboardingOverlayView: View {
         }
         .ignoresSafeArea()
         .onPreferenceChange(UIKitSyncKey.self) { data in
+            cachedSyncData = data
             if SpotlightWindow.isShowing {
                 SpotlightWindow.update(data: data)
             } else {
@@ -324,6 +326,10 @@ struct ChatOnboardingOverlayView: View {
             SpotlightWindow.hide()
         }
         .onAppear {
+            // Re-show the UIKit scrim if it was dismissed by a tab switch
+            if !SpotlightWindow.isShowing, !cachedSyncData.spotlightRect.isEmpty {
+                SpotlightWindow.show(data: cachedSyncData)
+            }
             withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
                 pulseScale   = 1.10
                 pulseOpacity = 0.30

@@ -910,8 +910,8 @@ class NetworkService: ObservableObject {
                         return (true, sessionId, "Session created successfully")
                     }
                 } else if httpResponse.statusCode == 401 {
-                    // Authentication failed - let AuthenticationService handle it
                     print("❌ Authentication expired in createSession")
+                    AuthenticationService.shared.handleExpiredSession()
                     return (false, nil, "Authentication expired")
                 }
                 
@@ -1401,6 +1401,9 @@ class NetworkService: ObservableObject {
                 }
                 print("❌ Error: \(errorBody)")
 
+                if httpResponse.statusCode == 401 {
+                    AuthenticationService.shared.handleExpiredSession()
+                }
                 onComplete(false, nil, nil, nil)
                 return false
             }
@@ -3029,7 +3032,7 @@ class NetworkService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 60
+        request.timeoutInterval = 180
         if let token = AuthenticationService.shared.getAuthToken() {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
@@ -3064,9 +3067,8 @@ class NetworkService: ObservableObject {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        // deep → Gemini (120s), normal → OpenAI (90s)
         let modelProvider = useDeepReasoning ? "gemini" : "openai"
-        request.timeoutInterval = useDeepReasoning ? 120.0 : 90.0
+        request.timeoutInterval = 180.0
 
         // Add auth token if available
         if let token = AuthenticationService.shared.getAuthToken() {
@@ -3107,15 +3109,14 @@ class NetworkService: ObservableObject {
         }
 
         guard httpResponse.statusCode == 200 else {
+            if httpResponse.statusCode == 401 {
+                throw NetworkError.authenticationRequired
+            }
             if httpResponse.statusCode == 429 {
                 throw NetworkError.rateLimited
             }
             throw NetworkError.serverError(httpResponse.statusCode)
         }
-
-        // ========================================
-        // 🔍 RAW RESPONSE LOGGING - PHASE 2
-        // ========================================
         let modelLabel = useDeepReasoning ? "gemini-3-flash-preview (deep)" : "gpt-5.2 (fast)"
         print("\n" + String(repeating: "=", count: 80))
         print("🔍 === RAW AI ENGINE RESPONSE - PHASE 2 (GRADING) === model: \(modelLabel)")
@@ -4431,8 +4432,6 @@ class NetworkService: ObservableObject {
     
     /// Update user profile on server
     func updateUserProfile(_ profileData: [String: Any]) async -> (success: Bool, profile: [String: Any]?, message: String) {
-        print("✏️ === UPDATE USER PROFILE ===")
-        
         let profileURL = "\(baseURL)/api/user/profile"
         
         guard let url = URL(string: profileURL) else {
@@ -4459,14 +4458,6 @@ class NetworkService: ObservableObject {
                     if statusCode == 200 {
                         let profile = json["profile"] as? [String: Any] ?? json
                         let message = json["message"] as? String ?? "Profile updated successfully"
-
-                        print("✅ [NetworkService] Update successful")
-                        print("📦 [NetworkService] Profile data from backend:")
-                        print("   - city: \(profile["city"] as? String ?? "nil")")
-                        print("   - stateProvince: \(profile["stateProvince"] as? String ?? "nil")")
-                        print("   - country: \(profile["country"] as? String ?? "nil")")
-                        print("   - kidsAges: \(profile["kidsAges"] as? [Int] ?? [])")
-
                         return (true, profile, message)
                     } else {
                         let message = json["message"] as? String ?? "Failed to update profile"
@@ -4485,8 +4476,6 @@ class NetworkService: ObservableObject {
 
     /// Upload custom avatar image
     func uploadCustomAvatar(base64Image: String) async -> (success: Bool, avatarUrl: String?, message: String) {
-        print("📸 === UPLOAD CUSTOM AVATAR ===")
-
         let uploadURL = "\(baseURL)/api/user/upload-avatar"
 
         guard let url = URL(string: uploadURL) else {
@@ -4511,17 +4500,13 @@ class NetworkService: ObservableObject {
 
             if let httpResponse = response as? HTTPURLResponse {
                 let statusCode = httpResponse.statusCode
-                print("📸 [NetworkService] Response status code: \(statusCode)")
 
                 // Try to parse JSON response
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                    print("📸 [NetworkService] Response JSON: \(json)")
 
                     if statusCode == 200 {
                         let avatarUrl = json["avatarUrl"] as? String ?? json["avatar_url"] as? String
                         let message = json["message"] as? String ?? "Avatar uploaded successfully"
-
-                        print("✅ [NetworkService] Avatar upload successful: \(avatarUrl ?? "no URL")")
                         return (true, avatarUrl, message)
                     } else {
                         let message = json["message"] as? String ?? "Failed to upload avatar"
@@ -5166,7 +5151,6 @@ class NetworkService: ObservableObject {
                         let isRestricted = consentData?["accountRestricted"] as? Bool ?? false
                         let message = json["message"] as? String
 
-                        print("📋 Consent Status: requires=\(requiresConsent), status=\(consentStatus ?? "none"), restricted=\(isRestricted)")
                         return (requiresConsent, consentStatus, isRestricted, message)
                     } else {
                         let message = json["message"] as? String ?? "Failed to check consent status"
@@ -5307,16 +5291,16 @@ class NetworkService: ObservableObject {
             guard let http = response as? HTTPURLResponse, http.statusCode == 200,
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let completion = json["completion"] as? [String: Any] else {
-                print("⚠️ [NetworkService] checkProfileCompletion: unexpected response")
-                return (false, 0)
+                print("⚠️ [NetworkService] checkProfileCompletion: unexpected response — assuming onboarded")
+                return (true, 0)
             }
             let onboardingCompleted = completion["onboardingCompleted"] as? Bool ?? false
             let percentage = completion["percentage"] as? Int ?? 0
             print("📋 [NetworkService] Profile completion: onboardingCompleted=\(onboardingCompleted), \(percentage)%")
             return (onboardingCompleted, percentage)
         } catch {
-            print("❌ [NetworkService] checkProfileCompletion error: \(error.localizedDescription)")
-            return (false, 0)
+            print("❌ [NetworkService] checkProfileCompletion error: \(error.localizedDescription) — assuming onboarded")
+            return (true, 0)
         }
     }
 

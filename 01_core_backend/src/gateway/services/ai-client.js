@@ -25,43 +25,18 @@ class AIServiceClient {
   }
 
   setupInterceptors() {
-    // Request interceptor
+    // Request interceptor — no logging on success path (handled per-route)
     this.client.interceptors.request.use(
       (config) => {
         config.metadata = { startTime: Date.now() };
-
-        // Skip verbose logging for health checks
-        const isHealthCheck = config.url && config.url.includes('/health');
-
-        if (!isHealthCheck) {
-          // Debug logging for AI Engine requests (sanitized for security)
-          console.log(`🚀 AI Engine → ${config.method.toUpperCase()} ${config.url}`);
-
-          // Log payload size for non-health requests
-          const payloadSize = config.data ? JSON.stringify(config.data).length : 0;
-          if (payloadSize > 0) {
-            console.log(`   📦 Payload: ${(payloadSize / 1024).toFixed(2)} KB`);
-          }
-        }
-
         return config;
       },
       (error) => Promise.reject(error)
     );
 
-    // Response interceptor
+    // Response interceptor — only log errors
     this.client.interceptors.response.use(
-      (response) => {
-        const duration = Date.now() - response.config.metadata.startTime;
-        const isHealthCheck = response.config.url && response.config.url.includes('/health');
-
-        if (!isHealthCheck) {
-          const responseSize = response.data ? JSON.stringify(response.data).length : 0;
-          console.log(`✅ AI Engine ← ${response.status} (${duration}ms, ${(responseSize / 1024).toFixed(2)} KB)`);
-        }
-
-        return response;
-      },
+      (response) => response,
       (error) => {
         const duration = Date.now() - (error.config?.metadata?.startTime || Date.now());
         console.error(`❌ AI Engine error (${duration}ms): ${error.message}`);
@@ -112,7 +87,9 @@ class AIServiceClient {
         // Increase timeout for retries (give more time on subsequent attempts)
         const attemptTimeout = this.config.timeout * attempt;
 
-        console.log(`🔄 AI Engine request attempt ${attempt}/${maxRetries} (timeout: ${attemptTimeout}ms)`);
+        if (attempt > 1) {
+          console.log(`🔄 AI Engine retry attempt ${attempt}/${maxRetries} (timeout: ${attemptTimeout}ms)`);
+        }
 
         const response = await this.client.request({
           method,
@@ -132,8 +109,6 @@ class AIServiceClient {
             upgrade: undefined
           }
         });
-
-        console.log(`✅ AI Engine request succeeded on attempt ${attempt}`);
 
         return {
           success: true,

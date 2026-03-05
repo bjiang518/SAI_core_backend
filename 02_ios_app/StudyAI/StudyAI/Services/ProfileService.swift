@@ -25,95 +25,103 @@ class ProfileService: ObservableObject {
     
     /// Get detailed user profile from server
     func getUserProfile() async throws -> UserProfile {
+        // ✅ Local-first: return cached profile immediately if available.
+        // Only fetch from server on a cold start (no local data).
+        if let cachedProfile = loadCachedProfile() {
+            AppLogger.auth.info("🔄 [ProfileService] getUserProfile() — local cache hit, returning without network call. firstName=\(cachedProfile.firstName ?? "nil")")
+            await MainActor.run {
+                currentProfile = cachedProfile
+            }
+            return cachedProfile
+        }
+
+        AppLogger.auth.info("🔄 [ProfileService] getUserProfile() — no local cache, falling back to network GET /profile")
         await MainActor.run {
             isLoading = true
             errorMessage = nil
         }
-        
+
         defer {
             Task { @MainActor in
                 isLoading = false
             }
         }
-        
+
         guard authService.getAuthToken() != nil else {
+            AppLogger.auth.info("🔄 [ProfileService] getUserProfile() — NOT AUTHENTICATED, aborting")
             throw ProfileError.notAuthenticated
         }
-        
+
         do {
             let result = await networkService.getUserProfile()
-            
+
             if result.success, let profileData = result.profile {
                 let profile = try UserProfile.fromDictionary(profileData)
-                
-                // Cache profile locally
+                AppLogger.auth.info("🔄 [ProfileService] getUserProfile() — network returned: firstName=\(profile.firstName ?? "nil") lastName=\(profile.lastName ?? "nil") gradeLevel=\(profile.gradeLevel ?? "nil") city=\(profile.city ?? "nil")")
+
                 try saveProfileLocally(profile)
-                
                 await MainActor.run {
                     currentProfile = profile
                 }
-                
-
                 return profile
             } else {
+                AppLogger.auth.info("🔄 [ProfileService] getUserProfile() — server returned success=false: \(result.message)")
                 throw ProfileError.serverError(result.message)
             }
         } catch {
-
+            AppLogger.auth.info("🔄 [ProfileService] getUserProfile() — network FAILED: \(error.localizedDescription)")
             await MainActor.run {
                 errorMessage = error.localizedDescription
             }
-            
-            // Try to load cached profile as fallback
-            if let cachedProfile = loadCachedProfile() {
-                await MainActor.run {
-                    currentProfile = cachedProfile
-                }
-                return cachedProfile
-            }
-            
             throw error
         }
     }
     
     /// Update user profile on server
     func updateUserProfile(_ profile: UserProfile) async throws -> UserProfile {
+        AppLogger.auth.info("💾 [ProfileService] updateUserProfile() — ENTERING. firstName=\(profile.firstName ?? "nil") lastName=\(profile.lastName ?? "nil") gradeLevel=\(profile.gradeLevel ?? "nil") city=\(profile.city ?? "nil")")
         await MainActor.run {
             isLoading = true
             errorMessage = nil
         }
-        
+
         defer {
             Task { @MainActor in
                 isLoading = false
             }
         }
-        
+
         guard authService.getAuthToken() != nil else {
+            AppLogger.auth.info("💾 [ProfileService] updateUserProfile() — NOT AUTHENTICATED, aborting")
             throw ProfileError.notAuthenticated
         }
-        
+
+        // Capture current profile for rollback in case of error
+        let previousProfile = currentProfile
+        AppLogger.auth.info("💾 [ProfileService] updateUserProfile() — previousProfile.firstName=\(previousProfile?.firstName ?? "nil")")
+
+        // ✅ Optimistic local update
+        AppLogger.auth.info("💾 [ProfileService] updateUserProfile() — applying optimistic write to currentProfile")
+        try? saveProfileLocally(profile)
+        await MainActor.run { currentProfile = profile }
+
         do {
             let profileData = profile.toDictionary()
+            AppLogger.auth.info("💾 [ProfileService] updateUserProfile() — firing network PUT /profile")
             let result = await networkService.updateUserProfile(profileData)
 
-            if result.success, let updatedProfileData = result.profile {
-                let updatedProfile = try UserProfile.fromDictionary(updatedProfileData)
-
-                // Cache updated profile locally
-                try saveProfileLocally(updatedProfile)
-
-                await MainActor.run {
-                    currentProfile = updatedProfile
-                }
-
-                return updatedProfile
+            if result.success {
+                AppLogger.auth.info("💾 [ProfileService] updateUserProfile() — server confirmed ✅. currentProfile.firstName=\(profile.firstName ?? "nil")")
+                return profile
             } else {
+                AppLogger.auth.info("💾 [ProfileService] updateUserProfile() — server rejected ❌: \(result.message)")
                 throw ProfileError.serverError(result.message)
             }
         } catch {
-
+            AppLogger.auth.info("💾 [ProfileService] updateUserProfile() — ROLLING BACK to previousProfile.firstName=\(previousProfile?.firstName ?? "nil") ⚠️")
+            if let prev = previousProfile { try? saveProfileLocally(prev) }
             await MainActor.run {
+                currentProfile = previousProfile
                 errorMessage = error.localizedDescription
             }
             throw error
@@ -140,75 +148,105 @@ class ProfileService: ObservableObject {
         }
     }
     
-    // MARK: - Local Caching
-    
-    /// Save profile to local storage (Keychain)
+    // MARK: - Local Persistence
+
+    private let profileFilename = "user_profile.json"
+
+    private var profileFileURL: URL? {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?
+            .appendingPathComponent(profileFilename)
+    }
+
+    /// Write profile to disk as JSON (Documents/user_profile.json).
     private func saveProfileLocally(_ profile: UserProfile) throws {
+        guard let url = profileFileURL else {
+            AppLogger.auth.warning("⚠️ [ProfileService] saveProfileLocally — could not resolve Documents directory")
+            return
+        }
         do {
             let data = try JSONEncoder().encode(profile)
-            try keychainService.save(data, for: "user_profile")
-
+            try data.write(to: url, options: .atomic)
+            AppLogger.auth.info("💾 [ProfileService] saveProfileLocally — wrote \(data.count) bytes to \(url.lastPathComponent)")
         } catch {
-            print("⚠️ Failed to cache profile locally: \(error)")
-            // Don't throw - caching failure shouldn't break the flow
+            AppLogger.auth.warning("⚠️ [ProfileService] saveProfileLocally — write failed: \(error)")
         }
     }
-    
-    /// Load cached profile from local storage
-    func loadCachedProfile() -> UserProfile? {
-        do {
-            guard let data = try keychainService.load(for: "user_profile") else {
-                return nil
-            }
-            
-            let profile = try JSONDecoder().decode(UserProfile.self, from: data)
 
+    /// Read profile from disk. Returns nil if the file doesn't exist yet.
+    func loadCachedProfile() -> UserProfile? {
+        guard let url = profileFileURL,
+              FileManager.default.fileExists(atPath: url.path) else {
+            return nil
+        }
+        do {
+            let data = try Data(contentsOf: url)
+            let profile = try JSONDecoder().decode(UserProfile.self, from: data)
+            AppLogger.auth.info("📂 [ProfileService] loadCachedProfile — read from disk: firstName=\(profile.firstName ?? "nil")")
             return profile
         } catch {
-            print("⚠️ Failed to load cached profile: \(error)")
+            AppLogger.auth.warning("⚠️ [ProfileService] loadCachedProfile — decode failed: \(error)")
             return nil
         }
     }
-    
-    /// Clear cached profile
-    func clearCachedProfile() {
-        do {
-            try keychainService.delete(for: "user_profile")
-            print("🗑️ Cached profile cleared")
-        } catch {
-            print("⚠️ Failed to clear cached profile: \(error)")
+
+    /// Delete profile file from disk — called on sign-out.
+    func clearCachedProfile() async {
+        if let url = profileFileURL {
+            try? FileManager.default.removeItem(at: url)
         }
-        
-        Task { @MainActor in
-            currentProfile = nil
-        }
+        // Also clear the legacy UserDefaults entry if it still exists
+        UserDefaults.standard.removeObject(forKey: "cached_user_profile_v2")
+        await MainActor.run { currentProfile = nil }
     }
     
     // MARK: - Profile Auto-Loading
     
     /// Cache a profile built from a server response dictionary (no network call).
-    /// Call this right after a successful profile save to populate local storage
-    /// from the response data, avoiding a redundant fetch round-trip.
     func cacheProfileFromResponse(_ dict: [String: Any]) {
         guard let profile = try? UserProfile.fromDictionary(dict) else { return }
+        AppLogger.auth.info("📥 [ProfileService] cacheProfileFromResponse() — firstName=\(profile.firstName ?? "nil") gradeLevel=\(profile.gradeLevel ?? "nil")")
         try? saveProfileLocally(profile)
+        if profile.onboardingCompleted,
+           let email = AuthenticationService.shared.currentUser?.email, !email.isEmpty {
+            UserDefaults.standard.set(true, forKey: "onboardingCompleted_\(email)")
+        }
         Task { @MainActor in
             currentProfile = profile
         }
     }
 
     /// Load profile automatically after login.
-    /// Shows cached data instantly, then refreshes from the network in the background.
+    /// Shows cached data instantly. On a cold start (no cache), fetches from network.
+    /// After a save, the local cache is always authoritative — no silent GET overwrites.
     func loadProfileAfterLogin() async {
-        // Show cached profile immediately so UI is never blank
+        AppLogger.auth.info("🚀 [ProfileService] loadProfileAfterLogin() — ENTERING")
+
         if let cachedProfile = loadCachedProfile() {
+            AppLogger.auth.info("🚀 [ProfileService] loadProfileAfterLogin() — cached hit: firstName=\(cachedProfile.firstName ?? "nil") gradeLevel=\(cachedProfile.gradeLevel ?? "nil")")
             await MainActor.run { currentProfile = cachedProfile }
+        } else {
+            // Cold start: no local data at all — must fetch from server
+            AppLogger.auth.info("🚀 [ProfileService] loadProfileAfterLogin() — no cache, fetching from server")
+            do {
+                _ = try await getUserProfile()
+            } catch {
+                AppLogger.auth.info("🚀 [ProfileService] loadProfileAfterLogin() — cold-start fetch failed: \(error.localizedDescription)")
+            }
         }
-        // Silently refresh from network
-        do {
-            _ = try await getUserProfile()
-        } catch {
-            // Cached profile is already visible — no action needed
+
+        // Retry pending avatar upload if a previous attempt was interrupted
+        if UserDefaults.standard.bool(forKey: "avatarSyncPending"),
+           let filename = UserDefaults.standard.string(forKey: "localAvatarFilename"),
+           let documentsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
+            let fileURL = documentsDir.appendingPathComponent(filename)
+            Task.detached {
+                guard let imageData = try? Data(contentsOf: fileURL) else { return }
+                let base64 = imageData.base64EncodedString()
+                let result = await NetworkService.shared.uploadCustomAvatar(base64Image: base64)
+                if result.success {
+                    UserDefaults.standard.set(false, forKey: "avatarSyncPending")
+                }
+            }
         }
     }
     
@@ -313,62 +351,3 @@ extension ProfileService {
     }
 }
 
-// MARK: - Keychain Service Extension
-
-extension KeychainService {
-    /// Save data to keychain with key
-    func save(_ data: Data, for key: String) throws {
-        let query = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: key,
-            kSecValueData as String: data
-        ] as [String: Any]
-        
-        SecItemDelete(query as CFDictionary)
-        
-        let status = SecItemAdd(query as CFDictionary, nil)
-        if status != errSecSuccess {
-            throw KeychainError.unableToSave
-        }
-    }
-    
-    /// Load data from keychain with key
-    func load(for key: String) throws -> Data? {
-        let query = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: key,
-            kSecReturnData as String: kCFBooleanTrue!,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ] as [String: Any]
-        
-        var dataTypeRef: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &dataTypeRef)
-        
-        if status == errSecSuccess {
-            return dataTypeRef as? Data
-        } else if status == errSecItemNotFound {
-            return nil
-        } else {
-            throw KeychainError.unableToLoad
-        }
-    }
-    
-    /// Delete data from keychain with key
-    func delete(for key: String) throws {
-        let query = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: key
-        ] as [String: Any]
-        
-        let status = SecItemDelete(query as CFDictionary)
-        if status != errSecSuccess && status != errSecItemNotFound {
-            throw KeychainError.unableToDelete
-        }
-    }
-}
-
-enum KeychainError: Error {
-    case unableToSave
-    case unableToLoad
-    case unableToDelete
-}

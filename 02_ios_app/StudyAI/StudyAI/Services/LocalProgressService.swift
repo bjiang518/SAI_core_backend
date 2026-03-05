@@ -12,7 +12,7 @@ import SwiftUI
 class LocalProgressService {
     static let shared = LocalProgressService()
 
-    private let questionLocalStorage = currentUserQuestionStorage()
+    private var questionLocalStorage: QuestionLocalStorage { currentUserQuestionStorage() }
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"

@@ -1279,9 +1279,14 @@ class SessionChatViewModel: ObservableObject {
                                     self.appState.clearPendingChatMessage()
                                 }
                             } else {
-                                // ⚠️ Phase 2.3: On failure, retry logic will handle showing retry UI
-                                // Don't clear streaming state yet - keep for retry
+                                // Reset UI state so the app doesn't freeze
                                 print("⚠️ Streaming failed, retry may be available")
+                                self.isActivelyStreaming = false
+                                self.activeStreamingMessage = ""
+                                withAnimation {
+                                    self.isSubmitting = false
+                                    self.showTypingIndicator = false
+                                }
                             }
                         }
                     },
