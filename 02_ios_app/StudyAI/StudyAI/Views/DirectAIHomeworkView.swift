@@ -498,11 +498,14 @@ struct DirectAIHomeworkView: View {
         }
         .sheet(isPresented: $showingHomeworkAlbumPicker) {
             HomeworkAlbumSelectionView { selectedRecord in
-                // Load the selected homework image
-                if let image = HomeworkImageStorageService.shared.loadHomeworkImage(record: selectedRecord) {
-                    let added = stateManager.addImage(image)
-                    if !added {
-                        showingImageLimitAlert = true
+                // Load all pages from the selected homework record
+                for fileName in selectedRecord.imageFileNames {
+                    if let image = HomeworkImageStorageService.shared.loadImageByFileName(fileName) {
+                        let added = stateManager.addImage(image)
+                        if !added {
+                            showingImageLimitAlert = true
+                            break
+                        }
                     }
                 }
                 showingHomeworkAlbumPicker = false

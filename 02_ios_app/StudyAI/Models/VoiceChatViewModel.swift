@@ -437,7 +437,7 @@ class VoiceChatViewModel: ObservableObject {
     /// - Encodes as JPEG @ 0.8 quality (~100-200 KB).
     /// - Pauses audio capture for the duration of the upload to avoid
     ///   head-of-line blocking on the uplink WebSocket connection.
-    func sendImage(_ image: UIImage) {
+    func sendImage(_ image: UIImage, prompt: String = "") {
         logger.info("📸 Sending image to Gemini Live")
 
         // Scale so the long edge is at most 1024px (Gemini vision sweet-spot)
@@ -461,8 +461,8 @@ class VoiceChatViewModel: ObservableObject {
         let base64 = jpegData.base64EncodedString()
         logger.info("📸 Image encoded: \(jpegData.count / 1024) KB, \(Int(targetSize.width))×\(Int(targetSize.height))px")
 
-        // Add a user bubble carrying the JPEG data so it renders as an image in the chat
-        let imgMsg = VoiceMessage(role: .user, text: "", isVoice: false, imageData: jpegData)
+        // Add a user bubble carrying the JPEG data and prompt text
+        let imgMsg = VoiceMessage(role: .user, text: prompt, isVoice: false, imageData: jpegData)
         messages.append(imgMsg)
         onMessageAppended?(imgMsg)
 
@@ -471,10 +471,14 @@ class VoiceChatViewModel: ObservableObject {
         isCapturing = false
         isSendingImage = true
 
-        sendWebSocketMessage(type: "image_message", data: [
+        var wsData: [String: Any] = [
             "imageBase64": base64,
             "mimeType": "image/jpeg"
-        ])
+        ]
+        if !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            wsData["prompt"] = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        sendWebSocketMessage(type: "image_message", data: wsData)
 
         // Resume capture immediately after the send call returns — the WS send is async
         // so there's no guarantee the frame is fully flushed, but the main thread is

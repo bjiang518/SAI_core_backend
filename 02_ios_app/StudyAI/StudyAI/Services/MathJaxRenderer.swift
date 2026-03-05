@@ -100,8 +100,8 @@ private enum MathHTML {
         h4{font-size:1.1em} h5,h6{font-size:1em}
         strong { font-weight:bold; }
         em     { font-style:italic; }
-        ul,ol  { padding-left:1.4em; margin:0.3em 0; }
-        li     { margin:0.15em 0; }
+        ul,ol  { padding-left:1.4em; margin:0.2em 0; }
+        li     { margin:0.1em 0; line-height:1.5; }
         mjx-container { color:\(textColor) !important; background:transparent !important; }
         mjx-container[display="true"] { display:block !important; text-align:center; margin:0.3em 0 !important; }
         </style>
@@ -132,24 +132,27 @@ private enum MathHTML {
 
         // 1. Extract and protect LaTeX blocks with placeholders
         var latexBlocks: [String] = []
+        var displayPlaceholders: Set<String> = []
         let placeholder = "LATEX_BLOCK_"
 
-        let latexPatterns: [(String, NSRegularExpression.Options)] = [
-            ("\\$\\$[\\s\\S]*?\\$\\$",              .init()),     // $$...$$
-            ("\\\\\\[[\\s\\S]*?\\\\\\]",             .init()),     // \[...\]
-            ("\\\\\\([\\s\\S]*?\\\\\\)",             .init()),     // \(...\)
-            ("\\$(?!\\$)[^$\n]+?(?<!\\$)\\$",        .init()),     // $...$
+        let latexPatterns: [(String, NSRegularExpression.Options, Bool)] = [
+            ("\\$\\$[\\s\\S]*?\\$\\$",              .init(), true),   // $$...$$ display
+            ("\\\\\\[[\\s\\S]*?\\\\\\]",             .init(), true),   // \[...\]  display
+            ("\\\\\\([\\s\\S]*?\\\\\\)",             .init(), false),  // \(...\)  inline
+            ("\\$(?!\\$)[^$\n]+?(?<!\\$)\\$",        .init(), false),  // $...$    inline
         ]
 
-        for (pattern, opts) in latexPatterns {
+        for (pattern, opts, isDisplay) in latexPatterns {
             guard let regex = try? NSRegularExpression(pattern: pattern, options: opts) else { continue }
             let ns = NSRange(location: 0, length: text.utf16.count)
             let matches = regex.matches(in: text, options: [], range: ns).reversed()
             for match in matches {
                 guard let range = Range(match.range, in: text) else { continue }
-                latexBlocks.insert(String(text[range]), at: 0)
-                let idx = latexBlocks.count - 1
-                text.replaceSubrange(range, with: "\(placeholder)\(idx)END")
+                let idx = latexBlocks.count
+                latexBlocks.append(String(text[range]))
+                let ph = "\(placeholder)\(idx)END"
+                if isDisplay { displayPlaceholders.insert(ph) }
+                text.replaceSubrange(range, with: ph)
             }
         }
 
@@ -180,6 +183,28 @@ private enum MathHTML {
         }
         // Newlines to <br>
         text = text.replacingOccurrences(of: "\n", with: "<br>")
+
+        // Strip <br> runs surrounding display-math placeholders.
+        // Raw text has blank lines around \[...\] which become <br><br>PLACEHOLDER<br><br>.
+        // display:block + CSS margin handles the spacing; the extra <br>s just add gaps.
+        for ph in displayPlaceholders {
+            while text.contains("<br>" + ph) { text = text.replacingOccurrences(of: "<br>" + ph, with: ph) }
+            while text.contains(ph + "<br>") { text = text.replacingOccurrences(of: ph + "<br>", with: ph) }
+        }
+
+        // Wrap consecutive <li> items in <ul> and remove <br> between them.
+        // Without a <ul> parent, bare <li> elements render as full-height blocks
+        // and the <br> after each \n adds extra gap on top.
+        if let re = try? NSRegularExpression(pattern: "(<li>.*?</li>)(<br>)*", options: .dotMatchesLineSeparators) {
+            // First strip <br> immediately after any </li>
+            text = re.stringByReplacingMatches(in: text, range: NSRange(location: 0, length: text.utf16.count),
+                withTemplate: "$1")
+        }
+        // Wrap runs of consecutive <li> in <ul>
+        if let re = try? NSRegularExpression(pattern: "(<li>.*?</li>)+", options: .dotMatchesLineSeparators) {
+            text = re.stringByReplacingMatches(in: text, range: NSRange(location: 0, length: text.utf16.count),
+                withTemplate: "<ul>$0</ul>")
+        }
 
         // 3. Restore LaTeX blocks
         for (idx, block) in latexBlocks.enumerated() {

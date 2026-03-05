@@ -427,7 +427,12 @@ struct SessionChatView: View {
                     userPrompt: $viewModel.imagePrompt,
                     isPresented: $showingImageInputSheet
                 ) { image, prompt, deepMode in
-                    viewModel.processImageWithPrompt(image: image, prompt: prompt, deepMode: deepMode)
+                    if isLiveMode, let vm = liveVMHolder.vm {
+                        vm.sendImage(image, prompt: prompt)
+                        viewModel.selectedImage = nil
+                    } else {
+                        viewModel.processImageWithPrompt(image: image, prompt: prompt, deepMode: deepMode)
+                    }
                 }
             }
             // ✅ Archive progress animation overlay
@@ -594,14 +599,10 @@ struct SessionChatView: View {
                 }
             }
             .onChange(of: viewModel.selectedImage) { _, newImage in
-                if let image = newImage {
-                    if isLiveMode, let vm = liveVMHolder.vm {
-                        // In Live mode: send image directly to Gemini via WebSocket
-                        vm.sendImage(image)
-                        viewModel.selectedImage = nil  // clear so it doesn't trigger again
-                    } else {
-                        showingImageInputSheet = true
-                    }
+                if newImage != nil {
+                    // Both live and non-live: show the prompt sheet so the user can
+                    // attach a question to the image before it's sent.
+                    showingImageInputSheet = true
                 }
             }
             .onChange(of: scenePhase) { _, newPhase in

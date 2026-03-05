@@ -43,6 +43,9 @@ struct DigitalHomeworkView: View {
     // Annotation question picker sheet
     @State private var showAnnotationPicker = false
 
+    // Annotation unassigned warning banner
+    @State private var annotationWarning: QuestionAnnotation? = nil
+
     // ✅ Archive / Smart Organize result toast
     @State private var showResultToast = false
     @State private var resultToastLines: [String] = []
@@ -1253,6 +1256,13 @@ struct DigitalHomeworkView: View {
                         .padding(.bottom, 60)
                         .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
+
+                // Unassigned annotation warning banner
+                if let warning = annotationWarning {
+                    annotationWarningBanner(annotation: warning)
+                        .padding(.bottom, 68)
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
+                }
             }
         }
         .navigationBarHidden(true)
@@ -1307,9 +1317,19 @@ struct DigitalHomeworkView: View {
 
             // 完成按钮 (右侧)
             Button {
-                let vm = self.viewModel
-                vm.showAnnotationMode = false
-                vm.selectedAnnotationId = nil
+                if let unassigned = viewModel.annotations.first(where: { $0.questionNumber == nil }) {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        annotationWarning = unassigned
+                    }
+                    Task {
+                        try? await Task.sleep(nanoseconds: 3_500_000_000)
+                        withAnimation(.easeOut(duration: 0.3)) { annotationWarning = nil }
+                    }
+                } else {
+                    let vm = self.viewModel
+                    vm.showAnnotationMode = false
+                    vm.selectedAnnotationId = nil
+                }
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "checkmark.circle.fill")
@@ -1336,6 +1356,17 @@ struct DigitalHomeworkView: View {
     }
 
     // MARK: - Annotation Question Picker Dropdown (with LaTeX rendering)
+
+    /// Truncate label at 44 chars so it fits one row in the dropdown without overflowing.
+    /// Truncates at the last word boundary to avoid cutting mid-word when possible.
+    private func truncatedAnnotationLabel(_ text: String, limit: Int = 44) -> String {
+        guard text.count > limit else { return text }
+        let prefix = String(text.prefix(limit))
+        let trimmed = prefix.last?.isWhitespace == false
+            ? (prefix.components(separatedBy: " ").dropLast().joined(separator: " "))
+            : prefix.trimmingCharacters(in: .whitespaces)
+        return (trimmed.isEmpty ? prefix : trimmed) + "..."
+    }
 
     private func annotationDropdown(annotationId: UUID, currentQuestionNumber: String?) -> some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -1366,7 +1397,7 @@ struct DigitalHomeworkView: View {
                             withAnimation(.easeOut(duration: 0.15)) { showAnnotationPicker = false }
                         } label: {
                             HStack(alignment: .center, spacing: 8) {
-                                FullLaTeXText(target.displayLabel, fontSize: 14)
+                                FullLaTeXText(truncatedAnnotationLabel(target.displayLabel), fontSize: 14)
                                     .padding(.leading, target.indentLevel == 1 ? 16 : 0)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                 if currentQuestionNumber == target.annotationQuestionNumber {
@@ -1399,7 +1430,37 @@ struct DigitalHomeworkView: View {
         .padding(.horizontal, 16)
     }
 
-    // MARK: - Compact Question Preview (紧凑版题目预览)
+    // MARK: - Annotation Unassigned Warning Banner
+
+    private func annotationWarningBanner(annotation: QuestionAnnotation) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundColor(.orange)
+                .font(.subheadline)
+            Text("Please select a question number for")
+                .font(.caption)
+                .foregroundColor(.primary)
+            RoundedRectangle(cornerRadius: 3)
+                .fill(annotation.color)
+                .frame(width: 22, height: 14)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 3)
+                        .strokeBorder(annotation.color.opacity(0.5), lineWidth: 1)
+                )
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 3)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(Color.orange.opacity(0.4), lineWidth: 1)
+        )
+        .padding(.horizontal, 32)
+    }
 
     /// imageId: the key to look up in croppedImages (parent id or subquestion id)
     /// subquestionId: if non-nil and matches a subquestion, highlight that subquestion row
@@ -1444,10 +1505,8 @@ struct DigitalHomeworkView: View {
                                 .font(.caption)
                                 .foregroundColor(isTarget ? .blue : .secondary)
                                 .fontWeight(isTarget ? .semibold : .regular)
-                            Text(sub.questionText)
-                                .font(.caption)
+                            FullLaTeXText(sub.questionText, fontSize: 12)
                                 .foregroundColor(isTarget ? .primary : .secondary)
-                                .fixedSize(horizontal: false, vertical: true)
                         }
                         // Show subquestion cropped image directly below it
                         if isTarget, let image = viewModel.getCroppedImage(for: sub.id) {
@@ -2736,15 +2795,8 @@ struct SubquestionRow: View {
         VStack(alignment: .leading, spacing: 4) {
             let components = parseMultipleChoiceQuestion(questionText)
 
-            // Question stem with expandable text
-            if isExpanded {
-                FullLaTeXText(components.stem, fontSize: 12)
-            } else {
-                Text(stripLatexDelimiters(components.stem))
-                    .font(.caption)
-                    .foregroundColor(.primary)
-                    .lineLimit(2)
-            }
+            // Question stem
+            FullLaTeXText(components.stem, fontSize: 12)
 
             // Options (compact for subquestions)
             if !components.options.isEmpty {
@@ -2772,14 +2824,7 @@ struct SubquestionRow: View {
     @ViewBuilder
     private func renderSubquestionFillInBlank(questionText: String, studentAnswer: String, isExpanded: Bool) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            if isExpanded {
-                FullLaTeXText(questionText, fontSize: 12)
-            } else {
-                Text(stripLatexDelimiters(questionText))
-                    .font(.caption)
-                    .foregroundColor(.primary)
-                    .lineLimit(2)
-            }
+            FullLaTeXText(questionText, fontSize: 12)
 
             let answers = studentAnswer.components(separatedBy: " | ")
 
@@ -2814,31 +2859,14 @@ struct SubquestionRow: View {
     @ViewBuilder
     private func renderSubquestionCalculation(questionText: String, studentAnswer: String, isExpanded: Bool) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            if isExpanded {
-                FullLaTeXText(questionText, fontSize: 12)
-            } else {
-                Text(stripLatexDelimiters(questionText))
-                    .font(.caption)
-                    .foregroundColor(.primary)
-                    .lineLimit(2)
-            }
+            FullLaTeXText(questionText, fontSize: 12)
 
             // Work shown (compact)
-            if isExpanded {
-                FullLaTeXText(studentAnswer, fontSize: 11)
-                    .padding(4)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(.secondarySystemGroupedBackground))
-                    .cornerRadius(4)
-            } else {
-                Text(stripLatexDelimiters(studentAnswer))
-                    .font(.caption2)
-                    .foregroundColor(.primary)
-                    .padding(4)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(.secondarySystemGroupedBackground))
-                    .cornerRadius(4)
-            }
+            FullLaTeXText(studentAnswer, fontSize: 11)
+                .padding(4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(.secondarySystemGroupedBackground))
+                .cornerRadius(4)
         }
     }
 
@@ -2847,14 +2875,7 @@ struct SubquestionRow: View {
     @ViewBuilder
     private func renderSubquestionTrueFalse(questionText: String, studentAnswer: String, isExpanded: Bool) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            if isExpanded {
-                FullLaTeXText(questionText, fontSize: 12)
-            } else {
-                Text(stripLatexDelimiters(questionText))
-                    .font(.caption)
-                    .foregroundColor(.primary)
-                    .lineLimit(2)
-            }
+            FullLaTeXText(questionText, fontSize: 12)
 
             // True/False options (compact)
             HStack(spacing: 12) {
@@ -2883,50 +2904,20 @@ struct SubquestionRow: View {
     @ViewBuilder
     private func renderSubquestionGeneric(questionText: String, studentAnswer: String, isExpanded: Bool) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            if isExpanded {
-                FullLaTeXText(questionText, fontSize: 12)
-            } else {
-                Text(stripLatexDelimiters(questionText))
-                    .font(.caption)
-                    .foregroundColor(.primary)
-                    .lineLimit(2)
-            }
+            FullLaTeXText(questionText, fontSize: 12)
 
             if !studentAnswer.isEmpty {
                 // Just show the answer without label for consistency
-                if isExpanded {
-                    FullLaTeXText(studentAnswer, fontSize: 11)
-                        .padding(4)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color(.secondarySystemGroupedBackground))
-                        .cornerRadius(3)
-                } else {
-                    Text(stripLatexDelimiters(studentAnswer))
-                        .font(.caption2)
-                        .foregroundColor(.primary)
-                        .padding(4)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color(.secondarySystemGroupedBackground))
-                        .cornerRadius(3)
-                }
+                FullLaTeXText(studentAnswer, fontSize: 11)
+                    .padding(4)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(.secondarySystemGroupedBackground))
+                    .cornerRadius(3)
             }
         }
     }
 
     // MARK: - Helper Functions (Shared with QuestionCard)
-
-    /// Strip LaTeX delimiters for plain Text() views that can't render math.
-    /// Removes $...$, $$...$$, \(...\), \[...\] markers while keeping the content.
-    private func stripLatexDelimiters(_ text: String) -> String {
-        var result = text
-        result = result.replacingOccurrences(of: "$$", with: "")
-        result = result.replacingOccurrences(of: "$", with: "")
-        result = result.replacingOccurrences(of: "\\[", with: "")
-        result = result.replacingOccurrences(of: "\\]", with: "")
-        result = result.replacingOccurrences(of: "\\(", with: "")
-        result = result.replacingOccurrences(of: "\\)", with: "")
-        return result
-    }
 
     /// Check if question text is long enough to need expand/collapse
     /// Heuristic: >80 characters likely exceeds 2 lines in .caption font
