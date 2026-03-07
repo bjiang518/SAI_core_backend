@@ -453,7 +453,7 @@ class QuestionGenerationService: ObservableObject {
                         }
 
                         // ✅ FIX 2: Save session for persistence and capture session ID
-                        let sessionId = PracticeSessionManager.shared.saveSession(
+                        let savedSession = PracticeSessionManager.shared.saveSession(
                             questions: responseResult.questions,
                             generationType: "Random Practice",
                             subject: subject,
@@ -462,7 +462,7 @@ class QuestionGenerationService: ObservableObject {
 
                         // ✅ Store session ID for progress tracking
                         await MainActor.run {
-                            self.currentSessionId = sessionId
+                            self.currentSessionId = savedSession.id
                         }
 
                         print("🎉 Generated \(responseResult.questions.count) random questions successfully")
@@ -565,7 +565,7 @@ class QuestionGenerationService: ObservableObject {
                     let responseResult = try parseQuestionResponse(data: data, generationType: "mistake_based")
 
                     if responseResult.success {
-                        let sessionId = PracticeSessionManager.shared.saveSession(
+                        let savedSession2 = PracticeSessionManager.shared.saveSession(
                             questions: responseResult.questions,
                             generationType: "Mistake-Based Practice",
                             subject: subject,
@@ -576,7 +576,7 @@ class QuestionGenerationService: ObservableObject {
                             self.lastGeneratedQuestions = responseResult.questions
                             self.lastGenerationDate = Date()
                             self.lastGenerationType = "Mistake-Based Practice"
-                            self.currentSessionId = sessionId
+                            self.currentSessionId = savedSession2.id
                         }
 
                         print("🎉 Generated \(responseResult.questions.count) mistake-based questions successfully")
@@ -727,7 +727,7 @@ class QuestionGenerationService: ObservableObject {
                         }
 
                         // ✅ FIX 2: Save session for persistence and capture session ID
-                        let sessionId = PracticeSessionManager.shared.saveSession(
+                        let savedSession3 = PracticeSessionManager.shared.saveSession(
                             questions: responseResult.questions,
                             generationType: "Conversation-Based Practice",
                             subject: subject,
@@ -736,7 +736,7 @@ class QuestionGenerationService: ObservableObject {
 
                         // ✅ Store session ID for progress tracking
                         await MainActor.run {
-                            self.currentSessionId = sessionId
+                            self.currentSessionId = savedSession3.id
                         }
 
                         print("🎉 Generated \(responseResult.questions.count) conversation-based questions successfully (Status: \(httpResponse.statusCode))")
@@ -1239,7 +1239,7 @@ class QuestionGenerationService: ObservableObject {
                         case 3: generationType = "Conversation-Based Practice"
                         default: generationType = "Random Practice"
                         }
-                        let sessionId = PracticeSessionManager.shared.saveSession(
+                        let savedSession4 = PracticeSessionManager.shared.saveSession(
                             questions: responseResult.questions,
                             generationType: generationType,
                             subject: subject,
@@ -1249,7 +1249,7 @@ class QuestionGenerationService: ObservableObject {
                             self.lastGeneratedQuestions = responseResult.questions
                             self.lastGenerationDate = Date()
                             self.lastGenerationType = generationType
-                            self.currentSessionId = sessionId
+                            self.currentSessionId = savedSession4.id
                         }
                         print("🎉 [V2] Generated \(responseResult.questions.count) questions successfully")
                         return .success(responseResult.questions)

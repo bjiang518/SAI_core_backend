@@ -2138,3 +2138,56 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 // Onboarding — Language Selection (first page)
 "onboarding.language.title" = "Choisissez votre langue";
 "onboarding.language.subtitle" = "Vous pouvez le modifier à tout moment dans Réglages";
+
+// New Practice Sheet
+"newPractice.title" = "New Practice";
+"newPractice.error.title" = "Generation Failed";
+"newPractice.error.sessionNotFound" = "Session not found after generation.";
+"newPractice.error.noSelection" = "Please select at least one conversation or question.";
+
+// Practice Library
+"practiceLibrary.title" = "Practice";
+"practiceLibrary.filterAll" = "All";
+"practiceLibrary.deleteTitle" = "Delete Session?";
+"practiceLibrary.deleteMessage" = "This practice session will be permanently removed.";
+"practiceLibrary.emptyTitle" = "No practice sessions yet";
+"practiceLibrary.emptySubtitle" = "Tap \"New\" to generate your first practice session.";
+"practiceLibrary.generateFirst" = "Generate Your First";
+"practiceLibrary.sortNewest" = "Newest";
+"practiceLibrary.sortOldest" = "Oldest";
+"practiceLibrary.sortScore" = "Score ↓";
+"practiceLibrary.sortIncomplete" = "Incomplete First";
+"practiceLibrary.card.questionSingular" = "question";
+"practiceLibrary.card.questionPlural" = "questions";
+"practiceLibrary.card.complete" = "Complete";
+"practiceLibrary.card.inProgress" = "In Progress";
+
+// Practice Sheet
+"practiceSheet.questionCounter" = "Q %d/%d";
+"practiceSheet.typeAnswerPlaceholder" = "Type your answer here…";
+"practiceSheet.answersSection" = "Answers";
+"practiceSheet.yourAnswerLabel" = "Your answer";
+"practiceSheet.noAnswer" = "(no answer)";
+"practiceSheet.partialCredit" = "Partial Credit";
+"practiceSheet.gradingInstant" = "Instant";
+"practiceSheet.gradingAI" = "AI Graded";
+"practiceSheet.correctAnswer" = "Correct Answer";
+"practiceSheet.aiExplanation" = "AI Explanation";
+"practiceSheet.nextQuestion" = "Next Question";
+"practiceSheet.seeResults" = "See Results";
+"practiceSheet.practiceComplete" = "Practice Complete!";
+"practiceSheet.statCorrect" = "Correct";
+"practiceSheet.statIncorrect" = "Incorrect";
+"practiceSheet.statSkipped" = "Skipped";
+"practiceSheet.slideToOrganizeHint" = "Slide to archive mistakes & mark progress";
+"practiceSheet.organizedConfirm" = "Mistakes archived · Progress marked";
+"practiceSheet.slideToOrganize" = "Slide to organize";
+"practiceSheet.aiAnalyzing" = "AI is analyzing your answer…";
+"practiceSheet.toastTitle" = "Smart Organize Complete";
+"practiceSheet.toastProgress" = "Progress marked for %@";
+"practiceSheet.toastMistakes" = "%d mistake(s) archived to library";
+"practiceSheet.toastSaved" = "Session saved";
+"practiceSheet.scoreExcellent" = "Excellent!";
+"practiceSheet.scoreGreat" = "Great Job!";
+"practiceSheet.scoreGood" = "Keep It Up!";
+"practiceSheet.scorePractice" = "Keep Practicing!";

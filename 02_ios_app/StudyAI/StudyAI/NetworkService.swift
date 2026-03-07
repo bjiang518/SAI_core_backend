@@ -5567,6 +5567,64 @@ class NetworkService: ObservableObject {
             return (false, "Network error: \(error.localizedDescription)")
         }
     }
+
+    // MARK: - Practice Library Sync
+
+    /// Notify backend when a practice sheet is created (fire-and-forget from PracticeSessionManager)
+    func createPracticeSheet(sheetId: String, subject: String, sourceType: String, questionCount: Int) async throws {
+        guard let url = URL(string: "\(baseURL)/api/practice/sheets") else {
+            throw NetworkError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 15.0
+
+        if let token = AuthenticationService.shared.getAuthToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        let body: [String: Any] = [
+            "sheet_id": sheetId,
+            "subject": subject,
+            "source_type": sourceType,
+            "question_count": questionCount
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (_, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            throw NetworkError.invalidResponse
+        }
+    }
+
+    /// Notify backend when a practice sheet is completed (fire-and-forget from PracticeSessionManager)
+    func completePracticeSheet(sheetId: String, completedCount: Int, scorePercentage: Double) async throws {
+        guard let url = URL(string: "\(baseURL)/api/practice/sheets/\(sheetId)/complete") else {
+            throw NetworkError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 15.0
+
+        if let token = AuthenticationService.shared.getAuthToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        let body: [String: Any] = [
+            "completed_count": completedCount,
+            "score_percentage": scorePercentage
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (_, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            throw NetworkError.invalidResponse
+        }
+    }
 }
 
 // MARK: - Video Search Models
