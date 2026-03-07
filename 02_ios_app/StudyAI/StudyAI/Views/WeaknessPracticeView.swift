@@ -319,6 +319,7 @@ struct WeaknessPracticeQuestionCard: View {
 struct MultipleChoiceInput: View {
     let options: [String]
     @Binding var selectedOption: String
+    @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         VStack(spacing: 8) {
@@ -328,7 +329,7 @@ struct MultipleChoiceInput: View {
                 } label: {
                     HStack {
                         Image(systemName: selectedOption == option ? "circle.fill" : "circle")
-                        Text(option)
+                        SmartLaTeXView(option, fontSize: 16, colorScheme: colorScheme)
                         Spacer()
                     }
                     .padding()
@@ -624,8 +625,8 @@ struct WeaknessPracticeAnswerInput: View {
                         score: matchResult.isCorrect ? 1.0 : 0.0,
                         isCorrect: matchResult.isCorrect,
                         feedback: matchResult.isCorrect ?
-                            "Correct! Well done." :
-                            "Incorrect. The correct answer is: \(question.correctAnswer)",
+                            NSLocalizedString("practice.feedbackCorrect", comment: "") :
+                            String(format: NSLocalizedString("practice.feedbackIncorrect", comment: ""), question.correctAnswer),
                         confidence: Float(matchResult.matchScore),
                         correctAnswer: question.correctAnswer
                     )
@@ -918,9 +919,9 @@ class WeaknessPracticeViewModel: ObservableObject {
 
     private func generateFeedback(isCorrect: Bool) -> String {
         if isCorrect {
-            return "Great job! Keep practicing to master this weakness."
+            return NSLocalizedString("practice.feedbackCorrect", comment: "")
         } else {
-            return "Not quite. Review the correct answer and try similar questions."
+            return NSLocalizedString("practice.feedbackTryAgain", comment: "")
         }
     }
 

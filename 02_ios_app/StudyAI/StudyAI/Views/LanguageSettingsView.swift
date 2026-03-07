@@ -10,7 +10,6 @@ import SwiftUI
 struct LanguageSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage("appLanguage") private var selectedLanguage: String = "en"
-    @State private var showRestartAlert = false
 
     var body: some View {
         NavigationView {
@@ -18,16 +17,8 @@ struct LanguageSettingsView: View {
                 Section {
                     ForEach(Language.allLanguages) { language in
                         Button(action: {
-                            if selectedLanguage != language.code {
-                                selectedLanguage = language.code
-
-                                // ✅ FIX: Force immediate synchronization to UserDefaults
-                                UserDefaults.standard.set(language.code, forKey: "appLanguage")
-                                UserDefaults.standard.set([language.code], forKey: "AppleLanguages")
-                                UserDefaults.standard.synchronize()
-
-                                showRestartAlert = true
-                            }
+                            guard selectedLanguage != language.code else { return }
+                            LanguageManager.shared.setLanguage(language.code)
                         }) {
                             HStack {
                                 VStack(alignment: .leading, spacing: 4) {
@@ -66,14 +57,6 @@ struct LanguageSettingsView: View {
                     }
                     .fontWeight(.semibold)
                 }
-            }
-            .alert(NSLocalizedString("languageSettings.restartRequired", comment: ""), isPresented: $showRestartAlert) {
-                Button(NSLocalizedString("common.ok", comment: "")) {
-                    // ✅ Automatically close the app to apply language change
-                    exit(0)
-                }
-            } message: {
-                Text(NSLocalizedString("languageSettings.restartMessage", comment: ""))
             }
         }
     }

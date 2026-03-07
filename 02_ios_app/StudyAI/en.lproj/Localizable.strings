@@ -560,6 +560,8 @@
 "questionGeneration.conversations" = "Conversations";
 "questionGeneration.questions" = "Questions";
 "questionGeneration.selectArchives" = "Select Archives";
+"questionGeneration.sourceLimitTitle" = "Selection Limit";
+"questionGeneration.sourceLimitMessage" = "You can select at most %d sources.";
 "questionGeneration.conversation" = "Conversation";
 "questionGeneration.failedToLoadData" = "Failed to load data: %@";
 "questionGeneration.defaultSubject.mathematics" = "Mathematics";
@@ -601,6 +603,12 @@
 "questionDetail.hideExplanation" = "Hide Explanation";
 "questionDetail.yourAnswer" = "Your Answer:";
 "questionDetail.correctAnswer" = "Correct Answer:";
+"questionDetail.feedbackExactMatch" = "Perfect! Your answer is exactly correct.";
+
+// Practice grading feedback
+"practice.feedbackCorrect" = "Correct! Well done.";
+"practice.feedbackIncorrect" = "Incorrect. The correct answer is: %@";
+"practice.feedbackTryAgain" = "Not quite. Review the correct answer and try similar questions.";
 "questionDetail.archiveQuestion" = "Archive Question";
 "questionDetail.archiving" = "Archiving...";
 "questionDetail.archived" = "Archived";
@@ -926,6 +934,30 @@
 "chat.menu.synchronizedAudio" = "Synchronized Audio";
 "chat.menu.liveTalk" = "Live Talk";
 "chat.menu.archiveSession" = "Archive Session";
+"chat.menu.viewTutorial" = "View Tutorial";
+
+// Chat Onboarding Tutorial
+"onboarding.skip" = "Skip";
+"onboarding.next" = "Next";
+"onboarding.done" = "Done";
+"onboarding.chat.subject.title" = "Choose a Subject";
+"onboarding.chat.subject.desc" = "Select a subject or leave it as General. This helps me give you more accurate answers.";
+"onboarding.chat.camera.title" = "Add Images";
+"onboarding.chat.camera.desc" = "Tap to take a photo or pick one from your gallery. I can read homework questions from images.";
+"onboarding.chat.deepmode.title" = "Send or Go Deeper";
+"onboarding.chat.deepmode.desc" = "Tap ↑ to send. Or hold the button and swipe up — it turns purple and uses a more thorough reasoning model for hard questions.";
+"onboarding.chat.mic.title" = "Voice Input";
+"onboarding.chat.mic.desc" = "Hold this button to speak instead of typing. Your voice is transcribed automatically.";
+"onboarding.chat.live.title" = "Live Mode & More";
+"onboarding.chat.live.desc" = "Tap ··· to access settings. You can switch to real-time Live Talk voice mode from here.";
+"onboarding.chat.library.title" = "Save to Library";
+"onboarding.chat.library.desc" = "Tap to archive this conversation. I'll analyze it and save key insights to your personal library.";
+"onboarding.chat.deepBadge" = "Deep";
+"onboarding.chat.deepThinkingMode" = "Deep Thinking Mode";
+"onboarding.chat.releaseToCancel" = "Release to Cancel";
+"onboarding.chat.releaseToSend" = "Release to Send";
+"onboarding.chat.holdToTalk" = "Hold to Talk";
+"onboarding.chat.micDemoText" = "explain it in more detail";
 
 // Voice Chat (Gemini Live)
 "voice_chat.title" = "Live Talk";
@@ -1128,6 +1160,28 @@
 "editProfile.profileUpdated" = "Profile Updated";
 "editProfile.profileUpdatedMessage" = "Your profile has been updated successfully\!";
 "editProfile.savingProfile" = "Saving Profile...";
+"editProfile.takeSelfie" = "Take Selfie";
+"editProfile.uploadFromAlbum" = "Upload from Album";
+"editProfile.or" = "OR";
+"editProfile.choosePresetAvatar" = "Choose a preset avatar";
+"editProfile.orChoosePresetAvatar" = "Or choose a preset avatar";
+"editProfile.studentInformation" = "Student Information";
+"editProfile.age" = "Age";
+"editProfile.agePlaceholder" = "e.g. 14";
+"editProfile.noneOption" = "—";
+"editProfile.language" = "Language";
+"editProfile.selectedCount" = "%d selected";
+"editProfile.learningStyle" = "Learning Style";
+"editProfile.learningStyleHeuristic" = "Heuristic";
+"editProfile.learningStyleHeuristicDesc" = "Guided discovery";
+"editProfile.learningStyleStraightforward" = "Straightforward";
+"editProfile.learningStyleStraightforwardDesc" = "Direct answers";
+"editProfile.avatarEditorHint" = "Pinch to zoom, drag to adjust";
+"editProfile.zoomOut" = "Zoom Out";
+"editProfile.zoomIn" = "Zoom In";
+"editProfile.rotateLeft" = "Rotate Left";
+"editProfile.rotateRight" = "Rotate Right";
+"editProfile.adjustAvatar" = "Adjust Avatar";
 
 // Avatar Selection
 "editProfile.selectAvatar" = "Select Your Avatar";
@@ -1728,6 +1782,24 @@
 "homeworkSummary.subquestionCount" = "%d subquestions";
 "homeworkSummary.answer" = "Answer: %@";
 
+// Subject Names (returned from backend as English, localized here)
+"subject.math" = "Math";
+"subject.mathematics" = "Mathematics";
+"subject.english" = "English";
+"subject.science" = "Science";
+"subject.history" = "History";
+"subject.geography" = "Geography";
+"subject.physics" = "Physics";
+"subject.chemistry" = "Chemistry";
+"subject.biology" = "Biology";
+"subject.social_studies" = "Social Studies";
+"subject.chinese" = "Chinese";
+"subject.art" = "Art";
+"subject.music" = "Music";
+"subject.physical_education" = "Physical Education";
+"subject.computer_science" = "Computer Science";
+"subject.general" = "General";
+
 "proMode.slideToMarkProgress" = "Slide to Smart Organize";
 "proMode.progressMarked" = "Already Organized";
 "proMode.partial" = "Partial";
@@ -2066,3 +2138,26 @@
 "voiceSettings.avatar.eva.desc" = "A kind, supportive girl";
 "voiceSettings.avatar.max.desc" = "An energetic, enthusiastic boy";
 "voiceSettings.avatar.mia.desc" = "A playful, curious girl";
+
+// Onboarding — Parent Setup
+"onboarding.continue" = "Continue";
+"onboarding.parentSetup.title" = "Parent setup";
+"onboarding.parentSetup.subtitle" = "Secure your parental controls";
+"onboarding.parentSetup.ageLabel" = "Your age";
+"onboarding.parentSetup.agePlaceholder" = "e.g. 35";
+"onboarding.parentSetup.nameLabel" = "Name";
+"onboarding.parentSetup.namePlaceholder" = "Your name";
+"onboarding.parentSetup.pinLabel" = "Parent PIN (6 digits)";
+"onboarding.parentSetup.pinPlaceholder" = "Enter 6-digit PIN";
+"onboarding.parentSetup.confirmPinPlaceholder" = "Confirm PIN";
+"onboarding.parentSetup.pinMismatch" = "PINs don't match";
+"onboarding.parentSetup.pinHint" = "6-digit PIN to lock parental controls so your child can't change them.";
+"onboarding.parentSetup.controlsLabel" = "Parental controls";
+"onboarding.parentSetup.protectChat" = "Protect AI chat";
+"onboarding.parentSetup.protectGrader" = "Protect homework grader";
+"onboarding.parentSetup.protectReports" = "Protect parent reports";
+"onboarding.parentSetup.pinLockHint" = "Enter and confirm a valid 6-digit PIN above to enable controls";
+
+// Onboarding — Language Selection (first page)
+"onboarding.language.title" = "Choose your language";
+"onboarding.language.subtitle" = "You can change this anytime in Settings";

@@ -1,0 +1,1016 @@
+/* Taxonomy.strings (Traditional Chinese)
+   Localized branch names for error analysis taxonomy */
+
+/* ===== SUBJECT NAMES ===== */
+"Mathematics" = "數學";
+"Science" = "科學";
+"Physics" = "物理";
+"Chemistry" = "化學";
+"Biology" = "生物";
+"English" = "英語";
+"History" = "歷史";
+"Geography" = "地理";
+"Computer Science" = "計算機科學";
+"Literature" = "文學";
+"Social Studies" = "社會科學";
+"Economics" = "經濟學";
+"Art" = "美術";
+"Music" = "音樂";
+"Other" = "其他";
+"Math" = "數學";
+"Chinese" = "國語";
+
+/* ===== MATH — Base Branches ===== */
+"Number & Operations" = "數與運算";
+"Algebra - Foundations" = "代數基礎";
+"Algebra - Advanced" = "高等代數";
+"Geometry - Foundations" = "幾何基礎";
+"Geometry - Formal" = "形式幾何";
+"Trigonometry" = "三角學";
+"Statistics" = "統計學";
+"Probability" = "機率";
+"Calculus - Differential" = "微分";
+"Calculus - Integral" = "積分";
+"Discrete Mathematics" = "離散數學";
+"Mathematical Modeling & Applications" = "數學建模與應用";
+
+/* MATH — Number & Operations */
+"Whole Number Operations" = "整數運算";
+"Fraction Concepts & Operations" = "分數概念與運算";
+"Decimal Operations" = "小數運算";
+"Integers & Rational Numbers" = "整數與有理數";
+"Ratios, Rates, & Proportions" = "比率與比例";
+"Percent Concepts & Applications" = "百分比概念與應用";
+"Number Theory" = "數論";
+"Exponents & Powers" = "指數與冪";
+
+/* MATH — Algebra - Foundations */
+"Variables & Expressions" = "變數與運算式";
+"Linear Equations - One Variable" = "一元一次方程式";
+"Linear Inequalities" = "一次不等式";
+"Systems of Linear Equations" = "線性方程組";
+"Graphing Linear Functions" = "線性函數圖形";
+"Polynomials - Basic Operations" = "多項式基本運算";
+"Factoring" = "因式分解";
+"Quadratic Equations - Basics" = "二次方程式基礎";
+
+/* MATH — Algebra - Advanced */
+"Quadratic Functions & Equations" = "二次函數與方程式";
+"Polynomial Functions" = "多項式函數";
+"Rational Expressions & Equations" = "有理式與方程式";
+"Radical Expressions & Equations" = "根式與方程式";
+"Exponential & Logarithmic Functions" = "指數與對數函數";
+"Functions & Relations" = "函數與關係";
+"Sequences & Series" = "數列與級數";
+"Complex Numbers" = "複數";
+"Matrices & Systems" = "矩陣與方程組";
+"Conic Sections" = "圓錐曲線";
+
+/* MATH — Geometry - Foundations */
+"Basic Shapes & Properties" = "基本圖形與性質";
+"Measurement - Length, Area, Volume" = "度量——長度、面積、體積";
+"Angles" = "角";
+"Coordinate Geometry - Basics" = "座標幾何基礎";
+
+/* MATH — Geometry - Formal */
+"Logical Reasoning & Proof" = "邏輯推理與證明";
+"Triangles" = "三角形";
+"Quadrilaterals" = "四邊形";
+"Circles" = "圓";
+"Polygons & Tessellations" = "多邊形與鑲嵌";
+"Transformations" = "圖形變換";
+"Right Triangle Trigonometry" = "直角三角形三角學";
+"Three-Dimensional Geometry" = "立體幾何";
+
+/* MATH — Trigonometry */
+"Trigonometric Functions - Unit Circle" = "三角函數——單位圓";
+"Trigonometric Graphs" = "三角函數圖形";
+"Trigonometric Identities" = "三角恆等式";
+"Trigonometric Equations" = "三角方程式";
+"Inverse Trigonometric Functions" = "反三角函數";
+"Law of Sines & Law of Cosines" = "正弦定理與餘弦定理";
+"Polar Coordinates & Complex Numbers" = "極座標與複數";
+"Vectors" = "向量";
+
+/* MATH — Statistics */
+"Data Collection & Representation" = "資料收集與呈現";
+"Measures of Central Tendency" = "集中趨勢量數";
+"Measures of Spread & Variation" = "離散程度量數";
+"Data Analysis & Interpretation" = "資料分析與解讀";
+"Linear Regression & Correlation" = "線性迴歸與相關性";
+"Two-Way Tables & Conditional Probability" = "雙向表與條件機率";
+
+/* MATH — Probability */
+"Basic Probability" = "基礎機率";
+"Compound Probability" = "複合機率";
+"Counting Principles" = "計數原理";
+"Probability Distributions" = "機率分佈";
+
+/* MATH — Calculus - Differential */
+"Limits & Continuity" = "極限與連續性";
+"Derivatives - Basics" = "導數基礎";
+"Derivative Rules" = "求導法則";
+"Applications of Derivatives" = "導數的應用";
+
+/* MATH — Calculus - Integral */
+"Antiderivatives & Indefinite Integrals" = "原函數與不定積分";
+"Definite Integrals" = "定積分";
+"Integration Techniques" = "積分方法";
+"Applications of Integrals" = "積分的應用";
+"Differential Equations" = "微分方程";
+
+/* MATH — Discrete Mathematics */
+"Logic & Set Theory" = "邏輯與集合論";
+"Graph Theory" = "圖論";
+"Combinatorics" = "組合數學";
+"Number Theory & Cryptography" = "數論與密碼學";
+
+/* MATH — Mathematical Modeling & Applications */
+"Financial Mathematics" = "財務數學";
+"Linear Programming" = "線性規劃";
+"Real-World Problem Solving" = "實際問題求解";
+"Mathematical Reasoning" = "數學推理";
+
+/* ===== ENGLISH — Base Branches ===== */
+"Reading Foundations" = "閱讀基礎";
+"Literary Analysis - Fiction" = "文學分析——小說";
+"Literary Analysis - Nonfiction" = "文學分析——非虛構";
+"Reading Comprehension" = "閱讀理解";
+"Writing - Narrative" = "寫作——敘事";
+"Writing - Informative/Explanatory" = "寫作——說明";
+"Writing - Argumentative" = "寫作——議論";
+"Writing Process & Craft" = "寫作過程與技巧";
+"Grammar & Mechanics" = "文法與規範";
+"Speaking & Listening" = "口語與聽力";
+
+/* ENGLISH — Reading Foundations */
+"Phonics & Word Recognition" = "語音與詞彙辨識";
+"Fluency & Reading Strategies" = "流暢度與閱讀策略";
+"Vocabulary Development" = "詞彙拓展";
+"Text Features & Structure" = "文本特徵與結構";
+
+/* ENGLISH — Literary Analysis - Fiction */
+"Plot & Story Structure" = "情節與故事結構";
+"Character Development" = "人物塑造";
+"Theme & Symbolism" = "主題與象徵";
+"Point of View & Narration" = "視角與敘述";
+"Literary Devices & Figurative Language" = "文學手法與修辭";
+"Genre Study" = "文體研究";
+
+/* ENGLISH — Literary Analysis - Nonfiction */
+"Main Idea & Supporting Details" = "主旨與論據";
+"Text Structure & Organization" = "文本結構與組織";
+"Author's Purpose & Perspective" = "作者意圖與觀點";
+"Rhetorical Devices & Appeals" = "修辭手法與訴求";
+"Argument & Evidence Evaluation" = "論證與證據評估";
+"Informational Text Types" = "資訊類文本類型";
+
+/* ENGLISH — Reading Comprehension */
+"Inference & Interpretation" = "推理與解讀";
+"Synthesizing Information" = "資訊綜合";
+"Making Connections" = "建立聯繫";
+"Critical Reading & Analysis" = "批判性閱讀與分析";
+
+/* ENGLISH — Writing - Narrative */
+"Story Elements & Plot Development" = "故事要素與情節發展";
+"Descriptive Writing" = "描寫性寫作";
+"Dialogue & Character Voice" = "對話與人物語言";
+"Personal Narrative & Memoir" = "個人敘事與回憶錄";
+
+/* ENGLISH — Writing - Informative/Explanatory */
+"Expository Essay Structure" = "說明文結構";
+"Research Writing" = "研究性寫作";
+"Technical Writing" = "技術寫作";
+"Process & How-To Writing" = "流程與說明寫作";
+
+/* ENGLISH — Writing - Argumentative */
+"Claim & Thesis Development" = "論點與論題展開";
+"Evidence & Citation" = "論據與引用";
+"Counterargument & Rebuttal" = "反駁與辯駁";
+"Persuasive Techniques" = "說服技巧";
+
+/* ENGLISH — Writing Process & Craft */
+"Prewriting & Brainstorming" = "預寫與腦力激盪";
+"Drafting & Revision" = "起草與修改";
+"Editing & Proofreading" = "編輯與校對";
+"Sentence Fluency & Style" = "句子流暢性與風格";
+
+/* ENGLISH — Grammar & Mechanics */
+"Parts of Speech" = "詞性";
+"Sentence Structure & Types" = "句子結構與類型";
+"Punctuation & Capitalization" = "標點與大寫";
+"Subject-Verb Agreement" = "主詞與動詞一致";
+"Verb Tenses & Consistency" = "動詞時態與一致性";
+"Pronoun Usage" = "代名詞用法";
+"Modifier Placement" = "修飾語位置";
+
+/* ENGLISH — Speaking & Listening */
+"Oral Presentation Skills" = "口頭表達能力";
+"Discussion & Collaboration" = "討論與合作";
+"Listening Comprehension" = "聽力理解";
+"Multimedia Communication" = "多媒體溝通";
+
+/* ===== PHYSICS — Base Branches ===== */
+"Mechanics - Kinematics" = "力學——運動學";
+"Mechanics - Dynamics" = "力學——動力學";
+"Mechanics - Energy & Work" = "力學——能量與功";
+"Mechanics - Momentum" = "力學——動量";
+"Mechanics - Rotation" = "力學——旋轉";
+"Electricity & Magnetism" = "電與磁";
+"Waves & Optics" = "波動與光學";
+"Thermodynamics" = "熱力學";
+"Modern Physics" = "近代物理";
+"Fluids & Oscillations" = "流體與振盪";
+
+/* PHYSICS — Mechanics - Kinematics */
+"Motion in One Dimension" = "一維運動";
+"Motion in Two Dimensions" = "二維運動";
+"Projectile Motion" = "拋體運動";
+"Circular Motion" = "圓周運動";
+"Relative Motion" = "相對運動";
+
+/* PHYSICS — Mechanics - Dynamics */
+"Newton's Laws of Motion" = "牛頓運動定律";
+"Force Analysis & Free-Body Diagrams" = "受力分析與自由體圖";
+"Friction & Drag Forces" = "摩擦力與阻力";
+"Tension & Normal Forces" = "張力與正向力";
+"Applications of Newton's Laws" = "牛頓定律的應用";
+
+/* PHYSICS — Mechanics - Energy & Work */
+"Work & Power" = "功與功率";
+"Kinetic & Potential Energy" = "動能與位能";
+"Conservation of Energy" = "能量守恆";
+"Energy Transformations" = "能量轉化";
+"Simple Machines" = "簡單機械";
+
+/* PHYSICS — Mechanics - Momentum */
+"Linear Momentum" = "線性動量";
+"Impulse & Collisions" = "衝量與碰撞";
+"Conservation of Momentum" = "動量守恆";
+"Center of Mass" = "質心";
+
+/* PHYSICS — Mechanics - Rotation */
+"Rotational Kinematics" = "轉動運動學";
+"Torque & Rotational Dynamics" = "力矩與轉動動力學";
+"Rotational Inertia" = "轉動慣量";
+"Angular Momentum" = "角動量";
+"Rotational Energy" = "轉動能";
+
+/* PHYSICS — Electricity & Magnetism */
+"Electric Charge & Coulomb's Law" = "電荷與庫侖定律";
+"Electric Fields" = "電場";
+"Electric Potential & Voltage" = "電位與電壓";
+"Circuits - Series & Parallel" = "電路——串聯與並聯";
+"Resistance & Ohm's Law" = "電阻與歐姆定律";
+"Capacitors" = "電容器";
+"Magnetic Fields & Forces" = "磁場與磁力";
+"Electromagnetic Induction" = "電磁感應";
+"AC Circuits" = "交流電路";
+
+/* PHYSICS — Waves & Optics */
+"Wave Properties & Behavior" = "波的性質與行為";
+"Sound Waves" = "聲波";
+"Light & Electromagnetic Spectrum" = "光與電磁波譜";
+"Reflection & Refraction" = "反射與折射";
+"Lenses & Mirrors" = "透鏡與反射鏡";
+"Interference & Diffraction" = "干涉與繞射";
+"Doppler Effect" = "都卜勒效應";
+
+/* PHYSICS — Thermodynamics */
+"Temperature & Heat" = "溫度與熱量";
+"Thermal Energy & Specific Heat" = "熱能與比熱";
+"Heat Transfer Methods" = "傳熱方式";
+"Laws of Thermodynamics" = "熱力學定律";
+"Ideal Gas Law" = "理想氣體定律";
+"Kinetic Theory of Gases" = "氣體動力論";
+
+/* PHYSICS — Modern Physics */
+"Quantum Mechanics - Basics" = "量子力學基礎";
+"Photoelectric Effect" = "光電效應";
+"Wave-Particle Duality" = "波粒二象性";
+"Atomic Structure" = "原子結構";
+"Nuclear Physics" = "核物理";
+"Relativity" = "相對論";
+
+/* PHYSICS — Fluids & Oscillations */
+"Fluid Statics & Pressure" = "流體靜力學與壓力";
+"Buoyancy & Archimedes' Principle" = "浮力與阿基米德原理";
+"Fluid Dynamics & Bernoulli's Equation" = "流體動力學與伯努利方程";
+"Simple Harmonic Motion" = "簡諧運動";
+"Pendulums & Springs" = "擺與彈簧";
+
+/* ===== CHEMISTRY — Base Branches ===== */
+"Matter & Measurement" = "物質與度量";
+/* "Atomic Structure" — already defined in Physics */
+"Chemical Bonding" = "化學鍵";
+"Chemical Nomenclature" = "化學命名";
+"Chemical Reactions" = "化學反應";
+"Stoichiometry" = "化學計量學";
+"Gases" = "氣體";
+"Thermochemistry" = "熱化學";
+"Solutions & Aqueous Chemistry" = "溶液與水溶液化學";
+"Equilibrium & Kinetics" = "平衡與動力學";
+"Organic & Nuclear Chemistry" = "有機化學與核化學";
+
+/* CHEMISTRY — Matter & Measurement */
+"Properties of Matter" = "物質的性質";
+"States of Matter" = "物質的狀態";
+"Physical vs Chemical Changes" = "物理變化與化學變化";
+"Measurement & Significant Figures" = "測量與有效數字";
+"Dimensional Analysis" = "量綱分析";
+"Density & Concentration" = "密度與濃度";
+
+/* CHEMISTRY — Atomic Structure */
+"Atomic Theory & Models" = "原子理論與模型";
+"Subatomic Particles" = "次原子粒子";
+"Isotopes & Atomic Mass" = "同位素與原子質量";
+"Electron Configuration" = "電子組態";
+"Periodic Trends" = "元素週期律";
+
+/* CHEMISTRY — Chemical Bonding */
+"Ionic Bonding" = "離子鍵";
+"Covalent Bonding" = "共價鍵";
+"Metallic Bonding" = "金屬鍵";
+"Lewis Structures" = "路易斯結構";
+"VSEPR Theory & Molecular Geometry" = "VSEPR 理論與分子幾何";
+"Polarity & Intermolecular Forces" = "極性與分子間作用力";
+
+/* CHEMISTRY — Chemical Nomenclature */
+"Naming Ionic Compounds" = "離子化合物命名";
+"Naming Covalent Compounds" = "共價化合物命名";
+"Naming Acids & Bases" = "酸鹼命名";
+"Organic Nomenclature" = "有機物命名";
+
+/* CHEMISTRY — Chemical Reactions */
+"Types of Reactions" = "反應類型";
+"Balancing Chemical Equations" = "化學方程式配平";
+"Predicting Products" = "產物預測";
+"Net Ionic Equations" = "離子方程式";
+"Oxidation-Reduction Reactions" = "氧化還原反應";
+
+/* CHEMISTRY — Stoichiometry */
+"Mole Concept" = "莫耳概念";
+"Molar Mass Calculations" = "莫耳質量計算";
+"Mass-Mole-Particle Conversions" = "質量-莫耳-粒子換算";
+"Limiting Reactant" = "限量試劑";
+"Percent Yield" = "百分產率";
+"Solution Stoichiometry" = "溶液化學計量";
+
+/* CHEMISTRY — Gases */
+"Gas Laws" = "氣體定律";
+/* "Ideal Gas Law" — already defined in Physics */
+"Gas Stoichiometry" = "氣體化學計量";
+"Dalton's Law of Partial Pressures" = "道耳頓分壓定律";
+"Kinetic Molecular Theory" = "分子運動論";
+
+/* CHEMISTRY — Thermochemistry */
+"Energy Changes in Reactions" = "反應中的能量變化";
+"Enthalpy & Calorimetry" = "焓與量熱法";
+"Hess's Law" = "乃斯定律";
+"Standard Enthalpies of Formation" = "標準生成焓";
+
+/* CHEMISTRY — Solutions & Aqueous Chemistry */
+"Solution Concentration Units" = "溶液濃度單位";
+"Solubility & Solubility Rules" = "溶解度與溶解規則";
+"Colligative Properties" = "依數性";
+"Acids & Bases" = "酸與鹼";
+"pH & pOH Calculations" = "pH 與 pOH 計算";
+"Acid-Base Titrations" = "酸鹼滴定";
+"Buffer Solutions" = "緩衝溶液";
+
+/* CHEMISTRY — Equilibrium & Kinetics */
+"Reaction Rates" = "反應速率";
+"Rate Laws & Reaction Order" = "速率方程與反應級數";
+"Collision Theory & Activation Energy" = "碰撞理論與活化能";
+"Chemical Equilibrium" = "化學平衡";
+"Le Chatelier's Principle" = "勒沙特列原理";
+"Equilibrium Constants" = "平衡常數";
+
+/* CHEMISTRY — Organic & Nuclear Chemistry */
+"Hydrocarbons & Functional Groups" = "烴與官能基";
+"Organic Reactions" = "有機反應";
+"Polymers & Biochemistry" = "聚合物與生物化學";
+"Nuclear Reactions" = "核反應";
+"Radioactive Decay" = "放射性衰變";
+"Half-Life Calculations" = "半衰期計算";
+
+/* ===== BIOLOGY — Base Branches ===== */
+"Scientific Method & Lab Skills" = "科學方法與實驗技能";
+"Biochemistry" = "生物化學";
+"Cell Biology" = "細胞生物學";
+"Cellular Processes" = "細胞過程";
+"Genetics - Classical" = "經典遺傳學";
+"Genetics - Molecular" = "分子遺傳學";
+"Evolution & Natural Selection" = "演化與天擇";
+"Ecology" = "生態學";
+"Anatomy & Physiology" = "解剖學與生理學";
+"Plants & Microorganisms" = "植物與微生物";
+
+/* BIOLOGY — Scientific Method & Lab Skills */
+"Experimental Design" = "實驗設計";
+"Variables & Controls" = "變數與對照";
+"Data Analysis & Graphing" = "資料分析與製圖";
+"Microscopy" = "顯微鏡技術";
+"Lab Safety & Equipment" = "實驗安全與器材";
+
+/* BIOLOGY — Biochemistry */
+"Water & Its Properties" = "水及其性質";
+"Carbon & Organic Molecules" = "碳與有機分子";
+"Carbohydrates" = "碳水化合物";
+"Lipids" = "脂質";
+"Proteins" = "蛋白質";
+"Nucleic Acids" = "核酸";
+"Enzymes & Metabolism" = "酵素與代謝";
+
+/* BIOLOGY — Cell Biology */
+"Cell Theory" = "細胞學說";
+"Prokaryotic vs Eukaryotic Cells" = "原核細胞與真核細胞";
+"Cell Organelles & Functions" = "細胞器與功能";
+"Cell Membrane & Transport" = "細胞膜與運輸";
+"Cellular Energy" = "細胞能量";
+
+/* BIOLOGY — Cellular Processes */
+"Photosynthesis" = "光合作用";
+"Cellular Respiration" = "細胞呼吸";
+"Fermentation" = "發酵";
+"Cell Cycle & Mitosis" = "細胞週期與有絲分裂";
+"Meiosis" = "減數分裂";
+
+/* BIOLOGY — Genetics - Classical */
+"Mendelian Genetics" = "孟德爾遺傳學";
+"Punnett Squares & Probability" = "乘法方格與機率";
+"Pedigrees" = "遺傳譜系";
+"Non-Mendelian Inheritance" = "非孟德爾遺傳";
+"Sex-Linked Traits" = "伴性遺傳";
+
+/* BIOLOGY — Genetics - Molecular */
+"DNA Structure & Replication" = "DNA 結構與複製";
+"Transcription" = "轉錄";
+"Translation" = "轉譯";
+"Gene Expression & Regulation" = "基因表現與調控";
+"Mutations" = "基因突變";
+"Genetic Engineering & Biotechnology" = "基因工程與生物技術";
+
+/* BIOLOGY — Evolution & Natural Selection */
+"Evidence for Evolution" = "演化的證據";
+"Natural Selection & Adaptation" = "天擇與適應";
+"Speciation" = "物種形成";
+"Population Genetics" = "族群遺傳學";
+"Phylogenetics & Classification" = "系統發生學與分類";
+
+/* BIOLOGY — Ecology */
+"Ecosystems & Biomes" = "生態系統與生物群系";
+"Energy Flow & Food Webs" = "能量流動與食物網";
+"Biogeochemical Cycles" = "生物地球化學循環";
+"Population Dynamics" = "族群動態";
+"Community Interactions" = "群落交互作用";
+"Biodiversity & Conservation" = "生物多樣性與保育";
+
+/* BIOLOGY — Anatomy & Physiology */
+"Organization of Life" = "生命的組織層次";
+"Homeostasis" = "恆定性";
+"Nervous System" = "神經系統";
+"Circulatory System" = "循環系統";
+"Respiratory System" = "呼吸系統";
+"Digestive System" = "消化系統";
+"Immune System" = "免疫系統";
+"Endocrine System" = "內分泌系統";
+
+/* BIOLOGY — Plants & Microorganisms */
+"Plant Structure & Function" = "植物結構與功能";
+"Plant Reproduction" = "植物繁殖";
+"Viruses" = "病毒";
+"Bacteria & Archaea" = "細菌與古菌";
+"Protists & Fungi" = "原生生物與真菌";
+
+/* ===== HISTORY — Base Branches ===== */
+"World History - Ancient Civilizations" = "世界歷史——古代文明";
+"World History - Medieval & Renaissance" = "世界歷史——中世紀與文藝復興";
+"World History - Age of Exploration to Revolution" = "世界歷史——大航海時代到革命";
+"World History - Modern Era" = "世界歷史——近現代";
+"US History - Colonization to Early Republic" = "美國歷史——殖民到早期共和";
+"US History - Expansion & Division" = "美國歷史——擴張與分裂";
+"US History - Industrialization to WWI" = "美國歷史——工業化到一戰";
+"US History - Roaring 20s to WWII" = "美國歷史——咆哮年代到二戰";
+"US History - Cold War to Present" = "美國歷史——冷戰至今";
+"Government & Civics" = "政治與公民學";
+"Economics" = "經濟學";
+"Geography" = "地理";
+
+/* HISTORY — World History - Ancient Civilizations */
+"Mesopotamia & Early River Civilizations" = "美索不達米亞與早期河流文明";
+"Ancient Egypt" = "古埃及";
+"Ancient Greece" = "古希臘";
+"Ancient Rome" = "古羅馬";
+"Ancient China" = "古代中國";
+"Ancient India & Southeast Asia" = "古代印度與東南亞";
+"Pre-Columbian Americas" = "前哥倫布時代的美洲";
+
+/* HISTORY — World History - Medieval & Renaissance */
+"Fall of Rome & Byzantine Empire" = "羅馬帝國衰落與拜占庭帝國";
+"Islamic Golden Age" = "伊斯蘭黃金時代";
+"Medieval Europe" = "中世紀歐洲";
+"African Kingdoms" = "非洲王國";
+"Renaissance & Humanism" = "文藝復興與人文主義";
+"Protestant Reformation" = "宗教改革";
+
+/* HISTORY — World History - Age of Exploration to Revolution */
+"Age of Exploration & Colonialism" = "大航海時代與殖民主義";
+"Scientific Revolution" = "科學革命";
+"Enlightenment" = "啟蒙運動";
+"French Revolution" = "法國大革命";
+"Latin American Independence" = "拉丁美洲獨立運動";
+
+/* HISTORY — World History - Modern Era */
+"Industrial Revolution" = "工業革命";
+"Imperialism & Colonialism" = "帝國主義與殖民主義";
+"World War I" = "第一次世界大戰";
+"Interwar Period & Rise of Totalitarianism" = "兩次大戰間期與極權主義興起";
+"World War II" = "第二次世界大戰";
+"Cold War" = "冷戰";
+"Decolonization & Post-Colonialism" = "去殖民化與後殖民時代";
+"Contemporary Global Issues" = "當代全球議題";
+
+/* HISTORY — US History - Colonization to Early Republic */
+"Pre-Columbian America & Native Americans" = "前哥倫布時代美洲與原住民";
+"European Exploration & Colonization" = "歐洲探險與殖民";
+"Colonial America" = "殖民時代美洲";
+"American Revolution" = "美國獨立戰爭";
+"Constitution & Bill of Rights" = "憲法與權利法案";
+"Early Republic & Federalism" = "早期共和與聯邦制";
+
+/* HISTORY — US History - Expansion & Division */
+"Westward Expansion & Manifest Destiny" = "西進運動與天定命運";
+"Jacksonian Democracy" = "傑克遜式民主";
+"Slavery & Abolitionism" = "奴隸制與廢奴運動";
+"Civil War" = "南北戰爭";
+"Reconstruction" = "重建時期";
+
+/* HISTORY — US History - Industrialization to WWI */
+"Industrial Revolution in America" = "美國工業革命";
+"Immigration & Urbanization" = "移民與城市化";
+"Progressive Era" = "進步時代";
+"US Imperialism" = "美國帝國主義";
+
+/* HISTORY — US History - Roaring 20s to WWII */
+"Roaring Twenties" = "咆哮的二十年代";
+"Great Depression" = "大蕭條";
+"New Deal" = "新政";
+
+/* HISTORY — US History - Cold War to Present */
+"Post-WWII America" = "二戰後的美國";
+"Cold War & Containment" = "冷戰與圍堵政策";
+"Civil Rights Movement" = "民權運動";
+"Vietnam War & Social Movements" = "越戰與社會運動";
+"Modern America & Contemporary Issues" = "現代美國與當代議題";
+
+/* HISTORY — Government & Civics */
+"Principles of Democracy" = "民主原則";
+"Structure of US Government" = "美國政府結構";
+"Federalism & State Government" = "聯邦制與州政府";
+"Rights & Responsibilities" = "權利與責任";
+"Elections & Voting" = "選舉與投票";
+"Political Parties & Interest Groups" = "政黨與利益團體";
+"Legal System & Courts" = "法律體系與法院";
+"Public Policy" = "公共政策";
+
+/* HISTORY — Economics */
+"Economic Systems" = "經濟體制";
+"Supply & Demand" = "供給與需求";
+"Market Structures" = "市場結構";
+"Money & Banking" = "貨幣與銀行";
+"Fiscal & Monetary Policy" = "財政與貨幣政策";
+"International Trade" = "國際貿易";
+"Personal Finance" = "個人理財";
+
+/* HISTORY — Geography (under History taxonomy) */
+"Physical Geography" = "自然地理";
+"Human Geography" = "人文地理";
+"Map Skills & Geographic Tools" = "地圖技能與地理工具";
+"Regions & Regional Studies" = "區域與區域研究";
+
+/* ===== GEOGRAPHY — Base Branches ===== */
+"Physical Geography - Landforms" = "自然地理——地形地貌";
+"Physical Geography - Climate & Weather" = "自然地理——氣候與天氣";
+"Physical Geography - Water Systems" = "自然地理——水系統";
+"Human Geography - Population" = "人文地理——人口";
+"Human Geography - Culture & Society" = "人文地理——文化與社會";
+"Human Geography - Economic" = "人文地理——經濟";
+"Political Geography" = "政治地理";
+"Regional Geography - Continents" = "區域地理——各大洲";
+"Environmental Geography" = "環境地理";
+"Geographic Information Systems" = "地理資訊系統";
+
+/* GEOGRAPHY — Map Skills & Geographic Tools */
+"Map Reading & Interpretation" = "地圖閱讀與解讀";
+"Latitude & Longitude" = "經度與緯度";
+"Map Scale & Distance" = "地圖比例尺與距離";
+"Map Projections" = "地圖投影";
+"Compass & Direction" = "羅盤與方向";
+"Topographic Maps" = "地形圖";
+"Thematic Maps" = "專題地圖";
+
+/* GEOGRAPHY — Physical Geography - Landforms */
+"Plate Tectonics" = "板塊構造";
+"Mountains & Valleys" = "山脈與谷地";
+"Plains & Plateaus" = "平原與高原";
+"Coastal Features" = "海岸地貌";
+"Erosion & Weathering" = "侵蝕與風化";
+"Glaciers & Ice Features" = "冰川與冰地貌";
+"Deserts & Dunes" = "沙漠與沙丘";
+
+/* GEOGRAPHY — Physical Geography - Climate & Weather */
+"Climate Zones & Regions" = "氣候帶與氣候區";
+"Temperature & Precipitation Patterns" = "溫度與降水規律";
+"Wind & Air Circulation" = "風與大氣環流";
+"Climate Change & Global Warming" = "氣候變遷與全球暖化";
+"Natural Disasters" = "自然災害";
+"Seasons & Solar Energy" = "四季與太陽能";
+
+/* GEOGRAPHY — Physical Geography - Water Systems */
+"Oceans & Seas" = "海洋";
+"Rivers & Lakes" = "河流與湖泊";
+"Watersheds & Drainage Basins" = "分水嶺與流域";
+"Groundwater & Aquifers" = "地下水與含水層";
+"Water Cycle" = "水循環";
+"Coastal Processes" = "海岸過程";
+
+/* GEOGRAPHY — Human Geography - Population */
+"Population Distribution & Density" = "人口分佈與密度";
+"Population Growth & Demographics" = "人口成長與人口統計";
+"Migration Patterns" = "遷移模式";
+"Urbanization" = "都市化";
+"Rural vs Urban" = "鄉村與都市";
+"Population Pyramids" = "人口金字塔";
+
+/* GEOGRAPHY — Human Geography - Culture & Society */
+"Cultural Regions & Diffusion" = "文化區與文化擴散";
+"Language Geography" = "語言地理";
+"Religion & Belief Systems" = "宗教與信仰體系";
+"Ethnicity & Identity" = "族群與認同";
+"Cultural Landscapes" = "文化景觀";
+"Food & Agriculture Culture" = "飲食與農業文化";
+
+/* GEOGRAPHY — Human Geography - Economic */
+"Economic Systems & Development" = "經濟體制與發展";
+"Agriculture & Farming" = "農業與耕作";
+"Industry & Manufacturing" = "工業與製造業";
+"Trade & Globalization" = "貿易與全球化";
+"Natural Resources" = "自然資源";
+"Economic Inequality" = "經濟不平等";
+
+/* GEOGRAPHY — Political Geography */
+"Countries & Borders" = "國家與邊界";
+"Political Systems" = "政治體制";
+"Geopolitical Conflicts" = "地緣政治衝突";
+"International Relations" = "國際關係";
+"Sovereignty & Territory" = "主權與領土";
+
+/* GEOGRAPHY — Regional Geography - Continents */
+"North America" = "北美洲";
+"South America" = "南美洲";
+"Europe" = "歐洲";
+"Africa" = "非洲";
+"Asia" = "亞洲";
+"Oceania" = "大洋洲";
+"Antarctica & Polar Regions" = "南極洲與極地地區";
+
+/* GEOGRAPHY — Environmental Geography */
+"Deforestation & Land Use" = "森林砍伐與土地利用";
+"Pollution & Waste" = "污染與廢棄物";
+"Sustainable Development" = "永續發展";
+"Environmental Hazards" = "環境災害";
+
+/* GEOGRAPHY — Geographic Information Systems */
+"GIS Technology & Mapping" = "GIS 技術與製圖";
+"Spatial Analysis" = "空間分析";
+"Remote Sensing" = "遙測";
+"GPS & Location Technology" = "GPS 與定位技術";
+
+/* ===== COMPUTER SCIENCE — Base Branches ===== */
+"Programming Fundamentals" = "程式設計基礎";
+"Data Structures" = "資料結構";
+"Algorithms" = "演算法";
+"Object-Oriented Programming" = "物件導向程式設計";
+"Software Development" = "軟體開發";
+"Web Development" = "網頁開發";
+"Computer Systems" = "電腦系統";
+"Networks & Security" = "網路與安全";
+"Computational Thinking" = "運算思維";
+
+/* COMPSCI — Programming Fundamentals */
+"Variables & Data Types" = "變數與資料型別";
+"Operators & Expressions" = "運算子與運算式";
+"Input & Output" = "輸入與輸出";
+"Control Flow" = "控制流程";
+"Loops" = "迴圈";
+"Functions & Parameters" = "函式與參數";
+"Scope & Lifetime" = "作用域與生存期";
+
+/* COMPSCI — Data Structures */
+"Arrays & Lists" = "陣列與串列";
+"Strings" = "字串";
+"Stacks & Queues" = "堆疊與佇列";
+"Linked Lists" = "鏈結串列";
+"Trees & Binary Search Trees" = "樹與二元搜尋樹";
+"Hash Tables & Dictionaries" = "雜湊表與字典";
+"Graphs" = "圖";
+
+/* COMPSCI — Algorithms */
+"Algorithm Analysis" = "演算法分析";
+"Searching Algorithms" = "搜尋演算法";
+"Sorting Algorithms" = "排序演算法";
+"Recursion" = "遞迴";
+"Dynamic Programming" = "動態規劃";
+"Greedy Algorithms" = "貪心演算法";
+"Graph Algorithms" = "圖演算法";
+
+/* COMPSCI — Object-Oriented Programming */
+"Classes & Objects" = "類別與物件";
+"Encapsulation" = "封裝";
+"Inheritance" = "繼承";
+"Polymorphism" = "多型";
+"Abstraction" = "抽象";
+"Design Patterns" = "設計模式";
+
+/* COMPSCI — Software Development */
+"Version Control" = "版本控制";
+"Testing & Debugging" = "測試與除錯";
+"Code Organization & Style" = "程式碼組織與風格";
+"Documentation" = "文件";
+"Development Methodologies" = "開發方法論";
+
+/* COMPSCI — Web Development */
+"HTML & Structure" = "HTML 與結構";
+"CSS & Styling" = "CSS 與樣式";
+"JavaScript & Interactivity" = "JavaScript 與互動";
+"Frontend Frameworks" = "前端框架";
+"Backend Development" = "後端開發";
+"Databases & SQL" = "資料庫與 SQL";
+"APIs & RESTful Services" = "API 與 RESTful 服務";
+
+/* COMPSCI — Computer Systems */
+"Binary & Number Systems" = "二進位與數制";
+"Boolean Logic & Logic Gates" = "布林邏輯與邏輯閘";
+"Computer Architecture" = "電腦架構";
+"Operating Systems Basics" = "作業系統基礎";
+"Memory Management" = "記憶體管理";
+"File Systems" = "檔案系統";
+
+/* COMPSCI — Networks & Security */
+"Internet & Protocols" = "網際網路與通訊協定";
+"Network Architecture" = "網路架構";
+"Cybersecurity Basics" = "資安基礎";
+"Encryption & Cryptography" = "加密與密碼學";
+"Web Security" = "網頁安全";
+
+/* COMPSCI — Computational Thinking */
+"Problem Decomposition" = "問題分解";
+"Pattern Recognition" = "模式辨識";
+/* "Abstraction" — already defined */
+"Algorithm Design" = "演算法設計";
+"Modeling & Simulation" = "建模與模擬";
+
+/* ===== CHINESE LANGUAGE — Base Branches ===== */
+/* "Reading Foundations" — already defined */
+"Modern Chinese Reading" = "現代文閱讀";
+"Classical Chinese (文言文)" = "文言文";
+"Poetry & Literature (诗词文学)" = "詩詞文學";
+"Writing - Narrative (记叙文)" = "寫作——記敘文";
+"Writing - Expository (说明文)" = "寫作——說明文";
+"Writing - Argumentative (议论文)" = "寫作——議論文";
+"Language Knowledge (语言基础)" = "語言基礎";
+"Oral Communication (口语交际)" = "口語交際";
+"Comprehensive Language Skills" = "綜合語言能力";
+
+/* CHINESE — Reading Foundations */
+"Character Recognition (识字)" = "識字";
+"Pinyin & Pronunciation" = "拼音與發音";
+"Reading Fluency" = "閱讀流暢度";
+"Vocabulary Development (词汇积累)" = "詞彙積累";
+"Reading Strategies" = "閱讀策略";
+
+/* CHINESE — Modern Chinese Reading */
+"Article Comprehension (阅读理解)" = "閱讀理解";
+"Main Idea & Theme (主旨大意)" = "主旨大意";
+"Inference & Analysis (推理分析)" = "推理分析";
+"Literary Devices (修辞手法)" = "修辭手法";
+"Genre Study (体裁学习)" = "體裁學習";
+
+/* CHINESE — Classical Chinese */
+"Classical Grammar & Structure" = "文言語法與結構";
+"Classical Vocabulary (实词/虚词)" = "實詞與虛詞";
+"Translation (文言翻译)" = "文言翻譯";
+"Classical Text Analysis" = "文言文分析";
+"Historical Context" = "歷史背景";
+"Classical Idioms (成语典故)" = "成語典故";
+
+/* CHINESE — Poetry & Literature */
+"Ancient Poetry (古诗词)" = "古詩詞";
+"Modern Poetry (现代诗歌)" = "現代詩歌";
+"Famous Works (名著阅读)" = "名著閱讀";
+"Literary Appreciation (文学鉴赏)" = "文學鑑賞";
+"Poetry Techniques (诗歌技巧)" = "詩歌技巧";
+"Cultural Background (文化背景)" = "文化背景";
+
+/* CHINESE — Writing - Narrative */
+"Story Elements (记叙要素)" = "記敘要素";
+"Character & Setting Description" = "人物與環境描寫";
+"Plot Development (情节发展)" = "情節發展";
+"Descriptive Techniques (描写手法)" = "描寫手法";
+"Personal Narrative (记事作文)" = "記事作文";
+
+/* CHINESE — Writing - Expository */
+"Expository Methods (说明方法)" = "說明方法";
+"Structure & Organization (结构安排)" = "結構安排";
+"Informative Writing (说明性文章)" = "說明性文章";
+"Process Explanation (事理说明)" = "事理說明";
+
+/* CHINESE — Writing - Argumentative */
+"Thesis & Argument (论点论据)" = "論點論據";
+"Argumentation Methods (论证方法)" = "論證方法";
+"Persuasive Techniques (说服技巧)" = "說服技巧";
+"Logical Reasoning (逻辑推理)" = "邏輯推理";
+"Counterargument (驳论)" = "駁論";
+
+/* CHINESE — Language Knowledge */
+"Grammar & Syntax (语法句法)" = "語法句法";
+"Parts of Speech (词性)" = "詞性";
+"Sentence Patterns (句式)" = "句式";
+"Punctuation (标点符号)" = "標點符號";
+"Common Errors (病句修改)" = "病句修改";
+"Idioms & Proverbs (成语俗语)" = "成語俗語";
+"Rhetorical Devices (修辞方法)" = "修辭方法";
+
+/* CHINESE — Oral Communication */
+"Speaking Skills (口语表达)" = "口語表達";
+"Listening Comprehension (听力理解)" = "聽力理解";
+"Presentation & Speech (演讲)" = "演講";
+"Discussion & Debate (讨论辩论)" = "討論辯論";
+"Interview & Dialogue (访谈对话)" = "訪談對話";
+
+/* CHINESE — Comprehensive Language Skills */
+"Integrated Reading & Writing" = "讀寫結合";
+"Material Synthesis (材料整合)" = "材料整合";
+"Critical Thinking (批判性思维)" = "批判性思維";
+"Cultural Literacy (文化素养)" = "文化素養";
+"Language Application (语言运用)" = "語言運用";
+
+/* ===== SPANISH LANGUAGE — Base Branches ===== */
+"Vocabulary & Expressions" = "詞彙與表達";
+"Grammar - Nouns & Articles" = "文法——名詞與冠詞";
+"Grammar - Verbs & Conjugation" = "文法——動詞與變位";
+"Grammar - Pronouns & Adjectives" = "文法——代名詞與形容詞";
+"Grammar - Sentence Structure" = "文法——句子結構";
+"Writing" = "寫作";
+"Speaking & Pronunciation" = "口語與發音";
+"Culture & Context" = "文化與語境";
+
+/* SPANISH — Vocabulary & Expressions */
+"Basic Vocabulary (Numbers, Colors, Days)" = "基礎詞彙（數字、顏色、星期）";
+"Family & Relationships" = "家庭與人際關係";
+"Food & Dining" = "飲食與用餐";
+"Home & Daily Life" = "居家與日常生活";
+"School & Education" = "學校與教育";
+"Travel & Transportation" = "旅行與交通";
+"Shopping & Money" = "購物與金錢";
+"Health & Body" = "健康與身體";
+"Weather & Seasons" = "天氣與季節";
+"Hobbies & Activities" = "嗜好與活動";
+"Idiomatic Expressions" = "慣用語表達";
+
+/* SPANISH — Grammar - Nouns & Articles */
+"Gender (Masculine/Feminine)" = "性（陽性/陰性）";
+"Plural Forms" = "複數形式";
+"Definite Articles (el, la, los, las)" = "定冠詞（el, la, los, las）";
+"Indefinite Articles (un, una, unos, unas)" = "不定冠詞（un, una, unos, unas）";
+"Noun-Adjective Agreement" = "名詞-形容詞一致";
+
+/* SPANISH — Grammar - Verbs & Conjugation */
+"Present Tense (Regular)" = "現在式（規則動詞）";
+"Present Tense (Irregular)" = "現在式（不規則動詞）";
+"Preterite Tense" = "簡單過去式";
+"Imperfect Tense" = "未完成過去式";
+"Future Tense" = "未來式";
+"Conditional Tense" = "條件式";
+"Present Perfect" = "現在完成式";
+"Past Perfect" = "過去完成式";
+"Subjunctive Mood" = "虛擬式";
+"Imperative (Commands)" = "命令式";
+"Progressive Tenses (estar + gerund)" = "進行式（estar + 副動詞）";
+"Reflexive Verbs" = "反身動詞";
+
+/* SPANISH — Grammar - Pronouns & Adjectives */
+"Subject Pronouns" = "主格代名詞";
+"Direct Object Pronouns" = "直接受詞代名詞";
+"Indirect Object Pronouns" = "間接受詞代名詞";
+"Reflexive Pronouns" = "反身代名詞";
+"Possessive Adjectives & Pronouns" = "所有格形容詞與代名詞";
+"Demonstrative Adjectives & Pronouns" = "指示形容詞與代名詞";
+"Descriptive Adjectives" = "描述性形容詞";
+"Comparatives & Superlatives" = "比較級與最高級";
+
+/* SPANISH — Grammar - Sentence Structure */
+"Word Order" = "語序";
+"Question Formation" = "疑問句構成";
+"Negation" = "否定";
+"Prepositions (por, para, etc.)" = "介詞（por, para 等）";
+"Conjunctions" = "連接詞";
+"Relative Clauses (que, quien)" = "關係子句（que, quien）";
+"Complex Sentences" = "複合句";
+
+/* SPANISH — Reading Comprehension */
+"Understanding Main Ideas" = "理解主旨";
+"Vocabulary in Context" = "語境中的詞彙";
+"Inference & Analysis" = "推理與分析";
+"Reading Short Texts" = "閱讀短文";
+"Reading Literature" = "閱讀文學作品";
+"Reading Authentic Materials" = "閱讀真實材料";
+
+/* SPANISH — Writing */
+"Sentence Construction" = "句子構造";
+"Paragraph Writing" = "段落寫作";
+"Formal vs Informal Writing" = "正式與非正式寫作";
+"Narrative Writing" = "敘事性寫作";
+"Email & Letter Writing" = "電子郵件與信函寫作";
+"Essay Writing" = "論文寫作";
+
+/* SPANISH — Speaking & Pronunciation */
+"Pronunciation & Accent" = "發音與語調";
+"Intonation & Rhythm" = "語調與韻律";
+"Conversational Practice" = "會話練習";
+"Presentations & Speeches" = "演講與報告";
+"Asking & Answering Questions" = "提問與回答";
+"Expressing Opinions" = "表達觀點";
+
+/* SPANISH — Listening Comprehension */
+"Understanding Spoken Spanish" = "理解西班牙語口語";
+"Listening for Main Ideas" = "聽取主旨";
+"Listening for Details" = "聽取細節";
+"Understanding Different Accents" = "理解不同口音";
+"Following Directions" = "聽從指示";
+
+/* SPANISH — Culture & Context */
+"Spanish-Speaking Countries" = "西班牙語系國家";
+"Cultural Traditions & Holidays" = "文化傳統與節日";
+"Hispanic Literature & Arts" = "西語文學與藝術";
+"Daily Life & Customs" = "日常生活與習俗";
+"Regional Differences" = "地區差異";
+
+/* ===== GENERIC / OTHERS — Base Branches ===== */
+"Foundational Concepts" = "基礎概念";
+"Core Principles & Theory" = "核心原理與理論";
+"Skills & Techniques" = "技能與技巧";
+"Vocabulary & Terminology" = "詞彙與術語";
+"Applications & Practice" = "應用與實踐";
+"Analysis & Critical Thinking" = "分析與批判性思維";
+"Advanced Topics" = "進階主題";
+"Integration & Synthesis" = "綜合與融合";
+
+/* GENERIC — Foundational Concepts */
+"Basic Definitions & Terms" = "基本定義與術語";
+"Fundamental Principles" = "基本原理";
+"Historical Context & Background" = "歷史背景";
+"Key Figures & Contributions" = "關鍵人物與貢獻";
+
+/* GENERIC — Core Principles & Theory */
+"Major Theories & Models" = "主要理論與模型";
+"Laws & Rules" = "定律與規則";
+"Frameworks & Structures" = "框架與結構";
+"Processes & Systems" = "過程與系統";
+
+/* GENERIC — Skills & Techniques */
+"Basic Skills" = "基本技能";
+"Intermediate Techniques" = "中級技巧";
+"Advanced Methods" = "進階方法";
+"Tools & Resources" = "工具與資源";
+
+/* GENERIC — Vocabulary & Terminology */
+"Essential Vocabulary" = "核心詞彙";
+"Specialized Terms" = "專業術語";
+"Symbols & Notation" = "符號與記號";
+"Common Expressions" = "常用表達";
+
+/* GENERIC — Applications & Practice */
+"Real-World Applications" = "實際應用";
+"Problem-Solving" = "問題求解";
+"Case Studies & Examples" = "案例分析與範例";
+"Hands-On Practice" = "實作練習";
+
+/* GENERIC — Analysis & Critical Thinking */
+"Interpretation & Analysis" = "解讀與分析";
+"Comparison & Contrast" = "比較與對照";
+"Evaluation & Critique" = "評價與批評";
+"Evidence & Reasoning" = "證據與推理";
+
+/* GENERIC — Advanced Topics */
+"Complex Concepts" = "複雜概念";
+"Specialized Areas" = "專業領域";
+"Contemporary Issues" = "當代議題";
+"Research & Innovation" = "研究與創新";
+
+/* GENERIC — Integration & Synthesis */
+"Interdisciplinary Connections" = "跨領域連結";
+"Comprehensive Understanding" = "全面理解";
+"Creative Application" = "創造性應用";
+"Project-Based Learning" = "專題式學習";

@@ -41,6 +41,7 @@ struct QuestionGenerationView: View {
     @State private var generatedSubject = ""  // Top-level subject for archiving
     @State private var isRecentExpanded = false  // Recent Questions section collapsed by default
     @State private var resumeSessionId: String? = nil  // Set when user taps Resume
+    @State private var adaptiveGlowPhase: Double = 0
     @Environment(\.dismiss) private var dismiss
 
     private let logger = Logger(subsystem: "com.studyai", category: "QuestionGeneration")
@@ -223,52 +224,12 @@ struct QuestionGenerationView: View {
     private var generalConfigurationSection: some View {
         VStack(alignment: .leading, spacing: 20) {
             VStack(spacing: 16) {
-                // Difficulty Slider
+                // Difficulty Color Bar (no icon)
+                difficultyColorBar
+
+                // Question Count Slider (no icon)
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Image(systemName: "slider.horizontal.3")
-                            .font(.subheadline)
-                            .foregroundColor(.purple)
-                        Text(NSLocalizedString("questionGeneration.difficultyLevel", comment: ""))
-                            .font(.body)
-                            .fontWeight(.medium)
-                        Spacer()
-                        Text(selectedDifficulty.displayName)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(selectedTemplate.color.opacity(0.1))
-                            .cornerRadius(6)
-                    }
-
-                    VStack(spacing: 8) {
-                        HStack {
-                            Text(NSLocalizedString("questionGeneration.difficulty.beginner", comment: ""))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            Spacer()
-                            Text(NSLocalizedString("questionGeneration.difficulty.advanced", comment: ""))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-
-                        // Custom difficulty picker using segmented control style
-                        Picker(NSLocalizedString("questionGeneration.difficultyLevel", comment: ""), selection: $selectedDifficulty) {
-                            ForEach(QuestionGenerationService.RandomQuestionsConfig.QuestionDifficulty.allCases, id: \.self) { difficulty in
-                                Text(difficulty.displayName).tag(difficulty)
-                            }
-                        }
-                        .pickerStyle(SegmentedPickerStyle())
-                    }
-                }
-
-                // Question Count Slider
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Image(systemName: "number.circle")
-                            .font(.subheadline)
-                            .foregroundColor(.blue)
                         Text(NSLocalizedString("questionGeneration.numberOfQuestions", comment: ""))
                             .font(.body)
                             .fontWeight(.medium)
@@ -301,12 +262,9 @@ struct QuestionGenerationView: View {
                     }
                 }
 
-                // Question Type Selection
+                // Question Type — 2×2 grid (no icon)
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Image(systemName: "doc.text.magnifyingglass")
-                            .font(.subheadline)
-                            .foregroundColor(.purple)
                         Text(NSLocalizedString("questionGeneration.questionType", comment: ""))
                             .font(.body)
                             .fontWeight(.medium)
@@ -320,9 +278,7 @@ struct QuestionGenerationView: View {
                             .cornerRadius(6)
                     }
 
-                    // Visual type grid
                     LazyVGrid(columns: [
-                        GridItem(.flexible()),
                         GridItem(.flexible()),
                         GridItem(.flexible())
                     ], spacing: 12) {
@@ -342,7 +298,7 @@ struct QuestionGenerationView: View {
                                         .multilineTextAlignment(.center)
                                 }
                                 .frame(maxWidth: .infinity)
-                                .padding(.vertical, 8)
+                                .padding(.vertical, 10)
                                 .background(selectedQuestionType == type ? selectedTemplate.color.opacity(0.1) : Color.gray.opacity(0.05))
                                 .cornerRadius(8)
                                 .overlay(
@@ -359,6 +315,148 @@ struct QuestionGenerationView: View {
         .padding()
         .background(Color.gray.opacity(0.05))
         .cornerRadius(16)
+    }
+
+    // MARK: - Difficulty Color Bar
+
+    private var difficultyColorBar: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Header: label + level badge (no icon)
+            HStack {
+                Text(NSLocalizedString("questionGeneration.difficultyLevel", comment: ""))
+                    .font(.body)
+                    .fontWeight(.medium)
+                Spacer()
+                Text(selectedDifficulty.displayName)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(difficultyColor(selectedDifficulty))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(difficultyColor(selectedDifficulty).opacity(0.12))
+                    .cornerRadius(6)
+                    .animation(.easeInOut(duration: 0.2), value: selectedDifficulty)
+            }
+
+            // Color bar + adaptive extension
+            GeometryReader { geo in
+                let adaptiveExtW: CGFloat = 64   // space for dotted line + glow dot
+                let mainW = geo.size.width - adaptiveExtW
+                let segW = mainW / 3
+                let barH: CGFloat = 10
+                let trackTopY: CGFloat = 13      // centers 10pt bar in 36pt height
+                let thumbD: CGFloat = 22
+                let thumbTopY: CGFloat = (36 - thumbD) / 2
+
+                let thumbX: CGFloat = {
+                    switch selectedDifficulty {
+                    case .beginner:     return segW * 0.5 - thumbD / 2
+                    case .intermediate: return segW * 1.5 - thumbD / 2
+                    case .advanced:     return segW * 2.5 - thumbD / 2
+                    case .adaptive:     return mainW + adaptiveExtW - thumbD
+                    }
+                }()
+
+                ZStack(alignment: .topLeading) {
+                    // — 3-segment color bar (fills up to current level) —
+                    HStack(spacing: 1) {
+                        Rectangle()
+                            .fill(Color.green.opacity(1.0))
+                        Rectangle()
+                            .fill(Color.orange.opacity(isIntermediateSegActive ? 1.0 : 0.2))
+                        Rectangle()
+                            .fill(Color.red.opacity(isAdvancedSegActive ? 1.0 : 0.2))
+                    }
+                    .frame(width: mainW, height: barH)
+                    .clipShape(RoundedRectangle(cornerRadius: 5))
+                    .offset(x: 0, y: trackTopY)
+
+                    // — Dotted extension line to adaptive —
+                    Path { p in
+                        let y = trackTopY + barH / 2
+                        p.move(to: CGPoint(x: mainW + 6, y: y))
+                        p.addLine(to: CGPoint(x: mainW + adaptiveExtW - thumbD - 6, y: y))
+                    }
+                    .stroke(
+                        Color.purple.opacity(selectedDifficulty == .adaptive ? 0.75 : 0.35),
+                        style: StrokeStyle(lineWidth: 2.5, lineCap: .round, dash: [4, 5])
+                    )
+                    .animation(.easeInOut(duration: 0.2), value: selectedDifficulty)
+
+                    // — Adaptive glow dot (shifting colors) —
+                    Circle()
+                        .fill(
+                            AngularGradient(
+                                colors: [
+                                    DesignTokens.Colors.Cute.lavender,
+                                    DesignTokens.Colors.Cute.blue,
+                                    DesignTokens.Colors.Cute.pink,
+                                    DesignTokens.Colors.Cute.peach,
+                                    DesignTokens.Colors.Cute.lavender
+                                ],
+                                center: .center
+                            )
+                        )
+                        .hueRotation(.degrees(adaptiveGlowPhase * 360))
+                        .frame(width: 16, height: 16)
+                        .shadow(
+                            color: Color.purple.opacity(selectedDifficulty == .adaptive ? 0.85 : 0.25),
+                            radius: selectedDifficulty == .adaptive ? 9 : 3
+                        )
+                        .scaleEffect(selectedDifficulty == .adaptive ? 1.15 : 0.9)
+                        .offset(x: mainW + adaptiveExtW - thumbD, y: trackTopY + barH / 2 - 8)
+                        .animation(.easeInOut(duration: 0.25), value: selectedDifficulty)
+
+                    // — Sliding thumb —
+                    Circle()
+                        .fill(.white)
+                        .frame(width: thumbD, height: thumbD)
+                        .shadow(color: difficultyColor(selectedDifficulty).opacity(0.4), radius: 5)
+                        .overlay(Circle().stroke(difficultyColor(selectedDifficulty), lineWidth: 2.5))
+                        .offset(x: thumbX, y: thumbTopY)
+                        .animation(.spring(response: 0.3, dampingFraction: 0.72), value: selectedDifficulty)
+                }
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            let x = value.location.x
+                            if x < segW {
+                                selectedDifficulty = .beginner
+                            } else if x < segW * 2 {
+                                selectedDifficulty = .intermediate
+                            } else if x < mainW {
+                                selectedDifficulty = .advanced
+                            } else {
+                                selectedDifficulty = .adaptive
+                            }
+                        }
+                )
+            }
+            .frame(height: 36)
+            .onAppear {
+                withAnimation(.linear(duration: 3.0).repeatForever(autoreverses: false)) {
+                    adaptiveGlowPhase = 1.0
+                }
+            }
+        }
+    }
+
+    // Segment fill helpers — bar fills up to the selected level
+    private var isIntermediateSegActive: Bool {
+        selectedDifficulty == .intermediate || selectedDifficulty == .advanced || selectedDifficulty == .adaptive
+    }
+    private var isAdvancedSegActive: Bool {
+        selectedDifficulty == .advanced || selectedDifficulty == .adaptive
+    }
+
+    private func difficultyColor(_ d: QuestionGenerationService.RandomQuestionsConfig.QuestionDifficulty) -> Color {
+        switch d {
+        case .beginner:     return .green
+        case .intermediate: return .orange
+        case .advanced:     return .red
+        case .adaptive:     return .purple
+        }
     }
 
     private var generateButton: some View {
@@ -867,13 +965,13 @@ struct RandomQuestionConfig: View {
             if !availableSubjects.isEmpty {
                 Menu {
                     ForEach(availableSubjects, id: \.self) { subject in
-                        Button(subject) {
+                        Button(BranchLocalizer.localized(subject)) {
                             selectedSubject = subject
                         }
                     }
                 } label: {
                     HStack {
-                        Text(selectedSubject.isEmpty ? NSLocalizedString("questionGeneration.chooseSubject", comment: "") : selectedSubject)
+                        Text(selectedSubject.isEmpty ? NSLocalizedString("questionGeneration.chooseSubject", comment: "") : BranchLocalizer.localized(selectedSubject))
                             .foregroundColor(selectedSubject.isEmpty ? .secondary : .primary)
                         Spacer()
                         Image(systemName: "chevron.down")
@@ -1311,6 +1409,13 @@ struct ArchiveSelectionView: View {
     @State private var selectedFilter: ArchiveFilter = .all
     @State private var selectedSubject: String = "All"
     @State private var selectedTimeFilter: TimeFilter = .allTime
+    @State private var showingLimitAlert = false
+
+    private let maxSources = 5
+
+    private var totalSelected: Int {
+        selectedConversations.count + selectedQuestions.count
+    }
 
     enum TimeFilter: String, CaseIterable {
         case thisWeek  = "thisWeek"
@@ -1433,7 +1538,7 @@ struct ArchiveSelectionView: View {
                             ForEach(availableSubjects, id: \.self) { subject in
                                 Button(action: { selectedSubject = subject }) {
                                     HStack {
-                                        Text(subject == "All" ? NSLocalizedString("questionGeneration.filter.all", value: "All", comment: "") : subject)
+                                        Text(subject == "All" ? NSLocalizedString("questionGeneration.filter.all", value: "All", comment: "") : BranchLocalizer.localized(subject))
                                         if selectedSubject == subject {
                                             Image(systemName: "checkmark")
                                         }
@@ -1444,7 +1549,7 @@ struct ArchiveSelectionView: View {
                             HStack(spacing: 4) {
                                 Image(systemName: "book.closed")
                                     .font(.caption)
-                                Text(selectedSubject == "All" ? NSLocalizedString("questionGeneration.filter.subject", comment: "") : selectedSubject)
+                                Text(selectedSubject == "All" ? NSLocalizedString("questionGeneration.filter.subject", comment: "") : BranchLocalizer.localized(selectedSubject))
                                     .font(.subheadline)
                                     .lineLimit(1)
                                 Image(systemName: "chevron.down")
@@ -1496,13 +1601,28 @@ struct ArchiveSelectionView: View {
                             let totalItems = filteredConversations.count + filteredQuestions.count
                             let selectedItems = selectedConversations.count + selectedQuestions.count
 
-                            if selectedItems == totalItems {
+                            if selectedItems == totalItems || selectedItems >= maxSources {
                                 selectedConversations.removeAll()
                                 selectedQuestions.removeAll()
                             } else {
+                                // Select up to maxSources items, prioritizing conversations first
+                                selectedConversations.removeAll()
+                                selectedQuestions.removeAll()
+                                var remaining = maxSources
                                 let conversationIds = filteredConversations.compactMap { $0["id"] as? String }
-                                selectedConversations = Set(conversationIds)
-                                selectedQuestions = Set(filteredQuestions.map { $0.id })
+                                for id in conversationIds {
+                                    guard remaining > 0 else { break }
+                                    selectedConversations.insert(id)
+                                    remaining -= 1
+                                }
+                                for q in filteredQuestions {
+                                    guard remaining > 0 else { break }
+                                    selectedQuestions.insert(q.id)
+                                    remaining -= 1
+                                }
+                                if totalItems > maxSources {
+                                    showingLimitAlert = true
+                                }
                             }
                         }) {
                             let totalItems = filteredConversations.count + filteredQuestions.count
@@ -1537,8 +1657,10 @@ struct ArchiveSelectionView: View {
                                         onToggle: {
                                             if selectedConversations.contains(conversationId) {
                                                 selectedConversations.remove(conversationId)
-                                            } else {
+                                            } else if totalSelected < maxSources {
                                                 selectedConversations.insert(conversationId)
+                                            } else {
+                                                showingLimitAlert = true
                                             }
                                         }
                                     )
@@ -1556,8 +1678,10 @@ struct ArchiveSelectionView: View {
                                         onToggle: {
                                             if selectedQuestions.contains(question.id) {
                                                 selectedQuestions.remove(question.id)
-                                            } else {
+                                            } else if totalSelected < maxSources {
                                                 selectedQuestions.insert(question.id)
+                                            } else {
+                                                showingLimitAlert = true
                                             }
                                         }
                                     )
@@ -1595,6 +1719,11 @@ struct ArchiveSelectionView: View {
                     .fontWeight(.semibold)
                     .disabled(selectedConversations.isEmpty && selectedQuestions.isEmpty)
                 }
+            }
+            .alert(NSLocalizedString("questionGeneration.sourceLimitTitle", comment: ""), isPresented: $showingLimitAlert) {
+                Button(NSLocalizedString("common.ok", comment: "")) { }
+            } message: {
+                Text(String(format: NSLocalizedString("questionGeneration.sourceLimitMessage", comment: ""), maxSources))
             }
         }
     }

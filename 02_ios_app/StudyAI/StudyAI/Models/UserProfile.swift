@@ -340,7 +340,6 @@ enum LearningStyle: String, CaseIterable {
 
 enum Subject: String, CaseIterable {
     case math = "Math"
-    case science = "Science"
     case english = "English"
     case history = "History"
     case geography = "Geography"
@@ -368,8 +367,6 @@ enum Subject: String, CaseIterable {
             return "flask.fill"
         case .biology:
             return "leaf.fill"
-        case .science:
-            return "lightbulb.fill"
         case .computerScience:
             return "desktopcomputer"
         case .english:
@@ -412,9 +409,9 @@ enum Subject: String, CaseIterable {
         case "biology", "bio", "life science":
             return .biology
 
-        // Science variants (general)
+        // Science variants → map to specific subjects (not a catch-all)
         case "science", "general science":
-            return .science
+            return nil
 
         // Computer Science variants
         case "computer science", "cs", "computing", "programming", "coding":
@@ -454,7 +451,7 @@ enum Subject: String, CaseIterable {
             return .math  // Math topic
 
         case "general", "unknown", "other", "miscellaneous", "misc":
-            return .science  // Default to general science
+            return .math  // Default to math for unrecognized subjects
 
         default:
             // Try exact match with rawValue
@@ -474,10 +471,10 @@ enum Subject: String, CaseIterable {
         }
     }
 
-    /// Normalize subject string with fallback to Science if unknown
+    /// Normalize subject string with fallback to Math if unknown
     /// This ensures we always return a valid Subject for storage
     static func normalizeWithFallback(_ subjectString: String) -> Subject {
-        return normalize(subjectString) ?? .science
+        return normalize(subjectString) ?? .math
     }
 
     /// Get subject from string (legacy compatibility)

@@ -560,6 +560,8 @@
 "questionGeneration.conversations" = "Conversations";
 "questionGeneration.questions" = "Questions";
 "questionGeneration.selectArchives" = "Select Archives";
+"questionGeneration.sourceLimitTitle" = "選択上限";
+"questionGeneration.sourceLimitMessage" = "最大 %d 件まで選択できます。";
 "questionGeneration.conversation" = "Conversation";
 "questionGeneration.failedToLoadData" = "Failed to load data: %@";
 "questionGeneration.defaultSubject.mathematics" = "Mathematics";
@@ -601,6 +603,10 @@
 "questionDetail.hideExplanation" = "Hide Explanation";
 "questionDetail.yourAnswer" = "Your Answer:";
 "questionDetail.correctAnswer" = "Correct Answer:";
+"questionDetail.feedbackExactMatch" = "完璧！あなたの答えは正確です。";
+"practice.feedbackCorrect" = "正解！よくできました。";
+"practice.feedbackIncorrect" = "不正解。正しい答えは：%@";
+"practice.feedbackTryAgain" = "もう少しです。正しい答えを確認して、似た問題に挑戦しましょう。";
 "questionDetail.archiveQuestion" = "Archive Question";
 "questionDetail.archiving" = "Archiving...";
 "questionDetail.archived" = "Archived";
@@ -925,6 +931,30 @@
 "chat.menu.synchronizedAudio" = "Synchronized Audio";
 "chat.menu.liveTalk" = "Live Talk";
 "chat.menu.archiveSession" = "Archive Session";
+"chat.menu.viewTutorial" = "チュートリアルを見る";
+
+// Chat Onboarding Tutorial
+"onboarding.skip" = "スキップ";
+"onboarding.next" = "次へ";
+"onboarding.done" = "完了";
+"onboarding.chat.subject.title" = "科目を選ぶ";
+"onboarding.chat.subject.desc" = "科目を選ぶか、「一般」のままにしてください。より正確な回答ができます。";
+"onboarding.chat.camera.title" = "画像を追加";
+"onboarding.chat.camera.desc" = "タップして写真を撮るか、ギャラリーから選んでください。宿題の問題を画像から読み取れます。";
+"onboarding.chat.deepmode.title" = "送信または深く考える";
+"onboarding.chat.deepmode.desc" = "↑ をタップして送信するか、ボタンを押したまま上にスワイプしてください。紫になると高度な推論モードが有効になります。";
+"onboarding.chat.mic.title" = "音声入力";
+"onboarding.chat.mic.desc" = "このボタンを押し続けると、文字を入力する代わりに話すことができます。音声は自動的に文字に変換されます。";
+"onboarding.chat.live.title" = "ライブモードとその他";
+"onboarding.chat.live.desc" = "··· をタップして設定にアクセスします。ここからリアルタイム音声会話モードに切り替えられます。";
+"onboarding.chat.library.title" = "ライブラリに保存";
+"onboarding.chat.library.desc" = "タップしてこの会話をアーカイブします。内容を分析し、重要な情報をライブラリに保存します。";
+"onboarding.chat.deepBadge" = "深層";
+"onboarding.chat.deepThinkingMode" = "深層思考モード";
+"onboarding.chat.releaseToCancel" = "離してキャンセル";
+"onboarding.chat.releaseToSend" = "離して送信";
+"onboarding.chat.holdToTalk" = "押して話す";
+"onboarding.chat.micDemoText" = "もっと詳しく説明してください";
 
 // Voice Chat (Gemini Live)
 "voice_chat.title" = "Live Talk";
@@ -1126,7 +1156,29 @@
 "editProfile.error" = "Error";
 "editProfile.profileUpdated" = "Profile Updated";
 "editProfile.profileUpdatedMessage" = "Your profile has been updated successfully\!";
-"editProfile.savingProfile" = "Saving Profile...";
+"editProfile.savingProfile" = "プロフィールを保存中...";
+"editProfile.takeSelfie" = "自撮りを撮る";
+"editProfile.uploadFromAlbum" = "アルバムからアップロード";
+"editProfile.or" = "または";
+"editProfile.choosePresetAvatar" = "プリセットアバターを選択";
+"editProfile.orChoosePresetAvatar" = "またはプリセットアバターを選択";
+"editProfile.studentInformation" = "学生情報";
+"editProfile.age" = "年齢";
+"editProfile.agePlaceholder" = "例：14";
+"editProfile.noneOption" = "—";
+"editProfile.language" = "言語";
+"editProfile.selectedCount" = "%d 件選択済み";
+"editProfile.learningStyle" = "学習スタイル";
+"editProfile.learningStyleHeuristic" = "発見型";
+"editProfile.learningStyleHeuristicDesc" = "ガイド付き探索";
+"editProfile.learningStyleStraightforward" = "直接型";
+"editProfile.learningStyleStraightforwardDesc" = "直接的な回答";
+"editProfile.avatarEditorHint" = "ピンチでズーム、ドラッグで調整";
+"editProfile.zoomOut" = "縮小";
+"editProfile.zoomIn" = "拡大";
+"editProfile.rotateLeft" = "左に回転";
+"editProfile.rotateRight" = "右に回転";
+"editProfile.adjustAvatar" = "アバターを調整";
 
 // Avatar Selection
 "editProfile.selectAvatar" = "Select Your Avatar";
@@ -1736,6 +1788,24 @@
 "homeworkSummary.subquestionCount" = "%d subquestions";
 "homeworkSummary.answer" = "Answer: %@";
 
+// Subject Names
+"subject.math" = "数学";
+"subject.mathematics" = "数学";
+"subject.english" = "英語";
+"subject.science" = "理科";
+"subject.history" = "歴史";
+"subject.geography" = "地理";
+"subject.physics" = "物理";
+"subject.chemistry" = "化学";
+"subject.biology" = "生物";
+"subject.social_studies" = "社会科";
+"subject.chinese" = "中国語";
+"subject.art" = "美術";
+"subject.music" = "音楽";
+"subject.physical_education" = "体育";
+"subject.computer_science" = "コンピューターサイエンス";
+"subject.general" = "一般";
+
 "proMode.slideToMarkProgress" = "Slide to Smart Organize";
 "proMode.progressMarked" = "Already Organized";
 "proMode.partial" = "Partial";
@@ -2045,3 +2115,26 @@
 "voiceSettings.avatar.eva.desc" = "A kind, supportive girl";
 "voiceSettings.avatar.max.desc" = "An energetic, enthusiastic boy";
 "voiceSettings.avatar.mia.desc" = "A playful, curious girl";
+
+// Onboarding — Parent Setup
+"onboarding.continue" = "続ける";
+"onboarding.parentSetup.title" = "保護者設定";
+"onboarding.parentSetup.subtitle" = "保護者コントロールを設定する";
+"onboarding.parentSetup.ageLabel" = "年齢";
+"onboarding.parentSetup.agePlaceholder" = "例：35";
+"onboarding.parentSetup.nameLabel" = "お名前";
+"onboarding.parentSetup.namePlaceholder" = "名前を入力";
+"onboarding.parentSetup.pinLabel" = "保護者 PIN（6桁）";
+"onboarding.parentSetup.pinPlaceholder" = "6桁のPINを入力";
+"onboarding.parentSetup.confirmPinPlaceholder" = "PINを確認";
+"onboarding.parentSetup.pinMismatch" = "PINが一致しません";
+"onboarding.parentSetup.pinHint" = "6桁のPINでお子様が保護者コントロールを変更できないようにします。";
+"onboarding.parentSetup.controlsLabel" = "保護者コントロール";
+"onboarding.parentSetup.protectChat" = "AIチャットを保護";
+"onboarding.parentSetup.protectGrader" = "採点機能を保護";
+"onboarding.parentSetup.protectReports" = "保護者レポートを保護";
+"onboarding.parentSetup.pinLockHint" = "コントロールを有効にするには、上で有効な6桁のPINを入力して確認してください";
+
+// Onboarding — Language Selection (first page)
+"onboarding.language.title" = "言語を選択";
+"onboarding.language.subtitle" = "設定でいつでも変更できます";

@@ -30,26 +30,17 @@ struct GeneratedQuestionDetailView: View {
     @State private var showingExplanation = false
     @State private var isCorrect = false
     @State private var partialCredit: Double = 0.0  // 0.0 to 1.0 for partial credit
-    @State private var isArchived = false
-    @State private var showingArchiveSuccess = false
-    @State private var isArchiving = false
 
     // ✅ NEW: Two-tier grading state
     @State private var isGradingWithAI = false
     @State private var wasInstantGraded = false
     @State private var aiFeedback: String? = nil
 
-    // Mark progress state
-    @State private var hasMarkedProgress = false
-    @State private var slideOffset: CGFloat = 0
-    @State private var isSliding = false
-    @State private var hasTriggeredSlide = false
-    @ObservedObject private var pointsManager = PointsEarningManager.shared
+    // App state
     @ObservedObject private var appState = AppState.shared
     @ObservedObject private var themeManager = ThemeManager.shared  // ✅ ADD: Theme manager for cute mode colors
 
     private let logger = Logger(subsystem: "com.studyai", category: "QuestionDetail")
-    private let archiveService = QuestionArchiveService.shared
 
     // Check if there's a next question available
     private var hasNextQuestion: Bool {
@@ -73,23 +64,8 @@ struct GeneratedQuestionDetailView: View {
         return allQuestions[currentQuestionIndex]
     }
 
-    // ✅ NEW: Check if this is the last question
-    private var isLastQuestion: Bool {
-        guard let allQuestions = allQuestions else {
-            return true
-        }
-        return currentQuestionIndex == allQuestions.count - 1
-    }
-
     // UserDefaults keys — per-user scoped to prevent answers leaking across accounts
     private var uid: String { AuthenticationService.shared.currentUser?.id ?? "anonymous" }
-    private var progressMarkedKey: String {
-        return "question_progress_marked_\(currentQuestion.id)_\(uid)"
-    }
-
-    private var archivedStateKey: String {
-        return "question_archived_\(currentQuestion.id)_\(uid)"
-    }
 
     private var answerPersistenceKey: String {
         return "question_answer_\(currentQuestion.id.uuidString)_\(uid)"
@@ -144,34 +120,12 @@ struct GeneratedQuestionDetailView: View {
             .navigationTitle(NSLocalizedString("questionDetail.title", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                // ✅ Archive button in top right corner (like digital homework)
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    HStack(spacing: 16) {
-                        if hasSubmitted && !isArchived {
-                            Button(action: archiveQuestion) {
-                                if isArchiving {
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle())
-                                        .scaleEffect(0.8)
-                                } else {
-                                    Image(systemName: "books.vertical.fill")
-                                        .foregroundColor(.purple)
-                                }
-                            }
-                            .disabled(isArchiving)
-                        } else if isArchived {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
-                        }
-
-                        closeButton
-                    }
+                    closeButton
                 }
             }
             .onAppear {
                 logger.info("📝 Question detail view appeared for: \(currentQuestion.type.displayName)")
-                loadProgressState()
-                loadArchivedState()
                 loadSavedAnswer()
             }
         }
@@ -546,26 +500,6 @@ struct GeneratedQuestionDetailView: View {
 
     private var actionButtonsSection: some View {
         VStack(spacing: 16) {
-            // ✅ Slide to Smart Organize - Only shown on the last question
-            if isLastQuestion {
-                if hasMarkedProgress {
-                    // Done state
-                    HStack {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
-                        Text(NSLocalizedString("questionDetail.marked", comment: ""))
-                            .font(.headline)
-                            .foregroundColor(.green)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(Color.green.opacity(0.1))
-                    .cornerRadius(12)
-                } else {
-                    slideToSmartOrganizeTrack
-                }
-            }
-
             // Ask AI Button - ✅ Changed text to "Follow up"
             Button(action: askAIForHelp) {
                 HStack(spacing: 12) {
@@ -655,11 +589,6 @@ struct GeneratedQuestionDetailView: View {
                 }
             }
         }
-        .alert(NSLocalizedString("questionDetail.archiveSuccess", comment: ""), isPresented: $showingArchiveSuccess) {
-            Button(NSLocalizedString("common.ok", comment: "")) { }
-        } message: {
-            Text(NSLocalizedString("questionDetail.archiveSuccessMessage", comment: ""))
-        }
     }
 
     private var questionMetadata: some View {
@@ -694,100 +623,6 @@ struct GeneratedQuestionDetailView: View {
         .font(.body.bold())
     }
 
-    // Slide to Smart Organize track (matches DigitalHomeworkView style)
-    private var slideToSmartOrganizeTrack: some View {
-        GeometryReader { geometry in
-            let trackWidth = geometry.size.width
-            let sliderWidth: CGFloat = 60
-            let maxOffset = trackWidth - sliderWidth - 8
-
-            ZStack(alignment: .leading) {
-                // Background track
-                RoundedRectangle(cornerRadius: 30)
-                    .fill(.ultraThinMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 30)
-                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                    )
-                    .frame(height: 60)
-
-                // Progress fill
-                RoundedRectangle(cornerRadius: 30)
-                    .fill(Color.blue.opacity(0.1))
-                    .frame(width: slideOffset + sliderWidth + 4, height: 60)
-                    .opacity(slideOffset > 0 ? 1.0 : 0.0)
-
-                // Instruction text (fades as slider moves)
-                HStack {
-                    Spacer()
-                    Text(NSLocalizedString("questionDetail.markProgress", comment: ""))
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.primary.opacity(0.6))
-                        .opacity(1.0 - (slideOffset / maxOffset))
-                    Spacer()
-                }
-                .frame(height: 60)
-
-                // Sliding thumb - frosted glass circle
-                ZStack {
-                    Circle()
-                        .fill(.regularMaterial)
-                        .frame(width: sliderWidth, height: sliderWidth)
-                        .overlay(
-                            Circle()
-                                .stroke(Color.white.opacity(0.3), lineWidth: 1.5)
-                        )
-                        .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
-
-                    HStack(spacing: 6) {
-                        Image(systemName: "chevron.right")
-                            .font(.title3)
-                            .foregroundColor(.primary)
-                        Image(systemName: "chevron.right")
-                            .font(.title3)
-                            .foregroundColor(.primary.opacity(0.6))
-                        Image(systemName: "chevron.right")
-                            .font(.title3)
-                            .foregroundColor(.primary.opacity(0.3))
-                    }
-                }
-                .offset(x: slideOffset + 4, y: 0)
-                .gesture(
-                    DragGesture()
-                        .onChanged { value in
-                            let newOffset = max(0, min(value.translation.width, maxOffset))
-                            withAnimation(.interactiveSpring()) {
-                                slideOffset = newOffset
-                                isSliding = true
-                            }
-                            if newOffset >= maxOffset * 1.0 && !hasTriggeredSlide {
-                                hasTriggeredSlide = true
-                                trackPracticeProgress()
-                                hasMarkedProgress = true
-                                saveProgressState()
-                                AudioServicesPlaySystemSound(1100)
-                                let generator = UINotificationFeedbackGenerator()
-                                generator.notificationOccurred(.success)
-                                withAnimation(.spring()) {
-                                    slideOffset = 0
-                                    isSliding = false
-                                }
-                            }
-                        }
-                        .onEnded { _ in
-                            withAnimation(.spring()) {
-                                slideOffset = 0
-                                isSliding = false
-                            }
-                            hasTriggeredSlide = false
-                        }
-                )
-            }
-        }
-        .frame(height: 60)
-    }
-
     private func canSubmit() -> Bool {
         switch currentQuestion.type {
         case .multipleChoice, .trueFalse:
@@ -818,8 +653,6 @@ struct GeneratedQuestionDetailView: View {
         resetQuestionState()
 
         // Load saved state for previous question
-        loadProgressState()
-        loadArchivedState()
         loadSavedAnswer()
 
         logger.info("📝 Navigated to previous question (\(currentQuestionIndex + 1)/\(allQuestions?.count ?? 0))")
@@ -837,8 +670,6 @@ struct GeneratedQuestionDetailView: View {
         resetQuestionState()
 
         // Load saved state for next question
-        loadProgressState()
-        loadArchivedState()
         loadSavedAnswer()
 
         logger.info("📝 Navigated to next question (\(currentQuestionIndex + 1)/\(allQuestions?.count ?? 0))")
@@ -852,13 +683,9 @@ struct GeneratedQuestionDetailView: View {
         showingExplanation = false
         isCorrect = false
         partialCredit = 0.0
-        isArchived = false
-        showingArchiveSuccess = false
-        isArchiving = false
         isGradingWithAI = false
         wasInstantGraded = false
         aiFeedback = nil
-        hasMarkedProgress = false
     }
 
     // ✅ OPTIMIZED: Two-tier grading system (client-side matching + AI fallback)
@@ -901,7 +728,7 @@ struct GeneratedQuestionDetailView: View {
             wasInstantGraded = true
             showingExplanation = true
 
-            let instantFeedback = "Perfect! Your answer is exactly correct."
+            let instantFeedback = NSLocalizedString("questionDetail.feedbackExactMatch", comment: "")
             aiFeedback = instantFeedback
 
             logger.info("📝 Answer submitted: Instant grade - Correct (100%)")
@@ -910,9 +737,6 @@ struct GeneratedQuestionDetailView: View {
             saveAnswer()
             let maxPoints = currentQuestion.points ?? 1
             onAnswerSubmitted?(isCorrect, maxPoints)
-
-            // Auto-archive correct answers for concept extraction
-            archiveQuestion()
 
             return  // Skip AI grading
         }
@@ -977,9 +801,6 @@ struct GeneratedQuestionDetailView: View {
                     let earnedPoints = Int(Double(maxPoints) * partialCredit)
                     onAnswerSubmitted?(isCorrect, earnedPoints)
 
-                    // Auto-archive wrong answers for error analysis; correct for concept extraction
-                    archiveQuestion()
-
                     // Haptic feedback
                     let generator = UINotificationFeedbackGenerator()
                     generator.notificationOccurred(isCorrect ? .success : .error)
@@ -1011,9 +832,6 @@ struct GeneratedQuestionDetailView: View {
                 let maxPoints = currentQuestion.points ?? 1
                 let earnedPoints = Int(Double(maxPoints) * partialCredit)
                 onAnswerSubmitted?(isCorrect, earnedPoints)
-
-                // Auto-archive (fallback grading path)
-                archiveQuestion()
             }
         }
     }
@@ -1281,45 +1099,7 @@ Question: \(currentQuestion.question)
         }
     }
 
-    // MARK: - Progress Tracking
-
-    private func trackPracticeProgress() {
-        let subject = currentQuestion.topic
-        let totalAnswered = 1 // One question
-
-        // Use partial credit for correct count
-        // If fully correct, count as 1. If partial credit, count proportionally
-        let correctCount = partialCredit >= 0.5 ? 1 : 0  // 50% or more counts as correct
-
-        logger.info("📊 [trackPracticeProgress] Marking progress: \(totalAnswered) question, \(correctCount) correct (\(Int(partialCredit * 100))% credit) in \(subject)")
-
-        // Use the same progress marking system as homework
-        pointsManager.markHomeworkProgress(
-            subject: subject,
-            numberOfQuestions: totalAnswered,
-            numberOfCorrectQuestions: correctCount
-        )
-
-        logger.info("📊 [trackPracticeProgress] ✅ Progress marked successfully")
-    }
-
     // MARK: - Persistence
-
-    private func loadProgressState() {
-        hasMarkedProgress = UserDefaults.standard.bool(forKey: progressMarkedKey)
-    }
-
-    private func saveProgressState() {
-        UserDefaults.standard.set(hasMarkedProgress, forKey: progressMarkedKey)
-    }
-
-    private func loadArchivedState() {
-        isArchived = UserDefaults.standard.bool(forKey: archivedStateKey)
-    }
-
-    private func saveArchivedState() {
-        UserDefaults.standard.set(isArchived, forKey: archivedStateKey)
-    }
 
     private func saveAnswer() {
         let answerData: [String: Any] = [
@@ -1377,86 +1157,6 @@ Question: \(currentQuestion.question)
         }
 
         logger.info("💾 Loaded saved answer for question: \(currentQuestion.id)")
-    }
-
-    /// Archive the answered question to local storage
-    private func archiveQuestion() {
-        guard hasSubmitted else { return }
-        guard !isArchived, !isArchiving else { return }  // Prevent double-archive
-
-        isArchiving = true
-
-        // ✅ DEBUG: Log archiving start
-        print("📚 [Archive] Starting archive for question: \(currentQuestion.question.prefix(50))...")
-
-        Task {
-            // Build question data for archiving
-            var questionData: [String: Any] = [
-                "id": UUID().uuidString,
-                "subject": subject,                          // Top-level subject for grouping in mistake review
-                "questionText": currentQuestion.question,
-                "rawQuestionText": currentQuestion.question,
-                "answerText": currentQuestion.correctAnswer,
-                "confidence": 1.0,  // Generated questions have high confidence
-                "hasVisualElements": false,
-                "archivedAt": ISO8601DateFormatter().string(from: Date()),
-                "reviewCount": 0,
-                "tags": currentQuestion.tags ?? [],  // Inherit tags from generated question
-                "notes": "",
-                "studentAnswer": getCurrentAnswer(),
-                "grade": isCorrect ? "CORRECT" : "INCORRECT",
-                "points": isCorrect ? (currentQuestion.points ?? 1) : 0,
-                "maxPoints": currentQuestion.points ?? 1,
-                "feedback": currentQuestion.explanation,
-                "isGraded": true,
-                "isCorrect": isCorrect,
-                // ✅ CRITICAL: Include error keys for short-term status tracking
-                "errorType": currentQuestion.errorType as Any,
-                "baseBranch": currentQuestion.baseBranch as Any,
-                "detailedBranch": currentQuestion.detailedBranch as Any,
-                "weaknessKey": currentQuestion.weaknessKey as Any
-            ]
-
-            // ✅ DEBUG: Log archiving data
-            print("📚 [Archive] Archive data - Subject: \(subject), Topic: \(currentQuestion.topic), Correct: \(isCorrect), Has error keys: \(currentQuestion.errorType != nil)")
-
-            // Save to local storage — capture ID mappings to handle content-hash deduplication.
-            // If the exact same question+answer was saved before, savedId ≠ originalId.
-            // We must pass the effective savedId to the error analysis pipeline so it can
-            // update the correct record in local storage.
-            let idMappings = currentUserQuestionStorage().saveQuestions([questionData])
-            if let mapping = idMappings.first, mapping.savedId != mapping.originalId {
-                questionData["id"] = mapping.savedId
-                print("📚 [Archive] Remapped question ID: \(mapping.originalId.prefix(8))… → \(mapping.savedId.prefix(8))… (duplicate content)")
-            }
-
-            // Route through error analysis pipeline (same as AI homework grader)
-            // This ensures base_branch, detailed_branch, error_type, and weaknessKey
-            // are properly assigned, and MistakeReview groups by top-level subject.
-            let sessionId = self.sessionId ?? UUID().uuidString
-            if !isCorrect {
-                ErrorAnalysisQueueService.shared.queueErrorAnalysisAfterGrading(
-                    sessionId: sessionId,
-                    wrongQuestions: [questionData]
-                )
-            } else {
-                ErrorAnalysisQueueService.shared.queueConceptExtractionForCorrectAnswers(
-                    sessionId: sessionId,
-                    correctQuestions: [questionData]
-                )
-            }
-
-            await MainActor.run {
-                isArchiving = false
-                isArchived = true
-                saveArchivedState()  // Persist archived state
-                showingArchiveSuccess = true
-                logger.info("📚 [Archive] Practice question archived successfully")
-
-                // ✅ DEBUG: Log completion
-                print("📚 [Archive] ✅ Archive completed successfully")
-            }
-        }
     }
 }
 

@@ -559,6 +559,8 @@
 "questionGeneration.conversations" = "对话";
 "questionGeneration.questions" = "题目";
 "questionGeneration.selectArchives" = "选择归档";
+"questionGeneration.sourceLimitTitle" = "选择上限";
+"questionGeneration.sourceLimitMessage" = "最多可选择 %d 个来源。";
 "questionGeneration.conversation" = "对话";
 "questionGeneration.failedToLoadData" = "载入资料失败：%@";
 "questionGeneration.defaultSubject.mathematics" = "数学";
@@ -1169,6 +1171,10 @@
 "questionDetail.hideExplanation" = "隐藏解释";
 "questionDetail.yourAnswer" = "您的答案：";
 "questionDetail.correctAnswer" = "正确答案：";
+"questionDetail.feedbackExactMatch" = "完美！你的答案完全正确。";
+"practice.feedbackCorrect" = "回答正确！做得好。";
+"practice.feedbackIncorrect" = "回答错误。正确答案是：%@";
+"practice.feedbackTryAgain" = "还差一点。请回顾正确答案，再做类似的题目。";
 "questionDetail.archiveQuestion" = "归档题目";
 "questionDetail.archiving" = "归档中...";
 "questionDetail.archived" = "已归档";
@@ -2067,3 +2073,82 @@
 "voiceSettings.avatar.eva.desc" = "温柔、体贴的女孩";
 "voiceSettings.avatar.max.desc" = "活力、热情的男孩";
 "voiceSettings.avatar.mia.desc" = "活泼、好奇的女孩";
+
+// Chat Menu (missing)
+"chat.menu.viewTutorial" = "查看引导教程";
+
+// Edit Profile (missing)
+"editProfile.adjustAvatar" = "调整头像";
+"editProfile.age" = "年龄";
+"editProfile.agePlaceholder" = "例如 14";
+"editProfile.avatarEditorHint" = "捏合缩放，拖动调整";
+"editProfile.choosePresetAvatar" = "选择预设头像";
+"editProfile.language" = "语言";
+"editProfile.learningStyleHeuristic" = "启发式";
+"editProfile.learningStyleHeuristicDesc" = "引导式探索";
+"editProfile.learningStyleStraightforward" = "直接式";
+"editProfile.learningStyleStraightforwardDesc" = "直接解答";
+"editProfile.noneOption" = "—";
+"editProfile.or" = "或";
+"editProfile.orChoosePresetAvatar" = "或选择预设头像";
+"editProfile.rotateLeft" = "向左旋转";
+"editProfile.rotateRight" = "向右旋转";
+"editProfile.selectedCount" = "已选 %d 个";
+"editProfile.studentInformation" = "学生信息";
+"editProfile.takeSelfie" = "拍自拍";
+"editProfile.uploadFromAlbum" = "从相册上传";
+"editProfile.zoomIn" = "放大";
+"editProfile.zoomOut" = "缩小";
+
+// Chat Onboarding (missing)
+"onboarding.chat.camera.desc" = "点击拍照或从相册选取图片。我可以识别图片中的作业题目。";
+"onboarding.chat.camera.title" = "添加图片";
+"onboarding.chat.deepBadge" = "深度";
+"onboarding.chat.deepThinkingMode" = "深度思考模式";
+"onboarding.chat.deepmode.desc" = "点击 ↑ 发送，或按住按钮向上滑动——按钮变紫时启用深度推理模式，适合难题。";
+"onboarding.chat.deepmode.title" = "发送或深度分析";
+"onboarding.chat.holdToTalk" = "按住说话";
+"onboarding.chat.library.desc" = "点击归档本次对话，我会分析内容并将重点知识保存到你的个人书库。";
+"onboarding.chat.library.title" = "保存到书库";
+"onboarding.chat.live.desc" = "点击 ··· 查看更多设置，可在此切换到实时语音对话模式。";
+"onboarding.chat.live.title" = "实时模式与更多";
+"onboarding.chat.mic.desc" = "按住此按钮进行语音输入，无需打字。语音将自动转为文字。";
+"onboarding.chat.mic.title" = "语音输入";
+"onboarding.chat.micDemoText" = "请更详细地解释一下";
+"onboarding.chat.releaseToCancel" = "松开取消";
+"onboarding.chat.releaseToSend" = "松开发送";
+"onboarding.chat.subject.desc" = "选择一个科目，或保持「通用」。这有助于我给出更准确的解答。";
+"onboarding.chat.subject.title" = "选择科目";
+"onboarding.done" = "完成";
+"onboarding.next" = "下一步";
+"onboarding.skip" = "跳过";
+
+// Subject Names (missing)
+"subject.chinese" = "语文";
+"subject.computer_science" = "计算机科学";
+"subject.general" = "通用";
+"subject.physical_education" = "体育";
+"subject.social_studies" = "社会学";
+
+// Onboarding — Parent Setup
+"onboarding.continue" = "继续";
+"onboarding.parentSetup.title" = "家长设置";
+"onboarding.parentSetup.subtitle" = "保护家长控制";
+"onboarding.parentSetup.ageLabel" = "您的年龄";
+"onboarding.parentSetup.agePlaceholder" = "例如 35";
+"onboarding.parentSetup.nameLabel" = "姓名";
+"onboarding.parentSetup.namePlaceholder" = "您的姓名";
+"onboarding.parentSetup.pinLabel" = "家长 PIN 码（6位数字）";
+"onboarding.parentSetup.pinPlaceholder" = "输入6位 PIN 码";
+"onboarding.parentSetup.confirmPinPlaceholder" = "确认 PIN 码";
+"onboarding.parentSetup.pinMismatch" = "PIN 码不匹配";
+"onboarding.parentSetup.pinHint" = "6位 PIN 码用于锁定家长控制，防止孩子更改。";
+"onboarding.parentSetup.controlsLabel" = "家长控制";
+"onboarding.parentSetup.protectChat" = "保护 AI 对话";
+"onboarding.parentSetup.protectGrader" = "保护作业批改";
+"onboarding.parentSetup.protectReports" = "保护家长报告";
+"onboarding.parentSetup.pinLockHint" = "请在上方输入并确认有效的6位 PIN 码以启用控制";
+
+// Onboarding — Language Selection (first page)
+"onboarding.language.title" = "选择语言";
+"onboarding.language.subtitle" = "您可以随时在设置中更改";

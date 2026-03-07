@@ -1084,7 +1084,7 @@ struct MistakeQuestionCard: View {
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
 
-                            Text(baseBranch)
+                            Text(BranchLocalizer.localized(baseBranch))
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
 
@@ -1092,7 +1092,7 @@ struct MistakeQuestionCard: View {
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
 
-                            Text(detailedBranch)
+                            Text(BranchLocalizer.localized(detailedBranch))
                                 .font(.caption)
                                 .fontWeight(.medium)
                                 .foregroundColor(.primary)
@@ -2022,6 +2022,78 @@ struct PracticeQuestionsView: View {
         }
 
         print("✅ [MarkProgress] Progress marked successfully (LOCAL ONLY)")
+
+        // Archive only mistake questions; concept extraction for correct ones
+        archiveMistakesAndExtractConcepts()
+    }
+
+    /// Archive incorrect answers to local storage + error analysis; run concept extraction for correct answers.
+    private func archiveMistakesAndExtractConcepts() {
+        let sessionId = self.sessionId ?? UUID().uuidString
+
+        var mistakeData: [[String: Any]] = []
+        var correctData: [[String: Any]] = []
+
+        for question in questions {
+            guard let gradeResult = gradedQuestions[question.id] else { continue }
+            let studentAnswer = currentAnswers[question.id] ?? ""
+
+            let questionData: [String: Any] = [
+                "id": UUID().uuidString,
+                "subject": subject,
+                "questionText": question.question,
+                "rawQuestionText": question.question,
+                "answerText": question.correctAnswer,
+                "confidence": 1.0,
+                "hasVisualElements": false,
+                "archivedAt": ISO8601DateFormatter().string(from: Date()),
+                "reviewCount": 0,
+                "tags": question.tags ?? [],
+                "notes": "",
+                "studentAnswer": studentAnswer,
+                "grade": gradeResult.isCorrect ? "CORRECT" : "INCORRECT",
+                "points": gradeResult.isCorrect ? (question.points ?? 1) : 0,
+                "maxPoints": question.points ?? 1,
+                "feedback": gradeResult.feedback,
+                "isGraded": true,
+                "isCorrect": gradeResult.isCorrect,
+                "errorType": question.errorType as Any,
+                "baseBranch": question.baseBranch as Any,
+                "detailedBranch": question.detailedBranch as Any,
+                "weaknessKey": question.weaknessKey as Any
+            ]
+
+            if gradeResult.isCorrect {
+                correctData.append(questionData)
+            } else {
+                mistakeData.append(questionData)
+            }
+        }
+
+        // Save only mistakes to local storage
+        if !mistakeData.isEmpty {
+            let idMappings = currentUserQuestionStorage().saveQuestions(mistakeData)
+            for (index, mapping) in idMappings.enumerated() {
+                if mapping.savedId != mapping.originalId {
+                    mistakeData[index]["id"] = mapping.savedId
+                }
+            }
+
+            ErrorAnalysisQueueService.shared.queueErrorAnalysisAfterGrading(
+                sessionId: sessionId,
+                wrongQuestions: mistakeData
+            )
+        }
+
+        // Concept extraction for correct answers (NOT saved to storage)
+        if !correctData.isEmpty {
+            ErrorAnalysisQueueService.shared.queueConceptExtractionForCorrectAnswers(
+                sessionId: sessionId,
+                correctQuestions: correctData
+            )
+        }
+
+        print("📚 [MarkProgress] Archived \(mistakeData.count) mistakes, concept extraction for \(correctData.count) correct")
     }
 
     // MARK: - PDF Export
@@ -2050,15 +2122,13 @@ struct PracticeQuestionsView: View {
 
         if components.count >= 3 {
             // Extract detailed branch (last component) and base branch (middle component)
-            let detailedBranch = components[2]
-                .replacingOccurrences(of: " - ", with: " in ")
-            let baseBranch = components[1]
-                .replacingOccurrences(of: " - ", with: " ")
+            let detailedBranch = BranchLocalizer.localized(components[2])
+            let baseBranch = BranchLocalizer.localized(components[1])
 
             return "\(detailedBranch) (\(baseBranch))"
         } else if components.count == 2 {
             // Fallback: just use the last component
-            return components[1].replacingOccurrences(of: " - ", with: " ")
+            return BranchLocalizer.localized(components[1])
         } else {
             // Fallback: use the whole key
             return key
@@ -2625,6 +2695,7 @@ Can you help me understand this better and explain the solution?
 struct PracticeMCInput: View {
     let options: [String]
     @Binding var selectedOption: String
+    @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         VStack(spacing: 8) {
@@ -2640,8 +2711,7 @@ struct PracticeMCInput: View {
                               "checkmark.circle.fill" : "circle")
                             .foregroundColor(selectedOption == option ? .blue : .gray)
                             .font(.title3)
-                        Text(option)
-                            .foregroundColor(.primary)
+                        SmartLaTeXView(option, fontSize: 16, colorScheme: colorScheme)
                             .multilineTextAlignment(.leading)
                         Spacer()
                     }

@@ -559,6 +559,8 @@
 "questionGeneration.conversations" = "對話";
 "questionGeneration.questions" = "題目";
 "questionGeneration.selectArchives" = "選擇歸檔";
+"questionGeneration.sourceLimitTitle" = "選擇上限";
+"questionGeneration.sourceLimitMessage" = "最多可選擇 %d 個來源。";
 "questionGeneration.conversation" = "對話";
 "questionGeneration.failedToLoadData" = "載入資料失敗：%@";
 "questionGeneration.defaultSubject.mathematics" = "數學";
@@ -842,6 +844,30 @@
 "chat.menu.synchronizedAudio" = "同步語音";
 "chat.menu.liveTalk" = "即時對話";
 "chat.menu.archiveSession" = "封存會話";
+"chat.menu.viewTutorial" = "查看引導教程";
+
+// Chat Onboarding Tutorial
+"onboarding.skip" = "跳過";
+"onboarding.next" = "下一步";
+"onboarding.done" = "完成";
+"onboarding.chat.subject.title" = "選擇科目";
+"onboarding.chat.subject.desc" = "選擇一個科目，或保持「通用」。這有助於我給出更準確的解答。";
+"onboarding.chat.camera.title" = "新增圖片";
+"onboarding.chat.camera.desc" = "點擊拍照或從相簿選取圖片。我可以識別圖片中的作業題目。";
+"onboarding.chat.deepmode.title" = "傳送或深度分析";
+"onboarding.chat.deepmode.desc" = "點擊 ↑ 傳送，或按住按鈕向上滑動——按鈕變紫時啟用深度推理模式，適合難題。";
+"onboarding.chat.mic.title" = "語音輸入";
+"onboarding.chat.mic.desc" = "按住此按鈕進行語音輸入，無需打字。語音將自動轉為文字。";
+"onboarding.chat.live.title" = "即時模式與更多";
+"onboarding.chat.live.desc" = "點擊 ··· 查看更多設定，可在此切換到即時語音對話模式。";
+"onboarding.chat.library.title" = "儲存到書庫";
+"onboarding.chat.library.desc" = "點擊封存本次對話，我會分析內容並將重點知識保存到你的個人書庫。";
+"onboarding.chat.deepBadge" = "深度";
+"onboarding.chat.deepThinkingMode" = "深度思考模式";
+"onboarding.chat.releaseToCancel" = "放開取消";
+"onboarding.chat.releaseToSend" = "放開傳送";
+"onboarding.chat.holdToTalk" = "按住說話";
+"onboarding.chat.micDemoText" = "請更詳細地解釋一下";
 
 // Voice Chat (Gemini Live)
 "voice_chat.title" = "即時對話";
@@ -1042,6 +1068,28 @@
 "editProfile.profileUpdated" = "資料已更新";
 "editProfile.profileUpdatedMessage" = "您的資料已成功更新！";
 "editProfile.savingProfile" = "儲存資料中...";
+"editProfile.takeSelfie" = "拍自拍";
+"editProfile.uploadFromAlbum" = "從相簿上傳";
+"editProfile.or" = "或";
+"editProfile.choosePresetAvatar" = "選擇預設頭像";
+"editProfile.orChoosePresetAvatar" = "或選擇預設頭像";
+"editProfile.studentInformation" = "學生資訊";
+"editProfile.age" = "年齡";
+"editProfile.agePlaceholder" = "例如 14";
+"editProfile.noneOption" = "—";
+"editProfile.language" = "語言";
+"editProfile.selectedCount" = "已選 %d 個";
+"editProfile.learningStyle" = "學習風格";
+"editProfile.learningStyleHeuristic" = "啟發式";
+"editProfile.learningStyleHeuristicDesc" = "引導式探索";
+"editProfile.learningStyleStraightforward" = "直接式";
+"editProfile.learningStyleStraightforwardDesc" = "直接解答";
+"editProfile.avatarEditorHint" = "捏合縮放，拖動調整";
+"editProfile.zoomOut" = "縮小";
+"editProfile.zoomIn" = "放大";
+"editProfile.rotateLeft" = "向左旋轉";
+"editProfile.rotateRight" = "向右旋轉";
+"editProfile.adjustAvatar" = "調整頭像";
 
 // Avatar Selection
 "editProfile.selectAvatar" = "選擇您的頭像";
@@ -1169,6 +1217,10 @@
 "questionDetail.hideExplanation" = "隱藏解釋";
 "questionDetail.yourAnswer" = "您的答案：";
 "questionDetail.correctAnswer" = "正確答案：";
+"questionDetail.feedbackExactMatch" = "完美！你的答案完全正確。";
+"practice.feedbackCorrect" = "回答正確！做得好。";
+"practice.feedbackIncorrect" = "回答錯誤。正確答案是：%@";
+"practice.feedbackTryAgain" = "還差一點。請回顧正確答案，再做類似的題目。";
 "questionDetail.archiveQuestion" = "歸檔題目";
 "questionDetail.archiving" = "歸檔中...";
 "questionDetail.archived" = "已歸檔";
@@ -1725,6 +1777,24 @@
 "homeworkSummary.subquestionCount" = "%d 個子題";
 "homeworkSummary.answer" = "答案: %@";
 
+// Subject Names
+"subject.math" = "數學";
+"subject.mathematics" = "數學";
+"subject.english" = "英語";
+"subject.science" = "科學";
+"subject.history" = "歷史";
+"subject.geography" = "地理";
+"subject.physics" = "物理";
+"subject.chemistry" = "化學";
+"subject.biology" = "生物";
+"subject.social_studies" = "社會學";
+"subject.chinese" = "國語";
+"subject.art" = "美術";
+"subject.music" = "音樂";
+"subject.physical_education" = "體育";
+"subject.computer_science" = "計算機科學";
+"subject.general" = "通用";
+
 "proMode.slideToMarkProgress" = "滑動以智能整理";
 "proMode.progressMarked" = "已整理";
 
@@ -2067,3 +2137,26 @@
 "voiceSettings.avatar.eva.desc" = "溫柔、體貼的女孩";
 "voiceSettings.avatar.max.desc" = "活力、熱情的男孩";
 "voiceSettings.avatar.mia.desc" = "活潑、好奇的女孩";
+
+// Onboarding — Parent Setup
+"onboarding.continue" = "繼續";
+"onboarding.parentSetup.title" = "家長設置";
+"onboarding.parentSetup.subtitle" = "保護家長控制";
+"onboarding.parentSetup.ageLabel" = "您的年齡";
+"onboarding.parentSetup.agePlaceholder" = "例如 35";
+"onboarding.parentSetup.nameLabel" = "姓名";
+"onboarding.parentSetup.namePlaceholder" = "您的姓名";
+"onboarding.parentSetup.pinLabel" = "家長 PIN 碼（6位數字）";
+"onboarding.parentSetup.pinPlaceholder" = "輸入6位 PIN 碼";
+"onboarding.parentSetup.confirmPinPlaceholder" = "確認 PIN 碼";
+"onboarding.parentSetup.pinMismatch" = "PIN 碼不匹配";
+"onboarding.parentSetup.pinHint" = "6位 PIN 碼用於鎖定家長控制，防止孩子更改。";
+"onboarding.parentSetup.controlsLabel" = "家長控制";
+"onboarding.parentSetup.protectChat" = "保護 AI 對話";
+"onboarding.parentSetup.protectGrader" = "保護作業批改";
+"onboarding.parentSetup.protectReports" = "保護家長報告";
+"onboarding.parentSetup.pinLockHint" = "請在上方輸入並確認有效的6位 PIN 碼以啟用控制";
+
+// Onboarding — Language Selection (first page)
+"onboarding.language.title" = "選擇語言";
+"onboarding.language.subtitle" = "您可以隨時在設定中更改";

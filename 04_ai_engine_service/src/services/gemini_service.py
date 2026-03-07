@@ -536,8 +536,10 @@ class GeminiEducationalAIService:
         """
         Generate practice questions using gemini-3-flash-preview.
 
-        Retries once with simplified random context if the first attempt fails,
-        so that missing or malformed context never permanently blocks generation.
+        Makes a single Gemini call for all `count` questions.
+        Retries once with simplified random context if the first attempt fails.
+        Parallelism is handled by the backend firing multiple HTTP requests to
+        separate Gunicorn workers — not within this function.
         """
         if not self.client:
             return {
@@ -547,15 +549,16 @@ class GeminiEducationalAIService:
                 "subject": subject,
             }
 
-        # Clamp count to a safe range
         count = max(1, min(count, 10))
 
-        # Two attempts:
-        #   Attempt 0 — full original context
-        #   Attempt 1 — simplified random context (fallback when context data is bad)
+        fallback_ctx_data = {
+            "grade": context_data.get("grade", "High School"),
+            "difficulty": context_data.get("difficulty", "intermediate"),
+        }
+
         attempt_plans = [
             (context_type, context_data),
-            ("random", {"grade": context_data.get("grade", "High School")}),
+            ("random", fallback_ctx_data),
         ]
 
         last_result: Dict[str, Any] = {
@@ -567,12 +570,7 @@ class GeminiEducationalAIService:
 
         for attempt_idx, (eff_ctx_type, eff_ctx_data) in enumerate(attempt_plans):
             if attempt_idx > 0:
-                logger.debug(
-                    f"🔄 Retrying {question_type} generation with simplified random context "
-                    f"(original_context_type={context_type})"
-                )
-                await asyncio.sleep(0.5)
-
+                await asyncio.sleep(0.3)
             last_result = await self._attempt_generate_questions(
                 subject=subject,
                 question_type=question_type,
@@ -583,14 +581,8 @@ class GeminiEducationalAIService:
                 original_context_data=context_data,
                 language=language,
             )
-
             if last_result.get("success"):
                 return last_result
-
-            logger.debug(
-                f"⚠️ Attempt {attempt_idx + 1}/{len(attempt_plans)} failed: "
-                f"{last_result.get('error', 'unknown')}"
-            )
 
         return last_result
 
@@ -631,24 +623,39 @@ class GeminiEducationalAIService:
 
             config = genai_types.GenerateContentConfig(
                 temperature=1.0,
-                max_output_tokens=8192,
+                max_output_tokens=min(4000 * count + 1000, 16384),
                 response_mime_type="application/json",
+                thinking_config=genai_types.ThinkingConfig(
+                    include_thoughts=False,
+                    thinking_level="minimal",
+                ),
             )
 
-            response = await self.client.aio.models.generate_content(
-                model=self.model_name,  # gemini-3-flash-preview
-                contents=[
-                    genai_types.Content(
-                        role="user",
-                        parts=[genai_types.Part.from_text(text=system_prompt + "\n\n" + user_msg)]
-                    )
-                ],
-                config=config,
+            response = await asyncio.wait_for(
+                self.client.aio.models.generate_content(
+                    model=self.model_name,  # gemini-3-flash-preview
+                    contents=[
+                        genai_types.Content(
+                            role="user",
+                            parts=[genai_types.Part.from_text(text=system_prompt + "\n\n" + user_msg)]
+                        )
+                    ],
+                    config=config,
+                ),
+                timeout=20.0,
             )
 
             raw_text = self._extract_response_text(response)
+            raw_text = self._strip_markdown_fences(raw_text)
             raw_text = self._repair_latex_json(raw_text)
-            questions_json = self._parse_questions_json(raw_text, question_type)
+            try:
+                questions_json = self._parse_questions_json(raw_text, question_type)
+            except ValueError as parse_err:
+                logger.error(
+                    f"⚠️ Parse failed ({question_type}, count={count}, context={context_type}): "
+                    f"{parse_err} | raw={raw_text[:500]!r}"
+                )
+                raise
 
             # Normalise field names
             for q in questions_json:
@@ -713,16 +720,33 @@ class GeminiEducationalAIService:
                 "question_count": len(questions_json),
             }
 
+        except asyncio.TimeoutError:
+            logger.info(f"⏱️ Gemini question gen timed out ({question_type}, count={count}, context={context_type})")
+            return {
+                "success": False,
+                "error": f"Gemini API timeout (question_type={question_type})",
+                "generation_type": f"unified_{question_type}",
+                "subject": subject,
+            }
         except Exception as e:
-            logger.debug(f"❌ Gemini question generation attempt error: {str(e)}")
-            import traceback
-            traceback.print_exc()
+            raw_preview = raw_text[:300] if 'raw_text' in dir() else '<no response>'
+            logger.info(f"❌ Gemini question gen attempt failed ({question_type}, count={count}): {str(e)} | raw={raw_preview!r}")
             return {
                 "success": False,
                 "error": f"Gemini question generation failed: {str(e)}",
                 "generation_type": f"unified_{question_type}",
                 "subject": subject,
             }
+
+    @staticmethod
+    def _strip_markdown_fences(raw: str) -> str:
+        """Strip ```json ... ``` or ``` ... ``` fences that Gemini sometimes wraps around JSON."""
+        stripped = raw.strip()
+        # Remove opening fence (```json or ```)
+        stripped = re.sub(r'^```(?:json)?\s*', '', stripped, flags=re.IGNORECASE)
+        # Remove closing fence
+        stripped = re.sub(r'\s*```\s*$', '', stripped)
+        return stripped.strip()
 
     @staticmethod
     def _repair_latex_json(raw: str) -> str:
@@ -785,11 +809,20 @@ class GeminiEducationalAIService:
           3. Recover from truncated responses by closing the array at the last
              complete question object (handles token-limit cut-offs).
 
-        Raises ValueError only if all three strategies are exhausted.
+        Also handles the case where Gemini returns a single question dict instead
+        of wrapping it in a {"questions": [...]} envelope (common for count=1).
+
+        Raises ValueError only if all strategies are exhausted.
         """
         def _extract_list(parsed) -> list:
             if isinstance(parsed, dict):
-                return parsed.get("questions") or parsed.get("items") or []
+                qs = parsed.get("questions") or parsed.get("items")
+                if qs:
+                    return qs
+                # Gemini returned a single question object directly (common for count=1)
+                if "question" in parsed:
+                    return [parsed]
+                return []
             if isinstance(parsed, list):
                 return parsed
             return []
@@ -807,6 +840,16 @@ class GeminiEducationalAIService:
         if m:
             try:
                 qs = _extract_list(json.loads(m.group()))
+                if qs:
+                    return qs
+            except (json.JSONDecodeError, ValueError):
+                pass
+
+        # Strategy 2b: find a bare [...] array (Gemini sometimes skips the wrapper object)
+        m2 = re.search(r'\[.+\]', raw_text, re.DOTALL)
+        if m2:
+            try:
+                qs = _extract_list(json.loads(m2.group()))
                 if qs:
                     return qs
             except (json.JSONDecodeError, ValueError):

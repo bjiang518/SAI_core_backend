@@ -8,6 +8,7 @@
 import SwiftUI
 import os.log
 import PDFKit
+import AudioToolbox
 
 struct GeneratedQuestionsListView: View {
     let questions: [QuestionGenerationService.GeneratedQuestion]
@@ -18,7 +19,6 @@ struct GeneratedQuestionsListView: View {
     @Environment(\.colorScheme) var colorScheme
     @State private var selectedQuestion: QuestionGenerationService.GeneratedQuestion?
     @State private var showingQuestionDetail = false
-    @State private var searchText = ""
 
     // PDF Generation state
     @State private var selectedQuestions: Set<UUID> = []
@@ -30,23 +30,22 @@ struct GeneratedQuestionsListView: View {
     @State private var archivedQuestions: Set<UUID> = []
     @State private var showingInfoAlert = false
 
+    // Smart Organize state
+    @State private var hasSmartOrganized = false
+    @State private var slideOffset: CGFloat = 0
+    @State private var isSliding = false
+    @State private var hasTriggeredSlide = false
+    @State private var isOrganizing = false
+
+    @ObservedObject private var pointsManager = PointsEarningManager.shared
+    @StateObject private var themeManager = ThemeManager.shared
+
     private let logger = Logger(subsystem: "com.studyai", category: "GeneratedQuestionsList")
 
     // Track question answer results
     struct QuestionResult {
         let isCorrect: Bool
         let points: Int
-    }
-
-    var filteredQuestions: [QuestionGenerationService.GeneratedQuestion] {
-        if searchText.isEmpty {
-            return questions
-        }
-        return questions.filter { question in
-            question.question.localizedCaseInsensitiveContains(searchText) ||
-            question.topic.localizedCaseInsensitiveContains(searchText) ||
-            question.type.displayName.localizedCaseInsensitiveContains(searchText)
-        }
     }
 
     @ViewBuilder
@@ -76,13 +75,6 @@ struct GeneratedQuestionsListView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // PDF Generation button (when not in selection mode)
-                if !questions.isEmpty && !isSelectionMode {
-                    generatePDFButton
-                        .padding(.horizontal)
-                        .padding(.top, 8)
-                }
-
                 // Selection controls (when in selection mode)
                 if isSelectionMode {
                     selectionControls
@@ -95,16 +87,20 @@ struct GeneratedQuestionsListView: View {
                         .padding(.horizontal)
                 }
 
-                // Search Bar
-                if questions.count > 3 {
-                    searchSection
-                }
-
                 // Questions List
-                if filteredQuestions.isEmpty {
+                if questions.isEmpty {
                     emptyStateView
                 } else {
                     questionsListSection
+                }
+
+                // Bottom bar: Smart Organize + Export PDF (pinned outside scroll)
+                if !questions.isEmpty && !isSelectionMode {
+                    bottomBar
+                        .padding(.horizontal)
+                        .padding(.bottom, 8)
+                        .padding(.top, 8)
+                        .background(themeManager.cardBackground)
                 }
             }
             .navigationTitle(NSLocalizedString("generatedQuestions.title", comment: ""))
@@ -115,7 +111,7 @@ struct GeneratedQuestionsListView: View {
                         showingInfoAlert = true
                     }) {
                         Image(systemName: "info.circle")
-                            .foregroundColor(.blue)
+                            .foregroundColor(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : .blue)
                     }
                 }
 
@@ -171,11 +167,24 @@ struct GeneratedQuestionsListView: View {
                 }
 
                 loadArchivedState()
+                loadSmartOrganizedState()
             }
             .onChange(of: showingQuestionDetail) { _, newValue in
                 if !newValue {
                     logger.debug("🔄 Question detail dismissed")
-                    loadArchivedState()  // Refresh archived state when detail closes
+                    // Re-read per-question answer data to pick up newly graded questions
+                    let uid = AuthenticationService.shared.currentUser?.id ?? "anonymous"
+                    for question in questions {
+                        let key = "question_answer_\(question.id.uuidString)_\(uid)"
+                        guard let data = UserDefaults.standard.data(forKey: key),
+                              let answerData = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                              let hasSubmitted = answerData["hasSubmitted"] as? Bool,
+                              hasSubmitted else { continue }
+
+                        let isCorrect = answerData["isCorrect"] as? Bool ?? false
+                        let points = isCorrect ? (question.points ?? 10) : 0
+                        answeredQuestions[question.id] = QuestionResult(isCorrect: isCorrect, points: points)
+                    }
                 }
             }
         }
@@ -194,7 +203,11 @@ struct GeneratedQuestionsListView: View {
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
             .frame(height: 50)
-            .background(Color.blue)
+            .background(
+                themeManager.currentTheme == .cute
+                    ? DesignTokens.Colors.Cute.blue
+                    : Color.blue
+            )
             .cornerRadius(12)
         }
     }
@@ -241,61 +254,20 @@ struct GeneratedQuestionsListView: View {
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
             .frame(height: 50)
-            .background(Color.green)
+            .background(
+                themeManager.currentTheme == .cute
+                    ? DesignTokens.Colors.Cute.mint
+                    : Color.green
+            )
             .cornerRadius(12)
         }
-    }
-
-    private var searchSection: some View {
-        VStack(spacing: 16) {
-            HStack(spacing: 16) {
-                Image(systemName: "magnifyingglass")
-                    .font(.body)
-                    .foregroundColor(.secondary)
-
-                TextField(NSLocalizedString("generatedQuestions.searchPlaceholder", comment: ""), text: $searchText)
-                    .textFieldStyle(PlainTextFieldStyle())
-
-                if !searchText.isEmpty {
-                    Button(action: { searchText = "" }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.body)
-                            .foregroundColor(.secondary)
-                    }
-                }
-            }
-            .padding()
-            .background(
-                colorScheme == .dark
-                    ? Color(.systemGray5)
-                    : Color.gray.opacity(0.1)
-            )
-            .cornerRadius(8)
-
-            // Filter summary
-            HStack {
-                Text(String.localizedStringWithFormat(NSLocalizedString("generatedQuestions.questionsCount", comment: ""), filteredQuestions.count, questions.count))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-
-                Spacer()
-
-                if !searchText.isEmpty {
-                    Text(String.localizedStringWithFormat(NSLocalizedString("generatedQuestions.filteredBy", comment: ""), searchText))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-        }
-        .padding()
-        .background(Color(.systemBackground))
     }
 
     private var questionsListSection: some View {
         ScrollView {
             LazyVStack(spacing: 16) {
-                ForEach(filteredQuestions.indices, id: \.self) { index in
-                    let question = filteredQuestions[index]
+                ForEach(questions.indices, id: \.self) { index in
+                    let question = questions[index]
                     let questionIndex = index + 1
 
                     // Wrap renderer in selection container
@@ -362,8 +334,8 @@ struct GeneratedQuestionsListView: View {
                     }
                     .background(
                         archivedQuestions.contains(question.id)
-                            ? Color(.systemGray5)
-                            : DesignTokens.AdaptiveColors.cardBackground
+                            ? themeManager.cardBackground.opacity(0.6)
+                            : themeManager.cardBackground
                     )
                     .cornerRadius(12)
                     .overlay(
@@ -415,10 +387,8 @@ struct GeneratedQuestionsListView: View {
                 }
 
                 // Stats Summary at bottom
-                if filteredQuestions.count == questions.count {
-                    questionsSummary
-                        .padding(.top, 24)
-                }
+                questionsSummary
+                    .padding(.top, 24)
             }
             .padding()
         }
@@ -430,27 +400,18 @@ struct GeneratedQuestionsListView: View {
 
             Image(systemName: "questionmark.folder")
                 .font(.system(size: 60))
-                .foregroundColor(.secondary)
+                .foregroundColor(themeManager.secondaryText)
 
             VStack(spacing: 8) {
-                Text(searchText.isEmpty ? NSLocalizedString("generatedQuestions.noQuestions", comment: "") : NSLocalizedString("generatedQuestions.noMatchingQuestions", comment: ""))
+                Text(NSLocalizedString("generatedQuestions.noQuestions", comment: ""))
                     .font(.headline)
                     .fontWeight(.semibold)
+                    .foregroundColor(themeManager.primaryText)
 
-                Text(searchText.isEmpty ?
-                     NSLocalizedString("generatedQuestions.noQuestionsMessage", comment: "") :
-                     NSLocalizedString("generatedQuestions.noMatchingMessage", comment: ""))
+                Text(NSLocalizedString("generatedQuestions.noQuestionsMessage", comment: ""))
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(themeManager.secondaryText)
                     .multilineTextAlignment(.center)
-            }
-
-            if !searchText.isEmpty {
-                Button(NSLocalizedString("generatedQuestions.clearSearch", comment: "")) {
-                    searchText = ""
-                }
-                .font(.subheadline)
-                .foregroundColor(.blue)
             }
 
             Spacer()
@@ -466,6 +427,7 @@ struct GeneratedQuestionsListView: View {
                 Text(NSLocalizedString("generatedQuestions.summary", comment: ""))
                     .font(.headline)
                     .fontWeight(.semibold)
+                    .foregroundColor(themeManager.primaryText)
 
                 // Type breakdown
                 let typeBreakdown = Dictionary(grouping: questions) { $0.type }
@@ -478,7 +440,7 @@ struct GeneratedQuestionsListView: View {
                             title: type.displayName,
                             count: typeBreakdown[type]?.count ?? 0,
                             icon: type.icon,
-                            color: .blue
+                            color: themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : .blue
                         )
                     }
                 }
@@ -495,19 +457,268 @@ struct GeneratedQuestionsListView: View {
 
                             Text(difficulty.capitalized)
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(themeManager.secondaryText)
                         }
                         .frame(maxWidth: .infinity)
                     }
                 }
                 .padding()
-                .background(
-                    colorScheme == .dark
-                        ? Color(.systemGray5)
-                        : Color.gray.opacity(0.1)
-                )
+                .background(themeManager.cardBackground)
                 .cornerRadius(12)
             }
+        }
+    }
+
+    // MARK: - Smart Organize
+
+    private var smartOrganizeSection: some View {
+        VStack(spacing: 12) {
+            if hasSmartOrganized {
+                // Done state
+                HStack {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.mint : .green)
+                    Text(NSLocalizedString("questionDetail.marked", comment: ""))
+                        .font(.headline)
+                        .foregroundColor(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.mint : .green)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background((themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.mint : Color.green).opacity(0.1))
+                .cornerRadius(12)
+            } else {
+                slideToSmartOrganizeTrack
+            }
+        }
+    }
+
+    private var slideToSmartOrganizeTrack: some View {
+        GeometryReader { geometry in
+            let trackWidth = geometry.size.width
+            let sliderWidth: CGFloat = 60
+            let maxOffset = trackWidth - sliderWidth - 8
+
+            ZStack(alignment: .leading) {
+                // Background track
+                RoundedRectangle(cornerRadius: 30)
+                    .fill(.ultraThinMaterial)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 30)
+                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                    )
+                    .frame(height: 60)
+
+                // Progress fill
+                RoundedRectangle(cornerRadius: 30)
+                    .fill(Color.blue.opacity(0.1))
+                    .frame(width: slideOffset + sliderWidth + 4, height: 60)
+                    .opacity(slideOffset > 0 ? 1.0 : 0.0)
+
+                // Instruction text (fades as slider moves)
+                HStack {
+                    Spacer()
+                    Text(NSLocalizedString("questionDetail.markProgress", comment: ""))
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary.opacity(0.6))
+                        .opacity(1.0 - (slideOffset / maxOffset))
+                    Spacer()
+                }
+                .frame(height: 60)
+
+                // Sliding thumb - frosted glass circle
+                ZStack {
+                    Circle()
+                        .fill(.regularMaterial)
+                        .frame(width: sliderWidth, height: sliderWidth)
+                        .overlay(
+                            Circle()
+                                .stroke(Color.white.opacity(0.3), lineWidth: 1.5)
+                        )
+                        .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
+
+                    HStack(spacing: 6) {
+                        Image(systemName: "chevron.right")
+                            .font(.title3)
+                            .foregroundColor(.primary)
+                        Image(systemName: "chevron.right")
+                            .font(.title3)
+                            .foregroundColor(.primary.opacity(0.6))
+                        Image(systemName: "chevron.right")
+                            .font(.title3)
+                            .foregroundColor(.primary.opacity(0.3))
+                    }
+                }
+                .offset(x: slideOffset + 4, y: 0)
+                .gesture(
+                    DragGesture()
+                        .onChanged { value in
+                            let newOffset = max(0, min(value.translation.width, maxOffset))
+                            withAnimation(.interactiveSpring()) {
+                                slideOffset = newOffset
+                                isSliding = true
+                            }
+                            if newOffset >= maxOffset * 1.0 && !hasTriggeredSlide {
+                                hasTriggeredSlide = true
+                                smartOrganizeMistakes()
+                                AudioServicesPlaySystemSound(1100)
+                                let generator = UINotificationFeedbackGenerator()
+                                generator.notificationOccurred(.success)
+                                withAnimation(.spring()) {
+                                    slideOffset = 0
+                                    isSliding = false
+                                }
+                            }
+                        }
+                        .onEnded { _ in
+                            withAnimation(.spring()) {
+                                slideOffset = 0
+                                isSliding = false
+                            }
+                            hasTriggeredSlide = false
+                        }
+                )
+            }
+        }
+        .frame(height: 60)
+    }
+
+    /// Archive only mistake questions; run concept extraction for correct ones.
+    private func smartOrganizeMistakes() {
+        guard !isOrganizing else { return }
+        isOrganizing = true
+
+        let uid = AuthenticationService.shared.currentUser?.id ?? "anonymous"
+        let sessionId = QuestionGenerationService.shared.currentSessionId ?? UUID().uuidString
+
+        var mistakeData: [[String: Any]] = []
+        var correctData: [[String: Any]] = []
+        var totalAnswered = 0
+        var totalCorrect = 0
+
+        for question in questions {
+            guard let result = answeredQuestions[question.id] else { continue }
+            totalAnswered += 1
+
+            // Load student answer from UserDefaults
+            let answerKey = "question_answer_\(question.id.uuidString)_\(uid)"
+            var studentAnswer = ""
+            if let data = UserDefaults.standard.data(forKey: answerKey),
+               let answerData = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                if let saved = answerData["selectedOption"] as? String, !saved.isEmpty {
+                    studentAnswer = saved
+                } else if let saved = answerData["userAnswer"] as? String {
+                    studentAnswer = saved
+                }
+            }
+
+            let questionData: [String: Any] = [
+                "id": UUID().uuidString,
+                "subject": subject,
+                "questionText": question.question,
+                "rawQuestionText": question.question,
+                "answerText": question.correctAnswer,
+                "confidence": 1.0,
+                "hasVisualElements": false,
+                "archivedAt": ISO8601DateFormatter().string(from: Date()),
+                "reviewCount": 0,
+                "tags": question.tags ?? [],
+                "notes": "",
+                "studentAnswer": studentAnswer,
+                "grade": result.isCorrect ? "CORRECT" : "INCORRECT",
+                "points": result.isCorrect ? (question.points ?? 1) : 0,
+                "maxPoints": question.points ?? 1,
+                "feedback": question.explanation,
+                "isGraded": true,
+                "isCorrect": result.isCorrect,
+                "errorType": question.errorType as Any,
+                "baseBranch": question.baseBranch as Any,
+                "detailedBranch": question.detailedBranch as Any,
+                "weaknessKey": question.weaknessKey as Any
+            ]
+
+            if result.isCorrect {
+                totalCorrect += 1
+                correctData.append(questionData)
+            } else {
+                mistakeData.append(questionData)
+            }
+        }
+
+        // Save only mistakes to local storage
+        if !mistakeData.isEmpty {
+            let idMappings = currentUserQuestionStorage().saveQuestions(mistakeData)
+            // Remap IDs for deduplication
+            for (index, mapping) in idMappings.enumerated() {
+                if mapping.savedId != mapping.originalId {
+                    mistakeData[index]["id"] = mapping.savedId
+                }
+            }
+
+            ErrorAnalysisQueueService.shared.queueErrorAnalysisAfterGrading(
+                sessionId: sessionId,
+                wrongQuestions: mistakeData
+            )
+
+            // Mark mistake questions with archived badges
+            for question in questions {
+                if let result = answeredQuestions[question.id], !result.isCorrect {
+                    archivedQuestions.insert(question.id)
+                    // Persist per-question archived state
+                    let key = "question_archived_\(question.id)_\(uid)"
+                    UserDefaults.standard.set(true, forKey: key)
+                }
+            }
+        }
+
+        // Concept extraction for correct answers (NOT saved to storage)
+        if !correctData.isEmpty {
+            ErrorAnalysisQueueService.shared.queueConceptExtractionForCorrectAnswers(
+                sessionId: sessionId,
+                correctQuestions: correctData
+            )
+        }
+
+        // Mark progress
+        pointsManager.markHomeworkProgress(
+            subject: subject,
+            numberOfQuestions: totalAnswered,
+            numberOfCorrectQuestions: totalCorrect
+        )
+
+        hasSmartOrganized = true
+        isOrganizing = false
+        saveSmartOrganizedState()
+
+        logger.info("📚 Smart Organize complete: \(mistakeData.count) mistakes archived, \(correctData.count) correct for concept extraction")
+    }
+
+    // MARK: - Smart Organize Persistence
+
+    private var smartOrganizedKey: String {
+        let sessionId = QuestionGenerationService.shared.currentSessionId ?? "unknown"
+        return "smart_organized_\(sessionId)"
+    }
+
+    private func loadSmartOrganizedState() {
+        hasSmartOrganized = UserDefaults.standard.bool(forKey: smartOrganizedKey)
+    }
+
+    private func saveSmartOrganizedState() {
+        UserDefaults.standard.set(hasSmartOrganized, forKey: smartOrganizedKey)
+    }
+
+    // MARK: - Bottom Bar (Smart Organize + Export PDF)
+
+    private var bottomBar: some View {
+        VStack(spacing: 12) {
+            // Smart Organize — visible only when all questions are answered
+            if answeredQuestions.count == questions.count && !questions.isEmpty {
+                smartOrganizeSection
+            }
+
+            // Export to PDF button
+            generatePDFButton
         }
     }
 

@@ -11,7 +11,7 @@ import BackgroundTasks
 
 @main
 struct StudyAIApp: App {
-    @AppStorage("appLanguage") private var appLanguage: String = StudyAIApp.detectedSystemLanguage()
+    @AppStorage("appLanguage") private var appLanguage: String = LanguageManager.detectedSystemLanguage()
     @StateObject private var deepLinkHandler = PomodoroDeepLinkHandler.shared
     @StateObject private var themeManager = ThemeManager.shared
 
@@ -23,7 +23,7 @@ struct StudyAIApp: App {
         // AppLogger.setupConsoleFiltering()  // Uncomment after Xcode reindex
 
         setupGoogleSignIn()
-        setupLanguage()
+        LanguageManager.shared.setup()
         registerBackgroundTasks()  // ✅ Register background tasks early
     }
 
@@ -43,36 +43,6 @@ struct StudyAIApp: App {
                     }
                 }
         }
-    }
-
-    private func setupLanguage() {
-        // Read persisted preference; if none exists yet, auto-detect from system language
-        let savedLanguage = UserDefaults.standard.string(forKey: "appLanguage")
-            ?? StudyAIApp.detectedSystemLanguage()
-
-        print("🌐 [Language] Loading language preference: \(savedLanguage)")
-
-        // Apply the selected language preference to system
-        UserDefaults.standard.set([savedLanguage], forKey: "AppleLanguages")
-        UserDefaults.standard.synchronize()
-
-        print("🌐 [Language] Language applied successfully")
-    }
-
-    /// Maps the device's preferred language to one of the three supported codes.
-    /// Called on first launch (before the user has saved a preference) and as the
-    /// @AppStorage default so SwiftUI state is consistent from the start.
-    static func detectedSystemLanguage() -> String {
-        let systemLang = Locale.preferredLanguages.first ?? "en"
-        if systemLang.hasPrefix("zh-Hant")
-            || systemLang.hasPrefix("zh-TW")
-            || systemLang.hasPrefix("zh-HK")
-            || systemLang.hasPrefix("zh-MO") {
-            return "zh-Hant"
-        } else if systemLang.hasPrefix("zh") {
-            return "zh-Hans"
-        }
-        return "en"
     }
 
     private func setupGoogleSignIn() {

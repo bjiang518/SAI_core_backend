@@ -97,10 +97,13 @@ async def generate_questions_unified(
 
     if not result.get("success"):
         from fastapi import HTTPException
-        raise HTTPException(
-            status_code=500,
-            detail=result.get("error", "Question generation failed")
+        err = result.get("error", "Question generation failed")
+        logger.error(
+            f"❌ /generate-questions 500: {err} | "
+            f"subject={request.subject} type={request.question_type} "
+            f"context={request.context_type} elapsed={elapsed_ms}ms"
         )
+        raise HTTPException(status_code=500, detail=err)
 
     return {
         "success": True,

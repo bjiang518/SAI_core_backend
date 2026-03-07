@@ -12,7 +12,8 @@ from config import taxonomy_geography, taxonomy_chinese, taxonomy_spanish
 
 def normalize_subject(subject: str) -> str:
     """
-    Normalize subject name to match taxonomy files
+    Normalize subject name to match taxonomy files.
+    iOS always sends English canonical names; this handles English variants only.
 
     Args:
         subject: Raw subject string (e.g., "Mathematics", "Math", "Others: French")
@@ -68,9 +69,10 @@ def normalize_subject(subject: str) -> str:
     if subject_lower in ["spanish", "español", "spanish language"]:
         return "spanish"
 
-    # Science (general) - use generic
+    # Science (general) — too broad, should have been classified as specific subject
+    # Map to math as the most common fallback
     if subject_lower in ["science", "general science"]:
-        return "others"
+        return "math"
 
     # Foreign languages (other than Spanish) - use generic
     if subject_lower in ["french", "german", "mandarin", "japanese",
@@ -83,7 +85,7 @@ def normalize_subject(subject: str) -> str:
 
     # Other subjects - use generic
     if subject_lower in ["economics", "psychology", "philosophy", "sociology",
-                         "physical education", "pe", "health", "pe", "gym"]:
+                         "physical education", "pe", "health", "gym"]:
         return "others"
 
     # Default: use generic for unknown subjects

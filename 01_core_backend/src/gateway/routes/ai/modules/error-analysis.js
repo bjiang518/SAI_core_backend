@@ -21,7 +21,7 @@ module.exports = async function (fastify, opts) {
    */
   fastify.post('/api/ai/analyze-errors-batch', async (request, reply) => {
     const userId = await getUserId(request);  // ✅ FIX: Validate authentication
-    const { questions, language } = request.body;
+    const { questions } = request.body;
 
     // Check authentication
     if (!userId) {
@@ -34,19 +34,21 @@ module.exports = async function (fastify, opts) {
 
     // ✅ NEW: Count questions with images for logging
     const questionsWithImages = questions.filter(q => q.question_image_base64 || q.questionImageBase64).length;
+    const sampleLang = questions[0]?.language || 'en';
 
-    fastify.log.info(`📊 Pass 2 analysis request: ${questions.length} questions from user ${userId.substring(0, 8)}...`);
+    fastify.log.info(`📊 Pass 2 analysis request: ${questions.length} questions from user ${userId.substring(0, 8)}... (lang: ${sampleLang})`);
     if (questionsWithImages > 0) {
       fastify.log.info(`   📸 Including images for ${questionsWithImages}/${questions.length} questions`);
     }
 
     try {
       // Forward to AI Engine for error analysis (including images if present)
+      // Language is already set per-question by iOS — pass through as-is
       const aiEngineUrl = process.env.AI_ENGINE_URL || 'http://localhost:8000';
       const response = await fetch(`${aiEngineUrl}/api/v1/error-analysis/analyze-batch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ questions: questions.map(q => ({ ...q, language: language || 'en' })) })
+        body: JSON.stringify({ questions })
       });
 
       if (!response.ok) {

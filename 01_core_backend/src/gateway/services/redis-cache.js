@@ -14,7 +14,8 @@ class RedisCacheManager {
     this.redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
     this.defaultTTL = parseInt(process.env.CACHE_DEFAULT_TTL) || 300; // 5 minutes
     this.keyPrefix = process.env.CACHE_KEY_PREFIX || 'studyai:';
-    
+    this._errorLogged = false;
+
     // Cache statistics
     this.stats = {
       hits: 0,
@@ -23,7 +24,7 @@ class RedisCacheManager {
       deletes: 0,
       errors: 0
     };
-    
+
     if (this.enabled) {
       this.connect();
     }
@@ -36,49 +37,50 @@ class RedisCacheManager {
     try {
       this.client = redis.createClient({
         url: this.redisUrl,
-        retry_strategy: (options) => {
-          if (options.error && options.error.code === 'ECONNREFUSED') {
-            console.warn('⚠️ Redis connection refused, caching will be disabled');
-            this.enabled = false;
-            return false; // Don't retry
+        socket: {
+          reconnectStrategy: (retries) => {
+            // Don't retry if connection was refused (Redis not running)
+            if (retries >= 1) {
+              this.enabled = false;
+              return false; // Stop retrying
+            }
+            return 500; // Retry once after 500ms
           }
-          if (options.total_retry_time > 1000 * 60 * 60) {
-            return new Error('Redis retry time exhausted');
-          }
-          if (options.attempt > 10) {
-            return undefined;
-          }
-          return Math.min(options.attempt * 100, 3000);
         }
       });
 
       this.client.on('connect', () => {
         console.log('✅ Redis connected successfully');
         this.connected = true;
+        this._errorLogged = false;
       });
 
       this.client.on('error', (err) => {
-        console.error('❌ Redis error:', err.message);
         this.stats.errors++;
-        if (err.code === 'ECONNREFUSED') {
-          console.warn('⚠️ Redis unavailable, falling back to memory cache');
+        // Only log once per connection failure to avoid spam
+        if (!this._errorLogged) {
+          this._errorLogged = true;
+          console.warn(`⚠️ Redis unavailable (${err.message}), using memory cache`);
           this.enabled = false;
+          this.initializeMemoryCache();
         }
       });
 
       this.client.on('end', () => {
-        console.log('⚠️ Redis connection ended');
         this.connected = false;
       });
 
       await this.client.connect();
-      
+
       // Test connection
       await this.client.ping();
       console.log('🔄 Redis cache manager initialized');
-      
+
     } catch (error) {
-      console.error('❌ Failed to connect to Redis:', error.message);
+      if (!this._errorLogged) {
+        this._errorLogged = true;
+        console.warn(`⚠️ Redis unavailable (${error.message}), using memory cache`);
+      }
       this.enabled = false;
       this.initializeMemoryCache();
     }
@@ -392,49 +394,49 @@ class RedisCacheManager {
   }
 }
 
-// Specialized cache managers for different data types
-class AIResponseCache extends RedisCacheManager {
-  constructor() {
-    super();
+// Specialized cache wrappers — share the single Redis connection
+class AIResponseCache {
+  constructor(parent) {
+    this.parent = parent;
     this.namespace = 'ai_responses';
     this.defaultTTL = 3600; // 1 hour for AI responses
   }
 
   async cacheAIResponse(question, subject, response) {
     const key = { question, subject };
-    return await this.set(this.namespace, key, response, this.defaultTTL);
+    return await this.parent.set(this.namespace, key, response, this.defaultTTL);
   }
 
   async getAIResponse(question, subject) {
     const key = { question, subject };
-    return await this.get(this.namespace, key);
+    return await this.parent.get(this.namespace, key);
   }
 }
 
-class SessionCache extends RedisCacheManager {
-  constructor() {
-    super();
+class SessionCache {
+  constructor(parent) {
+    this.parent = parent;
     this.namespace = 'sessions';
     this.defaultTTL = 1800; // 30 minutes for sessions
   }
 
   async cacheSession(sessionId, sessionData) {
-    return await this.set(this.namespace, sessionId, sessionData, this.defaultTTL);
+    return await this.parent.set(this.namespace, sessionId, sessionData, this.defaultTTL);
   }
 
   async getSession(sessionId) {
-    return await this.get(this.namespace, sessionId);
+    return await this.parent.get(this.namespace, sessionId);
   }
 
   async invalidateSession(sessionId) {
-    return await this.delete(this.namespace, sessionId);
+    return await this.parent.delete(this.namespace, sessionId);
   }
 }
 
-// Export instances
+// Single Redis connection, shared by specialized wrappers
 const redisCacheManager = new RedisCacheManager();
-const aiResponseCache = new AIResponseCache();
-const sessionCache = new SessionCache();
+const aiResponseCache = new AIResponseCache(redisCacheManager);
+const sessionCache = new SessionCache(redisCacheManager);
 
 // Graceful shutdown
 process.on('SIGINT', async () => {

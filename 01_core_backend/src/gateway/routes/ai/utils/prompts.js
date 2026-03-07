@@ -108,4 +108,5 @@ module.exports = {
   TUTORING_SYSTEM_PROMPT_HEURISTIC,
   TUTORING_SYSTEM_PROMPT_STRAIGHTFORWARD,
   buildSystemPrompt,
+  formatGradeLevel,
 };

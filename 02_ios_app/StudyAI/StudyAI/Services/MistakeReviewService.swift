@@ -344,7 +344,6 @@ class MistakeReviewService: ObservableObject {
         case "History": return "clock.fill"  // SF Symbol for history/time
         case "Geography": return "globe"  // SF Symbol for globe
         case "Computer Science": return "desktopcomputer"  // SF Symbol for computer
-        case "Science": return "lightbulb.fill"  // SF Symbol for science/ideas
         default: return "book.closed.fill"  // SF Symbol for general subject
         }
     }
