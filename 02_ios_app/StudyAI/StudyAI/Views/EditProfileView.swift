@@ -184,7 +184,7 @@ struct EditProfileView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "camera.fill")
                             .font(.system(size: 16))
-                        Text("Take Selfie")
+                        Text(NSLocalizedString("editProfile.takeSelfie", comment: ""))
                             .font(.subheadline)
                             .fontWeight(.medium)
                     }
@@ -209,7 +209,7 @@ struct EditProfileView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "photo.on.rectangle")
                             .font(.system(size: 16))
-                        Text("Upload from Album")
+                        Text(NSLocalizedString("editProfile.uploadFromAlbum", comment: ""))
                             .font(.subheadline)
                             .fontWeight(.medium)
                     }
@@ -227,7 +227,7 @@ struct EditProfileView: View {
                 // Divider
                 HStack {
                     VStack { Divider() }
-                    Text("OR")
+                    Text(NSLocalizedString("editProfile.or", comment: ""))
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .padding(.horizontal, 8)
@@ -236,7 +236,7 @@ struct EditProfileView: View {
                 .padding(.vertical, 4)  // Reduced from 8 to 4
 
                 // Preset Avatar Grid (always visible)
-                Text(customAvatarImage != nil ? "Or choose a preset avatar" : "Choose a preset avatar")
+                Text(customAvatarImage != nil ? NSLocalizedString("editProfile.orChoosePresetAvatar", comment: "") : NSLocalizedString("editProfile.choosePresetAvatar", comment: ""))
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .padding(.bottom, 2)  // Reduced from 4 to 2
@@ -438,7 +438,7 @@ struct EditProfileView: View {
                     Image(systemName: "person.crop.rectangle.badge.checkmark")
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(DesignTokens.Colors.Cute.blue)
-                    Text("Student Information")
+                    Text(NSLocalizedString("editProfile.studentInformation", comment: ""))
                         .font(.headline).fontWeight(.bold)
                         .foregroundColor(DesignTokens.Colors.Cute.textPrimary)
                     Spacer()
@@ -451,9 +451,9 @@ struct EditProfileView: View {
                     studentCard(
                         icon: "calendar.badge.clock",
                         iconColor: DesignTokens.Colors.Cute.peach,
-                        label: "Age"
+                        label: NSLocalizedString("editProfile.age", comment: "")
                     ) {
-                        TextField("e.g. 14", text: $childAge)
+                        TextField(NSLocalizedString("editProfile.agePlaceholder", comment: ""), text: $childAge)
                             .keyboardType(.numberPad)
                             .font(.subheadline)
                             .onChange(of: childAge) { _ in childAgeEdited = true }
@@ -466,7 +466,7 @@ struct EditProfileView: View {
                         label: NSLocalizedString("editProfile.gradeLevel", comment: "")
                     ) {
                         Picker("", selection: $selectedGradeLevel) {
-                            Text("—").tag(Optional<GradeLevel>(nil))
+                            Text(NSLocalizedString("editProfile.noneOption", comment: "")).tag(Optional<GradeLevel>(nil))
                             ForEach(GradeLevel.allCases, id: \.rawValue) { grade in
                                 Text(grade.displayName).tag(Optional(grade))
                             }
@@ -485,7 +485,7 @@ struct EditProfileView: View {
                         label: NSLocalizedString("editProfile.gender", comment: "")
                     ) {
                         Picker("", selection: $gender) {
-                            Text("—").tag("")
+                            Text(NSLocalizedString("editProfile.noneOption", comment: "")).tag("")
                             Text(NSLocalizedString("editProfile.genderFemale", comment: "")).tag("Female")
                             Text(NSLocalizedString("editProfile.genderMale", comment: "")).tag("Male")
                             Text(NSLocalizedString("editProfile.genderNonBinary", comment: "")).tag("Non-binary")
@@ -499,7 +499,7 @@ struct EditProfileView: View {
                     studentCard(
                         icon: "globe",
                         iconColor: DesignTokens.Colors.Cute.mint,
-                        label: "Language"
+                        label: NSLocalizedString("editProfile.language", comment: "")
                     ) {
                         Picker("", selection: $languagePreference) {
                             Text(NSLocalizedString("editProfile.languageEnglish", comment: "")).tag("en")
@@ -528,7 +528,7 @@ struct EditProfileView: View {
                             .foregroundColor(DesignTokens.Colors.Cute.textPrimary)
                         Spacer()
                         if !favoriteSubjects.isEmpty {
-                            Text("\(favoriteSubjects.count) selected")
+                            Text(String.localizedStringWithFormat(NSLocalizedString("editProfile.selectedCount", comment: ""), favoriteSubjects.count))
                                 .font(.caption2)
                                 .foregroundColor(DesignTokens.Colors.Cute.textSecondary)
                         }
@@ -557,7 +557,7 @@ struct EditProfileView: View {
                             .frame(width: 26, height: 26)
                             .background(DesignTokens.Colors.Cute.pink.opacity(0.2))
                             .clipShape(Circle())
-                        Text("Learning Style")
+                        Text(NSLocalizedString("editProfile.learningStyle", comment: ""))
                             .font(.subheadline).fontWeight(.semibold)
                             .foregroundColor(DesignTokens.Colors.Cute.textPrimary)
                     }
@@ -568,9 +568,9 @@ struct EditProfileView: View {
                             VStack(spacing: 4) {
                                 Image(systemName: "lightbulb.fill")
                                     .font(.system(size: 16))
-                                Text("Heuristic")
+                                Text(NSLocalizedString("editProfile.learningStyleHeuristic", comment: ""))
                                     .font(.subheadline).fontWeight(.semibold)
-                                Text("Guided discovery")
+                                Text(NSLocalizedString("editProfile.learningStyleHeuristicDesc", comment: ""))
                                     .font(.caption2)
                                     .opacity(0.8)
                             }
@@ -597,9 +597,9 @@ struct EditProfileView: View {
                             VStack(spacing: 4) {
                                 Image(systemName: "arrow.right.circle.fill")
                                     .font(.system(size: 16))
-                                Text("Straightforward")
+                                Text(NSLocalizedString("editProfile.learningStyleStraightforward", comment: ""))
                                     .font(.subheadline).fontWeight(.semibold)
-                                Text("Direct answers")
+                                Text(NSLocalizedString("editProfile.learningStyleStraightforwardDesc", comment: ""))
                                     .font(.caption2)
                                     .opacity(0.8)
                             }
@@ -1237,7 +1237,7 @@ struct ImageCropperView: View {
 
                     // Control buttons
                     VStack(spacing: 16) {
-                        Text("Pinch to zoom, drag to adjust")
+                        Text(NSLocalizedString("editProfile.avatarEditorHint", comment: ""))
                             .font(.caption)
                             .foregroundColor(.white.opacity(0.8))
 
@@ -1251,7 +1251,7 @@ struct ImageCropperView: View {
                                 VStack(spacing: 4) {
                                     Image(systemName: "minus.magnifyingglass")
                                         .font(.title2)
-                                    Text("Zoom Out")
+                                    Text(NSLocalizedString("editProfile.zoomOut", comment: ""))
                                         .font(.caption2)
                                 }
                                 .foregroundColor(.white)
@@ -1266,7 +1266,7 @@ struct ImageCropperView: View {
                                 VStack(spacing: 4) {
                                     Image(systemName: "plus.magnifyingglass")
                                         .font(.title2)
-                                    Text("Zoom In")
+                                    Text(NSLocalizedString("editProfile.zoomIn", comment: ""))
                                         .font(.caption2)
                                 }
                                 .foregroundColor(.white)
@@ -1284,7 +1284,7 @@ struct ImageCropperView: View {
                                 VStack(spacing: 4) {
                                     Image(systemName: "rotate.left")
                                         .font(.title2)
-                                    Text("Rotate Left")
+                                    Text(NSLocalizedString("editProfile.rotateLeft", comment: ""))
                                         .font(.caption2)
                                 }
                                 .foregroundColor(.white)
@@ -1299,7 +1299,7 @@ struct ImageCropperView: View {
                                 VStack(spacing: 4) {
                                     Image(systemName: "rotate.right")
                                         .font(.title2)
-                                    Text("Rotate Right")
+                                    Text(NSLocalizedString("editProfile.rotateRight", comment: ""))
                                         .font(.caption2)
                                 }
                                 .foregroundColor(.white)
@@ -1317,7 +1317,7 @@ struct ImageCropperView: View {
                                 VStack(spacing: 4) {
                                     Image(systemName: "arrow.counterclockwise")
                                         .font(.title2)
-                                    Text("Reset")
+                                    Text(NSLocalizedString("common.reset", comment: ""))
                                         .font(.caption2)
                                 }
                                 .foregroundColor(.white)
@@ -1328,17 +1328,17 @@ struct ImageCropperView: View {
                     .padding(.bottom, 30)
                 }
             }
-            .navigationTitle("Adjust Avatar")
+            .navigationTitle(NSLocalizedString("editProfile.adjustAvatar", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
+                    Button(NSLocalizedString("common.cancel", comment: "")) {
                         dismiss()
                     }
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") {
+                    Button(NSLocalizedString("common.done", comment: "")) {
                         cropImage()
                     }
                     .fontWeight(.semibold)

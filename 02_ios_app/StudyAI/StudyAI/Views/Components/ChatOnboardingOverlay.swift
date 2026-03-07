@@ -483,7 +483,7 @@ struct ChatOnboardingOverlayView: View {
                 VStack(spacing: 1) {
                     Image(systemName: "brain")
                         .font(.system(size: 16, weight: .semibold))
-                    Text("Deep")
+                    Text(NSLocalizedString("onboarding.chat.deepBadge", value: "Deep", comment: ""))
                         .font(.system(size: 8, weight: .bold))
                 }
                 .foregroundColor(.white)
@@ -509,7 +509,9 @@ struct ChatOnboardingOverlayView: View {
 
     // MARK: - Mic step animation
 
-    private let micDemoText = "explain it in more detail"
+    private var micDemoText: String {
+        NSLocalizedString("onboarding.chat.micDemoText", value: "explain it in more detail", comment: "")
+    }
 
     /// Drives the two-part mic animation loop:
     ///   Part 1 (0–2.5 s): typewriter transcript
@@ -599,7 +601,7 @@ struct ChatOnboardingOverlayView: View {
                             Circle().fill(Color.purple).frame(width: 28, height: 28)
                             Image(systemName: "brain").font(.system(size: 12, weight: .semibold)).foregroundColor(.white)
                         }
-                        Text("Deep Thinking Mode")
+                        Text(NSLocalizedString("onboarding.chat.deepThinkingMode", value: "Deep Thinking Mode", comment: ""))
                             .font(.system(size: 11, weight: .bold))
                             .foregroundColor(.purple)
                     }
@@ -610,7 +612,7 @@ struct ChatOnboardingOverlayView: View {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 22))
                             .foregroundColor(.red)
-                        Text("Release to Cancel")
+                        Text(NSLocalizedString("onboarding.chat.releaseToCancel", value: "Release to Cancel", comment: ""))
                             .font(.system(size: 11, weight: .bold))
                             .foregroundColor(.red)
                     }
@@ -624,7 +626,9 @@ struct ChatOnboardingOverlayView: View {
             ZStack(alignment: .bottom) {
                 HStack {
                     Spacer()
-                    Text(micTranscriptCount > 0 ? "Release to Send" : "Hold to Talk")
+                    Text(micTranscriptCount > 0
+                         ? NSLocalizedString("onboarding.chat.releaseToSend", value: "Release to Send", comment: "")
+                         : NSLocalizedString("onboarding.chat.holdToTalk", value: "Hold to Talk", comment: ""))
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(.white)
                     Spacer()

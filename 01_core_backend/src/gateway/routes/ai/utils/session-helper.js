@@ -138,7 +138,11 @@ class SessionHelper {
       this.fastify.log.info(`   • Total tokens: ${totalTokens}`);
       this.fastify.log.info(`   • Preview: ${conversationText.substring(0, 200)}...`);
 
-      const language = sessionInfo.language || 'en';
+      // Language is stored inside metadata JSON, not as a top-level column
+      const metadata = typeof sessionInfo.metadata === 'string'
+        ? JSON.parse(sessionInfo.metadata)
+        : (sessionInfo.metadata || {});
+      const language = metadata.language || sessionInfo.language || 'en';
       const languageInstruction = language !== 'en'
         ? `\n\nIMPORTANT: Respond entirely in ${language === 'zh-Hans' ? 'Simplified Chinese (简体中文)' : language === 'zh-Hant' ? 'Traditional Chinese (繁體中文)' : language}. All text values in the JSON must be in that language.`
         : '';

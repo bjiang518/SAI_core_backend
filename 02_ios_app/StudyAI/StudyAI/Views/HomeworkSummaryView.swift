@@ -14,6 +14,7 @@ struct HomeworkSummaryView: View {
 
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var appState: AppState
+    @StateObject private var themeManager = ThemeManager.shared
     @State private var showDigitalHomework = false
 
     // ✅ NEW: Reference to global state manager
@@ -119,39 +120,23 @@ struct HomeworkSummaryView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "book.fill")
                         .font(.title2)
-                        .foregroundColor(.blue)
+                        .foregroundColor(DesignTokens.Colors.Cute.blue)
 
-                    Text(parseResults.subject)
+                    Text(localizedSubjectName(parseResults.subject))
                         .font(.title2)
                         .fontWeight(.bold)
-                        .foregroundColor(.primary)
+                        .foregroundColor(themeManager.primaryText)
                 }
 
                 Text(String(format: NSLocalizedString("homeworkSummary.questionCount", comment: "X questions"), parseResults.totalQuestions))
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(themeManager.secondaryText)
             }
 
             Spacer()
-
-            // Hierarchical structure badge (if applicable)
-            if hasHierarchicalStructure {
-                HStack(spacing: 6) {
-                    Image(systemName: "list.bullet.indent")
-                        .font(.caption)
-                    Text(NSLocalizedString("homeworkSummary.hierarchicalQuestions", comment: "Hierarchical"))
-                        .font(.caption)
-                        .fontWeight(.medium)
-                }
-                .foregroundColor(.purple)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Color.purple.opacity(0.15))
-                .cornerRadius(20)
-            }
         }
         .padding()
-        .background(Color(.secondarySystemGroupedBackground))
+        .background(themeManager.cardBackground)
         .cornerRadius(16)
     }
 
@@ -162,7 +147,7 @@ struct HomeworkSummaryView: View {
             Text(NSLocalizedString("homeworkSummary.questionsPreview", comment: "Questions Preview"))
                 .font(.title3)
                 .fontWeight(.semibold)
-                .foregroundColor(.primary)
+                .foregroundColor(themeManager.primaryText)
 
             VStack(spacing: 12) {
                 ForEach(parseResults.questions.prefix(3)) { question in
@@ -178,10 +163,10 @@ struct HomeworkSummaryView: View {
                             Spacer()
                             Text(String(format: NSLocalizedString("homeworkSummary.moreQuestions", comment: "X more questions"), parseResults.questions.count - 3))
                                 .font(.subheadline)
-                                .foregroundColor(.blue)
+                                .foregroundColor(DesignTokens.Colors.Cute.blue)
                             Image(systemName: "chevron.right")
                                 .font(.caption)
-                                .foregroundColor(.blue)
+                                .foregroundColor(DesignTokens.Colors.Cute.blue)
                             Spacer()
                         }
                         .padding(.vertical, 12)
@@ -211,7 +196,7 @@ struct HomeworkSummaryView: View {
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
-            .background(Color.blue)
+            .background(DesignTokens.Colors.Cute.blue)
             .cornerRadius(14)
         }
         .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
@@ -219,8 +204,9 @@ struct HomeworkSummaryView: View {
 
     // MARK: - Computed Properties
 
-    private var hasHierarchicalStructure: Bool {
-        return parseResults.questions.contains { $0.isParentQuestion }
+    private func localizedSubjectName(_ subject: String) -> String {
+        let key = "subject.\(subject.lowercased().replacingOccurrences(of: " ", with: "_"))"
+        return NSLocalizedString(key, value: subject, comment: "")
     }
 }
 
@@ -264,6 +250,8 @@ struct HomeworkSummaryCard: View {
 struct QuestionPreviewRow: View {
     let question: ProgressiveQuestion
 
+    @StateObject private var themeManager = ThemeManager.shared
+
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             // Question Number Badge
@@ -272,7 +260,7 @@ struct QuestionPreviewRow: View {
                 .fontWeight(.semibold)
                 .foregroundColor(.white)
                 .frame(width: 36, height: 36)
-                .background(Circle().fill(Color.blue))
+                .background(Circle().fill(DesignTokens.Colors.Cute.blue))
 
             // Question Content
             VStack(alignment: .leading, spacing: 6) {
@@ -280,7 +268,7 @@ struct QuestionPreviewRow: View {
                     // Parent question
                     Text(stripLatexDelimiters(question.parentContent ?? ""))
                         .font(.body)
-                        .foregroundColor(.primary)
+                        .foregroundColor(themeManager.primaryText)
                         .lineLimit(2)
 
                     if let subquestions = question.subquestions {
@@ -290,17 +278,17 @@ struct QuestionPreviewRow: View {
                             Text(String(format: NSLocalizedString("homeworkSummary.subquestionCount", comment: "X subquestions"), subquestions.count))
                                 .font(.caption)
                         }
-                        .foregroundColor(.purple)
+                        .foregroundColor(DesignTokens.Colors.Cute.lavender)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Color.purple.opacity(0.1))
+                        .background(DesignTokens.Colors.Cute.lavender.opacity(0.15))
                         .cornerRadius(8)
                     }
                 } else {
                     // Regular question
                     Text(stripLatexDelimiters(question.questionText ?? ""))
                         .font(.body)
-                        .foregroundColor(.primary)
+                        .foregroundColor(themeManager.primaryText)
                         .lineLimit(2)
 
                     if let answer = question.studentAnswer, !answer.isEmpty {
@@ -317,12 +305,12 @@ struct QuestionPreviewRow: View {
             // Type Indicator
             Image(systemName: "chevron.right")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(themeManager.secondaryText)
         }
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 14)
-                .fill(Color(.tertiarySystemGroupedBackground))
+                .fill(themeManager.cardBackground)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 14)

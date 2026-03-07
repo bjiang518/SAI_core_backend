@@ -11,6 +11,7 @@ class QuestionCacheService {
   constructor() {
     this.client = null;
     this.isConnected = false;
+    this._errorLogged = false;
     this.defaultTTL = 7 * 24 * 60 * 60; // 7 days in seconds
     this.stats = {
       hits: 0,
@@ -36,27 +37,27 @@ class QuestionCacheService {
         url: redisUrl,
         socket: {
           reconnectStrategy: (retries) => {
-            if (retries > 10) {
-              return new Error('Redis reconnect attempts exceeded');
+            if (retries >= 1) {
+              return false; // Stop retrying after first failure
             }
-            return retries * 100; // Exponential backoff
+            return 500;
           }
         }
       });
 
       this.client.on('error', (err) => {
-        console.error('❌ Redis error:', err.message);
         this.stats.errors++;
         this.isConnected = false;
+        if (!this._errorLogged) {
+          this._errorLogged = true;
+          console.warn(`⚠️ Question cache Redis unavailable (${err.message}), caching disabled`);
+        }
       });
 
       this.client.on('connect', () => {
         console.log('🔌 Redis connected for question caching');
         this.isConnected = true;
-      });
-
-      this.client.on('reconnecting', () => {
-        console.log('🔄 Redis reconnecting...');
+        this._errorLogged = false;
       });
 
       await this.client.connect();
@@ -65,8 +66,10 @@ class QuestionCacheService {
       return this;
 
     } catch (error) {
-      console.error('❌ Failed to initialize Question Cache:', error.message);
-      console.log('ℹ️ Question caching disabled - will make direct API calls');
+      if (!this._errorLogged) {
+        this._errorLogged = true;
+        console.warn(`⚠️ Question cache Redis unavailable (${error.message}), caching disabled`);
+      }
       return this;
     }
   }

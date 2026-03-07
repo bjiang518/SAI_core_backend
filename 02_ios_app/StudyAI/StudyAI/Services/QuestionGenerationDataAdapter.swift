@@ -29,7 +29,7 @@ class QuestionGenerationDataAdapter {
         // Add learning preferences if we can determine them
         preferences["preferred_question_types"] = ["multiple_choice", "short_answer"]
         preferences["difficulty_preference"] = "adaptive"
-        preferences["subject_interests"] = profileService.currentProfile?.favoriteSubjects ?? ["Mathematics", "Science"]
+        preferences["subject_interests"] = profileService.currentProfile?.favoriteSubjects ?? ["Mathematics"]
 
         return QuestionGenerationService.UserProfile(
             grade: grade,
@@ -52,27 +52,16 @@ class QuestionGenerationDataAdapter {
 
     /// Get default focus areas
     func getFocusAreas() -> [String] {
-        return ["Mathematics", "Science", "General"]
+        return ["Mathematics", "General"]
     }
 
-    /// Get common subjects for selection
+    /// Get common subjects for selection.
+    /// Returns English canonical names (used as API keys); UI localizes via BranchLocalizer.
     func getMostCommonSubjects() -> [String] {
         return [
-            NSLocalizedString("subject.mathematics", comment: ""),
-            NSLocalizedString("subject.science", comment: ""),
-            NSLocalizedString("subject.physics", comment: ""),
-            NSLocalizedString("subject.chemistry", comment: ""),
-            NSLocalizedString("subject.biology", comment: ""),
-            NSLocalizedString("subject.english", comment: ""),
-            NSLocalizedString("subject.history", comment: ""),
-            NSLocalizedString("subject.geography", comment: ""),
-            NSLocalizedString("subject.computerScience", comment: ""),
-            NSLocalizedString("subject.literature", comment: ""),
-            NSLocalizedString("subject.socialStudies", comment: ""),
-            NSLocalizedString("subject.economics", comment: ""),
-            NSLocalizedString("subject.art", comment: ""),
-            NSLocalizedString("subject.music", comment: ""),
-            NSLocalizedString("subject.other", comment: "")
+            "Mathematics", "Science", "Physics", "Chemistry", "Biology",
+            "English", "History", "Geography", "Computer Science",
+            "Literature", "Social Studies", "Economics", "Art", "Music", "Other"
         ]
     }
 

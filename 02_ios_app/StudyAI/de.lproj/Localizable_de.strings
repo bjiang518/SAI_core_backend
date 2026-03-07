@@ -560,6 +560,8 @@
 "questionGeneration.conversations" = "Conversations";
 "questionGeneration.questions" = "Questions";
 "questionGeneration.selectArchives" = "Select Archives";
+"questionGeneration.sourceLimitTitle" = "Auswahllimit";
+"questionGeneration.sourceLimitMessage" = "Sie können maximal %d Quellen auswählen.";
 "questionGeneration.conversation" = "Conversation";
 "questionGeneration.failedToLoadData" = "Failed to load data: %@";
 "questionGeneration.defaultSubject.mathematics" = "Mathematics";
@@ -601,6 +603,10 @@
 "questionDetail.hideExplanation" = "Hide Explanation";
 "questionDetail.yourAnswer" = "Your Answer:";
 "questionDetail.correctAnswer" = "Correct Answer:";
+"questionDetail.feedbackExactMatch" = "Perfekt! Deine Antwort ist genau richtig.";
+"practice.feedbackCorrect" = "Richtig! Gut gemacht.";
+"practice.feedbackIncorrect" = "Falsch. Die richtige Antwort ist: %@";
+"practice.feedbackTryAgain" = "Knapp daneben. Überprüfe die richtige Antwort und versuche ähnliche Aufgaben.";
 "questionDetail.archiveQuestion" = "Archive Question";
 "questionDetail.archiving" = "Archiving...";
 "questionDetail.archived" = "Archived";
@@ -2045,3 +2051,26 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "voiceSettings.avatar.eva.desc" = "A kind, supportive girl";
 "voiceSettings.avatar.max.desc" = "An energetic, enthusiastic boy";
 "voiceSettings.avatar.mia.desc" = "A playful, curious girl";
+
+// Onboarding — Parent Setup
+"onboarding.continue" = "Weiter";
+"onboarding.parentSetup.title" = "Elterneinrichtung";
+"onboarding.parentSetup.subtitle" = "Elternkontrolle einrichten";
+"onboarding.parentSetup.ageLabel" = "Ihr Alter";
+"onboarding.parentSetup.agePlaceholder" = "z.B. 35";
+"onboarding.parentSetup.nameLabel" = "Name";
+"onboarding.parentSetup.namePlaceholder" = "Ihr Name";
+"onboarding.parentSetup.pinLabel" = "Eltern-PIN (6 Ziffern)";
+"onboarding.parentSetup.pinPlaceholder" = "6-stellige PIN eingeben";
+"onboarding.parentSetup.confirmPinPlaceholder" = "PIN bestätigen";
+"onboarding.parentSetup.pinMismatch" = "PINs stimmen nicht überein";
+"onboarding.parentSetup.pinHint" = "6-stellige PIN zum Sperren der Elternkontrolle, damit Ihr Kind sie nicht ändern kann.";
+"onboarding.parentSetup.controlsLabel" = "Elternkontrolle";
+"onboarding.parentSetup.protectChat" = "KI-Chat schützen";
+"onboarding.parentSetup.protectGrader" = "Hausaufgaben-Bewerter schützen";
+"onboarding.parentSetup.protectReports" = "Elternberichte schützen";
+"onboarding.parentSetup.pinLockHint" = "Geben Sie oben eine gültige 6-stellige PIN ein und bestätigen Sie diese, um Kontrollen zu aktivieren";
+
+// Onboarding — Language Selection (first page)
+"onboarding.language.title" = "Sprache wählen";
+"onboarding.language.subtitle" = "Sie können dies jederzeit in den Einstellungen ändern";

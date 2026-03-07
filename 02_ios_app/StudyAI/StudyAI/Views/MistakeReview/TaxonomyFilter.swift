@@ -143,7 +143,7 @@ struct ChipBasedTaxonomyView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     let displayBaseBranch = baseGroup.baseBranch == MistakeReviewService.uncategorizedKey
                         ? NSLocalizedString("mistakeReview.filter.uncategorized", comment: "")
-                        : baseGroup.baseBranch
+                        : BranchLocalizer.localized(baseGroup.baseBranch)
 
                     // Base branch header (tap to expand/collapse)
                     Button(action: {
@@ -193,7 +193,7 @@ struct ChipBasedTaxonomyView: View {
                             ForEach(baseGroup.detailedBranches) { detail in
                                 let displayDetailedBranch = detail.detailedBranch == MistakeReviewService.uncategorizedKey
                                     ? NSLocalizedString("mistakeReview.filter.uncategorized", comment: "")
-                                    : detail.detailedBranch
+                                    : BranchLocalizer.localized(detail.detailedBranch)
                                 ChipButton(
                                     title: displayDetailedBranch,
                                     count: detail.mistakeCount,
@@ -239,7 +239,7 @@ struct TreeBasedTaxonomyView: View {
             ForEach(taxonomyData) { baseGroup in
                 let displayBaseBranch = baseGroup.baseBranch == MistakeReviewService.uncategorizedKey
                     ? NSLocalizedString("mistakeReview.filter.uncategorized", comment: "")
-                    : baseGroup.baseBranch
+                    : BranchLocalizer.localized(baseGroup.baseBranch)
 
                 TreeNode(
                     icon: baseGroup.baseBranch == MistakeReviewService.uncategorizedKey ? "questionmark.folder.fill" : "folder.fill",
@@ -263,7 +263,7 @@ struct TreeBasedTaxonomyView: View {
                     ForEach(baseGroup.detailedBranches) { detail in
                         let displayDetailedBranch = detail.detailedBranch == MistakeReviewService.uncategorizedKey
                             ? NSLocalizedString("mistakeReview.filter.uncategorized", comment: "")
-                            : detail.detailedBranch
+                            : BranchLocalizer.localized(detail.detailedBranch)
                         TreeNode(
                             icon: "doc.fill",
                             title: displayDetailedBranch,

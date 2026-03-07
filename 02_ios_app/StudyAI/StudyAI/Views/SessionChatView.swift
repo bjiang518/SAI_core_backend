@@ -297,17 +297,6 @@ struct SessionChatView: View {
 
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
-                    // View Tutorial
-                    Button(action: {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            chatOnboardingStep = .subjectPicker
-                        }
-                    }) {
-                        Label(NSLocalizedString("chat.menu.viewTutorial", value: "View Tutorial", comment: ""), systemImage: "sparkles")
-                    }
-
-                    Divider()
-
                     // Live Talk / End Live toggle
                     if isLiveMode {
                         Button(role: .destructive, action: exitLiveMode) {
@@ -384,6 +373,17 @@ struct SessionChatView: View {
                         .onChange(of: interactiveModeSettings.isEnabled) { _, _ in
                             interactiveModeSettings.save()
                         }
+
+                    Divider()
+
+                    // View Tutorial
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            chatOnboardingStep = .subjectPicker
+                        }
+                    }) {
+                        Label(NSLocalizedString("chat.menu.viewTutorial", value: "View Tutorial", comment: ""), systemImage: "sparkles")
+                    }
 
                 } label: {
                     Image(systemName: "ellipsis.circle")

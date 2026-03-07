@@ -360,6 +360,75 @@ python src/main.py
 
 ---
 
+## Testing
+
+### Quick Start
+
+```bash
+# Run all offline tests instantly (no server needed)
+./test-all.sh --logic-only
+
+# Run everything — auto-starts backend + AI engine, runs all tests, cleans up
+./test-all.sh
+
+# If you already have services running in other terminals
+./test-all.sh --no-start
+```
+
+### Test Credentials
+
+Test credentials are stored in `.env.test` (gitignored, never committed):
+
+```bash
+# .env.test
+TEST_EMAIL=service@study-mates.net
+TEST_PASSWORD=jiangbotc_518
+```
+
+All test scripts auto-load `.env.test` — no need to pass credentials manually.
+
+### Test Suites
+
+| Suite | File | Tests | Server? | Run individually |
+|---|---|---|---|---|
+| Backend logic | `01_core_backend/tests/logic.test.js` | 29 | No | `cd 01_core_backend && npm run test:logic` |
+| Backend contracts | `01_core_backend/tests/api-contracts.test.js` | 7 | Backend | `cd 01_core_backend && npm run test:contracts` |
+| AI Engine taxonomy | `04_ai_engine_service/tests/test_taxonomies.py` | 16 | No | `cd 04_ai_engine_service && PYTHONPATH=src python3 tests/test_taxonomies.py` |
+| AI Engine contracts | `04_ai_engine_service/tests/test_api_contracts.py` | 12 | AI Engine | `cd 04_ai_engine_service && python3 tests/test_api_contracts.py` |
+
+### What Each Suite Tests
+
+**Backend logic** — Pure function unit tests, runs instantly:
+- `computeTypeSplit()` — question type distribution (MC/TF/short answer ratios per subject)
+- `buildSystemPrompt()` — personalized AI prompt construction
+- `formatGradeLevel()` — grade integer → human-readable string
+- `buildContextData()` / `modeToContextType()` — question generation mode routing
+
+**Backend contracts** — Hits live endpoints, verifies iOS-expected response shapes:
+- `GET /health` → `{ status: "ok" }`
+- `POST /api/auth/login` → `{ token }` or `{ success: false, message }`
+- `POST /api/ai/sessions/create` → `{ success, session_id }`
+- `POST /api/ai/sessions/:id/message/stream` → valid SSE with start/content/end events
+- `POST /api/ai/generate-questions/practice/v2` → `{ success, questions: [...], metadata }`
+- Error shape: 401 has `error` field, 400 has `{ success: false, error }`
+
+**AI Engine contracts** — Hits live endpoints, verifies backend-expected response shapes:
+- Health, session create/message, process-question, evaluate-answer
+- Question generation, error analysis (single + batch), grading, concept extraction
+
+### Deploy with Tests
+
+```bash
+./deploy.sh backend    # logic tests → contract tests → deploy → smoke-test production
+./deploy.sh ai         # taxonomy tests → deploy → smoke-test production
+./deploy.sh            # test + deploy both
+./deploy.sh test       # run pre-deploy checks only, no deploy
+```
+
+Post-deploy smoke test automatically verifies production health endpoints respond correctly.
+
+---
+
 ## Environment Variables
 
 ### Backend (`01_core_backend/.env`)

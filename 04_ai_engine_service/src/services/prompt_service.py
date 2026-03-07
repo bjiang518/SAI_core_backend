@@ -1403,6 +1403,7 @@ Generate now:"""
         lang_instruction = RANDOM_QUESTIONS_LANG_INSTRUCTION.get(lang_key, RANDOM_QUESTIONS_LANG_INSTRUCTION["en"])
 
         grade = context_data.get("grade", "High School")
+        difficulty = context_data.get("difficulty", "intermediate")
 
         # --- Context block ---
         if context_type == "random":
@@ -1510,11 +1511,38 @@ RULE: correct_answer MUST be exactly "True" or "False".""",
 
         fmt = format_blocks.get(question_type, format_blocks["short_answer"])
 
-        prompt = f"""Generate {count} {subject} questions for a {grade} student.
+        difficulty_guidance = {
+            "beginner": (
+                "DIFFICULTY — EASY:\n"
+                "- Questions must closely mirror the context examples above.\n"
+                "- Same concept and complexity; only surface details differ (different numbers, names, or setting).\n"
+                "- Student should be able to solve using the exact same approach as the context."
+            ),
+            "intermediate": (
+                "DIFFICULTY — MEDIUM:\n"
+                "- Keep the same question type and core concept as the context, but require a different method or approach.\n"
+                "- Student must apply the concept from a different angle, not just repeat a memorised pattern.\n"
+                "- Avoid questions solvable by simple substitution into the context example."
+            ),
+            "advanced": (
+                "DIFFICULTY — HARD:\n"
+                "- Use the same underlying concept as the context but significantly deepen the thinking required.\n"
+                "- Require multi-step reasoning, combining sub-concepts, or applying the concept to a novel/complex scenario.\n"
+                "- Student must demonstrate deep understanding — pattern matching alone is not enough."
+            ),
+        }.get(difficulty, (
+            "DIFFICULTY — ADAPTIVE:\n"
+            "- Calibrate difficulty to the student's recent performance shown in the context.\n"
+            "- If the context shows mistakes, lean easier; if the student answered correctly, add a moderate challenge."
+        ))
+
+        prompt = f"""Generate {count} {difficulty}-level {subject} questions for a {grade} student.
 All questions MUST be type: {question_type}
 
 CONTEXT:
 {context_block}
+
+{difficulty_guidance}
 
 {fmt}
 

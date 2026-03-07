@@ -13,6 +13,10 @@
 const AIServiceClient = require('../../../services/ai-client');
 const { getUserId } = require('../utils/auth-helper');
 const { db } = require('../../../../utils/railway-database');
+const { formatGradeLevel } = require('../utils/prompts');
+
+// Maps iOS difficulty int (2/3/4) to string expected by AI engine
+const DIFFICULTY_MAP = { 1: 'beginner', 2: 'beginner', 3: 'intermediate', 4: 'advanced', 5: 'advanced' };
 
 // ---------------------------------------------------------------------------
 // Subject split table — determines type distribution for "any" mode
@@ -143,8 +147,31 @@ async function callAIEngineForType(aiClient, subject, questionType, count, conte
     throw new Error(`AI engine returned no questions for type=${questionType}`);
   }
 
-  // No type name translation needed — iOS and AI engine now use the same names
   return data.questions;
+}
+
+/**
+ * Fire `count` parallel single-question requests for one type.
+ * Each request lands on a separate Gunicorn worker for true parallelism.
+ * A per-question timeout prevents one slow/failing request from blocking
+ * the entire Promise.all.
+ */
+async function callAIEngineParallel(aiClient, subject, questionType, count, contextType, contextData, language, userProfile) {
+  const PER_QUESTION_TIMEOUT_MS = 20000;
+  const STAGGER_MS = 250; // spread requests to avoid Gemini rate limiting
+
+  const tasks = Array.from({ length: count }, (_, i) =>
+    new Promise(resolve => setTimeout(resolve, i * STAGGER_MS))
+      .then(() => Promise.race([
+        callAIEngineForType(aiClient, subject, questionType, 1, contextType, contextData, language, userProfile),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('per-question timeout')), PER_QUESTION_TIMEOUT_MS)
+        ),
+      ]))
+      .catch(() => [])
+  );
+  const results = await Promise.all(tasks);
+  return results.flat();
 }
 
 // ---------------------------------------------------------------------------
@@ -265,9 +292,14 @@ module.exports = async function (fastify, opts) {
       language,
     });
 
-    const userProfile = { grade: 'High School', location: 'US', subject_proficiency: {} };
+    // Fetch real user profile (grade level) from DB
+    const rawProfile = await db.getEnhancedUserProfile(userId).catch(() => null);
+    const gradeLabel = formatGradeLevel(rawProfile?.grade_level) || 'High School';
+    const difficultyStr = DIFFICULTY_MAP[difficulty] || 'intermediate';
+
+    const userProfile = { grade: gradeLabel, location: 'US', subject_proficiency: {} };
     const contextType = modeToContextType(mode);
-    const contextData = buildContextData(mode, request.body, userProfile.grade);
+    const contextData = { ...buildContextData(mode, request.body, gradeLabel), difficulty: difficultyStr };
 
     try {
       let allQuestions = [];
@@ -277,31 +309,31 @@ module.exports = async function (fastify, opts) {
       const SUPPORTED_TYPES = new Set(['multiple_choice', 'true_false', 'short_answer']);
 
       if (question_type !== 'any' && SUPPORTED_TYPES.has(question_type)) {
-        // === SINGLE TYPE ===
-        fastify.log.info(`⚡ Single type: ${question_type} x${count}`);
-        allQuestions = await callAIEngineForType(aiClient, subject, question_type, count, contextType, contextData, language, userProfile);
+        // === SINGLE TYPE — parallel per question ===
+        fastify.log.info(`⚡ Single type: ${question_type} x${count} (parallel)`);
+        allQuestions = await callAIEngineParallel(aiClient, subject, question_type, count, contextType, contextData, language, userProfile);
         typesGenerated[question_type] = allQuestions.length;
 
       } else if (question_type !== 'any' && !SUPPORTED_TYPES.has(question_type)) {
         // Unknown type → fall back to multiple_choice
         fastify.log.info(`⚠️ Unknown type "${question_type}" → fallback to multiple_choice`);
-        allQuestions = await callAIEngineForType(aiClient, subject, 'multiple_choice', count, contextType, contextData, language, userProfile);
+        allQuestions = await callAIEngineParallel(aiClient, subject, 'multiple_choice', count, contextType, contextData, language, userProfile);
         typesGenerated['multiple_choice'] = allQuestions.length;
 
       } else if (question_type === 'any' && count < 3) {
-        // Small count → single MC call
+        // Small count → single MC call (not worth splitting)
         fastify.log.info(`⚡ Small count (${count}) → multiple_choice only`);
         allQuestions = await callAIEngineForType(aiClient, subject, 'multiple_choice', count, contextType, contextData, language, userProfile);
         typesGenerated['multiple_choice'] = allQuestions.length;
 
       } else if (question_type === 'any' && mode === 2) {
-        // Mistake-based with "any" → use MC (mistakes have natural type from context)
-        fastify.log.info(`⚡ Mistake-based + "any" → multiple_choice`);
-        allQuestions = await callAIEngineForType(aiClient, subject, 'multiple_choice', count, contextType, contextData, language, userProfile);
+        // Mistake-based with "any" → MC only, parallel
+        fastify.log.info(`⚡ Mistake-based + "any" → multiple_choice (parallel)`);
+        allQuestions = await callAIEngineParallel(aiClient, subject, 'multiple_choice', count, contextType, contextData, language, userProfile);
         typesGenerated['multiple_choice'] = allQuestions.length;
 
       } else {
-        // === MIXED PARALLEL ===
+        // === MIXED PARALLEL — each question is its own request ===
         generationMode = 'mixed_parallel';
         const split = computeTypeSplit(subject, count);
 
@@ -312,20 +344,20 @@ module.exports = async function (fastify, opts) {
 
         const results = await Promise.all(
           split.map(s =>
-            callAIEngineForType(aiClient, subject, s.type, s.count, contextType, contextData, language, userProfile)
+            callAIEngineParallel(aiClient, subject, s.type, s.count, contextType, contextData, language, userProfile)
               .then(qs => {
                 typesGenerated[s.type] = qs.length;
                 return qs;
               })
               .catch(err => {
                 fastify.log.error(`❌ Failed to generate ${s.type}: ${err.message}`);
-                return []; // don't fail the entire request if one type fails
+                return [];
               })
           )
         );
 
         allQuestions = results.flat();
-        shuffle(allQuestions); // interleave types
+        shuffle(allQuestions);
 
         if (allQuestions.length === 0) {
           throw new Error('All question type calls failed — AI engine returned no questions');
@@ -389,3 +421,10 @@ module.exports = async function (fastify, opts) {
     }
   });
 };
+
+// Export pure functions for unit testing
+module.exports.computeTypeSplit = computeTypeSplit;
+module.exports.buildContextData = buildContextData;
+module.exports.modeToContextType = modeToContextType;
+module.exports.shuffle = shuffle;
+module.exports.SUBJECT_SPLIT_TABLE = SUBJECT_SPLIT_TABLE;

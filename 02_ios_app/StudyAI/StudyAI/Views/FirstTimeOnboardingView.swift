@@ -19,10 +19,10 @@ struct FirstTimeOnboardingView: View {
     let onNeedsParentalConsent: (_ dob: String) -> Void
 
     // MARK: - Step indices
-    // 0: role selection
-    // 1: parent setup (parent path only)
-    // 2: student age   (common)
-    // 3: language      (common)
+    // 0: language      (common, first page)
+    // 1: role selection
+    // 2: parent setup (parent path only)
+    // 3: student age   (common)
     // 4: subjects      (common)
     // 5: learning style(common)
     // 6: consent       (common, mandatory)
@@ -68,17 +68,26 @@ struct FirstTimeOnboardingView: View {
 
     // MARK: - Computed helpers
 
-    private var deviceLanguageCode: String {
-        let code = Locale.preferredLanguages.first?.components(separatedBy: "-").first ?? "en"
-        return ["en", "es", "fr", "de", "zh", "ja"].contains(code) ? code : "en"
+    private var isPinValid: Bool {
+        parentPIN.count == 6
+            && parentPIN == confirmParentPIN
+            && parentPIN.allSatisfy(\.isNumber)
     }
 
-    /// Visible progress index (student skips step 1)
+    private var deviceLanguageCode: String {
+        let lang = Locale.preferredLanguages.first ?? "en"
+        if lang.hasPrefix("zh-Hant") || lang.hasPrefix("zh-TW") || lang.hasPrefix("zh-HK") { return "zh-Hant" }
+        if lang.hasPrefix("zh") { return "zh-Hans" }
+        let code = lang.components(separatedBy: "-").first ?? "en"
+        return ["en", "es", "fr", "de", "ja"].contains(code) ? code : "en"
+    }
+
+    /// Visible progress index (student skips step 2)
     private var visibleStepIndex: Int {
         if selectedRole == .student {
             switch currentStep {
             case 0: return 0
-            case 2: return 1
+            case 1: return 1
             case 3: return 2
             case 4: return 3
             case 5: return 4
@@ -143,10 +152,10 @@ struct FirstTimeOnboardingView: View {
 
             // ── Step content ─────────────────────────────────────
             ZStack {
-                roleStep         .opacity(currentStep == 0 ? 1 : 0).allowsHitTesting(currentStep == 0)
-                parentSetupStep  .opacity(currentStep == 1 ? 1 : 0).allowsHitTesting(currentStep == 1)
-                studentAgeStep   .opacity(currentStep == 2 ? 1 : 0).allowsHitTesting(currentStep == 2)
-                languageStep     .opacity(currentStep == 3 ? 1 : 0).allowsHitTesting(currentStep == 3)
+                languageStep     .opacity(currentStep == 0 ? 1 : 0).allowsHitTesting(currentStep == 0)
+                roleStep         .opacity(currentStep == 1 ? 1 : 0).allowsHitTesting(currentStep == 1)
+                parentSetupStep  .opacity(currentStep == 2 ? 1 : 0).allowsHitTesting(currentStep == 2)
+                studentAgeStep   .opacity(currentStep == 3 ? 1 : 0).allowsHitTesting(currentStep == 3)
                 subjectsStep     .opacity(currentStep == 4 ? 1 : 0).allowsHitTesting(currentStep == 4)
                 learningStyleStep.opacity(currentStep == 5 ? 1 : 0).allowsHitTesting(currentStep == 5)
                 consentStep      .opacity(currentStep == 6 ? 1 : 0).allowsHitTesting(currentStep == 6)
@@ -159,7 +168,10 @@ struct FirstTimeOnboardingView: View {
         .background(DesignTokens.Colors.Cute.backgroundCream.ignoresSafeArea())
         .sheet(isPresented: $showingPrivacyPolicy) { PrivacyPolicyView() }
         .alert("Error", isPresented: $showingError) { Button("OK") {} } message: { Text(errorMessage) }
-        .onAppear { languagePreference = deviceLanguageCode }
+        .onAppear {
+            let saved = UserDefaults.standard.string(forKey: "appLanguage")
+            languagePreference = saved ?? deviceLanguageCode
+        }
     }
 
     // MARK: - Step 0: Role Selection
@@ -202,9 +214,9 @@ struct FirstTimeOnboardingView: View {
             }
 
             bottomBar {
-                primaryButton("Continue", disabled: selectedRole == nil) {
+                primaryButton(NSLocalizedString("onboarding.continue", value: "Continue", comment: ""), disabled: selectedRole == nil) {
                     withAnimation(.easeInOut(duration: 0.2)) {
-                        currentStep = selectedRole == .student ? 2 : 1
+                        currentStep = selectedRole == .student ? 3 : 2
                     }
                 }
             }
@@ -272,8 +284,8 @@ struct FirstTimeOnboardingView: View {
             ScrollView {
                 VStack(spacing: 20) {
                     VStack(spacing: 6) {
-                        stepTitle("Parent setup")
-                        Text("Secure your parental controls")
+                        stepTitle(NSLocalizedString("onboarding.parentSetup.title", value: "Parent setup", comment: ""))
+                        Text(NSLocalizedString("onboarding.parentSetup.subtitle", value: "Secure your parental controls", comment: ""))
                             .font(.subheadline)
                             .foregroundColor(DesignTokens.Colors.Cute.textSecondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -282,37 +294,39 @@ struct FirstTimeOnboardingView: View {
                     // Age + Name
                     HStack(spacing: 10) {
                         VStack(alignment: .leading, spacing: 6) {
-                            fieldLabel("Your age")
-                            TextField("e.g. 35", text: $parentAge)
+                            fieldLabel(NSLocalizedString("onboarding.parentSetup.ageLabel", value: "Your age", comment: ""))
+                            TextField(NSLocalizedString("onboarding.parentSetup.agePlaceholder", value: "e.g. 35", comment: ""), text: $parentAge)
                                 .keyboardType(.numberPad)
                                 .padding(12)
-                                .background(DesignTokens.Colors.Cute.backgroundSoftPink)
+                                .background(DesignTokens.Colors.Cute.yellow.opacity(0.18))
                                 .cornerRadius(12)
+                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(DesignTokens.Colors.Cute.blue, lineWidth: 1))
                         }
                         .frame(maxWidth: .infinity)
 
                         VStack(alignment: .leading, spacing: 6) {
-                            fieldLabel("Name (optional)")
-                            TextField("Your name", text: $parentFirstName)
+                            fieldLabel(NSLocalizedString("onboarding.parentSetup.nameLabel", value: "Name", comment: ""))
+                            TextField(NSLocalizedString("onboarding.parentSetup.namePlaceholder", value: "Your name", comment: ""), text: $parentFirstName)
                                 .autocapitalization(.words)
                                 .padding(12)
-                                .background(DesignTokens.Colors.Cute.backgroundSoftPink)
+                                .background(DesignTokens.Colors.Cute.yellow.opacity(0.18))
                                 .cornerRadius(12)
+                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(DesignTokens.Colors.Cute.blue, lineWidth: 1))
                         }
                         .frame(maxWidth: .infinity)
                     }
 
                     // PIN
                     VStack(alignment: .leading, spacing: 10) {
-                        fieldLabel("Parent PIN (6 digits)")
+                        fieldLabel(NSLocalizedString("onboarding.parentSetup.pinLabel", value: "Parent PIN (6 digits)", comment: ""))
 
                         VStack(spacing: 0) {
                             HStack {
                                 Group {
                                     if showParentPIN {
-                                        TextField("Enter 6-digit PIN", text: $parentPIN)
+                                        TextField(NSLocalizedString("onboarding.parentSetup.pinPlaceholder", value: "Enter 6-digit PIN", comment: ""), text: $parentPIN)
                                     } else {
-                                        SecureField("Enter 6-digit PIN", text: $parentPIN)
+                                        SecureField(NSLocalizedString("onboarding.parentSetup.pinPlaceholder", value: "Enter 6-digit PIN", comment: ""), text: $parentPIN)
                                     }
                                 }
                                 .keyboardType(.numberPad)
@@ -327,17 +341,17 @@ struct FirstTimeOnboardingView: View {
                                 }
                             }
                             .padding(12)
-                            .background(DesignTokens.Colors.Cute.backgroundSoftPink)
+                            .background(DesignTokens.Colors.Cute.yellow.opacity(0.18))
 
                             Divider()
-                                .background(DesignTokens.Colors.Cute.peachLight)
+                                .background(DesignTokens.Colors.Cute.blue.opacity(0.3))
 
                             HStack {
                                 Group {
                                     if showParentPIN {
-                                        TextField("Confirm PIN", text: $confirmParentPIN)
+                                        TextField(NSLocalizedString("onboarding.parentSetup.confirmPinPlaceholder", value: "Confirm PIN", comment: ""), text: $confirmParentPIN)
                                     } else {
-                                        SecureField("Confirm PIN", text: $confirmParentPIN)
+                                        SecureField(NSLocalizedString("onboarding.parentSetup.confirmPinPlaceholder", value: "Confirm PIN", comment: ""), text: $confirmParentPIN)
                                     }
                                 }
                                 .keyboardType(.numberPad)
@@ -358,62 +372,75 @@ struct FirstTimeOnboardingView: View {
                                 }
                             }
                             .padding(12)
-                            .background(DesignTokens.Colors.Cute.backgroundSoftPink)
+                            .background(DesignTokens.Colors.Cute.yellow.opacity(0.18))
                         }
                         .cornerRadius(12)
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
                                 .stroke(
                                     pinMismatch
-                                        ? Color.red.opacity(0.4)
-                                        : DesignTokens.Colors.Cute.peachLight,
+                                        ? Color.red.opacity(0.6)
+                                        : DesignTokens.Colors.Cute.blue,
                                     lineWidth: 1
                                 )
                         )
 
                         if pinMismatch {
-                            Text("PINs don't match")
+                            Text(NSLocalizedString("onboarding.parentSetup.pinMismatch", value: "PINs don't match", comment: ""))
                                 .font(.caption)
                                 .foregroundColor(.red)
                         }
 
-                        Text("6-digit PIN to lock parental controls so your child can't change them.")
+                        Text(NSLocalizedString("onboarding.parentSetup.pinHint", value: "6-digit PIN to lock parental controls so your child can't change them.", comment: ""))
                             .font(.caption)
                             .foregroundColor(DesignTokens.Colors.Cute.textSecondary)
                     }
 
                     // Control items — mirrors ProtectedFeature cases
                     VStack(alignment: .leading, spacing: 10) {
-                        fieldLabel("Parental controls")
+                        fieldLabel(NSLocalizedString("onboarding.parentSetup.controlsLabel", value: "Parental controls", comment: ""))
 
                         VStack(spacing: 0) {
                             controlToggleRow(
-                                "Protect AI chat",
+                                NSLocalizedString("onboarding.parentSetup.protectChat", value: "Protect AI chat", comment: ""),
                                 icon: "message.fill",
                                 color: DesignTokens.Colors.Cute.blue,
                                 isOn: $controlChat
                             )
                             Divider()
-                                .background(DesignTokens.Colors.Cute.peachLight)
+                                .background(DesignTokens.Colors.Cute.blue.opacity(0.3))
                                 .padding(.leading, 44)
                             controlToggleRow(
-                                "Protect homework grader",
+                                NSLocalizedString("onboarding.parentSetup.protectGrader", value: "Protect homework grader", comment: ""),
                                 icon: "camera.fill",
                                 color: DesignTokens.Colors.Cute.mint,
                                 isOn: $controlGrader
                             )
                             Divider()
-                                .background(DesignTokens.Colors.Cute.peachLight)
+                                .background(DesignTokens.Colors.Cute.blue.opacity(0.3))
                                 .padding(.leading, 44)
                             controlToggleRow(
-                                "Protect parent reports",
+                                NSLocalizedString("onboarding.parentSetup.protectReports", value: "Protect parent reports", comment: ""),
                                 icon: "figure.2.and.child.holdinghands",
                                 color: DesignTokens.Colors.Cute.lavender,
                                 isOn: $controlReports
                             )
                         }
-                        .background(DesignTokens.Colors.Cute.backgroundSoftPink)
+                        .background(DesignTokens.Colors.Cute.yellow.opacity(0.18))
                         .cornerRadius(12)
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(DesignTokens.Colors.Cute.blue, lineWidth: 1))
+                        .disabled(!isPinValid)
+                        .opacity(isPinValid ? 1.0 : 0.4)
+
+                        if !isPinValid {
+                            HStack(spacing: 6) {
+                                Image(systemName: "lock.fill")
+                                    .font(.caption2)
+                                Text(NSLocalizedString("onboarding.parentSetup.pinLockHint", value: "Enter and confirm a valid 6-digit PIN above to enable controls", comment: ""))
+                                    .font(.caption)
+                            }
+                            .foregroundColor(DesignTokens.Colors.Cute.textSecondary)
+                        }
                     }
                 }
                 .padding(.horizontal, 24)
@@ -421,10 +448,7 @@ struct FirstTimeOnboardingView: View {
             }
 
             bottomBar {
-                let canContinue = parentPIN.count == 6
-                    && parentPIN == confirmParentPIN
-                    && parentPIN.allSatisfy(\.isNumber)
-                primaryButton("Continue", disabled: !canContinue) { advance() }
+                primaryButton(NSLocalizedString("onboarding.continue", value: "Continue", comment: ""), disabled: !isPinValid) { advance() }
                 skipButton { parentPIN = ""; confirmParentPIN = ""; advance() }
             }
         }
@@ -500,21 +524,22 @@ struct FirstTimeOnboardingView: View {
             }
 
             bottomBar {
-                primaryButton("Continue", disabled: false) { advance() }
+                primaryButton(NSLocalizedString("onboarding.continue", value: "Continue", comment: ""), disabled: false) { advance() }
                 skipButton { studentAge = ""; advance() }
             }
         }
     }
 
-    // MARK: - Step 3: Language
+    // MARK: - Step 0: Language
 
     private let languageOptions: [(code: String, name: String, flag: String)] = [
-        ("en", "English",   "🇺🇸"),
-        ("es", "Español",   "🇪🇸"),
-        ("fr", "Français",  "🇫🇷"),
-        ("de", "Deutsch",   "🇩🇪"),
-        ("zh", "中文",       "🇨🇳"),
-        ("ja", "日本語",     "🇯🇵"),
+        ("en",      "English",   "🇺🇸"),
+        ("es",      "Español",   "🇪🇸"),
+        ("fr",      "Français",  "🇫🇷"),
+        ("de",      "Deutsch",   "🇩🇪"),
+        ("zh-Hans", "简体中文",   "🇨🇳"),
+        ("zh-Hant", "繁體中文",   "🇹🇼"),
+        ("ja",      "日本語",     "🇯🇵"),
     ]
 
     private var languageStep: some View {
@@ -522,8 +547,8 @@ struct FirstTimeOnboardingView: View {
             ScrollView {
                 VStack(spacing: 24) {
                     VStack(spacing: 8) {
-                        stepTitle("Preferred language")
-                        Text("We've selected your device language as default")
+                        stepTitle(NSLocalizedString("onboarding.language.title", value: "Choose your language", comment: ""))
+                        Text(NSLocalizedString("onboarding.language.subtitle", value: "You can change this anytime in Settings", comment: ""))
                             .font(.subheadline)
                             .foregroundColor(DesignTokens.Colors.Cute.textSecondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -541,7 +566,7 @@ struct FirstTimeOnboardingView: View {
             }
 
             bottomBar {
-                primaryButton("Continue", disabled: false) { advance() }
+                primaryButton(NSLocalizedString("onboarding.continue", value: "Continue", comment: ""), disabled: false) { advance() }
             }
         }
     }
@@ -549,7 +574,10 @@ struct FirstTimeOnboardingView: View {
     @ViewBuilder
     private func languageCard(_ option: (code: String, name: String, flag: String)) -> some View {
         let on = languagePreference == option.code
-        Button { languagePreference = option.code } label: {
+        Button {
+            languagePreference = option.code
+            LanguageManager.shared.setLanguage(option.code)
+        } label: {
             HStack(spacing: 10) {
                 Text(option.flag)
                     .font(.title2)
@@ -604,7 +632,7 @@ struct FirstTimeOnboardingView: View {
             }
 
             bottomBar {
-                primaryButton("Continue", disabled: false) { advance() }
+                primaryButton(NSLocalizedString("onboarding.continue", value: "Continue", comment: ""), disabled: false) { advance() }
                 skipButton { selectedSubjects = []; advance() }
             }
         }
@@ -721,7 +749,7 @@ struct FirstTimeOnboardingView: View {
             }
 
             bottomBar {
-                primaryButton("Continue", disabled: false) { advance() }
+                primaryButton(NSLocalizedString("onboarding.continue", value: "Continue", comment: ""), disabled: false) { advance() }
                 skipButton { learningStyle = ""; advance() }
             }
         }
@@ -921,7 +949,7 @@ struct FirstTimeOnboardingView: View {
 
     private func skipButton(action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text("Skip")
+            Text(NSLocalizedString("onboarding.skip", value: "Skip", comment: ""))
                 .font(.subheadline)
                 .foregroundColor(DesignTokens.Colors.Cute.blue)
         }
@@ -939,9 +967,9 @@ struct FirstTimeOnboardingView: View {
     private func goBack() {
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         withAnimation(.easeInOut(duration: 0.2)) {
-            // Student skips step 1, so going back from step 2 returns to step 0
-            if currentStep == 2 && selectedRole == .student {
-                currentStep = 0
+            // Student skips step 2 (parent setup), so going back from step 3 returns to step 1
+            if currentStep == 3 && selectedRole == .student {
+                currentStep = 1
             } else {
                 currentStep = max(currentStep - 1, 0)
             }

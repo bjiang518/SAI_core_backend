@@ -560,6 +560,8 @@
 "questionGeneration.conversations" = "Conversations";
 "questionGeneration.questions" = "Questions";
 "questionGeneration.selectArchives" = "Select Archives";
+"questionGeneration.sourceLimitTitle" = "Límite de selección";
+"questionGeneration.sourceLimitMessage" = "Puedes seleccionar un máximo de %d fuentes.";
 "questionGeneration.conversation" = "Conversation";
 "questionGeneration.failedToLoadData" = "Failed to load data: %@";
 "questionGeneration.defaultSubject.mathematics" = "Mathematics";
@@ -601,6 +603,10 @@
 "questionDetail.hideExplanation" = "Hide Explanation";
 "questionDetail.yourAnswer" = "Your Answer:";
 "questionDetail.correctAnswer" = "Correct Answer:";
+"questionDetail.feedbackExactMatch" = "¡Perfecto! Tu respuesta es exactamente correcta.";
+"practice.feedbackCorrect" = "¡Correcto! Bien hecho.";
+"practice.feedbackIncorrect" = "Incorrecto. La respuesta correcta es: %@";
+"practice.feedbackTryAgain" = "Casi. Revisa la respuesta correcta e intenta preguntas similares.";
 "questionDetail.archiveQuestion" = "Archive Question";
 "questionDetail.archiving" = "Archiving...";
 "questionDetail.archived" = "Archived";
@@ -925,6 +931,30 @@
 "chat.menu.synchronizedAudio" = "Synchronized Audio";
 "chat.menu.liveTalk" = "Live Talk";
 "chat.menu.archiveSession" = "Archive Session";
+"chat.menu.viewTutorial" = "Ver tutorial";
+
+// Chat Onboarding Tutorial
+"onboarding.skip" = "Omitir";
+"onboarding.next" = "Siguiente";
+"onboarding.done" = "Listo";
+"onboarding.chat.subject.title" = "Elige una materia";
+"onboarding.chat.subject.desc" = "Selecciona una materia o déjalo en General. Esto me ayuda a darte respuestas más precisas.";
+"onboarding.chat.camera.title" = "Añadir imágenes";
+"onboarding.chat.camera.desc" = "Toca para tomar una foto o elegir una de tu galería. Puedo leer preguntas de tarea desde imágenes.";
+"onboarding.chat.deepmode.title" = "Enviar o profundizar";
+"onboarding.chat.deepmode.desc" = "Toca ↑ para enviar. O mantén presionado y desliza hacia arriba — se vuelve morado y usa un modelo de razonamiento más profundo para preguntas difíciles.";
+"onboarding.chat.mic.title" = "Entrada de voz";
+"onboarding.chat.mic.desc" = "Mantén presionado este botón para hablar en lugar de escribir. Tu voz se transcribe automáticamente.";
+"onboarding.chat.live.title" = "Modo en vivo y más";
+"onboarding.chat.live.desc" = "Toca ··· para acceder a la configuración. Puedes cambiar al modo de voz en tiempo real desde aquí.";
+"onboarding.chat.library.title" = "Guardar en biblioteca";
+"onboarding.chat.library.desc" = "Toca para archivar esta conversación. La analizaré y guardaré los puntos clave en tu biblioteca personal.";
+"onboarding.chat.deepBadge" = "Profundo";
+"onboarding.chat.deepThinkingMode" = "Modo de pensamiento profundo";
+"onboarding.chat.releaseToCancel" = "Soltar para cancelar";
+"onboarding.chat.releaseToSend" = "Soltar para enviar";
+"onboarding.chat.holdToTalk" = "Mantener para hablar";
+"onboarding.chat.micDemoText" = "explícalo con más detalle";
 
 // Voice Chat (Gemini Live)
 "voice_chat.title" = "Live Talk";
@@ -1126,7 +1156,29 @@
 "editProfile.error" = "Error";
 "editProfile.profileUpdated" = "Profile Updated";
 "editProfile.profileUpdatedMessage" = "Your profile has been updated successfully\!";
-"editProfile.savingProfile" = "Saving Profile...";
+"editProfile.savingProfile" = "Guardando perfil...";
+"editProfile.takeSelfie" = "Tomar selfie";
+"editProfile.uploadFromAlbum" = "Subir desde álbum";
+"editProfile.or" = "O";
+"editProfile.choosePresetAvatar" = "Elige un avatar predefinido";
+"editProfile.orChoosePresetAvatar" = "O elige un avatar predefinido";
+"editProfile.studentInformation" = "Información del estudiante";
+"editProfile.age" = "Edad";
+"editProfile.agePlaceholder" = "ej. 14";
+"editProfile.noneOption" = "—";
+"editProfile.language" = "Idioma";
+"editProfile.selectedCount" = "%d seleccionados";
+"editProfile.learningStyle" = "Estilo de aprendizaje";
+"editProfile.learningStyleHeuristic" = "Heurístico";
+"editProfile.learningStyleHeuristicDesc" = "Descubrimiento guiado";
+"editProfile.learningStyleStraightforward" = "Directo";
+"editProfile.learningStyleStraightforwardDesc" = "Respuestas directas";
+"editProfile.avatarEditorHint" = "Pellizca para hacer zoom, arrastra para ajustar";
+"editProfile.zoomOut" = "Alejar";
+"editProfile.zoomIn" = "Acercar";
+"editProfile.rotateLeft" = "Girar a la izquierda";
+"editProfile.rotateRight" = "Girar a la derecha";
+"editProfile.adjustAvatar" = "Ajustar avatar";
 
 // Avatar Selection
 "editProfile.selectAvatar" = "Select Your Avatar";
@@ -1736,6 +1788,24 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "homeworkSummary.subquestionCount" = "%d subquestions";
 "homeworkSummary.answer" = "Answer: %@";
 
+// Subject Names
+"subject.math" = "Matemáticas";
+"subject.mathematics" = "Matemáticas";
+"subject.english" = "Inglés";
+"subject.science" = "Ciencias";
+"subject.history" = "Historia";
+"subject.geography" = "Geografía";
+"subject.physics" = "Física";
+"subject.chemistry" = "Química";
+"subject.biology" = "Biología";
+"subject.social_studies" = "Ciencias Sociales";
+"subject.chinese" = "Chino";
+"subject.art" = "Arte";
+"subject.music" = "Música";
+"subject.physical_education" = "Educación Física";
+"subject.computer_science" = "Informática";
+"subject.general" = "General";
+
 "proMode.slideToMarkProgress" = "Slide to Smart Organize";
 "proMode.progressMarked" = "Already Organized";
 "proMode.partial" = "Partial";
@@ -2045,3 +2115,26 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "voiceSettings.avatar.eva.desc" = "A kind, supportive girl";
 "voiceSettings.avatar.max.desc" = "An energetic, enthusiastic boy";
 "voiceSettings.avatar.mia.desc" = "A playful, curious girl";
+
+// Onboarding — Parent Setup
+"onboarding.continue" = "Continuar";
+"onboarding.parentSetup.title" = "Configuración de padres";
+"onboarding.parentSetup.subtitle" = "Asegura los controles parentales";
+"onboarding.parentSetup.ageLabel" = "Tu edad";
+"onboarding.parentSetup.agePlaceholder" = "ej. 35";
+"onboarding.parentSetup.nameLabel" = "Nombre";
+"onboarding.parentSetup.namePlaceholder" = "Tu nombre";
+"onboarding.parentSetup.pinLabel" = "PIN de padres (6 dígitos)";
+"onboarding.parentSetup.pinPlaceholder" = "Ingresar PIN de 6 dígitos";
+"onboarding.parentSetup.confirmPinPlaceholder" = "Confirmar PIN";
+"onboarding.parentSetup.pinMismatch" = "Los PINs no coinciden";
+"onboarding.parentSetup.pinHint" = "PIN de 6 dígitos para bloquear los controles parentales para que tu hijo no pueda cambiarlos.";
+"onboarding.parentSetup.controlsLabel" = "Controles parentales";
+"onboarding.parentSetup.protectChat" = "Proteger chat con IA";
+"onboarding.parentSetup.protectGrader" = "Proteger calificador de tareas";
+"onboarding.parentSetup.protectReports" = "Proteger reportes parentales";
+"onboarding.parentSetup.pinLockHint" = "Ingresa y confirma un PIN de 6 dígitos válido arriba para habilitar los controles";
+
+// Onboarding — Language Selection (first page)
+"onboarding.language.title" = "Elige tu idioma";
+"onboarding.language.subtitle" = "Puedes cambiarlo en cualquier momento en Configuración";
