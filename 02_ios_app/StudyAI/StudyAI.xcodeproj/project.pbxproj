@@ -186,15 +186,18 @@
 		7B2789F42F5AA1BC00DA84B0 /* LanguageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2789F32F5AA1BC00DA84B0 /* LanguageManager.swift */; };
 		7B2789F52F5AA1BC00DA84B0 /* LanguageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2789F32F5AA1BC00DA84B0 /* LanguageManager.swift */; };
 		7B2789F62F5AA1BC00DA84B0 /* LanguageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2789F32F5AA1BC00DA84B0 /* LanguageManager.swift */; };
-		AA00010A2F68A00100000001 /* BranchLocalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00010D2F68A00100000001 /* BranchLocalizer.swift */; };
-		AA00010B2F68A00100000001 /* BranchLocalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00010D2F68A00100000001 /* BranchLocalizer.swift */; };
-		AA00010C2F68A00100000001 /* BranchLocalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00010D2F68A00100000001 /* BranchLocalizer.swift */; };
-		AA0002012F68A00100000001 /* Taxonomy.strings in Resources */ = {isa = PBXBuildFile; fileRef = AA0002032F68A00100000001 /* Taxonomy.strings */; };
-		AA0002042F68A00100000001 /* Taxonomy.strings in Resources */ = {isa = PBXBuildFile; fileRef = AA0002063F68A00100000001 /* Taxonomy.strings */; };
-		AA0002072F68A00100000001 /* Taxonomy.strings in Resources */ = {isa = PBXBuildFile; fileRef = AA0002033F68A00100000001 /* Taxonomy.strings */; };
-		AA0002082F68A00100000001 /* Taxonomy.strings in Resources */ = {isa = PBXBuildFile; fileRef = AA0002063F68A00100000001 /* Taxonomy.strings */; };
-		AA0002092F68A00100000001 /* Taxonomy.strings in Resources */ = {isa = PBXBuildFile; fileRef = AA0002033F68A00100000001 /* Taxonomy.strings */; };
-		AA00020A2F68A00100000001 /* Taxonomy.strings in Resources */ = {isa = PBXBuildFile; fileRef = AA0002063F68A00100000001 /* Taxonomy.strings */; };
+		7B278A252F5CA93D00DA84B0 /* PracticeLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278A222F5CA93D00DA84B0 /* PracticeLibraryView.swift */; };
+		7B278A262F5CA93D00DA84B0 /* QuestionSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278A242F5CA93D00DA84B0 /* QuestionSheetView.swift */; };
+		7B278A272F5CA93D00DA84B0 /* NewPracticeSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278A212F5CA93D00DA84B0 /* NewPracticeSheet.swift */; };
+		7B278A282F5CA93D00DA84B0 /* PracticeSessionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278A232F5CA93D00DA84B0 /* PracticeSessionCard.swift */; };
+		7B278A292F5CA93D00DA84B0 /* PracticeLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278A222F5CA93D00DA84B0 /* PracticeLibraryView.swift */; };
+		7B278A2A2F5CA93D00DA84B0 /* QuestionSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278A242F5CA93D00DA84B0 /* QuestionSheetView.swift */; };
+		7B278A2B2F5CA93D00DA84B0 /* NewPracticeSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278A212F5CA93D00DA84B0 /* NewPracticeSheet.swift */; };
+		7B278A2C2F5CA93D00DA84B0 /* PracticeSessionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278A232F5CA93D00DA84B0 /* PracticeSessionCard.swift */; };
+		7B278A2D2F5CA93D00DA84B0 /* PracticeLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278A222F5CA93D00DA84B0 /* PracticeLibraryView.swift */; };
+		7B278A2E2F5CA93D00DA84B0 /* QuestionSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278A242F5CA93D00DA84B0 /* QuestionSheetView.swift */; };
+		7B278A2F2F5CA93D00DA84B0 /* NewPracticeSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278A212F5CA93D00DA84B0 /* NewPracticeSheet.swift */; };
+		7B278A302F5CA93D00DA84B0 /* PracticeSessionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278A232F5CA93D00DA84B0 /* PracticeSessionCard.swift */; };
 		7B6B2B0D2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
 		7B6B2B0E2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
 		7B6B2B0F2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
@@ -491,6 +494,15 @@
 		9FF8A1F6F34E4BF786B5EAC3 /* VoiceInteractionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEAD0FA974974B559BA7B6B7 /* VoiceInteractionService.swift */; };
 		A6AAD8B3B1CF457696752650 /* SessionDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E13D4A8943284F528CD3C3C1 /* SessionDetailView.swift */; };
 		A823C26E80984911960B4AA1 /* ArchivedQuestionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27D08428900147788147829E /* ArchivedQuestionsView.swift */; };
+		AA00010A2F68A00100000001 /* BranchLocalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00010D2F68A00100000001 /* BranchLocalizer.swift */; };
+		AA00010B2F68A00100000001 /* BranchLocalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00010D2F68A00100000001 /* BranchLocalizer.swift */; };
+		AA00010C2F68A00100000001 /* BranchLocalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00010D2F68A00100000001 /* BranchLocalizer.swift */; };
+		AA0002012F68A00100000001 /* (null) in Resources */ = {isa = PBXBuildFile; };
+		AA0002042F68A00100000001 /* Taxonomy.strings in Resources */ = {isa = PBXBuildFile; fileRef = AA0002063F68A00100000001 /* Taxonomy.strings */; };
+		AA0002072F68A00100000001 /* Taxonomy.strings in Resources */ = {isa = PBXBuildFile; fileRef = AA0002033F68A00100000001 /* Taxonomy.strings */; };
+		AA0002082F68A00100000001 /* Taxonomy.strings in Resources */ = {isa = PBXBuildFile; fileRef = AA0002063F68A00100000001 /* Taxonomy.strings */; };
+		AA0002092F68A00100000001 /* Taxonomy.strings in Resources */ = {isa = PBXBuildFile; fileRef = AA0002033F68A00100000001 /* Taxonomy.strings */; };
+		AA00020A2F68A00100000001 /* Taxonomy.strings in Resources */ = {isa = PBXBuildFile; fileRef = AA0002063F68A00100000001 /* Taxonomy.strings */; };
 		B573CBF246134245A6DF42A5 /* LibraryPDFPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C3C2EED7834451198C33DC1 /* LibraryPDFPreviewView.swift */; };
 		B67097AEC09C4CA4B5C82F10 /* TextToSpeechService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18BF91BCEE9B4980BC643CB2 /* TextToSpeechService.swift */; };
 		BBC5F8E4CA694EABAD6955A2 /* SimpleMathRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0011C726DB944E1CBD5D9102 /* SimpleMathRenderer.swift */; };
@@ -666,9 +678,10 @@
 		7B2249242F39BEF2006ADD93 /* ReportAvailabilityChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ReportAvailabilityChecker.swift; path = StudyAI/Services/ReportAvailabilityChecker.swift; sourceTree = SOURCE_ROOT; };
 		7B2249522F3AC54E006ADD93 /* CuteTabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CuteTabBar.swift; path = StudyAI/Views/CuteTabBar.swift; sourceTree = SOURCE_ROOT; };
 		7B2789F32F5AA1BC00DA84B0 /* LanguageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LanguageManager.swift; path = StudyAI/Services/LanguageManager.swift; sourceTree = SOURCE_ROOT; };
-		AA00010D2F68A00100000001 /* BranchLocalizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BranchLocalizer.swift; path = StudyAI/Services/BranchLocalizer.swift; sourceTree = SOURCE_ROOT; };
-		AA0002022F68A00100000001 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = Taxonomy.strings; sourceTree = "<group>"; };
-		AA0002052F68A00100000001 /* zh-Hant */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hant"; path = Taxonomy.strings; sourceTree = "<group>"; };
+		7B278A212F5CA93D00DA84B0 /* NewPracticeSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NewPracticeSheet.swift; path = StudyAI/Views/Practice/NewPracticeSheet.swift; sourceTree = SOURCE_ROOT; };
+		7B278A222F5CA93D00DA84B0 /* PracticeLibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PracticeLibraryView.swift; path = StudyAI/Views/Practice/PracticeLibraryView.swift; sourceTree = SOURCE_ROOT; };
+		7B278A232F5CA93D00DA84B0 /* PracticeSessionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PracticeSessionCard.swift; path = StudyAI/Views/Practice/PracticeSessionCard.swift; sourceTree = SOURCE_ROOT; };
+		7B278A242F5CA93D00DA84B0 /* QuestionSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QuestionSheetView.swift; path = StudyAI/Views/Practice/QuestionSheetView.swift; sourceTree = SOURCE_ROOT; };
 		7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ImageCropper.swift; path = StudyAI/Utils/ImageCropper.swift; sourceTree = SOURCE_ROOT; };
 		7B74A2032EB18078002DBE2B /* Fire.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Fire.json; sourceTree = "<group>"; };
 		7B74A2042EB18078002DBE2B /* Foriday.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Foriday.json; sourceTree = "<group>"; };
@@ -790,6 +803,9 @@
 		A21B919EA56142DFAC1020BF /* AMBRoom-Soft_rain_tapping_on-Elevenlabs.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; name = "AMBRoom-Soft_rain_tapping_on-Elevenlabs.mp3"; path = "StudyAI/Resources/AMBRoom-Soft_rain_tapping_on-Elevenlabs.mp3"; sourceTree = SOURCE_ROOT; };
 		A495A22D3B7A4F948336AFBA /* UnifiedImageEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UnifiedImageEditorView.swift; path = StudyAI/Views/UnifiedImageEditorView.swift; sourceTree = SOURCE_ROOT; };
 		A8B9760D87F648899A6633CB /* ScannedImageActionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ScannedImageActionView.swift; path = StudyAI/Views/ScannedImageActionView.swift; sourceTree = SOURCE_ROOT; };
+		AA00010D2F68A00100000001 /* BranchLocalizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BranchLocalizer.swift; path = StudyAI/Services/BranchLocalizer.swift; sourceTree = SOURCE_ROOT; };
+		AA0002022F68A00100000001 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = Taxonomy.strings; sourceTree = "<group>"; };
+		AA0002052F68A00100000001 /* zh-Hant */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hant"; path = Taxonomy.strings; sourceTree = "<group>"; };
 		ABCD123456789012EFGH3456 /* UserSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UserSessionManager.swift; path = StudyAI/Services/UserSessionManager.swift; sourceTree = SOURCE_ROOT; };
 		B287EA8822554493B6AB2BBB /* TomatoGardenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TomatoGardenView.swift; path = StudyAI/Views/TomatoGardenView.swift; sourceTree = SOURCE_ROOT; };
 		B2BADF97FAD74B47A0470133 /* nature.mp3 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = audio.mp3; name = nature.mp3; path = StudyAI/Resources/Music/nature.mp3; sourceTree = "<group>"; };
@@ -1120,6 +1136,10 @@
 		7BEDA5F92E7EB94000D57B15 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				7B278A212F5CA93D00DA84B0 /* NewPracticeSheet.swift */,
+				7B278A222F5CA93D00DA84B0 /* PracticeLibraryView.swift */,
+				7B278A232F5CA93D00DA84B0 /* PracticeSessionCard.swift */,
+				7B278A242F5CA93D00DA84B0 /* QuestionSheetView.swift */,
 				7BEC08332F4E780300B6E573 /* ActivityViewController.swift */,
 				7BEC07EB2F4AF58600B6E573 /* ForgotPasswordView.swift */,
 				7BEC07E12F478C1500B6E573 /* LiveVoiceBubbles.swift */,
@@ -1477,7 +1497,7 @@
 				7B9045272E8FB5DD00E5DDFA /* Chart Graph.json in Resources */,
 				7B9045282E8FB5DD00E5DDFA /* Chat.json in Resources */,
 				7B1961DE2E94D96A0024317A /* Localizable.strings in Resources */,
-				AA0002012F68A00100000001 /* Taxonomy.strings in Resources */,
+				AA0002012F68A00100000001 /* (null) in Resources */,
 				AA0002042F68A00100000001 /* Taxonomy.strings in Resources */,
 				7BEC07CB2F42F9DB00B6E573 /* Correct.json in Resources */,
 				7BEC07CC2F42F9DB00B6E573 /* Question and Answer 2.json in Resources */,
@@ -1723,6 +1743,10 @@
 				7BDE567A2EC1C6C4004A8629 /* PomodoroCalendarView.swift in Sources */,
 				7B2248512F20212C006ADD93 /* PassiveReportsView.swift in Sources */,
 				7B2248522F20212C006ADD93 /* ParentReportsContainerView.swift in Sources */,
+				7B278A2D2F5CA93D00DA84B0 /* PracticeLibraryView.swift in Sources */,
+				7B278A2E2F5CA93D00DA84B0 /* QuestionSheetView.swift in Sources */,
+				7B278A2F2F5CA93D00DA84B0 /* NewPracticeSheet.swift in Sources */,
+				7B278A302F5CA93D00DA84B0 /* PracticeSessionCard.swift in Sources */,
 				7B2248532F20212C006ADD93 /* PassiveReportDetailView.swift in Sources */,
 				7DCD4D51FBF64F74AEA6A5C3 /* VoiceSettingsView.swift in Sources */,
 				7B2248822F26F838006ADD93 /* ShortTermStatusService.swift in Sources */,
@@ -1789,6 +1813,10 @@
 				7BD664CA2ECA8B0A00E09E55 /* ProgressiveHomeworkViewModel.swift in Sources */,
 				7BDE56EE2EC31AC7004A8629 /* HTMLRendererView.swift in Sources */,
 				7BD664D22ECA908300E09E55 /* ProgressiveHomeworkModels.swift in Sources */,
+				7B278A252F5CA93D00DA84B0 /* PracticeLibraryView.swift in Sources */,
+				7B278A262F5CA93D00DA84B0 /* QuestionSheetView.swift in Sources */,
+				7B278A272F5CA93D00DA84B0 /* NewPracticeSheet.swift in Sources */,
+				7B278A282F5CA93D00DA84B0 /* PracticeSessionCard.swift in Sources */,
 				7B22488D2F28208D006ADD93 /* HandwritingEvaluationView.swift in Sources */,
 				7B1961AC2E949DAD0024317A /* NotificationSettingsView.swift in Sources */,
 				7BD668A82ED6F36300E09E55 /* DigitalHomeworkViewModel.swift in Sources */,
@@ -1964,6 +1992,10 @@
 				7B2248BD2F331667006ADD93 /* InteractiveModeSettings.swift in Sources */,
 				7BDE566E2EC1C667004A8629 /* SessionChatViewModel.swift in Sources */,
 				7B83533B2EA6F11400199AC3 /* AppLogger.swift in Sources */,
+				7B278A292F5CA93D00DA84B0 /* PracticeLibraryView.swift in Sources */,
+				7B278A2A2F5CA93D00DA84B0 /* QuestionSheetView.swift in Sources */,
+				7B278A2B2F5CA93D00DA84B0 /* NewPracticeSheet.swift in Sources */,
+				7B278A2C2F5CA93D00DA84B0 /* PracticeSessionCard.swift in Sources */,
 				7B83533C2EA6F11400199AC3 /* SecureLogger.swift in Sources */,
 				7B2249532F3AC54E006ADD93 /* CuteTabBar.swift in Sources */,
 				7BDE567C2EC1C6C4004A8629 /* PomodoroCalendarView.swift in Sources */,
@@ -2022,28 +2054,12 @@
 			name = Localizable.strings;
 			sourceTree = "<group>";
 		};
-		AA0002033F68A00100000001 /* Taxonomy.strings */ = {
-			isa = PBXVariantGroup;
-			children = (
-				AA0002022F68A00100000001 /* zh-Hans */,
-			);
-			name = Taxonomy.strings;
-			sourceTree = "<group>";
-		};
 		7B1961DC2E94D96A0024317A /* Localizable.strings */ = {
 			isa = PBXVariantGroup;
 			children = (
 				7B1961DB2E94D96A0024317A /* zh-Hant */,
 			);
 			name = Localizable.strings;
-			sourceTree = "<group>";
-		};
-		AA0002063F68A00100000001 /* Taxonomy.strings */ = {
-			isa = PBXVariantGroup;
-			children = (
-				AA0002052F68A00100000001 /* zh-Hant */,
-			);
-			name = Taxonomy.strings;
 			sourceTree = "<group>";
 		};
 		7BEC07F02F4C332900B6E573 /* Localizable_de.strings */ = {
@@ -2076,6 +2092,22 @@
 				7BEC07F82F4C332900B6E573 /* ja */,
 			);
 			name = Localizable_ja.strings;
+			sourceTree = "<group>";
+		};
+		AA0002033F68A00100000001 /* Taxonomy.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				AA0002022F68A00100000001 /* zh-Hans */,
+			);
+			name = Taxonomy.strings;
+			sourceTree = "<group>";
+		};
+		AA0002063F68A00100000001 /* Taxonomy.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				AA0002052F68A00100000001 /* zh-Hant */,
+			);
+			name = Taxonomy.strings;
 			sourceTree = "<group>";
 		};
 /* End PBXVariantGroup section */

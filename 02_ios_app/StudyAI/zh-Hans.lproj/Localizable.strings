@@ -1175,6 +1175,58 @@
 "practice.feedbackCorrect" = "回答正确！做得好。";
 "practice.feedbackIncorrect" = "回答错误。正确答案是：%@";
 "practice.feedbackTryAgain" = "还差一点。请回顾正确答案，再做类似的题目。";
+"newPractice.title" = "新练习";
+"newPractice.error.title" = "生成失败";
+"newPractice.error.sessionNotFound" = "生成后未找到练习会话。";
+"newPractice.error.noSelection" = "请至少选择一个对话或题目。";
+
+// Practice Library
+"practiceLibrary.title" = "练习本";
+"practiceLibrary.filterAll" = "全部";
+"practiceLibrary.deleteTitle" = "删除练习?";
+"practiceLibrary.deleteMessage" = "此练习记录将被永久删除。";
+"practiceLibrary.emptyTitle" = "暂无练习记录";
+"practiceLibrary.emptySubtitle" = "点击「新建」生成你的第一个练习。";
+"practiceLibrary.generateFirst" = "生成第一个练习";
+"practiceLibrary.sortNewest" = "最新";
+"practiceLibrary.sortOldest" = "最早";
+"practiceLibrary.sortScore" = "成绩 ↓";
+"practiceLibrary.sortIncomplete" = "未完成优先";
+"practiceLibrary.card.questionSingular" = "道题";
+"practiceLibrary.card.questionPlural" = "道题";
+"practiceLibrary.card.complete" = "已完成";
+"practiceLibrary.card.inProgress" = "进行中";
+
+// Practice Sheet
+"practiceSheet.questionCounter" = "第 %d/%d 题";
+"practiceSheet.typeAnswerPlaceholder" = "在此输入答案…";
+"practiceSheet.answersSection" = "答题区";
+"practiceSheet.yourAnswerLabel" = "你的答案";
+"practiceSheet.noAnswer" = "(未作答)";
+"practiceSheet.partialCredit" = "部分正确";
+"practiceSheet.gradingInstant" = "即时批改";
+"practiceSheet.gradingAI" = "AI 批改";
+"practiceSheet.correctAnswer" = "正确答案";
+"practiceSheet.aiExplanation" = "AI 解析";
+"practiceSheet.nextQuestion" = "下一题";
+"practiceSheet.seeResults" = "查看结果";
+"practiceSheet.practiceComplete" = "练习完成！";
+"practiceSheet.statCorrect" = "正确";
+"practiceSheet.statIncorrect" = "错误";
+"practiceSheet.statSkipped" = "跳过";
+"practiceSheet.slideToOrganizeHint" = "滑动以归档错题并更新进度";
+"practiceSheet.organizedConfirm" = "错题已归档 · 进度已更新";
+"practiceSheet.slideToOrganize" = "滑动整理";
+"practiceSheet.aiAnalyzing" = "AI 正在分析你的答案…";
+"practiceSheet.toastTitle" = "智能整理完成";
+"practiceSheet.toastProgress" = "已更新 %@ 的学习进度";
+"practiceSheet.toastMistakes" = "%d 道错题已归档至题库";
+"practiceSheet.toastSaved" = "练习已保存";
+"practiceSheet.scoreExcellent" = "太棒了！";
+"practiceSheet.scoreGreat" = "做得好！";
+"practiceSheet.scoreGood" = "继续加油！";
+"practiceSheet.scorePractice" = "多多练习！";
+
 "questionDetail.archiveQuestion" = "归档题目";
 "questionDetail.archiving" = "归档中...";
 "questionDetail.archived" = "已归档";

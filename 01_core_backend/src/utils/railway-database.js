@@ -5131,6 +5131,47 @@ async function runDatabaseMigrations() {
       logger.debug('✅ onboarding_completed backfill already applied');
     }
 
+    // MIGRATION 019: Practice Sheets table for Practice Library feature (2026-03-07)
+    const practiceSheetsCheck = await db.query(`
+      SELECT 1 FROM migration_history WHERE migration_name = '019_practice_sheets'
+    `);
+
+    if (practiceSheetsCheck.rows.length === 0) {
+      logger.debug('📋 Applying practice_sheets migration...');
+
+      try {
+        await db.query(`
+          CREATE TABLE IF NOT EXISTS practice_sheets (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            sheet_id VARCHAR(255) UNIQUE NOT NULL,
+            subject VARCHAR(100),
+            source_type VARCHAR(50),
+            question_count INTEGER DEFAULT 0,
+            completed_count INTEGER DEFAULT 0,
+            score_percentage DECIMAL(5,2),
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            completed_at TIMESTAMPTZ,
+            last_accessed_at TIMESTAMPTZ DEFAULT NOW()
+          );
+          CREATE INDEX IF NOT EXISTS idx_practice_sheets_user_id ON practice_sheets(user_id);
+          CREATE INDEX IF NOT EXISTS idx_practice_sheets_sheet_id ON practice_sheets(sheet_id);
+        `);
+
+        await db.query(`
+          INSERT INTO migration_history (migration_name)
+          VALUES ('019_practice_sheets')
+          ON CONFLICT (migration_name) DO NOTHING;
+        `);
+
+        logger.debug('✅ practice_sheets table created');
+      } catch (migrationError) {
+        logger.error({ err: migrationError }, '❌ Migration 019 failed');
+      }
+    } else {
+      logger.debug('✅ practice_sheets migration already applied');
+    }
+
   } catch (error) {
     logger.error('❌ Database migration failed:', error);
     // Don't throw - let the app continue with what it has

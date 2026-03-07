@@ -31,6 +31,7 @@ const WeaknessDescriptionRoutes = require('./modules/weakness-description'); // 
 const ConceptExtractionRoutes = require('./modules/concept-extraction'); // NEW: Bidirectional status tracking
 const InteractiveStreamingRoutes = require('./modules/interactive-streaming'); // NEW: Interactive Mode (Phase 1)
 const GeminiLiveRoutes = require('./modules/gemini-live-v2'); // NEW: Gemini Live API voice chat (v2 - official protocol)
+const PracticeLibraryRoutes = require('./modules/practice-library'); // NEW: Practice Library backend sync
 
 /**
  * Register all AI routes
@@ -121,6 +122,15 @@ async function aiRoutes(fastify, opts) {
     fastify.log.info(`  ✅ Gemini Live API (Voice Chat) routes registered`);
   } catch (error) {
     fastify.log.error(`  ❌ Failed to register Gemini Live routes:`, error);
+  }
+
+  // Register Practice Library routes (NEW: Practice Library sync)
+  try {
+    const practiceLibrary = new PracticeLibraryRoutes(fastify);
+    practiceLibrary.registerRoutes();
+    fastify.log.info(`  ✅ Practice Library routes registered`);
+  } catch (error) {
+    fastify.log.error(`  ❌ Failed to register Practice Library routes:`, error);
   }
 
   fastify.log.info('✅ All AI routes registered successfully');

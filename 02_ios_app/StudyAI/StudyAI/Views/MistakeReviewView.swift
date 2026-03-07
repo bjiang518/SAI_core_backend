@@ -384,15 +384,10 @@ struct MistakeQuestionListView: View {
     @State private var isSelectionMode = false
     @State private var showingPDFGenerator = false
     @State private var isGeneratingPractice = false
-    @State private var generatedQuestions: [QuestionGenerationService.GeneratedQuestion] = []
-    @State private var showingPracticeQuestions = false
     @State private var showingConfigurationSheet = false
     @State private var generationError: String? = nil
-    @State private var currentSessionId: String? = nil   // session ID for newly generated set
-    @State private var resumeSessionId: String? = nil    // session ID being resumed
-    /// Non-nil triggers the "Do them again" sheet; questions are carried in the item so they're
-    /// guaranteed present when the sheet's WeaknessPracticeView init runs.
-    @State private var doThemAgainItem: DoThemAgainItem? = nil
+    /// Non-nil → shows QuestionSheetView as a sheet (generated, resumed, or "do them again")
+    @State private var activePracticeSession: PracticeSession? = nil
     @Environment(\.dismiss) private var dismiss
 
     // MARK: - Computed Properties
@@ -471,9 +466,7 @@ struct MistakeQuestionListView: View {
                         // Resume button — shown when an incomplete session exists for this subject
                         if let session = incompleteSession {
                             Button(action: {
-                                resumeSessionId = session.id
-                                generatedQuestions = session.questions
-                                showingPracticeQuestions = true
+                                activePracticeSession = session
                             }) {
                                 HStack(spacing: 10) {
                                     Image(systemName: "clock.arrow.circlepath")
@@ -675,21 +668,6 @@ struct MistakeQuestionListView: View {
                     )
                 }
             }
-            .sheet(isPresented: $showingPracticeQuestions) {
-                PracticeQuestionsView(
-                    questions: generatedQuestions,
-                    subject: subject,
-                    sessionId: resumeSessionId ?? currentSessionId
-                )
-            }
-            .onChange(of: appState.shouldDismissPracticeStack) { _, shouldDismiss in
-                if shouldDismiss {
-                    showingPracticeQuestions = false
-                }
-            }
-            .sheet(item: $doThemAgainItem) { item in
-                WeaknessPracticeView(subject: subject, preloadedQuestions: item.questions)
-            }
             .sheet(isPresented: $showingConfigurationSheet) {
                 // ✅ NEW: Show configuration sheet before generating
                 PracticeConfigurationSheet(
@@ -719,6 +697,14 @@ struct MistakeQuestionListView: View {
                 }
             } message: {
                 Text(generationError ?? "An unknown error occurred")
+            }
+            .sheet(item: $activePracticeSession) { session in
+                QuestionSheetView(session: session)
+            }
+            .onChange(of: appState.shouldDismissPracticeStack) { _, shouldDismiss in
+                if shouldDismiss {
+                    activePracticeSession = nil
+                }
             }
         }
 
@@ -826,7 +812,22 @@ struct MistakeQuestionListView: View {
             result.append(pq)
         }
 
-        doThemAgainItem = DoThemAgainItem(questions: result)
+        // Convert WeaknessPracticeQuestions to GeneratedQuestions and create a PracticeSession
+        let generated = result.map { PracticeSessionManager.convert($0, subject: subject) }
+        let session = PracticeSession(
+            id: UUID().uuidString,
+            questions: generated,
+            generationType: "Mistake-Based Practice",
+            subject: subject,
+            difficulty: "intermediate",
+            questionType: "any",
+            createdDate: Date(),
+            lastAccessedDate: Date(),
+            completedQuestionIds: [],
+            answers: [:]
+        )
+        PracticeSessionManager.shared.saveSession(session)
+        activePracticeSession = session
     }
 
     // ✅ OPTIMIZED: Generate practice from selected mistakes with user-configured parameters
@@ -915,11 +916,11 @@ struct MistakeQuestionListView: View {
             switch result {
             case .success(let questions):
                 await MainActor.run {
-                    generatedQuestions = questions
-                    // Session already saved by QuestionGenerationService with type "Mistake-Based Practice"
-                    currentSessionId = QuestionGenerationService.shared.currentSessionId
-                    resumeSessionId = nil  // fresh session, not a resume
-                    showingPracticeQuestions = true
+                    // Session already saved by QuestionGenerationService; retrieve it for QuestionSheetView
+                    if let sid = QuestionGenerationService.shared.currentSessionId,
+                       let session = PracticeSessionManager.shared.getSession(id: sid) {
+                        activePracticeSession = session
+                    }
                 }
                 print("🎉 Generated \(questions.count) targeted practice questions with type-based rendering")
 

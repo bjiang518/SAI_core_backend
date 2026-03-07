@@ -2160,3 +2160,56 @@
 // Onboarding — Language Selection (first page)
 "onboarding.language.title" = "選擇語言";
 "onboarding.language.subtitle" = "您可以隨時在設定中更改";
+
+// New Practice Sheet
+"newPractice.title" = "新練習";
+"newPractice.error.title" = "生成失敗";
+"newPractice.error.sessionNotFound" = "生成後未找到練習會話。";
+"newPractice.error.noSelection" = "請至少選擇一個對話或題目。";
+
+// Practice Library
+"practiceLibrary.title" = "練習本";
+"practiceLibrary.filterAll" = "全部";
+"practiceLibrary.deleteTitle" = "刪除練習?";
+"practiceLibrary.deleteMessage" = "此練習記錄將被永久刪除。";
+"practiceLibrary.emptyTitle" = "暫無練習記錄";
+"practiceLibrary.emptySubtitle" = "點擊「新建」生成你的第一個練習。";
+"practiceLibrary.generateFirst" = "生成第一個練習";
+"practiceLibrary.sortNewest" = "最新";
+"practiceLibrary.sortOldest" = "最早";
+"practiceLibrary.sortScore" = "成績 ↓";
+"practiceLibrary.sortIncomplete" = "未完成優先";
+"practiceLibrary.card.questionSingular" = "道題";
+"practiceLibrary.card.questionPlural" = "道題";
+"practiceLibrary.card.complete" = "已完成";
+"practiceLibrary.card.inProgress" = "進行中";
+
+// Practice Sheet
+"practiceSheet.questionCounter" = "第 %d/%d 題";
+"practiceSheet.typeAnswerPlaceholder" = "在此輸入答案…";
+"practiceSheet.answersSection" = "答題區";
+"practiceSheet.yourAnswerLabel" = "你的答案";
+"practiceSheet.noAnswer" = "(未作答)";
+"practiceSheet.partialCredit" = "部分正確";
+"practiceSheet.gradingInstant" = "即時批改";
+"practiceSheet.gradingAI" = "AI 批改";
+"practiceSheet.correctAnswer" = "正確答案";
+"practiceSheet.aiExplanation" = "AI 解析";
+"practiceSheet.nextQuestion" = "下一題";
+"practiceSheet.seeResults" = "查看結果";
+"practiceSheet.practiceComplete" = "練習完成！";
+"practiceSheet.statCorrect" = "正確";
+"practiceSheet.statIncorrect" = "錯誤";
+"practiceSheet.statSkipped" = "跳過";
+"practiceSheet.slideToOrganizeHint" = "滑動以歸檔錯題並更新進度";
+"practiceSheet.organizedConfirm" = "錯題已歸檔 · 進度已更新";
+"practiceSheet.slideToOrganize" = "滑動整理";
+"practiceSheet.aiAnalyzing" = "AI 正在分析你的答案…";
+"practiceSheet.toastTitle" = "智能整理完成";
+"practiceSheet.toastProgress" = "已更新 %@ 的學習進度";
+"practiceSheet.toastMistakes" = "%d 道錯題已歸檔至題庫";
+"practiceSheet.toastSaved" = "練習已保存";
+"practiceSheet.scoreExcellent" = "太棒了！";
+"practiceSheet.scoreGreat" = "做得好！";
+"practiceSheet.scoreGood" = "繼續加油！";
+"practiceSheet.scorePractice" = "多多練習！";

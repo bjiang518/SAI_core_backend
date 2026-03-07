@@ -106,7 +106,7 @@ struct HomeView: View {
                 MistakeReviewView()
             }
             .navigationDestination(isPresented: $showingQuestionGeneration) {
-                QuestionGenerationView()
+                PracticeLibraryView()
             }
             .onChange(of: appState.homeNavResetToken) { _, _ in
                 showingMistakeReview = false
