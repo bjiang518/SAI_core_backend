@@ -160,29 +160,50 @@ class ErrorAnalysisService:
 
         is_generic = normalized == "others"
 
-        prompt = f"""You are a senior {subject_label} educator and curriculum specialist with deep expertise in diagnosing student misconceptions.
+        prompt = f"""You are a senior {subject_label} educator diagnosing a student's mistake.
 
-Your task is to perform a thorough diagnostic analysis of a student's incorrect answer. This is NOT a surface-level check — you must reason deeply about WHY the student made this specific error.
+## Error Type Decision Tree (FOLLOW THIS EXACTLY)
 
-## Your Analysis Process (think step by step)
+Classify the error by working through these checks IN ORDER. Stop at the FIRST match:
 
-1. **Understand the question**: What concept is being tested? What skills does the student need?
-2. **Analyze the correct answer**: What is the correct reasoning path?
-3. **Analyze the student's answer**: What reasoning did the student likely follow? What specific step went wrong?
-4. **Identify the root cause**: Is this a careless slip (execution_error), a fundamental misunderstanding (conceptual_gap), or a correct-but-improvable answer (needs_refinement)?
-5. **Classify precisely**: Match the error to the most specific taxonomy branch that covers the concept being tested — not just a vaguely related topic.
+### Check 1: Is the answer essentially correct?
+→ Missing units, rounding differently, correct method but sloppy notation, incomplete justification
+→ **needs_refinement** (confidence 0.7-0.9)
 
-## Classification Guidelines
+### Check 2: Did the student use the RIGHT approach/formula/method?
+If YES (right approach, but wrong result):
+→ Arithmetic mistake, sign error, copied number wrong, skipped a step, misread the question, off-by-one
+→ **execution_error** (confidence 0.7-0.95)
 
-- **execution_error**: The student knows the concept but made a mechanical mistake (arithmetic error, sign flip, forgot a step, misread the question). The student would likely get it right on a second attempt.
-- **conceptual_gap**: The student's approach reveals a fundamental misunderstanding (wrong formula, confused two concepts, incorrect mental model). The student needs to re-learn this concept.
-- **needs_refinement**: The answer is essentially correct but lacks precision, missing units, incomplete justification, or uses an inefficient method.
+If NO (wrong approach entirely):
+→ Used wrong formula, confused two concepts, fundamentally wrong mental model, doesn't know the method
+→ **conceptual_gap** (confidence 0.6-0.95)
 
-## Taxonomy Matching Rules
+## Concrete Examples
 
-- Choose the branch that matches the **concept being tested**, not just a keyword in the question.
-- For multi-step problems, classify by the step where the error actually occurred.
-- If a math word problem involves physics concepts, classify by the mathematical skill that failed (e.g., "Linear Equations" not "Mechanics").
+**execution_error** examples:
+- Q: "5 × 7 = ?" Student: "32" (knew to multiply, miscalculated)
+- Q: "Solve 2x + 4 = 10" Student: "x = 2" (correct setup, subtracted wrong: 10-4=6, 6/2=3 is right, but got 2)
+- Q: "What is the derivative of x³?" Student: "2x²" (knows power rule, wrong coefficient)
+- Q: "What year did WWII end?" Student: "1944" (knows the era, off by one year)
+
+**conceptual_gap** examples:
+- Q: "Solve 2x + 4 = 10" Student: "2x = 14" (added 4 instead of subtracting — doesn't understand inverse operations)
+- Q: "What is the derivative of x³?" Student: "x⁴/4" (applied integration instead of differentiation)
+- Q: "Calculate the area of a triangle with base 6, height 4" Student: "24" (used length × width — confused triangle with rectangle)
+
+**needs_refinement** examples:
+- Q: "What is 15% of 200?" Student: "30" with no work shown (correct answer, but should show steps)
+- Q: "Calculate velocity: 100m in 10s" Student: "10" (correct value, missing units m/s)
+
+## Important
+- Most student errors ARE execution errors (careless mistakes). Do NOT over-classify as conceptual_gap.
+- Only use conceptual_gap when the student's APPROACH is wrong, not just the arithmetic.
+- When in doubt between execution_error and conceptual_gap, prefer execution_error.
+
+## Taxonomy Matching
+- Choose the branch matching the **concept being tested**, not a keyword.
+- For multi-step problems, classify by the step where the error occurred.
 """
 
         if is_generic:
@@ -223,13 +244,12 @@ LANGUAGE REQUIREMENT: Write the 'specific_issue', 'learning_suggestion', and 'ev
 
 ---
 
-## Think Through This Carefully
+## Classification Steps
 
-Before classifying, reason through these questions:
-1. What specific concept or skill does this question test?
-2. What did the student do — trace their likely thought process step by step.
-3. Where exactly did their reasoning diverge from the correct path?
-4. Is the root cause a careless slip, a genuine misunderstanding, or a partially correct answer?
+1. Compare the student's answer to the correct answer — what specifically is different?
+2. Did the student use the RIGHT method/approach but get the wrong result? → **execution_error**
+3. Did the student use a WRONG method/approach entirely? → **conceptual_gap**
+4. Is the answer essentially correct but imprecise? → **needs_refinement**
 
 ---
 
@@ -239,29 +259,25 @@ You MUST select exactly one base branch and one of its topics. Copy the name cha
 
 {taxonomy_table}
 
-## Error Types (pick exactly one)
+## Error Types (pick exactly one — follow the decision tree in system prompt)
 
-- **execution_error** — Careless mistake; student understands the concept but slipped
-- **conceptual_gap** — Fundamental misunderstanding; student needs to re-learn this concept
-- **needs_refinement** — Answer is correct but could be improved (missing units, incomplete work, etc.)
+- **execution_error** — Right approach, wrong result (arithmetic slip, sign error, misread question)
+- **conceptual_gap** — Wrong approach entirely (wrong formula, confused concepts, wrong mental model)
+- **needs_refinement** — Answer correct but imprecise (missing units, no work shown)
 
 ---
 
 ## Required Output (JSON)
 
-After your reasoning, output this JSON:
-
 {{
     "base_branch": "<exact base branch name from the taxonomy>",
     "detailed_branch": "<exact topic name under that base branch>",
     "error_type": "execution_error|conceptual_gap|needs_refinement",
-    "specific_issue": "<2-3 sentences: what exactly went wrong and why>",
-    "evidence": "<direct quote or reference from the student's answer that reveals the error>",
-    "learning_suggestion": "<2-3 sentences: specific, actionable advice for the student>",
+    "specific_issue": "<1-2 sentences: what went wrong>",
+    "evidence": "<quote from student's answer showing the error>",
+    "learning_suggestion": "<1-2 sentences: actionable advice>",
     "confidence": <0.0 to 1.0>
-}}
-
-Analyze now. Think deeply before classifying."""
+}}"""
 
     async def analyze_batch(self, questions_data):
         """
