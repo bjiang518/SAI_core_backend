@@ -1337,8 +1337,10 @@
 "mistakeReview.instructions.title" = "如何使用錯題複習";
 "mistakeReview.instructions.message" = "1. 選擇時間範圍（本週、本月或全部時間）來篩選錯題\n\n2. 選擇科目查看做錯的題目\n\n3. 點擊「開始複習」查看你的錯題\n\n4. 使用「讓我們再做一遍」選擇題目並生成PDF進行練習\n\n5. 查看正確答案和解析以提高理解";
 "mistakeReview.startReview" = "開始複習（%d 道錯題）";
-"mistakeReview.letsPractise" = "讓我們來練習吧";
+"mistakeReview.letsPractise" = "開始練習";
 "mistakeReview.resumePractice" = "繼續練習";
+"mistakeReview.showFullQuestion" = "展開題目與分析";
+"mistakeReview.hideDetails" = "收起詳情";
 "mistakeReview.questionsLeftDone" = "還剩 %d 道題 · 已完成 %d%%";
 "mistakeReview.generatePractice" = "生成練習（%d 道錯題）";
 "mistakeReview.generationFailed" = "練習生成失敗";
@@ -2236,3 +2238,18 @@
 "practiceSheet.scoreGreat" = "做得好！";
 "practiceSheet.scoreGood" = "繼續加油！";
 "practiceSheet.scorePractice" = "多多練習！";
+
+// Suggested Daily Todos
+"suggestedTodo.sectionTitle" = "建議事項";
+"suggestedTodo.empty" = "今日任務已全部完成 🎉";
+"suggestedTodo.resumePractice.title" = "繼續未完成的練習";
+"suggestedTodo.resumePractice.subtitle" = "還剩 %d 題未完成";
+"suggestedTodo.resumePractice.subtitleGeneral" = "繼續上次進度";
+"suggestedTodo.mistakeReview.title" = "複習錯題";
+"suggestedTodo.mistakeReview.subtitle" = "%d 道錯題待複習";
+"suggestedTodo.homeworkGrader.title" = "拍一張作業讓 AI 分析";
+"suggestedTodo.homeworkGrader.subtitle" = "今天還沒有評分記錄";
+"suggestedTodo.focusMode.title" = "開始 25 分鐘專注";
+"suggestedTodo.focusMode.subtitle" = "今天還沒有專注記錄";
+"suggestedTodo.progress.title" = "查看本週學習進度";
+"suggestedTodo.progress.subtitle" = "掌握你的學習軌跡";

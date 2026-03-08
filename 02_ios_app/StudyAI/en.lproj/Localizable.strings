@@ -1406,8 +1406,10 @@
 "mistakeReview.instructions.title" = "How to Use Mistake Review";
 "mistakeReview.instructions.message" = "1. Select a time range (This Week, This Month, or All Time) to filter your mistakes\n\n2. Choose a subject to review incorrect answers\n\n3. Tap 'Start Review' to see your mistakes\n\n4. Use 'Let's do them again' to select questions and generate a PDF for practice\n\n5. Review the correct answers and explanations to improve your understanding";
 "mistakeReview.startReview" = "Start Review (%d Mistakes)";
-"mistakeReview.letsPractise" = "Let's practise them";
+"mistakeReview.letsPractise" = "Start Practice";
 "mistakeReview.resumePractice" = "Resume Practice";
+"mistakeReview.showFullQuestion" = "Show Full Question & Analysis";
+"mistakeReview.hideDetails" = "Hide Details";
 "mistakeReview.questionsLeftDone" = "%d questions left · %d%% done";
 "mistakeReview.generatePractice" = "Generate Practice (%d mistakes)";
 "mistakeReview.generationFailed" = "Practice Generation Failed";
@@ -2236,3 +2238,18 @@
 // Onboarding — Language Selection (first page)
 "onboarding.language.title" = "Choose your language";
 "onboarding.language.subtitle" = "You can change this anytime in Settings";
+
+// Suggested Daily Todos
+"suggestedTodo.sectionTitle" = "Suggestions";
+"suggestedTodo.empty" = "All tasks for today are done 🎉";
+"suggestedTodo.resumePractice.title" = "Continue unfinished practice";
+"suggestedTodo.resumePractice.subtitle" = "%d questions remaining";
+"suggestedTodo.resumePractice.subtitleGeneral" = "Pick up where you left off";
+"suggestedTodo.mistakeReview.title" = "Review mistakes";
+"suggestedTodo.mistakeReview.subtitle" = "%d mistakes to review";
+"suggestedTodo.homeworkGrader.title" = "Let AI analyze your homework";
+"suggestedTodo.homeworkGrader.subtitle" = "No grading activity today";
+"suggestedTodo.focusMode.title" = "Start a 25-min focus session";
+"suggestedTodo.focusMode.subtitle" = "No focus sessions today";
+"suggestedTodo.progress.title" = "View this week's progress";
+"suggestedTodo.progress.subtitle" = "Stay on top of your learning";

@@ -1346,8 +1346,10 @@
 "mistakeReview.instructions.title" = "How to Use Mistake Review";
 "mistakeReview.instructions.message" = "1. Select a time range (This Week, This Month, or All Time) to filter your mistakes\n\n2. Choose a subject to review incorrect answers\n\n3. Tap 'Start Review' to see your mistakes\n\n4. Use 'Let's do them again' to select questions and generate a PDF for practice\n\n5. Review the correct answers and explanations to improve your understanding";
 "mistakeReview.startReview" = "Start Review (%d Mistakes)";
-"mistakeReview.letsPractise" = "Let's practise them";
+"mistakeReview.letsPractise" = "Comenzar práctica";
 "mistakeReview.resumePractice" = "Resume Practice";
+"mistakeReview.showFullQuestion" = "Mostrar pregunta completa y análisis";
+"mistakeReview.hideDetails" = "Ocultar detalles";
 "mistakeReview.questionsLeftDone" = "%d questions left · %d%% done";
 "mistakeReview.generatePractice" = "Generate Practice (%d mistakes)";
 "mistakeReview.generationFailed" = "Practice Generation Failed";
@@ -2214,3 +2216,18 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "practiceSheet.scoreGreat" = "Great Job!";
 "practiceSheet.scoreGood" = "Keep It Up!";
 "practiceSheet.scorePractice" = "Keep Practicing!";
+
+// Suggested Daily Todos
+"suggestedTodo.sectionTitle" = "Sugerencias";
+"suggestedTodo.empty" = "Todas las tareas de hoy completadas 🎉";
+"suggestedTodo.resumePractice.title" = "Continuar práctica";
+"suggestedTodo.resumePractice.subtitle" = "%d preguntas restantes";
+"suggestedTodo.resumePractice.subtitleGeneral" = "Retomar donde lo dejaste";
+"suggestedTodo.mistakeReview.title" = "Repasar errores";
+"suggestedTodo.mistakeReview.subtitle" = "%d errores para repasar";
+"suggestedTodo.homeworkGrader.title" = "Deja que la IA analice tu tarea";
+"suggestedTodo.homeworkGrader.subtitle" = "Sin calificaciones hoy";
+"suggestedTodo.focusMode.title" = "Iniciar sesión de 25 min";
+"suggestedTodo.focusMode.subtitle" = "Sin sesiones de enfoque hoy";
+"suggestedTodo.progress.title" = "Ver progreso semanal";
+"suggestedTodo.progress.subtitle" = "Mantén el control de tu aprendizaje";

@@ -27,6 +27,7 @@ struct HomeView: View {
     @StateObject private var greetingVoice = GreetingVoiceService.shared
     @StateObject private var parentModeManager = ParentModeManager.shared
     @StateObject private var themeManager = ThemeManager.shared
+    @StateObject private var todoEngine = SuggestedTodoEngine.shared
     @ObservedObject private var pointsManager = PointsEarningManager.shared
     @ObservedObject private var profileService = ProfileService.shared
     @ObservedObject private var appState = AppState.shared
@@ -75,6 +76,16 @@ struct HomeView: View {
                     engagingHeroHeader
                         .padding(.bottom, DesignTokens.Spacing.cardSpacing)
 
+                    // Suggested daily to-do list (torn notebook style)
+                    SuggestedTodosSection(
+                        todos: todoEngine.todos,
+                        onAction: { handleTodoAction($0) },
+                        onDismiss: { todoEngine.dismiss(id: $0) },
+                        onRefresh: { todoEngine.forceRefresh() }
+                    )
+                    .padding(.horizontal, DesignTokens.Spacing.xl)
+                    .padding(.bottom, DesignTokens.Spacing.md)
+
                     // Quick Actions Grid (2x2) - now includes Homework Grader
                     quickActionsSection
                         .padding(.bottom, DesignTokens.Spacing.xxl)
@@ -84,6 +95,57 @@ struct HomeView: View {
                     additionalActionsSection
                         .environment(\.lottieRefreshID, lottieRefreshID)
 
+                    // Today's Progress — bottom of page
+                    VStack(alignment: .leading, spacing: DesignTokens.Spacing.sm) {
+                        Text(NSLocalizedString("home.todaysProgress", comment: ""))
+                            .font(.title3)
+                            .fontWeight(.bold)
+                            .foregroundColor(
+                                themeManager.currentTheme == .cute ?
+                                    Color.gray :
+                                    .primary
+                            )
+
+                        HStack(spacing: DesignTokens.Spacing.md) {
+                            if todayTotalQuestions > 0 {
+                                StatBadge(
+                                    icon: "questionmark.circle.fill",
+                                    value: "\(todayTotalQuestions)",
+                                    label: NSLocalizedString("home.questions", comment: ""),
+                                    color: DesignTokens.Colors.aiBlue
+                                )
+                                StatBadge(
+                                    icon: "target",
+                                    value: "\(Int(todayAccuracy))%",
+                                    label: NSLocalizedString("home.accuracy", comment: ""),
+                                    color: DesignTokens.Colors.learningGreen
+                                )
+                                StatBadge(
+                                    icon: "flame.fill",
+                                    value: "\(pointsManager.currentStreak)",
+                                    label: NSLocalizedString("home.streak", comment: ""),
+                                    color: DesignTokens.Colors.reviewOrange
+                                )
+                            } else {
+                                Text(NSLocalizedString("home.startLearningPrompt", comment: ""))
+                                    .font(.body)
+                                    .foregroundColor(.secondary)
+                                    .frame(maxWidth: .infinity)
+                            }
+                        }
+                        .padding(DesignTokens.Spacing.md)
+                        .background(DesignTokens.Colors.cardBackground)
+                        .cornerRadius(16)
+                        .shadow(
+                            color: colorScheme == .dark ?
+                                Color.white.opacity(0.05) :
+                                Color.black.opacity(0.05),
+                            radius: 4, x: 0, y: 2
+                        )
+                    }
+                    .padding(.horizontal, DesignTokens.Spacing.xl)
+                    .padding(.top, DesignTokens.Spacing.md)
+
                     Spacer(minLength: 100)
                 }
                 .padding(.bottom, DesignTokens.Spacing.md)
@@ -92,6 +154,7 @@ struct HomeView: View {
             .navigationBarHidden(true)
             .onAppear {
                 lottieRefreshID += 1
+                todoEngine.refresh()
                 updateUserName(from: profileService.currentProfile ?? profileService.loadCachedProfile())
             }
             .onReceive(profileService.$currentProfile) { profile in
@@ -296,59 +359,6 @@ struct HomeView: View {
             }
             .frame(height: 110)  // Compact height
             .padding(.top, DesignTokens.Spacing.md)
-
-            // Today's Progress - moved outside the gradient box
-            VStack(alignment: .leading, spacing: DesignTokens.Spacing.sm) {
-                Text(NSLocalizedString("home.todaysProgress", comment: ""))
-                    .font(.title3)
-                    .fontWeight(.bold)
-                    .foregroundColor(
-                        themeManager.currentTheme == .cute ?
-                            Color.gray :  // Grey in Cute mode
-                            .primary
-                    )
-
-                HStack(spacing: DesignTokens.Spacing.md) {
-                    if todayTotalQuestions > 0 {
-                        StatBadge(
-                            icon: "questionmark.circle.fill",
-                            value: "\(todayTotalQuestions)",
-                            label: NSLocalizedString("home.questions", comment: ""),
-                            color: DesignTokens.Colors.aiBlue
-                        )
-
-                        StatBadge(
-                            icon: "target",
-                            value: "\(Int(todayAccuracy))%",
-                            label: NSLocalizedString("home.accuracy", comment: ""),
-                            color: DesignTokens.Colors.learningGreen
-                        )
-
-                        StatBadge(
-                            icon: "flame.fill",
-                            value: "\(pointsManager.currentStreak)",
-                            label: NSLocalizedString("home.streak", comment: ""),
-                            color: DesignTokens.Colors.reviewOrange
-                        )
-                    } else {
-                        Text(NSLocalizedString("home.startLearningPrompt", comment: ""))
-                            .font(.body)
-                            .foregroundColor(.secondary)
-                            .frame(maxWidth: .infinity)
-                    }
-                }
-                .padding(DesignTokens.Spacing.md)
-                .background(DesignTokens.Colors.cardBackground)
-                .cornerRadius(16)
-                .shadow(
-                    color: colorScheme == .dark ?
-                        Color.white.opacity(0.05) :
-                        Color.black.opacity(0.05),
-                    radius: 4,
-                    x: 0,
-                    y: 2
-                )
-            }
         }
         .padding(.horizontal, DesignTokens.Spacing.xl)  // Left and right margins
     }
@@ -374,6 +384,28 @@ struct HomeView: View {
         case 0..<12: return NSLocalizedString("home.goodMorning", comment: "")
         case 12..<17: return NSLocalizedString("home.goodAfternoon", comment: "")
         default: return NSLocalizedString("home.goodEvening", comment: "")
+        }
+    }
+
+    // MARK: - Suggested Todo Action Handler
+
+    private func handleTodoAction(_ action: SuggestedTodo.TodoAction) {
+        switch action {
+        case .openGrader:
+            if parentModeManager.requiresAuthentication(for: .homeworkGrader) {
+                showingParentAuthForGrader = true
+            } else {
+                onSelectTab(.grader)
+            }
+        case .resumePractice:
+            showingQuestionGeneration = true
+        case .openMistakeReview:
+            showingMistakeReview = true
+        case .openFocus:
+            showingFocusMode = true
+        case .openProgress:
+            todoEngine.markProgressViewed()
+            onSelectTab(.progress)
         }
     }
 
@@ -638,7 +670,7 @@ extension HomeView {
             color: themeManager.featureCardColor("progress"),
             lottieAnimation: "Chart Graph",
             lottieScale: 0.45,
-            action: { onSelectTab(.progress) }
+            action: { onSelectTab(.progress); todoEngine.markProgressViewed() }
         )
     }
 }

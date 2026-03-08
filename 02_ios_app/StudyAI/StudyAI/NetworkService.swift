@@ -5275,11 +5275,11 @@ class NetworkService: ObservableObject {
     // MARK: - Profile Completion / Onboarding
 
     /// Check whether the user has completed first-time onboarding.
-    /// Calls GET /api/user/profile-completion and returns the two fields
-    /// most relevant to the onboarding gate.
-    func checkProfileCompletion() async -> (onboardingCompleted: Bool, percentage: Int) {
+    /// Calls GET /api/user/profile-completion and returns fields
+    /// relevant to the onboarding and consent gates.
+    func checkProfileCompletion() async -> (onboardingCompleted: Bool, dataSharingConsent: Bool, percentage: Int) {
         guard let url = URL(string: "\(baseURL)/api/user/profile-completion") else {
-            return (false, 0)
+            return (false, false, 0)
         }
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
@@ -5292,15 +5292,16 @@ class NetworkService: ObservableObject {
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let completion = json["completion"] as? [String: Any] else {
                 print("⚠️ [NetworkService] checkProfileCompletion: unexpected response — assuming onboarded")
-                return (true, 0)
+                return (true, true, 0)
             }
             let onboardingCompleted = completion["onboardingCompleted"] as? Bool ?? false
+            let dataSharingConsent = completion["dataSharingConsent"] as? Bool ?? false
             let percentage = completion["percentage"] as? Int ?? 0
-            print("📋 [NetworkService] Profile completion: onboardingCompleted=\(onboardingCompleted), \(percentage)%")
-            return (onboardingCompleted, percentage)
+            print("📋 [NetworkService] Profile completion: onboarding=\(onboardingCompleted), consent=\(dataSharingConsent), \(percentage)%")
+            return (onboardingCompleted, dataSharingConsent, percentage)
         } catch {
             print("❌ [NetworkService] checkProfileCompletion error: \(error.localizedDescription) — assuming onboarded")
-            return (true, 0)
+            return (true, true, 0)
         }
     }
 

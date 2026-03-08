@@ -441,81 +441,57 @@ struct MistakeQuestionListView: View {
             NavigationView {
                 VStack {
                     // Selection Mode Buttons
-                    if !filteredMistakes.isEmpty && !isSelectionMode {
-                    VStack(spacing: 12) {
+                    // Resume button — shown when an incomplete session exists for this subject (top)
+                    if !filteredMistakes.isEmpty && !isSelectionMode, let session = incompleteSession {
                         Button(action: {
-                            isSelectionMode = true
+                            activePracticeSession = session
                         }) {
-                            HStack {
-                                Image(systemName: "doc.text.fill")
-                                    .font(.title3)
-
-                                Text(NSLocalizedString("mistakeReview.letsPractise", comment: ""))
+                            HStack(spacing: 10) {
+                                Image(systemName: "clock.arrow.circlepath")
                                     .font(.body)
-                                    .fontWeight(.semibold)
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(NSLocalizedString("mistakeReview.resumePractice", comment: ""))
+                                        .font(.body)
+                                        .fontWeight(.semibold)
+
+                                    Text(String(format: NSLocalizedString("mistakeReview.questionsLeftDone", comment: ""), session.remainingQuestions, Int(session.progressPercentage * 100)))
+                                        .font(.caption)
+                                        .opacity(0.85)
+                                }
+
+                                Spacer()
+
+                                // Mini progress bar
+                                GeometryReader { geo in
+                                    ZStack(alignment: .leading) {
+                                        Capsule().fill(Color.white.opacity(0.3)).frame(height: 4)
+                                        Capsule().fill(Color.white)
+                                            .frame(width: geo.size.width * session.progressPercentage, height: 4)
+                                    }
+                                }
+                                .frame(width: 60, height: 4)
+
+                                Button(action: {
+                                    sessionManager.deleteSession(id: session.id)
+                                }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.body)
+                                        .foregroundColor(.white.opacity(0.7))
+                                }
+                                .buttonStyle(PlainButtonStyle())
                             }
                             .foregroundColor(.white)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 14)
                             .frame(maxWidth: .infinity)
-                            .frame(height: 56)
-                            .background(DesignTokens.Colors.success)
+                            .background(Color.orange)
                             .cornerRadius(12)
                         }
                         .buttonStyle(PlainButtonStyle())
                         .padding(.horizontal)
-
-                        // Resume button — shown when an incomplete session exists for this subject
-                        if let session = incompleteSession {
-                            Button(action: {
-                                activePracticeSession = session
-                            }) {
-                                HStack(spacing: 10) {
-                                    Image(systemName: "clock.arrow.circlepath")
-                                        .font(.body)
-
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(NSLocalizedString("mistakeReview.resumePractice", comment: ""))
-                                            .font(.body)
-                                            .fontWeight(.semibold)
-
-                                        Text(String(format: NSLocalizedString("mistakeReview.questionsLeftDone", comment: ""), session.remainingQuestions, Int(session.progressPercentage * 100)))
-                                            .font(.caption)
-                                            .opacity(0.85)
-                                    }
-
-                                    Spacer()
-
-                                    // Mini progress bar
-                                    GeometryReader { geo in
-                                        ZStack(alignment: .leading) {
-                                            Capsule().fill(Color.white.opacity(0.3)).frame(height: 4)
-                                            Capsule().fill(Color.white)
-                                                .frame(width: geo.size.width * session.progressPercentage, height: 4)
-                                        }
-                                    }
-                                    .frame(width: 60, height: 4)
-
-                                    Button(action: {
-                                        sessionManager.deleteSession(id: session.id)
-                                    }) {
-                                        Image(systemName: "xmark.circle.fill")
-                                            .font(.body)
-                                            .foregroundColor(.white.opacity(0.7))
-                                    }
-                                    .buttonStyle(PlainButtonStyle())
-                                }
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 14)
-                                .frame(maxWidth: .infinity)
-                                .background(Color.orange)
-                                .cornerRadius(12)
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                            .padding(.horizontal)
-                        }
+                        .padding(.top)
                     }
-                    .padding(.top)
-                }
 
                 // Selection Controls
                 if isSelectionMode {
@@ -592,6 +568,27 @@ struct MistakeQuestionListView: View {
                     }
                 }
 
+                //✅ Bottom action buttons
+                if !filteredMistakes.isEmpty && !isSelectionMode {
+                    Button(action: { isSelectionMode = true }) {
+                        HStack {
+                            Image(systemName: "doc.text.fill")
+                                .font(.title3)
+                            Text(NSLocalizedString("mistakeReview.letsPractise", comment: ""))
+                                .font(.body)
+                                .fontWeight(.semibold)
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
+                        .background(DesignTokens.Colors.success)
+                        .cornerRadius(12)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .padding(.horizontal)
+                    .padding(.bottom)
+                }
+
                 //✅ Generate Practice Button (ENHANCED with configuration UI)
                 if isSelectionMode && !selectedQuestions.isEmpty {
                     VStack(spacing: 10) {
@@ -646,7 +643,7 @@ struct MistakeQuestionListView: View {
                     .padding(.bottom)
                 }
             }
-            .navigationTitle(String.localizedStringWithFormat(NSLocalizedString("mistakeReview.subjectMistakes", comment: ""), subject))
+            .navigationTitle(String.localizedStringWithFormat(NSLocalizedString("mistakeReview.subjectMistakes", comment: ""), PracticeSessionManager.localizeSubject(subject)))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -1040,7 +1037,7 @@ struct MistakeQuestionCard: View {
             }) {
                 HStack {
                     Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                    Text(isExpanded ? "Hide Details" : "Show Full Question & Analysis")
+                    Text(isExpanded ? NSLocalizedString("mistakeReview.hideDetails", comment: "") : NSLocalizedString("mistakeReview.showFullQuestion", comment: ""))
                         .fontWeight(.medium)
                 }
                 .font(.subheadline)
@@ -1077,7 +1074,7 @@ struct MistakeQuestionCard: View {
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
 
-                            Text(question.subject)
+                            Text(PracticeSessionManager.localizeSubject(question.subject))
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
 
