@@ -34,7 +34,7 @@ struct LoadingAnimationView: View {
                 .padding(.bottom, 20)  // Push animation up
 
                 // App name
-                Text("Your StudyMate")
+                Text(NSLocalizedString("loading.appTagline", comment: ""))
                     .font(.system(size: 36, weight: .bold, design: .rounded))
                     .foregroundColor(.black)  // Explicit black color
                     .opacity(animationCompleted ? 1 : 0.7)

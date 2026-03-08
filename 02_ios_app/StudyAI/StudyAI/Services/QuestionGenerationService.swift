@@ -181,12 +181,12 @@ class QuestionGenerationService: ObservableObject {
         let detailedBranch: String?    // "Linear Equations - One Variable"
         let weaknessKey: String?       // Combined key for status lookup
 
-        // Custom initializer for JSON decoding - generates UUID if not provided
+        // Custom initializer for JSON decoding - restores UUID if stored, generates new one otherwise
         init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
 
-            // Generate UUID for id since it's not in JSON
-            self.id = UUID()
+            // Restore persisted UUID (from UserDefaults); fall back to new UUID for backend JSON
+            self.id = (try? container.decode(UUID.self, forKey: .id)) ?? UUID()
             self.question = try container.decode(String.self, forKey: .question)
             self.type = try container.decode(QuestionType.self, forKey: .type)
             self.correctAnswer = try container.decode(String.self, forKey: .correctAnswer)
@@ -268,9 +268,11 @@ class QuestionGenerationService: ObservableObject {
             self.weaknessKey = weaknessKey
         }
 
-        // Coding keys for JSON encoding/decoding (excludes id since it's generated)
-        // Maps iOS camelCase property names to backend snake_case JSON fields
+        // Coding keys for JSON encoding/decoding
+        // 'id' is included so UUIDs survive UserDefaults round-trips;
+        // backend JSON doesn't send 'id' so decoding falls back to UUID() above.
         enum CodingKeys: String, CodingKey {
+            case id
             case question
             case type = "question_type"              // Backend: question_type
             case correctAnswer = "correct_answer"     // Backend: correct_answer

@@ -22,18 +22,16 @@ import UIKit
 // MARK: - Onboarding Steps
 
 enum ChatOnboardingStep: Int, CaseIterable {
-    case subjectPicker  = 0
-    case cameraButton   = 1
-    case deepMode       = 2
-    case micButton      = 3
-    case liveMode       = 4
-    case libraryButton  = 5
+    case cameraButton   = 0
+    case deepMode       = 1
+    case micButton      = 2
+    case liveMode       = 3
+    case libraryButton  = 4
 
     var isLast: Bool { rawValue == ChatOnboardingStep.allCases.count - 1 }
 
     var anchorID: String? {
         switch self {
-        case .subjectPicker:  return "onboarding_subjectPicker"
         case .cameraButton:   return "onboarding_cameraButton"
         case .deepMode:       return "onboarding_inputField"
         case .micButton:      return "onboarding_micButton"
@@ -44,16 +42,13 @@ enum ChatOnboardingStep: Int, CaseIterable {
 
     var isToolbarStep: Bool {
         switch self {
-        case .subjectPicker, .liveMode, .libraryButton: return true
-        case .cameraButton, .deepMode, .micButton:      return false
+        case .liveMode, .libraryButton: return true
+        case .cameraButton, .deepMode, .micButton: return false
         }
     }
 
     var title: String {
         switch self {
-        case .subjectPicker:
-            return NSLocalizedString("onboarding.chat.subject.title",
-                value: "Choose a Subject", comment: "")
         case .cameraButton:
             return NSLocalizedString("onboarding.chat.camera.title",
                 value: "Add Images", comment: "")
@@ -74,10 +69,6 @@ enum ChatOnboardingStep: Int, CaseIterable {
 
     var description: String {
         switch self {
-        case .subjectPicker:
-            return NSLocalizedString("onboarding.chat.subject.desc",
-                value: "Select a subject or leave it as General. This helps me give you more accurate answers.",
-                comment: "")
         case .cameraButton:
             return NSLocalizedString("onboarding.chat.camera.desc",
                 value: "Tap to take a photo or pick one from your gallery. I can read homework questions from images.",
@@ -103,7 +94,6 @@ enum ChatOnboardingStep: Int, CaseIterable {
 
     var spotlightCornerRadius: CGFloat {
         switch self {
-        case .subjectPicker:                    return 18
         case .cameraButton, .micButton:         return 24
         case .deepMode:                         return 25
         case .liveMode, .libraryButton:         return 24
@@ -374,13 +364,9 @@ struct ChatOnboardingOverlayView: View {
         let navY: CGFloat = safeTop + 2
         let btnH: CGFloat = 40
         switch step {
-        case .subjectPicker:
-            return CGRect(x: 22, y: navY, width: 118, height: btnH)
         case .liveMode:
-            // center measured at 290.8pt from left → left edge = 269pt → x = w−124
             return CGRect(x: w - 124, y: navY, width: 44, height: btnH)
         case .libraryButton:
-            // center measured at 349.7pt from left → left edge = 328pt → x = w−65
             return CGRect(x: w - 65, y: navY, width: 44, height: btnH)
         default:
             return .zero
@@ -408,13 +394,7 @@ struct ChatOnboardingOverlayView: View {
 
         if step.isToolbarStep {
             let y = navBottom + toolbarGap + cardH / 2
-            var x: CGFloat
-            switch step {
-            case .subjectPicker:
-                x = max(cardW / 2 + margin, rect.midX + cardW / 3)
-            default:
-                x = min(rect.midX - cardW / 3, screenW - cardW / 2 - margin)
-            }
+            var x: CGFloat = min(rect.midX - cardW / 3, screenW - cardW / 2 - margin)
             x = max(cardW / 2 + margin, min(x, screenW - cardW / 2 - margin))
             return CGPoint(x: x, y: y)
         } else {

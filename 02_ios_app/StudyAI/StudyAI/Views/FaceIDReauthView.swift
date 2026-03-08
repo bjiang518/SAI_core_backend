@@ -28,18 +28,18 @@ struct FaceIDReauthView: View {
                 .foregroundColor(.blue)
 
             // Title
-            Text("Session Expired")
+            Text(NSLocalizedString("faceIDReauth.title", comment: ""))
                 .font(.title)
                 .fontWeight(.bold)
 
             // Message
             VStack(spacing: 12) {
-                Text("For your security, you need to re-authenticate.")
+                Text(NSLocalizedString("faceIDReauth.message", comment: ""))
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
 
-                Text("Use \(authService.getBiometricType()) to continue where you left off.")
+                Text(String(format: NSLocalizedString("faceIDReauth.biometricPrompt", comment: ""), authService.getBiometricType()))
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -66,7 +66,7 @@ struct FaceIDReauthView: View {
                                 .progressViewStyle(CircularProgressViewStyle(tint: .white))
                         } else {
                             Image(systemName: authService.getBiometricType() == "Face ID" ? "faceid" : "touchid")
-                            Text("Authenticate with \(authService.getBiometricType())")
+                            Text(String(format: NSLocalizedString("faceIDReauth.authenticateButton", comment: ""), authService.getBiometricType()))
                         }
                     }
                     .frame(maxWidth: .infinity)
@@ -82,7 +82,7 @@ struct FaceIDReauthView: View {
                     onCancel()
                     dismiss()
                 }) {
-                    Text("Sign Out")
+                    Text(NSLocalizedString("faceIDReauth.signOut", comment: ""))
                         .frame(maxWidth: .infinity)
                         .padding()
                         .background(Color.red.opacity(0.1))
@@ -125,18 +125,18 @@ struct FaceIDReauthView: View {
                     if let authError = error as? AuthError {
                         switch authError {
                         case .userCancelled:
-                            self.authError = "Authentication cancelled. Please try again or sign out."
+                            self.authError = NSLocalizedString("faceIDReauth.error.cancelled", comment: "")
                         case .biometricNotAvailable:
-                            self.authError = "\(authService.getBiometricType()) is not available. Please sign out and log in again."
+                            self.authError = String(format: NSLocalizedString("faceIDReauth.error.notAvailable", comment: ""), authService.getBiometricType())
                         case .biometricNotEnrolled:
-                            self.authError = "\(authService.getBiometricType()) is not set up. Please sign out and log in again."
+                            self.authError = String(format: NSLocalizedString("faceIDReauth.error.notEnrolled", comment: ""), authService.getBiometricType())
                         case .biometricFailed:
-                            self.authError = "\(authService.getBiometricType()) authentication failed. Please try again."
+                            self.authError = String(format: NSLocalizedString("faceIDReauth.error.failed", comment: ""), authService.getBiometricType())
                         default:
-                            self.authError = "Authentication failed: \(error.localizedDescription)"
+                            self.authError = String(format: NSLocalizedString("faceIDReauth.error.generic", comment: ""), error.localizedDescription)
                         }
                     } else {
-                        self.authError = "Authentication failed: \(error.localizedDescription)"
+                        self.authError = String(format: NSLocalizedString("faceIDReauth.error.generic", comment: ""), error.localizedDescription)
                     }
                 }
             }

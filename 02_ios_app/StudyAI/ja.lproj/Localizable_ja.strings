@@ -3,6 +3,9 @@
   StudyAI
 */
 
+// Loading Screen
+"loading.appTagline" = "あなたの学習パートナー";
+
 // Biometric Authentication (NEW - no existing alternatives)
 "login.enableBiometric" = "有効にする %@?";
 "login.enable" = "有効にする";
@@ -397,6 +400,16 @@
 "auth.signIn" = "ログイン";
 "auth.dontHaveAccount" = "Don't have an account?";
 "auth.signUp" = "Sign Up";
+"faceIDReauth.title" = "セッションの有効期限切れ";
+"faceIDReauth.message" = "セキュリティのため、再認証が必要です。";
+"faceIDReauth.biometricPrompt" = "%@ を使用して続きから再開できます。";
+"faceIDReauth.authenticateButton" = "%@ で認証する";
+"faceIDReauth.signOut" = "サインアウト";
+"faceIDReauth.error.cancelled" = "認証がキャンセルされました。再試行またはサインアウトしてください。";
+"faceIDReauth.error.notAvailable" = "%@ は使用できません。サインアウトして再ログインしてください。";
+"faceIDReauth.error.notEnrolled" = "%@ が設定されていません。サインアウトして再ログインしてください。";
+"faceIDReauth.error.failed" = "%@ 認証に失敗しました。再試行してください。";
+"faceIDReauth.error.generic" = "認証に失敗しました：%@";
 "auth.signup.title" = "Create Your アカウント";
 "auth.signup.subtitle" = "Join StudyAI to start your learning adventure!";
 "auth.fullName" = "Full Name";
@@ -562,6 +575,11 @@
 "questionGeneration.selectArchives" = "Select Archives";
 "questionGeneration.sourceLimitTitle" = "選択上限";
 "questionGeneration.sourceLimitMessage" = "最大 %d 件まで選択できます。";
+"questionGeneration.subjectLock.hint" = "同じ科目のみ追加できます";
+"questionGeneration.subjectMismatch.title" = "科目が異なります";
+"questionGeneration.subjectMismatch.clearAndSwitch" = "クリアして切替";
+"questionGeneration.subjectMismatch.message" = "%@の教材をすでに選択しています。別の科目を選ぶには選択を解除してください。";
+"questionGeneration.subjectMismatch.messageFallback" = "別の科目を選ぶには選択を解除してください。";
 "questionGeneration.conversation" = "Conversation";
 "questionGeneration.failedToLoadData" = "Failed to load data: %@";
 "questionGeneration.defaultSubject.mathematics" = "Mathematics";
@@ -2144,6 +2162,7 @@
 "newPractice.error.title" = "Generation Failed";
 "newPractice.error.sessionNotFound" = "Session not found after generation.";
 "newPractice.error.noSelection" = "Please select at least one conversation or question.";
+"newPractice.error.multipleSubjects" = "選択されたアイテムが複数の科目にまたがっています。同じ科目のみ選択してください。";
 
 // Practice Library
 "practiceLibrary.title" = "Practice";
@@ -2161,6 +2180,8 @@
 "practiceLibrary.card.questionPlural" = "questions";
 "practiceLibrary.card.complete" = "Complete";
 "practiceLibrary.card.inProgress" = "In Progress";
+"practiceLibrary.statusOngoing" = "進行中";
+"practiceLibrary.statusCompleted" = "完了";
 
 // Practice Sheet
 "practiceSheet.questionCounter" = "Q %d/%d";
@@ -2181,7 +2202,9 @@
 "practiceSheet.statSkipped" = "Skipped";
 "practiceSheet.slideToOrganizeHint" = "Slide to archive mistakes & mark progress";
 "practiceSheet.organizedConfirm" = "Mistakes archived · Progress marked";
-"practiceSheet.slideToOrganize" = "Slide to organize";
+"practiceSheet.slideToOrganize" = "スライドして整理";
+"practiceSheet.reviewButton" = "回答を見直す";
+"practiceSheet.redoButton" = "やり直す";
 "practiceSheet.aiAnalyzing" = "AI is analyzing your answer…";
 "practiceSheet.toastTitle" = "Smart Organize Complete";
 "practiceSheet.toastProgress" = "Progress marked for %@";

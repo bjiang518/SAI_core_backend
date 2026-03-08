@@ -106,7 +106,6 @@ struct SessionChatView: View {
     @ObservedObject private var appState = AppState.shared
 
     // UI State
-    @State private var showingSubjectPicker = false
     @State private var showingSessionInfo = false
     @State private var showingArchiveDialog = false
     @State private var showingArchiveProgress = false  // ✅ NEW: Progress animation overlay
@@ -176,23 +175,6 @@ struct SessionChatView: View {
     @Environment(\.scenePhase) var scenePhase
     @Environment(\.horizontalSizeClass) private var sizeClass  // iPad vs iPhone
 
-    private var subjects: [String] {
-        [
-            NSLocalizedString("chat.subjects.mathematics", comment: ""),
-            NSLocalizedString("chat.subjects.physics", comment: ""),
-            NSLocalizedString("chat.subjects.chemistry", comment: ""),
-            NSLocalizedString("chat.subjects.biology", comment: ""),
-            NSLocalizedString("chat.subjects.history", comment: ""),
-            NSLocalizedString("chat.subjects.literature", comment: ""),
-            NSLocalizedString("chat.subjects.geography", comment: ""),
-            NSLocalizedString("chat.subjects.computerScience", comment: ""),
-            NSLocalizedString("chat.subjects.economics", comment: ""),
-            NSLocalizedString("chat.subjects.psychology", comment: ""),
-            NSLocalizedString("chat.subjects.philosophy", comment: ""),
-            NSLocalizedString("chat.subjects.general", comment: "")
-        ]
-    }
-
     var body: some View {
         mainContentWithModifiers
     }
@@ -251,32 +233,6 @@ struct SessionChatView: View {
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-            ToolbarItem(placement: .navigationBarLeading) {
-                // Only show Subject Picker before first message
-                // After first message, this area stays empty - AI avatar appears naturally in message bubbles
-                if !hasConversationStarted {
-                    // Subject Picker (before first message)
-                    Button(action: { showingSubjectPicker = true }) {
-                        HStack(spacing: 8) {
-                            Text(subjectEmoji(for: viewModel.selectedSubject))
-                                .font(.system(size: 20))
-                            Text(viewModel.selectedSubject)
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundColor(.primary)
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundSoftPink : (colorScheme == .dark ? Color(.secondarySystemBackground) : Color.white))
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender.opacity(0.3) : Color.primary.opacity(0.15), lineWidth: 1)
-                        )
-                    }
-                    .chatOnboardingAnchor("onboarding_subjectPicker")
-                }
-            }
-
             // Live mode indicator (shown next to three-dot when in Live mode)
             if isLiveMode {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -379,7 +335,7 @@ struct SessionChatView: View {
                     // View Tutorial
                     Button(action: {
                         withAnimation(.easeInOut(duration: 0.3)) {
-                            chatOnboardingStep = .subjectPicker
+                            chatOnboardingStep = .cameraButton
                         }
                     }) {
                         Label(NSLocalizedString("chat.menu.viewTutorial", value: "View Tutorial", comment: ""), systemImage: "sparkles")
@@ -405,9 +361,6 @@ struct SessionChatView: View {
     /// Apply all sheet modifiers to a view
     private func applySheets<V: View>(_ content: V) -> some View {
         content
-            .sheet(isPresented: $showingSubjectPicker) {
-                subjectPickerView
-            }
             .sheet(isPresented: $showingSessionInfo) {
                 sessionInfoView
             }
@@ -576,7 +529,7 @@ struct SessionChatView: View {
                 if !chatOnboardingDone {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
                         withAnimation(.easeInOut(duration: 0.3)) {
-                            chatOnboardingStep = .subjectPicker
+                            chatOnboardingStep = .cameraButton
                         }
                     }
                 }
@@ -2134,69 +2087,6 @@ struct SessionChatView: View {
         }
     }
     
-    
-    private var subjectPickerView: some View {
-        NavigationView {
-            List(subjects, id: \.self) { subject in
-                Button(action: {
-                    // Visual feedback with animation
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        viewModel.selectedSubject = subject
-                        hasConversationStarted = false
-                    }
-
-                    // Haptic feedback
-                    let generator = UIImpactFeedbackGenerator(style: .medium)
-                    generator.impactOccurred()
-
-                    // Create new session with new subject
-                    viewModel.startNewSession()
-
-                    // Close picker
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        showingSubjectPicker = false
-                    }
-                }) {
-                    HStack(spacing: 12) {
-                        // Subject emoji
-                        Text(subjectEmoji(for: subject))
-                            .font(.system(size: 24))
-
-                        // Subject name
-                        Text(subject)
-                            .font(.system(size: 17))
-                            .foregroundColor(.primary)
-
-                        Spacer()
-
-                        // Checkmark for selected subject
-                        if subject == viewModel.selectedSubject {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.blue)
-                                .font(.system(size: 22))
-                        }
-                    }
-                    .padding(.vertical, 4)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(PlainButtonStyle())
-                .listRowBackground(
-                    subject == viewModel.selectedSubject ?
-                        subjectBackgroundColor(for: subject) :
-                        Color.clear
-                )
-            }
-            .navigationTitle("Select Subject")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(NSLocalizedString("common.cancel", comment: "")) {
-                        showingSubjectPicker = false
-                    }
-                }
-            }
-        }
-    }
     
     private var sessionInfoView: some View {
         NavigationView {

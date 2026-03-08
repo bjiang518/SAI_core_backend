@@ -89,7 +89,7 @@ class ThemeManager: ObservableObject {
         case .day, .night:
             return Color(.secondarySystemBackground)
         case .cute:
-            return DesignTokens.Colors.Cute.backgroundSoftPink
+            return DesignTokens.Colors.Cute.mintLight.opacity(0.4)
         }
     }
 
@@ -116,7 +116,7 @@ class ThemeManager: ObservableObject {
         case .day, .night:
             return DesignTokens.Colors.primary
         case .cute:
-            return DesignTokens.Colors.Cute.pink
+            return DesignTokens.Colors.Cute.mint
         }
     }
 
@@ -209,7 +209,7 @@ class ThemeManager: ObservableObject {
             // Use cute mode pastel colors
             switch featureName {
             case "homework":
-                return DesignTokens.Colors.Cute.pink
+                return DesignTokens.Colors.Cute.peach
             case "chat":
                 return DesignTokens.Colors.Cute.yellow
             case "library":
@@ -221,7 +221,7 @@ class ThemeManager: ObservableObject {
             case "reports":
                 return DesignTokens.Colors.Cute.peach
             default:
-                return DesignTokens.Colors.Cute.pink
+                return DesignTokens.Colors.Cute.mint
             }
         }
     }

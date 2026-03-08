@@ -87,7 +87,7 @@ struct NewPracticeSheet: View {
     // MARK: - Body
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 32) {
                     // Generation type cards
@@ -336,7 +336,7 @@ struct NewPracticeSheet: View {
                                 colors: [
                                     DesignTokens.Colors.Cute.lavender,
                                     DesignTokens.Colors.Cute.blue,
-                                    DesignTokens.Colors.Cute.pink,
+                                    DesignTokens.Colors.Cute.mint,
                                     DesignTokens.Colors.Cute.peach,
                                     DesignTokens.Colors.Cute.lavender
                                 ],
@@ -534,9 +534,21 @@ struct NewPracticeSheet: View {
                 ])
             }
 
-            let conversations = availableConversations.filter { selectedConversations.contains($0["id"] as? String ?? "") }
-            let questions = availableQuestions.filter { selectedQuestions.contains($0.id) }
-            let subject = conversations.first?["subject"] as? String ?? questions.first?.subject ?? "General"
+            let filteredConversations = availableConversations.filter { selectedConversations.contains($0["id"] as? String ?? "") }
+            let filteredQuestions = availableQuestions.filter { selectedQuestions.contains($0.id) }
+
+            let allSubjects = Set(
+                filteredConversations.compactMap { $0["subject"] as? String }.filter { !$0.isEmpty } +
+                filteredQuestions.map { $0.subject }.filter { !$0.isEmpty }
+            )
+            guard allSubjects.count <= 1 else {
+                throw NSError(domain: "PracticeGen", code: -3, userInfo: [
+                    NSLocalizedDescriptionKey: NSLocalizedString("newPractice.error.multipleSubjects",
+                        value: "Selected items span multiple subjects. Please select items from one subject only.",
+                        comment: "")
+                ])
+            }
+            let subject = allSubjects.first ?? "General"
 
             let config = QuestionGenerationService.RandomQuestionsConfig(
                 topics: [subject],
@@ -546,11 +558,52 @@ struct NewPracticeSheet: View {
                 questionType: selectedQuestionType
             )
 
+            // Convert conversations to ConversationData (same mapping as QuestionGenerationView)
+            let conversationData: [QuestionGenerationService.ConversationData] = filteredConversations.map { conv in
+                let title = conv["title"] as? String ?? conv["summary"] as? String ?? "Conversation"
+                let content = conv["conversationContent"] as? String ?? ""
+                let summary = conv["summary"] as? String ?? ""
+                let keyTopics: [String]
+                if let arr = conv["keyTopics"] as? [String] {
+                    keyTopics = arr
+                } else if let json = conv["keyTopics"] as? String,
+                          let data = json.data(using: .utf8),
+                          let decoded = try? JSONSerialization.jsonObject(with: data) as? [String] {
+                    keyTopics = decoded
+                } else {
+                    keyTopics = [subject]
+                }
+                return QuestionGenerationService.ConversationData(
+                    date: conv["createdAt"] as? String ?? ISO8601DateFormatter().string(from: Date()),
+                    topics: keyTopics,
+                    studentQuestions: content.isEmpty ? title : content,
+                    keyConcepts: summary.isEmpty ? title : summary
+                )
+            }
+
+            // Convert questions to backend dict format
+            let questionData: [[String: Any]] = filteredQuestions.map { q in
+                var dict: [String: Any] = [
+                    "question_text": q.questionText,
+                    "topic": q.subject,
+                    "date": ISO8601DateFormatter().string(from: q.archivedAt),
+                    "is_correct": q.grade == .correct || q.grade == .partialCredit
+                ]
+                if let ans = q.studentAnswer, !ans.isEmpty { dict["student_answer"] = ans }
+                if let correct = q.answerText, !correct.isEmpty { dict["correct_answer"] = correct }
+                if let grade = q.grade { dict["grade"] = grade.rawValue }
+                if let tags = q.tags, !tags.isEmpty { dict["tags"] = tags }
+                if let qType = q.questionType, !qType.isEmpty { dict["question_type"] = qType }
+                return dict
+            }
+
             let result = await questionService.generateQuestionsV2(
                 subject: subject,
                 mode: 3,
                 config: config,
-                userProfile: userProfile
+                userProfile: userProfile,
+                conversationData: conversationData,
+                questionData: questionData
             )
             if case .failure(let e) = result { throw e }
         }
