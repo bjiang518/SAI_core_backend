@@ -192,8 +192,8 @@ struct ContentView: View {
         Task {
             let result = await networkService.checkProfileCompletion()
             await MainActor.run {
-                if !result.onboardingCompleted {
-                    print("🎯 [ContentView] Onboarding not completed — showing FirstTimeOnboardingView")
+                if !result.onboardingCompleted || !result.dataSharingConsent {
+                    print("🎯 [ContentView] Onboarding/consent incomplete (onboarding=\(result.onboardingCompleted), consent=\(result.dataSharingConsent)) — showing FirstTimeOnboardingView")
                     showingOnboarding = true
                 } else {
                     // Cache locally so future launches skip this check

@@ -1273,7 +1273,8 @@ class AuthRoutes {
         completion: {
           percentage: completionData?.profile_completion_percentage || 0,
           isComplete: completionData?.is_complete || false,
-          onboardingCompleted: completionData?.onboarding_completed || false
+          onboardingCompleted: completionData?.onboarding_completed || false,
+          dataSharingConsent: completionData?.data_sharing_consent || false
         }
       });
 

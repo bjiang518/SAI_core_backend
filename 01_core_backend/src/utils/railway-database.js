@@ -847,14 +847,15 @@ const db = {
    */
   async isProfileComplete(userId) {
     const query = `
-      SELECT 
+      SELECT
         profile_completion_percentage,
         onboarding_completed,
-        CASE 
+        data_sharing_consent,
+        CASE
           WHEN profile_completion_percentage >= 80 AND onboarding_completed = true THEN true
           ELSE false
         END as is_complete
-      FROM profiles 
+      FROM profiles
       WHERE user_id = $1
     `;
     

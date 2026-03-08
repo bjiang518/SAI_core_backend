@@ -1346,8 +1346,10 @@
 "mistakeReview.instructions.title" = "How to Use Mistake Review";
 "mistakeReview.instructions.message" = "1. Select a time range (This Week, This Month, or All Time) to filter your mistakes\n\n2. Choose a subject to review incorrect answers\n\n3. Tap 'Start Review' to see your mistakes\n\n4. Use 'Let's do them again' to select questions and generate a PDF for practice\n\n5. Review the correct answers and explanations to improve your understanding";
 "mistakeReview.startReview" = "Start Review (%d Mistakes)";
-"mistakeReview.letsPractise" = "Let's practise them";
+"mistakeReview.letsPractise" = "練習を始める";
 "mistakeReview.resumePractice" = "Resume Practice";
+"mistakeReview.showFullQuestion" = "全問題と分析を表示";
+"mistakeReview.hideDetails" = "詳細を非表示";
 "mistakeReview.questionsLeftDone" = "%d questions left · %d%% done";
 "mistakeReview.generatePractice" = "Generate Practice (%d mistakes)";
 "mistakeReview.generationFailed" = "Practice Generation Failed";
@@ -2214,3 +2216,18 @@
 "practiceSheet.scoreGreat" = "Great Job!";
 "practiceSheet.scoreGood" = "Keep It Up!";
 "practiceSheet.scorePractice" = "Keep Practicing!";
+
+// Suggested Daily Todos
+"suggestedTodo.sectionTitle" = "おすすめ";
+"suggestedTodo.empty" = "今日のタスクはすべて完了 🎉";
+"suggestedTodo.resumePractice.title" = "未完了の練習を再開";
+"suggestedTodo.resumePractice.subtitle" = "残り %d 問";
+"suggestedTodo.resumePractice.subtitleGeneral" = "前回の続きから";
+"suggestedTodo.mistakeReview.title" = "間違いを復習";
+"suggestedTodo.mistakeReview.subtitle" = "%d 問の間違いを復習";
+"suggestedTodo.homeworkGrader.title" = "宿題をAIに分析させる";
+"suggestedTodo.homeworkGrader.subtitle" = "今日はまだ採点なし";
+"suggestedTodo.focusMode.title" = "25分の集中セッションを開始";
+"suggestedTodo.focusMode.subtitle" = "今日はまだ集中セッションなし";
+"suggestedTodo.progress.title" = "今週の進捗を確認";
+"suggestedTodo.progress.subtitle" = "学習の軌跡を把握しよう";

@@ -14,11 +14,6 @@ struct CompactSubjectSelector: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(NSLocalizedString("mistakeReview.filter.subjectsLabel", comment: ""))
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .padding(.horizontal)
-
             ScrollViewReader { proxy in
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 16) {

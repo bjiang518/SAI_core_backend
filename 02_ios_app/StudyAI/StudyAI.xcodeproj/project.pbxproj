@@ -198,6 +198,12 @@
 		7B278A2E2F5CA93D00DA84B0 /* QuestionSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278A242F5CA93D00DA84B0 /* QuestionSheetView.swift */; };
 		7B278A2F2F5CA93D00DA84B0 /* NewPracticeSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278A212F5CA93D00DA84B0 /* NewPracticeSheet.swift */; };
 		7B278A302F5CA93D00DA84B0 /* PracticeSessionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278A232F5CA93D00DA84B0 /* PracticeSessionCard.swift */; };
+		7B278A322F5D487700DA84B0 /* SuggestedTodoEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278A312F5D487700DA84B0 /* SuggestedTodoEngine.swift */; };
+		7B278A332F5D487700DA84B0 /* SuggestedTodoEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278A312F5D487700DA84B0 /* SuggestedTodoEngine.swift */; };
+		7B278A342F5D487700DA84B0 /* SuggestedTodoEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278A312F5D487700DA84B0 /* SuggestedTodoEngine.swift */; };
+		7B278A362F5D488D00DA84B0 /* SuggestedTodosSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278A352F5D488D00DA84B0 /* SuggestedTodosSection.swift */; };
+		7B278A372F5D488D00DA84B0 /* SuggestedTodosSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278A352F5D488D00DA84B0 /* SuggestedTodosSection.swift */; };
+		7B278A382F5D488D00DA84B0 /* SuggestedTodosSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278A352F5D488D00DA84B0 /* SuggestedTodosSection.swift */; };
 		7B6B2B0D2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
 		7B6B2B0E2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
 		7B6B2B0F2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
@@ -682,6 +688,8 @@
 		7B278A222F5CA93D00DA84B0 /* PracticeLibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PracticeLibraryView.swift; path = StudyAI/Views/Practice/PracticeLibraryView.swift; sourceTree = SOURCE_ROOT; };
 		7B278A232F5CA93D00DA84B0 /* PracticeSessionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PracticeSessionCard.swift; path = StudyAI/Views/Practice/PracticeSessionCard.swift; sourceTree = SOURCE_ROOT; };
 		7B278A242F5CA93D00DA84B0 /* QuestionSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QuestionSheetView.swift; path = StudyAI/Views/Practice/QuestionSheetView.swift; sourceTree = SOURCE_ROOT; };
+		7B278A312F5D487700DA84B0 /* SuggestedTodoEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SuggestedTodoEngine.swift; path = StudyAI/Services/SuggestedTodoEngine.swift; sourceTree = SOURCE_ROOT; };
+		7B278A352F5D488D00DA84B0 /* SuggestedTodosSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SuggestedTodosSection.swift; path = StudyAI/Views/Components/SuggestedTodosSection.swift; sourceTree = SOURCE_ROOT; };
 		7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ImageCropper.swift; path = StudyAI/Utils/ImageCropper.swift; sourceTree = SOURCE_ROOT; };
 		7B74A2032EB18078002DBE2B /* Fire.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Fire.json; sourceTree = "<group>"; };
 		7B74A2042EB18078002DBE2B /* Foriday.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Foriday.json; sourceTree = "<group>"; };
@@ -1070,6 +1078,7 @@
 		7BEDA5F82E7EB90500D57B15 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				7B278A312F5D487700DA84B0 /* SuggestedTodoEngine.swift */,
 				AA00010D2F68A00100000001 /* BranchLocalizer.swift */,
 				7B2789F32F5AA1BC00DA84B0 /* LanguageManager.swift */,
 				7BEC08372F4E795500B6E573 /* AppConfiguration.swift */,
@@ -1136,6 +1145,7 @@
 		7BEDA5F92E7EB94000D57B15 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				7B278A352F5D488D00DA84B0 /* SuggestedTodosSection.swift */,
 				7B278A212F5CA93D00DA84B0 /* NewPracticeSheet.swift */,
 				7B278A222F5CA93D00DA84B0 /* PracticeLibraryView.swift */,
 				7B278A232F5CA93D00DA84B0 /* PracticeSessionCard.swift */,
@@ -1729,6 +1739,7 @@
 				TRMSRVC901234567890ABCD /* TermsOfServiceView.swift in Sources */,
 				7BD668A42ED6F27300E09E55 /* DigitalHomeworkStateManager.swift in Sources */,
 				LRNP36652115E4F419FE4EEEA /* LearningProgressView.swift in Sources */,
+				7B278A322F5D487700DA84B0 /* SuggestedTodoEngine.swift in Sources */,
 				04A8227E20B44E2A9BB27336 /* QuestionArchiveView.swift in Sources */,
 				7BDE566B2EC1C64D004A8629 /* StreamingMessageService.swift in Sources */,
 				7BDE566C2EC1C64D004A8629 /* TTSQueueService.swift in Sources */,
@@ -1775,6 +1786,7 @@
 				1C6A1BCA94774E52B859845F /* ViewModifiers.swift in Sources */,
 				PDFP1234567890123456ABCD /* PDFPreviewView.swift in Sources */,
 				EC13C4B1634147B49DEB198B /* PDFPreviewComponents.swift in Sources */,
+				7B278A382F5D488D00DA84B0 /* SuggestedTodosSection.swift in Sources */,
 				B573CBF246134245A6DF42A5 /* LibraryPDFPreviewView.swift in Sources */,
 				7B83523A2E9625C900199AC3 /* ShareAppView.swift in Sources */,
 				7BDE567F2EC1C6E5004A8629 /* PomodoroCalendarService.swift in Sources */,
@@ -1808,6 +1820,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7B278A362F5D488D00DA84B0 /* SuggestedTodosSection.swift in Sources */,
 				7B2249142F39BD4A006ADD93 /* ParentReportSettings.swift in Sources */,
 				7BDE56ED2EC31AC7004A8629 /* GrammarCorrectionView.swift in Sources */,
 				7BD664CA2ECA8B0A00E09E55 /* ProgressiveHomeworkViewModel.swift in Sources */,
@@ -1882,6 +1895,7 @@
 				D107F714CBFF40BB9C000436 /* SynchronizedTextRenderer.swift in Sources */,
 				7B2248B92F331644006ADD93 /* InteractiveTTSService.swift in Sources */,
 				7BEC08362F4E780300B6E573 /* ActivityViewController.swift in Sources */,
+				7B278A342F5D487700DA84B0 /* SuggestedTodoEngine.swift in Sources */,
 				7BDE567E2EC1C6E5004A8629 /* PomodoroCalendarService.swift in Sources */,
 				7BEC08382F4E795500B6E573 /* AppConfiguration.swift in Sources */,
 				7BDE56682EC1C64D004A8629 /* TTSQueueService.swift in Sources */,
@@ -1964,6 +1978,7 @@
 				7BD664D42ECA908300E09E55 /* ProgressiveHomeworkModels.swift in Sources */,
 				7BD664D02ECA8B2E00E09E55 /* ProgressiveHomeworkView.swift in Sources */,
 				7B22491F2F39BE4E006ADD93 /* ThemeManager.swift in Sources */,
+				7B278A372F5D488D00DA84B0 /* SuggestedTodosSection.swift in Sources */,
 				7B2248B72F309BEC006ADD93 /* AnswerMatchingService.swift in Sources */,
 				7BDE56E02EC31A7A004A8629 /* EssayGradingModels.swift in Sources */,
 				7B1961F22E94E31A0024317A /* ParentModeManager.swift in Sources */,
@@ -1981,6 +1996,7 @@
 				7BDE56692EC1C64D004A8629 /* StreamingMessageService.swift in Sources */,
 				7BDE566A2EC1C64D004A8629 /* TTSQueueService.swift in Sources */,
 				7B8E9EB12EAF38D000E83DA8 /* SessionManager.swift in Sources */,
+				7B278A332F5D487700DA84B0 /* SuggestedTodoEngine.swift in Sources */,
 				7B2248722F26BE4C006ADD93 /* ErrorAnalysisQueueService.swift in Sources */,
 				7B2248222F1CCEDB006ADD93 /* DigitalHomeworkPDFPreviewView.swift in Sources */,
 				7B8E9E922EAB50F400E83DA8 /* HomeworkAlbumView.swift in Sources */,

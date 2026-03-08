@@ -1348,8 +1348,10 @@
 "mistakeReview.instructions.title" = "如何使用错题复习";
 "mistakeReview.instructions.message" = "1. 选择时间范围（本周、本月或全部时间）来筛选错题\n\n2. 选择科目查看做错的题目\n\n3. 点击「开始复习」查看你的错题\n\n4. 使用「让我们再做一遍」选择题目并生成PDF进行练习\n\n5. 查看正确答案和解析以提高理解";
 "mistakeReview.startReview" = "开始复习（%d 道错题）";
-"mistakeReview.letsPractise" = "让我们来练习吧";
+"mistakeReview.letsPractise" = "开始练习";
 "mistakeReview.resumePractice" = "继续练习";
+"mistakeReview.showFullQuestion" = "展开题目与分析";
+"mistakeReview.hideDetails" = "收起详情";
 "mistakeReview.questionsLeftDone" = "还剩 %d 道题 · 已完成 %d%%";
 "mistakeReview.generatePractice" = "生成练习（%d 道错题）";
 "mistakeReview.generationFailed" = "练习生成失败";
@@ -2227,3 +2229,18 @@
 // Onboarding — Language Selection (first page)
 "onboarding.language.title" = "选择语言";
 "onboarding.language.subtitle" = "您可以随时在设置中更改";
+
+// Suggested Daily Todos
+"suggestedTodo.sectionTitle" = "建议事项";
+"suggestedTodo.empty" = "今日任务已全部完成 🎉";
+"suggestedTodo.resumePractice.title" = "继续未完成的练习";
+"suggestedTodo.resumePractice.subtitle" = "还剩 %d 题未完成";
+"suggestedTodo.resumePractice.subtitleGeneral" = "继续上次进度";
+"suggestedTodo.mistakeReview.title" = "复习错题";
+"suggestedTodo.mistakeReview.subtitle" = "%d 道错题待复习";
+"suggestedTodo.homeworkGrader.title" = "拍一张作业让 AI 分析";
+"suggestedTodo.homeworkGrader.subtitle" = "今天还没有评分记录";
+"suggestedTodo.focusMode.title" = "开始 25 分钟专注";
+"suggestedTodo.focusMode.subtitle" = "今天还没有专注记录";
+"suggestedTodo.progress.title" = "查看本周学习进度";
+"suggestedTodo.progress.subtitle" = "掌握你的学习轨迹";

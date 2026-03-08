@@ -1346,8 +1346,10 @@
 "mistakeReview.instructions.title" = "How to Use Mistake Review";
 "mistakeReview.instructions.message" = "1. Select a time range (This Week, This Month, or All Time) to filter your mistakes\n\n2. Choose a subject to review incorrect answers\n\n3. Tap 'Start Review' to see your mistakes\n\n4. Use 'Let's do them again' to select questions and generate a PDF for practice\n\n5. Review the correct answers and explanations to improve your understanding";
 "mistakeReview.startReview" = "Start Review (%d Mistakes)";
-"mistakeReview.letsPractise" = "Let's practise them";
+"mistakeReview.letsPractise" = "Commencer l'entraînement";
 "mistakeReview.resumePractice" = "Resume Practice";
+"mistakeReview.showFullQuestion" = "Afficher la question complète et l'analyse";
+"mistakeReview.hideDetails" = "Masquer les détails";
 "mistakeReview.questionsLeftDone" = "%d questions left · %d%% done";
 "mistakeReview.generatePractice" = "Generate Practice (%d mistakes)";
 "mistakeReview.generationFailed" = "Practice Generation Failed";
@@ -2214,3 +2216,18 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "practiceSheet.scoreGreat" = "Great Job!";
 "practiceSheet.scoreGood" = "Keep It Up!";
 "practiceSheet.scorePractice" = "Keep Practicing!";
+
+// Suggested Daily Todos
+"suggestedTodo.sectionTitle" = "Suggestions";
+"suggestedTodo.empty" = "Toutes les tâches du jour complétées 🎉";
+"suggestedTodo.resumePractice.title" = "Reprendre la pratique";
+"suggestedTodo.resumePractice.subtitle" = "%d questions restantes";
+"suggestedTodo.resumePractice.subtitleGeneral" = "Continuer là où vous en étiez";
+"suggestedTodo.mistakeReview.title" = "Réviser les erreurs";
+"suggestedTodo.mistakeReview.subtitle" = "%d erreurs à réviser";
+"suggestedTodo.homeworkGrader.title" = "Faire analyser les devoirs par IA";
+"suggestedTodo.homeworkGrader.subtitle" = "Aucune notation aujourd'hui";
+"suggestedTodo.focusMode.title" = "Démarrer 25 min de concentration";
+"suggestedTodo.focusMode.subtitle" = "Aucune session de focus aujourd'hui";
+"suggestedTodo.progress.title" = "Voir les progrès de la semaine";
+"suggestedTodo.progress.subtitle" = "Suivez votre parcours d'apprentissage";
