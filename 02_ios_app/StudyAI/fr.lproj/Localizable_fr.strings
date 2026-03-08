@@ -2227,7 +2227,7 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "suggestedTodo.mistakeReview.subtitle" = "%d erreurs à réviser";
 "suggestedTodo.homeworkGrader.title" = "Faire analyser les devoirs par IA";
 "suggestedTodo.homeworkGrader.subtitle" = "Aucune notation aujourd'hui";
-"suggestedTodo.focusMode.title" = "Démarrer 25 min de concentration";
+"suggestedTodo.focusMode.title" = "Démarrer une session de focus";
 "suggestedTodo.focusMode.subtitle" = "Aucune session de focus aujourd'hui";
 "suggestedTodo.progress.title" = "Voir les progrès de la semaine";
 "suggestedTodo.progress.subtitle" = "Suivez votre parcours d'apprentissage";

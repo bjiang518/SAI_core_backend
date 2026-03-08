@@ -2242,14 +2242,16 @@
 // Suggested Daily Todos
 "suggestedTodo.sectionTitle" = "Suggestions";
 "suggestedTodo.empty" = "All tasks for today are done 🎉";
-"suggestedTodo.resumePractice.title" = "Continue unfinished practice";
+"suggestedTodo.resumePractice.title" = "Continue practice";
 "suggestedTodo.resumePractice.subtitle" = "%d questions remaining";
 "suggestedTodo.resumePractice.subtitleGeneral" = "Pick up where you left off";
 "suggestedTodo.mistakeReview.title" = "Review mistakes";
 "suggestedTodo.mistakeReview.subtitle" = "%d mistakes to review";
 "suggestedTodo.homeworkGrader.title" = "Let AI analyze your homework";
 "suggestedTodo.homeworkGrader.subtitle" = "No grading activity today";
-"suggestedTodo.focusMode.title" = "Start a 25-min focus session";
+"suggestedTodo.focusMode.title" = "Start a focus session";
 "suggestedTodo.focusMode.subtitle" = "No focus sessions today";
 "suggestedTodo.progress.title" = "View this week's progress";
 "suggestedTodo.progress.subtitle" = "Stay on top of your learning";
+"suggestedTodo.focusMode.subtitleDone" = "Done %d today · go again";
+"suggestedTodo.progress.subtitleToday" = "See today's learning results";

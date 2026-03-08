@@ -24,7 +24,6 @@ struct HomeView: View {
     let onSelectTab: (MainTab) -> Void
     @StateObject private var networkService = NetworkService.shared
     @StateObject private var voiceService = VoiceInteractionService.shared
-    @StateObject private var greetingVoice = GreetingVoiceService.shared
     @StateObject private var parentModeManager = ParentModeManager.shared
     @StateObject private var themeManager = ThemeManager.shared
     @StateObject private var todoEngine = SuggestedTodoEngine.shared
@@ -52,20 +51,6 @@ struct HomeView: View {
     @State private var showingParentAuthForGrader = false
     @State private var showingParentAuthForReports = false
 
-    // ✅ Computed properties for today's activity - read directly from PointsEarningManager (matching Progress tab)
-    private var todayTotalQuestions: Int {
-        pointsManager.todayProgress?.totalQuestions ?? 0
-    }
-
-    private var todayCorrectAnswers: Int {
-        pointsManager.todayProgress?.correctAnswers ?? 0
-    }
-
-    private var todayAccuracy: Double {
-        guard let todayProgress = pointsManager.todayProgress else { return 0.0 }
-        return todayProgress.accuracy
-    }
-
     private let logger = Logger(subsystem: "com.studyai", category: "HomeView")
 
     var body: some View {
@@ -74,7 +59,7 @@ struct HomeView: View {
                 VStack(spacing: 0) {
                     // Engaging Hero Header with Animation, Avatar, Greeting & Stats
                     engagingHeroHeader
-                        .padding(.bottom, DesignTokens.Spacing.cardSpacing)
+                        .padding(.bottom, DesignTokens.Spacing.xxl)
 
                     // Suggested daily to-do list (torn notebook style)
                     SuggestedTodosSection(
@@ -83,68 +68,18 @@ struct HomeView: View {
                         onDismiss: { todoEngine.dismiss(id: $0) },
                         onRefresh: { todoEngine.forceRefresh() }
                     )
+                    .frame(minHeight: 300)
                     .padding(.horizontal, DesignTokens.Spacing.xl)
-                    .padding(.bottom, DesignTokens.Spacing.md)
+                    .padding(.bottom, DesignTokens.Spacing.xxxl)
 
-                    // Quick Actions Grid (2x2) - now includes Homework Grader
+                    // Quick Actions
                     quickActionsSection
-                        .padding(.bottom, DesignTokens.Spacing.xxl)
+                        .padding(.bottom, DesignTokens.Spacing.sm)
                         .environment(\.lottieRefreshID, lottieRefreshID)
 
-                    // Additional Actions (Practice, Mistake Review, Parent Reports)
+                    // More features (brace toggle + expanded content)
                     additionalActionsSection
                         .environment(\.lottieRefreshID, lottieRefreshID)
-
-                    // Today's Progress — bottom of page
-                    VStack(alignment: .leading, spacing: DesignTokens.Spacing.sm) {
-                        Text(NSLocalizedString("home.todaysProgress", comment: ""))
-                            .font(.title3)
-                            .fontWeight(.bold)
-                            .foregroundColor(
-                                themeManager.currentTheme == .cute ?
-                                    Color.gray :
-                                    .primary
-                            )
-
-                        HStack(spacing: DesignTokens.Spacing.md) {
-                            if todayTotalQuestions > 0 {
-                                StatBadge(
-                                    icon: "questionmark.circle.fill",
-                                    value: "\(todayTotalQuestions)",
-                                    label: NSLocalizedString("home.questions", comment: ""),
-                                    color: DesignTokens.Colors.aiBlue
-                                )
-                                StatBadge(
-                                    icon: "target",
-                                    value: "\(Int(todayAccuracy))%",
-                                    label: NSLocalizedString("home.accuracy", comment: ""),
-                                    color: DesignTokens.Colors.learningGreen
-                                )
-                                StatBadge(
-                                    icon: "flame.fill",
-                                    value: "\(pointsManager.currentStreak)",
-                                    label: NSLocalizedString("home.streak", comment: ""),
-                                    color: DesignTokens.Colors.reviewOrange
-                                )
-                            } else {
-                                Text(NSLocalizedString("home.startLearningPrompt", comment: ""))
-                                    .font(.body)
-                                    .foregroundColor(.secondary)
-                                    .frame(maxWidth: .infinity)
-                            }
-                        }
-                        .padding(DesignTokens.Spacing.md)
-                        .background(DesignTokens.Colors.cardBackground)
-                        .cornerRadius(16)
-                        .shadow(
-                            color: colorScheme == .dark ?
-                                Color.white.opacity(0.05) :
-                                Color.black.opacity(0.05),
-                            radius: 4, x: 0, y: 2
-                        )
-                    }
-                    .padding(.horizontal, DesignTokens.Spacing.xl)
-                    .padding(.top, DesignTokens.Spacing.md)
 
                     Spacer(minLength: 100)
                 }
@@ -215,152 +150,132 @@ struct HomeView: View {
 
     // MARK: - Engaging Hero Header
     private var engagingHeroHeader: some View {
-        VStack(spacing: DesignTokens.Spacing.md) {
-            // Greeting card with gradient background - synced with voice type
-            ZStack(alignment: .trailing) {
-                // Dynamic gradient based on theme - Cute Mode uses solid color
-                RoundedRectangle(cornerRadius: 24)
-                    .fill(
-                        themeManager.currentTheme == .cute ?
-                            // Cute Mode: Fully solid color (no gradient)
-                            AnyShapeStyle(themeManager.greetingCardBackground) :
-                            // Day/Night Mode: Voice-based gradients
-                            AnyShapeStyle(LinearGradient(
-                                colors: {
-                                    switch greetingVoice.currentVoiceType {
-                                    case .adam:
-                                        return colorScheme == .dark ? [
-                                            Color(hex: "0C1844"),
-                                            Color(hex: "1E3A8A"),
-                                            Color(hex: "1E40AF")
-                                        ] : [
-                                            Color(hex: "38BDF8"),
-                                            Color(hex: "3B82F6"),
-                                            Color(hex: "4F46E5")
-                                        ]
-                                    case .eva:
-                                        return colorScheme == .dark ? [
-                                            Color(hex: "2D0A4E"),
-                                            Color(hex: "581C87"),
-                                            Color(hex: "6B21A8")
-                                        ] : [
-                                            Color(hex: "F0ABFC"),
-                                            Color(hex: "A855F7"),
-                                            Color(hex: "7C3AED")
-                                        ]
-                                    case .max:
-                                        return colorScheme == .dark ? [
-                                            Color(hex: "7C2D12"),
-                                            Color(hex: "9A3412"),
-                                            Color(hex: "C2410C")
-                                        ] : [
-                                            Color(hex: "FB923C"),
-                                            Color(hex: "F97316"),
-                                            Color(hex: "EA580C")
-                                        ]
-                                    case .mia:
-                                        return colorScheme == .dark ? [
-                                            Color(hex: "831843"),
-                                            Color(hex: "9F1239"),
-                                            Color(hex: "BE123C")
-                                        ] : [
-                                            Color(hex: "F9A8D4"),
-                                            Color(hex: "EC4899"),
-                                            Color(hex: "DB2777")
-                                        ]
-                                    }
-                                }(),
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            ))
-                    )
-                    .shadow(
-                        color: themeManager.currentTheme == .cute ?
-                            Color.black.opacity(0.2) :
-                            (colorScheme == .dark ?
-                                Color.white.opacity(0.1) :
-                                {
-                                    switch greetingVoice.currentVoiceType {
-                                    case .adam:
-                                        return DesignTokens.Colors.aiBlue.opacity(0.4)
-                                    case .eva:
-                                        return Color.purple.opacity(0.4)
-                                    case .max:
-                                        return Color.orange.opacity(0.4)
-                                    case .mia:
-                                        return Color.pink.opacity(0.4)
-                                    }
-                                }()
-                            ),
-                        radius: 12,
-                        x: 0,
-                        y: 6
-                    )
+        HStack(alignment: .center, spacing: 14) {
+            // Left: User profile avatar
+            profileAvatarView(size: 46)
+                .onTapGesture { showingProfile = true }
 
-                // Content inside the greeting card - three-column layout
-                HStack(alignment: .center, spacing: 8) {
-                    // Left: AI Avatar Animation - moved further to the left
-                    Button(action: {
-                        // Don't allow tap if preloading
-                        guard !greetingVoice.isPreloading else {
-                            print("🎤 HomeView: Ignoring tap - still preloading")
-                            return
-                        }
+            // Center: Greeting text — ZCOOLKuaiLe for Chinese, IndieFlower for other languages
+            Text("\(greetingText), \(userName)")
+                .font(
+                    (Locale.current.language.languageCode?.identifier ?? "") == "zh"
+                        ? Font.custom("ZCOOLKuaiLe-Regular", size: 24)
+                        : Font.custom("IndieFlower", size: 24)
+                )
+                .foregroundColor(themeManager.primaryText)
+                .fontWeight(.bold)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
 
-                        // Haptic feedback
-                        let generator = UIImpactFeedbackGenerator(style: .light)
-                        generator.impactOccurred()
+            Spacer()
 
-                        // Speak random greeting
-                        greetingVoice.speakRandomGreeting()
-                    }) {
-                        AIAvatarAnimation(
-                            state: greetingVoice.isSpeaking ? .speaking : (greetingVoice.isPreloading ? .waiting : .idle),
-                            voiceType: greetingVoice.currentVoiceType
+            // Right: Animation toggle + Settings
+            HStack(spacing: 6) {
+                Button(action: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                        appState.isPowerSavingMode.toggle()
+                    }
+                }) {
+                    Image(systemName: appState.isPowerSavingMode ? "figure.stand" : "figure.run")
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundColor(appState.isPowerSavingMode ? .orange : .green)
+                        .frame(width: 36, height: 36)
+                        .background(
+                            Circle()
+                                .fill(appState.isPowerSavingMode
+                                      ? Color.orange.opacity(0.10)
+                                      : Color.green.opacity(0.10))
                         )
-                        .frame(width: 90, height: 90)
-                        .id(greetingVoice.currentVoiceType.rawValue)  // Force recreation when voice type changes
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    .disabled(greetingVoice.isPreloading)
-                    .frame(width: 90, alignment: .leading)  // Align to leading edge
-                    .offset(x: -8, y: -8)  // Move further left and up
-
-                    // Center: Greeting text - wider central area
-                    VStack(spacing: 2) {
-                        Text(greetingText)
-                            .font(.body)  // Slightly larger than callout
-                            .foregroundColor(Color(white: 0.3))  // Dark grey
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-
-                        Text(userName)
-                            .font(.title)  // Slightly larger than title2
-                            .foregroundColor(Color(white: 0.3))  // Dark grey
-                            .fontWeight(.bold)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.5)
-                    }
-                    .frame(maxWidth: .infinity)
-
-                    // Right: Settings button - moved back to the left a bit
-                    Button(action: { showingProfile = true }) {
-                        Image(systemName: "gearshape.fill")
-                            .font(.system(size: 22))
-                            .foregroundColor(.white.opacity(0.9))
-                            .frame(width: 44, height: 44)
-                            .background(Color.white.opacity(0.2))
-                            .clipShape(Circle())
-                    }
-                    .frame(width: 70, alignment: .trailing)  // Wider frame, aligned right
                 }
-                .padding(.horizontal, DesignTokens.Spacing.md)
-                .padding(.vertical, DesignTokens.Spacing.sm)
+                .buttonStyle(PlainButtonStyle())
+
+                Button(action: { showingProfile = true }) {
+                    Image(systemName: "gearshape.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(themeManager.secondaryText)
+                        .frame(width: 40, height: 40)
+                        .background(
+                            Circle()
+                                .fill(colorScheme == .dark
+                                      ? Color.white.opacity(0.08)
+                                      : Color.black.opacity(0.06))
+                        )
+                }
             }
-            .frame(height: 110)  // Compact height
-            .padding(.top, DesignTokens.Spacing.md)
         }
-        .padding(.horizontal, DesignTokens.Spacing.xl)  // Left and right margins
+        .padding(.horizontal, DesignTokens.Spacing.xl)
+        .padding(.top, DesignTokens.Spacing.md)
+        .padding(.bottom, 4)
+    }
+
+    // MARK: - Profile Avatar
+    @ViewBuilder
+    private func profileAvatarView(size: CGFloat) -> some View {
+        let userId = AuthenticationService.shared.currentUser?.id ?? "anonymous"
+        let localAvatarKey = "localAvatarFilename_\(userId)"
+
+        if let localFilename = UserDefaults.standard.string(forKey: localAvatarKey),
+           let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first,
+           let imageData = try? Data(contentsOf: documentsDirectory.appendingPathComponent(localFilename)),
+           let uiImage = UIImage(data: imageData) {
+            Image(uiImage: uiImage)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: size, height: size)
+                .clipShape(Circle())
+                .id(localFilename)
+        } else if let localAvatarId = UserDefaults.standard.object(forKey: "selectedAvatarId") as? Int,
+                  let avatar = ProfileAvatar.from(id: localAvatarId) {
+            Image(avatar.imageName)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: size, height: size)
+                .clipShape(Circle())
+        } else if let customUrl = profileService.currentProfile?.customAvatarUrl,
+                  !customUrl.isEmpty {
+            AsyncImage(url: URL(string: customUrl)) { phase in
+                switch phase {
+                case .success(let image):
+                    image.resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: size, height: size)
+                        .clipShape(Circle())
+                default:
+                    fallbackAvatarCircle(size: size)
+                }
+            }
+        } else if let avatarId = profileService.currentProfile?.avatarId,
+                  let avatar = ProfileAvatar.from(id: avatarId) {
+            Image(avatar.imageName)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: size, height: size)
+                .clipShape(Circle())
+        } else {
+            fallbackAvatarCircle(size: size)
+        }
+    }
+
+    @ViewBuilder
+    private func fallbackAvatarCircle(size: CGFloat) -> some View {
+        ZStack {
+            Circle()
+                .fill(LinearGradient(
+                    colors: [.blue, .purple],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ))
+                .frame(width: size, height: size)
+            if let name = AuthenticationService.shared.currentUser?.name, !name.isEmpty {
+                Text(String(name.prefix(1)))
+                    .font(.system(size: size * 0.42, weight: .bold))
+                    .foregroundColor(.white)
+            } else {
+                Image(systemName: "person.fill")
+                    .font(.system(size: size * 0.42))
+                    .foregroundColor(.white)
+            }
+        }
     }
 
     // MARK: - Motivational Message
@@ -456,55 +371,15 @@ struct StatBadge: View {
 extension HomeView {
     private var quickActionsSection: some View {
         VStack(alignment: .leading, spacing: DesignTokens.Spacing.md) {
-            // Section title row with animation toggle
-            HStack {
-                Text(NSLocalizedString("home.quickActions", comment: ""))
-                    .font(.title3)
-                    .fontWeight(.bold)
-                    .foregroundColor(
-                        themeManager.currentTheme == .cute ?
-                            Color.gray :
-                            .primary
-                    )
-
-                Spacer()
-
-                // Animation toggle button
-                Button(action: {
-                    print("🎛️ [HomeView] Animation toggle tapped | before=\(appState.isPowerSavingMode) → after=\(!appState.isPowerSavingMode)")
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                        appState.isPowerSavingMode.toggle()
-                    }
-                    print("🎛️ [HomeView] AppState.isPowerSavingMode is now: \(appState.isPowerSavingMode)")
-                }) {
-                    Image(systemName: appState.isPowerSavingMode ? "figure.stand" : "figure.run")
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(appState.isPowerSavingMode ? .orange : .green)
-                        .padding(8)
-                        .background(
-                            Circle()
-                                .fill(appState.isPowerSavingMode
-                                    ? Color.orange.opacity(0.12)
-                                    : Color.green.opacity(0.12))
-                        )
-                }
-                .buttonStyle(PlainButtonStyle())
-            }
-            .padding(.horizontal, DesignTokens.Spacing.xl)
-
-            LazyVGrid(columns: Array(
-                repeating: GridItem(.flexible(), spacing: DesignTokens.Spacing.md),
-                count: sizeClass == .regular ? 4 : 2  // iPad: 4列, iPhone: 2列
-            ), spacing: DesignTokens.Spacing.md) {
-
-                // Card 1: Snap & Ask (top-left)
+            HStack(spacing: DesignTokens.Spacing.md) {
+                // Card 1: Chat
                 QuickActionCard_New(
                     icon: "message.fill",
                     title: NSLocalizedString("home.chat", comment: ""),
-                    subtitle: NSLocalizedString("home.conversationalAI", comment: ""),
+                    subtitle: "",
                     color: themeManager.featureCardColor("chat"),
-                    lottieAnimation: "Chat",
-                    lottieScale: 0.2,
+                    lottieAnimation: "Chat_bot",
+                    lottieScale: 0.13,
                     action: {
                         if parentModeManager.requiresAuthentication(for: .chatFunction) {
                             showingParentAuthForChat = true
@@ -514,14 +389,14 @@ extension HomeView {
                     }
                 )
 
-                // Card 2: Homework Grader (top-right)
+                // Card 2: Homework Grader
                 QuickActionCard_New(
                     icon: "camera.fill",
                     title: NSLocalizedString("home.homeworkGrader", comment: ""),
-                    subtitle: NSLocalizedString("home.scanAndGrade", comment: ""),
+                    subtitle: "",
                     color: themeManager.featureCardColor("homework"),
-                    lottieAnimation: "Checklist",
-                    lottieScale: 0.29,
+                    lottieAnimation: "Camera_black",
+                    lottieScale: 0.13,
                     action: {
                         if parentModeManager.requiresAuthentication(for: .homeworkGrader) {
                             showingParentAuthForGrader = true
@@ -531,27 +406,14 @@ extension HomeView {
                     }
                 )
 
-                // Card 3: Mistake Review (bottom-left)
-                QuickActionCard_New(
-                    icon: "xmark.circle.fill",
-                    title: NSLocalizedString("home.mistakeReview", comment: ""),
-                    subtitle: NSLocalizedString("home.mistakeReviewDescription", comment: ""),
-                    color: colorScheme == .dark ? DesignTokens.Colors.rainbowIndigo.dark : DesignTokens.Colors.rainbowIndigo.light,
-                    lottieAnimation: "mistakeNotebook",
-                    lottieScale: 0.16,
-                    lottieOffset: CGPoint(x: 0, y: 5),
-                    action: { showingMistakeReview = true }
-                )
-
-                // Card 4: Practice (bottom-right)
+                // Card 3: Practice
                 QuickActionCard_New(
                     icon: "doc.text.fill",
                     title: NSLocalizedString("home.practice", comment: ""),
-                    subtitle: NSLocalizedString("home.practiceDescription", comment: ""),
+                    subtitle: "",
                     color: themeManager.featureCardColor("practice"),
                     lottieAnimation: "createquiz",
-                    lottieScale: 0.14,
-                    lottieOffset: CGPoint(x: 0, y: 10),
+                    lottieScale: 0.13,
                     action: { showingQuestionGeneration = true }
                 )
             }
@@ -561,35 +423,39 @@ extension HomeView {
 
     // MARK: - Additional Actions Section
     private var additionalActionsSection: some View {
-        VStack(alignment: .leading, spacing: DesignTokens.Spacing.md) {
-            // Tappable section header with collapse toggle
+        VStack(spacing: 0) {
+            // Centered divider + chevron toggle
             Button(action: {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                     isMoreFeaturesExpanded.toggle()
                 }
             }) {
-                HStack {
-                    Text(NSLocalizedString("home.moreFeatures", comment: ""))
-                        .font(.title3)
-                        .fontWeight(.bold)
-                        .foregroundColor(
-                            themeManager.currentTheme == .cute ?
-                                Color.gray :
-                                .primary
-                        )
-                    Spacer()
+                HStack(spacing: 0) {
+                    Rectangle()
+                        .fill(Color.secondary.opacity(0.18))
+                        .frame(height: 1)
+
                     Image(systemName: "chevron.down")
-                        .font(.subheadline.bold())
-                        .foregroundColor(.secondary)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.secondary.opacity(0.5))
                         .rotationEffect(.degrees(isMoreFeaturesExpanded ? 180 : 0))
+                        .frame(width: 30, height: 30)
+                        .background(Circle().fill(Color.secondary.opacity(0.09)))
+                        .padding(.horizontal, 10)
+
+                    Rectangle()
+                        .fill(Color.secondary.opacity(0.18))
+                        .frame(height: 1)
                 }
                 .padding(.horizontal, DesignTokens.Spacing.xl)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .padding(.top, DesignTokens.Spacing.xs)
+            .padding(.bottom, DesignTokens.Spacing.sm)
 
             if isMoreFeaturesExpanded {
                 if sizeClass == .regular {
-                    // iPad: 2列网格布局
                     LazyVGrid(columns: [
                         GridItem(.flexible(), spacing: DesignTokens.Spacing.md),
                         GridItem(.flexible(), spacing: DesignTokens.Spacing.md)
@@ -598,7 +464,6 @@ extension HomeView {
                     }
                     .padding(.horizontal, DesignTokens.Spacing.xl)
                 } else {
-                    // iPhone: 竖排布局
                     VStack(spacing: DesignTokens.Spacing.md) {
                         moreFeatureButtons
                             .padding(.horizontal, DesignTokens.Spacing.xl)
@@ -622,7 +487,18 @@ extension HomeView {
             action: { onSelectTab(.library) }
         )
 
-        // Card 6: Pomodoro Focus
+        // Card 6: Mistake Review
+        HorizontalActionButton(
+            icon: "xmark.circle.fill",
+            title: NSLocalizedString("home.mistakeReview", comment: ""),
+            subtitle: NSLocalizedString("home.mistakeReviewDescription", comment: ""),
+            color: colorScheme == .dark ? DesignTokens.Colors.rainbowIndigo.dark : DesignTokens.Colors.rainbowIndigo.light,
+            lottieAnimation: "mistakeNotebook",
+            lottieScale: 0.16,
+            action: { showingMistakeReview = true }
+        )
+
+        // Card 7: Pomodoro Focus
         HorizontalActionButton(
             icon: "brain.head.profile",
             title: NSLocalizedString("pomodoro.focusMode", comment: ""),
@@ -761,7 +637,7 @@ struct QuickActionCard_New: View {
                         )
                         .frame(width: 50, height: 50)
                         .scaleEffect(isPressed ? lottieScale * 0.95 : lottieScale)
-                        .offset(x: lottieOffset.x, y: lottieOffset.y)
+                        .offset(x: lottieOffset.x, y: lottieOffset.y - 16)
                     } else {
                         Image(systemName: icon)
                             .font(.system(size: 22))
@@ -795,73 +671,10 @@ struct QuickActionCard_New: View {
                     }
                 }
 
-                VStack(spacing: 4) {
-                    Text(title)
-                        .font(DesignTokens.Typography.title3)
-                        .foregroundColor(
-                            themeManager.currentTheme == .cute ?
-                                DesignTokens.Colors.Cute.textPrimary :  // Soft black in Cute mode
-                                .primary
-                        )
-                        .fontWeight(.medium)
-                        .lineLimit(1)
-
-                    Text(subtitle)
-                        .font(DesignTokens.Typography.caption1)
-                        .foregroundColor(
-                            themeManager.currentTheme == .cute ?
-                                DesignTokens.Colors.Cute.textSecondary :  // Grey in Cute mode
-                                .secondary
-                        )
-                        .lineLimit(1)
-                }
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 120)
-            .background(
-                Group {
-                    // Cute Mode: Lighter solid color (30% opacity - similar to More Features)
-                    // Day/Night Mode: Gradient overlay
-                    if themeManager.currentTheme == .cute {
-                        color.opacity(0.3)  // Much lighter (30% opacity)
-                    } else {
-                        ZStack {
-                            // Brighter card background for light mode
-                            colorScheme == .dark ?
-                                DesignTokens.Colors.cardBackground :
-                                Color.white
-
-                            // More vibrant gradient overlay with increased opacity for light mode
-                            LinearGradient(
-                                colors: [
-                                    color.opacity(colorScheme == .dark ? 0.12 : 0.25),
-                                    color.opacity(colorScheme == .dark ? 0.05 : 0.15),
-                                    Color.clear
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        }
-                    }
-                }
-            )
-            .cornerRadius(18)
-            .shadow(
-                color: colorScheme == .dark ?
-                    Color.white.opacity(isPressed ? 0.15 : 0.08) :  // Light shadow in dark mode
-                    color.opacity(isPressed ? 0.4 : 0.2),           // Colored shadow in light mode
-                radius: isPressed ? 16 : 10,
-                x: 0,
-                y: isPressed ? 8 : 5
-            )
-            .shadow(
-                color: colorScheme == .dark ?
-                    Color.clear :                           // No secondary shadow in dark mode
-                    Color.black.opacity(0.06),              // Subtle shadow in light mode
-                radius: 3,
-                x: 0,
-                y: 2
-            )
+            .frame(height: 95)
+            .contentShape(Rectangle())
             .scaleEffect(isPressed ? 0.95 : 1.0)
         }
         .buttonStyle(PlainButtonStyle())

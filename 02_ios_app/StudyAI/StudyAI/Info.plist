@@ -99,5 +99,10 @@
 	<array>
 		<string>com.studyai.weaknessmigration</string>
 	</array>
+	<key>UIAppFonts</key>
+	<array>
+		<string>IndieFlower-Regular.ttf</string>
+		<string>ZCOOLKuaiLe-Regular.ttf</string>
+	</array>
 </dict>
 </plist>

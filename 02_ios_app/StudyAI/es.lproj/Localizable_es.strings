@@ -2227,7 +2227,7 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "suggestedTodo.mistakeReview.subtitle" = "%d errores para repasar";
 "suggestedTodo.homeworkGrader.title" = "Deja que la IA analice tu tarea";
 "suggestedTodo.homeworkGrader.subtitle" = "Sin calificaciones hoy";
-"suggestedTodo.focusMode.title" = "Iniciar sesión de 25 min";
+"suggestedTodo.focusMode.title" = "Iniciar sesión de foco";
 "suggestedTodo.focusMode.subtitle" = "Sin sesiones de enfoque hoy";
 "suggestedTodo.progress.title" = "Ver progreso semanal";
 "suggestedTodo.progress.subtitle" = "Mantén el control de tu aprendizaje";
