@@ -4,7 +4,7 @@
 */
 
 // Loading Screen
-"loading.appTagline" = "你的學習夥伴";
+"loading.appTagline" = "你的 StudyMate";
 
 // Biometric Authentication (NEW - no existing alternatives)
 "login.enableBiometric" = "啟用%@？";

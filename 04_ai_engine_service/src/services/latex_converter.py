@@ -85,6 +85,7 @@ class LaTeXConverter:
             # Compile LaTeX to PDF
             compile_result = subprocess.run(
                 ['pdflatex',
+                 '--no-shell-escape',
                  '-interaction=nonstopmode',
                  '-halt-on-error',
                  '-file-line-error',

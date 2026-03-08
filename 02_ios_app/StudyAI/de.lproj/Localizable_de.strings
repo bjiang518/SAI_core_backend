@@ -4,7 +4,7 @@
 */
 
 // Loading Screen
-"loading.appTagline" = "Dein Lernbegleiter";
+"loading.appTagline" = "Dein StudyMate";
 
 // Biometric Authentication (NEW - no existing alternatives)
 "login.enableBiometric" = "Aktivieren %@?";

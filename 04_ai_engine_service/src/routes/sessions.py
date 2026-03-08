@@ -543,7 +543,8 @@ async def send_session_message_stream(session_id: str, request: SessionMessageRe
             except Exception as e:
                 import traceback
                 error_msg = f"Streaming error: {str(e) or 'Unknown error'}"
-                yield f"data: {_json.dumps({'type': 'error', 'error': error_msg, 'traceback': traceback.format_exc()[:500]})}\n\n"
+                logger.error(f"SSE streaming error: {traceback.format_exc()}")
+                yield f"data: {_json.dumps({'type': 'error', 'error': error_msg})}\n\n"
 
         return StreamingResponse(
             stream_generator(),
@@ -554,9 +555,10 @@ async def send_session_message_stream(session_id: str, request: SessionMessageRe
     except Exception as e:
         import traceback
         error_msg = f"Session streaming error: {str(e) or 'Unknown error'}"
+        logger.error(f"SSE session error: {traceback.format_exc()}")
 
         async def error_generator():
-            yield f"data: {_json.dumps({'type': 'error', 'error': error_msg, 'traceback': traceback.format_exc()[:500]})}\n\n"
+            yield f"data: {_json.dumps({'type': 'error', 'error': error_msg})}\n\n"
 
         return StreamingResponse(error_generator(), media_type="text/event-stream")
 

@@ -174,6 +174,7 @@ fastify.addHook('onSend', async (request, reply, payload) => {
   reply.header('X-Frame-Options', 'DENY');
   reply.header('X-XSS-Protection', '1; mode=block');
   reply.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+  reply.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
 
   // Request tracking
   if (request.requestId) {

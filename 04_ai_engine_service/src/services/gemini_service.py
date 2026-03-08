@@ -71,7 +71,7 @@ class GeminiEducationalAIService:
             self.thinking_client = None
             self.grading_client = None
         else:
-            logger.debug(f"✅ Gemini API key found: {api_key[:10]}..." if len(api_key) > 10 else "✅ Gemini API key found")
+            logger.debug("✅ Gemini API key found")
 
             if genai:
                 logger.debug("📱 Using NEW Gemini API: from google import genai")

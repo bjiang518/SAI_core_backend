@@ -18,7 +18,10 @@ class ServiceAuthenticator:
     def __init__(self):
         self.service_secret = os.getenv('SERVICE_JWT_SECRET')
         self.service_name = os.getenv('SERVICE_NAME', 'ai-engine')
-        self.enabled = os.getenv('SERVICE_AUTH_ENABLED', 'false').lower() == 'true'
+        # Default to enabled in production (safe default)
+        env = os.getenv('ENVIRONMENT', 'development').lower()
+        default_enabled = 'true' if env == 'production' else 'false'
+        self.enabled = os.getenv('SERVICE_AUTH_ENABLED', default_enabled).lower() == 'true'
         self.valid_issuers = ['api-gateway', 'ai-engine', 'vision-service']
         
         if self.enabled and not self.service_secret:
