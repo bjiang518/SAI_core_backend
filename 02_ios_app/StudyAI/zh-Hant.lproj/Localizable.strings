@@ -2242,14 +2242,16 @@
 // Suggested Daily Todos
 "suggestedTodo.sectionTitle" = "建議事項";
 "suggestedTodo.empty" = "今日任務已全部完成 🎉";
-"suggestedTodo.resumePractice.title" = "繼續未完成的練習";
+"suggestedTodo.resumePractice.title" = "繼續練習";
 "suggestedTodo.resumePractice.subtitle" = "還剩 %d 題未完成";
 "suggestedTodo.resumePractice.subtitleGeneral" = "繼續上次進度";
 "suggestedTodo.mistakeReview.title" = "複習錯題";
 "suggestedTodo.mistakeReview.subtitle" = "%d 道錯題待複習";
 "suggestedTodo.homeworkGrader.title" = "拍一張作業讓 AI 分析";
 "suggestedTodo.homeworkGrader.subtitle" = "今天還沒有評分記錄";
-"suggestedTodo.focusMode.title" = "開始 25 分鐘專注";
+"suggestedTodo.focusMode.title" = "開始專注";
 "suggestedTodo.focusMode.subtitle" = "今天還沒有專注記錄";
 "suggestedTodo.progress.title" = "查看本週學習進度";
 "suggestedTodo.progress.subtitle" = "掌握你的學習軌跡";
+"suggestedTodo.focusMode.subtitleDone" = "今日已完成 %d 次，再來一次";
+"suggestedTodo.progress.subtitleToday" = "了解今日學習成果";

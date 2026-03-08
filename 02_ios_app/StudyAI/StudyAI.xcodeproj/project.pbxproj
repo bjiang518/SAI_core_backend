@@ -204,6 +204,27 @@
 		7B278A362F5D488D00DA84B0 /* SuggestedTodosSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278A352F5D488D00DA84B0 /* SuggestedTodosSection.swift */; };
 		7B278A372F5D488D00DA84B0 /* SuggestedTodosSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278A352F5D488D00DA84B0 /* SuggestedTodosSection.swift */; };
 		7B278A382F5D488D00DA84B0 /* SuggestedTodosSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278A352F5D488D00DA84B0 /* SuggestedTodosSection.swift */; };
+		7B278A3D2F5D55E200DA84B0 /* Gaegu-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7B278A3C2F5D55E200DA84B0 /* Gaegu-Regular.ttf */; };
+		7B278A3E2F5D55E200DA84B0 /* Gaegu-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7B278A3A2F5D55E200DA84B0 /* Gaegu-Bold.ttf */; };
+		7B278A3F2F5D55E200DA84B0 /* Gaegu-Light.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7B278A3B2F5D55E200DA84B0 /* Gaegu-Light.ttf */; };
+		7B278A402F5D55E200DA84B0 /* Gaegu-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7B278A3C2F5D55E200DA84B0 /* Gaegu-Regular.ttf */; };
+		7B278A412F5D55E200DA84B0 /* Gaegu-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7B278A3A2F5D55E200DA84B0 /* Gaegu-Bold.ttf */; };
+		7B278A422F5D55E200DA84B0 /* Gaegu-Light.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7B278A3B2F5D55E200DA84B0 /* Gaegu-Light.ttf */; };
+		7B278A432F5D55E200DA84B0 /* Gaegu-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7B278A3C2F5D55E200DA84B0 /* Gaegu-Regular.ttf */; };
+		7B278A442F5D55E200DA84B0 /* Gaegu-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7B278A3A2F5D55E200DA84B0 /* Gaegu-Bold.ttf */; };
+		7B278A452F5D55E200DA84B0 /* Gaegu-Light.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7B278A3B2F5D55E200DA84B0 /* Gaegu-Light.ttf */; };
+		7B278A472F5D55F300DA84B0 /* IndieFlower-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7B278A462F5D55F300DA84B0 /* IndieFlower-Regular.ttf */; };
+		7B278A482F5D55F300DA84B0 /* IndieFlower-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7B278A462F5D55F300DA84B0 /* IndieFlower-Regular.ttf */; };
+		7B278A492F5D55F300DA84B0 /* IndieFlower-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7B278A462F5D55F300DA84B0 /* IndieFlower-Regular.ttf */; };
+		7B278A4B2F5D5E8A00DA84B0 /* ZCOOLKuaiLe-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7B278A4A2F5D5E8A00DA84B0 /* ZCOOLKuaiLe-Regular.ttf */; };
+		7B278A4C2F5D5E8A00DA84B0 /* ZCOOLKuaiLe-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7B278A4A2F5D5E8A00DA84B0 /* ZCOOLKuaiLe-Regular.ttf */; };
+		7B278A4D2F5D5E8A00DA84B0 /* ZCOOLKuaiLe-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7B278A4A2F5D5E8A00DA84B0 /* ZCOOLKuaiLe-Regular.ttf */; };
+		7B278A502F5D613D00DA84B0 /* Camera_black.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B278A4E2F5D613D00DA84B0 /* Camera_black.json */; };
+		7B278A512F5D613D00DA84B0 /* Chat_bot.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B278A4F2F5D613D00DA84B0 /* Chat_bot.json */; };
+		7B278A522F5D613D00DA84B0 /* Camera_black.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B278A4E2F5D613D00DA84B0 /* Camera_black.json */; };
+		7B278A532F5D613D00DA84B0 /* Chat_bot.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B278A4F2F5D613D00DA84B0 /* Chat_bot.json */; };
+		7B278A542F5D613D00DA84B0 /* Camera_black.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B278A4E2F5D613D00DA84B0 /* Camera_black.json */; };
+		7B278A552F5D613D00DA84B0 /* Chat_bot.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B278A4F2F5D613D00DA84B0 /* Chat_bot.json */; };
 		7B6B2B0D2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
 		7B6B2B0E2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
 		7B6B2B0F2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
@@ -690,6 +711,13 @@
 		7B278A242F5CA93D00DA84B0 /* QuestionSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QuestionSheetView.swift; path = StudyAI/Views/Practice/QuestionSheetView.swift; sourceTree = SOURCE_ROOT; };
 		7B278A312F5D487700DA84B0 /* SuggestedTodoEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SuggestedTodoEngine.swift; path = StudyAI/Services/SuggestedTodoEngine.swift; sourceTree = SOURCE_ROOT; };
 		7B278A352F5D488D00DA84B0 /* SuggestedTodosSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SuggestedTodosSection.swift; path = StudyAI/Views/Components/SuggestedTodosSection.swift; sourceTree = SOURCE_ROOT; };
+		7B278A3A2F5D55E200DA84B0 /* Gaegu-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Gaegu-Bold.ttf"; sourceTree = "<group>"; };
+		7B278A3B2F5D55E200DA84B0 /* Gaegu-Light.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Gaegu-Light.ttf"; sourceTree = "<group>"; };
+		7B278A3C2F5D55E200DA84B0 /* Gaegu-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Gaegu-Regular.ttf"; sourceTree = "<group>"; };
+		7B278A462F5D55F300DA84B0 /* IndieFlower-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "IndieFlower-Regular.ttf"; sourceTree = "<group>"; };
+		7B278A4A2F5D5E8A00DA84B0 /* ZCOOLKuaiLe-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ZCOOLKuaiLe-Regular.ttf"; sourceTree = "<group>"; };
+		7B278A4E2F5D613D00DA84B0 /* Camera_black.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Camera_black.json; sourceTree = "<group>"; };
+		7B278A4F2F5D613D00DA84B0 /* Chat_bot.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Chat_bot.json; sourceTree = "<group>"; };
 		7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ImageCropper.swift; path = StudyAI/Utils/ImageCropper.swift; sourceTree = SOURCE_ROOT; };
 		7B74A2032EB18078002DBE2B /* Fire.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Fire.json; sourceTree = "<group>"; };
 		7B74A2042EB18078002DBE2B /* Foriday.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Foriday.json; sourceTree = "<group>"; };
@@ -951,6 +979,18 @@
 			path = "zh-Hant.lproj";
 			sourceTree = "<group>";
 		};
+		7B278A392F5D55BE00DA84B0 /* fonts */ = {
+			isa = PBXGroup;
+			children = (
+				7B278A462F5D55F300DA84B0 /* IndieFlower-Regular.ttf */,
+				7B278A3A2F5D55E200DA84B0 /* Gaegu-Bold.ttf */,
+				7B278A3B2F5D55E200DA84B0 /* Gaegu-Light.ttf */,
+				7B278A3C2F5D55E200DA84B0 /* Gaegu-Regular.ttf */,
+				7B278A4A2F5D5E8A00DA84B0 /* ZCOOLKuaiLe-Regular.ttf */,
+			);
+			path = fonts;
+			sourceTree = "<group>";
+		};
 		7B8353322EA6F0DA00199AC3 /* utils */ = {
 			isa = PBXGroup;
 			children = (
@@ -968,6 +1008,7 @@
 		7B9EC4642E61663B005E4BFB = {
 			isa = PBXGroup;
 			children = (
+				7B278A392F5D55BE00DA84B0 /* fonts */,
 				7BEC07F12F4C332900B6E573 /* de.lproj */,
 				7BEC07F42F4C332900B6E573 /* es.lproj */,
 				7BEC07F72F4C332900B6E573 /* fr.lproj */,
@@ -1276,6 +1317,8 @@
 		7BEEB6292E8EFFCA00957748 /* Lottie */ = {
 			isa = PBXGroup;
 			children = (
+				7B278A4E2F5D613D00DA84B0 /* Camera_black.json */,
+				7B278A4F2F5D613D00DA84B0 /* Chat_bot.json */,
 				7BEC08432F4FB42D00B6E573 /* mistakeNotebook.json */,
 				7BEC08072F4D7CB100B6E573 /* createquiz.json */,
 				7BEC08082F4D7CB100B6E573 /* Imageicontadah.json */,
@@ -1450,6 +1493,7 @@
 				197B41AAB4E145079F6C50A1 /* meditation-amp-focus.mp3 in Resources */,
 				E4B6564CD270402684D59645 /* Focus_Flow_2025-10-30T054503.mp3 in Resources */,
 				7B8352692E98DC9800199AC3 /* Siri Animation.json in Resources */,
+				7B278A492F5D55F300DA84B0 /* IndieFlower-Regular.ttf in Resources */,
 				7B74A2E92EB6BBDD002DBE2B /* Fire_moving.json in Resources */,
 				7B74A2EA2EB6BBDD002DBE2B /* Loading_animation_blue.json in Resources */,
 				7B74A2EB2EB6BBDD002DBE2B /* Bubbles x2.json in Resources */,
@@ -1462,14 +1506,20 @@
 				AA0002082F68A00100000001 /* Taxonomy.strings in Resources */,
 				7BEC07BF2F42F9DB00B6E573 /* Correct.json in Resources */,
 				7BEC07C02F42F9DB00B6E573 /* Question and Answer 2.json in Resources */,
+				7B278A3D2F5D55E200DA84B0 /* Gaegu-Regular.ttf in Resources */,
+				7B278A3E2F5D55E200DA84B0 /* Gaegu-Bold.ttf in Resources */,
+				7B278A3F2F5D55E200DA84B0 /* Gaegu-Light.ttf in Resources */,
 				7BEC07FB2F4C332900B6E573 /* Localizable_ja.strings in Resources */,
 				7BEC07FC2F4C332900B6E573 /* Localizable_de.strings in Resources */,
 				7BEC07FD2F4C332900B6E573 /* Localizable_es.strings in Resources */,
+				7B278A502F5D613D00DA84B0 /* Camera_black.json in Resources */,
+				7B278A512F5D613D00DA84B0 /* Chat_bot.json in Resources */,
 				7BEC083E2F4F9D4400B6E573 /* mathjax.min.js in Resources */,
 				7BEC07FE2F4C332900B6E573 /* Localizable_fr.strings in Resources */,
 				7BEC07C12F42F9DB00B6E573 /* Star.json in Resources */,
 				7BEC07C22F42F9DB00B6E573 /* Star rating.json in Resources */,
 				7BEC07C32F42F9DB00B6E573 /* Target.json in Resources */,
+				7B278A4C2F5D5E8A00DA84B0 /* ZCOOLKuaiLe-Regular.ttf in Resources */,
 				7BEC07C42F42F9DB00B6E573 /* rocket 2.json in Resources */,
 				7B1961E52E94D96A0024317A /* Localizable.strings in Resources */,
 				7B8353682EA80C7000199AC3 /* Assets.xcassets in Resources */,
@@ -1505,6 +1555,9 @@
 				7B83526B2E98DC9800199AC3 /* Siri Animation.json in Resources */,
 				7BC00E6E2E714D67002DF625 /* GoogleService-Info.plist in Resources */,
 				7B9045272E8FB5DD00E5DDFA /* Chart Graph.json in Resources */,
+				7B278A472F5D55F300DA84B0 /* IndieFlower-Regular.ttf in Resources */,
+				7B278A542F5D613D00DA84B0 /* Camera_black.json in Resources */,
+				7B278A552F5D613D00DA84B0 /* Chat_bot.json in Resources */,
 				7B9045282E8FB5DD00E5DDFA /* Chat.json in Resources */,
 				7B1961DE2E94D96A0024317A /* Localizable.strings in Resources */,
 				AA0002012F68A00100000001 /* (null) in Resources */,
@@ -1528,9 +1581,13 @@
 				7BEEB62C2E8EFFEB00957748 /* AI Spiral Loading.json in Resources */,
 				7B2248152F1970BE006ADD93 /* PrivacyInfo.xcprivacy in Resources */,
 				7BEC083C2F4F9D4400B6E573 /* mathjax.min.js in Resources */,
+				7B278A4D2F5D5E8A00DA84B0 /* ZCOOLKuaiLe-Regular.ttf in Resources */,
 				7BEEB61E2E8E411900957748 /* Education edit.json in Resources */,
 				7B90451C2E8FB1FE00E5DDFA /* Books.json in Resources */,
 				7B19619F2E9285F20024317A /* Sandy_Loading.json in Resources */,
+				7B278A432F5D55E200DA84B0 /* Gaegu-Regular.ttf in Resources */,
+				7B278A442F5D55E200DA84B0 /* Gaegu-Bold.ttf in Resources */,
+				7B278A452F5D55E200DA84B0 /* Gaegu-Light.ttf in Resources */,
 				7B74A2052EB18078002DBE2B /* Fire.json in Resources */,
 				7B74A2062EB18078002DBE2B /* Foriday.json in Resources */,
 				7B1961A02E9285F20024317A /* Customised_report.json in Resources */,
@@ -1554,6 +1611,9 @@
 				7B83526A2E98DC9800199AC3 /* Siri Animation.json in Resources */,
 				7BC00E6F2E714D67002DF625 /* GoogleService-Info.plist in Resources */,
 				7B9045232E8FB5DD00E5DDFA /* Chart Graph.json in Resources */,
+				7B278A482F5D55F300DA84B0 /* IndieFlower-Regular.ttf in Resources */,
+				7B278A522F5D613D00DA84B0 /* Camera_black.json in Resources */,
+				7B278A532F5D613D00DA84B0 /* Chat_bot.json in Resources */,
 				7B9045242E8FB5DD00E5DDFA /* Chat.json in Resources */,
 				7B1961E12E94D96A0024317A /* Localizable.strings in Resources */,
 				AA0002092F68A00100000001 /* Taxonomy.strings in Resources */,
@@ -1577,9 +1637,13 @@
 				7BEEB62D2E8EFFEB00957748 /* AI Spiral Loading.json in Resources */,
 				7B2248162F1970BE006ADD93 /* PrivacyInfo.xcprivacy in Resources */,
 				7BEC083D2F4F9D4400B6E573 /* mathjax.min.js in Resources */,
+				7B278A4B2F5D5E8A00DA84B0 /* ZCOOLKuaiLe-Regular.ttf in Resources */,
 				7BEEB61D2E8E411900957748 /* Education edit.json in Resources */,
 				7B90451B2E8FB1FE00E5DDFA /* Books.json in Resources */,
 				7B19619D2E9285F20024317A /* Sandy_Loading.json in Resources */,
+				7B278A402F5D55E200DA84B0 /* Gaegu-Regular.ttf in Resources */,
+				7B278A412F5D55E200DA84B0 /* Gaegu-Bold.ttf in Resources */,
+				7B278A422F5D55E200DA84B0 /* Gaegu-Light.ttf in Resources */,
 				7B74A2092EB18078002DBE2B /* Fire.json in Resources */,
 				7B74A20A2EB18078002DBE2B /* Foriday.json in Resources */,
 				7B19619E2E9285F20024317A /* Customised_report.json in Resources */,

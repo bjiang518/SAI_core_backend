@@ -2233,14 +2233,16 @@
 // Suggested Daily Todos
 "suggestedTodo.sectionTitle" = "建议事项";
 "suggestedTodo.empty" = "今日任务已全部完成 🎉";
-"suggestedTodo.resumePractice.title" = "继续未完成的练习";
+"suggestedTodo.resumePractice.title" = "继续练习";
 "suggestedTodo.resumePractice.subtitle" = "还剩 %d 题未完成";
 "suggestedTodo.resumePractice.subtitleGeneral" = "继续上次进度";
 "suggestedTodo.mistakeReview.title" = "复习错题";
 "suggestedTodo.mistakeReview.subtitle" = "%d 道错题待复习";
 "suggestedTodo.homeworkGrader.title" = "拍一张作业让 AI 分析";
 "suggestedTodo.homeworkGrader.subtitle" = "今天还没有评分记录";
-"suggestedTodo.focusMode.title" = "开始 25 分钟专注";
+"suggestedTodo.focusMode.title" = "开始专注";
 "suggestedTodo.focusMode.subtitle" = "今天还没有专注记录";
 "suggestedTodo.progress.title" = "查看本周学习进度";
 "suggestedTodo.progress.subtitle" = "掌握你的学习轨迹";
+"suggestedTodo.focusMode.subtitleDone" = "今日已完成 %d 次，再来一次";
+"suggestedTodo.progress.subtitleToday" = "了解今日学习成果";

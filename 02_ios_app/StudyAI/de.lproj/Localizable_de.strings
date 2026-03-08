@@ -2163,7 +2163,7 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "suggestedTodo.mistakeReview.subtitle" = "%d Fehler zur Wiederholung";
 "suggestedTodo.homeworkGrader.title" = "Hausaufgaben von KI prüfen lassen";
 "suggestedTodo.homeworkGrader.subtitle" = "Noch keine Bewertung heute";
-"suggestedTodo.focusMode.title" = "25 Min. Fokussitzung starten";
+"suggestedTodo.focusMode.title" = "Fokussitzung starten";
 "suggestedTodo.focusMode.subtitle" = "Noch keine Fokussitzung heute";
 "suggestedTodo.progress.title" = "Wochenfortschritt ansehen";
 "suggestedTodo.progress.subtitle" = "Behalte deinen Lernweg im Blick";

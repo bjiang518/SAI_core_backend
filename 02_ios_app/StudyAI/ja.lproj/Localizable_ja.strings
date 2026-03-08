@@ -2227,7 +2227,7 @@
 "suggestedTodo.mistakeReview.subtitle" = "%d 問の間違いを復習";
 "suggestedTodo.homeworkGrader.title" = "宿題をAIに分析させる";
 "suggestedTodo.homeworkGrader.subtitle" = "今日はまだ採点なし";
-"suggestedTodo.focusMode.title" = "25分の集中セッションを開始";
+"suggestedTodo.focusMode.title" = "集中セッションを開始";
 "suggestedTodo.focusMode.subtitle" = "今日はまだ集中セッションなし";
 "suggestedTodo.progress.title" = "今週の進捗を確認";
 "suggestedTodo.progress.subtitle" = "学習の軌跡を把握しよう";

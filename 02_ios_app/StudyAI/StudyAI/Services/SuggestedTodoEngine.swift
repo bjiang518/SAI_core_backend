@@ -74,7 +74,7 @@ final class SuggestedTodoEngine: ObservableObject {
                 id: "resume_practice",
                 icon: "arrow.clockwise",
                 title: NSLocalizedString("suggestedTodo.resumePractice.title",
-                                         value: "继续未完成的练习", comment: ""),
+                                         value: "继续练习", comment: ""),
                 subtitle: subtitle,
                 color: Color(hex: "5B8EF0"),
                 action: .resumePractice
@@ -115,46 +115,51 @@ final class SuggestedTodoEngine: ObservableObject {
             ), 80))
         }
 
-        // T06 · No completed focus session today  (priority 70)
+        // T06 · Focus session today (priority 70, always a candidate)
         let completedFocusToday = FocusSessionService.shared
             .getTodaySessions()
             .filter { $0.isCompleted }
             .count
-        if completedFocusToday == 0 {
-            candidates.append((SuggestedTodo(
-                id: "open_focus",
-                icon: "timer",
-                title: NSLocalizedString("suggestedTodo.focusMode.title",
-                                         value: "开始 25 分钟专注", comment: ""),
-                subtitle: NSLocalizedString("suggestedTodo.focusMode.subtitle",
-                                            value: "今天还没有专注记录", comment: ""),
-                color: Color(hex: "33C4B0"),
-                action: .openFocus
-            ), 70))
-        }
+        let focusSubtitle = completedFocusToday == 0
+            ? NSLocalizedString("suggestedTodo.focusMode.subtitle",
+                                value: "今天还没有专注记录", comment: "")
+            : String(format: NSLocalizedString("suggestedTodo.focusMode.subtitleDone",
+                                               value: "今日已完成 %d 次，再来一次",
+                                               comment: ""), completedFocusToday)
+        candidates.append((SuggestedTodo(
+            id: "open_focus",
+            icon: "timer",
+            title: NSLocalizedString("suggestedTodo.focusMode.title",
+                                     value: "开始专注", comment: ""),
+            subtitle: focusSubtitle,
+            color: Color(hex: "33C4B0"),
+            action: .openFocus
+        ), 70))
 
-        // T09 · Progress not viewed in ≥3 days  (priority 60)
+        // T09 · Progress check (priority 60, always a candidate)
         let lastViewed = UserDefaults.standard.double(forKey: "last_viewed_progress_\(uid)")
         let daysSince: Double = lastViewed == 0
             ? 999
             : (Date().timeIntervalSince1970 - lastViewed) / 86400
-        if daysSince >= 3 {
-            candidates.append((SuggestedTodo(
-                id: "open_progress",
-                icon: "chart.bar.fill",
-                title: NSLocalizedString("suggestedTodo.progress.title",
-                                         value: "查看本周学习进度", comment: ""),
-                subtitle: NSLocalizedString("suggestedTodo.progress.subtitle",
-                                            value: "掌握你的学习轨迹", comment: ""),
-                color: Color(hex: "8B6EE8"),
-                action: .openProgress
-            ), 60))
-        }
+        let progressSubtitle = daysSince < 1
+            ? NSLocalizedString("suggestedTodo.progress.subtitleToday",
+                                value: "了解今日学习成果", comment: "")
+            : NSLocalizedString("suggestedTodo.progress.subtitle",
+                                value: "掌握你的学习轨迹", comment: "")
+        candidates.append((SuggestedTodo(
+            id: "open_progress",
+            icon: "chart.bar.fill",
+            title: NSLocalizedString("suggestedTodo.progress.title",
+                                     value: "查看本周学习进度", comment: ""),
+            subtitle: progressSubtitle,
+            color: Color(hex: "8B6EE8"),
+            action: .openProgress
+        ), 60))
 
         todos = candidates
             .filter { !isDismissedToday($0.todo.id) }
             .sorted { $0.priority > $1.priority }
-            .prefix(4)
+            .prefix(5)
             .map { $0.todo }
 
         logger.info("📋 Suggested todos refreshed: \(todos.count) items")
