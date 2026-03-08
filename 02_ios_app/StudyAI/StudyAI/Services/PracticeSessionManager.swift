@@ -22,6 +22,7 @@ class PracticeSessionManager: ObservableObject {
 
     @Published var hasIncompleteSessions = false
     @Published var incompleteSessions: [PracticeSession] = []
+    @Published var allSessionsPublished: [PracticeSession] = []
 
     private init() {
         loadSessions()
@@ -92,7 +93,8 @@ class PracticeSessionManager: ObservableObject {
                 createdDate: session.createdDate,
                 lastAccessedDate: session.lastAccessedDate,
                 completedQuestionIds: session.completedQuestionIds,
-                answers: session.answers
+                answers: session.answers,
+                isOrganized: session.isOrganized
             )
         } else {
             sessionToSave = session
@@ -115,6 +117,39 @@ class PracticeSessionManager: ObservableObject {
         Task { await syncSessionCreated(sessionToSave) }
 
         return sessionToSave
+    }
+
+    /// Delete a single question from a session (updates local storage)
+    func deleteQuestion(sessionId: String, questionId: String) {
+        var sessions = loadAllSessions()
+        guard let index = sessions.firstIndex(where: { $0.id == sessionId }) else { return }
+        let current = sessions[index]
+        var updatedAnswers = current.answers
+        updatedAnswers.removeValue(forKey: questionId)
+        let updatedSession = PracticeSession(
+            id: current.id,
+            questions: current.questions.filter { $0.id.uuidString != questionId },
+            generationType: current.generationType,
+            subject: current.subject,
+            difficulty: current.difficulty,
+            questionType: current.questionType,
+            createdDate: current.createdDate,
+            lastAccessedDate: Date(),
+            completedQuestionIds: current.completedQuestionIds.filter { $0 != questionId },
+            answers: updatedAnswers,
+            isOrganized: current.isOrganized
+        )
+        sessions[index] = updatedSession
+        saveSessions(sessions)
+        updatePublishedState()
+        logger.info("🗑️ Deleted question \(questionId) from session \(sessionId)")
+    }
+
+    /// Normalize + localize a raw subject string for display.
+    /// Delegates to BranchLocalizer which uses Taxonomy.strings — the same table
+    /// used everywhere else in the app for subject/topic names.
+    static func localizeSubject(_ raw: String) -> String {
+        BranchLocalizer.localized(normalizeSubject(raw))
     }
 
     /// Normalize a raw subject string to the canonical form used throughout the app.
@@ -331,10 +366,53 @@ class PracticeSessionManager: ObservableObject {
         updatePublishedState()
     }
 
-    private func updatePublishedState() {
-        DispatchQueue.main.async {
-            self.incompleteSessions = self.getIncompleteSessions()
+    /// Mark a session as organized (Smart Organize was used). Persists across re-entry.
+    func markOrganized(sessionId: String) {
+        var sessions = loadAllSessions()
+        guard let index = sessions.firstIndex(where: { $0.id == sessionId }) else { return }
+        sessions[index].isOrganized = true
+        saveSessions(sessions)
+        updatePublishedState()
+    }
+
+    /// Reset all answers for a session so the user can redo it from scratch.
+    /// Preserves the isOrganized flag so the Smart Organize banner stays dismissed.
+    func resetSessionProgress(sessionId: String) {
+        var sessions = loadAllSessions()
+        guard let index = sessions.firstIndex(where: { $0.id == sessionId }) else { return }
+        let current = sessions[index]
+        let reset = PracticeSession(
+            id: current.id,
+            questions: current.questions,
+            generationType: current.generationType,
+            subject: current.subject,
+            difficulty: current.difficulty,
+            questionType: current.questionType,
+            createdDate: current.createdDate,
+            lastAccessedDate: Date(),
+            completedQuestionIds: [],
+            answers: [:],
+            isOrganized: current.isOrganized
+        )
+        sessions[index] = reset
+        saveSessions(sessions)
+        updatePublishedState()
+        logger.info("🔄 Reset progress for session \(sessionId)")
+    }
+
+    func updatePublishedState() {
+        let applyUpdate = {
+            self.allSessionsPublished = self.loadAllSessions()
+            self.incompleteSessions = self.allSessionsPublished.filter { !$0.isCompleted }
+                .sorted { $0.lastAccessedDate > $1.lastAccessedDate }
             self.hasIncompleteSessions = !self.incompleteSessions.isEmpty
+        }
+        // If already on main thread (e.g. called from @MainActor views), assign directly
+        // so the @Published update fires in the same runloop cycle — no stale-frame delay.
+        if Thread.isMainThread {
+            applyUpdate()
+        } else {
+            DispatchQueue.main.async(execute: applyUpdate)
         }
     }
 }
@@ -352,6 +430,7 @@ struct PracticeSession: Codable, Identifiable, Hashable {
     var lastAccessedDate: Date
     var completedQuestionIds: [String]
     var answers: [String: [String: Any]]  // questionId -> {answer, is_correct, timestamp}
+    var isOrganized: Bool
 
     var isCompleted: Bool {
         completedQuestionIds.count == questions.count
@@ -400,13 +479,22 @@ struct PracticeSession: Codable, Identifiable, Hashable {
     // Custom coding for dictionary with Any values
     enum CodingKeys: String, CodingKey {
         case id, questions, generationType, subject, difficulty, questionType
-        case createdDate, lastAccessedDate, completedQuestionIds, answers
+        case createdDate, lastAccessedDate, completedQuestionIds, answers, isOrganized
     }
 
-    static func == (lhs: PracticeSession, rhs: PracticeSession) -> Bool { lhs.id == rhs.id }
-    func hash(into hasher: inout Hasher) { hasher.combine(id) }
+    static func == (lhs: PracticeSession, rhs: PracticeSession) -> Bool {
+        lhs.id == rhs.id &&
+        lhs.completedQuestionIds == rhs.completedQuestionIds &&
+        lhs.answers.count == rhs.answers.count &&
+        lhs.isOrganized == rhs.isOrganized
+    }
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+        hasher.combine(completedQuestionIds.count)
+        hasher.combine(isOrganized)
+    }
 
-    init(id: String, questions: [QuestionGenerationService.GeneratedQuestion], generationType: String, subject: String, difficulty: String, questionType: String, createdDate: Date, lastAccessedDate: Date, completedQuestionIds: [String], answers: [String: [String: Any]]) {
+    init(id: String, questions: [QuestionGenerationService.GeneratedQuestion], generationType: String, subject: String, difficulty: String, questionType: String, createdDate: Date, lastAccessedDate: Date, completedQuestionIds: [String], answers: [String: [String: Any]], isOrganized: Bool = false) {
         self.id = id
         self.questions = questions
         self.generationType = generationType
@@ -417,6 +505,7 @@ struct PracticeSession: Codable, Identifiable, Hashable {
         self.lastAccessedDate = lastAccessedDate
         self.completedQuestionIds = completedQuestionIds
         self.answers = answers
+        self.isOrganized = isOrganized
     }
 
     init(from decoder: Decoder) throws {
@@ -430,6 +519,7 @@ struct PracticeSession: Codable, Identifiable, Hashable {
         createdDate = try container.decode(Date.self, forKey: .createdDate)
         lastAccessedDate = try container.decode(Date.self, forKey: .lastAccessedDate)
         completedQuestionIds = try container.decode([String].self, forKey: .completedQuestionIds)
+        isOrganized = (try? container.decode(Bool.self, forKey: .isOrganized)) ?? false
 
         // Decode answers dictionary
         if let answersData = try? container.decode([String: CodableAnswer].self, forKey: .answers) {
@@ -454,6 +544,7 @@ struct PracticeSession: Codable, Identifiable, Hashable {
         // Encode answers dictionary
         let codableAnswers = answers.mapValues { CodableAnswer(dictionary: $0) }
         try container.encode(codableAnswers, forKey: .answers)
+        try container.encode(isOrganized, forKey: .isOrganized)
     }
 }
 

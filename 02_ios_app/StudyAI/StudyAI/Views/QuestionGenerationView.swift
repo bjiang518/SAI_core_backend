@@ -1105,6 +1105,27 @@ struct ArchiveBasedConfig: View {
     let isLoading: Bool
     let onShowSelection: () -> Void
 
+    private var lockedSubject: String? {
+        for id in selectedConversations {
+            if let conv = conversations.first(where: { $0["id"] as? String == id }),
+               let s = conv["subject"] as? String, !s.isEmpty { return s }
+        }
+        for id in selectedQuestions {
+            if let q = questions.first(where: { $0.id == id }), !q.subject.isEmpty { return q.subject }
+        }
+        return nil
+    }
+
+    private var selectionSummary: String {
+        let convCount = selectedConversations.count
+        let qCount = selectedQuestions.count
+        let countPart = "\(convCount) \(NSLocalizedString("questionGeneration.conversationsCount", comment: ""))\(qCount) \(NSLocalizedString("questionGeneration.questionsSelected", comment: ""))"
+        if let subject = lockedSubject {
+            return "\(BranchLocalizer.localized(subject)) · \(countPart)"
+        }
+        return countPart
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
@@ -1138,7 +1159,7 @@ struct ArchiveBasedConfig: View {
                                     .foregroundColor(.green)
                                     .italic()
                             } else {
-                                Text("\(selectedConversations.count) \(NSLocalizedString("questionGeneration.conversationsCount", comment: ""))\(selectedQuestions.count) \(NSLocalizedString("questionGeneration.questionsSelected", comment: ""))")
+                                Text(selectionSummary)
                                     .font(.caption2)
                                     .foregroundColor(.green)
                                     .fontWeight(.medium)
@@ -1410,11 +1431,28 @@ struct ArchiveSelectionView: View {
     @State private var selectedSubject: String = "All"
     @State private var selectedTimeFilter: TimeFilter = .allTime
     @State private var showingLimitAlert = false
+    @State private var showingSubjectMismatchAlert = false
 
     private let maxSources = 5
 
     private var totalSelected: Int {
         selectedConversations.count + selectedQuestions.count
+    }
+
+    // The subject locked by the first selected item. All subsequent selections must match.
+    private var lockedSubject: String? {
+        for id in selectedConversations {
+            if let conv = conversations.first(where: { $0["id"] as? String == id }),
+               let s = conv["subject"] as? String, !s.isEmpty { return s }
+        }
+        for id in selectedQuestions {
+            if let q = questions.first(where: { $0.id == id }), !q.subject.isEmpty { return q.subject }
+        }
+        return nil
+    }
+
+    private func subjectOf(conversationId: String) -> String? {
+        conversations.first(where: { $0["id"] as? String == conversationId })?["subject"] as? String
     }
 
     enum TimeFilter: String, CaseIterable {
@@ -1595,6 +1633,37 @@ struct ArchiveSelectionView: View {
                     .padding(.horizontal)
                     .padding(.top, 4)
 
+                    // Subject lock banner — appears once the first item is selected
+                    if let locked = lockedSubject {
+                        HStack(spacing: 8) {
+                            Image(systemName: "lock.fill")
+                                .font(.caption)
+                            Text(BranchLocalizer.localized(locked))
+                                .font(.caption.bold())
+                            Text("·")
+                                .foregroundColor(.secondary)
+                            Text(NSLocalizedString("questionGeneration.subjectLock.hint", value: "Only same-subject items can be added", comment: ""))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Button(action: {
+                                selectedConversations.removeAll()
+                                selectedQuestions.removeAll()
+                            }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(Color.green.opacity(0.1))
+                        .foregroundColor(.green)
+                        .cornerRadius(8)
+                        .padding(.horizontal)
+                        .padding(.top, 4)
+                    }
+
                     // Selection Controls
                     HStack {
                         Button(action: {
@@ -1605,11 +1674,16 @@ struct ArchiveSelectionView: View {
                                 selectedConversations.removeAll()
                                 selectedQuestions.removeAll()
                             } else {
-                                // Select up to maxSources items, prioritizing conversations first
+                                // Capture lockedSubject BEFORE clearing, so the lock survives the reset
+                                let targetSubject = lockedSubject
                                 selectedConversations.removeAll()
                                 selectedQuestions.removeAll()
                                 var remaining = maxSources
-                                let conversationIds = filteredConversations.compactMap { $0["id"] as? String }
+                                let conversationIds = filteredConversations.compactMap { conv -> String? in
+                                    guard let id = conv["id"] as? String else { return nil }
+                                    if let target = targetSubject, (conv["subject"] as? String) != target { return nil }
+                                    return id
+                                }
                                 for id in conversationIds {
                                     guard remaining > 0 else { break }
                                     selectedConversations.insert(id)
@@ -1617,6 +1691,7 @@ struct ArchiveSelectionView: View {
                                 }
                                 for q in filteredQuestions {
                                     guard remaining > 0 else { break }
+                                    if let target = targetSubject, q.subject != target { continue }
                                     selectedQuestions.insert(q.id)
                                     remaining -= 1
                                 }
@@ -1625,9 +1700,17 @@ struct ArchiveSelectionView: View {
                                 }
                             }
                         }) {
-                            let totalItems = filteredConversations.count + filteredQuestions.count
+                            // Count only items that can actually be selected (respect subject lock)
+                            let selectableCount: Int = {
+                                if let locked = lockedSubject {
+                                    let c = filteredConversations.filter { ($0["subject"] as? String) == locked }.count
+                                    let q = filteredQuestions.filter { $0.subject == locked }.count
+                                    return min(c + q, maxSources)
+                                }
+                                return min(filteredConversations.count + filteredQuestions.count, maxSources)
+                            }()
                             let selectedItems = selectedConversations.count + selectedQuestions.count
-                            Text(selectedItems == totalItems && totalItems > 0 ? NSLocalizedString("common.deselectAll", comment: "") : NSLocalizedString("common.selectAll", comment: ""))
+                            Text(selectedItems == selectableCount && selectableCount > 0 ? NSLocalizedString("common.deselectAll", comment: "") : NSLocalizedString("common.selectAll", comment: ""))
                                 .font(.subheadline)
                                 .foregroundColor(.green)
                         }
@@ -1657,6 +1740,9 @@ struct ArchiveSelectionView: View {
                                         onToggle: {
                                             if selectedConversations.contains(conversationId) {
                                                 selectedConversations.remove(conversationId)
+                                            } else if let locked = lockedSubject,
+                                                      subjectOf(conversationId: conversationId) != locked {
+                                                showingSubjectMismatchAlert = true
                                             } else if totalSelected < maxSources {
                                                 selectedConversations.insert(conversationId)
                                             } else {
@@ -1664,6 +1750,10 @@ struct ArchiveSelectionView: View {
                                             }
                                         }
                                     )
+                                    .opacity({
+                                        guard let locked = lockedSubject else { return 1.0 }
+                                        return subjectOf(conversationId: conversationId) == locked ? 1.0 : 0.4
+                                    }())
                                 }
                             }
                         }
@@ -1678,6 +1768,9 @@ struct ArchiveSelectionView: View {
                                         onToggle: {
                                             if selectedQuestions.contains(question.id) {
                                                 selectedQuestions.remove(question.id)
+                                            } else if let locked = lockedSubject,
+                                                      question.subject != locked {
+                                                showingSubjectMismatchAlert = true
                                             } else if totalSelected < maxSources {
                                                 selectedQuestions.insert(question.id)
                                             } else {
@@ -1685,6 +1778,7 @@ struct ArchiveSelectionView: View {
                                             }
                                         }
                                     )
+                                    .opacity(lockedSubject != nil && question.subject != lockedSubject ? 0.4 : 1.0)
                                 }
                             }
                         }
@@ -1724,6 +1818,19 @@ struct ArchiveSelectionView: View {
                 Button(NSLocalizedString("common.ok", comment: "")) { }
             } message: {
                 Text(String(format: NSLocalizedString("questionGeneration.sourceLimitMessage", comment: ""), maxSources))
+            }
+            .alert(NSLocalizedString("questionGeneration.subjectMismatch.title", value: "Different Subject", comment: ""), isPresented: $showingSubjectMismatchAlert) {
+                Button(NSLocalizedString("questionGeneration.subjectMismatch.clearAndSwitch", value: "Clear & Switch", comment: ""), role: .destructive) {
+                    selectedConversations.removeAll()
+                    selectedQuestions.removeAll()
+                }
+                Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) { }
+            } message: {
+                if let locked = lockedSubject {
+                    Text(String(format: NSLocalizedString("questionGeneration.subjectMismatch.message", value: "You've already selected %@ material. Clear your selection to choose from a different subject.", comment: ""), BranchLocalizer.localized(locked)))
+                } else {
+                    Text(NSLocalizedString("questionGeneration.subjectMismatch.messageFallback", value: "Clear your selection to choose from a different subject.", comment: ""))
+                }
             }
         }
     }

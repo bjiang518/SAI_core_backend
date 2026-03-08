@@ -3,6 +3,9 @@
   StudyAI
 */
 
+// Loading Screen
+"loading.appTagline" = "Your StudyMate";
+
 // Biometric Authentication (NEW - no existing alternatives)
 "login.enableBiometric" = "Enable %@?";
 "login.enable" = "Enable";
@@ -397,6 +400,16 @@
 "auth.signIn" = "Sign In";
 "auth.dontHaveAccount" = "Don't have an account?";
 "auth.signUp" = "Sign Up";
+"faceIDReauth.title" = "Session Expired";
+"faceIDReauth.message" = "For your security, you need to re-authenticate.";
+"faceIDReauth.biometricPrompt" = "Use %@ to continue where you left off.";
+"faceIDReauth.authenticateButton" = "Authenticate with %@";
+"faceIDReauth.signOut" = "Sign Out";
+"faceIDReauth.error.cancelled" = "Authentication cancelled. Please try again or sign out.";
+"faceIDReauth.error.notAvailable" = "%@ is not available. Please sign out and log in again.";
+"faceIDReauth.error.notEnrolled" = "%@ is not set up. Please sign out and log in again.";
+"faceIDReauth.error.failed" = "%@ authentication failed. Please try again.";
+"faceIDReauth.error.generic" = "Authentication failed: %@";
 "auth.signup.title" = "Create Your Account";
 "auth.signup.subtitle" = "Join StudyAI to start your learning adventure!";
 "auth.fullName" = "Full Name";
@@ -562,6 +575,11 @@
 "questionGeneration.selectArchives" = "Select Archives";
 "questionGeneration.sourceLimitTitle" = "Selection Limit";
 "questionGeneration.sourceLimitMessage" = "You can select at most %d sources.";
+"questionGeneration.subjectLock.hint" = "Only same-subject items can be added";
+"questionGeneration.subjectMismatch.title" = "Different Subject";
+"questionGeneration.subjectMismatch.clearAndSwitch" = "Clear & Switch";
+"questionGeneration.subjectMismatch.message" = "You've already selected %@ material. Clear your selection to choose from a different subject.";
+"questionGeneration.subjectMismatch.messageFallback" = "Clear your selection to choose from a different subject.";
 "questionGeneration.conversation" = "Conversation";
 "questionGeneration.failedToLoadData" = "Failed to load data: %@";
 "questionGeneration.defaultSubject.mathematics" = "Mathematics";
@@ -613,6 +631,7 @@
 "newPractice.error.title" = "Generation Failed";
 "newPractice.error.sessionNotFound" = "Session not found after generation.";
 "newPractice.error.noSelection" = "Please select at least one conversation or question.";
+"newPractice.error.multipleSubjects" = "Selected items span multiple subjects. Please select items from one subject only.";
 
 // Practice Library
 "practiceLibrary.title" = "Practice";
@@ -630,6 +649,8 @@
 "practiceLibrary.card.questionPlural" = "questions";
 "practiceLibrary.card.complete" = "Complete";
 "practiceLibrary.card.inProgress" = "In Progress";
+"practiceLibrary.statusOngoing" = "Ongoing";
+"practiceLibrary.statusCompleted" = "Completed";
 
 // Practice Sheet
 "practiceSheet.questionCounter" = "Q %d/%d";
@@ -650,7 +671,9 @@
 "practiceSheet.statSkipped" = "Skipped";
 "practiceSheet.slideToOrganizeHint" = "Slide to archive mistakes & mark progress";
 "practiceSheet.organizedConfirm" = "Mistakes archived · Progress marked";
-"practiceSheet.slideToOrganize" = "Slide to organize";
+"practiceSheet.slideToOrganize" = "Slide to Smart Organize";
+"practiceSheet.reviewButton" = "Review Answers";
+"practiceSheet.redoButton" = "Redo";
 "practiceSheet.aiAnalyzing" = "AI is analyzing your answer…";
 "practiceSheet.toastTitle" = "Smart Organize Complete";
 "practiceSheet.toastProgress" = "Progress marked for %@";

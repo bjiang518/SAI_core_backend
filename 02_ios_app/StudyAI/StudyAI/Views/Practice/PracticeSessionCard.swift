@@ -9,9 +9,6 @@ import SwiftUI
 
 struct PracticeSessionCard: View {
     let session: PracticeSession
-    let onDelete: () -> Void
-
-    @StateObject private var themeManager = ThemeManager.shared
 
     private var completedCount: Int { session.completedQuestionIds.count }
     private var totalCount: Int { session.questions.count }
@@ -24,100 +21,82 @@ struct PracticeSessionCard: View {
     }
 
     var body: some View {
-        HStack(spacing: 14) {
-            // Source icon
-            ZStack {
-                Circle()
-                    .fill(session.generationTypeColor.opacity(0.15))
-                    .frame(width: 44, height: 44)
+        VStack(alignment: .leading, spacing: 10) {
+            // Row 1: icon + subject + date
+            HStack(spacing: 8) {
                 Image(systemName: session.generationTypeIcon)
-                    .font(.body)
+                    .font(.subheadline.bold())
                     .foregroundColor(session.generationTypeColor)
+
+                Text(PracticeSessionManager.localizeSubject(session.subject))
+                    .font(.subheadline.bold())
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+
+                Spacer()
+
+                Text(dateLabel)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
             }
 
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(PracticeSessionManager.normalizeSubject(session.subject))
-                            .font(.subheadline.bold())
-                            .foregroundColor(themeManager.primaryText)
-                            .lineLimit(1)
-                        Text(session.localizedGenerationType)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    Spacer()
-                    Text(dateLabel)
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
+            // Row 2: progress bar (always shown; full bar for completed)
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(session.generationTypeColor.opacity(0.15))
+                        .frame(height: 6)
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(session.generationTypeColor)
+                        .frame(width: geo.size.width * session.progressPercentage, height: 6)
                 }
+            }
+            .frame(height: 6)
 
-                Text("\(totalCount) \(totalCount == 1 ? NSLocalizedString("practiceLibrary.card.questionSingular", comment: "") : NSLocalizedString("practiceLibrary.card.questionPlural", comment: ""))")
-                    .font(.caption)
+            // Row 3: count left, accuracy right (only for completed)
+            HStack {
+                Text("\(completedCount)/\(totalCount)")
+                    .font(.caption2.monospacedDigit())
                     .foregroundColor(.secondary)
 
+                Spacer()
+
                 if session.isCompleted {
-                    // Score badge
-                    HStack(spacing: 6) {
+                    HStack(spacing: 3) {
                         Image(systemName: "checkmark.seal.fill")
                             .font(.caption)
                             .foregroundColor(scoreColor)
                         Text(String(format: "%.0f%%", scorePercentage))
                             .font(.caption.bold())
                             .foregroundColor(scoreColor)
-                        Spacer()
-                        Text(NSLocalizedString("practiceLibrary.card.complete", comment: ""))
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-                } else {
-                    // Progress bar
-                    VStack(alignment: .leading, spacing: 4) {
-                        GeometryReader { geo in
-                            ZStack(alignment: .leading) {
-                                RoundedRectangle(cornerRadius: 3)
-                                    .fill(Color.gray.opacity(0.2))
-                                    .frame(height: 5)
-                                RoundedRectangle(cornerRadius: 3)
-                                    .fill(session.generationTypeColor)
-                                    .frame(width: geo.size.width * session.progressPercentage, height: 5)
-                            }
-                        }
-                        .frame(height: 5)
-
-                        HStack {
-                            Text("\(completedCount)/\(totalCount)")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                            Spacer()
-                            if session.progressPercentage > 0 {
-                                Text(NSLocalizedString("practiceLibrary.card.inProgress", comment: ""))
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
                     }
                 }
             }
         }
-        .padding()
-        .background(themeManager.cardBackground)
-        .cornerRadius(16)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(Color(.systemBackground))
+        .cornerRadius(14)
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(session.generationTypeColor.opacity(0.15), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(session.generationTypeColor, lineWidth: 2)
         )
-        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button(role: .destructive, action: onDelete) {
-                Label(NSLocalizedString("common.delete", comment: ""), systemImage: "trash")
-            }
-        }
+        .shadow(color: session.generationTypeColor.opacity(0.18), radius: 8, x: 0, y: 3)
     }
 
     private var dateLabel: String {
+        let cal = Calendar.current
+        if cal.isDateInToday(session.createdDate) {
+            return NSLocalizedString("common.today", value: "Today", comment: "")
+        } else if cal.isDateInYesterday(session.createdDate) {
+            return NSLocalizedString("common.yesterday", value: "Yesterday", comment: "")
+        }
+        let days = cal.dateComponents([.day], from: session.createdDate, to: Date()).day ?? 0
+        if days < 7 {
+            return "\(days)d ago"
+        }
         let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .none
+        formatter.dateFormat = "MMM d"
         return formatter.string(from: session.createdDate)
     }
 

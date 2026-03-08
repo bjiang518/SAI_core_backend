@@ -3,7 +3,7 @@
 //  StudyAI
 //
 //  Main screen for the Practice Library — shows all past sessions with filter/sort,
-//  and allows creating new sessions via the "+ New" FAB.
+//  and allows creating new sessions via the nav-bar "+ New" button.
 //
 
 import SwiftUI
@@ -14,7 +14,20 @@ struct PracticeLibraryView: View {
 
     // Filter & sort
     @State private var selectedSubject: String = "All"
+    @State private var selectedStatus: StatusFilter = .all
     @State private var sortOrder: SortOrder = .newest
+
+    enum StatusFilter: CaseIterable {
+        case all, ongoing, completed
+
+        var displayName: String {
+            switch self {
+            case .all:       return NSLocalizedString("practiceLibrary.filterAll", comment: "")
+            case .ongoing:   return NSLocalizedString("practiceLibrary.statusOngoing", comment: "")
+            case .completed: return NSLocalizedString("practiceLibrary.statusCompleted", comment: "")
+            }
+        }
+    }
 
     // Navigation
     @State private var selectedSession: PracticeSession? = nil
@@ -23,6 +36,8 @@ struct PracticeLibraryView: View {
     // Delete confirmation
     @State private var sessionToDelete: PracticeSession? = nil
     @State private var showingDeleteConfirm: Bool = false
+
+    @Namespace private var subjectAnimation
 
     enum SortOrder: String, CaseIterable {
         case newest = "Newest"
@@ -41,7 +56,7 @@ struct PracticeLibraryView: View {
     }
 
     private var allSessions: [PracticeSession] {
-        sessionManager.loadAllSessionsPublic()
+        sessionManager.allSessionsPublished
     }
 
     private var subjectList: [String] {
@@ -56,6 +71,12 @@ struct PracticeLibraryView: View {
 
         if selectedSubject != "All" {
             list = list.filter { PracticeSessionManager.normalizeSubject($0.subject) == selectedSubject }
+        }
+
+        switch selectedStatus {
+        case .ongoing:   list = list.filter { !$0.isCompleted }
+        case .completed: list = list.filter {  $0.isCompleted }
+        case .all: break
         }
 
         switch sortOrder {
@@ -73,34 +94,29 @@ struct PracticeLibraryView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
-            themeManager.backgroundColor.ignoresSafeArea()
-
-            VStack(spacing: 0) {
-                filterBar
-                sessionList
-            }
-
-            // FAB
-            Button(action: { showingNewPractice = true }) {
-                HStack(spacing: 8) {
-                    Image(systemName: "plus")
-                        .font(.body.bold())
-                    Text(NSLocalizedString("common.new", comment: ""))
-                        .font(.subheadline.bold())
-                }
-                .foregroundColor(.white)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 14)
-                .background(themeManager.accentColor)
-                .cornerRadius(28)
-                .shadow(color: themeManager.accentColor.opacity(0.4), radius: 8, x: 0, y: 4)
-            }
-            .padding(.trailing, 20)
-            .padding(.bottom, 28)
+        VStack(spacing: 0) {
+            subjectSelector
+            statusFilterBar
+            sortBar
+            sessionList
         }
+        .background(themeManager.backgroundColor.ignoresSafeArea())
         .navigationTitle(NSLocalizedString("practiceLibrary.title", comment: ""))
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear { sessionManager.updatePublishedState() }
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: { showingNewPractice = true }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "plus")
+                            .font(.caption.bold())
+                        Text(NSLocalizedString("common.new", comment: ""))
+                            .font(.subheadline.bold())
+                    }
+                    .foregroundColor(themeManager.accentColor)
+                }
+            }
+        }
         .sheet(isPresented: $showingNewPractice) {
             NewPracticeSheet { session in
                 // Push to QuestionSheetView after sheet dismisses
@@ -122,52 +138,116 @@ struct PracticeLibraryView: View {
         }
     }
 
-    // MARK: - Filter Bar
+    // MARK: - Subject Selector (CompactSubjectSelector style)
 
-    private var filterBar: some View {
-        VStack(spacing: 8) {
-            // Subject chips
+    private var subjectSelector: some View {
+        ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
+                HStack(spacing: 12) {
                     ForEach(subjectList, id: \.self) { subject in
-                        Button(action: { selectedSubject = subject }) {
-                            Text(subject == "All" ? NSLocalizedString("practiceLibrary.filterAll", comment: "") : subject)
-                                .font(.caption.bold())
-                                .foregroundColor(selectedSubject == subject ? .white : themeManager.primaryText)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 7)
-                                .background(selectedSubject == subject ? themeManager.accentColor : Color.gray.opacity(0.12))
-                                .cornerRadius(20)
+                        let isSelected = selectedSubject == subject
+                        let label = subject == "All"
+                            ? NSLocalizedString("practiceLibrary.filterAll", comment: "")
+                            : PracticeSessionManager.localizeSubject(subject)
+
+                        Button(action: {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                                selectedSubject = subject
+                                proxy.scrollTo(subject, anchor: .center)
+                            }
+                        }) {
+                            Text(label)
+                                .font(isSelected ? .subheadline : .caption)
+                                .fontWeight(isSelected ? .bold : .medium)
+                                .foregroundColor(isSelected ? themeManager.accentColor : .secondary)
+                                .padding(.horizontal, isSelected ? 16 : 12)
+                                .padding(.vertical, isSelected ? 10 : 7)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .fill(isSelected ? themeManager.accentColor.opacity(0.1) : Color.clear)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 14)
+                                                .stroke(isSelected ? themeManager.accentColor : Color.clear, lineWidth: 1.5)
+                                        )
+                                )
+                                .scaleEffect(isSelected ? 1.05 : 0.9)
+                                .opacity(isSelected ? 1.0 : 0.65)
                         }
                         .buttonStyle(.plain)
+                        .id(subject)
                     }
                 }
-                .padding(.horizontal)
+                .padding(.horizontal, 60)
+                .padding(.vertical, 8)
             }
-
-            // Sort menu
-            HStack {
-                Spacer()
-                Menu {
-                    ForEach(SortOrder.allCases, id: \.self) { order in
-                        Button(action: { sortOrder = order }) {
-                            Label(order.displayName, systemImage: sortOrder == order ? "checkmark" : "")
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.up.arrow.down")
-                            .font(.caption)
-                        Text(sortOrder.displayName)
-                            .font(.caption)
-                    }
-                    .foregroundColor(themeManager.accentColor)
+            .onChange(of: selectedSubject) { _, newValue in
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                    proxy.scrollTo(newValue, anchor: .center)
                 }
-                .padding(.trailing)
+            }
+            .onAppear {
+                proxy.scrollTo(selectedSubject, anchor: .center)
             }
         }
-        .padding(.top, 8)
+        .padding(.top, 4)
+    }
+
+    // MARK: - Status Filter Bar
+
+    private var statusFilterBar: some View {
+        HStack(spacing: 0) {
+            ForEach(StatusFilter.allCases, id: \.self) { status in
+                let isSelected = selectedStatus == status
+                Button(action: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                        selectedStatus = status
+                    }
+                }) {
+                    Text(status.displayName)
+                        .font(.caption.bold())
+                        .foregroundColor(isSelected ? themeManager.accentColor : .secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 7)
+                        .background(
+                            isSelected
+                                ? themeManager.accentColor.opacity(0.1)
+                                : Color.clear
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .background(themeManager.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.secondary.opacity(0.15), lineWidth: 1))
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+    }
+
+    // MARK: - Sort Bar
+
+    private var sortBar: some View {
+        HStack {
+            Spacer()
+            Menu {
+                ForEach(SortOrder.allCases, id: \.self) { order in
+                    Button(action: { sortOrder = order }) {
+                        Label(order.displayName, systemImage: sortOrder == order ? "checkmark" : "")
+                    }
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.up.arrow.down")
+                        .font(.caption)
+                    Text(sortOrder.displayName)
+                        .font(.caption)
+                }
+                .foregroundColor(themeManager.accentColor)
+            }
+            .padding(.trailing)
+        }
         .padding(.bottom, 4)
+        .overlay(Divider(), alignment: .bottom)
     }
 
     // MARK: - Session List
@@ -177,21 +257,50 @@ struct PracticeLibraryView: View {
             if filteredSorted.isEmpty {
                 emptyState
             } else {
-                ScrollView(showsIndicators: false) {
-                    LazyVStack(spacing: 12) {
-                        ForEach(filteredSorted) { session in
-                            Button(action: { selectedSession = session }) {
-                                PracticeSessionCard(session: session) {
+                List {
+                    ForEach(filteredSorted) { session in
+                        PracticeSessionCard(session: session)
+                            .contentShape(Rectangle())
+                            .onTapGesture { selectedSession = session }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
                                     sessionToDelete = session
                                     showingDeleteConfirm = true
+                                } label: {
+                                    Label(NSLocalizedString("common.delete", comment: ""), systemImage: "trash")
                                 }
                             }
-                            .buttonStyle(.plain)
-                        }
+                            .listRowSeparator(.hidden)
+                            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                            .listRowBackground(Color.clear)
                     }
-                    .padding(.horizontal)
-                    .padding(.top, 4)
-                    .padding(.bottom, 100)
+                    // Bottom padding row
+                    Color.clear
+                        .frame(height: 80)
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .background(linedPaperBackground)
+            }
+        }
+    }
+
+    // MARK: - Lined Paper Background
+
+    private var linedPaperBackground: some View {
+        ZStack {
+            themeManager.backgroundColor
+            Canvas { context, size in
+                let spacing: CGFloat = 28
+                var y: CGFloat = spacing
+                while y < size.height {
+                    var path = Path()
+                    path.move(to: CGPoint(x: 0, y: y))
+                    path.addLine(to: CGPoint(x: size.width, y: y))
+                    context.stroke(path, with: .color(.primary.opacity(0.055)), lineWidth: 0.5)
+                    y += spacing
                 }
             }
         }

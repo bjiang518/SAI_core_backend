@@ -39,6 +39,7 @@ struct HomeView: View {
     @State private var showingHomeworkAlbum = false  // NEW: Homework Album
     @State private var showingFocusMode = false  // NEW: Focus Mode
     @State private var lottieRefreshID: Int = 0  // Incremented on appear to force LottieView re-sync
+    @State private var isMoreFeaturesExpanded: Bool = false
 
     // ✅ Dark Mode Support: Detect current color scheme
     @Environment(\.colorScheme) var colorScheme
@@ -529,31 +530,47 @@ extension HomeView {
     // MARK: - Additional Actions Section
     private var additionalActionsSection: some View {
         VStack(alignment: .leading, spacing: DesignTokens.Spacing.md) {
-            // Section title - aligned with Quick Actions title
-            Text(NSLocalizedString("home.moreFeatures", comment: ""))
-                .font(.title3)
-                .fontWeight(.bold)
-                .foregroundColor(
-                    themeManager.currentTheme == .cute ?
-                        Color.gray :  // Grey in Cute mode
-                        .primary
-                )
-                .padding(.horizontal, DesignTokens.Spacing.xl)
-
-            if sizeClass == .regular {
-                // iPad: 2列网格布局
-                LazyVGrid(columns: [
-                    GridItem(.flexible(), spacing: DesignTokens.Spacing.md),
-                    GridItem(.flexible(), spacing: DesignTokens.Spacing.md)
-                ], spacing: DesignTokens.Spacing.md) {
-                    moreFeatureButtons
+            // Tappable section header with collapse toggle
+            Button(action: {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                    isMoreFeaturesExpanded.toggle()
+                }
+            }) {
+                HStack {
+                    Text(NSLocalizedString("home.moreFeatures", comment: ""))
+                        .font(.title3)
+                        .fontWeight(.bold)
+                        .foregroundColor(
+                            themeManager.currentTheme == .cute ?
+                                Color.gray :
+                                .primary
+                        )
+                    Spacer()
+                    Image(systemName: "chevron.down")
+                        .font(.subheadline.bold())
+                        .foregroundColor(.secondary)
+                        .rotationEffect(.degrees(isMoreFeaturesExpanded ? 180 : 0))
                 }
                 .padding(.horizontal, DesignTokens.Spacing.xl)
-            } else {
-                // iPhone: 现有竖排布局（零改动）
-                VStack(spacing: DesignTokens.Spacing.md) {
-                    moreFeatureButtons
-                        .padding(.horizontal, DesignTokens.Spacing.xl)
+            }
+            .buttonStyle(.plain)
+
+            if isMoreFeaturesExpanded {
+                if sizeClass == .regular {
+                    // iPad: 2列网格布局
+                    LazyVGrid(columns: [
+                        GridItem(.flexible(), spacing: DesignTokens.Spacing.md),
+                        GridItem(.flexible(), spacing: DesignTokens.Spacing.md)
+                    ], spacing: DesignTokens.Spacing.md) {
+                        moreFeatureButtons
+                    }
+                    .padding(.horizontal, DesignTokens.Spacing.xl)
+                } else {
+                    // iPhone: 竖排布局
+                    VStack(spacing: DesignTokens.Spacing.md) {
+                        moreFeatureButtons
+                            .padding(.horizontal, DesignTokens.Spacing.xl)
+                    }
                 }
             }
         }

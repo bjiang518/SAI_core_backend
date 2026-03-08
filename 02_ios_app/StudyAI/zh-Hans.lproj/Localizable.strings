@@ -3,6 +3,9 @@
   StudyAI
 */
 
+// Loading Screen
+"loading.appTagline" = "你的学习伙伴";
+
 // Biometric Authentication (NEW - no existing alternatives)
 "login.enableBiometric" = "启用%@？";
 "login.enable" = "启用";
@@ -397,6 +400,16 @@
 "auth.signIn" = "登录";
 "auth.dontHaveAccount" = "还没有帐户？";
 "auth.signUp" = "注册";
+"faceIDReauth.title" = "登录已过期";
+"faceIDReauth.message" = "为保障账户安全，请重新验证身份。";
+"faceIDReauth.biometricPrompt" = "使用 %@ 继续上次的学习。";
+"faceIDReauth.authenticateButton" = "使用 %@ 验证";
+"faceIDReauth.signOut" = "退出登录";
+"faceIDReauth.error.cancelled" = "验证已取消，请重试或退出登录。";
+"faceIDReauth.error.notAvailable" = "%@ 暂不可用，请退出后重新登录。";
+"faceIDReauth.error.notEnrolled" = "%@ 未设置，请退出后重新登录。";
+"faceIDReauth.error.failed" = "%@ 验证失败，请重试。";
+"faceIDReauth.error.generic" = "验证失败：%@";
 "auth.signup.title" = "建立您的帐户";
 "auth.signup.subtitle" = "加入StudyAI，开始您的学习冒险！";
 "auth.fullName" = "全名";
@@ -561,6 +574,11 @@
 "questionGeneration.selectArchives" = "选择归档";
 "questionGeneration.sourceLimitTitle" = "选择上限";
 "questionGeneration.sourceLimitMessage" = "最多可选择 %d 个来源。";
+"questionGeneration.subjectLock.hint" = "只能添加相同科目的内容";
+"questionGeneration.subjectMismatch.title" = "科目不匹配";
+"questionGeneration.subjectMismatch.clearAndSwitch" = "清除并切换";
+"questionGeneration.subjectMismatch.message" = "您已选择了 %@ 的内容。清除选择后可切换到其他科目。";
+"questionGeneration.subjectMismatch.messageFallback" = "清除选择后可切换到其他科目。";
 "questionGeneration.conversation" = "对话";
 "questionGeneration.failedToLoadData" = "载入资料失败：%@";
 "questionGeneration.defaultSubject.mathematics" = "数学";
@@ -1179,6 +1197,7 @@
 "newPractice.error.title" = "生成失败";
 "newPractice.error.sessionNotFound" = "生成后未找到练习会话。";
 "newPractice.error.noSelection" = "请至少选择一个对话或题目。";
+"newPractice.error.multipleSubjects" = "所选内容跨越多个科目，请只选择同一科目的内容。";
 
 // Practice Library
 "practiceLibrary.title" = "练习本";
@@ -1196,6 +1215,8 @@
 "practiceLibrary.card.questionPlural" = "道题";
 "practiceLibrary.card.complete" = "已完成";
 "practiceLibrary.card.inProgress" = "进行中";
+"practiceLibrary.statusOngoing" = "进行中";
+"practiceLibrary.statusCompleted" = "已完成";
 
 // Practice Sheet
 "practiceSheet.questionCounter" = "第 %d/%d 题";
@@ -1216,7 +1237,9 @@
 "practiceSheet.statSkipped" = "跳过";
 "practiceSheet.slideToOrganizeHint" = "滑动以归档错题并更新进度";
 "practiceSheet.organizedConfirm" = "错题已归档 · 进度已更新";
-"practiceSheet.slideToOrganize" = "滑动整理";
+"practiceSheet.slideToOrganize" = "滑动以智能整理";
+"practiceSheet.reviewButton" = "回顾答题";
+"practiceSheet.redoButton" = "重新答题";
 "practiceSheet.aiAnalyzing" = "AI 正在分析你的答案…";
 "practiceSheet.toastTitle" = "智能整理完成";
 "practiceSheet.toastProgress" = "已更新 %@ 的学习进度";

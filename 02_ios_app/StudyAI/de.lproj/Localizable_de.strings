@@ -3,6 +3,9 @@
   StudyAI
 */
 
+// Loading Screen
+"loading.appTagline" = "Dein Lernbegleiter";
+
 // Biometric Authentication (NEW - no existing alternatives)
 "login.enableBiometric" = "Aktivieren %@?";
 "login.enable" = "Aktivieren";
@@ -397,6 +400,16 @@
 "auth.signIn" = "Anmelden";
 "auth.dontHaveAccount" = "Don't have an account?";
 "auth.signUp" = "Sign Up";
+"faceIDReauth.title" = "Sitzung abgelaufen";
+"faceIDReauth.message" = "Aus Sicherheitsgründen musst du dich erneut authentifizieren.";
+"faceIDReauth.biometricPrompt" = "Verwende %@, um dort weiterzumachen, wo du aufgehört hast.";
+"faceIDReauth.authenticateButton" = "Mit %@ authentifizieren";
+"faceIDReauth.signOut" = "Abmelden";
+"faceIDReauth.error.cancelled" = "Authentifizierung abgebrochen. Bitte erneut versuchen oder abmelden.";
+"faceIDReauth.error.notAvailable" = "%@ ist nicht verfügbar. Bitte abmelden und erneut anmelden.";
+"faceIDReauth.error.notEnrolled" = "%@ ist nicht eingerichtet. Bitte abmelden und erneut anmelden.";
+"faceIDReauth.error.failed" = "%@ Authentifizierung fehlgeschlagen. Bitte erneut versuchen.";
+"faceIDReauth.error.generic" = "Authentifizierung fehlgeschlagen: %@";
 "auth.signup.title" = "Create Your Konto";
 "auth.signup.subtitle" = "Join StudyAI to start your learning adventure!";
 "auth.fullName" = "Full Name";
@@ -562,6 +575,11 @@
 "questionGeneration.selectArchives" = "Select Archives";
 "questionGeneration.sourceLimitTitle" = "Auswahllimit";
 "questionGeneration.sourceLimitMessage" = "Sie können maximal %d Quellen auswählen.";
+"questionGeneration.subjectLock.hint" = "Es können nur Elemente desselben Fachs hinzugefügt werden";
+"questionGeneration.subjectMismatch.title" = "Anderes Fach";
+"questionGeneration.subjectMismatch.clearAndSwitch" = "Löschen & Wechseln";
+"questionGeneration.subjectMismatch.message" = "Du hast bereits %@-Material ausgewählt. Lösche deine Auswahl, um ein anderes Fach zu wählen.";
+"questionGeneration.subjectMismatch.messageFallback" = "Lösche deine Auswahl, um ein anderes Fach zu wählen.";
 "questionGeneration.conversation" = "Conversation";
 "questionGeneration.failedToLoadData" = "Failed to load data: %@";
 "questionGeneration.defaultSubject.mathematics" = "Mathematics";
@@ -2080,6 +2098,7 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "newPractice.error.title" = "Generation Failed";
 "newPractice.error.sessionNotFound" = "Session not found after generation.";
 "newPractice.error.noSelection" = "Please select at least one conversation or question.";
+"newPractice.error.multipleSubjects" = "Die ausgewählten Elemente umfassen mehrere Fächer. Bitte wähle nur Elemente aus einem Fach.";
 
 // Practice Library
 "practiceLibrary.title" = "Practice";
@@ -2097,6 +2116,8 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "practiceLibrary.card.questionPlural" = "questions";
 "practiceLibrary.card.complete" = "Complete";
 "practiceLibrary.card.inProgress" = "In Progress";
+"practiceLibrary.statusOngoing" = "Laufend";
+"practiceLibrary.statusCompleted" = "Abgeschlossen";
 
 // Practice Sheet
 "practiceSheet.questionCounter" = "Q %d/%d";
@@ -2117,7 +2138,9 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "practiceSheet.statSkipped" = "Skipped";
 "practiceSheet.slideToOrganizeHint" = "Slide to archive mistakes & mark progress";
 "practiceSheet.organizedConfirm" = "Mistakes archived · Progress marked";
-"practiceSheet.slideToOrganize" = "Slide to organize";
+"practiceSheet.slideToOrganize" = "Zum Smart-Sortieren wischen";
+"practiceSheet.reviewButton" = "Antworten überprüfen";
+"practiceSheet.redoButton" = "Wiederholen";
 "practiceSheet.aiAnalyzing" = "AI is analyzing your answer…";
 "practiceSheet.toastTitle" = "Smart Organize Complete";
 "practiceSheet.toastProgress" = "Progress marked for %@";

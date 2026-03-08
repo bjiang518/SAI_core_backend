@@ -27,6 +27,10 @@ struct QuestionSheetView: View {
     @State private var aiFeedback: String? = nil
     @State private var isGradingWithAI: Bool = false
     @State private var wasInstantGraded: Bool = false
+    @State private var cardDragOffset: CGFloat = 0
+    @State private var localQuestions: [QuestionGenerationService.GeneratedQuestion] = []
+    @State private var isArchivingCurrentQuestion: Bool = false
+    @State private var archivedQuestionIds: Set<String> = []
 
     // Session-level state
     @State private var correctCount: Int = 0
@@ -44,7 +48,7 @@ struct QuestionSheetView: View {
 
     private let logger = Logger(subsystem: "com.studyai", category: "QuestionSheetView")
 
-    private var questions: [QuestionGenerationService.GeneratedQuestion] { session.questions }
+    private var questions: [QuestionGenerationService.GeneratedQuestion] { localQuestions }
     private var currentQuestion: QuestionGenerationService.GeneratedQuestion? {
         guard currentIndex < questions.count else { return nil }
         return questions[currentIndex]
@@ -52,7 +56,7 @@ struct QuestionSheetView: View {
 
     var body: some View {
         ZStack {
-            Color(.systemBackground).ignoresSafeArea()
+            themeManager.backgroundColor.ignoresSafeArea()
 
             if showingCompletion {
                 completionScreen
@@ -84,13 +88,14 @@ struct QuestionSheetView: View {
                     .foregroundColor(.primary)
             }
 
-            Text(session.subject)
+            Text(PracticeSessionManager.localizeSubject(session.subject))
                 .font(.caption.bold())
                 .foregroundColor(.white)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 4)
                 .background(session.generationTypeColor)
                 .cornerRadius(8)
+                .lineLimit(1)
 
             Spacer()
 
@@ -115,7 +120,7 @@ struct QuestionSheetView: View {
         }
         .padding(.horizontal)
         .padding(.vertical, 12)
-        .background(Color(.secondarySystemBackground))
+        .background(themeManager.backgroundColor)
     }
 
     // MARK: - Question Nav Bar (top)
@@ -160,72 +165,108 @@ struct QuestionSheetView: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 10)
-        .background(Color(.secondarySystemBackground))
+        .background(themeManager.backgroundColor)
         .overlay(Divider(), alignment: .bottom)
     }
 
     // MARK: - Question Page
 
     private func questionPage(_ q: QuestionGenerationService.GeneratedQuestion) -> some View {
-        ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 16) {
+        ZStack(alignment: .trailing) {
+            // Red delete panel revealed on swipe left
+            HStack {
+                Spacer()
+                VStack(spacing: 6) {
+                    Image(systemName: "trash.fill")
+                        .font(.title2)
+                    Text(NSLocalizedString("common.delete", comment: ""))
+                        .font(.caption.bold())
+                }
+                .foregroundColor(.white)
+                .frame(width: max(0, min(-cardDragOffset, 120)))
+                .frame(maxHeight: .infinity)
+                .background(Color.red)
+                .opacity(cardDragOffset < -10 ? 1 : 0)
+            }
 
-                // Question card
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack {
-                        Text(q.type.displayName)
-                            .font(.caption.bold())
-                            .foregroundColor(typeColor(q.type))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(typeColor(q.type).opacity(0.12))
-                            .cornerRadius(6)
-                        Spacer()
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 16) {
+
+                    // Question card
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Text(q.type.displayName)
+                                .font(.caption.bold())
+                                .foregroundColor(typeColor(q.type))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(typeColor(q.type).opacity(0.12))
+                                .cornerRadius(6)
+                            Spacer()
+                        }
+                        MarkdownLaTeXText(q.question, fontSize: 17, isStreaming: false)
                     }
-                    MarkdownLaTeXText(q.question, fontSize: 17, isStreaming: false)
+                    .padding()
+                    .background(Color(.systemBackground))
+                    .cornerRadius(16)
+
+                    // Answer section
+                    if !hasSubmitted {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text(NSLocalizedString("questionDetail.yourAnswerPrompt", comment: ""))
+                                .font(.subheadline.bold())
+                                .foregroundColor(.secondary)
+                            answerInput(q)
+                        }
+                        .padding()
+                        .background(themeManager.cardBackground)
+                        .cornerRadius(16)
+
+                        submitButton(q)
+                    } else {
+                        // Read-only answer with highlights
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text(NSLocalizedString("practiceSheet.answersSection", comment: ""))
+                                .font(.subheadline.bold())
+                                .foregroundColor(.secondary)
+                            readOnlyAnswerView(q)
+                        }
+                        .padding()
+                        .background(themeManager.cardBackground)
+                        .cornerRadius(16)
+
+                        resultCard(q)
+
+                        if currentIndex < questions.count - 1 {
+                            nextButton
+                        } else {
+                            finishButton
+                        }
+                    }
+
+                    Spacer(minLength: 80)
                 }
                 .padding()
-                .background(Color(.secondarySystemBackground))
-                .cornerRadius(16)
-
-                // Answer section
-                if !hasSubmitted {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text(NSLocalizedString("questionDetail.yourAnswerPrompt", comment: ""))
-                            .font(.subheadline.bold())
-                            .foregroundColor(.secondary)
-                        answerInput(q)
-                    }
-                    .padding()
-                    .background(Color(.secondarySystemBackground))
-                    .cornerRadius(16)
-
-                    submitButton(q)
-                } else {
-                    // Read-only answer with highlights
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text(NSLocalizedString("practiceSheet.answersSection", comment: ""))
-                            .font(.subheadline.bold())
-                            .foregroundColor(.secondary)
-                        readOnlyAnswerView(q)
-                    }
-                    .padding()
-                    .background(Color(.secondarySystemBackground))
-                    .cornerRadius(16)
-
-                    resultCard(q)
-
-                    if currentIndex < questions.count - 1 {
-                        nextButton
-                    } else {
-                        finishButton
-                    }
-                }
-
-                Spacer(minLength: 80)
             }
-            .padding()
+            .offset(x: cardDragOffset)
+            .gesture(
+                DragGesture(minimumDistance: 15, coordinateSpace: .local)
+                    .onChanged { value in
+                        guard abs(value.translation.width) > abs(value.translation.height) else { return }
+                        cardDragOffset = min(0, max(-120, value.translation.width))
+                    }
+                    .onEnded { value in
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            if cardDragOffset < -60 {
+                                deleteCurrentQuestion()
+                            } else {
+                                cardDragOffset = 0
+                            }
+                        }
+                    }
+            )
         }
+        .clipped()
     }
 
     // MARK: - Answer Inputs (before submit)
@@ -254,7 +295,7 @@ struct QuestionSheetView: View {
                         Spacer()
                     }
                     .padding()
-                    .background(selectedOption == option ? Color.accentColor.opacity(0.08) : Color(.systemBackground))
+                    .background(selectedOption == option ? Color.accentColor.opacity(0.08) : themeManager.backgroundColor)
                     .cornerRadius(12)
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
@@ -282,7 +323,7 @@ struct QuestionSheetView: View {
                     .padding(.vertical, 20)
                     .background(selectedOption == label
                         ? (label == "True" ? Color.green.opacity(0.1) : Color.red.opacity(0.1))
-                        : Color(.systemBackground))
+                        : themeManager.backgroundColor)
                     .cornerRadius(14)
                     .overlay(
                         RoundedRectangle(cornerRadius: 14)
@@ -300,7 +341,7 @@ struct QuestionSheetView: View {
         TextField(NSLocalizedString("practiceSheet.typeAnswerPlaceholder", comment: ""), text: $userAnswer, axis: .vertical)
             .lineLimit(3...8)
             .padding()
-            .background(Color(.systemBackground))
+            .background(themeManager.backgroundColor)
             .cornerRadius(12)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
@@ -326,7 +367,8 @@ struct QuestionSheetView: View {
         VStack(spacing: 8) {
             ForEach(q.options ?? [], id: \.self) { option in
                 let isSelected = selectedOption == option
-                let isCorrectOpt = isOptionCorrect(option: option, q: q)
+                // Trust AI grading for the selected option — handles correctAnswer format mismatches
+                let isCorrectOpt = isOptionCorrect(option: option, q: q) || (isSelected && isCorrect)
                 HStack(spacing: 12) {
                     Image(systemName: isCorrectOpt
                           ? "checkmark.circle.fill"
@@ -340,7 +382,7 @@ struct QuestionSheetView: View {
                 .padding()
                 .background(
                     isCorrectOpt ? Color.green.opacity(0.08)
-                    : (isSelected ? Color.red.opacity(0.08) : Color(.systemBackground))
+                    : (isSelected ? Color.red.opacity(0.08) : themeManager.backgroundColor)
                 )
                 .cornerRadius(12)
                 .overlay(
@@ -374,7 +416,7 @@ struct QuestionSheetView: View {
                 .padding(.vertical, 20)
                 .background(
                     isCorrectOpt ? Color.green.opacity(0.08)
-                    : (isSelected ? Color.red.opacity(0.08) : Color(.systemBackground))
+                    : (isSelected ? Color.red.opacity(0.08) : themeManager.backgroundColor)
                 )
                 .cornerRadius(14)
                 .overlay(
@@ -443,110 +485,182 @@ struct QuestionSheetView: View {
 
     // MARK: - Result Card
 
+    @ViewBuilder
     private func resultCard(_ q: QuestionGenerationService.GeneratedQuestion) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Correctness indicator
-            HStack(spacing: 12) {
-                Image(systemName: isCorrect ? "checkmark.circle.fill" : (partialCredit > 0 ? "circle.lefthalf.filled" : "xmark.circle.fill"))
-                    .font(.title2)
-                    .foregroundColor(isCorrect ? .green : (partialCredit > 0 ? .orange : .red))
+        let isMCOrTF = q.type == .multipleChoice || q.type == .trueFalse
+        let hasExplanation = (aiFeedback != nil && !(aiFeedback?.isEmpty ?? true)) || !q.explanation.isEmpty
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(isCorrect ? NSLocalizedString("questionDetail.correct", comment: "") : (partialCredit > 0 ? NSLocalizedString("practiceSheet.partialCredit", comment: "") : NSLocalizedString("questionDetail.incorrect", comment: "")))
-                        .font(.headline)
-                        .foregroundColor(isCorrect ? .green : (partialCredit > 0 ? .orange : .red))
-                    if partialCredit > 0 && !isCorrect {
-                        Text("\(Int(partialCredit * 100))% credit")
-                            .font(.caption)
+        // For MC/TF: only show if there's an explanation (correct answer already visible in options)
+        // For short/long answer: always show (correct answer not otherwise visible)
+        if !isMCOrTF || hasExplanation {
+            VStack(alignment: .leading, spacing: 12) {
+                // Correct answer — only for short/long answer
+                if !isMCOrTF {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(NSLocalizedString("practiceSheet.correctAnswer", comment: ""))
+                            .font(.caption.bold())
                             .foregroundColor(.secondary)
+                        MarkdownLaTeXText(q.correctAnswer, fontSize: 16, isStreaming: false)
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.green.opacity(0.06))
+                            .cornerRadius(10)
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.green.opacity(0.3), lineWidth: 1))
                     }
                 }
 
-                Spacer()
-
-                if wasInstantGraded {
-                    Label(NSLocalizedString("practiceSheet.gradingInstant", comment: ""), systemImage: "bolt.fill")
-                        .font(.caption.bold())
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 8).padding(.vertical, 3)
-                        .background(Color.orange)
-                        .cornerRadius(6)
-                } else if aiFeedback != nil {
-                    Label(NSLocalizedString("practiceSheet.gradingAI", comment: ""), systemImage: "brain.head.profile")
-                        .font(.caption.bold())
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 8).padding(.vertical, 3)
-                        .background(Color.purple)
-                        .cornerRadius(6)
+                // AI Feedback or explanation
+                if let feedback = aiFeedback, !feedback.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(NSLocalizedString("practiceSheet.aiExplanation", comment: ""))
+                            .font(.caption.bold())
+                            .foregroundColor(.secondary)
+                        MarkdownLaTeXText(feedback, fontSize: 16, isStreaming: false)
+                    }
+                } else if !q.explanation.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(NSLocalizedString("questionDetail.explanation", comment: ""))
+                            .font(.caption.bold())
+                            .foregroundColor(.secondary)
+                        MarkdownLaTeXText(q.explanation, fontSize: 16, isStreaming: false)
+                    }
                 }
             }
-
-            Divider()
-
-            // Correct answer
-            VStack(alignment: .leading, spacing: 6) {
-                Text(NSLocalizedString("practiceSheet.correctAnswer", comment: ""))
-                    .font(.caption.bold())
-                    .foregroundColor(.secondary)
-                MarkdownLaTeXText(q.correctAnswer, fontSize: 16, isStreaming: false)
-                    .padding()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.green.opacity(0.06))
-                    .cornerRadius(10)
-                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.green.opacity(0.3), lineWidth: 1))
-            }
-
-            // AI Feedback or explanation
-            if let feedback = aiFeedback, !feedback.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(NSLocalizedString("practiceSheet.aiExplanation", comment: ""))
-                        .font(.caption.bold())
-                        .foregroundColor(.secondary)
-                    MarkdownLaTeXText(feedback, fontSize: 16, isStreaming: false)
-                }
-            } else if !q.explanation.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(NSLocalizedString("questionDetail.explanation", comment: ""))
-                        .font(.caption.bold())
-                        .foregroundColor(.secondary)
-                    MarkdownLaTeXText(q.explanation, fontSize: 16, isStreaming: false)
-                }
-            }
+            .padding()
+            .background(themeManager.cardBackground)
+            .cornerRadius(16)
         }
-        .padding()
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(16)
     }
 
     // MARK: - Next / Finish Buttons
 
     private var nextButton: some View {
-        Button(action: advanceToNext) {
-            HStack {
-                Text(NSLocalizedString("practiceSheet.nextQuestion", comment: ""))
-                    .fontWeight(.semibold)
-                Image(systemName: "arrow.right")
+        HStack(spacing: 10) {
+            Button(action: advanceToNext) {
+                HStack {
+                    Text(NSLocalizedString("practiceSheet.nextQuestion", comment: ""))
+                        .fontWeight(.semibold)
+                    Image(systemName: "arrow.right")
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 52)
+                .background(Color.accentColor)
+                .cornerRadius(14)
             }
-            .foregroundColor(.white)
-            .frame(maxWidth: .infinity)
-            .frame(height: 52)
-            .background(Color.accentColor)
-            .cornerRadius(14)
+            archiveButton
         }
     }
 
     private var finishButton: some View {
-        Button(action: { showingCompletion = true }) {
-            HStack {
-                Image(systemName: "flag.checkered")
-                Text(NSLocalizedString("practiceSheet.seeResults", comment: ""))
-                    .fontWeight(.semibold)
+        HStack(spacing: 10) {
+            Button(action: { showingCompletion = true }) {
+                HStack {
+                    Image(systemName: "flag.checkered")
+                    Text(NSLocalizedString("practiceSheet.seeResults", comment: ""))
+                        .fontWeight(.semibold)
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 52)
+                .background(themeManager.accentColor)
+                .cornerRadius(14)
             }
-            .foregroundColor(.white)
-            .frame(maxWidth: .infinity)
-            .frame(height: 52)
-            .background(Color.green)
-            .cornerRadius(14)
+            archiveButton
+        }
+    }
+
+    private var archiveButton: some View {
+        let qId = currentQuestion?.id.uuidString ?? ""
+        let isArchived = archivedQuestionIds.contains(qId)
+        return Button(action: { Task { await archiveCurrentQuestion() } }) {
+            if isArchivingCurrentQuestion {
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: isArchived ? .white : themeManager.accentColor))
+                    .frame(width: 52, height: 52)
+                    .background(isArchived ? themeManager.accentColor : themeManager.accentColor.opacity(0.1))
+                    .cornerRadius(14)
+            } else {
+                Image(systemName: isArchived ? "books.vertical.fill" : "books.vertical")
+                    .font(.title3)
+                    .foregroundColor(isArchived ? .white : themeManager.accentColor)
+                    .frame(width: 52, height: 52)
+                    .background(isArchived ? themeManager.accentColor : themeManager.accentColor.opacity(0.1))
+                    .cornerRadius(14)
+            }
+        }
+        .disabled(isArchivingCurrentQuestion)
+    }
+
+    // MARK: - Archive Current Question
+
+    private func archiveCurrentQuestion() async {
+        guard let q = currentQuestion else { return }
+        let qId = q.id.uuidString
+        guard !archivedQuestionIds.contains(qId) else { return }
+
+        isArchivingCurrentQuestion = true
+        defer { isArchivingCurrentQuestion = false }
+
+        let savedAnswers = sessionManager.getSession(id: session.id)?.answers ?? session.answers
+        let saved = savedAnswers[qId]
+        let studentAns = saved?["answer"] as? String ?? ""
+        let isCorrectAnswer = (saved?["is_correct"] as? Bool) ?? false
+
+        let parsedQ = ParsedQuestion(
+            questionText: q.question,
+            answerText: q.correctAnswer,
+            studentAnswer: studentAns.isEmpty ? nil : studentAns,
+            correctAnswer: q.correctAnswer,
+            grade: isCorrectAnswer ? "CORRECT" : "INCORRECT",
+            pointsEarned: isCorrectAnswer ? Float(q.points ?? 1) : 0,
+            pointsPossible: Float(q.points ?? 1),
+            feedback: q.explanation.isEmpty ? nil : q.explanation,
+            questionType: q.type.rawValue,
+            options: q.options
+        )
+
+        let request = QuestionArchiveRequest(
+            questions: [parsedQ],
+            selectedQuestionIndices: [0],
+            detectedSubject: session.subject,
+            subjectConfidence: 1.0,
+            originalImageUrl: nil,
+            processingTime: 0,
+            userNotes: [""],
+            userTags: [[]]
+        )
+
+        do {
+            let archived = try await QuestionArchiveService.shared.archiveQuestions(request)
+            if let archivedQ = archived.first {
+                var payload: [String: Any] = [
+                    "id": archivedQ.id,
+                    "questionText": q.question,
+                    "answerText": q.correctAnswer,
+                    "studentAnswer": studentAns,
+                    "subject": session.subject
+                ]
+                if let v = q.baseBranch     { payload["baseBranch"]    = v }
+                if let v = q.detailedBranch { payload["detailedBranch"] = v }
+                if let v = q.errorType      { payload["errorType"]     = v }
+                if let v = q.weaknessKey    { payload["weaknessKey"]   = v }
+
+                // Trigger error analysis for wrong answers
+                if !isCorrectAnswer {
+                    ErrorAnalysisQueueService.shared.queueErrorAnalysisAfterGrading(
+                        sessionId: session.id,
+                        wrongQuestions: [payload]
+                    )
+                }
+            }
+            archivedQuestionIds.insert(qId)
+            let gen = UINotificationFeedbackGenerator()
+            gen.notificationOccurred(.success)
+        } catch {
+            logger.error("Archive question failed: \(error.localizedDescription)")
+            let gen = UINotificationFeedbackGenerator()
+            gen.notificationOccurred(.error)
         }
     }
 
@@ -580,7 +694,7 @@ struct QuestionSheetView: View {
                     Text(NSLocalizedString("practiceSheet.practiceComplete", comment: ""))
                         .font(.title2.bold())
                         .foregroundColor(.primary)
-                    Text(session.subject)
+                    Text(PracticeSessionManager.localizeSubject(session.subject))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
@@ -596,55 +710,77 @@ struct QuestionSheetView: View {
 
                 Divider().padding(.horizontal)
 
-                // Smart Organize slide bar
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        Image(systemName: "sparkles")
-                            .foregroundColor(.primary)
-                        Text(hasOrganized ? NSLocalizedString("questionDetail.progressMarked", comment: "") : NSLocalizedString("questionDetail.markProgress", comment: ""))
-                            .font(.headline)
-                            .foregroundColor(.primary)
-                        Spacer()
-                        if isOrganizing {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                        } else if hasOrganized {
+                // Smart Organize
+                Group {
+                    if isOrganizing {
+                        HStack(spacing: 10) {
+                            ProgressView().scaleEffect(0.85)
+                            Text(NSLocalizedString("practiceSheet.slideToOrganize", comment: ""))
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 60)
+                        .background(themeManager.cardBackground)
+                        .cornerRadius(30)
+                    } else if hasOrganized {
+                        HStack(spacing: 8) {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundColor(.green)
+                            Text(NSLocalizedString("practiceSheet.organizedConfirm", comment: ""))
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 60)
+                        .background(themeManager.cardBackground)
+                        .cornerRadius(30)
+                    } else {
+                        slideToOrganizeBar
+                    }
+                }
+                .padding(.horizontal)
+
+                // Action buttons
+                VStack(spacing: 12) {
+                    // Review + Redo side by side
+                    HStack(spacing: 12) {
+                        Button(action: { reviewFromStart() }) {
+                            Label(NSLocalizedString("practiceSheet.reviewButton", comment: ""), systemImage: "arrow.counterclockwise")
+                                .font(.subheadline.bold())
+                                .foregroundColor(themeManager.accentColor)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 52)
+                                .background(themeManager.accentColor.opacity(0.1))
+                                .cornerRadius(14)
+                        }
+                        Button(action: { redoAllQuestions() }) {
+                            Label(NSLocalizedString("practiceSheet.redoButton", value: "Redo", comment: ""), systemImage: "goforward")
+                                .font(.subheadline.bold())
+                                .foregroundColor(.orange)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 52)
+                                .background(Color.orange.opacity(0.1))
+                                .cornerRadius(14)
                         }
                     }
 
-                    if !hasOrganized {
-                        Text(NSLocalizedString("practiceSheet.slideToOrganizeHint", comment: ""))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        slideToOrganizeBar
-                    } else {
-                        Text(NSLocalizedString("practiceSheet.organizedConfirm", comment: ""))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                    // Done at the bottom
+                    Button(action: { dismiss() }) {
+                        Text(NSLocalizedString("common.done", comment: ""))
+                            .font(.body.bold())
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 52)
+                            .background(Color.primary)
+                            .cornerRadius(14)
                     }
-                }
-                .padding()
-                .background(Color(.secondarySystemBackground))
-                .cornerRadius(16)
-                .padding(.horizontal)
-
-                // Done button
-                Button(action: { dismiss() }) {
-                    Text(NSLocalizedString("common.done", comment: ""))
-                        .font(.body.bold())
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 52)
-                        .background(Color.primary)
-                        .cornerRadius(14)
                 }
                 .padding(.horizontal)
                 .padding(.bottom, 32)
             }
         }
-        .background(Color(.systemBackground).ignoresSafeArea())
+        .background(themeManager.backgroundColor.ignoresSafeArea())
     }
 
     // MARK: - Slide to Organize Bar
@@ -941,15 +1077,55 @@ struct QuestionSheetView: View {
                     userNotes: Array(repeating: "", count: parsedQuestions.count),
                     userTags: Array(repeating: [], count: parsedQuestions.count)
                 )
-                _ = try? await QuestionArchiveService.shared.archiveQuestions(request)
+                let archived = (try? await QuestionArchiveService.shared.archiveQuestions(request)) ?? []
+
+                // Trigger error analysis using the archived storage IDs (not practice session UUIDs)
+                let errorAnalysisPayload: [[String: Any]] = archived.enumerated().compactMap { (idx, archivedQ) in
+                    guard idx < wrongQuestions.count else { return nil }
+                    let q = wrongQuestions[idx]
+                    let qId = q.id.uuidString
+                    let saved = current?.answers[qId]
+                    var payload: [String: Any] = [
+                        "id": archivedQ.id,
+                        "questionText": q.question,
+                        "answerText": q.correctAnswer,
+                        "studentAnswer": saved?["answer"] as? String ?? "",
+                        "subject": session.subject
+                    ]
+                    if let v = q.baseBranch      { payload["baseBranch"]     = v }
+                    if let v = q.detailedBranch  { payload["detailedBranch"] = v }
+                    if let v = q.errorType       { payload["errorType"]      = v }
+                    if let v = q.weaknessKey     { payload["weaknessKey"]    = v }
+                    return payload
+                }
+                if !errorAnalysisPayload.isEmpty {
+                    ErrorAnalysisQueueService.shared.queueErrorAnalysisAfterGrading(
+                        sessionId: session.id,
+                        wrongQuestions: errorAnalysisPayload
+                    )
+                }
             }
 
             await MainActor.run {
                 isOrganizing = false
                 hasOrganized = true
+                sessionManager.markOrganized(sessionId: session.id)
                 showOrganizeToast(wrongCount: wrongQuestions.count)
             }
         }
+    }
+
+    private func reviewFromStart() {
+        showingCompletion = false
+        navigateTo(0)
+    }
+
+    private func redoAllQuestions() {
+        sessionManager.resetSessionProgress(sessionId: session.id)
+        answeredIds = []
+        correctCount = 0
+        showingCompletion = false
+        navigateTo(0)
     }
 
     private func showOrganizeToast(wrongCount: Int) {
@@ -994,6 +1170,7 @@ struct QuestionSheetView: View {
         aiFeedback = nil
         isGradingWithAI = false
         wasInstantGraded = false
+        cardDragOffset = 0
     }
 
     private func loadSavedAnswer(for q: QuestionGenerationService.GeneratedQuestion) {
@@ -1016,21 +1193,53 @@ struct QuestionSheetView: View {
     }
 
     private func restoreProgress() {
-        if let persisted = sessionManager.getSession(id: session.id) {
+        let persisted = sessionManager.getSession(id: session.id)
+        localQuestions = persisted?.questions ?? session.questions
+        if let persisted = persisted {
             answeredIds = Set(persisted.completedQuestionIds)
             correctCount = persisted.answers.values.filter { ($0["is_correct"] as? Bool) == true }.count
+            hasOrganized = persisted.isOrganized
+            hasTriggeredOrganize = persisted.isOrganized
             if let firstUnanswered = questions.firstIndex(where: { !answeredIds.contains($0.id.uuidString) }) {
                 currentIndex = firstUnanswered
             } else if !questions.isEmpty {
-                currentIndex = questions.count - 1
-                // All done — go straight to completion if fully answered
-                if answeredIds.count == questions.count {
-                    showingCompletion = true
-                }
+                // All answered — re-entry shows first question in review mode, not completion screen
+                currentIndex = 0
             }
         }
         if let q = currentQuestion {
             loadSavedAnswer(for: q)
+        }
+    }
+
+    // MARK: - Delete Question
+
+    private func deleteCurrentQuestion() {
+        guard currentIndex < localQuestions.count else { return }
+        let q = localQuestions[currentIndex]
+        let qId = q.id.uuidString
+
+        // Adjust counts if this question was already answered
+        if answeredIds.contains(qId) {
+            answeredIds.remove(qId)
+            let wasCorrect = (sessionManager.getSession(id: session.id)?.answers[qId]?["is_correct"] as? Bool) ?? false
+            if wasCorrect { correctCount = max(0, correctCount - 1) }
+        }
+
+        // Remove from local list and persist
+        localQuestions.remove(at: currentIndex)
+        sessionManager.deleteQuestion(sessionId: session.id, questionId: qId)
+
+        cardDragOffset = 0
+
+        if localQuestions.isEmpty {
+            showingCompletion = true
+        } else {
+            let newIndex = min(currentIndex, localQuestions.count - 1)
+            // If index didn't change, still need to reset state for the new question at that slot
+            currentIndex = newIndex
+            resetQuestionState()
+            loadSavedAnswer(for: localQuestions[newIndex])
         }
     }
 
@@ -1040,9 +1249,13 @@ struct QuestionSheetView: View {
         if option.lowercased() == q.correctAnswer.lowercased() { return true }
         if let opts = q.options {
             let letters = ["A","B","C","D","E","F"]
-            if let idx = opts.firstIndex(of: option),
-               idx < letters.count,
-               letters[idx].lowercased() == q.correctAnswer.lowercased() { return true }
+            if let idx = opts.firstIndex(of: option), idx < letters.count {
+                let letter = letters[idx].lowercased()
+                let ca = q.correctAnswer.trimmingCharacters(in: .whitespaces).lowercased()
+                if letter == ca { return true }
+                // Handle "C." / "C)" / "C " prefix formats from backend
+                if ca.hasPrefix(letter + ".") || ca.hasPrefix(letter + ")") || ca.hasPrefix(letter + " ") { return true }
+            }
         }
         return false
     }
