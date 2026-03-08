@@ -50,13 +50,17 @@ class ErrorAnalysisService:
             # Build content parts
             content_parts = [genai_types.Part.from_text(text=analysis_prompt)]
 
-            # Add image if present
+            # Add image if present (max 5MB)
             if question_image_base64:
-                import base64
-                image_bytes = base64.b64decode(question_image_base64)
-                image_part = genai_types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg")
-                content_parts.insert(0, image_part)
-                print(f"📸 [ErrorAnalysis] Including image for: '{question_text[:40]}...'")
+                max_b64_len = 5 * 1024 * 1024 * 4 // 3  # ~6.67MB base64 = 5MB decoded
+                if len(question_image_base64) > max_b64_len:
+                    logger.warning(f"[ErrorAnalysis] Image too large ({len(question_image_base64)} chars), skipping")
+                else:
+                    import base64
+                    image_bytes = base64.b64decode(question_image_base64)
+                    image_part = genai_types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg")
+                    content_parts.insert(0, image_part)
+                    logger.debug(f"[ErrorAnalysis] Including image for question")
 
             generation_config = genai_types.GenerateContentConfig(
                 system_instruction=system_prompt,

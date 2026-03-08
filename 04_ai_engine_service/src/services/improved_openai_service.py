@@ -94,7 +94,7 @@ class OptimizedEducationalAIService:
         if not api_key:
             logger.debug("❌ WARNING: OPENAI_API_KEY not found in environment")
         else:
-            logger.debug(f"✅ OpenAI API key found: {api_key[:10]}..." if len(api_key) > 10 else "✅ OpenAI API key found (short)")
+            logger.debug("✅ OpenAI API key found")
         
         # OpenAI client with connection pooling
         try:

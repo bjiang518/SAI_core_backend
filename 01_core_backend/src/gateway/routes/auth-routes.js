@@ -3,6 +3,7 @@
  * Handles user authentication for StudyAI with proper database integration
  */
 
+const crypto = require('crypto');
 const { db } = require('../../utils/railway-database');
 const PIIMasking = require('../../utils/pii-masking');
 const { OAuth2Client } = require('google-auth-library');
@@ -77,7 +78,8 @@ class AuthRoutes {
             name: { type: 'string', minLength: 1 }
           }
         }
-      }
+      },
+      config: { rateLimit: { max: 3, timeWindow: '1 hour' } }
     }, this.sendVerificationCode.bind(this));
 
     this.fastify.post('/api/auth/verify-email', {
@@ -123,7 +125,8 @@ class AuthRoutes {
             email: { type: 'string', format: 'email' }
           }
         }
-      }
+      },
+      config: { rateLimit: { max: 3, timeWindow: '1 hour' } }
     }, this.sendPasswordResetCode.bind(this));
 
     this.fastify.post('/api/auth/verify-password-reset-code', {
@@ -413,19 +416,8 @@ class AuthRoutes {
       }
     }, this.healthCheck.bind(this));
 
-    // Config endpoint - get OpenAI API key for TTS
-    this.fastify.get('/api/config/openai-key', {
-      schema: {
-        description: 'Get OpenAI API key for TTS (authenticated users only)',
-        tags: ['Configuration'],
-        headers: {
-          type: 'object',
-          properties: {
-            authorization: { type: 'string' }
-          }
-        }
-      }
-    }, this.getOpenAIApiKey.bind(this));
+    // REMOVED: /api/config/openai-key endpoint — exposing API keys to clients is a security risk.
+    // TTS should call backend endpoints that use the key server-side.
 
     // ==============================
     // COPPA Consent Management Endpoints
@@ -564,7 +556,7 @@ class AuthRoutes {
           }
         });
       } else {
-        this.fastify.log.warn(`❌ Invalid login attempt for: ${email}`);
+        this.fastify.log.warn(`❌ Invalid login attempt for: ${PIIMasking.maskEmail(email)}`);
         return reply.status(401).send({
           success: false,
           message: 'Invalid credentials'
@@ -1597,7 +1589,7 @@ class AuthRoutes {
       }
 
       // Generate 6-digit code
-      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const verificationCode = crypto.randomInt(100000, 999999).toString();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
       // Store verification code
@@ -1725,7 +1717,7 @@ class AuthRoutes {
       }
 
       // Generate new code
-      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const verificationCode = crypto.randomInt(100000, 999999).toString();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
       // Update verification code
@@ -1768,7 +1760,7 @@ class AuthRoutes {
       }
 
       // Generate 6-digit code
-      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const verificationCode = crypto.randomInt(100000, 999999).toString();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
       await db.storeVerificationCode(email, verificationCode, user.name || 'User', expiresAt);

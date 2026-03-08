@@ -4,7 +4,7 @@
 */
 
 // Loading Screen
-"loading.appTagline" = "あなたの学習パートナー";
+"loading.appTagline" = "あなたの StudyMate";
 
 // Biometric Authentication (NEW - no existing alternatives)
 "login.enableBiometric" = "有効にする %@?";

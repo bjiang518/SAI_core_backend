@@ -323,8 +323,7 @@ Generate the Python code. Only return rejection JSON if request is genuinely imp
                 'numpy': np,
                 'mpatches': mpatches,  # ✅ NEW: Add patches for geometric shapes
                 '__builtins__': {
-                    # Essential builtins for matplotlib/numpy
-                    '__import__': __import__,  # Required for matplotlib internal imports
+                    # Essential builtins for matplotlib/numpy — __import__ intentionally excluded (security)
                     'range': range,
                     'len': len,
                     'enumerate': enumerate,

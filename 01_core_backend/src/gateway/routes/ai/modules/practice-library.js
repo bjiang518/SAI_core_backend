@@ -9,7 +9,10 @@
  *   PATCH /api/practice/sheets/:sheetId/complete — mark a sheet as complete
  */
 
-const { getPool } = require('../../../utils/railway-database');
+const { getPool } = require('../../../../utils/railway-database');
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const VALID_SOURCE_TYPES = new Set(['random', 'archive', 'mistake']);
 
 class PracticeLibraryRoutes {
   constructor(fastify) {
@@ -23,9 +26,15 @@ class PracticeLibraryRoutes {
       const { sheet_id, subject, source_type, question_count } = request.body;
       const userId = request.user.id;
 
-      if (!sheet_id) {
-        return reply.code(400).send({ success: false, error: 'sheet_id is required' });
+      if (!sheet_id || !UUID_RE.test(sheet_id)) {
+        return reply.code(400).send({ success: false, error: 'Valid sheet_id (UUID) is required' });
       }
+      if (source_type && !VALID_SOURCE_TYPES.has(source_type)) {
+        return reply.code(400).send({ success: false, error: 'source_type must be random, archive, or mistake' });
+      }
+      const safeCount = Number.isFinite(question_count) && question_count > 0
+        ? Math.min(Math.floor(question_count), 100)
+        : 0;
 
       try {
         const pool = getPool();
@@ -37,7 +46,7 @@ class PracticeLibraryRoutes {
                  source_type = EXCLUDED.source_type,
                  question_count = EXCLUDED.question_count,
                  last_accessed_at = NOW()`,
-          [userId, sheet_id, subject || null, source_type || null, question_count || 0]
+          [userId, sheet_id, subject || null, source_type || null, safeCount]
         );
 
         this.fastify.log.info(`📝 Practice sheet created: ${sheet_id} (user: ${userId})`);
@@ -55,6 +64,13 @@ class PracticeLibraryRoutes {
       const { completed_count, score_percentage } = request.body;
       const userId = request.user.id;
 
+      if (!UUID_RE.test(sheetId)) {
+        return reply.code(400).send({ success: false, error: 'Invalid sheet_id format' });
+      }
+      const safeScore = typeof score_percentage === 'number'
+        ? Math.max(0, Math.min(100, score_percentage))
+        : null;
+
       try {
         const pool = getPool();
         const result = await pool.query(
@@ -65,7 +81,7 @@ class PracticeLibraryRoutes {
                last_accessed_at = NOW()
            WHERE sheet_id = $3 AND user_id = $4
            RETURNING sheet_id`,
-          [completed_count || 0, score_percentage ?? null, sheetId, userId]
+          [completed_count || 0, safeScore, sheetId, userId]
         );
 
         if (result.rowCount === 0) {
