@@ -40,6 +40,9 @@ const { secretsManager } = require('./services/secrets-manager');
 const { dailyResetService } = require('../services/daily-reset-service');
 const dataRetentionService = require('../services/data-retention-service');  // GDPR/COPPA compliance
 const questionCacheService = require('../services/question-cache-service');  // COST OPTIMIZATION: Question caching
+const { dailyQuestionService } = require('../services/daily-question-service');  // Daily fun question per grade
+const { reportSchedulerService } = require('../services/report-scheduler-service');  // Passive parent report scheduling
+const DailyQuestionRoutes = require('./routes/daily-question-routes');  // GET /api/daily/question
 
 // Register multipart support for file uploads
 fastify.register(require('@fastify/multipart'), {
@@ -430,6 +433,9 @@ if (features.useGateway) {
   // Progress tracking routes
   new ProgressRoutes(fastify);
 
+  // Daily question routes — GET /api/daily/question
+  new DailyQuestionRoutes(fastify).registerRoutes();
+
   // ========================================================================
   // PASSIVE REPORTS: Weekly/Monthly automated parent reports
   // ========================================================================
@@ -524,6 +530,24 @@ const start = async () => {
       // Don't crash the server if cache service fails to initialize
     }
 
+    // Initialize Daily Question Service — generates one fun question per grade per day
+    try {
+      await dailyQuestionService.initialize();
+      fastify.log.info('✅ Daily Question Service initialized (cron at 06:00 UTC)');
+    } catch (dqError) {
+      fastify.log.error('❌ Failed to initialize Daily Question Service:', dqError);
+      // Non-fatal — app continues without daily questions
+    }
+
+    // Initialize Report Scheduler — generates passive parent reports on per-user schedule
+    try {
+      await reportSchedulerService.initialize();
+      fastify.log.info('✅ Report Scheduler initialized (cron hourly)');
+    } catch (rsError) {
+      fastify.log.error('❌ Failed to initialize Report Scheduler:', rsError);
+      // Non-fatal — manual generation via API still works
+    }
+
     // Graceful shutdown handling for cleanup
     const gracefulShutdown = async (signal) => {
       fastify.log.info(`🛑 Received ${signal}, shutting down gracefully...`);
@@ -550,6 +574,22 @@ const start = async () => {
         fastify.log.info('✅ Question Cache Service closed');
       } catch (e) {
         fastify.log.error('⚠️ Error closing Question Cache Service:', e);
+      }
+
+      // Stop daily question service
+      try {
+        dailyQuestionService.stop();
+        fastify.log.info('✅ Daily Question Service stopped');
+      } catch (e) {
+        fastify.log.error('⚠️ Error stopping Daily Question Service:', e);
+      }
+
+      // Stop report scheduler
+      try {
+        reportSchedulerService.stop();
+        fastify.log.info('✅ Report Scheduler stopped');
+      } catch (e) {
+        fastify.log.error('⚠️ Error stopping Report Scheduler:', e);
       }
 
       // Close fastify server
