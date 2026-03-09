@@ -1099,6 +1099,31 @@
 "chat.emptyState.greeting" = "Hi! I'm %@";
 "chat.emptyState.subtext" = "Ask me anything about %@ and I'll help you learn!";
 "chat.emptyState.tryAsking" = "Try asking:";
+"chat.emptyState.subtitle.0" = "I can answer any question";
+"chat.emptyState.subtitle.1" = "How can I help you?";
+"chat.emptyState.subtitle.2" = "What do you want to learn today?";
+"chat.emptyState.subtitle.3" = "Ready to get started!";
+"chat.emptyState.subtitle.4" = "Ask me anything you're curious about";
+"chat.emptyState.subtitle.5" = "Let's explore together!";
+"chat.emptyState.subtitle.6" = "Feel free to ask me anything";
+"chat.emptyState.subtitle.7" = "Learning starts here";
+"chat.emptyState.subtitle.8" = "Need help with your homework?";
+"chat.emptyState.subtitle.9" = "Got a tough question?";
+"chat.emptyState.subtitle.10" = "I'm here whenever you need me";
+"chat.emptyState.subtitle.11" = "Let's figure it out together";
+"chat.emptyState.subtitle.12" = "Curiosity is the best teacher";
+"chat.emptyState.subtitle.13" = "Something you want to understand?";
+"chat.emptyState.subtitle.14" = "I'm here, ready to help";
+"chat.emptyState.subtitle.15" = "What's today's challenge?";
+"chat.emptyState.subtitle.16" = "No question is too small";
+"chat.emptyState.subtitle.17" = "Every question is a step forward";
+"chat.emptyState.subtitle.18" = "Let's make learning fun";
+"chat.emptyState.subtitle.19" = "Something I can explain for you?";
+"chat.emptyState.subtitle.20" = "Hand me the tough stuff";
+"chat.emptyState.subtitle.21" = "Learned something new today?";
+"chat.emptyState.subtitle.22" = "Unlimited curiosity — me too";
+"chat.emptyState.subtitle.23" = "The more questions, the better!";
+"chat.emptyState.subtitle.24" = "Learning never stops — let's begin";
 
 // Smart Suggestions
 "chat.suggestion.showSteps" = "Show steps";
@@ -2239,9 +2264,100 @@
 "onboarding.language.title" = "Choose your language";
 "onboarding.language.subtitle" = "You can change this anytime in Settings";
 
+// Onboarding — Role
+"onboarding.role.title" = "Welcome!";
+"onboarding.role.subtitle" = "Who's setting up the app?";
+"onboarding.role.student.title" = "Student";
+"onboarding.role.student.subtitle" = "I want help with my studies";
+"onboarding.role.parent.title" = "Parent";
+"onboarding.role.parent.subtitle" = "I'm setting this up for my child";
+
+// Onboarding — Age
+"onboarding.age.title" = "How old are you?";
+"onboarding.age.subtitle" = "Helps us personalise the experience";
+"onboarding.age.placeholder" = "Enter your age";
+
+// Onboarding — Learning Style
+"onboarding.learningStyle.title" = "How do you want AI to help you?";
+"onboarding.learningStyle.subtitle" = "You can change this anytime in Settings";
+"onboarding.learningStyle.guide" = "Guide Me";
+"onboarding.learningStyle.tell" = "Tell Me";
+"onboarding.learningStyle.guide.desc" = "Ask me questions so I can figure it out myself";
+"onboarding.learningStyle.tell.desc" = "Give me the best solution and walk me through it";
+
+// Onboarding — Consent
+"onboarding.consent.title" = "One last step";
+"onboarding.consent.privacy.questions" = "Your questions stay private";
+"onboarding.consent.privacy.activity" = "Your activity helps personalise learning";
+"onboarding.consent.privacy.profile" = "Your profile is never shared";
+"onboarding.consent.privacyPolicy" = "Privacy Policy";
+"onboarding.consent.agree" = "I agree to the Privacy Policy";
+"onboarding.consent.required" = "You must agree to continue";
+"onboarding.getStarted" = "Get Started";
+
+// Parent Reports — List View
+"reports.passive.title" = "Parent Reports";
+"reports.passive.subtitle" = "Weekly and monthly learning insights";
+"reports.passive.editReports" = "Edit Reports";
+"reports.passive.testingMode" = "Testing Mode";
+"reports.passive.testingMode.message" = "Manually trigger report generation for testing. This button will be removed in production.";
+"reports.passive.generateWeekly" = "Generate Weekly Report";
+"reports.passive.generateMonthly" = "Generate Monthly Report";
+"reports.passive.deleteTitle" = "Delete Reports?";
+"reports.passive.deleteOne" = "Delete 1 Report";
+"reports.passive.deleteMany" = "Delete %d Reports";
+"reports.passive.deleteConfirmOne" = "Are you sure you want to delete 1 report? This action cannot be undone.";
+"reports.passive.deleteConfirmMany" = "Are you sure you want to delete %d reports? This action cannot be undone.";
+"reports.passive.loading" = "Loading reports...";
+"reports.passive.empty.title" = "No Reports Available";
+"reports.passive.empty.weekly" = "Weekly reports are generated every Sunday at 10 PM. Check back soon!";
+"reports.passive.empty.monthly" = "Monthly reports are generated on the 1st of each month.";
+"reports.passive.reportsAvailable" = "%d reports available";
+"reports.passive.metric.accuracy" = "Accuracy";
+"reports.passive.metric.questions" = "Questions";
+"reports.passive.metric.studyTime" = "Study Time";
+"reports.passive.metric.streak" = "Streak";
+"reports.passive.metric.engagement" = "Engagement";
+"reports.passive.metric.confidence" = "Confidence";
+"reports.passive.trend.accuracy" = "Accuracy";
+"reports.passive.trend.activity" = "Activity";
+
+// Parent Reports — Detail View
+"reports.passive.weeklyReport" = "Weekly Report";
+"reports.passive.monthlyReport" = "Monthly Report";
+"reports.passive.detailedReports" = "DETAILED REPORTS";
+"reports.passive.keyInsights" = "Key Insights";
+"reports.passive.recommendations" = "Recommendations";
+"reports.passive.learningProgress" = "LEARNING PROGRESS";
+"reports.passive.overallGrade" = "Overall Grade";
+"reports.passive.trend.improving" = "Improving";
+"reports.passive.trend.stable" = "Stable";
+"reports.passive.trend.declining" = "Declining";
+"reports.passive.mental" = "Mental";
+"reports.passive.mentalHealth.excellent" = "Excellent";
+"reports.passive.mentalHealth.good" = "Good";
+"reports.passive.mentalHealth.fair" = "Fair";
+"reports.passive.mentalHealth.low" = "Low";
+
+// Parent Reports — Onboarding
+"reports.passive.onboarding.title" = "Get Weekly Learning Insights";
+"reports.passive.onboarding.subtitle" = "AI-generated reports for parents, every week";
+"reports.passive.onboarding.feature.progress.title" = "Progress Tracking";
+"reports.passive.onboarding.feature.progress.desc" = "See how your child improves each week";
+"reports.passive.onboarding.feature.ai.title" = "AI-Powered Insights";
+"reports.passive.onboarding.feature.ai.desc" = "Personalized recommendations based on homework data";
+"reports.passive.onboarding.feature.mental.title" = "Mental Wellbeing";
+"reports.passive.onboarding.feature.mental.desc" = "Monitor engagement and confidence signals";
+"reports.passive.onboarding.feature.private.title" = "Private & Secure";
+"reports.passive.onboarding.feature.private.desc" = "Data is encrypted and never shared with third parties";
+"reports.passive.onboarding.dataNote" = "Homework data syncs to server automatically when you generate a report";
+"reports.passive.onboarding.enable" = "Enable Parent Reports";
+"reports.passive.onboarding.noThanks" = "No Thanks";
+
 // Suggested Daily Todos
 "suggestedTodo.sectionTitle" = "Suggestions";
 "suggestedTodo.empty" = "All tasks for today are done 🎉";
+"suggestedTodo.collapsed" = "Tap to see today's suggestions";
 "suggestedTodo.resumePractice.title" = "Continue practice";
 "suggestedTodo.resumePractice.subtitle" = "%d questions remaining";
 "suggestedTodo.resumePractice.subtitleGeneral" = "Pick up where you left off";
@@ -2255,3 +2371,57 @@
 "suggestedTodo.progress.subtitle" = "Stay on top of your learning";
 "suggestedTodo.focusMode.subtitleDone" = "Done %d today · go again";
 "suggestedTodo.progress.subtitleToday" = "See today's learning results";
+"suggestedTodo.greeting.0" = "Feel free to try these ✨";
+"suggestedTodo.greeting.1" = "What would you like to explore today?";
+"suggestedTodo.greeting.2" = "Just browsing — no pressure";
+"suggestedTodo.greeting.3" = "A few ideas, take your pick";
+"suggestedTodo.greeting.4" = "What's on your mind today?";
+"suggestedTodo.greeting.5" = "Why not give one of these a try?";
+"suggestedTodo.greeting.6" = "Pick one, or not — totally up to you";
+"suggestedTodo.greeting.7" = "Feeling inspired? Here you go";
+"suggestedTodo.greeting.8" = "Something to consider, maybe";
+"suggestedTodo.greeting.9" = "No pressure, just some options";
+"suggestedTodo.greeting.10" = "Got a few thoughts to share";
+"suggestedTodo.greeting.11" = "Today's little discoveries";
+"suggestedTodo.greeting.12" = "Take one for a spin?";
+"suggestedTodo.greeting.13" = "Whatever you're in the mood for";
+"suggestedTodo.greeting.14" = "See anything you like?";
+
+// MARK: - Quick Action Labels
+"home.quickAction.chat" = "Ask AI";
+"home.quickAction.homework" = "Homework";
+"home.quickAction.practice" = "Practice";
+
+// MARK: - Suggested Todo Items
+"todo.mistakeReview.count.one" = "1 mistake";
+"todo.mistakeReview.count.many" = "%d mistakes";
+"todo.mistakeReview.title" = "Review Mistakes";
+"todo.feynman.title" = "Feynman Practice";
+"todo.feynman.subtitle" = "Generate exercises for \"%@\"";
+"todo.conceptReview.defaultSubject" = "Recent Chat";
+"todo.conceptReview.title" = "Concept Review";
+"todo.conceptReview.subtitle" = "Quiz from \"%@\"";
+"todo.randomPractice.defaultSubject" = "All Subjects";
+"todo.randomPractice.title" = "Random Practice";
+"todo.randomPractice.subtitle" = "%@ · 5 MC/T-F questions";
+"todo.practiceRetry.title" = "Try %@ Again";
+"todo.practiceRetry.subtitle" = "Last score %@ — keep going!";
+"todo.grader.title" = "Grade Today's Homework";
+"todo.grader.subtitle" = "Take a photo for AI analysis";
+"todo.chat.title" = "Ask AI a Question";
+"todo.chat.subtitle" = "Ask what's confusing you today";
+"todo.focus.title" = "Pomodoro Focus 25 min";
+"todo.focus.subtitle.none" = "No focus session yet today";
+"todo.focus.subtitle.some" = "Done %d today · go again";
+"todo.album.title" = "Homework Album";
+"todo.album.subtitle.generic" = "View your saved homework";
+"todo.album.subtitle.subject" = "Latest: %@";
+"todo.progress.title" = "Weekly Progress";
+"todo.progress.subtitle.today" = "See today's learning results";
+"todo.progress.subtitle.general" = "Track your learning journey";
+"todo.oral.title" = "AI Speaking Practice";
+"todo.oral.subtitle" = "Chat with AI about today's lesson";
+"todo.dailyQuestion.title" = "Did You Know?";
+"todo.dailyQuestion.fallback.title" = "Start an AI Conversation";
+"todo.dailyQuestion.fallback.subtitle" = "Ask AI anything, anytime";
+"chat.liveMode.oralPractice.starterPrompt" = "Let's practice speaking! You can ask me questions on any topic, correct my pronunciation, or have a free conversation. What would you like to work on?";

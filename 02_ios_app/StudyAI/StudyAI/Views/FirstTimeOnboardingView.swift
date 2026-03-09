@@ -82,24 +82,32 @@ struct FirstTimeOnboardingView: View {
         return ["en", "es", "fr", "de", "ja"].contains(code) ? code : "en"
     }
 
-    /// Visible progress index (student skips step 2)
+    /// Visible progress index (student skips step 2; both roles skip step 4)
     private var visibleStepIndex: Int {
         if selectedRole == .student {
             switch currentStep {
             case 0: return 0
             case 1: return 1
             case 3: return 2
-            case 4: return 3
-            case 5: return 4
-            case 6: return 5
+            case 5: return 3
+            case 6: return 4
             default: return currentStep
             }
         }
-        return currentStep
+        // parent path: 0→1→2→3→5→6
+        switch currentStep {
+        case 0: return 0
+        case 1: return 1
+        case 2: return 2
+        case 3: return 3
+        case 5: return 4
+        case 6: return 5
+        default: return currentStep
+        }
     }
 
     private var totalVisibleSteps: Int {
-        selectedRole == .student ? 6 : 7
+        selectedRole == .student ? 5 : 6
     }
 
     private var canGoBack: Bool { currentStep > 0 }
@@ -181,11 +189,11 @@ struct FirstTimeOnboardingView: View {
             ScrollView {
                 VStack(spacing: 28) {
                     VStack(spacing: 8) {
-                        Text("Welcome!")
+                        Text(NSLocalizedString("onboarding.role.title", value: "Welcome!", comment: ""))
                             .font(.title2).fontWeight(.bold)
                             .foregroundColor(DesignTokens.Colors.Cute.textPrimary)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                        Text("Who's setting up the app?")
+                        Text(NSLocalizedString("onboarding.role.subtitle", value: "Who's using this app?", comment: ""))
                             .font(.subheadline)
                             .foregroundColor(DesignTokens.Colors.Cute.textSecondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -193,16 +201,16 @@ struct FirstTimeOnboardingView: View {
 
                     VStack(spacing: 14) {
                         roleCard(
-                            title: "I'm a Student",
-                            subtitle: "Learning on my own",
+                            title: NSLocalizedString("onboarding.role.student.title", value: "I'm a Student", comment: ""),
+                            subtitle: NSLocalizedString("onboarding.role.student.subtitle", value: "Learning on my own", comment: ""),
                             icon: "graduationcap.fill",
                             color: DesignTokens.Colors.Cute.blue,
                             isSelected: selectedRole == .student
                         ) { selectedRole = .student }
 
                         roleCard(
-                            title: "I'm a Parent",
-                            subtitle: "Setting up for my child",
+                            title: NSLocalizedString("onboarding.role.parent.title", value: "I'm a Parent", comment: ""),
+                            subtitle: NSLocalizedString("onboarding.role.parent.subtitle", value: "Setting up for my child", comment: ""),
                             icon: "person.2.fill",
                             color: DesignTokens.Colors.Cute.peach,
                             isSelected: selectedRole == .parent
@@ -483,8 +491,8 @@ struct FirstTimeOnboardingView: View {
             ScrollView {
                 VStack(spacing: 28) {
                     VStack(spacing: 8) {
-                        stepTitle("How old is the student?")
-                        Text("Helps us personalise the experience")
+                        stepTitle(NSLocalizedString("onboarding.age.title", value: "How old are you?", comment: ""))
+                        Text(NSLocalizedString("onboarding.age.subtitle", value: "Helps us tailor the experience", comment: ""))
                             .font(.subheadline)
                             .foregroundColor(DesignTokens.Colors.Cute.textSecondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -507,7 +515,7 @@ struct FirstTimeOnboardingView: View {
                         }
                         .animation(.easeInOut(duration: 0.15), value: studentAge)
 
-                        TextField("Enter age", text: $studentAge)
+                        TextField(NSLocalizedString("onboarding.age.placeholder", value: "Enter age", comment: ""), text: $studentAge)
                             .keyboardType(.numberPad)
                             .multilineTextAlignment(.center)
                             .font(.title2)
@@ -682,8 +690,8 @@ struct FirstTimeOnboardingView: View {
             ScrollView {
                 VStack(spacing: 28) {
                     VStack(spacing: 8) {
-                        stepTitle("Your learning style")
-                        Text("How do you prefer to approach problems?")
+                        stepTitle(NSLocalizedString("onboarding.learningStyle.title", value: "How do you want AI to help you?", comment: ""))
+                        Text(NSLocalizedString("onboarding.learningStyle.subtitle", value: "You can change this later in Settings", comment: ""))
                             .font(.subheadline)
                             .foregroundColor(DesignTokens.Colors.Cute.textSecondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -692,7 +700,7 @@ struct FirstTimeOnboardingView: View {
                     // Two-value split button
                     HStack(spacing: 0) {
                         learningHalf(
-                            label: "Heuristic",
+                            label: NSLocalizedString("onboarding.learningStyle.guide", value: "Guide Me", comment: ""),
                             icon: "lightbulb.fill",
                             value: "heuristic",
                             activeGradient: [DesignTokens.Colors.Cute.peach, DesignTokens.Colors.Cute.pink],
@@ -702,8 +710,8 @@ struct FirstTimeOnboardingView: View {
                             .frame(width: 1)
                             .background(DesignTokens.Colors.Cute.peachLight)
                         learningHalf(
-                            label: "Straightforward",
-                            icon: "arrow.right.circle.fill",
+                            label: NSLocalizedString("onboarding.learningStyle.tell", value: "Tell Me", comment: ""),
+                            icon: "text.book.closed.fill",
                             value: "straightforward",
                             activeGradient: [DesignTokens.Colors.Cute.blue, DesignTokens.Colors.Cute.lavender],
                             isLeft: false
@@ -729,8 +737,8 @@ struct FirstTimeOnboardingView: View {
                                         : DesignTokens.Colors.Cute.blue
                                 )
                             Text(learningStyle == "heuristic"
-                                ? "You like to explore and discover answers through curiosity."
-                                : "You prefer clear steps and direct, structured explanations.")
+                                ? NSLocalizedString("onboarding.learningStyle.guide.desc", value: "AI asks questions to help you work it out yourself.", comment: "")
+                                : NSLocalizedString("onboarding.learningStyle.tell.desc", value: "AI walks you through the full solution step by step.", comment: ""))
                                 .font(.subheadline)
                                 .foregroundColor(DesignTokens.Colors.Cute.textSecondary)
                         }
@@ -798,22 +806,22 @@ struct FirstTimeOnboardingView: View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(spacing: 20) {
-                    stepTitle("Almost done!")
+                    stepTitle(NSLocalizedString("onboarding.consent.title", value: "One last step", comment: ""))
 
                     VStack(spacing: 0) {
-                        privacyRow("Questions & answers",
+                        privacyRow(NSLocalizedString("onboarding.consent.privacy.questions", value: "Questions & answers", comment: ""),
                                    icon: "questionmark.circle.fill",
                                    color: DesignTokens.Colors.Cute.blue)
                         Divider()
                             .background(DesignTokens.Colors.Cute.peachLight)
                             .padding(.leading, 44)
-                        privacyRow("Study activity",
+                        privacyRow(NSLocalizedString("onboarding.consent.privacy.activity", value: "Study activity", comment: ""),
                                    icon: "chart.bar.fill",
                                    color: DesignTokens.Colors.Cute.mint)
                         Divider()
                             .background(DesignTokens.Colors.Cute.peachLight)
                             .padding(.leading, 44)
-                        privacyRow("Profile info",
+                        privacyRow(NSLocalizedString("onboarding.consent.privacy.profile", value: "Profile info", comment: ""),
                                    icon: "person.fill",
                                    color: DesignTokens.Colors.Cute.lavender)
                     }
@@ -821,7 +829,7 @@ struct FirstTimeOnboardingView: View {
                     .cornerRadius(16)
 
                     Button { showingPrivacyPolicy = true } label: {
-                        Text("Privacy Policy")
+                        Text(NSLocalizedString("onboarding.consent.privacyPolicy", value: "Privacy Policy", comment: ""))
                             .font(.subheadline)
                             .foregroundColor(DesignTokens.Colors.Cute.blue)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -831,10 +839,10 @@ struct FirstTimeOnboardingView: View {
                     // Consent toggle — always visible, required to proceed
                     Toggle(isOn: $agreedToConsent) {
                         VStack(alignment: .leading, spacing: 3) {
-                            Text("I agree to data collection for learning")
+                            Text(NSLocalizedString("onboarding.consent.agree", value: "I agree to data collection for learning", comment: ""))
                                 .font(.subheadline)
                                 .foregroundColor(DesignTokens.Colors.Cute.textPrimary)
-                            Text("Required to use StudyAI")
+                            Text(NSLocalizedString("onboarding.consent.required", value: "Required to use StudyAI", comment: ""))
                                 .font(.caption)
                                 .foregroundColor(agreedToConsent ? DesignTokens.Colors.Cute.textSecondary : .red)
                         }
@@ -857,7 +865,7 @@ struct FirstTimeOnboardingView: View {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .foregroundColor(.orange)
                                 .font(.system(size: 13))
-                            Text("You must agree to continue using StudyAI")
+                            Text(NSLocalizedString("onboarding.consent.mustAgree", value: "You must agree to continue", comment: ""))
                                 .font(.caption)
                                 .foregroundColor(.orange)
                         }
@@ -877,7 +885,7 @@ struct FirstTimeOnboardingView: View {
                             ProgressView()
                                 .progressViewStyle(CircularProgressViewStyle(tint: .white))
                         } else {
-                            Text("Get Started")
+                            Text(NSLocalizedString("onboarding.getStarted", value: "Get Started", comment: ""))
                                 .font(.headline)
                                 .foregroundColor(.white)
                         }
@@ -960,15 +968,19 @@ struct FirstTimeOnboardingView: View {
     private func advance() {
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         withAnimation(.easeInOut(duration: 0.2)) {
-            currentStep = min(currentStep + 1, maxStep)
+            let next = currentStep + 1
+            // Skip subjects step (step 4)
+            currentStep = (next == 4) ? 5 : min(next, maxStep)
         }
     }
 
     private func goBack() {
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         withAnimation(.easeInOut(duration: 0.2)) {
-            // Student skips step 2 (parent setup), so going back from step 3 returns to step 1
-            if currentStep == 3 && selectedRole == .student {
+            if currentStep == 5 {
+                // Back from learning style — skip subjects, land on age
+                currentStep = 3
+            } else if currentStep == 3 && selectedRole == .student {
                 currentStep = 1
             } else {
                 currentStep = max(currentStep - 1, 0)
@@ -987,9 +999,6 @@ struct FirstTimeOnboardingView: View {
                 "languagePreference":  languagePreference,
             ]
 
-            if !selectedSubjects.isEmpty {
-                data["favoriteSubjects"] = selectedSubjects.map { $0.rawValue }
-            }
             if !learningStyle.isEmpty {
                 data["learningStyle"] = learningStyle
             }

@@ -160,8 +160,11 @@ class SessionHelper {
 2. Key topics discussed (as array)
 3. Learning outcomes achieved (as array)
 4. Estimated conversation duration in minutes
+5. The academic subject — pick the single best match from this list:
+   Math, Physics, Chemistry, Biology, English, History, Geography, Computer Science, Art, Music, Physical Education, Foreign Language
+   If none fits, use format: "Others: [brief name]" (e.g. "Others: Science", "Others: French", "Others: Economics")
 
-Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes": [...], "estimatedDuration": number}
+Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes": [...], "estimatedDuration": number, "subject": "..."}
 
 Summary guidelines:
 - Max 10 words, be direct and concise
@@ -187,10 +190,10 @@ Be direct: state the topic, not the action.${languageInstruction}`
             },
             {
               role: 'user',
-              content: `Analyze this educational conversation about ${sessionInfo.subject || 'academic topics'} with ${conversationHistory.length} messages:\n\n${conversationText}`
+              content: `Analyze this educational conversation (${conversationHistory.length} messages):\n\n${conversationText}`
             }
           ],
-          max_tokens: 500,
+          max_tokens: 600,
           temperature: 0.3,
         }),
 
@@ -226,6 +229,7 @@ Be direct: state the topic, not the action.${languageInstruction}`
 
         this.fastify.log.info(`✨ [AI ANALYSIS] Successfully parsed analysis:`);
         this.fastify.log.info(`   • Summary: "${analysis.summary}"`);
+        this.fastify.log.info(`   • Subject: "${analysis.subject}"`);
         this.fastify.log.info(`   • Key Topics: ${JSON.stringify(analysis.keyTopics)}`);
         this.fastify.log.info(`   • Learning Outcomes: ${JSON.stringify(analysis.learningOutcomes)}`);
         this.fastify.log.info(`   • Duration: ${analysis.estimatedDuration} minutes`);
@@ -233,6 +237,7 @@ Be direct: state the topic, not the action.${languageInstruction}`
 
         return {
           summary: analysis.summary || 'Conversation analysis unavailable',
+          subject: analysis.subject || null,
           keyTopics: analysis.keyTopics || [],
           learningOutcomes: analysis.learningOutcomes || [],
           estimatedDuration: analysis.estimatedDuration || Math.ceil(conversationHistory.length * 0.5),

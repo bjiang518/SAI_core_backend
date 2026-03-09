@@ -369,17 +369,16 @@ struct QuestionSheetView: View {
                 let isSelected = selectedOption == option
                 // Trust AI grading for the selected option — handles correctAnswer format mismatches
                 let isCorrectOpt = isOptionCorrect(option: option, q: q) || (isSelected && isCorrect)
+                let iconName: String = isCorrectOpt ? "checkmark" : (isSelected ? "xmark" : "circle")
+                let iconColor: Color = isCorrectOpt ? .green : (isSelected ? .red : Color(.tertiaryLabel))
                 HStack(spacing: 12) {
-                    Image(systemName: isCorrectOpt
-                          ? "checkmark.circle.fill"
-                          : (isSelected ? "xmark.circle.fill" : "circle"))
-                        .font(.title3)
-                        .foregroundColor(isCorrectOpt ? .green
-                                         : (isSelected ? .red : Color(.tertiaryLabel)))
+                    Image(systemName: iconName)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(iconColor)
                     MarkdownLaTeXText(option, fontSize: 16, isStreaming: false)
-                    Spacer()
                 }
                 .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .background(
                     isCorrectOpt ? Color.green.opacity(0.08)
                     : (isSelected ? Color.red.opacity(0.08) : themeManager.backgroundColor)
@@ -402,12 +401,12 @@ struct QuestionSheetView: View {
             ForEach(["True", "False"], id: \.self) { label in
                 let isSelected = selectedOption == label
                 let isCorrectOpt = label.lowercased() == q.correctAnswer.lowercased()
+                let iconName: String = isCorrectOpt ? "checkmark" : (isSelected ? "xmark" : "circle")
+                let iconColor: Color = isCorrectOpt ? .green : (isSelected ? .red : Color(.tertiaryLabel))
                 VStack(spacing: 8) {
-                    Image(systemName: isCorrectOpt
-                          ? "checkmark.circle.fill"
-                          : (isSelected ? "xmark.circle.fill" : (label == "True" ? "checkmark.circle" : "xmark.circle")))
-                        .font(.title)
-                        .foregroundColor(isCorrectOpt ? .green : (isSelected ? .red : Color(.tertiaryLabel)))
+                    Image(systemName: iconName)
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundColor(iconColor)
                     Text(trueFalseDisplayName(label))
                         .font(.body.bold())
                         .foregroundColor(.primary)
@@ -437,17 +436,22 @@ struct QuestionSheetView: View {
             Text(NSLocalizedString("practiceSheet.yourAnswerLabel", comment: ""))
                 .font(.caption)
                 .foregroundColor(.secondary)
-            Text(answer.isEmpty ? NSLocalizedString("practiceSheet.noAnswer", comment: "") : answer)
-                .font(.body)
-                .foregroundColor(.primary)
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(isCorrect ? Color.green.opacity(0.06) : Color.red.opacity(0.06))
-                .cornerRadius(10)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(isCorrect ? Color.green.opacity(0.4) : Color.red.opacity(0.4), lineWidth: 1)
-                )
+            HStack(spacing: 6) {
+                Text(answer.isEmpty ? NSLocalizedString("practiceSheet.noAnswer", comment: "") : answer)
+                    .font(.body)
+                    .foregroundColor(.primary)
+                Image(systemName: isCorrect ? "checkmark" : "xmark")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(isCorrect ? .green : .red)
+            }
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(isCorrect ? Color.green.opacity(0.06) : Color.red.opacity(0.06))
+            .cornerRadius(10)
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(isCorrect ? Color.green.opacity(0.4) : Color.red.opacity(0.4), lineWidth: 1)
+            )
         }
     }
 

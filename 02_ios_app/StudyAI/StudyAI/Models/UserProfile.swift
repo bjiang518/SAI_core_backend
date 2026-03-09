@@ -451,7 +451,7 @@ enum Subject: String, CaseIterable {
             return .math  // Math topic
 
         case "general", "unknown", "other", "miscellaneous", "misc":
-            return .math  // Default to math for unrecognized subjects
+            return nil  // Caller should treat as "Others: General" — not Math
 
         default:
             // Try exact match with rawValue

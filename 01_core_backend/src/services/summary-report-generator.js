@@ -76,7 +76,7 @@ class SummaryReportGenerator {
         logger.info(`📋 Generating ${period} Summary Report...`);
 
         try {
-            const analysis = this.synthesizeReports(activityData, improvementData, mentalHealthData, studentName, period);
+            const analysis = this.synthesizeReports(activityData, improvementData, mentalHealthData, studentName, period, language);
 
             // Generate AI-powered insights
             let aiInsights = null;
@@ -134,10 +134,10 @@ class SummaryReportGenerator {
     /**
      * Synthesize data from all three reports
      * @param {String} period - 'weekly' or 'monthly'
+     * @param {String} language - locale code e.g. 'en', 'zh-Hans', 'de'
      */
-    synthesizeReports(activityData, improvementData, mentalHealthData, studentName, period = 'weekly') {
-        const periodLabel = period === 'monthly' ? 'month' : 'week';
-        const comparisonLabel = period === 'monthly' ? 'last month' : 'last week';
+    synthesizeReports(activityData, improvementData, mentalHealthData, studentName, period = 'weekly', language = 'en') {
+        const ts = getT(language).summary;
         // Extract key metrics
         const engagement = activityData.totalQuestions >= 20 ? 'strong' : activityData.totalQuestions >= 10 ? 'moderate' : 'low';
         const improvements = Object.keys(improvementData.bySubject || {}).length;
@@ -155,15 +155,15 @@ class SummaryReportGenerator {
         // Find biggest win
         let biggestWin = '';
         if (activityData.totalQuestions >= 50) {
-            biggestWin = `Completed ${activityData.totalQuestions} questions this ${periodLabel}`;
+            biggestWin = ts.biggestWin.completed(activityData.totalQuestions, period);
         } else if (activityData.periodComparison && activityData.periodComparison.questionsChange > 30) {
-            biggestWin = `Increased activity by ${activityData.periodComparison.questionsChange} questions`;
+            biggestWin = ts.biggestWin.increased(activityData.periodComparison.questionsChange);
         } else if (mentalHealthData.learningAttitude.score >= 0.7) {
-            biggestWin = 'Showing strong learning attitude and curiosity';
+            biggestWin = ts.biggestWin.attitude;
         } else if (Object.keys(improvementData.bySubject).every(s => improvementData.bySubject[s].trend === 'improving')) {
-            biggestWin = 'Improving across all subjects';
+            biggestWin = ts.biggestWin.improving;
         } else {
-            biggestWin = 'Consistent effort and engagement';
+            biggestWin = ts.biggestWin.consistent;
         }
 
         // Top 3 action items
@@ -176,7 +176,7 @@ class SummaryReportGenerator {
             if (topIssueSubject) {
                 actionItems.push({
                     priority: 'high',
-                    text: `Practice 10-15 minutes daily on ${topIssueSubject[0]} fundamentals. Focus on understanding, not just answers.`
+                    text: ts.action.practice(topIssueSubject[0])
                 });
             }
         }
@@ -185,12 +185,12 @@ class SummaryReportGenerator {
         if (mentalHealthData.focusCapability.status === 'needs_improvement') {
             actionItems.push({
                 priority: 'high',
-                text: `Establish a consistent study schedule. Even 15 minutes daily is better than sporadic long sessions.`
+                text: ts.action.schedule
             });
         } else {
             actionItems.push({
                 priority: 'medium',
-                text: `Celebrate ${studentName}'s ${mentalHealthData.focusCapability.activeDays}-day active ${periodLabel}! Keep the momentum.`
+                text: ts.action.celebrate(studentName, mentalHealthData.focusCapability.activeDays, period)
             });
         }
 
@@ -198,53 +198,74 @@ class SummaryReportGenerator {
         if (hasRedFlags) {
             actionItems.push({
                 priority: 'high',
-                text: `Check in about learning experience. Break problems into smaller steps and celebrate effort.`
+                text: ts.action.checkIn
             });
         } else if (activityData.totalChats < 3) {
             actionItems.push({
                 priority: 'medium',
-                text: `Encourage using chat for questions. AI tutor is here to help clarify difficult concepts.`
+                text: ts.action.encourage
             });
         } else {
             actionItems.push({
                 priority: 'medium',
-                text: `Keep asking questions! Curiosity shows ${studentName} is engaged and thinking deeply.`
+                text: ts.action.curious(studentName)
             });
         }
 
-        // Build narrative
-        let narrative = '';
+        // Build narrative using i18n sub-strings
+        const attitudePart = mentalHealthData.learningAttitude.score >= 0.7
+            ? ts.narrative.attitudeGood
+            : ts.narrative.attitudeSteady;
 
+        const mistakesPart = improvementData.totalMistakes === 0
+            ? ts.narrative.noMistakes
+            : improvementData.totalMistakes > activityData.totalQuestions * 0.3
+            ? ts.narrative.someMistakes
+            : ts.narrative.fewMistakes;
+
+        const mentalPart = mentalHealthData.emotionalWellbeing.redFlags.length === 0
+            ? ts.narrative.mentalStable
+            : ts.narrative.mentalConcerned;
+
+        const extraPart = hasRedFlags
+            ? ts.narrative.concernedMental
+            : ts.narrative.concernedCoping;
+
+        const topSubjects = Object.entries(improvementData.bySubject || {})
+            .sort((a, b) => b[1].totalMistakes - a[1].totalMistakes)
+            .slice(0, 2)
+            .map(([s]) => s)
+            .join(' and ');
+
+        const topSubject = Object.entries(improvementData.bySubject || {})
+            .sort((a, b) => b[1].totalMistakes - a[1].totalMistakes)[0]?.[0] || '';
+
+        let narrative = '';
         if (overallTone === 'positive') {
-            narrative = `This was an excellent ${periodLabel} for ${studentName}! They demonstrated strong engagement with ${activityData.totalQuestions} questions across ` +
-                `${Object.keys(activityData.subjectBreakdown).length} subjects. ${
-                    mentalHealthData.learningAttitude.score >= 0.7 ?
-                    'Their learning attitude is particularly noteworthy - they show curiosity and persistence.' :
-                    'They completed their work with steady effort.'
-                } ${
-                    improvementData.totalMistakes === 0 ?
-                    'No significant learning challenges detected.' :
-                    improvementData.totalMistakes > activityData.totalQuestions * 0.3 ?
-                    `Some challenges remain but these are opportunities for focused practice.` :
-                    `A few areas for practice remain, but overall progress is strong.`
-                }`;
+            narrative = ts.narrative.positive(
+                studentName,
+                period,
+                activityData.totalQuestions,
+                Object.keys(activityData.subjectBreakdown).length,
+                attitudePart,
+                mistakesPart
+            );
         } else if (overallTone === 'balanced') {
-            narrative = `${studentName} had a steady ${periodLabel} with ${activityData.totalQuestions} questions completed. While engagement was consistent, ` +
-                `there are some learning challenges in ${Object.entries(improvementData.bySubject || {})
-                .sort((a, b) => b[1].totalMistakes - a[1].totalMistakes)
-                .slice(0, 2)
-                .map(([s]) => s)
-                .join(' and ')} that would benefit from focused practice. ` +
-                `${mentalHealthData.emotionalWellbeing.redFlags.length === 0 ?
-                    'Emotionally, they seem stable and engaged.' :
-                    'There are some concerns about their learning experience that we recommend addressing.'}`;
+            narrative = ts.narrative.balanced(
+                studentName,
+                period,
+                activityData.totalQuestions,
+                topSubjects,
+                mentalPart
+            );
         } else {
-            narrative = `${studentName} completed ${activityData.totalQuestions} questions this ${periodLabel}. ` +
-                `We've identified several areas needing attention, particularly in ${Object.entries(improvementData.bySubject || {})
-                .sort((a, b) => b[1].totalMistakes - a[1].totalMistakes)[0][0]}. ` +
-                `${hasRedFlags ?
-                    'More importantly, we\'ve noticed some concerns about their emotional wellbeing during learning that need to be addressed.' :
-                    'With focused practice and support, we can help them build confidence.'}`;
+            narrative = ts.narrative.concerned(
+                studentName,
+                period,
+                activityData.totalQuestions,
+                topSubject,
+                extraPart
+            );
         }
 
         return {

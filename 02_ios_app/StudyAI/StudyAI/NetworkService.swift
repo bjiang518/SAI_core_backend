@@ -3819,12 +3819,16 @@ class NetworkService: ObservableObject {
             }
             var patch: [String: Any] = [:]
             if let summary = backendResult.summary { patch["summary"] = summary }
+            if let detectedSubject = backendResult.detectedSubject {
+                patch["subject"] = detectedSubject
+                print("📚 [Archive] Patching subject with AI-detected: \(detectedSubject)")
+            }
             if let insights = backendResult.behaviorInsights { patch["behaviorSummary"] = insights }
             if !patch.isEmpty {
                 await MainActor.run {
                     currentUserConversationStorage().updateConversation(withId: conversationId, fields: patch)
                     self.invalidateCache()
-                    print("✨ [Archive] Patched local record with AI summary + insights")
+                    print("✨ [Archive] Patched local record with AI summary + subject + insights")
                 }
             }
         }
@@ -3843,12 +3847,12 @@ class NetworkService: ObservableObject {
         topic: String? = nil,
         subject: String? = nil,
         notes: String? = nil
-    ) async -> (success: Bool, summary: String?, behaviorInsights: [String: Any]?, message: String, conversationContent: String?, messageCount: Int?) {
+    ) async -> (success: Bool, summary: String?, detectedSubject: String?, behaviorInsights: [String: Any]?, message: String, conversationContent: String?, messageCount: Int?) {
 
         // Check authentication
         guard AuthenticationService.shared.getAuthToken() != nil else {
             print("❌ Authentication required to archive session")
-            return (false, nil, nil, "Authentication required", nil, nil)
+            return (false, nil, nil, nil, "Authentication required", nil, nil)
         }
 
         print("📦 === ARCHIVING SESSION TO BACKEND ===")
@@ -3892,12 +3896,14 @@ class NetworkService: ObservableObject {
                     if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
 
                         let summary = json["summary"] as? String
+                        let detectedSubject = json["detected_subject"] as? String
                         let behaviorInsights = json["behaviorInsights"] as? [String: Any]
                         let conversationContent = json["conversation_content"] as? String
                         let messageCount = json["message_count"] as? Int
 
                         print("🎉 === SESSION ARCHIVED TO BACKEND ===")
                         print("📝 Summary: \(summary ?? "No summary generated")")
+                        print("📚 Detected Subject: \(detectedSubject ?? "none")")
                         print("💬 Message count from backend: \(messageCount ?? 0)")
                         if let content = conversationContent {
                             print("📄 Conversation content length: \(content.count) chars")
@@ -3910,28 +3916,28 @@ class NetworkService: ObservableObject {
                             print("   - Curiosity Count: \(insights["curiosityCount"] ?? "N/A")")
                         }
 
-                        return (true, summary, behaviorInsights, "Session archived successfully", conversationContent, messageCount)
+                        return (true, summary, detectedSubject, behaviorInsights, "Session archived successfully", conversationContent, messageCount)
                     }
                 } else if httpResponse.statusCode == 404 {
                     print("❌ Session not found on backend")
-                    return (false, nil, nil, "Session not found", nil, nil)
+                    return (false, nil, nil, nil, "Session not found", nil, nil)
                 } else if httpResponse.statusCode == 400 {
                     print("❌ Cannot archive empty session")
-                    return (false, nil, nil, "Cannot archive empty session", nil, nil)
+                    return (false, nil, nil, nil, "Cannot archive empty session", nil, nil)
                 } else if httpResponse.statusCode == 401 {
                     print("❌ Authentication expired in archiveSessionToBackend")
-                    return (false, nil, nil, "Authentication expired", nil, nil)
+                    return (false, nil, nil, nil, "Authentication expired", nil, nil)
                 }
 
                 let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
                 print("❌ Archive Failed HTTP \(httpResponse.statusCode): \(String(rawResponse.prefix(200)))")
-                return (false, nil, nil, "HTTP \(httpResponse.statusCode)", nil, nil)
+                return (false, nil, nil, nil, "HTTP \(httpResponse.statusCode)", nil, nil)
             }
 
-            return (false, nil, nil, "No HTTP response", nil, nil)
+            return (false, nil, nil, nil, "No HTTP response", nil, nil)
         } catch {
             print("❌ Session archive to backend failed: \(error.localizedDescription)")
-            return (false, nil, nil, error.localizedDescription, nil, nil)
+            return (false, nil, nil, nil, error.localizedDescription, nil, nil)
         }
     }
 
@@ -5572,7 +5578,7 @@ class NetworkService: ObservableObject {
     // MARK: - Practice Library Sync
 
     /// Notify backend when a practice sheet is created (fire-and-forget from PracticeSessionManager)
-    func createPracticeSheet(sheetId: String, subject: String, sourceType: String, questionCount: Int) async throws {
+    func createPracticeSheet(sheetId: String, subject: String, sourceType: String, questionCount: Int, generationMode: Int? = nil, difficulty: String? = nil) async throws {
         guard let url = URL(string: "\(baseURL)/api/practice/sheets") else {
             throw NetworkError.invalidURL
         }
@@ -5586,12 +5592,14 @@ class NetworkService: ObservableObject {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
 
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "sheet_id": sheetId,
             "subject": subject,
             "source_type": sourceType,
             "question_count": questionCount
         ]
+        if let mode = generationMode { body["generation_mode"] = mode }
+        if let diff = difficulty { body["difficulty"] = diff }
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let (_, response) = try await URLSession.shared.data(for: request)
@@ -5601,7 +5609,7 @@ class NetworkService: ObservableObject {
     }
 
     /// Notify backend when a practice sheet is completed (fire-and-forget from PracticeSessionManager)
-    func completePracticeSheet(sheetId: String, completedCount: Int, scorePercentage: Double) async throws {
+    func completePracticeSheet(sheetId: String, completedCount: Int, scorePercentage: Double, timeSpentSeconds: Int? = nil) async throws {
         guard let url = URL(string: "\(baseURL)/api/practice/sheets/\(sheetId)/complete") else {
             throw NetworkError.invalidURL
         }
@@ -5615,16 +5623,57 @@ class NetworkService: ObservableObject {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
 
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "completed_count": completedCount,
             "score_percentage": scorePercentage
         ]
+        if let t = timeSpentSeconds { body["time_spent_seconds"] = t }
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let (_, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
             throw NetworkError.invalidResponse
         }
+    }
+
+    // MARK: - Daily Question
+
+    /// Fetches today's fun question from the backend and caches it in UserDefaults.
+    /// Returns `(question, funFact, subject)` on success, or nil if the request fails.
+    func fetchDailyQuestion() async -> (question: String, funFact: String?, subject: String?)? {
+        guard AuthenticationService.shared.getAuthToken() != nil else { return nil }
+
+        guard let url = URL(string: "\(baseURL)/api/daily/question") else { return nil }
+
+        var request = URLRequest(url: url)
+        addAuthHeader(to: &request)
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return nil }
+
+            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let payload = json["data"] as? [String: Any],
+                  let question = payload["question"] as? String else { return nil }
+
+            let funFact  = payload["fun_fact"] as? String
+            let subject  = payload["subject"]  as? String
+            let date     = payload["date"]     as? String ?? todayDateString()
+
+            // Cache for use by DailyQuestionProvider
+            UserDefaults.standard.set(question, forKey: "daily_question_\(date)")
+            if let ff = funFact { UserDefaults.standard.set(ff, forKey: "daily_question_fun_fact_\(date)") }
+
+            return (question, funFact, subject)
+        } catch {
+            return nil
+        }
+    }
+
+    private func todayDateString() -> String {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        return f.string(from: Date())
     }
 }
 

@@ -5173,6 +5173,33 @@ async function runDatabaseMigrations() {
       logger.debug('✅ practice_sheets migration already applied');
     }
 
+    // MIGRATION 020: Add generation_mode, difficulty, time_spent_seconds to practice_sheets (2026-03-09)
+    const practiceSheets020Check = await db.query(`
+      SELECT 1 FROM migration_history WHERE migration_name = '020_practice_sheets_fields'
+    `);
+
+    if (practiceSheets020Check.rows.length === 0) {
+      logger.debug('📋 Applying practice_sheets fields migration...');
+      try {
+        await db.query(`
+          ALTER TABLE practice_sheets
+            ADD COLUMN IF NOT EXISTS generation_mode INTEGER,
+            ADD COLUMN IF NOT EXISTS difficulty VARCHAR(20),
+            ADD COLUMN IF NOT EXISTS time_spent_seconds INTEGER;
+        `);
+        await db.query(`
+          INSERT INTO migration_history (migration_name)
+          VALUES ('020_practice_sheets_fields')
+          ON CONFLICT (migration_name) DO NOTHING;
+        `);
+        logger.debug('✅ practice_sheets fields (generation_mode, difficulty, time_spent_seconds) added');
+      } catch (migrationError) {
+        logger.error({ err: migrationError }, '❌ Migration 020 failed');
+      }
+    } else {
+      logger.debug('✅ practice_sheets_fields migration already applied');
+    }
+
   } catch (error) {
     logger.error('❌ Database migration failed:', error);
     // Don't throw - let the app continue with what it has

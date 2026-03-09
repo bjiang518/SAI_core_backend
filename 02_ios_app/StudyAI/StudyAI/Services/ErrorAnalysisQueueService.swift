@@ -245,13 +245,17 @@ class ErrorAnalysisQueueService: ObservableObject {
 
                     // ✅ Normalize subject (AI may return "Mathematics", iOS uses "Math")
                     // ✅ EXCEPT for "Others: XX" - preserve full string for specificity
+                    // ✅ Unknown subjects wrapped as "Others: X" rather than silently becoming "Math"
                     let normalizedSubject: String
                     if concept.subject.hasPrefix("Others:") {
                         // Keep "Others: French", "Others: Economics" as-is
                         normalizedSubject = concept.subject
+                    } else if let known = Subject.normalize(concept.subject) {
+                        // Known standard subject: normalize variant → canonical name
+                        normalizedSubject = known.rawValue
                     } else {
-                        // Normalize standard subjects: "Mathematics" → "Math"
-                        normalizedSubject = Subject.normalizeWithFallback(concept.subject).rawValue
+                        // Unrecognized subject (e.g. "Science"): wrap as Others to avoid Math mislabel
+                        normalizedSubject = "Others: \(concept.subject)"
                     }
 
                     // Build weakness key: "Subject/Base Branch/Detailed Branch"
@@ -514,17 +518,21 @@ class ErrorAnalysisQueueService: ObservableObject {
            !baseBranch.isEmpty,
            !detailedBranch.isEmpty {
 
-            let subject = allQuestions[index]["subject"] as? String ?? "Math"
+            let subject = allQuestions[index]["subject"] as? String ?? "Others: General"
 
             // ✅ Normalize subject (AI may return "Mathematics", iOS uses "Math")
             // ✅ EXCEPT for "Others: XX" - preserve full string for specificity
+            // ✅ Unknown subjects wrapped as "Others: X" rather than silently becoming "Math"
             let normalizedSubject: String
             if subject.hasPrefix("Others:") {
                 // Keep "Others: French", "Others: Economics" as-is
                 normalizedSubject = subject
+            } else if let known = Subject.normalize(subject) {
+                // Known standard subject: normalize variant → canonical name
+                normalizedSubject = known.rawValue
             } else {
-                // Normalize standard subjects: "Mathematics" → "Math"
-                normalizedSubject = Subject.normalizeWithFallback(subject).rawValue
+                // Unrecognized subject (e.g. "Science"): wrap as Others to avoid Math mislabel
+                normalizedSubject = "Others: \(subject)"
             }
 
             // NEW format: "Math/Algebra - Foundations/Linear Equations - One Variable"

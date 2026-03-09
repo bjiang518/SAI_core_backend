@@ -48,7 +48,7 @@ struct PassiveReportDetailView: View {
                     // Other Report Cards (Activity, Areas of Improvement, Mental Health)
                     if viewModel.detailedReports.count > 1 {
                         VStack(spacing: 8) {
-                            Text("DETAILED REPORTS")
+                            Text(NSLocalizedString("reports.passive.detailedReports", value: "DETAILED REPORTS", comment: ""))
                                 .font(.caption)
                                 .fontWeight(.semibold)
                                 .foregroundColor(.secondary)
@@ -79,7 +79,9 @@ struct PassiveReportDetailView: View {
     // MARK: - Helpers
 
     private var periodTitle: String {
-        "\(batch.period.capitalized) Report"
+        batch.period.lowercased() == "monthly"
+            ? NSLocalizedString("reports.passive.monthlyReport", value: "Monthly Report", comment: "")
+            : NSLocalizedString("reports.passive.weeklyReport", value: "Weekly Report", comment: "")
     }
 }
 
@@ -114,7 +116,7 @@ struct ReportDetailSheet: View {
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
+                    Button(NSLocalizedString("common.done", value: "Done", comment: "")) {
                         dismiss()
                     }
                 }
@@ -129,7 +131,7 @@ struct ReportDetailSheet: View {
             HStack {
                 Image(systemName: "lightbulb.fill")
                     .foregroundColor(.orange)
-                Text("Key Insights")
+                Text(NSLocalizedString("reports.passive.keyInsights", value: "Key Insights", comment: ""))
                     .font(.headline)
             }
             .padding(.horizontal)
@@ -152,7 +154,7 @@ struct ReportDetailSheet: View {
             HStack {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundColor(.green)
-                Text("Recommendations")
+                Text(NSLocalizedString("reports.passive.recommendations", value: "Recommendations", comment: ""))
                     .font(.headline)
             }
             .padding(.horizontal)
@@ -452,7 +454,7 @@ struct ExecutiveSummaryCard: View {
             // Header with grade and trend
             HStack(alignment: .top, spacing: 16) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("LEARNING PROGRESS")
+                    Text(NSLocalizedString("reports.passive.learningProgress", value: "LEARNING PROGRESS", comment: ""))
                         .font(.caption)
                         .fontWeight(.semibold)
                         .foregroundColor(.secondary)
@@ -464,7 +466,7 @@ struct ExecutiveSummaryCard: View {
                                 .foregroundColor(gradeColor(grade))
 
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("Overall Grade")
+                                Text(NSLocalizedString("reports.passive.overallGrade", value: "Overall Grade", comment: ""))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
 
@@ -490,19 +492,19 @@ struct ExecutiveSummaryCard: View {
             // Key Metrics Grid
             VStack(spacing: 12) {
                 metricsRow(
-                    left: ("Accuracy", batch.overallAccuracy.map { "\(Int($0 * 100))%" } ?? "-", .blue),
-                    right: ("Questions", batch.questionCount.map { "\($0)" } ?? "-", .green)
+                    left: (NSLocalizedString("reports.passive.metric.accuracy", value: "Accuracy", comment: ""), batch.overallAccuracy.map { "\(Int($0 * 100))%" } ?? "-", .blue),
+                    right: (NSLocalizedString("reports.passive.metric.questions", value: "Questions", comment: ""), batch.questionCount.map { "\($0)" } ?? "-", .green)
                 )
 
                 metricsRow(
-                    left: ("Study Time", batch.studyTimeMinutes.map { "\($0)m" } ?? "-", .orange),
-                    right: ("Streak", batch.currentStreak.map { "\($0)d" } ?? "-", .red)
+                    left: (NSLocalizedString("reports.passive.metric.studyTime", value: "Study Time", comment: ""), batch.studyTimeMinutes.map { "\($0)m" } ?? "-", .orange),
+                    right: (NSLocalizedString("reports.passive.metric.streak", value: "Streak", comment: ""), batch.currentStreak.map { "\($0)d" } ?? "-", .red)
                 )
 
                 if let engagement = batch.engagementLevel, let confidence = batch.confidenceLevel {
                     metricsRow(
-                        left: ("Engagement", String(format: "%.1f", engagement), .purple),
-                        right: ("Confidence", String(format: "%.1f", confidence), .cyan)
+                        left: (NSLocalizedString("reports.passive.metric.engagement", value: "Engagement", comment: ""), String(format: "%.1f", engagement), .purple),
+                        right: (NSLocalizedString("reports.passive.metric.confidence", value: "Confidence", comment: ""), String(format: "%.1f", confidence), .cyan)
                     )
                 }
             }
@@ -561,21 +563,21 @@ struct ExecutiveSummaryCard: View {
                 Image(systemName: "arrow.up.right")
                     .font(.caption2)
                     .foregroundColor(.green)
-                Text("Improving")
+                Text(NSLocalizedString("reports.passive.trend.improving", value: "Improving", comment: ""))
                     .font(.caption2)
                     .foregroundColor(.green)
             case "stable":
                 Image(systemName: "minus")
                     .font(.caption2)
                     .foregroundColor(.blue)
-                Text("Stable")
+                Text(NSLocalizedString("reports.passive.trend.stable", value: "Stable", comment: ""))
                     .font(.caption2)
                     .foregroundColor(.blue)
             case "declining":
                 Image(systemName: "arrow.down.right")
                     .font(.caption2)
                     .foregroundColor(.red)
-                Text("Declining")
+                Text(NSLocalizedString("reports.passive.trend.declining", value: "Declining", comment: ""))
                     .font(.caption2)
                     .foregroundColor(.red)
             default:
@@ -607,7 +609,7 @@ struct ExecutiveSummaryCard: View {
                     Text(String(format: "%.0f", score * 100))
                         .font(.system(size: 20, weight: .bold))
                         .foregroundColor(mentalHealthColor(score))
-                    Text("Mental")
+                    Text(NSLocalizedString("reports.passive.mental", value: "Mental", comment: ""))
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
@@ -632,10 +634,10 @@ struct ExecutiveSummaryCard: View {
 
     private func mentalHealthLabel(_ score: Double) -> String {
         switch score {
-        case 0.75...1.0: return "Excellent"
-        case 0.5..<0.75: return "Good"
-        case 0.25..<0.5: return "Fair"
-        default: return "Low"
+        case 0.75...1.0: return NSLocalizedString("reports.passive.mentalHealth.excellent", value: "Excellent", comment: "")
+        case 0.5..<0.75: return NSLocalizedString("reports.passive.mentalHealth.good", value: "Good", comment: "")
+        case 0.25..<0.5: return NSLocalizedString("reports.passive.mentalHealth.fair", value: "Fair", comment: "")
+        default: return NSLocalizedString("reports.passive.mentalHealth.low", value: "Low", comment: "")
         }
     }
 

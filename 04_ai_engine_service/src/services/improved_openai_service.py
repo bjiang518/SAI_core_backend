@@ -3852,7 +3852,8 @@ RULES:
 2. Question numbers: Keep original (don't renumber)
 3. Extract ALL student answers exactly as written
 4. Use LaTeX for math: \\(...\\) for inline, \\[...\\] for display
-5. "need_image": true if the question references a diagram, graph, figure, chart, or table; or contains phrases like "refer to the figure", "as shown", "in the diagram", "based on the image", "use the graph". Set false otherwise.
+5. STUDENT ANSWER LATEX (CRITICAL): If student_answer contains any mathematical expression, operator, or symbol (×, ÷, +, -, =, fractions, exponents, etc.), ALWAYS wrap it with $...$. Examples: "8 \\times 5" → "$8 \\times 5$", "3/4" → "$\\frac{{3}}{{4}}$", "x^2" → "$x^2$". Plain text answers (words, single digits) do NOT need delimiters.
+6. "need_image": true if the question references a diagram, graph, figure, chart, or table; or contains phrases like "refer to the figure", "as shown", "in the diagram", "based on the image", "use the graph". Set false otherwise.
 """
 
     def _normalize_answer(self, answer: str) -> str:

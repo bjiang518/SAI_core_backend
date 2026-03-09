@@ -316,6 +316,22 @@ class PDFGeneratorService: ObservableObject {
         return text.filter({ $0 == "$" }).count >= 2
     }
 
+    /// Builds a plain-text content string for a Pro Mode question — used by MathJaxPDFRenderer.
+    /// Includes question number, question text, and all subquestion texts. LaTeX delimiters are preserved.
+    private func buildProModeContent(q: ProgressiveQuestionWithGrade, number: Int) -> String {
+        let qNum = q.question.questionNumber ?? "\(number)"
+        var lines = ["Question \(qNum)"]
+        let qt = q.question.displayText
+        if !qt.isEmpty { lines.append(qt) }
+        if let subs = q.question.subquestions, !subs.isEmpty {
+            for sub in subs {
+                lines.append("  (\(sub.id))")
+                if !sub.questionText.isEmpty { lines.append(sub.questionText) }
+            }
+        }
+        return lines.joined(separator: "\n")
+    }
+
     /// Builds a single plain-text content string (number + question text + options)
     /// suitable for passing to MathJaxPDFRenderer. LaTeX delimiters are preserved.
     private func buildQuestionContent(question: QuestionSummary, number: Int) -> String {
@@ -357,24 +373,46 @@ class PDFGeneratorService: ObservableObject {
             return nil
         }
 
+        let renderWidth = contentWidth - 20
+        let log = AppLogger.forFeature("PDFGen")
+
+        // Phase 1 (0–60%): Pre-render questions containing LaTeX using MathJax.
+        // buildVectorPDF's body is synchronous so all async work must happen here.
+        var renderedContent: [Int: UIImage] = [:]
+        for (index, q) in toExport.enumerated() {
+            let content = buildProModeContent(q: q, number: index + 1)
+            if containsLaTeX(content) {
+                log.info("  [ProModeQ \(index+1)] LaTeX detected — rendering with MathJax")
+                if let img = await MathJaxPDFRenderer.shared.render(content, width: renderWidth, fontSize: options.questionFontSize) {
+                    renderedContent[index] = img
+                    log.info("  [ProModeQ \(index+1)] MathJax render ✓ size=\(img.size)")
+                } else {
+                    log.warning("  [ProModeQ \(index+1)] MathJax render failed — will fall back to plain text")
+                }
+            }
+            generationProgress = Double(index + 1) / Double(toExport.count) * 0.6
+        }
+
+        // Phase 2 (60–100%): Build the vector PDF.
         let doc = buildVectorPDF(options: options, totalItems: toExport.count) { ctx, pageRect, addPage in
-            AppLogger.forFeature("PDFGen").info("  buildVectorPDF body called — drawing cover page")
+            log.info("  buildVectorPDF body called — drawing cover page")
             drawCoverPage(ctx: ctx, pageRect: pageRect, subject: subject, questionCount: toExport.count, options: options)
             addPage()
             var y: CGFloat = margin
             for (index, q) in toExport.enumerated() {
                 let img = croppedImages[q.question.id]
-                AppLogger.forFeature("PDFGen").info("  Q\(index+1) id=\(q.question.id) hasImage=\(img != nil)")
-                let blockHeight = proModeQuestionHeight(q: q, image: img, croppedImages: croppedImages, options: options)
+                let rendered = renderedContent[index]
+                log.info("  Q\(index+1) id=\(q.question.id) hasImage=\(img != nil) hasRendered=\(rendered != nil)")
+                let blockHeight = proModeQuestionHeight(q: q, image: img, renderedContent: rendered, croppedImages: croppedImages, options: options)
                 if y + blockHeight > pageSize.height - margin { addPage(); y = margin }
                 y = drawProModeQuestion(ctx: ctx, pageRect: pageRect, q: q, image: img,
-                                        croppedImages: croppedImages, startY: y, options: options)
+                                        renderedContent: rendered, croppedImages: croppedImages, startY: y, options: options)
                 y += options.questionGap
-                generationProgress = Double(index + 1) / Double(toExport.count)
+                generationProgress = 0.6 + Double(index + 1) / Double(toExport.count) * 0.4
             }
         }
 
-        AppLogger.forFeature("PDFGen").info("  buildVectorPDF returned doc=\(doc != nil ? "✓ \(doc!.pageCount) pages" : "nil")")
+        log.info("  buildVectorPDF returned doc=\(doc != nil ? "✓ \(doc!.pageCount) pages" : "nil")")
         return doc
     }
 
@@ -668,38 +706,46 @@ class PDFGeneratorService: ObservableObject {
     private func proModeQuestionHeight(
         q: ProgressiveQuestionWithGrade,
         image: UIImage?,
+        renderedContent: UIImage?,
         croppedImages: [String: UIImage],
         options: PDFExportOptions
     ) -> CGFloat {
         var h: CGFloat = 0
-        // Header label
-        h += options.labelFontSize + 4 + 12
+        let w = contentWidth - 20
 
         // Main image
         if let img = image {
             h += scaledImageHeight(img, maxWidth: contentWidth, maxHeight: options.maxImageSize) + 12
         }
 
-        // Question text
-        let qt = q.question.displayText
-        if !qt.isEmpty {
-            h += multilineHeight(qt, width: contentWidth, fontSize: options.questionFontSize) + 12
+        if let rendered = renderedContent {
+            // MathJax-rendered text (question number + text + subquestions)
+            h += scaledImageHeight(rendered, maxWidth: w, maxHeight: 4000) + 6
         } else {
-            h += 28
-        }
+            // Header label
+            h += options.labelFontSize + 4 + 12
 
-        // Subquestions
-        if let subs = q.question.subquestions, !subs.isEmpty {
-            let subW = contentWidth - 40
-            for sub in subs {
-                h += 8
-                h += options.labelFontSize + 4 + 6
-                let subImg = croppedImages[sub.id] ?? image
-                if let img = subImg {
-                    h += scaledImageHeight(img, maxWidth: subW, maxHeight: options.maxSubImageSize) + 8
-                }
-                if !sub.questionText.isEmpty {
-                    h += multilineHeight(sub.questionText, width: subW, fontSize: options.questionFontSize) + 8
+            // Question text
+            let qt = q.question.displayText
+            if !qt.isEmpty {
+                h += multilineHeight(qt, width: contentWidth, fontSize: options.questionFontSize) + 12
+            } else {
+                h += 28
+            }
+
+            // Subquestions
+            if let subs = q.question.subquestions, !subs.isEmpty {
+                let subW = contentWidth - 40
+                for sub in subs {
+                    h += 8
+                    h += options.labelFontSize + 4 + 6
+                    let subImg = croppedImages[sub.id] ?? image
+                    if let img = subImg {
+                        h += scaledImageHeight(img, maxWidth: subW, maxHeight: options.maxSubImageSize) + 8
+                    }
+                    if !sub.questionText.isEmpty {
+                        h += multilineHeight(sub.questionText, width: subW, fontSize: options.questionFontSize) + 8
+                    }
                 }
             }
         }
@@ -712,6 +758,7 @@ class PDFGeneratorService: ObservableObject {
         pageRect: CGRect,
         q: ProgressiveQuestionWithGrade,
         image: UIImage?,
+        renderedContent: UIImage?,
         croppedImages: [String: UIImage],
         startY: CGFloat,
         options: PDFExportOptions
@@ -719,52 +766,60 @@ class PDFGeneratorService: ObservableObject {
         var y = startY
         withUIKitContext(ctx: ctx, pageRect: pageRect) {
             let w = contentWidth
-            let headerFont = UIFont.systemFont(ofSize: options.labelFontSize + 4, weight: .bold)
-            let bodyFont   = UIFont.systemFont(ofSize: options.questionFontSize, weight: .regular)
-            let subFont    = UIFont.systemFont(ofSize: options.questionFontSize, weight: .semibold)
             let blue = UIColor(red: 0.0, green: 0.478, blue: 1.0, alpha: 1.0)
 
-            let qNum = q.question.questionNumber ?? "\(q.id)"
-            y += drawString("Question \(qNum)", font: headerFont, color: blue, alignment: .left,
-                            x: margin, y: y, width: w) + 12
-
-            // Main image
+            // Main image (always drawn if present)
             if let img = image {
                 let sz = scaledImageSize(img, maxWidth: w, maxHeight: options.maxImageSize)
                 img.draw(in: CGRect(x: margin, y: y, width: sz.width, height: sz.height))
                 y += sz.height + 12
             }
 
-            // Question text
-            let qt = q.question.displayText
-            if !qt.isEmpty {
-                y += drawMultiline(qt, font: bodyFont, x: margin, y: y, width: w) + 12
+            if let rendered = renderedContent {
+                // MathJax-rendered image: contains "Question N", question text, and subquestions
+                let sz = scaledImageSize(rendered, maxWidth: w - 20, maxHeight: 4000)
+                rendered.draw(in: CGRect(x: margin, y: y, width: sz.width, height: sz.height))
+                y += sz.height + 6
             } else {
-                y += drawString("[Question text not available]",
-                                font: UIFont.italicSystemFont(ofSize: options.questionFontSize),
-                                color: .gray, alignment: .left,
+                let headerFont = UIFont.systemFont(ofSize: options.labelFontSize + 4, weight: .bold)
+                let bodyFont   = UIFont.systemFont(ofSize: options.questionFontSize, weight: .regular)
+                let subFont    = UIFont.systemFont(ofSize: options.questionFontSize, weight: .semibold)
+
+                let qNum = q.question.questionNumber ?? "\(q.id)"
+                y += drawString("Question \(qNum)", font: headerFont, color: blue, alignment: .left,
                                 x: margin, y: y, width: w) + 12
-            }
 
-            // Subquestions
-            if let subs = q.question.subquestions, !subs.isEmpty {
-                let indent: CGFloat = 20
-                let subW = w - indent - 20
-                for sub in subs {
-                    y += 8
-                    y += drawString("  (\(sub.id))", font: subFont, color: blue, alignment: .left,
-                                    x: margin + indent, y: y, width: subW) + 6
+                // Question text
+                let qt = q.question.displayText
+                if !qt.isEmpty {
+                    y += drawMultiline(qt, font: bodyFont, x: margin, y: y, width: w) + 12
+                } else {
+                    y += drawString("[Question text not available]",
+                                    font: UIFont.italicSystemFont(ofSize: options.questionFontSize),
+                                    color: .gray, alignment: .left,
+                                    x: margin, y: y, width: w) + 12
+                }
 
-                    let subImg = croppedImages[sub.id] ?? image
-                    if let img = subImg {
-                        let sz = scaledImageSize(img, maxWidth: subW, maxHeight: options.maxSubImageSize)
-                        img.draw(in: CGRect(x: margin + indent + 20, y: y, width: sz.width, height: sz.height))
-                        y += sz.height + 8
-                    }
+                // Subquestions
+                if let subs = q.question.subquestions, !subs.isEmpty {
+                    let indent: CGFloat = 20
+                    let subW = w - indent - 20
+                    for sub in subs {
+                        y += 8
+                        y += drawString("  (\(sub.id))", font: subFont, color: blue, alignment: .left,
+                                        x: margin + indent, y: y, width: subW) + 6
 
-                    if !sub.questionText.isEmpty {
-                        y += drawMultiline(sub.questionText, font: bodyFont,
-                                           x: margin + indent + 20, y: y, width: subW) + 8
+                        let subImg = croppedImages[sub.id] ?? image
+                        if let img = subImg {
+                            let sz = scaledImageSize(img, maxWidth: subW, maxHeight: options.maxSubImageSize)
+                            img.draw(in: CGRect(x: margin + indent + 20, y: y, width: sz.width, height: sz.height))
+                            y += sz.height + 8
+                        }
+
+                        if !sub.questionText.isEmpty {
+                            y += drawMultiline(sub.questionText, font: bodyFont,
+                                               x: margin + indent + 20, y: y, width: subW) + 8
+                        }
                     }
                 }
             }

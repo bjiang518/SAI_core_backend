@@ -36,10 +36,14 @@ struct HomeView: View {
     @State private var showingMistakeReview = false
     @State private var showingQuestionGeneration = false
     @State private var showingParentReports = false
-    @State private var showingHomeworkAlbum = false  // NEW: Homework Album
-    @State private var showingFocusMode = false  // NEW: Focus Mode
-    @State private var lottieRefreshID: Int = 0  // Incremented on appear to force LottieView re-sync
-    @State private var isMoreFeaturesExpanded: Bool = false
+    @State private var showingHomeworkAlbum = false
+    @State private var showingFocusMode = false
+    @State private var showingFeynmanPractice = false
+    @State private var feynmanWeaknessKey: String = ""
+    @State private var showingDailyQuestion = false
+    @State private var dailyQuestionText: String = ""
+    @State private var lottieRefreshID: Int = 0
+    @State private var isMoreFeaturesExpanded: Bool = true
 
     // ✅ Dark Mode Support: Detect current color scheme
     @Environment(\.colorScheme) var colorScheme
@@ -61,6 +65,11 @@ struct HomeView: View {
                     engagingHeroHeader
                         .padding(.bottom, DesignTokens.Spacing.xxl)
 
+                    // Quick Actions
+                    quickActionsSection
+                        .padding(.bottom, DesignTokens.Spacing.xl)
+                        .environment(\.lottieRefreshID, lottieRefreshID)
+
                     // Suggested daily to-do list (torn notebook style)
                     SuggestedTodosSection(
                         todos: todoEngine.todos,
@@ -68,16 +77,9 @@ struct HomeView: View {
                         onDismiss: { todoEngine.dismiss(id: $0) },
                         onRefresh: { todoEngine.forceRefresh() }
                     )
-                    .frame(minHeight: 300)
-                    .padding(.horizontal, DesignTokens.Spacing.xl)
-                    .padding(.bottom, DesignTokens.Spacing.xxxl)
+                    .padding(.horizontal, DesignTokens.Spacing.sm)
 
-                    // Quick Actions
-                    quickActionsSection
-                        .padding(.bottom, DesignTokens.Spacing.sm)
-                        .environment(\.lottieRefreshID, lottieRefreshID)
-
-                    // More features (brace toggle + expanded content)
+                    // More features — sits flush below the suggestion card
                     additionalActionsSection
                         .environment(\.lottieRefreshID, lottieRefreshID)
 
@@ -89,7 +91,7 @@ struct HomeView: View {
             .navigationBarHidden(true)
             .onAppear {
                 lottieRefreshID += 1
-                todoEngine.refresh()
+                todoEngine.fetchAndRefresh()
                 updateUserName(from: profileService.currentProfile ?? profileService.loadCachedProfile())
             }
             .onReceive(profileService.$currentProfile) { profile in
@@ -110,6 +112,8 @@ struct HomeView: View {
             .onChange(of: appState.homeNavResetToken) { _, _ in
                 showingMistakeReview = false
                 showingQuestionGeneration = false
+                showingFeynmanPractice = false
+                showingDailyQuestion = false
             }
             .sheet(isPresented: $showingParentReports) {
                 NavigationView {
@@ -121,6 +125,21 @@ struct HomeView: View {
             }
             .sheet(isPresented: $showingFocusMode) {
                 FocusView()
+            }
+            .sheet(isPresented: $showingFeynmanPractice) {
+                WeaknessPracticeView(
+                    weaknessKey: feynmanWeaknessKey,
+                    weaknessValue: WeaknessValue(
+                        value: 0.5,
+                        firstDetected: Date(),
+                        lastAttempt: Date(),
+                        totalAttempts: 0,
+                        correctAttempts: 0
+                    )
+                )
+            }
+            .sheet(isPresented: $showingDailyQuestion) {
+                DailyQuestionCard(question: dailyQuestionText)
             }
             .sheet(isPresented: $showingParentAuthForChat) {
                 ParentAuthenticationView(
@@ -158,9 +177,11 @@ struct HomeView: View {
             // Center: Greeting text — ZCOOLKuaiLe for Chinese, IndieFlower for other languages
             Text("\(greetingText), \(userName)")
                 .font(
-                    (Locale.current.language.languageCode?.identifier ?? "") == "zh"
-                        ? Font.custom("ZCOOLKuaiLe-Regular", size: 24)
-                        : Font.custom("IndieFlower", size: 24)
+                    "\(greetingText) \(userName)".unicodeScalars.contains {
+                        (0x4E00...0x9FFF ~= $0.value) || (0x3400...0x4DBF ~= $0.value)
+                    }
+                    ? Font.custom("ZCOOLKuaiLe-Regular", size: 24)
+                    : Font.custom("IndieFlower", size: 24)
                 )
                 .foregroundColor(themeManager.primaryText)
                 .fontWeight(.bold)
@@ -306,21 +327,48 @@ struct HomeView: View {
 
     private func handleTodoAction(_ action: SuggestedTodo.TodoAction) {
         switch action {
+        // ── Category 1: Practice ─────────────────────────────────────────────
+        case .openMistakeReview:
+            showingMistakeReview = true
+        case .startFeynmanPractice(let weaknessKey):
+            feynmanWeaknessKey = weaknessKey
+            showingFeynmanPractice = true
+        case .startConceptReview:
+            // TODO: pass sessionId to QuestionGenerationView for auto-generation (Mode 3)
+            showingQuestionGeneration = true
+        case .startRandomPractice:
+            // TODO: pre-configure QuestionGenerationView for random 5-Q practice
+            showingQuestionGeneration = true
+        // ── Category 2: Main Feature ─────────────────────────────────────────
         case .openGrader:
             if parentModeManager.requiresAuthentication(for: .homeworkGrader) {
                 showingParentAuthForGrader = true
             } else {
                 onSelectTab(.grader)
             }
-        case .resumePractice:
-            showingQuestionGeneration = true
-        case .openMistakeReview:
-            showingMistakeReview = true
+        case .openChat:
+            onSelectTab(.chat)
+        // ── Category 3: Extended Features ────────────────────────────────────
         case .openFocus:
             showingFocusMode = true
+        case .openHomeworkAlbum:
+            showingHomeworkAlbum = true
+        case .openParentReport:
+            if parentModeManager.requiresAuthentication(for: .parentReports) {
+                showingParentAuthForReports = true
+            } else {
+                showingParentReports = true
+            }
         case .openProgress:
             todoEngine.markProgressViewed()
             onSelectTab(.progress)
+        // ── Category 4: Deep Extension ────────────────────────────────────────
+        case .startOralPractice:
+            AppState.shared.pendingChatAction = .startLiveMode(starterPrompt: NSLocalizedString("chat.liveMode.oralPractice.starterPrompt", comment: ""))
+            onSelectTab(.chat)
+        case .showDailyQuestion(let question):
+            dailyQuestionText = question
+            showingDailyQuestion = true
         }
     }
 
@@ -373,49 +421,67 @@ extension HomeView {
         VStack(alignment: .leading, spacing: DesignTokens.Spacing.md) {
             HStack(spacing: DesignTokens.Spacing.md) {
                 // Card 1: Chat
-                QuickActionCard_New(
-                    icon: "message.fill",
-                    title: NSLocalizedString("home.chat", comment: ""),
-                    subtitle: "",
-                    color: themeManager.featureCardColor("chat"),
-                    lottieAnimation: "Chat_bot",
-                    lottieScale: 0.13,
-                    action: {
-                        if parentModeManager.requiresAuthentication(for: .chatFunction) {
-                            showingParentAuthForChat = true
-                        } else {
-                            onSelectTab(.chat)
+                VStack(spacing: 6) {
+                    QuickActionCard_New(
+                        icon: "message.fill",
+                        title: NSLocalizedString("home.chat", comment: ""),
+                        subtitle: "",
+                        color: themeManager.featureCardColor("chat"),
+                        lottieAnimation: "Chat_bot",
+                        lottieScale: 0.117,
+                        cuteCircleColor: DesignTokens.Colors.Cute.blue,
+                        action: {
+                            if parentModeManager.requiresAuthentication(for: .chatFunction) {
+                                showingParentAuthForChat = true
+                            } else {
+                                onSelectTab(.chat)
+                            }
                         }
-                    }
-                )
+                    )
+                    Text(NSLocalizedString("home.quickAction.chat", value: "问AI", comment: ""))
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(themeManager.secondaryText)
+                }
 
                 // Card 2: Homework Grader
-                QuickActionCard_New(
-                    icon: "camera.fill",
-                    title: NSLocalizedString("home.homeworkGrader", comment: ""),
-                    subtitle: "",
-                    color: themeManager.featureCardColor("homework"),
-                    lottieAnimation: "Camera_black",
-                    lottieScale: 0.13,
-                    action: {
-                        if parentModeManager.requiresAuthentication(for: .homeworkGrader) {
-                            showingParentAuthForGrader = true
-                        } else {
-                            onSelectTab(.grader)
+                VStack(spacing: 6) {
+                    QuickActionCard_New(
+                        icon: "camera.fill",
+                        title: NSLocalizedString("home.homeworkGrader", comment: ""),
+                        subtitle: "",
+                        color: themeManager.featureCardColor("homework"),
+                        lottieAnimation: "Camera_black",
+                        lottieScale: 0.117,
+                        cuteCircleColor: DesignTokens.Colors.Cute.yellow,
+                        action: {
+                            if parentModeManager.requiresAuthentication(for: .homeworkGrader) {
+                                showingParentAuthForGrader = true
+                            } else {
+                                onSelectTab(.grader)
+                            }
                         }
-                    }
-                )
+                    )
+                    Text(NSLocalizedString("home.quickAction.homework", value: "作业批改", comment: ""))
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(themeManager.secondaryText)
+                }
 
                 // Card 3: Practice
-                QuickActionCard_New(
-                    icon: "doc.text.fill",
-                    title: NSLocalizedString("home.practice", comment: ""),
-                    subtitle: "",
-                    color: themeManager.featureCardColor("practice"),
-                    lottieAnimation: "createquiz",
-                    lottieScale: 0.13,
-                    action: { showingQuestionGeneration = true }
-                )
+                VStack(spacing: 6) {
+                    QuickActionCard_New(
+                        icon: "doc.text.fill",
+                        title: NSLocalizedString("home.practice", comment: ""),
+                        subtitle: "",
+                        color: themeManager.featureCardColor("practice"),
+                        lottieAnimation: "createquiz",
+                        lottieScale: 0.117,
+                        cuteCircleColor: DesignTokens.Colors.Cute.mint,
+                        action: { showingQuestionGeneration = true }
+                    )
+                    Text(NSLocalizedString("home.quickAction.practice", value: "练习本", comment: ""))
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(themeManager.secondaryText)
+                }
             }
             .padding(.horizontal, DesignTokens.Spacing.xl)
         }
@@ -451,7 +517,6 @@ extension HomeView {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .padding(.top, DesignTokens.Spacing.xs)
             .padding(.bottom, DesignTokens.Spacing.sm)
 
             if isMoreFeaturesExpanded {
@@ -561,6 +626,7 @@ struct QuickActionCard_New: View {
     let lottieAnimation: String?  // Optional Lottie animation name
     let lottieScale: CGFloat  // Scale for Lottie animation
     let lottieOffset: CGPoint  // Offset for Lottie animation position
+    let cuteCircleColor: Color  // Per-card fill color in Cute theme
 
     @State private var isPressed = false
     @State private var rotationAngle: Double = 0
@@ -579,10 +645,11 @@ struct QuickActionCard_New: View {
         self.lottieAnimation = nil
         self.lottieScale = 1.0
         self.lottieOffset = .zero
+        self.cuteCircleColor = .white
     }
 
     // Initializer with Lottie animation
-    init(icon: String, title: String, subtitle: String, color: Color, lottieAnimation: String, lottieScale: CGFloat = 1.0, lottieOffset: CGPoint = .zero, action: @escaping () -> Void) {
+    init(icon: String, title: String, subtitle: String, color: Color, lottieAnimation: String, lottieScale: CGFloat = 1.0, lottieOffset: CGPoint = .zero, cuteCircleColor: Color = .white, action: @escaping () -> Void) {
         self.icon = icon
         self.title = title
         self.subtitle = subtitle
@@ -591,6 +658,7 @@ struct QuickActionCard_New: View {
         self.lottieAnimation = lottieAnimation
         self.lottieScale = lottieScale
         self.lottieOffset = lottieOffset
+        self.cuteCircleColor = cuteCircleColor
     }
 
     var body: some View {
@@ -628,6 +696,21 @@ struct QuickActionCard_New: View {
 
                     // Use Lottie animation if provided, otherwise use SF Symbol
                     if let animationName = lottieAnimation {
+                        // Circular frame — cute: solid themed fill; iOS: white face + colored edge
+                        Circle()
+                            .fill(
+                                themeManager.currentTheme == .cute
+                                    ? cuteCircleColor.opacity(isPressed ? 0.45 : 0.55)
+                                    : Color.white
+                            )
+                            .overlay(
+                                themeManager.currentTheme == .cute
+                                    ? nil
+                                    : Circle().stroke(color.opacity(isPressed ? 0.60 : 0.40), lineWidth: 2)
+                            )
+                            .frame(width: 86, height: 86)
+                            .offset(x: lottieOffset.x, y: lottieOffset.y - 16)
+                            .scaleEffect(isPressed ? 0.92 : 1.0)
                         LottieView(
                             animationName: animationName,
                             loopMode: .loop,

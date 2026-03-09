@@ -926,6 +926,31 @@
 "chat.emptyState.greeting" = "你好！我是 %@";
 "chat.emptyState.subtext" = "问我任何关于%@的问题，我会帮助你学习！";
 "chat.emptyState.tryAsking" = "试试问：";
+"chat.emptyState.subtitle.0" = "我可以回答任何问题";
+"chat.emptyState.subtitle.1" = "有什么可以帮你的？";
+"chat.emptyState.subtitle.2" = "今天想学点什么？";
+"chat.emptyState.subtitle.3" = "准备好开始啦！";
+"chat.emptyState.subtitle.4" = "问我任何你好奇的事";
+"chat.emptyState.subtitle.5" = "一起来探索吧！";
+"chat.emptyState.subtitle.6" = "有问题尽管问我";
+"chat.emptyState.subtitle.7" = "学习从这里开始";
+"chat.emptyState.subtitle.8" = "今天的功课，我来帮";
+"chat.emptyState.subtitle.9" = "有什么难题吗？";
+"chat.emptyState.subtitle.10" = "随时都可以问我";
+"chat.emptyState.subtitle.11" = "让我们一起搞懂它";
+"chat.emptyState.subtitle.12" = "好奇心是最好的老师";
+"chat.emptyState.subtitle.13" = "有什么想弄懂的吗？";
+"chat.emptyState.subtitle.14" = "我在这里，随时准备好了";
+"chat.emptyState.subtitle.15" = "今天想挑战什么？";
+"chat.emptyState.subtitle.16" = "不懂就问，没关系的";
+"chat.emptyState.subtitle.17" = "一个问题，就是一次进步";
+"chat.emptyState.subtitle.18" = "让学习变得更有趣";
+"chat.emptyState.subtitle.19" = "有什么我可以解释的吗？";
+"chat.emptyState.subtitle.20" = "把难题交给我吧";
+"chat.emptyState.subtitle.21" = "今天又学了点新东西？";
+"chat.emptyState.subtitle.22" = "好奇心无限，我也是";
+"chat.emptyState.subtitle.23" = "问题越多越好，问吧！";
+"chat.emptyState.subtitle.24" = "学无止境，我们开始吧";
 
 // Smart Suggestions
 "chat.suggestion.showSteps" = "显示步驟";
@@ -2230,9 +2255,100 @@
 "onboarding.language.title" = "选择语言";
 "onboarding.language.subtitle" = "您可以随时在设置中更改";
 
+// Onboarding — Role
+"onboarding.role.title" = "欢迎！";
+"onboarding.role.subtitle" = "谁在设置这个应用？";
+"onboarding.role.student.title" = "学生";
+"onboarding.role.student.subtitle" = "我需要学习上的帮助";
+"onboarding.role.parent.title" = "家长";
+"onboarding.role.parent.subtitle" = "我在为我的孩子设置";
+
+// Onboarding — Age
+"onboarding.age.title" = "你几岁了？";
+"onboarding.age.subtitle" = "帮助我们个性化你的体验";
+"onboarding.age.placeholder" = "输入你的年龄";
+
+// Onboarding — Learning Style
+"onboarding.learningStyle.title" = "你希望AI怎样帮助你？";
+"onboarding.learningStyle.subtitle" = "你可以随时在设置中更改";
+"onboarding.learningStyle.guide" = "引导我";
+"onboarding.learningStyle.tell" = "告诉我";
+"onboarding.learningStyle.guide.desc" = "通过提问让我自己找到答案";
+"onboarding.learningStyle.tell.desc" = "给我最佳解法，并逐步讲解";
+
+// Onboarding — Consent
+"onboarding.consent.title" = "最后一步";
+"onboarding.consent.privacy.questions" = "你的问题保持私密";
+"onboarding.consent.privacy.activity" = "你的活动帮助个性化学习";
+"onboarding.consent.privacy.profile" = "你的资料不会被分享";
+"onboarding.consent.privacyPolicy" = "隐私政策";
+"onboarding.consent.agree" = "我同意隐私政策";
+"onboarding.consent.required" = "你必须同意才能继续";
+"onboarding.getStarted" = "开始使用";
+
+// Parent Reports — List View
+"reports.passive.title" = "家长报告";
+"reports.passive.subtitle" = "每周、每月学习洞察";
+"reports.passive.editReports" = "编辑报告";
+"reports.passive.testingMode" = "测试模式";
+"reports.passive.testingMode.message" = "手动触发报告生成（仅供测试）。此按钮将在正式版本中删除。";
+"reports.passive.generateWeekly" = "生成周报";
+"reports.passive.generateMonthly" = "生成月报";
+"reports.passive.deleteTitle" = "删除报告？";
+"reports.passive.deleteOne" = "删除 1 份报告";
+"reports.passive.deleteMany" = "删除 %d 份报告";
+"reports.passive.deleteConfirmOne" = "确定要删除 1 份报告吗？此操作无法撤销。";
+"reports.passive.deleteConfirmMany" = "确定要删除 %d 份报告吗？此操作无法撤销。";
+"reports.passive.loading" = "正在加载报告...";
+"reports.passive.empty.title" = "暂无报告";
+"reports.passive.empty.weekly" = "每周日晚上 10 点生成周报，请稍后查看！";
+"reports.passive.empty.monthly" = "月报在每月 1 号生成。";
+"reports.passive.reportsAvailable" = "%d 份报告可查看";
+"reports.passive.metric.accuracy" = "正确率";
+"reports.passive.metric.questions" = "题目数";
+"reports.passive.metric.studyTime" = "学习时长";
+"reports.passive.metric.streak" = "连续天数";
+"reports.passive.metric.engagement" = "参与度";
+"reports.passive.metric.confidence" = "自信度";
+"reports.passive.trend.accuracy" = "正确率";
+"reports.passive.trend.activity" = "活跃度";
+
+// Parent Reports — Detail View
+"reports.passive.weeklyReport" = "周报";
+"reports.passive.monthlyReport" = "月报";
+"reports.passive.detailedReports" = "详细报告";
+"reports.passive.keyInsights" = "关键洞察";
+"reports.passive.recommendations" = "建议";
+"reports.passive.learningProgress" = "学习进展";
+"reports.passive.overallGrade" = "综合评级";
+"reports.passive.trend.improving" = "进步中";
+"reports.passive.trend.stable" = "稳定";
+"reports.passive.trend.declining" = "下滑";
+"reports.passive.mental" = "心理";
+"reports.passive.mentalHealth.excellent" = "优秀";
+"reports.passive.mentalHealth.good" = "良好";
+"reports.passive.mentalHealth.fair" = "一般";
+"reports.passive.mentalHealth.low" = "偏低";
+
+// Parent Reports — Onboarding
+"reports.passive.onboarding.title" = "获取每周学习洞察";
+"reports.passive.onboarding.subtitle" = "AI 为家长生成的报告，每周准时送达";
+"reports.passive.onboarding.feature.progress.title" = "进度追踪";
+"reports.passive.onboarding.feature.progress.desc" = "了解孩子每周的进步情况";
+"reports.passive.onboarding.feature.ai.title" = "AI 洞察";
+"reports.passive.onboarding.feature.ai.desc" = "基于作业数据的个性化建议";
+"reports.passive.onboarding.feature.mental.title" = "心理健康";
+"reports.passive.onboarding.feature.mental.desc" = "监测参与度和自信心信号";
+"reports.passive.onboarding.feature.private.title" = "私密安全";
+"reports.passive.onboarding.feature.private.desc" = "数据已加密，不会与第三方共享";
+"reports.passive.onboarding.dataNote" = "生成报告时，作业数据会自动同步到服务器";
+"reports.passive.onboarding.enable" = "开启家长报告";
+"reports.passive.onboarding.noThanks" = "暂不开启";
+
 // Suggested Daily Todos
 "suggestedTodo.sectionTitle" = "建议事项";
 "suggestedTodo.empty" = "今日任务已全部完成 🎉";
+"suggestedTodo.collapsed" = "展开看看今天推荐";
 "suggestedTodo.resumePractice.title" = "继续练习";
 "suggestedTodo.resumePractice.subtitle" = "还剩 %d 题未完成";
 "suggestedTodo.resumePractice.subtitleGeneral" = "继续上次进度";
@@ -2246,3 +2362,57 @@
 "suggestedTodo.progress.subtitle" = "掌握你的学习轨迹";
 "suggestedTodo.focusMode.subtitleDone" = "今日已完成 %d 次，再来一次";
 "suggestedTodo.progress.subtitleToday" = "了解今日学习成果";
+"suggestedTodo.greeting.0" = "随便看看，不强迫的 ✨";
+"suggestedTodo.greeting.1" = "今天想一起探索点什么？";
+"suggestedTodo.greeting.2" = "有几个小想法给你";
+"suggestedTodo.greeting.3" = "不如试试这些？";
+"suggestedTodo.greeting.4" = "今天想做点什么呢";
+"suggestedTodo.greeting.5" = "灵感来了，要不要试试";
+"suggestedTodo.greeting.6" = "随手试一个也不错";
+"suggestedTodo.greeting.7" = "看心情，挑一个玩玩";
+"suggestedTodo.greeting.8" = "供参考，不用全做哦";
+"suggestedTodo.greeting.9" = "来，给你几个建议";
+"suggestedTodo.greeting.10" = "有点想法，分享给你 📝";
+"suggestedTodo.greeting.11" = "今天的小发现";
+"suggestedTodo.greeting.12" = "随便玩玩，看看喜欢啥";
+"suggestedTodo.greeting.13" = "今天可以试试这些 ✨";
+"suggestedTodo.greeting.14" = "有没有你感兴趣的？";
+
+// MARK: - Quick Action Labels
+"home.quickAction.chat" = "问AI";
+"home.quickAction.homework" = "作业批改";
+"home.quickAction.practice" = "练习本";
+
+// MARK: - Suggested Todo Items
+"todo.mistakeReview.count.one" = "1 道错题";
+"todo.mistakeReview.count.many" = "%d 道错题";
+"todo.mistakeReview.title" = "复习错题";
+"todo.feynman.title" = "费曼练习";
+"todo.feynman.subtitle" = "针对「%@」生成专项习题";
+"todo.conceptReview.defaultSubject" = "近期对话";
+"todo.conceptReview.title" = "概念复习";
+"todo.conceptReview.subtitle" = "根据「%@」出题";
+"todo.randomPractice.defaultSubject" = "综合";
+"todo.randomPractice.title" = "随机练习";
+"todo.randomPractice.subtitle" = "%@ · 5 道选择/判断题";
+"todo.practiceRetry.title" = "再练一次 %@";
+"todo.practiceRetry.subtitle" = "上次得分 %@，继续加油！";
+"todo.grader.title" = "批改今天的作业";
+"todo.grader.subtitle" = "拍一张照片让 AI 分析";
+"todo.chat.title" = "问 AI 一个问题";
+"todo.chat.subtitle" = "把今天的困惑说出来";
+"todo.focus.title" = "番茄专注 25 分钟";
+"todo.focus.subtitle.none" = "今天还没有专注记录";
+"todo.focus.subtitle.some" = "今日已完成 %d 次，再来一次";
+"todo.album.title" = "作业相册";
+"todo.album.subtitle.generic" = "查看保存的作业";
+"todo.album.subtitle.subject" = "最近：%@";
+"todo.progress.title" = "查看本周进度";
+"todo.progress.subtitle.today" = "了解今日学习成果";
+"todo.progress.subtitle.general" = "掌握你的学习轨迹";
+"todo.oral.title" = "AI 口语练习";
+"todo.oral.subtitle" = "和 AI 开口聊聊今天所学";
+"todo.dailyQuestion.title" = "你知道吗？";
+"todo.dailyQuestion.fallback.title" = "开始一段 AI 对话";
+"todo.dailyQuestion.fallback.subtitle" = "随时可以向 AI 提问";
+"chat.liveMode.oralPractice.starterPrompt" = "我们来练习口语吧！你可以向我提问、纠正我的发音，或者自由交流。想练什么？";

@@ -68,6 +68,9 @@ class VoiceChatViewModel: ObservableObject {
     /// Subject for the session
     private let subject: String
 
+    /// Optional scenario prompt (sets Live Mode scene)
+    private let scenarioPrompt: String?
+
     /// Selected AI character
     let voiceType: VoiceType
 
@@ -128,10 +131,11 @@ class VoiceChatViewModel: ObservableObject {
 
     // MARK: - Initialization
 
-    init(sessionId: String, subject: String, voiceType: VoiceType) {
+    init(sessionId: String, subject: String, voiceType: VoiceType, scenarioPrompt: String? = nil) {
         self.sessionId = sessionId
         self.subject = subject
         self.voiceType = voiceType
+        self.scenarioPrompt = scenarioPrompt
 
         logger.info("VoiceChatViewModel initialized for session: \(sessionId), subject: \(subject), character: \(voiceType.rawValue)")
 
@@ -207,11 +211,15 @@ class VoiceChatViewModel: ObservableObject {
         }
 
         // Start session
-        sendWebSocketMessage(type: "start_session", data: [
+        var startData: [String: Any] = [
             "subject": subject,
             "language": getCurrentLanguage(),
             "character": voiceType.rawValue
-        ])
+        ]
+        if let prompt = scenarioPrompt {
+            startData["scenario_prompt"] = prompt
+        }
+        sendWebSocketMessage(type: "start_session", data: startData)
 
         // Start receiving messages
         receiveWebSocketMessages()

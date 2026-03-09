@@ -39,7 +39,7 @@ struct PassiveReportsView: View {
                 VStack(spacing: 0) {
                     // Header section with subtitle
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Weekly and monthly learning insights")
+                        Text(NSLocalizedString("reports.passive.subtitle", value: "Weekly and monthly learning insights", comment: ""))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
@@ -61,7 +61,7 @@ struct PassiveReportsView: View {
                     }
                 }
             }
-            .navigationTitle("Parent Reports")
+            .navigationTitle(NSLocalizedString("reports.passive.title", value: "Parent Reports", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 // Info button
@@ -91,7 +91,7 @@ struct PassiveReportsView: View {
                                 isEditMode = true
                                 print("🔧 [EditMode] isEditMode = \(isEditMode)")
                             } label: {
-                                Label("Edit Reports", systemImage: "checkmark.circle")
+                                Label(NSLocalizedString("reports.passive.editReports", value: "Edit Reports", comment: ""), systemImage: "checkmark.circle")
                             }
                         } label: {
                             Image(systemName: "ellipsis.circle")
@@ -103,7 +103,7 @@ struct PassiveReportsView: View {
                 // Edit mode: Cancel button
                 if isEditMode {
                     ToolbarItem(placement: .navigationBarLeading) {
-                        Button("Cancel") {
+                        Button(NSLocalizedString("common.cancel", value: "Cancel", comment: "")) {
                             isEditMode = false
                             selectedBatches.removeAll()
                         }
@@ -115,23 +115,23 @@ struct PassiveReportsView: View {
             } message: {
                 Text(NSLocalizedString("passiveReports.info.message", comment: ""))
             }
-            .alert("Testing Mode", isPresented: $showTestingAlert) {
-                Button("Generate Weekly Report") {
+            .alert(NSLocalizedString("reports.passive.testingMode", value: "Testing Mode", comment: ""), isPresented: $showTestingAlert) {
+                Button(NSLocalizedString("reports.passive.generateWeekly", value: "Generate Weekly Report", comment: "")) {
                     Task {
                         await viewModel.triggerManualGeneration(period: "weekly")
                     }
                 }
-                Button("Generate Monthly Report") {
+                Button(NSLocalizedString("reports.passive.generateMonthly", value: "Generate Monthly Report", comment: "")) {
                     Task {
                         await viewModel.triggerManualGeneration(period: "monthly")
                     }
                 }
-                Button("Cancel", role: .cancel) {}
+                Button(NSLocalizedString("common.cancel", value: "Cancel", comment: ""), role: .cancel) {}
             } message: {
-                Text("Manually trigger report generation for testing. This button will be removed in production.")
+                Text(NSLocalizedString("reports.passive.testingMode.message", value: "Manually trigger report generation for testing. This button will be removed in production.", comment: ""))
             }
-            .alert("Error", isPresented: $viewModel.showError) {
-                Button("OK") {
+            .alert(NSLocalizedString("common.error", value: "Error", comment: ""), isPresented: $viewModel.showError) {
+                Button(NSLocalizedString("common.ok", value: "OK", comment: "")) {
                     viewModel.errorMessage = nil
                 }
             } message: {
@@ -222,7 +222,9 @@ struct PassiveReportsView: View {
                 Button {
                     showDeleteConfirmation = true
                 } label: {
-                    Text("Delete \(selectedBatches.count) Report\(selectedBatches.count > 1 ? "s" : "")")
+                    Text(selectedBatches.count == 1
+                        ? NSLocalizedString("reports.passive.deleteOne", value: "Delete 1 Report", comment: "")
+                        : String(format: NSLocalizedString("reports.passive.deleteMany", value: "Delete %d Reports", comment: ""), selectedBatches.count))
                         .font(.headline)
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
@@ -234,13 +236,15 @@ struct PassiveReportsView: View {
             }
         }
         .padding(.horizontal, 20)
-        .alert("Delete Reports?", isPresented: $showDeleteConfirmation) {
-            Button("Cancel", role: .cancel) {}
-            Button("Delete", role: .destructive) {
+        .alert(NSLocalizedString("reports.passive.deleteTitle", value: "Delete Reports?", comment: ""), isPresented: $showDeleteConfirmation) {
+            Button(NSLocalizedString("common.cancel", value: "Cancel", comment: ""), role: .cancel) {}
+            Button(NSLocalizedString("common.delete", value: "Delete", comment: ""), role: .destructive) {
                 deleteSelectedBatches()
             }
         } message: {
-            Text("Are you sure you want to delete \(selectedBatches.count) report\(selectedBatches.count > 1 ? "s" : "")? This action cannot be undone.")
+            Text(selectedBatches.count == 1
+                ? NSLocalizedString("reports.passive.deleteConfirmOne", value: "Are you sure you want to delete 1 report? This action cannot be undone.", comment: "")
+                : String(format: NSLocalizedString("reports.passive.deleteConfirmMany", value: "Are you sure you want to delete %d reports? This action cannot be undone.", comment: ""), selectedBatches.count))
         }
     }
 
@@ -248,7 +252,7 @@ struct PassiveReportsView: View {
         VStack(spacing: 16) {
             ProgressView()
                 .scaleEffect(1.5)
-            Text("Loading reports...")
+            Text(NSLocalizedString("reports.passive.loading", value: "Loading reports...", comment: ""))
                 .font(.system(size: 16))
                 .foregroundColor(.secondary)
         }
@@ -262,13 +266,13 @@ struct PassiveReportsView: View {
                 .foregroundColor(.gray.opacity(0.5))
 
             VStack(spacing: 8) {
-                Text("No Reports Available")
+                Text(NSLocalizedString("reports.passive.empty.title", value: "No Reports Available", comment: ""))
                     .font(.title2)
                     .fontWeight(.semibold)
 
-                Text(selectedPeriod == .weekly ?
-                    "Weekly reports are generated every Sunday at 10 PM. Check back soon!" :
-                    "Monthly reports are generated on the 1st of each month.")
+                Text(selectedPeriod == .weekly
+                    ? NSLocalizedString("reports.passive.empty.weekly", value: "Weekly reports are generated every Sunday at 10 PM. Check back soon!", comment: "")
+                    : NSLocalizedString("reports.passive.empty.monthly", value: "Monthly reports are generated on the 1st of each month.", comment: ""))
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -370,26 +374,26 @@ struct PassiveReportBatchCard: View {
             // Metrics row
             HStack(spacing: 20) {
                 if let accuracy = batch.overallAccuracy {
-                    metricItem(icon: "chart.bar.fill", value: "\(Int(accuracy * 100))%", label: "Accuracy")
+                    metricItem(icon: "chart.bar.fill", value: "\(Int(accuracy * 100))%", label: NSLocalizedString("reports.passive.metric.accuracy", value: "Accuracy", comment: ""))
                 }
 
                 if let questions = batch.questionCount {
-                    metricItem(icon: "questionmark.circle.fill", value: "\(questions)", label: "Questions")
+                    metricItem(icon: "questionmark.circle.fill", value: "\(questions)", label: NSLocalizedString("reports.passive.metric.questions", value: "Questions", comment: ""))
                 }
 
                 if let time = batch.studyTimeMinutes {
-                    metricItem(icon: "clock.fill", value: "\(time)m", label: "Study Time")
+                    metricItem(icon: "clock.fill", value: "\(time)m", label: NSLocalizedString("reports.passive.metric.studyTime", value: "Study Time", comment: ""))
                 }
             }
 
             // Trends (if available)
             HStack(spacing: 12) {
                 if let accuracyTrend = batch.accuracyTrend {
-                    trendBadge(trend: accuracyTrend, label: "Accuracy")
+                    trendBadge(trend: accuracyTrend, label: NSLocalizedString("reports.passive.trend.accuracy", value: "Accuracy", comment: ""))
                 }
 
                 if let activityTrend = batch.activityTrend {
-                    trendBadge(trend: activityTrend, label: "Activity")
+                    trendBadge(trend: activityTrend, label: NSLocalizedString("reports.passive.trend.activity", value: "Activity", comment: ""))
                 }
             }
 
@@ -397,7 +401,7 @@ struct PassiveReportBatchCard: View {
             HStack {
                 Image(systemName: "doc.text.fill")
                     .font(.caption)
-                Text("\(batch.reportCount ?? 0) reports available")
+                Text(String(format: NSLocalizedString("reports.passive.reportsAvailable", value: "%d reports available", comment: ""), batch.reportCount ?? 0))
                     .font(.caption)
             }
             .foregroundColor(.blue)

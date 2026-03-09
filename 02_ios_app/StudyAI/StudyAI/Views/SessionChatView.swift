@@ -112,6 +112,7 @@ struct SessionChatView: View {
     @State private var showingArchiveSuccess = false
     @State private var showingVoiceSettings = false
     @State private var showingCamera = false
+    @State private var showingScenarioPicker = false
     @State private var showingImageInputSheet = false
     @State private var showingExistingSessionAlert = false
     @State private var isVoiceMode = false
@@ -119,6 +120,11 @@ struct SessionChatView: View {
     @State private var showingPermissionAlert = false
     @State private var showingArchiveInfo = false
     @State private var exampleCardScale: CGFloat = 0.8
+    @State private var emptyStateSubtitle: String = ""
+
+    private let emptyStateSubtitles: [String] = (0..<25).map {
+        NSLocalizedString("chat.emptyState.subtitle.\($0)", comment: "")
+    }
     // Live mode (WeChat-style inline voice chat)
     @State private var isLiveMode = false
     @StateObject private var liveVMHolder = LiveVMHolder()
@@ -259,12 +265,14 @@ struct SessionChatView: View {
                             Label(NSLocalizedString("chat.menu.endLive", value: "End Live", comment: ""), systemImage: "waveform.slash")
                         }
                     } else {
+                        // Live Talk (plain, no scenario)
                         Button(action: {
                         Task { @MainActor in
                             @MainActor func doEnterLive(_ sessionId: String) {
                                 // Stop any playing TTS before entering Live mode
                                 ttsQueueService.stopAllTTS()
-                                let vm = VoiceChatViewModel(sessionId: sessionId, subject: viewModel.selectedSubject, voiceType: voiceService.voiceSettings.voiceType)
+                                let vm = VoiceChatViewModel(sessionId: sessionId, subject: viewModel.selectedSubject, voiceType: voiceService.voiceSettings.voiceType, scenarioPrompt: viewModel.liveModeStarterPrompt)
+                                viewModel.liveModeStarterPrompt = nil
                                 // Wire voice message callback into unified message list
                                 vm.onMessageAppended = { voiceMsg in
                                     allMessages.append(.voice(voiceMsg, audioData: voiceMsg.audioData))
@@ -302,6 +310,11 @@ struct SessionChatView: View {
                         }
                     }) {
                             Label(NSLocalizedString("chat.menu.liveTalk", comment: ""), systemImage: "waveform.circle.fill")
+                        }
+
+                        // Live 场景选择
+                        Button(action: { showingScenarioPicker = true }) {
+                            Label(NSLocalizedString("chat.menu.liveScenario", value: "Live 场景", comment: ""), systemImage: "theatermask.and.paintbrush.fill")
                         }
                     }
 
@@ -370,6 +383,12 @@ struct SessionChatView: View {
             // }
             .sheet(isPresented: $showingVoiceSettings) {
                 VoiceSettingsView()
+            }
+            .sheet(isPresented: $showingScenarioPicker) {
+                LiveModeScenarioPicker { scenario in
+                    handleScenarioSelection(scenario)
+                }
+                .presentationDetents([.medium, .large])
             }
             .sheet(isPresented: $showingCamera) {
                 ImageSourceSelectionView(selectedImage: $viewModel.selectedImage, isPresented: $showingCamera)
@@ -509,7 +528,41 @@ struct SessionChatView: View {
                     allMessages.append(.text(index: idx, dict: dict))
                 }
 
-                if let message = appState.pendingChatMessage {
+                if let action = appState.pendingChatAction {
+                    appState.pendingChatAction = nil
+                    switch action {
+                    case .sendMessage(let text, let subject, let useDeepMode):
+                        viewModel.pendingHomeworkQuestion = text
+                        viewModel.pendingHomeworkSubject = subject ?? "General"
+                        appState.shouldUseDeepModeForFirstMessage = useDeepMode
+                        if !networkService.conversationHistory.isEmpty {
+                            showingExistingSessionAlert = true
+                        } else {
+                            viewModel.proceedWithHomeworkQuestion()
+                        }
+                    case .prefillMessage(let text, let subject):
+                        viewModel.messageText = text
+                        if let subject { viewModel.pendingHomeworkSubject = subject }
+                        if networkService.currentSessionId == nil {
+                            hasConversationStarted = false
+                            viewModel.startNewSession()
+                        }
+                    case .startLiveMode(let starterPrompt):
+                        viewModel.liveModeStarterPrompt = starterPrompt
+                        if networkService.currentSessionId == nil {
+                            hasConversationStarted = false
+                            viewModel.pendingLiveModeActivation = true
+                            viewModel.startNewSession()
+                        } else {
+                            // Session already exists — trigger Live Mode directly
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    isLiveMode = true
+                                }
+                            }
+                        }
+                    }
+                } else if let message = appState.pendingChatMessage {
                     viewModel.pendingHomeworkQuestion = message
                     viewModel.pendingHomeworkSubject = appState.pendingChatSubject ?? "General"
 
@@ -549,6 +602,13 @@ struct SessionChatView: View {
                             hasConversationStarted = false
                         }
                     }
+                }
+            }
+            .onChange(of: viewModel.shouldActivateLiveMode) { _, newValue in
+                guard newValue else { return }
+                viewModel.shouldActivateLiveMode = false
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    isLiveMode = true
                 }
             }
             .onChange(of: viewModel.selectedImage) { _, newImage in
@@ -1532,6 +1592,62 @@ struct SessionChatView: View {
 
     // MARK: - Archive Live Session
 
+    /// Handle scenario selection from LiveModeScenarioPicker.
+    /// Builds the prompt and enters Live Mode (creating a session first if needed).
+    private func handleScenarioSelection(_ scenario: LiveModeScenario) {
+        let profile = ProfileService.shared.currentProfile
+        let grade    = profile?.gradeLevel   ?? "Student"
+        let name     = profile?.displayName  ?? profile?.firstName ?? NSLocalizedString("home.defaultStudentName", comment: "")
+        let language = Locale.preferredLanguages.first.flatMap { lang -> String? in
+            if lang.hasPrefix("zh") { return lang.contains("Hant") ? "zh-Hant" : "zh-Hans" }
+            return nil
+        } ?? "en"
+
+        let prompt = scenario.buildPrompt(grade: grade, name: name, language: language)
+        viewModel.liveModeStarterPrompt = prompt
+
+        Task { @MainActor in
+            @MainActor func doEnterLive(_ sessionId: String) {
+                ttsQueueService.stopAllTTS()
+                let vm = VoiceChatViewModel(
+                    sessionId: sessionId,
+                    subject: viewModel.selectedSubject,
+                    voiceType: voiceService.voiceSettings.voiceType,
+                    scenarioPrompt: viewModel.liveModeStarterPrompt
+                )
+                viewModel.liveModeStarterPrompt = nil
+                vm.onMessageAppended = { voiceMsg in
+                    allMessages.append(.voice(voiceMsg, audioData: voiceMsg.audioData))
+                }
+                vm.onMessageTextUpdated = { msgId, newText in
+                    if let idx = allMessages.firstIndex(where: { $0.id == "voice-\(msgId.uuidString)" }) {
+                        if case .voice(var voiceMsg, let audioData) = allMessages[idx] {
+                            voiceMsg.text = newText
+                            allMessages[idx] = .voice(voiceMsg, audioData: audioData)
+                        }
+                    }
+                }
+                liveVMHolder.set(vm)
+                vm.connectToGeminiLive()
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    isLiveMode = true
+                    if !allMessages.isEmpty { hasConversationStarted = true }
+                }
+            }
+
+            if let sessionId = networkService.currentSessionId {
+                doEnterLive(sessionId)
+            } else {
+                viewModel.startNewSession()
+                for await sessionId in networkService.$currentSessionId.values
+                    .compactMap({ $0 }).prefix(1) {
+                    doEnterLive(sessionId)
+                }
+            }
+        }
+    }
+
+
     /// Archive a Live mode session.
     /// Builds conversation content directly from the in-memory vm.messages (no backend fetch needed),
     /// saves user voice audio files to disk so library bubbles are playable,
@@ -1848,55 +1964,21 @@ struct SessionChatView: View {
             AIAvatarAnimation(state: .idle, voiceType: voiceService.voiceSettings.voiceType)
                 .frame(width: 80, height: 80)
 
-            VStack(spacing: 12) {
+            VStack(spacing: 8) {
                 Text(String(format: NSLocalizedString("chat.emptyState.greeting", comment: ""), voiceService.voiceSettings.voiceType.displayName))
                     .font(.system(size: 24, weight: .semibold))
                     .foregroundColor(.primary)
 
-                Text(String(format: NSLocalizedString("chat.emptyState.subtext", comment: ""), viewModel.selectedSubject.lowercased()))
+                Text(emptyStateSubtitle)
                     .font(.system(size: 16))
-                    .foregroundColor(.primary.opacity(0.8))
+                    .foregroundColor(.primary.opacity(0.6))
                     .multilineTextAlignment(.center)
-                    .lineSpacing(2)
-            }
-
-            // Subject-specific example prompts
-            VStack(alignment: .leading, spacing: 12) {
-                Text(subjectEmoji(for: viewModel.selectedSubject) + " " + NSLocalizedString("chat.emptyState.tryAsking", comment: ""))
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.primary)
-
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(examplePrompts(for: viewModel.selectedSubject), id: \.self) { prompt in
-                        Text("• \(prompt)")
-                    }
-                }
-                .font(.system(size: 14))
-                .foregroundColor(.primary.opacity(0.7))
-            }
-            .padding(20)
-            .background(subjectBackgroundColor(for: viewModel.selectedSubject))
-            .cornerRadius(16)
-            .scaleEffect(exampleCardScale)
-            .onAppear {
-                // Trigger zoom-in animation with 0.5-second delay
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
-                        exampleCardScale = 1.0
-                    }
-                }
-            }
-            .onChange(of: viewModel.selectedSubject) { _, _ in
-                // Reset and re-animate when subject changes
-                exampleCardScale = 0.8
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
-                        exampleCardScale = 1.0
-                    }
-                }
             }
         }
         .padding(.vertical, 40)
+        .onAppear {
+            emptyStateSubtitle = emptyStateSubtitles.randomElement() ?? ""
+        }
     }
 
     // Subject-specific emoji

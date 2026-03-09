@@ -538,6 +538,11 @@ FEEDBACK REQUIREMENT (mandatory, must not be empty):
 - If incorrect (score < 0.9): write 50-100 words explaining the specific error and guiding toward the correct understanding.
 - If correct (score >= 0.9): write under 50 words confirming what the student did well.
 
+MATH FORMATTING (this is JSON output — backslashes must be doubled):
+- Inline math: \\(expression\\) — e.g. \\(\\frac{3}{2}\\), \\(x^2\\), \\(\\text{mol}\\)
+- Display math: \\[expression\\]
+- NEVER use bare LaTeX commands or $ signs outside delimiters
+
 Return JSON with: score, is_correct, feedback, confidence, correct_answer
 """
 
