@@ -866,6 +866,77 @@ module.exports = async function (fastify, opts) {
 
   // NOTE: DELETE /api/reports/passive/batches (bulk, no ID) moved to passive-reports.REDACTED.js
   // iOS only deletes individual batches by ID. Zero callers for the bulk variant.
+
+  /**
+   * Enable automated parent reports for the authenticated user.
+   * Writes scheduling preferences to the profiles table so the cron scheduler
+   * can find this user on future hourly ticks.
+   *
+   * POST /api/parent-reports/enable
+   * Body: { timezone: string, reportDay: 0-6, reportHour: 0-23 }
+   */
+  fastify.post('/api/parent-reports/enable', async (request, reply) => {
+    const userId = await requireAuth(request, reply);
+    if (!userId) return;
+
+    const { timezone, reportDay, reportHour } = request.body || {};
+
+    // Validate inputs
+    const tz       = (typeof timezone === 'string' && timezone.trim()) ? timezone.trim() : 'UTC';
+    const dayOfWeek = Number.isInteger(reportDay)  && reportDay  >= 0 && reportDay  <= 6 ? reportDay  : 0;
+    const hour      = Number.isInteger(reportHour) && reportHour >= 0 && reportHour <= 23 ? reportHour : 21;
+
+    try {
+      const { db } = require('../../utils/railway-database');
+
+      await db.query(
+        `UPDATE profiles
+         SET parent_reports_enabled = true,
+             report_day_of_week     = $2,
+             report_time_hour       = $3,
+             timezone               = $4
+         WHERE user_id = $1`,
+        [userId, dayOfWeek, hour, tz]
+      );
+
+      logger.info(`[PassiveReports] Enabled for user ${userId} — day ${dayOfWeek}, hour ${hour}, tz ${tz}`);
+
+      return reply.send({
+        success: true,
+        message: 'Parent reports enabled',
+        nextReportTime: _describeNextReport(dayOfWeek, hour, tz),
+      });
+    } catch (error) {
+      logger.error('❌ Failed to enable parent reports:', error);
+      return reply.status(500).send({ success: false, error: 'Failed to enable parent reports' });
+    }
+  });
+
+  /**
+   * Disable automated parent reports for the authenticated user.
+   *
+   * POST /api/parent-reports/disable
+   */
+  fastify.post('/api/parent-reports/disable', async (request, reply) => {
+    const userId = await requireAuth(request, reply);
+    if (!userId) return;
+
+    try {
+      const { db } = require('../../utils/railway-database');
+
+      await db.query(
+        `UPDATE profiles SET parent_reports_enabled = false WHERE user_id = $1`,
+        [userId]
+      );
+
+      logger.info(`[PassiveReports] Disabled for user ${userId}`);
+
+      return reply.send({ success: true, message: 'Parent reports disabled' });
+    } catch (error) {
+      logger.error('❌ Failed to disable parent reports:', error);
+      return reply.status(500).send({ success: false, error: 'Failed to disable parent reports' });
+    }
+  });
 };
 
 /**
@@ -934,4 +1005,16 @@ function calculateDateRange(period) {
   endDate.setHours(23, 59, 59, 999);
 
   return { startDate, endDate };
+}
+
+/**
+ * Return a human-readable description of when the next weekly report will run,
+ * e.g. "Sunday at 9:00 PM (America/Los_Angeles)".
+ * Used as the nextReportTime field in the enable response.
+ */
+function _describeNextReport(dayOfWeek, hour, timezone) {
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const period = hour < 12 ? 'AM' : 'PM';
+  const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+  return `${days[dayOfWeek]} at ${displayHour}:00 ${period} (${timezone})`;
 }

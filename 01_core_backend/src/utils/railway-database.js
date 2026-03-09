@@ -5144,7 +5144,7 @@ async function runDatabaseMigrations() {
         await db.query(`
           CREATE TABLE IF NOT EXISTS practice_sheets (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            user_id UUID REFERENCES users(id) ON DELETE CASCADE,
             sheet_id VARCHAR(255) UNIQUE NOT NULL,
             subject VARCHAR(100),
             source_type VARCHAR(50),
