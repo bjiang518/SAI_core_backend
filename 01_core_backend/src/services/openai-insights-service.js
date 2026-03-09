@@ -460,6 +460,7 @@ Format as numbered list with priority markers.`
             userId: context.userId,
             period: context.period,
             startDate: context.startDate?.toISOString().split('T')[0],
+            language: context.language || 'en',
             // Include key signal values that affect output
             keySignals: this.extractKeySignals(signals)
         };

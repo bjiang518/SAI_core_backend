@@ -283,8 +283,8 @@ module.exports = async function (fastify, opts) {
              * Translates iOS "start_session" to official "setup" message
              */
             async function handleStartSession(data) {
-                const { subject, language, character } = data;
-                logger.info({ sessionId, subject, language, character }, '[Live] handleStartSession');
+                const { subject, language, character, scenario_prompt } = data;
+                logger.info({ sessionId, subject, language, character, hasScenario: !!scenario_prompt }, '[Live] handleStartSession');
 
                 currentSubject = subject || null;
 
@@ -301,7 +301,7 @@ module.exports = async function (fastify, opts) {
                 };
                 const voiceName = geminiVoiceMap[character] || 'Puck';
 
-                const systemInstruction = buildSystemInstruction(subject, language);
+                const systemInstruction = buildSystemInstruction(subject, language, scenario_prompt);
 
                 const setupMessage = {
                     setup: {
@@ -993,7 +993,7 @@ ${lines.join('\n')}
     /**
      * Build system instruction for educational tutor
      */
-    function buildSystemInstruction(subject, language = 'en') {
+    function buildSystemInstruction(subject, language = 'en', scenarioPrompt = null) {
         const subjectContext = subject || 'General';
 
         const prompts = {
@@ -1106,7 +1106,9 @@ Always encourage the student and adapt your teaching style to their needs.`,
 始終鼓勵學生，根據他們的需求調整教學方式。`
         };
 
-        return prompts[language] || prompts.en;
+        const base = prompts[language] || prompts.en;
+        if (!scenarioPrompt) return base;
+        return `${base}\n\n---\n\n🎭 SCENARIO:\n${scenarioPrompt}`;
     }
 
     /**

@@ -735,8 +735,8 @@ class SessionManagementRoutes {
       const archiveResult = await db.archiveConversation({
         userId: authenticatedUserId,
         sessionId: sessionId,
-        subject: subject || sessionInfo.subject || 'general',
-        title: title || `${sessionInfo.subject} Session`,
+        subject: analysis.subject || subject || sessionInfo.subject || 'General',
+        title: title || `${analysis.subject || sessionInfo.subject || 'Study'} Session`,
         summary: analysis.summary,
         conversationHistory: conversationHistory,
         topic: topic,
@@ -807,6 +807,7 @@ class SessionManagementRoutes {
         archived_conversation_id: archiveResult.id,
         session_id: sessionId,
         summary: analysis.summary,
+        detected_subject: analysis.subject || null,
         message_count: conversationHistory.length,
         // Include the serialised conversation so iOS can populate local storage
         // even when conversationHistory is empty on the iOS side (e.g. Live sessions)

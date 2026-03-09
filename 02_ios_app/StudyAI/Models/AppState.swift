@@ -8,6 +8,19 @@
 import SwiftUI
 import Combine
 
+// MARK: - PendingChatAction
+
+/// Unified intent for navigating to the Chat tab with a specific behaviour.
+/// Set `AppState.shared.pendingChatAction` then switch to `.chat` tab.
+enum PendingChatAction: Equatable {
+    /// Auto-send a message immediately on chat open (existing behaviour).
+    case sendMessage(text: String, subject: String?, useDeepMode: Bool)
+    /// Pre-fill the input field without auto-sending — user decides.
+    case prefillMessage(text: String, subject: String?)
+    /// Open chat and immediately launch Live Mode, optionally with a starter prompt.
+    case startLiveMode(starterPrompt: String?)
+}
+
 /// Homework question context for follow-up AI chat
 struct HomeworkQuestionContext {
     let questionText: String
@@ -93,9 +106,12 @@ class AppState: ObservableObject {
     /// HomeView observes this to pop its navigation stack back to root.
     @Published var homeNavResetToken = 0
 
+    /// Unified navigation intent for jumping to the Chat tab.
+    /// Consumed once by SessionChatView.onAppear and then cleared.
+    @Published var pendingChatAction: PendingChatAction? = nil
+
     /// Power Saving Mode - disables all animations when enabled
-    @Published var isPowerSavingMode: Bool {
-        didSet {
+    @Published var isPowerSavingMode: Bool {        didSet {
             UserDefaults.standard.set(isPowerSavingMode, forKey: "isPowerSavingMode")
         }
     }

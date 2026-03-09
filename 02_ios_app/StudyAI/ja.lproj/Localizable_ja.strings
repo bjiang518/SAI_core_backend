@@ -1036,9 +1036,34 @@
 "chat.alert.archiveSuccess.startNewChat" = "Start New チャット";
 
 // Empty State
-"chat.emptyState.greeting" = "Hi! I'm %@";
-"chat.emptyState.subtext" = "Ask me anything about %@ and I'll help you learn!";
-"chat.emptyState.tryAsking" = "Try asking:";
+"chat.emptyState.greeting" = "こんにちは！私は %@ です";
+"chat.emptyState.subtext" = "%@について何でも聞いてください。学習をお手伝いします！";
+"chat.emptyState.tryAsking" = "こんな質問をしてみよう：";
+"chat.emptyState.subtitle.0" = "どんな質問でも答えます";
+"chat.emptyState.subtitle.1" = "何かお手伝いできますか？";
+"chat.emptyState.subtitle.2" = "今日は何を学びたいですか？";
+"chat.emptyState.subtitle.3" = "さあ始めましょう！";
+"chat.emptyState.subtitle.4" = "気になることを何でも聞いてください";
+"chat.emptyState.subtitle.5" = "一緒に探求しましょう！";
+"chat.emptyState.subtitle.6" = "何でも気軽に聞いてください";
+"chat.emptyState.subtitle.7" = "学びはここから始まります";
+"chat.emptyState.subtitle.8" = "宿題を手伝いましょうか？";
+"chat.emptyState.subtitle.9" = "難しい問題がありますか？";
+"chat.emptyState.subtitle.10" = "いつでもここにいます";
+"chat.emptyState.subtitle.11" = "一緒に解決しましょう";
+"chat.emptyState.subtitle.12" = "好奇心は最高の先生です";
+"chat.emptyState.subtitle.13" = "何か理解したいことはありますか？";
+"chat.emptyState.subtitle.14" = "準備完了、いつでもどうぞ";
+"chat.emptyState.subtitle.15" = "今日の挑戦は何ですか？";
+"chat.emptyState.subtitle.16" = "どんな小さな質問でも大丈夫";
+"chat.emptyState.subtitle.17" = "質問するたびに成長できます";
+"chat.emptyState.subtitle.18" = "学びを楽しくしましょう";
+"chat.emptyState.subtitle.19" = "何か説明しましょうか？";
+"chat.emptyState.subtitle.20" = "難しい問題を任せてください";
+"chat.emptyState.subtitle.21" = "今日は新しいことを学びましたか？";
+"chat.emptyState.subtitle.22" = "好奇心は無限大、私もです";
+"chat.emptyState.subtitle.23" = "質問は多ければ多いほどいい！";
+"chat.emptyState.subtitle.24" = "学びに終わりはない、始めましょう";
 
 // Smart Suggestions
 "chat.suggestion.showSteps" = "Show steps";
@@ -2159,6 +2184,96 @@
 "onboarding.language.title" = "言語を選択";
 "onboarding.language.subtitle" = "設定でいつでも変更できます";
 
+// Onboarding — Role
+"onboarding.role.title" = "ようこそ！";
+"onboarding.role.subtitle" = "誰がアプリを設定しますか？";
+"onboarding.role.student.title" = "生徒";
+"onboarding.role.student.subtitle" = "勉強のサポートが欲しい";
+"onboarding.role.parent.title" = "保護者";
+"onboarding.role.parent.subtitle" = "子どものために設定しています";
+
+// Onboarding — Age
+"onboarding.age.title" = "何歳ですか？";
+"onboarding.age.subtitle" = "体験をパーソナライズするのに役立ちます";
+"onboarding.age.placeholder" = "年齢を入力";
+
+// Onboarding — Learning Style
+"onboarding.learningStyle.title" = "AIにどんなサポートをしてほしいですか？";
+"onboarding.learningStyle.subtitle" = "設定でいつでも変更できます";
+"onboarding.learningStyle.guide" = "導いてください";
+"onboarding.learningStyle.tell" = "教えてください";
+"onboarding.learningStyle.guide.desc" = "質問してもらって自分で考えます";
+"onboarding.learningStyle.tell.desc" = "最良の解決策を示して、ステップごとに説明してください";
+
+// Onboarding — Consent
+"onboarding.consent.title" = "最後のステップ";
+"onboarding.consent.privacy.questions" = "質問はプライベートです";
+"onboarding.consent.privacy.activity" = "あなたの活動が学習のパーソナライズに役立ちます";
+"onboarding.consent.privacy.profile" = "プロフィールは共有されません";
+"onboarding.consent.privacyPolicy" = "プライバシーポリシー";
+"onboarding.consent.agree" = "プライバシーポリシーに同意します";
+"onboarding.consent.required" = "続けるには同意する必要があります";
+"onboarding.getStarted" = "始める";
+
+// Parent Reports — List View
+"reports.passive.title" = "保護者レポート";
+"reports.passive.subtitle" = "週次・月次の学習インサイト";
+"reports.passive.editReports" = "レポートを編集";
+"reports.passive.testingMode" = "テストモード";
+"reports.passive.testingMode.message" = "テスト用にレポート生成を手動で起動します。このボタンは本番環境では削除されます。";
+"reports.passive.generateWeekly" = "週次レポートを生成";
+"reports.passive.generateMonthly" = "月次レポートを生成";
+"reports.passive.deleteTitle" = "レポートを削除しますか？";
+"reports.passive.deleteOne" = "1件のレポートを削除";
+"reports.passive.deleteMany" = "%d件のレポートを削除";
+"reports.passive.deleteConfirmOne" = "本当に1件のレポートを削除しますか？この操作は元に戻せません。";
+"reports.passive.deleteConfirmMany" = "本当に%d件のレポートを削除しますか？この操作は元に戻せません。";
+"reports.passive.loading" = "レポートを読み込んでいます...";
+"reports.passive.empty.title" = "レポートがありません";
+"reports.passive.empty.weekly" = "週次レポートは毎週日曜日の22時に生成されます。後でまた確認してください！";
+"reports.passive.empty.monthly" = "月次レポートは毎月1日に生成されます。";
+"reports.passive.reportsAvailable" = "%d件のレポートが利用可能";
+"reports.passive.metric.accuracy" = "正確さ";
+"reports.passive.metric.questions" = "問題数";
+"reports.passive.metric.studyTime" = "学習時間";
+"reports.passive.metric.streak" = "連続日数";
+"reports.passive.metric.engagement" = "参加度";
+"reports.passive.metric.confidence" = "自信度";
+"reports.passive.trend.accuracy" = "正確さ";
+"reports.passive.trend.activity" = "活動";
+
+// Parent Reports — Detail View
+"reports.passive.weeklyReport" = "週次レポート";
+"reports.passive.monthlyReport" = "月次レポート";
+"reports.passive.detailedReports" = "詳細レポート";
+"reports.passive.keyInsights" = "重要な洞察";
+"reports.passive.recommendations" = "おすすめ";
+"reports.passive.learningProgress" = "学習進捗";
+"reports.passive.overallGrade" = "総合評価";
+"reports.passive.trend.improving" = "向上中";
+"reports.passive.trend.stable" = "安定";
+"reports.passive.trend.declining" = "低下中";
+"reports.passive.mental" = "メンタル";
+"reports.passive.mentalHealth.excellent" = "優秀";
+"reports.passive.mentalHealth.good" = "良好";
+"reports.passive.mentalHealth.fair" = "普通";
+"reports.passive.mentalHealth.low" = "低い";
+
+// Parent Reports — Onboarding
+"reports.passive.onboarding.title" = "週次学習インサイトを受け取ろう";
+"reports.passive.onboarding.subtitle" = "保護者向けAI生成レポート、毎週配信";
+"reports.passive.onboarding.feature.progress.title" = "進捗管理";
+"reports.passive.onboarding.feature.progress.desc" = "お子さんが毎週どのように成長しているか確認できます";
+"reports.passive.onboarding.feature.ai.title" = "AIによる洞察";
+"reports.passive.onboarding.feature.ai.desc" = "宿題データに基づいたパーソナライズされたアドバイス";
+"reports.passive.onboarding.feature.mental.title" = "メンタルウェルビーイング";
+"reports.passive.onboarding.feature.mental.desc" = "参加度と自信の信号を監視します";
+"reports.passive.onboarding.feature.private.title" = "プライベート＆安全";
+"reports.passive.onboarding.feature.private.desc" = "データは暗号化され、第三者と共有されることはありません";
+"reports.passive.onboarding.dataNote" = "レポート生成時に宿題データが自動的にサーバーと同期されます";
+"reports.passive.onboarding.enable" = "保護者レポートを有効にする";
+"reports.passive.onboarding.noThanks" = "いいえ、結構です";
+
 // New Practice Sheet
 "newPractice.title" = "New Practice";
 "newPractice.error.title" = "Generation Failed";
@@ -2220,6 +2335,7 @@
 // Suggested Daily Todos
 "suggestedTodo.sectionTitle" = "おすすめ";
 "suggestedTodo.empty" = "今日のタスクはすべて完了 🎉";
+"suggestedTodo.collapsed" = "今日のおすすめを見てみる";
 "suggestedTodo.resumePractice.title" = "未完了の練習を再開";
 "suggestedTodo.resumePractice.subtitle" = "残り %d 問";
 "suggestedTodo.resumePractice.subtitleGeneral" = "前回の続きから";
@@ -2231,3 +2347,57 @@
 "suggestedTodo.focusMode.subtitle" = "今日はまだ集中セッションなし";
 "suggestedTodo.progress.title" = "今週の進捗を確認";
 "suggestedTodo.progress.subtitle" = "学習の軌跡を把握しよう";
+"suggestedTodo.greeting.0" = "気軽に見てみてね ✨";
+"suggestedTodo.greeting.1" = "今日は何を探索したい？";
+"suggestedTodo.greeting.2" = "いくつかアイデアがあるよ";
+"suggestedTodo.greeting.3" = "これはどう？";
+"suggestedTodo.greeting.4" = "今日は何をしたい気分？";
+"suggestedTodo.greeting.5" = "気が向いたらやってみて";
+"suggestedTodo.greeting.6" = "ひとつだけ試してみる？";
+"suggestedTodo.greeting.7" = "気分次第でどうぞ";
+"suggestedTodo.greeting.8" = "急がなくていいよ";
+"suggestedTodo.greeting.9" = "思いついたことをシェアするね";
+"suggestedTodo.greeting.10" = "今日の小さな発見";
+"suggestedTodo.greeting.11" = "好きなものを選んでね";
+"suggestedTodo.greeting.12" = "強制じゃないよ、ただの提案";
+"suggestedTodo.greeting.13" = "ちょっと見てみて ✨";
+"suggestedTodo.greeting.14" = "気になるものある？";
+
+// MARK: - Quick Action Labels
+"home.quickAction.chat" = "AIに質問";
+"home.quickAction.homework" = "宿題採点";
+"home.quickAction.practice" = "練習";
+
+// MARK: - Suggested Todo Items
+"todo.mistakeReview.count.one" = "間違い1問";
+"todo.mistakeReview.count.many" = "間違い%d問";
+"todo.mistakeReview.title" = "間違いを復習";
+"todo.feynman.title" = "フェイマン練習";
+"todo.feynman.subtitle" = "「%@」の専門問題を生成";
+"todo.conceptReview.defaultSubject" = "最近の会話";
+"todo.conceptReview.title" = "概念復習";
+"todo.conceptReview.subtitle" = "「%@」から問題を生成";
+"todo.randomPractice.defaultSubject" = "全科目";
+"todo.randomPractice.title" = "ランダム練習";
+"todo.randomPractice.subtitle" = "%@ · 5問";
+"todo.practiceRetry.title" = "%@をもう一度";
+"todo.practiceRetry.subtitle" = "前回のスコア%@ — もう少しで上がる！";
+"todo.grader.title" = "今日の宿題を採点";
+"todo.grader.subtitle" = "写真を撮ってAIに分析させる";
+"todo.chat.title" = "AIに質問する";
+"todo.chat.subtitle" = "今日の疑問を聞いてみよう";
+"todo.focus.title" = "ポモドーロ25分集中";
+"todo.focus.subtitle.none" = "今日はまだ集中セッションなし";
+"todo.focus.subtitle.some" = "今日%d回完了・もう一回";
+"todo.album.title" = "宿題アルバム";
+"todo.album.subtitle.generic" = "保存した宿題を確認";
+"todo.album.subtitle.subject" = "最近：%@";
+"todo.progress.title" = "今週の進捗";
+"todo.progress.subtitle.today" = "今日の学習結果を確認";
+"todo.progress.subtitle.general" = "学習の軌跡を把握";
+"todo.oral.title" = "AIスピーキング練習";
+"todo.oral.subtitle" = "今日学んだことをAIと話そう";
+"todo.dailyQuestion.title" = "知ってた？";
+"todo.dailyQuestion.fallback.title" = "AIと会話を始める";
+"todo.dailyQuestion.fallback.subtitle" = "いつでもAIに質問できる";
+"chat.liveMode.oralPractice.starterPrompt" = "スピーキング練習をしましょう！質問したり、発音を直したり、自由に会話したりできます。何を練習しますか？";

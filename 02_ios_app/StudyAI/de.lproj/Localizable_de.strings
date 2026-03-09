@@ -1012,9 +1012,34 @@
 "chat.alert.archiveSuccess.startNewChat" = "Start New Chat";
 
 // Empty State
-"chat.emptyState.greeting" = "Hi! I'm %@";
-"chat.emptyState.subtext" = "Ask me anything about %@ and I'll help you learn!";
-"chat.emptyState.tryAsking" = "Try asking:";
+"chat.emptyState.greeting" = "Hallo! Ich bin %@";
+"chat.emptyState.subtext" = "Frag mich alles über %@ und ich helfe dir beim Lernen!";
+"chat.emptyState.tryAsking" = "Probier mal:";
+"chat.emptyState.subtitle.0" = "Ich kann jede Frage beantworten";
+"chat.emptyState.subtitle.1" = "Wie kann ich dir helfen?";
+"chat.emptyState.subtitle.2" = "Was möchtest du heute lernen?";
+"chat.emptyState.subtitle.3" = "Bereit loszulegen!";
+"chat.emptyState.subtitle.4" = "Frag mich alles, was dich neugierig macht";
+"chat.emptyState.subtitle.5" = "Lass uns gemeinsam entdecken!";
+"chat.emptyState.subtitle.6" = "Frag mich einfach alles";
+"chat.emptyState.subtitle.7" = "Lernen beginnt hier";
+"chat.emptyState.subtitle.8" = "Brauchst du Hilfe bei den Hausaufgaben?";
+"chat.emptyState.subtitle.9" = "Hast du eine knifflige Frage?";
+"chat.emptyState.subtitle.10" = "Ich bin immer für dich da";
+"chat.emptyState.subtitle.11" = "Lass uns das zusammen herausfinden";
+"chat.emptyState.subtitle.12" = "Neugier ist der beste Lehrer";
+"chat.emptyState.subtitle.13" = "Etwas, das du verstehen möchtest?";
+"chat.emptyState.subtitle.14" = "Ich bin bereit zu helfen";
+"chat.emptyState.subtitle.15" = "Was ist deine Herausforderung heute?";
+"chat.emptyState.subtitle.16" = "Keine Frage ist zu klein";
+"chat.emptyState.subtitle.17" = "Jede Frage ist ein Schritt nach vorne";
+"chat.emptyState.subtitle.18" = "Lass uns Lernen Spaß machen";
+"chat.emptyState.subtitle.19" = "Soll ich etwas erklären?";
+"chat.emptyState.subtitle.20" = "Bring mir die schwierigen Aufgaben";
+"chat.emptyState.subtitle.21" = "Heute schon etwas Neues gelernt?";
+"chat.emptyState.subtitle.22" = "Unbegrenzte Neugier — ich auch";
+"chat.emptyState.subtitle.23" = "Je mehr Fragen, desto besser!";
+"chat.emptyState.subtitle.24" = "Lernen hört nie auf — fangen wir an";
 
 // Smart Suggestions
 "chat.suggestion.showSteps" = "Show steps";
@@ -2095,6 +2120,96 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "onboarding.language.title" = "Sprache wählen";
 "onboarding.language.subtitle" = "Sie können dies jederzeit in den Einstellungen ändern";
 
+// Onboarding — Role
+"onboarding.role.title" = "Willkommen!";
+"onboarding.role.subtitle" = "Wer richtet die App ein?";
+"onboarding.role.student.title" = "Schüler";
+"onboarding.role.student.subtitle" = "Ich möchte Hilfe bei meinem Studium";
+"onboarding.role.parent.title" = "Elternteil";
+"onboarding.role.parent.subtitle" = "Ich richte das für mein Kind ein";
+
+// Onboarding — Age
+"onboarding.age.title" = "Wie alt bist du?";
+"onboarding.age.subtitle" = "Hilft uns, das Erlebnis zu personalisieren";
+"onboarding.age.placeholder" = "Gib dein Alter ein";
+
+// Onboarding — Learning Style
+"onboarding.learningStyle.title" = "Wie soll dir die KI helfen?";
+"onboarding.learningStyle.subtitle" = "Das kannst du jederzeit in den Einstellungen ändern";
+"onboarding.learningStyle.guide" = "Führe mich";
+"onboarding.learningStyle.tell" = "Erkläre mir";
+"onboarding.learningStyle.guide.desc" = "Stelle mir Fragen, damit ich selbst auf die Lösung komme";
+"onboarding.learningStyle.tell.desc" = "Gib mir die beste Lösung und erkläre sie Schritt für Schritt";
+
+// Onboarding — Consent
+"onboarding.consent.title" = "Fast geschafft";
+"onboarding.consent.privacy.questions" = "Deine Fragen bleiben privat";
+"onboarding.consent.privacy.activity" = "Deine Aktivität hilft dabei, das Lernen zu personalisieren";
+"onboarding.consent.privacy.profile" = "Dein Profil wird nie geteilt";
+"onboarding.consent.privacyPolicy" = "Datenschutzrichtlinie";
+"onboarding.consent.agree" = "Ich stimme der Datenschutzrichtlinie zu";
+"onboarding.consent.required" = "Du musst zustimmen, um fortzufahren";
+"onboarding.getStarted" = "Los geht's";
+
+// Parent Reports — List View
+"reports.passive.title" = "Elternberichte";
+"reports.passive.subtitle" = "Wöchentliche und monatliche Lerneinblicke";
+"reports.passive.editReports" = "Berichte bearbeiten";
+"reports.passive.testingMode" = "Testmodus";
+"reports.passive.testingMode.message" = "Berichtsgenerierung manuell auslösen (nur zum Testen). Diese Schaltfläche wird in der Produktion entfernt.";
+"reports.passive.generateWeekly" = "Wochenbericht erstellen";
+"reports.passive.generateMonthly" = "Monatsbericht erstellen";
+"reports.passive.deleteTitle" = "Berichte löschen?";
+"reports.passive.deleteOne" = "1 Bericht löschen";
+"reports.passive.deleteMany" = "%d Berichte löschen";
+"reports.passive.deleteConfirmOne" = "Möchtest du wirklich 1 Bericht löschen? Diese Aktion kann nicht rückgängig gemacht werden.";
+"reports.passive.deleteConfirmMany" = "Möchtest du wirklich %d Berichte löschen? Diese Aktion kann nicht rückgängig gemacht werden.";
+"reports.passive.loading" = "Berichte werden geladen...";
+"reports.passive.empty.title" = "Keine Berichte verfügbar";
+"reports.passive.empty.weekly" = "Wochenberichte werden jeden Sonntag um 22 Uhr erstellt. Schau bald wieder vorbei!";
+"reports.passive.empty.monthly" = "Monatsberichte werden am 1. eines jeden Monats erstellt.";
+"reports.passive.reportsAvailable" = "%d Berichte verfügbar";
+"reports.passive.metric.accuracy" = "Genauigkeit";
+"reports.passive.metric.questions" = "Fragen";
+"reports.passive.metric.studyTime" = "Lernzeit";
+"reports.passive.metric.streak" = "Streak";
+"reports.passive.metric.engagement" = "Engagement";
+"reports.passive.metric.confidence" = "Selbstvertrauen";
+"reports.passive.trend.accuracy" = "Genauigkeit";
+"reports.passive.trend.activity" = "Aktivität";
+
+// Parent Reports — Detail View
+"reports.passive.weeklyReport" = "Wochenbericht";
+"reports.passive.monthlyReport" = "Monatsbericht";
+"reports.passive.detailedReports" = "DETAILLIERTE BERICHTE";
+"reports.passive.keyInsights" = "Wichtige Erkenntnisse";
+"reports.passive.recommendations" = "Empfehlungen";
+"reports.passive.learningProgress" = "LERNFORTSCHRITT";
+"reports.passive.overallGrade" = "Gesamtnote";
+"reports.passive.trend.improving" = "Verbessernd";
+"reports.passive.trend.stable" = "Stabil";
+"reports.passive.trend.declining" = "Rückläufig";
+"reports.passive.mental" = "Mental";
+"reports.passive.mentalHealth.excellent" = "Ausgezeichnet";
+"reports.passive.mentalHealth.good" = "Gut";
+"reports.passive.mentalHealth.fair" = "Mäßig";
+"reports.passive.mentalHealth.low" = "Gering";
+
+// Parent Reports — Onboarding
+"reports.passive.onboarding.title" = "Wöchentliche Lerneinblicke erhalten";
+"reports.passive.onboarding.subtitle" = "KI-generierte Berichte für Eltern, jede Woche";
+"reports.passive.onboarding.feature.progress.title" = "Fortschrittsverfolgung";
+"reports.passive.onboarding.feature.progress.desc" = "Sieh, wie dein Kind sich jede Woche verbessert";
+"reports.passive.onboarding.feature.ai.title" = "KI-gestützte Einblicke";
+"reports.passive.onboarding.feature.ai.desc" = "Personalisierte Empfehlungen basierend auf Hausaufgabendaten";
+"reports.passive.onboarding.feature.mental.title" = "Mentales Wohlbefinden";
+"reports.passive.onboarding.feature.mental.desc" = "Engagement- und Selbstvertrauenssignale überwachen";
+"reports.passive.onboarding.feature.private.title" = "Privat & Sicher";
+"reports.passive.onboarding.feature.private.desc" = "Daten sind verschlüsselt und werden nie an Dritte weitergegeben";
+"reports.passive.onboarding.dataNote" = "Hausaufgabendaten werden automatisch synchronisiert, wenn du einen Bericht generierst";
+"reports.passive.onboarding.enable" = "Elternberichte aktivieren";
+"reports.passive.onboarding.noThanks" = "Nein danke";
+
 // New Practice Sheet
 "newPractice.title" = "New Practice";
 "newPractice.error.title" = "Generation Failed";
@@ -2156,6 +2271,7 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 // Suggested Daily Todos
 "suggestedTodo.sectionTitle" = "Vorschläge";
 "suggestedTodo.empty" = "Alle Aufgaben für heute erledigt 🎉";
+"suggestedTodo.collapsed" = "Tippe für Vorschläge von heute";
 "suggestedTodo.resumePractice.title" = "Übung fortsetzen";
 "suggestedTodo.resumePractice.subtitle" = "Noch %d Fragen offen";
 "suggestedTodo.resumePractice.subtitleGeneral" = "Weitermachen";
@@ -2167,3 +2283,57 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "suggestedTodo.focusMode.subtitle" = "Noch keine Fokussitzung heute";
 "suggestedTodo.progress.title" = "Wochenfortschritt ansehen";
 "suggestedTodo.progress.subtitle" = "Behalte deinen Lernweg im Blick";
+"suggestedTodo.greeting.0" = "Schau dich einfach um ✨";
+"suggestedTodo.greeting.1" = "Was möchtest du heute entdecken?";
+"suggestedTodo.greeting.2" = "Ein paar Ideen für dich";
+"suggestedTodo.greeting.3" = "Wie wär's damit?";
+"suggestedTodo.greeting.4" = "Worauf hast du heute Lust?";
+"suggestedTodo.greeting.5" = "Inspiriert? Dann leg los";
+"suggestedTodo.greeting.6" = "Probier einfach eine aus";
+"suggestedTodo.greeting.7" = "Je nach Stimmung";
+"suggestedTodo.greeting.8" = "Nur Vorschläge, kein Druck";
+"suggestedTodo.greeting.9" = "Ein paar Gedanken für dich";
+"suggestedTodo.greeting.10" = "Kleine Entdeckungen für heute";
+"suggestedTodo.greeting.11" = "Such dir eine aus";
+"suggestedTodo.greeting.12" = "Kein Zwang, nur Ideen";
+"suggestedTodo.greeting.13" = "Einfach mal reinschauen ✨";
+"suggestedTodo.greeting.14" = "Ist was dabei?";
+
+// MARK: - Quick Action Labels
+"home.quickAction.chat" = "KI fragen";
+"home.quickAction.homework" = "Hausaufgaben";
+"home.quickAction.practice" = "Üben";
+
+// MARK: - Suggested Todo Items
+"todo.mistakeReview.count.one" = "1 Fehler";
+"todo.mistakeReview.count.many" = "%d Fehler";
+"todo.mistakeReview.title" = "Fehler wiederholen";
+"todo.feynman.title" = "Feynman-Methode";
+"todo.feynman.subtitle" = "Aufgaben für \"%@\" generieren";
+"todo.conceptReview.defaultSubject" = "Letztes Gespräch";
+"todo.conceptReview.title" = "Konzeptwiederholung";
+"todo.conceptReview.subtitle" = "Quiz aus \"%@\"";
+"todo.randomPractice.defaultSubject" = "Alle Fächer";
+"todo.randomPractice.title" = "Zufallsübung";
+"todo.randomPractice.subtitle" = "%@ · 5 Aufgaben";
+"todo.practiceRetry.title" = "%@ nochmal üben";
+"todo.practiceRetry.subtitle" = "Letztes Ergebnis: %@ — weiter so!";
+"todo.grader.title" = "Hausaufgaben korrigieren";
+"todo.grader.subtitle" = "Foto machen für KI-Analyse";
+"todo.chat.title" = "KI eine Frage stellen";
+"todo.chat.subtitle" = "Was verwirrt dich heute?";
+"todo.focus.title" = "Pomodoro 25 Min. fokussieren";
+"todo.focus.subtitle.none" = "Noch keine Fokussitzung heute";
+"todo.focus.subtitle.some" = "%d heute erledigt · nochmal";
+"todo.album.title" = "Hausaufgaben-Album";
+"todo.album.subtitle.generic" = "Gespeicherte Hausaufgaben ansehen";
+"todo.album.subtitle.subject" = "Zuletzt: %@";
+"todo.progress.title" = "Wochenfortschritt";
+"todo.progress.subtitle.today" = "Heutige Ergebnisse ansehen";
+"todo.progress.subtitle.general" = "Lernreise verfolgen";
+"todo.oral.title" = "KI-Sprechübung";
+"todo.oral.subtitle" = "Mit KI über die heutige Lektion sprechen";
+"todo.dailyQuestion.title" = "Wusstest du?";
+"todo.dailyQuestion.fallback.title" = "KI-Gespräch starten";
+"todo.dailyQuestion.fallback.subtitle" = "Frag die KI jederzeit";
+"chat.liveMode.oralPractice.starterPrompt" = "Lass uns sprechen üben! Du kannst mir Fragen stellen, meine Aussprache korrigieren oder frei plaudern. Womit möchtest du beginnen?";

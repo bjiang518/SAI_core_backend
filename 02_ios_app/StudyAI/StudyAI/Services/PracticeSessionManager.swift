@@ -148,8 +148,15 @@ class PracticeSessionManager: ObservableObject {
     /// Normalize + localize a raw subject string for display.
     /// Delegates to BranchLocalizer which uses Taxonomy.strings — the same table
     /// used everywhere else in the app for subject/topic names.
+    /// "Others: Science" → localizes prefix and suffix separately → "其他: 科学"
     static func localizeSubject(_ raw: String) -> String {
-        BranchLocalizer.localized(normalizeSubject(raw))
+        if raw.hasPrefix("Others: ") {
+            let suffix = String(raw.dropFirst("Others: ".count))
+            let localizedPrefix = BranchLocalizer.localized("Others:")
+            let localizedSuffix = BranchLocalizer.localized(suffix)
+            return "\(localizedPrefix) \(localizedSuffix)"
+        }
+        return BranchLocalizer.localized(normalizeSubject(raw))
     }
 
     /// Normalize a raw subject string to the canonical form used throughout the app.
@@ -215,10 +222,14 @@ class PracticeSessionManager: ObservableObject {
     /// Fire-and-forget sync on create — failures are silently logged
     func syncSessionCreated(_ session: PracticeSession) async {
         let sourceType: String
+        let generationMode: Int
         switch session.generationType {
-        case "Mistake-Based Practice", "Mistake-Based": sourceType = "mistake"
-        case "Conversation-Based", "Conversation-Based Practice": sourceType = "archive"
-        default: sourceType = "random"
+        case "Mistake-Based Practice", "Mistake-Based":
+            sourceType = "mistake"; generationMode = 2
+        case "Conversation-Based", "Conversation-Based Practice":
+            sourceType = "archive"; generationMode = 3
+        default:
+            sourceType = "random"; generationMode = 1
         }
 
         do {
@@ -226,7 +237,9 @@ class PracticeSessionManager: ObservableObject {
                 sheetId: session.id,
                 subject: session.subject,
                 sourceType: sourceType,
-                questionCount: session.questions.count
+                questionCount: session.questions.count,
+                generationMode: generationMode,
+                difficulty: session.difficulty
             )
         } catch {
             logger.warning("⚠️ Practice sheet sync (create) failed (non-fatal): \(error.localizedDescription)")
@@ -243,7 +256,8 @@ class PracticeSessionManager: ObservableObject {
             try await NetworkService.shared.completePracticeSheet(
                 sheetId: session.id,
                 completedCount: total,
-                scorePercentage: scorePct
+                scorePercentage: scorePct,
+                timeSpentSeconds: session.timeSpentSeconds
             )
         } catch {
             logger.warning("⚠️ Practice sheet sync (complete) failed (non-fatal): \(error.localizedDescription)")
@@ -443,6 +457,20 @@ struct PracticeSession: Codable, Identifiable, Hashable {
 
     var remainingQuestions: Int {
         questions.count - completedQuestionIds.count
+    }
+
+    /// Score percentage (0–100) based on answered questions. nil if nothing answered yet.
+    var scorePercentage: Double? {
+        guard !completedQuestionIds.isEmpty else { return nil }
+        let correct = answers.values.filter { ($0["is_correct"] as? Bool) == true }.count
+        return Double(correct) / Double(completedQuestionIds.count) * 100.0
+    }
+
+    /// Time spent in seconds, derived from first and last answer timestamps.
+    var timeSpentSeconds: Int? {
+        let timestamps = answers.values.compactMap { $0["timestamp"] as? Double }
+        guard let first = timestamps.min(), let last = timestamps.max(), last > first else { return nil }
+        return Int(last - first)
     }
 
     var localizedGenerationType: String {

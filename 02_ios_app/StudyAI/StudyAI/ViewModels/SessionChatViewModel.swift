@@ -113,6 +113,11 @@ class SessionChatViewModel: ObservableObject {
     @Published var isHolding = false
     @Published var isActivated = false
 
+    // Live Mode auto-trigger (set by PendingChatAction.startLiveMode)
+    @Published var shouldActivateLiveMode = false
+    var pendingLiveModeActivation = false
+    var liveModeStarterPrompt: String?
+
     // MARK: - Dependencies
 
     private let networkService = NetworkService.shared
@@ -332,6 +337,11 @@ class SessionChatViewModel: ObservableObject {
 
             if !result.success {
                 errorMessage = NSLocalizedString("error.session.creation", comment: "")
+            } else if pendingLiveModeActivation {
+                pendingLiveModeActivation = false
+                // Brief delay so the view settles before switching to Live Mode
+                try? await Task.sleep(nanoseconds: 300_000_000)
+                shouldActivateLiveMode = true
             }
         }
     }

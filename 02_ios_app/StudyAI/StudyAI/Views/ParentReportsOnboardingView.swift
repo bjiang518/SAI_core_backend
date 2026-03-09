@@ -29,12 +29,12 @@ struct ParentReportsOnboardingView: View {
 
                 // Title
                 VStack(spacing: 8) {
-                    Text("Get Weekly Learning Insights")
+                    Text(NSLocalizedString("reports.passive.onboarding.title", value: "Get Weekly Learning Insights", comment: ""))
                         .font(.title)
                         .fontWeight(.bold)
                         .multilineTextAlignment(.center)
 
-                    Text("AI-generated reports for parents, every week")
+                    Text(NSLocalizedString("reports.passive.onboarding.subtitle", value: "AI-generated reports for parents, every week", comment: ""))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
@@ -45,23 +45,23 @@ struct ParentReportsOnboardingView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     FeatureRow(
                         icon: "chart.line.uptrend.xyaxis",
-                        title: "Progress Tracking",
-                        description: "See how your child improves each week"
+                        title: NSLocalizedString("reports.passive.onboarding.feature.progress.title", value: "Progress Tracking", comment: ""),
+                        description: NSLocalizedString("reports.passive.onboarding.feature.progress.desc", value: "See how your child improves each week", comment: "")
                     )
                     FeatureRow(
                         icon: "lightbulb.fill",
-                        title: "AI-Powered Insights",
-                        description: "Personalized recommendations based on homework data"
+                        title: NSLocalizedString("reports.passive.onboarding.feature.ai.title", value: "AI-Powered Insights", comment: ""),
+                        description: NSLocalizedString("reports.passive.onboarding.feature.ai.desc", value: "Personalized recommendations based on homework data", comment: "")
                     )
                     FeatureRow(
                         icon: "heart.text.square.fill",
-                        title: "Mental Wellbeing",
-                        description: "Monitor engagement and confidence signals"
+                        title: NSLocalizedString("reports.passive.onboarding.feature.mental.title", value: "Mental Wellbeing", comment: ""),
+                        description: NSLocalizedString("reports.passive.onboarding.feature.mental.desc", value: "Monitor engagement and confidence signals", comment: "")
                     )
                     FeatureRow(
                         icon: "lock.shield.fill",
-                        title: "Private & Secure",
-                        description: "Data is encrypted and never shared with third parties"
+                        title: NSLocalizedString("reports.passive.onboarding.feature.private.title", value: "Private & Secure", comment: ""),
+                        description: NSLocalizedString("reports.passive.onboarding.feature.private.desc", value: "Data is encrypted and never shared with third parties", comment: "")
                     )
                 }
                 .padding(.horizontal)
@@ -73,7 +73,7 @@ struct ParentReportsOnboardingView: View {
                         Image(systemName: "arrow.triangle.2.circlepath")
                             .font(.caption)
                             .foregroundColor(.secondary)
-                        Text("Homework data syncs to server automatically when you generate a report")
+                        Text(NSLocalizedString("reports.passive.onboarding.dataNote", value: "Homework data syncs to server automatically when you generate a report", comment: ""))
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.leading)
@@ -94,7 +94,7 @@ struct ParentReportsOnboardingView: View {
                         onEnable()
                         dismiss()
                     }) {
-                        Text("Enable Parent Reports")
+                        Text(NSLocalizedString("reports.passive.onboarding.enable", value: "Enable Parent Reports", comment: ""))
                             .fontWeight(.semibold)
                             .frame(maxWidth: .infinity)
                             .padding()
@@ -111,7 +111,7 @@ struct ParentReportsOnboardingView: View {
                         onDecline()
                         dismiss()
                     }) {
-                        Text("No Thanks")
+                        Text(NSLocalizedString("reports.passive.onboarding.noThanks", value: "No Thanks", comment: ""))
                             .fontWeight(.medium)
                             .foregroundColor(.secondary)
                     }

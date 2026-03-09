@@ -39,8 +39,12 @@ class ActivityReportGenerator {
             // Step 3: Fetch previous period data for comparison
             const previousPeriodData = await this.getPreviousPeriodData(userId, startDate, period);
 
+            // Step 3.5: Aggregate practice sheets data
+            const practiceSheetsData = await this.aggregatePracticeSheetsData(userId, startDate, endDate);
+
             // Step 4: Calculate metrics
             const metrics = this.calculateActivityMetrics(questionsData, conversationsData, previousPeriodData, period);
+            metrics.practiceSheets = practiceSheetsData;
 
             // ✅ NEW: Step 5: Calculate monthly-specific insights (only if period === 'monthly')
             if (period === 'monthly' && questionsData.length > 0) {
@@ -162,6 +166,75 @@ class ActivityReportGenerator {
 
         const result = await db.query(query, [userId, startDate, endDate]);
         return result.rows;
+    }
+
+    /**
+     * Aggregate practice sheets data for the period
+     * Returns summary stats: total sessions, completed, avg score, by subject
+     */
+    async aggregatePracticeSheetsData(userId, startDate, endDate) {
+        try {
+            const query = `
+                SELECT
+                    subject,
+                    source_type,
+                    difficulty,
+                    COUNT(*) AS total_sessions,
+                    COUNT(completed_at) AS completed_sessions,
+                    ROUND(AVG(CASE WHEN completed_at IS NOT NULL THEN score_percentage END), 1) AS avg_score,
+                    SUM(COALESCE(time_spent_seconds, 0)) AS total_time_seconds,
+                    SUM(question_count) AS total_questions_generated,
+                    SUM(completed_count) AS total_questions_answered
+                FROM practice_sheets
+                WHERE user_id = $1
+                    AND created_at BETWEEN $2 AND $3
+                GROUP BY subject, source_type, difficulty
+                ORDER BY total_sessions DESC
+            `;
+            const result = await db.query(query, [userId, startDate, endDate]);
+
+            const bySubject = {};
+            let totalSessions = 0;
+            let completedSessions = 0;
+            let totalTimeSeconds = 0;
+            let totalQuestionsAnswered = 0;
+
+            for (const row of result.rows) {
+                const subj = row.subject || 'General';
+                if (!bySubject[subj]) {
+                    bySubject[subj] = { sessions: 0, completed: 0, avgScore: null, scores: [], timeSeconds: 0 };
+                }
+                bySubject[subj].sessions += parseInt(row.total_sessions);
+                bySubject[subj].completed += parseInt(row.completed_sessions);
+                bySubject[subj].timeSeconds += parseInt(row.total_time_seconds || 0);
+                if (row.avg_score !== null) bySubject[subj].scores.push(parseFloat(row.avg_score));
+                totalSessions += parseInt(row.total_sessions);
+                completedSessions += parseInt(row.completed_sessions);
+                totalTimeSeconds += parseInt(row.total_time_seconds || 0);
+                totalQuestionsAnswered += parseInt(row.total_questions_answered || 0);
+            }
+
+            // Compute per-subject avg score
+            for (const subj of Object.keys(bySubject)) {
+                const s = bySubject[subj];
+                s.avgScore = s.scores.length > 0
+                    ? Math.round(s.scores.reduce((a, b) => a + b, 0) / s.scores.length)
+                    : null;
+                delete s.scores;
+            }
+
+            return {
+                totalSessions,
+                completedSessions,
+                totalTimeSeconds,
+                totalQuestionsAnswered,
+                completionRate: totalSessions > 0 ? Math.round(completedSessions / totalSessions * 100) : 0,
+                bySubject
+            };
+        } catch (error) {
+            logger.warn(`⚠️ Failed to aggregate practice sheets data: ${error.message}`);
+            return { totalSessions: 0, completedSessions: 0, totalTimeSeconds: 0, totalQuestionsAnswered: 0, completionRate: 0, bySubject: {} };
+        }
     }
 
     /**
@@ -609,7 +682,14 @@ class ActivityReportGenerator {
                 totalMinutes: metrics.totalTime || 0,
                 subjects,
                 weekOverWeekChange: metrics.comparison?.percentChange || 0,
-                periodDays: this.calculatePeriodDays(new Date(), new Date())
+                periodDays: this.calculatePeriodDays(new Date(), new Date()),
+                practiceSessions: metrics.practiceSheets?.totalSessions || 0,
+                practiceAvgScore: metrics.practiceSheets?.completedSessions > 0
+                    ? Math.round(Object.values(metrics.practiceSheets?.bySubject || {})
+                        .flatMap(s => s.avgScore !== null ? [s.avgScore] : [])
+                        .reduce((a, b) => a + b, 0) /
+                        Math.max(1, Object.values(metrics.practiceSheets?.bySubject || {}).filter(s => s.avgScore !== null).length))
+                    : null
             },
 
             // Engagement Quality signals
@@ -619,7 +699,9 @@ class ActivityReportGenerator {
                 questionsPerDay: questionsPerDay.toFixed(1),
                 handwritingQuality: metrics.handwritingQuality?.overall || null,
                 sessionCount: metrics.studySessionPatterns?.sessionCount || 0,
-                longestSession: metrics.studySessionPatterns?.longestSession || 0
+                longestSession: metrics.studySessionPatterns?.longestSession || 0,
+                practiceCompletionRate: metrics.practiceSheets?.completionRate || 0,
+                practiceTimeMinutes: Math.round((metrics.practiceSheets?.totalTimeSeconds || 0) / 60)
             },
 
             // Study Optimization signals (monthly only)
@@ -1063,6 +1145,44 @@ class ActivityReportGenerator {
                     <div class="metric-label">${ta.minutesStudied}</div>
                 </div>
             </div>
+
+            ${metrics.practiceSheets?.totalSessions > 0 ? `
+            <!-- Practice Summary -->
+            <div class="section">
+                <h2 class="section-title">${language === 'zh-Hans' ? '练习情况' : language === 'zh-Hant' ? '練習情況' : 'Practice Summary'}</h2>
+                <div class="metrics-grid" style="grid-template-columns: repeat(3, 1fr);">
+                    <div class="metric-card" style="background:#f0f9ff;">
+                        <div class="metric-value">${metrics.practiceSheets.totalSessions}</div>
+                        <div class="metric-label">${language === 'zh-Hans' ? '练习次数' : language === 'zh-Hant' ? '練習次數' : 'Practice Sessions'}</div>
+                    </div>
+                    <div class="metric-card" style="background:#f0fdf4;">
+                        <div class="metric-value">${metrics.practiceSheets.completionRate}%</div>
+                        <div class="metric-label">${language === 'zh-Hans' ? '完成率' : language === 'zh-Hant' ? '完成率' : 'Completion Rate'}</div>
+                    </div>
+                    <div class="metric-card" style="background:#fef3c7;">
+                        <div class="metric-value">${Math.round(metrics.practiceSheets.totalTimeSeconds / 60)}</div>
+                        <div class="metric-label">${language === 'zh-Hans' ? '练习分钟' : language === 'zh-Hant' ? '練習分鐘' : 'Minutes Practiced'}</div>
+                    </div>
+                </div>
+                ${Object.entries(metrics.practiceSheets.bySubject).length > 0 ? `
+                <table style="width:100%;border-collapse:collapse;margin-top:12px;font-size:13px;">
+                    <thead>
+                        <tr style="background:#f3f4f6;">
+                            <th style="text-align:left;padding:6px 10px;">${language === 'zh-Hans' ? '科目' : language === 'zh-Hant' ? '科目' : 'Subject'}</th>
+                            <th style="text-align:center;padding:6px 10px;">${language === 'zh-Hans' ? '次数' : language === 'zh-Hant' ? '次數' : 'Sessions'}</th>
+                            <th style="text-align:center;padding:6px 10px;">${language === 'zh-Hans' ? '平均分' : language === 'zh-Hant' ? '平均分' : 'Avg Score'}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${Object.entries(metrics.practiceSheets.bySubject).map(([subj, data]) => `
+                        <tr style="border-bottom:1px solid #e5e7eb;">
+                            <td style="padding:6px 10px;">${subj}</td>
+                            <td style="text-align:center;padding:6px 10px;">${data.sessions}</td>
+                            <td style="text-align:center;padding:6px 10px;">${data.avgScore !== null ? data.avgScore + '%' : '—'}</td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>` : ''}
+            </div>` : ''}
 
             <!-- Subject Breakdown -->
             <div class="section">

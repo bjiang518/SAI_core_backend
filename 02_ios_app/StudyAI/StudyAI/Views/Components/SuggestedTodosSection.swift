@@ -45,6 +45,38 @@ struct TornEdgeShape: Shape {
     }
 }
 
+// MARK: - Highlighter Mark
+
+/// Organic felt-tip highlight band behind text — mimics a real highlighter stroke.
+/// Covers roughly the lower 70 % of the text height with gently wavy top and bottom edges.
+private struct HighlighterMark: Shape {
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        let top = rect.height * 0.18
+        let bot = rect.height * 0.88
+        let l   = rect.minX - 3
+        let r   = rect.maxX + 4
+
+        // Top edge — gentle left-dip right-rise
+        p.move(to: CGPoint(x: l, y: top + 1.5))
+        p.addCurve(
+            to: CGPoint(x: r, y: top - 0.5),
+            control1: CGPoint(x: rect.width * 0.32, y: top - 2.5),
+            control2: CGPoint(x: rect.width * 0.70, y: top + 2.0)
+        )
+        // Right edge
+        p.addLine(to: CGPoint(x: r, y: bot + 0.5))
+        // Bottom edge — opposite gentle wave
+        p.addCurve(
+            to: CGPoint(x: l, y: bot - 0.5),
+            control1: CGPoint(x: rect.width * 0.65, y: bot + 2.5),
+            control2: CGPoint(x: rect.width * 0.28, y: bot - 2.0)
+        )
+        p.closeSubpath()
+        return p
+    }
+}
+
 // MARK: - Handwritten Underline
 
 private struct HandwrittenUnderline: View {
@@ -100,6 +132,12 @@ struct SuggestedTodosSection: View {
     @State private var tearRotation: Double = 0
     @State private var tearOpacity: Double = 1.0
 
+    // MARK: Expand / collapse
+    @State private var isExpanded: Bool = false
+
+    // MARK: Greeting
+    @State private var greetingIndex: Int = Int.random(in: 0..<15)
+
     // All available cartoon sticker asset names
     private let allStickerNames: [String] = [
         "arrow-03-svgrepo-com", "arrow-07-svgrepo-com",
@@ -130,8 +168,9 @@ struct SuggestedTodosSection: View {
         "trophy-award-winner-svgrepo-com"
     ]
 
-    /// Pick 2 different stickers, place them in the upper-right and lower zones respectively.
+    /// Pick 2 different stickers and a fresh greeting phrase each time.
     private func buildStickers() {
+        greetingIndex = Int.random(in: 0..<15)
         let shuffled = allStickerNames.shuffled()
         // Zone A — upper-right: x 60–88%, y 4–28%
         let a = StickerDeco(
@@ -182,25 +221,18 @@ struct SuggestedTodosSection: View {
 
     // MARK: Fonts
 
-    private var isChineseLocale: Bool {
-        let code = Locale.current.language.languageCode?.identifier ?? ""
-        return code == "zh"
-    }
-
-    private var headerFont: Font {
-        isChineseLocale
-            ? Font.custom("ZCOOLKuaiLe-Regular", size: 18)
-            : Font.custom("IndieFlower", size: 18)
-    }
-    private var itemFont: Font {
-        isChineseLocale
-            ? Font.custom("ZCOOLKuaiLe-Regular", size: 20)
-            : Font.custom("IndieFlower", size: 20)
-    }
-    private var subtitleFont: Font {
-        isChineseLocale
-            ? Font.custom("ZCOOLKuaiLe-Regular", size: 16)
-            : Font.custom("IndieFlower", size: 16)
+    /// Picks IndieFlower for Latin-only text, ZCOOLKuaiLe-Regular the moment
+    /// the string contains any CJK Unified Ideograph. This way the font follows
+    /// the content itself — not the device locale — so mixed-language todo items
+    /// always render in the right handwriting style.
+    private func handwritingFont(size: CGFloat, for text: String) -> Font {
+        let hasCJK = text.unicodeScalars.contains {
+            (0x4E00...0x9FFF ~= $0.value) || // CJK Unified Ideographs
+            (0x3400...0x4DBF ~= $0.value)    // CJK Extension A
+        }
+        return hasCJK
+            ? Font.custom("ZCOOLKuaiLe-Regular", size: size)
+            : Font.custom("IndieFlower", size: size)
     }
 
     // MARK: – Dismiss animation
@@ -238,11 +270,9 @@ struct SuggestedTodosSection: View {
             }
         }
 
-        // Phase 3: remove item + collapse remaining rows (0.56s)
+        // Phase 3: remove item — no spring so siblings don't reposition (0.56s)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.56) {
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
-                onDismiss(id)
-            }
+            onDismiss(id)
             // Reset all state after the row is gone
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                 dismissingId  = nil
@@ -255,18 +285,82 @@ struct SuggestedTodosSection: View {
         }
     }
 
+    // MARK: – Swipe dismiss animation
+
+    private func animateSwipeDismiss(_ id: String, toRight: Bool, fromOffset: CGFloat = 0) {
+        guard dismissingId == nil else { return }
+        dismissingId = id
+
+        AudioServicesPlaySystemSound(1104)
+        let haptic = UIImpactFeedbackGenerator(style: .medium)
+        haptic.impactOccurred()
+
+        // Initialise at the finger's release position so there is no pop
+        tearOffsetX  = fromOffset
+        tearOffsetY  = 0
+        tearRotation = 0
+        tearOpacity  = 1.0
+
+        withAnimation(.easeOut(duration: 0.22)) {
+            tearOffsetX  = toRight ? 360 : -360
+            tearOffsetY  = -8
+            tearRotation = toRight ? 6 : -6
+            tearOpacity  = 0
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.26) {
+            onDismiss(id)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                dismissingId = nil
+                tearOffsetX = 0; tearOffsetY = 0; tearRotation = 0; tearOpacity = 1.0
+            }
+        }
+    }
+
     // MARK: Body
 
     var body: some View {
         VStack(spacing: 0) {
             headerRow
-            if todos.isEmpty {
-                emptyStateRow
-            } else {
-                ForEach(todos) { todo in
-                    todoRow(todo)
+
+            // Collapsed hint OR full list
+            if isExpanded {
+                VStack(spacing: 0) {
+                    if todos.isEmpty {
+                        emptyStateRow
+                    } else {
+                        ForEach(todos) { todo in
+                            TodoRowView(
+                                todo: todo,
+                                dismissingId: dismissingId,
+                                shakeOffsetX: shakeOffsetX,
+                                tearOffsetX: tearOffsetX,
+                                tearOffsetY: tearOffsetY,
+                                tearRotation: tearRotation,
+                                tearOpacity: tearOpacity,
+                                primaryText: primaryText,
+                                secondaryText: secondaryText,
+                                chevronColor: chevronColor,
+                                fontProvider: handwritingFont(size:for:),
+                                onAction: onAction,
+                                onXDismiss: animateDismiss,
+                                onSwipeDismiss: animateSwipeDismiss
+                            )
+                        }
+                    }
+                    Color.clear.frame(height: 8)
                 }
+                // Prevents flying items from escaping above the header
+                .clipped()
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            } else {
+                collapsedHintRow
+                    .transition(.opacity)
             }
+
+            // Expand / collapse toggle arrow
+            expandToggleRow
+
             // Extra bottom padding so text clears the torn edge
             Color.clear.frame(height: 22)
         }
@@ -337,20 +431,26 @@ struct SuggestedTodosSection: View {
     // MARK: – Header
 
     private var headerRow: some View {
-        HStack(spacing: 5) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(NSLocalizedString("suggestedTodo.sectionTitle", value: "建议事项", comment: ""))
-                    .font(headerFont)
-                    .fontWeight(.bold)
-                    .foregroundColor(secondaryText)
-                HandwrittenUnderline(color: secondaryText.opacity(0.65))
-            }
-            .fixedSize()
+        let greeting = NSLocalizedString(
+            "suggestedTodo.greeting.\(greetingIndex)",
+            value: "今天想一起探索点什么？",
+            comment: ""
+        )
+        return HStack(spacing: 5) {
+            Text(greeting)
+                .font(handwritingFont(size: 22, for: greeting))
+                .fontWeight(.bold)
+                .foregroundColor(secondaryText)
+                .padding(.bottom, 4)
+                .overlay(alignment: .bottom) {
+                    HandwrittenUnderline(color: secondaryText.opacity(0.65))
+                }
             Text("✏️")
                 .font(.system(size: 11))
             Spacer()
             Button {
                 isRefreshing = true
+                greetingIndex = Int.random(in: 0..<15)
                 onRefresh()
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
                     isRefreshing = false
@@ -370,7 +470,7 @@ struct SuggestedTodosSection: View {
             }
             .buttonStyle(.plain)
         }
-        .padding(.leading, 36)
+        .padding(.leading, 14)
         .padding(.trailing, 10)
         .padding(.top, 14)
         .padding(.bottom, 8)
@@ -379,15 +479,61 @@ struct SuggestedTodosSection: View {
     // MARK: – Empty state
 
     private var emptyStateRow: some View {
-        HStack {
-            Text(NSLocalizedString("suggestedTodo.empty", value: "今日任务已全部完成 🎉", comment: ""))
-                .font(subtitleFont)
+        let text = NSLocalizedString("suggestedTodo.empty", value: "今日任务已全部完成 🎉", comment: "")
+        return HStack {
+            Text(text)
+                .font(handwritingFont(size: 16, for: text))
                 .foregroundColor(secondaryText)
             Spacer()
         }
-        .padding(.leading, 36)
+        .padding(.leading, 12)
         .padding(.trailing, 16)
         .padding(.vertical, 12)
+    }
+
+    // MARK: – Collapsed hint
+
+    private var collapsedHintRow: some View {
+        let text = NSLocalizedString(
+            "suggestedTodo.collapsed",
+            value: "展开看看今天推荐",
+            comment: ""
+        )
+        return HStack(spacing: 6) {
+            Text(text)
+                .font(handwritingFont(size: 16, for: text))
+                .foregroundColor(secondaryText.opacity(0.75))
+            Spacer()
+        }
+        .padding(.leading, 12)
+        .padding(.trailing, 16)
+        .padding(.vertical, 12)
+    }
+
+    // MARK: – Expand / collapse arrow
+
+    private var expandToggleRow: some View {
+        Button {
+            let haptic = UIImpactFeedbackGenerator(style: .light)
+            haptic.impactOccurred()
+            withAnimation(.spring(response: 0.42, dampingFraction: 0.74)) {
+                isExpanded.toggle()
+            }
+        } label: {
+            HStack {
+                Spacer()
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(secondaryText.opacity(0.55))
+                    .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                    .animation(.spring(response: 0.42, dampingFraction: 0.74), value: isExpanded)
+                Spacer()
+            }
+            .frame(height: 28)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.bottom, 2)
     }
 
     // MARK: – Divider
@@ -396,14 +542,49 @@ struct SuggestedTodosSection: View {
         Rectangle()
             .fill(dividerColor)
             .frame(height: 0.5)
-            .padding(.leading, 30)
+            .padding(.leading, 8)
     }
 
-    // MARK: – Todo row
+    // MARK: – Todo row (see TodoRowView below)
+}
 
-    private func todoRow(_ todo: SuggestedTodo) -> some View {
+// MARK: - TodoRowView
+// Each row owns its own drag state so only the dragged row re-renders on every
+// touch event — eliminating the parent re-render / jitter problem.
+
+private struct TodoRowView: View {
+    let todo: SuggestedTodo
+
+    // Dismiss animation — driven by parent
+    let dismissingId: String?
+    let shakeOffsetX: CGFloat
+    let tearOffsetX: CGFloat
+    let tearOffsetY: CGFloat
+    let tearRotation: Double
+    let tearOpacity: Double
+
+    // Styling tokens passed from parent
+    let primaryText: Color
+    let secondaryText: Color
+    let chevronColor: Color
+    let fontProvider: (CGFloat, String) -> Font
+
+    // Callbacks
+    let onAction: (SuggestedTodo.TodoAction) -> Void
+    let onXDismiss: (String) -> Void
+    // id, toRight, fromOffset
+    let onSwipeDismiss: (String, Bool, CGFloat) -> Void
+
+    // Row-local state — changes here don't touch the parent or sibling rows
+    @State private var dragX: CGFloat = 0
+    @State private var isSwiping: Bool = false
+    @State private var isPressed: Bool = false
+
+    private var isDismissing: Bool { dismissingId == todo.id }
+
+    var body: some View {
         HStack(alignment: .center, spacing: 10) {
-            // Colour-tinted circle with SF icon (acts as "checkbox")
+            // Icon — decorative only
             ZStack {
                 Circle()
                     .stroke(todo.color.opacity(0.35), lineWidth: 1.5)
@@ -412,25 +593,29 @@ struct SuggestedTodosSection: View {
                     .font(.system(size: 10, weight: .medium))
                     .foregroundColor(todo.color)
             }
+            .allowsHitTesting(false)
 
-            // Text stack
-            VStack(alignment: .leading, spacing: 2) {
+            // Text — hit-testing off; parent gesture handles everything
+            VStack(alignment: .leading, spacing: 4) {
                 Text(todo.title)
-                    .font(itemFont)
+                    .font(fontProvider(20, todo.title))
                     .foregroundColor(primaryText)
                     .lineLimit(1)
+                    .padding(.horizontal, 1)
+                    .background(HighlighterMark().fill(todo.color.opacity(0.28)))
+                    .frame(minHeight: 28, alignment: .center)
                 Text(todo.subtitle)
-                    .font(subtitleFont)
+                    .font(fontProvider(16, todo.subtitle))
                     .foregroundColor(secondaryText)
                     .lineLimit(1)
+                    .frame(minHeight: 22, alignment: .center)
             }
+            .allowsHitTesting(false)
 
             Spacer()
 
-            // Dismiss button
-            Button {
-                animateDismiss(todo.id)
-            } label: {
+            // Dismiss button — Button child gesture wins over parent DragGesture
+            Button { onXDismiss(todo.id) } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 10, weight: .medium))
                     .foregroundColor(chevronColor)
@@ -438,19 +623,68 @@ struct SuggestedTodosSection: View {
             }
             .buttonStyle(.plain)
         }
-        .padding(.leading, 36)
+        .padding(.leading, 12)
         .padding(.trailing, 8)
         .padding(.vertical, 10)
-        .contentShape(Rectangle())
-        .onTapGesture { onAction(todo.action) }
-        // Tear-off animation transforms
-        .offset(
-            x: dismissingId == todo.id ? shakeOffsetX + tearOffsetX : 0,
-            y: dismissingId == todo.id ? tearOffsetY : 0
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(isPressed && !isSwiping ? todo.color.opacity(0.08) : Color.clear)
+                .padding(.horizontal, 4)
         )
-        .rotationEffect(.degrees(dismissingId == todo.id ? tearRotation : 0),
-                        anchor: .topLeading)
-        .opacity(dismissingId == todo.id ? tearOpacity : 1.0)
-        .zIndex(dismissingId == todo.id ? 1 : 0)
+        .scaleEffect(isPressed && !isSwiping ? 0.985 : 1.0)
+        .animation(.easeOut(duration: 0.10), value: isPressed)
+        .contentShape(Rectangle())
+        // Single gesture — no competing recognisers, only this row re-renders during drag
+        .gesture(
+            DragGesture(minimumDistance: 0, coordinateSpace: .local)
+                .onChanged { value in
+                    guard !isDismissing else { return }
+                    let h = value.translation.width
+                    let v = value.translation.height
+
+                    if isSwiping {
+                        // Already in swipe mode: track 1-to-1, no animation, no jitter
+                        dragX = h
+                    } else if abs(h) > 12 && abs(h) > abs(v) * 1.5 {
+                        // Enter swipe mode
+                        isSwiping = true
+                        isPressed = false
+                        dragX = h
+                    } else if abs(h) < 8 && abs(v) < 8 {
+                        isPressed = true
+                    } else {
+                        isPressed = false
+                    }
+                }
+                .onEnded { value in
+                    let h = value.translation.width
+                    let v = value.translation.height
+                    isPressed = false
+
+                    if isSwiping {
+                        let predicted = value.predictedEndTranslation.width
+                        if abs(h) > 70 || abs(predicted) > 150 {
+                            // Pass dragX so parent animation starts from finger position
+                            onSwipeDismiss(todo.id, h > 0, dragX)
+                        } else {
+                            // Snap back with spring
+                            isSwiping = false
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                                dragX = 0
+                            }
+                        }
+                    } else if abs(h) < 10 && abs(v) < 10 {
+                        onAction(todo.action)
+                    }
+                }
+        )
+        // Offset: live drag OR parent tear-off animation
+        .offset(
+            x: isDismissing ? (shakeOffsetX + tearOffsetX) : dragX,
+            y: isDismissing ? tearOffsetY : 0
+        )
+        .rotationEffect(.degrees(isDismissing ? tearRotation : 0), anchor: .topLeading)
+        .opacity(isDismissing ? tearOpacity : 1.0)
+        .zIndex(isDismissing || isSwiping ? 1 : 0)
     }
 }

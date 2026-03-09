@@ -17,8 +17,16 @@
 "Art" = "美术";
 "Music" = "音乐";
 "Other" = "其他";
+"Others:" = "其他:";
 "Math" = "数学";
 "Chinese" = "语文";
+"French" = "法语";
+"Spanish" = "西班牙语";
+"German" = "德语";
+"Japanese" = "日语";
+"Korean" = "韩语";
+"Latin" = "拉丁语";
+"Physical Education" = "体育";
 
 /* ===== MATH — Base Branches ===== */
 "Number & Operations" = "数与运算";

@@ -850,9 +850,9 @@ struct MistakeQuestionListView: View {
                 throw PracticeGenerationError.tooManyMistakes
             }
 
-            // ✅ VALIDATION #2: Validate subject (use existing Subject enum)
+            // ✅ VALIDATION #2: Validate subject — allow standard enum values and AI-generated "Others: X" subjects
             let validSubjects = Subject.allCases.map { $0.rawValue }
-            guard validSubjects.contains(subject) else {
+            guard validSubjects.contains(subject) || subject.hasPrefix("Others:") else {
                 throw PracticeGenerationError.invalidSubject
             }
 

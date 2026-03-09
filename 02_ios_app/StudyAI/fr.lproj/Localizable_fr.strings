@@ -1036,9 +1036,34 @@
 "chat.alert.archiveSuccess.startNewChat" = "Start New Discussion";
 
 // Empty State
-"chat.emptyState.greeting" = "Hi! I'm %@";
-"chat.emptyState.subtext" = "Ask me anything about %@ and I'll help you learn!";
-"chat.emptyState.tryAsking" = "Try asking:";
+"chat.emptyState.greeting" = "Bonjour ! Je suis %@";
+"chat.emptyState.subtext" = "Pose-moi n'importe quelle question sur %@ et je t'aiderai à apprendre !";
+"chat.emptyState.tryAsking" = "Essaie de demander :";
+"chat.emptyState.subtitle.0" = "Je peux répondre à toutes les questions";
+"chat.emptyState.subtitle.1" = "Comment puis-je t'aider ?";
+"chat.emptyState.subtitle.2" = "Que veux-tu apprendre aujourd'hui ?";
+"chat.emptyState.subtitle.3" = "Prêt à commencer !";
+"chat.emptyState.subtitle.4" = "Pose-moi tout ce qui t'intéresse";
+"chat.emptyState.subtitle.5" = "Explorons ensemble !";
+"chat.emptyState.subtitle.6" = "N'hésite pas à me poser des questions";
+"chat.emptyState.subtitle.7" = "L'apprentissage commence ici";
+"chat.emptyState.subtitle.8" = "Besoin d'aide avec tes devoirs ?";
+"chat.emptyState.subtitle.9" = "Tu as une question difficile ?";
+"chat.emptyState.subtitle.10" = "Je suis là quand tu as besoin";
+"chat.emptyState.subtitle.11" = "Résolvons ça ensemble";
+"chat.emptyState.subtitle.12" = "La curiosité est le meilleur professeur";
+"chat.emptyState.subtitle.13" = "Quelque chose que tu veux comprendre ?";
+"chat.emptyState.subtitle.14" = "Je suis prêt à t'aider";
+"chat.emptyState.subtitle.15" = "Quel est le défi du jour ?";
+"chat.emptyState.subtitle.16" = "Aucune question n'est trop petite";
+"chat.emptyState.subtitle.17" = "Chaque question est un pas en avant";
+"chat.emptyState.subtitle.18" = "Rendons l'apprentissage amusant";
+"chat.emptyState.subtitle.19" = "Quelque chose que je peux expliquer ?";
+"chat.emptyState.subtitle.20" = "Confie-moi les sujets difficiles";
+"chat.emptyState.subtitle.21" = "Tu as appris quelque chose de nouveau ?";
+"chat.emptyState.subtitle.22" = "Curiosité illimitée — moi aussi";
+"chat.emptyState.subtitle.23" = "Plus il y a de questions, mieux c'est !";
+"chat.emptyState.subtitle.24" = "L'apprentissage ne s'arrête jamais — commençons";
 
 // Smart Suggestions
 "chat.suggestion.showSteps" = "Show steps";
@@ -2159,6 +2184,96 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "onboarding.language.title" = "Choisissez votre langue";
 "onboarding.language.subtitle" = "Vous pouvez le modifier à tout moment dans Réglages";
 
+// Onboarding — Role
+"onboarding.role.title" = "Bienvenue !";
+"onboarding.role.subtitle" = "Qui configure l'application ?";
+"onboarding.role.student.title" = "Élève";
+"onboarding.role.student.subtitle" = "Je veux de l'aide pour mes études";
+"onboarding.role.parent.title" = "Parent";
+"onboarding.role.parent.subtitle" = "Je configure ça pour mon enfant";
+
+// Onboarding — Age
+"onboarding.age.title" = "Quel âge as-tu ?";
+"onboarding.age.subtitle" = "Nous aide à personnaliser l'expérience";
+"onboarding.age.placeholder" = "Entrez votre âge";
+
+// Onboarding — Learning Style
+"onboarding.learningStyle.title" = "Comment veux-tu que l'IA t'aide ?";
+"onboarding.learningStyle.subtitle" = "Tu peux le modifier à tout moment dans Réglages";
+"onboarding.learningStyle.guide" = "Guide-moi";
+"onboarding.learningStyle.tell" = "Dis-moi";
+"onboarding.learningStyle.guide.desc" = "Pose-moi des questions pour que je trouve moi-même";
+"onboarding.learningStyle.tell.desc" = "Donne-moi la meilleure solution et explique-la étape par étape";
+
+// Onboarding — Consent
+"onboarding.consent.title" = "Dernière étape";
+"onboarding.consent.privacy.questions" = "Tes questions restent privées";
+"onboarding.consent.privacy.activity" = "Ton activité aide à personnaliser l'apprentissage";
+"onboarding.consent.privacy.profile" = "Ton profil n'est jamais partagé";
+"onboarding.consent.privacyPolicy" = "Politique de confidentialité";
+"onboarding.consent.agree" = "J'accepte la Politique de confidentialité";
+"onboarding.consent.required" = "Tu dois accepter pour continuer";
+"onboarding.getStarted" = "Commencer";
+
+// Parent Reports — List View
+"reports.passive.title" = "Rapports Parents";
+"reports.passive.subtitle" = "Bilans d'apprentissage hebdomadaires et mensuels";
+"reports.passive.editReports" = "Modifier les rapports";
+"reports.passive.testingMode" = "Mode test";
+"reports.passive.testingMode.message" = "Déclenchez manuellement la génération de rapports pour les tests. Ce bouton sera supprimé en production.";
+"reports.passive.generateWeekly" = "Générer un rapport hebdomadaire";
+"reports.passive.generateMonthly" = "Générer un rapport mensuel";
+"reports.passive.deleteTitle" = "Supprimer les rapports ?";
+"reports.passive.deleteOne" = "Supprimer 1 rapport";
+"reports.passive.deleteMany" = "Supprimer %d rapports";
+"reports.passive.deleteConfirmOne" = "Voulez-vous vraiment supprimer 1 rapport ? Cette action est irréversible.";
+"reports.passive.deleteConfirmMany" = "Voulez-vous vraiment supprimer %d rapports ? Cette action est irréversible.";
+"reports.passive.loading" = "Chargement des rapports...";
+"reports.passive.empty.title" = "Aucun rapport disponible";
+"reports.passive.empty.weekly" = "Les rapports hebdomadaires sont générés chaque dimanche à 22h. Revenez bientôt !";
+"reports.passive.empty.monthly" = "Les rapports mensuels sont générés le 1er de chaque mois.";
+"reports.passive.reportsAvailable" = "%d rapports disponibles";
+"reports.passive.metric.accuracy" = "Précision";
+"reports.passive.metric.questions" = "Questions";
+"reports.passive.metric.studyTime" = "Temps d'étude";
+"reports.passive.metric.streak" = "Série";
+"reports.passive.metric.engagement" = "Engagement";
+"reports.passive.metric.confidence" = "Confiance";
+"reports.passive.trend.accuracy" = "Précision";
+"reports.passive.trend.activity" = "Activité";
+
+// Parent Reports — Detail View
+"reports.passive.weeklyReport" = "Rapport hebdomadaire";
+"reports.passive.monthlyReport" = "Rapport mensuel";
+"reports.passive.detailedReports" = "RAPPORTS DÉTAILLÉS";
+"reports.passive.keyInsights" = "Points clés";
+"reports.passive.recommendations" = "Recommandations";
+"reports.passive.learningProgress" = "PROGRÈS D'APPRENTISSAGE";
+"reports.passive.overallGrade" = "Note globale";
+"reports.passive.trend.improving" = "En progression";
+"reports.passive.trend.stable" = "Stable";
+"reports.passive.trend.declining" = "En baisse";
+"reports.passive.mental" = "Mental";
+"reports.passive.mentalHealth.excellent" = "Excellent";
+"reports.passive.mentalHealth.good" = "Bon";
+"reports.passive.mentalHealth.fair" = "Passable";
+"reports.passive.mentalHealth.low" = "Faible";
+
+// Parent Reports — Onboarding
+"reports.passive.onboarding.title" = "Recevez des bilans d'apprentissage hebdomadaires";
+"reports.passive.onboarding.subtitle" = "Rapports générés par IA pour les parents, chaque semaine";
+"reports.passive.onboarding.feature.progress.title" = "Suivi des progrès";
+"reports.passive.onboarding.feature.progress.desc" = "Voyez comment votre enfant s'améliore chaque semaine";
+"reports.passive.onboarding.feature.ai.title" = "Insights par IA";
+"reports.passive.onboarding.feature.ai.desc" = "Recommandations personnalisées basées sur les données de devoirs";
+"reports.passive.onboarding.feature.mental.title" = "Bien-être mental";
+"reports.passive.onboarding.feature.mental.desc" = "Suivez les signaux d'engagement et de confiance";
+"reports.passive.onboarding.feature.private.title" = "Privé et sécurisé";
+"reports.passive.onboarding.feature.private.desc" = "Les données sont chiffrées et ne sont jamais partagées avec des tiers";
+"reports.passive.onboarding.dataNote" = "Les données de devoirs se synchronisent automatiquement lors de la génération d'un rapport";
+"reports.passive.onboarding.enable" = "Activer les rapports parents";
+"reports.passive.onboarding.noThanks" = "Non merci";
+
 // New Practice Sheet
 "newPractice.title" = "New Practice";
 "newPractice.error.title" = "Generation Failed";
@@ -2220,6 +2335,7 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 // Suggested Daily Todos
 "suggestedTodo.sectionTitle" = "Suggestions";
 "suggestedTodo.empty" = "Toutes les tâches du jour complétées 🎉";
+"suggestedTodo.collapsed" = "Voir les suggestions du jour";
 "suggestedTodo.resumePractice.title" = "Reprendre la pratique";
 "suggestedTodo.resumePractice.subtitle" = "%d questions restantes";
 "suggestedTodo.resumePractice.subtitleGeneral" = "Continuer là où vous en étiez";
@@ -2231,3 +2347,57 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "suggestedTodo.focusMode.subtitle" = "Aucune session de focus aujourd'hui";
 "suggestedTodo.progress.title" = "Voir les progrès de la semaine";
 "suggestedTodo.progress.subtitle" = "Suivez votre parcours d'apprentissage";
+"suggestedTodo.greeting.0" = "Jette un coup d'œil ✨";
+"suggestedTodo.greeting.1" = "Qu'as-tu envie d'explorer aujourd'hui ?";
+"suggestedTodo.greeting.2" = "Quelques idées pour toi";
+"suggestedTodo.greeting.3" = "Et si tu essayais ça ?";
+"suggestedTodo.greeting.4" = "Sur quoi as-tu envie de te pencher ?";
+"suggestedTodo.greeting.5" = "Inspiré(e) ? Lance-toi";
+"suggestedTodo.greeting.6" = "Choisis-en une, sans pression";
+"suggestedTodo.greeting.7" = "Selon ton humeur";
+"suggestedTodo.greeting.8" = "Juste des suggestions, pas d'obligation";
+"suggestedTodo.greeting.9" = "Quelques pensées à partager";
+"suggestedTodo.greeting.10" = "Les petites découvertes du jour";
+"suggestedTodo.greeting.11" = "Prends ce qui te plaît";
+"suggestedTodo.greeting.12" = "Sans pression, rien d'obligatoire";
+"suggestedTodo.greeting.13" = "Viens voir ✨";
+"suggestedTodo.greeting.14" = "Quelque chose t'attire ?";
+
+// MARK: - Quick Action Labels
+"home.quickAction.chat" = "Demander à l'IA";
+"home.quickAction.homework" = "Devoirs";
+"home.quickAction.practice" = "Pratiquer";
+
+// MARK: - Suggested Todo Items
+"todo.mistakeReview.count.one" = "1 erreur";
+"todo.mistakeReview.count.many" = "%d erreurs";
+"todo.mistakeReview.title" = "Revoir les erreurs";
+"todo.feynman.title" = "Méthode Feynman";
+"todo.feynman.subtitle" = "Générer des exercices sur \"%@\"";
+"todo.conceptReview.defaultSubject" = "Conversation récente";
+"todo.conceptReview.title" = "Révision de concepts";
+"todo.conceptReview.subtitle" = "Questions sur \"%@\"";
+"todo.randomPractice.defaultSubject" = "Toutes les matières";
+"todo.randomPractice.title" = "Pratique aléatoire";
+"todo.randomPractice.subtitle" = "%@ · 5 questions";
+"todo.practiceRetry.title" = "Réessayer %@";
+"todo.practiceRetry.subtitle" = "Dernier score %@ — continue comme ça !";
+"todo.grader.title" = "Corriger les devoirs d'aujourd'hui";
+"todo.grader.subtitle" = "Prendre une photo pour analyse IA";
+"todo.chat.title" = "Poser une question à l'IA";
+"todo.chat.subtitle" = "Dis ce qui te perturbe aujourd'hui";
+"todo.focus.title" = "Pomodoro 25 min de concentration";
+"todo.focus.subtitle.none" = "Pas encore de session aujourd'hui";
+"todo.focus.subtitle.some" = "%d faites aujourd'hui · encore une";
+"todo.album.title" = "Album de devoirs";
+"todo.album.subtitle.generic" = "Voir les devoirs sauvegardés";
+"todo.album.subtitle.subject" = "Dernier : %@";
+"todo.progress.title" = "Progrès hebdomadaire";
+"todo.progress.subtitle.today" = "Voir les résultats d'aujourd'hui";
+"todo.progress.subtitle.general" = "Suivre ton apprentissage";
+"todo.oral.title" = "Pratique orale avec l'IA";
+"todo.oral.subtitle" = "Parle avec l'IA de la leçon du jour";
+"todo.dailyQuestion.title" = "Le savais-tu ?";
+"todo.dailyQuestion.fallback.title" = "Démarrer une conversation IA";
+"todo.dailyQuestion.fallback.subtitle" = "Pose une question à l'IA à tout moment";
+"chat.liveMode.oralPractice.starterPrompt" = "Pratiquons l'expression orale ! Tu peux me poser des questions, corriger ma prononciation ou converser librement. Qu'est-ce que tu veux travailler ?";

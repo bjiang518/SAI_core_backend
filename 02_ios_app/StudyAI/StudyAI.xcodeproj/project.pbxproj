@@ -225,6 +225,15 @@
 		7B278A532F5D613D00DA84B0 /* Chat_bot.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B278A4F2F5D613D00DA84B0 /* Chat_bot.json */; };
 		7B278A542F5D613D00DA84B0 /* Camera_black.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B278A4E2F5D613D00DA84B0 /* Camera_black.json */; };
 		7B278A552F5D613D00DA84B0 /* Chat_bot.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B278A4F2F5D613D00DA84B0 /* Chat_bot.json */; };
+		7B278AA52F5F80F400DA84B0 /* LiveModeScenario.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278AA42F5F80F400DA84B0 /* LiveModeScenario.swift */; };
+		7B278AA62F5F80F400DA84B0 /* LiveModeScenario.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278AA42F5F80F400DA84B0 /* LiveModeScenario.swift */; };
+		7B278AA72F5F80F400DA84B0 /* LiveModeScenario.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278AA42F5F80F400DA84B0 /* LiveModeScenario.swift */; };
+		7B278AA92F5F813400DA84B0 /* LiveModeScenarioPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278AA82F5F813400DA84B0 /* LiveModeScenarioPicker.swift */; };
+		7B278AAA2F5F813400DA84B0 /* LiveModeScenarioPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278AA82F5F813400DA84B0 /* LiveModeScenarioPicker.swift */; };
+		7B278AAB2F5F813400DA84B0 /* LiveModeScenarioPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278AA82F5F813400DA84B0 /* LiveModeScenarioPicker.swift */; };
+		7B4F9C022F9A100200AB12C3 /* DailyQuestionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B4F9C012F9A100200AB12C3 /* DailyQuestionCard.swift */; };
+		7B4F9C032F9A100200AB12C3 /* DailyQuestionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B4F9C012F9A100200AB12C3 /* DailyQuestionCard.swift */; };
+		7B4F9C042F9A100200AB12C3 /* DailyQuestionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B4F9C012F9A100200AB12C3 /* DailyQuestionCard.swift */; };
 		7B6B2B0D2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
 		7B6B2B0E2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
 		7B6B2B0F2ED6E7E8004E70C2 /* ImageCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */; };
@@ -530,6 +539,12 @@
 		AA0002082F68A00100000001 /* Taxonomy.strings in Resources */ = {isa = PBXBuildFile; fileRef = AA0002063F68A00100000001 /* Taxonomy.strings */; };
 		AA0002092F68A00100000001 /* Taxonomy.strings in Resources */ = {isa = PBXBuildFile; fileRef = AA0002033F68A00100000001 /* Taxonomy.strings */; };
 		AA00020A2F68A00100000001 /* Taxonomy.strings in Resources */ = {isa = PBXBuildFile; fileRef = AA0002063F68A00100000001 /* Taxonomy.strings */; };
+		AA4F9D022F9A200300AB12C4 /* LiveModeScenario.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA4F9D012F9A200300AB12C4 /* LiveModeScenario.swift */; };
+		AA4F9D032F9A200300AB12C4 /* LiveModeScenario.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA4F9D012F9A200300AB12C4 /* LiveModeScenario.swift */; };
+		AA4F9D042F9A200300AB12C4 /* LiveModeScenario.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA4F9D012F9A200300AB12C4 /* LiveModeScenario.swift */; };
+		AA4F9D062F9A200300AB12C4 /* LiveModeScenarioPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA4F9D052F9A200300AB12C4 /* LiveModeScenarioPicker.swift */; };
+		AA4F9D072F9A200300AB12C4 /* LiveModeScenarioPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA4F9D052F9A200300AB12C4 /* LiveModeScenarioPicker.swift */; };
+		AA4F9D082F9A200300AB12C4 /* LiveModeScenarioPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA4F9D052F9A200300AB12C4 /* LiveModeScenarioPicker.swift */; };
 		B573CBF246134245A6DF42A5 /* LibraryPDFPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C3C2EED7834451198C33DC1 /* LibraryPDFPreviewView.swift */; };
 		B67097AEC09C4CA4B5C82F10 /* TextToSpeechService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18BF91BCEE9B4980BC643CB2 /* TextToSpeechService.swift */; };
 		BBC5F8E4CA694EABAD6955A2 /* SimpleMathRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0011C726DB944E1CBD5D9102 /* SimpleMathRenderer.swift */; };
@@ -718,6 +733,9 @@
 		7B278A4A2F5D5E8A00DA84B0 /* ZCOOLKuaiLe-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ZCOOLKuaiLe-Regular.ttf"; sourceTree = "<group>"; };
 		7B278A4E2F5D613D00DA84B0 /* Camera_black.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Camera_black.json; sourceTree = "<group>"; };
 		7B278A4F2F5D613D00DA84B0 /* Chat_bot.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Chat_bot.json; sourceTree = "<group>"; };
+		7B278AA42F5F80F400DA84B0 /* LiveModeScenario.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveModeScenario.swift; sourceTree = "<group>"; };
+		7B278AA82F5F813400DA84B0 /* LiveModeScenarioPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LiveModeScenarioPicker.swift; path = Views/LiveModeScenarioPicker.swift; sourceTree = SOURCE_ROOT; };
+		7B4F9C012F9A100200AB12C3 /* DailyQuestionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyQuestionCard.swift; path = StudyAI/Views/Components/DailyQuestionCard.swift; sourceTree = SOURCE_ROOT; };
 		7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ImageCropper.swift; path = StudyAI/Utils/ImageCropper.swift; sourceTree = SOURCE_ROOT; };
 		7B74A2032EB18078002DBE2B /* Fire.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Fire.json; sourceTree = "<group>"; };
 		7B74A2042EB18078002DBE2B /* Foriday.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Foriday.json; sourceTree = "<group>"; };
@@ -842,6 +860,8 @@
 		AA00010D2F68A00100000001 /* BranchLocalizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BranchLocalizer.swift; path = StudyAI/Services/BranchLocalizer.swift; sourceTree = SOURCE_ROOT; };
 		AA0002022F68A00100000001 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = Taxonomy.strings; sourceTree = "<group>"; };
 		AA0002052F68A00100000001 /* zh-Hant */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hant"; path = Taxonomy.strings; sourceTree = "<group>"; };
+		AA4F9D012F9A200300AB12C4 /* LiveModeScenario.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LiveModeScenario.swift; path = StudyAI/Models/LiveModeScenario.swift; sourceTree = SOURCE_ROOT; };
+		AA4F9D052F9A200300AB12C4 /* LiveModeScenarioPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LiveModeScenarioPicker.swift; path = StudyAI/Views/LiveModeScenarioPicker.swift; sourceTree = SOURCE_ROOT; };
 		ABCD123456789012EFGH3456 /* UserSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UserSessionManager.swift; path = StudyAI/Services/UserSessionManager.swift; sourceTree = SOURCE_ROOT; };
 		B287EA8822554493B6AB2BBB /* TomatoGardenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TomatoGardenView.swift; path = StudyAI/Views/TomatoGardenView.swift; sourceTree = SOURCE_ROOT; };
 		B2BADF97FAD74B47A0470133 /* nature.mp3 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = audio.mp3; name = nature.mp3; path = StudyAI/Resources/Music/nature.mp3; sourceTree = "<group>"; };
@@ -1086,6 +1106,7 @@
 		7BEDA5F72E7EB8C500D57B15 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				7B278AA42F5F80F400DA84B0 /* LiveModeScenario.swift */,
 				7BEC07DD2F478BFA00B6E573 /* UnifiedChatMessage.swift */,
 				7BEC07E12F47900000B6E573 /* AudioStreamManager.swift */,
 				7BEC07D92F465EDE00B6E573 /* VoiceChatViewModel.swift */,
@@ -1112,6 +1133,7 @@
 				PNTS456789012345EFGH0123 /* PointsEarningSystem.swift */,
 				BFAA0352B2D3E17EF96B1B49 /* SubjectBreakdownModels.swift */,
 				3D465FE8FD2541B4959A3F2A /* TomatoType.swift */,
+				AA4F9D012F9A200300AB12C4 /* LiveModeScenario.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -1119,6 +1141,7 @@
 		7BEDA5F82E7EB90500D57B15 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				7B278AA82F5F813400DA84B0 /* LiveModeScenarioPicker.swift */,
 				7B278A312F5D487700DA84B0 /* SuggestedTodoEngine.swift */,
 				AA00010D2F68A00100000001 /* BranchLocalizer.swift */,
 				7B2789F32F5AA1BC00DA84B0 /* LanguageManager.swift */,
@@ -1187,6 +1210,8 @@
 			isa = PBXGroup;
 			children = (
 				7B278A352F5D488D00DA84B0 /* SuggestedTodosSection.swift */,
+				7B4F9C012F9A100200AB12C3 /* DailyQuestionCard.swift */,
+				AA4F9D052F9A200300AB12C4 /* LiveModeScenarioPicker.swift */,
 				7B278A212F5CA93D00DA84B0 /* NewPracticeSheet.swift */,
 				7B278A222F5CA93D00DA84B0 /* PracticeLibraryView.swift */,
 				7B278A232F5CA93D00DA84B0 /* PracticeSessionCard.swift */,
@@ -1738,6 +1763,7 @@
 				BBC5F8E4CA694EABAD6955A2 /* SimpleMathRenderer.swift in Sources */,
 				D3FB6347F13948AB873BE1F8 /* SpeechRecognitionService.swift in Sources */,
 				7BEC07DE2F478BFA00B6E573 /* UnifiedChatMessage.swift in Sources */,
+				7B278AA62F5F80F400DA84B0 /* LiveModeScenario.swift in Sources */,
 				7BEC07E22F47900000B6E573 /* AudioStreamManager.swift in Sources */,
 				7BD668A62ED6F36300E09E55 /* DigitalHomeworkViewModel.swift in Sources */,
 				7B1961AD2E949DAD0024317A /* NotificationSettingsView.swift in Sources */,
@@ -1851,6 +1877,9 @@
 				PDFP1234567890123456ABCD /* PDFPreviewView.swift in Sources */,
 				EC13C4B1634147B49DEB198B /* PDFPreviewComponents.swift in Sources */,
 				7B278A382F5D488D00DA84B0 /* SuggestedTodosSection.swift in Sources */,
+				7B4F9C042F9A100200AB12C3 /* DailyQuestionCard.swift in Sources */,
+				AA4F9D042F9A200300AB12C4 /* LiveModeScenario.swift in Sources */,
+				AA4F9D082F9A200300AB12C4 /* LiveModeScenarioPicker.swift in Sources */,
 				B573CBF246134245A6DF42A5 /* LibraryPDFPreviewView.swift in Sources */,
 				7B83523A2E9625C900199AC3 /* ShareAppView.swift in Sources */,
 				7BDE567F2EC1C6E5004A8629 /* PomodoroCalendarService.swift in Sources */,
@@ -1876,6 +1905,7 @@
 				774ED04D9804457AADCBC4B1 /* TomatoExchangeView.swift in Sources */,
 				254AD1FAD46A435CADC4B72B /* StudyAI/Services/ProModeImageStorage.swift in Sources */,
 				7B2789F42F5AA1BC00DA84B0 /* LanguageManager.swift in Sources */,
+				7B278AA92F5F813400DA84B0 /* LiveModeScenarioPicker.swift in Sources */,
 				AA00010A2F68A00100000001 /* BranchLocalizer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1885,6 +1915,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				7B278A362F5D488D00DA84B0 /* SuggestedTodosSection.swift in Sources */,
+				7B4F9C022F9A100200AB12C3 /* DailyQuestionCard.swift in Sources */,
+				AA4F9D022F9A200300AB12C4 /* LiveModeScenario.swift in Sources */,
+				AA4F9D062F9A200300AB12C4 /* LiveModeScenarioPicker.swift in Sources */,
 				7B2249142F39BD4A006ADD93 /* ParentReportSettings.swift in Sources */,
 				7BDE56ED2EC31AC7004A8629 /* GrammarCorrectionView.swift in Sources */,
 				7BD664CA2ECA8B0A00E09E55 /* ProgressiveHomeworkViewModel.swift in Sources */,
@@ -1956,6 +1989,7 @@
 				7BDE56E22EC31A7A004A8629 /* EssayGradingModels.swift in Sources */,
 				7B8353412EA6F11400199AC3 /* ErrorBoundary.swift in Sources */,
 				7BDE56672EC1C64D004A8629 /* StreamingMessageService.swift in Sources */,
+				7B278AA52F5F80F400DA84B0 /* LiveModeScenario.swift in Sources */,
 				D107F714CBFF40BB9C000436 /* SynchronizedTextRenderer.swift in Sources */,
 				7B2248B92F331644006ADD93 /* InteractiveTTSService.swift in Sources */,
 				7BEC08362F4E780300B6E573 /* ActivityViewController.swift in Sources */,
@@ -1981,6 +2015,7 @@
 				7B8E9E952EAB50F400E83DA8 /* HomeworkImageDetailView.swift in Sources */,
 				7BDE56E52EC31A8B004A8629 /* LaTeXToHTMLConverter.swift in Sources */,
 				7BEC079B2F42F75100B6E573 /* ArchiveProgressView.swift in Sources */,
+				7B278AAB2F5F813400DA84B0 /* LiveModeScenarioPicker.swift in Sources */,
 				7BD668772ED05FAE00E09E55 /* DigitalHomeworkView.swift in Sources */,
 				7BD668782ED05FAE00E09E55 /* HomeworkSummaryView.swift in Sources */,
 				7BEC07DF2F478BFA00B6E573 /* UnifiedChatMessage.swift in Sources */,
@@ -1995,6 +2030,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7B278AA72F5F80F400DA84B0 /* LiveModeScenario.swift in Sources */,
 				7B2249152F39BD4A006ADD93 /* ParentReportSettings.swift in Sources */,
 				7BD664DA2ECAB9D200E09E55 /* ProgressiveSubquestionModel.swift in Sources */,
 				7B2248542F20212C006ADD93 /* PassiveReportsView.swift in Sources */,
@@ -2043,6 +2079,9 @@
 				7BD664D02ECA8B2E00E09E55 /* ProgressiveHomeworkView.swift in Sources */,
 				7B22491F2F39BE4E006ADD93 /* ThemeManager.swift in Sources */,
 				7B278A372F5D488D00DA84B0 /* SuggestedTodosSection.swift in Sources */,
+				7B4F9C032F9A100200AB12C3 /* DailyQuestionCard.swift in Sources */,
+				AA4F9D032F9A200300AB12C4 /* LiveModeScenario.swift in Sources */,
+				AA4F9D072F9A200300AB12C4 /* LiveModeScenarioPicker.swift in Sources */,
 				7B2248B72F309BEC006ADD93 /* AnswerMatchingService.swift in Sources */,
 				7BDE56E02EC31A7A004A8629 /* EssayGradingModels.swift in Sources */,
 				7B1961F22E94E31A0024317A /* ParentModeManager.swift in Sources */,
@@ -2079,6 +2118,7 @@
 				7B83533C2EA6F11400199AC3 /* SecureLogger.swift in Sources */,
 				7B2249532F3AC54E006ADD93 /* CuteTabBar.swift in Sources */,
 				7BDE567C2EC1C6C4004A8629 /* PomodoroCalendarView.swift in Sources */,
+				7B278AAA2F5F813400DA84B0 /* LiveModeScenarioPicker.swift in Sources */,
 				7B2248992F2D8DFE006ADD93 /* CompactSubjectSelector.swift in Sources */,
 				7B22489A2F2D8DFE006ADD93 /* DualSliderFilters.swift in Sources */,
 				7B22489B2F2D8DFE006ADD93 /* TaxonomyFilter.swift in Sources */,
