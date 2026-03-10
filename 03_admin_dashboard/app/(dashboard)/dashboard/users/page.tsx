@@ -65,6 +65,7 @@ interface UserAnalysis {
   streak: { current_streak: number; longest_streak: number; last_study_date: string | null } | null
   reports: { total_reports: string; last_report_date: string | null; avg_accuracy: string | null; latest_grade: string | null } | null
   archivedQuestions: number
+  topFeatures: Array<{ feature: string; count: number }>
 }
 
 const PAGE_SIZE = 50
@@ -350,6 +351,35 @@ function UserAnalysisPanel({
 
   return (
     <div className="space-y-4">
+      {/* Top Features */}
+      {data.topFeatures.length > 0 && (
+        <div className="rounded-lg border bg-white p-3">
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Top Features Used</div>
+          <div className="space-y-2">
+            {(() => {
+              const max = data.topFeatures[0]?.count || 1
+              return data.topFeatures.map((f, i) => (
+                <div key={f.feature} className="flex items-center gap-3">
+                  <span className="text-xs font-bold text-muted-foreground w-4">{i + 1}</span>
+                  <div className="flex-1">
+                    <div className="flex justify-between text-xs mb-0.5">
+                      <span className="font-medium">{f.feature}</span>
+                      <span className="text-muted-foreground font-semibold">{f.count.toLocaleString()}</span>
+                    </div>
+                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-indigo-500"
+                        style={{ width: `${Math.round((f.count / max) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))
+            })()}
+          </div>
+        </div>
+      )}
+
       {/* Top row: profile + streak + reports */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
 

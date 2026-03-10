@@ -274,6 +274,7 @@ module.exports = async function (fastify, opts) {
         streakResult,
         reportSummaryResult,
         archivedCountResult,
+        topFeaturesResult,
       ] = await Promise.all([
         // Profile info
         db.query(`
@@ -337,6 +338,30 @@ module.exports = async function (fastify, opts) {
         db.query(`
           SELECT COUNT(*) as total FROM archived_questions WHERE user_id = $1
         `, [userId]),
+
+        // Top features by usage
+        db.query(`
+          SELECT feature, count FROM (
+            SELECT 'Homework Sessions'       AS feature, COUNT(*)::int AS count FROM sessions WHERE user_id = $1 AND session_type = 'homework'
+            UNION ALL
+            SELECT 'Practice Sessions',      COUNT(*)::int FROM sessions WHERE user_id = $1 AND session_type = 'practice'
+            UNION ALL
+            SELECT 'AI Chat Sessions',       COUNT(*)::int FROM sessions WHERE user_id = $1 AND session_type = 'chat'
+            UNION ALL
+            SELECT 'Other Sessions',         COUNT(*)::int FROM sessions WHERE user_id = $1 AND session_type NOT IN ('homework','practice','chat')
+            UNION ALL
+            SELECT 'Questions Archived',     COUNT(*)::int FROM archived_questions WHERE user_id = $1
+            UNION ALL
+            SELECT 'Archive Reviews',        COALESCE(SUM(review_count),0)::int FROM archived_questions WHERE user_id = $1
+            UNION ALL
+            SELECT 'Conversations Archived', COUNT(*)::int FROM archived_conversations_new WHERE user_id = $1
+            UNION ALL
+            SELECT 'Reports Generated',      COUNT(*)::int FROM parent_report_batches WHERE user_id = $1
+          ) t
+          WHERE count > 0
+          ORDER BY count DESC
+          LIMIT 5
+        `, [userId]),
       ]);
 
       // Aggregate daily activity into per-day totals for heatmap
@@ -361,6 +386,7 @@ module.exports = async function (fastify, opts) {
           streak: streakResult.rows[0] || null,
           reports: reportSummaryResult.rows[0] || null,
           archivedQuestions: parseInt(archivedCountResult.rows[0]?.total || 0),
+          topFeatures: topFeaturesResult.rows,
         }
       });
     } catch (error) {
