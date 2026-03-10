@@ -237,7 +237,7 @@ async def generate_diagram_unified(conversation_text: str, diagram_request: str,
                         model=model,
                         messages=[{"role": "user", "content": prompt}],
                         temperature=0.2,
-                        max_tokens=1500,
+                        max_completion_tokens=1500,
                         response_format={"type": "json_object"}
                     )
                     result_text = response.choices[0].message.content.strip()
@@ -246,7 +246,7 @@ async def generate_diagram_unified(conversation_text: str, diagram_request: str,
                     model=model,
                     messages=[{"role": "user", "content": prompt}],
                     temperature=0.2,
-                    max_tokens=1500,
+                    max_completion_tokens=1500,
                     response_format={"type": "json_object"}
                 )
                 result_text = response.choices[0].message.content.strip()
@@ -376,7 +376,7 @@ IMPORTANT: Return ONLY the JSON object, no other text."""
                 model="gpt-5.2",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.2,
-                max_tokens=2000,
+                max_completion_tokens=2000,
                 response_format={"type": "json_object"}
             )
 
@@ -477,7 +477,7 @@ IMPORTANT: Return ONLY the JSON object, no other text."""
                 model="gpt-5.2",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.2,
-                max_tokens=1800,
+                max_completion_tokens=1800,
                 response_format={"type": "json_object"}
             )
 
