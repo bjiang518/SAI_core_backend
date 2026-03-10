@@ -267,10 +267,10 @@ Summary:"""
         
         try:
             response = await self.ai_service.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-5.2",
                 messages=[{"role": "user", "content": compression_prompt}],
                 temperature=0.1,
-                max_tokens=300
+                max_completion_tokens=300
             )
             
             compressed = response.choices[0].message.content

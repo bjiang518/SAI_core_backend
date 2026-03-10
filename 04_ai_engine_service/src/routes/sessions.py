@@ -102,19 +102,19 @@ class HomeworkFollowupResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 def select_chat_model(message: str, subject: str, conversation_length: int = 0):
-    """Select optimal model based on query complexity. Returns (model_name, max_tokens)."""
+    """Select token budget based on query complexity. Always uses gpt-5.2."""
     msg = message.lower().strip()
     msg_length = len(msg)
 
     if msg_length < 30:
-        return ("gpt-3.5-turbo", 500)
+        return ("gpt-5.2", 500)
 
     greeting_patterns = [
         'hi', 'hello', 'hey', 'thanks', 'thank you', 'ok', 'okay',
         'got it', 'i see', 'understood', 'yes', 'no', 'maybe'
     ]
     if msg in greeting_patterns or msg.startswith(tuple(greeting_patterns)):
-        return ("gpt-3.5-turbo", 500)
+        return ("gpt-5.2", 500)
 
     complex_keywords = [
         'prove', 'derive', 'calculate', 'solve', 'compute', 'evaluate',
@@ -124,23 +124,23 @@ def select_chat_model(message: str, subject: str, conversation_length: int = 0):
         'theorem', 'formula', 'equation', 'proof', 'method'
     ]
     if any(keyword in msg for keyword in complex_keywords):
-        return ("gpt-4o-mini", 1500)
+        return ("gpt-5.2", 1500)
 
     medium_keywords = [
         'explain', 'describe', 'what is', 'how to', 'can you help',
         'show me', 'tell me about', 'what are', 'give example'
     ]
     if any(keyword in msg for keyword in medium_keywords):
-        return ("gpt-4o-mini", 1200)
+        return ("gpt-5.2", 1200)
 
     stem_subjects = ['mathematics', 'physics', 'chemistry', 'biology', 'computer science']
     if subject and subject.lower() in stem_subjects:
-        return ("gpt-4o-mini", 1500)
+        return ("gpt-5.2", 1500)
 
     if msg_length > 150:
-        return ("gpt-4o-mini", 1500)
+        return ("gpt-5.2", 1500)
 
-    return ("gpt-3.5-turbo", 800)
+    return ("gpt-5.2", 800)
 
 
 async def generate_follow_up_suggestions(ai_response: str, user_message: str, subject: str, prior_messages=None):
@@ -228,7 +228,7 @@ Return ONLY the JSON array, no other text."""
 
         import re as _re
         response = await ai_service.client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-5.2",
             messages=[
                 {
                     "role": "system",
@@ -241,7 +241,7 @@ Return ONLY the JSON array, no other text."""
                 {"role": "user", "content": suggestion_prompt}
             ],
             temperature=0.4,
-            max_tokens=500
+            max_completion_tokens=500
         )
         suggestion_text = response.choices[0].message.content.strip()
         json_match = _re.search(r'\[.*\]', suggestion_text, _re.DOTALL)
@@ -343,10 +343,10 @@ async def send_session_message(session_id: str, request: SessionMessageRequest):
 
         session_has_images = any(msg.has_image() for msg in session.messages)
         if request.deep_mode:
-            selected_model = "o4-mini"
+            selected_model = "gpt-5.2"
             max_tokens = 4000
         elif session_has_images:
-            selected_model = "gpt-4o-mini"
+            selected_model = "gpt-5.2"
             max_tokens = 4096
         else:
             selected_model, max_tokens = select_chat_model(
@@ -360,11 +360,8 @@ async def send_session_message(session_id: str, request: SessionMessageRequest):
             "messages": context_messages,
             "stream": False
         }
-        if selected_model.startswith('o4') or selected_model.startswith('o1'):
-            openai_params["max_completion_tokens"] = max_tokens
-            openai_params["temperature"] = 1
-        else:
-            openai_params["max_tokens"] = max_tokens
+        openai_params["max_completion_tokens"] = max_tokens
+        openai_params["temperature"] = 0.3
             openai_params["temperature"] = 0.3
 
         response = await ai_service.client.chat.completions.create(**openai_params)
@@ -467,10 +464,10 @@ async def send_session_message_stream(session_id: str, request: SessionMessageRe
 
         session_has_images = any(msg.has_image() for msg in session.messages)
         if request.deep_mode:
-            selected_model = "o4-mini"
+            selected_model = "gpt-5.2"
             max_tokens = 4000
         elif session_has_images:
-            selected_model = "gpt-4o-mini"
+            selected_model = "gpt-5.2"
             max_tokens = 4096
         else:
             selected_model, max_tokens = select_chat_model(
@@ -495,12 +492,8 @@ async def send_session_message_stream(session_id: str, request: SessionMessageRe
                     "messages": context_messages,
                     "stream": True
                 }
-                if selected_model.startswith('o4') or selected_model.startswith('o1'):
-                    openai_params["max_completion_tokens"] = max_tokens
-                    openai_params["temperature"] = 1
-                else:
-                    openai_params["max_tokens"] = max_tokens
-                    openai_params["temperature"] = 0.3
+                openai_params["max_completion_tokens"] = max_tokens
+                openai_params["temperature"] = 0.3
 
                 stream = await ai_service.client.chat.completions.create(**openai_params)
 
@@ -598,10 +591,10 @@ async def process_homework_followup(
         context_messages = session.get_context_for_api(system_prompt)
 
         response = await ai_service.client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-5.2",
             messages=context_messages,
             temperature=0.3,
-            max_tokens=2000,
+            max_completion_tokens=2000,
             stream=False
         )
 

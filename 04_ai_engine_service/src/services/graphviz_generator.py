@@ -117,10 +117,10 @@ Generate the DOT code. Only return rejection JSON if request is genuinely imposs
 
         try:
             response = await ai_service.client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-5.2",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.2,
-                max_tokens=1000
+                max_completion_tokens=1000
             )
 
             code = response.choices[0].message.content.strip()
