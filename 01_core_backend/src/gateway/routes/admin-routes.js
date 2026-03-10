@@ -277,8 +277,7 @@ module.exports = async function (fastify, opts) {
       ] = await Promise.all([
         // Profile info
         db.query(`
-          SELECT grade_level, school, learning_style, difficulty_preference,
-                 favorite_subjects, profile_completion_percentage
+          SELECT *
           FROM profiles WHERE user_id = $1 LIMIT 1
         `, [userId]),
 
