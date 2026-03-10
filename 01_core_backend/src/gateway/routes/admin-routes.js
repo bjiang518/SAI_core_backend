@@ -581,7 +581,7 @@ module.exports = async function (fastify, opts) {
         db.query(`
           SELECT subject, COUNT(*)::int as count
           FROM archived_questions
-          WHERE is_correct = false OR is_correct IS NULL
+          WHERE grade IN ('INCORRECT', 'EMPTY') OR grade IS NULL
           GROUP BY subject
           ORDER BY count DESC
           LIMIT 8
