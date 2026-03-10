@@ -350,17 +350,17 @@ module.exports = async function (fastify, opts) {
         // Top features by usage
         db.query(`
           SELECT feature, count FROM (
-            SELECT 'AI Chat Sessions',       COUNT(*)::int AS count FROM sessions WHERE user_id = $1::uuid
+            SELECT 'AI Chat Sessions'::text       AS feature, COUNT(*)::int AS count FROM sessions WHERE user_id = $1::uuid
             UNION ALL
-            SELECT 'Questions Archived',     COUNT(*)::int FROM archived_questions WHERE user_id = $1::text
+            SELECT 'Questions Archived'::text,     COUNT(*)::int FROM archived_questions WHERE user_id = $1::text
             UNION ALL
-            SELECT 'Archive Reviews',        COALESCE(SUM(review_count),0)::int FROM archived_questions WHERE user_id = $1::text
+            SELECT 'Archive Reviews'::text,        COALESCE(SUM(review_count),0)::int FROM archived_questions WHERE user_id = $1::text
             UNION ALL
-            SELECT 'Conversations Archived', COUNT(*)::int FROM archived_conversations_new WHERE user_id = $1::uuid
+            SELECT 'Conversations Archived'::text, COUNT(*)::int FROM archived_conversations_new WHERE user_id = $1::uuid
             UNION ALL
-            SELECT 'Reports Generated',      COUNT(*)::int FROM parent_report_batches WHERE user_id = $1::uuid
+            SELECT 'Reports Generated'::text,      COUNT(*)::int FROM parent_report_batches WHERE user_id = $1::uuid
             UNION ALL
-            SELECT 'Practice Sheets',        COUNT(*)::int FROM practice_sheets WHERE user_id = $1::uuid
+            SELECT 'Practice Sheets'::text,        COUNT(*)::int FROM practice_sheets WHERE user_id = $1::uuid
           ) t
           WHERE count > 0
           ORDER BY count DESC
