@@ -56,8 +56,13 @@ export default function ReportsPage() {
       } else {
         setError(res.error || 'Failed to load reports')
       }
-    } catch {
-      setError('Failed to connect to backend')
+    } catch (err: unknown) {
+      // axios wraps HTTP errors; extract the real message
+      const axiosErr = err as { response?: { data?: { error?: string }; status?: number }; message?: string }
+      const msg = axiosErr?.response?.data?.error
+        || (axiosErr?.response?.status ? `HTTP ${axiosErr.response.status}` : null)
+        || (err instanceof Error ? err.message : String(err))
+      setError(`Error: ${msg}`)
     } finally {
       setLoading(false)
     }

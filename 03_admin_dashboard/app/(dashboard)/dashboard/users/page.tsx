@@ -47,18 +47,24 @@ export default function UsersPage() {
         headers: { Authorization: `Bearer ${token}` },
       })
 
-      if (!response.ok) throw new Error('Failed to fetch users')
+      const data = await response.json().catch(() => null)
 
-      const data = await response.json()
-      if (data.success) {
+      if (!response.ok) {
+        const msg = data?.error || data?.message || `HTTP ${response.status} ${response.statusText}`
+        setError(`API error: ${msg}`)
+        return
+      }
+
+      if (data?.success) {
         setUsers(data.data)
         setPagination(data.pagination)
         setError(null)
       } else {
-        setError(data.error || 'Failed to load users')
+        setError(data?.error || 'Unexpected response from backend')
       }
-    } catch {
-      setError('Failed to connect to backend')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      setError(`Network error: ${msg}`)
     } finally {
       setLoading(false)
     }
