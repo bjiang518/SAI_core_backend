@@ -66,6 +66,7 @@ interface UserAnalysis {
   reports: { total_reports: string; last_report_date: string | null; avg_accuracy: string | null; latest_grade: string | null } | null
   archivedQuestions: number
   topFeatures: Array<{ feature: string; count: number }>
+  apiUsage: Array<{ route: string; count: number }>
 }
 
 const PAGE_SIZE = 50
@@ -376,6 +377,34 @@ function UserAnalysisPanel({
                 </div>
               ))
             })()}
+          </div>
+        </div>
+      )}
+
+      {/* API Usage table */}
+      {data.apiUsage && data.apiUsage.length > 0 && (
+        <div className="rounded-lg border bg-white p-3">
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            API Calls This Session
+            <span className="ml-2 font-normal normal-case text-muted-foreground">(since last deploy)</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b text-left text-muted-foreground">
+                  <th className="pb-1.5 pr-4">Endpoint</th>
+                  <th className="pb-1.5 text-right">Calls</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.apiUsage.map((row) => (
+                  <tr key={row.route} className="border-b last:border-0">
+                    <td className="py-1.5 pr-4 font-mono">{row.route}</td>
+                    <td className="py-1.5 text-right font-semibold">{row.count.toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
