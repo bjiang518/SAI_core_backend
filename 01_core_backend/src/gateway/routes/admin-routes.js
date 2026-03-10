@@ -9,6 +9,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const AIServiceClient = require('../services/ai-client');
 const { performanceAnalyzer } = require('../services/performance-analyzer');
+const { userApiTracker } = require('../services/user-api-tracker');
 
 module.exports = async function (fastify, opts) {
   const { db, getPoolHealth } = require('../../utils/railway-database');
@@ -380,6 +381,7 @@ module.exports = async function (fastify, opts) {
           reports: reportSummaryResult.rows[0] || null,
           archivedQuestions: parseInt(archivedCountResult.rows[0]?.total || 0),
           topFeatures: topFeaturesResult.rows,
+          apiUsage: userApiTracker.getTopRoutes(userId, 15),
         }
       });
     } catch (error) {
