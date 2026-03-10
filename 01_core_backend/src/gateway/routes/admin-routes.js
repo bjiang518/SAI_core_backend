@@ -440,7 +440,7 @@ module.exports = async function (fastify, opts) {
         db.query(`
           SELECT grade_level, COUNT(*)::int as count
           FROM profiles
-          WHERE grade_level IS NOT NULL AND grade_level != ''
+          WHERE grade_level IS NOT NULL
           GROUP BY grade_level
           ORDER BY count DESC
         `),
