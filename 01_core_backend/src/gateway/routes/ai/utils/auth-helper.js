@@ -4,7 +4,6 @@
  */
 
 const PIIMasking = require('../../../../utils/pii-masking');
-const { userApiTracker } = require('../../../services/user-api-tracker');
 
 class AuthHelper {
   constructor(fastify) {
@@ -42,7 +41,7 @@ class AuthHelper {
 
       if (sessionData && sessionData.user_id) {
         this.fastify.log.info(`✅ Authentication successful in ${duration}ms for user: ${PIIMasking.maskUserId(sessionData.user_id)}`);
-        request.userId = sessionData.user_id;
+        request.userId = sessionData.user_id;  // available to onResponse hook + handlers
         return sessionData.user_id;
       }
 
@@ -71,10 +70,6 @@ class AuthHelper {
       });
       return null;
     }
-
-    // Track per-user API usage (fire-and-forget, non-blocking)
-    const route = request.routerPath || request.url || 'unknown';
-    userApiTracker.record(userId, request.method, route);
 
     return userId;
   }
@@ -105,6 +100,7 @@ async function getUserId(request) {
     const sessionData = await Promise.race([sessionDataPromise, timeoutPromise]);
 
     if (sessionData && sessionData.user_id) {
+      request.userId = sessionData.user_id;
       return sessionData.user_id;
     }
 

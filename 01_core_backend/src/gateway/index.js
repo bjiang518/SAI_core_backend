@@ -34,6 +34,7 @@ const { contractValidator } = require('./middleware/contract-validation');
 const { responseMiddleware } = require('./middleware/response-standardization');
 const { DocumentationServer } = require('./services/documentation-generator');
 const { performanceAnalyzer } = require('./services/performance-analyzer');
+const { userApiTracker } = require('./services/user-api-tracker');
 const { redisCacheManager } = require('./services/redis-cache');
 const { prometheusMetrics, healthMetrics } = require('./services/prometheus-metrics');
 const { secretsManager } = require('./services/secrets-manager');
@@ -135,6 +136,16 @@ if (features.enableMetrics) {
   fastify.addHook('onRequest', prometheusMetrics.getHttpMetricsMiddleware());
   fastify.log.info('✅ Performance monitoring enabled');
 }
+
+// Per-user API call tracking — fires after every request, reads request.userId
+// set by auth helpers (getUserIdFromToken / standalone getUserId)
+fastify.addHook('onResponse', (request, reply, done) => {
+  if (request.userId) {
+    const route = request.routerPath || request.url || 'unknown';
+    userApiTracker.record(request.userId, request.method, route);
+  }
+  done();
+});
 
 // Caching middleware
 if (features.enableCaching !== false) {
