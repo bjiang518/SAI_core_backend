@@ -342,21 +342,21 @@ module.exports = async function (fastify, opts) {
         // Top features by usage
         db.query(`
           SELECT feature, count FROM (
-            SELECT 'Homework Sessions'       AS feature, COUNT(*)::int AS count FROM sessions WHERE user_id = $1 AND session_type = 'homework'
+            SELECT 'Homework Sessions'       AS feature, COUNT(*)::int AS count FROM sessions WHERE user_id = $1::uuid AND session_type = 'homework'
             UNION ALL
-            SELECT 'Practice Sessions',      COUNT(*)::int FROM sessions WHERE user_id = $1 AND session_type = 'practice'
+            SELECT 'Practice Sessions',      COUNT(*)::int FROM sessions WHERE user_id = $1::uuid AND session_type = 'practice'
             UNION ALL
-            SELECT 'AI Chat Sessions',       COUNT(*)::int FROM sessions WHERE user_id = $1 AND session_type = 'chat'
+            SELECT 'AI Chat Sessions',       COUNT(*)::int FROM sessions WHERE user_id = $1::uuid AND session_type = 'chat'
             UNION ALL
-            SELECT 'Other Sessions',         COUNT(*)::int FROM sessions WHERE user_id = $1 AND session_type NOT IN ('homework','practice','chat')
+            SELECT 'Other Sessions',         COUNT(*)::int FROM sessions WHERE user_id = $1::uuid AND session_type NOT IN ('homework','practice','chat')
             UNION ALL
-            SELECT 'Questions Archived',     COUNT(*)::int FROM archived_questions WHERE user_id = $1
+            SELECT 'Questions Archived',     COUNT(*)::int FROM archived_questions WHERE user_id = $1::text
             UNION ALL
-            SELECT 'Archive Reviews',        COALESCE(SUM(review_count),0)::int FROM archived_questions WHERE user_id = $1
+            SELECT 'Archive Reviews',        COALESCE(SUM(review_count),0)::int FROM archived_questions WHERE user_id = $1::text
             UNION ALL
-            SELECT 'Conversations Archived', COUNT(*)::int FROM archived_conversations_new WHERE user_id = $1
+            SELECT 'Conversations Archived', COUNT(*)::int FROM archived_conversations_new WHERE user_id = $1::uuid
             UNION ALL
-            SELECT 'Reports Generated',      COUNT(*)::int FROM parent_report_batches WHERE user_id = $1
+            SELECT 'Reports Generated',      COUNT(*)::int FROM parent_report_batches WHERE user_id = $1::uuid
           ) t
           WHERE count > 0
           ORDER BY count DESC
