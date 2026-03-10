@@ -11,11 +11,15 @@ import {
   Activity,
   FileText,
   LogOut,
+  BarChart2,
+  Lightbulb,
 } from 'lucide-react'
 
 const navigation = [
   { name: 'Overview', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Users', href: '/dashboard/users', icon: Users },
+  { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart2 },
+  { name: 'Insights', href: '/dashboard/insights', icon: Lightbulb },
   { name: 'System Health', href: '/dashboard/system', icon: Activity },
   { name: 'Reports', href: '/dashboard/reports', icon: FileText },
 ]

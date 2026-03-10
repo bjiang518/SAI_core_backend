@@ -13,6 +13,7 @@ interface User {
   email: string
   join_date: string
   last_active: string | null
+  days_inactive: number | null
   subscriptionStatus: string
   total_sessions: number
 }
@@ -270,7 +271,18 @@ export default function UsersPage() {
                           <td className="py-3 pr-4 text-muted-foreground">{user.email}</td>
                           <td className="py-3 pr-4">{getStatusBadge(user.subscriptionStatus)}</td>
                           <td className="py-3 pr-4">{formatDate(user.join_date)}</td>
-                          <td className="py-3 pr-4">{user.last_active ? formatDate(user.last_active) : 'Never'}</td>
+                          <td className="py-3 pr-4">{user.last_active ? formatDate(user.last_active) : 'Never'}
+                            {user.days_inactive != null && user.days_inactive >= 30 && (
+                              <span className="ml-1.5 px-1.5 py-0.5 rounded text-xs bg-red-100 text-red-700">
+                                {user.days_inactive}d ago
+                              </span>
+                            )}
+                            {user.days_inactive != null && user.days_inactive >= 7 && user.days_inactive < 30 && (
+                              <span className="ml-1.5 px-1.5 py-0.5 rounded text-xs bg-yellow-100 text-yellow-700">
+                                {user.days_inactive}d ago
+                              </span>
+                            )}
+                          </td>
                           <td className="py-3">{Number(user.total_sessions).toLocaleString()}</td>
                         </tr>
 

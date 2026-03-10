@@ -5200,6 +5200,24 @@ async function runDatabaseMigrations() {
       logger.debug('✅ practice_sheets_fields migration already applied');
     }
 
+    // MIGRATION 021: Add opened_at to passive_reports for engagement tracking (2026-03-09)
+    const migration021Check = await db.query(`
+      SELECT 1 FROM migration_history WHERE migration_name = '021_passive_reports_opened_at'
+    `);
+    if (migration021Check.rows.length === 0) {
+      try {
+        await db.query(`
+          ALTER TABLE passive_reports
+            ADD COLUMN IF NOT EXISTS opened_at TIMESTAMPTZ,
+            ADD COLUMN IF NOT EXISTS open_count INTEGER DEFAULT 0;
+        `);
+        await db.query(`INSERT INTO migration_history (migration_name) VALUES ('021_passive_reports_opened_at') ON CONFLICT DO NOTHING`);
+        logger.debug('✅ passive_reports opened_at/open_count added');
+      } catch (migrationError) {
+        logger.error({ err: migrationError }, '❌ Migration 021 failed');
+      }
+    }
+
   } catch (error) {
     logger.error('❌ Database migration failed:', error);
     // Don't throw - let the app continue with what it has

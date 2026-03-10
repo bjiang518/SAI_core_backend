@@ -629,6 +629,14 @@ module.exports = async function (fastify, opts) {
         await client.query('COMMIT');
         logger.info(`✅ Found ${reportsResult.rows.length} reports in batch`);
 
+        // Track report open (fire-and-forget — non-blocking)
+        db.query(`
+          UPDATE passive_reports
+          SET open_count = COALESCE(open_count, 0) + 1,
+              opened_at = COALESCE(opened_at, NOW())
+          WHERE batch_id = $1
+        `, [batchId]).catch(() => {}); // silent — column may not exist yet until migration runs
+
         return reply.send({
           success: true,
           batch: {

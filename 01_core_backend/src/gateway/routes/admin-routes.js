@@ -96,16 +96,20 @@ module.exports = async function (fastify, opts) {
   // ============================================================================
 
   /**
-   * GET /api/admin/stats/overview
-   * Returns real metrics: user counts, sessions, performance, cache, DB health.
+   * GET /api/admin/stats/overview  (extended with DAU/WAU/MAU + churn)
    */
   fastify.get('/api/admin/stats/overview', { preHandler: verifyAdmin }, async (request, reply) => {
     try {
       // Real DB queries in parallel
-      const [usersResult, weekAgoResult, sessionsResult] = await Promise.all([
+      const [usersResult, weekAgoResult, sessionsResult, dauResult, wauResult, mauResult, churnResult, newUsersLastWeekResult] = await Promise.all([
         db.query('SELECT COUNT(*) as total FROM users'),
         db.query("SELECT COUNT(*) as total FROM users WHERE created_at <= NOW() - INTERVAL '7 days'"),
-        db.query("SELECT COUNT(*) as total FROM active_sessions WHERE DATE(created_at) = CURRENT_DATE"),
+        db.query("SELECT COUNT(*) as total FROM sessions WHERE DATE(created_at) = CURRENT_DATE"),
+        db.query("SELECT COUNT(DISTINCT user_id) as total FROM sessions WHERE DATE(created_at) = CURRENT_DATE"),
+        db.query("SELECT COUNT(DISTINCT user_id) as total FROM sessions WHERE created_at >= NOW() - INTERVAL '7 days'"),
+        db.query("SELECT COUNT(DISTINCT user_id) as total FROM sessions WHERE created_at >= NOW() - INTERVAL '30 days'"),
+        db.query("SELECT COUNT(*) as total FROM users WHERE last_login_at < NOW() - INTERVAL '7 days' AND last_login_at IS NOT NULL"),
+        db.query("SELECT COUNT(*) as total FROM users WHERE created_at >= NOW() - INTERVAL '7 days'"),
       ]);
 
       const totalUsers = parseInt(usersResult.rows[0].total);
@@ -141,6 +145,11 @@ module.exports = async function (fastify, opts) {
           totalUsers,
           usersGrowth7d,
           sessionsToday,
+          dau: parseInt(dauResult.rows[0].total),
+          wau: parseInt(wauResult.rows[0].total),
+          mau: parseInt(mauResult.rows[0].total),
+          churnRisk: parseInt(churnResult.rows[0].total),
+          newUsersThisWeek: parseInt(newUsersLastWeekResult.rows[0].total),
           aiRequestsPerHour,
           avgResponseTime,
           errorRate,
@@ -175,6 +184,7 @@ module.exports = async function (fastify, opts) {
           u.name,
           u.created_at as join_date,
           u.last_login_at as last_active,
+          EXTRACT(day FROM NOW() - u.last_login_at)::int as days_inactive,
           (SELECT COUNT(*) FROM sessions s WHERE s.user_id = u.id) as total_sessions
         FROM users u
       `;
@@ -391,6 +401,211 @@ module.exports = async function (fastify, opts) {
   });
 
   // ============================================================================
+  // ANALYTICS ROUTES
+  // ============================================================================
+
+  /**
+   * GET /api/admin/analytics/overview
+   * User growth, DAU chart, grade distribution, subject popularity, feature adoption.
+   */
+  fastify.get('/api/admin/analytics/overview', { preHandler: verifyAdmin }, async (request, reply) => {
+    try {
+      const [
+        userGrowthResult,
+        dauChartResult,
+        gradeDistResult,
+        subjectPopularityResult,
+        featureAdoptionResult,
+        homeworkParseResult,
+      ] = await Promise.all([
+        // New users per day — last 30 days
+        db.query(`
+          SELECT DATE(created_at) as date, COUNT(*)::int as new_users
+          FROM users
+          WHERE created_at >= NOW() - INTERVAL '30 days'
+          GROUP BY DATE(created_at)
+          ORDER BY date
+        `),
+
+        // DAU chart — distinct users with at least one session, last 30 days
+        db.query(`
+          SELECT DATE(created_at) as date, COUNT(DISTINCT user_id)::int as active_users
+          FROM sessions
+          WHERE created_at >= NOW() - INTERVAL '30 days'
+          GROUP BY DATE(created_at)
+          ORDER BY date
+        `),
+
+        // Grade level distribution
+        db.query(`
+          SELECT grade_level, COUNT(*)::int as count
+          FROM profiles
+          WHERE grade_level IS NOT NULL AND grade_level != ''
+          GROUP BY grade_level
+          ORDER BY count DESC
+        `),
+
+        // Most studied subjects platform-wide
+        db.query(`
+          SELECT subject,
+            SUM(total_questions_attempted)::int as total_questions,
+            COUNT(DISTINCT user_id)::int as user_count,
+            ROUND(AVG(accuracy_rate)::numeric, 1) as avg_accuracy
+          FROM subject_progress
+          WHERE total_questions_attempted > 0
+          GROUP BY subject
+          ORDER BY total_questions DESC
+          LIMIT 10
+        `),
+
+        // Feature adoption — % of total users who have ever used each feature
+        db.query(`
+          SELECT
+            (SELECT COUNT(*) FROM users)::int as total_users,
+            (SELECT COUNT(DISTINCT user_id) FROM sessions)::int as ever_chatted,
+            (SELECT COUNT(DISTINCT user_id::text) FROM archived_questions)::int as ever_archived_homework,
+            (SELECT COUNT(DISTINCT user_id) FROM practice_sheets)::int as ever_practiced,
+            (SELECT COUNT(DISTINCT user_id) FROM parent_report_batches)::int as ever_reported,
+            (SELECT COUNT(DISTINCT user_id) FROM archived_conversations_new)::int as ever_archived_convo,
+            (SELECT COUNT(DISTINCT user_id) FROM study_streaks WHERE current_streak > 0)::int as has_active_streak
+        `),
+
+        // Homework parse volume — last 30 days from archived_questions
+        db.query(`
+          SELECT DATE(created_at) as date, COUNT(*)::int as questions
+          FROM archived_questions
+          WHERE created_at >= NOW() - INTERVAL '30 days'
+          GROUP BY DATE(created_at)
+          ORDER BY date
+        `),
+      ]);
+
+      return reply.send({
+        success: true,
+        data: {
+          userGrowth: userGrowthResult.rows,
+          dauChart: dauChartResult.rows,
+          gradeDistribution: gradeDistResult.rows,
+          subjectPopularity: subjectPopularityResult.rows,
+          featureAdoption: featureAdoptionResult.rows[0] || {},
+          homeworkVolume: homeworkParseResult.rows,
+        }
+      });
+    } catch (error) {
+      fastify.log.error({ err: error }, 'Error fetching analytics overview');
+      return reply.code(500).send({ success: false, error: 'Failed to fetch analytics', details: error?.message });
+    }
+  });
+
+  // ============================================================================
+  // LEARNING INSIGHTS ROUTES
+  // ============================================================================
+
+  /**
+   * GET /api/admin/insights/overview
+   * Hardest subjects, accuracy distribution, streak health, practice ratio, report quality.
+   */
+  fastify.get('/api/admin/insights/overview', { preHandler: verifyAdmin }, async (request, reply) => {
+    try {
+      const [
+        hardestSubjectsResult,
+        accuracyDistResult,
+        streakDistResult,
+        practiceRatioResult,
+        reportQualityResult,
+        topWeaknessResult,
+      ] = await Promise.all([
+        // Hardest subjects — lowest avg accuracy, minimum 5 questions attempted
+        db.query(`
+          SELECT subject,
+            ROUND(AVG(accuracy_rate)::numeric, 1) as avg_accuracy,
+            SUM(total_questions_attempted)::int as total_questions,
+            COUNT(DISTINCT user_id)::int as user_count,
+            ROUND(AVG(average_confidence)::numeric, 2) as avg_confidence
+          FROM subject_progress
+          WHERE total_questions_attempted >= 5
+          GROUP BY subject
+          ORDER BY avg_accuracy ASC
+          LIMIT 8
+        `),
+
+        // Accuracy distribution buckets across all users
+        db.query(`
+          SELECT
+            COUNT(*) FILTER (WHERE avg_acc < 50)::int as below_50,
+            COUNT(*) FILTER (WHERE avg_acc BETWEEN 50 AND 69)::int as fifty_to_69,
+            COUNT(*) FILTER (WHERE avg_acc BETWEEN 70 AND 84)::int as seventy_to_84,
+            COUNT(*) FILTER (WHERE avg_acc >= 85)::int as above_85
+          FROM (
+            SELECT user_id, AVG(accuracy_rate) as avg_acc
+            FROM subject_progress
+            WHERE total_questions_attempted >= 5
+            GROUP BY user_id
+          ) t
+        `),
+
+        // Streak health distribution
+        db.query(`
+          SELECT
+            COUNT(*) FILTER (WHERE current_streak = 0)::int as streak_0,
+            COUNT(*) FILTER (WHERE current_streak BETWEEN 1 AND 7)::int as streak_1_7,
+            COUNT(*) FILTER (WHERE current_streak BETWEEN 8 AND 30)::int as streak_8_30,
+            COUNT(*) FILTER (WHERE current_streak > 30)::int as streak_30_plus,
+            ROUND(AVG(current_streak)::numeric, 1) as avg_streak,
+            MAX(longest_streak)::int as max_ever_streak
+          FROM study_streaks
+        `),
+
+        // Practice vs Homework ratio + totals
+        db.query(`
+          SELECT
+            (SELECT COUNT(*) FROM practice_sheets)::int as practice_sheets,
+            (SELECT COUNT(*) FROM archived_questions)::int as homework_questions,
+            (SELECT COUNT(*) FROM archived_conversations_new)::int as archived_convos,
+            (SELECT COALESCE(SUM(question_count), 0) FROM practice_sheets)::int as practice_questions_total
+        `),
+
+        // Report quality
+        db.query(`
+          SELECT
+            COUNT(*)::int as total,
+            COUNT(*) FILTER (WHERE status = 'completed')::int as completed,
+            COUNT(*) FILTER (WHERE status = 'failed')::int as failed,
+            COUNT(*) FILTER (WHERE status = 'generating')::int as generating,
+            ROUND(AVG(generation_time_ms) FILTER (WHERE status = 'completed')::numeric / 1000, 1) as avg_gen_seconds,
+            ROUND(AVG(overall_accuracy) FILTER (WHERE status = 'completed')::numeric, 1) as avg_accuracy
+          FROM parent_report_batches
+        `),
+
+        // Most common struggling topics from archived_questions
+        db.query(`
+          SELECT subject, COUNT(*)::int as count
+          FROM archived_questions
+          WHERE is_correct = false OR is_correct IS NULL
+          GROUP BY subject
+          ORDER BY count DESC
+          LIMIT 8
+        `),
+      ]);
+
+      return reply.send({
+        success: true,
+        data: {
+          hardestSubjects: hardestSubjectsResult.rows,
+          accuracyDistribution: accuracyDistResult.rows[0] || {},
+          streakHealth: streakDistResult.rows[0] || {},
+          practiceRatio: practiceRatioResult.rows[0] || {},
+          reportQuality: reportQualityResult.rows[0] || {},
+          topWeaknesses: topWeaknessResult.rows,
+        }
+      });
+    } catch (error) {
+      fastify.log.error({ err: error }, 'Error fetching insights overview');
+      return reply.code(500).send({ success: false, error: 'Failed to fetch insights', details: error?.message });
+    }
+  });
+
+  // ============================================================================
   // SYSTEM HEALTH ROUTES
   // ============================================================================
 
@@ -549,6 +764,7 @@ module.exports = async function (fastify, opts) {
   /**
    * GET /api/admin/reports/overview?period=all&limit=20&offset=0
    * Returns all report batches with user info for admin review.
+   * Also shows open_count per batch to track parent engagement.
    */
   fastify.get('/api/admin/reports/overview', { preHandler: verifyAdmin }, async (request, reply) => {
     try {
@@ -582,7 +798,8 @@ module.exports = async function (fastify, opts) {
           b.overall_accuracy,
           b.question_count,
           b.study_time_minutes,
-          (SELECT COUNT(*) FROM passive_reports WHERE batch_id = b.id) as report_count
+          (SELECT COUNT(*) FROM passive_reports WHERE batch_id = b.id) as report_count,
+          (SELECT COALESCE(SUM(open_count), 0) FROM passive_reports WHERE batch_id = b.id) as total_opens
         FROM parent_report_batches b
         LEFT JOIN users u ON b.user_id = u.id
         ${where}
@@ -607,12 +824,22 @@ module.exports = async function (fastify, opts) {
         FROM parent_report_batches
       `);
 
+      // Report engagement: how many reports have been opened
+      const engagementResult = await db.query(`
+        SELECT
+          COUNT(*)::int as total_reports,
+          COUNT(*) FILTER (WHERE open_count > 0)::int as opened_reports,
+          COALESCE(SUM(open_count), 0)::int as total_opens
+        FROM passive_reports
+      `);
+
       return reply.send({
         success: true,
         data: {
           batches: batchesResult.rows,
           total: parseInt(countResult.rows[0].total),
           stats: statsResult.rows[0],
+          engagement: engagementResult.rows[0],
         }
       });
     } catch (error) {
