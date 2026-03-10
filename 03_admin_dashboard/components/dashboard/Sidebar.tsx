@@ -4,13 +4,13 @@ import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/hooks/useAuth'
 import {
   LayoutDashboard,
   Users,
   Activity,
   FileText,
   LogOut,
-  Settings,
 } from 'lucide-react'
 
 const navigation = [
@@ -22,12 +22,16 @@ const navigation = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const { logout } = useAuth()
 
   return (
-    <div className="flex h-screen w-64 flex-col bg-gray-900 text-white">
+    <div className="flex h-screen w-64 flex-col bg-gray-900 text-white shrink-0">
       {/* Logo */}
-      <div className="flex h-16 items-center justify-center border-b border-gray-800">
-        <h1 className="text-xl font-bold">StudyAI Admin</h1>
+      <div className="flex h-16 items-center justify-center border-b border-gray-800 px-4">
+        <div className="text-center">
+          <h1 className="text-lg font-bold">StudyAI Admin</h1>
+          <p className="text-xs text-gray-400">Dashboard</p>
+        </div>
       </div>
 
       {/* Navigation */}
@@ -45,7 +49,7 @@ export function Sidebar() {
                   : 'text-gray-400 hover:bg-gray-800 hover:text-white'
               )}
             >
-              <item.icon className="h-5 w-5" />
+              <item.icon className="h-4 w-4" />
               {item.name}
             </Link>
           )
@@ -56,12 +60,9 @@ export function Sidebar() {
       <div className="border-t border-gray-800 p-4">
         <button
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
-          onClick={() => {
-            localStorage.removeItem('admin_token')
-            window.location.href = '/login'
-          }}
+          onClick={logout}
         >
-          <LogOut className="h-5 w-5" />
+          <LogOut className="h-4 w-4" />
           Logout
         </button>
       </div>
