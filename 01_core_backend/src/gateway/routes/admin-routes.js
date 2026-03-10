@@ -173,7 +173,7 @@ module.exports = async function (fastify, opts) {
           u.email,
           u.name,
           u.created_at as join_date,
-          u.last_login as last_active,
+          u.last_login_at as last_active,
           0 as total_sessions
         FROM users u
       `;
@@ -216,7 +216,7 @@ module.exports = async function (fastify, opts) {
     try {
       const { userId } = request.params;
       const [userResult, progressResult] = await Promise.all([
-        db.query('SELECT id, email, name, created_at, last_login FROM users WHERE id = $1', [userId]),
+        db.query('SELECT id, email, name, created_at, last_login_at FROM users WHERE id = $1', [userId]),
         db.query('SELECT subject, questions_answered, accuracy FROM subject_progress WHERE user_id = $1', [userId]),
       ]);
 
