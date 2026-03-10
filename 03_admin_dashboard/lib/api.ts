@@ -113,7 +113,6 @@ export const systemAPI = {
     return response.data
   },
 
-  // Using existing health endpoints
   getHealth: async () => {
     const response = await apiClient.get('/health/detailed')
     return response.data
@@ -125,20 +124,10 @@ export const systemAPI = {
   },
 }
 
-// Reports API (using existing passive reports endpoints)
+// Reports API — admin view across all users
 export const reportsAPI = {
-  getBatches: async () => {
-    const response = await apiClient.get('/api/reports/passive/batches')
-    return response.data
-  },
-
-  getBatchDetails: async (batchId: string) => {
-    const response = await apiClient.get(`/api/reports/passive/batches/${batchId}`)
-    return response.data
-  },
-
-  generateNow: async (userId: string, period: 'weekly' | 'monthly') => {
-    const response = await apiClient.post('/api/reports/passive/generate-now', { userId, period })
+  getOverview: async (params?: { period?: string; limit?: number; offset?: number }) => {
+    const response = await apiClient.get('/api/admin/reports/overview', { params })
     return response.data
   },
 }
