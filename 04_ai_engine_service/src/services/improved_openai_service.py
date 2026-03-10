@@ -116,7 +116,7 @@ class OptimizedEducationalAIService:
         self.model_reasoning = "o4-mini"  # Deep reasoning model for complex problem-solving
         self.model = self.model_mini  # Default to mini
         self.vision_model = "gpt-4o-2024-08-06"  # Required for structured outputs
-        self.structured_output_model = "gpt-4o-mini"  # Switched from gpt-4o-2024-08-06: 4-8x faster, same JSON mode support
+        self.structured_output_model = "gpt-5.2"
 
         # Track model usage for cost monitoring
         self.model_usage_stats = {
@@ -657,7 +657,7 @@ CRITICAL INSTRUCTIONS:
                     response_format={"type": "json_object"},  # JSON mode instead of beta parse
                     # OPTIMIZATION: Temperature 0.1 for consistent grading (was 0.2)
                     temperature=0.1,
-                    max_tokens=max_tokens,  # Dynamic allocation
+                    max_completion_tokens=max_tokens,  # Dynamic allocation
                 )
 
                 api_call_duration = time.time() - api_call_start
@@ -1843,7 +1843,7 @@ HAS_VISUALS: false"""
                 messages=[
                     {"role": "user", "content": "Respond with JSON: {\"status\": \"healthy\", \"test\": true}"}
                 ],
-                max_tokens=50,
+                max_completion_tokens=50,
                 response_format={"type": "json_object"}
             )
             
@@ -1882,10 +1882,10 @@ class EducationalAIService:
             timeout=180.0
         )
         self.prompt_service = AdvancedPromptService()
-        self.model = "gpt-4o-mini"
+        self.model = "gpt-5.2"
         self.model_mini = "gpt-4o-mini"  # Alias for compatibility with parse_homework_questions_with_coordinates
         self.model_reasoning = "o4-mini"  # Deep reasoning model for complex problem-solving
-        self.vision_model = "gpt-4o"  # Full model for vision tasks
+        self.vision_model = "gpt-5.2"
         self.structured_output_model = "gpt-4o-2024-08-06"  # For structured outputs (progressive grading)
 
         # Track model usage for cost monitoring
@@ -1977,7 +1977,7 @@ class EducationalAIService:
                 model=self.model,
                 messages=messages,
                 temperature=0.4,  # Slightly higher for more conversational responses
-                max_tokens=1200,  # Shorter responses for conversations
+                max_completion_tokens=1200,  # Shorter responses for conversations
                 presence_penalty=0.1,
                 frequency_penalty=0.1
             )
@@ -2031,7 +2031,7 @@ class EducationalAIService:
                     {"role": "user", "content": question}
                 ],
                 temperature=0.3,
-                max_tokens=1500,
+                max_completion_tokens=1500,
                 presence_penalty=0.1,
                 frequency_penalty=0.1
             )
@@ -2451,7 +2451,7 @@ class EducationalAIService:
             response = await self.client.chat.completions.create(
                 model=self.vision_model,  # Use full vision model for image analysis
                 messages=messages,
-                max_tokens=800,  # Shorter responses for chat
+                max_completion_tokens=800,  # Shorter responses for chat
                 temperature=0.7,  # Slightly more conversational
                 stream=False
             )
@@ -2594,7 +2594,7 @@ class EducationalAIService:
             stream = await self.client.chat.completions.create(
                 model=self.vision_model,
                 messages=messages,
-                max_tokens=800,
+                max_completion_tokens=800,
                 temperature=0.7,
                 stream=True  # Enable streaming
             )
@@ -2736,7 +2736,7 @@ Focus on being helpful and educational while maintaining a conversational tone."
                     ).format(count=config.get('question_count', 5), subject=subject)}
                 ],
                 temperature=0.7,  # Higher temperature for variety in questions
-                max_tokens=3000,
+                max_completion_tokens=3000,
                 # Remove JSON format requirement for more reliable parsing
             )
 
@@ -2907,7 +2907,7 @@ Focus on being helpful and educational while maintaining a conversational tone."
                     ).format(count=config.get('question_count', 5), subject=subject)}
                 ],
                 temperature=0.6,  # Moderate temperature for focused remedial questions
-                max_tokens=3000,
+                max_completion_tokens=3000,
                 # Remove JSON format requirement for more reliable parsing
             )
 
@@ -3151,7 +3151,7 @@ Focus on being helpful and educational while maintaining a conversational tone."
                     ).format(count=config.get('question_count', 5), subject=subject)}
                 ],
                 temperature=0.8,  # Higher temperature for more personalized, creative questions
-                max_tokens=3000,
+                max_completion_tokens=3000,
                 # Remove JSON format requirement for more reliable parsing
             )
 
@@ -3299,7 +3299,7 @@ Focus on being helpful and educational while maintaining a conversational tone."
                     {"role": "user", "content": f"Generate {count} {question_type} questions for {subject} now. Return only a JSON object with a 'questions' array."}
                 ],
                 temperature=0.7,
-                max_tokens=3000,
+                max_completion_tokens=3000,
                 response_format={"type": "json_object"},
             )
 
@@ -3482,7 +3482,7 @@ Focus on being helpful and educational while maintaining a conversational tone."
                 ],
                 response_format={"type": "json_object"},
                 temperature=0.0,  # OCR must be 0 for deterministic stability (was 0.2)
-                max_tokens=3000  # Reduced from 4000-6000 (typical response ~1000-1500 tokens)
+                max_completion_tokens=3000  # Reduced from 4000-6000 (typical response ~1000-1500 tokens)
             )
 
             api_duration = time.time() - start_time
@@ -3664,17 +3664,26 @@ Focus on being helpful and educational while maintaining a conversational tone."
                 raw_response = response.choices[0].message.content
             else:
                 # gpt-5.2 FAST MODE — Responses API
+                # IMPORTANT: for gpt-5.2, reasoning tokens count against max_output_tokens.
+                # "high" effort + 1024 limit was exhausting the budget before producing any
+                # JSON output → empty/truncated output_text → JSONDecodeError.
+                # Fix: "low" effort keeps fast, 2048 tokens is enough for the JSON response.
                 response = await self.client.responses.create(
                     model=selected_model,  # gpt-5.2
                     input=input_messages,
-                    reasoning={"effort": "high"},
+                    reasoning={"effort": "low"},
                     text={"format": {"type": "json_object"}},
-                    max_output_tokens=1024
+                    max_output_tokens=2048
                 )
                 raw_response = response.output_text
 
             api_duration = time.time() - start_time
             logger.debug(f"✅ Grading completed in {api_duration:.2f}s")
+
+            if not raw_response:
+                logger.info(f"⚠️ [GRADE] output_text is empty after {api_duration:.1f}s — model={selected_model} deep={use_deep_reasoning}")
+                return {"success": False, "error": "Grading error: model returned empty response (likely token budget exhausted)"}
+
             grade_data = json.loads(raw_response)
 
             logger.debug(f"✅ Grade: score={grade_data.get('score', 0.0)}, correct={grade_data.get('is_correct', False)}, feedback={len(grade_data.get('feedback', ''))} chars")

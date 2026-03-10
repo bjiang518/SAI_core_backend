@@ -25,7 +25,7 @@ class ConceptExtractionService:
 
     def __init__(self):
         self.client = AsyncOpenAI()
-        self.model = "gpt-4o-mini"
+        self.model = "gpt-5.2"
 
     async def extract_concept(self, question_data):
         """
@@ -51,7 +51,7 @@ class ConceptExtractionService:
                 ],
                 response_format={"type": "json_object"},
                 temperature=0.2,  # Low temperature for consistent categorization
-                max_tokens=150  # Much smaller than error analysis (we only need taxonomy)
+                max_completion_tokens=150  # Much smaller than error analysis (we only need taxonomy)
             )
 
             result = json.loads(response.choices[0].message.content)
