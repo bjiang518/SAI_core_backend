@@ -40,6 +40,7 @@ module.exports = async function (fastify, opts) {
         let pendingStartSession = null; // Store start_session until Gemini WS is open
         let currentSubject = null; // Set on start_session; used to give image context
         let studentName = null;   // Set on start_session; used for personalised greeting
+        let activeScenarioPrompt = null; // Set on start_session; triggers AI-first opening
 
         // Accumulators for the current turn — reset on turn_complete / interrupted
         let currentUserTranscript = '';   // built from inputTranscription chunks
@@ -287,6 +288,7 @@ module.exports = async function (fastify, opts) {
                 logger.info({ sessionId, subject, language, character, hasScenario: !!scenario_prompt }, '[Live] handleStartSession');
 
                 currentSubject = subject || null;
+                activeScenarioPrompt = scenario_prompt || null;
 
                 // Fetch student name for personalised greeting
                 const userProfile = await db.getEnhancedUserProfile(userId).catch(() => null);
@@ -803,6 +805,17 @@ ${lines.join('\n')}
 
                     if (result.rows.length === 0) {
                         logger.info({ sessionId }, '[Live] replay: no prior turns');
+                        // For scenario sessions: send a turnComplete:true trigger so Gemini
+                        // starts by delivering its scenario opening rather than waiting.
+                        if (activeScenarioPrompt && geminiSocket && geminiSocket.readyState === WebSocket.OPEN) {
+                            logger.info({ sessionId }, '[Live] scenario: sending AI-first trigger');
+                            geminiSocket.send(JSON.stringify({
+                                clientContent: {
+                                    turns: [{ role: 'user', parts: [{ text: 'Please begin the session now by following your scenario instructions.' }] }],
+                                    turnComplete: true
+                                }
+                            }));
+                        }
                         return;
                     }
 
