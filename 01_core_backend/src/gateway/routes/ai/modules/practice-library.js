@@ -21,7 +21,46 @@ class PracticeLibraryRoutes {
     this.authHelper = new AuthHelper(fastify);
   }
 
+  async ensureTable() {
+    const pool = getPool();
+    try {
+      // Create table with all columns in one shot — idempotent
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS practice_sheets (
+          id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id             UUID REFERENCES users(id) ON DELETE CASCADE,
+          sheet_id            VARCHAR(255) UNIQUE NOT NULL,
+          subject             VARCHAR(100),
+          source_type         VARCHAR(50),
+          question_count      INTEGER DEFAULT 0,
+          completed_count     INTEGER DEFAULT 0,
+          score_percentage    DECIMAL(5,2),
+          generation_mode     INTEGER,
+          difficulty          VARCHAR(20),
+          time_spent_seconds  INTEGER,
+          created_at          TIMESTAMPTZ DEFAULT NOW(),
+          completed_at        TIMESTAMPTZ,
+          last_accessed_at    TIMESTAMPTZ DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_practice_sheets_user_id  ON practice_sheets(user_id);
+        CREATE INDEX IF NOT EXISTS idx_practice_sheets_sheet_id ON practice_sheets(sheet_id);
+      `);
+      // Add any columns that may be missing from an older table (safe no-op if already present)
+      await pool.query(`
+        ALTER TABLE practice_sheets
+          ADD COLUMN IF NOT EXISTS generation_mode    INTEGER,
+          ADD COLUMN IF NOT EXISTS difficulty         VARCHAR(20),
+          ADD COLUMN IF NOT EXISTS time_spent_seconds INTEGER;
+      `);
+    } catch (err) {
+      this.fastify.log.error({ err }, '❌ practice_sheets table setup failed');
+    }
+  }
+
   registerRoutes() {
+    // Ensure table exists (and has all columns) before handling any request
+    this.ensureTable();
+
     this.fastify.post('/api/practice/sheets', async (request, reply) => {
       const userId = await this.authHelper.requireAuth(request, reply);
       if (!userId) return;
@@ -58,7 +97,7 @@ class PracticeLibraryRoutes {
         this.fastify.log.info(`📝 Practice sheet created: ${sheet_id} (user: ${userId})`);
         return reply.send({ success: true, sheet_id });
       } catch (error) {
-        this.fastify.log.error('❌ Failed to create practice sheet:', error);
+        this.fastify.log.error({ err: error }, '❌ Failed to create practice sheet');
         return reply.code(500).send({ success: false, error: 'Failed to save practice sheet' });
       }
     });
@@ -101,7 +140,7 @@ class PracticeLibraryRoutes {
         this.fastify.log.info(`✅ Practice sheet completed: ${sheetId} (score: ${score_percentage}%, time: ${safeTime}s)`);
         return reply.send({ success: true, sheet_id: sheetId });
       } catch (error) {
-        this.fastify.log.error('❌ Failed to complete practice sheet:', error);
+        this.fastify.log.error({ err: error }, '❌ Failed to complete practice sheet');
         return reply.code(500).send({ success: false, error: 'Failed to update practice sheet' });
       }
     });
