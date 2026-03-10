@@ -433,12 +433,12 @@ function UserAnalysisPanel({
               <div className="font-bold text-lg">{data.archivedQuestions.toLocaleString()}</div>
             </div>
             <div>
-              <div className="text-muted-foreground text-xs">Homework</div>
-              <div className="font-medium">{Number(data.sessions.homework).toLocaleString()}</div>
+              <div className="text-muted-foreground text-xs">First session</div>
+              <div className="font-medium">{data.sessions.first_session ? formatDate(data.sessions.first_session) : '—'}</div>
             </div>
             <div>
-              <div className="text-muted-foreground text-xs">Practice</div>
-              <div className="font-medium">{Number(data.sessions.practice).toLocaleString()}</div>
+              <div className="text-muted-foreground text-xs">Last session</div>
+              <div className="font-medium">{data.sessions.last_session ? formatDate(data.sessions.last_session) : '—'}</div>
             </div>
           </div>
           {data.streak && (
@@ -534,7 +534,12 @@ function UserAnalysisPanel({
             {data.sessions.recent.map(s => (
               <div key={s.id} className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2">
-                  <span className={`px-1.5 py-0.5 rounded text-xs font-medium capitalize ${s.session_type === 'homework' ? 'bg-blue-50 text-blue-700' : s.session_type === 'practice' ? 'bg-purple-50 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>
+                  <span className={`px-1.5 py-0.5 rounded text-xs font-medium capitalize ${
+                    s.session_type === 'homework' ? 'bg-blue-50 text-blue-700'
+                    : s.session_type === 'practice' ? 'bg-purple-50 text-purple-700'
+                    : s.session_type === 'conversation' ? 'bg-indigo-50 text-indigo-700'
+                    : 'bg-gray-100 text-gray-600'
+                  }`}>
                     {s.session_type}
                   </span>
                   <span>{s.subject || s.title || 'General'}</span>
