@@ -31,6 +31,13 @@ interface ReportStats {
   monthly_batches: string
   users_with_reports: string
   avg_generation_time: string
+  total_opens: string
+}
+
+interface ReportEngagement {
+  total_reports: string
+  opened_reports: string
+  total_opens: string
 }
 
 const PAGE_SIZE = 15
@@ -38,6 +45,7 @@ const PAGE_SIZE = 15
 export default function ReportsPage() {
   const [batches, setBatches] = useState<ReportBatch[]>([])
   const [stats, setStats] = useState<ReportStats | null>(null)
+  const [engagement, setEngagement] = useState<ReportEngagement | null>(null)
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -52,6 +60,7 @@ export default function ReportsPage() {
         setBatches(res.data.batches)
         setTotal(res.data.total)
         setStats(res.data.stats)
+        if (res.data.engagement) setEngagement(res.data.engagement)
         setError(null)
       } else {
         setError(res.error || 'Failed to load reports')
@@ -145,6 +154,53 @@ export default function ReportsPage() {
             </Card>
           ))}
         </div>
+      )}
+
+      {/* Parent engagement */}
+      {engagement && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Parent Engagement</CardTitle>
+            <CardDescription>How many parents opened their child&apos;s report</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-8">
+              <div>
+                <div className="text-2xl font-bold">{parseInt(engagement.opened_reports).toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">reports opened</p>
+              </div>
+              <div>
+                <div className="text-2xl font-bold">{parseInt(engagement.total_opens).toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">total opens</p>
+              </div>
+              <div>
+                {parseInt(engagement.total_reports) > 0 && (
+                  <>
+                    <div className="text-2xl font-bold">
+                      {Math.round((parseInt(engagement.opened_reports) / parseInt(engagement.total_reports)) * 100)}%
+                    </div>
+                    <p className="text-xs text-muted-foreground">open rate</p>
+                  </>
+                )}
+              </div>
+              <div className="flex-1">
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden mt-1">
+                  <div
+                    className="h-full bg-blue-500 rounded-full"
+                    style={{
+                      width: parseInt(engagement.total_reports) > 0
+                        ? `${Math.round((parseInt(engagement.opened_reports) / parseInt(engagement.total_reports)) * 100)}%`
+                        : '0%'
+                    }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {parseInt(engagement.opened_reports)} of {parseInt(engagement.total_reports)} reports opened
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Period filter pills */}

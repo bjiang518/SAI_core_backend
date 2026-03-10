@@ -9,6 +9,11 @@ interface OverviewStats {
   totalUsers: number
   usersGrowth7d: number
   sessionsToday: number
+  dau: number
+  wau: number
+  mau: number
+  churnRisk: number
+  newUsersThisWeek: number
   aiRequestsPerHour: number
   avgResponseTime: number
   errorRate: number
@@ -101,6 +106,38 @@ export default function DashboardPage() {
         </p>
       </div>
 
+      {/* Engagement Row */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <MetricCard
+          title="DAU"
+          value={stats.dau.toLocaleString()}
+          description="Active users today"
+          icon={Users}
+        />
+        <MetricCard
+          title="WAU"
+          value={stats.wau.toLocaleString()}
+          description="Active users last 7d"
+          icon={Users}
+        />
+        <MetricCard
+          title="MAU"
+          value={stats.mau.toLocaleString()}
+          description="Active users last 30d"
+          icon={Users}
+        />
+        <MetricCard
+          title="Churn Risk"
+          value={stats.churnRisk.toLocaleString()}
+          description="Inactive 7+ days"
+          badge={{
+            text: stats.churnRisk > 50 ? 'High' : 'Low',
+            variant: stats.churnRisk > 50 ? 'warning' : 'success',
+          }}
+          icon={AlertCircle}
+        />
+      </div>
+
       {/* Metrics Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <MetricCard
@@ -164,27 +201,26 @@ export default function DashboardPage() {
       {/* Quick Actions */}
       <div className="mt-8 rounded-lg border bg-card p-6">
         <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-4">
           <div className="flex flex-col space-y-2">
             <h3 className="font-medium">User Management</h3>
             <p className="text-sm text-muted-foreground">View and search all users</p>
-            <a href="/dashboard/users" className="text-sm text-primary hover:underline">
-              Go to Users →
-            </a>
+            <a href="/dashboard/users" className="text-sm text-primary hover:underline">Go to Users →</a>
+          </div>
+          <div className="flex flex-col space-y-2">
+            <h3 className="font-medium">Analytics</h3>
+            <p className="text-sm text-muted-foreground">Growth, DAU, subject trends</p>
+            <a href="/dashboard/analytics" className="text-sm text-primary hover:underline">View Analytics →</a>
+          </div>
+          <div className="flex flex-col space-y-2">
+            <h3 className="font-medium">Learning Insights</h3>
+            <p className="text-sm text-muted-foreground">Hardest subjects, streaks, accuracy</p>
+            <a href="/dashboard/insights" className="text-sm text-primary hover:underline">View Insights →</a>
           </div>
           <div className="flex flex-col space-y-2">
             <h3 className="font-medium">System Health</h3>
             <p className="text-sm text-muted-foreground">Monitor service status</p>
-            <a href="/dashboard/system" className="text-sm text-primary hover:underline">
-              View Health →
-            </a>
-          </div>
-          <div className="flex flex-col space-y-2">
-            <h3 className="font-medium">Reports</h3>
-            <p className="text-sm text-muted-foreground">Access parent reports</p>
-            <a href="/dashboard/reports" className="text-sm text-primary hover:underline">
-              View Reports →
-            </a>
+            <a href="/dashboard/system" className="text-sm text-primary hover:underline">View Health →</a>
           </div>
         </div>
       </div>

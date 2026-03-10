@@ -137,4 +137,20 @@ export const reportsAPI = {
   },
 }
 
+// Analytics API
+export const analyticsAPI = {
+  getOverview: async () => {
+    const response = await apiClient.get('/api/admin/analytics/overview')
+    return response.data
+  },
+}
+
+// Insights API
+export const insightsAPI = {
+  getOverview: async () => {
+    const response = await apiClient.get('/api/admin/insights/overview')
+    return response.data
+  },
+}
+
 export default apiClient
