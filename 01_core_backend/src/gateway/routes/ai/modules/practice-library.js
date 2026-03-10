@@ -9,7 +9,7 @@
  *   PATCH /api/practice/sheets/:sheetId/complete — mark a sheet as complete
  */
 
-const { getPool } = require('../../../../utils/railway-database');
+const { db } = require('../../../../utils/railway-database');
 const AuthHelper = require('../utils/auth-helper');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -22,10 +22,9 @@ class PracticeLibraryRoutes {
   }
 
   async ensureTable() {
-    const pool = getPool();
     try {
       // Create table with all columns in one shot — idempotent
-      await pool.query(`
+      await db.query(`
         CREATE TABLE IF NOT EXISTS practice_sheets (
           id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
           user_id             UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -46,7 +45,7 @@ class PracticeLibraryRoutes {
         CREATE INDEX IF NOT EXISTS idx_practice_sheets_sheet_id ON practice_sheets(sheet_id);
       `);
       // Add any columns that may be missing from an older table (safe no-op if already present)
-      await pool.query(`
+      await db.query(`
         ALTER TABLE practice_sheets
           ADD COLUMN IF NOT EXISTS generation_mode    INTEGER,
           ADD COLUMN IF NOT EXISTS difficulty         VARCHAR(20),
@@ -80,8 +79,7 @@ class PracticeLibraryRoutes {
       const safeDifficulty = typeof difficulty === 'string' ? difficulty.slice(0, 20) : null;
 
       try {
-        const pool = getPool();
-        await pool.query(
+        await db.query(
           `INSERT INTO practice_sheets (user_id, sheet_id, subject, source_type, question_count, generation_mode, difficulty)
            VALUES ($1, $2, $3, $4, $5, $6, $7)
            ON CONFLICT (sheet_id) DO UPDATE
@@ -120,8 +118,7 @@ class PracticeLibraryRoutes {
         : null;
 
       try {
-        const pool = getPool();
-        const result = await pool.query(
+        const result = await db.query(
           `UPDATE practice_sheets
            SET completed_count = $1,
                score_percentage = $2,
