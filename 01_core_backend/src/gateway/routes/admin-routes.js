@@ -174,7 +174,7 @@ module.exports = async function (fastify, opts) {
           u.name,
           u.created_at as join_date,
           u.last_login_at as last_active,
-          0 as total_sessions
+          (SELECT COUNT(*) FROM sessions s WHERE s.user_id = u.id) as total_sessions
         FROM users u
       `;
       const params = [];
@@ -254,6 +254,119 @@ module.exports = async function (fastify, opts) {
     } catch (error) {
       fastify.log.error('Error fetching user activity:', error);
       return reply.code(500).send({ success: false, error: 'Failed to fetch activity' });
+    }
+  });
+
+  /**
+   * GET /api/admin/users/:userId/analysis
+   * Full behavioral analysis for a single user.
+   */
+  fastify.get('/api/admin/users/:userId/analysis', { preHandler: verifyAdmin }, async (request, reply) => {
+    try {
+      const { userId } = request.params;
+
+      const [
+        profileResult,
+        sessionStatsResult,
+        recentSessionsResult,
+        subjectProgressResult,
+        dailyActivityResult,
+        streakResult,
+        reportSummaryResult,
+        archivedCountResult,
+      ] = await Promise.all([
+        // Profile info
+        db.query(`
+          SELECT grade_level, school, learning_style, difficulty_preference,
+                 favorite_subjects, profile_completion_percentage
+          FROM profiles WHERE user_id = $1 LIMIT 1
+        `, [userId]),
+
+        // Session totals by type
+        db.query(`
+          SELECT
+            COUNT(*) as total,
+            COUNT(*) FILTER (WHERE session_type = 'homework') as homework,
+            COUNT(*) FILTER (WHERE session_type = 'practice') as practice,
+            COUNT(*) FILTER (WHERE session_type = 'chat') as chat,
+            COUNT(*) FILTER (WHERE status = 'active') as active_now,
+            MIN(created_at) as first_session,
+            MAX(created_at) as last_session
+          FROM sessions WHERE user_id = $1
+        `, [userId]),
+
+        // Recent 5 sessions
+        db.query(`
+          SELECT id, session_type, subject, status, start_time, end_time, title
+          FROM sessions WHERE user_id = $1
+          ORDER BY created_at DESC LIMIT 5
+        `, [userId]),
+
+        // Subject progress
+        db.query(`
+          SELECT subject, accuracy_rate, total_questions_attempted, total_questions_correct,
+                 streak_count, performance_trend, last_activity_date, average_confidence
+          FROM subject_progress WHERE user_id = $1
+          ORDER BY total_questions_attempted DESC
+        `, [userId]),
+
+        // Daily activity — last 30 days
+        db.query(`
+          SELECT activity_date, subject, questions_attempted, questions_correct, time_spent
+          FROM daily_subject_activities
+          WHERE user_id = $1 AND activity_date >= CURRENT_DATE - INTERVAL '30 days'
+          ORDER BY activity_date DESC
+        `, [userId]),
+
+        // Study streak
+        db.query(`
+          SELECT current_streak, longest_streak, last_study_date
+          FROM study_streaks WHERE user_id = $1 LIMIT 1
+        `, [userId]),
+
+        // Report history summary
+        db.query(`
+          SELECT
+            COUNT(*) as total_reports,
+            MAX(generated_at) as last_report_date,
+            AVG(overall_accuracy) as avg_accuracy,
+            (ARRAY_AGG(overall_grade ORDER BY generated_at DESC))[1] as latest_grade
+          FROM parent_report_batches WHERE user_id = $1
+        `, [userId]),
+
+        // Archived questions count
+        db.query(`
+          SELECT COUNT(*) as total FROM archived_questions WHERE user_id = $1
+        `, [userId]),
+      ]);
+
+      // Aggregate daily activity into per-day totals for heatmap
+      const activityByDay = {};
+      for (const row of dailyActivityResult.rows) {
+        const d = row.activity_date.toISOString ? row.activity_date.toISOString().slice(0, 10) : String(row.activity_date).slice(0, 10);
+        if (!activityByDay[d]) activityByDay[d] = { date: d, questions: 0, timeMinutes: 0 };
+        activityByDay[d].questions += row.questions_attempted || 0;
+        activityByDay[d].timeMinutes += Math.round((row.time_spent || 0) / 60);
+      }
+
+      return reply.send({
+        success: true,
+        data: {
+          profile: profileResult.rows[0] || null,
+          sessions: {
+            ...(sessionStatsResult.rows[0] || {}),
+            recent: recentSessionsResult.rows,
+          },
+          subjectProgress: subjectProgressResult.rows,
+          dailyActivity: Object.values(activityByDay).sort((a, b) => a.date.localeCompare(b.date)),
+          streak: streakResult.rows[0] || null,
+          reports: reportSummaryResult.rows[0] || null,
+          archivedQuestions: parseInt(archivedCountResult.rows[0]?.total || 0),
+        }
+      });
+    } catch (error) {
+      fastify.log.error({ err: error }, 'Error fetching user analysis');
+      return reply.code(500).send({ success: false, error: 'Failed to fetch user analysis', details: error?.message });
     }
   });
 
