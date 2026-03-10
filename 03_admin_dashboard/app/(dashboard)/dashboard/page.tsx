@@ -34,25 +34,26 @@ export default function DashboardPage() {
       const token = localStorage.getItem('admin_token')
 
       const response = await fetch(`${apiUrl}/api/admin/stats/overview`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       })
 
+      const data = await response.json().catch(() => null)
+
       if (!response.ok) {
-        throw new Error('Failed to fetch stats')
+        const msg = data?.error || data?.message || `HTTP ${response.status} ${response.statusText}`
+        setError(`API error: ${msg}`)
+        return
       }
 
-      const data = await response.json()
-      if (data.success) {
+      if (data?.success) {
         setStats(data.data)
         setError(null)
       } else {
-        setError(data.error || 'Failed to load stats')
+        setError(data?.error || 'Unexpected response from backend')
       }
-    } catch (err) {
-      console.error('Error fetching stats:', err)
-      setError('Failed to connect to backend')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      setError(`Network error: ${msg}`)
     } finally {
       setLoading(false)
     }

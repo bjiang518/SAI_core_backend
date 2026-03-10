@@ -86,10 +86,25 @@ export default function SystemHealthPage() {
         setPerf(perfRes.value.data)
       }
 
-      setFetchError(null)
+      // Show per-call errors if any request failed
+      const failures = [
+        svcRes.status === 'rejected' ? `services: ${(svcRes.reason as Error)?.message}` : null,
+        errRes.status === 'rejected' ? `errors: ${(errRes.reason as Error)?.message}` : null,
+        perfRes.status === 'rejected' ? `perf: ${(perfRes.reason as Error)?.message}` : null,
+      ].filter(Boolean)
+
+      if (failures.length === 3) {
+        setFetchError(`All requests failed — ${failures[0]}`)
+      } else if (failures.length > 0) {
+        setFetchError(`Partial data — ${failures.join(', ')}`)
+      } else {
+        setFetchError(null)
+      }
+
       setLastRefresh(new Date())
-    } catch {
-      setFetchError('Failed to load system health data')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      setFetchError(`Error: ${msg}`)
     } finally {
       setLoading(false)
     }
