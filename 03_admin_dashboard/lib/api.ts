@@ -94,6 +94,11 @@ export const usersAPI = {
     const response = await apiClient.get(`/api/admin/users/${userId}/activity`)
     return response.data
   },
+
+  getAnalysis: async (userId: string) => {
+    const response = await apiClient.get(`/api/admin/users/${userId}/analysis`)
+    return response.data
+  },
 }
 
 // System Health API
