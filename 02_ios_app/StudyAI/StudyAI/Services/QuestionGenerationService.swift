@@ -1116,7 +1116,10 @@ class QuestionGenerationService: ObservableObject {
     /// Build short-term context from the top active weakness for mode-1 generation.
     /// Returns up to 2 recent wrong questions associated with the strongest active weakness.
     func buildShortTermContext(subject: String) -> [[String: Any]] {
-        let weaknesses = ShortTermStatusService.shared.getTopActiveWeaknesses(limit: 3)
+        let allWeaknesses = ShortTermStatusService.shared.getTopActiveWeaknesses(limit: 20)
+        let weaknesses = allWeaknesses.filter {
+            $0.key.split(separator: "/").first.map { String($0).lowercased() == subject.lowercased() } ?? false
+        }.prefix(3)
         guard !weaknesses.isEmpty else { return [] }
 
         let allLocalQuestions = currentUserQuestionStorage().getLocalQuestions()

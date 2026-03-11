@@ -238,6 +238,7 @@ class GeminiEducationalAIService:
 
             # Extract JSON from response (safely handle complex responses)
             raw_response = self._extract_response_text(response)
+            logger.info(f"[PARSE] Raw Gemini response length={len(raw_response)} chars | preview={raw_response[:200]!r}")
 
             # Parse JSON
             result = self._extract_json_from_response(raw_response)
@@ -245,6 +246,11 @@ class GeminiEducationalAIService:
             # Validate and fix total_questions count
             questions_array = result.get("questions", [])
             actual_total = len(questions_array)
+
+            if actual_total == 0 and result.get("subject", "Unknown") == "Unknown":
+                # Likely fell into grading fallback — log raw for diagnosis
+                logger.info(f"⚠️ [PARSE] Empty questions & Unknown subject — possible JSON parse failure. "
+                            f"result keys={list(result.keys())} | raw snippet={raw_response[:500]!r}")
 
             if result.get("total_questions", 0) != actual_total:
                 logger.debug(f"⚠️ Fixed total_questions: {result.get('total_questions', 0)} → {actual_total}")
@@ -1332,11 +1338,20 @@ OUTPUT CHECKLIST
         # Try to extract JSON object (standard format)
         json_match = re.search(r'\{.*\}', cleaned, re.DOTALL)
         if json_match:
+            raw_json_str = json_match.group()
             try:
-                return json.loads(json_match.group())
+                return json.loads(raw_json_str)
             except json.JSONDecodeError as e:
-                logger.debug(f"⚠️ JSON parsing error: {e}")
-                # Fall through to labeled format parser
+                logger.info(f"⚠️ JSON parse error (attempt 1): {e} — trying LaTeX repair")
+                # Retry with LaTeX backslash repair (handles gemini-3-flash-preview
+                # which sometimes outputs \sin, \theta etc. unescaped even in JSON mode)
+                try:
+                    repaired = self._repair_latex_json(raw_json_str)
+                    return json.loads(repaired)
+                except json.JSONDecodeError as e2:
+                    logger.info(f"⚠️ JSON parse error (attempt 2, after LaTeX repair): {e2}")
+                    logger.info(f"📄 Raw JSON snippet: {raw_json_str[:300]}")
+                    # Fall through to labeled format parser
 
         # FALLBACK: Parse labeled text format (SCORE: 1.0, IS_CORRECT: true, etc.)
         # This handles cases where Gemini returns labeled text instead of JSON

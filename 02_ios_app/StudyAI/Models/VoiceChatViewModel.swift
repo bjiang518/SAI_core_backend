@@ -862,18 +862,9 @@ class VoiceChatViewModel: ObservableObject {
     // MARK: - Utilities
 
     private func getCurrentLanguage() -> String {
-        let preferredLanguage = Locale.preferredLanguages.first ?? "en"
-
-        if preferredLanguage.hasPrefix("zh") {
-            if preferredLanguage.contains("Hans") {
-                return "zh-Hans"
-            } else if preferredLanguage.contains("Hant") {
-                return "zh-Hant"
-            }
-            return "zh-Hans"
-        }
-
-        return "en"
+        // Use the app's user-selected language (set in LanguageSettingsView, stored via @AppStorage)
+        // rather than system locale, so the AI speaks in the same language the app is using.
+        return UserDefaults.standard.string(forKey: "appLanguage") ?? "en"
     }
 }
 

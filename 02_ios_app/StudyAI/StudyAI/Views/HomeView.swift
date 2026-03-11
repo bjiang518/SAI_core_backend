@@ -13,6 +13,14 @@ import Lottie
 private struct LottieRefreshIDKey: EnvironmentKey {
     static let defaultValue: Int = 0
 }
+
+/// Carries the weakness data needed to present WeaknessPracticeView.
+/// Using `.sheet(item:)` ensures a fresh @StateObject on every presentation.
+private struct FeynmanSheetItem: Identifiable {
+    let id = UUID()
+    let weaknessKey: String
+    let weaknessValue: WeaknessValue
+}
 extension EnvironmentValues {
     var lottieRefreshID: Int {
         get { self[LottieRefreshIDKey.self] }
@@ -35,13 +43,17 @@ struct HomeView: View {
     @State private var showingProfile = false
     @State private var showingMistakeReview = false
     @State private var showingQuestionGeneration = false
+    // ── Practice todo shortcut configuration ──────────────────────────────
+    /// Pre-selected subject for MistakeReviewView
+    @State private var mistakeReviewInitialSubject: String? = nil
+    /// Config passed to PracticeLibraryView → NewPracticeSheet (random or concept review shortcuts)
+    @State private var practiceLibraryShortcutConfig: PracticeLibraryView.ShortcutConfig? = nil
+    /// Direct navigation to QuestionSheetView for the practice retry shortcut
+    @State private var practiceRetrySession: PracticeSession? = nil
     @State private var showingParentReports = false
     @State private var showingHomeworkAlbum = false
     @State private var showingFocusMode = false
-    @State private var showingFeynmanPractice = false
-    @State private var feynmanWeaknessKey: String = ""
-    @State private var showingDailyQuestion = false
-    @State private var dailyQuestionText: String = ""
+    @State private var feynmanSheetItem: FeynmanSheetItem? = nil
     @State private var lottieRefreshID: Int = 0
     @State private var isMoreFeaturesExpanded: Bool = true
 
@@ -104,16 +116,22 @@ struct HomeView: View {
                 })
             }
             .navigationDestination(isPresented: $showingMistakeReview) {
-                MistakeReviewView()
+                MistakeReviewView(initialSubject: mistakeReviewInitialSubject)
             }
             .navigationDestination(isPresented: $showingQuestionGeneration) {
-                PracticeLibraryView()
+                PracticeLibraryView(shortcutConfig: practiceLibraryShortcutConfig)
+            }
+            // Direct navigation to QuestionSheetView for practice retry shortcut
+            .navigationDestination(item: $practiceRetrySession) { session in
+                QuestionSheetView(session: session)
             }
             .onChange(of: appState.homeNavResetToken) { _, _ in
                 showingMistakeReview = false
                 showingQuestionGeneration = false
-                showingFeynmanPractice = false
-                showingDailyQuestion = false
+                feynmanSheetItem = nil
+                practiceRetrySession = nil
+                mistakeReviewInitialSubject = nil
+                practiceLibraryShortcutConfig = nil
             }
             .sheet(isPresented: $showingParentReports) {
                 NavigationView {
@@ -123,23 +141,14 @@ struct HomeView: View {
             .sheet(isPresented: $showingHomeworkAlbum) {
                 HomeworkAlbumView()
             }
-            .sheet(isPresented: $showingFocusMode) {
+            .fullScreenCover(isPresented: $showingFocusMode) {
                 FocusView()
             }
-            .sheet(isPresented: $showingFeynmanPractice) {
+            .sheet(item: $feynmanSheetItem) { item in
                 WeaknessPracticeView(
-                    weaknessKey: feynmanWeaknessKey,
-                    weaknessValue: WeaknessValue(
-                        value: 0.5,
-                        firstDetected: Date(),
-                        lastAttempt: Date(),
-                        totalAttempts: 0,
-                        correctAttempts: 0
-                    )
+                    weaknessKey: item.weaknessKey,
+                    weaknessValue: item.weaknessValue
                 )
-            }
-            .sheet(isPresented: $showingDailyQuestion) {
-                DailyQuestionCard(question: dailyQuestionText)
             }
             .sheet(isPresented: $showingParentAuthForChat) {
                 ParentAuthenticationView(
@@ -328,17 +337,55 @@ struct HomeView: View {
     private func handleTodoAction(_ action: SuggestedTodo.TodoAction) {
         switch action {
         // ── Category 1: Practice ─────────────────────────────────────────────
-        case .openMistakeReview:
+        case .openMistakeReview(let topSubject):
+            mistakeReviewInitialSubject = topSubject
             showingMistakeReview = true
-        case .startFeynmanPractice(let weaknessKey):
-            feynmanWeaknessKey = weaknessKey
-            showingFeynmanPractice = true
-        case .startConceptReview:
-            // TODO: pass sessionId to QuestionGenerationView for auto-generation (Mode 3)
+        case .startFeynmanPractice(let subjectKey):
+            let topWeaknesses = ShortTermStatusService.shared.getTopActiveWeaknesses(limit: 20)
+            // Prefer a weakness matching the todo's subject; fall back to the highest-value weakness overall
+            let chosen = topWeaknesses.first(where: {
+                $0.key.hasPrefix(subjectKey + "/") || $0.key == subjectKey
+            }) ?? topWeaknesses.max(by: { $0.value.value < $1.value.value })
+            if let match = chosen {
+                feynmanSheetItem = FeynmanSheetItem(weaknessKey: match.key, weaknessValue: match.value)
+            } else {
+                // No tracked weaknesses yet — WeaknessPracticeView will generate generic questions
+                feynmanSheetItem = FeynmanSheetItem(
+                    weaknessKey: subjectKey + "/general",
+                    weaknessValue: WeaknessValue(
+                        value: 0.5, firstDetected: Date(), lastAttempt: Date(),
+                        totalAttempts: 0, correctAttempts: 0
+                    )
+                )
+            }
+        case .startConceptReview(let recentSessionId, let subject):
+            // Open PracticeLibraryView → NewPracticeSheet pre-opened in archive tab
+            // with the specific conversation auto-selected once archives load
+            practiceLibraryShortcutConfig = PracticeLibraryView.ShortcutConfig(
+                tab: .archive,
+                subject: subject,
+                conversationId: recentSessionId
+            )
             showingQuestionGeneration = true
-        case .startRandomPractice:
-            // TODO: pre-configure QuestionGenerationView for random 5-Q practice
+        case .startRandomPractice(let subjects):
+            // Open PracticeLibraryView → NewPracticeSheet pre-opened in random tab
+            // with the worst subject pre-selected
+            practiceLibraryShortcutConfig = PracticeLibraryView.ShortcutConfig(
+                tab: .random,
+                subject: subjects.first ?? "",
+                conversationId: nil
+            )
             showingQuestionGeneration = true
+        case .retryPracticeSession(let sessionId, _):
+            // Reset progress and navigate directly to the question sheet in redo state
+            PracticeSessionManager.shared.resetSessionProgress(sessionId: sessionId)
+            if let session = PracticeSessionManager.shared.getSession(id: sessionId) {
+                practiceRetrySession = session
+            } else {
+                // Session not found — fall back to the practice library
+                practiceLibraryShortcutConfig = nil
+                showingQuestionGeneration = true
+            }
         // ── Category 2: Main Feature ─────────────────────────────────────────
         case .openGrader:
             if parentModeManager.requiresAuthentication(for: .homeworkGrader) {
@@ -366,9 +413,33 @@ struct HomeView: View {
         case .startOralPractice:
             AppState.shared.pendingChatAction = .startLiveMode(starterPrompt: NSLocalizedString("chat.liveMode.oralPractice.starterPrompt", comment: ""))
             onSelectTab(.chat)
+        case .startLiveScenario(let scenario):
+            let profile = ProfileService.shared.currentProfile
+            let grade   = profile?.gradeLevel ?? ""
+            let name    = profile?.firstName ?? profile?.displayName ?? userName
+            let lang    = UserDefaults.standard.string(forKey: "appLanguage") ?? "en"
+            let prompt  = scenario.buildPrompt(grade: grade, name: name, language: lang)
+            AppState.shared.pendingChatAction = .startLiveMode(starterPrompt: prompt)
+            onSelectTab(.chat)
         case .showDailyQuestion(let question):
-            dailyQuestionText = question
-            showingDailyQuestion = true
+            let lang = UserDefaults.standard.string(forKey: "appLanguage") ?? "en"
+            let message: String
+            switch lang {
+            case "zh-Hans", "zh-Hant":
+                message = "请介绍关于「\(question)」相关的信息"
+            case "ja":
+                message = "「\(question)」について詳しく教えてください"
+            case "de":
+                message = "Bitte erkläre mir mehr über: \(question)"
+            case "fr":
+                message = "Dis-moi en plus sur : \(question)"
+            case "es":
+                message = "Por favor, cuéntame más sobre: \(question)"
+            default:
+                message = "Please tell me more about: \(question)"
+            }
+            AppState.shared.pendingChatAction = .sendMessage(text: message, subject: nil, useDeepMode: false)
+            onSelectTab(.chat)
         }
     }
 
@@ -680,84 +751,71 @@ struct QuickActionCard_New: View {
                 action()
             }
         }) {
-            VStack(spacing: 12) {
-                ZStack {
-                    // Only show circular background for SF Symbols, not Lottie
-                    if lottieAnimation == nil {
-                        Circle()
-                            .fill(
-                                themeManager.currentTheme == .cute ?
-                                    Color.white.opacity(0.3) :  // White circle in Cute mode
-                                    color.opacity(isPressed ? 0.3 : 0.15)
-                            )
-                            .frame(width: 50, height: 50)
-                            .scaleEffect(isPressed ? 0.9 : 1.0)
-                    }
+            ZStack {
+                // Full-card rounded rectangle background
+                RoundedRectangle(cornerRadius: 22)
+                    .fill(
+                        themeManager.currentTheme == .cute
+                            ? cuteCircleColor.opacity(isPressed ? 0.45 : 0.55)
+                            : (colorScheme == .dark ? Color(white: 0.18) : Color.white)
+                    )
+                    .overlay(
+                        themeManager.currentTheme == .cute
+                            ? nil
+                            : RoundedRectangle(cornerRadius: 22)
+                                .stroke(color.opacity(isPressed ? 0.60 : 0.40), lineWidth: 1.5)
+                    )
+                    .shadow(
+                        color: colorScheme == .dark
+                            ? Color.clear
+                            : color.opacity(isPressed ? 0.18 : 0.10),
+                        radius: isPressed ? 4 : 6, x: 0, y: 2
+                    )
 
-                    // Use Lottie animation if provided, otherwise use SF Symbol
-                    if let animationName = lottieAnimation {
-                        // Circular frame — cute: solid themed fill; iOS: white face + colored edge
-                        Circle()
-                            .fill(
-                                themeManager.currentTheme == .cute
-                                    ? cuteCircleColor.opacity(isPressed ? 0.45 : 0.55)
-                                    : Color.white
-                            )
-                            .overlay(
-                                themeManager.currentTheme == .cute
-                                    ? nil
-                                    : Circle().stroke(color.opacity(isPressed ? 0.60 : 0.40), lineWidth: 2)
-                            )
-                            .frame(width: 86, height: 86)
-                            .offset(x: lottieOffset.x, y: lottieOffset.y - 16)
-                            .scaleEffect(isPressed ? 0.92 : 1.0)
-                        LottieView(
-                            animationName: animationName,
-                            loopMode: .loop,
-                            animationSpeed: 0.5,
-                            powerSavingProgress: 0.8,
-                            refreshID: lottieRefreshID
+                // Lottie or SF Symbol
+                if let animationName = lottieAnimation {
+                    LottieView(
+                        animationName: animationName,
+                        loopMode: .loop,
+                        animationSpeed: 0.5,
+                        powerSavingProgress: 0.8,
+                        refreshID: lottieRefreshID
+                    )
+                    .frame(width: 50, height: 50)
+                    .scaleEffect(isPressed ? lottieScale * 0.95 : lottieScale)
+                    .offset(x: lottieOffset.x, y: lottieOffset.y)
+                } else {
+                    Circle()
+                        .fill(
+                            themeManager.currentTheme == .cute
+                                ? Color.white.opacity(0.3)
+                                : color.opacity(isPressed ? 0.3 : 0.15)
                         )
                         .frame(width: 50, height: 50)
-                        .scaleEffect(isPressed ? lottieScale * 0.95 : lottieScale)
-                        .offset(x: lottieOffset.x, y: lottieOffset.y - 16)
-                    } else {
-                        Image(systemName: icon)
-                            .font(.system(size: 22))
-                            .foregroundColor(
-                                themeManager.currentTheme == .cute ?
-                                    DesignTokens.Colors.Cute.textPrimary :  // Soft black icon in Cute mode
-                                    (isPressed ? color.opacity(0.7) : color)
-                            )
-                            .rotationEffect(.degrees(rotationAngle))
-                            .scaleEffect(scale)
-                    }
-                }
-                .onAppear {
-                    // Only apply animations to SF Symbols, not Lottie animations
-                    if lottieAnimation == nil {
-                        // Gentle floating animation
-                        withAnimationIfNotPowerSaving(
-                            Animation.easeInOut(duration: 2.0)
-                                .repeatForever(autoreverses: true)
-                        ) {
-                            scale = 1.05
-                        }
+                        .scaleEffect(isPressed ? 0.9 : 1.0)
 
-                        // Slight rotation animation for some visual interest
-                        withAnimationIfNotPowerSaving(
-                            Animation.easeInOut(duration: 3.0)
-                                .repeatForever(autoreverses: true)
-                        ) {
-                            rotationAngle = 3
+                    Image(systemName: icon)
+                        .font(.system(size: 22))
+                        .foregroundColor(
+                            themeManager.currentTheme == .cute
+                                ? DesignTokens.Colors.Cute.textPrimary
+                                : (isPressed ? color.opacity(0.7) : color)
+                        )
+                        .rotationEffect(.degrees(rotationAngle))
+                        .scaleEffect(scale)
+                        .onAppear {
+                            withAnimationIfNotPowerSaving(
+                                Animation.easeInOut(duration: 2.0).repeatForever(autoreverses: true)
+                            ) { scale = 1.05 }
+                            withAnimationIfNotPowerSaving(
+                                Animation.easeInOut(duration: 3.0).repeatForever(autoreverses: true)
+                            ) { rotationAngle = 3 }
                         }
-                    }
                 }
-
             }
             .frame(maxWidth: .infinity)
             .frame(height: 95)
-            .contentShape(Rectangle())
+            .contentShape(RoundedRectangle(cornerRadius: 22))
             .scaleEffect(isPressed ? 0.95 : 1.0)
         }
         .buttonStyle(PlainButtonStyle())
@@ -841,7 +899,7 @@ struct HorizontalActionButton: View {
                                     Color.white.opacity(0.5) :  // White circle in Cute mode
                                     color.opacity(isPressed ? 0.3 : 0.15)
                             )
-                            .frame(width: 50, height: 50)
+                            .frame(width: 42, height: 42)
                             .scaleEffect(isPressed ? 0.9 : 1.0)
                     }
 
@@ -853,8 +911,8 @@ struct HorizontalActionButton: View {
                             powerSavingProgress: lottiePowerSavingProgress,
                             refreshID: lottieRefreshID
                         )
-                        .frame(width: 50, height: 50)
-                        .scaleEffect(isPressed ? lottieScale * 0.95 : lottieScale)
+                        .frame(width: 34, height: 34)
+                        .scaleEffect(isPressed ? lottieScale * 0.7 * 0.95 : lottieScale * 0.7)
                     } else {
                         Image(systemName: icon)
                             .font(.system(size: 22))
@@ -920,7 +978,7 @@ struct HorizontalActionButton: View {
                     )
                     .offset(x: isPressed ? 3 : 0)
             }
-            .padding(16)
+            .padding(12)
             .background(
                 // Cute Mode: LIGHTER solid color (much lighter than Quick Actions)
                 // Day/Night Mode: White/card background with border

@@ -115,24 +115,32 @@ enum GradeFilter: String, CaseIterable {
     
     var displayName: String {
         switch self {
-        case .all: return "All Grades"
-        case .correct: return "Correct ✅"
-        case .incorrect: return "Incorrect ❌" 
-        case .empty: return "Empty 📝"
-        case .partialCredit: return "Partial Credit ⚡"
-        case .notGraded: return "Not Graded 📋"
+        case .all: return NSLocalizedString("library.gradeFilter.all", comment: "")
+        case .correct: return NSLocalizedString("library.gradeFilter.correct", comment: "")
+        case .incorrect: return NSLocalizedString("library.gradeFilter.incorrect", comment: "")
+        case .empty: return NSLocalizedString("library.gradeFilter.empty", comment: "")
+        case .partialCredit: return NSLocalizedString("library.gradeFilter.partialCredit", comment: "")
+        case .notGraded: return NSLocalizedString("library.gradeFilter.notGraded", comment: "")
         }
     }
 }
 
 enum SortOrder: String, CaseIterable {
-    case dateNewest = "Date (Newest First)"
-    case dateOldest = "Date (Oldest First)"
-    case confidenceHigh = "Confidence (High to Low)"
-    case confidenceLow = "Confidence (Low to High)"
-    case subjectAZ = "Subject (A-Z)"
-    
-    var displayName: String { return rawValue }
+    case dateNewest = "dateNewest"
+    case dateOldest = "dateOldest"
+    case confidenceHigh = "confidenceHigh"
+    case confidenceLow = "confidenceLow"
+    case subjectAZ = "subjectAZ"
+
+    var displayName: String {
+        switch self {
+        case .dateNewest: return NSLocalizedString("library.sortOrder.dateNewest", comment: "")
+        case .dateOldest: return NSLocalizedString("library.sortOrder.dateOldest", comment: "")
+        case .confidenceHigh: return NSLocalizedString("library.sortOrder.confidenceHigh", comment: "")
+        case .confidenceLow: return NSLocalizedString("library.sortOrder.confidenceLow", comment: "")
+        case .subjectAZ: return NSLocalizedString("library.sortOrder.subjectAZ", comment: "")
+        }
+    }
 }
 
 /// Unified data service for Library View - handles both questions and conversations
@@ -654,6 +662,32 @@ class LibraryDataService: ObservableObject {
         cachedConversations = []
         lastCacheTime = nil
     }
+
+    /// Invalidate the in-memory library cache so the next fetchLibraryContent re-reads from UserDefaults.
+    @MainActor
+    func invalidateCache() {
+        clearCache()
+    }
+
+    /// Patch a conversation in the in-memory cache AND notify the UI to re-render.
+    /// Call this from background archive tasks after AI summary/subject arrives.
+    @MainActor
+    func patchCachedConversation(withId id: String, fields: [String: Any]) {
+        print("📚 [LibraryDataService] patchCachedConversation called for \(id), cache has \(cachedConversations.count) items")
+        guard let index = cachedConversations.firstIndex(where: { ($0["id"] as? String) == id }) else {
+            print("⚠️ [LibraryDataService] ID not found in cache — invalidating so next load picks it up from UserDefaults")
+            // The conversation was archived after the cache was built; clearing cache forces a fresh read
+            clearCache()
+            NotificationCenter.default.post(name: NSNotification.Name("StorageSyncCompleted"), object: nil)
+            return
+        }
+        for (key, value) in fields {
+            cachedConversations[index][key] = value
+        }
+        objectWillChange.send()
+        // Post existing notification so UnifiedLibraryView re-fetches libraryContent from updated cache
+        NotificationCenter.default.post(name: NSNotification.Name("StorageSyncCompleted"), object: nil)
+    }
     
     private func combineErrors(_ error1: String?, _ error2: String?) -> String? {
         if let error1 = error1, let error2 = error2 {
@@ -806,22 +840,25 @@ struct ConversationLibraryItem: LibraryItem {
 
         // Priority 4: Default to "Chat on {Subject}"
         let rawSubject = data["subject"] as? String ?? "General"
-        let normalized = QuestionSummary.normalizeSubject(rawSubject)
-        let fallbackTitle = "Chat on \(normalized)"
+        let fallbackTitle = "Chat on \(rawSubject)"
         print("   ⚠️ [PRIORITY 4] Using fallback: \(fallbackTitle)")
         return fallbackTitle
     }
 
     var subject: String {
-        // Return normalized subject
-        let rawSubject = data["subject"] as? String ?? "General"
-        return QuestionSummary.normalizeSubject(rawSubject)
+        // Return empty string when absent — card hides tag until AI patch arrives
+        guard let rawSubject = data["subject"] as? String, !rawSubject.isEmpty, rawSubject != "General" else {
+            return ""
+        }
+        // "Others: 生物" → "生物" (strip category prefix, show the actual subject name)
+        if rawSubject.hasPrefix("Others: ") {
+            return String(rawSubject.dropFirst("Others: ".count))
+        }
+        return rawSubject
     }
 
     var topic: String {
-        // Return normalized topic/subject
-        let rawTopic = data["topic"] as? String ?? data["subject"] as? String ?? "General"
-        return QuestionSummary.normalizeSubject(rawTopic)
+        return data["topic"] as? String ?? data["subject"] as? String ?? "General"
     }
     
     var date: Date {
@@ -1181,6 +1218,7 @@ class ConversationLocalStorage {
             print("💾 [LocalStorage] Updated conversation \(id) with keys: \(fields.keys.joined(separator: ", "))")
         }
     }
+
 
     // MARK: - Cleanup
 

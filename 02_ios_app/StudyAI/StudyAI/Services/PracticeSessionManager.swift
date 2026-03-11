@@ -9,6 +9,7 @@
 import Foundation
 import SwiftUI
 import Combine
+import PDFKit
 
 /// Manages persistence of practice question sessions
 class PracticeSessionManager: ObservableObject {
@@ -73,6 +74,7 @@ class PracticeSessionManager: ObservableObject {
         logger.info("📝 Saved practice session: \(session.id) (\(questions.count) questions, type: \(generationType))")
 
         Task { await syncSessionCreated(session) }
+        Task { await generateAndStorePDF(for: session) }
 
         return session
     }
@@ -115,6 +117,7 @@ class PracticeSessionManager: ObservableObject {
 
         logger.info("📝 Saved session (direct): \(sessionToSave.id) (\(sessionToSave.questions.count) questions)")
         Task { await syncSessionCreated(sessionToSave) }
+        Task { await generateAndStorePDF(for: sessionToSave) }
 
         return sessionToSave
     }
@@ -322,7 +325,51 @@ class PracticeSessionManager: ObservableObject {
     }
 
     /// Delete a session
+    // MARK: - PDF Generation
+
+    /// Generate a PDF for the given session in the background and persist the file name.
+    /// Safe to call multiple times — skips if the file already exists on disk.
+    func generateAndStorePDF(for session: PracticeSession) async {
+        let fileName = "practice_\(session.id).pdf"
+        guard let docDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
+        let fileURL = docDir.appendingPathComponent(fileName)
+
+        // Skip if already on disk
+        if FileManager.default.fileExists(atPath: fileURL.path) {
+            if session.pdfFileName == nil {
+                updateSessionPDFFileName(sessionId: session.id, fileName: fileName)
+            }
+            return
+        }
+
+        let pdfGenerator = PDFGeneratorService()
+        guard let doc = await pdfGenerator.generatePracticePDF(
+            questions: session.questions,
+            subject: session.subject,
+            generationType: session.generationType
+        ) else { return }
+
+        if let data = doc.dataRepresentation(),
+           (try? data.write(to: fileURL)) != nil {
+            updateSessionPDFFileName(sessionId: session.id, fileName: fileName)
+            logger.info("📄 PDF stored for session \(session.id): \(fileName)")
+        }
+    }
+
+    private func updateSessionPDFFileName(sessionId: String, fileName: String) {
+        var sessions = loadAllSessions()
+        guard let index = sessions.firstIndex(where: { $0.id == sessionId }) else { return }
+        sessions[index].pdfFileName = fileName
+        saveSessions(sessions)
+        DispatchQueue.main.async { [weak self] in self?.updatePublishedState() }
+    }
+
     func deleteSession(id: String) {
+        // Delete associated PDF file if it exists
+        if let session = loadAllSessions().first(where: { $0.id == id }),
+           let url = session.pdfFileURL {
+            try? FileManager.default.removeItem(at: url)
+        }
         var sessions = loadAllSessions()
         sessions.removeAll { $0.id == id }
         saveSessions(sessions)
@@ -445,6 +492,7 @@ struct PracticeSession: Codable, Identifiable, Hashable {
     var completedQuestionIds: [String]
     var answers: [String: [String: Any]]  // questionId -> {answer, is_correct, timestamp}
     var isOrganized: Bool
+    var pdfFileName: String?   // filename inside Documents dir, set after background PDF generation
 
     var isCompleted: Bool {
         completedQuestionIds.count == questions.count
@@ -459,6 +507,12 @@ struct PracticeSession: Codable, Identifiable, Hashable {
         questions.count - completedQuestionIds.count
     }
 
+    /// Resolved URL for the cached PDF file on disk.
+    var pdfFileURL: URL? {
+        guard let name = pdfFileName else { return nil }
+        return FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?
+            .appendingPathComponent(name)
+    }
     /// Score percentage (0–100) based on answered questions. nil if nothing answered yet.
     var scorePercentage: Double? {
         guard !completedQuestionIds.isEmpty else { return nil }
@@ -481,6 +535,8 @@ struct PracticeSession: Codable, Identifiable, Hashable {
             return NSLocalizedString("questionGeneration.type.conversationBased", comment: "")
         case "Mistake-Based", "Mistake-Based Practice":
             return NSLocalizedString("questionGeneration.type.mistakeBased", comment: "")
+        case "Library-Selection":
+            return NSLocalizedString("questionGeneration.type.librarySelection", value: "Library", comment: "")
         default:
             return generationType
         }
@@ -491,6 +547,7 @@ struct PracticeSession: Codable, Identifiable, Hashable {
         case "Random Practice": return .blue
         case "Conversation-Based", "Conversation-Based Practice": return .green
         case "Mistake-Based", "Mistake-Based Practice": return .orange
+        case "Library-Selection": return .teal
         default: return .blue
         }
     }
@@ -500,6 +557,7 @@ struct PracticeSession: Codable, Identifiable, Hashable {
         case "Random Practice": return "dice.fill"
         case "Conversation-Based", "Conversation-Based Practice": return "books.vertical.fill"
         case "Mistake-Based", "Mistake-Based Practice": return "exclamationmark.triangle.fill"
+        case "Library-Selection": return "doc.text.fill"
         default: return "questionmark.circle.fill"
         }
     }
@@ -508,6 +566,7 @@ struct PracticeSession: Codable, Identifiable, Hashable {
     enum CodingKeys: String, CodingKey {
         case id, questions, generationType, subject, difficulty, questionType
         case createdDate, lastAccessedDate, completedQuestionIds, answers, isOrganized
+        case pdfFileName
     }
 
     static func == (lhs: PracticeSession, rhs: PracticeSession) -> Bool {
@@ -522,7 +581,7 @@ struct PracticeSession: Codable, Identifiable, Hashable {
         hasher.combine(isOrganized)
     }
 
-    init(id: String, questions: [QuestionGenerationService.GeneratedQuestion], generationType: String, subject: String, difficulty: String, questionType: String, createdDate: Date, lastAccessedDate: Date, completedQuestionIds: [String], answers: [String: [String: Any]], isOrganized: Bool = false) {
+    init(id: String, questions: [QuestionGenerationService.GeneratedQuestion], generationType: String, subject: String, difficulty: String, questionType: String, createdDate: Date, lastAccessedDate: Date, completedQuestionIds: [String], answers: [String: [String: Any]], isOrganized: Bool = false, pdfFileName: String? = nil) {
         self.id = id
         self.questions = questions
         self.generationType = generationType
@@ -534,6 +593,7 @@ struct PracticeSession: Codable, Identifiable, Hashable {
         self.completedQuestionIds = completedQuestionIds
         self.answers = answers
         self.isOrganized = isOrganized
+        self.pdfFileName = pdfFileName
     }
 
     init(from decoder: Decoder) throws {
@@ -548,6 +608,7 @@ struct PracticeSession: Codable, Identifiable, Hashable {
         lastAccessedDate = try container.decode(Date.self, forKey: .lastAccessedDate)
         completedQuestionIds = try container.decode([String].self, forKey: .completedQuestionIds)
         isOrganized = (try? container.decode(Bool.self, forKey: .isOrganized)) ?? false
+        pdfFileName = try? container.decode(String.self, forKey: .pdfFileName)
 
         // Decode answers dictionary
         if let answersData = try? container.decode([String: CodableAnswer].self, forKey: .answers) {
@@ -573,6 +634,7 @@ struct PracticeSession: Codable, Identifiable, Hashable {
         let codableAnswers = answers.mapValues { CodableAnswer(dictionary: $0) }
         try container.encode(codableAnswers, forKey: .answers)
         try container.encode(isOrganized, forKey: .isOrganized)
+        try? container.encodeIfPresent(pdfFileName, forKey: .pdfFileName)
     }
 }
 

@@ -1,7 +1,8 @@
 /**
  * Daily Question Service for StudyAI
- * Generates one age-appropriate fun question per grade level per language per day.
- * 15 grades × 7 languages = 105 questions/day (gpt-4o-mini, ~$0.01/day total).
+ * Generates one age-appropriate fun question per grade level per language per 6-hour slot.
+ * Runs 4× per day (00:00, 06:00, 12:00, 18:00 UTC).
+ * 15 grades × 7 languages × 4 slots = 420 questions/day (gpt-4o-mini, ~$0.04/day total).
  */
 
 const cron = require('node-cron');
@@ -76,12 +77,13 @@ class DailyQuestionService {
             await this._ensureTable();
             logger.debug('✅ [DailyQuestion] Table ready');
 
-            this.cronJob = cron.schedule('0 6 * * *', async () => {
-                logger.debug('⏰ [DailyQuestion] Cron fired — starting daily generation (06:00 UTC)');
+            this.cronJob = cron.schedule('0 0,6,12,18 * * *', async () => {
+                const slot = this._currentSlot();
+                logger.debug(`⏰ [DailyQuestion] Cron fired — starting generation for slot ${slot}`);
                 await this._generateAll();
             }, { scheduled: true, timezone: 'UTC' });
 
-            logger.debug(`🕕 [DailyQuestion] Cron scheduled at 06:00 UTC (${GRADE_LABELS.length} grades × ${SUPPORTED_LANGUAGES.length} languages = ${GRADE_LABELS.length * SUPPORTED_LANGUAGES.length} questions/day)`);
+            logger.debug(`🕕 [DailyQuestion] Cron scheduled at 00:00/06:00/12:00/18:00 UTC (${GRADE_LABELS.length} grades × ${SUPPORTED_LANGUAGES.length} languages × 4 slots = ${GRADE_LABELS.length * SUPPORTED_LANGUAGES.length * 4} questions/day)`);
 
             logger.debug('🚀 [DailyQuestion] Startup generation check...');
             await this._generateAll();
@@ -104,28 +106,29 @@ class DailyQuestionService {
     }
 
     /**
-     * Return today's question for a given grade + language.
+     * Return the current question for a given grade + language (for the current 6-hour slot).
      * Triggers on-demand generation if not yet in DB.
      */
     async getTodayQuestion(gradeLevel, language = 'en') {
         const lang = SUPPORTED_LANGUAGES.includes(language) ? language : 'en';
         const today = this._todayUTC();
-        logger.debug(`🔍 [DailyQuestion] getTodayQuestion — grade=${gradeLevel}, lang=${lang}, date=${today}`);
+        const slot  = this._currentSlot();
+        logger.debug(`🔍 [DailyQuestion] getTodayQuestion — grade=${gradeLevel}, lang=${lang}, date=${today}, slot=${slot}`);
 
         const result = await db.query(
-            'SELECT question_text, fun_fact, subject FROM daily_questions WHERE question_date = $1 AND grade_level = $2 AND language = $3',
-            [today, gradeLevel, lang]
+            'SELECT question_text, fun_fact, subject FROM daily_questions WHERE question_date = $1 AND grade_level = $2 AND language = $3 AND time_slot = $4',
+            [today, gradeLevel, lang, slot]
         );
 
         if (result.rows.length > 0) {
             const q = result.rows[0];
-            logger.debug(`📦 [DailyQuestion] Cache hit — grade=${gradeLevel}, lang=${lang}, subject=${q.subject}`);
+            logger.debug(`📦 [DailyQuestion] Cache hit — grade=${gradeLevel}, lang=${lang}, slot=${slot}, subject=${q.subject}`);
             logger.debug(`   question: "${q.question_text}"`);
             return q;
         }
 
-        logger.debug(`📝 [DailyQuestion] Cache miss — generating on-demand for grade=${gradeLevel}, lang=${lang}`);
-        return await this._generateForGrade(gradeLevel, today, lang);
+        logger.debug(`📝 [DailyQuestion] Cache miss — generating on-demand for grade=${gradeLevel}, lang=${lang}, slot=${slot}`);
+        return await this._generateForGrade(gradeLevel, today, lang, slot);
     }
 
     async triggerManualGeneration() {
@@ -137,10 +140,12 @@ class DailyQuestionService {
         return {
             isInitialized: this.isInitialized,
             generationInProgress: this.generationInProgress,
-            nextGenerationTime: '06:00 UTC daily',
+            nextGenerationTime: '00:00 / 06:00 / 12:00 / 18:00 UTC',
+            currentSlot: this._currentSlot(),
             gradeLevels: GRADE_LABELS.length,
             languages: SUPPORTED_LANGUAGES,
-            totalPerDay: GRADE_LABELS.length * SUPPORTED_LANGUAGES.length,
+            slotsPerDay: 4,
+            totalPerDay: GRADE_LABELS.length * SUPPORTED_LANGUAGES.length * 4,
         };
     }
 
@@ -153,11 +158,13 @@ class DailyQuestionService {
         }
         this.generationInProgress = true;
         const today = this._todayUTC();
+        const slot  = this._currentSlot();
         const total = GRADE_LABELS.length * SUPPORTED_LANGUAGES.length;
 
         logger.debug(`\n${'─'.repeat(60)}`);
         logger.debug(`📚 [DailyQuestion] === GENERATION START ===`);
         logger.debug(`   Date     : ${today}`);
+        logger.debug(`   Slot     : ${slot} (${slot * 6}:00–${slot * 6 + 5}:59 UTC)`);
         logger.debug(`   Grades   : ${GRADE_LABELS.length}   Languages: ${SUPPORTED_LANGUAGES.join(', ')}`);
         logger.debug(`   Total    : ${total} questions   Force: ${force}`);
         logger.debug(`${'─'.repeat(60)}`);
@@ -172,8 +179,8 @@ class DailyQuestionService {
                 for (let grade = 0; grade < GRADE_LABELS.length; grade++) {
                     if (!force) {
                         const exists = await db.query(
-                            'SELECT 1 FROM daily_questions WHERE question_date=$1 AND grade_level=$2 AND language=$3',
-                            [today, grade, lang]
+                            'SELECT 1 FROM daily_questions WHERE question_date=$1 AND grade_level=$2 AND language=$3 AND time_slot=$4',
+                            [today, grade, lang, slot]
                         );
                         if (exists.rows.length > 0) {
                             logger.debug(`   ⏭️  Grade ${String(grade).padStart(2)} — already exists`);
@@ -183,7 +190,7 @@ class DailyQuestionService {
                     }
 
                     try {
-                        const q = await this._generateForGrade(grade, today, lang);
+                        const q = await this._generateForGrade(grade, today, lang, slot);
                         logger.debug(`   ✅ Grade ${String(grade).padStart(2)} (${GRADE_LABELS[grade]})`);
                         logger.debug(`         subject : ${q.subject}`);
                         logger.debug(`         question: ${q.question_text}`);
@@ -206,7 +213,7 @@ class DailyQuestionService {
         }
     }
 
-    async _generateForGrade(gradeLevel, date, language) {
+    async _generateForGrade(gradeLevel, date, language, slot = 0) {
         const gradeLabel = GRADE_LABELS[gradeLevel] || `Grade ${gradeLevel}`;
         const langLabel  = LANGUAGE_LABELS[language] || language;
 
@@ -226,7 +233,7 @@ Respond ONLY with valid JSON (no markdown, no code block):
   "subject": "Science|History|Nature|Technology|Art|Sports|Math|Other"
 }`;
 
-        logger.debug(`   🤖 [DailyQuestion] OpenAI call — grade=${gradeLevel}, lang=${language}`);
+        logger.debug(`   🤖 [DailyQuestion] OpenAI call — grade=${gradeLevel}, lang=${language}, slot=${slot}`);
 
         const response = await this.openai.chat.completions.create({
             model: 'gpt-4o-mini',
@@ -236,7 +243,7 @@ Respond ONLY with valid JSON (no markdown, no code block):
         });
 
         const raw = response.choices[0].message.content.trim();
-        logger.debug(`   📨 [DailyQuestion] Raw response (grade=${gradeLevel}, lang=${language}): ${raw}`);
+        logger.debug(`   📨 [DailyQuestion] Raw response (grade=${gradeLevel}, lang=${language}, slot=${slot}): ${raw}`);
 
         let parsed;
         try {
@@ -247,13 +254,13 @@ Respond ONLY with valid JSON (no markdown, no code block):
         }
 
         await db.query(
-            `INSERT INTO daily_questions (question_date, grade_level, language, question_text, fun_fact, subject)
-             VALUES ($1, $2, $3, $4, $5, $6)
-             ON CONFLICT (question_date, grade_level, language) DO UPDATE
+            `INSERT INTO daily_questions (question_date, grade_level, language, time_slot, question_text, fun_fact, subject)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
+             ON CONFLICT (question_date, time_slot, grade_level, language) DO UPDATE
                SET question_text = EXCLUDED.question_text,
                    fun_fact      = EXCLUDED.fun_fact,
                    subject       = EXCLUDED.subject`,
-            [date, gradeLevel, language, parsed.question, parsed.fun_fact || null, parsed.subject || 'Other']
+            [date, gradeLevel, language, slot, parsed.question, parsed.fun_fact || null, parsed.subject || 'Other']
         );
 
         return {
@@ -271,6 +278,7 @@ Respond ONLY with valid JSON (no markdown, no code block):
                 question_date DATE NOT NULL,
                 grade_level INTEGER NOT NULL CHECK (grade_level >= 0 AND grade_level <= 14),
                 language VARCHAR(20) NOT NULL DEFAULT 'en',
+                time_slot INTEGER NOT NULL DEFAULT 0,
                 question_text TEXT NOT NULL,
                 fun_fact TEXT,
                 subject VARCHAR(100),
@@ -284,7 +292,13 @@ Respond ONLY with valid JSON (no markdown, no code block):
             ADD COLUMN IF NOT EXISTS language VARCHAR(20) NOT NULL DEFAULT 'en'
         `);
 
-        // Migrate unique constraint: (date, grade) → (date, grade, language)
+        // Add time_slot column if table existed without it
+        await db.query(`
+            ALTER TABLE daily_questions
+            ADD COLUMN IF NOT EXISTS time_slot INTEGER NOT NULL DEFAULT 0
+        `);
+
+        // Migrate unique constraint to 4-column (date, slot, grade, language)
         await db.query(`
             DO $$
             BEGIN
@@ -296,22 +310,35 @@ Respond ONLY with valid JSON (no markdown, no code block):
                     ALTER TABLE daily_questions
                     DROP CONSTRAINT daily_questions_question_date_grade_level_key;
                 END IF;
-                -- Add new 3-column constraint if not yet present
-                IF NOT EXISTS (
+                -- Drop old 3-column constraint if it exists
+                IF EXISTS (
                     SELECT 1 FROM pg_constraint
                     WHERE conname = 'daily_questions_date_grade_lang_key'
                 ) THEN
                     ALTER TABLE daily_questions
-                    ADD CONSTRAINT daily_questions_date_grade_lang_key
-                    UNIQUE (question_date, grade_level, language);
+                    DROP CONSTRAINT daily_questions_date_grade_lang_key;
+                END IF;
+                -- Add new 4-column constraint if not yet present
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint
+                    WHERE conname = 'daily_questions_date_slot_grade_lang_key'
+                ) THEN
+                    ALTER TABLE daily_questions
+                    ADD CONSTRAINT daily_questions_date_slot_grade_lang_key
+                    UNIQUE (question_date, time_slot, grade_level, language);
                 END IF;
             END $$;
         `);
 
         await db.query(`
-            CREATE INDEX IF NOT EXISTS idx_daily_questions_date_grade_lang
-                ON daily_questions(question_date, grade_level, language)
+            CREATE INDEX IF NOT EXISTS idx_daily_questions_date_slot_grade_lang
+                ON daily_questions(question_date, time_slot, grade_level, language)
         `);
+    }
+
+    /** Returns the current 6-hour time slot (0=00:00–05:59, 1=06:00–11:59, 2=12:00–17:59, 3=18:00–23:59 UTC). */
+    _currentSlot() {
+        return Math.floor(new Date().getUTCHours() / 6);
     }
 
     _todayUTC() {

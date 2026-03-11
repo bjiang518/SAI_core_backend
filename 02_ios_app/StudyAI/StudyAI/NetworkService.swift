@@ -3737,8 +3737,6 @@ class NetworkService: ObservableObject {
 
         var conversationData: [String: Any] = [
             "id": conversationId,
-            "subject": subject ?? "General",
-            "topic": topic ?? (subject ?? "General Discussion"),
             "conversationContent": finalTextContent,
             "archivedDate": ISO8601DateFormatter().string(from: Date()),
             "createdAt": ISO8601DateFormatter().string(from: Date()),
@@ -3746,6 +3744,14 @@ class NetworkService: ObservableObject {
             "hasImageSummaries": false,
             "imageCount": 0
         ]
+        // Only store subject if it was explicitly set by homework processing (not a stale/default value)
+        if let s = subject, !s.isEmpty, s != "General" {
+            conversationData["subject"] = s
+        }
+        // Only store topic if explicitly provided by the user
+        if let t = topic, !t.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            conversationData["topic"] = t
+        }
 
         // Voice audio file paths (Live mode only) — keyed by message index string
         if let audioFiles = voiceAudioFiles, !audioFiles.isEmpty {
@@ -3803,6 +3809,12 @@ class NetworkService: ObservableObject {
         invalidateCache()
         print("✅ [Archive] Saved conversation locally (ID: \(conversationId), \(finalMessageCount) messages)")
 
+        // Invalidate LibraryDataService cache and notify UI so the new card appears immediately (no subject yet)
+        await MainActor.run {
+            LibraryDataService.shared.invalidateCache()
+            NotificationCenter.default.post(name: NSNotification.Name("StorageSyncCompleted"), object: nil)
+        }
+
         // ──────────────────────────────────────────────
         // STEP 4: Run backend AI analysis in background;
         //         patch local record when it comes back
@@ -3827,6 +3839,7 @@ class NetworkService: ObservableObject {
             if !patch.isEmpty {
                 await MainActor.run {
                     currentUserConversationStorage().updateConversation(withId: conversationId, fields: patch)
+                    LibraryDataService.shared.patchCachedConversation(withId: conversationId, fields: patch)
                     self.invalidateCache()
                     print("✨ [Archive] Patched local record with AI summary + subject + insights")
                 }
@@ -3863,7 +3876,7 @@ class NetworkService: ObservableObject {
         let archiveURL = "\(baseURL)/api/ai/sessions/\(sessionId)/archive"
         guard let url = URL(string: archiveURL) else {
             print("❌ Invalid archive URL")
-            return (false, nil, nil, "Invalid URL", nil, nil)
+            return (false, nil, nil, nil, "Invalid URL", nil, nil)
         }
 
         // Build request body
@@ -5643,7 +5656,9 @@ class NetworkService: ObservableObject {
     func fetchDailyQuestion() async -> (question: String, funFact: String?, subject: String?)? {
         guard AuthenticationService.shared.getAuthToken() != nil else { return nil }
 
-        guard let url = URL(string: "\(baseURL)/api/daily/question") else { return nil }
+        // Use the app's user-selected language so the question matches the UI language.
+        let lang = UserDefaults.standard.string(forKey: "appLanguage") ?? "en"
+        guard let url = URL(string: "\(baseURL)/api/daily/question?lang=\(lang)") else { return nil }
 
         var request = URLRequest(url: url)
         addAuthHeader(to: &request)
@@ -5658,11 +5673,15 @@ class NetworkService: ObservableObject {
 
             let funFact  = payload["fun_fact"] as? String
             let subject  = payload["subject"]  as? String
-            let date     = payload["date"]     as? String ?? todayDateString()
+            let grade    = payload["grade_level"].flatMap { ($0 as? Int).map(String.init) ?? ($0 as? String) } ?? "6"
+            // Use the backend's UTC date and time_slot — NOT local device values.
+            let date = (payload["date"] as? String) ?? todayUTCDateString()
+            let slot = (payload["time_slot"] as? Int) ?? currentUTCSlot()
 
-            // Cache for use by DailyQuestionProvider
-            UserDefaults.standard.set(question, forKey: "daily_question_\(date)")
-            if let ff = funFact { UserDefaults.standard.set(ff, forKey: "daily_question_fun_fact_\(date)") }
+            // Cache with date+slot+language+grade key so each 6-hour window gets its own question.
+            let cacheKey = "daily_question_\(date)_s\(slot)_\(lang)_\(grade)"
+            UserDefaults.standard.set(question, forKey: cacheKey)
+            if let ff = funFact { UserDefaults.standard.set(ff, forKey: "daily_question_fun_fact_\(date)_s\(slot)_\(lang)_\(grade)") }
 
             return (question, funFact, subject)
         } catch {
@@ -5674,6 +5693,21 @@ class NetworkService: ObservableObject {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd"
         return f.string(from: Date())
+    }
+
+    /// Returns today's date in UTC (yyyy-MM-dd), matching the backend's _todayUTC().
+    /// Used for daily question cache keys so they stay in sync with backend-generated content.
+    func todayUTCDateString() -> String {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.timeZone = TimeZone(identifier: "UTC")
+        return f.string(from: Date())
+    }
+
+    /// Returns the current 6-hour slot index in UTC: 0=00-05, 1=06-11, 2=12-17, 3=18-23.
+    func currentUTCSlot() -> Int {
+        let hour = Calendar.current.dateComponents(in: TimeZone(identifier: "UTC")!, from: Date()).hour ?? 0
+        return hour / 6
     }
 }
 

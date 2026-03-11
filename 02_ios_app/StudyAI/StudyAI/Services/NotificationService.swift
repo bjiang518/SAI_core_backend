@@ -309,6 +309,21 @@ class NotificationService: NSObject, ObservableObject {
         notificationCenter.removePendingNotificationRequests(withIdentifiers: [identifier])
         print("📱 NotificationService: Cancelled parent report check reminder")
     }
+
+    // MARK: - Badge Management
+
+    /// Clear the app icon badge count. Call when app becomes active.
+    func clearBadge() {
+        if #available(iOS 16.0, *) {
+            notificationCenter.setBadgeCount(0) { error in
+                if let error = error {
+                    print("📱 NotificationService: Failed to clear badge: \(error)")
+                }
+            }
+        } else {
+            UIApplication.shared.applicationIconBadgeNumber = 0
+        }
+    }
 }
 
 // MARK: - UNUserNotificationCenterDelegate

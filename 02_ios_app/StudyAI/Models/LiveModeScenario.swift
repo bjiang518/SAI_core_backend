@@ -67,6 +67,21 @@ enum LiveModeScenario: String, CaseIterable, Identifiable {
         }
     }
 
+    // MARK: - Age Gate
+    // Minimum grade level (China school system: 1-6 小学, 7-9 初中, 10-12 高中).
+    // nil gradeLevel on profile = no restriction applied.
+    var minimumGrade: Int {
+        switch self {
+        case .oralPractice:     return 1   // all ages — free conversation
+        case .classroomQA:      return 1   // all ages — oral quiz
+        case .oralComposition:  return 4   // Grade 4+ (~age 9) — needs basic essay concepts
+        case .presentation:     return 4   // Grade 4+ (~age 9) — structured speaking
+        case .historicalFigure: return 5   // Grade 5+ (~age 10) — basic history knowledge required
+        case .debate:           return 6   // Grade 6+ (~age 11) — abstract reasoning needed
+        case .interview:        return 9   // Grade 9+ (~age 14) — job/university interview context
+        }
+    }
+
     // MARK: - Prompt Builder
 
     /// Build the scenario instruction injected into Gemini's system prompt.

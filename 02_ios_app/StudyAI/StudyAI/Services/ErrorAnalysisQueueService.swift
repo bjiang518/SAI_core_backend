@@ -73,6 +73,34 @@ class ErrorAnalysisQueueService: ObservableObject {
             }
         }
 
+        // ✅ For already-analyzed wrong questions (exact same mistake re-submitted), still update
+        // weakness score so repeated mistakes are reflected in tracking.
+        let alreadyAnalyzedWrong = wrongQuestions.filter { q in
+            guard let questionId = q["id"] as? String else { return false }
+            return analyzedQuestionIds.contains(questionId)
+        }
+        if !alreadyAnalyzedWrong.isEmpty {
+            print("📊 [ErrorAnalysis] \(alreadyAnalyzedWrong.count) already-analyzed wrong questions — recording repeated mistakes")
+            Task {
+                let allStoredQuestions = localStorage.getLocalQuestions()
+                for q in alreadyAnalyzedWrong {
+                    guard let questionId = q["id"] as? String,
+                          let storedQ = allStoredQuestions.first(where: { $0["id"] as? String == questionId }),
+                          let weaknessKey = storedQ["weaknessKey"] as? String,
+                          let errorType = storedQ["errorType"] as? String,
+                          !weaknessKey.isEmpty else { continue }
+                    await MainActor.run {
+                        ShortTermStatusService.shared.recordMistake(
+                            key: weaknessKey,
+                            errorType: errorType,
+                            questionId: questionId
+                        )
+                    }
+                    print("✅ [ErrorAnalysis] Recorded repeated mistake for Q \(questionId.prefix(8))… key=\(weaknessKey)")
+                }
+            }
+        }
+
         guard !unanalyzedWrongQuestions.isEmpty else {
             print("✅ [ErrorAnalysis] All wrong answers already analyzed - skipping Pass 2")
             return
@@ -108,10 +136,15 @@ class ErrorAnalysisQueueService: ObservableObject {
                         print("⚠️ [ErrorAnalysis] Pre-keyed question missing id/weaknessKey/errorType — skipping")
                         continue
                     }
-                    localStorage.updateQuestion(id: questionId, fields: [
+                    var fields: [String: Any] = [
                         "errorAnalysisStatus": ErrorAnalysisStatus.completed.rawValue,
-                        "errorAnalyzedAt": ISO8601DateFormatter().string(from: Date())
-                    ])
+                        "errorAnalyzedAt": ISO8601DateFormatter().string(from: Date()),
+                        "weaknessKey": weaknessKey,
+                        "errorType": errorType
+                    ]
+                    if let baseBranch = q["baseBranch"] as? String { fields["baseBranch"] = baseBranch }
+                    if let detailedBranch = q["detailedBranch"] as? String { fields["detailedBranch"] = detailedBranch }
+                    localStorage.updateQuestion(id: questionId, fields: fields)
                     await MainActor.run {
                         ShortTermStatusService.shared.recordMistake(
                             key: weaknessKey,

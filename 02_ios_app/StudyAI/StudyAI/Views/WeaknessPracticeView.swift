@@ -17,6 +17,8 @@ struct WeaknessPracticeView: View {
 
     @StateObject private var viewModel: WeaknessPracticeViewModel
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var themeManager = ThemeManager.shared
+    @State private var practiceSession: PracticeSession? = nil
 
     init(weaknessKey: String, weaknessValue: WeaknessValue) {
         self.weaknessKey = weaknessKey
@@ -37,686 +39,80 @@ struct WeaknessPracticeView: View {
     }
 
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: 24) {
-                    // Practice questions
-                    if viewModel.isLoading {
-                        ProgressView("Loading practice questions...")
-                            .padding()
-                    } else if let error = viewModel.error {
-                        WeaknessPracticeErrorView(message: error, onRetry: {
-                            Task { await viewModel.loadPracticeQuestions() }
-                        })
-                    } else if viewModel.questions.isEmpty {
-                        Text("No questions available")
-                            .foregroundColor(.secondary)
-                    } else {
-                        ForEach(Array(viewModel.questions.enumerated()), id: \.offset) { index, question in
-                            WeaknessPracticeQuestionCard(
-                                question: question,
-                                questionNumber: index + 1,
-                                weaknessKey: weaknessKey,
-                                isRetryMode: viewModel.isRetryMode
-                            )
-                        }
+        ZStack {
+            themeManager.backgroundColor.ignoresSafeArea()
 
-                        // ✅ "Generate More" button — hidden in retry mode
-                        if !viewModel.questions.isEmpty && !viewModel.isRetryMode {
-                            Button {
-                                Task {
-                                    await viewModel.generateMoreQuestions()
-                                }
-                            } label: {
-                                HStack {
-                                    if viewModel.isGenerating {
-                                        ProgressView()
-                                            .tint(.blue)
-                                        Text("Generating...")
-                                            .font(.headline)
-                                    } else {
-                                        Label("Generate More Questions", systemImage: "plus.circle.fill")
-                                            .font(.headline)
-                                    }
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(viewModel.isGenerating ? Color.gray.opacity(0.1) : Color.blue.opacity(0.1))
-                                )
-                            }
-                            .buttonStyle(.plain)
-                            .disabled(viewModel.isGenerating)
-                        }
+            if let session = practiceSession {
+                // Hand off to the unified question sheet used by PracticeLibraryView
+                QuestionSheetView(session: session)
+            } else if let error = viewModel.error {
+                VStack(spacing: 20) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 48))
+                        .foregroundColor(.orange)
+                    Text(error)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 32)
+                    Button(action: {
+                        Task { await viewModel.loadPracticeQuestions() }
+                    }) {
+                        Text("Retry")
+                            .font(.subheadline.bold())
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, 10)
+                            .background(themeManager.accentColor)
+                            .cornerRadius(10)
                     }
+                    Button("Done", action: { dismiss() })
+                        .foregroundColor(.secondary)
                 }
-                .padding()
-            }
-            .navigationTitle(viewModel.isRetryMode ? "Do Them Again" : "Practice")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
+            } else {
+                VStack(spacing: 16) {
+                    ProgressView()
+                        .scaleEffect(1.2)
+                    Text(viewModel.isGenerating
+                         ? NSLocalizedString("weaknessPractice.generating", value: "Generating questions…", comment: "")
+                         : NSLocalizedString("weaknessPractice.loading",    value: "Loading questions…",    comment: ""))
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
                 }
             }
         }
         .task {
-            printShortTermStatusDebugInfo()
-
             if let questions = preloadedQuestions {
                 viewModel.loadPreloadedQuestions(questions)
-                return
-            }
-            await viewModel.loadPracticeQuestions()
-        }
-    }
-
-    /// DEBUG: Print comprehensive short-term status for bidirectional tracking verification
-    private func printShortTermStatusDebugInfo() {
-        let statusService = ShortTermStatusService.shared
-        let status = statusService.status
-
-        print("\n" + String(repeating: "=", count: 80))
-        print("🔍 SHORT-TERM STATUS DEBUG INFO (Bidirectional Tracking)")
-        print(String(repeating: "=", count: 80))
-
-        // Overall statistics
-        let totalKeys = status.activeWeaknesses.count
-        let weaknessKeys = status.activeWeaknesses.filter { $0.value.value > 0 }
-        let masteryKeys = status.activeWeaknesses.filter { $0.value.value < 0 }
-        let neutralKeys = status.activeWeaknesses.filter { $0.value.value == 0 }
-
-        print("📊 OVERALL STATISTICS:")
-        print("   Total Keys: \(totalKeys)")
-        print("   Weaknesses (value > 0): \(weaknessKeys.count)")
-        print("   Mastery (value < 0): \(masteryKeys.count)")
-        print("   Neutral (value = 0): \(neutralKeys.count)")
-
-        // Group by subject
-        var keysBySubject: [String: [(key: String, weakness: WeaknessValue)]] = [:]
-        for (key, weakness) in status.activeWeaknesses {
-            let components = key.split(separator: "/").map(String.init)
-            guard let subject = components.first else { continue }
-            keysBySubject[subject, default: []].append((key, weakness))
-        }
-
-        // Print subject-by-subject breakdown
-        for (subject, keys) in keysBySubject.sorted(by: { $0.key < $1.key }) {
-            print("\n" + String(repeating: "-", count: 80))
-            print("📚 SUBJECT: \(subject) (\(keys.count) keys)")
-            print(String(repeating: "-", count: 80))
-
-            // Sort by value (most negative first, then most positive)
-            let sortedKeys = keys.sorted { $0.weakness.value < $1.weakness.value }
-
-            for (key, weakness) in sortedKeys {
-                let statusEmoji = weakness.value > 0 ? "⚠️" : (weakness.value < 0 ? "✅" : "➖")
-                let statusLabel = weakness.value > 0 ? "WEAKNESS" : (weakness.value < 0 ? "MASTERY" : "NEUTRAL")
-
-                print("\n\(statusEmoji) [\(statusLabel)] Key: \(key)")
-                print("   Value: \(String(format: "%.2f", weakness.value)) (Attempts: \(weakness.totalAttempts), Correct: \(weakness.correctAttempts))")
-                print("   First Detected: \(formatDate(weakness.firstDetected))")
-                print("   Last Attempt: \(formatDate(weakness.lastAttempt))")
-
-                // Conditional tracking data
-                if weakness.value > 0 {
-                    // Weakness tracking
-                    if !weakness.recentErrorTypes.isEmpty {
-                        print("   Error Types: \(weakness.recentErrorTypes.joined(separator: ", "))")
-                    }
-                    if !weakness.recentQuestionIds.isEmpty {
-                        print("   Recent Questions: \(weakness.recentQuestionIds.prefix(3).joined(separator: ", "))...")
-                    }
-                } else if weakness.value < 0 {
-                    // Mastery tracking
-                    if !weakness.masteryQuestions.isEmpty {
-                        print("   Mastery Questions: \(weakness.masteryQuestions.prefix(3).joined(separator: ", "))...")
-                    }
-                }
-            }
-        }
-
-        print("\n" + String(repeating: "=", count: 80))
-        print("🔍 END OF SHORT-TERM STATUS DEBUG INFO")
-        print(String(repeating: "=", count: 80) + "\n")
-    }
-
-    /// Helper: Format date for debug output
-    private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .short
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
-    }
-}
-
-// MARK: - Error View
-
-struct WeaknessPracticeErrorView: View {
-    let message: String
-    let onRetry: () -> Void
-
-    var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 48))
-                .foregroundColor(.orange)
-
-            Text("Error Loading Questions")
-                .font(.headline)
-
-            Text(message)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-
-            Button("Retry") {
-                onRetry()
-            }
-            .buttonStyle(.borderedProminent)
-        }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.systemGray6))
-        )
-    }
-}
-
-// MARK: - Practice Question Card (Using Question Rendering System)
-
-struct WeaknessPracticeQuestionCard: View {
-    let question: WeaknessPracticeQuestion
-    let questionNumber: Int
-    let weaknessKey: String
-    let isRetryMode: Bool
-
-    @Environment(\.colorScheme) var colorScheme
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Question number header
-            Text("Original Mistake #\(questionNumber)")
-                .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundColor(.white)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Color.orange)
-                .cornerRadius(8)
-
-            // ✅ RAW QUESTION Section
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 6) {
-                    Image(systemName: "doc.text")
-                        .font(.system(size: 14))
-                        .foregroundColor(.blue)
-                    Text("Raw Question")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.blue)
-                }
-
-                // ✅ Use SmartLaTeXView with MathJax for proper LaTeX rendering
-                SmartLaTeXView(
-                    question.rawQuestionText ?? question.questionText,
-                    fontSize: 16,
-                    colorScheme: colorScheme,
-                    strategy: .mathjax
-                )
-
-                // ✅ Display question image if available
-                #if DEBUG
-                let _ = print("🔍 [WeaknessPractice-Render] Evaluating image conditional for Q\(questionNumber)")
-                let _ = print("   question.questionImageUrl = '\(question.questionImageUrl ?? "nil")'")
-                let _ = print("   isEmpty check = \(question.questionImageUrl?.isEmpty ?? true)")
-                #endif
-
-                if let imageUrl = question.questionImageUrl, !imageUrl.isEmpty {
-                    #if DEBUG
-                    let _ = print("✅ [WeaknessPractice-Render] IF branch - imageUrl has value: '\(imageUrl)'")
-                    #endif
-
-                    QuestionImageView(imageUrl: imageUrl)
-                        .onAppear {
-                            #if DEBUG
-                            print("🖼️ [WeaknessPractice-Render] QuestionImageView.onAppear - imageUrl: '\(imageUrl)'")
-                            #endif
-                        }
-                } else {
-                    // No image for this question - render nothing
-                    EmptyView()
-                }
-            }
-            .padding()
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.blue.opacity(0.05))
-            )
-
-            // ✅ ANSWER SUBMISSION Section
-            WeaknessPracticeAnswerInput(
-                question: question,
-                questionNumber: questionNumber,
-                weaknessKey: weaknessKey,
-                isRetryMode: isRetryMode,
-                onAnswerSubmitted: { /* Handle answer submission */ }
-            )
-        }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
-        )
-    }
-}
-
-// MARK: - Input Components
-
-struct MultipleChoiceInput: View {
-    let options: [String]
-    @Binding var selectedOption: String
-    @Environment(\.colorScheme) var colorScheme
-
-    var body: some View {
-        VStack(spacing: 8) {
-            ForEach(options, id: \.self) { option in
-                Button {
-                    selectedOption = option
-                } label: {
-                    HStack {
-                        Image(systemName: selectedOption == option ? "circle.fill" : "circle")
-                        SmartLaTeXView(option, fontSize: 16, colorScheme: colorScheme)
-                        Spacer()
-                    }
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(selectedOption == option ? Color.blue.opacity(0.1) : Color(.systemGray6))
-                    )
-                }
-                .buttonStyle(.plain)
-            }
-        }
-    }
-}
-
-struct TrueFalseInput: View {
-    @Binding var selectedOption: String
-
-    var body: some View {
-        HStack(spacing: 16) {
-            Button {
-                selectedOption = "True"
-            } label: {
-                HStack {
-                    Image(systemName: selectedOption == "True" ? "circle.fill" : "circle")
-                    Text("True")
-                }
-                .padding()
-                .frame(maxWidth: .infinity)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(selectedOption == "True" ? Color.green.opacity(0.1) : Color(.systemGray6))
-                )
-            }
-            .buttonStyle(.plain)
-
-            Button {
-                selectedOption = "False"
-            } label: {
-                HStack {
-                    Image(systemName: selectedOption == "False" ? "circle.fill" : "circle")
-                    Text("False")
-                }
-                .padding()
-                .frame(maxWidth: .infinity)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(selectedOption == "False" ? Color.red.opacity(0.1) : Color(.systemGray6))
-                )
-            }
-            .buttonStyle(.plain)
-        }
-    }
-}
-
-struct WeaknessPracticeResultView: View {
-    let result: WeaknessPracticeQuestionResult
-
-    @Environment(\.colorScheme) var colorScheme
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: result.isCorrect ? "checkmark.circle.fill" : "xmark.circle.fill")
-                    .font(.title2)
-                    .foregroundColor(result.isCorrect ? .green : .red)
-
-                Text(result.isCorrect ? "Correct!" : "Incorrect")
-                    .font(.headline)
-                    .foregroundColor(result.isCorrect ? .green : .red)
-            }
-
-            if !result.isCorrect {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Your Answer:")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    SmartLaTeXView(result.userAnswer, fontSize: 15, colorScheme: colorScheme, strategy: .mathjax)
-
-                    Text("Correct Answer:")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    SmartLaTeXView(result.correctAnswer, fontSize: 15, colorScheme: colorScheme, strategy: .mathjax)
-                }
-            }
-
-            SmartLaTeXView(result.feedback, fontSize: 14, colorScheme: colorScheme, strategy: .mathjax)
-        }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(result.isCorrect ? Color.green.opacity(0.1) : Color.red.opacity(0.1))
-        )
-    }
-}
-
-// MARK: - Answer Input and Grading
-
-struct WeaknessPracticeAnswerInput: View {
-    let question: WeaknessPracticeQuestion
-    let questionNumber: Int
-    let weaknessKey: String
-    let isRetryMode: Bool
-    let onAnswerSubmitted: () -> Void
-
-    @State private var studentAnswer = ""
-    @State private var selectedOption = ""
-    @State private var isSubmitting = false
-    @State private var gradeResult: ProgressiveGradeResult?
-    @State private var gradingError: String?
-
-    private let networkService = NetworkService.shared
-    private let logger = AppLogger.forFeature("WeaknessPractice")
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Answer input section - styled as a card
-            if gradeResult == nil {
-                VStack(alignment: .leading, spacing: 16) {
-                    // Header with icon
-                    HStack(spacing: 6) {
-                        Image(systemName: "pencil")
-                            .font(.system(size: 16))
-                            .foregroundColor(.blue)
-                        Text("Your Answer")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.blue)
-                    }
-
-                    // Answer input based on question type
-                    switch question.questionType.lowercased() {
-                    case "multiple_choice":
-                        if let options = question.options {
-                            MultipleChoiceInput(options: options, selectedOption: $selectedOption)
-                        } else {
-                            TextEditor(text: $studentAnswer)
-                                .frame(minHeight: 120)
-                                .padding(12)
-                                .background(Color.white)
-                                .cornerRadius(8)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                                )
-                                .onChange(of: studentAnswer) { oldValue, newValue in
-                                    // ✅ Dismiss keyboard when whitespace is typed
-                                    if newValue.last == " " && oldValue.count < newValue.count {
-                                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                                    }
-                                }
-                        }
-
-                    case "true_false":
-                        TrueFalseInput(selectedOption: $selectedOption)
-
-                    default:
-                        // Text input for other types - white background with border
-                        TextEditor(text: $studentAnswer)
-                            .frame(minHeight: 120)
-                            .padding(12)
-                            .background(Color.white)
-                            .cornerRadius(8)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                            )
-                            .onChange(of: studentAnswer) { oldValue, newValue in
-                                // ✅ Dismiss keyboard when whitespace is typed
-                                if newValue.last == " " && oldValue.count < newValue.count {
-                                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                                }
-                            }
-                    }
-
-                    // Submit button only
-                    Button {
-                        Task {
-                            await submitAnswer()
-                        }
-                    } label: {
-                        HStack {
-                            if isSubmitting {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                    .frame(height: 20)
-                            } else {
-                                Image(systemName: "checkmark.circle.fill")
-                                Text("Submit Answer")
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(isSubmitDisabled ? Color.gray : Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(12)
-                    }
-                    .disabled(isSubmitDisabled)
-
-                    // Error display
-                    if let error = gradingError {
-                        HStack(spacing: 8) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundColor(.red)
-                            Text(error)
-                                .font(.caption)
-                                .foregroundColor(.red)
-                        }
-                        .padding(12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.red.opacity(0.1))
-                        .cornerRadius(8)
-                    }
-                }
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(Color(.systemBackground))
-                        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
-                )
             } else {
-                // Show grading result
-                WeaknessPracticeResultView(
-                    result: WeaknessPracticeQuestionResult(
-                        isCorrect: gradeResult!.isCorrect,
-                        userAnswer: currentAnswer,
-                        correctAnswer: gradeResult!.correctAnswer ?? "",
-                        feedback: gradeResult!.feedback
-                    )
-                )
-
-                // Try Again button
-                Button {
-                    resetAnswer()
-                } label: {
-                    Label("Try Again", systemImage: "arrow.clockwise")
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(12)
-                }
-                .padding(.top, 8)
+                await viewModel.loadPracticeQuestions()
             }
+            buildSession()
         }
     }
 
-    private var currentAnswer: String {
-        if question.questionType.lowercased() == "multiple_choice" ||
-           question.questionType.lowercased() == "true_false" {
-            return selectedOption
-        }
-        return studentAnswer
-    }
+    /// Convert loaded `WeaknessPracticeQuestion`s into a `PracticeSession` and persist it.
+    private func buildSession() {
+        guard !viewModel.questions.isEmpty else { return }
+        let parts = weaknessKey.split(separator: "/")
+        let subject = String(parts.first ?? Substring(weaknessKey))
+        let topic   = parts.count >= 2 ? parts[1...].joined(separator: "/") : weaknessKey
 
-    private var isSubmitDisabled: Bool {
-        if isSubmitting {
-            return true
-        }
-
-        if question.questionType.lowercased() == "multiple_choice" ||
-           question.questionType.lowercased() == "true_false" {
-            return selectedOption.isEmpty
-        }
-
-        return studentAnswer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
-    private func submitAnswer() async {
-        isSubmitting = true
-        gradingError = nil
-
-        logger.info("Submitting answer for practice question")
-
-        // Resolve the weakness key: per-question key takes priority (retry mode spans multiple keys)
-        let effectiveWeaknessKey = question.weaknessKey ?? weaknessKey
-
-        do {
-            // ✅ FIX: Try client-side matching first to avoid unnecessary API calls
-            if question.questionType.lowercased() == "multiple_choice" ||
-               question.questionType.lowercased() == "true_false" {
-
-                let matchResult = AnswerMatchingService.shared.matchAnswer(
-                    userAnswer: currentAnswer,
-                    correctAnswer: question.correctAnswer,
-                    questionType: question.questionType,
-                    options: nil  // Options dict not needed with our fix
-                )
-
-                logger.info("✅ Client-side match: score=\(matchResult.matchScore), shouldSkip=\(matchResult.shouldSkipAIGrading)")
-
-                if matchResult.shouldSkipAIGrading {
-                    // Instant grading - no API call needed!
-                    let instantGrade = ProgressiveGradeResult(
-                        score: matchResult.isCorrect ? 1.0 : 0.0,
-                        isCorrect: matchResult.isCorrect,
-                        feedback: matchResult.isCorrect ?
-                            NSLocalizedString("practice.feedbackCorrect", comment: "") :
-                            String(format: NSLocalizedString("practice.feedbackIncorrect", comment: ""), question.correctAnswer),
-                        confidence: Float(matchResult.matchScore),
-                        correctAnswer: question.correctAnswer
-                    )
-
-                    gradeResult = instantGrade
-
-                    // Update weakness tracking
-                    if matchResult.isCorrect {
-                        if !isRetryMode {
-                            // Normal mode: reduce weakness value
-                            ShortTermStatusService.shared.recordCorrectAttempt(
-                                key: effectiveWeaknessKey,
-                                retryType: .explicitPractice,
-                                questionId: question.id.uuidString
-                            )
-                            logger.info("✅ Correct answer (instant graded) - weakness value decreased")
-                        } else {
-                            logger.info("✅ Correct answer in retry mode (instant graded) - no status update")
-                        }
-                    } else {
-                        // Wrong answer: always record, use conceptual_gap in retry mode (large weight)
-                        ShortTermStatusService.shared.recordMistake(
-                            key: effectiveWeaknessKey,
-                            errorType: isRetryMode ? "conceptual_gap" : "practice_error",
-                            questionId: question.id.uuidString
-                        )
-                        logger.info("❌ Incorrect answer (instant graded) - weakness value increased\(isRetryMode ? " [retry mode: conceptual_gap]" : "")")
-                    }
-
-                    onAnswerSubmitted()
-                    isSubmitting = false
-                    return
-                }
-            }
-
-            // If not a multiple choice or match failed, use AI grading
-            let response = try await networkService.gradeSingleQuestion(
-                questionText: question.questionText,
-                studentAnswer: currentAnswer,
-                subject: nil,
-                questionType: question.questionType,
-                contextImageBase64: nil,
-                parentQuestionContent: nil,
-                useDeepReasoning: false  // Fast grading — stored correct answer is available
-            )
-
-            if let grade = response.grade {
-                gradeResult = grade
-
-                // Update weakness tracking
-                if grade.isCorrect {
-                    if !isRetryMode {
-                        // Normal mode: reduce weakness value
-                        ShortTermStatusService.shared.recordCorrectAttempt(
-                            key: effectiveWeaknessKey,
-                            retryType: .explicitPractice,
-                            questionId: question.id.uuidString
-                        )
-                        logger.info("✅ Correct answer - weakness value decreased")
-                    } else {
-                        logger.info("✅ Correct answer in retry mode - no status update")
-                    }
-                } else {
-                    // Wrong answer: always record, use conceptual_gap in retry mode (large weight)
-                    ShortTermStatusService.shared.recordMistake(
-                        key: effectiveWeaknessKey,
-                        errorType: isRetryMode ? "conceptual_gap" : "practice_error",
-                        questionId: question.id.uuidString
-                    )
-                    logger.info("❌ Incorrect answer - weakness value increased\(isRetryMode ? " [retry mode: conceptual_gap]" : "")")
-                }
-
-                onAnswerSubmitted()
-            } else if let error = response.error {
-                gradingError = error
-            }
-
-        } catch {
-            logger.error("Failed to grade answer: \(error.localizedDescription)")
-            gradingError = "Failed to grade answer. Please try again."
-        }
-
-        isSubmitting = false
-    }
-
-    private func resetAnswer() {
-        studentAnswer = ""
-        selectedOption = ""
-        gradeResult = nil
-        gradingError = nil
+        let generated = viewModel.questions.map { $0.toGeneratedQuestion(topic: topic) }
+        let session = PracticeSession(
+            id: UUID().uuidString,
+            questions: generated,
+            generationType: "Feynman-Based",
+            subject: subject,
+            difficulty: "adaptive",
+            questionType: "any",
+            createdDate: Date(),
+            lastAccessedDate: Date(),
+            completedQuestionIds: [],
+            answers: [:],
+            isOrganized: false
+        )
+        practiceSession = PracticeSessionManager.shared.saveSession(session)
     }
 }
 
@@ -880,196 +276,6 @@ class WeaknessPracticeViewModel: ObservableObject {
 
         isLoading = false
     }
-
-    func submitAnswer(questionIndex: Int, answer: String) async {
-        guard questionIndex < questions.count else { return }
-
-        var question = questions[questionIndex]
-
-        // Simple grading (exact match)
-        let isCorrect = answer.trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased() == question.correctAnswer.lowercased()
-
-        question.result = WeaknessPracticeQuestionResult(
-            isCorrect: isCorrect,
-            userAnswer: answer,
-            correctAnswer: question.correctAnswer,
-            feedback: generateFeedback(isCorrect: isCorrect)
-        )
-
-        questions[questionIndex] = question
-
-        // Update short-term status
-        if isCorrect {
-            ShortTermStatusService.shared.recordCorrectAttempt(
-                key: weaknessKey,
-                retryType: .explicitPractice,  // ✅ Full bonus for practice button
-                questionId: question.id.uuidString
-            )
-            logger.info("Correct practice answer for '\(weaknessKey)'")
-        } else {
-            ShortTermStatusService.shared.recordMistake(
-                key: weaknessKey,
-                errorType: "practice_error",
-                questionId: question.id.uuidString
-            )
-            logger.info("Incorrect practice answer for '\(weaknessKey)'")
-        }
-    }
-
-    private func generateFeedback(isCorrect: Bool) -> String {
-        if isCorrect {
-            return NSLocalizedString("practice.feedbackCorrect", comment: "")
-        } else {
-            return NSLocalizedString("practice.feedbackTryAgain", comment: "")
-        }
-    }
-
-    // ✅ Generate additional practice questions using error analysis
-    func generateMoreQuestions() async {
-        isGenerating = true
-
-        print("🔨 [WeaknessPractice] Generating more questions for: \(weaknessKey)")
-
-        do {
-            // Parse weakness key to extract subject and concept
-            let parts = weaknessKey.split(separator: "/")
-            guard parts.count >= 3 else {
-                throw PracticeError.generationFailed
-            }
-
-            let subject = String(parts[0])
-            let baseBranch = String(parts[1])
-            let detailedBranch = String(parts[2])
-
-            print("   📚 Subject: \(subject), Base: \(baseBranch), Detail: \(detailedBranch)")
-
-            // ✅ Load original mistake questions with error analysis from local storage
-            let localStorage = currentUserQuestionStorage()
-            let allQuestions = localStorage.getLocalQuestions()
-
-            // Filter for questions matching this weakness key
-            let mistakeQuestions = allQuestions.filter { question in
-                guard let questionWeaknessKey = question["weaknessKey"] as? String else {
-                    return false
-                }
-                return questionWeaknessKey == weaknessKey
-            }
-
-            print("   📊 Found \(mistakeQuestions.count) original mistakes for this weakness")
-
-            // Build mistakes data with error analysis
-            let mistakesData: [[String: Any]] = mistakeQuestions.compactMap { question in
-                guard let questionText = question["questionText"] as? String,
-                      let studentAnswer = question["studentAnswer"] as? String,
-                      let correctAnswer = question["answerText"] as? String else {
-                    return nil
-                }
-
-                var data: [String: Any] = [
-                    "question_text": questionText,
-                    "student_answer": studentAnswer,
-                    "correct_answer": correctAnswer,
-                    "subject": subject
-                ]
-
-                // ✅ Add error analysis if available
-                if let errorType = question["errorType"] as? String {
-                    data["error_type"] = errorType
-                    print("   ✓ Including error type: \(errorType)")
-                }
-                if let errorEvidence = question["errorEvidence"] as? String {
-                    data["error_evidence"] = errorEvidence
-                }
-                if let baseBranch = question["baseBranch"] as? String {
-                    data["base_branch"] = baseBranch
-                    print("   ✓ Including base branch: \(baseBranch)")
-                }
-                if let detailedBranch = question["detailedBranch"] as? String {
-                    data["detailed_branch"] = detailedBranch
-                    print("   ✓ Including detailed branch: \(detailedBranch)")
-                }
-
-                return data
-            }
-
-            guard !mistakesData.isEmpty else {
-                print("   ⚠️ No mistake data available - generating generic questions")
-                throw PracticeError.generationFailed
-            }
-
-            print("   🎯 Calling backend with \(mistakesData.count) mistakes (with error analysis)")
-
-            // Call backend endpoint
-            guard let url = URL(string: "https://sai-backend-production.up.railway.app/api/ai/generate-questions/mistakes") else {
-                throw URLError(.badURL)
-            }
-
-            guard let token = AuthenticationService.shared.getAuthToken() else {
-                throw NSError(domain: "Auth", code: 401, userInfo: [NSLocalizedDescriptionKey: "Not authenticated"])
-            }
-
-            var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-            let requestBody: [String: Any] = [
-                "subject": subject,
-                "mistakes_data": mistakesData,
-                "count": 3  // Generate 3 new questions
-            ]
-
-            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
-
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            guard let httpResponse = response as? HTTPURLResponse,
-                  httpResponse.statusCode == 200 else {
-                throw NSError(domain: "API", code: (response as? HTTPURLResponse)?.statusCode ?? 500)
-            }
-
-            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let generatedQuestions = json["questions"] as? [[String: Any]] {
-
-                print("   ✅ Received \(generatedQuestions.count) AI-generated questions")
-
-                // Convert to WeaknessPracticeQuestion format
-                for (index, questionData) in generatedQuestions.enumerated() {
-                    guard let questionText = questionData["question"] as? String,
-                          let correctAnswer = questionData["correct_answer"] as? String else {
-                        print("   ⚠️ Skipping question \(index) - missing fields")
-                        continue
-                    }
-
-                    let questionType = questionData["question_type"] as? String ?? "open_ended"
-                    let options = questionData["options"] as? [String]
-
-                    let practiceQuestion = WeaknessPracticeQuestion(
-                        id: UUID(),
-                        questionText: questionText,
-                        questionType: questionType,
-                        options: options,
-                        correctAnswer: correctAnswer,
-                        isOriginalMistake: false,  // AI-generated, not original
-                        originalQuestionId: nil
-                    )
-
-                    questions.append(practiceQuestion)
-                    print("   ✅ Added AI-generated question \(index + 1): \(questionText.prefix(50))...")
-                }
-
-                logger.info("Generated \(generatedQuestions.count) additional practice questions for '\(weaknessKey)'")
-            }
-
-        } catch {
-            logger.error("Failed to generate questions: \(error)")
-            print("   ❌ Generation failed: \(error.localizedDescription)")
-            self.error = "Failed to generate questions: \(error.localizedDescription)"
-        }
-
-        isGenerating = false
-    }
 }
 
 // MARK: - Practice Question Models
@@ -1086,7 +292,31 @@ struct WeaknessPracticeQuestion: Identifiable {
     var questionImageUrl: String? = nil  // Image URL if present
     var rawQuestionText: String? = nil  // Full raw question text
     var weaknessKey: String? = nil  // Per-question weakness key for retry mode
-    var result: WeaknessPracticeQuestionResult?
+
+    /// Convert to the unified `GeneratedQuestion` type so it can be placed in a `PracticeSession`
+    /// and displayed by `QuestionSheetView`.
+    func toGeneratedQuestion(topic: String) -> QuestionGenerationService.GeneratedQuestion {
+        let qType: QuestionGenerationService.GeneratedQuestion.QuestionType
+        switch questionType.lowercased() {
+        case "multiple_choice": qType = .multipleChoice
+        case "true_false":      qType = .trueFalse
+        case "fill_blank":      qType = .fillBlank
+        case "short_answer":    qType = .shortAnswer
+        case "long_answer":     qType = .longAnswer
+        default:                qType = .shortAnswer
+        }
+        return QuestionGenerationService.GeneratedQuestion(
+            id: id,
+            question: questionText,
+            type: qType,
+            correctAnswer: correctAnswer,
+            explanation: "",
+            topic: topic,
+            difficulty: "adaptive",
+            options: options,
+            weaknessKey: weaknessKey
+        )
+    }
 
     // ✅ Convert to ParsedQuestion for use with question rendering system
     // ⚠️ IMPORTANT: Do NOT include studentAnswer or correctAnswer - we only want to show the raw question
@@ -1117,13 +347,6 @@ struct WeaknessPracticeQuestion: Identifiable {
             parentSummary: nil
         )
     }
-}
-
-struct WeaknessPracticeQuestionResult {
-    let isCorrect: Bool
-    let userAnswer: String
-    let correctAnswer: String
-    let feedback: String
 }
 
 enum PracticeError: LocalizedError {

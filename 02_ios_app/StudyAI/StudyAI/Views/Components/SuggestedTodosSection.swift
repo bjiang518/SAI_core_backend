@@ -578,12 +578,11 @@ private struct TodoRowView: View {
     // Row-local state — changes here don't touch the parent or sibling rows
     @State private var dragX: CGFloat = 0
     @State private var isSwiping: Bool = false
-    @State private var isPressed: Bool = false
 
     private var isDismissing: Bool { dismissingId == todo.id }
 
     var body: some View {
-        HStack(alignment: .center, spacing: 10) {
+        HStack(alignment: .center, spacing: 16) {
             // Icon — decorative only
             ZStack {
                 Circle()
@@ -595,26 +594,29 @@ private struct TodoRowView: View {
             }
             .allowsHitTesting(false)
 
-            // Text — hit-testing off; parent gesture handles everything
-            VStack(alignment: .leading, spacing: 4) {
-                Text(todo.title)
-                    .font(fontProvider(20, todo.title))
-                    .foregroundColor(primaryText)
-                    .lineLimit(1)
-                    .padding(.horizontal, 1)
-                    .background(HighlighterMark().fill(todo.color.opacity(0.28)))
-                    .frame(minHeight: 28, alignment: .center)
-                Text(todo.subtitle)
-                    .font(fontProvider(16, todo.subtitle))
-                    .foregroundColor(secondaryText)
-                    .lineLimit(1)
-                    .frame(minHeight: 22, alignment: .center)
+            // Text — only this area triggers navigation; rest of card is scroll-through
+            Button { onAction(todo.action) } label: {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(todo.title)
+                        .font(fontProvider(20, todo.title))
+                        .foregroundColor(primaryText)
+                        .lineLimit(1)
+                        .padding(.horizontal, 1)
+                        .background(HighlighterMark().fill(todo.color.opacity(0.28)))
+                        .frame(minHeight: 28, alignment: .center)
+                    Text(todo.subtitle)
+                        .font(fontProvider(16, todo.subtitle))
+                        .foregroundColor(secondaryText)
+                        .lineLimit(1)
+                        .frame(minHeight: 22, alignment: .center)
+                }
+                .contentShape(Rectangle())
             }
-            .allowsHitTesting(false)
+            .buttonStyle(.plain)
 
             Spacer()
 
-            // Dismiss button — Button child gesture wins over parent DragGesture
+            // Dismiss button
             Button { onXDismiss(todo.id) } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 10, weight: .medium))
@@ -623,58 +625,43 @@ private struct TodoRowView: View {
             }
             .buttonStyle(.plain)
         }
-        .padding(.leading, 12)
+        .padding(.leading, 8)
         .padding(.trailing, 8)
         .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(isPressed && !isSwiping ? todo.color.opacity(0.08) : Color.clear)
-                .padding(.horizontal, 4)
-        )
-        .scaleEffect(isPressed && !isSwiping ? 0.985 : 1.0)
-        .animation(.easeOut(duration: 0.10), value: isPressed)
-        .contentShape(Rectangle())
-        // Single gesture — no competing recognisers, only this row re-renders during drag
-        .gesture(
-            DragGesture(minimumDistance: 0, coordinateSpace: .local)
+        // Note: intentionally NO .contentShape(Rectangle()) here.
+        // Adding it makes the whole row claim touch ownership and blocks the parent ScrollView
+        // from recognising vertical scroll gestures, even when using simultaneousGesture.
+        // The swipe gesture works on all visible content areas (icon, text, X button), which
+        // is sufficient. Empty Spacer gaps pass touch events up to the ScrollView.
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 10, coordinateSpace: .local)
                 .onChanged { value in
                     guard !isDismissing else { return }
                     let h = value.translation.width
                     let v = value.translation.height
 
                     if isSwiping {
-                        // Already in swipe mode: track 1-to-1, no animation, no jitter
                         dragX = h
                     } else if abs(h) > 12 && abs(h) > abs(v) * 1.5 {
-                        // Enter swipe mode
                         isSwiping = true
-                        isPressed = false
                         dragX = h
-                    } else if abs(h) < 8 && abs(v) < 8 {
-                        isPressed = true
-                    } else {
-                        isPressed = false
                     }
                 }
                 .onEnded { value in
                     let h = value.translation.width
-                    let v = value.translation.height
-                    isPressed = false
 
                     if isSwiping {
                         let predicted = value.predictedEndTranslation.width
                         if abs(h) > 70 || abs(predicted) > 150 {
-                            // Pass dragX so parent animation starts from finger position
                             onSwipeDismiss(todo.id, h > 0, dragX)
                         } else {
-                            // Snap back with spring
                             isSwiping = false
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
                                 dragX = 0
                             }
                         }
-                    } else if abs(h) < 10 && abs(v) < 10 {
-                        onAction(todo.action)
+                    } else {
+                        isSwiping = false
                     }
                 }
         )

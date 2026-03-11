@@ -11,6 +11,7 @@ struct PlaylistEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
     @ObservedObject var musicService = BackgroundMusicService.shared
+    @ObservedObject var downloadService = MusicDownloadService.shared
 
     let playlistToEdit: MusicPlaylist?
     let onSave: (MusicPlaylist) -> Void
@@ -79,9 +80,14 @@ struct PlaylistEditorView: View {
                                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .secondary)
                             }
 
-                            // Tracks by Category
+                            // Tracks by Category — only show downloaded / always-available tracks
                             ForEach(BackgroundMusicTrack.MusicCategory.allCases, id: \.self) { category in
-                                let tracksInCategory = musicService.getTracks(category: category)
+                                let tracksInCategory = musicService.getTracks(category: category).filter { track in
+                                    switch track.source {
+                                    case .bundle, .userLibrary: return true
+                                    case .remote: return downloadService.isTrackDownloaded(track.id)
+                                    }
+                                }
 
                                 if !tracksInCategory.isEmpty {
                                     VStack(alignment: .leading, spacing: 12) {

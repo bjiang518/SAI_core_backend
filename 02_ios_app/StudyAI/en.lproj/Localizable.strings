@@ -924,6 +924,19 @@
 "library.advancedSearch.sortOrder" = "Sort Order";
 "library.advancedSearch.sortBy" = "Sort By";
 
+"library.gradeFilter.all" = "All Grades";
+"library.gradeFilter.correct" = "Correct ✅";
+"library.gradeFilter.incorrect" = "Incorrect ❌";
+"library.gradeFilter.empty" = "Empty 📝";
+"library.gradeFilter.partialCredit" = "Partial Credit ⚡";
+"library.gradeFilter.notGraded" = "Not Graded 📋";
+
+"library.sortOrder.dateNewest" = "Date (Newest First)";
+"library.sortOrder.dateOldest" = "Date (Oldest First)";
+"library.sortOrder.confidenceHigh" = "Confidence (High to Low)";
+"library.sortOrder.confidenceLow" = "Confidence (Low to High)";
+"library.sortOrder.subjectAZ" = "Subject (A-Z)";
+
 // Contact Support
 "contactSupport.subtitle" = "We're here to help\!";
 "contactSupport.emailTitle" = "Email Support";
@@ -1437,6 +1450,7 @@
 "mistakeReview.hideDetails" = "Hide Details";
 "mistakeReview.questionsLeftDone" = "%d questions left · %d%% done";
 "mistakeReview.generatePractice" = "Generate Practice (%d mistakes)";
+"mistakeReview.doThemAgain" = "Do them again (%d)";
 "mistakeReview.generationFailed" = "Practice Generation Failed";
 "mistakeReview.generatingQuestions" = "Generating Questions...";
 "mistakeReview.whatWentWrong" = "What Went Wrong";
@@ -1823,6 +1837,8 @@
 "proMode.selectAll" = "Select All";
 "proMode.deselectAll" = "Deselect All";
 "proMode.viewOriginalImage" = "View Original Image";
+"savedDigitalHomework.title" = "Digital Homework";
+"savedDigitalHomework.redo" = "Redo";
 "proMode.resetAnnotations" = "Reset Annotations";
 "proMode.batchArchive" = "Batch Archive";
 "proMode.batchArchiveCount" = "Batch Archive (%d)";
@@ -1944,6 +1960,24 @@
 "pdf.options.maxSubImageSize" = "Max Sub-image Size";
 "pdf.options.reset" = "Reset to Defaults";
 "pdf.options.footer" = "Tap Apply to regenerate the PDF with these settings.";
+
+// PDF Content Strings
+"pdf.practice.title" = "Practice Questions";
+"pdf.mistakes.title" = "Mistake Review";
+"pdf.homework.title" = "Homework Questions";
+"pdf.library.title" = "Library Questions";
+"pdf.header.subject" = "Subject: %@";
+"pdf.header.generatedOn.withType" = "Generated on %@ • %@";
+"pdf.header.generatedOn.withCount" = "Generated on %@ • %d questions";
+"pdf.header.questionCount" = "%d Questions";
+"pdf.instruction.practice" = "Answer each question in the space provided. Show your work where applicable.";
+"pdf.instruction.mistakes" = "Review these questions and write your answers in the space provided below each question.";
+"pdf.instruction.homework" = "These are the questions from your homework assignment.";
+"pdf.instruction.library" = "Review each question and write your answers in the space provided.";
+"pdf.question.label" = "Question %@";
+"pdf.question.noText" = "[Question text not available]";
+"pdf.mistake.hint" = "💡 You originally answered: \"%@\"";
+"pdf.mistake.noAnswer" = "No answer";
 
 // Library PDF Preview
 "library.pdf.generating" = "Generating PDF…";
@@ -2425,3 +2459,19 @@
 "todo.dailyQuestion.fallback.title" = "Start an AI Conversation";
 "todo.dailyQuestion.fallback.subtitle" = "Ask AI anything, anytime";
 "chat.liveMode.oralPractice.starterPrompt" = "Let's practice speaking! You can ask me questions on any topic, correct my pronunciation, or have a free conversation. What would you like to work on?";
+
+// MARK: - Live Mode Scenario Cards
+"live.scenario.oralPractice.title" = "Speaking Practice";
+"live.scenario.oralPractice.subtitle" = "Free conversation, build fluency";
+"live.scenario.oralComposition.title" = "Oral Essay";
+"live.scenario.oralComposition.subtitle" = "Speak your ideas, AI guides the plan";
+"live.scenario.debate.title" = "Debate Partner";
+"live.scenario.debate.subtitle" = "AI picks the topic, you choose a side";
+"live.scenario.interview.title" = "Mock Interview";
+"live.scenario.interview.subtitle" = "Simulate a real interview, get AI feedback";
+"live.scenario.classroomQA.title" = "Classroom Q&A";
+"live.scenario.classroomQA.subtitle" = "Target weak points, oral quiz";
+"live.scenario.presentation.title" = "Presentation";
+"live.scenario.presentation.subtitle" = "Deliver in full, AI gives 3-part feedback";
+"live.scenario.historicalFigure.title" = "Historical Figure";
+"live.scenario.historicalFigure.subtitle" = "Travel through history, talk with a legend";

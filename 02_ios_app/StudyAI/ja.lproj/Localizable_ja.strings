@@ -789,80 +789,93 @@
 "progress.pointsAvailable" = "+%d pts";
 
 // Library View
-"library.title" = "Study ライブラリ";
-"library.refreshLibrary" = "Refresh ライブラリ";
-"library.advancedSearch" = "Advanced Search";
-"library.clearFilters" = "Clear Filters";
-"library.filterBySubject" = "Filter by Subject";
-"library.allSubjects" = "All Subjects";
-"library.debugInfo" = "Debug Info";
-"library.searchPlaceholder" = "Search by question, subject, or content...";
-"library.updating" = "Updating...";
+"library.title" = "学習ライブラリ";
+"library.refreshLibrary" = "ライブラリを更新";
+"library.advancedSearch" = "詳細検索";
+"library.clearFilters" = "フィルターをリセット";
+"library.filterBySubject" = "科目でフィルター";
+"library.allSubjects" = "すべての科目";
+"library.debugInfo" = "デバッグ情報";
+"library.searchPlaceholder" = "質問、科目、内容で検索...";
+"library.updating" = "更新中...";
 
 // Content Type Filters
-"library.contentType.allSessions" = "All Sessions";
-"library.contentType.questionsOnly" = "Questions Only";
-"library.contentType.conversationsOnly" = "Conversations Only";
+"library.contentType.allSessions" = "すべてのセッション";
+"library.contentType.questionsOnly" = "質問のみ";
+"library.contentType.conversationsOnly" = "会話のみ";
 
 // Quick Filters
-"library.filter.allTime" = "All Time";
-"library.filter.allSubjects" = "All Subjects";
-"library.filter.allTypes" = "All Types";
-"library.filter.thisWeek" = "This Week";
-"library.filter.thisMonth" = "This Month";
-"library.filter.withImages" = "With Images";
+"library.filter.allTime" = "全期間";
+"library.filter.allSubjects" = "すべての科目";
+"library.filter.allTypes" = "すべての種類";
+"library.filter.thisWeek" = "今週";
+"library.filter.thisMonth" = "今月";
+"library.filter.withImages" = "画像あり";
 
 // Stats Header
-"library.stats.questions" = "Questions";
-"library.stats.conversations" = "Conversations";
-"library.stats.totalSessions" = "Total Sessions";
-"library.stats.showing" = "Showing: %@";
-"library.stats.showAll" = "Show All";
-"library.stats.subject" = "Subject: %@";
+"library.stats.questions" = "質問";
+"library.stats.conversations" = "会話";
+"library.stats.totalSessions" = "総セッション数";
+"library.stats.showing" = "表示中: %@";
+"library.stats.showAll" = "すべて表示";
+"library.stats.subject" = "科目: %@";
 
 // Library Item
-"library.item.tapToReview" = "Tap to review";
-"library.item.homeworkSession" = "ホームwork Session";
-"library.item.archivedQuestion" = "Archived Question";
-"library.item.conversationSession" = "Conversation Session";
+"library.item.tapToReview" = "タップして確認";
+"library.item.homeworkSession" = "宿題セッション";
+"library.item.archivedQuestion" = "保存済みの質問";
+"library.item.conversationSession" = "会話セッション";
 
 // Empty States
-"library.empty.signInRequired" = "ログイン Required";
-"library.empty.signInMessage" = "Please sign in to access your personal Study ライブラリ";
-"library.empty.libraryEmpty" = "Your Study ライブラリ is Empty";
-"library.empty.libraryEmptyMessage" = "Complete homework with AI ホームwork or start conversations to build your study library";
-"library.empty.loading" = "Loading your Study ライブラリ...";
+"library.empty.signInRequired" = "ログインが必要です";
+"library.empty.signInMessage" = "個人の学習ライブラリにアクセスするにはサインインしてください";
+"library.empty.libraryEmpty" = "学習ライブラリは空です";
+"library.empty.libraryEmptyMessage" = "AI宿題や会話を始めて学習ライブラリを作りましょう";
+"library.empty.loading" = "学習ライブラリを読み込み中...";
 
 // No Results
-"library.noResults.title" = "No Results Found";
-"library.noResults.adjustFilters" = "Try adjusting your search or filters";
-"library.noResults.noMatch" = "No study sessions match your criteria";
+"library.noResults.title" = "結果が見つかりません";
+"library.noResults.adjustFilters" = "検索またはフィルターを調整してみてください";
+"library.noResults.noMatch" = "条件に一致する学習セッションがありません";
 
 // Advanced Search
-"library.advancedSearch.title" = "Advanced Search";
-"library.advancedSearch.cancel" = "Cancel";
-"library.advancedSearch.search" = "Search";
-"library.advancedSearch.clearSearch" = "Clear Search";
+"library.advancedSearch.title" = "詳細検索";
+"library.advancedSearch.cancel" = "キャンセル";
+"library.advancedSearch.search" = "検索";
+"library.advancedSearch.clearSearch" = "検索をクリア";
 
-"library.advancedSearch.searchText" = "Search Text";
-"library.advancedSearch.searchPlaceholder" = "Search questions...";
+"library.advancedSearch.searchText" = "検索テキスト";
+"library.advancedSearch.searchPlaceholder" = "質問を検索...";
 
-"library.advancedSearch.subjectFilter" = "Subject Filter";
-"library.advancedSearch.subject" = "Subject";
-"library.advancedSearch.allSubjects" = "All Subjects";
+"library.advancedSearch.subjectFilter" = "科目フィルター";
+"library.advancedSearch.subject" = "科目";
+"library.advancedSearch.allSubjects" = "すべての科目";
 
-"library.advancedSearch.gradeFilter" = "Grade Filter";
-"library.advancedSearch.grade" = "Grade";
-"library.advancedSearch.allGrades" = "All Grades";
+"library.advancedSearch.gradeFilter" = "評価フィルター";
+"library.advancedSearch.grade" = "評価";
+"library.advancedSearch.allGrades" = "すべての評価";
 
-"library.advancedSearch.dateRange" = "Date Range";
-"library.advancedSearch.allTime" = "All Time";
-"library.advancedSearch.last7Days" = "Last 7 Days";
-"library.advancedSearch.last30Days" = "Last 30 Days";
-"library.advancedSearch.last3Months" = "Last 3 Months";
+"library.advancedSearch.dateRange" = "期間";
+"library.advancedSearch.allTime" = "全期間";
+"library.advancedSearch.last7Days" = "過去7日間";
+"library.advancedSearch.last30Days" = "過去30日間";
+"library.advancedSearch.last3Months" = "過去3ヶ月";
 
-"library.advancedSearch.sortOrder" = "Sort Order";
-"library.advancedSearch.sortBy" = "Sort By";
+"library.advancedSearch.sortOrder" = "並び順";
+"library.advancedSearch.sortBy" = "並び替え";
+
+"library.gradeFilter.all" = "すべての評価";
+"library.gradeFilter.correct" = "正解 ✅";
+"library.gradeFilter.incorrect" = "不正解 ❌";
+"library.gradeFilter.empty" = "未回答 📝";
+"library.gradeFilter.partialCredit" = "部分点 ⚡";
+"library.gradeFilter.notGraded" = "未採点 📋";
+
+"library.sortOrder.dateNewest" = "日付（新しい順）";
+"library.sortOrder.dateOldest" = "日付（古い順）";
+"library.sortOrder.confidenceHigh" = "正答率（高い順）";
+"library.sortOrder.confidenceLow" = "正答率（低い順）";
+"library.sortOrder.subjectAZ" = "科目（A-Z）";
 
 // Contact Support
 "contactSupport.subtitle" = "We're here to help\!";
@@ -1377,6 +1390,7 @@
 "mistakeReview.hideDetails" = "詳細を非表示";
 "mistakeReview.questionsLeftDone" = "%d questions left · %d%% done";
 "mistakeReview.generatePractice" = "Generate Practice (%d mistakes)";
+"mistakeReview.doThemAgain" = "Do them again (%d)";
 "mistakeReview.generationFailed" = "Practice Generation Failed";
 "mistakeReview.generatingQuestions" = "Generating Questions...";
 "mistakeReview.whatWentWrong" = "What Went Wrong";
@@ -1708,14 +1722,14 @@
 "settings.studySettings" = "Study 設定";
 
 // Custom Date Range Picker
-"library.filter.moreSpecific" = "More Specific";
-"library.customDate.title" = "Select Custom Date Range";
-"library.customDate.subtitle" = "Choose start and end dates for your filter";
-"library.customDate.startDate" = "Start Date";
-"library.customDate.endDate" = "End Date";
-"library.customDate.selectedRange" = "Selected Range:";
-"library.customDate.apply" = "Apply Date Filter";
-"library.customDate.navigationTitle" = "Custom Date Range";
+"library.filter.moreSpecific" = "より具体的に";
+"library.customDate.title" = "カスタム期間を選択";
+"library.customDate.subtitle" = "フィルターの開始日と終了日を選択してください";
+"library.customDate.startDate" = "開始日";
+"library.customDate.endDate" = "終了日";
+"library.customDate.selectedRange" = "選択した期間:";
+"library.customDate.apply" = "日付フィルターを適用";
+"library.customDate.navigationTitle" = "カスタム期間";
 
 // Question Archive View
 "archive.title" = "Archive Questions";
@@ -2401,3 +2415,19 @@
 "todo.dailyQuestion.fallback.title" = "AIと会話を始める";
 "todo.dailyQuestion.fallback.subtitle" = "いつでもAIに質問できる";
 "chat.liveMode.oralPractice.starterPrompt" = "スピーキング練習をしましょう！質問したり、発音を直したり、自由に会話したりできます。何を練習しますか？";
+
+// MARK: - Live Mode Scenario Cards
+"live.scenario.oralPractice.title" = "スピーキング練習";
+"live.scenario.oralPractice.subtitle" = "自由会話でスキルアップ";
+"live.scenario.oralComposition.title" = "口頭作文";
+"live.scenario.oralComposition.subtitle" = "アイデアを語る・AIが構成を導く";
+"live.scenario.debate.title" = "ディベート相手";
+"live.scenario.debate.subtitle" = "AIがテーマを出す・あなたが立場を選ぶ";
+"live.scenario.interview.title" = "模擬面接";
+"live.scenario.interview.subtitle" = "リアルな面接を模擬・AIがフィードバック";
+"live.scenario.classroomQA.title" = "授業Q&A";
+"live.scenario.classroomQA.subtitle" = "弱点を狙った口頭テスト";
+"live.scenario.presentation.title" = "プレゼン練習";
+"live.scenario.presentation.subtitle" = "全体を発表・AIが3軸でフィードバック";
+"live.scenario.historicalFigure.title" = "歴史的人物";
+"live.scenario.historicalFigure.subtitle" = "歴史を旅して偉人と対話";

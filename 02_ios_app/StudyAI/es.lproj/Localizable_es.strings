@@ -789,80 +789,93 @@
 "progress.pointsAvailable" = "+%d pts";
 
 // Library View
-"library.title" = "Study Biblioteca";
-"library.refreshLibrary" = "Refresh Biblioteca";
-"library.advancedSearch" = "Advanced Search";
-"library.clearFilters" = "Clear Filters";
-"library.filterBySubject" = "Filter by Subject";
-"library.allSubjects" = "All Subjects";
-"library.debugInfo" = "Debug Info";
-"library.searchPlaceholder" = "Search by question, subject, or content...";
-"library.updating" = "Updating...";
+"library.title" = "Biblioteca de Estudio";
+"library.refreshLibrary" = "Actualizar biblioteca";
+"library.advancedSearch" = "Búsqueda avanzada";
+"library.clearFilters" = "Limpiar filtros";
+"library.filterBySubject" = "Filtrar por materia";
+"library.allSubjects" = "Todas las materias";
+"library.debugInfo" = "Info de depuración";
+"library.searchPlaceholder" = "Buscar por pregunta, materia o contenido...";
+"library.updating" = "Actualizando...";
 
 // Content Type Filters
-"library.contentType.allSessions" = "All Sessions";
-"library.contentType.questionsOnly" = "Questions Only";
-"library.contentType.conversationsOnly" = "Conversations Only";
+"library.contentType.allSessions" = "Todas las sesiones";
+"library.contentType.questionsOnly" = "Solo preguntas";
+"library.contentType.conversationsOnly" = "Solo conversaciones";
 
 // Quick Filters
-"library.filter.allTime" = "All Time";
-"library.filter.allSubjects" = "All Subjects";
-"library.filter.allTypes" = "All Types";
-"library.filter.thisWeek" = "This Week";
-"library.filter.thisMonth" = "This Month";
-"library.filter.withImages" = "With Images";
+"library.filter.allTime" = "Todo el tiempo";
+"library.filter.allSubjects" = "Todas las materias";
+"library.filter.allTypes" = "Todos los tipos";
+"library.filter.thisWeek" = "Esta semana";
+"library.filter.thisMonth" = "Este mes";
+"library.filter.withImages" = "Con imágenes";
 
 // Stats Header
-"library.stats.questions" = "Questions";
-"library.stats.conversations" = "Conversations";
-"library.stats.totalSessions" = "Total Sessions";
-"library.stats.showing" = "Showing: %@";
-"library.stats.showAll" = "Show All";
-"library.stats.subject" = "Subject: %@";
+"library.stats.questions" = "Preguntas";
+"library.stats.conversations" = "Conversaciones";
+"library.stats.totalSessions" = "Total de sesiones";
+"library.stats.showing" = "Mostrando: %@";
+"library.stats.showAll" = "Ver todo";
+"library.stats.subject" = "Materia: %@";
 
 // Library Item
-"library.item.tapToReview" = "Tap to review";
-"library.item.homeworkSession" = "Iniciowork Session";
-"library.item.archivedQuestion" = "Archived Question";
-"library.item.conversationSession" = "Conversation Session";
+"library.item.tapToReview" = "Toca para revisar";
+"library.item.homeworkSession" = "Sesión de tarea";
+"library.item.archivedQuestion" = "Pregunta archivada";
+"library.item.conversationSession" = "Sesión de conversación";
 
 // Empty States
-"library.empty.signInRequired" = "Iniciar sesión Required";
-"library.empty.signInMessage" = "Please sign in to access your personal Study Biblioteca";
-"library.empty.libraryEmpty" = "Your Study Biblioteca is Empty";
-"library.empty.libraryEmptyMessage" = "Complete homework with AI Iniciowork or start conversations to build your study library";
-"library.empty.loading" = "Loading your Study Biblioteca...";
+"library.empty.signInRequired" = "Inicio de sesión requerido";
+"library.empty.signInMessage" = "Por favor, inicia sesión para acceder a tu biblioteca de estudio personal";
+"library.empty.libraryEmpty" = "Tu biblioteca de estudio está vacía";
+"library.empty.libraryEmptyMessage" = "Completa tareas con IA o inicia conversaciones para construir tu biblioteca de estudio";
+"library.empty.loading" = "Cargando tu biblioteca de estudio...";
 
 // No Results
-"library.noResults.title" = "No Results Found";
-"library.noResults.adjustFilters" = "Try adjusting your search or filters";
-"library.noResults.noMatch" = "No study sessions match your criteria";
+"library.noResults.title" = "No se encontraron resultados";
+"library.noResults.adjustFilters" = "Intenta ajustar tu búsqueda o filtros";
+"library.noResults.noMatch" = "Ninguna sesión de estudio coincide con tus criterios";
 
 // Advanced Search
-"library.advancedSearch.title" = "Advanced Search";
-"library.advancedSearch.cancel" = "Cancel";
-"library.advancedSearch.search" = "Search";
-"library.advancedSearch.clearSearch" = "Clear Search";
+"library.advancedSearch.title" = "Búsqueda avanzada";
+"library.advancedSearch.cancel" = "Cancelar";
+"library.advancedSearch.search" = "Buscar";
+"library.advancedSearch.clearSearch" = "Limpiar búsqueda";
 
-"library.advancedSearch.searchText" = "Search Text";
-"library.advancedSearch.searchPlaceholder" = "Search questions...";
+"library.advancedSearch.searchText" = "Texto de búsqueda";
+"library.advancedSearch.searchPlaceholder" = "Buscar preguntas...";
 
-"library.advancedSearch.subjectFilter" = "Subject Filter";
-"library.advancedSearch.subject" = "Subject";
-"library.advancedSearch.allSubjects" = "All Subjects";
+"library.advancedSearch.subjectFilter" = "Filtro por materia";
+"library.advancedSearch.subject" = "Materia";
+"library.advancedSearch.allSubjects" = "Todas las materias";
 
-"library.advancedSearch.gradeFilter" = "Grade Filter";
-"library.advancedSearch.grade" = "Grade";
-"library.advancedSearch.allGrades" = "All Grades";
+"library.advancedSearch.gradeFilter" = "Filtro por calificación";
+"library.advancedSearch.grade" = "Calificación";
+"library.advancedSearch.allGrades" = "Todas las calificaciones";
 
-"library.advancedSearch.dateRange" = "Date Range";
-"library.advancedSearch.allTime" = "All Time";
-"library.advancedSearch.last7Days" = "Last 7 Days";
-"library.advancedSearch.last30Days" = "Last 30 Days";
-"library.advancedSearch.last3Months" = "Last 3 Months";
+"library.advancedSearch.dateRange" = "Rango de fechas";
+"library.advancedSearch.allTime" = "Todo el tiempo";
+"library.advancedSearch.last7Days" = "Últimos 7 días";
+"library.advancedSearch.last30Days" = "Últimos 30 días";
+"library.advancedSearch.last3Months" = "Últimos 3 meses";
 
-"library.advancedSearch.sortOrder" = "Sort Order";
-"library.advancedSearch.sortBy" = "Sort By";
+"library.advancedSearch.sortOrder" = "Orden de clasificación";
+"library.advancedSearch.sortBy" = "Ordenar por";
+
+"library.gradeFilter.all" = "Todas las calificaciones";
+"library.gradeFilter.correct" = "Correcto ✅";
+"library.gradeFilter.incorrect" = "Incorrecto ❌";
+"library.gradeFilter.empty" = "Vacío 📝";
+"library.gradeFilter.partialCredit" = "Crédito parcial ⚡";
+"library.gradeFilter.notGraded" = "Sin calificar 📋";
+
+"library.sortOrder.dateNewest" = "Fecha (más reciente primero)";
+"library.sortOrder.dateOldest" = "Fecha (más antigua primero)";
+"library.sortOrder.confidenceHigh" = "Confianza (alta a baja)";
+"library.sortOrder.confidenceLow" = "Confianza (baja a alta)";
+"library.sortOrder.subjectAZ" = "Materia (A-Z)";
 
 // Contact Support
 "contactSupport.subtitle" = "We're here to help\!";
@@ -1377,6 +1390,7 @@
 "mistakeReview.hideDetails" = "Ocultar detalles";
 "mistakeReview.questionsLeftDone" = "%d questions left · %d%% done";
 "mistakeReview.generatePractice" = "Generate Practice (%d mistakes)";
+"mistakeReview.doThemAgain" = "Do them again (%d)";
 "mistakeReview.generationFailed" = "Practice Generation Failed";
 "mistakeReview.generatingQuestions" = "Generating Questions...";
 "mistakeReview.whatWentWrong" = "What Went Wrong";
@@ -1708,14 +1722,14 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "settings.studySettings" = "Study Configuración";
 
 // Custom Date Range Picker
-"library.filter.moreSpecific" = "More Specific";
-"library.customDate.title" = "Select Custom Date Range";
-"library.customDate.subtitle" = "Choose start and end dates for your filter";
-"library.customDate.startDate" = "Start Date";
-"library.customDate.endDate" = "End Date";
-"library.customDate.selectedRange" = "Selected Range:";
-"library.customDate.apply" = "Apply Date Filter";
-"library.customDate.navigationTitle" = "Custom Date Range";
+"library.filter.moreSpecific" = "Más específico";
+"library.customDate.title" = "Seleccionar rango de fechas personalizado";
+"library.customDate.subtitle" = "Elige fechas de inicio y fin para tu filtro";
+"library.customDate.startDate" = "Fecha de inicio";
+"library.customDate.endDate" = "Fecha de fin";
+"library.customDate.selectedRange" = "Rango seleccionado:";
+"library.customDate.apply" = "Aplicar filtro de fecha";
+"library.customDate.navigationTitle" = "Rango de fechas personalizado";
 
 // Question Archive View
 "archive.title" = "Archive Questions";
@@ -2401,3 +2415,19 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "todo.dailyQuestion.fallback.title" = "Iniciar conversación con IA";
 "todo.dailyQuestion.fallback.subtitle" = "Pregúntale a la IA lo que quieras";
 "chat.liveMode.oralPractice.starterPrompt" = "¡Practiquemos la conversación! Puedes hacerme preguntas, corregir mi pronunciación o hablar libremente. ¿En qué quieres trabajar?";
+
+// MARK: - Live Mode Scenario Cards
+"live.scenario.oralPractice.title" = "Práctica oral";
+"live.scenario.oralPractice.subtitle" = "Conversación libre, mejorar la fluidez";
+"live.scenario.oralComposition.title" = "Ensayo oral";
+"live.scenario.oralComposition.subtitle" = "Habla tus ideas, la IA guía el plan";
+"live.scenario.debate.title" = "Compañero de debate";
+"live.scenario.debate.subtitle" = "La IA elige el tema, tú eliges posición";
+"live.scenario.interview.title" = "Entrevista simulada";
+"live.scenario.interview.subtitle" = "Simula una entrevista real, la IA da retroalimentación";
+"live.scenario.classroomQA.title" = "Preguntas de clase";
+"live.scenario.classroomQA.subtitle" = "Enfocarse en puntos débiles, examen oral";
+"live.scenario.presentation.title" = "Presentación";
+"live.scenario.presentation.subtitle" = "Entrega completa, la IA da retroalimentación en 3 ejes";
+"live.scenario.historicalFigure.title" = "Personaje histórico";
+"live.scenario.historicalFigure.subtitle" = "Viajar por la historia, hablar con un genio";

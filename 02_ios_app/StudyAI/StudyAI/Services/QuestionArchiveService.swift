@@ -177,7 +177,36 @@ class QuestionArchiveService: ObservableObject {
         }
 
         // ✅ Save to local storage ONLY - no server request
-        _ = currentUserQuestionStorage().saveQuestions(questionDataForLocalStorage)
+        // Capture id mappings: for duplicates, savedId = existing record's id (originalId = fresh UUID)
+        let idMappings = currentUserQuestionStorage().saveQuestions(questionDataForLocalStorage)
+        let remappedIds = Dictionary(uniqueKeysWithValues: idMappings.map { ($0.originalId, $0.savedId) })
+        // Remap any ArchivedQuestion that was a duplicate so callers receive the correct existing ID
+        archivedQuestions = archivedQuestions.map { q in
+            guard let savedId = remappedIds[q.id], savedId != q.id else { return q }
+            return ArchivedQuestion(
+                id: savedId,
+                userId: q.userId,
+                subject: q.subject,
+                questionText: q.questionText,
+                rawQuestionText: q.rawQuestionText,
+                answerText: q.answerText,
+                confidence: q.confidence,
+                hasVisualElements: q.hasVisualElements,
+                originalImageUrl: q.originalImageUrl,
+                processingTime: q.processingTime,
+                tags: q.tags,
+                notes: q.notes,
+                studentAnswer: q.studentAnswer,
+                grade: q.grade,
+                points: q.points,
+                maxPoints: q.maxPoints,
+                feedback: q.feedback,
+                isGraded: q.isGraded,
+                isCorrect: q.isCorrect,
+                questionType: q.questionType,
+                options: q.options
+            )
+        }
 
         // ✅ DEBUG: Verify what was saved
         print("\n🔍 [DEBUG] === VERIFYING SAVED DATA ===")

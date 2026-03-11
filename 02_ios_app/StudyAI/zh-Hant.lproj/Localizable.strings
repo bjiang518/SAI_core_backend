@@ -777,6 +777,19 @@
 "library.advancedSearch.sortOrder" = "排序方式";
 "library.advancedSearch.sortBy" = "排序依據";
 
+"library.gradeFilter.all" = "全部評級";
+"library.gradeFilter.correct" = "正確 ✅";
+"library.gradeFilter.incorrect" = "錯誤 ❌";
+"library.gradeFilter.empty" = "空白 📝";
+"library.gradeFilter.partialCredit" = "部分正確 ⚡";
+"library.gradeFilter.notGraded" = "未評級 📋";
+
+"library.sortOrder.dateNewest" = "日期（最新優先）";
+"library.sortOrder.dateOldest" = "日期（最舊優先）";
+"library.sortOrder.confidenceHigh" = "正確率（由高到低）";
+"library.sortOrder.confidenceLow" = "正確率（由低到高）";
+"library.sortOrder.subjectAZ" = "科目（A-Z）";
+
 // Contact Support
 "contactSupport.subtitle" = "我們隨時為您提供幫助！";
 "contactSupport.emailTitle" = "電子郵件支援";
@@ -1368,6 +1381,7 @@
 "mistakeReview.hideDetails" = "收起詳情";
 "mistakeReview.questionsLeftDone" = "還剩 %d 道題 · 已完成 %d%%";
 "mistakeReview.generatePractice" = "生成練習（%d 道錯題）";
+"mistakeReview.doThemAgain" = "再做一遍（%d）";
 "mistakeReview.generationFailed" = "練習生成失敗";
 "mistakeReview.generatingQuestions" = "正在生成題目...";
 "mistakeReview.whatWentWrong" = "錯在哪裡";
@@ -1763,6 +1777,8 @@
 "proMode.selectAll" = "全選";
 "proMode.deselectAll" = "取消全選";
 "proMode.viewOriginalImage" = "查看原圖";
+"savedDigitalHomework.title" = "數字作業";
+"savedDigitalHomework.redo" = "重做";
 "proMode.resetAnnotations" = "重置標註";
 "proMode.batchArchive" = "一鍵歸檔";
 "proMode.batchArchiveCount" = "一鍵歸檔 (%d)";
@@ -1884,6 +1900,24 @@
 "pdf.options.maxSubImageSize" = "最大子圖片尺寸";
 "pdf.options.reset" = "恢復預設";
 "pdf.options.footer" = "點選「套用」以使用新設定重新產生 PDF。";
+
+// PDF Content Strings
+"pdf.practice.title" = "練習題";
+"pdf.mistakes.title" = "錯題複習";
+"pdf.homework.title" = "作業題目";
+"pdf.library.title" = "題庫題目";
+"pdf.header.subject" = "科目：%@";
+"pdf.header.generatedOn.withType" = "產生於 %@ · %@";
+"pdf.header.generatedOn.withCount" = "產生於 %@ · %d 道題";
+"pdf.header.questionCount" = "%d 道題";
+"pdf.instruction.practice" = "請在每道題下方作答，計算題請寫出解題步驟。";
+"pdf.instruction.mistakes" = "請複習以下題目，並在每道題下方填寫答案。";
+"pdf.instruction.homework" = "以下是本次作業中的題目。";
+"pdf.instruction.library" = "請複習以下題目，並在每道題下方填寫答案。";
+"pdf.question.label" = "第 %@ 題";
+"pdf.question.noText" = "[題目內容暫不可用]";
+"pdf.mistake.hint" = "💡 你當時的回答：\"%@\"";
+"pdf.mistake.noAnswer" = "未作答";
 
 // Library PDF Preview
 "library.pdf.generating" = "正在產生 PDF…";
@@ -2425,3 +2459,19 @@
 "todo.dailyQuestion.fallback.title" = "開始一段 AI 對話";
 "todo.dailyQuestion.fallback.subtitle" = "隨時可以向 AI 提問";
 "chat.liveMode.oralPractice.starterPrompt" = "我們來練習口語吧！你可以向我提問、糾正我的發音，或者自由交流。想練什麼？";
+
+// MARK: - Live Mode Scenario Cards
+"live.scenario.oralPractice.title" = "口語練習";
+"live.scenario.oralPractice.subtitle" = "自由對話，提升表達";
+"live.scenario.oralComposition.title" = "口頭作文";
+"live.scenario.oralComposition.subtitle" = "說出思路，AI 引導構思";
+"live.scenario.debate.title" = "辯論對手";
+"live.scenario.debate.subtitle" = "AI 出題，你選立場";
+"live.scenario.interview.title" = "面試模擬";
+"live.scenario.interview.subtitle" = "模擬真實面試，AI 給反饋";
+"live.scenario.classroomQA.title" = "課堂問答";
+"live.scenario.classroomQA.subtitle" = "針對弱點，口頭測驗";
+"live.scenario.presentation.title" = "演講練習";
+"live.scenario.presentation.subtitle" = "講完整版，AI 三維度點評";
+"live.scenario.historicalFigure.title" = "歷史人物";
+"live.scenario.historicalFigure.subtitle" = "穿越歷史，與大師對話";

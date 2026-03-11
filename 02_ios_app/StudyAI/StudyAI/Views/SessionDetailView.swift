@@ -419,9 +419,7 @@ struct ConversationDetailContent: View {
                         .font(.headline)
 
                     VStack(spacing: 8) {
-                        if let topic = conversation.topic {
-                            InfoRow(label: NSLocalizedString("sessionDetail.topic", comment: ""), value: topic)
-                        }
+                        InfoRow(label: NSLocalizedString("sessionDetail.topic", comment: ""), value: PracticeSessionManager.localizeSubject(conversation.subject))
                         InfoRow(label: NSLocalizedString("sessionDetail.created", comment: ""), value: conversation.createdAt.formatted(date: .abbreviated, time: .shortened))
                     }
                     .padding()

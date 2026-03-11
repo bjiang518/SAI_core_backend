@@ -188,6 +188,7 @@
 		7B2789F62F5AA1BC00DA84B0 /* LanguageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2789F32F5AA1BC00DA84B0 /* LanguageManager.swift */; };
 		7B278A252F5CA93D00DA84B0 /* PracticeLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278A222F5CA93D00DA84B0 /* PracticeLibraryView.swift */; };
 		7B278A262F5CA93D00DA84B0 /* QuestionSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278A242F5CA93D00DA84B0 /* QuestionSheetView.swift */; };
+		AA278A262F5CA93D00DA84B0 /* ArchiveSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA278A252F5CA93D00DA84B0 /* ArchiveSelectionView.swift */; };
 		7B278A272F5CA93D00DA84B0 /* NewPracticeSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278A212F5CA93D00DA84B0 /* NewPracticeSheet.swift */; };
 		7B278A282F5CA93D00DA84B0 /* PracticeSessionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278A232F5CA93D00DA84B0 /* PracticeSessionCard.swift */; };
 		7B278A292F5CA93D00DA84B0 /* PracticeLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278A222F5CA93D00DA84B0 /* PracticeLibraryView.swift */; };
@@ -491,9 +492,7 @@
 		7BEC08462F4FB42D00B6E573 /* mistakeNotebook.json in Resources */ = {isa = PBXBuildFile; fileRef = 7BEC08432F4FB42D00B6E573 /* mistakeNotebook.json */; };
 		7BEDA6272E80B8C500D57B15 /* QuestionGenerationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEDA6262E80B8C500D57B15 /* QuestionGenerationService.swift */; };
 		7BEDA6282E80B8C500D57B15 /* QuestionGenerationDataAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEDA6252E80B8C500D57B15 /* QuestionGenerationDataAdapter.swift */; };
-		7BEDA62C2E80B91100D57B15 /* GeneratedQuestionsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEDA6292E80B91100D57B15 /* GeneratedQuestionsListView.swift */; };
 		7BEDA62D2E80B91100D57B15 /* QuestionDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEDA62A2E80B91100D57B15 /* QuestionDetailView.swift */; };
-		7BEDA62E2E80B91100D57B15 /* QuestionGenerationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEDA62B2E80B91100D57B15 /* QuestionGenerationView.swift */; };
 		7BEEB6122E8E3A3200957748 /* DesignTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEEB6112E8E3A3200957748 /* DesignTokens.swift */; };
 		7BEEB6132E8E3A3200957748 /* DesignTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEEB6112E8E3A3200957748 /* DesignTokens.swift */; };
 		7BEEB6142E8E3A3200957748 /* DesignTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BEEB6112E8E3A3200957748 /* DesignTokens.swift */; };
@@ -539,12 +538,6 @@
 		AA0002082F68A00100000001 /* Taxonomy.strings in Resources */ = {isa = PBXBuildFile; fileRef = AA0002063F68A00100000001 /* Taxonomy.strings */; };
 		AA0002092F68A00100000001 /* Taxonomy.strings in Resources */ = {isa = PBXBuildFile; fileRef = AA0002033F68A00100000001 /* Taxonomy.strings */; };
 		AA00020A2F68A00100000001 /* Taxonomy.strings in Resources */ = {isa = PBXBuildFile; fileRef = AA0002063F68A00100000001 /* Taxonomy.strings */; };
-		AA4F9D022F9A200300AB12C4 /* LiveModeScenario.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA4F9D012F9A200300AB12C4 /* LiveModeScenario.swift */; };
-		AA4F9D032F9A200300AB12C4 /* LiveModeScenario.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA4F9D012F9A200300AB12C4 /* LiveModeScenario.swift */; };
-		AA4F9D042F9A200300AB12C4 /* LiveModeScenario.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA4F9D012F9A200300AB12C4 /* LiveModeScenario.swift */; };
-		AA4F9D062F9A200300AB12C4 /* LiveModeScenarioPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA4F9D052F9A200300AB12C4 /* LiveModeScenarioPicker.swift */; };
-		AA4F9D072F9A200300AB12C4 /* LiveModeScenarioPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA4F9D052F9A200300AB12C4 /* LiveModeScenarioPicker.swift */; };
-		AA4F9D082F9A200300AB12C4 /* LiveModeScenarioPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA4F9D052F9A200300AB12C4 /* LiveModeScenarioPicker.swift */; };
 		B573CBF246134245A6DF42A5 /* LibraryPDFPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C3C2EED7834451198C33DC1 /* LibraryPDFPreviewView.swift */; };
 		B67097AEC09C4CA4B5C82F10 /* TextToSpeechService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18BF91BCEE9B4980BC643CB2 /* TextToSpeechService.swift */; };
 		BBC5F8E4CA694EABAD6955A2 /* SimpleMathRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0011C726DB944E1CBD5D9102 /* SimpleMathRenderer.swift */; };
@@ -724,6 +717,7 @@
 		7B278A222F5CA93D00DA84B0 /* PracticeLibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PracticeLibraryView.swift; path = StudyAI/Views/Practice/PracticeLibraryView.swift; sourceTree = SOURCE_ROOT; };
 		7B278A232F5CA93D00DA84B0 /* PracticeSessionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PracticeSessionCard.swift; path = StudyAI/Views/Practice/PracticeSessionCard.swift; sourceTree = SOURCE_ROOT; };
 		7B278A242F5CA93D00DA84B0 /* QuestionSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QuestionSheetView.swift; path = StudyAI/Views/Practice/QuestionSheetView.swift; sourceTree = SOURCE_ROOT; };
+		AA278A252F5CA93D00DA84B0 /* ArchiveSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ArchiveSelectionView.swift; path = StudyAI/Views/Practice/ArchiveSelectionView.swift; sourceTree = SOURCE_ROOT; };
 		7B278A312F5D487700DA84B0 /* SuggestedTodoEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SuggestedTodoEngine.swift; path = StudyAI/Services/SuggestedTodoEngine.swift; sourceTree = SOURCE_ROOT; };
 		7B278A352F5D488D00DA84B0 /* SuggestedTodosSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SuggestedTodosSection.swift; path = StudyAI/Views/Components/SuggestedTodosSection.swift; sourceTree = SOURCE_ROOT; };
 		7B278A3A2F5D55E200DA84B0 /* Gaegu-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Gaegu-Bold.ttf"; sourceTree = "<group>"; };
@@ -830,9 +824,7 @@
 		7BEC08432F4FB42D00B6E573 /* mistakeNotebook.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = mistakeNotebook.json; sourceTree = "<group>"; };
 		7BEDA6252E80B8C500D57B15 /* QuestionGenerationDataAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QuestionGenerationDataAdapter.swift; path = StudyAI/Services/QuestionGenerationDataAdapter.swift; sourceTree = SOURCE_ROOT; };
 		7BEDA6262E80B8C500D57B15 /* QuestionGenerationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QuestionGenerationService.swift; path = StudyAI/Services/QuestionGenerationService.swift; sourceTree = SOURCE_ROOT; };
-		7BEDA6292E80B91100D57B15 /* GeneratedQuestionsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GeneratedQuestionsListView.swift; path = StudyAI/Views/GeneratedQuestionsListView.swift; sourceTree = SOURCE_ROOT; };
 		7BEDA62A2E80B91100D57B15 /* QuestionDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QuestionDetailView.swift; path = StudyAI/Views/QuestionDetailView.swift; sourceTree = SOURCE_ROOT; };
-		7BEDA62B2E80B91100D57B15 /* QuestionGenerationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QuestionGenerationView.swift; path = StudyAI/Views/QuestionGenerationView.swift; sourceTree = SOURCE_ROOT; };
 		7BEEB6112E8E3A3200957748 /* DesignTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignTokens.swift; sourceTree = "<group>"; };
 		7BEEB61B2E8E411900957748 /* Education edit.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "Education edit.json"; sourceTree = "<group>"; };
 		7BEEB61F2E8E419600957748 /* LottieView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LottieView.swift; sourceTree = "<group>"; };
@@ -860,8 +852,6 @@
 		AA00010D2F68A00100000001 /* BranchLocalizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BranchLocalizer.swift; path = StudyAI/Services/BranchLocalizer.swift; sourceTree = SOURCE_ROOT; };
 		AA0002022F68A00100000001 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = Taxonomy.strings; sourceTree = "<group>"; };
 		AA0002052F68A00100000001 /* zh-Hant */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hant"; path = Taxonomy.strings; sourceTree = "<group>"; };
-		AA4F9D012F9A200300AB12C4 /* LiveModeScenario.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LiveModeScenario.swift; path = StudyAI/Models/LiveModeScenario.swift; sourceTree = SOURCE_ROOT; };
-		AA4F9D052F9A200300AB12C4 /* LiveModeScenarioPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LiveModeScenarioPicker.swift; path = StudyAI/Views/LiveModeScenarioPicker.swift; sourceTree = SOURCE_ROOT; };
 		ABCD123456789012EFGH3456 /* UserSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UserSessionManager.swift; path = StudyAI/Services/UserSessionManager.swift; sourceTree = SOURCE_ROOT; };
 		B287EA8822554493B6AB2BBB /* TomatoGardenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TomatoGardenView.swift; path = StudyAI/Views/TomatoGardenView.swift; sourceTree = SOURCE_ROOT; };
 		B2BADF97FAD74B47A0470133 /* nature.mp3 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = audio.mp3; name = nature.mp3; path = StudyAI/Resources/Music/nature.mp3; sourceTree = "<group>"; };
@@ -1133,7 +1123,6 @@
 				PNTS456789012345EFGH0123 /* PointsEarningSystem.swift */,
 				BFAA0352B2D3E17EF96B1B49 /* SubjectBreakdownModels.swift */,
 				3D465FE8FD2541B4959A3F2A /* TomatoType.swift */,
-				AA4F9D012F9A200300AB12C4 /* LiveModeScenario.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -1211,11 +1200,11 @@
 			children = (
 				7B278A352F5D488D00DA84B0 /* SuggestedTodosSection.swift */,
 				7B4F9C012F9A100200AB12C3 /* DailyQuestionCard.swift */,
-				AA4F9D052F9A200300AB12C4 /* LiveModeScenarioPicker.swift */,
 				7B278A212F5CA93D00DA84B0 /* NewPracticeSheet.swift */,
 				7B278A222F5CA93D00DA84B0 /* PracticeLibraryView.swift */,
 				7B278A232F5CA93D00DA84B0 /* PracticeSessionCard.swift */,
 				7B278A242F5CA93D00DA84B0 /* QuestionSheetView.swift */,
+				AA278A252F5CA93D00DA84B0 /* ArchiveSelectionView.swift */,
 				7BEC08332F4E780300B6E573 /* ActivityViewController.swift */,
 				7BEC07EB2F4AF58600B6E573 /* ForgotPasswordView.swift */,
 				7BEC07E12F478C1500B6E573 /* LiveVoiceBubbles.swift */,
@@ -1269,9 +1258,7 @@
 				7B1961E82E94E2740024317A /* PasswordManagementView.swift */,
 				7B1961CB2E94B32C0024317A /* LanguageSettingsView.swift */,
 				7B1961AB2E949DAD0024317A /* NotificationSettingsView.swift */,
-				7BEDA6292E80B91100D57B15 /* GeneratedQuestionsListView.swift */,
 				7BEDA62A2E80B91100D57B15 /* QuestionDetailView.swift */,
-				7BEDA62B2E80B91100D57B15 /* QuestionGenerationView.swift */,
 				DDEF456789012345HIJK6789 /* CameraViewModel.swift */,
 				27D08428900147788147829E /* ArchivedQuestionsView.swift */,
 				885943542F6749ACA3543873 /* CameraView.swift */,
@@ -1708,10 +1695,8 @@
 				PROF567890123456BCDE8901 /* UserProfile.swift in Sources */,
 				7B22488F2F28208D006ADD93 /* HandwritingEvaluationView.swift in Sources */,
 				PNTS789012345678EFGH0123 /* PointsEarningSystem.swift in Sources */,
-				7BEDA62C2E80B91100D57B15 /* GeneratedQuestionsListView.swift in Sources */,
 				7BEDA62D2E80B91100D57B15 /* QuestionDetailView.swift in Sources */,
 				7BDE56782EC1C6A3004A8629 /* PomodoroNotificationService.swift in Sources */,
-				7BEDA62E2E80B91100D57B15 /* QuestionGenerationView.swift in Sources */,
 				21C64949788648B5AB0D6515 /* SubjectBreakdownModels.swift in Sources */,
 				7BDE566F2EC1C667004A8629 /* SessionChatViewModel.swift in Sources */,
 				C42D5B1E2F9F422F898D739B /* NetworkService.swift in Sources */,
@@ -1846,6 +1831,7 @@
 				7B2248522F20212C006ADD93 /* ParentReportsContainerView.swift in Sources */,
 				7B278A2D2F5CA93D00DA84B0 /* PracticeLibraryView.swift in Sources */,
 				7B278A2E2F5CA93D00DA84B0 /* QuestionSheetView.swift in Sources */,
+				AA278A262F5CA93D00DA84B0 /* ArchiveSelectionView.swift in Sources */,
 				7B278A2F2F5CA93D00DA84B0 /* NewPracticeSheet.swift in Sources */,
 				7B278A302F5CA93D00DA84B0 /* PracticeSessionCard.swift in Sources */,
 				7B2248532F20212C006ADD93 /* PassiveReportDetailView.swift in Sources */,
@@ -1878,8 +1864,6 @@
 				EC13C4B1634147B49DEB198B /* PDFPreviewComponents.swift in Sources */,
 				7B278A382F5D488D00DA84B0 /* SuggestedTodosSection.swift in Sources */,
 				7B4F9C042F9A100200AB12C3 /* DailyQuestionCard.swift in Sources */,
-				AA4F9D042F9A200300AB12C4 /* LiveModeScenario.swift in Sources */,
-				AA4F9D082F9A200300AB12C4 /* LiveModeScenarioPicker.swift in Sources */,
 				B573CBF246134245A6DF42A5 /* LibraryPDFPreviewView.swift in Sources */,
 				7B83523A2E9625C900199AC3 /* ShareAppView.swift in Sources */,
 				7BDE567F2EC1C6E5004A8629 /* PomodoroCalendarService.swift in Sources */,
@@ -1916,8 +1900,6 @@
 			files = (
 				7B278A362F5D488D00DA84B0 /* SuggestedTodosSection.swift in Sources */,
 				7B4F9C022F9A100200AB12C3 /* DailyQuestionCard.swift in Sources */,
-				AA4F9D022F9A200300AB12C4 /* LiveModeScenario.swift in Sources */,
-				AA4F9D062F9A200300AB12C4 /* LiveModeScenarioPicker.swift in Sources */,
 				7B2249142F39BD4A006ADD93 /* ParentReportSettings.swift in Sources */,
 				7BDE56ED2EC31AC7004A8629 /* GrammarCorrectionView.swift in Sources */,
 				7BD664CA2ECA8B0A00E09E55 /* ProgressiveHomeworkViewModel.swift in Sources */,
@@ -2080,8 +2062,6 @@
 				7B22491F2F39BE4E006ADD93 /* ThemeManager.swift in Sources */,
 				7B278A372F5D488D00DA84B0 /* SuggestedTodosSection.swift in Sources */,
 				7B4F9C032F9A100200AB12C3 /* DailyQuestionCard.swift in Sources */,
-				AA4F9D032F9A200300AB12C4 /* LiveModeScenario.swift in Sources */,
-				AA4F9D072F9A200300AB12C4 /* LiveModeScenarioPicker.swift in Sources */,
 				7B2248B72F309BEC006ADD93 /* AnswerMatchingService.swift in Sources */,
 				7BDE56E02EC31A7A004A8629 /* EssayGradingModels.swift in Sources */,
 				7B1961F22E94E31A0024317A /* ParentModeManager.swift in Sources */,
