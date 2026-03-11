@@ -162,7 +162,8 @@ class SessionHelper {
 4. Estimated conversation duration in minutes
 5. The academic subject — pick the single best match from this list:
    Math, Physics, Chemistry, Biology, English, History, Geography, Computer Science, Art, Music, Physical Education, Foreign Language
-   If none fits, use format: "Others: [brief name]" (e.g. "Others: Science", "Others: French", "Others: Economics")
+   If none fits, use format: "Others: [brief name in English]" (e.g. "Others: Science", "Others: French", "Others: Economics")
+   IMPORTANT: The "subject" field must ALWAYS be in English regardless of conversation language.
 
 Respond in JSON format: {"summary": "...", "keyTopics": [...], "learningOutcomes": [...], "estimatedDuration": number, "subject": "..."}
 

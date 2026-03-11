@@ -21,6 +21,7 @@ struct NewPracticeSheet: View {
     @StateObject private var sessionManager = PracticeSessionManager.shared
     @StateObject private var archiveService = QuestionArchiveService.shared
     @StateObject private var libraryService = LibraryDataService.shared
+    @StateObject private var themeManager = ThemeManager.shared
 
     // Tab selection
     @State private var selectedTab: Tab = .random
@@ -46,10 +47,31 @@ struct NewPracticeSheet: View {
     @State private var errorMessage: String = ""
 
     // Difficulty bar animation
-    @State private var adaptiveGlowPhase: Double = 0
 
     private let dataAdapter = QuestionGenerationDataAdapter.shared
     private let logger = Logger(subsystem: "com.studyai", category: "NewPracticeSheet")
+
+    // ── Pre-configuration (set at init time for todo shortcuts) ──────────
+    private let initialConversationId: String?
+
+    /// Default init — opens in random tab with no pre-selection.
+    init(onSessionCreated: @escaping (PracticeSession) -> Void) {
+        self.onSessionCreated = onSessionCreated
+        self.initialConversationId = nil
+    }
+
+    /// Shortcut init — pre-configures tab, subject, and/or conversation.
+    init(
+        onSessionCreated: @escaping (PracticeSession) -> Void,
+        initialTab: Tab,
+        initialSubject: String = "",
+        initialConversationId: String? = nil
+    ) {
+        self.onSessionCreated = onSessionCreated
+        self.initialConversationId = initialConversationId
+        _selectedTab = State(initialValue: initialTab)
+        _selectedSubject = State(initialValue: initialSubject)
+    }
 
     enum Tab: String, CaseIterable {
         case random = "random"
@@ -89,12 +111,12 @@ struct NewPracticeSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 32) {
+                VStack(spacing: 24) {
+                    // Subject picker (affects random practice generation)
+                    subjectPickerSection
+
                     // Generation type cards
                     generationTypeSelection
-
-                    // Tab-specific config
-                    configurationSection
 
                     // Shared config (difficulty, count, type)
                     generalConfigurationSection
@@ -135,8 +157,64 @@ struct NewPracticeSheet: View {
             )
         }
         .onAppear { loadArchivesIfNeeded() }
-        .onChange(of: selectedTab) { _, tab in
-            if tab == .archive { loadArchivesIfNeeded() }
+        // Auto-select conversation once archives load (concept-review shortcut)
+        .onChange(of: availableConversations.count) { _, _ in
+            guard let convId = initialConversationId,
+                  !availableConversations.isEmpty,
+                  selectedConversations.isEmpty else { return }
+            if availableConversations.contains(where: {
+                ($0["sessionId"] as? String) == convId || ($0["id"] as? String) == convId
+            }) {
+                selectedConversations = [convId]
+            }
+        }
+    }
+
+    // MARK: - Subject Picker
+
+    private var subjectPickerSection: some View {
+        let subjects = dataAdapter.getMostCommonSubjects()
+        return ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(subjects, id: \.self) { subject in
+                        let isSelected = selectedSubject == subject
+                        Button(action: {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                                selectedSubject = subject
+                                proxy.scrollTo(subject, anchor: .center)
+                            }
+                        }) {
+                            Text(BranchLocalizer.localized(subject))
+                                .font(isSelected ? .subheadline : .caption)
+                                .fontWeight(isSelected ? .bold : .medium)
+                                .foregroundColor(isSelected ? themeManager.accentColor : .secondary)
+                                .padding(.horizontal, isSelected ? 16 : 12)
+                                .padding(.vertical, isSelected ? 10 : 7)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .fill(isSelected ? themeManager.accentColor.opacity(0.1) : Color.clear)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 14)
+                                                .stroke(isSelected ? themeManager.accentColor : Color.gray.opacity(0.25), lineWidth: isSelected ? 1.5 : 1)
+                                        )
+                                )
+                                .scaleEffect(isSelected ? 1.05 : 0.95)
+                                .opacity(isSelected ? 1.0 : 0.7)
+                        }
+                        .buttonStyle(.plain)
+                        .id(subject)
+                    }
+                }
+                .padding(.horizontal, 4)
+                .padding(.vertical, 4)
+            }
+            .onAppear {
+                if selectedSubject.isEmpty, let first = subjects.first {
+                    selectedSubject = first
+                    proxy.scrollTo(first, anchor: .center)
+                }
+            }
         }
     }
 
@@ -145,33 +223,18 @@ struct NewPracticeSheet: View {
     private var generationTypeSelection: some View {
         VStack(spacing: 16) {
             ForEach(Tab.allCases, id: \.self) { tab in
+                let archiveCount = selectedConversations.count + selectedQuestions.count
                 NewPracticeTypeCard(
                     tab: tab,
                     isSelected: selectedTab == tab,
-                    onTap: { selectedTab = tab }
-                )
-            }
-        }
-    }
-
-    // MARK: - Tab Config Section
-
-    private var configurationSection: some View {
-        Group {
-            switch selectedTab {
-            case .random:
-                RandomQuestionConfig(
-                    availableSubjects: dataAdapter.getMostCommonSubjects(),
-                    selectedSubject: $selectedSubject
-                )
-            case .archive:
-                ArchiveBasedConfig(
-                    conversations: availableConversations,
-                    questions: availableQuestions,
-                    selectedConversations: $selectedConversations,
-                    selectedQuestions: $selectedQuestions,
-                    isLoading: isLoadingArchives,
-                    onShowSelection: { showingArchiveSelection = true }
+                    archiveSelectionCount: tab == .archive ? archiveCount : 0,
+                    onTap: {
+                        selectedTab = tab
+                        if tab == .archive {
+                            loadArchivesIfNeeded()
+                            showingArchiveSelection = true
+                        }
+                    }
                 )
             }
         }
@@ -182,10 +245,8 @@ struct NewPracticeSheet: View {
     private var generalConfigurationSection: some View {
         VStack(alignment: .leading, spacing: 20) {
             VStack(spacing: 16) {
-                // Difficulty color bar
                 difficultyColorBar
 
-                // Question count slider
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text(NSLocalizedString("questionGeneration.numberOfQuestions", comment: ""))
@@ -200,16 +261,11 @@ struct NewPracticeSheet: View {
                             .background(selectedTab.color.opacity(0.1))
                             .cornerRadius(6)
                     }
-
                     VStack(spacing: 8) {
                         HStack {
-                            Text("1")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                            Text("1").font(.caption).foregroundColor(.secondary)
                             Spacer()
-                            Text("10")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                            Text("10").font(.caption).foregroundColor(.secondary)
                         }
                         Slider(value: Binding(
                             get: { Double(questionCount) },
@@ -219,7 +275,6 @@ struct NewPracticeSheet: View {
                     }
                 }
 
-                // Question type grid
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text(NSLocalizedString("questionGeneration.questionType", comment: ""))
@@ -234,7 +289,6 @@ struct NewPracticeSheet: View {
                             .background(selectedTab.color.opacity(0.1))
                             .cornerRadius(6)
                     }
-
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                         ForEach(QuestionGenerationService.GeneratedQuestion.QuestionType.generatableTypes, id: \.self) { type in
                             Button(action: { selectedQuestionType = type }) {
@@ -307,7 +361,6 @@ struct NewPracticeSheet: View {
                 }()
 
                 ZStack(alignment: .topLeading) {
-                    // 3-segment color bar
                     HStack(spacing: 1) {
                         Rectangle().fill(Color.green.opacity(1.0))
                         Rectangle().fill(Color.orange.opacity(isIntermediateSegActive ? 1.0 : 0.2))
@@ -317,7 +370,6 @@ struct NewPracticeSheet: View {
                     .clipShape(RoundedRectangle(cornerRadius: 5))
                     .offset(x: 0, y: trackTopY)
 
-                    // Dotted extension to adaptive
                     Path { p in
                         let y = trackTopY + barH / 2
                         p.move(to: CGPoint(x: mainW + 6, y: y))
@@ -329,31 +381,10 @@ struct NewPracticeSheet: View {
                     )
                     .animation(.easeInOut(duration: 0.2), value: selectedDifficulty)
 
-                    // Adaptive glow dot
-                    Circle()
-                        .fill(
-                            AngularGradient(
-                                colors: [
-                                    DesignTokens.Colors.Cute.lavender,
-                                    DesignTokens.Colors.Cute.blue,
-                                    DesignTokens.Colors.Cute.mint,
-                                    DesignTokens.Colors.Cute.peach,
-                                    DesignTokens.Colors.Cute.lavender
-                                ],
-                                center: .center
-                            )
-                        )
-                        .hueRotation(.degrees(adaptiveGlowPhase * 360))
-                        .frame(width: 16, height: 16)
-                        .shadow(
-                            color: Color.purple.opacity(selectedDifficulty == .adaptive ? 0.85 : 0.25),
-                            radius: selectedDifficulty == .adaptive ? 9 : 3
-                        )
-                        .scaleEffect(selectedDifficulty == .adaptive ? 1.15 : 0.9)
+                    AdaptiveGlowDot(isActive: selectedDifficulty == .adaptive)
                         .offset(x: mainW + adaptiveExtW - thumbD, y: trackTopY + barH / 2 - 8)
                         .animation(.easeInOut(duration: 0.25), value: selectedDifficulty)
 
-                    // Sliding thumb
                     Circle()
                         .fill(.white)
                         .frame(width: thumbD, height: thumbD)
@@ -380,11 +411,6 @@ struct NewPracticeSheet: View {
                 )
             }
             .frame(height: 36)
-            .onAppear {
-                withAnimation(.linear(duration: 3.0).repeatForever(autoreverses: false)) {
-                    adaptiveGlowPhase = 1.0
-                }
-            }
         }
     }
 
@@ -634,6 +660,7 @@ struct NewPracticeSheet: View {
 private struct NewPracticeTypeCard: View {
     let tab: NewPracticeSheet.Tab
     let isSelected: Bool
+    let archiveSelectionCount: Int
     let onTap: () -> Void
 
     var body: some View {
@@ -652,15 +679,27 @@ private struct NewPracticeTypeCard: View {
                     Text(tab.displayName)
                         .font(.body.bold())
                         .foregroundColor(.primary)
-                    Text(tab.description)
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.leading)
+                    if tab == .archive && archiveSelectionCount > 0 {
+                        Text(NSLocalizedString("newPractice.archiveSelected",
+                            value: "已选择 \(archiveSelectionCount) 项",
+                            comment: "Archive items selected count"))
+                            .font(.footnote)
+                            .foregroundColor(tab.color)
+                    } else {
+                        Text(tab.description)
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.leading)
+                    }
                 }
 
                 Spacer()
 
-                if isSelected {
+                if tab == .archive {
+                    Image(systemName: archiveSelectionCount > 0 ? "checkmark.circle.fill" : "chevron.right")
+                        .font(.title3)
+                        .foregroundColor(archiveSelectionCount > 0 ? tab.color : .secondary)
+                } else if isSelected {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.title3)
                         .foregroundColor(tab.color)

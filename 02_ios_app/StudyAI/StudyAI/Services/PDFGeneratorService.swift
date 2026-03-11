@@ -57,6 +57,22 @@ class PDFGeneratorService: ObservableObject {
 
     // MARK: - Public API
 
+    /// Maps raw generationType strings (as stored in PracticeSession) to localized display names.
+    static func localizedGenerationType(_ raw: String) -> String {
+        switch raw {
+        case "Random Practice":
+            return NSLocalizedString("questionGeneration.type.random", value: "Random Practice", comment: "")
+        case "Conversation-Based", "Conversation-Based Practice":
+            return NSLocalizedString("questionGeneration.type.conversationBased", value: "Conversation-Based", comment: "")
+        case "Mistake-Based", "Mistake-Based Practice":
+            return NSLocalizedString("questionGeneration.type.mistakeBased", value: "Mistake-Based", comment: "")
+        case "Library-Selection":
+            return NSLocalizedString("questionGeneration.type.librarySelection", value: "Library", comment: "")
+        default:
+            return raw
+        }
+    }
+
     /// Path 1 — Generated practice questions
     func generatePracticePDF(
         questions: [QuestionGenerationService.GeneratedQuestion],
@@ -72,11 +88,13 @@ class PDFGeneratorService: ObservableObject {
         let renderWidth = contentWidth - 20
         return buildVectorPDF(options: options, totalItems: questions.count) { ctx, pageRect, addPage in
             var y: CGFloat = margin
+            let localizedType = PDFGeneratorService.localizedGenerationType(generationType)
             y = drawPageHeader(
                 ctx: ctx, pageRect: pageRect,
-                title: "Practice Questions", subject: subject,
-                subtitle: "Generated on \(formattedDate()) • \(generationType)",
-                instruction: "Answer each question in the space provided. Show your work where applicable.",
+                title: NSLocalizedString("pdf.practice.title", value: "Practice Questions", comment: ""),
+                subject: subject,
+                subtitle: String(format: NSLocalizedString("pdf.header.generatedOn.withType", value: "Generated on %@ • %@", comment: ""), formattedDate(), localizedType),
+                instruction: NSLocalizedString("pdf.instruction.practice", value: "Answer each question in the space provided. Show your work where applicable.", comment: ""),
                 options: options, startY: y)
             y += options.questionGap
 
@@ -113,9 +131,10 @@ class PDFGeneratorService: ObservableObject {
             var y: CGFloat = margin
             y = drawPageHeader(
                 ctx: ctx, pageRect: pageRect,
-                title: "Mistake Review", subject: subject,
-                subtitle: "Generated on \(formattedDate()) • \(timeRange.rawValue)",
-                instruction: "Review these questions and write your answers in the space provided below each question.",
+                title: NSLocalizedString("pdf.mistakes.title", value: "Mistake Review", comment: ""),
+                subject: subject,
+                subtitle: String(format: NSLocalizedString("pdf.header.generatedOn.withType", value: "Generated on %@ • %@", comment: ""), formattedDate(), timeRange.displayName),
+                instruction: NSLocalizedString("pdf.instruction.mistakes", value: "Review these questions and write your answers in the space provided below each question.", comment: ""),
                 options: options, startY: y)
             y += options.questionGap
 
@@ -153,9 +172,10 @@ class PDFGeneratorService: ObservableObject {
             var y: CGFloat = margin
             y = drawPageHeader(
                 ctx: ctx, pageRect: pageRect,
-                title: "Homework Questions", subject: subject,
-                subtitle: "\(questionCount) Questions",
-                instruction: "These are the questions from your homework assignment.",
+                title: NSLocalizedString("pdf.homework.title", value: "Homework Questions", comment: ""),
+                subject: subject,
+                subtitle: String(format: NSLocalizedString("pdf.header.questionCount", value: "%d Questions", comment: ""), questionCount),
+                instruction: NSLocalizedString("pdf.instruction.homework", value: "These are the questions from your homework assignment.", comment: ""),
                 options: options, startY: y)
             y += options.questionGap
 
@@ -217,9 +237,10 @@ class PDFGeneratorService: ObservableObject {
             var y: CGFloat = margin
             y = drawPageHeader(
                 ctx: ctx, pageRect: pageRect,
-                title: "Library Questions", subject: subject,
-                subtitle: "Generated on \(formattedDate()) • \(questions.count) questions",
-                instruction: "Review each question and write your answers in the space provided.",
+                title: NSLocalizedString("pdf.library.title", value: "Library Questions", comment: ""),
+                subject: subject,
+                subtitle: String(format: NSLocalizedString("pdf.header.generatedOn.withCount", value: "Generated on %@ • %d questions", comment: ""), formattedDate(), questions.count),
+                instruction: NSLocalizedString("pdf.instruction.library", value: "Review each question and write your answers in the space provided.", comment: ""),
                 options: options, startY: y)
             y += options.questionGap
 
@@ -320,7 +341,7 @@ class PDFGeneratorService: ObservableObject {
     /// Includes question number, question text, and all subquestion texts. LaTeX delimiters are preserved.
     private func buildProModeContent(q: ProgressiveQuestionWithGrade, number: Int) -> String {
         let qNum = q.question.questionNumber ?? "\(number)"
-        var lines = ["Question \(qNum)"]
+        var lines = [String(format: NSLocalizedString("pdf.question.label", value: "Question %@", comment: ""), qNum)]
         let qt = q.question.displayText
         if !qt.isEmpty { lines.append(qt) }
         if let subs = q.question.subquestions, !subs.isEmpty {
@@ -582,7 +603,7 @@ class PDFGeneratorService: ObservableObject {
 
             // Subject
             let subjectFont = UIFont.systemFont(ofSize: options.subjectFontSize, weight: .medium)
-            y += drawString("Subject: \(subject)", font: subjectFont, color: .darkGray, alignment: .left,
+            y += drawString(String(format: NSLocalizedString("pdf.header.subject", value: "Subject: %@", comment: ""), subject), font: subjectFont, color: .darkGray, alignment: .left,
                             x: margin, y: y, width: w)
             y += 4
 
@@ -664,7 +685,7 @@ class PDFGeneratorService: ObservableObject {
             // Index + question body on one line: "1. Question text…"
             y += drawMultiline("\(number). \(plainText(question.question))", font: bodyFont, x: margin, y: y, width: w) + 10
 
-            let hintText = "💡 You originally answered: \"\(question.studentAnswer.isEmpty ? "No answer" : question.studentAnswer)\""
+            let hintText = String(format: NSLocalizedString("pdf.mistake.hint", value: "💡 You originally answered: \"%@\"", comment: ""), question.studentAnswer.isEmpty ? NSLocalizedString("pdf.mistake.noAnswer", value: "No answer", comment: "") : question.studentAnswer)
             y += drawString(hintText, font: hintFont, color: .gray, alignment: .left,
                             x: margin + 20, y: y, width: w - 20) + 2
         }
@@ -786,7 +807,7 @@ class PDFGeneratorService: ObservableObject {
                 let subFont    = UIFont.systemFont(ofSize: options.questionFontSize, weight: .semibold)
 
                 let qNum = q.question.questionNumber ?? "\(q.id)"
-                y += drawString("Question \(qNum)", font: headerFont, color: blue, alignment: .left,
+                y += drawString(String(format: NSLocalizedString("pdf.question.label", value: "Question %@", comment: ""), qNum), font: headerFont, color: blue, alignment: .left,
                                 x: margin, y: y, width: w) + 12
 
                 // Question text
@@ -794,7 +815,7 @@ class PDFGeneratorService: ObservableObject {
                 if !qt.isEmpty {
                     y += drawMultiline(qt, font: bodyFont, x: margin, y: y, width: w) + 12
                 } else {
-                    y += drawString("[Question text not available]",
+                    y += drawString(NSLocalizedString("pdf.question.noText", value: "[Question text not available]", comment: ""),
                                     font: UIFont.italicSystemFont(ofSize: options.questionFontSize),
                                     color: .gray, alignment: .left,
                                     x: margin, y: y, width: w) + 12

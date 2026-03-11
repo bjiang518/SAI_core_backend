@@ -1913,6 +1913,53 @@ class DigitalHomeworkViewModel: ObservableObject {
                 }
             }
 
+            // Save correct questions to local storage so LocalProgressService can compute accurate accuracy
+            // getMistakeQuestions() filters isCorrect==false, so this won't pollute mistake review
+            let userId = AuthenticationService.shared.currentUser?.id ?? "anonymous"
+            let nowISO = ISO8601DateFormatter().string(from: Date())
+            let correctPayload: [[String: Any]] = questions.compactMap { qwg -> [String: Any]? in
+                let question = qwg.question
+                let isCorrect: Bool
+                if qwg.isParentQuestion {
+                    guard !qwg.subquestionGrades.isEmpty else { return nil }
+                    isCorrect = qwg.subquestionGrades.values.allSatisfy { $0.isCorrect }
+                } else {
+                    isCorrect = qwg.grade?.isCorrect == true
+                }
+                guard isCorrect else { return nil }
+                return [
+                    "id": question.id,
+                    "userId": userId,
+                    "subject": subject,
+                    "questionText": question.displayText,
+                    "answerText": qwg.grade?.correctAnswer ?? "",
+                    "studentAnswer": question.displayStudentAnswer,
+                    "grade": "CORRECT",
+                    "isCorrect": true,
+                    "isGraded": true,
+                    "archivedAt": nowISO,
+                    "confidence": 0.95,
+                    "reviewCount": 0,
+                    "tags": [],
+                    "points": 1.0,
+                    "maxPoints": 1.0,
+                    "questionType": question.questionType ?? "short_answer",
+                    "proMode": true
+                ]
+            }
+            if !correctPayload.isEmpty {
+                currentUserQuestionStorage().saveQuestions(correctPayload)
+                log.info("🗂️ [SMART ORGANIZE]   ✅ Saved \(correctPayload.count) correct answer(s) to local storage for progress tracking")
+                let correctSessionId = UUID().uuidString
+                ErrorAnalysisQueueService.shared.queueConceptExtractionForCorrectAnswers(
+                    sessionId: correctSessionId,
+                    correctQuestions: correctPayload
+                )
+                log.info("🗂️ [SMART ORGANIZE]   ✅ Queued concept extraction for \(correctPayload.count) correct answer(s)")
+            } else {
+                log.info("🗂️ [SMART ORGANIZE]   ✅ No correct answers to save or extract")
+            }
+
             log.info("🗂️ [SMART ORGANIZE] SMART ORGANIZE END ✅")
             log.info("🗂️ [SMART ORGANIZE] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         }

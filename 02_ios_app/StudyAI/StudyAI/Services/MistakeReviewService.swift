@@ -360,9 +360,14 @@ class MistakeReviewService: ObservableObject {
             let activeWeaknesses = ShortTermStatusService.shared.status.activeWeaknesses
             filteredMistakes = filteredMistakes.filter { mistake in
                 guard let key = mistake["weaknessKey"] as? String, !key.isEmpty else {
-                    return true // no key → include
+                    return true // no weakness key → include (old/untracked questions)
                 }
-                return (activeWeaknesses[key]?.value ?? 0) > 0
+                // Key present with non-positive value = explicitly mastered → exclude.
+                // Key absent (pruned or migrated) = no evidence of mastery → include.
+                if let tracked = activeWeaknesses[key] {
+                    return tracked.value > 0
+                }
+                return true  // key not tracked → include rather than silently hide
             }
         }
 

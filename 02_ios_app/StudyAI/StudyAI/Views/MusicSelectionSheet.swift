@@ -90,6 +90,10 @@ struct MusicSelectionSheet: View {
                     let created = musicService.createPlaylist(name: newPlaylist.name, trackIds: newPlaylist.trackIds)
                     selectedPlaylist = created
                     selectedTrack = nil
+                    // PlaylistEditorView dismisses itself first; then close MusicSelectionSheet
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        dismiss()
+                    }
                 }
             }
         }
@@ -423,7 +427,8 @@ struct MusicSelectionSheet: View {
                         onSelect: {
                             selectedPlaylist = playlist
                             selectedTrack = nil
-                            dismiss()
+                            // Use async to ensure binding propagates before sheet dismisses
+                            DispatchQueue.main.async { dismiss() }
                         },
                         onEdit: {
                             playlistToEdit = playlist

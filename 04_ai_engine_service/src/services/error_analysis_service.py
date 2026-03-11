@@ -54,20 +54,20 @@ class ErrorAnalysisService:
             if question_image_base64:
                 max_b64_len = 5 * 1024 * 1024 * 4 // 3  # ~6.67MB base64 = 5MB decoded
                 if len(question_image_base64) > max_b64_len:
-                    logger.warning(f"[ErrorAnalysis] Image too large ({len(question_image_base64)} chars), skipping")
+                    print(f"[ErrorAnalysis] Image too large ({len(question_image_base64)} chars), skipping")
                 else:
                     import base64
                     image_bytes = base64.b64decode(question_image_base64)
                     image_part = genai_types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg")
                     content_parts.insert(0, image_part)
-                    logger.debug(f"[ErrorAnalysis] Including image for question")
+                    print(f"[ErrorAnalysis] Including image for question")
 
             generation_config = genai_types.GenerateContentConfig(
                 system_instruction=system_prompt,
                 thinking_config=genai_types.ThinkingConfig(
                     thinking_budget=4096
                 ),
-                max_output_tokens=2048,
+                max_output_tokens=4096,
                 candidate_count=1,
                 response_mime_type="application/json",
             )
@@ -228,6 +228,16 @@ LANGUAGE REQUIREMENT: Write the 'specific_issue', 'learning_suggestion', and 'ev
         """Build the user prompt with structured taxonomy and clear instructions."""
         taxonomy_text = get_taxonomy_prompt_text(subject)
         normalized = normalize_subject(subject)
+
+        # Sanitize inputs: collapse internal newlines so they can't break the AI's JSON output
+        def _sanitize(text):
+            if not text:
+                return ""
+            return " ".join(str(text).split())
+
+        question = _sanitize(question)
+        student_ans = _sanitize(student_ans)
+        correct_ans = _sanitize(correct_ans)
 
         # Build a compact, structured taxonomy reference
         # Instead of a raw dump, present it as a numbered lookup table

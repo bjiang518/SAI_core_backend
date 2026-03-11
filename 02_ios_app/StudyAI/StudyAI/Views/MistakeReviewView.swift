@@ -70,6 +70,12 @@ struct MistakeReviewView: View {
     @StateObject private var themeManager = ThemeManager.shared
     @State private var selectedSubject: String?
 
+    init(initialSubject: String? = nil) {
+        if let subject = initialSubject {
+            _selectedSubject = State(initialValue: subject)
+        }
+    }
+
     // NEW: Dual slider filters
     @State private var selectedSeverity: SeverityLevel = .all
     @State private var selectedTimeRange: FilterTimeRange = .allTime
@@ -623,7 +629,7 @@ struct MistakeQuestionListView: View {
                             HStack(spacing: 8) {
                                 Image(systemName: "arrow.counterclockwise")
                                     .font(.title3)
-                                Text("Do them again (\(selectedQuestions.count))")
+                                Text(String(format: NSLocalizedString("mistakeReview.doThemAgain", comment: ""), selectedQuestions.count))
                                     .font(.body)
                                     .fontWeight(.semibold)
                             }
@@ -1378,11 +1384,19 @@ struct PracticeQuestionsView: View {
                 }
                 .fullScreenCover(isPresented: $showingPDFPreview) {
                     if let document = pdfDocument {
-                        PracticePDFPreviewView(
-                            questions: questions,
-                            subject: subject,
-                            generationType: NSLocalizedString("mistakeReview.targetedPractice", comment: "")
-                        )
+                        NavigationView {
+                            PDFKitView(document: document)
+                                .ignoresSafeArea()
+                                .navigationTitle(subject)
+                                .navigationBarTitleDisplayMode(.inline)
+                                .toolbar {
+                                    ToolbarItem(placement: .navigationBarTrailing) {
+                                        Button(NSLocalizedString("common.done", comment: "")) {
+                                            showingPDFPreview = false
+                                        }
+                                    }
+                                }
+                        }
                     }
                 }
                 .onChange(of: statusService.recentMasteries.count) { _, _ in
@@ -2889,48 +2903,29 @@ struct PracticeConfigurationSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var selectedDifficulty: QuestionGenerationService.RandomQuestionsConfig.QuestionDifficulty = .intermediate
-    @State private var selectedQuestionTypes: Set<QuestionGenerationService.GeneratedQuestion.QuestionType> = [.any]
+    @State private var selectedQuestionType: QuestionGenerationService.GeneratedQuestion.QuestionType = .any
     @State private var questionCount: Int = 5
 
     // Each element: (label, questionsNeeded)
     private var weaknessHints: [(label: String, needed: Int)] {
         let service = ShortTermStatusService.shared
-
-        // Group selected mistakes by weaknessKey; collect error types per key
         var keyInfo: [String: (label: String, errorTypes: [String])] = [:]
         for mistake in selectedMistakes {
             guard let key = mistake.weaknessKey,
                   let base = mistake.baseBranch,
                   let detail = mistake.detailedBranch,
                   !base.isEmpty, !detail.isEmpty else { continue }
-            if keyInfo[key] == nil {
-                keyInfo[key] = (label: detail, errorTypes: [])
-            }
-            if let et = mistake.errorType {
-                keyInfo[key]!.errorTypes.append(et)
-            }
+            if keyInfo[key] == nil { keyInfo[key] = (label: detail, errorTypes: []) }
+            if let et = mistake.errorType { keyInfo[key]!.errorTypes.append(et) }
         }
-
         var hints: [(label: String, needed: Int)] = []
         for (key, info) in keyInfo {
-            let currentValue: Double
-            if let weakness = service.status.activeWeaknesses[key] {
-                guard weakness.value > 0 else { continue }  // already cleared/mastered
-                currentValue = weakness.value
-            } else {
-                continue  // not tracked yet
-            }
-
-            // Mirror the decrement formula in recordCorrectAttempt (retryType .firstTime)
-            let weights = info.errorTypes.isEmpty
-                ? [1.5]
-                : info.errorTypes.map { service.errorTypeWeight($0) }
+            guard let weakness = service.status.activeWeaknesses[key], weakness.value > 0 else { continue }
+            let weights = info.errorTypes.isEmpty ? [1.5] : info.errorTypes.map { service.errorTypeWeight($0) }
             let avgWeight = weights.reduce(0, +) / Double(weights.count)
-            let decrement = 1.0 * avgWeight * 0.6 * 1.0   // bonusMultiplier = 1.0 (.firstTime)
+            let decrement = 1.0 * avgWeight * 0.6 * 1.0
             guard decrement > 0 else { continue }
-
-            let needed = Int(ceil(currentValue / decrement))
-            hints.append((label: info.label, needed: needed))
+            hints.append((label: info.label, needed: Int(ceil(weakness.value / decrement))))
         }
         return hints.sorted { $0.needed < $1.needed }
     }
@@ -2939,137 +2934,9 @@ struct PracticeConfigurationSheet: View {
         NavigationView {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    // Header
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(NSLocalizedString("mistakeReview.configurePractice", comment: ""))
-                            .font(.title2)
-                            .fontWeight(.bold)
-
-                        Text(String(format: NSLocalizedString("mistakeReview.basedOnMistakes", comment: ""), mistakeCount))
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(.horizontal)
-
-                    // Question Types Section
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text(NSLocalizedString("mistakeReview.questionTypes", comment: ""))
-                            .font(.headline)
-                            .padding(.horizontal)
-
-                        Text(NSLocalizedString("mistakeReview.selectQuestionTypes", comment: ""))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal)
-
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 12) {
-                                ForEach([QuestionGenerationService.GeneratedQuestion.QuestionType.any] + QuestionGenerationService.GeneratedQuestion.QuestionType.generatableTypes.filter { $0 != .any }, id: \.self) { type in
-                                    QuestionTypeChip(
-                                        type: type,
-                                        isSelected: selectedQuestionTypes.contains(type),
-                                        onTap: {
-                                            toggleQuestionType(type)
-                                        }
-                                    )
-                                }
-                            }
-                            .padding(.horizontal)
-                        }
-                    }
-
-                    // Difficulty Section
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text(NSLocalizedString("mistakeReview.difficultyLevel", comment: ""))
-                            .font(.headline)
-                            .padding(.horizontal)
-
-                        VStack(spacing: 10) {
-                            ForEach(QuestionGenerationService.RandomQuestionsConfig.QuestionDifficulty.allCases, id: \.self) { difficulty in
-                                DifficultyOption(
-                                    difficulty: difficulty,
-                                    isSelected: selectedDifficulty == difficulty,
-                                    onTap: {
-                                        selectedDifficulty = difficulty
-                                    }
-                                )
-                            }
-                        }
-                        .padding(.horizontal)
-                    }
-
-                    // Question Count Section
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Text(NSLocalizedString("mistakeReview.numberOfQuestions", comment: ""))
-                                .font(.headline)
-                            Spacer()
-                            Text("\(questionCount)")
-                                .font(.title3)
-                                .fontWeight(.bold)
-                                .foregroundColor(.blue)
-                        }
-                        .padding(.horizontal)
-
-                        Slider(value: Binding(
-                            get: { Double(questionCount) },
-                            set: { questionCount = Int($0) }
-                        ), in: 1...10, step: 1)
-                            .tint(.blue)
-                            .padding(.horizontal)
-
-                        HStack {
-                            Text(NSLocalizedString("mistakeReview.sliderMin", comment: ""))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            Spacer()
-                            Text(NSLocalizedString("mistakeReview.sliderMax", comment: ""))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(.horizontal)
-
-                        // Weakness clearance hints
-                        if !weaknessHints.isEmpty {
-                            VStack(alignment: .leading, spacing: 6) {
-                                ForEach(weaknessHints, id: \.label) { hint in
-                                    HStack(spacing: 6) {
-                                        Image(systemName: hint.needed <= questionCount ? "checkmark.circle.fill" : "circle.dotted")
-                                            .font(.caption)
-                                            .foregroundColor(hint.needed <= questionCount ? DesignTokens.Colors.success : .secondary)
-                                        Text("\(hint.needed) more question\(hint.needed == 1 ? "" : "s") to clear \(hint.label) weakness")
-                                            .font(.caption)
-                                            .foregroundColor(hint.needed <= questionCount ? DesignTokens.Colors.success : .secondary)
-                                    }
-                                }
-                            }
-                            .padding(.horizontal)
-                            .padding(.top, 4)
-                        }
-                    }
-
-                    // Generate Button
-                    Button(action: {
-                        // Call onGenerate with selected parameters
-                        let typesToUse = selectedQuestionTypes.isEmpty ? [.any] : selectedQuestionTypes
-                        onGenerate(selectedDifficulty, typesToUse, questionCount)
-                        dismiss()
-                    }) {
-                        HStack {
-                            Image(systemName: "brain.head.profile")
-                                .font(.title3)
-                            Text(String(format: NSLocalizedString("mistakeReview.generateCount", comment: ""), questionCount))
-                                .font(.body)
-                                .fontWeight(.semibold)
-                        }
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 56)
-                        .background(Color.blue)
-                        .cornerRadius(12)
-                    }
-                    .padding(.horizontal)
-                    .padding(.top, 8)
+                    headerSection
+                    configCard
+                    generateButton
                 }
                 .padding(.vertical)
             }
@@ -3077,32 +2944,247 @@ struct PracticeConfigurationSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button(NSLocalizedString("common.cancel", comment: "")) {
-                        dismiss()
+                    Button(NSLocalizedString("common.cancel", comment: "")) { dismiss() }
+                }
+            }
+        }
+    }
+
+    private var headerSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(NSLocalizedString("mistakeReview.configurePractice", comment: ""))
+                .font(.title2)
+                .fontWeight(.bold)
+            Text(String(format: NSLocalizedString("mistakeReview.basedOnMistakes", comment: ""), mistakeCount))
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+        }
+        .padding(.horizontal)
+    }
+
+    private var configCard: some View {
+        VStack(spacing: 16) {
+            difficultyColorBar
+            countSlider
+            weaknessHintsSection
+            questionTypeGrid
+        }
+        .padding()
+        .background(Color.gray.opacity(0.05))
+        .cornerRadius(16)
+        .padding(.horizontal)
+    }
+
+    private var countSlider: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(NSLocalizedString("questionGeneration.numberOfQuestions", comment: ""))
+                    .font(.body)
+                    .fontWeight(.medium)
+                Spacer()
+                Text("\(questionCount)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.blue.opacity(0.1))
+                    .cornerRadius(6)
+            }
+            VStack(spacing: 8) {
+                HStack {
+                    Text("1").font(.caption).foregroundColor(.secondary)
+                    Spacer()
+                    Text("10").font(.caption).foregroundColor(.secondary)
+                }
+                Slider(value: Binding(get: { Double(questionCount) }, set: { questionCount = Int($0) }),
+                       in: 1...10, step: 1)
+                    .accentColor(.blue)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var weaknessHintsSection: some View {
+        if !weaknessHints.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(weaknessHints, id: \.label) { hint in
+                    let cleared = hint.needed <= questionCount
+                    HStack(spacing: 6) {
+                        Image(systemName: cleared ? "checkmark.circle.fill" : "circle.dotted")
+                            .font(.caption)
+                            .foregroundColor(cleared ? DesignTokens.Colors.success : .secondary)
+                        Text("\(hint.needed) more question\(hint.needed == 1 ? "" : "s") to clear \(hint.label) weakness")
+                            .font(.caption)
+                            .foregroundColor(cleared ? DesignTokens.Colors.success : .secondary)
                     }
                 }
             }
         }
     }
 
-    private func toggleQuestionType(_ type: QuestionGenerationService.GeneratedQuestion.QuestionType) {
-        if type == .any {
-            // If "Any" is selected, clear all other selections
-            selectedQuestionTypes = [.any]
-        } else {
-            // Remove "Any" if specific type is selected
-            selectedQuestionTypes.remove(.any)
-
-            // Toggle the specific type
-            if selectedQuestionTypes.contains(type) {
-                selectedQuestionTypes.remove(type)
-                // If no types selected, default to "Any"
-                if selectedQuestionTypes.isEmpty {
-                    selectedQuestionTypes = [.any]
-                }
-            } else {
-                selectedQuestionTypes.insert(type)
+    private var questionTypeGrid: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(NSLocalizedString("questionGeneration.questionType", comment: ""))
+                    .font(.body)
+                    .fontWeight(.medium)
+                Spacer()
+                Text(selectedQuestionType.displayName)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.blue.opacity(0.1))
+                    .cornerRadius(6)
             }
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                ForEach(QuestionGenerationService.GeneratedQuestion.QuestionType.generatableTypes, id: \.self) { type in
+                    let isSelected = selectedQuestionType == type
+                    Button(action: { selectedQuestionType = type }) {
+                        VStack(spacing: 4) {
+                            Image(systemName: type.icon)
+                                .font(.title3)
+                                .foregroundColor(isSelected ? .blue : .secondary)
+                            Text(type.displayName)
+                                .font(.caption2)
+                                .foregroundColor(isSelected ? .blue : .secondary)
+                                .lineLimit(2)
+                                .multilineTextAlignment(.center)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(isSelected ? Color.blue.opacity(0.1) : Color.gray.opacity(0.05))
+                        .cornerRadius(8)
+                        .overlay(RoundedRectangle(cornerRadius: 8)
+                            .stroke(isSelected ? Color.blue : Color.clear, lineWidth: 2))
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
+            }
+        }
+    }
+
+    private var generateButton: some View {
+        Button(action: {
+            onGenerate(selectedDifficulty, Set([selectedQuestionType]), questionCount)
+            dismiss()
+        }) {
+            HStack {
+                Image(systemName: "brain.head.profile")
+                    .font(.title3)
+                Text(String(format: NSLocalizedString("mistakeReview.generateCount", comment: ""), questionCount))
+                    .font(.body)
+                    .fontWeight(.semibold)
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: 56)
+            .background(Color.blue)
+            .cornerRadius(12)
+        }
+        .padding(.horizontal)
+        .padding(.bottom)
+    }
+
+    // MARK: - Difficulty Color Bar
+
+    private var difficultyColorBar: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(NSLocalizedString("questionGeneration.difficultyLevel", comment: ""))
+                    .font(.body)
+                    .fontWeight(.medium)
+                Spacer()
+                Text(selectedDifficulty.displayName)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(difficultyColor(selectedDifficulty))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(difficultyColor(selectedDifficulty).opacity(0.12))
+                    .cornerRadius(6)
+                    .animation(.easeInOut(duration: 0.2), value: selectedDifficulty)
+            }
+
+            GeometryReader { geo in
+                let adaptiveExtW: CGFloat = 64
+                let mainW = geo.size.width - adaptiveExtW
+                let segW = mainW / 3
+                let barH: CGFloat = 10
+                let trackTopY: CGFloat = 13
+                let thumbD: CGFloat = 22
+                let thumbTopY: CGFloat = (36 - thumbD) / 2
+
+                let thumbX: CGFloat = {
+                    switch selectedDifficulty {
+                    case .beginner:     return segW * 0.5 - thumbD / 2
+                    case .intermediate: return segW * 1.5 - thumbD / 2
+                    case .advanced:     return segW * 2.5 - thumbD / 2
+                    case .adaptive:     return mainW + adaptiveExtW - thumbD
+                    }
+                }()
+
+                ZStack(alignment: .topLeading) {
+                    HStack(spacing: 1) {
+                        Rectangle().fill(Color.green.opacity(1.0))
+                        Rectangle().fill(Color.orange.opacity(isIntermediateSegActive ? 1.0 : 0.2))
+                        Rectangle().fill(Color.red.opacity(isAdvancedSegActive ? 1.0 : 0.2))
+                    }
+                    .frame(width: mainW, height: barH)
+                    .clipShape(RoundedRectangle(cornerRadius: 5))
+                    .offset(x: 0, y: trackTopY)
+
+                    Path { p in
+                        let y = trackTopY + barH / 2
+                        p.move(to: CGPoint(x: mainW + 6, y: y))
+                        p.addLine(to: CGPoint(x: mainW + adaptiveExtW - thumbD - 6, y: y))
+                    }
+                    .stroke(
+                        Color.purple.opacity(selectedDifficulty == .adaptive ? 0.75 : 0.35),
+                        style: StrokeStyle(lineWidth: 2.5, lineCap: .round, dash: [4, 5])
+                    )
+                    .animation(.easeInOut(duration: 0.2), value: selectedDifficulty)
+
+                    AdaptiveGlowDot(isActive: selectedDifficulty == .adaptive)
+                        .offset(x: mainW + adaptiveExtW - thumbD, y: trackTopY + barH / 2 - 8)
+                        .animation(.easeInOut(duration: 0.25), value: selectedDifficulty)
+
+                    Circle()
+                        .fill(.white)
+                        .frame(width: thumbD, height: thumbD)
+                        .shadow(color: difficultyColor(selectedDifficulty).opacity(0.4), radius: 5)
+                        .overlay(Circle().stroke(difficultyColor(selectedDifficulty), lineWidth: 2.5))
+                        .offset(x: thumbX, y: thumbTopY)
+                        .animation(.spring(response: 0.3, dampingFraction: 0.72), value: selectedDifficulty)
+                }
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            let x = value.location.x
+                            if x < segW { selectedDifficulty = .beginner }
+                            else if x < segW * 2 { selectedDifficulty = .intermediate }
+                            else if x < mainW { selectedDifficulty = .advanced }
+                            else { selectedDifficulty = .adaptive }
+                        }
+                )
+            }
+            .frame(height: 36)
+        }
+    }
+
+    private var isIntermediateSegActive: Bool {
+        selectedDifficulty == .intermediate || selectedDifficulty == .advanced || selectedDifficulty == .adaptive
+    }
+    private var isAdvancedSegActive: Bool {
+        selectedDifficulty == .advanced || selectedDifficulty == .adaptive
+    }
+    private func difficultyColor(_ d: QuestionGenerationService.RandomQuestionsConfig.QuestionDifficulty) -> Color {
+        switch d {
+        case .beginner:     return .green
+        case .intermediate: return .orange
+        case .advanced:     return .red
+        case .adaptive:     return .purple
         }
     }
 }
@@ -3187,4 +3269,35 @@ struct DifficultyOption: View {
 
 #Preview {
     MistakeReviewView()
+}
+
+// MARK: - AdaptiveGlowDot
+// Owns its own animation state so parent views don't re-render on each animation tick.
+struct AdaptiveGlowDot: View {
+    let isActive: Bool
+    @State private var phase: Double = 0
+
+    var body: some View {
+        Circle()
+            .fill(AngularGradient(
+                colors: [
+                    DesignTokens.Colors.Cute.lavender,
+                    DesignTokens.Colors.Cute.blue,
+                    DesignTokens.Colors.Cute.mint,
+                    DesignTokens.Colors.Cute.peach,
+                    DesignTokens.Colors.Cute.lavender
+                ],
+                center: .center
+            ))
+            .hueRotation(.degrees(phase * 360))
+            .frame(width: 16, height: 16)
+            .shadow(color: Color.purple.opacity(isActive ? 0.85 : 0.25),
+                    radius: isActive ? 9 : 3)
+            .scaleEffect(isActive ? 1.15 : 0.9)
+            .onAppear {
+                withAnimation(.linear(duration: 3.0).repeatForever(autoreverses: false)) {
+                    phase = 1.0
+                }
+            }
+    }
 }

@@ -323,43 +323,49 @@ class ShortTermStatusService: ObservableObject {
         save()
     }
 
-    // ✅ NEW: Memory management - keep only 20 most recent keys per subject
+    // ✅ NEW: Memory management
+    // Prunes mastered entries first (value ≤ 0), then oldest weak entries only if still needed.
+    // Active weakness entries (value > 0) are NEVER pruned — they back the "Active" filter in
+    // MistakeReviewView, so silently removing them causes questions to disappear.
     private func enforceMemoryLimit() {
-        let maxKeysPerSubject = 20
+        let maxKeysPerSubject = 60  // raised; mastered items are pruned first so this is rarely hit
 
-        // Group by subject (extract subject from key "Mathematics/branch/topic")
+        // Group by subject
         var keysBySubject: [String: [String]] = [:]
-
         for key in status.activeWeaknesses.keys {
-            let components = key.split(separator: "/").map(String.init)
-            guard let subject = components.first else { continue }
-
-            if keysBySubject[subject] == nil {
-                keysBySubject[subject] = []
-            }
-            keysBySubject[subject]?.append(key)
+            let subject = key.split(separator: "/").first.map(String.init) ?? key
+            keysBySubject[subject, default: []].append(key)
         }
 
-        // For each subject, keep only the 20 most recent
         for (subject, keys) in keysBySubject {
-            if keys.count > maxKeysPerSubject {
-                // Sort by lastAttempt (most recent first)
-                let sortedKeys = keys.sorted { key1, key2 in
-                    let date1 = status.activeWeaknesses[key1]?.lastAttempt ?? Date.distantPast
-                    let date2 = status.activeWeaknesses[key2]?.lastAttempt ?? Date.distantPast
-                    return date1 > date2
-                }
+            guard keys.count > maxKeysPerSubject else { continue }
 
-                // Remove oldest keys (beyond the limit)
-                let keysToRemove = sortedKeys.suffix(keys.count - maxKeysPerSubject)
-
-                for key in keysToRemove {
-                    status.activeWeaknesses.removeValue(forKey: key)
-                    logger.info("🗑️ Removed old weakness key (memory limit): \(key)")
-                }
-
-                logger.info("📊 Memory cleanup for \(subject): Removed \(keysToRemove.count) old keys, kept \(maxKeysPerSubject)")
+            // Sort: mastered (value ≤ 0) first, then active oldest-first
+            let sorted = keys.sorted { a, b in
+                let va = status.activeWeaknesses[a]?.value ?? 0
+                let vb = status.activeWeaknesses[b]?.value ?? 0
+                let aMastered = va <= 0
+                let bMastered = vb <= 0
+                if aMastered != bMastered { return aMastered }  // mastered first = removed first
+                // Among same tier: sort oldest-first
+                let da = status.activeWeaknesses[a]?.lastAttempt ?? Date.distantPast
+                let db = status.activeWeaknesses[b]?.lastAttempt ?? Date.distantPast
+                return da < db
             }
+
+            let toRemove = sorted.prefix(keys.count - maxKeysPerSubject)
+            for key in toRemove {
+                let val = status.activeWeaknesses[key]?.value ?? 0
+                if val > 0 {
+                    // Still an active weakness — log but do not remove
+                    logger.warning("⚠️ Memory limit hit for \(subject): skipping active weakness '\(key)' (value=\(val))")
+                } else {
+                    status.activeWeaknesses.removeValue(forKey: key)
+                    logger.info("🗑️ Pruned mastered entry (memory limit): \(key)")
+                }
+            }
+
+            logger.info("📊 Memory check for \(subject): \(keys.count) keys, limit=\(maxKeysPerSubject)")
         }
     }
 

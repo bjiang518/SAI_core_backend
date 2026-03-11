@@ -72,6 +72,10 @@ struct UnifiedLibraryView: View {
     @State private var selectedItemIds: Set<String> = []
     @State private var showingLibraryPDF = false
     @State private var showingDeleteConfirm = false
+    @State private var activeLibraryPracticeSession: PracticeSession? = nil
+
+    // Scroll-driven filter visibility
+    @State private var showFloatingFilter: Bool = false
 
     // Navigation destination state
     @State private var navigationSelectedQuestion: QuestionSummary? = nil
@@ -262,6 +266,15 @@ struct UnifiedLibraryView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     if isSelectMode {
                         HStack(spacing: 16) {
+                            if allSelectedAreQuestions {
+                                Button {
+                                    createLibraryPracticeSession()
+                                } label: {
+                                    Image(systemName: "doc.text")
+                                        .foregroundColor(.teal)
+                                }
+                            }
+
                             Button {
                                 showingDeleteConfirm = true
                             } label: {
@@ -295,24 +308,6 @@ struct UnifiedLibraryView: View {
 
                         Button(NSLocalizedString("library.advancedSearch", comment: "")) {
                             showingAdvancedSearch = true
-                        }
-
-                        Button(NSLocalizedString("library.clearFilters", comment: "")) {
-                            clearFilters()
-                        }
-
-                        if !availableSubjects.isEmpty {
-                            Menu(NSLocalizedString("library.filterBySubject", comment: "")) {
-                                Button(NSLocalizedString("library.allSubjects", comment: "")) {
-                                    selectedSubject = nil
-                                }
-
-                                ForEach(availableSubjects, id: \.self) { subject in
-                                    Button(NSLocalizedString("subject.\(subject.lowercased().replacingOccurrences(of: " ", with: ""))", value: subject, comment: "")) {
-                                        selectedSubject = subject
-                                    }
-                                }
-                            }
                         }
 
                     } label: {
@@ -362,6 +357,9 @@ struct UnifiedLibraryView: View {
                 let pdfSubject = selectedQuestions.first?.normalizedSubject ?? "Library"
                 LibraryPDFPreviewView(questions: selectedQuestions, subject: pdfSubject)
             }
+            .fullScreenCover(item: $activeLibraryPracticeSession) { session in
+                QuestionSheetView(session: session)
+            }
             .navigationDestination(isPresented: $navigatingToQuestion) {
                 if let q = navigationSelectedQuestion {
                     QuestionDetailView(questionId: q.id, preloadedSummary: q)
@@ -409,167 +407,58 @@ struct UnifiedLibraryView: View {
     }
     
     private var libraryList: some View {
-        VStack(spacing: 0) {
-            // Compact Filter Section - One row with three dropdowns
-            HStack(spacing: 12) {
-                // Time Range Dropdown
-                Menu {
-                    Button {
-                        activeQuickDateFilter = nil
-                        isUsingAdvancedSearch = false
-                        advancedFilteredQuestions = []
-                    } label: {
-                        Label(NSLocalizedString("library.filter.allTime", comment: ""), systemImage: "clock")
-                    }
-
-                    Button {
-                        activeQuickDateFilter = .thisWeek
-                        searchFilters.dateRange = .thisWeek
-                        Task { await performAdvancedSearch(searchFilters) }
-                    } label: {
-                        Label(NSLocalizedString("library.filter.thisWeek", comment: ""), systemImage: "calendar.badge.clock")
-                    }
-
-                    Button {
-                        activeQuickDateFilter = .thisMonth
-                        searchFilters.dateRange = .thisMonth
-                        Task { await performAdvancedSearch(searchFilters) }
-                    } label: {
-                        Label(NSLocalizedString("library.filter.thisMonth", comment: ""), systemImage: "calendar")
-                    }
-
-                    Divider()
-
-                    Button {
-                        showingCustomDatePicker = true
-                    } label: {
-                        Label(NSLocalizedString("library.filter.moreSpecific", comment: ""), systemImage: "calendar.badge.plus")
-                    }
-                } label: {
-                    VStack(spacing: 2) {
-                        Image(systemName: "clock")
-                            .font(.caption)
-                        Text(activeQuickDateFilter?.displayName ?? NSLocalizedString("library.filter.allTime", comment: ""))
-                            .font(.caption2)
-                            .lineLimit(2)
-                            .multilineTextAlignment(.center)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 8)
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundSoftPink : Color(.systemBackground))
-                    .cornerRadius(10)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender.opacity(0.3) : Color.gray.opacity(0.3), lineWidth: 1)
-                    )
-                }
-
-                // Subject Dropdown
-                Menu {
-                    Button {
-                        selectedSubject = nil
-                    } label: {
-                        Label(NSLocalizedString("library.filter.allSubjects", comment: ""), systemImage: "books.vertical")
-                    }
-
-                    ForEach(availableSubjects, id: \.self) { subject in
-                        Button {
-                            selectedSubject = subject
-                        } label: {
-                            Label(NSLocalizedString("subject.\(subject.lowercased().replacingOccurrences(of: " ", with: ""))", value: subject, comment: ""), systemImage: "book.fill")
+        ZStack(alignment: .bottom) {
+            List {
+                // ── Filter bar row (scrolls with content) ──────────────────
+                filterBarContent
+                    .onGeometryChange(for: CGFloat.self) { proxy in
+                        proxy.frame(in: .global).maxY
+                    } action: { maxY in
+                        let shouldShow = maxY < 100
+                        if shouldShow != showFloatingFilter {
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                showFloatingFilter = shouldShow
+                            }
                         }
                     }
-                } label: {
-                    VStack(spacing: 2) {
-                        Image(systemName: "book.fill")
-                            .font(.caption)
-                        Text(selectedSubject ?? NSLocalizedString("library.filter.allSubjects", comment: ""))
-                            .font(.caption2)
-                            .lineLimit(2)
-                            .multilineTextAlignment(.center)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 8)
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundSoftPink : Color(.systemBackground))
-                    .cornerRadius(10)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender.opacity(0.3) : Color.gray.opacity(0.3), lineWidth: 1)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(
+                        themeManager.currentTheme == .cute
+                            ? DesignTokens.Colors.Cute.backgroundCream
+                            : Color(.systemGroupedBackground)
                     )
-                }
+                    .listRowSeparator(.hidden)
 
-                // Question Type Dropdown
-                Menu {
-                    Button {
-                        selectedQuestionType = nil
-                    } label: {
-                        Label(NSLocalizedString("library.filter.allTypes", comment: ""), systemImage: "square.grid.2x2")
-                    }
-
-                    ForEach(availableQuestionTypes, id: \.self) { questionType in
-                        Button {
-                            selectedQuestionType = questionType
-                        } label: {
-                            Label(questionType.displayName, systemImage: questionType.icon)
-                        }
-                    }
-                } label: {
-                    VStack(spacing: 2) {
-                        Image(systemName: "square.grid.2x2")
-                            .font(.caption)
-                        Text(selectedQuestionType?.displayName ?? NSLocalizedString("library.filter.allTypes", comment: ""))
-                            .font(.caption2)
-                            .lineLimit(2)
-                            .multilineTextAlignment(.center)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 8)
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundSoftPink : Color(.systemBackground))
-                    .cornerRadius(10)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender.opacity(0.3) : Color.gray.opacity(0.3), lineWidth: 1)
+                // ── Stats / content-type header ───────────────────────────
+                if !libraryContent.isEmpty {
+                    QuickStatsHeader(
+                        content: libraryContent,
+                        selectedSubject: selectedSubject,
+                        selectedContentType: selectedContentType,
+                        onContentTypeSelected: { contentType in
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                selectedContentType = contentType
+                            }
+                        },
+                        questionCount: filteredQuestionCount,
+                        conversationCount: filteredConversationCount,
+                        totalCount: filteredTotalCount
                     )
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color(.systemBackground))
+                    .listRowSeparator(.hidden)
                 }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundCream : Color(.systemGroupedBackground))
 
-            // Fixed Stats Header
-            if !libraryContent.isEmpty {
-                QuickStatsHeader(
-                    content: libraryContent,
-                    selectedSubject: selectedSubject,
-                    selectedContentType: selectedContentType,
-                    onContentTypeSelected: { contentType in
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            selectedContentType = contentType
-                        }
-                    },
-                    questionCount: filteredQuestionCount,
-                    conversationCount: filteredConversationCount,
-                    totalCount: filteredTotalCount
-                )
-                .background(Color(.systemBackground))
-            }
-
-            // Scrollable Content List - only this part scrolls
-            if filteredItems.isEmpty {
-                NoResultsView(hasFilters: !searchText.isEmpty || selectedSubject != nil || selectedContentType != .all || selectedQuestionType != nil) {
-                    clearFilters()
-                }
-            } else {
-                ZStack(alignment: .bottom) {
-                    List(filteredItems, id: \.id) { item in
+                // ── Content items ─────────────────────────────────────────
+                if filteredItems.isEmpty {
+                    NoResultsView(hasFilters: !searchText.isEmpty || selectedSubject != nil || selectedContentType != .all || selectedQuestionType != nil) {
+                        clearFilters()
+                    }
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                } else {
+                    ForEach(filteredItems, id: \.id) { item in
                         ZStack(alignment: .topLeading) {
-                            // Visible row content
                             HStack(spacing: 12) {
                                 if isSelectMode {
                                     Image(systemName: selectedItemIds.contains(item.id) ? "checkmark.circle.fill" : "circle")
@@ -585,8 +474,6 @@ struct UnifiedLibraryView: View {
                                     )
                             }
 
-                            // Full-size transparent button overlay — sits above WKWebView
-                            // so taps register everywhere on the card, not just outside the WebView.
                             Button {
                                 if isSelectMode {
                                     if selectedItemIds.contains(item.id) {
@@ -619,32 +506,259 @@ struct UnifiedLibraryView: View {
                             }
                         }
                     }
-                    .listStyle(.plain)
-                    .overlay {
-                        if libraryService.isLoading {
-                            ProgressView(NSLocalizedString("library.updating", comment: ""))
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                .background(Color(.systemBackground).opacity(0.8))
-                        }
-                    }
-                    // Bottom padding so last item isn't hidden behind action bar
-                    .safeAreaInset(edge: .bottom) {
-                        if isSelectMode { Color.clear.frame(height: 80) }
-                    }
-
-                    // Sticky selection action bar
-                    if isSelectMode {
-                        selectionActionBar
-                    }
                 }
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .overlay {
+                if libraryService.isLoading {
+                    ProgressView(NSLocalizedString("library.updating", comment: ""))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color(.systemBackground).opacity(0.8))
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                if isSelectMode { Color.clear.frame(height: 80) }
+            }
+            // Floating filter bar — slides in from top when scrolling back up
+            .overlay(alignment: .top) {
+                if showFloatingFilter {
+                    filterBarContent
+                        .background(
+                            (themeManager.currentTheme == .cute
+                             ? DesignTokens.Colors.Cute.backgroundCream
+                             : Color(.systemGroupedBackground))
+                            .shadow(color: .black.opacity(0.08), radius: 4, x: 0, y: 2)
+                        )
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+            }
+
+            // Sticky selection action bar
+            if isSelectMode {
+                selectionActionBar
+            }
         }
+    }
+
+    private var filterBarContent: some View {
+        HStack(spacing: 12) {
+            // Time Range Dropdown
+            Menu {
+                Button {
+                    activeQuickDateFilter = nil
+                    isUsingAdvancedSearch = false
+                    advancedFilteredQuestions = []
+                } label: {
+                    Label(NSLocalizedString("library.filter.allTime", comment: ""), systemImage: "clock")
+                }
+
+                Button {
+                    activeQuickDateFilter = .thisWeek
+                    searchFilters.dateRange = .thisWeek
+                    Task { await performAdvancedSearch(searchFilters) }
+                } label: {
+                    Label(NSLocalizedString("library.filter.thisWeek", comment: ""), systemImage: "calendar.badge.clock")
+                }
+
+                Button {
+                    activeQuickDateFilter = .thisMonth
+                    searchFilters.dateRange = .thisMonth
+                    Task { await performAdvancedSearch(searchFilters) }
+                } label: {
+                    Label(NSLocalizedString("library.filter.thisMonth", comment: ""), systemImage: "calendar")
+                }
+
+                Divider()
+
+                Button {
+                    showingCustomDatePicker = true
+                } label: {
+                    Label(NSLocalizedString("library.filter.moreSpecific", comment: ""), systemImage: "calendar.badge.plus")
+                }
+            } label: {
+                filterChip(
+                    icon: "clock",
+                    label: activeQuickDateFilter?.displayName ?? NSLocalizedString("library.filter.allTime", comment: "")
+                )
+            }
+
+            // Subject Dropdown
+            Menu {
+                Button {
+                    selectedSubject = nil
+                } label: {
+                    Label(NSLocalizedString("library.filter.allSubjects", comment: ""), systemImage: "books.vertical")
+                }
+                ForEach(availableSubjects, id: \.self) { subject in
+                    Button {
+                        selectedSubject = subject
+                    } label: {
+                        Label(NSLocalizedString("subject.\(subject.lowercased().replacingOccurrences(of: " ", with: ""))", value: subject, comment: ""), systemImage: "book.fill")
+                    }
+                }
+            } label: {
+                filterChip(
+                    icon: "book.fill",
+                    label: selectedSubject ?? NSLocalizedString("library.filter.allSubjects", comment: "")
+                )
+            }
+
+            // Question Type Dropdown
+            Menu {
+                Button {
+                    selectedQuestionType = nil
+                } label: {
+                    Label(NSLocalizedString("library.filter.allTypes", comment: ""), systemImage: "square.grid.2x2")
+                }
+                ForEach(availableQuestionTypes, id: \.self) { questionType in
+                    Button {
+                        selectedQuestionType = questionType
+                    } label: {
+                        Label(questionType.displayName, systemImage: questionType.icon)
+                    }
+                }
+            } label: {
+                filterChip(
+                    icon: "square.grid.2x2",
+                    label: selectedQuestionType?.displayName ?? NSLocalizedString("library.filter.allTypes", comment: "")
+                )
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+    }
+
+    private func filterChip(icon: String, label: String) -> some View {
+        VStack(spacing: 2) {
+            Image(systemName: icon)
+                .font(.caption)
+            Text(label)
+                .font(.caption2)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, minHeight: 44)
+        .background(
+            themeManager.currentTheme == .cute
+                ? DesignTokens.Colors.Cute.backgroundSoftPink
+                : Color(.systemBackground)
+        )
+        .cornerRadius(10)
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(
+                    themeManager.currentTheme == .cute
+                        ? DesignTokens.Colors.Cute.lavender.opacity(0.3)
+                        : Color.gray.opacity(0.3),
+                    lineWidth: 1
+                )
+        )
     }
 
     // MARK: - Selection Action Bar
 
     private var allItemsSelected: Bool {
         !filteredItems.isEmpty && selectedItemIds == Set(filteredItems.map { $0.id })
+    }
+
+    private var allSelectedAreQuestions: Bool {
+        guard !selectedItemIds.isEmpty else { return false }
+        let questionIds = Set(filteredItems.compactMap { $0 as? QuestionSummary }.map { $0.id })
+        return selectedItemIds.isSubset(of: questionIds)
+    }
+
+    private func createLibraryPracticeSession() {
+        let selectedQuestions = filteredItems
+            .compactMap { $0 as? QuestionSummary }
+            .filter { selectedItemIds.contains($0.id) }
+        guard !selectedQuestions.isEmpty else { return }
+
+        let subject = selectedQuestions.first?.normalizedSubject ?? "General"
+        let generatedQuestions = selectedQuestions.map { q -> QuestionGenerationService.GeneratedQuestion in
+            // Detect type from stored questionType string (snake_case or camelCase)
+            // or fall back to options-presence heuristic
+            let type: QuestionGenerationService.GeneratedQuestion.QuestionType
+            switch q.questionType?.lowercased() {
+            case "multiple_choice", "multiplechoice":
+                type = .multipleChoice
+            case "true_false", "truefalse":
+                type = .trueFalse
+            case "fill_blank", "fill_in_blank", "fillblank", "fillinblank":
+                type = .fillBlank
+            case "short_answer", "shortanswer":
+                type = .shortAnswer
+            case "calculation":
+                type = .calculation
+            case "long_answer", "longanswer":
+                type = .longAnswer
+            default:
+                // Heuristic: if options are present, treat as MC; otherwise short answer
+                if let opts = q.options, !opts.isEmpty {
+                    type = .multipleChoice
+                } else {
+                    type = .shortAnswer
+                }
+            }
+            return QuestionGenerationService.GeneratedQuestion(
+                question: q.questionText,
+                type: type,
+                correctAnswer: q.answerText ?? "",
+                explanation: "",
+                topic: subject,
+                difficulty: "intermediate",
+                options: q.options ?? (type == .multipleChoice ? parseOptionsFromText(q.questionText) : nil)
+            )
+        }
+
+        let config = QuestionGenerationService.RandomQuestionsConfig(
+            topics: [subject],
+            focusNotes: nil,
+            difficulty: .intermediate,
+            questionCount: generatedQuestions.count,
+            questionType: .any
+        )
+        let session = PracticeSessionManager.shared.saveSession(
+            questions: generatedQuestions,
+            generationType: "Library-Selection",
+            subject: subject,
+            config: config
+        )
+        isSelectMode = false
+        selectedItemIds = []
+        activeLibraryPracticeSession = session
+    }
+
+    /// Extract MC options embedded in question text (e.g. "A. foo\nB. bar" or "A) foo B) bar").
+    /// Returns nil if fewer than 2 options are found.
+    private func parseOptionsFromText(_ text: String) -> [String]? {
+        // Split on lines and look for lines starting with A./B./C./D. (any casing, various separators)
+        let lines = text.components(separatedBy: "\n")
+        var options: [String] = []
+        for line in lines {
+            let t = line.trimmingCharacters(in: .whitespaces)
+            // Match: "A." "A)" "A）" "A、" "A:" (possibly with space after)
+            if t.count > 2,
+               let first = t.unicodeScalars.first,
+               first.value >= 65 && first.value <= 68 || first.value >= 97 && first.value <= 100 {
+                let second = t[t.index(t.startIndex, offsetBy: 1)]
+                if [".", ")", "）", "、", ":"].contains(String(second)) {
+                    options.append(t)
+                }
+            }
+        }
+        // If options are all on one line (e.g., "A. foo B. bar C. baz D. qux"), split them
+        if options.isEmpty {
+            let inlinePattern = #"([A-Da-d][.)）、：]\s*[^A-Da-d]+?)(?=[A-Da-d][.)）、：]|$)"#
+            if let regex = try? NSRegularExpression(pattern: inlinePattern) {
+                let nsText = text as NSString
+                let matches = regex.matches(in: text, range: NSRange(location: 0, length: nsText.length))
+                options = matches.map { nsText.substring(with: $0.range).trimmingCharacters(in: .whitespaces) }
+            }
+        }
+        return options.count >= 2 ? options : nil
     }
 
     private var selectionCountText: String {
@@ -904,35 +1018,17 @@ struct LibraryItemRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Header with type indicator (removed subject title, will add tag at bottom)
+            // Header: source-type icon (left) + date (right)
             HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    // Pro Mode badge
-                    HStack(spacing: 8) {
-                        if isProModeQuestion {
-                            HStack(spacing: 4) {
-                                Image(systemName: "wand.and.stars")
-                                    .font(.caption2)
-                                Text(NSLocalizedString("library.proBadge", comment: ""))
-                                    .font(.caption2)
-                                    .fontWeight(.semibold)
-                            }
-                            .foregroundColor(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender : DesignTokens.Colors.analyticsPlum)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background((themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender : DesignTokens.Colors.analyticsPlum).opacity(0.15))
-                            .clipShape(Capsule())
-                        }
-
-                        Spacer()
-
-                        Text(item.date, style: .date)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
+                Image(systemName: sourceIcon)
+                    .font(.caption)
+                    .foregroundColor(sourceIconColor)
 
                 Spacer()
+
+                Text(item.date, style: .date)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
 
             // Pro Mode cropped image (if available)
@@ -969,14 +1065,16 @@ struct LibraryItemRow: View {
 
             // ✅ Bottom row: subject tag (left) + "Tap to review" (right)
             HStack {
-                Text(NSLocalizedString("subject.\(item.subject.lowercased().replacingOccurrences(of: " ", with: ""))", value: item.subject, comment: ""))
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.black.opacity(0.2))
-                    .foregroundColor(.primary)
-                    .clipShape(Capsule())
+                if !item.subject.isEmpty {
+                    Text(NSLocalizedString("subject.\(item.subject.lowercased().replacingOccurrences(of: " ", with: ""))", value: item.subject, comment: ""))
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.black.opacity(0.2))
+                        .foregroundColor(.primary)
+                        .clipShape(Capsule())
+                }
 
                 Spacer()
 
@@ -997,6 +1095,34 @@ struct LibraryItemRow: View {
         .padding(.vertical, 0)  // ✅ No vertical padding for minimal gap between cards
         .onAppear {
             loadProModeImageIfNeeded()
+        }
+    }
+
+    // MARK: - Source Type Icon
+
+    private var sourceIcon: String {
+        switch item.itemType {
+        case .conversation:
+            return "bubble.left.and.bubble.right.fill"
+        case .question:
+            if item is ConversationLibraryItem {
+                return "doc.text.fill"
+            }
+            return "camera.fill"
+        }
+    }
+
+    private var sourceIconColor: Color {
+        switch item.itemType {
+        case .conversation:
+            return .blue
+        case .question:
+            if item is ConversationLibraryItem {
+                return themeManager.currentTheme == .cute
+                    ? DesignTokens.Colors.Cute.lavender
+                    : DesignTokens.Colors.analyticsPlum
+            }
+            return .secondary
         }
     }
 
@@ -1533,3 +1659,4 @@ struct CustomDateRangePickerView: View {
         return components.day ?? 0
     }
 }
+

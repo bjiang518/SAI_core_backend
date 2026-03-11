@@ -14,8 +14,10 @@ struct QuestionSheetView: View {
     let session: PracticeSession
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @StateObject private var themeManager = ThemeManager.shared
     @StateObject private var sessionManager = PracticeSessionManager.shared
+    @StateObject private var appState = AppState.shared
 
     // Per-question state
     @State private var currentIndex: Int = 0
@@ -81,42 +83,13 @@ struct QuestionSheetView: View {
     // MARK: - Header Bar
 
     private var headerBar: some View {
-        HStack(spacing: 12) {
+        HStack {
+            Spacer()
             Button(action: { dismiss() }) {
-                Image(systemName: "chevron.left")
+                Text(NSLocalizedString("common.done", comment: ""))
                     .font(.body.bold())
                     .foregroundColor(.primary)
             }
-
-            Text(PracticeSessionManager.localizeSubject(session.subject))
-                .font(.caption.bold())
-                .foregroundColor(.white)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .background(session.generationTypeColor)
-                .cornerRadius(8)
-                .lineLimit(1)
-
-            Spacer()
-
-            Text(String(format: NSLocalizedString("practiceSheet.questionCounter", comment: ""), currentIndex + 1, questions.count))
-                .font(.subheadline.bold())
-                .foregroundColor(.primary)
-
-            Spacer()
-
-            HStack(spacing: 4) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.caption)
-                    .foregroundColor(.green)
-                Text("\(correctCount)/\(answeredIds.count)")
-                    .font(.caption.bold())
-                    .foregroundColor(.primary)
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
-            .background(Color.green.opacity(0.1))
-            .cornerRadius(8)
         }
         .padding(.horizontal)
         .padding(.vertical, 12)
@@ -152,7 +125,18 @@ struct QuestionSheetView: View {
                 .padding(.horizontal, 4)
             }
 
-            Spacer()
+            HStack(spacing: 4) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.caption)
+                    .foregroundColor(.green)
+                Text("\(correctCount)/\(answeredIds.count)")
+                    .font(.caption.bold())
+                    .foregroundColor(.primary)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(Color.green.opacity(0.1))
+            .cornerRadius(8)
 
             Button(action: {
                 if currentIndex < questions.count - 1 { navigateTo(currentIndex + 1) }
@@ -203,11 +187,19 @@ struct QuestionSheetView: View {
                                 .background(typeColor(q.type).opacity(0.12))
                                 .cornerRadius(6)
                             Spacer()
+                            Text(PracticeSessionManager.localizeSubject(session.subject))
+                                .font(.caption.bold())
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(session.generationTypeColor)
+                                .cornerRadius(6)
+                                .lineLimit(1)
                         }
                         MarkdownLaTeXText(q.question, fontSize: 17, isStreaming: false)
                     }
                     .padding()
-                    .background(Color(.systemBackground))
+                    .background(gridPaperBackground)
                     .cornerRadius(16)
 
                     // Answer section
@@ -219,7 +211,7 @@ struct QuestionSheetView: View {
                             answerInput(q)
                         }
                         .padding()
-                        .background(themeManager.cardBackground)
+                        .background(gridPaperBackground)
                         .cornerRadius(16)
 
                         submitButton(q)
@@ -232,7 +224,7 @@ struct QuestionSheetView: View {
                             readOnlyAnswerView(q)
                         }
                         .padding()
-                        .background(themeManager.cardBackground)
+                        .background(gridPaperBackground)
                         .cornerRadius(16)
 
                         resultCard(q)
@@ -275,7 +267,11 @@ struct QuestionSheetView: View {
     private func answerInput(_ q: QuestionGenerationService.GeneratedQuestion) -> some View {
         switch q.type {
         case .multipleChoice:
-            multipleChoiceInput(q)
+            if let opts = q.options, !opts.isEmpty {
+                multipleChoiceInput(q)
+            } else {
+                shortAnswerInput
+            }
         case .trueFalse:
             trueFalseInput
         default:
@@ -349,13 +345,22 @@ struct QuestionSheetView: View {
             )
     }
 
+    // Returns true when q is MC AND has renderable option buttons
+    private func hasMCOptions(_ q: QuestionGenerationService.GeneratedQuestion) -> Bool {
+        q.type == .multipleChoice && (q.options?.isEmpty == false)
+    }
+
     // MARK: - Read-Only Answer (after submit)
 
     @ViewBuilder
     private func readOnlyAnswerView(_ q: QuestionGenerationService.GeneratedQuestion) -> some View {
         switch q.type {
         case .multipleChoice:
-            readOnlyMultipleChoiceView(q)
+            if hasMCOptions(q) {
+                readOnlyMultipleChoiceView(q)
+            } else {
+                readOnlyShortAnswerView(q)
+            }
         case .trueFalse:
             readOnlyTrueFalseView(q)
         default:
@@ -475,15 +480,23 @@ struct QuestionSheetView: View {
 
     private func canSubmit(_ q: QuestionGenerationService.GeneratedQuestion) -> Bool {
         switch q.type {
-        case .multipleChoice, .trueFalse: return selectedOption != nil
-        default: return !userAnswer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case .multipleChoice:
+            return hasMCOptions(q) ? selectedOption != nil : !userAnswer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case .trueFalse:
+            return selectedOption != nil
+        default:
+            return !userAnswer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
     }
 
     private func currentAnswer(_ q: QuestionGenerationService.GeneratedQuestion) -> String {
         switch q.type {
-        case .multipleChoice, .trueFalse: return selectedOption ?? ""
-        default: return userAnswer
+        case .multipleChoice:
+            return hasMCOptions(q) ? (selectedOption ?? "") : userAnswer
+        case .trueFalse:
+            return selectedOption ?? ""
+        default:
+            return userAnswer
         }
     }
 
@@ -552,6 +565,7 @@ struct QuestionSheetView: View {
                 .background(Color.accentColor)
                 .cornerRadius(14)
             }
+            followUpButton
             archiveButton
         }
     }
@@ -570,8 +584,43 @@ struct QuestionSheetView: View {
                 .background(themeManager.accentColor)
                 .cornerRadius(14)
             }
+            followUpButton
             archiveButton
         }
+    }
+
+    private var followUpButton: some View {
+        Button(action: openFollowUpChat) {
+            Image(systemName: "message")
+                .font(.title3)
+                .foregroundColor(themeManager.accentColor)
+                .frame(width: 52, height: 52)
+                .background(themeManager.accentColor.opacity(0.1))
+                .cornerRadius(14)
+        }
+    }
+
+    private func openFollowUpChat() {
+        guard let q = currentQuestion else { return }
+        let savedAnswers = sessionManager.getSession(id: session.id)?.answers ?? session.answers
+        let saved = savedAnswers[q.id.uuidString]
+        let userAns = (saved?["answer"] as? String) ?? selectedOption ?? userAnswer
+        let feedback = aiFeedback
+            ?? (saved?["feedback"] as? String)
+            ?? q.explanation
+
+        let message = """
+        \(NSLocalizedString("proMode.askAIPrompt", comment: ""))
+
+        \(q.question)
+
+        \(NSLocalizedString("proMode.myAnswer", comment: "")): \(userAns)
+
+        \(NSLocalizedString("proMode.teacherFeedback", comment: "")): \(feedback)
+        """
+
+        appState.navigateToChatWithMessage(message, subject: session.subject, useDeepMode: false)
+        dismiss()
     }
 
     private var archiveButton: some View {
@@ -1110,6 +1159,45 @@ struct QuestionSheetView: View {
                 }
             }
 
+            // Save correct answers to local storage for progress tracking, and queue concept extraction
+            let nowISO = ISO8601DateFormatter().string(from: Date())
+            let correctQuestions = questions.filter { q in
+                let qId = q.id.uuidString
+                guard answeredIds.contains(qId) else { return false }
+                return (current?.answers[qId]?["is_correct"] as? Bool) == true
+            }
+            if !correctQuestions.isEmpty {
+                let correctPayload: [[String: Any]] = correctQuestions.map { q in
+                    let qId = q.id.uuidString
+                    let saved = current?.answers[qId]
+                    var payload: [String: Any] = [
+                        "id": qId,
+                        "questionText": q.question,
+                        "answerText": q.correctAnswer,
+                        "studentAnswer": saved?["answer"] as? String ?? "",
+                        "subject": session.subject,
+                        "grade": "CORRECT",
+                        "isCorrect": true,
+                        "isGraded": true,
+                        "archivedAt": nowISO,
+                        "confidence": 0.95,
+                        "reviewCount": 0,
+                        "tags": [],
+                        "points": 1.0,
+                        "maxPoints": Double(q.points ?? 1)
+                    ]
+                    if let v = q.baseBranch     { payload["baseBranch"]    = v }
+                    if let v = q.detailedBranch { payload["detailedBranch"] = v }
+                    if let v = q.weaknessKey    { payload["weaknessKey"]   = v }
+                    return payload
+                }
+                currentUserQuestionStorage().saveQuestions(correctPayload)
+                ErrorAnalysisQueueService.shared.queueConceptExtractionForCorrectAnswers(
+                    sessionId: session.id,
+                    correctQuestions: correctPayload
+                )
+            }
+
             await MainActor.run {
                 isOrganizing = false
                 hasOrganized = true
@@ -1248,6 +1336,35 @@ struct QuestionSheetView: View {
     }
 
     // MARK: - Helpers
+
+    private var gridPaperBackground: some View {
+        ZStack {
+            colorScheme == .dark ? Color(hex: "27251F") : Color(hex: "FAF6EE")
+            Canvas { ctx, size in
+                let spacing: CGFloat = 24
+                let lineColor: Color = colorScheme == .dark
+                    ? Color(hex: "4A4640").opacity(0.55)
+                    : Color(hex: "B8C4C0").opacity(0.55)
+                let style = StrokeStyle(lineWidth: 0.5, lineCap: .round)
+                var y: CGFloat = spacing
+                while y < size.height {
+                    var p = Path()
+                    p.move(to: CGPoint(x: 0, y: y))
+                    p.addLine(to: CGPoint(x: size.width, y: y))
+                    ctx.stroke(p, with: .color(lineColor), style: style)
+                    y += spacing
+                }
+                var x: CGFloat = spacing
+                while x < size.width {
+                    var p = Path()
+                    p.move(to: CGPoint(x: x, y: 0))
+                    p.addLine(to: CGPoint(x: x, y: size.height))
+                    ctx.stroke(p, with: .color(lineColor), style: style)
+                    x += spacing
+                }
+            }
+        }
+    }
 
     private func isOptionCorrect(option: String, q: QuestionGenerationService.GeneratedQuestion) -> Bool {
         if option.lowercased() == q.correctAnswer.lowercased() { return true }

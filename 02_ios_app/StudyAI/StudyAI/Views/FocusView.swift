@@ -108,11 +108,13 @@ struct FocusView: View {
 
     private var topBar: some View {
         HStack {
+            let isLocked = focusService.isRunning
             Button(action: { dismiss() }) {
-                Image(systemName: "chevron.left")
+                Image(systemName: isLocked ? "lock.fill" : "chevron.left")
                     .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(themeManager.primaryText)
+                    .foregroundColor(isLocked ? themeManager.secondaryText.opacity(0.4) : themeManager.primaryText)
             }
+            .disabled(isLocked)
 
             Spacer()
 
@@ -147,9 +149,11 @@ struct FocusView: View {
             .padding(.trailing, 8)
 
             Button(action: { showTomatoGarden = true }) {
-                Text("🍅")
-                    .font(.system(size: 22))
-                    .frame(width: 44, height: 44)
+                Image("tmt1")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 76, height: 76)
+                    .frame(width: 56, height: 56)
                     .background(
                         Circle()
                             .fill(DesignTokens.Colors.Cute.peachLight.opacity(0.3))
@@ -684,13 +688,13 @@ struct FocusView: View {
 
     private func startSession() {
         if let playlist = selectedPlaylist {
-            musicService.playPlaylist(playlist)
             focusService.startSession(withMusic: playlist.id, enableDeepFocus: enableDeepFocus)
+            musicService.playPlaylist(playlist)
         } else if let track = selectedMusicTrack {
+            focusService.startSession(withMusic: track.id, enableDeepFocus: enableDeepFocus)
             if track.id != "no_music" {
                 musicService.play(track: track)
             }
-            focusService.startSession(withMusic: track.id, enableDeepFocus: enableDeepFocus)
         } else {
             focusService.startSession(enableDeepFocus: enableDeepFocus)
         }

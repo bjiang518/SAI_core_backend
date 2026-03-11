@@ -549,22 +549,24 @@ struct SessionChatView: View {
                         }
                     case .startLiveMode(let starterPrompt):
                         viewModel.liveModeStarterPrompt = starterPrompt
-                        if networkService.currentSessionId == nil {
+                        if let sessionId = networkService.currentSessionId {
+                            // Session already exists — enter Live Mode directly
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                                activateLiveMode(sessionId: sessionId)
+                            }
+                        } else {
                             hasConversationStarted = false
                             viewModel.pendingLiveModeActivation = true
                             viewModel.startNewSession()
-                        } else {
-                            // Session already exists — trigger Live Mode directly
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                                withAnimation(.easeInOut(duration: 0.3)) {
-                                    isLiveMode = true
-                                }
-                            }
                         }
                     }
                 } else if let message = appState.pendingChatMessage {
+                    let subject = appState.pendingChatSubject ?? "General"
+                    // Consume immediately to prevent replay on next onAppear
+                    appState.pendingChatMessage = nil
+                    appState.pendingChatSubject = nil
                     viewModel.pendingHomeworkQuestion = message
-                    viewModel.pendingHomeworkSubject = appState.pendingChatSubject ?? "General"
+                    viewModel.pendingHomeworkSubject = subject
 
                     if !networkService.conversationHistory.isEmpty {
                         showingExistingSessionAlert = true
@@ -607,8 +609,8 @@ struct SessionChatView: View {
             .onChange(of: viewModel.shouldActivateLiveMode) { _, newValue in
                 guard newValue else { return }
                 viewModel.shouldActivateLiveMode = false
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    isLiveMode = true
+                if let sessionId = networkService.currentSessionId {
+                    activateLiveMode(sessionId: sessionId)
                 }
             }
             .onChange(of: viewModel.selectedImage) { _, newImage in
@@ -666,6 +668,13 @@ struct SessionChatView: View {
                 if let speaking = isSpeaking {
                     avatarLogger.info("🎭 [onChange] isAISpeaking → \(speaking) — setting avatarState to \(speaking ? "speaking" : "idle")")
                     avatarState.animationState = speaking ? .speaking : .idle
+                }
+                // When AI starts speaking in a fresh live session, reveal the message area
+                // so the streaming bubble (live transcription) is visible from the first message.
+                if isSpeaking == true && !hasConversationStarted {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        hasConversationStarted = true
+                    }
                 }
             }
             // RELIABILITY FIX: onChange(of: optional?.property) can miss rapid updates.
@@ -786,6 +795,7 @@ struct SessionChatView: View {
 
             // Chat messages with light theme
             lightChatMessagesView
+                .scrollDismissesKeyboard(.interactively)
                 .contentShape(Rectangle()) // Makes the entire area tappable
                 .onTapGesture {
                     // Dismiss keyboard when tapping on messages area
@@ -836,6 +846,7 @@ struct SessionChatView: View {
                 VStack(spacing: 24) {  // ✅ Changed from LazyVStack to VStack to prevent re-rendering during scroll
                     // Homework context indicator banner
                     if let homeworkContext = appState.pendingHomeworkContext {
+
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
                                 Image(systemName: "book.fill")
@@ -894,7 +905,8 @@ struct SessionChatView: View {
                         .padding(.top, 8)
                     }
 
-                    if allMessages.isEmpty && viewModel.isActivelyStreaming == false {
+                    if allMessages.isEmpty && viewModel.isActivelyStreaming == false
+                        && !(isLiveMode && liveVMHolder.vm?.isAISpeaking == true) {
                         modernEmptyStateView
                     } else {
                         // Unified message list — text and voice messages in arrival order
@@ -1261,6 +1273,14 @@ struct SessionChatView: View {
                             .padding(.vertical, 8)
                             .autocorrectionDisabled(false)  // ✅ Enable autocorrection for better performance
                             .textInputAutocapitalization(.sentences)  // ✅ Explicit capitalization
+                            .toolbar {
+                                ToolbarItemGroup(placement: .keyboard) {
+                                    Spacer()
+                                    Button(NSLocalizedString("common.done", comment: "")) {
+                                        isMessageInputFocused = false
+                                    }
+                                }
+                            }
 
                         // Deep Thinking Gesture Handler (hold & slide for deep mode)
                         DeepThinkingGestureHandler(
@@ -1590,6 +1610,38 @@ struct SessionChatView: View {
         }
     }
 
+    // MARK: - Live Mode Activation
+
+    /// Shared helper: creates VoiceChatViewModel, wires callbacks, connects, and enters Live UI.
+    /// Call this whenever Live Mode should start — works for both scenario and plain live paths.
+    private func activateLiveMode(sessionId: String) {
+        ttsQueueService.stopAllTTS()
+        let vm = VoiceChatViewModel(
+            sessionId: sessionId,
+            subject: viewModel.selectedSubject,
+            voiceType: voiceService.voiceSettings.voiceType,
+            scenarioPrompt: viewModel.liveModeStarterPrompt
+        )
+        viewModel.liveModeStarterPrompt = nil
+        vm.onMessageAppended = { voiceMsg in
+            allMessages.append(.voice(voiceMsg, audioData: voiceMsg.audioData))
+        }
+        vm.onMessageTextUpdated = { msgId, newText in
+            if let idx = allMessages.firstIndex(where: { $0.id == "voice-\(msgId.uuidString)" }) {
+                if case .voice(var voiceMsg, let audioData) = allMessages[idx] {
+                    voiceMsg.text = newText
+                    allMessages[idx] = .voice(voiceMsg, audioData: audioData)
+                }
+            }
+        }
+        liveVMHolder.set(vm)
+        vm.connectToGeminiLive()
+        withAnimation(.easeInOut(duration: 0.3)) {
+            isLiveMode = true
+            if !allMessages.isEmpty { hasConversationStarted = true }
+        }
+    }
+
     // MARK: - Archive Live Session
 
     /// Handle scenario selection from LiveModeScenarioPicker.
@@ -1598,50 +1650,18 @@ struct SessionChatView: View {
         let profile = ProfileService.shared.currentProfile
         let grade    = profile?.gradeLevel   ?? "Student"
         let name     = profile?.displayName  ?? profile?.firstName ?? NSLocalizedString("home.defaultStudentName", comment: "")
-        let language = Locale.preferredLanguages.first.flatMap { lang -> String? in
-            if lang.hasPrefix("zh") { return lang.contains("Hant") ? "zh-Hant" : "zh-Hans" }
-            return nil
-        } ?? "en"
+        let language = UserDefaults.standard.string(forKey: "appLanguage") ?? "en"
 
-        let prompt = scenario.buildPrompt(grade: grade, name: name, language: language)
-        viewModel.liveModeStarterPrompt = prompt
+        viewModel.liveModeStarterPrompt = scenario.buildPrompt(grade: grade, name: name, language: language)
 
         Task { @MainActor in
-            @MainActor func doEnterLive(_ sessionId: String) {
-                ttsQueueService.stopAllTTS()
-                let vm = VoiceChatViewModel(
-                    sessionId: sessionId,
-                    subject: viewModel.selectedSubject,
-                    voiceType: voiceService.voiceSettings.voiceType,
-                    scenarioPrompt: viewModel.liveModeStarterPrompt
-                )
-                viewModel.liveModeStarterPrompt = nil
-                vm.onMessageAppended = { voiceMsg in
-                    allMessages.append(.voice(voiceMsg, audioData: voiceMsg.audioData))
-                }
-                vm.onMessageTextUpdated = { msgId, newText in
-                    if let idx = allMessages.firstIndex(where: { $0.id == "voice-\(msgId.uuidString)" }) {
-                        if case .voice(var voiceMsg, let audioData) = allMessages[idx] {
-                            voiceMsg.text = newText
-                            allMessages[idx] = .voice(voiceMsg, audioData: audioData)
-                        }
-                    }
-                }
-                liveVMHolder.set(vm)
-                vm.connectToGeminiLive()
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    isLiveMode = true
-                    if !allMessages.isEmpty { hasConversationStarted = true }
-                }
-            }
-
             if let sessionId = networkService.currentSessionId {
-                doEnterLive(sessionId)
+                activateLiveMode(sessionId: sessionId)
             } else {
                 viewModel.startNewSession()
                 for await sessionId in networkService.$currentSessionId.values
                     .compactMap({ $0 }).prefix(1) {
-                    doEnterLive(sessionId)
+                    activateLiveMode(sessionId: sessionId)
                 }
             }
         }

@@ -50,7 +50,7 @@ struct LiveModeScenarioPicker: View {
                     .padding(.bottom, DesignTokens.Spacing.xl)
                 }
             }
-            .background(themeManager.background)
+            .background(themeManager.backgroundColor)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {

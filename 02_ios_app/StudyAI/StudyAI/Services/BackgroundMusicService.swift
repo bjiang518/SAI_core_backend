@@ -181,6 +181,9 @@ class BackgroundMusicService: NSObject, ObservableObject {
         // Stop current playback
         stop()
 
+        // Re-activate audio session in case it was interrupted or reconfigured
+        configureAudioSession()
+
         currentTrack = track
         currentPlaylist = nil
         currentTrackIndex = 0
@@ -196,6 +199,9 @@ class BackgroundMusicService: NSObject, ObservableObject {
         }
 
         stop()
+
+        // Re-activate audio session in case it was interrupted or reconfigured
+        configureAudioSession()
 
         currentPlaylist = playlist
         currentTrackIndex = startIndex

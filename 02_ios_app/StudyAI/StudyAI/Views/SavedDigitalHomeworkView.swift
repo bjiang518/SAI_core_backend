@@ -16,7 +16,7 @@ struct SavedDigitalHomeworkView: View {
     @State private var homeworkData: DigitalHomeworkData?
     @State private var viewMode: ViewMode = .graded  // Default to graded mode
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var appState: AppState
+    @ObservedObject private var appState = AppState.shared
 
     // MARK: - View Mode Enum
 
@@ -82,11 +82,11 @@ struct SavedDigitalHomeworkView: View {
                     }
                 }
             }
-            .navigationTitle("数字作业")
+            .navigationTitle(NSLocalizedString("savedDigitalHomework.title", value: "数字作业", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("完成") {
+                    Button(NSLocalizedString("common.done", value: "完成", comment: "")) {
                         dismiss()
                     }
                 }
@@ -273,6 +273,11 @@ struct SavedQuestionCard: View {
     let viewMode: SavedDigitalHomeworkView.ViewMode
     let onAskAI: (ProgressiveSubquestion?) -> Void
 
+    // In parsed mode we pass nil grade to render functions → neutral styling
+    private var activeGrade: ProgressiveGradeResult? {
+        viewMode == .graded ? questionWithGrade.grade : nil
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Question header
@@ -302,9 +307,7 @@ struct SavedQuestionCard: View {
             // Question content
             if questionWithGrade.question.isParentQuestion {
                 // Parent question with subquestions
-                Text(questionWithGrade.question.parentContent ?? "")
-                    .font(.subheadline)
-                    .foregroundColor(.primary)
+                FullLaTeXText(questionWithGrade.question.parentContent ?? "", fontSize: 14)
 
                 if let subquestions = questionWithGrade.question.subquestions {
                     ForEach(subquestions) { subquestion in
@@ -312,33 +315,25 @@ struct SavedQuestionCard: View {
                             subquestion: subquestion,
                             grade: questionWithGrade.subquestionGrades[subquestion.id],
                             viewMode: viewMode,
-                            onAskAI: {
-                                onAskAI(subquestion)
-                            }
+                            onAskAI: { onAskAI(subquestion) }
                         )
                     }
                 }
             } else {
-                // Regular question
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(questionWithGrade.question.questionText ?? "")
-                        .font(.subheadline)
-                        .foregroundColor(.primary)
-
-                    // Student answer (only in graded mode)
-                    if viewMode == .graded, let answer = questionWithGrade.question.studentAnswer, !answer.isEmpty {
-                        Text("答案：")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        MarkdownLaTeXText(answer, fontSize: 12)
-                    }
-                }
+                // Regular question — type-specific rendering (same rules as DigitalHomeworkView)
+                renderQuestionByType()
             }
 
-            // Correct Answer (only in graded mode, if available)
-            if viewMode == .graded, let grade = questionWithGrade.grade, let correctAnswer = grade.correctAnswer, !correctAnswer.isEmpty {
+            // Correct Answer — only for wrong answers, and not MC/TF (they indicate inline)
+            if viewMode == .graded,
+               let grade = questionWithGrade.grade,
+               let correctAnswer = grade.correctAnswer,
+               !correctAnswer.isEmpty,
+               !grade.isCorrect,
+               questionWithGrade.question.questionType != "multiple_choice",
+               questionWithGrade.question.questionType != "true_false" {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("正确答案：")
+                    Text(NSLocalizedString("homeworkResults.correctAnswer", comment: "Correct Answer:"))
                         .font(.caption)
                         .fontWeight(.semibold)
                         .foregroundColor(.green)
@@ -351,7 +346,7 @@ struct SavedQuestionCard: View {
                 .cornerRadius(8)
             }
 
-            // Feedback (only in graded mode, if available)
+            // Feedback (only in graded mode)
             if viewMode == .graded, let grade = questionWithGrade.grade {
                 FullLaTeXText(grade.feedback, fontSize: 13)
                     .foregroundColor(.secondary)
@@ -376,6 +371,272 @@ struct SavedQuestionCard: View {
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
     }
+
+    // MARK: - Type-Specific Rendering
+
+    @ViewBuilder
+    private func renderQuestionByType() -> some View {
+        let questionType = questionWithGrade.question.questionType ?? "unknown"
+        let questionText = questionWithGrade.question.questionText ?? ""
+        // Hide student answer in parsed mode
+        let studentAnswer = viewMode == .graded ? (questionWithGrade.question.studentAnswer ?? "") : ""
+
+        VStack(alignment: .leading, spacing: 8) {
+            switch questionType {
+            case "multiple_choice":
+                renderMultipleChoice(questionText: questionText, studentAnswer: studentAnswer, grade: activeGrade)
+            case "fill_blank":
+                renderFillInBlank(questionText: questionText, studentAnswer: studentAnswer, grade: activeGrade)
+            case "calculation":
+                renderCalculation(questionText: questionText, studentAnswer: studentAnswer, grade: activeGrade)
+            case "true_false":
+                renderTrueFalse(questionText: questionText, studentAnswer: studentAnswer, grade: activeGrade)
+            default:
+                renderGenericQuestion(questionText: questionText, studentAnswer: studentAnswer, grade: activeGrade)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func renderMultipleChoice(questionText: String, studentAnswer: String, grade: ProgressiveGradeResult?) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            let components = parseMultipleChoiceQuestion(questionText)
+            FullLaTeXText(components.stem, fontSize: 14)
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(components.options, id: \.letter) { option in
+                    let isChosen = isStudentChoice(option.letter, answer: studentAnswer)
+                    let isCorrectOpt = isCorrectOption(option.letter, correctAnswer: grade?.correctAnswer)
+                    HStack(spacing: 8) {
+                        if let g = grade {
+                            if isChosen {
+                                Image(systemName: g.isCorrect ? "checkmark" : "xmark")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(g.isCorrect ? .green : .red)
+                            } else if isCorrectOpt && !g.isCorrect {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(.green)
+                            } else {
+                                Image(systemName: "circle")
+                                    .font(.caption)
+                                    .foregroundColor(.gray.opacity(0.4))
+                            }
+                        } else {
+                            Image(systemName: isChosen ? "largecircle.fill.circle" : "circle")
+                                .font(.caption)
+                                .foregroundColor(isChosen ? .blue : .gray.opacity(0.4))
+                        }
+                        FullLaTeXText("\(option.letter)) \(option.text)", fontSize: 12)
+                            .foregroundColor((isChosen || isCorrectOpt) ? .primary : .secondary)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(mcOptionBackground(isChosen: isChosen, isCorrectOpt: isCorrectOpt, grade: grade))
+                    .cornerRadius(6)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func renderFillInBlank(questionText: String, studentAnswer: String, grade: ProgressiveGradeResult?) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            FullLaTeXText(questionText, fontSize: 14)
+            if !studentAnswer.isEmpty {
+                let answers = studentAnswer.components(separatedBy: " | ")
+                if answers.count > 1 {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(answers.indices, id: \.self) { index in
+                            HStack(spacing: 4) {
+                                Text(String(format: NSLocalizedString("proMode.blankLabel", comment: ""), index + 1))
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                FullLaTeXText(answers[index], fontSize: 12)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 2)
+                                    .background(Color(.secondarySystemGroupedBackground))
+                                    .cornerRadius(4)
+                            }
+                        }
+                        if let g = grade {
+                            Image(systemName: g.isCorrect ? "checkmark" : "xmark")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundColor(g.isCorrect ? .green : .red)
+                        }
+                    }
+                } else {
+                    HStack(spacing: 4) {
+                        FullLaTeXText(studentAnswer, fontSize: 12)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(answerBoxBackground(grade: grade))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(answerBoxBorderColor(grade: grade), lineWidth: grade != nil ? 1.5 : 0)
+                            )
+                            .cornerRadius(6)
+                        if let g = grade {
+                            Image(systemName: g.isCorrect ? "checkmark" : "xmark")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundColor(g.isCorrect ? .green : .red)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func renderCalculation(questionText: String, studentAnswer: String, grade: ProgressiveGradeResult?) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            FullLaTeXText(questionText, fontSize: 14)
+            if !studentAnswer.isEmpty {
+                HStack(alignment: .center, spacing: 4) {
+                    FullLaTeXText(studentAnswer, fontSize: 12)
+                        .padding(8)
+                        .background(answerBoxBackground(grade: grade))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .stroke(answerBoxBorderColor(grade: grade), lineWidth: grade != nil ? 1.5 : 0)
+                        )
+                        .cornerRadius(6)
+                    if let g = grade {
+                        Image(systemName: g.isCorrect ? "checkmark" : "xmark")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(g.isCorrect ? .green : .red)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func renderTrueFalse(questionText: String, studentAnswer: String, grade: ProgressiveGradeResult?) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            FullLaTeXText(questionText, fontSize: 14)
+            HStack(spacing: 16) {
+                tfButton(label: NSLocalizedString("proMode.trueFalse.true", comment: ""),
+                         isChosen: isTrue(studentAnswer),
+                         isCorrectAnswer: isTrue(grade?.correctAnswer ?? ""),
+                         grade: grade)
+                tfButton(label: NSLocalizedString("proMode.trueFalse.false", comment: ""),
+                         isChosen: isFalse(studentAnswer),
+                         isCorrectAnswer: isFalse(grade?.correctAnswer ?? ""),
+                         grade: grade)
+            }
+            .padding(.leading, 12)
+        }
+    }
+
+    @ViewBuilder
+    private func tfButton(label: String, isChosen: Bool, isCorrectAnswer: Bool, grade: ProgressiveGradeResult?) -> some View {
+        let iconName: String = {
+            guard let g = grade else { return isChosen ? "checkmark.circle.fill" : "circle" }
+            if isChosen { return g.isCorrect ? "checkmark" : "xmark" }
+            if isCorrectAnswer && !g.isCorrect { return "checkmark" }
+            return "circle"
+        }()
+        let iconColor: Color = {
+            guard let g = grade else { return isChosen ? .blue : .gray }
+            if isChosen { return g.isCorrect ? .green : .red }
+            if isCorrectAnswer && !g.isCorrect { return .green }
+            return .gray.opacity(0.4)
+        }()
+        HStack(spacing: 6) {
+            Image(systemName: iconName)
+                .font(.system(size: grade != nil ? 15 : 14, weight: grade != nil ? .semibold : .regular))
+                .foregroundColor(iconColor)
+            Text(label)
+                .font(.caption)
+                .foregroundColor(isChosen || (grade != nil && isCorrectAnswer) ? .primary : .secondary)
+        }
+    }
+
+    @ViewBuilder
+    private func renderGenericQuestion(questionText: String, studentAnswer: String, grade: ProgressiveGradeResult?) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            FullLaTeXText(questionText, fontSize: 14)
+            if !studentAnswer.isEmpty {
+                HStack(alignment: .center, spacing: 4) {
+                    FullLaTeXText(studentAnswer, fontSize: 12)
+                        .padding(6)
+                        .background(answerBoxBackground(grade: grade))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 4)
+                                .stroke(answerBoxBorderColor(grade: grade), lineWidth: grade != nil ? 1.5 : 0)
+                        )
+                        .cornerRadius(4)
+                    if let g = grade {
+                        Image(systemName: g.isCorrect ? "checkmark" : "xmark")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(g.isCorrect ? .green : .red)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Helper Functions
+
+    private func parseMultipleChoiceQuestion(_ questionText: String) -> (stem: String, options: [(letter: String, text: String)]) {
+        var stem = questionText
+        var options: [(letter: String, text: String)] = []
+        let pattern = "([A-D])[).]\\s*([^\\n]+)"
+        if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
+            let nsString = questionText as NSString
+            let matches = regex.matches(in: questionText, options: [], range: NSRange(location: 0, length: nsString.length))
+            if !matches.isEmpty {
+                if let firstMatch = matches.first {
+                    stem = nsString.substring(to: firstMatch.range.location).trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+                for match in matches where match.numberOfRanges >= 3 {
+                    let letter = nsString.substring(with: match.range(at: 1))
+                    let text = nsString.substring(with: match.range(at: 2)).trimmingCharacters(in: .whitespacesAndNewlines)
+                    options.append((letter: letter, text: text))
+                }
+            }
+        }
+        if options.isEmpty { stem = questionText }
+        return (stem: stem, options: options)
+    }
+
+    private func isStudentChoice(_ letter: String, answer: String) -> Bool {
+        answer.trimmingCharacters(in: .whitespacesAndNewlines).uppercased().contains(letter.uppercased())
+    }
+
+    private func isCorrectOption(_ letter: String, correctAnswer: String?) -> Bool {
+        guard let correct = correctAnswer, !correct.isEmpty else { return false }
+        return correct.uppercased().hasPrefix(letter.uppercased())
+    }
+
+    private func isTrue(_ answer: String) -> Bool {
+        let n = answer.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return n == "true" || n == "t" || n == "yes" || n == "y"
+    }
+
+    private func isFalse(_ answer: String) -> Bool {
+        let n = answer.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return n == "false" || n == "f" || n == "no" || n == "n"
+    }
+
+    private func answerBoxBackground(grade: ProgressiveGradeResult?) -> Color {
+        guard let g = grade else { return Color(.secondarySystemGroupedBackground) }
+        return g.isCorrect ? Color.green.opacity(0.1) : Color.red.opacity(0.08)
+    }
+
+    private func answerBoxBorderColor(grade: ProgressiveGradeResult?) -> Color {
+        guard let g = grade else { return Color.clear }
+        return g.isCorrect ? Color.green.opacity(0.6) : Color.red.opacity(0.5)
+    }
+
+    private func mcOptionBackground(isChosen: Bool, isCorrectOpt: Bool, grade: ProgressiveGradeResult?) -> Color {
+        if let g = grade {
+            if isChosen { return g.isCorrect ? Color.green.opacity(0.1) : Color.red.opacity(0.1) }
+            if isCorrectOpt && !g.isCorrect { return Color.green.opacity(0.07) }
+            return Color.clear
+        }
+        return isChosen ? Color.blue.opacity(0.08) : Color.clear
+    }
 }
 
 // MARK: - Saved Subquestion Row Component
@@ -388,26 +649,19 @@ struct SavedSubquestionRow: View {
 
     @State private var showFeedback = false
 
+    private var activeGrade: ProgressiveGradeResult? {
+        viewMode == .graded ? grade : nil
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Header row with ID, question, and score
+            // Header row: subquestion ID + type-specific content + score
             HStack(alignment: .top, spacing: 8) {
                 Text("(\(subquestion.id))")
                     .font(.caption)
                     .foregroundColor(.secondary)
 
-                VStack(alignment: .leading, spacing: 4) {
-                    MarkdownLaTeXText(subquestion.questionText, fontSize: 12)
-                        .foregroundColor(.primary)
-
-                    // Student answer (only in graded mode)
-                    if viewMode == .graded, !subquestion.studentAnswer.isEmpty {
-                        Text("答案：")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                        MarkdownLaTeXText(subquestion.studentAnswer, fontSize: 11)
-                    }
-                }
+                renderSubquestionByType()
 
                 Spacer()
 
@@ -420,10 +674,16 @@ struct SavedSubquestionRow: View {
                 }
             }
 
-            // Correct Answer (only in graded mode, if available)
-            if viewMode == .graded, let grade = grade, let correctAnswer = grade.correctAnswer, !correctAnswer.isEmpty {
+            // Correct Answer — only for wrong answers, and not MC/TF
+            if viewMode == .graded,
+               let grade = grade,
+               let correctAnswer = grade.correctAnswer,
+               !correctAnswer.isEmpty,
+               !grade.isCorrect,
+               subquestion.questionType != "multiple_choice",
+               subquestion.questionType != "true_false" {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("正确答案：")
+                    Text(NSLocalizedString("homeworkResults.correctAnswer", comment: "Correct Answer:"))
                         .font(.caption2)
                         .fontWeight(.semibold)
                         .foregroundColor(.green)
@@ -441,16 +701,13 @@ struct SavedSubquestionRow: View {
             if viewMode == .graded, let grade = grade, !grade.feedback.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     Button {
-                        withAnimation(.spring()) {
-                            showFeedback.toggle()
-                        }
+                        withAnimation(.spring()) { showFeedback.toggle() }
                     } label: {
                         HStack {
-                            Text("Feedback")
+                            Text(NSLocalizedString("proMode.feedbackLabel", comment: "Feedback"))
                                 .font(.caption2)
                                 .fontWeight(.medium)
                                 .foregroundColor(.blue)
-
                             Image(systemName: showFeedback ? "chevron.up.circle.fill" : "chevron.down.circle.fill")
                                 .font(.caption2)
                                 .foregroundColor(.blue)
@@ -459,7 +716,6 @@ struct SavedSubquestionRow: View {
 
                     if showFeedback {
                         VStack(alignment: .leading, spacing: 8) {
-                            // Feedback text
                             FullLaTeXText(grade.feedback, fontSize: 12)
                                 .foregroundColor(.secondary)
                                 .padding(8)
@@ -467,7 +723,6 @@ struct SavedSubquestionRow: View {
                                 .cornerRadius(6)
                                 .transition(.opacity.combined(with: .move(edge: .top)))
 
-                            // Ask AI button
                             Button(action: onAskAI) {
                                 Label("问AI", systemImage: "questionmark.bubble")
                                     .font(.caption)
@@ -480,5 +735,269 @@ struct SavedSubquestionRow: View {
             }
         }
         .padding(.leading, 16)
+    }
+
+    // MARK: - Type-Specific Rendering
+
+    @ViewBuilder
+    private func renderSubquestionByType() -> some View {
+        let questionType = subquestion.questionType ?? "unknown"
+        let questionText = subquestion.questionText
+        // Hide student answer in parsed mode
+        let studentAnswer = viewMode == .graded ? subquestion.studentAnswer : ""
+
+        VStack(alignment: .leading, spacing: 4) {
+            switch questionType {
+            case "multiple_choice":
+                renderSubMC(questionText: questionText, studentAnswer: studentAnswer, grade: activeGrade)
+            case "fill_blank":
+                renderSubFillBlank(questionText: questionText, studentAnswer: studentAnswer, grade: activeGrade)
+            case "calculation":
+                renderSubCalculation(questionText: questionText, studentAnswer: studentAnswer, grade: activeGrade)
+            case "true_false":
+                renderSubTF(questionText: questionText, studentAnswer: studentAnswer, grade: activeGrade)
+            default:
+                renderSubGeneric(questionText: questionText, studentAnswer: studentAnswer, grade: activeGrade)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func renderSubMC(questionText: String, studentAnswer: String, grade: ProgressiveGradeResult?) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            let components = parseMultipleChoiceQuestion(questionText)
+            FullLaTeXText(components.stem, fontSize: 12)
+            if !components.options.isEmpty {
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(components.options, id: \.letter) { option in
+                        let isChosen = isStudentChoice(option.letter, answer: studentAnswer)
+                        let isCorrectOpt = isCorrectOption(option.letter, correctAnswer: grade?.correctAnswer)
+                        HStack(spacing: 4) {
+                            if let g = grade {
+                                if isChosen {
+                                    Image(systemName: g.isCorrect ? "checkmark" : "xmark")
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .foregroundColor(g.isCorrect ? .green : .red)
+                                } else if isCorrectOpt && !g.isCorrect {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .foregroundColor(.green)
+                                } else {
+                                    Image(systemName: "circle")
+                                        .font(.caption2)
+                                        .foregroundColor(.gray.opacity(0.4))
+                                }
+                            } else {
+                                Image(systemName: isChosen ? "checkmark.circle.fill" : "circle")
+                                    .font(.caption2)
+                                    .foregroundColor(isChosen ? .blue : .gray)
+                            }
+                            Text("\(option.letter)) \(option.text)")
+                                .font(.caption2)
+                                .foregroundColor((isChosen || isCorrectOpt) ? .primary : .secondary)
+                        }
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(mcOptionBackground(isChosen: isChosen, isCorrectOpt: isCorrectOpt, grade: grade))
+                        .cornerRadius(4)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func renderSubFillBlank(questionText: String, studentAnswer: String, grade: ProgressiveGradeResult?) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            FullLaTeXText(questionText, fontSize: 12)
+            if !studentAnswer.isEmpty {
+                let answers = studentAnswer.components(separatedBy: " | ")
+                if answers.count > 1 {
+                    HStack(spacing: 4) {
+                        ForEach(answers.indices, id: \.self) { index in
+                            FullLaTeXText(answers[index], fontSize: 12)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 1)
+                                .background(Color(.secondarySystemGroupedBackground))
+                                .cornerRadius(3)
+                        }
+                        if let g = grade {
+                            Image(systemName: g.isCorrect ? "checkmark" : "xmark")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(g.isCorrect ? .green : .red)
+                        }
+                    }
+                } else {
+                    HStack(spacing: 4) {
+                        FullLaTeXText(studentAnswer, fontSize: 12)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 1)
+                            .background(answerBoxBackground(grade: grade))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 3)
+                                    .stroke(answerBoxBorderColor(grade: grade), lineWidth: grade != nil ? 1 : 0)
+                            )
+                            .cornerRadius(3)
+                        if let g = grade {
+                            Image(systemName: g.isCorrect ? "checkmark" : "xmark")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(g.isCorrect ? .green : .red)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func renderSubCalculation(questionText: String, studentAnswer: String, grade: ProgressiveGradeResult?) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            FullLaTeXText(questionText, fontSize: 12)
+            if !studentAnswer.isEmpty {
+                HStack(alignment: .center, spacing: 4) {
+                    FullLaTeXText(studentAnswer, fontSize: 11)
+                        .padding(4)
+                        .background(answerBoxBackground(grade: grade))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 4)
+                                .stroke(answerBoxBorderColor(grade: grade), lineWidth: grade != nil ? 1 : 0)
+                        )
+                        .cornerRadius(4)
+                    if let g = grade {
+                        Image(systemName: g.isCorrect ? "checkmark" : "xmark")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(g.isCorrect ? .green : .red)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func renderSubTF(questionText: String, studentAnswer: String, grade: ProgressiveGradeResult?) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            FullLaTeXText(questionText, fontSize: 12)
+            HStack(spacing: 12) {
+                subTFButton(label: NSLocalizedString("proMode.trueFalse.trueShort", comment: ""),
+                            isChosen: isTrue(studentAnswer),
+                            isCorrectAnswer: isTrue(grade?.correctAnswer ?? ""),
+                            grade: grade)
+                subTFButton(label: NSLocalizedString("proMode.trueFalse.falseShort", comment: ""),
+                            isChosen: isFalse(studentAnswer),
+                            isCorrectAnswer: isFalse(grade?.correctAnswer ?? ""),
+                            grade: grade)
+            }
+            .padding(.leading, 8)
+        }
+    }
+
+    @ViewBuilder
+    private func subTFButton(label: String, isChosen: Bool, isCorrectAnswer: Bool, grade: ProgressiveGradeResult?) -> some View {
+        let iconName: String = {
+            guard let g = grade else { return isChosen ? "checkmark.circle.fill" : "circle" }
+            if isChosen { return g.isCorrect ? "checkmark" : "xmark" }
+            if isCorrectAnswer && !g.isCorrect { return "checkmark" }
+            return "circle"
+        }()
+        let iconColor: Color = {
+            guard let g = grade else { return isChosen ? .blue : .gray }
+            if isChosen { return g.isCorrect ? .green : .red }
+            if isCorrectAnswer && !g.isCorrect { return .green }
+            return .gray.opacity(0.4)
+        }()
+        HStack(spacing: 4) {
+            Image(systemName: iconName)
+                .font(.system(size: grade != nil ? 13 : 12, weight: grade != nil ? .semibold : .regular))
+                .foregroundColor(iconColor)
+            Text(label)
+                .font(.caption2)
+                .foregroundColor(isChosen || (grade != nil && isCorrectAnswer) ? .primary : .secondary)
+        }
+    }
+
+    @ViewBuilder
+    private func renderSubGeneric(questionText: String, studentAnswer: String, grade: ProgressiveGradeResult?) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            FullLaTeXText(questionText, fontSize: 12)
+            if !studentAnswer.isEmpty {
+                HStack(alignment: .center, spacing: 4) {
+                    FullLaTeXText(studentAnswer, fontSize: 11)
+                        .padding(4)
+                        .background(answerBoxBackground(grade: grade))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 3)
+                                .stroke(answerBoxBorderColor(grade: grade), lineWidth: grade != nil ? 1 : 0)
+                        )
+                        .cornerRadius(3)
+                    if let g = grade {
+                        Image(systemName: g.isCorrect ? "checkmark" : "xmark")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(g.isCorrect ? .green : .red)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Helper Functions
+
+    private func parseMultipleChoiceQuestion(_ questionText: String) -> (stem: String, options: [(letter: String, text: String)]) {
+        var stem = questionText
+        var options: [(letter: String, text: String)] = []
+        let pattern = "([A-D])[).]\\s*([^\\n]+)"
+        if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
+            let nsString = questionText as NSString
+            let matches = regex.matches(in: questionText, options: [], range: NSRange(location: 0, length: nsString.length))
+            if !matches.isEmpty {
+                if let firstMatch = matches.first {
+                    stem = nsString.substring(to: firstMatch.range.location).trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+                for match in matches where match.numberOfRanges >= 3 {
+                    let letter = nsString.substring(with: match.range(at: 1))
+                    let text = nsString.substring(with: match.range(at: 2)).trimmingCharacters(in: .whitespacesAndNewlines)
+                    options.append((letter: letter, text: text))
+                }
+            }
+        }
+        if options.isEmpty { stem = questionText }
+        return (stem: stem, options: options)
+    }
+
+    private func isStudentChoice(_ letter: String, answer: String) -> Bool {
+        answer.trimmingCharacters(in: .whitespacesAndNewlines).uppercased().contains(letter.uppercased())
+    }
+
+    private func isCorrectOption(_ letter: String, correctAnswer: String?) -> Bool {
+        guard let correct = correctAnswer, !correct.isEmpty else { return false }
+        return correct.uppercased().hasPrefix(letter.uppercased())
+    }
+
+    private func isTrue(_ answer: String) -> Bool {
+        let n = answer.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return n == "true" || n == "t" || n == "yes" || n == "y"
+    }
+
+    private func isFalse(_ answer: String) -> Bool {
+        let n = answer.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return n == "false" || n == "f" || n == "no" || n == "n"
+    }
+
+    private func answerBoxBackground(grade: ProgressiveGradeResult?) -> Color {
+        guard let g = grade else { return Color(.secondarySystemGroupedBackground) }
+        return g.isCorrect ? Color.green.opacity(0.1) : Color.red.opacity(0.08)
+    }
+
+    private func answerBoxBorderColor(grade: ProgressiveGradeResult?) -> Color {
+        guard let g = grade else { return Color.clear }
+        return g.isCorrect ? Color.green.opacity(0.6) : Color.red.opacity(0.5)
+    }
+
+    private func mcOptionBackground(isChosen: Bool, isCorrectOpt: Bool, grade: ProgressiveGradeResult?) -> Color {
+        if let g = grade {
+            if isChosen { return g.isCorrect ? Color.green.opacity(0.1) : Color.red.opacity(0.1) }
+            if isCorrectOpt && !g.isCorrect { return Color.green.opacity(0.07) }
+            return Color.clear
+        }
+        return isChosen ? Color.blue.opacity(0.08) : Color.clear
     }
 }

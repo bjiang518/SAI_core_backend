@@ -1159,7 +1159,7 @@ struct DigitalHomeworkView: View {
         GeometryReader { geometry in
             ZStack(alignment: .bottom) {
             VStack(spacing: 0) {
-                // 上方 70%: 图片 + 标注层
+                // 上方 50%: 图片 + 标注层 (fixed height)
                 ZStack {
                     // ✅ CRITICAL FIX: AnnotatableImageView now handles BOTH image AND interactive overlay
                     // with unified coordinate system (scale/offset applied to both)
@@ -1175,42 +1175,63 @@ struct DigitalHomeworkView: View {
                     .matchedGeometryEffect(id: "homeworkImage", in: animationNamespace)
                     .background(Color.black)
                 }
-                .frame(height: geometry.size.height * 0.70)
+                .frame(height: geometry.size.height * 0.50)
 
                 // 标注控制条 (紧贴图像下方)
                 annotationControlBar
                     .background(Color(.systemBackground))
 
-                // 下方: 题目预览区域
-                ScrollView {
-                    if let selectedId = viewModel.selectedAnnotationId,
-                       let annotation = viewModel.annotations.first(where: { $0.id == selectedId }),
-                       let questionNumber = annotation.questionNumber {
+                // 下方: 题目选择器 或 题目预览区域
+                if showAnnotationPicker,
+                   let selectedId = viewModel.selectedAnnotationId,
+                   let annotation = viewModel.annotations.first(where: { $0.id == selectedId }) {
+                    // Inline question picker — fills all remaining space
+                    annotationDropdown(annotationId: annotation.id, currentQuestionNumber: annotation.questionNumber, fillAvailable: true)
+                        .background(Color(.systemBackground))
+                        .transition(.opacity)
+                } else {
+                    ScrollView {
+                        if let selectedId = viewModel.selectedAnnotationId,
+                           let annotation = viewModel.annotations.first(where: { $0.id == selectedId }),
+                           let questionNumber = annotation.questionNumber {
 
-                        // Match top-level question OR find parent of a matching subquestion
-                        let questionWithGrade: ProgressiveQuestionWithGrade? = viewModel.questions.first(where: { $0.question.questionNumber == questionNumber })
-                            ?? viewModel.questions.first(where: { $0.question.subquestions?.contains { $0.id == questionNumber } == true })
-                        // ID used for image lookup: subquestion id takes priority over parent id
-                        let imageId: String = {
-                            if let sub = viewModel.questions
-                                .flatMap({ $0.question.subquestions ?? [] })
-                                .first(where: { $0.id == questionNumber }) {
-                                return sub.id
+                            // Match top-level question OR find parent of a matching subquestion
+                            let questionWithGrade: ProgressiveQuestionWithGrade? = viewModel.questions.first(where: { $0.question.questionNumber == questionNumber })
+                                ?? viewModel.questions.first(where: { $0.question.subquestions?.contains { $0.id == questionNumber } == true })
+                            // ID used for image lookup: subquestion id takes priority over parent id
+                            let imageId: String = {
+                                if let sub = viewModel.questions
+                                    .flatMap({ $0.question.subquestions ?? [] })
+                                    .first(where: { $0.id == questionNumber }) {
+                                    return sub.id
+                                }
+                                return questionWithGrade?.question.id ?? questionNumber
+                            }()
+
+                            if let questionWithGrade {
+                                VStack(spacing: 12) {
+                                    Text(NSLocalizedString("proMode.questionPreview", comment: "Question Preview"))
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                                    compactQuestionPreview(questionWithGrade: questionWithGrade, imageId: imageId, subquestionId: questionNumber)
+                                }
+                                .padding()
+                                .transition(.move(edge: .bottom).combined(with: .opacity))
+                            } else {
+                                VStack(spacing: 16) {
+                                    Image(systemName: "hand.tap.fill")
+                                        .font(.system(size: 40))
+                                        .foregroundColor(.blue.opacity(0.5))
+
+                                    Text(NSLocalizedString("proMode.tapToAnnotate", comment: "Tap to create annotation"))
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                }
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .padding()
                             }
-                            return questionWithGrade?.question.id ?? questionNumber
-                        }()
-
-                        if let questionWithGrade {
-                            VStack(spacing: 12) {
-                                Text(NSLocalizedString("proMode.questionPreview", comment: "Question Preview"))
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                                compactQuestionPreview(questionWithGrade: questionWithGrade, imageId: imageId, subquestionId: questionNumber)
-                            }
-                            .padding()
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
                         } else {
                             VStack(spacing: 16) {
                                 Image(systemName: "hand.tap.fill")
@@ -1224,38 +1245,11 @@ struct DigitalHomeworkView: View {
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .padding()
                         }
-                    } else {
-                        VStack(spacing: 16) {
-                            Image(systemName: "hand.tap.fill")
-                                .font(.system(size: 40))
-                                .foregroundColor(.blue.opacity(0.5))
-
-                            Text(NSLocalizedString("proMode.tapToAnnotate", comment: "Tap to create annotation"))
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .padding()
                     }
+                    .frame(maxHeight: .infinity)
+                    .background(Color(.systemGroupedBackground))
                 }
-                .frame(maxHeight: .infinity)
-                .background(Color(.systemGroupedBackground))
             }
-
-                // Floating dropdown for question ID picker
-                if showAnnotationPicker,
-                   let selectedId = viewModel.selectedAnnotationId,
-                   let annotation = viewModel.annotations.first(where: { $0.id == selectedId }) {
-                    Color.black.opacity(0.001)
-                        .ignoresSafeArea()
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            withAnimation(.easeOut(duration: 0.15)) { showAnnotationPicker = false }
-                        }
-                    annotationDropdown(annotationId: annotation.id, currentQuestionNumber: annotation.questionNumber)
-                        .padding(.bottom, 60)
-                        .transition(.opacity.combined(with: .move(edge: .bottom)))
-                }
 
                 // Unassigned annotation warning banner
                 if let warning = annotationWarning {
@@ -1368,7 +1362,7 @@ struct DigitalHomeworkView: View {
         return (trimmed.isEmpty ? prefix : trimmed) + "..."
     }
 
-    private func annotationDropdown(annotationId: UUID, currentQuestionNumber: String?) -> some View {
+    private func annotationDropdown(annotationId: UUID, currentQuestionNumber: String?, fillAvailable: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Text(NSLocalizedString("proMode.selectQuestionNumber", comment: "Select Question Number"))
@@ -1398,6 +1392,7 @@ struct DigitalHomeworkView: View {
                         } label: {
                             HStack(alignment: .center, spacing: 8) {
                                 FullLaTeXText(truncatedAnnotationLabel(target.displayLabel), fontSize: 14)
+                                    .allowsHitTesting(false)
                                     .padding(.leading, target.indentLevel == 1 ? 16 : 0)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                 if currentQuestionNumber == target.annotationQuestionNumber {
@@ -1407,7 +1402,7 @@ struct DigitalHomeworkView: View {
                                 }
                             }
                             .padding(.horizontal, 12)
-                            .padding(.vertical, 10)
+                            .padding(.vertical, 12)
                             .background(
                                 currentQuestionNumber == target.annotationQuestionNumber
                                     ? Color.blue.opacity(0.08) : Color.clear
@@ -1420,14 +1415,12 @@ struct DigitalHomeworkView: View {
                     }
                 }
             }
-            .frame(maxHeight: 220)
+            .frame(maxHeight: fillAvailable ? .infinity : 170)
         }
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 4)
-        )
-        .padding(.horizontal, 16)
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: fillAvailable ? 0 : 12))
+        .shadow(color: fillAvailable ? .clear : .black.opacity(0.25), radius: fillAvailable ? 0 : 12, x: 0, y: fillAvailable ? 0 : 4)
+        .padding(.horizontal, fillAvailable ? 0 : 16)
     }
 
     // MARK: - Annotation Unassigned Warning Banner
@@ -1478,10 +1471,7 @@ struct DigitalHomeworkView: View {
             }
 
             // Question text (parent content or regular question text)
-            Text(questionWithGrade.question.displayText)
-                .font(.subheadline)
-                .foregroundColor(.primary)
-                .fixedSize(horizontal: false, vertical: true)
+            FullLaTeXText(questionWithGrade.question.displayText, fontSize: 15)
 
             // Cropped image for parent/independent question (shown below question text)
             if subquestionId == nil || subquestionId == questionWithGrade.question.id,

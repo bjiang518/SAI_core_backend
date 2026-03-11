@@ -11,11 +11,29 @@ import SwiftUI
 struct PracticeLibraryView: View {
     @StateObject private var sessionManager = PracticeSessionManager.shared
     @StateObject private var themeManager = ThemeManager.shared
+    @Environment(\.colorScheme) var colorScheme
 
     // Filter & sort
     @State private var selectedSubject: String = "All"
     @State private var selectedStatus: StatusFilter = .all
     @State private var sortOrder: SortOrder = .newest
+
+    // ── Shortcut pre-configuration ──────────────────────────────────────
+    /// When set, the New Practice sheet opens immediately with this config.
+    struct ShortcutConfig {
+        let tab: NewPracticeSheet.Tab
+        let subject: String
+        let conversationId: String?
+    }
+
+    private let shortcutConfig: ShortcutConfig?
+
+    init(initialSubjectFilter: String? = nil, shortcutConfig: ShortcutConfig? = nil) {
+        self.shortcutConfig = shortcutConfig
+        if let subj = initialSubjectFilter {
+            _selectedSubject = State(initialValue: subj)
+        }
+    }
 
     enum StatusFilter: CaseIterable {
         case all, ongoing, completed
@@ -95,15 +113,31 @@ struct PracticeLibraryView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            subjectSelector
-            statusFilterBar
-            sortBar
+            // Filter section — warm paper background (no grid)
+            VStack(spacing: 0) {
+                subjectSelector
+                statusFilterBar
+                sortBar
+            }
+            .background(
+                colorScheme == .dark ? Color(hex: "2C2A26") : Color(hex: "FAF6EE")
+            )
+
+            // Session list — grid paper background, extends to bottom safe area only
             sessionList
+                .background(gridPaperBackground.ignoresSafeArea(.all, edges: .bottom))
         }
-        .background(themeManager.backgroundColor.ignoresSafeArea())
         .navigationTitle(NSLocalizedString("practiceLibrary.title", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear { sessionManager.updatePublishedState() }
+        .onAppear {
+            sessionManager.updatePublishedState()
+            // Open NewPracticeSheet immediately if a shortcut config was provided
+            if shortcutConfig != nil {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    showingNewPractice = true
+                }
+            }
+        }
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: { showingNewPractice = true }) {
@@ -118,10 +152,22 @@ struct PracticeLibraryView: View {
             }
         }
         .sheet(isPresented: $showingNewPractice) {
-            NewPracticeSheet { session in
-                // Push to QuestionSheetView after sheet dismisses
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    selectedSession = session
+            if let config = shortcutConfig {
+                NewPracticeSheet(
+                    onSessionCreated: { session in
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            selectedSession = session
+                        }
+                    },
+                    initialTab: config.tab,
+                    initialSubject: config.subject,
+                    initialConversationId: config.conversationId
+                )
+            } else {
+                NewPracticeSheet { session in
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        selectedSession = session
+                    }
                 }
             }
         }
@@ -271,7 +317,7 @@ struct PracticeLibraryView: View {
                                 }
                             }
                             .listRowSeparator(.hidden)
-                            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                            .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16))
                             .listRowBackground(Color.clear)
                     }
                     // Bottom padding row
@@ -282,25 +328,43 @@ struct PracticeLibraryView: View {
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
-                .background(linedPaperBackground)
+                .background(Color.clear)
             }
         }
     }
 
-    // MARK: - Lined Paper Background
+    // MARK: - Grid Paper Background (matches SuggestedTodosSection style)
 
-    private var linedPaperBackground: some View {
+    private var gridPaperBackground: some View {
         ZStack {
-            themeManager.backgroundColor
-            Canvas { context, size in
-                let spacing: CGFloat = 28
+            // Warm paper base
+            colorScheme == .dark ? Color(hex: "27251F") : Color(hex: "FAF6EE")
+
+            Canvas { ctx, size in
+                let spacing: CGFloat = 24
+                let lineColor: Color = colorScheme == .dark
+                    ? Color(hex: "4A4640").opacity(0.55)
+                    : Color(hex: "B8C4C0").opacity(0.55)
+                let style = StrokeStyle(lineWidth: 0.5, lineCap: .round)
+
+                // Horizontal lines
                 var y: CGFloat = spacing
                 while y < size.height {
-                    var path = Path()
-                    path.move(to: CGPoint(x: 0, y: y))
-                    path.addLine(to: CGPoint(x: size.width, y: y))
-                    context.stroke(path, with: .color(.primary.opacity(0.055)), lineWidth: 0.5)
+                    var p = Path()
+                    p.move(to: CGPoint(x: 0, y: y))
+                    p.addLine(to: CGPoint(x: size.width, y: y))
+                    ctx.stroke(p, with: .color(lineColor), style: style)
                     y += spacing
+                }
+
+                // Vertical lines
+                var x: CGFloat = spacing
+                while x < size.width {
+                    var p = Path()
+                    p.move(to: CGPoint(x: x, y: 0))
+                    p.addLine(to: CGPoint(x: x, y: size.height))
+                    ctx.stroke(p, with: .color(lineColor), style: style)
+                    x += spacing
                 }
             }
         }

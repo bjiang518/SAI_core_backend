@@ -777,6 +777,19 @@
 "library.advancedSearch.sortOrder" = "排序方式";
 "library.advancedSearch.sortBy" = "排序依据";
 
+"library.gradeFilter.all" = "全部评级";
+"library.gradeFilter.correct" = "正确 ✅";
+"library.gradeFilter.incorrect" = "错误 ❌";
+"library.gradeFilter.empty" = "空白 📝";
+"library.gradeFilter.partialCredit" = "部分正确 ⚡";
+"library.gradeFilter.notGraded" = "未评级 📋";
+
+"library.sortOrder.dateNewest" = "日期（最新优先）";
+"library.sortOrder.dateOldest" = "日期（最旧优先）";
+"library.sortOrder.confidenceHigh" = "正确率（由高到低）";
+"library.sortOrder.confidenceLow" = "正确率（由低到高）";
+"library.sortOrder.subjectAZ" = "科目（A-Z）";
+
 // Contact Support
 "contactSupport.subtitle" = "我们随时为您提供帮助！";
 "contactSupport.emailTitle" = "电子邮件支援";
@@ -1379,6 +1392,7 @@
 "mistakeReview.hideDetails" = "收起详情";
 "mistakeReview.questionsLeftDone" = "还剩 %d 道题 · 已完成 %d%%";
 "mistakeReview.generatePractice" = "生成练习（%d 道错题）";
+"mistakeReview.doThemAgain" = "再做一遍（%d）";
 "mistakeReview.generationFailed" = "练习生成失败";
 "mistakeReview.generatingQuestions" = "正在生成题目...";
 "mistakeReview.whatWentWrong" = "错在哪里";
@@ -1774,6 +1788,8 @@
 "proMode.selectAll" = "全选";
 "proMode.deselectAll" = "取消全选";
 "proMode.viewOriginalImage" = "查看原图";
+"savedDigitalHomework.title" = "数字作业";
+"savedDigitalHomework.redo" = "重做";
 "proMode.resetAnnotations" = "重置标注";
 "proMode.batchArchive" = "一键归档";
 "proMode.batchArchiveCount" = "一键归档 (%d)";
@@ -1877,6 +1893,24 @@
 "pdf.options.maxSubImageSize" = "最大子图片尺寸";
 "pdf.options.reset" = "恢复默认";
 "pdf.options.footer" = "点击「应用」以使用新设置重新生成 PDF。";
+
+// PDF Content Strings
+"pdf.practice.title" = "练习题";
+"pdf.mistakes.title" = "错题复习";
+"pdf.homework.title" = "作业题目";
+"pdf.library.title" = "题库题目";
+"pdf.header.subject" = "科目：%@";
+"pdf.header.generatedOn.withType" = "生成于 %@ · %@";
+"pdf.header.generatedOn.withCount" = "生成于 %@ · %d 道题";
+"pdf.header.questionCount" = "%d 道题";
+"pdf.instruction.practice" = "请在每道题下方作答，计算题请写出解题步骤。";
+"pdf.instruction.mistakes" = "请复习以下题目，并在每道题下方填写答案。";
+"pdf.instruction.homework" = "以下是本次作业中的题目。";
+"pdf.instruction.library" = "请复习以下题目，并在每道题下方填写答案。";
+"pdf.question.label" = "第 %@ 题";
+"pdf.question.noText" = "[题目内容暂不可用]";
+"pdf.mistake.hint" = "💡 你当时的回答：\"%@\"";
+"pdf.mistake.noAnswer" = "未作答";
 
 // Library PDF Preview
 "library.pdf.generating" = "正在生成 PDF…";
@@ -2416,3 +2450,19 @@
 "todo.dailyQuestion.fallback.title" = "开始一段 AI 对话";
 "todo.dailyQuestion.fallback.subtitle" = "随时可以向 AI 提问";
 "chat.liveMode.oralPractice.starterPrompt" = "我们来练习口语吧！你可以向我提问、纠正我的发音，或者自由交流。想练什么？";
+
+// MARK: - Live Mode Scenario Cards
+"live.scenario.oralPractice.title" = "口语练习";
+"live.scenario.oralPractice.subtitle" = "自由对话，提升表达";
+"live.scenario.oralComposition.title" = "口头作文";
+"live.scenario.oralComposition.subtitle" = "说出思路，AI 引导构思";
+"live.scenario.debate.title" = "辩论对手";
+"live.scenario.debate.subtitle" = "AI 出题，你选立场";
+"live.scenario.interview.title" = "面试模拟";
+"live.scenario.interview.subtitle" = "模拟真实面试，AI 给反馈";
+"live.scenario.classroomQA.title" = "课堂问答";
+"live.scenario.classroomQA.subtitle" = "针对弱点，口头测验";
+"live.scenario.presentation.title" = "演讲练习";
+"live.scenario.presentation.subtitle" = "讲完整版，AI 三维度点评";
+"live.scenario.historicalFigure.title" = "历史人物";
+"live.scenario.historicalFigure.subtitle" = "穿越历史，与大师对话";

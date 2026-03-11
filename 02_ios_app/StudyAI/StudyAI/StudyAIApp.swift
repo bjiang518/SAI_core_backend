@@ -8,6 +8,7 @@
 import SwiftUI
 import GoogleSignIn
 import BackgroundTasks
+import UIKit
 
 @main
 struct StudyAIApp: App {
@@ -33,6 +34,9 @@ struct StudyAIApp: App {
                 .environment(\.locale, Locale(identifier: appLanguage))
                 .environmentObject(deepLinkHandler)
                 .preferredColorScheme(themeManager.currentTheme.colorScheme)
+                .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+                    NotificationService.shared.clearBadge()
+                }
                 .onOpenURL { url in
                     // 处理Google登录
                     GIDSignIn.sharedInstance.handle(url)

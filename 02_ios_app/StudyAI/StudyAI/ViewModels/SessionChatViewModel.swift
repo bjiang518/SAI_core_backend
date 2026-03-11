@@ -522,6 +522,9 @@ class SessionChatViewModel: ObservableObject {
             networkService.conversationHistory.removeAll()
             generatedDiagrams.removeAll()
             videoSearchResults.removeAll()
+
+            // Reset subject so next session doesn't inherit this session's homework subject
+            selectedSubject = "General"
         } else {
             errorMessage = NSLocalizedString("error.session.archive", comment: "")
         }
@@ -560,6 +563,9 @@ class SessionChatViewModel: ObservableObject {
                 networkService.currentSessionId = nil
                 networkService.conversationHistory.removeAll()
                 generatedDiagrams.removeAll()  // ✅ NEW: Clear diagrams after archiving
+
+                // Reset subject so next session doesn't inherit this session's homework subject
+                selectedSubject = "General"
             } else {
                 errorMessage = NSLocalizedString("error.session.archive", comment: "")
             }

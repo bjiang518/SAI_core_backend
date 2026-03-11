@@ -58,6 +58,7 @@ struct ParentAuthenticationView: View {
     @State private var errorMessage = ""
     @State private var attempts = 0
     @State private var isLocked = false
+    @State private var isVerified = false
     @State private var isAuthenticatingWithBiometrics = false
 
     var body: some View {
@@ -65,8 +66,8 @@ struct ParentAuthenticationView: View {
             VStack(spacing: 24) {
                 Spacer()
 
-                // Lock Icon
-                Image(systemName: isLocked ? "lock.fill" : "lock.open.fill")
+                // Lock Icon — locked before verification, unlocked after success
+                Image(systemName: isLocked ? "lock.fill" : (isVerified ? "lock.open.fill" : "lock.fill"))
                     .font(.system(size: 70))
                     .foregroundColor(isLocked ? .red : .purple)
                     .padding(.bottom, 8)
@@ -198,11 +199,14 @@ struct ParentAuthenticationView: View {
                 Text(errorMessage)
             }
         }
+        .presentationDetents([.medium])
+        .presentationDragIndicator(.visible)
     }
 
     private func verifyPassword() {
         if parentModeManager.verifyParentPassword(password) {
             // Success - call completion handler and dismiss
+            isVerified = true
             onSuccess()
             dismiss()
         } else {
@@ -241,6 +245,7 @@ struct ParentAuthenticationView: View {
                         generator.notificationOccurred(.success)
 
                         // Success - call completion handler and dismiss
+                        isVerified = true
                         onSuccess()
                         dismiss()
                     } else {

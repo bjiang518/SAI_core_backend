@@ -37,6 +37,8 @@ struct SuggestedTodo: Identifiable {
         case startConceptReview(recentSessionId: String, subject: String)
         /// Fallback: random 5-question MC/TF set using the user's subjects.
         case startRandomPractice(subjects: [String])
+        /// Open a specific completed practice session in redo mode (reset answers, restart from Q1).
+        case retryPracticeSession(sessionId: String, subject: String)
 
         // ── Category 2 · Main Feature ──────────────────────────────────────
         case openGrader
@@ -53,6 +55,8 @@ struct SuggestedTodo: Identifiable {
         case startOralPractice
         /// Placeholder — activated once the backend daily-question endpoint is live.
         case showDailyQuestion(question: String)
+        /// Launch Live Mode with a specific learning scenario.
+        case startLiveScenario(LiveModeScenario)
     }
 }
 
@@ -109,7 +113,13 @@ final class SuggestedTodoEngine: ObservableObject {
         // Category 2 — Main Feature
         HomeworkGraderProvider(),
         OpenChatProvider(),             // fallback — always eligible
-        OralPracticeProvider(),         // priority 80, below OpenChat
+        OralPracticeProvider(),         // live mode fallback — same priority tier as scenarios
+        LiveScenarioProvider(scenario: .oralComposition),
+        LiveScenarioProvider(scenario: .debate),
+        LiveScenarioProvider(scenario: .interview),
+        LiveScenarioProvider(scenario: .classroomQA),
+        LiveScenarioProvider(scenario: .presentation),
+        LiveScenarioProvider(scenario: .historicalFigure),
 
         // Category 3 — Extended Features
         FocusSessionProvider(),
@@ -141,8 +151,17 @@ final class SuggestedTodoEngine: ObservableObject {
             let picked: SuggestedTodo
             switch category {
             case .practice, .mainFeature:
-                // Deterministic: highest priority wins
-                picked = eligible.sorted { $0.priority > $1.priority }.first!.todo
+                // Deterministic: highest priority wins.
+                // When multiple items share the top priority, use day-seed to rotate among them
+                // so live mode scenarios cycle day-to-day instead of always showing the first one.
+                let maxPriority = eligible.max(by: { $0.priority < $1.priority })!.priority
+                let topTied = eligible.filter { $0.priority == maxPriority }
+                if topTied.count == 1 {
+                    picked = topTied[0].todo
+                } else {
+                    let categorySeed = abs(seed ^ (category.rawValue &* 7_919))
+                    picked = topTied[categorySeed % topTied.count].todo
+                }
             case .extended, .deepExtension:
                 // Day-seeded random: consistent within a day, cycles across days.
                 // XOR with a category-specific constant to avoid correlated picks.
@@ -165,9 +184,11 @@ final class SuggestedTodoEngine: ObservableObject {
     /// Call this from the view layer on appear — safe to call multiple times, the network
     /// request is skipped when today's question is already in UserDefaults.
     func fetchAndRefresh() {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
-        let dateKey = "daily_question_\(f.string(from: Date()))"
+        let lang    = UserDefaults.standard.string(forKey: "appLanguage") ?? "en"
+        let grade   = ProfileService.shared.currentProfile?.gradeLevel ?? "6"
+        let date    = NetworkService.shared.todayUTCDateString()
+        let slot    = NetworkService.shared.currentUTCSlot()
+        let dateKey = "daily_question_\(date)_s\(slot)_\(lang)_\(grade)"
 
         // Already cached today → just refresh without a network call
         if UserDefaults.standard.string(forKey: dateKey) != nil {
@@ -187,7 +208,7 @@ final class SuggestedTodoEngine: ObservableObject {
 
     func dismiss(id: String) {
         UserDefaults.standard.set(true, forKey: dismissalKey(id))
-        todos.removeAll { $0.id == id }
+        refresh()   // re-run engine so the dismissed slot is filled by the next eligible provider
     }
 
     func markProgressViewed() {
@@ -250,32 +271,25 @@ private struct PracticeRetryProvider: SuggestedTodoItemProvider {
 
         guard !sessions.isEmpty else { return nil }
 
-        // Group average score by subject, keep only those below 60%
-        var scoreSums: [String: (total: Double, count: Int)] = [:]
-        for s in sessions {
-            guard let score = s.scorePercentage else { continue }
-            let subj = s.subject.isEmpty ? "General" : s.subject
-            scoreSums[subj, default: (0, 0)].total += score
-            scoreSums[subj, default: (0, 0)].count += 1
-        }
-
-        let weakSubjects = scoreSums
-            .compactMap { (subj, v) -> (subject: String, avgScore: Double)? in
-                let avg = v.total / Double(v.count)
-                return avg < 60 ? (subj, avg) : nil
+        // Find the single session with the lowest score (worst-performing)
+        let worstSession = sessions
+            .compactMap { s -> (session: PracticeSession, score: Double)? in
+                guard let score = s.scorePercentage else { return nil }
+                return score < 60 ? (s, score) : nil
             }
-            .sorted { $0.avgScore < $1.avgScore }   // worst first
+            .sorted { $0.score < $1.score }  // lowest score first
+            .first
 
-        guard let worst = weakSubjects.first else { return nil }
+        guard let worst = worstSession else { return nil }
 
-        let scoreStr = "\(Int(worst.avgScore.rounded()))%"
+        let scoreStr = "\(Int(worst.score.rounded()))%"
         return SuggestedTodo(
             id:       todoId,
             icon:     "arrow.clockwise.circle",
-            title:    String(format: NSLocalizedString("todo.practiceRetry.title", value: "再练一次 %@", comment: ""), worst.subject),
+            title:    String(format: NSLocalizedString("todo.practiceRetry.title", value: "再练一次 %@", comment: ""), worst.session.subject),
             subtitle: String(format: NSLocalizedString("todo.practiceRetry.subtitle", value: "上次得分 %@，继续加油！", comment: ""), scoreStr),
             color:    Color(hex: "FF6B6B"),
-            action:   .startRandomPractice(subjects: [worst.subject])
+            action:   .retryPracticeSession(sessionId: worst.session.id, subject: worst.session.subject)
         )
     }
 }
@@ -555,7 +569,7 @@ private struct ProgressCheckProvider: SuggestedTodoItemProvider {
 private struct OralPracticeProvider: SuggestedTodoItemProvider {
     let todoId   = "oral_practice"
     let category = TodoCategory.mainFeature
-    let priority = 80   // below HomeworkGrader (100) and OpenChat (90)
+    let priority = 75   // same tier as live scenarios — rotates daily via tie-breaking seed
 
     func evaluate() -> SuggestedTodo? {
         SuggestedTodo(
@@ -579,9 +593,11 @@ private struct DailyQuestionProvider: SuggestedTodoItemProvider {
     let priority = 0
 
     func evaluate() -> SuggestedTodo? {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
-        let dateKey = "daily_question_\(f.string(from: Date()))"
+        let lang    = UserDefaults.standard.string(forKey: "appLanguage") ?? "en"
+        let grade   = ProfileService.shared.currentProfile?.gradeLevel ?? "6"
+        let date    = NetworkService.shared.todayUTCDateString()
+        let slot    = NetworkService.shared.currentUTCSlot()
+        let dateKey = "daily_question_\(date)_s\(slot)_\(lang)_\(grade)"
 
         if let q = UserDefaults.standard.string(forKey: dateKey) {
             return SuggestedTodo(
@@ -602,6 +618,35 @@ private struct DailyQuestionProvider: SuggestedTodoItemProvider {
             subtitle: NSLocalizedString("todo.dailyQuestion.fallback.subtitle", value: "随时可以向 AI 提问",    comment: ""),
             color:    Color(hex: "4AAFDF"),
             action:   .openChat
+        )
+    }
+}
+
+// ── 4c · Live Mode Scenario ───────────────────────────────────────────────
+// One scenario surfaces per day (day-seeded rotation across the 6 eligible providers).
+// Uses the scenario's own icon, color, title, and subtitle from LiveModeScenario.
+
+private struct LiveScenarioProvider: SuggestedTodoItemProvider {
+    let scenario: LiveModeScenario
+    var todoId: String { "live_scenario_\(scenario.rawValue)" }
+    let category = TodoCategory.mainFeature
+    let priority = 75
+
+    func evaluate() -> SuggestedTodo? {
+        // Hide scenarios that require a higher grade than the user's current level.
+        // If grade level is not set on the profile, no restriction is applied.
+        if let gl = ProfileService.shared.currentProfile?.gradeLevel,
+           let grade = Int(gl),
+           grade < scenario.minimumGrade {
+            return nil
+        }
+        return SuggestedTodo(
+            id:       todoId,
+            icon:     scenario.icon,
+            title:    scenario.title,
+            subtitle: scenario.subtitle,
+            color:    scenario.color,
+            action:   .startLiveScenario(scenario)
         )
     }
 }

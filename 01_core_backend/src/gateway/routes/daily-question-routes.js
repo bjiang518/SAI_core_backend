@@ -29,8 +29,12 @@ class DailyQuestionRoutes {
         const shortId = String(userId).substring(0, 8);
 
         try {
-            // Detect language from Accept-Language header (iOS URLSession sends this automatically)
-            const language = detectLanguage(request.headers['accept-language']);
+            // Prefer explicit ?lang= param (set by iOS from user's in-app language setting)
+            // over Accept-Language header (which reflects the device's system language).
+            const langParam = request.query?.lang;
+            const language = langParam
+                ? detectLanguage(langParam)  // validate + normalize
+                : detectLanguage(request.headers['accept-language']);
 
             // Look up user's grade level and display name
             const profileResult = await db.query(
@@ -55,6 +59,7 @@ class DailyQuestionRoutes {
             }
 
             const today = new Date().toISOString().split('T')[0];
+            const timeSlot = Math.floor(new Date().getUTCHours() / 6);
             this.fastify.log.info(
                 `✅ [DailyQuestion] Served — user=${shortId}... (${displayName}), grade=${gradeLevel}, lang=${language}, subject=${question.subject}`
             );
@@ -70,6 +75,7 @@ class DailyQuestionRoutes {
                     grade_level: gradeLevel,
                     language,
                     date:        today,
+                    time_slot:   timeSlot,
                 },
             });
         } catch (error) {
