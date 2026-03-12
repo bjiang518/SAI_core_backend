@@ -109,11 +109,20 @@ class SynchronizedTextRenderer: ObservableObject {
     }
 
     /// Add full text that needs to be revealed
-    /// - Parameter text: Complete text content
+    /// - Parameter text: Complete accumulated text received so far
     func setFullText(_ text: String) {
+        logger.debug("📥 setFullText: received \(text.count) chars (currentCharIndex=\(currentCharIndex), hasAudio=\(audioStartTime != nil))")
         fullText = text
-        visibleText = "" // Hide all text initially
-        currentCharIndex = 0
+        // Do NOT reset currentCharIndex or visibleText here.
+        // This is called on every text_delta with the full accumulated AI text.
+        // Resetting currentCharIndex would restart the fallback timer from 0 on every
+        // chunk, causing non-aligned content (e.g. Chinese) to never stably accumulate.
+
+        // If audio arrived before the first text_delta, or the timer stopped after
+        // catching up to shorter text, restart the reveal for newly arrived content.
+        if audioStartTime != nil && revealTimer == nil && currentCharIndex < fullText.count {
+            startRevealingText()
+        }
     }
 
     /// Process an audio chunk with alignment data
@@ -174,7 +183,7 @@ class SynchronizedTextRenderer: ObservableObject {
             logger.warning("[\(timestampStr)] ⚠️ Cannot build timings - alignment validation failed")
         }
 
-        // Start revealing if not already started
+        // Record when audio started and kick off the text reveal timer.
         if audioStartTime == nil {
             audioStartTime = Date()
             logger.info("[\(timestampStr)] ▶️ First audio chunk - starting text reveal")
@@ -226,16 +235,17 @@ class SynchronizedTextRenderer: ObservableObject {
             return
         }
 
-        logger.info("[\(timestampStr)] 🎬 Starting text reveal animation - fullText: \(fullText.count) chars")
+        logger.info("[\(timestampStr)] 🎬 Starting text reveal - fullText: \(fullText.count) chars, currentCharIndex: \(currentCharIndex), timings: \(characterTimings.count)")
 
-        // Use alignment-based reveal if we have timing data
-        if !characterTimings.isEmpty {
-            logger.info("[\(timestampStr)] ✅ Using alignment-based reveal (\(characterTimings.count) timings available)")
+        // If currentCharIndex has already passed the alignment window (e.g. resumed
+        // after fallback exhausted alignment, then more text_delta arrived), skip
+        // straight to fallback continuation instead of re-entering alignment mode.
+        if !characterTimings.isEmpty && currentCharIndex < characterTimings.count {
+            logger.info("[\(timestampStr)] ✅ Using alignment-based reveal (\(characterTimings.count) timings, resuming from char \(currentCharIndex))")
             startAlignmentBasedReveal()
-        } else {
-            logger.warning("[\(timestampStr)] ⚠️ characterTimings is EMPTY - falling back to timer mode")
-            // Fallback: Time-based reveal without alignment
-            startFallbackReveal()
+        } else if currentCharIndex < fullText.count {
+            logger.info("[\(timestampStr)] 🔄 Past alignment window or no timings — using fallback continuation from char \(currentCharIndex)")
+            startFallbackRevealContinuation()
         }
     }
 
@@ -268,6 +278,7 @@ class SynchronizedTextRenderer: ObservableObject {
                         // Extract visible portion from full text
                         let endIndex = min(self.currentCharIndex, self.fullText.count)
                         self.visibleText = String(self.fullText.prefix(endIndex))
+                        self.logger.debug("🖥️ [align] rendered \(endIndex)/\(self.fullText.count) | tail: \"\(self.visibleText.suffix(30))\"")
 
                         // ✅ CRITICAL FIX: Check if we've exhausted alignment data but still have text
                         // If we've revealed all characters with timing data, switch to fallback mode
@@ -286,8 +297,13 @@ class SynchronizedTextRenderer: ObservableObject {
                         }
 
                         if endIndex >= self.fullText.count {
-                            self.logger.info("✅ All text revealed via alignment data")
-                            self.complete()
+                            // Caught up to all text received so far. Stop the timer.
+                            // Do NOT call complete() here — fullText is still growing
+                            // while streaming is active. setFullText() will restart
+                            // the timer when more text arrives. complete() is only
+                            // called by the external post-stream handler.
+                            self.logger.info("⏸️ Caught up to current fullText — stopping timer until more text arrives")
+                            self.stopRevealTimer()
                         }
                     }
                 }
@@ -313,9 +329,12 @@ class SynchronizedTextRenderer: ObservableObject {
                 if self.currentCharIndex < self.fullText.count {
                     self.currentCharIndex += 1
                     self.visibleText = String(self.fullText.prefix(self.currentCharIndex))
+                    if self.currentCharIndex % 10 == 0 {
+                        self.logger.debug("🖥️ [fallback] rendered \(self.currentCharIndex)/\(self.fullText.count) | tail: \"\(self.visibleText.suffix(30))\"")
+                    }
                 } else {
-                    self.logger.info("✅ All text revealed via hybrid mode (alignment + fast fallback)")
-                    self.complete()
+                    self.logger.info("⏸️ Fallback continuation caught up — stopping timer until more text arrives")
+                    self.stopRevealTimer()
                 }
             }
         }
@@ -337,7 +356,8 @@ class SynchronizedTextRenderer: ObservableObject {
                     self.currentCharIndex += 1
                     self.visibleText = String(self.fullText.prefix(self.currentCharIndex))
                 } else {
-                    self.complete()
+                    self.logger.info("⏸️ Fallback caught up — stopping timer until more text arrives")
+                    self.stopRevealTimer()
                 }
             }
         }

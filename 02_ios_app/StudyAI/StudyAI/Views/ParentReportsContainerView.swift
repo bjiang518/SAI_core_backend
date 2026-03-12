@@ -23,6 +23,7 @@ struct ParentReportsContainerView: View {
                     },
                     onDecline: {
                         showingOnboarding = false
+                        syncDisableToBackend()
                     }
                 )
             }
@@ -64,6 +65,18 @@ struct ParentReportsContainerView: View {
                 print("✅ [ParentReportsContainer] Reports enabled on backend. Next: \(result.nextReportTime ?? "N/A")")
             } else {
                 print("⚠️ [ParentReportsContainer] Backend sync failed: \(result.message). Will retry on next app launch.")
+            }
+        }
+    }
+
+    /// Sync the user's opt-out to the backend so the cron scheduler stops generating for them.
+    private func syncDisableToBackend() {
+        Task {
+            let result = await networkService.disableParentReports()
+            if result.success {
+                print("✅ [ParentReportsContainer] Reports disabled on backend.")
+            } else {
+                print("⚠️ [ParentReportsContainer] Backend disable failed: \(result.message).")
             }
         }
     }

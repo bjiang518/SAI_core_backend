@@ -447,7 +447,9 @@ struct PassiveReportBatchCard: View {
     // MARK: - Helpers
 
     private var periodText: String {
-        batch.period.capitalized
+        batch.period.lowercased() == "monthly"
+            ? NSLocalizedString("reports.passive.monthly", value: "Monthly", comment: "")
+            : NSLocalizedString("reports.passive.weekly", value: "Weekly", comment: "")
     }
 
     private var dateRangeText: String {

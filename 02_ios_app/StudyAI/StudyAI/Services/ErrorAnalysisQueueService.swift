@@ -188,6 +188,15 @@ class ErrorAnalysisQueueService: ObservableObject {
         }
     }
 
+    /// Force-categorize a specific set of questions immediately, awaiting the result.
+    /// Called by the "Categorize Mistakes" button in MistakeReviewView.
+    /// Bypasses the dedup filter — questions are always re-analyzed even if previously stuck.
+    func categorizeQuestions(_ questions: [[String: Any]]) async {
+        guard !questions.isEmpty else { return }
+        // Strip any status that would confuse the patch-back logic, then analyze
+        await analyzeBatch(sessionId: "ui-categorize", questions: questions)
+    }
+
     /// Re-analyze failed questions
     func retryFailedAnalyses() async {
         let failedQuestions = localStorage.getLocalQuestions().filter {
