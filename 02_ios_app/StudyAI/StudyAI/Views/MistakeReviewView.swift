@@ -55,11 +55,13 @@ enum PracticeGenerationError: LocalizedError {
 enum MistakeActiveFilter: String, CaseIterable {
     case active = "Active"
     case all = "All"
+    case goodAt = "GoodAt"
 
     var localizedName: String {
         switch self {
         case .active: return NSLocalizedString("mistakeReview.filter.active", comment: "")
         case .all: return NSLocalizedString("mistakeReview.filter.allFilter", comment: "")
+        case .goodAt: return NSLocalizedString("mistakeReview.filter.goodAt", comment: "Good At")
         }
     }
 }
@@ -88,7 +90,9 @@ struct MistakeReviewView: View {
 
     @State private var showingMistakeList = false
     @State private var showingInstructions = false
-    @StateObject private var appState = AppState.shared
+    @ObservedObject private var appState = AppState.shared
+    @State private var isCategorizingMistakes = false
+    @State private var unclassifiedCount: Int = 0
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -134,9 +138,14 @@ struct MistakeReviewView: View {
                     }
                     .pickerStyle(.segmented)
                     .padding(.horizontal)
+                    .onChange(of: activeFilter) { _, newFilter in
+                        if newFilter == .goodAt {
+                            selectedDetailedBranches.removeAll()
+                        }
+                    }
 
-                    // SECTION 2: Dual Slider Filters (Severity + Time)
-                    if selectedSubject != nil {
+                    // SECTION 2: Dual Slider Filters (Severity + Time) — hidden for Good At tab
+                    if selectedSubject != nil && activeFilter != .goodAt {
                         DualSliderFilters(
                             selectedSeverity: $selectedSeverity,
                             selectedTimeRange: $selectedTimeRange
@@ -144,46 +153,107 @@ struct MistakeReviewView: View {
                         .padding(.horizontal)
                     }
 
-                    // SECTION 3: Taxonomy Filter (Chips/Tree Mode)
+                    // SECTION 3: Taxonomy Filter OR Good At View
                     if let subject = selectedSubject {
-                        let taxonomyData = mistakeService.getBaseBranches(
-                            for: subject,
-                            timeRange: selectedTimeRange.mistakeTimeRange,
-                            activeFilter: activeFilter
-                        )
-
-                        TaxonomyFilterView(
-                            subject: subject,
-                            taxonomyData: taxonomyData,
-                            selectedDetailedBranches: $selectedDetailedBranches
-                        )
-                        .padding(.horizontal)
+                        if activeFilter == .goodAt {
+                            let goodAtData = mistakeService.getGoodAtBranches(
+                                for: subject,
+                                timeRange: selectedTimeRange.mistakeTimeRange
+                            )
+                            GoodAtTaxonomyView(goodAtData: goodAtData)
+                                .padding(.horizontal)
+                        } else {
+                            let taxonomyData = mistakeService.getBaseBranches(
+                                for: subject,
+                                timeRange: selectedTimeRange.mistakeTimeRange,
+                                activeFilter: activeFilter,
+                                severity: selectedSeverity
+                            )
+                            TaxonomyFilterView(
+                                subject: subject,
+                                taxonomyData: taxonomyData,
+                                selectedDetailedBranches: $selectedDetailedBranches
+                            )
+                            .padding(.horizontal)
+                        }
                     }
 
-                    // SECTION 4: Start Review Button
-                    if selectedSubject != nil && !mistakeService.subjectsWithMistakes.isEmpty {
+                    // SECTION 4: Action Buttons — hidden for Good At tab
+                    if selectedSubject != nil && !mistakeService.subjectsWithMistakes.isEmpty && activeFilter != .goodAt {
                         let mistakeCount = calculateFilteredMistakeCount()
 
-                        Button(action: {
-                            print("▶️ [MistakeReviewView] 'Start Review' tapped — opening MistakeQuestionListView sheet. selectedTab=\(appState.selectedTab), shouldDismissPracticeStack=\(appState.shouldDismissPracticeStack)")
-                            showingMistakeList = true
-                        }) {
-                            HStack {
-                                Image(systemName: "play.circle.fill")
-                                    .font(.title3)
+                        HStack(spacing: 12) {
+                            // Primary: Start Review
+                            Button(action: {
+                                print("▶️ [MistakeReviewView] 'Start Review' tapped — opening MistakeQuestionListView sheet. selectedTab=\(appState.selectedTab), shouldDismissPracticeStack=\(appState.shouldDismissPracticeStack)")
+                                showingMistakeList = true
+                            }) {
+                                HStack {
+                                    Image(systemName: "play.circle.fill")
+                                        .font(.title3)
 
-                                Text(String(format: NSLocalizedString("mistakeReview.startReview", comment: ""), mistakeCount))
-                                    .font(.body)
-                                    .fontWeight(.semibold)
+                                    Text(String(format: NSLocalizedString("mistakeReview.startReview", comment: ""), mistakeCount))
+                                        .font(.body)
+                                        .fontWeight(.semibold)
+                                }
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 56)
+                                .background(mistakeCount > 0 ? themeManager.accentColor : Color.gray)
+                                .cornerRadius(12)
                             }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 56)
-                            .background(mistakeCount > 0 ? themeManager.accentColor : Color.gray)
-                            .cornerRadius(12)
+                            .disabled(mistakeCount == 0)
+                            .buttonStyle(PlainButtonStyle())
+
+                            // Secondary: Categorize Mistakes (only shown when unclassified > 0)
+                            if unclassifiedCount > 0 {
+                                Button(action: {
+                                    guard let subject = selectedSubject else { return }
+                                    isCategorizingMistakes = true
+                                    Task {
+                                        let questions = getUnclassifiedQuestions(subject: subject)
+                                        await ErrorAnalysisQueueService.shared.categorizeQuestions(questions)
+                                        // Refresh subjects + taxonomy so uncategorized bucket shrinks
+                                        await mistakeService.fetchSubjectsWithMistakes(timeRange: selectedTimeRange.mistakeTimeRange)
+                                        refreshUnclassifiedCount()
+                                        isCategorizingMistakes = false
+                                    }
+                                }) {
+                                    Group {
+                                        if isCategorizingMistakes {
+                                            HStack(spacing: 6) {
+                                                ProgressView()
+                                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                                    .scaleEffect(0.8)
+                                                Text(NSLocalizedString("mistakeReview.categorizing", comment: "Categorizing…"))
+                                                    .font(.caption)
+                                                    .fontWeight(.semibold)
+                                            }
+                                        } else {
+                                            HStack(spacing: 6) {
+                                                Image(systemName: "sparkles")
+                                                    .font(.subheadline)
+                                                VStack(alignment: .leading, spacing: 1) {
+                                                    Text(NSLocalizedString("mistakeReview.categorizeMistakes", comment: "Categorize"))
+                                                        .font(.caption)
+                                                        .fontWeight(.semibold)
+                                                    Text("\(unclassifiedCount) \(NSLocalizedString("mistakeReview.uncategorized", comment: "unclassified"))")
+                                                        .font(.caption2)
+                                                        .opacity(0.85)
+                                                }
+                                            }
+                                        }
+                                    }
+                                    .foregroundColor(.white)
+                                    .frame(width: 130, height: 56)
+                                    .background(isCategorizingMistakes ? Color.orange.opacity(0.7) : Color.orange)
+                                    .cornerRadius(12)
+                                }
+                                .disabled(isCategorizingMistakes)
+                                .buttonStyle(PlainButtonStyle())
+                                .animation(.easeInOut(duration: 0.2), value: isCategorizingMistakes)
+                            }
                         }
-                        .disabled(mistakeCount == 0)
-                        .buttonStyle(PlainButtonStyle())
                         .padding(.horizontal)
                     }
 
@@ -215,11 +285,16 @@ struct MistakeReviewView: View {
                 if selectedSubject == nil, let firstSubject = mistakeService.subjectsWithMistakes.first {
                     selectedSubject = firstSubject.subject
                 }
+                refreshUnclassifiedCount()
             }
             .onChange(of: selectedTimeRange) { _, newRange in
                 Task {
                     await mistakeService.fetchSubjectsWithMistakes(timeRange: newRange.mistakeTimeRange)
+                    refreshUnclassifiedCount()
                 }
+            }
+            .onChange(of: selectedSubject) { _, _ in
+                refreshUnclassifiedCount()
             }
             .sheet(isPresented: $showingMistakeList) {
                 if let subject = selectedSubject {
@@ -242,6 +317,26 @@ struct MistakeReviewView: View {
     }
 
     // MARK: - Helper Methods
+
+    /// Recompute unclassified count from local storage for the current subject.
+    /// Called on load, subject change, time range change, and after categorization.
+    private func refreshUnclassifiedCount() {
+        guard let subject = selectedSubject else {
+            unclassifiedCount = 0
+            return
+        }
+        unclassifiedCount = getUnclassifiedQuestions(subject: subject).count
+    }
+
+    /// Return all mistake questions for a subject that have no baseBranch classification.
+    private func getUnclassifiedQuestions(subject: String) -> [[String: Any]] {
+        let localStorage = currentUserQuestionStorage()
+        let allMistakes = localStorage.getMistakeQuestions(subject: subject)
+        return allMistakes.filter { q in
+            let base = q["baseBranch"] as? String ?? ""
+            return base.isEmpty
+        }
+    }
 
     /// Calculate filtered mistake count based on hierarchical filters and severity
     private func calculateFilteredMistakeCount() -> Int {
@@ -303,11 +398,11 @@ struct MistakeQuestionListView: View {
     let activeFilter: MistakeActiveFilter
 
     @StateObject private var mistakeService = MistakeReviewService()
-    @StateObject private var questionGenerationService = QuestionGenerationService.shared
-    @StateObject private var profileService = ProfileService.shared
+    @ObservedObject private var questionGenerationService = QuestionGenerationService.shared
+    @ObservedObject private var profileService = ProfileService.shared
     @StateObject private var themeManager = ThemeManager.shared
-    @StateObject private var sessionManager = PracticeSessionManager.shared
-    @StateObject private var appState = AppState.shared
+    @ObservedObject private var sessionManager = PracticeSessionManager.shared
+    @ObservedObject private var appState = AppState.shared
     @State private var selectedQuestions: Set<String> = []
     @State private var isSelectionMode = false
     @State private var showingPDFGenerator = false
@@ -610,10 +705,9 @@ struct MistakeQuestionListView: View {
                     }
                 )
             }
-            // ✅ OPTIMIZATION: Error alert for practice generation
-            .alert(NSLocalizedString("mistakeReview.generationFailed", comment: ""), isPresented: .constant(generationError != nil)) {
+            // Error alert for practice generation
+            .alert(NSLocalizedString("mistakeReview.generationFailed", comment: ""), isPresented: Binding(get: { generationError != nil }, set: { _ in generationError = nil })) {
                 Button(NSLocalizedString("common.retry", comment: "")) {
-                    // Show configuration sheet again
                     generationError = nil
                     showingConfigurationSheet = true
                 }
@@ -682,18 +776,17 @@ struct MistakeQuestionListView: View {
         let allStoredQuestions = localStorage.getLocalQuestions()
         let idSet = Set(selected.map { $0.id })
 
-        // Build a lookup dict for O(1) access
-        var storedById: [[String: Any]] = []
+        // Build a lookup dictionary for O(1) access per item
+        var storedById: [String: [String: Any]] = [:]
         for storedQ in allStoredQuestions {
             guard let qId = storedQ["id"] as? String, idSet.contains(qId) else { continue }
-            storedById.append(storedQ)
+            storedById[qId] = storedQ
         }
 
         // Preserve selection order by iterating the ordered selected array
         var result: [WeaknessPracticeQuestion] = []
         for mistake in selected {
-            // Find matching stored question by ID
-            guard let storedQ = storedById.first(where: { ($0["id"] as? String) == mistake.id }),
+            guard let storedQ = storedById[mistake.id],
                   let questionText = storedQ["questionText"] as? String,
                   let correctAnswer = storedQ["answerText"] as? String else {
                 // Fallback: build from MistakeQuestion fields (no questionType/options)
@@ -895,10 +988,12 @@ struct MistakeQuestionCard: View {
     let isSelected: Bool
     let onToggleSelection: () -> Void
 
+    private static let relativeDateFormatter = RelativeDateTimeFormatter()
+
     @StateObject private var themeManager = ThemeManager.shared
     @Environment(\.colorScheme) var colorScheme
-    @State private var isExpanded = false  // ✅ Changed: Card starts folded
-    @State private var imageExpanded = false  // ✅ New: Image expansion state
+    @State private var isExpanded = false
+    @State private var imageExpanded = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -927,7 +1022,7 @@ struct MistakeQuestionCard: View {
             // ✅ Header: Date + Question preview (always visible)
             HStack {
                 Spacer()
-                Text(RelativeDateTimeFormatter().localizedString(for: question.createdAt, relativeTo: Date()))
+                Text(Self.relativeDateFormatter.localizedString(for: question.createdAt, relativeTo: Date()))
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -1280,7 +1375,7 @@ struct PracticeQuestionsView: View {
     @State private var hasMarkedProgress = false
 
     // ✅ NEW: Mastery celebration state
-    @StateObject private var statusService = ShortTermStatusService.shared
+    @ObservedObject private var statusService = ShortTermStatusService.shared
     @State private var showingMasteryCelebration = false
     @State private var masteredWeakness: String? = nil
 
@@ -2173,7 +2268,7 @@ struct PracticeQuestionCard: View {
     @State private var isArchived: Bool = false
     @State private var showingArchiveSuccess: Bool = false
 
-    @StateObject private var appState = AppState.shared
+    @ObservedObject private var appState = AppState.shared
     @Environment(\.dismiss) private var dismiss
 
     private var isGraded: Bool {
@@ -2735,6 +2830,19 @@ struct SubquestionAwareTextView: View {
     let text: String
     let fontSize: CGFloat
 
+    // Pre-compiled once at struct load time — avoids recompiling on every render
+    private static let subquestionRegexes: [NSRegularExpression] = {
+        let patterns = [
+            "^[a-z]\\)",
+            "^\\d+\\)",
+            "^\\([a-z]\\)",
+            "^\\(\\d+\\)",
+            "^Part [a-z]:",
+            "^Part \\d+:",
+        ]
+        return patterns.compactMap { try? NSRegularExpression(pattern: $0, options: [.caseInsensitive]) }
+    }()
+
     var body: some View {
         #if DEBUG
         let _ = print("📝 [SubquestionAware] Body evaluating")
@@ -2790,30 +2898,8 @@ struct SubquestionAwareTextView: View {
     /// Check if text matches common subquestion formats like "a)", "1)", "(a)", etc.
     private func isSubquestionFormat(_ text: String) -> Bool {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        // Check for patterns: "a)", "1)", "(a)", "(1)", "Part a:", "Part 1:"
-        let subquestionPatterns: [(pattern: String, description: String)] = [
-            ("^[a-z]\\)", "a), b), c)"),
-            ("^\\d+\\)", "1), 2), 3)"),
-            ("^\\([a-z]\\)", "(a), (b), (c)"),
-            ("^\\(\\d+\\)", "(1), (2), (3)"),
-            ("^Part [a-z]:", "Part a:, Part b:"),
-            ("^Part \\d+:", "Part 1:, Part 2:"),
-        ]
-
-        for (pattern, description) in subquestionPatterns {
-            if let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) {
-                let range = NSRange(trimmed.startIndex..<trimmed.endIndex, in: trimmed)
-                if regex.firstMatch(in: trimmed, range: range) != nil {
-                    #if DEBUG
-                    print("      🎯 Matched pattern: \(description)")
-                    #endif
-                    return true
-                }
-            }
-        }
-
-        return false
+        let range = NSRange(trimmed.startIndex..<trimmed.endIndex, in: trimmed)
+        return Self.subquestionRegexes.contains { $0.firstMatch(in: trimmed, range: range) != nil }
     }
 }
 

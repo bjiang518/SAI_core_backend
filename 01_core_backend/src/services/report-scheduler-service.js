@@ -176,14 +176,14 @@ class ReportSchedulerService {
     }
 
     async _recentReportExists(userId, period) {
-        const cooldown = period === 'monthly' ? '25 days' : '6 days';
+        const cooldownDays = period === 'monthly' ? 25 : 6;
         const { rows } = await db.query(
             `SELECT 1 FROM parent_report_batches
              WHERE user_id = $1
                AND period   = $2
-               AND created_at > NOW() - INTERVAL '${cooldown}'
+               AND created_at > NOW() - ($3 || ' days')::INTERVAL
              LIMIT 1`,
-            [userId, period]
+            [userId, period, cooldownDays]
         );
         return rows.length > 0;
     }

@@ -216,7 +216,7 @@ class MistakeReviewService: ObservableObject {
     // MARK: - Hierarchical Filtering Support
 
     /// Get base branches with counts for a subject
-    func getBaseBranches(for subject: String, timeRange: MistakeTimeRange?, activeFilter: MistakeActiveFilter = .all) -> [BaseBranchCount] {
+    func getBaseBranches(for subject: String, timeRange: MistakeTimeRange?, activeFilter: MistakeActiveFilter = .all, severity: SeverityLevel = .all) -> [BaseBranchCount] {
         let allMistakes = questionLocalStorage.getMistakeQuestions(subject: subject)
         var filteredMistakes = filterByTimeRange(allMistakes, timeRange: timeRange)
 
@@ -234,6 +234,11 @@ class MistakeReviewService: ObservableObject {
                 }
                 return true  // key not tracked → include rather than silently hide
             }
+        }
+
+        // Apply severity filter
+        if severity != .all {
+            filteredMistakes = filteredMistakes.filter { severity.matches(errorType: $0["errorType"] as? String) }
         }
 
         // Group by base branch (questions with no baseBranch go into the uncategorized bucket)
@@ -282,6 +287,68 @@ class MistakeReviewService: ObservableObject {
         }
 
         return getDetailedBranchesInternal(from: branchMistakes)
+    }
+
+    /// Get branches where the user has answered correctly, with per-branch accuracy.
+    /// Uses ShortTermStatusService.activeWeaknesses as source — keys are "Subject/baseBranch/detailedBranch"
+    /// and correctAttempts is populated for all correct answers (not just mistakes).
+    func getGoodAtBranches(for subject: String, timeRange: MistakeTimeRange?) -> [GoodAtBranchCount] {
+        let activeWeaknesses = ShortTermStatusService.shared.status.activeWeaknesses
+        let prefix = "\(subject)/"
+
+        // Only entries for this subject with at least one correct attempt
+        let subjectEntries = activeWeaknesses.filter { key, value in
+            key.hasPrefix(prefix) && value.correctAttempts > 0
+        }
+
+        // Aggregate by baseBranch → detailedBranch
+        struct Counts { var total: Int; var correct: Int; var hadMistake: Bool }
+        var baseBranchGroups: [String: [String: Counts]] = [:]
+
+        for (key, value) in subjectEntries {
+            let components = key.split(separator: "/", maxSplits: 2)
+            guard components.count >= 2 else { continue }
+            let baseBranch = String(components[1])
+            let detailedBranch = components.count >= 3 ? String(components[2]) : MistakeReviewService.uncategorizedKey
+
+            // A key was ever a weakness if the user made at least one mistake on it
+            let hadMistake = (value.totalAttempts - value.correctAttempts) > 0
+            let existing = baseBranchGroups[baseBranch]?[detailedBranch] ?? Counts(total: 0, correct: 0, hadMistake: false)
+            baseBranchGroups[baseBranch, default: [:]][detailedBranch] = Counts(
+                total: existing.total + value.totalAttempts,
+                correct: existing.correct + value.correctAttempts,
+                hadMistake: existing.hadMistake || hadMistake
+            )
+        }
+
+        return baseBranchGroups.compactMap { baseBranch, detailGroups -> GoodAtBranchCount? in
+            let totalCount = detailGroups.values.reduce(0) { $0 + $1.total }
+            let correctCount = detailGroups.values.reduce(0) { $0 + $1.correct }
+            guard correctCount > 0 else { return nil }
+
+            let detailedBranches = detailGroups.compactMap { detail, counts -> GoodAtDetailedBranchCount? in
+                guard counts.correct > 0 else { return nil }
+                return GoodAtDetailedBranchCount(
+                    detailedBranch: detail,
+                    totalCount: counts.total,
+                    correctCount: counts.correct,
+                    wasWeakness: counts.hadMistake
+                )
+            }.sorted {
+                if $0.accuracy != $1.accuracy { return $0.accuracy > $1.accuracy }
+                return $0.totalCount > $1.totalCount
+            }
+
+            return GoodAtBranchCount(
+                baseBranch: baseBranch,
+                totalCount: totalCount,
+                correctCount: correctCount,
+                detailedBranches: detailedBranches
+            )
+        }.sorted {
+            if $0.accuracy != $1.accuracy { return $0.accuracy > $1.accuracy }
+            return $0.totalCount > $1.totalCount
+        }
     }
 
     /// Internal helper to group mistakes by detailed branch
@@ -370,6 +437,39 @@ struct DetailedBranchCount: Identifiable {
     let id = UUID()
     let detailedBranch: String
     let mistakeCount: Int
+}
+
+// MARK: - Good At Data Structures
+
+struct GoodAtBranchCount: Identifiable {
+    let id = UUID()
+    let baseBranch: String
+    let totalCount: Int
+    let correctCount: Int
+    let detailedBranches: [GoodAtDetailedBranchCount]
+
+    var accuracy: Double {
+        totalCount > 0 ? Double(correctCount) / Double(totalCount) : 0
+    }
+
+    /// True if any detailed branch under this base branch was once a weakness.
+    /// Used to split the "Good At" section into "Your Strengths" vs "No Longer a Weakness".
+    var wasWeakness: Bool {
+        detailedBranches.contains { $0.wasWeakness }
+    }
+}
+
+struct GoodAtDetailedBranchCount: Identifiable {
+    let id = UUID()
+    let detailedBranch: String
+    let totalCount: Int
+    let correctCount: Int
+    /// True when the user made at least one mistake on this branch before mastering it.
+    let wasWeakness: Bool
+
+    var accuracy: Double {
+        totalCount > 0 ? Double(correctCount) / Double(totalCount) : 0
+    }
 }
 
 struct ErrorTypeCount: Identifiable {

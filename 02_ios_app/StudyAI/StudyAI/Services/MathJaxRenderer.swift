@@ -80,9 +80,8 @@ private enum MathHTML {
             startup: {
                 ready() {
                     MathJax.startup.defaultReady();
-                    MathJax.startup.promise.then(() => {
-                        window.webkit.messageHandlers.mathJaxReady.postMessage('ready');
-                    });
+                    // mathJaxReady is sent after first height measurement below,
+                    // so the WebView appears at the correct size from the start.
                 }
             }
         };
@@ -112,15 +111,32 @@ private enum MathHTML {
         <body>
         <div id="content">\(bodyHTML)</div>
         <script>
-        function updateHeight() {
+        // heightReported gates the one-time mathJaxReady signal so the WebView
+        // becomes visible only after its height is already known.
+        var heightReported = false;
+
+        function reportHeight() {
             var h = document.getElementById('content').scrollHeight;
             window.webkit.messageHandlers.resize.postMessage(h);
+            if (!heightReported) {
+                heightReported = true;
+                // Signal SwiftUI AFTER height is set — avoids blank-space flash
+                window.webkit.messageHandlers.mathJaxReady.postMessage('ready');
+            }
         }
-        // Measure only after MathJax finishes typesetting.
-        // Avoids reading scrollHeight during intermediate render passes
-        // where MathJax inserts temporary elements that inflate the height.
+
+        function updateHeight() {
+            // requestAnimationFrame fires after browser layout/reflow is complete,
+            // ensuring scrollHeight reflects the final rendered size — not an
+            // intermediate state created by MathJax's CHTML processing.
+            requestAnimationFrame(reportHeight);
+        }
+
         MathJax.startup.promise.then(function() {
-            setTimeout(updateHeight, 50);
+            updateHeight();
+            // Safety-net second pass: catches slow CDN font metrics or any
+            // multi-pass MathJax typesetting that completes after the first rAF.
+            setTimeout(updateHeight, 800);
         });
         </script>
         </body>
@@ -233,8 +249,15 @@ struct MathWebView: UIViewRepresentable {
 
         func userContentController(_ ucc: WKUserContentController, didReceive message: WKScriptMessage) {
             DispatchQueue.main.async {
-                if message.name == "resize", let h = message.body as? CGFloat, abs(h - self.parent.height) > 1 {
-                    self.parent.height = h
+                if message.name == "resize" {
+                    // message.body comes from JS as NSNumber; bridge via doubleValue
+                    // so it works regardless of whether JS emitted an int or float.
+                    if let n = message.body as? NSNumber {
+                        let h = CGFloat(n.doubleValue)
+                        if h > 0 {
+                            self.parent.height = h
+                        }
+                    }
                 } else if message.name == "mathJaxReady" {
                     self.parent.isReady = true
                 }

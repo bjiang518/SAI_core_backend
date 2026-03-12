@@ -1444,6 +1444,9 @@
 "mistakeReview.instructions.title" = "How to Use Mistake Review";
 "mistakeReview.instructions.message" = "1. Select a time range (This Week, This Month, or All Time) to filter your mistakes\n\n2. Choose a subject to review incorrect answers\n\n3. Tap 'Start Review' to see your mistakes\n\n4. Use 'Let's do them again' to select questions and generate a PDF for practice\n\n5. Review the correct answers and explanations to improve your understanding";
 "mistakeReview.startReview" = "Start Review (%d Mistakes)";
+"mistakeReview.categorizeMistakes" = "Categorize";
+"mistakeReview.uncategorized" = "unclassified";
+"mistakeReview.categorizing" = "Categorizing…";
 "mistakeReview.letsPractise" = "Start Practice";
 "mistakeReview.resumePractice" = "Resume Practice";
 "mistakeReview.showFullQuestion" = "Show Full Question & Analysis";
@@ -1513,6 +1516,11 @@
 "mistakeReview.filter.allTopics" = "All Topics";
 "mistakeReview.filter.active" = "Active";
 "mistakeReview.filter.allFilter" = "All";
+"mistakeReview.filter.goodAt" = "Good At";
+"mistakeReview.filter.yourStrengths" = "Your Strengths";
+"mistakeReview.filter.noLongerWeak" = "No Longer a Weakness";
+"mistakeReview.filter.strengthsTopicCount" = "%d topics";
+"mistakeReview.filter.noStrengthsData" = "No data yet — answer some questions to see your strengths.";
 "mistakeReview.filter.uncategorized" = "Uncategorized";
 "difficulty.desc.beginner" = "Foundation-building questions for new concepts";
 "difficulty.desc.intermediate" = "Balanced questions for practice and review";
@@ -2347,6 +2355,8 @@
 "reports.passive.empty.weekly" = "Weekly reports are generated every Sunday at 10 PM. Check back soon!";
 "reports.passive.empty.monthly" = "Monthly reports are generated on the 1st of each month.";
 "reports.passive.reportsAvailable" = "%d reports available";
+"reports.passive.weekly" = "Weekly";
+"reports.passive.monthly" = "Monthly";
 "reports.passive.metric.accuracy" = "Accuracy";
 "reports.passive.metric.questions" = "Questions";
 "reports.passive.metric.studyTime" = "Study Time";
@@ -2372,6 +2382,10 @@
 "reports.passive.mentalHealth.good" = "Good";
 "reports.passive.mentalHealth.fair" = "Fair";
 "reports.passive.mentalHealth.low" = "Low";
+"reports.passive.activity" = "Activity Report";
+"reports.passive.areas_of_improvement" = "Areas for Improvement";
+"reports.passive.mental_health" = "Mental Health & Wellbeing";
+"reports.passive.summary" = "Weekly/Monthly Summary";
 
 // Parent Reports — Onboarding
 "reports.passive.onboarding.title" = "Get Weekly Learning Insights";

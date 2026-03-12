@@ -1375,6 +1375,9 @@
 "mistakeReview.instructions.title" = "如何使用錯題複習";
 "mistakeReview.instructions.message" = "1. 選擇時間範圍（本週、本月或全部時間）來篩選錯題\n\n2. 選擇科目查看做錯的題目\n\n3. 點擊「開始複習」查看你的錯題\n\n4. 使用「讓我們再做一遍」選擇題目並生成PDF進行練習\n\n5. 查看正確答案和解析以提高理解";
 "mistakeReview.startReview" = "開始複習（%d 道錯題）";
+"mistakeReview.categorizeMistakes" = "分類錯題";
+"mistakeReview.uncategorized" = "未分類";
+"mistakeReview.categorizing" = "分類中…";
 "mistakeReview.letsPractise" = "開始練習";
 "mistakeReview.resumePractice" = "繼續練習";
 "mistakeReview.showFullQuestion" = "展開題目與分析";
@@ -1445,6 +1448,11 @@
 "mistakeReview.filter.active" = "活躍";
 "mistakeReview.filter.allFilter" = "全部";
 "mistakeReview.filter.uncategorized" = "未分類";
+"mistakeReview.filter.goodAt" = "掌握";
+"mistakeReview.filter.yourStrengths" = "你本來就很強";
+"mistakeReview.filter.noLongerWeak" = "不再是弱點";
+"mistakeReview.filter.strengthsTopicCount" = "%d 個主題";
+"mistakeReview.filter.noStrengthsData" = "暫無數據 — 多做題後即可查看掌握情況。";
 "difficulty.desc.beginner" = "適合新概念打基礎的題目";
 "difficulty.desc.intermediate" = "用於練習和複習的均衡題目";
 "difficulty.desc.advanced" = "挑戰理解的高難度題目";
@@ -2289,6 +2297,8 @@
 "reports.passive.empty.weekly" = "週報於每週日晚上 10 點生成，請稍後查看！";
 "reports.passive.empty.monthly" = "月報在每月 1 號生成。";
 "reports.passive.reportsAvailable" = "%d 份報告可查看";
+"reports.passive.weekly" = "每週";
+"reports.passive.monthly" = "每月";
 "reports.passive.metric.accuracy" = "正確率";
 "reports.passive.metric.questions" = "題目數";
 "reports.passive.metric.studyTime" = "學習時長";
@@ -2314,6 +2324,10 @@
 "reports.passive.mentalHealth.good" = "良好";
 "reports.passive.mentalHealth.fair" = "一般";
 "reports.passive.mentalHealth.low" = "偏低";
+"reports.passive.activity" = "活動報告";
+"reports.passive.areas_of_improvement" = "待改進項目";
+"reports.passive.mental_health" = "心理健康與幸福感";
+"reports.passive.summary" = "週/月度總結";
 
 // Parent Reports — Onboarding
 "reports.passive.onboarding.title" = "獲取每週學習洞察";

@@ -170,15 +170,17 @@ struct ChipBasedTaxonomyView: View {
 
                             Spacer()
 
-                            // Badge with mistake count
-                            Text("\(baseGroup.mistakeCount)")
-                                .font(.caption2)
-                                .fontWeight(.bold)
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(baseGroup.baseBranch == MistakeReviewService.uncategorizedKey ? Color.gray : Color.red)
-                                .cornerRadius(12)
+                            // Badge hidden when expanded — child chips show the breakdown instead
+                            if !expandedBaseBranches.contains(baseGroup.baseBranch) {
+                                Text("\(baseGroup.mistakeCount)")
+                                    .font(.caption2)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(baseGroup.baseBranch == MistakeReviewService.uncategorizedKey ? Color.gray : Color.red)
+                                    .cornerRadius(12)
+                            }
                         }
                         .padding(.vertical, 8)
                         .padding(.horizontal, 12)
@@ -244,7 +246,7 @@ struct TreeBasedTaxonomyView: View {
                 TreeNode(
                     icon: baseGroup.baseBranch == MistakeReviewService.uncategorizedKey ? "questionmark.folder.fill" : "folder.fill",
                     title: displayBaseBranch,
-                    count: baseGroup.mistakeCount,
+                    count: expandedBaseBranches.contains(baseGroup.baseBranch) ? nil : baseGroup.mistakeCount,
                     level: 1,
                     isExpanded: expandedBaseBranches.contains(baseGroup.baseBranch),
                     onTap: {
@@ -411,6 +413,229 @@ struct TreeNode: View {
         case 2: return .blue
         default: return .gray
         }
+    }
+}
+
+// MARK: - Good At Taxonomy View
+
+/// Read-only taxonomy split into two sections:
+/// - "Your Strengths"       — branches the user was never weak on (no mistakes ever)
+/// - "No Longer a Weakness" — branches the user overcame (had mistakes, now mastered)
+struct GoodAtTaxonomyView: View {
+    let goodAtData: [GoodAtBranchCount]
+
+    // Independent expand/collapse state per section
+    @State private var expandedStrengths: Set<String> = []
+    @State private var expandedRecovered: Set<String> = []
+    @State private var showStrengths = true
+    @State private var showRecovered = true
+
+    private var strengthData: [GoodAtBranchCount] {
+        goodAtData.filter { !$0.wasWeakness }
+    }
+    private var recoveredData: [GoodAtBranchCount] {
+        goodAtData.filter { $0.wasWeakness }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+
+            if goodAtData.isEmpty {
+                Text(NSLocalizedString("mistakeReview.filter.noStrengthsData", comment: "No data yet"))
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .padding()
+            } else {
+                // ── Section 1: Your Strengths ──
+                if !strengthData.isEmpty {
+                    GoodAtSection(
+                        title: NSLocalizedString("mistakeReview.filter.yourStrengths", comment: "Your Strengths"),
+                        icon: "star.fill",
+                        iconColor: .yellow,
+                        data: strengthData,
+                        isExpanded: $showStrengths,
+                        expandedBranches: $expandedStrengths
+                    )
+                }
+
+                // ── Section 2: No Longer a Weakness ──
+                if !recoveredData.isEmpty {
+                    GoodAtSection(
+                        title: NSLocalizedString("mistakeReview.filter.noLongerWeak", comment: "No Longer a Weakness"),
+                        icon: "arrow.up.heart.fill",
+                        iconColor: .green,
+                        data: recoveredData,
+                        isExpanded: $showRecovered,
+                        expandedBranches: $expandedRecovered
+                    )
+                }
+            }
+        }
+        .padding()
+        .background(Color(uiColor: .systemBackground))
+        .cornerRadius(12)
+    }
+}
+
+// MARK: - Good At Section (reusable per sub-section)
+
+private struct GoodAtSection: View {
+    let title: String
+    let icon: String
+    let iconColor: Color
+    let data: [GoodAtBranchCount]
+    @Binding var isExpanded: Bool
+    @Binding var expandedBranches: Set<String>
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Collapsible section header
+            Button(action: {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    isExpanded.toggle()
+                }
+            }) {
+                HStack(spacing: 8) {
+                    Image(systemName: icon)
+                        .font(.caption)
+                        .foregroundColor(iconColor)
+
+                    Text(title)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary)
+
+                    Spacer()
+
+                    Text("\(data.count)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .buttonStyle(PlainButtonStyle())
+
+            if isExpanded {
+                ForEach(data) { branch in
+                    VStack(alignment: .leading, spacing: 8) {
+                        let displayName = branch.baseBranch == MistakeReviewService.uncategorizedKey
+                            ? NSLocalizedString("mistakeReview.filter.uncategorized", comment: "")
+                            : BranchLocalizer.localized(branch.baseBranch)
+
+                        Button(action: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                if expandedBranches.contains(branch.baseBranch) {
+                                    expandedBranches.remove(branch.baseBranch)
+                                } else {
+                                    expandedBranches.insert(branch.baseBranch)
+                                }
+                            }
+                        }) {
+                            HStack {
+                                Image(systemName: expandedBranches.contains(branch.baseBranch)
+                                        ? "chevron.down" : "chevron.right")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .frame(width: 16)
+
+                                Text(displayName)
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.primary)
+
+                                Spacer()
+
+                                if !expandedBranches.contains(branch.baseBranch) {
+                                    AccuracyPillBadge(accuracy: branch.accuracy)
+                                }
+                            }
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 12)
+                            .background(Color(uiColor: .systemGray6))
+                            .cornerRadius(10)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+
+                        if expandedBranches.contains(branch.baseBranch) {
+                            ChipFlowLayout(spacing: 8) {
+                                ForEach(branch.detailedBranches, id: \.id) { detail in
+                                    let detailName = detail.detailedBranch == MistakeReviewService.uncategorizedKey
+                                        ? NSLocalizedString("mistakeReview.filter.uncategorized", comment: "")
+                                        : BranchLocalizer.localized(detail.detailedBranch)
+                                    GoodAtChip(title: detailName, accuracy: detail.accuracy)
+                                }
+                            }
+                            .padding(.leading, 28)
+                            .padding(.vertical, 8)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Accuracy Badge
+
+/// Pill badge showing accuracy % with green/orange/gray color coding.
+struct AccuracyPillBadge: View {
+    let accuracy: Double
+
+    var body: some View {
+        Text("\(Int(accuracy * 100))%")
+            .font(.caption2)
+            .fontWeight(.bold)
+            .foregroundColor(.white)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(badgeColor)
+            .cornerRadius(12)
+    }
+
+    private var badgeColor: Color {
+        if accuracy >= 0.8 { return .green }
+        if accuracy >= 0.6 { return .orange }
+        return Color(uiColor: .systemGray)
+    }
+}
+
+// MARK: - Good At Chip
+
+/// Non-selectable chip showing a detailedBranch name and its accuracy.
+struct GoodAtChip: View {
+    let title: String
+    let accuracy: Double
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(title)
+                .font(.caption)
+                .fontWeight(.medium)
+                .lineLimit(1)
+
+            Text("\(Int(accuracy * 100))%")
+                .font(.caption2)
+                .fontWeight(.bold)
+                .foregroundColor(.white)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(chipAccentColor)
+                .clipShape(Capsule())
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(Color(uiColor: .systemGray5))
+        .foregroundColor(.primary)
+        .cornerRadius(16)
+    }
+
+    private var chipAccentColor: Color {
+        if accuracy >= 0.8 { return .green }
+        if accuracy >= 0.6 { return .orange }
+        return Color(uiColor: .systemGray)
     }
 }
 
