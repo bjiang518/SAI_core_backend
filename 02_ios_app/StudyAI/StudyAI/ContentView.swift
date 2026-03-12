@@ -282,6 +282,11 @@ struct MainTabView: View {
     @StateObject private var sessionManager = SessionManager.shared  // ✅ Track user activity
     @StateObject private var themeManager = ThemeManager.shared  // ✅ Cute Mode: Black tab bar
     @Environment(\.horizontalSizeClass) private var sizeClass  // iPad vs iPhone
+    // Local @State binding for TabView selection.
+    // SwiftUI DOES update @State bindings for physical tab bar taps.
+    // The old Binding(get:set:) bridging AppState was never called by SwiftUI for
+    // physical taps — so AppState stayed stale and SwiftUI kept reverting the tab.
+    @State private var selectedTabIndex: Int = MainTab.home.rawValue
 
     var body: some View {
         Group {
@@ -299,10 +304,7 @@ struct MainTabView: View {
     @ViewBuilder
     private var iPhoneTabView: some View {
         ZStack(alignment: .bottom) {
-            TabView(selection: Binding(
-                get: { appState.selectedTab.rawValue },
-                set: { appState.selectedTab = MainTab(rawValue: $0) ?? .chat }
-            )) {
+            TabView(selection: $selectedTabIndex) {
                 // Chat Tab
                 NavigationStack {
                     SessionChatView()
@@ -336,11 +338,6 @@ struct MainTabView: View {
                 // Home Tab
                 NavigationStack {
                     HomeView(onSelectTab: selectTab)
-                        .background(
-                            SameTabTapBridge { idx in
-                                if idx == MainTab.home.rawValue { handleHomeTabSameTap() }
-                            }
-                        )
                         .onAppear {
                             sessionManager.updateActivity()
                         }
@@ -383,30 +380,30 @@ struct MainTabView: View {
             }
             // ✅ Hide iOS TabBar in Cute mode
             .toolbar(themeManager.currentTheme == .cute ? .hidden : .visible, for: .tabBar)
-            .onChange(of: appState.selectedTab) { oldTab, newTab in
-                // Tab selection changed - update session activity
-                sessionManager.updateActivity()
-                print("🔐 [MainTabView] Tab changed: \(oldTab) → \(newTab), session activity updated")
+            .onChange(of: selectedTabIndex) { _, newIdx in
+                let newTab = MainTab(rawValue: newIdx) ?? .home
+                if appState.selectedTab != newTab {
+                    appState.selectedTab = newTab
+                }
             }
-            .onChange(of: themeManager.currentTheme) { oldTheme, newTheme in
-                // Theme changed - reconfigure tab bar appearance
-                print("🎨 [MainTabView] Theme changed: \(oldTheme) → \(newTheme)")
+            .onChange(of: appState.selectedTab) { _, newTab in
+                sessionManager.updateActivity()
+                if selectedTabIndex != newTab.rawValue {
+                    selectedTabIndex = newTab.rawValue
+                }
+            }
+            .onChange(of: themeManager.currentTheme) { _, _ in
                 configureTabBarAppearance()
             }
             .onAppear {
                 configureTabBarAppearance()
-                // MainTabView appeared - update session activity
                 sessionManager.updateActivity()
-                print("🔐 [MainTabView] MainTabView appeared, session activity updated")
             }
 
             // Custom Cute Tab Bar (only shown in Cute Mode)
             if themeManager.currentTheme == .cute {
                 CuteTabBar(
-                    selectedTab: Binding(
-                        get: { appState.selectedTab.rawValue },
-                        set: { appState.selectedTab = MainTab(rawValue: $0) ?? .chat }
-                    ),
+                    selectedTab: $selectedTabIndex,
                     tabs: [
                         CuteTabBar.TabItem(icon: MainTab.chat.icon, tag: MainTab.chat.rawValue, title: MainTab.chat.title),
                         CuteTabBar.TabItem(icon: MainTab.grader.icon, tag: MainTab.grader.rawValue, title: MainTab.grader.title),
@@ -429,32 +426,12 @@ struct MainTabView: View {
     }
 
     private func configureTabBarAppearance() {
-        print("🎨 [MainTabView] Configuring tab bar for theme: \(themeManager.currentTheme)")
-
-        // ✅ SIMPLIFIED: Configure standard appearance for all themes
-        // iOS TabBar is always visible but offset down in Cute mode
         DispatchQueue.main.async {
             let appearance = UITabBarAppearance()
             appearance.configureWithDefaultBackground()
-
             UITabBar.appearance().standardAppearance = appearance
             UITabBar.appearance().scrollEdgeAppearance = appearance
         }
-    }
-
-    // Helper function to find UITabBarController in view hierarchy
-    private func findTabBarController(in viewController: UIViewController?) -> UITabBarController? {
-        if let tabBarController = viewController as? UITabBarController {
-            return tabBarController
-        }
-
-        for child in viewController?.children ?? [] {
-            if let found = findTabBarController(in: child) {
-                return found
-            }
-        }
-
-        return nil
     }
 
     private func selectTab(_ tab: MainTab) {
@@ -463,57 +440,6 @@ struct MainTabView: View {
 
     private func handleHomeTabSameTap() {
         appState.homeNavResetToken += 1
-    }
-}
-
-// MARK: - UIKit bridge: fires callback when user taps the already-selected tab
-// Installs a delegate proxy on the UITabBarController so we can detect same-tab taps
-// without interfering with SwiftUI's internal tab-bar management.
-private final class _SameTabCoordinator: NSObject, UITabBarControllerDelegate {
-    var handler: (Int) -> Void
-    weak var original: UITabBarControllerDelegate?
-
-    init(_ h: @escaping (Int) -> Void) { handler = h }
-
-    func tabBarController(_ tc: UITabBarController, shouldSelect vc: UIViewController) -> Bool {
-        if tc.selectedViewController === vc {
-            let idx = tc.selectedIndex
-            DispatchQueue.main.async { self.handler(idx) }
-        }
-        return original?.tabBarController?(tc, shouldSelect: vc) ?? true
-    }
-
-    func tabBarController(_ tc: UITabBarController, didSelect vc: UIViewController) {
-        original?.tabBarController?(tc, didSelect: vc)
-    }
-}
-
-private struct SameTabTapBridge: UIViewControllerRepresentable {
-    let onSameTabTapped: (Int) -> Void
-
-    func makeCoordinator() -> _SameTabCoordinator { _SameTabCoordinator(onSameTabTapped) }
-    func makeUIViewController(context: Context) -> _BridgeVC { _BridgeVC(context.coordinator) }
-    func updateUIViewController(_ vc: _BridgeVC, context: Context) {
-        vc.coordinator.handler = onSameTabTapped
-    }
-
-    final class _BridgeVC: UIViewController {
-        unowned let coordinator: _SameTabCoordinator
-        init(_ c: _SameTabCoordinator) { coordinator = c; super.init(nibName: nil, bundle: nil) }
-        required init?(coder: NSCoder) { fatalError() }
-
-        override func viewDidAppear(_ animated: Bool) {
-            super.viewDidAppear(animated)
-            var p: UIViewController? = parent
-            while let c = p {
-                if let tb = c as? UITabBarController, tb.delegate !== coordinator {
-                    coordinator.original = tb.delegate
-                    tb.delegate = coordinator
-                    return
-                }
-                p = c.parent
-            }
-        }
     }
 }
 

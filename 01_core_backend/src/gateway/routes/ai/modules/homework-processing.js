@@ -585,118 +585,118 @@ class HomeworkProcessingRoutes {
   /**
    * Parse multiple homework images (Phase 1 - Batch)
    * Used when user submits 2+ pages for Pro Mode
+   *
+   * Routing strategy:
+   *   ≤ 2 images → one call to /api/v1/parse-homework-questions-multi
+   *                (all pages in a single Gemini call — full cross-page context)
+   *   3+ images  → pairs sent to /api/v1/parse-homework-questions-multi in parallel,
+   *                results merged with global ID offset
    */
   async parseHomeworkQuestionsBatch(request, reply) {
     const startTime = Date.now();
     const { base64_images, parsing_mode = 'standard', model_provider = 'openai', subject } = request.body;
 
     try {
-      this.fastify.log.info(`📚 Batch parsing: ${base64_images.length} pages`);
+      const pageCount = base64_images.length;
+      this.fastify.log.info(`📚 Batch parsing: ${pageCount} pages`);
 
-      // Parse all images in parallel for speed
-      const parsePromises = base64_images.map((base64_image, index) => {
-        const pageStartTime = Date.now();
+      // Helper: call the multi-image AI endpoint with a slice of images
+      const callMulti = (images, batchIndex) => {
+        const batchStart = Date.now();
         return this.aiClient.proxyRequest(
           'POST',
-          '/api/v1/parse-homework-questions',
-          {
-            base64_image,
-            parsing_mode,
-            model_provider,
-            subject,
-            skip_bbox_detection: true  // Pro Mode doesn't need bounding boxes
-          },
+          '/api/v1/parse-homework-questions-multi',
+          { base64_images: images, parsing_mode, subject },
           { 'Content-Type': 'application/json' }
         ).then(result => {
-          const pageDuration = Date.now() - pageStartTime;
-          this.fastify.log.info(`✅ Page ${index + 1}/${base64_images.length} parsed in ${pageDuration}ms`);
-          return {
-            index,
-            ...result.data,
-            _pageProcessTime: pageDuration
-          };
+          const batchDuration = Date.now() - batchStart;
+          this.fastify.log.info(`✅ Batch ${batchIndex + 1} (${images.length} pages) parsed in ${batchDuration}ms`);
+          return { batchIndex, ...result.data, _batchProcessTime: batchDuration };
         }).catch(error => {
-          this.fastify.log.error(`❌ Page ${index + 1} parsing failed: ${error.message}`);
-          return {
-            index,
-            success: false,
-            error: error.message
-          };
+          this.fastify.log.error(`❌ Batch ${batchIndex + 1} failed: ${error.message}`);
+          return { batchIndex, success: false, error: error.message };
         });
-      });
+      };
 
-      const results = await Promise.all(parsePromises);
+      let batchPromises;
+      if (pageCount <= 2) {
+        // 1-2 pages: single multi-image call — AI sees all pages at once
+        batchPromises = [callMulti(base64_images, 0)];
+      } else {
+        // 3+ pages: split into pairs, run pairs in parallel
+        const pairs = [];
+        for (let i = 0; i < pageCount; i += 2) {
+          pairs.push(base64_images.slice(i, i + 2));
+        }
+        batchPromises = pairs.map((pair, idx) => callMulti(pair, idx));
+      }
 
-      // Check if all pages failed
-      const successfulPages = results.filter(r => r.success !== false);
-      if (successfulPages.length === 0) {
+      const batchResults = await Promise.all(batchPromises);
+
+      // Check if all batches failed
+      const successfulBatches = batchResults.filter(r => r.success !== false);
+      if (successfulBatches.length === 0) {
         throw new Error('All pages failed to parse');
       }
 
-      // Combine all parsed questions from all pages
+      // Merge results from all batches with global question ID offset
       const allQuestions = [];
       let combinedSubject = subject;
       let combinedSubjectConfidence = 0;
       let questionIdOffset = 0;
       let totalProcessTime = 0;
-      let handwritingEvaluation = null;  // Take from first page
+      let handwritingEvaluation = null;
 
-      for (const result of results.sort((a, b) => a.index - b.index)) {
+      for (const result of batchResults.sort((a, b) => a.batchIndex - b.batchIndex)) {
         if (result.success === false) {
-          this.fastify.log.warn(`⚠️ Skipping failed page ${result.index + 1}`);
+          this.fastify.log.warn(`⚠️ Skipping failed batch ${result.batchIndex + 1}`);
           continue;
         }
 
         if (result.questions && Array.isArray(result.questions)) {
-          // Add page number to each question and renumber globally
-          const pageQuestions = result.questions.map((q, qIndex) => ({
+          const batchQuestions = result.questions.map((q, qIndex) => ({
             ...q,
-            id: String(questionIdOffset + qIndex + 1),  // Global question numbering (String to match iOS model)
-            pageNumber: result.index + 1,  // Track which page this question is from
-            questionNumber: q.questionNumber || `${questionIdOffset + qIndex + 1}`  // Fallback numbering
+            id: String(questionIdOffset + qIndex + 1),
+            pageNumber: result.batchIndex * 2 + (q.pageNumber || 1),  // Adjust page numbers for pair offset
+            questionNumber: q.questionNumber || `${questionIdOffset + qIndex + 1}`
           }));
-
-          allQuestions.push(...pageQuestions);
+          allQuestions.push(...batchQuestions);
           questionIdOffset += result.questions.length;
         }
 
-        // Use subject from first successful page if not provided
-        if (result.index === 0 && result.subject) {
+        if (result.batchIndex === 0 && result.subject) {
           combinedSubject = result.subject;
           combinedSubjectConfidence = result.subject_confidence || result.subjectConfidence || 0;
         }
 
-        // Take handwriting evaluation from first page
-        if (result.index === 0 && result.handwriting_evaluation) {
+        if (result.batchIndex === 0 && result.handwriting_evaluation) {
           handwritingEvaluation = result.handwriting_evaluation;
-          this.fastify.log.info(`🔍 [BATCH HANDWRITING DEBUG] Captured from page 1: ${JSON.stringify(handwritingEvaluation)}`);
         }
 
-        // Accumulate processing time
-        totalProcessTime += result._pageProcessTime || 0;
+        totalProcessTime += result._batchProcessTime || 0;
       }
 
       const duration = Date.now() - startTime;
-      this.fastify.log.info(`✅ Batch parsing completed: ${allQuestions.length} questions from ${successfulPages.length}/${base64_images.length} pages in ${duration}ms`);
+      this.fastify.log.info(`✅ Batch parsing completed: ${allQuestions.length} questions from ${pageCount} pages in ${duration}ms`);
 
       return reply.send({
         success: true,
         subject: combinedSubject,
         subject_confidence: combinedSubjectConfidence,
-        subjectConfidence: combinedSubjectConfidence,  // Backward compatibility
+        subjectConfidence: combinedSubjectConfidence,
         total_questions: allQuestions.length,
-        totalQuestions: allQuestions.length,  // Backward compatibility
-        total_pages: base64_images.length,
-        successful_pages: successfulPages.length,
+        totalQuestions: allQuestions.length,
+        total_pages: pageCount,
+        successful_pages: successfulBatches.length * 2,
         questions: allQuestions,
-        handwriting_evaluation: handwritingEvaluation,  // From first page
+        handwriting_evaluation: handwritingEvaluation,
         processing_time_ms: totalProcessTime,
         _gateway: {
           processTime: duration,
           service: 'ai-engine',
-          mode: 'batch_progressive_phase1',
-          pagesProcessed: successfulPages.length,
-          pagesTotal: base64_images.length
+          mode: pageCount <= 2 ? 'multi_image_single_call' : 'multi_image_batched_pairs',
+          pagesProcessed: pageCount,
+          pagesTotal: pageCount
         }
       });
 

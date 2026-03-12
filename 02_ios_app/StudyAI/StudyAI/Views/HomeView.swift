@@ -70,8 +70,7 @@ struct HomeView: View {
     private let logger = Logger(subsystem: "com.studyai", category: "HomeView")
 
     var body: some View {
-        NavigationView {
-            ScrollView(showsIndicators: false) {
+        ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
                     // Engaging Hero Header with Animation, Avatar, Greeting & Stats
                     engagingHeroHeader
@@ -125,13 +124,30 @@ struct HomeView: View {
             .navigationDestination(item: $practiceRetrySession) { session in
                 QuestionSheetView(session: session)
             }
-            .onChange(of: appState.homeNavResetToken) { _, _ in
+            .onChange(of: appState.homeNavResetToken) { _, newToken in
+                print("🏠 [HomeView] homeNavResetToken fired (\(newToken)) → resetting nav. showingMistakeReview=\(showingMistakeReview), showingQuestionGeneration=\(showingQuestionGeneration), selectedTab=\(appState.selectedTab)")
                 showingMistakeReview = false
                 showingQuestionGeneration = false
                 feynmanSheetItem = nil
                 practiceRetrySession = nil
                 mistakeReviewInitialSubject = nil
                 practiceLibraryShortcutConfig = nil
+            }
+            // ── Track HomeView navigation state ──────────────────────────────────
+            .onChange(of: showingMistakeReview) { _, v in
+                print("🏠 [HomeView.nav] showingMistakeReview → \(v) | selectedTab=\(appState.selectedTab)")
+            }
+            .onChange(of: showingQuestionGeneration) { _, v in
+                print("🏠 [HomeView.nav] showingQuestionGeneration → \(v) | selectedTab=\(appState.selectedTab)")
+            }
+            .onChange(of: showingFocusMode) { _, v in
+                print("🏠 [HomeView.nav] showingFocusMode → \(v) | selectedTab=\(appState.selectedTab)")
+            }
+            .onChange(of: showingHomeworkAlbum) { _, v in
+                print("🏠 [HomeView.nav] showingHomeworkAlbum → \(v) | selectedTab=\(appState.selectedTab)")
+            }
+            .onChange(of: showingProfile) { _, v in
+                print("🏠 [HomeView.nav] showingProfile → \(v) | selectedTab=\(appState.selectedTab)")
             }
             .sheet(isPresented: $showingParentReports) {
                 NavigationView {
@@ -171,9 +187,6 @@ struct HomeView: View {
                     onSuccess: { showingParentReports = true }
                 )
             }
-        }
-        // iPad 上防止 NavigationView 变成双列拆分布局
-        .navigationViewStyle(.stack)
     }
 
     // MARK: - Engaging Hero Header

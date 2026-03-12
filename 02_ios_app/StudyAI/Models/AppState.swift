@@ -96,15 +96,48 @@ class AppState: ObservableObject {
     @Published var shouldUseDeepModeForFirstMessage: Bool = false
 
     /// Selected tab
-    @Published var selectedTab: MainTab = .home
+    @Published var selectedTab: MainTab = .home {
+        didSet {
+            guard oldValue != selectedTab else { return }
+            let stack = Thread.callStackSymbols
+                .dropFirst()   // skip this property's setter frame
+                .prefix(8)
+                .joined(separator: "\n   ")
+            print("""
+            🚨 [TAB SWITCH] \(oldValue) → \(selectedTab)
+               📍 Call Stack (top 8 frames):
+               \(stack)
+            """)
+        }
+    }
 
     /// Set to true to dismiss the entire practice/question-generation stack before switching to chat.
     /// QuestionGenerationView observes this and closes its fullScreenCover.
-    @Published var shouldDismissPracticeStack = false
+    @Published var shouldDismissPracticeStack = false {
+        didSet {
+            guard oldValue != shouldDismissPracticeStack else { return }
+            let stack = Thread.callStackSymbols.dropFirst().prefix(6).joined(separator: "\n   ")
+            print("""
+            🟡 [DISMISS STACK] shouldDismissPracticeStack → \(shouldDismissPracticeStack)
+               📍 Call Stack:
+               \(stack)
+            """)
+        }
+    }
 
     /// Incremented when the home tab is tapped while already selected.
     /// HomeView observes this to pop its navigation stack back to root.
-    @Published var homeNavResetToken = 0
+    @Published var homeNavResetToken = 0 {
+        didSet {
+            guard oldValue != homeNavResetToken else { return }
+            let stack = Thread.callStackSymbols.dropFirst().prefix(6).joined(separator: "\n   ")
+            print("""
+            🟠 [NAV RESET] homeNavResetToken → \(homeNavResetToken)
+               📍 Call Stack:
+               \(stack)
+            """)
+        }
+    }
 
     /// Unified navigation intent for jumping to the Chat tab.
     /// Consumed once by SessionChatView.onAppear and then cleared.

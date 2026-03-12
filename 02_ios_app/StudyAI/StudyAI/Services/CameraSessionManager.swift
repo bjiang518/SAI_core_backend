@@ -77,26 +77,15 @@ class CameraSessionManager: NSObject, ObservableObject {
     // MARK: - Session Management
     
     private func setupSessionNotifications() {
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(sessionRuntimeError),
-            name: AVCaptureSession.runtimeErrorNotification,
-            object: nil
-        )
-        
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(sessionWasInterrupted),
-            name: AVCaptureSession.wasInterruptedNotification,
-            object: nil
-        )
-        
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(sessionInterruptionEnded),
-            name: AVCaptureSession.interruptionEndedNotification,
-            object: nil
-        )
+        // NOTE: We intentionally do NOT register for AVCaptureSession notifications
+        // with object: nil here. When using VNDocumentCameraViewController, we don't
+        // own the AVCaptureSession — the native scanner manages its own. Listening to
+        // all sessions (object: nil) would intercept the scanner's internal events,
+        // trigger error recovery / @Published updates, cause SwiftUI re-renders, and
+        // block touch events on the native Save/Keep buttons.
+        //
+        // If we ever create our own AVCaptureSession, register observers scoped to
+        // that specific session instance (object: captureSession).
     }
     
     @objc private func sessionRuntimeError(notification: Notification) {

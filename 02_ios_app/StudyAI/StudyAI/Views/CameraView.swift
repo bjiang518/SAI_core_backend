@@ -344,8 +344,8 @@ struct CameraView: UIViewControllerRepresentable {
     let allowDirectAccept: Bool
     let showEditingOptions: Bool
     
-    // Enhanced camera management
-    @StateObject private var cameraManager = CameraSessionManager.shared
+    // Enhanced camera management (plain reference, not @StateObject, to avoid re-renders)
+    private let cameraManager = CameraSessionManager.shared
     
     init(selectedImage: Binding<UIImage?>, isPresented: Binding<Bool>, allowDirectAccept: Bool = true, showEditingOptions: Bool = true) {
         self._selectedImage = selectedImage
@@ -699,7 +699,9 @@ struct EnhancedCameraView: UIViewControllerRepresentable {
 
     private let logger = Logger(subsystem: "com.studyai", category: "EnhancedCameraView")
     @StateObject private var cameraViewModel = CameraViewModel.shared
-    @StateObject private var cameraManager = CameraSessionManager.shared
+    // Use plain reference — NOT @StateObject — to avoid SwiftUI re-renders
+    // from CameraSessionManager's @Published properties while VNDocumentCameraViewController is active.
+    private let cameraManager = CameraSessionManager.shared
 
     private var shouldUseNativeScanner: Bool {
         return VNDocumentCameraViewController.isSupported

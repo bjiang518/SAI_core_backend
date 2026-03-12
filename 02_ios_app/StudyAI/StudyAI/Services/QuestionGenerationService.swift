@@ -221,19 +221,6 @@ class QuestionGenerationService: ObservableObject {
             self.baseBranch = try container.decodeIfPresent(String.self, forKey: .baseBranch)
             self.detailedBranch = try container.decodeIfPresent(String.self, forKey: .detailedBranch)
             self.weaknessKey = try container.decodeIfPresent(String.self, forKey: .weaknessKey)
-
-            // ✅ DEBUG: Log error keys if present
-            if let errorType = self.errorType {
-                DebugSettings.shared.logErrorKeys("Decoded question with error keys: \(errorType)")
-                DebugSettings.shared.prettyPrintErrorKeys(
-                    errorType: self.errorType,
-                    baseBranch: self.baseBranch,
-                    detailedBranch: self.detailedBranch,
-                    weaknessKey: self.weaknessKey
-                )
-            } else {
-                DebugSettings.shared.logErrorKeys("Question has NO error keys (likely random generation)")
-            }
         }
 
         // Helper struct for parsing backend multiple choice options
@@ -297,6 +284,7 @@ class QuestionGenerationService: ObservableObject {
             case longAnswer = "long_answer"
             case calculation = "calculation"
             case matching = "matching"
+            case composition = "composition"
             case any = "any"  // Allow AI to choose type dynamically
 
             /// Types that can be requested for generation (v2 endpoint).
@@ -312,6 +300,7 @@ class QuestionGenerationService: ObservableObject {
                 case .longAnswer: return NSLocalizedString("questionType.longAnswer", comment: "")
                 case .calculation: return NSLocalizedString("questionType.calculation", comment: "")
                 case .matching: return NSLocalizedString("questionType.matching", comment: "")
+                case .composition: return NSLocalizedString("questionType.composition", comment: "")
                 case .any: return NSLocalizedString("questionType.mixedTypes", comment: "")
                 }
             }
@@ -325,6 +314,7 @@ class QuestionGenerationService: ObservableObject {
                 case .longAnswer: return "doc.text"
                 case .calculation: return "function"
                 case .matching: return "arrow.left.arrow.right"
+                case .composition: return "doc.richtext"
                 case .any: return "sparkles"
                 }
             }

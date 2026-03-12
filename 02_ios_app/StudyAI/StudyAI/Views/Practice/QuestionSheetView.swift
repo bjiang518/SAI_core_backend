@@ -37,6 +37,7 @@ struct QuestionSheetView: View {
     // Session-level state
     @State private var correctCount: Int = 0
     @State private var answeredIds: Set<String> = []
+    @State private var correctAnsweredIds: Set<String> = []
     @State private var showingCompletion: Bool = false
 
     // Smart Organize (completion screen)
@@ -681,7 +682,8 @@ struct QuestionSheetView: View {
             originalImageUrl: nil,
             processingTime: 0,
             userNotes: [""],
-            userTags: [[]]
+            userTags: [[]],
+            source: "practice"
         )
 
         do {
@@ -1065,7 +1067,10 @@ struct QuestionSheetView: View {
         let qId = q.id.uuidString
         guard !answeredIds.contains(qId) else { return }
         answeredIds.insert(qId)
-        if correct { correctCount += 1 }
+        if correct {
+            correctCount += 1
+            correctAnsweredIds.insert(qId)
+        }
 
         sessionManager.updateProgress(
             sessionId: session.id,
@@ -1100,7 +1105,9 @@ struct QuestionSheetView: View {
             let wrongQuestions = questions.filter { q in
                 let qId = q.id.uuidString
                 guard answeredIds.contains(qId) else { return false }
-                return (current?.answers[qId]?["is_correct"] as? Bool) != true
+                // Use in-memory correctAnsweredIds (always accurate) rather than re-reading
+                // from UserDefaults — avoids false positives if the stored session is stale.
+                return !correctAnsweredIds.contains(qId)
             }
 
             if !wrongQuestions.isEmpty {
@@ -1128,7 +1135,8 @@ struct QuestionSheetView: View {
                     originalImageUrl: nil,
                     processingTime: 0,
                     userNotes: Array(repeating: "", count: parsedQuestions.count),
-                    userTags: Array(repeating: [], count: parsedQuestions.count)
+                    userTags: Array(repeating: [], count: parsedQuestions.count),
+                    source: "practice"
                 )
                 let archived = (try? await QuestionArchiveService.shared.archiveQuestions(request)) ?? []
 
@@ -1164,7 +1172,7 @@ struct QuestionSheetView: View {
             let correctQuestions = questions.filter { q in
                 let qId = q.id.uuidString
                 guard answeredIds.contains(qId) else { return false }
-                return (current?.answers[qId]?["is_correct"] as? Bool) == true
+                return correctAnsweredIds.contains(qId)
             }
             if !correctQuestions.isEmpty {
                 let correctPayload: [[String: Any]] = correctQuestions.map { q in
@@ -1184,7 +1192,8 @@ struct QuestionSheetView: View {
                         "reviewCount": 0,
                         "tags": [],
                         "points": 1.0,
-                        "maxPoints": Double(q.points ?? 1)
+                        "maxPoints": Double(q.points ?? 1),
+                        "source": "practice"
                     ]
                     if let v = q.baseBranch     { payload["baseBranch"]    = v }
                     if let v = q.detailedBranch { payload["detailedBranch"] = v }
@@ -1215,6 +1224,7 @@ struct QuestionSheetView: View {
     private func redoAllQuestions() {
         sessionManager.resetSessionProgress(sessionId: session.id)
         answeredIds = []
+        correctAnsweredIds = []
         correctCount = 0
         showingCompletion = false
         navigateTo(0)
@@ -1289,7 +1299,10 @@ struct QuestionSheetView: View {
         localQuestions = persisted?.questions ?? session.questions
         if let persisted = persisted {
             answeredIds = Set(persisted.completedQuestionIds)
-            correctCount = persisted.answers.values.filter { ($0["is_correct"] as? Bool) == true }.count
+            correctAnsweredIds = Set(persisted.completedQuestionIds.filter { qId in
+                (persisted.answers[qId]?["is_correct"] as? Bool) == true
+            })
+            correctCount = correctAnsweredIds.count
             hasOrganized = persisted.isOrganized
             hasTriggeredOrganize = persisted.isOrganized
             if let firstUnanswered = questions.firstIndex(where: { !answeredIds.contains($0.id.uuidString) }) {
@@ -1314,8 +1327,7 @@ struct QuestionSheetView: View {
         // Adjust counts if this question was already answered
         if answeredIds.contains(qId) {
             answeredIds.remove(qId)
-            let wasCorrect = (sessionManager.getSession(id: session.id)?.answers[qId]?["is_correct"] as? Bool) ?? false
-            if wasCorrect { correctCount = max(0, correctCount - 1) }
+            if correctAnsweredIds.remove(qId) != nil { correctCount = max(0, correctCount - 1) }
         }
 
         // Remove from local list and persist

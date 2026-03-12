@@ -451,8 +451,8 @@ struct ArchiveQuestionSelectionCard: View {
                     .foregroundColor(isSelected ? .green : .gray)
                     .font(.title2)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(question.shortQuestionText)
-                        .font(.body).fontWeight(.medium)
+                    FullLaTeXText(question.shortQuestionText, fontSize: 15)
+                        .fontWeight(.medium)
                         .multilineTextAlignment(.leading)
                     HStack {
                         Text(question.subject)

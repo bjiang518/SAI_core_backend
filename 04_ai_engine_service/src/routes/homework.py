@@ -115,6 +115,15 @@ class ParseHomeworkQuestionsRequest(BaseModel):
     model_provider: Optional[str] = "openai"
 
 
+class ParseHomeworkQuestionsMultiRequest(BaseModel):
+    """Request for parsing 2+ homework pages in a single Gemini call."""
+    model_config = ConfigDict(protected_namespaces=())
+
+    base64_images: List[str]          # Ordered list of page images
+    parsing_mode: Optional[str] = "standard"
+    subject: Optional[str] = None
+
+
 class HandwritingEvaluationRequest(BaseModel):
     base64_image: str
 
@@ -460,6 +469,78 @@ async def parse_homework_questions(request: ParseHomeworkQuestionsRequest):
             success=False, subject="Unknown", subject_confidence=0.0,
             total_questions=0, questions=[], processing_time_ms=processing_time,
             error=f"Parsing error: {type(e).__name__}: {str(e)}"
+        )
+
+
+@router.post("/api/v1/parse-homework-questions-multi", response_model=ParseHomeworkQuestionsResponse)
+async def parse_homework_questions_multi(request: ParseHomeworkQuestionsMultiRequest):
+    """
+    Parse 2+ homework pages in a SINGLE Gemini API call.
+
+    All pages are sent together so the model sees full context across pages —
+    ideal for essays, long answers, or any content that spans page boundaries.
+    Each page is processed at its own native resolution (no concatenation).
+
+    Called by the backend batch handler:
+      - ≤ 2 images → this endpoint (one call, full cross-page context)
+      - 3+ images  → backend splits into pairs and calls this endpoint per pair
+    """
+    start_time = _time.time()
+
+    if len(request.base64_images) < 2:
+        raise HTTPException(status_code=400, detail="At least 2 images required for multi-parse")
+    if len(request.base64_images) > 10:
+        raise HTTPException(status_code=400, detail="Maximum 10 images per multi-parse call")
+
+    try:
+        result = await gemini_service.parse_homework_questions_multi(
+            base64_images=request.base64_images,
+            parsing_mode=request.parsing_mode,
+            subject=request.subject
+        )
+
+        if not result["success"]:
+            raise HTTPException(status_code=500, detail=result.get("error", "Multi-page parsing failed"))
+
+        processing_time = int((_time.time() - start_time) * 1000)
+        questions = result.get("questions", [])
+
+        # Apply same answer cleanup + subquestion ID normalization as single-page parse
+        for question in questions:
+            if isinstance(question, dict):
+                if question.get("student_answer"):
+                    question["student_answer"] = clean_student_answer(question["student_answer"])
+                if question.get("subquestions"):
+                    for subq in question["subquestions"]:
+                        if isinstance(subq, dict) and subq.get("student_answer"):
+                            subq["student_answer"] = clean_student_answer(subq["student_answer"])
+
+        normalize_subquestion_ids(questions)
+
+        return ParseHomeworkQuestionsResponse(
+            success=True,
+            subject=result.get("subject", "General"),
+            subject_confidence=result.get("subject_confidence", 0.8),
+            total_questions=len(questions),
+            questions=questions,
+            processing_time_ms=processing_time
+        )
+
+    except HTTPException as he:
+        processing_time = int((_time.time() - start_time) * 1000)
+        return ParseHomeworkQuestionsResponse(
+            success=False, subject="Unknown", subject_confidence=0.0,
+            total_questions=0, questions=[], processing_time_ms=processing_time,
+            error=f"Multi-parse error: {he.detail}"
+        )
+    except Exception as e:
+        processing_time = int((_time.time() - start_time) * 1000)
+        import traceback
+        traceback.print_exc()
+        return ParseHomeworkQuestionsResponse(
+            success=False, subject="Unknown", subject_confidence=0.0,
+            total_questions=0, questions=[], processing_time_ms=processing_time,
+            error=f"Multi-parse error: {type(e).__name__}: {str(e)}"
         )
 
 

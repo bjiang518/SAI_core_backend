@@ -40,6 +40,9 @@ class EnhancedTTSService: NSObject, ObservableObject {
     private var chunkSequenceNumber: Int = 0
     private var currentChunkNumber: Int = 0
     private var chunkStartTime: Date?
+
+    // Track in-flight network fetch so it can be cancelled on stopSpeech()
+    private var activeFetchTask: Task<Void, Never>?
     
     // Cache for audio files
     private let audioCache = NSCache<NSString, NSData>()
@@ -233,6 +236,10 @@ class EnhancedTTSService: NSObject, ObservableObject {
         let timestamp = Date()
         let timeStr = DateFormatter.localizedString(from: timestamp, dateStyle: .none, timeStyle: .medium)
 
+        // Cancel any in-flight network fetch so it doesn't deliver audio after stop
+        activeFetchTask?.cancel()
+        activeFetchTask = nil
+
         audioPlayer?.stop()
         audioPlayer = nil
         progressTimer?.invalidate()
@@ -319,13 +326,10 @@ class EnhancedTTSService: NSObject, ObservableObject {
         print("📤 [Chunk #\(thisChunkNumber)] [\(timeStr)] SENDING to ElevenLabs TTS")
         print("   └─ Text: \"\(textPreview)...\" (\(request.text.count) chars)")
 
-        Task {
+        activeFetchTask?.cancel()
+        activeFetchTask = Task {
             do {
                 let audioData = try await requestServerTTS(for: request)
-
-                let timestamp = Date()
-                let timeStr = DateFormatter.localizedString(from: timestamp, dateStyle: .none, timeStyle: .medium)
-                print("✅ [Chunk #\(thisChunkNumber)] [\(timeStr)] RECEIVED audio from ElevenLabs")
                 print("   └─ Audio size: \(audioData.count / 1024) KB")
 
                 // Cache the audio data in memory

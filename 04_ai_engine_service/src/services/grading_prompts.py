@@ -19,7 +19,8 @@ QUESTION_TYPES = [
     "short_answer",
     "long_answer",
     "calculation",
-    "matching"
+    "matching",
+    "composition"
 ]
 
 # Subject definitions (matching iOS Subject enum)
@@ -87,11 +88,29 @@ def _get_type_specific_instructions(question_type: str) -> str:
     type_prompts = {
         "multiple_choice": """
 📋 MULTIPLE CHOICE GRADING RULES:
-- correct_answer is in "B. option text" format (letter + dot + space + option text)
-- student_answer is the full selected option in the same "B. option text" format
-- Compare: extract the letter from both sides and check if they match (case-insensitive)
-- If letters match → score 1.0 (correct). If they differ → score 0.0 (incorrect)
-- Multiple choice is always all-or-nothing
+
+STEP 1 — Detect question variant:
+- SINGLE-SELECT: only one correct option exists (default MC)
+- MULTI-SELECT (多选题): question text contains "多选", "多项", or multiple options are clearly all correct
+  Student may have chosen one or more letters (e.g. "B" or "ABD").
+
+STEP 2 — correct_answer field format:
+- ALWAYS return correct_answer as ONLY the uppercase letter(s), nothing else.
+- Single-select: one letter, e.g.  "B"
+- Multi-select:  comma-separated letters in alphabetical order, e.g. "B,C,D"
+- NEVER include option text, punctuation other than commas, or spaces.
+
+STEP 3 — Scoring:
+- Single-select: 1.0 if chosen letter matches correct letter, 0.0 otherwise. All-or-nothing.
+- Multi-select:
+  * Count how many correct options the student selected (hits).
+  * Count how many wrong options the student selected (misses = selected but wrong).
+  * score = max(0, hits / total_correct - misses / total_correct)
+  * Examples: correct=BCD, student selects B → score 0.33 (1/3 hit, 0 wrong)
+              correct=BCD, student selects B,C → score 0.67 (2/3 hit, 0 wrong)
+              correct=BCD, student selects B,A → score 0.0 (1 hit, 1 wrong → penalised)
+              correct=BCD, student selects B,C,D → score 1.0 (perfect)
+- is_correct = true only when score >= 0.9.
 """,
 
         "true_false": """
@@ -155,6 +174,53 @@ def _get_type_specific_instructions(question_type: str) -> str:
 - Partial credit: award points per correct match (e.g., 5 matches = 0.2 points each)
 - Do not penalize for format differences if intention is clear
 - Look for: swapped answers, one correct match affecting others
+""",
+
+        "composition": """
+📋 COMPOSITION / ESSAY GRADING RULES:
+- This is a WRITING assignment (essay, paragraph, story, 作文), NOT a factual Q&A.
+- DO NOT grade as simply right/wrong. Grade on writing quality.
+
+SCORING RUBRIC (each criterion contributes 20% of the final score):
+
+1. CONTENT & IDEAS (20%):
+   - Addresses the prompt/topic fully
+   - Ideas are clear, relevant, and well-developed
+   - Shows originality or personal insight
+
+2. ORGANIZATION & STRUCTURE (20%):
+   - Clear beginning, middle, end
+   - Logical paragraph structure
+   - Effective transitions between ideas
+
+3. LANGUAGE & VOCABULARY (20%):
+   - Age-appropriate vocabulary range
+   - Correct and varied word choice
+   - Avoidance of repetition
+
+4. GRAMMAR & MECHANICS (20%):
+   - Correct spelling, punctuation, capitalization
+   - Proper sentence structure (no run-ons, fragments)
+   - Subject-verb agreement, tense consistency
+
+5. STYLE & VOICE (20%):
+   - Appropriate tone for the task
+   - Sentence variety (not all same length/pattern)
+   - Engagement — does the writing hold interest?
+
+SCORING GUIDE:
+- 0.9-1.0: Exceptional writing, minor or no issues
+- 0.7-0.8: Good writing, a few areas to improve
+- 0.5-0.6: Adequate, meets basic requirements but needs work
+- 0.3-0.4: Below grade level, significant issues in multiple areas
+- 0.0-0.2: Does not address the prompt or is largely illegible/incomplete
+
+FEEDBACK REQUIREMENTS:
+- Name the 1-2 STRONGEST aspects of the writing (be specific, quote examples)
+- Name the 1-2 MOST IMPORTANT areas to improve (be specific, suggest how)
+- If grammar errors exist, mention the top 2-3 most impactful ones
+- Keep feedback encouraging and constructive (50-100 words)
+- correct_answer field: return empty string "" (compositions have no single correct answer)
 """
     }
 
@@ -418,6 +484,24 @@ def _get_combined_instructions(question_type: str, subject: str) -> str:
 - Order of magnitude: 100m vs 100km - students often confuse
 - Scientific notation: 1.5 × 10³ vs 1500 - accept if student chooses equivalent
 - Diagram-based questions: Verify student is referencing correct part
+""",
+
+        ("composition", "English"): """
+🎯 COMPOSITION × ENGLISH COMBINATION:
+- Evaluate against grade-level writing standards
+- Grammar weight is higher (25%) — correct sentence structure, tense consistency, and punctuation are critical
+- Look for: thesis statement, topic sentences, concluding sentence
+- Literary devices (simile, metaphor) are a bonus, not required
+- Spelling errors: deduct more heavily than in other subjects
+""",
+
+        ("composition", "Foreign Language"): """
+🎯 COMPOSITION × FOREIGN LANGUAGE COMBINATION:
+- Evaluate relative to the student's learning level (be more lenient on advanced grammar)
+- Vocabulary range and correct usage is more important than grammatical perfection
+- Key grammar indicators: verb conjugation, gender/article agreement, word order
+- Accept L1 influence in phrasing if meaning is clear and task doesn't forbid it
+- Accent marks/diacritics: partial credit if only mark is wrong but word is correct
 """
     }
 
@@ -526,6 +610,11 @@ STUDENT ANSWER: {student_answer}
     # Output format instructions — identical for both fast and deep mode
     # (quality difference comes from the model, not the prompt)
     output_format = """
+EXACT MATCH RULE (check this FIRST, before applying partial-credit breakdowns):
+- If the student's answer is numerically or semantically equivalent to the correct answer → score = 1.0, is_correct = true.
+- "80" == "80", "0.5" == "1/2" == "50%", "Paris" == "paris" are all exact matches.
+- Do NOT penalize for missing work when the final answer is correct on a simple one-step problem.
+
 Assign a grade from 0.0 to 1.0:
 - 1.0 = Perfect, completely correct
 - 0.9 = Excellent, minor issue but substantially correct
@@ -533,6 +622,10 @@ Assign a grade from 0.0 to 1.0:
 - 0.5-0.6 = Partial credit, some understanding but significant gaps
 - 0.3-0.4 = Poor, major misunderstanding but some relevant content
 - 0.0-0.2 = Incorrect, fundamental misunderstanding
+
+is_correct DEFINITION (strict rule — never deviate):
+- is_correct = true  when score >= 0.9
+- is_correct = false when score < 0.9
 
 FEEDBACK REQUIREMENT (mandatory, must not be empty):
 - If incorrect (score < 0.9): write 50-100 words explaining the specific error and guiding toward the correct understanding.

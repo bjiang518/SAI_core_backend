@@ -21,7 +21,7 @@ class VoiceInteractionService: ObservableObject {
     @Published var interactionState: VoiceInteractionState = .idle
     @Published var voiceSettings = VoiceSettings.load()
     @Published var permissionStatus: VoicePermissionStatus = .notDetermined
-    @Published var isVoiceEnabled = true
+    @Published var isVoiceEnabled = false
     @Published var lastRecognizedText = ""
     @Published var errorMessage: String?
     @Published var isPaused = false
