@@ -11,6 +11,8 @@ import SwiftUI
 struct ArchiveProgressView: View {
     @State private var progress: CGFloat = 0.0
     @State private var isComplete = false
+    @State private var taskFinished = false
+    @State private var animationFinished = false
     @Binding var isPresented: Bool
 
     let archiveTask: () async -> Void  // ✅ Changed: Run async task during animation
@@ -100,17 +102,18 @@ struct ArchiveProgressView: View {
         .padding(.horizontal, 40)
         .onAppear {
             startProgress()
-            // ✅ NEW: Start archive task immediately when animation appears
             Task {
                 await archiveTask()
+                taskFinished = true
+                finishIfReady()
             }
         }
     }
 
     private func startProgress() {
-        // Simulate AI analysis progress over ~5 seconds
-        let steps = 50 // 50 steps for smooth animation
-        let duration = 5.0 // 5 seconds total
+        // Progress animation over ~3 seconds
+        let steps = 30
+        let duration = 3.0
         let interval = duration / Double(steps)
 
         var currentStep = 0
@@ -123,23 +126,30 @@ struct ArchiveProgressView: View {
             let randomOffset = CGFloat.random(in: -0.02...0.02)
             progress = min(1.0, baseProgress + randomOffset)
 
-            // Complete at 100%
+            // Animation complete at 100%
             if currentStep >= steps {
                 timer.invalidate()
                 progress = 1.0
+                animationFinished = true
+                finishIfReady()
+            }
+        }
+    }
 
-                // Show completion state briefly
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    withAnimation {
-                        isComplete = true
-                    }
+    /// Only show completion and dismiss when BOTH the task and animation are done.
+    private func finishIfReady() {
+        guard taskFinished && animationFinished else { return }
 
-                    // Dismiss after showing success (archive already completed)
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                        onComplete()
-                        isPresented = false
-                    }
-                }
+        // Show completion state briefly
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            withAnimation {
+                isComplete = true
+            }
+
+            // Dismiss after showing success
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                onComplete()
+                isPresented = false
             }
         }
     }

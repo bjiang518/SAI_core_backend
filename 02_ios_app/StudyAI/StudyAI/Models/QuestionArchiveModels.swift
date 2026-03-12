@@ -141,6 +141,7 @@ struct QuestionArchiveRequest {
     let processingTime: Double
     let userNotes: [String] // Notes per question in same order as selectedQuestionIndices
     let userTags: [[String]] // Tags per question in same order as selectedQuestionIndices
+    var source: String = "homework" // "homework" (camera grader) or "practice" (practice view)
 }
 
 // MARK: - Enhanced Homework Parsing Result with Subject Detection
@@ -284,12 +285,28 @@ struct QuestionSummary: Codable, Identifiable {
     let parentQuestionId: Int?     // Parent question ID if this is a subquestion
     let subquestionId: String?     // Subquestion ID (e.g., "1a", "1b")
 
-    // Computed property for display
+    // Source tracking: "homework" (camera grader) or "practice" (practice view)
+    let source: String?
+
+    // Computed property for display — truncates outside LaTeX spans to avoid
+    // breaking mid-formula (e.g. cutting "$Ca^{2+" without its closing "$").
     var shortQuestionText: String {
-        if questionText.count > 100 {
-            return String(questionText.prefix(97)) + "..."
+        guard questionText.count > 100 else { return questionText }
+
+        let prefix = String(questionText.prefix(97))
+        // If the number of "$" signs in the prefix is odd, we're mid-LaTeX span.
+        // Extend forward to include the next closing "$" so the formula is complete.
+        if prefix.filter({ $0 == "$" }).count % 2 != 0 {
+            let scanStart = questionText.index(questionText.startIndex, offsetBy: 97)
+            if let closing = questionText.range(of: "$", range: scanStart..<questionText.endIndex) {
+                let safeEnd = questionText.index(after: closing.lowerBound)
+                return String(questionText[..<safeEnd]) + "..."
+            }
+            // No closing "$" found — drop the dangling opener entirely.
+            let stripped = prefix.components(separatedBy: "$").dropLast().joined(separator: "$")
+            return stripped.trimmingCharacters(in: .whitespaces) + "..."
         }
-        return questionText
+        return prefix + "..."
     }
 
     var confidenceLevel: String {

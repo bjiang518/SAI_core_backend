@@ -40,6 +40,12 @@ class ErrorAnalysisQueueService: ObservableObject {
             return
         }
 
+        // Opportunistically retry any permanently-failed analyses from previous sessions.
+        // Runs in background — does not block the current batch or create a lock conflict.
+        Task {
+            await retryFailedAnalyses()
+        }
+
         print("📊 [ErrorAnalysis] Received \(wrongQuestions.count) wrong answers for Pass 2")
         print("🔬 [EA-DBG] ── queueErrorAnalysisAfterGrading entry ──")
         for (i, q) in wrongQuestions.enumerated() {
@@ -624,8 +630,13 @@ class ErrorAnalysisQueueService: ObservableObject {
         }
     }
 
-    /// Get question IDs that have already been analyzed (status = "completed" or "processing")
-    /// Used to prevent duplicate error analysis for the same question
+    /// Get question IDs that have already been analyzed AND classified.
+    /// Only skips questions where status == "completed" AND baseBranch is non-empty.
+    /// - "processing" questions are NOT skipped — they may be permanently stuck if the
+    ///   app was killed mid-analysis. They will be re-queued and re-analyzed.
+    /// - "failed" questions are NOT skipped — they will be retried on the next submission.
+    /// - "completed" with empty baseBranch are NOT skipped — taxonomy write may have failed
+    ///   silently, so re-analysis ensures the question gets classified.
     private func getAnalyzedQuestionIds() -> [String] {
         let allQuestions = localStorage.getLocalQuestions()
         return allQuestions.compactMap { question in
@@ -633,13 +644,14 @@ class ErrorAnalysisQueueService: ObservableObject {
                 return nil
             }
 
-            // Check if question has already been analyzed
             let status = question["errorAnalysisStatus"] as? String ?? ""
-            if status == "completed" || status == "processing" {
-                return questionId  // Already analyzed or being analyzed
+            let baseBranch = question["baseBranch"] as? String ?? ""
+            // Only truly done when analysis completed AND taxonomy is present
+            if status == "completed" && !baseBranch.isEmpty {
+                return questionId
             }
 
-            return nil  // Needs analysis (status is nil, "", or "failed")
+            return nil
         }
     }
 

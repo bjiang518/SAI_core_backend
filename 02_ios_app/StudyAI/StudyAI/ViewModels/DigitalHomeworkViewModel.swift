@@ -1527,7 +1527,8 @@ class DigitalHomeworkViewModel: ObservableObject {
                 "options": [],
                 "proMode": true,
                 "parentQuestionId": parentQuestionId,
-                "subquestionId": subquestionId
+                "subquestionId": subquestionId,
+                "source": "homework"
             ]
             questionsToArchive.append(questionData)
         }
@@ -1677,7 +1678,8 @@ class DigitalHomeworkViewModel: ObservableObject {
                 "isCorrect": isCorrect,
                 "questionType": question.questionType ?? "short_answer",
                 "options": [],
-                "proMode": true
+                "proMode": true,
+                "source": "homework"
             ]
             questionsToArchive.append(questionData)
         }
@@ -1944,7 +1946,8 @@ class DigitalHomeworkViewModel: ObservableObject {
                     "points": 1.0,
                     "maxPoints": 1.0,
                     "questionType": question.questionType ?? "short_answer",
-                    "proMode": true
+                    "proMode": true,
+                    "source": "homework"
                 ]
             }
             if !correctPayload.isEmpty {

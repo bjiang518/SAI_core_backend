@@ -185,7 +185,7 @@ struct GeneratedQuestionDetailView: View {
                     multipleChoiceInput
                 case .trueFalse:
                     trueFalseInput
-                case .shortAnswer, .calculation, .longAnswer, .fillBlank, .matching, .any:
+                case .shortAnswer, .calculation, .longAnswer, .fillBlank, .matching, .composition, .any:
                     textAnswerInput
                 }
             }
@@ -627,7 +627,7 @@ struct GeneratedQuestionDetailView: View {
         switch currentQuestion.type {
         case .multipleChoice, .trueFalse:
             return selectedOption != nil
-        case .shortAnswer, .calculation, .longAnswer, .fillBlank, .matching, .any:
+        case .shortAnswer, .calculation, .longAnswer, .fillBlank, .matching, .composition, .any:
             return !userAnswer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
     }
@@ -636,7 +636,7 @@ struct GeneratedQuestionDetailView: View {
         switch currentQuestion.type {
         case .multipleChoice, .trueFalse:
             return selectedOption ?? ""
-        case .shortAnswer, .calculation, .longAnswer, .fillBlank, .matching, .any:
+        case .shortAnswer, .calculation, .longAnswer, .fillBlank, .matching, .composition, .any:
             return userAnswer
         }
     }

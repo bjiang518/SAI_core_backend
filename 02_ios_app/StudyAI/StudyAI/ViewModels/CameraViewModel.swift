@@ -59,23 +59,16 @@ class CameraViewModel: ObservableObject {
     
     // MARK: - Private Properties
     private let sessionManager = CameraSessionManager.shared
-    private var cancellables = Set<AnyCancellable>()
-    
+
     private init() {
         setupErrorMonitoring()
     }
     
     // MARK: - Error Monitoring
     private func setupErrorMonitoring() {
-        // Monitor camera availability
-        sessionManager.$isCameraAvailable
-            .sink { [weak self] available in
-                if !available {
-                    self?.logger.warning("Camera became unavailable")
-                    self?.lastCameraError = "Camera access unavailable"
-                }
-            }
-            .store(in: &cancellables)
+        // Removed: was subscribing to sessionManager.$isCameraAvailable which caused
+        // cascade @Published updates when CameraSessionManager handled notifications
+        // from VNDocumentCameraViewController's internal AVCaptureSession.
     }
     
     // MARK: - Image Capture Methods

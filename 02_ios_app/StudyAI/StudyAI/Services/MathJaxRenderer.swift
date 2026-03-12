@@ -71,6 +71,9 @@ private enum MathHTML {
                 processEscapes: true,
                 processEnvironments: true
             },
+            chtml: {
+                fontURL: 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/output/chtml/fonts/woff-v2'
+            },
             options: {
                 skipHtmlTags: ['script','noscript','style','textarea','pre']
             },
@@ -221,6 +224,7 @@ struct MathWebView: UIViewRepresentable {
     let html: String
     @Binding var height: CGFloat
     @Binding var isReady: Bool
+    var interactionEnabled: Bool = true
 
     class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         var parent: MathWebView
@@ -256,6 +260,7 @@ struct MathWebView: UIViewRepresentable {
         wv.backgroundColor = .clear
         wv.scrollView.backgroundColor = .clear
         wv.scrollView.isScrollEnabled = false
+        wv.isUserInteractionEnabled = interactionEnabled
         return wv
     }
 
@@ -277,6 +282,7 @@ private struct MathContentView: View {
     let content: String
     let fontSize: CGFloat
     let isStreaming: Bool
+    var interactionEnabled: Bool = true
 
     @Environment(\.colorScheme) var colorScheme
     @State private var webViewHeight: CGFloat = 50
@@ -303,7 +309,8 @@ private struct MathContentView: View {
                 MathWebView(
                     html: MathHTML.page(content: content, fontSize: fontSize, colorScheme: colorScheme),
                     height: $webViewHeight,
-                    isReady: $mathReady
+                    isReady: $mathReady,
+                    interactionEnabled: interactionEnabled
                 )
                 .frame(height: mathReady ? max(webViewHeight, 20) : 0)
                 .opacity(mathReady ? 1 : 0)
@@ -342,14 +349,17 @@ public struct FullLaTeXText: View {
     let fontSize: CGFloat
     let strategy: MathRenderStrategy   // kept for API compatibility, not used
     let isStreaming: Bool
+    var interactionEnabled: Bool = true
 
     public init(_ content: String, fontSize: CGFloat = 16,
                 strategy: MathRenderStrategy = .auto,
-                isStreaming: Bool = false) {
+                isStreaming: Bool = false,
+                interactionEnabled: Bool = true) {
         self.content = content
         self.fontSize = fontSize
         self.strategy = strategy
         self.isStreaming = isStreaming
+        self.interactionEnabled = interactionEnabled
     }
 
     /// Returns true if content contains any LaTeX math markers.
@@ -365,7 +375,7 @@ public struct FullLaTeXText: View {
 
     public var body: some View {
         if containsLatex {
-            MathContentView(content: content, fontSize: fontSize, isStreaming: isStreaming)
+            MathContentView(content: content, fontSize: fontSize, isStreaming: isStreaming, interactionEnabled: interactionEnabled)
         } else {
             Text(content)
                 .font(.system(size: fontSize))

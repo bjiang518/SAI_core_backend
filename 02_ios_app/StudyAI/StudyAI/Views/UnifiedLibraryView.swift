@@ -1042,9 +1042,10 @@ struct LibraryItemRow: View {
             }
 
             // Enhanced preview content with full LaTeX/MathJax support
-            FullLaTeXText(item.preview, fontSize: 15)
-                .frame(maxHeight: 80)
+            FullLaTeXText(item.preview, fontSize: 15, interactionEnabled: false)
+                .frame(maxHeight: 120)
                 .clipped()
+                .allowsHitTesting(false)
 
             // ✅ NEW: Red flag indicator for conversations with behavior concerns
             if let conversationItem = item as? ConversationLibraryItem,
@@ -1108,6 +1109,9 @@ struct LibraryItemRow: View {
             if item is ConversationLibraryItem {
                 return "doc.text.fill"
             }
+            if let q = item as? QuestionSummary, q.source == "practice" {
+                return "doc.text.fill"
+            }
             return "camera.fill"
         }
     }
@@ -1118,6 +1122,11 @@ struct LibraryItemRow: View {
             return .blue
         case .question:
             if item is ConversationLibraryItem {
+                return themeManager.currentTheme == .cute
+                    ? DesignTokens.Colors.Cute.lavender
+                    : DesignTokens.Colors.analyticsPlum
+            }
+            if let q = item as? QuestionSummary, q.source == "practice" {
                 return themeManager.currentTheme == .cute
                     ? DesignTokens.Colors.Cute.lavender
                     : DesignTokens.Colors.analyticsPlum

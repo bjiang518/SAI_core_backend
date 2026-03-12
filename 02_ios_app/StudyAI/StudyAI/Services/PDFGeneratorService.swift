@@ -305,7 +305,8 @@ class PDFGeneratorService: ObservableObject {
 
                 if let opts = question.options, !opts.isEmpty {
                     for (i, opt) in opts.enumerated() {
-                        let label = "\(String(UnicodeScalar(65 + i)!))) \(plainText(opt))"
+                        let cleanOpt = stripOptionPrefix(plainText(opt))
+                        let label = "\(String(UnicodeScalar(65 + i)!))) \(cleanOpt)"
                         y += drawMultiline(label, font: bodyFont, x: margin + 30, y: y, width: w - 30) + 5
                     }
                     y += 6
@@ -359,7 +360,8 @@ class PDFGeneratorService: ObservableObject {
         var lines = ["\(number). \(question.questionText)"]
         if let opts = question.options, !opts.isEmpty {
             for (i, opt) in opts.enumerated() {
-                lines.append("    \(String(UnicodeScalar(65 + i)!))) \(opt)")
+                let cleanOpt = stripOptionPrefix(opt)
+                lines.append("    \(String(UnicodeScalar(65 + i)!))) \(cleanOpt)")
             }
         }
         return lines.joined(separator: "\n")
@@ -656,7 +658,8 @@ class PDFGeneratorService: ObservableObject {
             if let opts = question.options, !opts.isEmpty {
                 y += 6
                 for (i, opt) in opts.enumerated() {
-                    let label = "\(String(UnicodeScalar(65 + i)!))) \(plainText(opt))"
+                    let cleanOpt = stripOptionPrefix(plainText(opt))
+                    let label = "\(String(UnicodeScalar(65 + i)!))) \(cleanOpt)"
                     y += drawMultiline(label, font: bodyFont, x: margin + 30, y: y, width: w - 30) + 5
                 }
                 y += 6
@@ -882,7 +885,18 @@ class PDFGeneratorService: ObservableObject {
         return s.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// Draws a rectangle border in UIKit-flipped coordinate space (inside withUIKitContext).
+    /// Strips a leading option-letter prefix from text like "A. jumps" → "jumps",
+    /// "B) clever" → "clever", "(C) over" → "over".
+    /// The PDF renderer adds its own "A)" prefix, so raw AI options that already
+    /// contain the letter would otherwise render as "A) A. jumps".
+    private func stripOptionPrefix(_ text: String) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        // Match patterns: "A." "A)" "(A)" "A]" at the start, optionally followed by whitespace
+        if let range = trimmed.range(of: #"^[(]?[A-Za-z][.)\]]\s*"#, options: .regularExpression) {
+            return String(trimmed[range.upperBound...])
+        }
+        return trimmed
+    }
     private func strokeRect(_ rect: CGRect, color: UIColor, lineWidth: CGFloat) {
         let path = UIBezierPath(rect: rect)
         color.setStroke()

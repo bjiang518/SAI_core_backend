@@ -145,7 +145,8 @@ class QuestionArchiveService: ObservableObject {
                 "isGraded": normalizedGrade != nil,
                 "isCorrect": isCorrect,  // ✅ CRITICAL: Store for mistake tracking
                 "questionType": question.questionType ?? "",
-                "options": question.options ?? []
+                "options": question.options ?? [],
+                "source": request.source
             ]
 
             // ✅ Add image URL from request context if available
@@ -437,6 +438,9 @@ class QuestionArchiveService: ObservableObject {
         let parentQuestionId = data["parentQuestionId"] as? Int
         let subquestionId = data["subquestionId"] as? String
 
+        // Source tracking
+        let source = data["source"] as? String
+
         // Answer fields
         let studentAnswer = data["studentAnswer"] as? String
         let answerText = data["answerText"] as? String
@@ -463,10 +467,11 @@ class QuestionArchiveService: ObservableObject {
             questionImageUrl: questionImageUrl,
             proMode: proMode,
             parentQuestionId: parentQuestionId,
-            subquestionId: subquestionId
+            subquestionId: subquestionId,
+            source: source
         )
     }
-    
+
     private func convertFullQuestionFromRailwayFormat(_ data: [String: Any]) throws -> ArchivedQuestion {
         guard let id = data["id"] as? String,
               let subject = data["subject"] as? String,

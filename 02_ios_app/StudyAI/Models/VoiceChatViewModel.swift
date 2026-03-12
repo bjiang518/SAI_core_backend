@@ -45,6 +45,10 @@ class VoiceChatViewModel: ObservableObject {
     /// and needs the user to tap "Tap to Reactivate" before voice input is re-enabled.
     @Published var isSessionSuspended = false
 
+    /// True when user sent audio/text but no AI response arrived within the timeout window.
+    /// UI shows a "No response — Tap to Reconnect" overlay.
+    @Published var isResponseTimedOut = false
+
     // MARK: - Private Properties
 
     /// WebSocket connection to backend
@@ -52,6 +56,13 @@ class VoiceChatViewModel: ObservableObject {
 
     /// Timer for client-side WebSocket keepalive pings (prevents Railway proxy from closing idle connections)
     private var keepAliveTimer: Timer?
+
+    /// Timer that fires when no AI response arrives after user finishes speaking/sending text.
+    /// Triggers `isResponseTimedOut` so the UI can offer a reconnect action.
+    private var responseTimeoutTimer: Timer?
+
+    /// How long to wait for an AI response before showing the reconnect option (seconds).
+    private let responseTimeoutInterval: TimeInterval = 5.0
 
     /// Audio engine for recording
     private var audioEngine: AVAudioEngine?
@@ -117,8 +128,11 @@ class VoiceChatViewModel: ObservableObject {
     /// ID of the most recent user placeholder bubble waiting for transcription
     private var pendingUserMessageID: UUID?
 
-    /// When true the audio tap captures and sends data; false = engine warm but discarding
-    private var isCapturing = false
+    /// When true the audio tap captures and sends data; false = engine warm but discarding.
+    /// `nonisolated(unsafe)` allows the AVAudioEngine tap (background thread) to read this
+    /// flag without a main-actor hop. All writes remain on @MainActor; the worst-case
+    /// stale read is a few extra audio chunks sent after stopRecording().
+    nonisolated(unsafe) private var isCapturing = false
 
     // MARK: - Connection State
 
@@ -223,8 +237,7 @@ class VoiceChatViewModel: ObservableObject {
 
         // Start receiving messages
         receiveWebSocketMessages()
-
-        connectionState = .connected
+        // connectionState moves to .connected when session_ready arrives from the server
     }
 
     /// Disconnect from Gemini Live
@@ -234,6 +247,9 @@ class VoiceChatViewModel: ObservableObject {
         // Stop keepalive pings
         keepAliveTimer?.invalidate()
         keepAliveTimer = nil
+
+        // Cancel response timeout
+        cancelResponseTimeout()
 
         // Send end session message
         sendWebSocketMessage(type: "end_session", data: [:])
@@ -262,6 +278,8 @@ class VoiceChatViewModel: ObservableObject {
     func reconnect() {
         logger.info("🔄 Reconnecting to Gemini Live after suspension")
         isSessionSuspended = false
+        isResponseTimedOut = false
+        cancelResponseTimeout()
 
         // Tear down any stale socket without clearing messages or audio storage
         keepAliveTimer?.invalidate()
@@ -285,6 +303,9 @@ class VoiceChatViewModel: ObservableObject {
 
         isRecording = true
         errorMessage = nil
+
+        // Cancel any pending response timeout from a previous turn
+        cancelResponseTimeout()
 
         // Clear pending ID so previous bubble stops receiving transcription updates
         pendingUserMessageID = nil
@@ -397,6 +418,9 @@ class VoiceChatViewModel: ObservableObject {
         // Send audio_stream_end to flush cached audio on backend
         sendWebSocketMessage(type: "audio_stream_end", data: [:])
 
+        // Start response timeout — if no AI response arrives within the window, offer reconnect
+        startResponseTimeout()
+
         recordingLevel = 0.0
 
         // Stop level timer
@@ -438,6 +462,9 @@ class VoiceChatViewModel: ObservableObject {
 
         // Send to backend
         sendWebSocketMessage(type: "text_message", data: ["text": text])
+
+        // Start response timeout — if no AI response arrives within the window, offer reconnect
+        startResponseTimeout()
     }
 
     /// Send an image to Gemini Live.
@@ -538,6 +565,7 @@ class VoiceChatViewModel: ObservableObject {
                         // Still set isAISpeaking on main actor (lightweight, non-blocking)
                         Task { @MainActor in
                             self.isAISpeaking = true
+                            self.cancelResponseTimeout()
                         }
                     } else {
                         // All non-audio messages go to handleWebSocketMessage on main actor
@@ -576,9 +604,15 @@ class VoiceChatViewModel: ObservableObject {
 
         logger.debug("Received WebSocket message type: \(type)")
 
+        // Any message from the server means the connection is alive — cancel response timeout
+        if type == "text_chunk" || type == "audio_chunk" || type == "user_transcription" || type == "turn_complete" {
+            cancelResponseTimeout()
+        }
+
         switch type {
         case "session_ready":
             logger.info("Gemini Live session ready")
+            connectionState = .connected
             errorMessage = nil
 
         case "text_chunk":
@@ -639,10 +673,42 @@ class VoiceChatViewModel: ObservableObject {
             if let errorMsg = json["error"] as? String {
                 logger.error("Server error: \(errorMsg)")
                 errorMessage = errorMsg
+                // Update connection state so the "Connecting…" spinner clears.
+                // Without this, the spinner stays visible indefinitely when the
+                // backend sends an error (e.g. Gemini 8s setup timeout).
+                if case .connecting = connectionState {
+                    connectionState = .error(errorMsg)
+                }
             }
 
         default:
             logger.warning("Unknown message type '\(type)'")
+        }
+    }
+
+    // MARK: - Response Timeout
+
+    /// Start a timer that fires after `responseTimeoutInterval` seconds.
+    /// If no AI response arrives (audio_chunk, text_chunk, etc.) before it fires,
+    /// `isResponseTimedOut` is set to true so the UI can offer a reconnect action.
+    private func startResponseTimeout() {
+        cancelResponseTimeout()
+        logger.info("⏱️ Starting response timeout (\(responseTimeoutInterval)s)")
+        responseTimeoutTimer = Timer.scheduledTimer(withTimeInterval: responseTimeoutInterval, repeats: false) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.logger.warning("⏱️ Response timeout fired — no AI response received")
+                self.isResponseTimedOut = true
+            }
+        }
+    }
+
+    /// Cancel the response timeout timer (called when any AI response arrives).
+    private func cancelResponseTimeout() {
+        responseTimeoutTimer?.invalidate()
+        responseTimeoutTimer = nil
+        if isResponseTimedOut {
+            isResponseTimedOut = false
         }
     }
 
@@ -703,9 +769,6 @@ class VoiceChatViewModel: ObservableObject {
         }
 
         try audioEngine.start()
-
-        // Start level monitoring
-        startLevelMonitoring()
     }
 
     /// Start engine immediately with tap installed but capturing disabled.
@@ -787,29 +850,6 @@ class VoiceChatViewModel: ObservableObject {
         // Convert to Data
         let audioBuffer = convertedBuffer.audioBufferList.pointee.mBuffers
         return Data(bytes: audioBuffer.mData!, count: Int(audioBuffer.mDataByteSize))
-    }
-
-    private func calculateAudioLevel(from buffer: AVAudioPCMBuffer) {
-        guard let channelData = buffer.floatChannelData?[0] else { return }
-
-        let frames = buffer.frameLength
-        var sum: Float = 0
-
-        for i in 0..<Int(frames) {
-            sum += abs(channelData[i])
-        }
-
-        let average = sum / Float(frames)
-
-        Task { @MainActor in
-            self.recordingLevel = min(average * 10, 1.0) // Scale and clamp to 0-1
-        }
-    }
-
-    private func startLevelMonitoring() {
-        levelTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
-            // Level is updated in calculateAudioLevel
-        }
     }
 
     // MARK: - Audio Session Configuration

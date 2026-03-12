@@ -559,6 +559,7 @@ class SessionManagementRoutes {
 
       // Stream response
       let hasReceivedData = false;
+      let streamComplete = false;   // set true when bodyStream.on('end') fires
       let fullResponse = '';       // raw SSE bytes — forwarded to iOS as-is
       let extractedAiText = '';    // clean AI text — extracted for DB storage
 
@@ -591,6 +592,7 @@ class SessionManagementRoutes {
       });
 
       bodyStream.on('end', async () => {
+        streamComplete = true;
         const duration = Date.now() - startTime;
         this.fastify.log.info(`✅ Streaming complete: ${duration}ms`);
 
@@ -638,6 +640,24 @@ class SessionManagementRoutes {
       request.raw.on('close', () => {
         this.fastify.log.info('⚠️ Client disconnected from stream');
         bodyStream.destroy();
+
+        // If the stream hadn't completed normally, save whatever AI text was
+        // extracted so far — prevents the last turn from being lost on navigation.
+        if (!streamComplete && extractedAiText) {
+          this.fastify.log.info('⚠️ Saving partial/complete AI response after client disconnect');
+          this.sessionHelper.storeConversation(
+            sessionId,
+            authenticatedUserId,
+            message,
+            {
+              response: extractedAiText,
+              tokensUsed: 0,
+              service: 'ai-engine-stream-disconnect',
+              compressed: false
+            },
+            imageData
+          ).catch(err => this.fastify.log.error('❌ Failed to store on disconnect:', err));
+        }
       });
 
     } catch (error) {

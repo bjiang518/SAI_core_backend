@@ -278,6 +278,118 @@ class GeminiEducationalAIService:
                 "error": f"Gemini homework parsing failed: {str(e)}"
             }
 
+    async def parse_homework_questions_multi(
+        self,
+        base64_images: list,
+        parsing_mode: str = "standard",
+        subject: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Parse multiple homework pages in a SINGLE Gemini API call.
+
+        All images are passed together in the contents array so the model
+        sees every page at once — this preserves full per-page resolution
+        (no concatenation / no downscaling) and naturally handles essays
+        or answers that span page boundaries.
+
+        Args:
+            base64_images: Ordered list of base64-encoded page images (2 images recommended; max ~5)
+            parsing_mode: "standard" or "detailed"
+            subject: Optional subject hint for subject-specific parsing rules
+
+        Returns:
+            Same dict format as parse_homework_questions_with_coordinates
+        """
+        if not self.client:
+            raise Exception("Gemini client not initialized. Check GEMINI_API_KEY in environment.")
+
+        n = len(base64_images)
+        logger.info(f"📝 === PARSING {n} HOMEWORK PAGES IN ONE GEMINI CALL ===")
+
+        try:
+            import io
+            from PIL import Image
+
+            # Build one image Part per page
+            image_parts = []
+            for i, b64 in enumerate(base64_images):
+                image_bytes = base64.b64decode(b64)
+                image_parts.append(
+                    genai_types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg")
+                )
+                _pil = Image.open(io.BytesIO(image_bytes))
+                logger.debug(f"  Page {i+1}: {_pil.size[0]}×{_pil.size[1]}px")
+                _pil.close()
+
+            # Base prompt + multi-page preamble
+            base_prompt = self._build_parse_prompt(subject=subject)
+            multi_page_preamble = (
+                f"The following {n} images are pages of the SAME homework assignment, "
+                f"in order (page 1 through page {n}). "
+                f"Extract ALL questions and student answers across ALL pages into a single JSON response. "
+                f"Questions that span multiple pages should be treated as one question. "
+                f"Do NOT duplicate questions that appear on more than one page.\n\n"
+            )
+            prompt = multi_page_preamble + base_prompt
+
+            # Increase output tokens proportionally for multi-page
+            max_tokens = min(8192 * n, 32768)
+
+            generation_config = genai_types.GenerateContentConfig(
+                temperature=0,
+                top_p=0.95,
+                top_k=64,
+                max_output_tokens=max_tokens,
+                response_mime_type="application/json",
+                thinking_config=genai_types.ThinkingConfig(
+                    include_thoughts=False,
+                    thinking_level="minimal"
+                ),
+                media_resolution="MEDIA_RESOLUTION_MEDIUM",
+            )
+
+            # Contents: all images first, then the prompt text
+            contents = image_parts + [genai_types.Part.from_text(text=prompt)]
+
+            start_time = time.time()
+            response = await self.client.aio.models.generate_content(
+                model=self.model_name,
+                contents=contents,
+                config=generation_config
+            )
+            api_ms = int((time.time() - start_time) * 1000)
+            logger.info(f"✅ Gemini multi-page API responded in {api_ms}ms")
+
+            if response.candidates and response.candidates[0].finish_reason == 3:
+                return {
+                    "success": False,
+                    "error": "Gemini response exceeded token limit for multi-page homework."
+                }
+
+            raw_response = self._extract_response_text(response)
+            result = self._extract_json_from_response(raw_response)
+
+            questions = result.get("questions", [])
+            logger.info(f"📊 Multi-page parse: {len(questions)} questions from {n} pages")
+
+            return {
+                "success": True,
+                "subject": result.get("subject", "General"),
+                "subject_confidence": result.get("subject_confidence", 0.8),
+                "questions": questions,
+                "total_questions": result.get("total_questions", len(questions)),
+                "processing_time_ms": api_ms
+            }
+
+        except Exception as e:
+            logger.error(f"❌ Gemini multi-page parsing error: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                "success": False,
+                "error": f"Gemini multi-page parsing failed: {str(e)}"
+            }
+
     async def grade_single_question(
         self,
         question_text: str,
@@ -479,7 +591,21 @@ class GeminiEducationalAIService:
             raw_response = self._extract_response_text(response)
             grade_data = self._extract_json_from_response(raw_response)
 
-            logger.debug(f"✅ Grade: score={grade_data.get('score', 0.0)}, correct={grade_data.get('is_correct', False)}, feedback={len(grade_data.get('feedback', ''))} chars")
+            # ── Post-processing: enforce is_correct = (score >= 0.9) ──────────
+            raw_score = float(grade_data.get('score', 0.0))
+
+            # Exact-match override: if student answer equals correct answer, force full credit.
+            if correct_answer and student_answer:
+                def _normalize(s: str) -> str:
+                    return s.strip().lower().replace(',', '').replace(' ', '')
+                if _normalize(str(student_answer)) == _normalize(str(correct_answer)):
+                    raw_score = 1.0
+                    grade_data['score'] = 1.0
+
+            # Always derive is_correct from score — never trust the AI's boolean.
+            grade_data['is_correct'] = raw_score >= 0.9
+
+            logger.debug(f"✅ Grade (post-processed): score={raw_score}, is_correct={grade_data['is_correct']}, feedback={len(grade_data.get('feedback', ''))} chars")
 
             # 🔍 CRITICAL DEBUG: Check if correct_answer is present in AI response
             if 'correct_answer' in grade_data:
@@ -947,7 +1073,7 @@ SCHEMA:
     "question_number": "{question_number}",
     "question_text": "exact question text",
     "student_answer": "exact student answer",
-    "question_type": "short_answer|calculation|multiple_choice|true_false|fill_blank|essay",
+    "question_type": "short_answer|calculation|multiple_choice|true_false|fill_blank|composition",
     "need_image": false
   }}
 }}

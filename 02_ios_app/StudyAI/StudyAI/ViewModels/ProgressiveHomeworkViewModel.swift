@@ -123,7 +123,7 @@ class ProgressiveHomeworkViewModel: ObservableObject {
             self.state.questions = parseResponse.questions.map { question in
                 ProgressiveQuestionWithGrade(
                     id: question.id,
-                    question: question,
+                    question: question.sanitized(),
                     grade: nil,
                     isGrading: false,
                     gradingError: nil
@@ -273,7 +273,7 @@ class ProgressiveHomeworkViewModel: ObservableObject {
             self.state.questions = parseResponse.questions.map { question in
                 ProgressiveQuestionWithGrade(
                     id: question.id,
-                    question: question,
+                    question: question.sanitized(),
                     grade: nil,
                     isGrading: false,
                     gradingError: nil

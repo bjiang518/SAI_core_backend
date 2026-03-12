@@ -82,6 +82,69 @@ struct ProgressiveQuestion: Codable, Identifiable {
     var displayStudentAnswer: String {
         return studentAnswer ?? ""
     }
+
+    // MARK: - Subquestion ID Deduplication
+
+    /// Returns a copy with subquestion IDs guaranteed unique.
+    /// Fixes cases where the AI cycles a-z and reuses "1a", "1b", etc. for >26 subquestions.
+    /// Non-duplicate cases are returned unchanged (O(n) fast path).
+    func sanitized() -> ProgressiveQuestion {
+        guard let subs = subquestions, !subs.isEmpty else { return self }
+        let ids = subs.map(\.id)
+        guard Set(ids).count < ids.count else { return self }   // fast path: no duplicates
+
+        let parentNum = questionNumber ?? id
+        var seen = Set<String>()
+        var overflowIndex = subs.count  // start labels beyond the original alphabet range
+
+        let deduped = subs.map { sub -> ProgressiveSubquestion in
+            if !seen.contains(sub.id) {
+                seen.insert(sub.id)
+                return sub
+            }
+            var newId: String
+            repeat {
+                newId = parentNum + ProgressiveQuestion.alphabeticLabel(for: overflowIndex)
+                overflowIndex += 1
+            } while seen.contains(newId)
+            seen.insert(newId)
+            return ProgressiveSubquestion(
+                id: newId,
+                questionText: sub.questionText,
+                studentAnswer: sub.studentAnswer,
+                questionType: sub.questionType,
+                needImage: sub.needImage
+            )
+        }
+
+        return ProgressiveQuestion(
+            id: id,
+            questionNumber: questionNumber,
+            pageNumber: pageNumber,
+            isParent: isParent,
+            hasSubquestions: hasSubquestions,
+            parentContent: parentContent,
+            subquestions: deduped,
+            questionText: questionText,
+            studentAnswer: studentAnswer,
+            hasImage: hasImage,
+            imageRegion: imageRegion,
+            questionType: questionType,
+            needImage: needImage
+        )
+    }
+
+    /// Excel-style alphabetic label for ordinal n (0-based):
+    /// 0→"a", 25→"z", 26→"aa", 27→"ab", 51→"az", 52→"ba", ...
+    static func alphabeticLabel(for n: Int) -> String {
+        var i = n
+        var label = ""
+        repeat {
+            label = String(UnicodeScalar(UInt32(97) + UInt32(i % 26))!) + label
+            i = i / 26 - 1
+        } while i >= 0
+        return label
+    }
 }
 
 /// Dimensions of the image processed by backend

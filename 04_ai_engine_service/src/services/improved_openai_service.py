@@ -1192,7 +1192,7 @@ GENERAL GRADING RULES:
               "has_visuals": false,
               "need_image": false,
               "feedback": "<30w",
-              "question_type": "multiple_choice|true_false|fill_blank|short_answer|long_answer|calculation|matching",
+              "question_type": "multiple_choice|true_false|fill_blank|short_answer|long_answer|calculation|matching|composition",
               "options": ["A) Text", "B) Text", ...]
             }}
           ],
@@ -1214,7 +1214,7 @@ GENERAL GRADING RULES:
           "points_earned": 1.0,
           "need_image": false,
           "feedback": "<30w",
-          "question_type": "multiple_choice|true_false|fill_blank|short_answer|long_answer|calculation|matching",
+          "question_type": "multiple_choice|true_false|fill_blank|short_answer|long_answer|calculation|matching|composition",
           "options": ["A) Text", "B) Text", ...]
         }}
       ]
@@ -1249,7 +1249,7 @@ RULES:
 5. "raw_question_text" = COMPLETE VERBATIM text from image (NOT shortened). May be 100-300+ characters for word problems.
 6. "question_text" = Simplified short preview <50 chars for UI display only
 7. "student_answer" = What student wrote. "correct_answer" = Expected. Never mix.
-8. "question_type" = Detect type: multiple_choice (has A/B/C/D), true_false (T/F), fill_blank (has ___), calculation (math), short_answer, long_answer, matching
+8. "question_type" = Detect type: multiple_choice (has A/B/C/D), true_false (T/F), fill_blank (has ___), calculation (math), composition (essay, writing prompt, 作文, 写作, paragraph/story writing, creative/persuasive/narrative writing tasks with multi-sentence student answer), short_answer, long_answer, matching
 9. "options" = For multiple_choice: ["A) Text", "B) Text", ...]. For true_false: ["True", "False"]. For others: null or []
 10. PARENT QUESTIONS: "raw_parent_content" = COMPLETE VERBATIM parent question text from image (NOT shortened). Include ALL context and instructions. "parent_content" = Simplified short preview <50 chars for UI display only
 11. "need_image" = true if the question references a diagram, graph, figure, chart, or table; or contains phrases like "refer to", "as shown", "in the figure", "based on the image", "use the diagram". Set false otherwise."""
@@ -3686,7 +3686,71 @@ Focus on being helpful and educational while maintaining a conversational tone."
 
             grade_data = json.loads(raw_response)
 
-            logger.debug(f"✅ Grade: score={grade_data.get('score', 0.0)}, correct={grade_data.get('is_correct', False)}, feedback={len(grade_data.get('feedback', ''))} chars")
+            # ── Post-processing: enforce is_correct = (score >= 0.9) ──────────
+            raw_score = float(grade_data.get('score', 0.0))
+
+            # Exact-match override: if provided correct_answer and student answer
+            # are numerically/textually identical, force full credit.
+            if correct_answer and student_answer:
+                def _normalize(s: str) -> str:
+                    return s.strip().lower().replace(',', '').replace(' ', '')
+                if _normalize(str(student_answer)) == _normalize(str(correct_answer)):
+                    raw_score = 1.0
+                    grade_data['score'] = 1.0
+
+            # Always derive is_correct from score — never trust the AI's boolean.
+            grade_data['is_correct'] = raw_score >= 0.9
+
+            logger.debug(f"✅ Grade (post-processed): score={raw_score}, is_correct={grade_data['is_correct']}, feedback={len(grade_data.get('feedback', ''))} chars")
+
+            # ── Double-check pass for fast mode (gpt-5.2 only) ───────────────
+            # Deep mode (o4-mini) is already accurate; fast mode can mis-grade.
+            # When the initial grade says incorrect, run a focused verification
+            # call to catch false negatives before returning to the student.
+            if not use_deep_reasoning and not grade_data['is_correct']:
+                try:
+                    verify_prompt = f"""A grader gave this answer a score of {raw_score:.2f} (incorrect).
+Double-check whether that grade is accurate.
+
+Question: {question_text}
+Student Answer: {student_answer}
+Correct Answer: {correct_answer or '(not provided)'}
+Initial score: {raw_score:.2f}
+
+Consider:
+- Are the answers numerically or semantically equivalent?
+- Is the student's answer a valid alternative form (different units, equivalent fraction, synonym)?
+- Did the initial grader unfairly penalize for missing work on a simple one-step answer?
+
+Return JSON only: {{"verified_correct": true/false, "revised_score": 0.0-1.0, "reason": "one sentence"}}
+If the initial grade was accurate, set verified_correct=false and revised_score equal to the initial score.
+"""
+                    verify_response = await self.client.responses.create(
+                        model="gpt-5.2",
+                        input=[
+                            {"role": "system", "content": "You are a grading verifier. Be concise and accurate."},
+                            {"role": "user", "content": verify_prompt}
+                        ],
+                        reasoning={"effort": "low"},
+                        text={"format": {"type": "json_object"}},
+                        max_output_tokens=256
+                    )
+                    verify_text = verify_response.output_text
+                    if verify_text:
+                        verify_data = json.loads(verify_text)
+                        if verify_data.get('verified_correct'):
+                            revised = float(verify_data.get('revised_score', 0.95))
+                            revised = max(revised, 0.95)  # verified correct → at least 0.95
+                            grade_data['score'] = revised
+                            grade_data['is_correct'] = True
+                            reason = verify_data.get('reason', '')
+                            grade_data['feedback'] = f"{reason} ✓" if reason else grade_data.get('feedback', '')
+                            logger.debug(f"✅ Verification UPGRADED grade: {raw_score:.2f} → {revised:.2f} (reason: {reason})")
+                        else:
+                            logger.debug(f"✅ Verification confirmed incorrect grade (score={raw_score:.2f})")
+                except Exception as verify_err:
+                    logger.debug(f"⚠️ Grade verification failed (non-fatal): {verify_err}")
+                    # Silently continue with original grade
 
             # 🔍 CRITICAL DEBUG: Check if correct_answer is present in AI response
             if 'correct_answer' in grade_data:
@@ -3863,6 +3927,7 @@ RULES:
 4. Use LaTeX for math: \\(...\\) for inline, \\[...\\] for display
 5. STUDENT ANSWER LATEX (CRITICAL): If student_answer contains any mathematical expression, operator, or symbol (×, ÷, +, -, =, fractions, exponents, etc.), ALWAYS wrap it with $...$. Examples: "8 \\times 5" → "$8 \\times 5$", "3/4" → "$\\frac{{3}}{{4}}$", "x^2" → "$x^2$". Plain text answers (words, single digits) do NOT need delimiters.
 6. "need_image": true if the question references a diagram, graph, figure, chart, or table; or contains phrases like "refer to the figure", "as shown", "in the diagram", "based on the image", "use the graph". Set false otherwise.
+7. SUBQUESTION ID UNIQUENESS (CRITICAL): Every subquestion id MUST be unique within its parent. Use single letters for the first 26 subquestions: "1a", "1b", ..., "1z". For more than 26 subquestions, continue with double letters in alphabetical order: "1aa", "1ab", ..., "1az", "1ba", "1bb", etc. NEVER reuse or repeat an id — cycling back to "1a" after "1z" is FORBIDDEN.
 """
 
     def _normalize_answer(self, answer: str) -> str:

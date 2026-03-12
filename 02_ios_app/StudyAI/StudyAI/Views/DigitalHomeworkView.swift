@@ -2292,12 +2292,14 @@ struct QuestionCard: View {
                     let isChosen = isStudentChoice(option.letter, answer: studentAnswer)
                     let isCorrectOpt = isCorrectOption(option.letter, correctAnswer: grade?.correctAnswer)
                     HStack(spacing: 8) {
-                        // Icon: grade-aware
+                        // Icon: per-option correctness, not overall grade.
+                        // This correctly handles partial-credit multi-select (e.g. correct=A,C,
+                        // student chose A → A gets a green checkmark even though overall wrong).
                         if let g = grade {
                             if isChosen {
-                                Image(systemName: g.isCorrect ? "checkmark" : "xmark")
+                                Image(systemName: isCorrectOpt ? "checkmark" : "xmark")
                                     .font(.system(size: 14, weight: .semibold))
-                                    .foregroundColor(g.isCorrect ? .green : .red)
+                                    .foregroundColor(isCorrectOpt ? .green : .red)
                             } else if isCorrectOpt && !g.isCorrect {
                                 Image(systemName: "checkmark")
                                     .font(.system(size: 14, weight: .semibold))
@@ -2331,6 +2333,29 @@ struct QuestionCard: View {
                     .foregroundColor(.blue)
                     .padding(.top, 2)
             }
+
+            // Partial-credit hint: when graded wrong but student got at least one option right,
+            // show the full correct answer set so they know what they missed.
+            if let g = grade, !g.isCorrect, g.score > 0,
+               let correctAnswer = g.correctAnswer, !correctAnswer.isEmpty {
+                HStack(spacing: 4) {
+                    Image(systemName: "info.circle")
+                        .font(.caption2)
+                        .foregroundColor(.orange)
+                    Text(NSLocalizedString("homeworkResults.correctAnswer", comment: "Correct Answer:"))
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.orange)
+                    Text(correctAnswer)
+                        .font(.caption2)
+                        .foregroundColor(.primary)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.orange.opacity(0.08))
+                .cornerRadius(6)
+                .padding(.top, 2)
+            }
         }
     }
 
@@ -2354,7 +2379,11 @@ struct QuestionCard: View {
                                 .foregroundColor(.primary)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 2)
-                                .background(Color(.secondarySystemGroupedBackground))
+                                .background(answerBoxBackground(grade: grade))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .stroke(answerBoxBorderColor(grade: grade), lineWidth: grade != nil ? 1.5 : 0)
+                                )
                                 .cornerRadius(4)
                         }
                     }
@@ -2416,16 +2445,29 @@ struct QuestionCard: View {
     @ViewBuilder
     private func renderTrueFalse(questionText: String, studentAnswer: String, grade: ProgressiveGradeResult?) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            // Question text
             FullLaTeXText(questionText, fontSize: 14)
             HStack(spacing: 16) {
+                // Prefer explicit correctAnswer; fall back to inferring from the grade:
+                // if student chose one option and was wrong, the OTHER must be correct.
+                let explicitCA = grade?.correctAnswer ?? ""
+                let studentChoseSomething = isTrue(studentAnswer) || isFalse(studentAnswer)
+                let correctIsTrue: Bool = {
+                    if !explicitCA.isEmpty { return isTrue(explicitCA) }
+                    if let g = grade, !g.isCorrect, studentChoseSomething { return isFalse(studentAnswer) }
+                    return false
+                }()
+                let correctIsFalse: Bool = {
+                    if !explicitCA.isEmpty { return isFalse(explicitCA) }
+                    if let g = grade, !g.isCorrect, studentChoseSomething { return isTrue(studentAnswer) }
+                    return false
+                }()
                 tfButton(label: NSLocalizedString("proMode.trueFalse.true", comment: ""),
                          isChosen: isTrue(studentAnswer),
-                         isCorrectAnswer: isTrue(grade?.correctAnswer ?? ""),
+                         isCorrectAnswer: correctIsTrue,
                          grade: grade)
                 tfButton(label: NSLocalizedString("proMode.trueFalse.false", comment: ""),
                          isChosen: isFalse(studentAnswer),
-                         isCorrectAnswer: isFalse(grade?.correctAnswer ?? ""),
+                         isCorrectAnswer: correctIsFalse,
                          grade: grade)
             }
             .padding(.leading, 12)
@@ -2529,22 +2571,45 @@ struct QuestionCard: View {
         return normalizedAnswer.contains(letter.uppercased())
     }
 
-    /// Check if answer is True
+    /// Check if answer is True — handles English and Chinese T/F values
     private func isTrue(_ answer: String) -> Bool {
         let normalized = answer.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        return normalized == "true" || normalized == "t" || normalized == "yes" || normalized == "y"
+        return ["true", "t", "yes", "y", "对", "正确", "是", "对的", "√", "✓", "v"].contains(normalized)
     }
 
-    /// Check if answer is False
+    /// Check if answer is False — handles English and Chinese T/F values
     private func isFalse(_ answer: String) -> Bool {
         let normalized = answer.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        return normalized == "false" || normalized == "f" || normalized == "no" || normalized == "n"
+        return ["false", "f", "no", "n", "错", "错误", "否", "错的", "×", "✗", "x"].contains(normalized)
     }
 
-    /// Check if the given option letter matches the correct answer string
+    /// Check if the given option letter appears in the correct answer string.
+    /// Handles all formats:
+    ///   "B"        — single answer
+    ///   "B,C,D"    — new multi-select comma-separated (from updated prompt)
+    ///   "BCD"      — new multi-select concatenated
+    ///   "B. text"  — old single-answer with option text (only reads first char per segment)
     private func isCorrectOption(_ letter: String, correctAnswer: String?) -> Bool {
         guard let correct = correctAnswer, !correct.isEmpty else { return false }
-        return correct.uppercased().hasPrefix(letter.uppercased())
+        let upper = correct.uppercased()
+        let L = letter.uppercased()
+
+        // Split by comma first, then check the leading char of each segment.
+        // This avoids false positives from option text that contains physics/chemistry
+        // notation like "mAgsinθ" which includes capital A.
+        let segments = upper.components(separatedBy: ",").map {
+            $0.trimmingCharacters(in: .whitespaces)
+        }
+
+        for segment in segments {
+            guard let first = segment.first else { continue }
+            if String(first) == L { return true }
+
+            // Also handle concatenated "BCD" (all chars are A–E option letters, no spaces/dots)
+            let isOptionLettersOnly = segment.count >= 2 && segment.allSatisfy { "ABCDE".contains($0) }
+            if isOptionLettersOnly && segment.contains(Character(L)) { return true }
+        }
+        return false
     }
 
     /// Background color for an answer box based on grade
@@ -2559,10 +2624,12 @@ struct QuestionCard: View {
         return g.isCorrect ? Color.green.opacity(0.6) : Color.red.opacity(0.5)
     }
 
-    /// Background for a multiple-choice option row
+    /// Background for a multiple-choice option row.
+    /// Uses per-option correctness (not overall grade) so partial-credit selections
+    /// (e.g. student chose A, correct is A+C) get the right colour.
     private func mcOptionBackground(isChosen: Bool, isCorrectOpt: Bool, grade: ProgressiveGradeResult?) -> Color {
         if let g = grade {
-            if isChosen { return g.isCorrect ? Color.green.opacity(0.1) : Color.red.opacity(0.1) }
+            if isChosen { return isCorrectOpt ? Color.green.opacity(0.1) : Color.red.opacity(0.1) }
             if isCorrectOpt && !g.isCorrect { return Color.green.opacity(0.07) }
             return Color.clear
         }
@@ -2881,9 +2948,9 @@ struct SubquestionRow: View {
                         HStack(spacing: 4) {
                             if let g = grade {
                                 if isChosen {
-                                    Image(systemName: g.isCorrect ? "checkmark" : "xmark")
+                                    Image(systemName: isCorrectOpt ? "checkmark" : "xmark")
                                         .font(.system(size: 11, weight: .semibold))
-                                        .foregroundColor(g.isCorrect ? .green : .red)
+                                        .foregroundColor(isCorrectOpt ? .green : .red)
                                 } else if isCorrectOpt && !g.isCorrect {
                                     Image(systemName: "checkmark")
                                         .font(.system(size: 11, weight: .semibold))
@@ -2911,6 +2978,27 @@ struct SubquestionRow: View {
                     }
                 }
             }
+
+            // Partial-credit hint for subquestion MC
+            if let g = grade, !g.isCorrect, g.score > 0,
+               let correctAnswer = g.correctAnswer, !correctAnswer.isEmpty {
+                HStack(spacing: 4) {
+                    Image(systemName: "info.circle")
+                        .font(.caption2)
+                        .foregroundColor(.orange)
+                    Text(NSLocalizedString("homeworkResults.correctAnswer", comment: "Correct Answer:"))
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.orange)
+                    Text(correctAnswer)
+                        .font(.caption2)
+                        .foregroundColor(.primary)
+                }
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background(Color.orange.opacity(0.08))
+                .cornerRadius(5)
+            }
         }
     }
 
@@ -2924,14 +3012,18 @@ struct SubquestionRow: View {
             let answers = studentAnswer.components(separatedBy: " | ")
 
             if answers.count > 1 {
-                // Multiple blanks (compact)
+                // Multiple blanks (compact) — all boxes share the overall grade color
                 HStack(spacing: 4) {
                     ForEach(answers.indices, id: \.self) { index in
                         FullLaTeXText(answers[index], fontSize: 12)
                             .foregroundColor(.primary)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 1)
-                            .background(Color(.secondarySystemGroupedBackground))
+                            .background(answerBoxBackground(grade: grade))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 3)
+                                    .stroke(answerBoxBorderColor(grade: grade), lineWidth: grade != nil ? 1 : 0)
+                            )
                             .cornerRadius(3)
                     }
                     if let g = grade {
@@ -2997,15 +3089,27 @@ struct SubquestionRow: View {
         VStack(alignment: .leading, spacing: 4) {
             FullLaTeXText(questionText, fontSize: 12)
 
-            // True/False options (compact) — grade-aware
+            // True/False options (compact) — grade-aware, with nil-correctAnswer inference
+            let explicitCA = grade?.correctAnswer ?? ""
+            let studentChoseSomething = isTrue(studentAnswer) || isFalse(studentAnswer)
+            let correctIsTrue: Bool = {
+                if !explicitCA.isEmpty { return isTrue(explicitCA) }
+                if let g = grade, !g.isCorrect, studentChoseSomething { return isFalse(studentAnswer) }
+                return false
+            }()
+            let correctIsFalse: Bool = {
+                if !explicitCA.isEmpty { return isFalse(explicitCA) }
+                if let g = grade, !g.isCorrect, studentChoseSomething { return isTrue(studentAnswer) }
+                return false
+            }()
             HStack(spacing: 12) {
                 subTFButton(label: NSLocalizedString("proMode.trueFalse.trueShort", comment: ""),
                             isChosen: isTrue(studentAnswer),
-                            isCorrectAnswer: isTrue(grade?.correctAnswer ?? ""),
+                            isCorrectAnswer: correctIsTrue,
                             grade: grade)
                 subTFButton(label: NSLocalizedString("proMode.trueFalse.falseShort", comment: ""),
                             isChosen: isFalse(studentAnswer),
-                            isCorrectAnswer: isFalse(grade?.correctAnswer ?? ""),
+                            isCorrectAnswer: correctIsFalse,
                             grade: grade)
             }
             .padding(.leading, 8)
@@ -3124,17 +3228,29 @@ struct SubquestionRow: View {
 
     private func isTrue(_ answer: String) -> Bool {
         let normalized = answer.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        return normalized == "true" || normalized == "t" || normalized == "yes" || normalized == "y"
+        return ["true", "t", "yes", "y", "对", "正确", "是", "对的", "√", "✓", "v"].contains(normalized)
     }
 
     private func isFalse(_ answer: String) -> Bool {
         let normalized = answer.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        return normalized == "false" || normalized == "f" || normalized == "no" || normalized == "n"
+        return ["false", "f", "no", "n", "错", "错误", "否", "错的", "×", "✗", "x"].contains(normalized)
     }
 
     private func isCorrectOption(_ letter: String, correctAnswer: String?) -> Bool {
         guard let correct = correctAnswer, !correct.isEmpty else { return false }
-        return correct.uppercased().hasPrefix(letter.uppercased())
+        let upper = correct.uppercased()
+        let L = letter.uppercased()
+
+        let segments = upper.components(separatedBy: ",").map {
+            $0.trimmingCharacters(in: .whitespaces)
+        }
+        for segment in segments {
+            guard let first = segment.first else { continue }
+            if String(first) == L { return true }
+            let isOptionLettersOnly = segment.count >= 2 && segment.allSatisfy { "ABCDE".contains($0) }
+            if isOptionLettersOnly && segment.contains(Character(L)) { return true }
+        }
+        return false
     }
 
     private func answerBoxBackground(grade: ProgressiveGradeResult?) -> Color {
@@ -3149,7 +3265,7 @@ struct SubquestionRow: View {
 
     private func mcOptionBackground(isChosen: Bool, isCorrectOpt: Bool, grade: ProgressiveGradeResult?) -> Color {
         if let g = grade {
-            if isChosen { return g.isCorrect ? Color.green.opacity(0.1) : Color.red.opacity(0.1) }
+            if isChosen { return isCorrectOpt ? Color.green.opacity(0.1) : Color.red.opacity(0.1) }
             if isCorrectOpt && !g.isCorrect { return Color.green.opacity(0.07) }
             return Color.clear
         }

@@ -58,15 +58,28 @@ class LocalProgressService {
                     let isCorrect = index < subjectProgress.numberOfCorrectQuestions
                     return QuestionSummary(
                         id: UUID().uuidString,
-                        questionText: "Manually marked question \(index + 1)",
-                        correctAnswer: isCorrect ? "Correct" : "Incorrect",
                         subject: subject,
+                        questionText: "Manually marked question \(index + 1)",
+                        rawQuestionText: nil,
+                        confidence: nil,
+                        hasVisualElements: false,
+                        archivedAt: Date(),
+                        reviewCount: 0,
+                        tags: nil,
+                        totalQuestions: 1,
                         grade: isCorrect ? .correct : .incorrect,
-                        pointsEarned: isCorrect ? 10.0 : 0.0,
-                        pointsPossible: 10.0,
-                        archivedAt: Date(), // Today's date
+                        points: isCorrect ? 10.0 : 0.0,
+                        maxPoints: 10.0,
+                        isGraded: true,
                         studentAnswer: nil,
-                        feedback: nil
+                        answerText: isCorrect ? "Correct" : "Incorrect",
+                        questionType: nil,
+                        options: nil,
+                        questionImageUrl: nil,
+                        proMode: nil,
+                        parentQuestionId: nil,
+                        subquestionId: nil,
+                        source: nil
                     )
                 }
 

@@ -538,12 +538,13 @@ module.exports = async function (fastify, opts) {
                                 if (mimeType && mimeType.startsWith('audio/')) {
                                     const bufferedAmount = clientSocket.bufferedAmount || 0;
                                     if (bufferedAmount > 65536) {
-                                        logger.error({ userId, bufferKB: Math.round(bufferedAmount / 1024) }, 'WebSocket backpressure: client buffer full');
+                                        logger.warn({ userId, bufferKB: Math.round(bufferedAmount / 1024) }, 'WebSocket backpressure: dropping audio chunk to protect stream');
+                                    } else {
+                                        clientSocket.send(JSON.stringify({
+                                            type: 'audio_chunk',
+                                            data: inlineData.data
+                                        }));
                                     }
-                                    clientSocket.send(JSON.stringify({
-                                        type: 'audio_chunk',
-                                        data: inlineData.data
-                                    }));
                                 }
                             }
                         }
@@ -716,65 +717,6 @@ module.exports = async function (fastify, opts) {
             }
 
             /**
-             * Builds a plain-text history summary from prior DB turns.
-             * Returns a string to append to systemInstruction, or '' if no history.
-             *
-             * Injecting history via systemInstruction is the only reliable method —
-             * clientContent turns[] causes 1007, setup.history is not a valid field.
-             */
-            async function buildHistoryContext() {
-                if (!sessionId) return '';
-                try {
-                    const result = await db.query(`
-                        SELECT message_type, message_text
-                        FROM conversations
-                        WHERE session_id = $1
-                        ORDER BY created_at ASC
-                        LIMIT 50
-                    `, [sessionId]);
-
-                    if (result.rows.length === 0) return '';
-
-                    // Strip raw SSE bytes stored by non-live path
-                    function sanitize(raw) {
-                        if (!raw) return '';
-                        if (!raw.includes('data: {')) return raw;
-                        let endContent = '', deltaAccum = '';
-                        for (const line of raw.split('\n')) {
-                            if (!line.startsWith('data: ')) continue;
-                            try {
-                                const ev = JSON.parse(line.slice(6));
-                                if (ev.type === 'end' && ev.content) endContent = ev.content;
-                                else if (ev.type === 'content' && ev.delta) deltaAccum += ev.delta;
-                            } catch (_) {}
-                        }
-                        return endContent || deltaAccum || raw;
-                    }
-
-                    const lines = [];
-                    for (const row of result.rows) {
-                        const text = sanitize(row.message_text).trim().replace(/\s+/g, ' ');
-                        if (!text) continue;
-                        const speaker = row.message_type === 'user' ? 'Student' : 'Tutor';
-                        lines.push(`${speaker}: ${text}`);
-                    }
-
-                    if (lines.length === 0) return '';
-
-                    logger.info({ sessionId, turns: lines.length }, '[Live] injecting history via systemInstruction');
-
-                    return `--- PREVIOUS CONVERSATION HISTORY ---
-The student and you have already spoken. Here is the transcript of your prior conversation. Use this as context to continue naturally — do NOT greet the student as if this is a new session, do NOT summarize the history aloud.
-
-${lines.join('\n')}
---- END OF HISTORY ---`;
-                } catch (error) {
-                    logger.error({ error }, '[Live] buildHistoryContext: error');
-                    return '';
-                }
-            }
-
-            /**
              * Replay prior conversation turns into Gemini after setupComplete.
              *
              * Per the Gemini Live API docs, context injection uses sendClientContent
@@ -899,12 +841,25 @@ ${lines.join('\n')}
                         clientContent: { turns, turnComplete: false }
                     }));
 
-                    geminiSocket.send(JSON.stringify({
-                        clientContent: {
-                            turns: [{ role: 'user', parts: [{ text: `For the next turn, greet the student. Start with "Hi${studentName ? ' ' + studentName : ''}" then add a short, warm greeting.` }] }],
-                            turnComplete: true
-                        }
-                    }));
+                    // For scenario sessions, send the scenario AI-first trigger so Gemini
+                    // starts the scenario even when there is prior history in the session.
+                    // For plain live sessions, send a warm greeting instead.
+                    if (activeScenarioPrompt) {
+                        logger.info({ sessionId }, '[Live] scenario: sending AI-first trigger after history replay');
+                        geminiSocket.send(JSON.stringify({
+                            clientContent: {
+                                turns: [{ role: 'user', parts: [{ text: 'Please begin the session now by following your scenario instructions.' }] }],
+                                turnComplete: true
+                            }
+                        }));
+                    } else {
+                        geminiSocket.send(JSON.stringify({
+                            clientContent: {
+                                turns: [{ role: 'user', parts: [{ text: `For the next turn, greet the student. Start with "Hi${studentName ? ' ' + studentName : ''}" then add a short, warm greeting.` }] }],
+                                turnComplete: true
+                            }
+                        }));
+                    }
 
                     logger.info({ sessionId }, '[Live] replay: done');
                 } catch (error) {

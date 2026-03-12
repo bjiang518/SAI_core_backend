@@ -208,7 +208,7 @@ struct DirectAIHomeworkView: View {
     @Namespace private var animationNamespace
 
     // Pro Mode states (NEW FLOW)
-    @State private var showProModeSummary = false  // Show summary view after parsing
+    @State private var showProModeSummary = false   // Show summary view after parsing
     @State private var proModeParsedQuestions: ParseHomeworkQuestionsResponse? = nil  // Parsed questions
 
     enum ParsingMode: String, CaseIterable {

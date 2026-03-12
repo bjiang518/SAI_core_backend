@@ -591,8 +591,12 @@ struct SessionChatView: View {
             }
             .onDisappear {
                 ttsQueueService.stopAllTTS()
-                // Do NOT disconnect Live session on tab switch — only disconnect
-                // when the app backgrounds (handled by scenePhase) or user taps End Live.
+                // Cancel any pending Live Mode activation so a background async task
+                // (300 ms after session creation) cannot enter live mode while the user
+                // has already navigated away from the chat tab.
+                viewModel.pendingLiveModeActivation = false
+                // Do NOT disconnect an already-active Live session on tab switch — only
+                // disconnect when the app backgrounds (scenePhase) or user taps End Live.
             }
             .onAppear {
                 // If Live mode is flagged but the VM was lost (e.g. after an app restart
@@ -609,6 +613,10 @@ struct SessionChatView: View {
             .onChange(of: viewModel.shouldActivateLiveMode) { _, newValue in
                 guard newValue else { return }
                 viewModel.shouldActivateLiveMode = false
+                // Only activate if the user is still on the chat tab.
+                // The async task that sets shouldActivateLiveMode fires ~300 ms after
+                // session creation; by then the user may have navigated away.
+                guard appState.selectedTab == .chat else { return }
                 if let sessionId = networkService.currentSessionId {
                     activateLiveMode(sessionId: sessionId)
                 }
@@ -741,23 +749,9 @@ struct SessionChatView: View {
     private func applySessionHandlers<V: View>(_ content: V) -> some View {
         content
             .onChange(of: viewModel.isArchiving) { wasArchiving, isArchiving in
-                // Handle archive completion
-                if wasArchiving && !isArchiving {
-                    // Archive process completed
-                    if !viewModel.archivedSessionTitle.isEmpty {
-                        // Success - dismiss archive dialog and show success alert
-                        showingArchiveDialog = false
-                        showingArchiveSuccess = true
-
-                        // Start a new session automatically after a short delay
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                hasConversationStarted = false
-                            }
-                            viewModel.startNewSession()
-                        }
-                    }
-                    // If archivedSessionTitle is empty, it means error occurred
+                // Handle archive error (success is handled by ArchiveProgressView's onComplete)
+                if wasArchiving && !isArchiving && viewModel.archivedSessionTitle.isEmpty {
+                    // archivedSessionTitle empty means error occurred
                     // Error is already handled by viewModel.errorMessage alert
                 }
             }
@@ -809,10 +803,6 @@ struct SessionChatView: View {
 
             // Modern floating message input
             modernMessageInputView
-                .onTapGesture {
-                    // Stop any playing audio when user taps input area
-                    ttsQueueService.stopAllTTS()
-                }
                 // iPad: 输入栏同步限宽居中
                 .frame(maxWidth: sizeClass == .regular ? 760 : .infinity)
                 .frame(maxWidth: .infinity)
@@ -1273,14 +1263,6 @@ struct SessionChatView: View {
                             .padding(.vertical, 8)
                             .autocorrectionDisabled(false)  // ✅ Enable autocorrection for better performance
                             .textInputAutocapitalization(.sentences)  // ✅ Explicit capitalization
-                            .toolbar {
-                                ToolbarItemGroup(placement: .keyboard) {
-                                    Spacer()
-                                    Button(NSLocalizedString("common.done", comment: "")) {
-                                        isMessageInputFocused = false
-                                    }
-                                }
-                            }
 
                         // Deep Thinking Gesture Handler (hold & slide for deep mode)
                         DeepThinkingGestureHandler(
@@ -1467,7 +1449,7 @@ struct SessionChatView: View {
                             onInterruptAI: { vm.interruptAI() },
                             recordingLevel: vm.recordingLevel
                         )
-                        .disabled(showingCamera || vm.isSessionSuspended)
+                        .disabled(showingCamera || vm.isSessionSuspended || vm.isResponseTimedOut)
 
                         // "Tap to Reactivate" overlay — shown when WebSocket dropped
                         if vm.isSessionSuspended {
@@ -1494,9 +1476,35 @@ struct SessionChatView: View {
                             .buttonStyle(.plain)
                             .transition(.opacity.combined(with: .scale(scale: 0.95)))
                         }
+
+                        // "No response" overlay — shown when AI didn't respond after user spoke/sent text
+                        if vm.isResponseTimedOut && !vm.isSessionSuspended {
+                            Button(action: {
+                                vm.reconnect()
+                            }) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "exclamationmark.arrow.circlepath")
+                                        .font(.system(size: 16, weight: .semibold))
+                                    Text(NSLocalizedString("live.no_response",
+                                                           value: "No response — Tap to Reconnect",
+                                                           comment: ""))
+                                        .font(.system(size: 15, weight: .semibold))
+                                }
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 44)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 25)
+                                        .fill(Color.red.opacity(0.75))
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                        }
                     }
                     .frame(maxWidth: .infinity)
                     .animation(.easeInOut(duration: 0.2), value: vm.isSessionSuspended)
+                    .animation(.easeInOut(duration: 0.2), value: vm.isResponseTimedOut)
                 }
             }
             .padding(.horizontal, 20)
@@ -1592,10 +1600,13 @@ struct SessionChatView: View {
         // Skip turns with empty text (transcription never arrived).
         let historyCountBefore = networkService.conversationHistory.count
         for msg in allMessages {
-            if case .voice(let voiceMsg, _) = msg, !voiceMsg.text.isEmpty {
+            if case .voice(let voiceMsg, _) = msg {
                 let role = voiceMsg.role == .user ? "user" : "assistant"
+                // Use a placeholder when STT failed so the turn is still counted in
+                // prior_turns and the AI Engine reseeds correctly on the next text message.
+                let text = voiceMsg.text.isEmpty ? "[voice message]" : voiceMsg.text
                 // Append directly — don't fire onMessageAdded (would re-add to allMessages)
-                networkService.conversationHistory.append(["role": role, "content": voiceMsg.text])
+                networkService.conversationHistory.append(["role": role, "content": text])
             }
         }
         let added = networkService.conversationHistory.count - historyCountBefore
@@ -1655,14 +1666,16 @@ struct SessionChatView: View {
         viewModel.liveModeStarterPrompt = scenario.buildPrompt(grade: grade, name: name, language: language)
 
         Task { @MainActor in
-            if let sessionId = networkService.currentSessionId {
+            // Clear the stale session ID FIRST so the for-await waits for the
+            // genuinely new ID. Without this, @Published emits the current non-nil
+            // value immediately (CurrentValueSubject behaviour), causing the old
+            // session to be used and the new session ID to arrive later and fire
+            // allMessages.removeAll() mid-connection.
+            networkService.currentSessionId = nil
+            viewModel.startNewSession()
+            for await sessionId in networkService.$currentSessionId.values
+                .compactMap({ $0 }).prefix(1) {
                 activateLiveMode(sessionId: sessionId)
-            } else {
-                viewModel.startNewSession()
-                for await sessionId in networkService.$currentSessionId.values
-                    .compactMap({ $0 }).prefix(1) {
-                    activateLiveMode(sessionId: sessionId)
-                }
             }
         }
     }
@@ -2645,7 +2658,7 @@ struct SessionChatView: View {
     /// the same vertical space as UIKit navigation bar items like the ⋯ button.
     @ViewBuilder
     private var floatingAvatarOverlay: some View {
-        if hasConversationStarted && !isLiveMode && !showingArchiveProgress {
+        if hasConversationStarted && !isLiveMode && !showingArchiveProgress && voiceService.isVoiceEnabled {
             ZStack(alignment: .center) {
                 // Tap area — large invisible circle
                 Circle()

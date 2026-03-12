@@ -318,10 +318,18 @@ async def send_session_message(session_id: str, request: SessionMessageRequest):
             session.session_id = session_id
             session_service.sessions[session_id] = session
 
-        # Reseed in-memory session from gateway DB turns when state was lost
-        # (e.g. after Live mode or server restart).
-        if is_new_session and request.prior_turns:
-            await _seed_session_from_prior_turns(session, session_id, request.prior_turns)
+        # Reseed in-memory session from gateway DB turns when state was lost.
+        # Triggers on two conditions:
+        # (a) is_new_session — server restart wiped in-memory state
+        # (b) in_memory_count < len(prior_turns) — live→streaming transition: live turns
+        #     were stored in DB by gemini-live but never added to this in-memory session
+        if request.prior_turns:
+            in_memory_count = sum(1 for m in session.messages if m.role in ('user', 'assistant'))
+            if is_new_session or in_memory_count < len(request.prior_turns):
+                session.messages.clear()
+                session.total_tokens = 0
+                session.compressed_context = None
+                await _seed_session_from_prior_turns(session, session_id, request.prior_turns)
 
         await session_service.add_message_to_session(
             session_id=session_id,
@@ -362,7 +370,6 @@ async def send_session_message(session_id: str, request: SessionMessageRequest):
         }
         openai_params["max_completion_tokens"] = max_tokens
         openai_params["temperature"] = 0.3
-            openai_params["temperature"] = 0.3
 
         response = await ai_service.client.chat.completions.create(**openai_params)
         ai_response = response.choices[0].message.content
@@ -431,10 +438,18 @@ async def send_session_message_stream(session_id: str, request: SessionMessageRe
             f"user_msg={request.message[:80].replace(chr(10), ' ')!r}"
         )
 
-        # Reseed in-memory session from gateway DB turns when state was lost
-        # (e.g. after Live mode or server restart).
-        if is_new_session and request.prior_turns:
-            await _seed_session_from_prior_turns(session, session_id, request.prior_turns)
+        # Reseed in-memory session from gateway DB turns when state was lost.
+        # Triggers on two conditions:
+        # (a) is_new_session — server restart wiped in-memory state
+        # (b) in_memory_count < len(prior_turns) — live→streaming transition: live turns
+        #     were stored in DB by gemini-live but never added to this in-memory session
+        if request.prior_turns:
+            in_memory_count = sum(1 for m in session.messages if m.role in ('user', 'assistant'))
+            if is_new_session or in_memory_count < len(request.prior_turns):
+                session.messages.clear()
+                session.total_tokens = 0
+                session.compressed_context = None
+                await _seed_session_from_prior_turns(session, session_id, request.prior_turns)
 
         await session_service.add_message_to_session(
             session_id=session_id,

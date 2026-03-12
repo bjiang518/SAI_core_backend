@@ -23,11 +23,6 @@ class MistakeReviewService: ObservableObject {
 
     /// Fetch subjects with mistake counts from LOCAL STORAGE ONLY
     func fetchSubjectsWithMistakes(timeRange: MistakeTimeRange? = nil) async {
-        #if DEBUG
-        print("🔍 [MistakeReview] === FETCHING SUBJECTS FROM LOCAL STORAGE ===")
-        print("🔍 [MistakeReview] Time range: \(timeRange?.rawValue ?? "All Time")")
-        #endif
-
         isLoading = true
         errorMessage = nil
 
@@ -54,45 +49,17 @@ class MistakeReviewService: ObservableObject {
             )
         }.sorted { $0.mistakeCount > $1.mistakeCount } // Sort by count descending
 
-        #if DEBUG
-        print("✅ [MistakeReview] Successfully fetched subjects from local storage")
-        print("📊 [MistakeReview] Found \(subjects.count) subjects with mistakes in time range:")
-        for subject in subjects {
-            print("   - \(subject.subject): \(subject.mistakeCount) mistakes")
-        }
-        #endif
-
         self.subjectsWithMistakes = subjects
         isLoading = false
-
-        #if DEBUG
-        print("🔍 [MistakeReview] === FETCH SUBJECTS COMPLETE ===\n")
-        #endif
     }
 
     /// Fetch mistakes from LOCAL STORAGE ONLY
     func fetchMistakes(subject: String?, timeRange: MistakeTimeRange) async {
-        #if DEBUG
-        print("🔍 [MistakeReview] === FETCHING MISTAKES FROM LOCAL STORAGE ===")
-        print("🔍 [MistakeReview] Subject: \(subject ?? "All Subjects")")
-        print("🔍 [MistakeReview] Time range: \(timeRange.rawValue)")
-        #endif
-
         isLoading = true
         errorMessage = nil
 
         // ✅ Fetch from local storage only
         let allMistakeData = questionLocalStorage.getMistakeQuestions(subject: subject)
-
-        #if DEBUG
-        print("🔍 [MistakeReviewService] Fetched \(allMistakeData.count) mistakes from local storage")
-        // Log first few with image URLs
-        for (index, data) in allMistakeData.prefix(3).enumerated() {
-            if let imageUrl = data["questionImageUrl"] as? String, !imageUrl.isEmpty {
-                print("   📸 Mistake \(index + 1) has image: \(imageUrl)")
-            }
-        }
-        #endif
 
         // ✅ Filter by time range
         let filteredMistakeData = filterByTimeRange(allMistakeData, timeRange: timeRange == .allTime ? nil : timeRange)
@@ -170,79 +137,33 @@ class MistakeReviewService: ObservableObject {
                     questionImageUrl: questionImageUrl
                 )
 
-                #if DEBUG
-                if questionImageUrl != nil {
-                    print("   🔍 [MistakeReviewService] Created MistakeQuestion with image:")
-                    print("      - id: \(id)")
-                    print("      - questionImageUrl: '\(questionImageUrl ?? "nil")'")
-                    print("      - rawQuestionText: \(rawQuestionText.prefix(50))...")
-                }
-                #endif
-
                 mistakes.append(mistake)
             }
         }
 
-        #if DEBUG
-        print("✅ [MistakeReview] Successfully fetched mistakes from local storage")
-        print("📊 [MistakeReview] Total mistakes retrieved: \(mistakes.count)")
-
-        if mistakes.isEmpty {
-            print("⚠️ [MistakeReview] No mistakes found in local storage")
-        } else {
-            print("📋 [MistakeReview] Mistake summary:")
-            for (index, mistake) in mistakes.prefix(5).enumerated() {
-                // ⚠️ SECURITY: Only log first 30 chars of potentially sensitive data
-                print("   \(index + 1). [\(mistake.subject)] \(mistake.question.prefix(30))...")
-            }
-            if mistakes.count > 5 {
-                print("   ... and \(mistakes.count - 5) more")
-            }
-        }
-        #endif
-
         self.mistakes = mistakes
         isLoading = false
-
-        #if DEBUG
-        print("🔍 [MistakeReview] === FETCH MISTAKES COMPLETE ===\n")
-        #endif
     }
 
     /// Get mistake statistics from LOCAL STORAGE ONLY
     func getMistakeStats() async -> MistakeStats? {
-        print("🔍 [MistakeReview] === FETCHING STATS FROM LOCAL STORAGE ===")
-
         let allMistakes = questionLocalStorage.getMistakeQuestions()
         let subjectData = questionLocalStorage.getSubjectsWithMistakes()
 
-        // ✅ Calculate time-based statistics with filtering
         let mistakesLastWeek = filterByTimeRange(allMistakes, timeRange: .thisWeek).count
         let mistakesLastMonth = filterByTimeRange(allMistakes, timeRange: .thisMonth).count
 
-        let stats = MistakeStats(
+        return MistakeStats(
             totalMistakes: allMistakes.count,
             subjectsWithMistakes: subjectData.count,
             mistakesLastWeek: mistakesLastWeek,
             mistakesLastMonth: mistakesLastMonth
         )
-
-        print("✅ [MistakeReview] Successfully calculated stats from local storage")
-        print("📊 [MistakeReview] Stats summary:")
-        print("   - Total mistakes: \(stats.totalMistakes)")
-        print("   - Subjects with mistakes: \(stats.subjectsWithMistakes)")
-        print("   - Mistakes last week: \(stats.mistakesLastWeek)")
-        print("   - Mistakes last month: \(stats.mistakesLastMonth)")
-
-        print("🔍 [MistakeReview] === FETCH STATS COMPLETE ===\n")
-        return stats
     }
 
     /// Filter mistakes by time range
     func filterByTimeRange(_ mistakes: [[String: Any]], timeRange: MistakeTimeRange?) -> [[String: Any]] {
         guard let timeRange = timeRange else {
-            // No time range specified, return all
-            print("🔍 [MistakeReview] No time range filter - returning all \(mistakes.count) mistakes")
             return mistakes
         }
 
@@ -252,80 +173,24 @@ class MistakeReviewService: ObservableObject {
         let cutoffDate: Date
         switch timeRange {
         case .thisWeek:
-            // Last 7 days
             cutoffDate = calendar.date(byAdding: .day, value: -7, to: now)!
-            print("🔍 [MistakeReview] Filtering for THIS WEEK (last 7 days)")
         case .thisMonth:
-            // Last 30 days
             cutoffDate = calendar.date(byAdding: .day, value: -30, to: now)!
-            print("🔍 [MistakeReview] Filtering for THIS MONTH (last 30 days)")
         case .allTime:
-            // Return all mistakes
-            print("🔍 [MistakeReview] ALL TIME selected - returning all \(mistakes.count) mistakes")
             return mistakes
         }
 
-        print("🔍 [MistakeReview] Now: \(now)")
-        print("🔍 [MistakeReview] Cutoff date: \(cutoffDate)")
-        print("🔍 [MistakeReview] Total mistakes to check: \(mistakes.count)")
-
-        // Filter mistakes by archived date
-        var parsedDatesCount = 0
-        var failedParseCount = 0
-        var matchingCount = 0
-
         let filtered = mistakes.filter { mistake in
-            // Debug: Print first few mistakes in detail
-            #if DEBUG
-            if parsedDatesCount + failedParseCount < 5 {
-                print("🔍 [MistakeReview] Checking mistake: subject=\(mistake["subject"] as? String ?? "N/A"), archivedAt=\(mistake["archivedAt"] as? String ?? "MISSING")")
-            }
-            #endif
-
             guard let archivedAtString = mistake["archivedAt"] as? String else {
-                failedParseCount += 1
-                #if DEBUG
-                if failedParseCount <= 3 {
-                    print("⚠️ [MistakeReview] Missing archivedAt field in mistake")
-                }
-                #endif
                 return false
             }
 
-            // ✅ Use cached date parsing for performance
             guard let mistakeDate = currentUserQuestionStorage().getDateCached(archivedAtString) else {
-                failedParseCount += 1
-                #if DEBUG
-                if failedParseCount <= 3 {
-                    print("⚠️ [MistakeReview] Failed to parse date: \(archivedAtString)")
-                }
-                #endif
                 return false
             }
 
-            parsedDatesCount += 1
-            let matches = mistakeDate >= cutoffDate
-            if matches {
-                matchingCount += 1
-            }
-
-            // Log first few comparisons
-            #if DEBUG
-            if parsedDatesCount <= 5 {
-                print("🔍 [MistakeReview] Mistake date: \(mistakeDate), matches: \(matches)")
-            }
-            #endif
-
-            return matches
+            return mistakeDate >= cutoffDate
         }
-
-        print("📊 [MistakeReview] Time filter results:")
-        print("   - Time range: \(timeRange.rawValue)")
-        print("   - Total mistakes checked: \(mistakes.count)")
-        print("   - Successfully parsed dates: \(parsedDatesCount)")
-        print("   - Failed to parse: \(failedParseCount)")
-        print("   - Matching date range: \(matchingCount)")
-        print("   - Final filtered count: \(filtered.count)")
 
         return filtered
     }
@@ -371,29 +236,6 @@ class MistakeReviewService: ObservableObject {
             }
         }
 
-        // ✅ DEBUG: Inspect what's actually stored in the first few mistakes
-        print("\n🔍 [DEBUG] getBaseBranches called for subject: \(subject)")
-        print("   Total mistakes after time filter: \(filteredMistakes.count)")
-
-        for (index, mistake) in filteredMistakes.prefix(5).enumerated() {
-            let baseBranch = mistake["baseBranch"] as? String
-            let detailedBranch = mistake["detailedBranch"] as? String
-            let weaknessKey = mistake["weaknessKey"] as? String
-            let subject = mistake["subject"] as? String
-            let questionPreview = (mistake["questionText"] as? String)?.prefix(40) ?? "N/A"
-            let errorAnalysisStatus = mistake["errorAnalysisStatus"] as? String
-            let archivedAt = mistake["archivedAt"] as? String
-
-            print("\n   📋 Mistake #\(index + 1):")
-            print("      Subject: '\(subject ?? "NIL")'")
-            print("      baseBranch: '\(baseBranch ?? "NIL")'")
-            print("      detailedBranch: '\(detailedBranch ?? "NIL")'")
-            print("      weaknessKey: '\(weaknessKey ?? "NIL")'")
-            print("      errorAnalysisStatus: '\(errorAnalysisStatus ?? "NIL")'")
-            print("      archivedAt: '\(archivedAt ?? "NIL")'")
-            print("      Question: '\(questionPreview)...'")
-        }
-
         // Group by base branch (questions with no baseBranch go into the uncategorized bucket)
         var branchGroups: [String: [[String: Any]]] = [:]
         var uncategorizedCount = 0
@@ -407,12 +249,6 @@ class MistakeReviewService: ObservableObject {
                 uncategorizedCount += 1
             }
         }
-
-        print("\n   ✅ Grouped into \(branchGroups.count) base branches (\(uncategorizedCount) uncategorized)")
-        for (branch, mistakes) in branchGroups.sorted(by: { $0.value.count > $1.value.count }) {
-            print("      - \(branch): \(mistakes.count) mistakes")
-        }
-        print("")
 
         // Convert to BaseBranchCount with detailed branches
         return branchGroups.map { baseBranch, mistakes in

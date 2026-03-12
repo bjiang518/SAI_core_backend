@@ -195,14 +195,9 @@ class LibraryDataService: ObservableObject {
             errorMessage = nil
         }
 
-        print("🔍 [Search] === LOCAL ADVANCED SEARCH ===")
-        print("🔍 [Search] Filters: searchText=\(filters.searchText ?? "none"), subjects=\(filters.selectedSubjects.count), grade=\(filters.gradeFilter?.rawValue ?? "none")")
-
         // ✅ LOCAL-ONLY: Load from local storage
         let localStorage = currentUserQuestionStorage()
         let localQuestions = localStorage.getLocalQuestions()
-
-        print("🔍 [Search] Step 1: Retrieved \(localQuestions.count) questions from local storage")
 
         // Convert to QuestionSummary
         var questions: [QuestionSummary] = []
@@ -212,20 +207,12 @@ class LibraryDataService: ObservableObject {
             }
         }
 
-        print("🔍 [Search] Step 2: Converted \(questions.count) questions")
-
-        // ✅ KEEP ALL QUESTIONS in Study Library (including mistakes)
-        // Mistake questions should appear in BOTH Mistake Notes AND Study Library
-        // Mistake Notes filters questions separately using QuestionLocalStorage.getMistakeQuestions()
-        print("🔍 [Search] Step 3: Keeping all \(questions.count) questions in library (including mistakes)")
-
         // Apply search text filter
         if let searchText = filters.searchText, !searchText.isEmpty {
             let lowercasedSearch = searchText.lowercased()
             questions = questions.filter { question in
                 question.questionText.lowercased().contains(lowercasedSearch)
             }
-            print("🔍 [Search] After search text filter '\(searchText)': \(questions.count) questions")
         }
 
         // Apply subject filter
@@ -234,7 +221,6 @@ class LibraryDataService: ObservableObject {
                 // Use normalized subject for comparison to handle "Math"/"Mathematics" variants
                 filters.selectedSubjects.contains(question.normalizedSubject)
             }
-            print("🔍 [Search] After subject filter: \(questions.count) questions")
         }
 
         // Apply confidence range filter
@@ -245,13 +231,11 @@ class LibraryDataService: ObservableObject {
                 }
                 return false
             }
-            print("🔍 [Search] After confidence filter: \(questions.count) questions")
         }
 
         // Apply visual elements filter
         if let hasVisualElements = filters.hasVisualElements {
             questions = questions.filter { $0.hasVisualElements == hasVisualElements }
-            print("🔍 [Search] After visual elements filter: \(questions.count) questions")
         }
 
         // Apply grade filter
@@ -261,7 +245,6 @@ class LibraryDataService: ObservableObject {
             } else {
                 questions = questions.filter { $0.grade?.rawValue == gradeFilter.rawValue }
             }
-            print("🔍 [Search] After grade filter: \(questions.count) questions")
         }
 
         // Apply date range filter
@@ -270,13 +253,10 @@ class LibraryDataService: ObservableObject {
             questions = questions.filter { question in
                 question.archivedAt >= dateComponents.startDate && question.archivedAt <= dateComponents.endDate
             }
-            print("🔍 [Search] After date filter: \(questions.count) questions")
         }
 
         // Apply sorting
         let sortedQuestions = applySorting(questions, sortOrder: filters.sortOrder)
-
-        print("🔍 [Search] === FINAL RESULT: \(sortedQuestions.count) questions ===")
 
         await MainActor.run {
             isLoading = false
@@ -673,9 +653,7 @@ class LibraryDataService: ObservableObject {
     /// Call this from background archive tasks after AI summary/subject arrives.
     @MainActor
     func patchCachedConversation(withId id: String, fields: [String: Any]) {
-        print("📚 [LibraryDataService] patchCachedConversation called for \(id), cache has \(cachedConversations.count) items")
         guard let index = cachedConversations.firstIndex(where: { ($0["id"] as? String) == id }) else {
-            print("⚠️ [LibraryDataService] ID not found in cache — invalidating so next load picks it up from UserDefaults")
             // The conversation was archived after the cache was built; clearing cache forces a fresh read
             clearCache()
             NotificationCenter.default.post(name: NSNotification.Name("StorageSyncCompleted"), object: nil)
@@ -809,40 +787,24 @@ struct ConversationLibraryItem: LibraryItem {
     }
     
     var title: String {
-        let conversationId = data["id"] as? String ?? "unknown"
-        print("\n🏷️ [TITLE DEBUG] Generating title for conversation: \(conversationId)")
-
-        // Log available relevant fields
-        print("   📋 Available fields for title generation:")
-        print("      • title: \(data["title"] as? String ?? "nil")")
-        print("      • summary: \(data["summary"] as? String ?? "nil")")
-        print("      • topic: \(data["topic"] as? String ?? "nil")")
-        print("      • subject: \(data["subject"] as? String ?? "General")")
-
         // Priority 1: Use the actual title field if available and not empty
         if let actualTitle = data["title"] as? String, !actualTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            print("   ✅ [PRIORITY 1] Using actual title field: \(actualTitle)")
             return actualTitle
         }
 
         // Priority 2: Use summary if available (AI-generated)
         if let summaryValue = data["summary"] as? String, !summaryValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            print("   ✅ [PRIORITY 2] Using AI-generated summary: \(summaryValue)")
             return summaryValue
         }
 
         // Priority 3: Fall back to topic if available and not empty
         if let topicValue = data["topic"] as? String, !topicValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            let normalizedTopic = QuestionSummary.normalizeSubject(topicValue)
-            print("   ⚠️ [PRIORITY 3] Falling back to topic: \(normalizedTopic)")
-            return normalizedTopic
+            return QuestionSummary.normalizeSubject(topicValue)
         }
 
         // Priority 4: Default to "Chat on {Subject}"
         let rawSubject = data["subject"] as? String ?? "General"
-        let fallbackTitle = "Chat on \(rawSubject)"
-        print("   ⚠️ [PRIORITY 4] Using fallback: \(fallbackTitle)")
-        return fallbackTitle
+        return "Chat on \(rawSubject)"
     }
 
     var subject: String {
@@ -952,29 +914,8 @@ struct ConversationLibraryItem: LibraryItem {
     }
     
     var preview: String {
-        let conversationId = data["id"] as? String ?? "unknown"
-        print("🔍 [LibraryDataService] Generating preview for conversation: \(conversationId)")
-
-        // DEBUG: Dump all available keys in the data dictionary
-        print("   📋 Available keys in conversation data:")
-        for key in data.keys.sorted() {
-            let value = data[key]
-            if let stringValue = value as? String {
-                print("      • \(key): \(stringValue.prefix(100))")
-            } else if let intValue = value as? Int {
-                print("      • \(key): \(intValue)")
-            } else if let arrayValue = value as? [Any] {
-                print("      • \(key): [Array with \(arrayValue.count) items]")
-            } else if let dictValue = value as? [String: Any] {
-                print("      • \(key): [Dictionary with \(dictValue.keys.count) keys]")
-            } else {
-                print("      • \(key): \(type(of: value))")
-            }
-        }
-
-        // ✅ NEW: Priority 1 - Use AI-generated summary if available
+        // Priority 1: Use AI-generated summary if available
         if let summary = data["summary"] as? String, !summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            print("   ✨ Using AI-generated summary: \(summary)")
             return summary
         }
 
@@ -987,49 +928,31 @@ struct ConversationLibraryItem: LibraryItem {
                 let count = max(questionCount, questions.count)
                 let confidence = data["overallConfidence"] as? Double ?? 0.0
                 let confidencePercent = Int(confidence * 100)
-
-                let result = "Homework session with \(count) questions • \(confidencePercent)% confidence"
-                print("   📊 Returning homework preview: \(result)")
-                return result
+                return "Homework session with \(count) questions • \(confidencePercent)% confidence"
             }
         }
 
         // For conversation sessions, try to show FIRST USER MESSAGE
         if let messages = data["messages"] as? [[String: Any]], !messages.isEmpty {
-            print("   💬 Found messages array with \(messages.count) messages")
-            // Look for the first user message
-            for (index, message) in messages.enumerated() {
+            for message in messages {
                 let role = message["role"] as? String ?? ""
                 let sender = message["sender"] as? String ?? ""
-                print("      Message \(index): role=\(role), sender=\(sender)")
 
-                // Check if this is a user message (role: "user" or sender: "user")
                 if role.lowercased() == "user" || sender.lowercased() == "user" {
                     if let content = message["content"] as? String ?? message["message"] as? String {
-                        print("      ✅ Found user message: \(content.prefix(50))...")
-                        // Limit to 50 words as requested
                         let words = content.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
                         let limitedWords = words.prefix(50)
                         let preview = limitedWords.joined(separator: " ")
-                        let result = preview + (words.count > 50 ? "..." : "")
-                        print("   📤 Returning preview from messages array: \(result.prefix(80))...")
-                        return result
+                        return preview + (words.count > 50 ? "..." : "")
                     }
                 }
             }
-            print("   ⚠️ Messages array found but no user messages extracted")
-        } else {
-            print("   ⚠️ No messages array found in data")
         }
 
         // Fallback: Check for conversationContent
         if let conversationContent = data["conversationContent"] as? String, !conversationContent.isEmpty {
-            print("   📝 Checking conversationContent (length: \(conversationContent.count))")
-            print("      First 200 chars: \(conversationContent.prefix(200))")
-
-            // Try to extract user's message from conversation content
             let lines = conversationContent.components(separatedBy: .newlines)
-            for (index, line) in lines.enumerated() {
+            for line in lines {
                 let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
 
                 // Skip archive headers and metadata lines
@@ -1041,62 +964,42 @@ struct ConversationLibraryItem: LibraryItem {
                    trimmedLine.hasPrefix("Topic:") ||
                    trimmedLine.hasPrefix("Archived:") ||
                    trimmedLine.hasPrefix("Messages:") ||
-                   trimmedLine.hasPrefix("[") && trimmedLine.hasSuffix("]") || // Skip timestamp-only lines like "[10/14/2025, 5:39:00 AM]"
+                   trimmedLine.hasPrefix("[") && trimmedLine.hasSuffix("]") ||
                    trimmedLine.isEmpty {
-                    print("      Line \(index): SKIPPED - \(trimmedLine.prefix(50))")
                     continue
                 }
 
-                print("      Line \(index): \(trimmedLine.prefix(50))...")
-
-                // Look for user message (lines starting with "User:" or not prefixed with "AI:")
                 if !trimmedLine.hasPrefix("AI:") {
-                    // Clean up common prefixes
                     var cleanedLine = trimmedLine
                     cleanedLine = cleanedLine.replacingOccurrences(of: "^User:\\s*", with: "", options: .regularExpression)
                     cleanedLine = cleanedLine.replacingOccurrences(of: "^Student:\\s*", with: "", options: .regularExpression)
-                    cleanedLine = cleanedLine.replacingOccurrences(of: "^\\[.*?\\]\\s*User:\\s*", with: "", options: .regularExpression) // Clean "[timestamp] User:" pattern
+                    cleanedLine = cleanedLine.replacingOccurrences(of: "^\\[.*?\\]\\s*User:\\s*", with: "", options: .regularExpression)
 
                     if !cleanedLine.isEmpty {
-                        print("      ✅ Found user message from content: \(cleanedLine.prefix(50))...")
-                        // Limit to 50 words as requested
                         let words = cleanedLine.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
                         let limitedWords = words.prefix(50)
                         let preview = limitedWords.joined(separator: " ")
-                        let result = preview + (words.count > 50 ? "..." : "")
-                        print("   📤 Returning preview from conversationContent: \(result.prefix(80))...")
-                        return result
+                        return preview + (words.count > 50 ? "..." : "")
                     }
                 }
             }
-            print("   ⚠️ conversationContent found but no user messages extracted")
-        } else {
-            print("   ⚠️ No conversationContent found in data")
         }
 
         // For conversation sessions, show message count if no content available
         let messageCount = data["message_count"] as? Int ?? data["messageCount"] as? Int ?? 0
         if messageCount > 0 {
-            let result = "\(messageCount) messages in conversation"
-            print("   📤 Returning message count preview: \(result)")
-            return result
+            return "\(messageCount) messages in conversation"
         }
 
         // Fallback for other session types
         if let notes = data["notes"] as? String, !notes.isEmpty {
-            print("   📋 Using notes field")
-            // Limit to 50 words
             let words = notes.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
             let limitedWords = words.prefix(50)
             let preview = limitedWords.joined(separator: " ")
-            let result = preview + (words.count > 50 ? "..." : "")
-            print("   📤 Returning preview from notes: \(result.prefix(80))...")
-            return result
+            return preview + (words.count > 50 ? "..." : "")
         }
 
-        let fallbackResult = "Study session"
-        print("   📤 Returning fallback preview: \(fallbackResult)")
-        return fallbackResult
+        return "Study session"
     }
 }
 
@@ -1131,9 +1034,6 @@ class ConversationLocalStorage {
 
     /// Save a newly archived conversation to local storage
     func saveConversation(_ conversation: [String: Any]) {
-        print("💾 [LocalStorage] Saving conversation to local storage")
-        print("   • ID: \(conversation["id"] as? String ?? "unknown")")
-
         var conversations = getLocalConversations()
 
         // Add new conversation at the beginning (most recent first)
@@ -1142,15 +1042,11 @@ class ConversationLocalStorage {
         // Keep only the most recent conversations
         if conversations.count > maxLocalConversations {
             conversations = Array(conversations.prefix(maxLocalConversations))
-            print("   • Trimmed to \(maxLocalConversations) conversations")
         }
 
         // Save to UserDefaults
         if let data = try? JSONSerialization.data(withJSONObject: conversations) {
             userDefaults.set(data, forKey: conversationsKey)
-            print("   ✅ Saved to local storage (total: \(conversations.count))")
-        } else {
-            print("   ❌ Failed to serialize conversations")
         }
     }
 
@@ -1160,20 +1056,14 @@ class ConversationLocalStorage {
     func getLocalConversations() -> [[String: Any]] {
         guard let data = userDefaults.data(forKey: conversationsKey),
               let conversations = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
-            print("💾 [LocalStorage] No local conversations found")
             return []
         }
 
-        print("💾 [LocalStorage] Found \(conversations.count) local conversations")
         return conversations
     }
 
     /// Merge local conversations with server conversations (deduplicating by ID)
     func mergeWithServerData(localConversations: [[String: Any]], serverConversations: [[String: Any]]) -> [[String: Any]] {
-        print("🔄 [LocalStorage] Merging local and server data")
-        print("   • Local: \(localConversations.count) conversations")
-        print("   • Server: \(serverConversations.count) conversations")
-
         var mergedConversations: [[String: Any]] = []
         var seenIds = Set<String>()
 
@@ -1197,7 +1087,6 @@ class ConversationLocalStorage {
             }
         }
 
-        print("   ✅ Merged result: \(mergedConversations.count) conversations")
         return mergedConversations
     }
 
@@ -1207,7 +1096,6 @@ class ConversationLocalStorage {
     func updateConversation(withId id: String, fields: [String: Any]) {
         var conversations = getLocalConversations()
         guard let index = conversations.firstIndex(where: { ($0["id"] as? String) == id }) else {
-            print("💾 [LocalStorage] updateConversation: id \(id) not found, skipping")
             return
         }
         for (key, value) in fields {
@@ -1215,7 +1103,6 @@ class ConversationLocalStorage {
         }
         if let data = try? JSONSerialization.data(withJSONObject: conversations) {
             userDefaults.set(data, forKey: conversationsKey)
-            print("💾 [LocalStorage] Updated conversation \(id) with keys: \(fields.keys.joined(separator: ", "))")
         }
     }
 
@@ -1590,28 +1477,18 @@ class QuestionLocalStorage {
     private func getLocalQuestionsUnsafe() -> [[String: Any]] {
         // Check if we have a valid cache
         if let cached = cachedQuestions {
-            #if DEBUG
-            print("💨 [QuestionLocalStorage] Returning cached questions (\(cached.count))")
-            #endif
             return cached
         }
 
         // Cache miss - load from UserDefaults
         guard let data = userDefaults.data(forKey: questionsKey),
               let questions = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
-            #if DEBUG
-            print("📭 [QuestionLocalStorage] No questions in storage")
-            #endif
             return []
         }
 
         // Update cache
         cachedQuestions = questions
         cacheLastModified = Date()
-
-        #if DEBUG
-        print("💾 [QuestionLocalStorage] Loaded \(questions.count) questions from storage (cached)")
-        #endif
 
         return questions
     }
@@ -1620,9 +1497,6 @@ class QuestionLocalStorage {
     func invalidateCache() {
         cachedQuestions = nil
         cacheLastModified = nil
-        #if DEBUG
-        print("🔄 [QuestionLocalStorage] Cache invalidated")
-        #endif
     }
 
     /// Remove duplicate questions that share the same content hash.
@@ -1725,17 +1599,12 @@ class QuestionLocalStorage {
     func getMistakeQuestions(subject: String? = nil) -> [[String: Any]] {
         let allQuestions = getLocalQuestions()
 
-        print("📚 [LibraryDataService] getMistakeQuestions called")
-        print("   Total questions: \(allQuestions.count)")
-
         // Filter for mistakes (isCorrect == false)
         let mistakes = allQuestions.filter { question in
             let isCorrect = question["isCorrect"] as? Bool ?? true
             let matchesSubject = subject == nil || (question["subject"] as? String) == subject
             return !isCorrect && matchesSubject
         }
-
-        print("   Filtered mistakes: \(mistakes.count) (subject filter: \(subject ?? "ALL"))")
 
         return mistakes
     }
@@ -1941,7 +1810,8 @@ class QuestionLocalStorage {
             questionImageUrl: questionImageUrl,
             proMode: proMode,
             parentQuestionId: parentQuestionId,
-            subquestionId: subquestionId
+            subquestionId: subquestionId,
+            source: data["source"] as? String
         )
     }
 }

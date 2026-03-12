@@ -217,7 +217,7 @@ class DigitalHomeworkStateManager: ObservableObject {
         let ungradedQuestions = parseResults.questions.map { question in
             ProgressiveQuestionWithGrade(
                 id: question.id,
-                question: question,
+                question: question.sanitized(),
                 grade: nil,
                 isGrading: false,
                 gradingError: nil
