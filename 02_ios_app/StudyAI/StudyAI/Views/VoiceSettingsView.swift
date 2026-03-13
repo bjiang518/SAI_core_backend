@@ -12,6 +12,7 @@ struct VoiceSettingsView: View {
     @StateObject private var voiceService = VoiceInteractionService.shared
     @State private var tempSettings: VoiceSettings
     @State private var showingPreview = false
+    @State private var interactiveModeSettings = InteractiveModeSettings.load()
     @Environment(\.dismiss) private var dismiss
     
     init() {
@@ -23,23 +24,26 @@ struct VoiceSettingsView: View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 24) {
+                    // Audio toggles (enable / sync)
+                    audioConfigSection
+
                     // Voice Type Selection
                     voiceTypeSection
-                    
+
                     // Voice Controls
                     voiceControlsSection
-                    
+
                     // Auto-Speak Settings
                     autoSpeakSection
-                    
+
                     // Voice Preview
                     voicePreviewSection
-                    
+
                     Spacer(minLength: 100)
                 }
                 .padding()
             }
-            .navigationTitle(NSLocalizedString("voiceSettings.title", comment: ""))
+            .navigationTitle(NSLocalizedString("chat.menu.audioConfig", comment: ""))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -53,16 +57,66 @@ struct VoiceSettingsView: View {
                         saveSettings()
                     }
                     .fontWeight(.semibold)
-                    .disabled(!hasChanges)
                 }
             }
         }
     }
     
+    // MARK: - Audio Config Section
+
+    private var audioConfigSection: some View {
+        VStack(spacing: 12) {
+            // Enable Audio row
+            HStack {
+                Text(NSLocalizedString("chat.menu.voice", comment: ""))
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                Spacer()
+                Picker("", selection: Binding(
+                    get: { voiceService.isVoiceEnabled },
+                    set: { newValue in
+                        if newValue != voiceService.isVoiceEnabled {
+                            voiceService.toggleVoiceEnabled()
+                        }
+                    }
+                )) {
+                    Text(NSLocalizedString("common.yes", comment: "")).tag(true)
+                    Text(NSLocalizedString("common.no", comment: "")).tag(false)
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 120)
+            }
+            .padding()
+            .background(Color(.systemGray6))
+            .cornerRadius(12)
+
+            // Sync with Text row
+            HStack {
+                Text(NSLocalizedString("chat.menu.syncWithText", comment: ""))
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                Spacer()
+                Picker("", selection: $interactiveModeSettings.isEnabled) {
+                    Text(NSLocalizedString("common.yes", comment: "")).tag(true)
+                    Text(NSLocalizedString("common.no", comment: "")).tag(false)
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 120)
+                .onChange(of: interactiveModeSettings.isEnabled) { _, _ in
+                    interactiveModeSettings.save()
+                }
+            }
+            .padding()
+            .background(Color(.systemGray6))
+            .cornerRadius(12)
+        }
+    }
+
     // MARK: - Voice Type Section
-    
+
     private var voiceTypeSection: some View {
         VStack(alignment: .leading, spacing: 16) {
+            sectionHeader(NSLocalizedString("chat.menu.aiMate", comment: ""), icon: "person.crop.circle")
             LazyVGrid(columns: [
                 GridItem(.flexible()),
                 GridItem(.flexible())
@@ -72,11 +126,8 @@ struct VoiceSettingsView: View {
                         voiceType: voiceType,
                         isSelected: tempSettings.voiceType == voiceType,
                         onSelect: {
-                            // Stop any playing voice first
                             voiceService.stopSpeech()
                             showingPreview = false
-
-                            // Update voice type (no auto-play)
                             tempSettings.voiceType = voiceType
                         }
                     )
@@ -125,7 +176,7 @@ struct VoiceSettingsView: View {
                             .foregroundColor(.secondary)
                             .font(.caption)
 
-                        Slider(value: $tempSettings.speakingRate, in: 0.25...1.0) {
+                        Slider(value: $tempSettings.speakingRate, in: 0.7...1.2) {
                         Text(NSLocalizedString("voiceSettings.speakingRate", comment: ""))
                         } minimumValueLabel: {
                             EmptyView()
@@ -135,6 +186,74 @@ struct VoiceSettingsView: View {
                         .tint(voiceColor)
 
                         Image(systemName: "hare.fill")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    }
+                }
+
+                // Stability
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text(NSLocalizedString("voiceSettings.stability", comment: ""))
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+
+                        Spacer()
+
+                        Text(stabilityLabel)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
+                    HStack {
+                        Image(systemName: "waveform.path")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+
+                        Slider(value: $tempSettings.stability, in: 0.0...1.0) {
+                            Text(NSLocalizedString("voiceSettings.stability", comment: ""))
+                        } minimumValueLabel: {
+                            EmptyView()
+                        } maximumValueLabel: {
+                            EmptyView()
+                        }
+                        .tint(voiceColor)
+
+                        Image(systemName: "waveform")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    }
+                }
+
+                // Style
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text(NSLocalizedString("voiceSettings.style", comment: ""))
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+
+                        Spacer()
+
+                        Text(styleLabel)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
+                    HStack {
+                        Image(systemName: "theatermasks")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+
+                        Slider(value: $tempSettings.style, in: 0.0...1.0) {
+                            Text(NSLocalizedString("voiceSettings.style", comment: ""))
+                        } minimumValueLabel: {
+                            EmptyView()
+                        } maximumValueLabel: {
+                            EmptyView()
+                        }
+                        .tint(voiceColor)
+
+                        Image(systemName: "theatermasks.fill")
                             .foregroundColor(.secondary)
                             .font(.caption)
                     }
@@ -262,16 +381,30 @@ struct VoiceSettingsView: View {
     
     private var speedLabel: String {
         switch tempSettings.speakingRate {
-        case 0.25..<0.4:
-            return NSLocalizedString("voiceSettings.speed.verySlow", comment: "")
-        case 0.4..<0.6:
+        case 0.7..<0.82:
             return NSLocalizedString("voiceSettings.speed.slow", comment: "")
-        case 0.6..<0.8:
+        case 0.82..<0.95:
             return NSLocalizedString("voiceSettings.speed.normal", comment: "")
-        case 0.8..<0.95:
+        case 0.95..<1.08:
             return NSLocalizedString("voiceSettings.speed.fast", comment: "")
         default:
             return NSLocalizedString("voiceSettings.speed.veryFast", comment: "")
+        }
+    }
+
+    private var stabilityLabel: String {
+        switch tempSettings.stability {
+        case 0.0..<0.35: return NSLocalizedString("voiceSettings.stability.variable", comment: "")
+        case 0.35..<0.65: return NSLocalizedString("voiceSettings.stability.balanced", comment: "")
+        default: return NSLocalizedString("voiceSettings.stability.stable", comment: "")
+        }
+    }
+
+    private var styleLabel: String {
+        switch tempSettings.style {
+        case 0.0..<0.15: return NSLocalizedString("voiceSettings.style.neutral", comment: "")
+        case 0.15..<0.4: return NSLocalizedString("voiceSettings.style.expressive", comment: "")
+        default: return NSLocalizedString("voiceSettings.style.bold", comment: "")
         }
     }
 
@@ -279,59 +412,24 @@ struct VoiceSettingsView: View {
         tempSettings.voiceType != voiceService.voiceSettings.voiceType ||
         abs(tempSettings.speakingRate - voiceService.voiceSettings.speakingRate) > 0.01 ||
         abs(tempSettings.volume - voiceService.voiceSettings.volume) > 0.01 ||
+        abs(tempSettings.stability - voiceService.voiceSettings.stability) > 0.01 ||
+        abs(tempSettings.style - voiceService.voiceSettings.style) > 0.01 ||
         tempSettings.autoSpeakResponses != voiceService.voiceSettings.autoSpeakResponses
     }
     
     // MARK: - Actions
     
-    private func playPreview(for voiceType: VoiceType) {
-        let previewText = voiceService.getVoicePreview(for: voiceType)
-        let previewSettings = VoiceSettings(
-            voiceType: voiceType,
-            speakingRate: tempSettings.speakingRate,
-            voicePitch: tempSettings.voicePitch,
-            autoSpeakResponses: tempSettings.autoSpeakResponses,
-            language: tempSettings.language,
-            volume: tempSettings.volume,
-            useEnhancedVoices: tempSettings.useEnhancedVoices,
-            expressiveness: tempSettings.expressiveness
-        )
-        
-        // Stop any current speech first
-        voiceService.stopSpeech()
-        
-        // Use preview settings directly without temporarily changing service settings
-        if voiceService.shouldUseEnhancedTTS(for: voiceType) {
-            let enhancedTTS = EnhancedTTSService()
-            enhancedTTS.speak(previewText, with: previewSettings)
-        } else {
-            let systemTTS = TextToSpeechService()
-            systemTTS.speak(previewText, with: previewSettings)
-        }
-    }
-    
+
     private func playCurrentPreview() {
         if showingPreview {
             voiceService.stopSpeech()
             showingPreview = false
         } else {
             let previewText = voiceService.getVoicePreview(for: tempSettings.voiceType)
-            
-            // Stop any current speech first
-            voiceService.stopSpeech()
-            
-            // Use preview settings directly without changing service settings
-            if voiceService.shouldUseEnhancedTTS(for: tempSettings.voiceType) {
-                let enhancedTTS = EnhancedTTSService()
-                enhancedTTS.speak(previewText, with: tempSettings)
-            } else {
-                let systemTTS = TextToSpeechService()
-                systemTTS.speak(previewText, with: tempSettings)
-            }
-            
+            voiceService.previewVoice(text: previewText, with: tempSettings)
             showingPreview = true
-            
-            // Auto-hide after estimated duration
+
+            // Auto-reset the play/stop state after estimated duration
             DispatchQueue.main.asyncAfter(deadline: .now() + 8) {
                 showingPreview = false
             }
@@ -388,8 +486,8 @@ struct VoiceTypeCard: View {
                     loopMode: .loop,
                     animationSpeed: 1.0
                 )
-                .frame(width: 80, height: 80)  // Larger bounding box
-                .scaleEffect(0.08)  // Much smaller animation
+                .frame(width: 80, height: 80)
+                .scaleEffect(0.08)
                 .clipped()
 
                 // Title
@@ -408,7 +506,7 @@ struct VoiceTypeCard: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 140)  // Fixed height for all cards
+            .frame(minHeight: 140)
             .padding()
             .background(
                 RoundedRectangle(cornerRadius: 16)

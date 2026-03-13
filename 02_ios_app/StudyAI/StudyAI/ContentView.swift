@@ -46,7 +46,7 @@ enum MainTab: Int, CaseIterable {
     var icon: String {
         switch self {
         case .home: return "house.fill"
-        case .grader: return "magnifyingglass"
+        case .grader: return "camera.fill"
         case .chat: return "message.fill"
         case .progress: return "chart.bar.fill"
         case .library: return "books.vertical.fill"

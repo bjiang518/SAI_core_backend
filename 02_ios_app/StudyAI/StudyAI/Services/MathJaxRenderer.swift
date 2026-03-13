@@ -138,6 +138,15 @@ private enum MathHTML {
             // multi-pass MathJax typesetting that completes after the first rAF.
             setTimeout(updateHeight, 800);
         });
+
+        // Hard fallback: if MathJax startup promise never resolves (CDN blocked,
+        // JS error, font load hang), signal ready after 3 s so the WebView
+        // becomes visible and the grey placeholder disappears.
+        setTimeout(function() {
+            if (!heightReported) {
+                reportHeight();
+            }
+        }, 3000);
         </script>
         </body>
         </html>
@@ -321,13 +330,12 @@ private struct MathContentView: View {
         } else {
             // Single WebView, loaded once when streaming ends
             ZStack(alignment: .topLeading) {
-                // Invisible placeholder keeps layout stable while MathJax typsets
+                // Readable placeholder while MathJax typsets (full opacity so text is legible)
                 if !mathReady {
                     Text(content)
                         .font(.system(size: fontSize))
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .opacity(0.35)
                 }
                 MathWebView(
                     html: MathHTML.page(content: content, fontSize: fontSize, colorScheme: colorScheme),

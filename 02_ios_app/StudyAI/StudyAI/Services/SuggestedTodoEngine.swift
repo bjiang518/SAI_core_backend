@@ -134,7 +134,6 @@ final class SuggestedTodoEngine: ObservableObject {
     // MARK: Public API
 
     func refresh() {
-        let seed = daySeed()
         var result: [SuggestedTodo] = []
 
         for category in TodoCategory.allCases {
@@ -148,25 +147,24 @@ final class SuggestedTodoEngine: ObservableObject {
 
             guard !eligible.isEmpty else { continue }
 
+            // Weighted random selection: priority is the weight.
+            // All categories use the same algorithm so every eligible item can surface.
+            // Zero-weight providers (priority == 0) use uniform random as a fallback.
+            let totalWeight = eligible.reduce(0) { $0 + $1.priority }
             let picked: SuggestedTodo
-            switch category {
-            case .practice, .mainFeature:
-                // Deterministic: highest priority wins.
-                // When multiple items share the top priority, use day-seed to rotate among them
-                // so live mode scenarios cycle day-to-day instead of always showing the first one.
-                let maxPriority = eligible.max(by: { $0.priority < $1.priority })!.priority
-                let topTied = eligible.filter { $0.priority == maxPriority }
-                if topTied.count == 1 {
-                    picked = topTied[0].todo
-                } else {
-                    let categorySeed = abs(seed ^ (category.rawValue &* 7_919))
-                    picked = topTied[categorySeed % topTied.count].todo
+            if totalWeight == 0 {
+                picked = eligible[Int.random(in: 0..<eligible.count)].todo
+            } else {
+                var target = Int.random(in: 0..<totalWeight)
+                var weightedPick = eligible.last!.todo  // fallback — always overridden below
+                for item in eligible {
+                    target -= item.priority
+                    if target < 0 {
+                        weightedPick = item.todo
+                        break
+                    }
                 }
-            case .extended, .deepExtension:
-                // Day-seeded random: consistent within a day, cycles across days.
-                // XOR with a category-specific constant to avoid correlated picks.
-                let categorySeed = abs(seed ^ (category.rawValue &* 7_919))
-                picked = eligible[categorySeed % eligible.count].todo
+                picked = weightedPick
             }
 
             result.append(picked)
@@ -243,14 +241,6 @@ final class SuggestedTodoEngine: ObservableObject {
             .forEach { UserDefaults.standard.removeObject(forKey: $0) }
     }
 
-    /// An integer unique per calendar day, used as the random seed.
-    private func daySeed() -> Int {
-        let c = Calendar.current
-        let d = Date()
-        let year = c.component(.year, from: d)
-        let dayOfYear = c.ordinality(of: .day, in: .year, for: d) ?? 1
-        return year * 1_000 + dayOfYear
-    }
 }
 
 // MARK: - Category 1: Practice Providers
@@ -262,7 +252,7 @@ final class SuggestedTodoEngine: ObservableObject {
 private struct PracticeRetryProvider: SuggestedTodoItemProvider {
     let todoId   = "practice_retry"
     let category = TodoCategory.practice
-    let priority = 95   // just below MistakeReview (100), above Feynman (90)
+    let priority = 20   // weight ~18% when all practice options are eligible
 
     func evaluate() -> SuggestedTodo? {
         let cutoff = Date().addingTimeInterval(-7 * 86_400)
@@ -299,7 +289,7 @@ private struct PracticeRetryProvider: SuggestedTodoItemProvider {
 private struct MistakeReviewProvider: SuggestedTodoItemProvider {
     let todoId   = "mistake_review"
     let category = TodoCategory.practice
-    let priority = 100
+    let priority = 50   // weight ~45% when all practice options are eligible
 
     func evaluate() -> SuggestedTodo? {
         let mistakes = todoQuestionStorage().getMistakeQuestions()
@@ -314,7 +304,7 @@ private struct MistakeReviewProvider: SuggestedTodoItemProvider {
             id:       todoId,
             icon:     "exclamationmark.circle",
             title:    NSLocalizedString("todo.mistakeReview.title",    value: "复习错题",        comment: ""),
-            subtitle: top.map { "\($0) · \(countFmt)" } ?? countFmt,
+            subtitle: countFmt,
             color:    Color(hex: "F26B50"),
             action:   .openMistakeReview(topSubject: top)
         )
@@ -326,7 +316,7 @@ private struct MistakeReviewProvider: SuggestedTodoItemProvider {
 private struct FeynmanPracticeProvider: SuggestedTodoItemProvider {
     let todoId   = "feynman_practice"
     let category = TodoCategory.practice
-    let priority = 90
+    let priority = 18   // weight ~16% when all practice options are eligible
 
     func evaluate() -> SuggestedTodo? {
         let mistakes = todoQuestionStorage().getMistakeQuestions()
@@ -348,7 +338,7 @@ private struct FeynmanPracticeProvider: SuggestedTodoItemProvider {
 private struct ConceptReviewProvider: SuggestedTodoItemProvider {
     let todoId   = "concept_review"
     let category = TodoCategory.practice
-    let priority = 80
+    let priority = 14   // weight ~13% when all practice options are eligible
 
     func evaluate() -> SuggestedTodo? {
         let uid    = AuthenticationService.shared.currentUser?.id ?? "anonymous"
@@ -400,7 +390,7 @@ private struct ConceptReviewProvider: SuggestedTodoItemProvider {
 private struct RandomPracticeProvider: SuggestedTodoItemProvider {
     let todoId   = "random_practice"
     let category = TodoCategory.practice
-    let priority = 70   // lowest in category — wins only when all others are nil
+    let priority = 8   // weight ~7% — lowest in category, surfaces when others are ineligible
 
     func evaluate() -> SuggestedTodo? {
         let subjects = ProfileService.shared.currentProfile?.favoriteSubjects ?? []
@@ -425,7 +415,7 @@ private struct RandomPracticeProvider: SuggestedTodoItemProvider {
 private struct HomeworkGraderProvider: SuggestedTodoItemProvider {
     let todoId   = "open_grader"
     let category = TodoCategory.mainFeature
-    let priority = 100
+    let priority = 50   // weight ~34% when all main-feature options are eligible
 
     func evaluate() -> SuggestedTodo? {
         guard (PointsEarningManager.shared.todayProgress?.totalQuestions ?? 0) == 0 else { return nil }
@@ -445,7 +435,7 @@ private struct HomeworkGraderProvider: SuggestedTodoItemProvider {
 private struct OpenChatProvider: SuggestedTodoItemProvider {
     let todoId   = "open_chat"
     let category = TodoCategory.mainFeature
-    let priority = 90
+    let priority = 20   // weight ~14% when all main-feature options are eligible
 
     func evaluate() -> SuggestedTodo? {
         SuggestedTodo(
@@ -569,7 +559,7 @@ private struct ProgressCheckProvider: SuggestedTodoItemProvider {
 private struct OralPracticeProvider: SuggestedTodoItemProvider {
     let todoId   = "oral_practice"
     let category = TodoCategory.mainFeature
-    let priority = 75   // same tier as live scenarios — rotates daily via tie-breaking seed
+    let priority = 15   // same weight tier as live scenarios — rotates freely
 
     func evaluate() -> SuggestedTodo? {
         SuggestedTodo(
@@ -630,7 +620,7 @@ private struct LiveScenarioProvider: SuggestedTodoItemProvider {
     let scenario: LiveModeScenario
     var todoId: String { "live_scenario_\(scenario.rawValue)" }
     let category = TodoCategory.mainFeature
-    let priority = 75
+    let priority = 10   // weight per scenario; 6 scenarios × 10 = 60 combined
 
     func evaluate() -> SuggestedTodo? {
         // Hide scenarios that require a higher grade than the user's current level.

@@ -37,29 +37,27 @@ class TomatoGardenService: ObservableObject {
     // MARK: - Core Functions
 
     /// 添加一个新番茄（完成专注后调用）
+    /// 时长 < 15 分钟时返回 nil（不颁发番茄）
     @discardableResult
-    func addTomato(from session: FocusSession) -> Tomato {
-        // 随机选择一个番茄类型
-        let tomatoType = TomatoType.random()
+    func addTomato(from session: FocusSession) -> Tomato? {
+        guard session.duration >= 15 * 60 else {
+            print("⏱️ Session too short (<15 min) — no tomato awarded")
+            return nil
+        }
 
-        // 创建番茄实例
+        let tomatoType = TomatoType.randomType(forDuration: session.duration)
+
         let tomato = Tomato(
             type: tomatoType,
             earnedDate: Date(),
             focusDuration: session.duration
         )
 
-        // 添加到列表
         tomatoes.append(tomato)
-
-        // 保存
         saveTomatoes()
-
-        // 更新统计
         updateStats()
 
         print("🍅 Earned a new tomato: \(tomatoType.displayName)")
-
         return tomato
     }
 

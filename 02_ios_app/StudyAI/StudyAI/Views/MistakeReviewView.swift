@@ -70,6 +70,8 @@ enum MistakeActiveFilter: String, CaseIterable {
 struct MistakeReviewView: View {
     @StateObject private var mistakeService = MistakeReviewService()
     @StateObject private var themeManager = ThemeManager.shared
+    // Observe weakness changes so Active/GoodAt tabs refresh automatically on mastery
+    @ObservedObject private var statusService = ShortTermStatusService.shared
     @State private var selectedSubject: String?
 
     init(initialSubject: String? = nil) {
@@ -312,6 +314,12 @@ struct MistakeReviewView: View {
                     print("🔴 [MistakeReviewView] shouldDismissPracticeStack fired → dismissing showingMistakeList. selectedTab=\(appState.selectedTab)")
                     showingMistakeList = false
                     appState.shouldDismissPracticeStack = false
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ErrorAnalysisCompleted"))) { _ in
+                Task {
+                    await mistakeService.fetchSubjectsWithMistakes(timeRange: selectedTimeRange.mistakeTimeRange)
+                    refreshUnclassifiedCount()
                 }
             }
     }
@@ -723,6 +731,11 @@ struct MistakeQuestionListView: View {
             .onChange(of: appState.shouldDismissPracticeStack) { _, shouldDismiss in
                 if shouldDismiss {
                     activePracticeSession = nil
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ErrorAnalysisCompleted"))) { _ in
+                Task {
+                    await mistakeService.fetchMistakes(subject: subject, timeRange: timeRange)
                 }
             }
         }

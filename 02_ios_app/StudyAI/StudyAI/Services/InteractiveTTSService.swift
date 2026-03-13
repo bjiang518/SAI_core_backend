@@ -39,6 +39,7 @@ class InteractiveTTSService: NSObject, ObservableObject {
 
     private var audioEngine: AVAudioEngine!
     private var playerNode: AVAudioPlayerNode!
+    private var timePitchNode: AVAudioUnitTimePitch!
     private var audioFormat: AVAudioFormat!
     private var audioQueue: [AVAudioPCMBuffer] = []
     private var isSchedulingBuffers = false
@@ -62,6 +63,10 @@ class InteractiveTTSService: NSObject, ObservableObject {
     // ✅ NEW: Track if streaming is complete (no more audio coming from backend)
     private var isStreamingComplete = false
 
+    // ✅ Track chunks submitted to inner tasks but not yet decoded/queued
+    // Prevents notifyStreamingComplete from firing while decode tasks are still pending
+    private var pendingAudioChunks = 0
+
     // MARK: - Initialization
 
     override init() {
@@ -83,6 +88,8 @@ class InteractiveTTSService: NSObject, ObservableObject {
     private func setupAudioEngine() {
         audioEngine = AVAudioEngine()
         playerNode = AVAudioPlayerNode()
+        timePitchNode = AVAudioUnitTimePitch()
+        timePitchNode.rate = 1.2
 
         // Standard audio format for MP3 decoded output
         // 44.1kHz stereo (will be converted from MP3 format)
@@ -94,7 +101,9 @@ class InteractiveTTSService: NSObject, ObservableObject {
         )!
 
         audioEngine.attach(playerNode)
-        audioEngine.connect(playerNode, to: audioEngine.mainMixerNode, format: audioFormat)
+        audioEngine.attach(timePitchNode)
+        audioEngine.connect(playerNode, to: timePitchNode, format: audioFormat)
+        audioEngine.connect(timePitchNode, to: audioEngine.mainMixerNode, format: audioFormat)
 
         // Configure audio session
         do {
@@ -342,7 +351,10 @@ class InteractiveTTSService: NSObject, ObservableObject {
     /// Process incoming audio chunk from backend
     /// - Parameter base64Audio: Base64-encoded MP3 audio data
     func processAudioChunk(_ base64Audio: String) {
+        // Increment BEFORE the inner task so notifyStreamingComplete() sees it as pending
+        pendingAudioChunks += 1
         Task { @MainActor in
+            defer { self.pendingAudioChunks -= 1 }  // always decrement when done
             let timestamp = Date()
             let timestampStr = DateFormatter.localizedString(from: timestamp, dateStyle: .none, timeStyle: .medium)
 
@@ -573,13 +585,13 @@ class InteractiveTTSService: NSObject, ObservableObject {
         guard !audioQueue.isEmpty else {
             isSchedulingBuffers = false
 
-            // ✅ Check if we're truly done (streaming complete AND queue empty)
-            if isStreamingComplete {
-                logger.info("[\(timestampStr)] 🏁 Queue empty + streaming complete = Audio playback finished!")
+            // Only complete if streaming is done AND all decode tasks have finished
+            if isStreamingComplete && pendingAudioChunks == 0 {
+                logger.info("[\(timestampStr)] 🏁 Queue empty + streaming complete + no pending chunks = Audio playback finished!")
                 isPlaying = false
-
-                // Notify text renderer to complete
                 onPlaybackComplete?()
+            } else if isStreamingComplete {
+                logger.info("[\(timestampStr)] ⏸️ Queue empty, streaming complete but \(pendingAudioChunks) chunks still decoding — waiting...")
             } else {
                 // Queue empty but more audio may be coming
                 logger.info("[\(timestampStr)] ⏸️ Queue empty but streaming NOT complete - waiting for more audio...")
@@ -656,9 +668,8 @@ class InteractiveTTSService: NSObject, ObservableObject {
 
             playerNode.play()
             isPlaying = true
-            if Self.debugMode {
-            logger.info("✅ [Schedule] Audio playback started!")
-            }
+            let playTs = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
+            logger.info("[\(playTs)] ▶️ [AUDIO TIMELINE] isPlaying → true (playback started)")
         } else {
             if Self.debugMode {
             logger.info("ℹ️ [Schedule] Player already playing, buffer added to queue")
@@ -672,12 +683,14 @@ class InteractiveTTSService: NSObject, ObservableObject {
     /// This allows the service to trigger completion when the last buffer finishes
     func notifyStreamingComplete() {
         isStreamingComplete = true
-        logger.info("🏁 [Streaming] Backend signaled streaming complete")
+        let ts = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
+        logger.info("[\(ts)] 🏁 [Streaming] Backend signaled streaming complete (pendingChunks=\(pendingAudioChunks), queue=\(audioQueue.count), scheduling=\(isSchedulingBuffers), playing=\(isPlaying))")
 
-        // If queue is already empty, trigger completion immediately
-        if audioQueue.isEmpty && !isSchedulingBuffers {
-            logger.info("🏁 [Streaming] Queue already empty - triggering completion now")
-            isPlaying = false
+        // Only complete immediately if all decode tasks have finished AND the queue is empty
+        // If pendingAudioChunks > 0, the decode tasks haven't run yet (Task ordering race) —
+        // scheduleNextBuffer() will fire completion once the last decoded buffer drains.
+        if audioQueue.isEmpty && !isSchedulingBuffers && pendingAudioChunks == 0 && !isPlaying {
+            logger.info("[\(ts)] 🏁 [Streaming] No audio in flight — completing immediately")
             onPlaybackComplete?()
         }
     }
@@ -730,6 +743,7 @@ class InteractiveTTSService: NSObject, ObservableObject {
 
         // ✅ Reset streaming complete flag
         isStreamingComplete = false
+        pendingAudioChunks = 0
 
         // ❌ DON'T clear callback - it's persistent across sessions
         // onPlaybackComplete should remain set for all interactive sessions

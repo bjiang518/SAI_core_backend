@@ -1623,7 +1623,8 @@ class NetworkService: ObservableObject {
             "message": message,
             "voiceId": voiceId,
             "systemPrompt": systemPrompt ?? "You are a helpful AI tutor.",
-            "deepMode": deepMode  // ✅ Now supports deep mode with interactive streaming
+            "deepMode": deepMode,
+            "language": appLanguage
         ]
 
         do {
@@ -1653,17 +1654,27 @@ class NetworkService: ObservableObject {
 
             logger.info("✅ Interactive streaming connected")
 
-            var buffer = ""
+            var byteBuffer = Data()
             var fullText = ""
             var streamComplete = false
 
-            // Parse SSE events
+            // Parse SSE events byte-by-byte, accumulating raw Data so that
+            // multi-byte UTF-8 sequences (e.g. Chinese: 3 bytes per char) are
+            // preserved. Decoding individual bytes with .utf8 returns nil for
+            // every continuation byte, silently dropping all non-ASCII content.
             for try await byte in asyncBytes {
-                let char = String(bytes: [byte], encoding: .utf8) ?? ""
-                buffer += char
+                byteBuffer.append(byte)
 
-                if buffer.hasSuffix("\n\n") {
-                    let lines = buffer.components(separatedBy: "\n")
+                // SSE event boundary is \n\n (bytes 0x0A 0x0A)
+                let count = byteBuffer.count
+                if count >= 2 && byteBuffer[count - 2] == 0x0A && byteBuffer[count - 1] == 0x0A {
+                    guard let eventString = String(data: byteBuffer, encoding: .utf8) else {
+                        byteBuffer = Data()
+                        continue
+                    }
+                    byteBuffer = Data()
+
+                    let lines = eventString.components(separatedBy: "\n")
 
                     for line in lines {
                         if line.hasPrefix("data: ") {
@@ -1717,8 +1728,6 @@ class NetworkService: ObservableObject {
                             }
                         }
                     }
-
-                    buffer = ""
                 }
             }
 
@@ -5375,6 +5384,36 @@ class NetworkService: ObservableObject {
         }
     }
 
+    // MARK: - Progress Insights (AI-generated coaching tips)
+
+    func fetchProgressInsights(_ payload: ProgressInsightRequest) async throws -> [String] {
+        guard let url = URL(string: "\(baseURL)/api/ai/progress/insights") else {
+            throw NetworkError.invalidURL
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let token = AuthenticationService.shared.getAuthToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        request.httpBody = try JSONEncoder().encode(payload)
+
+        logger.info("📊 [Network] POST /api/ai/progress/insights (\(payload.subjectSummaries.count) subjects)")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+            throw NetworkError.invalidResponse
+        }
+
+        struct InsightsResponse: Decodable {
+            let success: Bool
+            let insights: [String]
+        }
+        let result = try JSONDecoder().decode(InsightsResponse.self, from: data)
+        logger.info("✅ [Network] Received \(result.insights.count) AI progress insights")
+        return result.insights
+    }
+
     // MARK: - Concept Extraction (Bidirectional Status Tracking)
 
     /// Extract curriculum taxonomy for CORRECT answers (lightweight, no error analysis)
@@ -5753,6 +5792,56 @@ struct WeaknessDescriptionResponse: Codable {
     let description: String
     let severity: String
     let confidence: Double
+}
+
+// MARK: - Progress Insight Request Models
+
+struct ProgressInsightRequest: Encodable {
+    let subjectSummaries: [SubjectInsightSummary]
+    let overallAccuracy: Double
+    let totalQuestions: Int
+    let streakDays: Int
+    let timeframe: String
+    let language: String
+
+    enum CodingKeys: String, CodingKey {
+        case subjectSummaries        = "subject_summaries"
+        case overallAccuracy         = "overall_accuracy"
+        case totalQuestions          = "total_questions"
+        case streakDays              = "streak_days"
+        case timeframe
+        case language
+    }
+}
+
+struct SubjectInsightSummary: Encodable {
+    let subject: String
+    let questionsAnswered: Int
+    let correctAnswers: Int
+    let accuracy: Double
+    let topErrorTypes: [InsightErrorCount]
+    let topWeaknessKeys: [InsightWeaknessCount]
+    let recentLearningSuggestions: [String]
+
+    enum CodingKeys: String, CodingKey {
+        case subject
+        case questionsAnswered          = "questions_answered"
+        case correctAnswers             = "correct_answers"
+        case accuracy
+        case topErrorTypes              = "top_error_types"
+        case topWeaknessKeys            = "top_weakness_keys"
+        case recentLearningSuggestions  = "recent_learning_suggestions"
+    }
+}
+
+struct InsightErrorCount: Encodable {
+    let type: String
+    let count: Int
+}
+
+struct InsightWeaknessCount: Encodable {
+    let key: String
+    let count: Int
 }
 
 // MARK: - Dictionary Extension for Key Conversion

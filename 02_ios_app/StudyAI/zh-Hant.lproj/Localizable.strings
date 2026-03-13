@@ -700,6 +700,19 @@
 "progress.noSubjectDataAvailable" = "暫無科目數據";
 "progress.pointsAvailable" = "+%d 積分";
 
+// Inline Subject Accordion
+"source.homework" = "作業";
+"source.practice" = "練習";
+"source.mistakeReview" = "錯題回顧";
+"progress.inline.questions" = "題數";
+"progress.inline.correct" = "正確";
+"progress.inline.studyTime" = "學習時間";
+"progress.inline.streak" = "連續天數";
+"progress.inline.avgPerDay" = "日均題數";
+"progress.inline.weaknesses" = "薄弱點";
+"progress.inline.mastered" = "已掌握";
+"progress.inline.converted" = "已轉化";
+
 // Library View
 "library.title" = "學習資料庫";
 "library.refreshLibrary" = "重新整理資料庫";
@@ -876,6 +889,13 @@
 "chat.menu.liveTalk" = "即時對話";
 "chat.menu.archiveSession" = "封存會話";
 "chat.menu.viewTutorial" = "查看引導教程";
+"chat.menu.endLive" = "結束即時";
+"chat.menu.liveScenario" = "即時場景";
+"chat.menu.audioConfig" = "音頻設定";
+"chat.menu.voice" = "語音";
+"chat.menu.syncWithText" = "與文字同步";
+"chat.menu.aiMate" = "你的 AI 夥伴";
+"chat.menu.selectAIMate" = "選擇 AI 夥伴";
 
 // Chat Onboarding Tutorial
 "onboarding.skip" = "跳過";
@@ -937,6 +957,8 @@
 "chat.diagram.regenerate" = "重新生成圖片";
 "chat.diagram.regenerating" = "正在重新生成示意圖...";
 "chat.diagram.generating" = "正在生成示意圖...";
+"chat.video.searching" = "正在尋找教育影片...";
+"chat.stopGenerating" = "停止生成";
 
 // Input
 "chat.input.placeholder" = "訊息";
@@ -2193,6 +2215,10 @@
 "sessionChat.releaseToSend" = "放開發送";
 
 // MARK: - Live Voice Chat
+"live.connected" = "即時";
+"live.connecting" = "連接中...";
+"live.sending_image" = "傳送圖片中…";
+"live.stop" = "停止 AI";
 "live.hold_to_talk" = "按住說話";
 "live.release_to_send" = "放開發送";
 "live.slide_to_cancel" = "滑動取消";
@@ -2224,6 +2250,14 @@
 "voiceSettings.avatar.eva.desc" = "溫柔、體貼的女孩";
 "voiceSettings.avatar.max.desc" = "活力、熱情的男孩";
 "voiceSettings.avatar.mia.desc" = "活潑、好奇的女孩";
+"voiceSettings.stability" = "穩定性";
+"voiceSettings.stability.variable" = "多變";
+"voiceSettings.stability.balanced" = "均衡";
+"voiceSettings.stability.stable" = "穩定";
+"voiceSettings.style" = "風格";
+"voiceSettings.style.neutral" = "中性";
+"voiceSettings.style.expressive" = "表現力";
+"voiceSettings.style.bold" = "濃郁";
 
 // Onboarding — Parent Setup
 "onboarding.continue" = "繼續";

@@ -788,8 +788,20 @@
 "progress.noSubjectDataAvailable" = "No subject data available";
 "progress.pointsAvailable" = "+%d pts";
 
+// Inline Subject Accordion
+"source.homework" = "宿題";
+"source.practice" = "練習";
+"source.mistakeReview" = "間違い復習";
+"progress.inline.questions" = "問題数";
+"progress.inline.correct" = "正解";
+"progress.inline.studyTime" = "学習時間";
+"progress.inline.streak" = "連続日数";
+"progress.inline.avgPerDay" = "日平均";
+"progress.inline.weaknesses" = "弱点";
+"progress.inline.mastered" = "習得済み";
+"progress.inline.converted" = "克服済み";
+
 // Library View
-"library.title" = "学習ライブラリ";
 "library.refreshLibrary" = "ライブラリを更新";
 "library.advancedSearch" = "詳細検索";
 "library.clearFilters" = "フィルターをリセット";
@@ -963,6 +975,13 @@
 "chat.menu.liveTalk" = "Live Talk";
 "chat.menu.archiveSession" = "Archive Session";
 "chat.menu.viewTutorial" = "チュートリアルを見る";
+"chat.menu.endLive" = "ライブ終了";
+"chat.menu.liveScenario" = "ライブシナリオ";
+"chat.menu.audioConfig" = "音声設定";
+"chat.menu.voice" = "音声";
+"chat.menu.syncWithText" = "テキストと同期";
+"chat.menu.aiMate" = "AI メイト";
+"chat.menu.selectAIMate" = "AI メイトを選択";
 
 // Chat Onboarding Tutorial
 "onboarding.skip" = "スキップ";
@@ -1025,6 +1044,8 @@
 "chat.diagram.regenerate" = "Regenerate Image";
 "chat.diagram.regenerating" = "Regenerating diagram...";
 "chat.diagram.generating" = "Generating diagram...";
+"chat.video.searching" = "教育動画を検索中...";
+"chat.stopGenerating" = "生成を停止";
 
 // Input
 "chat.input.placeholder" = "Message";
@@ -2060,6 +2081,10 @@
 "sessionChat.releaseToSend" = "Release to Send";
 
 // MARK: - Live Voice Chat
+"live.connected" = "ライブ中";
+"live.connecting" = "接続中...";
+"live.sending_image" = "画像を送信中…";
+"live.stop" = "AI を停止";
 "live.hold_to_talk" = "Hold to Talk";
 "live.release_to_send" = "Release to Send";
 "live.slide_to_cancel" = "Slide to Cancel";
@@ -2174,6 +2199,14 @@
 "voiceSettings.avatar.eva.desc" = "A kind, supportive girl";
 "voiceSettings.avatar.max.desc" = "An energetic, enthusiastic boy";
 "voiceSettings.avatar.mia.desc" = "A playful, curious girl";
+"voiceSettings.stability" = "安定性";
+"voiceSettings.stability.variable" = "変動的";
+"voiceSettings.stability.balanced" = "バランス";
+"voiceSettings.stability.stable" = "安定";
+"voiceSettings.style" = "スタイル";
+"voiceSettings.style.neutral" = "ニュートラル";
+"voiceSettings.style.expressive" = "表現豊か";
+"voiceSettings.style.bold" = "大胆";
 
 // Onboarding — Parent Setup
 "onboarding.continue" = "続ける";

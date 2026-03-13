@@ -192,7 +192,7 @@ class TextToSpeechService: NSObject, ObservableObject {
         
         // Apply speaking rate with voice type multiplier and expressiveness
         let baseRate = settings.speakingRate
-        let adjustedRate = baseRate * voiceType.speakingRateMultiplier * settings.expressiveness
+        let adjustedRate = baseRate * voiceType.speakingRateMultiplier * settings.expressiveness * 1.2
         utterance.rate = adjustedRate.clamped(to: AVSpeechUtteranceMinimumSpeechRate...AVSpeechUtteranceMaximumSpeechRate)
         
         // Apply pitch with voice type multiplier for warmth

@@ -32,6 +32,7 @@ const ConceptExtractionRoutes = require('./modules/concept-extraction'); // NEW:
 const InteractiveStreamingRoutes = require('./modules/interactive-streaming'); // NEW: Interactive Mode (Phase 1)
 const GeminiLiveRoutes = require('./modules/gemini-live-v2'); // NEW: Gemini Live API voice chat (v2 - official protocol)
 const PracticeLibraryRoutes = require('./modules/practice-library'); // NEW: Practice Library backend sync
+const ProgressInsightsRoutes = require('./modules/progress-insights'); // NEW: AI progress insights
 
 /**
  * Register all AI routes
@@ -131,6 +132,14 @@ async function aiRoutes(fastify, opts) {
     fastify.log.info(`  ✅ Practice Library routes registered`);
   } catch (error) {
     fastify.log.error(`  ❌ Failed to register Practice Library routes:`, error);
+  }
+
+  // Register progress insights routes (NEW: AI-powered progress tips)
+  try {
+    await fastify.register(ProgressInsightsRoutes);
+    fastify.log.info(`  ✅ Progress Insights routes registered`);
+  } catch (error) {
+    fastify.log.error(`  ❌ Failed to register Progress Insights routes:`, error);
   }
 
   fastify.log.info('✅ All AI routes registered successfully');

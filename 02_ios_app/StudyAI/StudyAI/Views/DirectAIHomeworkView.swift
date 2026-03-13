@@ -153,7 +153,7 @@ struct DirectAIHomeworkView: View {
     @StateObject private var themeManager = ThemeManager.shared
     // @StateObject private var viewModel = DirectAIHomeworkViewModel()  // TODO: Complete MVVM refactoring
     @EnvironmentObject private var appState: AppState
-    @State private var showingResults = false
+
     @State private var isProcessing = false
     @State private var showingErrorAlert = false
     @State private var currentError: UserFacingError?
@@ -382,26 +382,6 @@ struct DirectAIHomeworkView: View {
         .background(themeManager.backgroundColor) // Apply cute mode background color
         .ignoresSafeArea(.all, edges: .top) // Extend background to top edge
         .navigationBarHidden(true) // Hide iOS back button
-        .sheet(isPresented: $showingResults) {
-            // Check for Essay results first
-            if let essayResult = stateManager.essayResult {
-                EssayResultsView(essayResult: essayResult)
-            }
-            // Standard homework results
-            else if let enhanced = stateManager.enhancedResult {
-                HomeworkResultsView(
-                    enhancedResult: enhanced,
-                    originalImageUrl: stateManager.originalImageUrl,
-                    submittedImage: stateManager.capturedImages.first  // Pass the first captured image
-                )
-            } else if let result = stateManager.parsingResult {
-                HomeworkResultsView(
-                    parsingResult: result,
-                    originalImageUrl: stateManager.originalImageUrl,
-                    submittedImage: stateManager.capturedImages.first  // Pass the first captured image
-                )
-            }
-        }
         .sheet(isPresented: $showProgressiveGrading) {
             // Progressive grading view - prepare image and base64 encoding
             // Pro Mode: Pass pre-parsed questions to skip Phase 1 parsing
@@ -1651,42 +1631,6 @@ struct DirectAIHomeworkView: View {
                 )
             }
 
-            // View Details Button
-            Button(action: {
-                // Haptic feedback
-                let generator = UIImpactFeedbackGenerator(style: .medium)
-                generator.impactOccurred()
-
-                showingResults = true
-            }) {
-                HStack(spacing: 8) {
-                    Image(systemName: "doc.text.magnifyingglass")
-                        .font(.title3)
-                    Text(NSLocalizedString("aiHomework.results.viewDetails", comment: ""))
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                }
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(
-                    LinearGradient(
-                        colors: result.questionCount > 0 ?
-                            (themeManager.currentTheme == .cute ? [DesignTokens.Colors.Cute.blue, DesignTokens.Colors.Cute.blue.opacity(0.8)] : [DesignTokens.Colors.primary, DesignTokens.Colors.primary.opacity(0.8)]) :
-                            [Color.gray, Color.gray.opacity(0.8)],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .cornerRadius(16)
-                .shadow(
-                    color: (result.questionCount > 0 ? (themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary) : Color.gray).opacity(0.3),
-                    radius: 8,
-                    x: 0,
-                    y: 4
-                )
-            }
-            .disabled(result.questionCount == 0)
         }
         .padding(20)
         .background(

@@ -115,7 +115,7 @@ struct PassiveReportsView: View {
             } message: {
                 Text(NSLocalizedString("passiveReports.info.message", comment: ""))
             }
-            .alert(NSLocalizedString("reports.passive.testingMode", value: "Testing Mode", comment: ""), isPresented: $showTestingAlert) {
+            .alert(NSLocalizedString("reports.passive.generateReport", value: "Generate Report", comment: ""), isPresented: $showTestingAlert) {
                 Button(NSLocalizedString("reports.passive.generateWeekly", value: "Generate Weekly Report", comment: "")) {
                     Task {
                         await viewModel.triggerManualGeneration(period: "weekly")
@@ -128,7 +128,7 @@ struct PassiveReportsView: View {
                 }
                 Button(NSLocalizedString("common.cancel", value: "Cancel", comment: ""), role: .cancel) {}
             } message: {
-                Text(NSLocalizedString("reports.passive.testingMode.message", value: "Manually trigger report generation for testing. This button will be removed in production.", comment: ""))
+                Text(NSLocalizedString("reports.passive.generateReport.message", value: "Manually generate a report for the selected period.", comment: ""))
             }
             .alert(NSLocalizedString("common.error", value: "Error", comment: ""), isPresented: $viewModel.showError) {
                 Button(NSLocalizedString("common.ok", value: "OK", comment: "")) {

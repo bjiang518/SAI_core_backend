@@ -12,13 +12,15 @@ import AVFoundation
 
 struct VoiceSettings: Codable {
     var voiceType: VoiceType = .eva  // Default to Eva voice
-    var speakingRate: Float = 0.75 // Faster default pace - was 0.55, now 0.75
+    var speakingRate: Float = 0.95   // ElevenLabs speed range: 0.7–1.2
     var voicePitch: Float = 1.0
     var autoSpeakResponses: Bool = true
     var language: String = "en-US"
     var volume: Float = 0.85 // Comfortable default volume
     var useEnhancedVoices: Bool = true // Prefer high-quality voices
     var expressiveness: Float = 1.0 // Natural expressiveness for Elsa
+    var stability: Float = 0.5   // ElevenLabs: 0.0–1.0, higher = more consistent
+    var style: Float = 0.05      // ElevenLabs: 0.0–1.0, higher = more expressive
     
     // Convert to AVSpeechSynthesisVoice
     var synthesisVoice: AVSpeechSynthesisVoice? {
@@ -122,9 +124,7 @@ enum VoiceType: String, CaseIterable, Codable {
     // TTS Provider (OpenAI or ElevenLabs)
     var ttsProvider: String {
         switch self {
-        case .adam, .eva:
-            return "openai"
-        case .max, .mia:
+        case .adam, .eva, .max, .mia:
             return "elevenlabs"
         }
     }
@@ -132,11 +132,7 @@ enum VoiceType: String, CaseIterable, Codable {
     // OpenAI Voice IDs (for Adam and Eva)
     var openAIVoiceId: String {
         switch self {
-        case .adam:
-            return "echo" // Friendly male voice
-        case .eva:
-            return "nova" // Kind female voice
-        case .max, .mia:
+        case .adam, .eva, .max, .mia:
             return "" // Not used for ElevenLabs voices
         }
     }
@@ -144,8 +140,10 @@ enum VoiceType: String, CaseIterable, Codable {
     // ElevenLabs Voice IDs (for Max and Mia)
     var elevenLabsVoiceId: String {
         switch self {
-        case .adam, .eva:
-            return "" // Not used for OpenAI voices
+        case .adam:
+            return "MI36FIkp9wRP7cpWKPTl"
+        case .eva:
+            return "9lHjugDhwqoxA5MhX0az"
         case .max:
             return "zZLmKvCp1i04X8E0FJ8B" // Vince - Energetic Male
         case .mia:

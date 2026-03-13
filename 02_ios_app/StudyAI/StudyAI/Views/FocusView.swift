@@ -716,11 +716,9 @@ struct FocusView: View {
         if let completedSession = focusService.endSession() {
             musicService.stop()
 
-            let tomato = tomatoGarden.addTomato(from: completedSession)
-            earnedTomato = tomato
-
-            withAnimation {
-                showCompletionAnimation = true
+            if let tomato = tomatoGarden.addTomato(from: completedSession) {
+                earnedTomato = tomato
+                withAnimation { showCompletionAnimation = true }
             }
         }
     }

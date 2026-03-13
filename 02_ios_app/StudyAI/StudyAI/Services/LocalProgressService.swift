@@ -98,20 +98,36 @@ class LocalProgressService {
         // Calculate summary
         let summary = calculateSummary(subjectProgress: subjectProgress, allQuestions: filteredQuestions)
 
-        // Calculate insights
+        // Calculate insights (rule-based, instant)
         let insights = calculateInsights(subjectProgress: subjectProgress)
+
+        // Enrich tips with AI (async; falls back to hardcoded on any failure)
+        let aiTips = await generateAIInsights(
+            rawQuestions: questionLocalStorage.getLocalQuestions(),
+            subjectProgress: subjectProgress,
+            timeframe: timeframe
+        )
+        let finalInsights = aiTips.isEmpty ? insights : SubjectInsights(
+            subjectToFocus: insights.subjectToFocus,
+            subjectsToMaintain: insights.subjectsToMaintain,
+            studyTimeRecommendations: insights.studyTimeRecommendations,
+            crossSubjectConnections: insights.crossSubjectConnections,
+            achievementOpportunities: insights.achievementOpportunities,
+            personalizedTips: aiTips,
+            optimalStudySchedule: insights.optimalStudySchedule
+        )
 
         // Calculate trends
         let trends = calculateTrends(questionsBySubject: questionsBySubject)
 
         // Calculate comparisons and recommendations
         let comparisons = calculateComparisons(subjectProgress: subjectProgress)
-        let recommendations = generateRecommendations(subjectProgress: subjectProgress, insights: insights)
+        let recommendations = generateRecommendations(subjectProgress: subjectProgress, insights: finalInsights)
 
         let result = SubjectBreakdownData(
             summary: summary,
             subjectProgress: subjectProgress,
-            insights: insights,
+            insights: finalInsights,
             trends: trends,
             lastUpdated: dateFormatter.string(from: Date()),
             comparisons: comparisons,
@@ -243,7 +259,11 @@ class LocalProgressService {
             // Topic breakdown (not available in current data, use empty)
             let topicBreakdown: [String: Int] = [:]
 
-            let progress = SubjectProgressData(
+            let homeworkCount = questions.filter { ($0.source ?? "homework") == "homework" }.count
+            let practiceCount = questions.filter { $0.source == "practice" }.count
+            let mistakeReviewCount = questions.filter { $0.source == "mistake_review" }.count
+
+            var progress = SubjectProgressData(
                 subject: subjectCategory,
                 questionsAnswered: questionsAnswered,
                 correctAnswers: correctAnswers,
@@ -256,6 +276,9 @@ class LocalProgressService {
                 difficultyProgression: difficultyProgression,
                 topicBreakdown: topicBreakdown
             )
+            progress.homeworkCount = homeworkCount
+            progress.practiceCount = practiceCount
+            progress.mistakeReviewCount = mistakeReviewCount
 
             result.append(progress)
         }
@@ -712,6 +735,120 @@ class LocalProgressService {
             return .arts
         default:
             return .other
+        }
+    }
+
+    // MARK: - AI Insights Generation
+
+    private func generateAIInsights(
+        rawQuestions: [[String: Any]],
+        subjectProgress: [SubjectProgressData],
+        timeframe: String
+    ) async -> [String] {
+        guard !subjectProgress.isEmpty else { return [] }
+        guard AuthenticationService.shared.getAuthToken() != nil else { return [] }
+
+        // Filter raw questions to the same timeframe
+        let iso = ISO8601DateFormatter()
+        let calendar = Calendar.current
+        let now = Date()
+        let startDate: Date? = {
+            switch timeframe {
+            case "today":        return calendar.startOfDay(for: now)
+            case "current_week": return calendar.dateInterval(of: .weekOfYear, for: now)?.start
+            case "current_month": return calendar.dateInterval(of: .month, for: now)?.start
+            case "all_time":     return nil
+            default:             return calendar.dateInterval(of: .weekOfYear, for: now)?.start
+            }
+        }()
+
+        let filteredRaw: [[String: Any]]
+        if let start = startDate {
+            filteredRaw = rawQuestions.filter { q in
+                guard let dateStr = q["archivedAt"] as? String,
+                      let date = iso.date(from: dateStr) else { return false }
+                return date >= start
+            }
+        } else {
+            filteredRaw = rawQuestions
+        }
+
+        // Build per-subject summaries with rich error fields
+        var summaries: [SubjectInsightSummary] = []
+        for progress in subjectProgress {
+            let subjectRaw = filteredRaw.filter { q in
+                let subject = q["subject"] as? String ?? ""
+                return mapSubjectToCategory(subject) == progress.subject
+            }
+            let mistakesRaw = subjectRaw.filter { ($0["isCorrect"] as? Bool) == false }
+
+            // Aggregate error types
+            var errorTypeCounts: [String: Int] = [:]
+            for q in mistakesRaw {
+                if let t = q["errorType"] as? String, !t.isEmpty {
+                    errorTypeCounts[t, default: 0] += 1
+                }
+            }
+            let topErrorTypes = errorTypeCounts
+                .sorted { $0.value > $1.value }
+                .prefix(3)
+                .map { InsightErrorCount(type: $0.key, count: $0.value) }
+
+            // Aggregate weakness keys
+            var weaknessKeyCounts: [String: Int] = [:]
+            for q in mistakesRaw {
+                if let k = q["weaknessKey"] as? String, !k.isEmpty {
+                    weaknessKeyCounts[k, default: 0] += 1
+                }
+            }
+            let topWeaknessKeys = weaknessKeyCounts
+                .sorted { $0.value > $1.value }
+                .prefix(3)
+                .map { InsightWeaknessCount(key: $0.key, count: $0.value) }
+
+            // Collect unique learning suggestions (max 3)
+            var suggestions: [String] = []
+            var seen = Set<String>()
+            for q in mistakesRaw.prefix(20) {
+                if let s = q["learningSuggestion"] as? String, !s.isEmpty, seen.insert(s).inserted {
+                    suggestions.append(s)
+                    if suggestions.count == 3 { break }
+                }
+            }
+
+            summaries.append(SubjectInsightSummary(
+                subject: progress.subject.displayName,
+                questionsAnswered: progress.questionsAnswered,
+                correctAnswers: progress.correctAnswers,
+                accuracy: progress.averageAccuracy,
+                topErrorTypes: Array(topErrorTypes),
+                topWeaknessKeys: Array(topWeaknessKeys),
+                recentLearningSuggestions: suggestions
+            ))
+        }
+
+        let totalQuestions = subjectProgress.reduce(0) { $0 + $1.questionsAnswered }
+        let totalCorrect   = subjectProgress.reduce(0) { $0 + $1.correctAnswers }
+        let overallAccuracy = totalQuestions > 0 ? Double(totalCorrect) / Double(totalQuestions) * 100.0 : 0.0
+        let streakDays = subjectProgress.map { $0.streakDays }.max() ?? 0
+        let language = await MainActor.run { UserDefaults.standard.string(forKey: "appLanguage") ?? "en" }
+
+        let payload = ProgressInsightRequest(
+            subjectSummaries: summaries,
+            overallAccuracy: overallAccuracy,
+            totalQuestions: totalQuestions,
+            streakDays: streakDays,
+            timeframe: timeframe,
+            language: language
+        )
+
+        do {
+            let tips = try await NetworkService.shared.fetchProgressInsights(payload)
+            AppLogger.log("✅ [LocalProgressService] Got \(tips.count) AI insights")
+            return tips
+        } catch {
+            AppLogger.log("⚠️ [LocalProgressService] AI insights unavailable, using fallback: \(error.localizedDescription)")
+            return []
         }
     }
 }

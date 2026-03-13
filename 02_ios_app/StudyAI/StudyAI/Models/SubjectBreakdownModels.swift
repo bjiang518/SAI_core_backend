@@ -23,7 +23,12 @@ struct SubjectProgressData: Codable, Identifiable {
     var strongAreas: [String]
     var difficultyProgression: [DifficultyLevel: Int]
     var topicBreakdown: [String: Int] // topic -> question count
-    
+
+    // Source counts (not persisted — computed in LocalProgressService each load)
+    var homeworkCount: Int = 0
+    var practiceCount: Int = 0
+    var mistakeReviewCount: Int = 0
+
     // Custom initializer for JSON decoding - generates UUID if not provided
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)

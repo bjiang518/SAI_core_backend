@@ -109,6 +109,9 @@ class SessionChatViewModel: ObservableObject {
     // UI refresh
     @Published var refreshTrigger = UUID()
 
+    // Interactive TTS playback state (mirrors InteractiveTTSService.isPlaying for avatar)
+    @Published var isInteractiveTTSPlaying = false
+
     // Deep thinking mode gesture state
     @Published var isHolding = false
     @Published var isActivated = false
@@ -154,12 +157,22 @@ class SessionChatViewModel: ObservableObject {
         setupNetworkMonitoring()
         setupVoiceChatNotifications()  // ✅ NEW: Listen for voice chat events
 
-        // ✅ NEW: Observe textRenderer.visibleText changes and update activeStreamingMessage
+        // Observe textRenderer.visibleText changes and update activeStreamingMessage
         textRenderer.$visibleText
             .receive(on: DispatchQueue.main)
             .sink { [weak self] visibleText in
                 guard let self = self, self.isSynchronizing else { return }
                 self.activeStreamingMessage = visibleText
+            }
+            .store(in: &cancellables)
+
+        // Mirror InteractiveTTSService.isPlaying so the view can drive avatar state
+        interactiveTTSService.$isPlaying
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] (isPlaying: Bool) in
+                let ts = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
+                AppLogger.forFeature("AvatarTimeline").info("[\(ts)] 🎭 [VM] isInteractiveTTSPlaying → \(isPlaying)")
+                self?.isInteractiveTTSPlaying = isPlaying
             }
             .store(in: &cancellables)
     }
@@ -235,11 +248,12 @@ class SessionChatViewModel: ObservableObject {
             return
         }
 
-        // ✅ Phase 3: Check if interactive mode should be used
+        // Phase 3: Check if interactive mode should be used
         // Reload settings to get latest user preferences
         interactiveModeSettings = InteractiveModeSettings.load()
 
-        let shouldUseInteractive = interactiveModeSettings.shouldUseInteractiveMode()
+        // Interactive (sync) mode requires audio to be enabled — if audio is off, always use standard streaming
+        let shouldUseInteractive = interactiveModeSettings.shouldUseInteractiveMode() && voiceService.isVoiceEnabled
 
         if shouldUseInteractive {
             print("🎙️ Interactive mode enabled - using real-time TTS")
@@ -1072,37 +1086,42 @@ class SessionChatViewModel: ObservableObject {
                 Task { @MainActor in
                     guard let self = self else { return }
 
+                    // Guard: if user stopped generation, isSynchronizing was cleared.
+                    // Skip cleanup to avoid double-saving and overwriting stopped state.
+                    guard self.isSynchronizing else {
+                        withAnimation {
+                            self.isSubmitting = false
+                            self.showTypingIndicator = false
+                            self.isStreamingComplete = true
+                        }
+                        return
+                    }
+
                     if success, let text = fullText {
                         // ⚠️ CRITICAL: DON'T add to conversationHistory yet!
                         // The synchronized text is still revealing. Only persist to database.
                         self.persistMessage(role: "assistant", content: text, addToHistory: false)
 
-                        // ⚠️ CRITICAL: Keep isSynchronizing = true AND isActivelyStreaming = true
-                        // So the streaming message continues to display with synchronized text
-                        // (Don't set isActivelyStreaming = false here!)
-
-                        // ✅ Use actual audio duration from alignment data
-                        // This ensures LaTeX renders immediately after audio/text complete
-                        let actualDuration = self.textRenderer.estimatedAudioDuration
-                        let bufferTime = 1.0 // Small buffer for final audio processing
-
-                        print("⏱️ [Completion] Scheduling cleanup in \(actualDuration + bufferTime) seconds")
-
-                        DispatchQueue.main.asyncAfter(deadline: .now() + actualDuration + bufferTime) {
-                            // NOW it's safe to:
-                            // 1. Complete text rendering (show all text immediately)
-                            self.textRenderer.complete()
-                            // 2. Add to conversation history (so it shows in regular message list)
-                            self.networkService.appendToConversationHistory([
-                                "role": "assistant",
-                                "content": text
-                            ])
-                            // 3. Clear synchronization state
-                            self.isSynchronizing = false
-                            self.isActivelyStreaming = false
-                            self.activeStreamingMessage = ""
-                            self.loadSessionInfo()
+                        // ✅ Wire cleanup to actual audio completion rather than a fixed timer.
+                        // onPlaybackComplete fires when the last AVAudioPlayerNode buffer drains.
+                        // notifyStreamingComplete() triggers it immediately if the queue is
+                        // already empty, otherwise it fires after the last buffer plays.
+                        self.interactiveTTSService.onPlaybackComplete = { [weak self] in
+                            Task { @MainActor in
+                                guard let self = self else { return }
+                                self.textRenderer.complete()
+                                self.networkService.appendToConversationHistory([
+                                    "role": "assistant",
+                                    "content": text
+                                ])
+                                self.isSynchronizing = false
+                                self.isActivelyStreaming = false
+                                self.activeStreamingMessage = ""
+                                self.loadSessionInfo()
+                            }
                         }
+
+                        self.interactiveTTSService.notifyStreamingComplete()
                     } else {
                         self.isActivelyStreaming = false
                         self.activeStreamingMessage = ""
@@ -1716,53 +1735,50 @@ class SessionChatViewModel: ObservableObject {
 
     /// Stop the current AI generation and keep content as-is
     func stopGeneration() {
-        print("🛑 [Generation] ========== STOP GENERATION CALLED ==========")
-        print("🛑 [Generation] User stopped generation - keeping partial content")
-        print("🛑 [Generation] State before stop:")
-        print("🛑 [Generation]   - isActivelyStreaming: \(isActivelyStreaming)")
-        print("🛑 [Generation]   - activeStreamingMessage length: \(activeStreamingMessage.count)")
-        print("🛑 [Generation]   - isSubmitting: \(isSubmitting)")
-        print("🛑 [Generation]   - showTypingIndicator: \(showTypingIndicator)")
-
-        // Cancel any pending streaming updates
+        // Cancel any pending streaming updates (standard mode timer)
         cancelStreamingUpdates()
-        print("🛑 [Generation] Cancelled streaming updates")
 
-        // Save the current partial content to conversation history
-        if !activeStreamingMessage.isEmpty {
-            print("🛑 [Generation] Partial content exists - saving to history")
-            // Add the partial message to conversation history
-            let partialMessage: [String: String] = [
-                "role": "assistant",
-                "content": activeStreamingMessage
-            ]
+        if isSynchronizing {
+            // ── INTERACTIVE MODE ─────────────────────────────────────────
+            // 1. Stop audio immediately
+            interactiveTTSService.stopPlayback()
 
-            // Add to NetworkService history (so it appears in chat)
-            DispatchQueue.main.async {
-                self.networkService.appendToConversationHistory(partialMessage)
-                print("🛑 [Generation] Added partial message to history")
-                print("🛑 [Generation] Total messages in history: \(self.networkService.conversationHistory.count)")
+            // 2. Clear onPlaybackComplete so it doesn't fire after we clean up
+            //    (prevents double-save to history when the last buffer drains)
+            interactiveTTSService.onPlaybackComplete = nil
+
+            // 3. Reveal all remaining text instantly (clean end state)
+            textRenderer.complete()
+
+            // 4. Save the full AI response to history/context.
+            //    textRenderer.fullText has the complete response (even if not fully revealed).
+            //    activeStreamingMessage mirrors visibleText, which may be partial — use fullText.
+            let textToSave = textRenderer.fullText.isEmpty ? activeStreamingMessage : textRenderer.fullText
+            if !textToSave.isEmpty {
+                networkService.appendToConversationHistory([
+                    "role": "assistant",
+                    "content": textToSave
+                ])
             }
 
-            print("🛑 [Generation] Saved partial content: \(activeStreamingMessage.prefix(100))...")
+            // 5. Clear sync state so Combine observer stops updating activeStreamingMessage
+            isSynchronizing = false
+
         } else {
-            print("🛑 [Generation] No partial content to save (activeStreamingMessage is empty)")
+            // ── STANDARD MODE ────────────────────────────────────────────
+            if !activeStreamingMessage.isEmpty {
+                networkService.appendToConversationHistory([
+                    "role": "assistant",
+                    "content": activeStreamingMessage
+                ])
+            }
         }
 
         // Clear streaming state
-        print("🛑 [Generation] Clearing streaming state...")
         activeStreamingMessage = ""
         isActivelyStreaming = false
         showTypingIndicator = false
         isSubmitting = false
-
-        // Mark streaming as complete so continuation buttons appear
         isStreamingComplete = true
-
-        print("🛑 [Generation] State after stop:")
-        print("🛑 [Generation]   - isActivelyStreaming: \(isActivelyStreaming)")
-        print("🛑 [Generation]   - isSubmitting: \(isSubmitting)")
-        print("🛑 [Generation]   - isStreamingComplete: \(isStreamingComplete)")
-        print("🛑 [Generation] ========== STOP GENERATION COMPLETE ==========")
     }
 }
