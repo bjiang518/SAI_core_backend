@@ -14,6 +14,7 @@
  */
 
 const WebSocket = require('ws');
+const { usageTracker } = require('../utils/usage-tracker');
 
 module.exports = async function (fastify, opts) {
     const { db } = require('../../../../utils/railway-database');
@@ -86,6 +87,27 @@ module.exports = async function (fastify, opts) {
                 return;
             }
 
+            // ── Tier check: voice chat requires premium or premium_plus ──
+            try {
+                const { tier, is_anonymous } = await db.getUserTier(userId);
+                const effectiveTier = is_anonymous ? 'guest' : tier;
+                if (effectiveTier !== 'premium' && effectiveTier !== 'premium_plus') {
+                    clientSocket.send(JSON.stringify({ type: 'error', code: 'UPGRADE_REQUIRED', error: 'Voice chat requires Premium' }));
+                    clientSocket.close(1008, 'Premium required');
+                    return;
+                }
+                // Check voice_minutes limit
+                const voiceCheck = await usageTracker.check(userId, 'voice_minutes', tier, is_anonymous);
+                if (!voiceCheck.allowed) {
+                    clientSocket.send(JSON.stringify({ type: 'error', code: 'MONTHLY_LIMIT_REACHED', error: 'Monthly voice minutes exhausted', resets_at: voiceCheck.resets_at }));
+                    clientSocket.close(1008, 'Voice limit reached');
+                    return;
+                }
+            } catch (tierErr) {
+                logger.error({ tierErr }, 'Tier check failed for voice chat');
+                // Fail open — don't block users due to infra error
+            }
+
             // Verify session ownership (BLOCKING - prevent race condition)
             if (sessionId) {
                 const result = await db.query('SELECT user_id FROM sessions WHERE id = $1', [sessionId]);
@@ -103,6 +125,8 @@ module.exports = async function (fastify, opts) {
             // ============================================
             // STEP 2: Connect to Google Gemini Live API
             // ============================================
+            // Record voice session start time for billing on close (crash-safe)
+            const voiceSessionStartMs = Date.now();
             const apiKey = process.env.GEMINI_API_KEY;
             if (!apiKey) {
                 logger.error('GEMINI_API_KEY not configured');
@@ -212,6 +236,16 @@ module.exports = async function (fastify, opts) {
                 clearInterval(geminiKeepAliveInterval);
                 if (geminiSocket && geminiSocket.readyState === WebSocket.OPEN) {
                     geminiSocket.close(1000, 'Client disconnected');
+                }
+                // Bill elapsed voice minutes
+                if (userId) {
+                    const elapsedMinutes = Math.ceil((Date.now() - voiceSessionStartMs) / 60000);
+                    if (elapsedMinutes > 0) {
+                        db.getUserTier(userId).then(({ tier, is_anonymous }) => {
+                            usageTracker.incrementBy(userId, 'voice_minutes', elapsedMinutes, is_anonymous)
+                                .catch(err => logger.error({ err }, 'Failed to bill voice minutes'));
+                        }).catch(() => {});
+                    }
                 }
             });
 

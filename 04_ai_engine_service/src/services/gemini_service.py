@@ -1043,6 +1043,128 @@ class GeminiEducationalAIService:
 
         return "".join(text_parts).strip()
 
+    async def locate_diagram_regions(
+        self,
+        base64_image: str,
+        questions: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """
+        Locate bounding boxes of diagrams/figures for need_image=true questions.
+
+        Dedicated spatial-localization call — separate from parse so it can use:
+        - MEDIA_RESOLUTION_HIGH for better spatial accuracy
+        - thinking_level="low" (more than parse, less than deep grading)
+        - Focused single-task prompt (no competing OCR tasks)
+
+        Returns:
+            {
+              "success": True,
+              "regions": [
+                {"question_id": "3", "image_region": {"top_left": [x,y], "bottom_right": [x,y]}, "confidence": 0.91}
+              ]
+            }
+        Questions omitted from regions = diagram not found (caller skips silently).
+        """
+        if not self.client:
+            return {"success": False, "error": "Gemini client not initialized", "regions": []}
+
+        if not questions:
+            return {"success": True, "regions": []}
+
+        start_time = time.time()
+        logger.info(f"🔍 locate_diagram_regions: {len(questions)} questions")
+
+        try:
+            prompt = self._build_locate_diagram_prompt(questions)
+
+            image_bytes = base64.b64decode(base64_image)
+            image_part = genai_types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg")
+
+            generation_config = genai_types.GenerateContentConfig(
+                temperature=0,
+                top_p=0.95,
+                top_k=40,
+                max_output_tokens=2048,
+                response_mime_type="application/json",
+                media_resolution="MEDIA_RESOLUTION_MEDIUM",
+            )
+
+            response = await self.client.aio.models.generate_content(
+                model=self.model_name,
+                contents=[image_part, genai_types.Part.from_text(text=prompt)],
+                config=generation_config
+            )
+
+            duration_ms = int((time.time() - start_time) * 1000)
+            raw = self._extract_response_text(response)
+            logger.info(f"🔍 locate_diagram_regions RAW response ({duration_ms}ms): {raw[:500]}")
+            result = self._extract_json_from_response(raw)
+            logger.info(f"🔍 locate_diagram_regions parsed result keys={list(result.keys())} regions_count={len(result.get('regions', []))}")
+
+            regions = result.get("regions", [])
+            # Validate each region has required fields
+            valid_regions = []
+            for r in regions:
+                if not isinstance(r, dict):
+                    continue
+                qid = r.get("question_id")
+                region = r.get("image_region", {})
+                tl = region.get("top_left")
+                br = region.get("bottom_right")
+                if qid and tl and br and len(tl) == 2 and len(br) == 2:
+                    valid_regions.append({
+                        "question_id": str(qid),
+                        "image_region": {"top_left": tl, "bottom_right": br},
+                        "confidence": float(r.get("confidence", 0.8))
+                    })
+
+            logger.info(f"✅ locate_diagram_regions: {len(valid_regions)}/{len(questions)} regions found in {duration_ms}ms")
+            logger.info(f"🔍 valid_regions: {valid_regions}")
+            return {"success": True, "regions": valid_regions, "_raw_gemini": raw[:600]}
+
+        except Exception as e:
+            duration_ms = int((time.time() - start_time) * 1000)
+            logger.error(f"❌ locate_diagram_regions failed after {duration_ms}ms: {e}")
+            return {"success": False, "error": str(e), "regions": []}
+
+    def _build_locate_diagram_prompt(self, questions: List[Dict[str, Any]]) -> str:
+        """Build a focused prompt for diagram spatial localization."""
+        question_lines = []
+        for q in questions:
+            qid = q.get("id", "?")
+            num = q.get("question_number", qid)
+            text = q.get("question_text", "")
+            question_lines.append(f'- question_id="{qid}" (Q{num}): "{text}"')
+
+        questions_block = "\n".join(question_lines)
+
+        return f"""Analyze the homework image and find the bounding box of the visual element that each question refers to or requires the student to interact with.
+
+Visual elements include: diagrams, circuit diagrams, graphs, charts, figures, tables, clock faces, number lines, grids, blank shapes, drawings, illustrations, or any other image the student must label, fill in, or annotate.
+
+QUESTIONS:
+{questions_block}
+
+RULES:
+1. Return the bounding box of the VISUAL element — NOT the question text and NOT the student's written answer.
+2. Include any visual element the student drew or filled in (e.g. clock hands on a clock face, dots on a number line).
+3. If multiple questions reference the SAME visual element, return identical coordinates for each.
+4. If you genuinely cannot find a visual element for a question, OMIT that question from the response.
+5. Coordinates are normalized [x, y] in [0.0, 1.0] where [0,0] = top-left corner of image.
+6. Add small padding (0.02-0.03) around the element to avoid clipping edges.
+7. confidence: how certain you are the region contains the right visual element (0.0-1.0).
+
+Return ONLY this JSON (no markdown, no explanation):
+{{
+  "regions": [
+    {{
+      "question_id": "3",
+      "image_region": {{"top_left": [x, y], "bottom_right": [x, y]}},
+      "confidence": 0.91
+    }}
+  ]
+}}"""
+
     async def reparse_single_question(
         self,
         base64_image: str,

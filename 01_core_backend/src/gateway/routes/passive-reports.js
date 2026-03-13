@@ -11,6 +11,7 @@
 
 const { PassiveReportGenerator } = require('../../services/passive-report-generator');
 const logger = require('../../utils/logger');
+const tierCheck = require('../middleware/tier-check');
 
 module.exports = async function (fastify, opts) {
   const reportGenerator = new PassiveReportGenerator();
@@ -112,7 +113,8 @@ module.exports = async function (fastify, opts) {
           }
         }
       }
-    }
+    },
+    preHandler: [tierCheck({ feature: 'reports' })]
   }, async (request, reply) => {
     const startTime = Date.now();
     const { period, date_range, language } = request.body;

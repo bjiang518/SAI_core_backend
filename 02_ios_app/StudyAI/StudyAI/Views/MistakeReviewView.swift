@@ -145,6 +145,10 @@ struct MistakeReviewView: View {
                             selectedDetailedBranches.removeAll()
                         }
                     }
+                    .onChange(of: statusService.recentMasteries.count) { _, _ in
+                        // Clear any selected branch chips that may now be empty after mastery
+                        selectedDetailedBranches.removeAll()
+                    }
 
                     // SECTION 2: Dual Slider Filters (Severity + Time) — hidden for Good At tab
                     if selectedSubject != nil && activeFilter != .goodAt {

@@ -227,12 +227,13 @@ class MistakeReviewService: ObservableObject {
                 guard let key = mistake["weaknessKey"] as? String, !key.isEmpty else {
                     return true // no weakness key → include (old/untracked questions)
                 }
-                // Key present with non-positive value = explicitly mastered → exclude.
-                // Key absent (pruned or migrated) = no evidence of mastery → include.
+                // Key present with positive value = still active weakness → include.
+                // Key present with non-positive value = mastered → exclude.
+                // Key absent (untracked/pruned) = exclude to match question list filter.
                 if let tracked = activeWeaknesses[key] {
                     return tracked.value > 0
                 }
-                return true  // key not tracked → include rather than silently hide
+                return false  // key not tracked → exclude (matches filteredMistakes logic)
             }
         }
 
@@ -263,7 +264,7 @@ class MistakeReviewService: ObservableObject {
                 mistakeCount: mistakes.count,
                 detailedBranches: detailedBranches
             )
-        }.sorted {
+        }.filter { $0.mistakeCount > 0 }.sorted {
             // Uncategorized always goes last
             if $0.baseBranch == MistakeReviewService.uncategorizedKey { return false }
             if $1.baseBranch == MistakeReviewService.uncategorizedKey { return true }

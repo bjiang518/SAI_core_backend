@@ -242,6 +242,51 @@ struct GradeSingleQuestionResponse: Codable {
     }
 }
 
+// MARK: - Phase 1.5: Diagram Region Location Models
+
+/// A question sent to locate-diagram-regions
+struct DiagramQuestion: Codable {
+    let id: String
+    let questionNumber: String?
+    let questionText: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case questionNumber = "question_number"
+        case questionText = "question_text"
+    }
+}
+
+/// A single located diagram region returned by locate-diagram-regions
+struct DiagramRegionResult: Codable {
+    let questionId: String
+    let imageRegion: ImageRegion
+    let confidence: Float
+
+    enum CodingKeys: String, CodingKey {
+        case questionId = "question_id"
+        case imageRegion = "image_region"
+        case confidence
+    }
+}
+
+/// Response from locate-diagram-regions endpoint (Phase 1.5)
+struct LocateDiagramRegionsResponse: Codable {
+    let success: Bool
+    let regions: [DiagramRegionResult]
+    let processingTimeMs: Int?
+    let error: String?
+
+    enum CodingKeys: String, CodingKey {
+        case success
+        case regions
+        case processingTimeMs = "processing_time_ms"
+        case error
+    }
+}
+
+
+
 /// Response from reparse-question endpoint
 struct ReparseQuestionResponse: Codable {
     let success: Bool

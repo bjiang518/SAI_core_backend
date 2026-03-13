@@ -227,8 +227,6 @@ struct DigitalHomeworkView: View {
                 viewModel.archiveResultSummary = nil
             }
         }
-        // ✅ REMOVED: .onAppear setup - state already exists from global StateManager
-        // State is managed globally and persists across navigation
         .fullScreenCover(isPresented: $viewModel.showImageInFullScreen) {
             ImageZoomView(
                 image: originalImages[safe: selectedImageIndex] ?? originalImages[0],  // ✅ Use selected image from stack
@@ -364,7 +362,10 @@ struct DigitalHomeworkView: View {
                                                     viewModel.deleteAnnotation(id: annotation.id)
                                                 }
                                             }
-                                        }
+                                        },
+                                        isUnderDiagramAnalysis: viewModel.questionsUnderDiagramAnalysis
+                                            .contains(questionWithGrade.question.id),
+                                        missingDiagramImageIds: viewModel.questionsMissingDiagramImage
                                     )
                                     .id(questionWithGrade.question.id)
                                 }
@@ -985,38 +986,70 @@ struct DigitalHomeworkView: View {
 
             // 添加标注按钮
             VStack(spacing: 6) {
-                Button(action: {
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                        viewModel.showAnnotationMode = true
-                    }
-                }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "pencil.circle.fill")
-                        Text(viewModel.annotations.isEmpty ? NSLocalizedString("proMode.addAnnotation", comment: "Add Annotation") : String(format: NSLocalizedString("proMode.editAnnotations", comment: "Edit Annotations (count)"), viewModel.annotations.count))
-                    }
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
-                    .background(
-                        LinearGradient(
-                            colors: [themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary,
-                                     (themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary).opacity(0.8)],
-                            startPoint: .leading,
-                            endPoint: .trailing
+                HStack(spacing: 10) {
+                    Button(action: {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                            viewModel.showAnnotationMode = true
+                        }
+                    }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "pencil.circle.fill")
+                            Text(viewModel.annotations.isEmpty ? NSLocalizedString("proMode.addAnnotation", comment: "Add Annotation") : String(format: NSLocalizedString("proMode.editAnnotations", comment: "Edit Annotations (count)"), viewModel.annotations.count))
+                        }
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                        .background(
+                            LinearGradient(
+                                colors: [themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary,
+                                         (themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary).opacity(0.8)],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
                         )
-                    )
-                    .cornerRadius(20)
-                    .shadow(color: (themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary).opacity(annotationGlowPulse ? 0.75 : 0.3),
-                            radius: annotationGlowPulse ? 12 : 4, x: 0, y: 2)
-                    .scaleEffect(annotationGlowPulse ? 1.04 : 1.0)
-                    .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true),
-                               value: annotationGlowPulse)
+                        .cornerRadius(20)
+                        .shadow(color: (themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary).opacity(annotationGlowPulse ? 0.75 : 0.3),
+                                radius: annotationGlowPulse ? 12 : 4, x: 0, y: 2)
+                        .scaleEffect(annotationGlowPulse ? 1.04 : 1.0)
+                        .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true),
+                                   value: annotationGlowPulse)
+                    }
+
+                    // AI crop button — only when any question needs an image
+                    if viewModel.anyQuestionNeedsImage {
+                        Button(action: {
+                            Task { await viewModel.runDiagramAnalysisIfNeeded() }
+                        }) {
+                            ZStack {
+                                if viewModel.isDiagramAnalysisPending {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                        .scaleEffect(0.75)
+                                } else {
+                                    Image(systemName: "sparkles")
+                                        .font(.system(size: 15, weight: .semibold))
+                                        .foregroundColor(.white)
+                                }
+                            }
+                            .frame(width: 36, height: 36)
+                            .background(
+                                Circle().fill(
+                                    LinearGradient(colors: [.orange, Color.pink.opacity(0.8)],
+                                                   startPoint: .topLeading, endPoint: .bottomTrailing)
+                                )
+                            )
+                            .shadow(color: .orange.opacity(0.35), radius: 5, x: 0, y: 2)
+                        }
+                        .disabled(viewModel.isDiagramAnalysisPending)
+                        .accessibilityLabel(NSLocalizedString("proMode.aiAnalyzeDiagrams",
+                                             comment: "Auto-locate diagram regions with AI"))
+                    }
                 }
 
-                // Hint banner: shown when any question needs an image and no annotation exists yet
-                if viewModel.anyQuestionNeedsImage && viewModel.annotations.isEmpty {
+                // Hint banner: shown when any question needs an image, no annotation exists, and diagram analysis is not running
+                if viewModel.anyQuestionNeedsImage && viewModel.annotations.isEmpty && !viewModel.isDiagramAnalysisPending {
                     HStack(spacing: 4) {
                         Image(systemName: "photo.badge.plus")
                             .font(.caption2)
@@ -1559,6 +1592,39 @@ struct DigitalHomeworkView: View {
                 }
             }
 
+            // Diagram analysis banner (shown while Phase 1.5 is running)
+            if viewModel.isDiagramAnalysisPending {
+                HStack(spacing: 10) {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .orange))
+                        .scaleEffect(0.85)
+                    Text(NSLocalizedString("proMode.analyzingDiagrams", comment: "Analyzing diagram regions…"))
+                        .font(.subheadline)
+                        .foregroundColor(.orange)
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(Color.orange.opacity(0.1))
+                .cornerRadius(12)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            } else if viewModel.diagramAnalysisFailed {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.secondary)
+                        .font(.caption)
+                    Text(NSLocalizedString("proMode.diagramAnalysisFailed", comment: "Grading without image context"))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(Color(.secondarySystemGroupedBackground))
+                .cornerRadius(10)
+                .transition(.opacity)
+            }
+
             // Grade button (✅ Production: Fast Mode = Quick Grade (blue), Deep Mode = Deep Grade (purple))
             Button(action: {
                 Task {
@@ -1586,11 +1652,11 @@ struct DigitalHomeworkView: View {
                     .cornerRadius(16)
                     .shadow(color: (!viewModel.useDeepReasoning ? (themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary) : DesignTokens.Colors.Cute.lavender).opacity(0.3), radius: 8, x: 0, y: 4)
             }
-            .disabled(viewModel.isGrading)
-            .opacity(viewModel.isGrading ? 0.6 : 1.0)
+            .disabled(!viewModel.isGradingEnabled)
+            .opacity(!viewModel.isGradingEnabled ? 0.5 : 1.0)
 
-            // Info message about annotations (optional feature)
-            if viewModel.annotations.isEmpty {
+            // Info message about annotations (optional feature - hide while auto-analysis is running)
+            if viewModel.annotations.isEmpty && !viewModel.isDiagramAnalysisPending {
                 HStack {
                     Image(systemName: "info.circle.fill")
                         .foregroundColor(.blue)
@@ -1990,6 +2056,10 @@ struct QuestionCard: View {
     let onToggleDeletionSelection: () -> Void  // ✅ NEW: Toggle deletion selection
     let onLongPress: () -> Void  // ✅ NEW: Long press gesture callback
     let onRemoveImage: () -> Void  // NEW: callback to remove image
+    let isUnderDiagramAnalysis: Bool
+    let missingDiagramImageIds: Set<String>
+
+    @State private var isShaking = false
 
     // MARK: - Helper Views
 
@@ -2094,6 +2164,20 @@ struct QuestionCard: View {
                 }
                 .offset(x: 8, y: -8)
             }
+        } else if missingDiagramImageIds.contains(questionWithGrade.question.id) {
+            HStack(spacing: 6) {
+                Image(systemName: "photo.badge.exclamationmark.fill")
+                    .font(.title3)
+                    .foregroundColor(.orange)
+                    .offset(x: isShaking ? 4 : -4)
+                    .animation(.easeInOut(duration: 0.1).repeatForever(autoreverses: true),
+                               value: isShaking)
+                    .onAppear { isShaking = true }
+                    .onDisappear { isShaking = false }
+                Text(NSLocalizedString("proMode.annotationImageHint", comment: ""))
+                    .font(.caption2)
+                    .foregroundColor(.orange)
+            }
         }
     }
 
@@ -2137,7 +2221,8 @@ struct QuestionCard: View {
                                     // ✅ NEW: Regrade only this subquestion
                                     print("🔄 Regrade subquestion \(subquestion.id)")
                                     onRegradeSubquestion?(subquestion.id)
-                                }
+                                },
+                                missingDiagramImageIds: missingDiagramImageIds
                             )
                         }
                     }
@@ -2217,6 +2302,16 @@ struct QuestionCard: View {
             checkboxSection
             questionContentStack
         }
+        .overlay(
+            Group {
+                if isUnderDiagramAnalysis {
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color(.systemBackground).opacity(0.55))
+                    ProgressView()
+                        .scaleEffect(0.9)
+                }
+            }
+        )
         .background(
             RoundedRectangle(cornerRadius: 12)
                 // ✅ NEW: Lowlight background during regrading
@@ -2691,6 +2786,7 @@ struct SubquestionRow: View {
     let modelType: String  // ✅ NEW: Track AI model for loading indicator
     let isArchived: Bool  // ✅ NEW: Track if this subquestion is archived
     let croppedImage: UIImage?  // Image cropped for this specific subquestion
+    let missingDiagramImageIds: Set<String>  // IDs where AI couldn't locate diagram
     let onAskAI: () -> Void
     let onArchive: () -> Void  // This archives the parent question
     let onArchiveSubquestion: () -> Void  // ✅ NEW: Archive this subquestion only
@@ -2699,6 +2795,7 @@ struct SubquestionRow: View {
     @State private var showFeedback = false  // ✅ CHANGED: Collapsed by default
     @State private var showArchiveOptions = false  // ✅ NEW: Show action sheet for archive options
     @State private var isQuestionExpanded = false  // ✅ NEW: Track if question text is expanded
+    @State private var isSubShaking = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -2772,6 +2869,21 @@ struct SubquestionRow: View {
                     .background(Color.gray.opacity(0.1))
                     .cornerRadius(6)
                     .padding(.leading, 24)
+            } else if missingDiagramImageIds.contains(subquestion.id) {
+                HStack(spacing: 6) {
+                    Image(systemName: "photo.badge.exclamationmark.fill")
+                        .font(.title3)
+                        .foregroundColor(.orange)
+                        .offset(x: isSubShaking ? 4 : -4)
+                        .animation(.easeInOut(duration: 0.1).repeatForever(autoreverses: true),
+                                   value: isSubShaking)
+                        .onAppear { isSubShaking = true }
+                        .onDisappear { isSubShaking = false }
+                    Text(NSLocalizedString("proMode.annotationImageHint", comment: ""))
+                        .font(.caption2)
+                        .foregroundColor(.orange)
+                }
+                .padding(.leading, 24)
             }
 
             // Correct Answer — only for wrong answers, and not MC/TF (they highlight inline)
