@@ -757,7 +757,6 @@ class SVGImageRenderer: NSObject {
             <div class="svg-container">
                 \(svgCode)
             </div>
-            <div class="debug-info">SVG-\(Int.random(in: 1000...9999))</div>
         </body>
         </html>
         """

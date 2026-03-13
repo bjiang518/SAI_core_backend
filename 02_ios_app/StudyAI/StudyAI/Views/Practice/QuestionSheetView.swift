@@ -18,6 +18,7 @@ struct QuestionSheetView: View {
     @StateObject private var themeManager = ThemeManager.shared
     @StateObject private var sessionManager = PracticeSessionManager.shared
     @StateObject private var appState = AppState.shared
+    @StateObject private var speechService = SpeechRecognitionService()
 
     // Per-question state
     @State private var currentIndex: Int = 0
@@ -33,6 +34,8 @@ struct QuestionSheetView: View {
     @State private var localQuestions: [QuestionGenerationService.GeneratedQuestion] = []
     @State private var isArchivingCurrentQuestion: Bool = false
     @State private var archivedQuestionIds: Set<String> = []
+    @State private var isRegradingCurrentQuestion: Bool = false
+    @State private var isVoiceDictating: Bool = false
 
     // Session-level state
     @State private var correctCount: Int = 0
@@ -48,6 +51,11 @@ struct QuestionSheetView: View {
     @State private var showOrganizeToast: Bool = false
     @State private var organizeToastLines: [String] = []
     @State private var visibleToastItems: [Bool] = []
+
+    // Mastery firework celebration
+    @ObservedObject private var statusService = ShortTermStatusService.shared
+    @State private var showingMasteryFirework = false
+    @State private var masteredWeaknessKey = ""
 
     private let logger = Logger(subsystem: "com.studyai", category: "QuestionSheetView")
 
@@ -73,11 +81,32 @@ struct QuestionSheetView: View {
         }
         .navigationBarHidden(true)
         .onAppear { restoreProgress() }
+        .onDisappear { stopVoiceDictation() }
+        .onChange(of: speechService.recognizedText) { _, newText in
+            if isVoiceDictating && !newText.isEmpty {
+                userAnswer = newText
+            }
+        }
         .overlay {
             if isGradingWithAI { gradingOverlay }
         }
         .overlay(alignment: .bottom) {
             if showOrganizeToast { organizeToastView }
+        }
+        .overlay {
+            if showingMasteryFirework {
+                MasteryFireworkOverlay(weaknessKey: masteredWeaknessKey) {
+                    showingMasteryFirework = false
+                }
+                .transition(.opacity.animation(.easeInOut(duration: 0.2)))
+                .zIndex(999)
+            }
+        }
+        .onChange(of: statusService.recentMasteries.count) { oldCount, newCount in
+            guard newCount > oldCount, let latest = statusService.recentMasteries.last,
+                  !showingMasteryFirework else { return }
+            masteredWeaknessKey = latest.key
+            withAnimation(.easeIn(duration: 0.1)) { showingMasteryFirework = true }
         }
     }
 
@@ -215,6 +244,10 @@ struct QuestionSheetView: View {
                         .background(gridPaperBackground)
                         .cornerRadius(16)
 
+                        if needsTextInput(q) {
+                            holdToSpeakButton
+                        }
+
                         submitButton(q)
                     } else {
                         // Read-only answer with highlights
@@ -344,6 +377,74 @@ struct QuestionSheetView: View {
                 RoundedRectangle(cornerRadius: 12)
                     .stroke(Color(.separator), lineWidth: 1)
             )
+    }
+
+    // MARK: - Voice Dictation
+
+    private func needsTextInput(_ q: QuestionGenerationService.GeneratedQuestion) -> Bool {
+        switch q.type {
+        case .multipleChoice: return !hasMCOptions(q)
+        case .trueFalse: return false
+        default: return true
+        }
+    }
+
+    private var holdToSpeakButton: some View {
+        let canUseVoice = speechService.permissionStatus.canUseVoice
+
+        return HStack(spacing: 8) {
+            Image(systemName: isVoiceDictating ? "waveform" : "mic.fill")
+                .font(.system(size: 15, weight: .medium))
+                .foregroundColor(isVoiceDictating ? .white : (canUseVoice ? .accentColor : .secondary))
+            Text(isVoiceDictating
+                 ? NSLocalizedString("practiceSheet.voiceInput.release", comment: "")
+                 : NSLocalizedString("practiceSheet.holdToSpeak", comment: ""))
+                .font(.subheadline.weight(.semibold))
+                .foregroundColor(isVoiceDictating ? .white : (canUseVoice ? .accentColor : .secondary))
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 44)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(isVoiceDictating
+                      ? Color.accentColor
+                      : Color.accentColor.opacity(canUseVoice ? 0.1 : 0.05))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(isVoiceDictating ? Color.clear : Color.accentColor.opacity(canUseVoice ? 0.35 : 0.15), lineWidth: 1)
+        )
+        .contentShape(Rectangle())
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    if !isVoiceDictating { startVoiceDictation() }
+                }
+                .onEnded { _ in
+                    stopVoiceDictation()
+                }
+        )
+        .onAppear {
+            Task { await speechService.requestPermissions() }
+        }
+    }
+
+    private func startVoiceDictation() {
+        guard speechService.permissionStatus.canUseVoice else { return }
+        isVoiceDictating = true
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        speechService.startListening { result in
+            if result.isFinal && !result.recognizedText.isEmpty {
+                userAnswer = result.recognizedText
+            }
+        }
+    }
+
+    private func stopVoiceDictation() {
+        guard isVoiceDictating else { return }
+        isVoiceDictating = false
+        speechService.stopListening()
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
     }
 
     // Returns true when q is MC AND has renderable option buttons
@@ -567,6 +668,7 @@ struct QuestionSheetView: View {
                 .cornerRadius(14)
             }
             followUpButton
+            regradeButton
             archiveButton
         }
     }
@@ -586,6 +688,7 @@ struct QuestionSheetView: View {
                 .cornerRadius(14)
             }
             followUpButton
+            regradeButton
             archiveButton
         }
     }
@@ -646,6 +749,26 @@ struct QuestionSheetView: View {
         .disabled(isArchivingCurrentQuestion)
     }
 
+    private var regradeButton: some View {
+        Button(action: { Task { await regradeCurrentQuestion() } }) {
+            if isRegradingCurrentQuestion {
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: .purple))
+                    .frame(width: 52, height: 52)
+                    .background(Color.purple.opacity(0.1))
+                    .cornerRadius(14)
+            } else {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.title3)
+                    .foregroundColor(.purple)
+                    .frame(width: 52, height: 52)
+                    .background(Color.purple.opacity(0.1))
+                    .cornerRadius(14)
+            }
+        }
+        .disabled(isRegradingCurrentQuestion || isGradingWithAI)
+    }
+
     // MARK: - Archive Current Question
 
     private func archiveCurrentQuestion() async {
@@ -683,7 +806,7 @@ struct QuestionSheetView: View {
             processingTime: 0,
             userNotes: [""],
             userTags: [[]],
-            source: "practice"
+            source: session.generationType == "Mistake-Based" ? "mistake_review" : "practice"
         )
 
         do {
@@ -707,6 +830,15 @@ struct QuestionSheetView: View {
                         sessionId: session.id,
                         wrongQuestions: [payload]
                     )
+                } else if let weaknessKey = q.weaknessKey, !weaknessKey.isEmpty {
+                    // ✅ FIX: Correct answer with known weakness key — record directly
+                    let retryType: RetryType = session.generationType.contains("Mistake") ? .explicitPractice : .firstTime
+                    ShortTermStatusService.shared.recordCorrectAttempt(
+                        key: weaknessKey,
+                        retryType: retryType,
+                        questionId: archivedQ.id
+                    )
+                    print("✅ [WeaknessTracking] Per-question correct archived: key='\(weaknessKey)' retry=\(retryType) qid=\(archivedQ.id.prefix(8))")
                 }
             }
             archivedQuestionIds.insert(qId)
@@ -1003,6 +1135,22 @@ struct QuestionSheetView: View {
             optionsDict = nil
         }
 
+        // MC and T/F are objective — use direct comparison only, never AI
+        if q.type == .multipleChoice || q.type == .trueFalse {
+            let matchResult = AnswerMatchingService.shared.matchAnswer(
+                userAnswer: answer,
+                correctAnswer: q.correctAnswer,
+                questionType: q.type.rawValue,
+                options: optionsDict
+            )
+            isCorrect = matchResult.matchScore >= 0.9
+            partialCredit = isCorrect ? 1.0 : 0.0
+            wasInstantGraded = true
+            aiFeedback = nil
+            recordAnswer(q: q, answer: answer, correct: isCorrect)
+            return
+        }
+
         let matchResult = AnswerMatchingService.shared.matchAnswer(
             userAnswer: answer,
             correctAnswer: q.correctAnswer,
@@ -1061,6 +1209,55 @@ struct QuestionSheetView: View {
         partialCredit = result.matchScore
         wasInstantGraded = false
         aiFeedback = nil
+    }
+
+    private func regradeCurrentQuestion() async {
+        guard let q = currentQuestion, hasSubmitted else { return }
+        isRegradingCurrentQuestion = true
+        defer { isRegradingCurrentQuestion = false }
+
+        let savedAnswers = sessionManager.getSession(id: session.id)?.answers ?? session.answers
+        let qId = q.id.uuidString
+        let savedAnswer = (savedAnswers[qId]?["answer"] as? String) ?? currentAnswer(q)
+        let wasCorrect = correctAnsweredIds.contains(qId)
+
+        do {
+            let response = try await NetworkService.shared.gradeSingleQuestion(
+                questionText: q.question,
+                studentAnswer: savedAnswer,
+                subject: q.topic.isEmpty ? session.subject : q.topic,
+                questionType: q.type.rawValue,
+                contextImageBase64: nil,
+                parentQuestionContent: nil,
+                useDeepReasoning: true
+            )
+            guard let grade = response.grade else { return }
+
+            isCorrect = grade.isCorrect
+            partialCredit = Double(grade.score)
+            wasInstantGraded = false
+            aiFeedback = grade.feedback
+
+            if wasCorrect && !grade.isCorrect {
+                correctCount = max(0, correctCount - 1)
+                correctAnsweredIds.remove(qId)
+            } else if !wasCorrect && grade.isCorrect {
+                correctCount += 1
+                correctAnsweredIds.insert(qId)
+            }
+
+            sessionManager.updateProgress(
+                sessionId: session.id,
+                completedQuestionId: qId,
+                answer: savedAnswer,
+                isCorrect: grade.isCorrect
+            )
+        } catch {
+            logger.error("Regrade failed: \(error.localizedDescription)")
+        }
+
+        let gen = UINotificationFeedbackGenerator()
+        gen.notificationOccurred(isCorrect ? .success : .error)
     }
 
     private func recordAnswer(q: QuestionGenerationService.GeneratedQuestion, answer: String, correct: Bool) {
@@ -1136,7 +1333,7 @@ struct QuestionSheetView: View {
                     processingTime: 0,
                     userNotes: Array(repeating: "", count: parsedQuestions.count),
                     userTags: Array(repeating: [], count: parsedQuestions.count),
-                    source: "practice"
+                    source: session.generationType == "Mistake-Based" ? "mistake_review" : "practice"
                 )
                 let archived = (try? await QuestionArchiveService.shared.archiveQuestions(request)) ?? []
 
@@ -1253,6 +1450,7 @@ struct QuestionSheetView: View {
 
     private func navigateTo(_ idx: Int) {
         guard idx >= 0, idx < questions.count else { return }
+        stopVoiceDictation()
         currentIndex = idx
         resetQuestionState()
         loadSavedAnswer(for: questions[idx])
@@ -1435,5 +1633,124 @@ struct QuestionSheetView: View {
         value == "True"
             ? NSLocalizedString("common.true", comment: "")
             : NSLocalizedString("common.false", comment: "")
+    }
+}
+
+// MARK: - Mastery Firework Overlay
+
+struct MasteryFireworkOverlay: View {
+    let weaknessKey: String
+    let onDismiss: () -> Void
+
+    @State private var burst = false
+    @State private var cardScale: CGFloat = 0.3
+    @State private var cardOpacity: Double = 0
+
+    private let particleColors: [Color] = [
+        .pink, .orange, .yellow, .green, .blue, .purple, .red, .cyan,
+        .pink, .orange, .yellow, .green, .blue, .purple, .red, .cyan,
+        .yellow, .pink, .cyan, .orange, .green, .purple, .red, .blue
+    ]
+
+    var body: some View {
+        ZStack {
+            // Background
+            Color.black.opacity(0.55)
+                .ignoresSafeArea()
+                .onTapGesture { dismissOverlay() }
+
+            // Outer burst ring — 16 circles
+            ForEach(0..<16, id: \.self) { i in
+                let angle = Double(i) * 22.5
+                let rad = angle * .pi / 180
+                Circle()
+                    .fill(particleColors[i])
+                    .frame(width: i % 3 == 0 ? 13 : 8)
+                    .offset(
+                        x: burst ? cos(rad) * 180 : 0,
+                        y: burst ? sin(rad) * 180 : 0
+                    )
+                    .opacity(burst ? 0 : 0.92)
+                    .animation(.easeOut(duration: 0.9).delay(Double(i) * 0.018), value: burst)
+            }
+
+            // Inner burst ring — 12 squares, offset by 15°
+            ForEach(0..<12, id: \.self) { i in
+                let angle = Double(i) * 30.0 + 15.0
+                let rad = angle * .pi / 180
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(particleColors[i + 8])
+                    .frame(width: 7, height: 7)
+                    .offset(
+                        x: burst ? cos(rad) * 110 : 0,
+                        y: burst ? sin(rad) * 110 : 0
+                    )
+                    .opacity(burst ? 0 : 0.75)
+                    .animation(.easeOut(duration: 0.7).delay(Double(i) * 0.025 + 0.08), value: burst)
+            }
+
+            // Center card
+            VStack(spacing: 14) {
+                // Trophy circle
+                ZStack {
+                    Circle()
+                        .fill(LinearGradient(
+                            colors: [Color.yellow, Color.orange],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ))
+                        .frame(width: 76, height: 76)
+                    Text("🏆")
+                        .font(.system(size: 38))
+                }
+
+                Text(NSLocalizedString("mastery.title", value: "Weakness Cleared!", comment: ""))
+                    .font(.title2.bold())
+                    .foregroundColor(.primary)
+
+                Text(topicDisplayName)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(.green)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 8)
+
+                Text(NSLocalizedString("mastery.subtitle", value: "Now in your Strengths tab ✨", comment: ""))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.vertical, 28)
+            .padding(.horizontal, 24)
+            .frame(maxWidth: 320)
+            .background(
+                RoundedRectangle(cornerRadius: 24)
+                    .fill(Color(uiColor: .systemBackground))
+                    .shadow(color: .black.opacity(0.18), radius: 24, x: 0, y: 8)
+            )
+            .scaleEffect(cardScale)
+            .opacity(cardOpacity)
+        }
+        .onAppear {
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.62)) {
+                cardScale = 1.0
+                cardOpacity = 1.0
+            }
+            withAnimation { burst = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) { dismissOverlay() }
+        }
+    }
+
+    private func dismissOverlay() {
+        withAnimation(.easeOut(duration: 0.22)) {
+            cardScale = 0.85
+            cardOpacity = 0
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) { onDismiss() }
+    }
+
+    private var topicDisplayName: String {
+        let normalized = weaknessKey.replacingOccurrences(of: "|", with: "/")
+        let parts = normalized.split(separator: "/")
+        return parts.last.map(String.init) ?? weaknessKey
     }
 }

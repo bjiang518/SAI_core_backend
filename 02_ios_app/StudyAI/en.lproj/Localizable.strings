@@ -655,6 +655,8 @@
 // Practice Sheet
 "practiceSheet.questionCounter" = "Q %d/%d";
 "practiceSheet.typeAnswerPlaceholder" = "Type your answer here…";
+"practiceSheet.holdToSpeak" = "Hold to Speak";
+"practiceSheet.voiceInput.release" = "Release to Set Answer";
 "practiceSheet.answersSection" = "Answers";
 "practiceSheet.yourAnswerLabel" = "Your answer";
 "practiceSheet.noAnswer" = "(no answer)";
@@ -848,6 +850,19 @@
 "progress.noSubjectDataAvailable" = "No subject data available";
 "progress.pointsAvailable" = "+%d pts";
 
+// Inline Subject Accordion
+"source.homework" = "Homework";
+"source.practice" = "Practice";
+"source.mistakeReview" = "Mistake Review";
+"progress.inline.questions" = "Questions";
+"progress.inline.correct" = "Correct";
+"progress.inline.studyTime" = "Study Time";
+"progress.inline.streak" = "Streak";
+"progress.inline.avgPerDay" = "Avg/Day";
+"progress.inline.weaknesses" = "Weaknesses";
+"progress.inline.mastered" = "Mastered";
+"progress.inline.converted" = "Converted";
+
 // Library View
 "library.title" = "Study Library";
 "library.refreshLibrary" = "Refresh Library";
@@ -1023,6 +1038,13 @@
 "chat.menu.liveTalk" = "Live Talk";
 "chat.menu.archiveSession" = "Archive Session";
 "chat.menu.viewTutorial" = "View Tutorial";
+"chat.menu.endLive" = "End Live";
+"chat.menu.liveScenario" = "Live Scenario";
+"chat.menu.audioConfig" = "Audio Config";
+"chat.menu.voice" = "Voice";
+"chat.menu.syncWithText" = "Sync with Text";
+"chat.menu.aiMate" = "Your AI Mate";
+"chat.menu.selectAIMate" = "Select AI Mate";
 
 // Chat Onboarding Tutorial
 "onboarding.skip" = "Skip";
@@ -1085,6 +1107,8 @@
 "chat.diagram.regenerate" = "Regenerate Image";
 "chat.diagram.regenerating" = "Regenerating diagram...";
 "chat.diagram.generating" = "Generating diagram...";
+"chat.video.searching" = "Finding educational video...";
+"chat.stopGenerating" = "Stop Generating";
 
 // Input
 "chat.input.placeholder" = "Message";
@@ -2164,6 +2188,10 @@
 "sessionChat.releaseToSend" = "Release to Send";
 
 // MARK: - Live Voice Chat
+"live.connected" = "Live";
+"live.connecting" = "Connecting...";
+"live.sending_image" = "Sending image…";
+"live.stop" = "Stop AI";
 "live.hold_to_talk" = "Hold to Talk";
 "live.release_to_send" = "Release to Send";
 "live.slide_to_cancel" = "Slide to Cancel";
@@ -2282,6 +2310,14 @@
 "voiceSettings.avatar.eva.desc" = "A kind, supportive girl";
 "voiceSettings.avatar.max.desc" = "An energetic, enthusiastic boy";
 "voiceSettings.avatar.mia.desc" = "A playful, curious girl";
+"voiceSettings.stability" = "Stability";
+"voiceSettings.stability.variable" = "Variable";
+"voiceSettings.stability.balanced" = "Balanced";
+"voiceSettings.stability.stable" = "Stable";
+"voiceSettings.style" = "Style";
+"voiceSettings.style.neutral" = "Neutral";
+"voiceSettings.style.expressive" = "Expressive";
+"voiceSettings.style.bold" = "Bold";
 
 // Onboarding — Parent Setup
 "onboarding.continue" = "Continue";

@@ -351,12 +351,22 @@ class VoiceInteractionService: ObservableObject {
     
     func previewVoiceSettings() {
         let previewText = "Hello! This is how I sound with these voice settings. I'm here to help you learn!"
-        
+
         // Use the best service for preview too
         if shouldUseEnhancedTTS(for: voiceSettings.voiceType) {
             enhancedTTSService.previewVoice(text: previewText)
         } else {
             textToSpeechService.speak(previewText, with: voiceSettings)
+        }
+    }
+
+    /// Preview voice with custom (unsaved) settings — used by VoiceSettingsView before saving.
+    func previewVoice(text: String, with settings: VoiceSettings) {
+        stopSpeech()
+        if shouldUseEnhancedTTS(for: settings.voiceType) {
+            enhancedTTSService.speak(text, with: settings)
+        } else {
+            textToSpeechService.speak(text, with: settings)
         }
     }
     

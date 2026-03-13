@@ -18,8 +18,6 @@ struct LearningProgressView: View {
     @State private var isLoading = true
     @State private var isLoadingSubjectBreakdown = false
     @State private var errorMessage = ""
-    @State private var selectedSubject: SubjectCategory?
-    @State private var showingSubjectDetail = false
     @State private var selectedTimeframe: TimeframeOption = .currentWeek
     @State private var selectedSubjectFilter: SubjectCategory? = nil
     @State private var loadingTask: Task<Void, Never>? = nil
@@ -176,11 +174,6 @@ struct LearningProgressView: View {
             loadingTask?.cancel()
             loadingTask = nil
         }
-        .sheet(isPresented: $showingSubjectDetail) {
-            if let subject = selectedSubject {
-                SubjectDetailView(subject: subject, timeframe: selectedTimeframe)
-            }
-        }
     }
     
     @ViewBuilder
@@ -317,12 +310,10 @@ struct LearningProgressView: View {
             if let data = subjectBreakdownData {
                 let filteredData = applySubjectFilter(data)
 
-                // Enhanced Visualizations with Charts
                 if !filteredData.subjectProgress.isEmpty && selectedSubjectFilter == nil {
-                    VStack(spacing: 16) {
-                        // Horizontal bar chart for accuracy comparison only
-                        SubjectAccuracyBarChart(subjectProgress: filteredData.subjectProgress)
-                    }
+                    SubjectAccuracyBarChart(
+                        subjectProgress: filteredData.subjectProgress
+                    )
                 }
 
             } else {
@@ -862,12 +853,8 @@ struct LearningProgressView: View {
     }
 
     private func loadBasicProgress() async {
-        // Simulate basic progress loading
-        try? await Task.sleep(nanoseconds: 500_000_000)
-
         await MainActor.run {
             // Basic progress is handled by PointsEarningManager
-
         }
     }
 
@@ -935,6 +922,7 @@ struct LearningProgressView: View {
 struct SubjectAccuracyBarChart: View {
     let subjectProgress: [SubjectProgressData]
     @ObservedObject private var themeManager = ThemeManager.shared
+    @State private var expandedSubjects: Set<String> = []
 
     // Map subjects to fixed unique Cute theme colors
     private func cuteColorForSubject(_ subjectName: String) -> Color {
@@ -992,7 +980,8 @@ struct SubjectAccuracyBarChart: View {
                 totalQuestions: progress.questionsAnswered,
                 correctAnswers: progress.correctAnswers,
                 accuracy: progress.averageAccuracy,
-                color: color
+                color: color,
+                progressData: progress
             )
         }.sorted { $0.totalQuestions > $1.totalQuestions }
     }
@@ -1006,7 +995,22 @@ struct SubjectAccuracyBarChart: View {
             if !chartData.isEmpty {
                 VStack(alignment: .leading, spacing: 12) {
                     ForEach(chartData, id: \.subject) { data in
-                        SubjectBarRow(data: data, maxValue: maxQuestions)
+                        VStack(alignment: .leading, spacing: 0) {
+                            SubjectBarRow(
+                                data: data,
+                                maxValue: maxQuestions,
+                                isExpanded: expandedSubjects.contains(data.subject)
+                            ) {
+                                withAnimation(.easeInOut(duration: 0.25)) {
+                                    expandedSubjects.formSymmetricDifference([data.subject])
+                                }
+                            }
+                            if expandedSubjects.contains(data.subject) {
+                                SubjectInlineDetailCard(progressData: data.progressData)
+                                    .transition(.opacity.combined(with: .move(edge: .top)))
+                                    .padding(.top, 6)
+                            }
+                        }
                     }
                 }
             } else {
@@ -1029,6 +1033,8 @@ struct SubjectAccuracyBarChart: View {
 struct SubjectBarRow: View {
     let data: SubjectChartData
     let maxValue: Int
+    var isExpanded: Bool = false
+    var onToggle: (() -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -1055,17 +1061,17 @@ struct SubjectBarRow: View {
                     // Background bar (total questions) - light gray
                     RoundedRectangle(cornerRadius: 6)
                         .fill(Color.gray.opacity(0.2))
-                        .frame(height: 24)
+                        .frame(height: 15)
 
                     // Total questions bar (semi-transparent subject color)
                     RoundedRectangle(cornerRadius: 6)
                         .fill(data.color.opacity(0.3))
-                        .frame(width: barWidth(for: data.totalQuestions), height: 24)
+                        .frame(width: barWidth(for: data.totalQuestions), height: 15)
 
                     // Correct answers bar (solid subject color) - overlaps on top
                     RoundedRectangle(cornerRadius: 6)
                         .fill(data.color)
-                        .frame(width: barWidth(for: data.correctAnswers), height: 24)
+                        .frame(width: barWidth(for: data.correctAnswers), height: 15)
 
                     // Question counts inside the bar
                     HStack {
@@ -1076,8 +1082,17 @@ struct SubjectBarRow: View {
                             .padding(.leading, 8)
                         Spacer()
                     }
-                    .frame(width: barWidth(for: data.totalQuestions), height: 24)
+                    .frame(width: barWidth(for: data.totalQuestions), height: 15)
                 }
+
+                Button(action: { onToggle?() }) {
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .frame(width: 20, height: 20)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(PlainButtonStyle())
             }
         }
     }
@@ -1098,6 +1113,173 @@ struct SubjectChartData {
     let correctAnswers: Int
     let accuracy: Double
     let color: Color
+    let progressData: SubjectProgressData
+}
+
+// MARK: - Inline Accordion Detail Card
+
+struct SubjectInlineDetailCard: View {
+    let progressData: SubjectProgressData
+    @ObservedObject private var shortTermService = ShortTermStatusService.shared
+    @ObservedObject private var themeManager = ThemeManager.shared
+    @State private var sourceCounts: (homework: Int, practice: Int, mistakeReview: Int) = (0, 0, 0)
+    @State private var weeklyTrend: [WeeklyAccuracyPoint] = []
+
+    private var weaknessCounts: (Int, Int, Int) {
+        // Use rawValue (e.g. "Math") — weakness keys are stored as "Math/concept/type"
+        let prefix = "\(progressData.subject.rawValue)/"
+        let entries = shortTermService.status.activeWeaknesses.filter { $0.key.hasPrefix(prefix) }
+        let w = entries.filter { $0.value.value > 0 }.count
+        let m = entries.filter { $0.value.value < 0 }.count
+        return (w, m, m)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            statsSection
+
+            Divider().padding(.vertical, 10)
+
+            QuestionSourceBreakdownCard(counts: sourceCounts)
+
+            Divider().padding(.vertical, 10)
+
+            let wc = weaknessCounts
+            WeaknessAssessmentRow(counts: (weaknesses: wc.0, strengths: wc.1, conversions: wc.2))
+
+            if weeklyTrend.count >= 2 {
+                Divider().padding(.vertical, 10)
+                WeeklyAccuracyTrendCard(trend: weeklyTrend, subjectColor: progressData.subject.swiftUIColor)
+            }
+        }
+        .padding()
+        .background(Color(.tertiarySystemGroupedBackground))
+        .cornerRadius(10)
+        .onAppear { loadLocalData() }
+    }
+
+    private func loadLocalData() {
+        let storage = currentUserQuestionStorage()
+        let rawQuestions = storage.getLocalQuestions()
+        let subjectRawValue = progressData.subject.rawValue
+        let subjectQuestions = rawQuestions.filter {
+            ($0["subject"] as? String ?? "").caseInsensitiveCompare(subjectRawValue) == .orderedSame
+        }
+        let hw = subjectQuestions.filter { ($0["source"] as? String ?? "homework") == "homework" }.count
+        let pr = subjectQuestions.filter { ($0["source"] as? String) == "practice" }.count
+        let mr = subjectQuestions.filter { ($0["source"] as? String) == "mistake_review" }.count
+        sourceCounts = (hw, pr, mr)
+        weeklyTrend = buildSubjectWeeklyTrend(from: subjectQuestions)
+    }
+
+    private func buildSubjectWeeklyTrend(from questions: [[String: Any]]) -> [WeeklyAccuracyPoint] {
+        let iso = ISO8601DateFormatter()
+        let calendar = Calendar.current
+        let now = Date()
+        var weekBuckets: [Date: (total: Int, correct: Int)] = [:]
+        for q in questions {
+            guard let dateStr = q["archivedAt"] as? String,
+                  let date = iso.date(from: dateStr) else { continue }
+            let weekStart = calendar.dateInterval(of: .weekOfYear, for: date)?.start ?? date
+            let isCorrect = (q["grade"] as? String) == "correct" || (q["isCorrect"] as? Bool == true)
+            var bucket = weekBuckets[weekStart] ?? (0, 0)
+            bucket.total += 1
+            if isCorrect { bucket.correct += 1 }
+            weekBuckets[weekStart] = bucket
+        }
+        let cutoff = calendar.date(byAdding: .weekOfYear, value: -8, to: now) ?? now
+        let fmt = DateFormatter()
+        fmt.dateFormat = "M/d"
+        return weekBuckets
+            .filter { $0.key >= cutoff }
+            .sorted { $0.key < $1.key }
+            .map { (weekStart, bucket) in
+                let accuracy = bucket.total > 0 ? Double(bucket.correct) / Double(bucket.total) * 100 : 0
+                return WeeklyAccuracyPoint(weekLabel: fmt.string(from: weekStart), accuracy: accuracy, totalQuestions: bucket.total)
+            }
+    }
+
+    private var statsSection: some View {
+        LazyVGrid(columns: [.init(.flexible()), .init(.flexible()), .init(.flexible())], spacing: 12) {
+            InlineStatCell(title: NSLocalizedString("progress.inline.questions", comment: "Questions answered"), value: "\(progressData.questionsAnswered)", icon: "questionmark.circle.fill")
+            InlineStatCell(title: NSLocalizedString("progress.inline.correct", comment: "Correct answers"), value: "\(progressData.correctAnswers)", icon: "checkmark.circle.fill")
+            InlineStatCell(title: NSLocalizedString("progress.inline.studyTime", comment: "Total study time"), value: formatStudyTime(TimeInterval(progressData.totalStudyTimeMinutes * 60)), icon: "clock.fill")
+            InlineStatCell(title: NSLocalizedString("progress.inline.streak", comment: "Streak days"), value: "\(progressData.streakDays)d", icon: "flame.fill")
+            InlineStatCell(title: NSLocalizedString("progress.inline.avgPerDay", comment: "Average questions per day"), value: String(format: "%.1f", progressData.averageQuestionsPerDay), icon: "chart.bar.fill")
+        }
+    }
+
+    private func formatStudyTime(_ seconds: TimeInterval) -> String {
+        let minutes = Int(seconds / 60)
+        if minutes < 60 { return "\(minutes)m" }
+        let hours = minutes / 60
+        let rem = minutes % 60
+        return rem > 0 ? "\(hours)h \(rem)m" : "\(hours)h"
+    }
+}
+
+struct InlineStatCell: View {
+    let title: String
+    let value: String
+    let icon: String
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundColor(.secondary)
+            Text(value)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            Text(title)
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+    }
+}
+
+struct WeaknessAssessmentRow: View {
+    let counts: (weaknesses: Int, strengths: Int, conversions: Int)
+
+    var body: some View {
+        HStack(spacing: 12) {
+            WeaknessAssessmentCell(icon: "exclamationmark.triangle.fill", color: .orange,
+                                   count: counts.weaknesses, label: NSLocalizedString("progress.inline.weaknesses", comment: "Active weaknesses count"))
+            WeaknessAssessmentCell(icon: "star.fill", color: .green,
+                                   count: counts.strengths, label: NSLocalizedString("progress.inline.mastered", comment: "Mastered topics count"))
+            WeaknessAssessmentCell(icon: "arrow.up.circle.fill", color: .blue,
+                                   count: counts.conversions, label: NSLocalizedString("progress.inline.converted", comment: "Converted weaknesses count"))
+        }
+    }
+}
+
+struct WeaknessAssessmentCell: View {
+    let icon: String
+    let color: Color
+    let count: Int
+    let label: String
+
+    var body: some View {
+        VStack(spacing: 4) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.caption)
+                    .foregroundColor(color)
+                Text("\(count)")
+                    .font(.subheadline)
+                    .fontWeight(.bold)
+            }
+            Text(label)
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
+        .background(color.opacity(0.08))
+        .cornerRadius(10)
+    }
 }
 
 struct SubjectAccuracyChartData {

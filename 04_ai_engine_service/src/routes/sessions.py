@@ -143,13 +143,14 @@ def select_chat_model(message: str, subject: str, conversation_length: int = 0):
     return ("gpt-5.2", 800)
 
 
-async def generate_follow_up_suggestions(ai_response: str, user_message: str, subject: str, prior_messages=None):
+async def generate_follow_up_suggestions(ai_response: str, user_message: str, subject: str, prior_messages=None, language: str = "en"):
     """Generate 3 contextual follow-up suggestions. Returns list of {key, value} dicts."""
     try:
+        # Use the app's language setting; fall back to detecting Chinese from response
         def detect_chinese(text: str) -> bool:
             return any(0x4E00 <= ord(char) <= 0x9FFF for char in text)
 
-        is_chinese = detect_chinese(ai_response)
+        is_chinese = language.startswith("zh") or detect_chinese(ai_response)
 
         if is_chinese:
             language_instruction = (
@@ -379,7 +380,8 @@ async def send_session_message(session_id: str, request: SessionMessageRequest):
             ai_response=ai_response,
             user_message=request.message,
             subject=request.subject or session.subject,
-            prior_messages=session.messages
+            prior_messages=session.messages,
+            language=request.language or "en"
         )
 
         updated_session = await session_service.add_message_to_session(
@@ -532,7 +534,8 @@ async def send_session_message_stream(session_id: str, request: SessionMessageRe
                                 ai_response=accumulated_content,
                                 user_message=request.message,
                                 subject=session.subject,
-                                prior_messages=session.messages
+                                prior_messages=session.messages,
+                                language=request.language or "en"
                             )
 
                             if suggestions:

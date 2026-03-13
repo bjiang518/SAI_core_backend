@@ -24,6 +24,7 @@ class ShortTermStatusService: ObservableObject {
     @Published var recentMasteries: [(key: String, timestamp: Date)] = []
 
     private let logger = AppLogger.forFeature("ShortTermStatus")
+    private let weaknessLogger = AppLogger.forFeature("WeaknessTracking")
     private var midnightCheckTimer: Timer?
     private var authCancellable: AnyCancellable?
 
@@ -135,60 +136,100 @@ class ShortTermStatusService: ObservableObject {
         return "\(normalizedSubject)/\(normalizedConcept)/\(normalizedType)"
     }
 
+    // MARK: - Key Resolution
+
+    /// Resolves an incoming weakness key to match the canonical key stored in activeWeaknesses.
+    /// Handles format mismatches between backend and iOS:
+    ///   - Backend uses pipe separator, no subject: "baseBranch|detailedBranch"
+    ///   - iOS stores slash format with subject:    "Subject/baseBranch/detailedBranch"
+    private func resolveWeaknessKey(_ key: String) -> String {
+        // 1. Exact match with POSITIVE value = real active weakness, use immediately.
+        //    Skip negative (phantom/mastered) entries — they may have been created by old code
+        //    with the wrong key format and should not block resolution to the real weakness.
+        if let exact = status.activeWeaknesses[key], exact.value > 0 { return key }
+
+        // 2. Normalize "|" separator to "/" and check for positive match
+        let normalized = key.replacingOccurrences(of: "|", with: "/")
+        if let normExact = status.activeWeaknesses[normalized], normExact.value > 0 { return normalized }
+
+        // 3. Case-insensitive, space/underscore-agnostic suffix match on last 2 components.
+        //    Handles: backend "Branch A|Branch B" vs stored "Subject/Branch A/Branch B"
+        //    or stored "Subject/branch_a/branch_b" (generateKey() lowercases + underscores).
+        let components = normalized.split(separator: "/").map(String.init)
+        if components.count >= 2 {
+            let normalizedTail = components.suffix(2)
+                .map { $0.lowercased().replacingOccurrences(of: " ", with: "_") }
+                .joined(separator: "/")
+            if let match = status.activeWeaknesses.keys.first(where: { storedKey in
+                // Skip the exact keys we already checked above
+                guard storedKey != key && storedKey != normalized else { return false }
+                let normalizedStored = storedKey.lowercased().replacingOccurrences(of: " ", with: "_")
+                return normalizedStored.hasSuffix(normalizedTail)
+            }) {
+                weaknessLogger.info("🔑 Key resolved: '\(key)' → '\(match)'")
+                // Purge any phantom entries that had the wrong key format
+                if status.activeWeaknesses[key] != nil {
+                    weaknessLogger.info("🧹 Removing phantom entry: '\(key)'")
+                    status.activeWeaknesses.removeValue(forKey: key)
+                }
+                if status.activeWeaknesses[normalized] != nil && normalized != match {
+                    weaknessLogger.info("🧹 Removing phantom entry: '\(normalized)'")
+                    status.activeWeaknesses.removeValue(forKey: normalized)
+                }
+                return match
+            }
+        }
+
+        // 4. Fall back to any existing entry (even phantom/negative) to avoid creating duplicates
+        if status.activeWeaknesses[key] != nil { return key }
+        if status.activeWeaknesses[normalized] != nil { return normalized }
+
+        // No match found — log current keys to help diagnose format mismatches
+        let currentKeys = status.activeWeaknesses.keys.sorted().joined(separator: ", ")
+        weaknessLogger.info("⚠️ Key NOT resolved: '\(key)' — stored keys: [\(currentKeys)]")
+        return normalized
+    }
+
     // MARK: - Record Mistake
 
     func recordMistake(key: String, errorType: String, questionId: String? = nil) {
+        let resolvedKey = resolveWeaknessKey(key)
         let increment = errorTypeWeight(errorType)
 
-        print("🎯 [WeaknessTracking] recordMistake called:")
-        print("   Key: \(key)")
-        print("   Error Type: \(errorType) (weight: \(increment))")
+        weaknessLogger.debug("📍 recordMistake key='\(resolvedKey)' errType=\(errorType) weight=\(increment) qid=\(questionId?.prefix(8) ?? "nil")")
 
-        if var weakness = status.activeWeaknesses[key] {
-            // Update existing weakness
+        if var weakness = status.activeWeaknesses[resolvedKey] {
             let oldValue = weakness.value
 
-            // ✅ NEW: Check if transitioning from mastery (negative) to weakness (positive)
             let wasNegative = oldValue < 0
             weakness.value += increment
             let isNowPositive = weakness.value > 0
 
             if wasNegative && isNowPositive {
-                // Transitioning from mastery to weakness: clear mastery data, start fresh tracking
                 weakness.masteryQuestions = []
                 weakness.recentErrorTypes = [errorType]
                 weakness.recentQuestionIds = questionId.map { [$0] } ?? []
-                print("   ⚠️ TRANSITION: Mastery → Weakness (cleared mastery data)")
+                weaknessLogger.info("⚠️ TRANSITION Mastery→Weakness key='\(resolvedKey)' value=\(oldValue)→\(weakness.value)")
             } else {
-                // Track recent error types (keep last 3)
                 weakness.recentErrorTypes.append(errorType)
                 if weakness.recentErrorTypes.count > 3 {
                     weakness.recentErrorTypes.removeFirst()
                 }
-
-                // ✅ FIX: Track recent question IDs (keep last 5, prevent duplicates)
                 if let qId = questionId {
-                    // Only append if not already in the array (prevent duplicates)
                     if !weakness.recentQuestionIds.contains(qId) {
                         weakness.recentQuestionIds.append(qId)
                         if weakness.recentQuestionIds.count > 5 {
                             weakness.recentQuestionIds.removeFirst()
                         }
-                    } else {
-                        print("   ℹ️ Question ID \(qId) already tracked (duplicate prevented)")
                     }
                 }
             }
 
             weakness.lastAttempt = Date()
             weakness.totalAttempts += 1
-
-            status.activeWeaknesses[key] = weakness
-
-            print("   ✅ UPDATED existing weakness: \(oldValue) → \(weakness.value) (attempts: \(weakness.totalAttempts))")
-            logger.debug("Updated weakness '\(key)': value=\(weakness.value), attempts=\(weakness.totalAttempts)")
+            status.activeWeaknesses[resolvedKey] = weakness
+            weaknessLogger.info("📈 UPDATE key='\(resolvedKey)' value=\(oldValue)→\(weakness.value) attempts=\(weakness.totalAttempts)")
         } else {
-            // Create new weakness
             var newWeakness = WeaknessValue(
                 value: increment,
                 firstDetected: Date(),
@@ -200,18 +241,12 @@ class ShortTermStatusService: ObservableObject {
             if let qId = questionId {
                 newWeakness.recentQuestionIds = [qId]
             }
-
-            status.activeWeaknesses[key] = newWeakness
-
-            print("   ✅ CREATED new weakness with value: \(increment)")
-            logger.info("Created new weakness '\(key)' with value \(increment)")
+            status.activeWeaknesses[resolvedKey] = newWeakness
+            weaknessLogger.info("🆕 CREATE key='\(resolvedKey)' value=\(increment) errType=\(errorType)")
         }
 
-        print("   📊 Total active weaknesses: \(status.activeWeaknesses.count)")
-
-        // ✅ NEW: Enforce memory limit (20 keys per subject)
+        weaknessLogger.debug("📊 Total active weaknesses: \(status.activeWeaknesses.count)")
         enforceMemoryLimit()
-
         save()
     }
 
@@ -237,11 +272,12 @@ class ShortTermStatusService: ObservableObject {
 
     // ✅ HYBRID RETRY DETECTION: Explicit practice + auto-detection
     func recordCorrectAttempt(key: String, retryType: RetryType = .firstTime, questionId: String? = nil) {
-        guard var weakness = status.activeWeaknesses[key] else {
+        let resolvedKey = resolveWeaknessKey(key)
+        guard var weakness = status.activeWeaknesses[resolvedKey] else {
             // ✅ NEW: If key doesn't exist, create mastery entry with negative value
-            logger.info("Creating new mastery entry for: \(key)")
+            weaknessLogger.info("🆕 NEW mastery entry (no prior weakness) key='\(resolvedKey)'")
             var newMastery = WeaknessValue(
-                value: -0.5,  // Start with small mastery bonus
+                value: -0.5,
                 firstDetected: Date(),
                 lastAttempt: Date(),
                 totalAttempts: 1,
@@ -250,9 +286,7 @@ class ShortTermStatusService: ObservableObject {
             if let qId = questionId {
                 newMastery.masteryQuestions = [qId]
             }
-            status.activeWeaknesses[key] = newMastery
-
-            // ✅ NEW: Enforce memory limit
+            status.activeWeaknesses[resolvedKey] = newMastery
             enforceMemoryLimit()
             save()
             return
@@ -260,52 +294,35 @@ class ShortTermStatusService: ObservableObject {
 
         let oldValue = weakness.value
 
-        // ✅ FIX #2: Calculate weighted decrement based on error history
         let avgErrorWeight = weakness.recentErrorTypes.isEmpty ? 1.5 :
             weakness.recentErrorTypes.map { errorTypeWeight($0) }.reduce(0, +) / Double(weakness.recentErrorTypes.count)
 
-        // Apply retry bonus
         let bonusMultiplier: Double = {
             switch retryType {
-            case .explicitPractice: return 1.5  // User-driven, full bonus
-            case .autoDetected: return 1.2      // Serendipitous retry, partial bonus
-            case .firstTime: return 1.0         // No bonus
+            case .explicitPractice: return 1.5
+            case .autoDetected:     return 1.2
+            case .firstTime:        return 1.0
             }
         }()
 
-        let baseDecrement = 1.0
-        let decrement = baseDecrement * avgErrorWeight * 0.6 * bonusMultiplier
-
-        // ✅ NEW: Allow negative values (remove clamp at 0)
+        let decrement = 1.0 * avgErrorWeight * 0.6 * bonusMultiplier
         weakness.value -= decrement
 
-        // ✅ NEW: Check if transitioning from weakness (positive) to mastery (negative)
+        weaknessLogger.info("📉 recordCorrectAttempt key='\(resolvedKey)' retry=\(retryType) avgErrWeight=\(String(format:"%.2f",avgErrorWeight)) decrement=\(String(format:"%.2f",decrement)) value=\(String(format:"%.2f",oldValue))→\(String(format:"%.2f",weakness.value)) qid=\(questionId?.prefix(8) ?? "nil")")
+
         let wasPositive = oldValue > 0
         let isNowNegative = weakness.value < 0
 
         if wasPositive && isNowNegative {
-            // Transitioning from weakness to mastery: clear weakness tracking, start mastery tracking
             weakness.recentErrorTypes = []
             weakness.recentQuestionIds = []
             weakness.masteryQuestions = questionId.map { [$0] } ?? []
-            logger.info("🎉 TRANSITION: Weakness → Mastery for '\(key)' (value: \(weakness.value))")
-            print("   🎉 TRANSITION: Weakness → Mastery (cleared error data, starting mastery tracking)")
-
-            // ✅ NEW: Add to recentMasteries for UI celebration
-            recentMasteries.append((key: key, timestamp: Date()))
-            print("   🎊 Added to recentMasteries for UI celebration!")
+            weaknessLogger.info("🎉 MASTERED key='\(resolvedKey)' finalValue=\(String(format:"%.2f",weakness.value))")
+            recentMasteries.append((key: resolvedKey, timestamp: Date()))
         } else if isNowNegative {
-            // Already in mastery: track mastery questions (keep last 5, prevent duplicates)
-            if let qId = questionId {
-                // Only append if not already in the array (prevent duplicates)
-                if !weakness.masteryQuestions.contains(qId) {
-                    weakness.masteryQuestions.append(qId)
-                    if weakness.masteryQuestions.count > 5 {
-                        weakness.masteryQuestions.removeFirst()
-                    }
-                } else {
-                    print("   ℹ️ Question ID \(qId) already tracked in mastery (duplicate prevented)")
-                }
+            if let qId = questionId, !weakness.masteryQuestions.contains(qId) {
+                weakness.masteryQuestions.append(qId)
+                if weakness.masteryQuestions.count > 5 { weakness.masteryQuestions.removeFirst() }
             }
         }
 
@@ -313,13 +330,8 @@ class ShortTermStatusService: ObservableObject {
         weakness.totalAttempts += 1
         weakness.lastAttempt = Date()
 
-        logger.debug("Correct attempt on '\(key)': value \(oldValue) → \(weakness.value) (decrement: \(decrement), retry: \(retryType))")
-
-        status.activeWeaknesses[key] = weakness
-
-        // ✅ NEW: Enforce memory limit
+        status.activeWeaknesses[resolvedKey] = weakness
         enforceMemoryLimit()
-
         save()
     }
 

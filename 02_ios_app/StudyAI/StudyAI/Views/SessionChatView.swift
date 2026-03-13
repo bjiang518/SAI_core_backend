@@ -246,7 +246,7 @@ struct SessionChatView: View {
                         Circle()
                             .fill(DesignTokens.Colors.Cute.mint)
                             .frame(width: 7, height: 7)
-                        Text(NSLocalizedString("live.connected", value: "Live", comment: ""))
+                        Text(NSLocalizedString("live.connected", comment: ""))
                             .font(.caption.weight(.semibold))
                             .foregroundColor(DesignTokens.Colors.Cute.mint)
                     }
@@ -259,13 +259,22 @@ struct SessionChatView: View {
 
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
-                    // Live Talk / End Live toggle
+                    // 1. New Session
+                    Button(NSLocalizedString("chat.menu.newSession", comment: "")) {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            hasConversationStarted = false
+                        }
+                        viewModel.startNewSession()
+                    }
+
+                    Divider()
+
+                    // 2. Live Mode
                     if isLiveMode {
                         Button(role: .destructive, action: exitLiveMode) {
-                            Label(NSLocalizedString("chat.menu.endLive", value: "End Live", comment: ""), systemImage: "waveform.slash")
+                            Label(NSLocalizedString("chat.menu.endLive", comment: ""), systemImage: "waveform.slash")
                         }
                     } else {
-                        // Live Talk (plain, no scenario)
                         Button(action: {
                         Task { @MainActor in
                             @MainActor func doEnterLive(_ sessionId: String) {
@@ -311,47 +320,33 @@ struct SessionChatView: View {
                     }) {
                             Label(NSLocalizedString("chat.menu.liveTalk", comment: ""), systemImage: "waveform.circle.fill")
                         }
+                    }
 
-                        // Live 场景选择
+                    Divider()
+
+                    // 3. Audio Config
+                    Button(action: { showingVoiceSettings = true }) {
+                        Label(NSLocalizedString("chat.menu.audioConfig", comment: ""), systemImage: "slider.horizontal.3")
+                    }
+
+                    Divider()
+
+                    // 4. Scenarios
+                    if !isLiveMode {
                         Button(action: { showingScenarioPicker = true }) {
-                            Label(NSLocalizedString("chat.menu.liveScenario", value: "Live 场景", comment: ""), systemImage: "theatermask.and.paintbrush.fill")
-                        }
-                    }
-
-                    Divider()
-
-                    Button(NSLocalizedString("chat.menu.newSession", comment: "")) {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            hasConversationStarted = false
-                        }
-                        viewModel.startNewSession()
-                    }
-
-                    Divider()
-
-                    Button(NSLocalizedString("chat.menu.voiceSettings", comment: "")) {
-                        showingVoiceSettings = true
-                    }
-
-                    Button(voiceService.isVoiceEnabled ? NSLocalizedString("chat.menu.disableVoice", comment: "") : NSLocalizedString("chat.menu.enableVoice", comment: "")) {
-                        voiceService.toggleVoiceEnabled()
-                    }
-
-                    // Synchronized Audio Toggle
-                    Toggle(NSLocalizedString("chat.menu.synchronizedAudio", comment: ""), isOn: $interactiveModeSettings.isEnabled)
-                        .onChange(of: interactiveModeSettings.isEnabled) { _, _ in
-                            interactiveModeSettings.save()
+                            Label(NSLocalizedString("chat.menu.liveScenario", comment: ""), systemImage: "theatermask.and.paintbrush.fill")
                         }
 
-                    Divider()
+                        Divider()
+                    }
 
-                    // View Tutorial
+                    // 5. View Tutorial
                     Button(action: {
                         withAnimation(.easeInOut(duration: 0.3)) {
                             chatOnboardingStep = .cameraButton
                         }
                     }) {
-                        Label(NSLocalizedString("chat.menu.viewTutorial", value: "View Tutorial", comment: ""), systemImage: "sparkles")
+                        Label(NSLocalizedString("chat.menu.viewTutorial", comment: ""), systemImage: "sparkles")
                     }
 
                 } label: {
@@ -738,9 +733,21 @@ struct SessionChatView: View {
                 }
             }
             .onChange(of: viewModel.isActivelyStreaming) { _, isStreaming in
-                // Update avatar to show processing state when streaming text
-                if isStreaming {
+                // In interactive mode the avatar is driven by audio; skip .processing here
+                if isStreaming && !interactiveModeSettings.isEnabled {
         avatarState.animationState = .processing  // Fast animation, no effects
+                }
+            }
+            .onChange(of: viewModel.isInteractiveTTSPlaying) { _, isPlaying in
+                let ts = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
+                if isPlaying {
+                    AppLogger.forFeature("AvatarTimeline").info("[\(ts)] 🎭 [View] Avatar → .speaking (interactive audio started)")
+                    avatarState.animationState = .speaking
+                } else if avatarState.animationState == .speaking {
+                    AppLogger.forFeature("AvatarTimeline").info("[\(ts)] 🎭 [View] Avatar → .idle (interactive audio ended)")
+                    avatarState.animationState = .idle
+                } else {
+                    AppLogger.forFeature("AvatarTimeline").info("[\(ts)] 🎭 [View] isInteractiveTTSPlaying=false, avatar=\(String(describing: avatarState.animationState)) — no change")
                 }
             }
     }
@@ -932,7 +939,7 @@ struct SessionChatView: View {
                                         if isRegenerating {
                                             VStack(spacing: 12) {
                                                 DiagramGenerationIndicatorView()
-                                                Text(NSLocalizedString("chat.diagram.regenerating", value: "Regenerating diagram...", comment: ""))
+                                                Text(NSLocalizedString("chat.diagram.regenerating", comment: ""))
                                                     .font(.system(size: 14))
                                                     .foregroundColor(.secondary)
                                             }
@@ -1031,7 +1038,7 @@ struct SessionChatView: View {
                         if viewModel.isGeneratingDiagram && viewModel.regeneratingDiagramKey == nil {
                             VStack(spacing: 12) {
                                 DiagramGenerationIndicatorView()
-                                Text(NSLocalizedString("chat.diagram.generating", value: "Generating diagram...", comment: ""))
+                                Text(NSLocalizedString("chat.diagram.generating", comment: ""))
                                     .font(.system(size: 14))
                                     .foregroundColor(.secondary)
                             }
@@ -1045,7 +1052,7 @@ struct SessionChatView: View {
                             HStack(spacing: 10) {
                                 ProgressView()
                                     .scaleEffect(0.8)
-                                Text(NSLocalizedString("chat.video.searching", value: "Finding educational video...", comment: ""))
+                                Text(NSLocalizedString("chat.video.searching", comment: ""))
                                     .font(.system(size: 14))
                                     .foregroundColor(.secondary)
                             }
@@ -1184,7 +1191,7 @@ struct SessionChatView: View {
                         HStack(spacing: 6) {
                             Image(systemName: "stop.circle.fill")
                                 .font(.system(size: 14, weight: .semibold))
-                            Text(NSLocalizedString("chat.stopGenerating", value: "Stop Generating", comment: ""))
+                            Text(NSLocalizedString("chat.stopGenerating", comment: ""))
                                 .font(.system(size: 14, weight: .medium))
                         }
                         .foregroundColor(.white)
@@ -1345,7 +1352,7 @@ struct SessionChatView: View {
                         ProgressView()
                             .progressViewStyle(.circular)
                             .scaleEffect(0.8)
-                        Text(NSLocalizedString("live.connecting", value: "Connecting...", comment: ""))
+                        Text(NSLocalizedString("live.connecting", comment: ""))
                             .font(.caption)
                             .foregroundColor(.secondary)
                         Spacer()
@@ -1381,7 +1388,7 @@ struct SessionChatView: View {
                         ProgressView()
                             .progressViewStyle(.circular)
                             .scaleEffect(0.8)
-                        Text(NSLocalizedString("live.sending_image", value: "Sending image…", comment: ""))
+                        Text(NSLocalizedString("live.sending_image", comment: ""))
                             .font(.caption)
                             .foregroundColor(.secondary)
                         Spacer()
@@ -1406,7 +1413,7 @@ struct SessionChatView: View {
                         HStack(spacing: 6) {
                             Image(systemName: "stop.circle.fill")
                                 .font(.system(size: 14, weight: .semibold))
-                            Text(NSLocalizedString("live.stop", value: "Stop AI", comment: ""))
+                            Text(NSLocalizedString("live.stop", comment: ""))
                                 .font(.system(size: 14, weight: .medium))
                         }
                         .foregroundColor(.white)
@@ -1773,7 +1780,7 @@ struct SessionChatView: View {
             HStack(spacing: 8) {
                 // ✅ CRITICAL: If last message is a diagram, show ONE regenerate button first
                 if lastMessageHasDiagram, let diagramKey = lastDiagramKey {
-                    Button(NSLocalizedString("chat.diagram.regenerate", value: "Regenerate Image", comment: "")) {
+                    Button(NSLocalizedString("chat.diagram.regenerate", comment: "")) {
                         Task {
                             await viewModel.regenerateDiagram(withKey: diagramKey)
                         }
@@ -2520,7 +2527,13 @@ struct SessionChatView: View {
         }
 
         // Set to idle initially - will change to .speaking when TTS actually plays
-        avatarState.animationState = .idle
+        // In interactive mode, audio drives avatar state — don't override it
+        if !viewModel.isInteractiveTTSPlaying {
+            avatarState.animationState = .idle
+        } else {
+            let ts = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
+            AppLogger.forFeature("AvatarTimeline").info("[\(ts)] 🎭 [handleAIMessageAppeared] Skipping .idle reset — interactive TTS is playing")
+        }
     }
 
     /// Toggle TTS playback when avatar is tapped
@@ -2621,6 +2634,8 @@ struct SessionChatView: View {
 
     /// Update avatar state based on current speaking state
     private func updateTopAvatarState() {
+        // Interactive TTS controls avatar state via isInteractiveTTSPlaying — don't interfere
+        guard !viewModel.isInteractiveTTSPlaying else { return }
         if Self.debugMode {
         print("🔄 [Avatar] updateTopAvatarState called")
         print("🔄 [Avatar] VoiceService state: \(voiceService.interactionState)")
@@ -2727,6 +2742,8 @@ struct SessionChatView: View {
                 updateTopAvatarState()
             }
             .onReceive(voiceService.$interactionState) { state in
+                // Interactive TTS controls avatar via isInteractiveTTSPlaying — don't interfere
+                guard !viewModel.isInteractiveTTSPlaying else { return }
                 if Self.debugMode {
                     print("🎭 [Avatar] VoiceService state: \(state)")
                 }

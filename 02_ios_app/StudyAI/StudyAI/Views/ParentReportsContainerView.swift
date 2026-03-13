@@ -18,10 +18,12 @@ struct ParentReportsContainerView: View {
             .sheet(isPresented: $showingOnboarding) {
                 ParentReportsOnboardingView(
                     onEnable: {
+                        UserDefaults.standard.set(true, forKey: "parent_reports_onboarding_dismissed")
                         showingOnboarding = false
                         syncEnableToBackend()
                     },
                     onDecline: {
+                        UserDefaults.standard.set(true, forKey: "parent_reports_onboarding_dismissed")
                         showingOnboarding = false
                         syncDisableToBackend()
                     }
@@ -40,13 +42,20 @@ struct ParentReportsContainerView: View {
 
         let settings = ParentReportSettings.load()
 
-        // Only skip if user has actively enabled reports
+        // Skip if user has already enabled reports
         if settings.parentReportsEnabled {
             print("✅ [ParentReportsContainer] Reports already enabled, skipping onboarding")
             return
         }
 
-        // Show onboarding (first-time or re-enable after declining)
+        // Skip if user has already seen and dismissed onboarding this install
+        let dismissedKey = "parent_reports_onboarding_dismissed"
+        if UserDefaults.standard.bool(forKey: dismissedKey) {
+            print("✅ [ParentReportsContainer] Onboarding already seen, skipping")
+            return
+        }
+
+        // First-time visitor — show onboarding
         print("📊 [ParentReportsContainer] Showing parent reports onboarding")
         showingOnboarding = true
     }

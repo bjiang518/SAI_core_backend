@@ -252,8 +252,49 @@ class ErrorAnalysisQueueService: ObservableObject {
 
         print("📊 [ConceptExtraction] Queuing concept extraction for \(unanalyzedCorrectQuestions.count) unanalyzed correct answers (filtered from \(correctQuestions.count) total)")
 
+        // ✅ FAST PATH: questions that already carry a weaknessKey (e.g. from weakness-based
+        // practice) skip backend AI extraction entirely. The key is already known, so we record
+        // the correct attempt directly with an explicit-practice bonus.
+        let preKeyedCorrect = unanalyzedCorrectQuestions.filter {
+            !($0["weaknessKey"] as? String ?? "").isEmpty
+        }
+        let unknownKeyCorrect = unanalyzedCorrectQuestions.filter {
+            ($0["weaknessKey"] as? String ?? "").isEmpty
+        }
+
+        if !preKeyedCorrect.isEmpty {
+            print("📊 [ConceptExtraction] \(preKeyedCorrect.count) questions have pre-filled weakness key — recording correct attempts directly (no backend call)")
+            Task {
+                for q in preKeyedCorrect {
+                    guard let weaknessKey = q["weaknessKey"] as? String, !weaknessKey.isEmpty else { continue }
+                    let questionId = q["id"] as? String
+                    print("✅ [WeaknessTracking] Fast-path correct: key='\(weaknessKey)' qid=\(questionId?.prefix(8) ?? "?")")
+                    await MainActor.run {
+                        ShortTermStatusService.shared.recordCorrectAttempt(
+                            key: weaknessKey,
+                            retryType: .explicitPractice,
+                            questionId: questionId
+                        )
+                    }
+                    // Mark as analyzed so this question isn't reprocessed
+                    if let qId = questionId {
+                        localStorage.updateQuestion(id: qId, fields: [
+                            "errorAnalysisStatus": ErrorAnalysisStatus.completed.rawValue,
+                            "errorAnalyzedAt": ISO8601DateFormatter().string(from: Date())
+                        ])
+                    }
+                }
+            }
+        }
+
+        guard !unknownKeyCorrect.isEmpty else {
+            print("📊 [ConceptExtraction] No questions need backend extraction — done")
+            return
+        }
+
+        print("📊 [ConceptExtraction] \(unknownKeyCorrect.count) questions need backend concept extraction")
         Task {
-            await extractConceptsBatch(sessionId: sessionId, questions: unanalyzedCorrectQuestions)
+            await extractConceptsBatch(sessionId: sessionId, questions: unknownKeyCorrect)
         }
     }
 

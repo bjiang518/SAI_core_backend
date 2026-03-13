@@ -11,6 +11,7 @@ const ElevenLabsWebSocketClient = require('../../../services/ElevenLabsWebSocket
 const TextChunker = require('../../../utils/TextChunker');
 const AuthHelper = require('../utils/auth-helper');
 const SessionHelper = require('../utils/session-helper');
+const { buildSystemPrompt, MATH_FORMATTING_SYSTEM_PROMPT } = require('../utils/prompts');
 
 module.exports = async function (fastify, opts) {
   const authHelper = new AuthHelper(fastify);
@@ -52,7 +53,7 @@ module.exports = async function (fastify, opts) {
         message,
         voiceId = 'zZLmKvCp1i04X8E0FJ8B', // Default: Max voice
         modelId = 'eleven_turbo_v2_5',
-        systemPrompt = 'You are a helpful AI tutor.',
+        language = 'en',
         deepMode = false
       } = request.body;
 
@@ -134,6 +135,32 @@ module.exports = async function (fastify, opts) {
       }));
 
       fastify.log.info(`📜 [STEP 5] Loaded ${previousMessages.length} previous messages for context`);
+
+      // ═══════════════════════════════════════════════════════
+      // 3b. BUILD SYSTEM PROMPT (same logic as session-management.js)
+      // ═══════════════════════════════════════════════════════
+      const userProfile = await db.getEnhancedUserProfile(userId).catch(() => null);
+      const learningStyle = userProfile?.learning_style || 'heuristic';
+      const studentName = userProfile?.display_name || userProfile?.first_name || null;
+      const gradeLevel = userProfile?.grade_level ?? null;
+
+      let systemPrompt = buildSystemPrompt({ style: learningStyle, studentName, gradeLevel });
+
+      // Detect subject from session for math formatting
+      const sessionInfo = await sessionHelper.getSessionFromDatabase(sessionId).catch(() => null);
+      const subject = (sessionInfo?.subject || '').toLowerCase();
+      if (['mathematics', 'math', 'physics', 'chemistry'].includes(subject)) {
+        systemPrompt += '\n' + MATH_FORMATTING_SYSTEM_PROMPT;
+      }
+
+      const languageInstructions = {
+        'en': 'Respond in clear, educational English.',
+        'zh-Hans': '用简体中文回答。使用清晰的教育性语言。',
+        'zh-Hant': '用繁體中文回答。使用清晰的教育性語言。'
+      };
+      const languageInstruction = languageInstructions[language] || languageInstructions['en'];
+      const userMessage = `${message}\n\nLANGUAGE: ${languageInstruction}`;
+      fastify.log.info(`🌐 Language: ${language}, systemPrompt: ${systemPrompt.substring(0, 60)}...`);
 
       // ═══════════════════════════════════════════════════════
       // 4. CONNECT TO ELEVENLABS WEBSOCKET
@@ -218,7 +245,7 @@ module.exports = async function (fastify, opts) {
             'X-Service-Auth': process.env.SERVICE_AUTH_SECRET || ''
           },
           body: JSON.stringify({
-            message: message,
+            message: userMessage,
             system_prompt: systemPrompt,
             deep_mode: deepMode
           })
@@ -270,13 +297,17 @@ module.exports = async function (fastify, opts) {
 
         // Process complete SSE events (ending with \n\n)
         if (buffer.includes('\n\n')) {
-          const lines = buffer.split('\n');
+          // Only process up to the last complete event boundary.
+          // Keep any partial event after the last \n\n for the next iteration.
+          const lastBoundary = buffer.lastIndexOf('\n\n');
+          const complete = buffer.substring(0, lastBoundary + 2);
+          buffer = buffer.substring(lastBoundary + 2);
           // Remove verbose logging: fastify.log.info(`🔍 [PARSE] Processing ${lines.length} lines from buffer`);
 
           let dataLineCount = 0;
           let parsedEventCount = 0;
 
-          for (const line of lines) {
+          for (const line of complete.split('\n')) {
             if (line.startsWith('data: ')) {
               dataLineCount++;
               const jsonStr = line.substring(6);
@@ -400,7 +431,6 @@ module.exports = async function (fastify, opts) {
 
           // Remove verbose logging: fastify.log.info(`📊 [PARSE] Summary: ${lines.length} total lines, ${dataLineCount} data lines, ${parsedEventCount} parsed events`);
 
-          buffer = '';
         } else {
           // Remove verbose logging: fastify.log.debug(`⏳ [PARSE] Buffer doesn't contain \\n\\n yet, waiting for more data (buffer size: ${buffer.length})`);
         }

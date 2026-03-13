@@ -212,6 +212,18 @@ enum TomatoType: String, Codable, CaseIterable {
         return .classic  // Fallback
     }
 
+    /// 根据专注时长选择番茄类型
+    /// - 15–24 min: 仅普通番茄 (Rarity 1)
+    /// - ≥ 25 min: 全池（当前行为）
+    static func randomType(forDuration duration: TimeInterval) -> TomatoType {
+        let minutes = duration / 60
+        guard minutes >= 25 else {
+            let normalTypes: [TomatoType] = [.classic, .curly, .cute, .tmt4, .tmt5, .tmt6]
+            return normalTypes.randomElement() ?? .classic
+        }
+        return random()
+    }
+
     /// 获取指定稀有度的所有番茄类型
     static func types(withRarity rarity: Int) -> [TomatoType] {
         return TomatoType.allCases.filter { $0.rarity == rarity }

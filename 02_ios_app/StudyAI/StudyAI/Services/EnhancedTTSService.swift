@@ -421,12 +421,14 @@ class EnhancedTTSService: NSObject, ObservableObject {
         // Debug logging
         print("🎵 EnhancedTTS: voiceType=\(voiceType.rawValue), provider=\(provider), voiceId=\(voiceId), speed=\(finalRate), textLength=\(textToSpeak.count)")
 
-        let requestBody = [
+        let requestBody: [String: Any] = [
             "text": textToSpeak,
             "voice": voiceId,
-            "speed": finalRate.clamped(to: 0.25...4.0),
+            "speed": finalRate.clamped(to: 0.7...1.2),
+            "stability": Double(request.voiceSettings.stability),
+            "style": Double(request.voiceSettings.style),
             "provider": provider
-        ] as [String: Any]
+        ]
 
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
@@ -507,6 +509,8 @@ class EnhancedTTSService: NSObject, ObservableObject {
                 self.audioPlayer = try AVAudioPlayer(data: data)
                 self.audioPlayer?.delegate = self
                 self.audioPlayer?.volume = request.voiceSettings.volume
+                self.audioPlayer?.enableRate = true
+                self.audioPlayer?.rate = 1.2
 
                 // ✅ Phase 3.7 (2026-02-18): CRITICAL FIX - Check if playback actually starts
                 // AVAudioPlayer.play() returns Bool - false means playback failed to start

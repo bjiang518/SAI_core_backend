@@ -111,7 +111,6 @@ class SynchronizedTextRenderer: ObservableObject {
     /// Add full text that needs to be revealed
     /// - Parameter text: Complete accumulated text received so far
     func setFullText(_ text: String) {
-        logger.debug("📥 setFullText: received \(text.count) chars (currentCharIndex=\(currentCharIndex), hasAudio=\(audioStartTime != nil))")
         fullText = text
         // Do NOT reset currentCharIndex or visibleText here.
         // This is called on every text_delta with the full accumulated AI text.
@@ -278,7 +277,7 @@ class SynchronizedTextRenderer: ObservableObject {
                         // Extract visible portion from full text
                         let endIndex = min(self.currentCharIndex, self.fullText.count)
                         self.visibleText = String(self.fullText.prefix(endIndex))
-                        self.logger.debug("🖥️ [align] rendered \(endIndex)/\(self.fullText.count) | tail: \"\(self.visibleText.suffix(30))\"")
+
 
                         // ✅ CRITICAL FIX: Check if we've exhausted alignment data but still have text
                         // If we've revealed all characters with timing data, switch to fallback mode
@@ -329,9 +328,7 @@ class SynchronizedTextRenderer: ObservableObject {
                 if self.currentCharIndex < self.fullText.count {
                     self.currentCharIndex += 1
                     self.visibleText = String(self.fullText.prefix(self.currentCharIndex))
-                    if self.currentCharIndex % 10 == 0 {
-                        self.logger.debug("🖥️ [fallback] rendered \(self.currentCharIndex)/\(self.fullText.count) | tail: \"\(self.visibleText.suffix(30))\"")
-                    }
+                    // fallback progress (no per-char logging)
                 } else {
                     self.logger.info("⏸️ Fallback continuation caught up — stopping timer until more text arrives")
                     self.stopRevealTimer()

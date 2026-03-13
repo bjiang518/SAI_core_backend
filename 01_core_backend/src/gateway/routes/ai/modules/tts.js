@@ -29,15 +29,18 @@ class TTSRoutes {
             voice: {
               type: 'string',
               enum: [
-                // OpenAI voices (Adam, Eva)
+                // OpenAI voices (legacy)
                 'echo', 'nova',
                 // Legacy OpenAI voices (kept for compatibility)
                 'alloy', 'fable', 'onyx', 'shimmer', 'coral',
-                // ElevenLabs voices (Max: Vince, Mia: Arabella)
+                // ElevenLabs voices (Adam, Eva, Max: Vince, Mia: Arabella)
+                'MI36FIkp9wRP7cpWKPTl', '9lHjugDhwqoxA5MhX0az',
                 'zZLmKvCp1i04X8E0FJ8B', 'aEO01A4wXwd1O8GPgGlF'
               ]
             },
-            speed: { type: 'number', minimum: 0.25, maximum: 4.0, default: 1.0 },
+            speed: { type: 'number', minimum: 0.7, maximum: 1.2, default: 0.95 },
+            stability: { type: 'number', minimum: 0.0, maximum: 1.0, default: 0.5 },
+            style: { type: 'number', minimum: 0.0, maximum: 1.0, default: 0.05 },
             provider: { type: 'string', enum: ['openai', 'elevenlabs'], default: 'openai' }
           }
         }
@@ -73,7 +76,7 @@ class TTSRoutes {
         });
       }
 
-      const { text, voice, speed = 1.0, provider = 'openai' } = request.body;
+      const { text, voice, speed = 0.95, stability = 0.5, style = 0.05, provider = 'openai' } = request.body;
 
       // Debug logging
       this.fastify.log.info(`🎤 TTS Request - provider: ${provider}, voice: "${voice}", textLength: ${text?.length || 0}`);
@@ -89,7 +92,7 @@ class TTSRoutes {
 
       // Route to appropriate TTS provider
       if (provider === 'elevenlabs') {
-        return this.generateElevenLabsTTS(text, voice, speed, reply);
+        return this.generateElevenLabsTTS(text, voice, speed, stability, style, reply);
       } else {
         return this.generateOpenAITTS(text, voice, speed, reply);
       }
@@ -215,7 +218,7 @@ class TTSRoutes {
   /**
    * Generate TTS audio using ElevenLabs
    */
-  async generateElevenLabsTTS(text, voice, speed, reply) {
+  async generateElevenLabsTTS(text, voice, speed, stability, style, reply) {
     try {
       const elevenlabsApiKey = process.env.ELEVENLABS_API_KEY;
 
@@ -237,12 +240,12 @@ class TTSRoutes {
 
       const ttsData = JSON.stringify({
         text: text,
-        model_id: "eleven_multilingual_v2",
+        model_id: "eleven_flash_v2_5",
         voice_settings: {
-          stability: 0.5,
+          speed: speed,
+          stability: stability,
           similarity_boost: 0.75,
-          style: 0.5,
-          use_speaker_boost: true
+          style: style
         }
       });
 

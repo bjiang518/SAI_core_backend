@@ -788,6 +788,19 @@
 "progress.noSubjectDataAvailable" = "No subject data available";
 "progress.pointsAvailable" = "+%d pts";
 
+// Inline Subject Accordion
+"source.homework" = "Tarea";
+"source.practice" = "Práctica";
+"source.mistakeReview" = "Revisión de errores";
+"progress.inline.questions" = "Preguntas";
+"progress.inline.correct" = "Correctas";
+"progress.inline.studyTime" = "Tiempo de estudio";
+"progress.inline.streak" = "Racha";
+"progress.inline.avgPerDay" = "Prom/día";
+"progress.inline.weaknesses" = "Debilidades";
+"progress.inline.mastered" = "Dominadas";
+"progress.inline.converted" = "Convertidas";
+
 // Library View
 "library.title" = "Biblioteca de Estudio";
 "library.refreshLibrary" = "Actualizar biblioteca";
@@ -963,6 +976,13 @@
 "chat.menu.liveTalk" = "Live Talk";
 "chat.menu.archiveSession" = "Archive Session";
 "chat.menu.viewTutorial" = "Ver tutorial";
+"chat.menu.endLive" = "Finalizar en vivo";
+"chat.menu.liveScenario" = "Escenario en vivo";
+"chat.menu.audioConfig" = "Configuración de audio";
+"chat.menu.voice" = "Voz";
+"chat.menu.syncWithText" = "Sincronizar con texto";
+"chat.menu.aiMate" = "Tu compañero IA";
+"chat.menu.selectAIMate" = "Seleccionar compañero IA";
 
 // Chat Onboarding Tutorial
 "onboarding.skip" = "Omitir";
@@ -1025,6 +1045,8 @@
 "chat.diagram.regenerate" = "Regenerate Image";
 "chat.diagram.regenerating" = "Regenerating diagram...";
 "chat.diagram.generating" = "Generating diagram...";
+"chat.video.searching" = "Buscando video educativo...";
+"chat.stopGenerating" = "Detener generación";
 
 // Input
 "chat.input.placeholder" = "Message";
@@ -2060,6 +2082,10 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "sessionChat.releaseToSend" = "Release to Send";
 
 // MARK: - Live Voice Chat
+"live.connected" = "En vivo";
+"live.connecting" = "Conectando...";
+"live.sending_image" = "Enviando imagen…";
+"live.stop" = "Detener IA";
 "live.hold_to_talk" = "Hold to Talk";
 "live.release_to_send" = "Release to Send";
 "live.slide_to_cancel" = "Slide to Cancel";
@@ -2174,6 +2200,14 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "voiceSettings.avatar.eva.desc" = "A kind, supportive girl";
 "voiceSettings.avatar.max.desc" = "An energetic, enthusiastic boy";
 "voiceSettings.avatar.mia.desc" = "A playful, curious girl";
+"voiceSettings.stability" = "Estabilidad";
+"voiceSettings.stability.variable" = "Variable";
+"voiceSettings.stability.balanced" = "Equilibrado";
+"voiceSettings.stability.stable" = "Estable";
+"voiceSettings.style" = "Estilo";
+"voiceSettings.style.neutral" = "Neutro";
+"voiceSettings.style.expressive" = "Expresivo";
+"voiceSettings.style.bold" = "Intenso";
 
 // Onboarding — Parent Setup
 "onboarding.continue" = "Continuar";

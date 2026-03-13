@@ -788,6 +788,19 @@
 "progress.noSubjectDataAvailable" = "No subject data available";
 "progress.pointsAvailable" = "+%d pts";
 
+// Inline Subject Accordion
+"source.homework" = "Hausaufgaben";
+"source.practice" = "Übung";
+"source.mistakeReview" = "Fehlerüberprüfung";
+"progress.inline.questions" = "Fragen";
+"progress.inline.correct" = "Richtig";
+"progress.inline.studyTime" = "Lernzeit";
+"progress.inline.streak" = "Serie";
+"progress.inline.avgPerDay" = "Ø/Tag";
+"progress.inline.weaknesses" = "Schwächen";
+"progress.inline.mastered" = "Beherrscht";
+"progress.inline.converted" = "Umgewandelt";
+
 // Library View
 "library.title" = "Lernbibliothek";
 "library.refreshLibrary" = "Bibliothek aktualisieren";
@@ -962,6 +975,13 @@
 "chat.menu.synchronizedAudio" = "Synchronized Audio";
 "chat.menu.liveTalk" = "Live Talk";
 "chat.menu.archiveSession" = "Archive Session";
+"chat.menu.endLive" = "Live beenden";
+"chat.menu.liveScenario" = "Live-Szenario";
+"chat.menu.audioConfig" = "Audio-Einstellungen";
+"chat.menu.voice" = "Stimme";
+"chat.menu.syncWithText" = "Mit Text synchronisieren";
+"chat.menu.aiMate" = "Dein KI-Begleiter";
+"chat.menu.selectAIMate" = "KI-Begleiter auswählen";
 
 // Voice Chat (Gemini Live)
 "voice_chat.title" = "Live Talk";
@@ -1001,6 +1021,8 @@
 "chat.diagram.regenerate" = "Regenerate Image";
 "chat.diagram.regenerating" = "Regenerating diagram...";
 "chat.diagram.generating" = "Generating diagram...";
+"chat.video.searching" = "Lernvideo suchen...";
+"chat.stopGenerating" = "Generierung stoppen";
 
 // Input
 "chat.input.placeholder" = "Message";
@@ -1996,6 +2018,10 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "sessionChat.releaseToSend" = "Release to Send";
 
 // MARK: - Live Voice Chat
+"live.connected" = "Live";
+"live.connecting" = "Verbinde...";
+"live.sending_image" = "Bild senden…";
+"live.stop" = "KI stoppen";
 "live.hold_to_talk" = "Hold to Talk";
 "live.release_to_send" = "Release to Send";
 "live.slide_to_cancel" = "Slide to Cancel";
@@ -2110,6 +2136,14 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "voiceSettings.avatar.eva.desc" = "A kind, supportive girl";
 "voiceSettings.avatar.max.desc" = "An energetic, enthusiastic boy";
 "voiceSettings.avatar.mia.desc" = "A playful, curious girl";
+"voiceSettings.stability" = "Stabilität";
+"voiceSettings.stability.variable" = "Variabel";
+"voiceSettings.stability.balanced" = "Ausgewogen";
+"voiceSettings.stability.stable" = "Stabil";
+"voiceSettings.style" = "Stil";
+"voiceSettings.style.neutral" = "Neutral";
+"voiceSettings.style.expressive" = "Ausdrucksstark";
+"voiceSettings.style.bold" = "Intensiv";
 
 // Onboarding — Parent Setup
 "onboarding.continue" = "Weiter";

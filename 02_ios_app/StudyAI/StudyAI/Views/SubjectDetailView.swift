@@ -5,6 +5,9 @@
 //  Detailed view for individual subject analytics
 //
 
+// NOTE: SubjectDetailView is no longer presented from LearningProgressView (replaced by inline accordion).
+// File is retained for its reusable component structs (QuestionSourceBreakdownCard, SourceTile, etc.)
+
 import SwiftUI
 import Charts
 
@@ -15,6 +18,8 @@ struct SubjectDetailView: View {
     private let localProgressService = LocalProgressService.shared
     @State private var subjectData: SubjectProgressData?
     @State private var subjectTrends: [SubjectTrendData] = []
+    @State private var sourceCounts: (homework: Int, practice: Int, mistakeReview: Int) = (0, 0, 0)
+    @State private var weeklyTrend: [WeeklyAccuracyPoint] = []
     @State private var isLoading = true
     @State private var errorMessage = ""
     @Environment(\.dismiss) private var dismiss
@@ -59,7 +64,15 @@ struct SubjectDetailView: View {
     private func subjectDetailContent(_ data: SubjectProgressData) -> some View {
         // Subject Overview Card
         SubjectOverviewCard(data: data)
-        
+
+        // Question Source Breakdown (NEW)
+        QuestionSourceBreakdownCard(counts: sourceCounts)
+
+        // Weekly Accuracy Trend (NEW)
+        if weeklyTrend.count >= 2 {
+            WeeklyAccuracyTrendCard(trend: weeklyTrend, subjectColor: subject.swiftUIColor)
+        }
+
         // Performance Breakdown
         PerformanceBreakdownCard(data: data)
         
@@ -95,13 +108,73 @@ struct SubjectDetailView: View {
                 timeframe: timeframe.apiValue
             )
 
+            // Compute source counts and weekly trend from raw local storage
+            let rawQuestions = currentUserQuestionStorage().getLocalQuestions()
+            let subjectName = subject.displayName
+            let subjectQuestions = rawQuestions.filter {
+                ($0["subject"] as? String ?? "").caseInsensitiveCompare(subjectName) == .orderedSame
+            }
+
+            let homework = subjectQuestions.filter {
+                ($0["source"] as? String ?? "homework") == "homework"
+            }.count
+            let practice = subjectQuestions.filter {
+                ($0["source"] as? String) == "practice"
+            }.count
+            let mistakeReview = subjectQuestions.filter {
+                ($0["source"] as? String) == "mistake_review"
+            }.count
+
+            let trend = buildWeeklyTrend(from: subjectQuestions)
+
             await MainActor.run {
                 // Find the specific subject data
                 self.subjectData = data.subjectProgress.first { $0.subject == subject }
                 self.subjectTrends = data.trends.filter { $0.subject == subject }
+                self.sourceCounts = (homework, practice, mistakeReview)
+                self.weeklyTrend = trend
                 self.isLoading = false
             }
         }
+    }
+
+    /// Groups raw questions by calendar week (last 8 weeks) and computes per-week accuracy.
+    private func buildWeeklyTrend(from questions: [[String: Any]]) -> [WeeklyAccuracyPoint] {
+        let iso = ISO8601DateFormatter()
+        let calendar = Calendar.current
+        let now = Date()
+
+        // Build a map of weekStart → (total, correct)
+        var weekBuckets: [Date: (total: Int, correct: Int)] = [:]
+
+        for q in questions {
+            guard let dateStr = q["archivedAt"] as? String,
+                  let date = iso.date(from: dateStr) else { continue }
+            let weekStart = calendar.dateInterval(of: .weekOfYear, for: date)?.start ?? date
+            let isCorrect = (q["grade"] as? String ?? q["isCorrect"] as? String) == "correct"
+                || (q["isCorrect"] as? Bool == true)
+            var bucket = weekBuckets[weekStart] ?? (0, 0)
+            bucket.total += 1
+            if isCorrect { bucket.correct += 1 }
+            weekBuckets[weekStart] = bucket
+        }
+
+        // Keep only the last 8 weeks and sort ascending
+        let cutoff = calendar.date(byAdding: .weekOfYear, value: -8, to: now) ?? now
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "M/d"
+
+        return weekBuckets
+            .filter { $0.key >= cutoff }
+            .sorted { $0.key < $1.key }
+            .map { (weekStart, bucket) in
+                let accuracy = bucket.total > 0 ? Double(bucket.correct) / Double(bucket.total) * 100 : 0
+                return WeeklyAccuracyPoint(
+                    weekLabel: dateFormatter.string(from: weekStart),
+                    accuracy: accuracy,
+                    totalQuestions: bucket.total
+                )
+            }
     }
 }
 
@@ -723,6 +796,238 @@ struct FlowLayout<T: Hashable, V: View>: View {
             }
             return Color.clear
         }
+    }
+}
+
+// MARK: - Weekly Accuracy Point
+
+struct WeeklyAccuracyPoint: Identifiable {
+    let id = UUID()
+    let weekLabel: String
+    let accuracy: Double
+    let totalQuestions: Int
+}
+
+// MARK: - Question Source Breakdown Card
+
+struct QuestionSourceBreakdownCard: View {
+    let counts: (homework: Int, practice: Int, mistakeReview: Int)
+
+    private var total: Int { counts.homework + counts.practice + counts.mistakeReview }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                SourceTile(
+                    label: NSLocalizedString("source.homework", comment: "Homework source label"),
+                    count: counts.homework,
+                    total: total,
+                    color: .blue
+                )
+                SourceTile(
+                    label: NSLocalizedString("source.practice", comment: "Practice source label"),
+                    count: counts.practice,
+                    total: total,
+                    color: .green
+                )
+                SourceTile(
+                    label: NSLocalizedString("source.mistakeReview", comment: "Mistake Review source label"),
+                    count: counts.mistakeReview,
+                    total: total,
+                    color: .orange
+                )
+            }
+
+            if total > 0 {
+                // Stacked proportion bar
+                GeometryReader { geo in
+                    HStack(spacing: 2) {
+                        if counts.homework > 0 {
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(Color.blue)
+                                .frame(width: geo.size.width * CGFloat(counts.homework) / CGFloat(total))
+                        }
+                        if counts.practice > 0 {
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(Color.green)
+                                .frame(width: geo.size.width * CGFloat(counts.practice) / CGFloat(total))
+                        }
+                        if counts.mistakeReview > 0 {
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(Color.orange)
+                                .frame(maxWidth: .infinity)
+                        }
+                    }
+                }
+                .frame(height: 8)
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+            }
+        }
+        .padding()
+        .background(Color(.systemGroupedBackground))
+        .cornerRadius(12)
+    }
+}
+
+struct SourceTile: View {
+    let label: String
+    let count: Int
+    let total: Int
+    let color: Color
+
+    private var percentage: Int {
+        guard total > 0 else { return 0 }
+        return Int(round(Double(count) / Double(total) * 100))
+    }
+
+    var body: some View {
+        VStack(spacing: 6) {
+            Text("\(count)")
+                .font(.title3)
+                .fontWeight(.bold)
+
+            Text(label)
+                .font(.caption2)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+
+            Text("\(percentage)%")
+                .font(.caption2)
+                .foregroundColor(color)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
+        .background(color.opacity(0.08))
+        .cornerRadius(10)
+    }
+}
+
+// MARK: - Weekly Accuracy Trend Card
+
+struct WeeklyAccuracyTrendCard: View {
+    let trend: [WeeklyAccuracyPoint]
+    let subjectColor: Color
+
+    private var averageAccuracy: Double {
+        guard !trend.isEmpty else { return 0 }
+        return trend.map { $0.accuracy }.reduce(0, +) / Double(trend.count)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Image(systemName: "chart.line.uptrend.xyaxis")
+                    .foregroundColor(subjectColor)
+                    .font(.subheadline)
+                Text("Weekly Accuracy Trend")
+                    .font(.headline)
+                    .fontWeight(.bold)
+                Spacer()
+                Text("Avg \(Int(averageAccuracy))%")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            if #available(iOS 16.0, *) {
+                Chart {
+                    ForEach(trend) { point in
+                        LineMark(
+                            x: .value("Week", point.weekLabel),
+                            y: .value("Accuracy", point.accuracy)
+                        )
+                        .foregroundStyle(subjectColor.gradient)
+                        .interpolationMethod(.catmullRom)
+
+                        AreaMark(
+                            x: .value("Week", point.weekLabel),
+                            y: .value("Accuracy", point.accuracy)
+                        )
+                        .foregroundStyle(subjectColor.opacity(0.1).gradient)
+                        .interpolationMethod(.catmullRom)
+
+                        PointMark(
+                            x: .value("Week", point.weekLabel),
+                            y: .value("Accuracy", point.accuracy)
+                        )
+                        .foregroundStyle(subjectColor)
+                        .symbolSize(40)
+                        .annotation(position: .top) {
+                            Text("\(Int(point.accuracy))%")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+
+                    // 80% reference line
+                    RuleMark(y: .value("Target", 80))
+                        .foregroundStyle(Color.green.opacity(0.4))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [4]))
+                        .annotation(position: .trailing) {
+                            Text("80%")
+                                .font(.caption2)
+                                .foregroundColor(.green.opacity(0.6))
+                        }
+                }
+                .chartYScale(domain: 0...100)
+                .chartXAxis {
+                    AxisMarks(values: .automatic) { value in
+                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.3))
+                        AxisValueLabel()
+                            .font(.caption2)
+                    }
+                }
+                .chartYAxis {
+                    AxisMarks(values: [0, 25, 50, 75, 100]) { value in
+                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.3))
+                        AxisValueLabel {
+                            if let v = value.as(Double.self) {
+                                Text("\(Int(v))%")
+                                    .font(.caption2)
+                            }
+                        }
+                    }
+                }
+                .frame(height: 180)
+            } else {
+                // iOS 15 fallback: simple row of bars
+                HStack(alignment: .bottom, spacing: 8) {
+                    ForEach(trend) { point in
+                        VStack(spacing: 4) {
+                            Text("\(Int(point.accuracy))%")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(subjectColor)
+                                .frame(height: max(4, CGFloat(point.accuracy) * 0.9))
+                            Text(point.weekLabel)
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+                .frame(height: 110)
+            }
+
+            // Summary row: best week, worst week
+            if let best = trend.max(by: { $0.accuracy < $1.accuracy }),
+               let worst = trend.min(by: { $0.accuracy < $1.accuracy }),
+               best.weekLabel != worst.weekLabel {
+                HStack {
+                    Label("Best: \(best.weekLabel) (\(Int(best.accuracy))%)", systemImage: "arrow.up.circle.fill")
+                        .font(.caption)
+                        .foregroundColor(.green)
+                    Spacer()
+                    Label("Low: \(worst.weekLabel) (\(Int(worst.accuracy))%)", systemImage: "arrow.down.circle.fill")
+                        .font(.caption)
+                        .foregroundColor(.orange)
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemGroupedBackground))
+        .cornerRadius(12)
     }
 }
 

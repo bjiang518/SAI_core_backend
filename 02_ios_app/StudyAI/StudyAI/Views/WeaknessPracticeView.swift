@@ -247,7 +247,8 @@ class WeaknessPracticeViewModel: ObservableObject {
                     originalQuestionId: questionId,
                     studentAnswer: studentAnswer,  // ✅ Include student answer
                     questionImageUrl: questionImageUrl,  // ✅ Include image URL
-                    rawQuestionText: rawQuestionText  // ✅ Include raw text
+                    rawQuestionText: rawQuestionText,  // ✅ Include raw text
+                    weaknessKey: weaknessKey  // ✅ FIX: propagate so QuestionSheetView can record mastery
                 )
 
                 practiceQuestions.append(practiceQuestion)
