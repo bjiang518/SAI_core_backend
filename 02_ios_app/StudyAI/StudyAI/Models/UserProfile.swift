@@ -43,6 +43,7 @@ struct UserProfile: Codable {
     let avatarId: Int? // Profile avatar selection (1-6)
     let customAvatarUrl: String? // Custom uploaded avatar URL
     let onboardingCompleted: Bool
+    let accountRestricted: Bool  // COPPA: restricted account flag
 
     // Computed properties for display
     var fullName: String {
@@ -83,6 +84,7 @@ struct UserProfile: Codable {
         case stateProvince = "stateProvince"
         case country, favoriteSubjects, learningStyle, timezone, languagePreference
         case profileCompletionPercentage, lastUpdated, avatarId, customAvatarUrl, onboardingCompleted
+        case accountRestricted = "account_restricted"
     }
     
     // Custom date handling for JSON
@@ -119,6 +121,7 @@ struct UserProfile: Codable {
         avatarId = try container.decodeIfPresent(Int.self, forKey: .avatarId)
         customAvatarUrl = try container.decodeIfPresent(String.self, forKey: .customAvatarUrl)
         onboardingCompleted = try container.decodeIfPresent(Bool.self, forKey: .onboardingCompleted) ?? false
+        accountRestricted = (try? container.decodeIfPresent(Bool.self, forKey: .accountRestricted)) ?? false
 
         // Handle lastUpdated date
         if let lastUpdatedString = try container.decodeIfPresent(String.self, forKey: .lastUpdated) {
@@ -159,6 +162,7 @@ struct UserProfile: Codable {
         try container.encodeIfPresent(avatarId, forKey: .avatarId)
         try container.encodeIfPresent(customAvatarUrl, forKey: .customAvatarUrl)
         try container.encode(onboardingCompleted, forKey: .onboardingCompleted)
+        try container.encode(accountRestricted, forKey: .accountRestricted)
 
         // Handle lastUpdated encoding
         if let lastUpdated = lastUpdated {
@@ -602,7 +606,8 @@ extension UserProfile {
             lastUpdated: lastUpdated,
             avatarId: avatarId,
             customAvatarUrl: customAvatarUrl,
-            onboardingCompleted: onboardingCompleted
+            onboardingCompleted: onboardingCompleted,
+            accountRestricted: dict["account_restricted"] as? Bool ?? false
         )
     }
     
@@ -703,7 +708,8 @@ extension UserProfile {
         lastUpdated: Date? = nil,
         avatarId: Int? = nil,
         customAvatarUrl: String? = nil,
-        onboardingCompleted: Bool = false
+        onboardingCompleted: Bool = false,
+        accountRestricted: Bool = false
     ) {
         self.id = id
         self.email = email
@@ -729,6 +735,7 @@ extension UserProfile {
         self.avatarId = avatarId
         self.customAvatarUrl = customAvatarUrl
         self.onboardingCompleted = onboardingCompleted
+        self.accountRestricted = accountRestricted
     }
 }
 

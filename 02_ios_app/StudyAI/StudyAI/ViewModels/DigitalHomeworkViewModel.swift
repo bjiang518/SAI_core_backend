@@ -45,6 +45,12 @@ class DigitalHomeworkViewModel: ObservableObject {
     // deep → Gemini, normal → OpenAI
     @Published var useDeepReasoning = false
 
+    // Diagram analysis state (Phase 1.5)
+    @Published var isDiagramAnalysisPending = false
+    @Published var diagramAnalysisFailed = false
+    @Published var questionsUnderDiagramAnalysis: Set<String> = []
+    @Published var questionsMissingDiagramImage: Set<String> = []
+
     // ✅ NEW: Enhanced grading animations
     @Published var currentGradingStatus = ""  // Dynamic status message during grading
     @Published var gradingAnimation: GradingAnimation = .idle
@@ -144,6 +150,11 @@ class DigitalHomeworkViewModel: ObservableObject {
     var allQuestionsGraded: Bool {
         // ✅ SIMPLIFIED: Only check global state - this is the source of truth
         return stateManager.currentState == .graded
+    }
+
+    /// Grade button is enabled only when diagram analysis is complete and not already grading
+    var isGradingEnabled: Bool {
+        !isDiagramAnalysisPending && !isGrading && !questions.isEmpty
     }
 
     var hasValidAnnotations: Bool {
@@ -633,6 +644,7 @@ class DigitalHomeworkViewModel: ObservableObject {
                     updatedImages[imageKey] = compressedImage
                     objectWillChange.send()
                     stateManager.updateHomework(croppedImages: updatedImages)
+                    questionsMissingDiagramImage.remove(imageKey)
 
                     let originalSize = croppedUIImage.pngData()?.count ?? 0
                     let compressedSize = jpegData.count
@@ -691,6 +703,255 @@ class DigitalHomeworkViewModel: ObservableObject {
             stateManager.updateHomework(croppedImages: updatedImages)
             logger.debug("Synced cropped images: \(updatedImages.count) images remain")
         }
+    }
+
+    // MARK: - Diagram Analysis (Phase 1.5)
+
+    /// Run after parse. Finds diagram bounding boxes for need_image=true questions,
+    /// auto-crops them, and attaches to croppedImages. Blocks grade button until done.
+    /// If no questions need images, or analysis already ran, returns immediately.
+    func runDiagramAnalysisIfNeeded() async {
+        // Skip if already running
+        guard !isDiagramAnalysisPending else { return }
+
+        let needImageQuestions = questions.filter { $0.question.needImage == true }
+        guard !needImageQuestions.isEmpty else {
+            logger.info("No need_image questions — skipping diagram analysis")
+            return
+        }
+
+        logger.info("Starting diagram analysis for \(needImageQuestions.count) questions")
+        print("🔍 [DiagramAnalysis] STEP 1: Found \(needImageQuestions.count) need_image questions: \(needImageQuestions.map { $0.question.id })")
+        print("🔍 [DiagramAnalysis] originalImages.count = \(originalImages.count)")
+
+        // Collect all IDs that need an image (top-level + subquestions)
+        var allNeedImageIds = Set<String>()
+        for qwg in needImageQuestions {
+            allNeedImageIds.insert(qwg.question.id)
+            for sub in qwg.question.subquestions ?? [] where sub.needImage == true {
+                allNeedImageIds.insert(sub.id)
+            }
+        }
+
+        await MainActor.run {
+            isDiagramAnalysisPending = true
+            diagramAnalysisFailed = false
+            questionsUnderDiagramAnalysis = allNeedImageIds
+        }
+
+        defer {
+            Task { @MainActor in
+                isDiagramAnalysisPending = false
+            }
+        }
+
+        // Group questions by pageNumber (each page = one batch call)
+        var byPage: [Int: [(question: ProgressiveQuestionWithGrade, image: UIImage)]] = [:]
+        for qwg in needImageQuestions {
+            let pageIndex = (qwg.question.pageNumber ?? 1) - 1
+            guard pageIndex < originalImages.count else {
+                print("🔍 [DiagramAnalysis] ⚠️ pageIndex \(pageIndex) out of bounds (count=\(originalImages.count)) for q=\(qwg.question.id)")
+                continue
+            }
+            byPage[pageIndex, default: []].append((qwg, originalImages[pageIndex]))
+        }
+
+        print("🔍 [DiagramAnalysis] STEP 2: byPage keys = \(byPage.keys.sorted())")
+
+        // Capture base state once — task children must not read ViewModel properties directly
+        let baseAnnotations = annotations
+
+        // Collect per-page results in parallel, then apply a single atomic write
+        typealias PageResult = (crops: [String: UIImage], annotations: [QuestionAnnotation])
+        var mergedCrops: [String: UIImage] = [:]
+        var mergedAnnotations: [QuestionAnnotation] = baseAnnotations
+
+        await withTaskGroup(of: PageResult?.self) { group in
+            for (pageIndex, entries) in byPage {
+                group.addTask {
+                    await self.locateAndCropDiagrams(entries: entries, pageIndex: pageIndex)
+                }
+            }
+            for await result in group {
+                guard let result else { continue }
+                mergedCrops.merge(result.crops) { _, new in new }
+                for ann in result.annotations {
+                    if !mergedAnnotations.contains(where: { $0.questionNumber == ann.questionNumber }) {
+                        mergedAnnotations.append(ann)
+                    }
+                }
+            }
+        }
+
+        let foundIds = Set(mergedCrops.keys)
+        let notFoundIds = allNeedImageIds.subtracting(foundIds)
+        await MainActor.run {
+            questionsUnderDiagramAnalysis = []
+            questionsMissingDiagramImage.formUnion(notFoundIds)
+            for id in foundIds { questionsMissingDiagramImage.remove(id) }
+            if !mergedCrops.isEmpty {
+                stateManager.updateHomework(annotations: mergedAnnotations, croppedImages: mergedCrops)
+                print("🔍 [DiagramAnalysis] STEP 6c: stateManager updated — croppedImages.count=\(stateManager.currentHomework?.croppedImages.count ?? -1)")
+            }
+        }
+
+        print("🔍 [DiagramAnalysis] STEP 7: COMPLETE — crops=\(mergedCrops.count), keys=\(mergedCrops.keys.sorted())")
+        logger.info("Diagram analysis complete. Cropped images: \(mergedCrops.count)")
+    }
+
+    // Returns per-page crops and annotations; never writes to stateManager directly.
+    private func locateAndCropDiagrams(
+        entries: [(question: ProgressiveQuestionWithGrade, image: UIImage)],
+        pageIndex: Int
+    ) async -> (crops: [String: UIImage], annotations: [QuestionAnnotation])? {
+        guard let image = entries.first?.image else {
+            print("🔍 [DiagramAnalysis] STEP 3 FAIL: could not get image for pageIndex=\(pageIndex)")
+            return nil
+        }
+
+        // Compress to 1024px/0.7 for the API call (same as parse) to stay under 5MB body limit.
+        // The original full-res image is kept for cropping — normalized coords are scale-independent.
+        let apiImage = image.resizedForUpload(maxDimension: 1024)
+        guard let jpegData = apiImage.jpegData(compressionQuality: 0.7) else {
+            print("🔍 [DiagramAnalysis] STEP 3 FAIL: could not compress image for pageIndex=\(pageIndex)")
+            return nil
+        }
+
+        print("🔍 [DiagramAnalysis] STEP 3: image size=\(image.size) → api size=\(apiImage.size) pageIndex=\(pageIndex) jpegData=\(jpegData.count) bytes")
+        let base64Image = jpegData.base64EncodedString()
+
+        // Build DiagramQuestion list (top-level + subquestions that need images)
+        var diagramQuestions: [DiagramQuestion] = []
+        for entry in entries {
+            let q = entry.question.question
+            diagramQuestions.append(DiagramQuestion(
+                id: q.id,
+                questionNumber: q.questionNumber,
+                questionText: q.displayText.isEmpty ? nil : String(q.displayText.prefix(200))
+            ))
+            for sub in q.subquestions ?? [] where sub.needImage == true {
+                diagramQuestions.append(DiagramQuestion(
+                    id: sub.id,
+                    questionNumber: sub.id,
+                    questionText: String(sub.questionText.prefix(200))
+                ))
+            }
+        }
+
+        print("🔍 [DiagramAnalysis] STEP 4: sending \(diagramQuestions.count) questions to API: \(diagramQuestions.map { "\($0.id)=\($0.questionText?.prefix(30) ?? "nil")" })")
+
+        do {
+            let response = try await networkService.locateDiagramRegions(
+                base64Image: base64Image,
+                questions: diagramQuestions
+            )
+
+            print("🔍 [DiagramAnalysis] STEP 5: API response success=\(response.success) regions=\(response.regions.count) error=\(response.error ?? "nil")")
+            for r in response.regions {
+                print("🔍 [DiagramAnalysis]   region qid=\(r.questionId) topLeft=\(r.imageRegion.topLeft) bottomRight=\(r.imageRegion.bottomRight) confidence=\(r.confidence)")
+            }
+
+            guard response.success else {
+                logger.warning("locate-diagram-regions returned success=false: \(response.error ?? "unknown")")
+                await MainActor.run { diagramAnalysisFailed = true }
+                return nil
+            }
+
+            // Build region lookup: questionId → ImageRegion
+            var regionMap: [String: ImageRegion] = [:]
+            for result in response.regions {
+                regionMap[result.questionId] = result.imageRegion
+            }
+
+            // Crop from full-res orientation-normalized image
+            guard let normalizedImage = image.normalizedOrientation() else {
+                print("🔍 [DiagramAnalysis] STEP 6 FAIL: normalizedOrientation() returned nil for image size=\(image.size)")
+                return nil
+            }
+            print("🔍 [DiagramAnalysis] STEP 6: normalizedImage size=\(normalizedImage.size) cgImage=\(normalizedImage.cgImage != nil)")
+
+            var pageCrops: [String: UIImage] = [:]
+            var pageAnnotations: [QuestionAnnotation] = []
+
+            for entry in entries {
+                let q = entry.question.question
+
+                // Parent/independent question
+                if let region = regionMap[q.id] {
+                    if let cropped = cropRegion(region, from: normalizedImage) {
+                        pageCrops[q.id] = cropped
+                        print("🔍 [DiagramAnalysis] ✅ Cropped q.id=\(q.id) size=\(cropped.size)")
+                        addAnnotationIfAbsent(
+                            region: region,
+                            questionNumber: q.questionNumber,
+                            pageIndex: pageIndex,
+                            into: &pageAnnotations
+                        )
+                    } else {
+                        print("🔍 [DiagramAnalysis] ❌ cropRegion returned nil for q.id=\(q.id) tl=\(region.topLeft) br=\(region.bottomRight)")
+                    }
+                } else {
+                    print("🔍 [DiagramAnalysis] ⚠️ no region in regionMap for q.id=\(q.id) — regionMap keys=\(regionMap.keys.sorted())")
+                }
+
+                // Subquestions — use their own region, fallback to parent's
+                let parentRegion = regionMap[q.id]
+                for sub in q.subquestions ?? [] {
+                    let subRegion = regionMap[sub.id] ?? parentRegion
+                    if let subRegion, let cropped = cropRegion(subRegion, from: normalizedImage) {
+                        pageCrops[sub.id] = cropped
+                        print("🔍 [DiagramAnalysis] ✅ Cropped sub.id=\(sub.id) size=\(cropped.size)")
+                    }
+                }
+            }
+
+            print("🔍 [DiagramAnalysis] STEP 6b: page \(pageIndex) produced crops=\(pageCrops.count) annotations=\(pageAnnotations.count)")
+            return (crops: pageCrops, annotations: pageAnnotations)
+
+        } catch {
+            print("🔍 [DiagramAnalysis] ❌ CATCH: \(error)")
+            logger.warning("locate-diagram-regions call failed (will grade without image context): \(error.localizedDescription)")
+            await MainActor.run { diagramAnalysisFailed = true }
+            return nil
+        }
+    }
+
+    private func cropRegion(_ region: ImageRegion, from image: UIImage) -> UIImage? {
+        let w = image.size.width
+        let h = image.size.height
+        let rect = CGRect(
+            x: CGFloat(region.topLeft[0]) * w,
+            y: CGFloat(region.topLeft[1]) * h,
+            width: CGFloat(region.bottomRight[0] - region.topLeft[0]) * w,
+            height: CGFloat(region.bottomRight[1] - region.topLeft[1]) * h
+        )
+        print("🔍 [DiagramAnalysis] cropRegion: imageSize=(\(w)x\(h)) rect=\(rect) cgImage=\(image.cgImage != nil)")
+        guard rect.width > 10, rect.height > 10 else {
+            print("🔍 [DiagramAnalysis] cropRegion FAIL: rect too small \(rect)")
+            return nil
+        }
+        guard let cgCropped = image.cgImage?.cropping(to: rect) else {
+            print("🔍 [DiagramAnalysis] cropRegion FAIL: cgImage?.cropping returned nil")
+            return nil
+        }
+        return UIImage(cgImage: cgCropped)
+    }
+
+    private func addAnnotationIfAbsent(
+        region: ImageRegion,
+        questionNumber: String?,
+        pageIndex: Int,
+        into annotations: inout [QuestionAnnotation]
+    ) {
+        guard let questionNumber else { return }
+        guard !annotations.contains(where: { $0.questionNumber == questionNumber }) else { return }
+        annotations.append(QuestionAnnotation(
+            topLeft: region.topLeft,
+            bottomRight: region.bottomRight,
+            questionNumber: questionNumber,
+            color: annotationColor(for: annotations.count),
+            pageIndex: pageIndex
+        ))
     }
 
     // MARK: - AI Grading
@@ -2182,5 +2443,18 @@ extension UIImage {
         draw(in: CGRect(origin: .zero, size: size))
 
         return UIGraphicsGetImageFromCurrentImageContext()
+    }
+
+    /// Resize to fit within maxDimension (preserving aspect ratio) for API uploads.
+    /// Returns self unchanged if already within bounds.
+    func resizedForUpload(maxDimension: CGFloat) -> UIImage {
+        let maxSide = max(size.width, size.height)
+        guard maxSide > maxDimension else { return self }
+        let ratio = maxDimension / maxSide
+        let newSize = CGSize(width: size.width * ratio, height: size.height * ratio)
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        return renderer.image { _ in
+            draw(in: CGRect(origin: .zero, size: newSize))
+        }
     }
 }

@@ -400,6 +400,18 @@
 "auth.signIn" = "Iniciar sesión";
 "auth.dontHaveAccount" = "Don't have an account?";
 "auth.signUp" = "Sign Up";
+"auth.continueAsGuest" = "Continuar como invitado";
+"upgrade.title" = "Desbloquear más funciones";
+"upgrade.createFreeAccount" = "Crear cuenta gratuita";
+"upgrade.upgradeToPremium" = "Actualizar a Premium";
+"upgrade.monthlyLimitReached" = "Límite mensual alcanzado";
+"upgrade.coppaRestricted" = "Función restringida";
+"upgrade.createAccountSubtitle" = "Crea una cuenta gratuita para guardar tu progreso.";
+"upgrade.upgradeToPremiumSubtitle" = "Acceso ilimitado con Premium.";
+"upgrade.monthlyLimitSubtitle" = "Has agotado tu cuota mensual. Actualiza para obtener más.";
+"upgrade.coppaRestrictedSubtitle" = "Pide a un padre o tutor que desbloquee esta función.";
+"upgrade.continueFree" = "Continuar gratis";
+"common.dismiss" = "Cerrar";
 "faceIDReauth.title" = "Sesión expirada";
 "faceIDReauth.message" = "Por tu seguridad, necesitas volver a autenticarte.";
 "faceIDReauth.biometricPrompt" = "Usa %@ para continuar donde lo dejaste.";
@@ -1852,6 +1864,7 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "proMode.addAnnotation" = "Add Annotation";
 "proMode.editAnnotations" = "Edit Annotations (%d)";
 "proMode.annotationImageHint" = "Some questions need images — tap to crop from photo";
+"proMode.aiAnalyzeDiagrams" = "Localizar automáticamente regiones de diagramas con IA";
 "proMode.selectAIModel" = "Select AI Model";
 "proMode.revertGrading" = "Revert Grading";
 "proMode.revertGradingAlert.title" = "Revert Grading?";
@@ -1911,6 +1924,8 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "proMode.grading.grading" = "Grading Q%@...";
 "proMode.grading.progress" = "Completed %d/%d (%d%%)";
 "proMode.grading.complete" = "Grading complete!";
+"proMode.analyzingDiagrams" = "Analizando regiones de diagrama…";
+"proMode.diagramAnalysisFailed" = "Calificando sin contexto de imagen";
 
 // PDF Preview
 "pdfPreview.title" = "PDF Preview";

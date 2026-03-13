@@ -10,6 +10,7 @@
  */
 
 const { getUserId } = require('../utils/auth-helper');
+const tierCheck = require('../../../../middleware/tier-check');
 
 module.exports = async function (fastify, opts) {
   /**
@@ -19,7 +20,9 @@ module.exports = async function (fastify, opts) {
    * Flow: iOS → Backend → AI Engine → Backend → iOS
    * Backend does NOT save results (iOS saves locally)
    */
-  fastify.post('/api/ai/analyze-errors-batch', async (request, reply) => {
+  fastify.post('/api/ai/analyze-errors-batch', {
+    preHandler: [tierCheck({ feature: 'error_analysis' })]
+  }, async (request, reply) => {
     const userId = await getUserId(request);  // ✅ FIX: Validate authentication
     const { questions } = request.body;
 

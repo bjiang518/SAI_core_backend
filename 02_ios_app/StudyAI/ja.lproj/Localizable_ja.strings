@@ -400,6 +400,18 @@
 "auth.signIn" = "ログイン";
 "auth.dontHaveAccount" = "Don't have an account?";
 "auth.signUp" = "Sign Up";
+"auth.continueAsGuest" = "ゲストとして続ける";
+"upgrade.title" = "より多くの機能をアンロック";
+"upgrade.createFreeAccount" = "無料アカウントを作成";
+"upgrade.upgradeToPremium" = "プレミアムにアップグレード";
+"upgrade.monthlyLimitReached" = "月間利用上限に達しました";
+"upgrade.coppaRestricted" = "機能が制限されています";
+"upgrade.createAccountSubtitle" = "無料アカウントを作成して進捗を保存しましょう。";
+"upgrade.upgradeToPremiumSubtitle" = "プレミアムで無制限にアクセス。";
+"upgrade.monthlyLimitSubtitle" = "今月の利用枠を使い切りました。アップグレードでさらに。";
+"upgrade.coppaRestrictedSubtitle" = "保護者にこの機能を解除してもらってください。";
+"upgrade.continueFree" = "無料で続ける";
+"common.dismiss" = "閉じる";
 "faceIDReauth.title" = "セッションの有効期限切れ";
 "faceIDReauth.message" = "セキュリティのため、再認証が必要です。";
 "faceIDReauth.biometricPrompt" = "%@ を使用して続きから再開できます。";
@@ -1851,6 +1863,7 @@
 "proMode.addAnnotation" = "Add Annotation";
 "proMode.editAnnotations" = "Edit Annotations (%d)";
 "proMode.annotationImageHint" = "Some questions need images — tap to crop from photo";
+"proMode.aiAnalyzeDiagrams" = "AIで図の領域を自動検出";
 "proMode.selectAIModel" = "Select AI Model";
 "proMode.revertGrading" = "Revert Grading";
 "proMode.revertGradingAlert.title" = "Revert Grading?";
@@ -1910,6 +1923,8 @@
 "proMode.grading.grading" = "Grading Q%@...";
 "proMode.grading.progress" = "Completed %d/%d (%d%%)";
 "proMode.grading.complete" = "Grading complete!";
+"proMode.analyzingDiagrams" = "図の領域を分析中…";
+"proMode.diagramAnalysisFailed" = "画像コンテキストなしで採点";
 
 // PDF Preview
 "pdfPreview.title" = "PDF Preview";

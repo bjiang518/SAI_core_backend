@@ -535,7 +535,23 @@ class NetworkService: ObservableObject {
             return (false, "Login request failed: \(error.localizedDescription)", nil, nil, nil)
         }
     }
-    
+
+    // MARK: - Anonymous / Guest Login
+    func anonymousLogin() async throws -> [String: Any] {
+        let url = URL(string: "\(baseURL)/api/auth/anonymous")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: [:])
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode == 200,
+              let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw URLError(.badServerResponse)
+        }
+        return json
+    }
+
     // MARK: - Question Processing
     func submitQuestion(question: String, subject: String = "general") async -> (success: Bool, answer: String?) {
         // Try AI Engine first (with improved prompts)
@@ -1404,11 +1420,29 @@ class NetworkService: ObservableObject {
                 if httpResponse.statusCode == 401 {
                     AuthenticationService.shared.handleExpiredSession()
                 }
+                if httpResponse.statusCode == 429 || httpResponse.statusCode == 403 {
+                    if let errorJson = try? JSONDecoder().decode([String: String].self, from: Data(errorBody.utf8)) {
+                        let code = errorJson["error"] ?? ""
+                        if code == "MONTHLY_LIMIT_REACHED" || code == "LIFETIME_LIMIT_REACHED" || code == "UPGRADE_REQUIRED" {
+                            await MainActor.run {
+                                UsageService.shared.flagLimitReached(feature: "chat_messages", errorCode: code)
+                            }
+                        }
+                    }
+                }
                 onComplete(false, nil, nil, nil)
                 return false
             }
 
             print("✅ Streaming connection established, receiving AI response...")
+
+            // Read usage remaining header for UI badge
+            if let remaining = httpResponse.value(forHTTPHeaderField: "X-Usage-Remaining"),
+               let count = Int(remaining) {
+                await MainActor.run {
+                    UsageService.shared.update(feature: "chat_messages", remaining: count)
+                }
+            }
 
             var accumulatedText = ""
             var buffer = ""
@@ -2573,8 +2607,21 @@ class NetworkService: ObservableObject {
             if let httpResponse = response as? HTTPURLResponse {
                 if let responseData = String(data: data, encoding: .utf8) {
                     if httpResponse.statusCode == 200 {
+                        // Track usage remaining
+                        if let remaining = httpResponse.value(forHTTPHeaderField: "X-Usage-Remaining"),
+                           let count = Int(remaining) {
+                            UsageService.shared.update(feature: "homework_single", remaining: count)
+                        }
                         print("✅ Raw AI Response: \(String(responseData.prefix(200)))...")
                         return (true, responseData)
+                    } else if httpResponse.statusCode == 429 || httpResponse.statusCode == 403 {
+                        if let errorJson = try? JSONDecoder().decode([String: String].self, from: data) {
+                            let code = errorJson["error"] ?? ""
+                            if code == "MONTHLY_LIMIT_REACHED" || code == "LIFETIME_LIMIT_REACHED" || code == "UPGRADE_REQUIRED" {
+                                UsageService.shared.flagLimitReached(feature: "homework_single", errorCode: code)
+                            }
+                        }
+                        return (false, "HTTP \(httpResponse.statusCode): \(responseData)")
                     } else {
                         return (false, "HTTP \(httpResponse.statusCode): \(responseData)")
                     }
@@ -3184,6 +3231,50 @@ class NetworkService: ObservableObject {
         return gradeResponse
     }
     
+    // MARK: - Locate Diagram Regions (Phase 1.5)
+
+    /// Locate diagram bounding boxes for need_image=true questions.
+    /// Single batch call per page. 30s timeout — failure is acceptable (grade proceeds without image context).
+    func locateDiagramRegions(
+        base64Image: String,
+        questions: [DiagramQuestion]
+    ) async throws -> LocateDiagramRegionsResponse {
+        guard let url = URL(string: "\(baseURL)/api/ai/locate-diagram-regions") else {
+            throw NetworkError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 30.0  // 30s — Gemini spatial analysis can take 10-20s
+
+        if let token = AuthenticationService.shared.getAuthToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        let questionsPayload = questions.map { q -> [String: Any] in
+            var d: [String: Any] = ["id": q.id]
+            if let num = q.questionNumber { d["question_number"] = num }
+            if let text = q.questionText { d["question_text"] = text }
+            return d
+        }
+
+        let body: [String: Any] = [
+            "base64_image": base64Image,
+            "questions": questionsPayload
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+            throw NetworkError.invalidResponse
+        }
+
+        let decoder = JSONDecoder()
+        return try decoder.decode(LocateDiagramRegionsResponse.self, from: data)
+    }
+
     // MARK: - Registration
     func register(name: String, email: String, password: String) async -> (success: Bool, message: String, token: String?, userData: [String: Any]?, statusCode: Int?) {
         print("📝 Testing registration functionality...")

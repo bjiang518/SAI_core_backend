@@ -20,6 +20,9 @@ struct ModernLoginView: View {
     @FocusState private var focusedField: Field?
     @State private var keyboardHeight: CGFloat = 0  // Track keyboard height
 
+    /// When true: shows "Save Your Progress" header and hides the guest button.
+    /// Used by guest conversion flow.
+    var conversionMode: Bool = false
     var onLoginSuccess: () -> Void
 
     enum Field {
@@ -418,18 +421,33 @@ struct ModernLoginView: View {
     // MARK: - Sign Up Prompt
     
     private var signUpPrompt: some View {
-        HStack {
-            Text(NSLocalizedString("auth.dontHaveAccount", comment: "Don't have account text"))
-                .font(.caption)
-                .foregroundColor(.secondary)  // ✅ Adaptive
+        VStack(spacing: 4) {
+            HStack {
+                Text(NSLocalizedString("auth.dontHaveAccount", comment: "Don't have account text"))
+                    .font(.caption)
+                    .foregroundColor(.secondary)  // ✅ Adaptive
 
-            Button(NSLocalizedString("auth.signUp", comment: "Sign up button")) {
-                showingSignUp = true
+                Button(NSLocalizedString("auth.signUp", comment: "Sign up button")) {
+                    showingSignUp = true
+                }
+                .font(.headline)
+                .foregroundColor(.blue)
             }
-            .font(.headline)
-            .foregroundColor(.blue)
+            .padding(.top, 8)
+
+            if !conversionMode {
+                Divider().padding(.vertical, 4)
+
+                Button {
+                    Task { await authService.signInAsGuest() }
+                } label: {
+                    Text(NSLocalizedString("auth.continueAsGuest", comment: "Continue as Guest button"))
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                .disabled(authService.isLoading)
+            }
         }
-        .padding(.top, 8)
     }
     
     // MARK: - Helper Views
