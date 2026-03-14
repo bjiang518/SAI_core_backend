@@ -865,8 +865,8 @@ final class AuthenticationService: ObservableObject {
                 tier: .free,
                 isAnonymous: true
             )
-            keychainService.saveToken(token)
-            keychainService.saveUser(guestUser)
+            try keychainService.saveAuthToken(token)
+            try keychainService.saveUser(guestUser)
             await MainActor.run {
                 currentUser = guestUser
                 isAuthenticated = true

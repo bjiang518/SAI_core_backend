@@ -907,49 +907,86 @@ struct DigitalHomeworkView: View {
         let expandedHeight = geometry.size.height * 0.33
 
         return VStack(spacing: 0) {
-            // Header row — always visible; tap to expand/collapse
-            Button(action: {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                    viewModel.isAnnotationSectionExpanded.toggle()
-                }
-            }) {
-                HStack(spacing: 10) {
-                    Image(systemName: "photo.on.rectangle.angled")
-                        .font(.system(size: 15))
-                        .foregroundColor(.blue)
-
-                    Text(viewModel.annotations.isEmpty
-                        ? NSLocalizedString("proMode.addAnnotation", comment: "Add Annotation")
-                        : String(format: NSLocalizedString("proMode.editAnnotations", comment: ""), viewModel.annotations.count))
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(.primary)
-
-                    Spacer()
-
-                    if !viewModel.annotations.isEmpty {
-                        Text("\(viewModel.annotations.count)")
-                            .font(.caption2)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 3)
-                            .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary)
-                            .cornerRadius(8)
-                    } else if viewModel.anyQuestionNeedsImage {
-                        Image(systemName: "exclamationmark.circle.fill")
-                            .font(.caption)
-                            .foregroundColor(.orange)
+            // Header row — always visible; tap left side to expand/collapse
+            ZStack(alignment: .trailing) {
+                // Full-width tap area for expand/collapse
+                Button(action: {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                        viewModel.isAnnotationSectionExpanded.toggle()
                     }
+                }) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "photo.on.rectangle.angled")
+                            .font(.system(size: 15))
+                            .foregroundColor(.blue)
 
-                    Image(systemName: viewModel.isAnnotationSectionExpanded ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.secondary)
+                        Text(viewModel.annotations.isEmpty
+                            ? NSLocalizedString("proMode.addAnnotation", comment: "Add Annotation")
+                            : String(format: NSLocalizedString("proMode.editAnnotations", comment: ""), viewModel.annotations.count))
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.primary)
+
+                        Spacer()
+
+                        if !viewModel.annotations.isEmpty {
+                            Text("\(viewModel.annotations.count)")
+                                .font(.caption2)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 3)
+                                .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary)
+                                .cornerRadius(8)
+                        } else if viewModel.anyQuestionNeedsImage {
+                            Image(systemName: "exclamationmark.circle.fill")
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                        }
+
+                        // Spacer for AI button + chevron
+                        Color.clear.frame(width: viewModel.anyQuestionNeedsImage ? 70 : 20, height: 1)
+
+                        Image(systemName: viewModel.isAnnotationSectionExpanded ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(height: collapsedHeight)
+                    .padding(.horizontal, 16)
                 }
-                .frame(height: collapsedHeight)
-                .padding(.horizontal, 16)
+                .buttonStyle(.plain)
+
+                // AI crop button — overlaid on trailing edge, outside the toggle tap area
+                if viewModel.anyQuestionNeedsImage {
+                    Button(action: {
+                        Task { await viewModel.runDiagramAnalysisIfNeeded() }
+                    }) {
+                        ZStack {
+                            if viewModel.isDiagramAnalysisPending {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    .scaleEffect(0.65)
+                            } else {
+                                Image(systemName: "sparkles")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor(.white)
+                            }
+                        }
+                        .frame(width: 30, height: 30)
+                        .background(
+                            Circle().fill(
+                                LinearGradient(colors: [.orange, Color.pink.opacity(0.8)],
+                                               startPoint: .topLeading, endPoint: .bottomTrailing)
+                            )
+                        )
+                        .shadow(color: .orange.opacity(0.4), radius: 4, x: 0, y: 2)
+                    }
+                    .disabled(viewModel.isDiagramAnalysisPending)
+                    .accessibilityLabel(NSLocalizedString("proMode.aiAnalyzeDiagrams",
+                                         comment: "Auto-locate diagram regions with AI"))
+                    .padding(.trailing, 44)  // leave room for chevron
+                }
             }
-            .buttonStyle(.plain)
 
             // Expanded image + annotation button
             if viewModel.isAnnotationSectionExpanded {
@@ -986,66 +1023,34 @@ struct DigitalHomeworkView: View {
 
             // 添加标注按钮
             VStack(spacing: 6) {
-                HStack(spacing: 10) {
-                    Button(action: {
-                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                            viewModel.showAnnotationMode = true
-                        }
-                    }) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "pencil.circle.fill")
-                            Text(viewModel.annotations.isEmpty ? NSLocalizedString("proMode.addAnnotation", comment: "Add Annotation") : String(format: NSLocalizedString("proMode.editAnnotations", comment: "Edit Annotations (count)"), viewModel.annotations.count))
-                        }
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 10)
-                        .background(
-                            LinearGradient(
-                                colors: [themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary,
-                                         (themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary).opacity(0.8)],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
+                Button(action: {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        viewModel.showAnnotationMode = true
+                    }
+                }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "pencil.circle.fill")
+                        Text(viewModel.annotations.isEmpty ? NSLocalizedString("proMode.addAnnotation", comment: "Add Annotation") : String(format: NSLocalizedString("proMode.editAnnotations", comment: "Edit Annotations (count)"), viewModel.annotations.count))
+                    }
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
+                    .background(
+                        LinearGradient(
+                            colors: [themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary,
+                                     (themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary).opacity(0.8)],
+                            startPoint: .leading,
+                            endPoint: .trailing
                         )
-                        .cornerRadius(20)
-                        .shadow(color: (themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary).opacity(annotationGlowPulse ? 0.75 : 0.3),
-                                radius: annotationGlowPulse ? 12 : 4, x: 0, y: 2)
-                        .scaleEffect(annotationGlowPulse ? 1.04 : 1.0)
-                        .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true),
-                                   value: annotationGlowPulse)
-                    }
-
-                    // AI crop button — only when any question needs an image
-                    if viewModel.anyQuestionNeedsImage {
-                        Button(action: {
-                            Task { await viewModel.runDiagramAnalysisIfNeeded() }
-                        }) {
-                            ZStack {
-                                if viewModel.isDiagramAnalysisPending {
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                        .scaleEffect(0.75)
-                                } else {
-                                    Image(systemName: "sparkles")
-                                        .font(.system(size: 15, weight: .semibold))
-                                        .foregroundColor(.white)
-                                }
-                            }
-                            .frame(width: 36, height: 36)
-                            .background(
-                                Circle().fill(
-                                    LinearGradient(colors: [.orange, Color.pink.opacity(0.8)],
-                                                   startPoint: .topLeading, endPoint: .bottomTrailing)
-                                )
-                            )
-                            .shadow(color: .orange.opacity(0.35), radius: 5, x: 0, y: 2)
-                        }
-                        .disabled(viewModel.isDiagramAnalysisPending)
-                        .accessibilityLabel(NSLocalizedString("proMode.aiAnalyzeDiagrams",
-                                             comment: "Auto-locate diagram regions with AI"))
-                    }
+                    )
+                    .cornerRadius(20)
+                    .shadow(color: (themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary).opacity(annotationGlowPulse ? 0.75 : 0.3),
+                            radius: annotationGlowPulse ? 12 : 4, x: 0, y: 2)
+                    .scaleEffect(annotationGlowPulse ? 1.04 : 1.0)
+                    .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true),
+                               value: annotationGlowPulse)
                 }
 
                 // Hint banner: shown when any question needs an image, no annotation exists, and diagram analysis is not running
@@ -2202,6 +2207,7 @@ struct QuestionCard: View {
                                 modelType: modelType,
                                 isArchived: questionWithGrade.archivedSubquestions.contains(subquestion.id),  // ✅ NEW: Check if archived
                                 croppedImage: subquestionCroppedImages[subquestion.id],
+                                missingDiagramImageIds: missingDiagramImageIds,
                                 onAskAI: {
                                     // ✅ FIXED: Pass subquestion to parent callback
                                     print("💬 Ask AI for subquestion \(subquestion.id)")
@@ -2221,8 +2227,7 @@ struct QuestionCard: View {
                                     // ✅ NEW: Regrade only this subquestion
                                     print("🔄 Regrade subquestion \(subquestion.id)")
                                     onRegradeSubquestion?(subquestion.id)
-                                },
-                                missingDiagramImageIds: missingDiagramImageIds
+                                }
                             )
                         }
                     }
