@@ -481,6 +481,9 @@ if (features.useGateway) {
   // Payments + Apple webhook routes (IAP receipt validation, tier sync)
   fastify.register(require('./routes/payments'));
 
+  // Account routes — usage summary for authenticated user
+  fastify.register(require('./routes/account-routes'));
+
   fastify.log.info('✅ API Gateway enabled with enhanced routing and performance optimization');
 } else {
   // Fallback to simple health check only

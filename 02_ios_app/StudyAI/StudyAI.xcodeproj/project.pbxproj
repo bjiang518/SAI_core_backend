@@ -597,6 +597,9 @@
 		7B278D0B2F64F57000DA84B0 /* UpgradeComparisonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278D0A2F64F57000DA84B0 /* UpgradeComparisonView.swift */; };
 		7B278D0C2F64F57000DA84B0 /* UpgradeComparisonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278D0A2F64F57000DA84B0 /* UpgradeComparisonView.swift */; };
 		7B278D0D2F64F57000DA84B0 /* UpgradeComparisonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278D0A2F64F57000DA84B0 /* UpgradeComparisonView.swift */; };
+		7BAU0001ACCU2F6500DA84B0 /* AccountUsageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BAU0000ACCU2F6500DA84B0 /* AccountUsageView.swift */; };
+		7BAU0002ACCU2F6500DA84B0 /* AccountUsageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BAU0000ACCU2F6500DA84B0 /* AccountUsageView.swift */; };
+		7BAU0003ACCU2F6500DA84B0 /* AccountUsageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BAU0000ACCU2F6500DA84B0 /* AccountUsageView.swift */; };
 		7B278D132F65319500DA84B0 /* Upgrade.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B278D122F65319500DA84B0 /* Upgrade.json */; };
 		7B278D142F65319500DA84B0 /* Upgrade.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B278D122F65319500DA84B0 /* Upgrade.json */; };
 		7B278D152F65319500DA84B0 /* Upgrade.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B278D122F65319500DA84B0 /* Upgrade.json */; };
@@ -1220,6 +1223,7 @@
 		7B278B7B2F64DC7500DA84B0 /* UnifiedImageEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedImageEditorView.swift; sourceTree = "<group>"; };
 		7B278B7C2F64DC7500DA84B0 /* UnifiedLibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedLibraryView.swift; sourceTree = "<group>"; };
 		7B278B7D2F64DC7500DA84B0 /* UpgradePromptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpgradePromptView.swift; sourceTree = "<group>"; };
+		7BAU0000ACCU2F6500DA84B0 /* AccountUsageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountUsageView.swift; sourceTree = "<group>"; };
 		7B278B7E2F64DC7500DA84B0 /* UserMusicPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserMusicPickerView.swift; sourceTree = "<group>"; };
 		7B278B7F2F64DC7500DA84B0 /* VerticalPagesViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerticalPagesViewer.swift; sourceTree = "<group>"; };
 		7B278B802F64DC7500DA84B0 /* VoiceSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceSettingsView.swift; sourceTree = "<group>"; };
@@ -1660,6 +1664,7 @@
 				7B278B7B2F64DC7500DA84B0 /* UnifiedImageEditorView.swift */,
 				7B278B7C2F64DC7500DA84B0 /* UnifiedLibraryView.swift */,
 				7B278B7D2F64DC7500DA84B0 /* UpgradePromptView.swift */,
+				7BAU0000ACCU2F6500DA84B0 /* AccountUsageView.swift */,
 				7B278B7E2F64DC7500DA84B0 /* UserMusicPickerView.swift */,
 				7B278B7F2F64DC7500DA84B0 /* VerticalPagesViewer.swift */,
 				7B278B802F64DC7500DA84B0 /* VoiceSettingsView.swift */,
@@ -2658,6 +2663,7 @@
 				7B278BE52F64DC7500DA84B0 /* PDFPreviewView.swift in Sources */,
 				7B278BE62F64DC7500DA84B0 /* PasswordManagementView.swift in Sources */,
 				7B278BE72F64DC7500DA84B0 /* UpgradePromptView.swift in Sources */,
+				7BAU0001ACCU2F6500DA84B0 /* AccountUsageView.swift in Sources */,
 				7B278BE82F64DC7500DA84B0 /* HandwritingEvaluationView.swift in Sources */,
 				7B278BE92F64DC7500DA84B0 /* PlaylistEditorView.swift in Sources */,
 				7B278BEA2F64DC7500DA84B0 /* MistakeGroupDetailView.swift in Sources */,
@@ -2918,6 +2924,7 @@
 				7B278CCC2F64DC7500DA84B0 /* PDFPreviewView.swift in Sources */,
 				7B278CCD2F64DC7500DA84B0 /* PasswordManagementView.swift in Sources */,
 				7B278CCE2F64DC7500DA84B0 /* UpgradePromptView.swift in Sources */,
+				7BAU0002ACCU2F6500DA84B0 /* AccountUsageView.swift in Sources */,
 				7B278CCF2F64DC7500DA84B0 /* HandwritingEvaluationView.swift in Sources */,
 				7B278CD02F64DC7500DA84B0 /* PlaylistEditorView.swift in Sources */,
 				7B278CD12F64DC7500DA84B0 /* MistakeGroupDetailView.swift in Sources */,
@@ -3161,6 +3168,7 @@
 				7B278C582F64DC7500DA84B0 /* PDFPreviewView.swift in Sources */,
 				7B278C592F64DC7500DA84B0 /* PasswordManagementView.swift in Sources */,
 				7B278C5A2F64DC7500DA84B0 /* UpgradePromptView.swift in Sources */,
+				7BAU0003ACCU2F6500DA84B0 /* AccountUsageView.swift in Sources */,
 				7B278C5B2F64DC7500DA84B0 /* HandwritingEvaluationView.swift in Sources */,
 				7B278C5C2F64DC7500DA84B0 /* PlaylistEditorView.swift in Sources */,
 				7B278C5D2F64DC7500DA84B0 /* MistakeGroupDetailView.swift in Sources */,
