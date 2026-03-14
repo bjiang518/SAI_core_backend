@@ -59,9 +59,11 @@ struct ContentView: View {
     @StateObject private var sessionManager = SessionManager.shared  // ✅ NEW: Session management
     @StateObject private var appSessionManager = AppSessionManager.shared  // ✅ NEW: App session for loading animation
     @StateObject private var networkService = NetworkService.shared
+    @StateObject private var usageService = UsageService.shared
     @Environment(\.scenePhase) private var scenePhase  // ✅ NEW: Monitor app lifecycle
     @State private var showingFaceIDReauth = false  // ✅ NEW: Face ID re-auth sheet
     @State private var showLoadingAnimation = false  // ✅ NEW: Control loading animation display
+    @State private var showingTierSheet = false
 
     // First-time onboarding
     @State private var showingOnboarding = false
@@ -140,6 +142,29 @@ struct ContentView: View {
                 showingFaceIDReauth = false
                 authService.signOut()  // Sign out if user cancels Face ID
             })
+        }
+        .sheet(isPresented: $showingTierSheet) {
+            let feature = usageService.limitReachedFeature ?? ""
+            let code = usageService.limitReachedCode ?? ""
+            let isGuest = authService.currentUser?.isAnonymous == true
+            if isGuest {
+                ModernSignUpView(onSignUpSuccess: {
+                    showingTierSheet = false
+                    usageService.clearLimitReached()
+                })
+            } else {
+                UpgradeComparisonView(
+                    blockedFeature: feature,
+                    reason: code == "UPGRADE_REQUIRED" ? .featureBlocked : .limitReached,
+                    onDismiss: {
+                        showingTierSheet = false
+                        usageService.clearLimitReached()
+                    }
+                )
+            }
+        }
+        .onChange(of: usageService.limitReachedFeature) { _, feature in
+            if feature != nil { showingTierSheet = true }
         }
         .onChange(of: scenePhase) { oldPhase, newPhase in
             handleScenePhaseChange(oldPhase: oldPhase, newPhase: newPhase)

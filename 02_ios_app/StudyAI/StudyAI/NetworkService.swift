@@ -164,6 +164,25 @@ class NetworkService: ObservableObject {
         setupNetworkMonitoring()
         setupURLCache()
     }
+
+    // MARK: - Tier Error Handling
+
+    /// Decodes 403/429 tier-related errors and flags UsageService for global UI handling.
+    /// Call after any HTTP response from a gated endpoint.
+    private func handleTierError(statusCode: Int, data: Data?, feature: String) {
+        guard statusCode == 403 || statusCode == 429 else { return }
+        let code: String
+        if let data,
+           let json = try? JSONDecoder().decode([String: String].self, from: data),
+           let err = json["error"] {
+            code = err
+        } else {
+            code = statusCode == 403 ? "UPGRADE_REQUIRED" : "MONTHLY_LIMIT_REACHED"
+        }
+        let tierCodes: Set<String> = ["UPGRADE_REQUIRED", "MONTHLY_LIMIT_REACHED", "LIFETIME_LIMIT_REACHED"]
+        guard tierCodes.contains(code) else { return }
+        UsageService.shared.flagLimitReached(feature: feature, errorCode: code)
+    }
     
     // MARK: - Enhanced Cache Management
     private struct CachedResponse {
@@ -929,13 +948,16 @@ class NetworkService: ObservableObject {
                     print("❌ Authentication expired in createSession")
                     AuthenticationService.shared.handleExpiredSession()
                     return (false, nil, "Authentication expired")
+                } else if httpResponse.statusCode == 403 || httpResponse.statusCode == 429 {
+                    handleTierError(statusCode: httpResponse.statusCode, data: data, feature: "chat_messages")
+                    return (false, nil, "HTTP \(httpResponse.statusCode)")
                 }
-                
+
                 let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
                 print("❌ Session Creation HTTP \(httpResponse.statusCode): \(String(rawResponse.prefix(200)))")
                 return (false, nil, "HTTP \(httpResponse.statusCode)")
             }
-            
+
             return (false, nil, "No HTTP response")
         } catch {
             print("❌ Session creation failed: \(error.localizedDescription)")
@@ -1150,8 +1172,9 @@ class NetworkService: ObservableObject {
                     // Authentication failed - let AuthenticationService handle it
                     print("❌ Authentication expired in sendSessionMessage")
                     return (false, "Authentication expired", nil, nil, nil)
-                } else if httpResponse.statusCode == 403 {
-                    return (false, "Access denied - session belongs to different user", nil, nil, nil)
+                } else if httpResponse.statusCode == 403 || httpResponse.statusCode == 429 {
+                    handleTierError(statusCode: httpResponse.statusCode, data: data, feature: "chat_messages")
+                    return (false, nil, nil, nil, nil)
                 }
 
                 let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
@@ -1420,15 +1443,8 @@ class NetworkService: ObservableObject {
                 if httpResponse.statusCode == 401 {
                     AuthenticationService.shared.handleExpiredSession()
                 }
-                if httpResponse.statusCode == 429 || httpResponse.statusCode == 403 {
-                    if let errorJson = try? JSONDecoder().decode([String: String].self, from: Data(errorBody.utf8)) {
-                        let code = errorJson["error"] ?? ""
-                        if code == "MONTHLY_LIMIT_REACHED" || code == "LIFETIME_LIMIT_REACHED" || code == "UPGRADE_REQUIRED" {
-                            await MainActor.run {
-                                UsageService.shared.flagLimitReached(feature: "chat_messages", errorCode: code)
-                            }
-                        }
-                    }
+                await MainActor.run {
+                    self.handleTierError(statusCode: httpResponse.statusCode, data: Data(errorBody.utf8), feature: "chat_messages")
                 }
                 onComplete(false, nil, nil, nil)
                 return false
@@ -2615,12 +2631,7 @@ class NetworkService: ObservableObject {
                         print("✅ Raw AI Response: \(String(responseData.prefix(200)))...")
                         return (true, responseData)
                     } else if httpResponse.statusCode == 429 || httpResponse.statusCode == 403 {
-                        if let errorJson = try? JSONDecoder().decode([String: String].self, from: data) {
-                            let code = errorJson["error"] ?? ""
-                            if code == "MONTHLY_LIMIT_REACHED" || code == "LIFETIME_LIMIT_REACHED" || code == "UPGRADE_REQUIRED" {
-                                UsageService.shared.flagLimitReached(feature: "homework_single", errorCode: code)
-                            }
-                        }
+                        handleTierError(statusCode: httpResponse.statusCode, data: data, feature: "homework_single")
                         return (false, "HTTP \(httpResponse.statusCode): \(responseData)")
                     } else {
                         return (false, "HTTP \(httpResponse.statusCode): \(responseData)")
@@ -2804,6 +2815,7 @@ class NetworkService: ObservableObject {
                 } else {
                     let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
                     print("❌ Homework Parsing HTTP \(httpResponse.statusCode): \(String(rawResponse.prefix(200)))")
+                    handleTierError(statusCode: httpResponse.statusCode, data: data, feature: "homework_single")
                     return (false, "HTTP \(httpResponse.statusCode): \(rawResponse)")
                 }
             } else {
@@ -3157,7 +3169,8 @@ class NetworkService: ObservableObject {
             if httpResponse.statusCode == 401 {
                 throw NetworkError.authenticationRequired
             }
-            if httpResponse.statusCode == 429 {
+            if httpResponse.statusCode == 429 || httpResponse.statusCode == 403 {
+                handleTierError(statusCode: httpResponse.statusCode, data: data, feature: "homework_single")
                 throw NetworkError.rateLimited
             }
             throw NetworkError.serverError(httpResponse.statusCode)
@@ -5441,6 +5454,7 @@ class NetworkService: ObservableObject {
 
         guard httpResponse.statusCode == 200 else {
             print("❌ [Network] Error analysis failed: HTTP \(httpResponse.statusCode)")
+            handleTierError(statusCode: httpResponse.statusCode, data: data, feature: "error_analysis")
             throw NetworkError.invalidResponse
         }
 
@@ -5648,6 +5662,7 @@ class NetworkService: ObservableObject {
 
             guard httpResponse.statusCode == 200 else {
                 print("❌ [ParentReports] Enable failed: HTTP \(httpResponse.statusCode)")
+                handleTierError(statusCode: httpResponse.statusCode, data: data, feature: "reports")
                 return (false, "Server error", nil)
             }
 

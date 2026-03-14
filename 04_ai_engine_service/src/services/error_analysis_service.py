@@ -28,7 +28,7 @@ class ErrorAnalysisService:
         if not api_key:
             raise ValueError("GEMINI_API_KEY or GOOGLE_API_KEY environment variable is required")
         self.client = genai.Client(api_key=api_key, http_options={'api_version': 'v1alpha'})
-        self.model = "gemini-3-flash-preview"
+        self.model = "gemini-2.5-flash"
 
     async def analyze_error(self, question_data):
         """
