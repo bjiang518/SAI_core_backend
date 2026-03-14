@@ -5350,6 +5350,21 @@ async function runDatabaseMigrations() {
         logger.debug('✅ Tier/subscription system migration completed');
       } catch (migrationError) {
         logger.error({ err: migrationError }, '❌ Migration 022 failed');
+
+      }
+    }
+
+    // Migration 023: Allow NULL email in profiles table (guest users have no email)
+    const migration023Check = await db.query(`
+      SELECT 1 FROM migration_history WHERE migration_name = '023_profiles_email_nullable'
+    `);
+    if (migration023Check.rows.length === 0) {
+      try {
+        await db.query(`ALTER TABLE profiles ALTER COLUMN email DROP NOT NULL`);
+        await db.query(`INSERT INTO migration_history (migration_name) VALUES ('023_profiles_email_nullable') ON CONFLICT DO NOTHING`);
+        logger.debug('✅ Migration 023: profiles.email is now nullable');
+      } catch (migrationError) {
+        logger.error({ err: migrationError }, '❌ Migration 023 failed');
       }
     }
 
