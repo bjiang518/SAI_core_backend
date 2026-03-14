@@ -273,7 +273,9 @@ module.exports = async function (fastify, opts) {
   /**
    * Legacy: Mistake-based questions → redirect to unified mode 2
    */
-  fastify.post('/api/ai/generate-questions/mistakes', async (request, reply) => {
+  fastify.post('/api/ai/generate-questions/mistakes', {
+    preHandler: [tierCheck({ feature: 'questions' })]
+  }, async (request, reply) => {
     const { subject, mistakes_data = [], config = {} } = request.body;
     const userId = await getUserId(request);
 
