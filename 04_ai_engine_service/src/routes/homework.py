@@ -160,6 +160,30 @@ class ReparseQuestionResponse(BaseModel):
     error: Optional[str] = None
 
 
+class DiagramQuestion(BaseModel):
+    id: str
+    question_number: Optional[str] = None
+    question_text: Optional[str] = None
+
+
+class LocateDiagramRegionsRequest(BaseModel):
+    base64_image: str
+    questions: List[DiagramQuestion]
+
+
+class DiagramRegionResult(BaseModel):
+    question_id: str
+    image_region: Dict[str, Any]   # {"top_left": [x,y], "bottom_right": [x,y]}
+    confidence: float
+
+
+class LocateDiagramRegionsResponse(BaseModel):
+    success: bool
+    regions: List[DiagramRegionResult]
+    processing_time_ms: int
+    error: Optional[str] = None
+
+
 class GradeSingleQuestionRequest(BaseModel):
     model_config = ConfigDict(protected_namespaces=())
 
@@ -590,6 +614,60 @@ async def reparse_question(request: ReparseQuestionRequest):
             success=False,
             error=f"Reparse error: {str(e)}",
             processing_time_ms=processing_time
+        )
+
+
+@router.post("/api/v1/locate-diagram-regions", response_model=LocateDiagramRegionsResponse)
+async def locate_diagram_regions(request: LocateDiagramRegionsRequest):
+    """
+    Phase 1.5: Locate diagram bounding boxes for need_image=true questions.
+    Called by iOS after parse, before grading. Blocks grade button until complete.
+    Uses HIGH resolution and focused spatial prompt for accuracy.
+    """
+    start_time = _time.time()
+    try:
+        questions = [q.model_dump() for q in request.questions]
+        result = await gemini_service.locate_diagram_regions(
+            base64_image=request.base64_image,
+            questions=questions
+        )
+
+        processing_time = int((_time.time() - start_time) * 1000)
+
+        if not result.get("success"):
+            return LocateDiagramRegionsResponse(
+                success=False,
+                regions=[],
+                processing_time_ms=processing_time,
+                error=result.get("error", "Diagram location failed")
+            )
+
+        regions = [
+            DiagramRegionResult(
+                question_id=r["question_id"],
+                image_region=r["image_region"],
+                confidence=r["confidence"]
+            )
+            for r in result.get("regions", [])
+        ]
+
+        logger.info(f"🔍 [locate-diagram-regions] Returning success=True regions={len(regions)} to iOS: {[{'qid': r.question_id, 'tl': r.image_region.get('top_left'), 'br': r.image_region.get('bottom_right')} for r in regions]}")
+        return LocateDiagramRegionsResponse(
+            success=True,
+            regions=regions,
+            processing_time_ms=processing_time
+        )
+
+    except Exception as e:
+        processing_time = int((_time.time() - start_time) * 1000)
+        import traceback
+        traceback.print_exc()
+        logger.error(f"🔍 [locate-diagram-regions] ERROR returning success=False: {e}")
+        return LocateDiagramRegionsResponse(
+            success=False,
+            regions=[],
+            processing_time_ms=processing_time,
+            error=f"locate_diagram_regions error: {str(e)}"
         )
 
 

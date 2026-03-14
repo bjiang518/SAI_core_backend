@@ -420,6 +420,21 @@ class AuthRoutes {
     // TTS should call backend endpoints that use the key server-side.
 
     // ==============================
+    // Guest / Anonymous Auth
+    // ==============================
+
+    this.fastify.post('/api/auth/anonymous', {
+      schema: {
+        description: 'Create anonymous guest session (no registration required)',
+        tags: ['Authentication'],
+        body: {}
+      },
+      config: {
+        rateLimit: { max: 10, timeWindow: '1 hour' }
+      }
+    }, this.anonymousLogin.bind(this));
+
+    // ==============================
     // COPPA Consent Management Endpoints
     // ==============================
 
@@ -552,7 +567,9 @@ class AuthRoutes {
             name: user.name,
             profileImageUrl: user.profile_image_url,
             provider: user.auth_provider,
-            lastLogin: user.last_login_at
+            lastLogin: user.last_login_at,
+            tier: user.tier || 'free',
+            is_anonymous: user.is_anonymous || false
           }
         });
       } else {
@@ -639,7 +656,9 @@ class AuthRoutes {
           name: user.name,
           profileImageUrl: user.profile_image_url,
           provider: user.auth_provider,
-          lastLogin: user.last_login_at
+          lastLogin: user.last_login_at,
+          tier: user.tier || 'free',
+          is_anonymous: user.is_anonymous || false
         }
       });
     } catch (error) {
@@ -735,7 +754,9 @@ class AuthRoutes {
           name: user.name,
           profileImageUrl: user.profile_image_url,
           provider: user.auth_provider,
-          lastLogin: user.last_login_at
+          lastLogin: user.last_login_at,
+          tier: user.tier || 'free',
+          is_anonymous: user.is_anonymous || false
         }
       });
     } catch (error) {
@@ -860,7 +881,9 @@ class AuthRoutes {
           id: user.id,
           email: user.email,
           name: user.name,
-          provider: user.auth_provider
+          provider: user.auth_provider,
+          tier: user.tier || 'free',
+          is_anonymous: user.is_anonymous || false
         }
       });
     } catch (error) {
@@ -1015,7 +1038,9 @@ class AuthRoutes {
             profileCompletionPercentage: profileData.profile_completion_percentage || 0,
             avatarId: profileData.avatar_id,
             customAvatarUrl: profileData.custom_avatar_url,
-            lastUpdated: profileData.updated_at
+            lastUpdated: profileData.updated_at,
+            onboardingCompleted: profileData.onboarding_completed || false,
+            account_restricted: profileData.account_restricted || false
           }
         });
       } else {
@@ -1045,7 +1070,9 @@ class AuthRoutes {
             profileCompletionPercentage: 0,
             avatarId: null,
             customAvatarUrl: null,
-            lastUpdated: null
+            lastUpdated: null,
+            onboardingCompleted: false,
+            account_restricted: false
           }
         });
       }
@@ -1507,6 +1534,57 @@ class AuthRoutes {
         message: 'Failed to export user data',
         code: 'DATA_EXPORT_ERROR',
         error: error.message
+      });
+    }
+  }
+
+  // ============================================
+  // ANONYMOUS / GUEST LOGIN
+  // ============================================
+
+  async anonymousLogin(request, reply) {
+    try {
+      const clientIP = request.ip || request.headers['x-forwarded-for'] || 'unknown';
+
+      // Generate a short random guest name
+      const suffix = crypto.randomBytes(3).toString('hex').toUpperCase();
+      const guestName = `Guest_${suffix}`;
+
+      // Insert anonymous user — email is NULL (migration 022 makes email nullable)
+      const insertResult = await db.query(
+        `INSERT INTO users (name, is_anonymous, tier, auth_provider, is_active, email_verified, last_login_at)
+         VALUES ($1, true, 'free', 'anonymous', true, false, NOW())
+         RETURNING id, name, tier, is_anonymous, auth_provider, last_login_at`,
+        [guestName],
+        { cache: false }
+      );
+
+      const user = insertResult.rows[0];
+      const deviceInfo = { userAgent: request.headers['user-agent'] };
+      const session = await db.createUserSession(user.id, deviceInfo, clientIP);
+
+      this.fastify.log.info(`👤 Anonymous guest created: ${user.id}`);
+
+      return reply.send({
+        success: true,
+        message: 'Guest session created',
+        token: session.token,
+        user: {
+          id: user.id,
+          email: '',
+          name: user.name,
+          profileImageUrl: null,
+          provider: 'anonymous',
+          lastLogin: user.last_login_at,
+          tier: 'free',
+          is_anonymous: true
+        }
+      });
+    } catch (error) {
+      this.fastify.log.error('Anonymous login error:', error);
+      return reply.status(500).send({
+        success: false,
+        message: 'Failed to create guest session'
       });
     }
   }

@@ -400,6 +400,18 @@
 "auth.signIn" = "Anmelden";
 "auth.dontHaveAccount" = "Don't have an account?";
 "auth.signUp" = "Sign Up";
+"auth.continueAsGuest" = "Als Gast fortfahren";
+"upgrade.title" = "Mehr freischalten";
+"upgrade.createFreeAccount" = "Kostenloses Konto erstellen";
+"upgrade.upgradeToPremium" = "Auf Premium upgraden";
+"upgrade.monthlyLimitReached" = "Monatliches Limit erreicht";
+"upgrade.coppaRestricted" = "Funktion eingeschränkt";
+"upgrade.createAccountSubtitle" = "Erstelle ein kostenloses Konto, um deinen Fortschritt zu speichern.";
+"upgrade.upgradeToPremiumSubtitle" = "Mit Premium hast du unbegrenzten Zugang.";
+"upgrade.monthlyLimitSubtitle" = "Du hast dein monatliches Kontingent aufgebraucht. Upgrade für mehr.";
+"upgrade.coppaRestrictedSubtitle" = "Bitte frage einen Elternteil, um diese Funktion freizuschalten.";
+"upgrade.continueFree" = "Kostenlos weitermachen";
+"common.dismiss" = "Schließen";
 "faceIDReauth.title" = "Sitzung abgelaufen";
 "faceIDReauth.message" = "Aus Sicherheitsgründen musst du dich erneut authentifizieren.";
 "faceIDReauth.biometricPrompt" = "Verwende %@, um dort weiterzumachen, wo du aufgehört hast.";
@@ -1806,6 +1818,7 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "proMode.addAnnotation" = "Add Annotation";
 "proMode.editAnnotations" = "Edit Annotations (%d)";
 "proMode.annotationImageHint" = "Some questions need images — tap to crop from photo";
+"proMode.aiAnalyzeDiagrams" = "Diagrammbereiche automatisch per KI erkennen";
 "proMode.selectAIModel" = "Select AI Model";
 "proMode.revertGrading" = "Revert Grading";
 "proMode.revertGradingAlert.title" = "Revert Grading?";
@@ -1847,6 +1860,8 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "proMode.grading.grading" = "Grading Q%@...";
 "proMode.grading.progress" = "Completed %d/%d (%d%%)";
 "proMode.grading.complete" = "Grading complete!";
+"proMode.analyzingDiagrams" = "Diagrammbereiche werden analysiert…";
+"proMode.diagramAnalysisFailed" = "Bewertung ohne Bildkontext";
 
 // PDF Preview
 "pdfPreview.title" = "PDF Preview";

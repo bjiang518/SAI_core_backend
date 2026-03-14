@@ -12,6 +12,7 @@
 
 const AIServiceClient = require('../../../services/ai-client');
 const { getUserId } = require('../utils/auth-helper');
+const tierCheck = require('../../../middleware/tier-check');
 const { db } = require('../../../../utils/railway-database');
 const { formatGradeLevel } = require('../utils/prompts');
 
@@ -233,7 +234,8 @@ module.exports = async function (fastify, opts) {
           question_data: { type: 'array' },
         }
       }
-    }
+    },
+    preHandler: [tierCheck({ feature: 'questions' })]
   }, async (request, reply) => {
     const startTime = Date.now();
     const userId = await getUserId(request);

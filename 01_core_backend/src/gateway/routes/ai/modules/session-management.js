@@ -10,6 +10,7 @@ const { Readable } = require('stream');
 const AIServiceClient = require('../../../services/ai-client');
 const AuthHelper = require('../utils/auth-helper');
 const SessionHelper = require('../utils/session-helper');
+const tierCheck = require('../../../middleware/tier-check');
 const BehaviorAnalyzer = require('../utils/behavior-analyzer');
 const { MATH_FORMATTING_SYSTEM_PROMPT, buildSystemPrompt } = require('../utils/prompts');
 const PIIMasking = require('../../../../utils/pii-masking');
@@ -93,7 +94,8 @@ class SessionManagementRoutes {
             language: { type: 'string' }
           }
         }
-      }
+      },
+      preHandler: [tierCheck({ feature: 'chat_messages' })]
     }, this.sendSessionMessageStreaming.bind(this));
 
     // Archive session

@@ -32,6 +32,40 @@ struct User: Codable {
     let authProvider: AuthProvider
     let createdAt: Date
     let lastLoginAt: Date
+    let tier: UserTier
+    let isAnonymous: Bool
+
+    // Custom Decodable so existing Keychain blobs (no tier/isAnonymous) decode without throwing
+    enum CodingKeys: String, CodingKey {
+        case id, email, name, profileImageURL, authProvider, createdAt, lastLoginAt, tier, isAnonymous
+    }
+
+    init(id: String, email: String, name: String, profileImageURL: String?,
+         authProvider: AuthProvider, createdAt: Date, lastLoginAt: Date,
+         tier: UserTier = .free, isAnonymous: Bool = false) {
+        self.id = id
+        self.email = email
+        self.name = name
+        self.profileImageURL = profileImageURL
+        self.authProvider = authProvider
+        self.createdAt = createdAt
+        self.lastLoginAt = lastLoginAt
+        self.tier = tier
+        self.isAnonymous = isAnonymous
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id             = try c.decode(String.self, forKey: .id)
+        email          = (try? c.decode(String.self, forKey: .email)) ?? ""
+        name           = try c.decode(String.self, forKey: .name)
+        profileImageURL = try? c.decode(String.self, forKey: .profileImageURL)
+        authProvider   = (try? c.decode(AuthProvider.self, forKey: .authProvider)) ?? .email
+        createdAt      = (try? c.decode(Date.self, forKey: .createdAt)) ?? Date()
+        lastLoginAt    = (try? c.decode(Date.self, forKey: .lastLoginAt)) ?? Date()
+        tier        = (try? c.decode(UserTier.self, forKey: .tier)) ?? .free
+        isAnonymous = (try? c.decode(Bool.self, forKey: .isAnonymous)) ?? false
+    }
 }
 
 enum AuthProvider: String, Codable {
@@ -39,6 +73,7 @@ enum AuthProvider: String, Codable {
     case google = "google"
     case apple = "apple"
     case phone = "phone"
+    case anonymous = "anonymous"
 }
 
 enum AuthError: LocalizedError {
@@ -275,7 +310,9 @@ final class AuthenticationService: ObservableObject {
                 profileImageURL: userData["profileImageURL"] as? String ?? userData["profileImageUrl"] as? String ?? userData["profile_image_url"] as? String,
                 authProvider: .email,
                 createdAt: Date(),
-                lastLoginAt: Date()
+                lastLoginAt: Date(),
+                tier: UserTier(rawValue: userData["tier"] as? String ?? "free") ?? .free,
+                isAnonymous: userData["is_anonymous"] as? Bool ?? false
             )
             
             if let token = result.token {
@@ -405,7 +442,9 @@ final class AuthenticationService: ObservableObject {
                     profileImageURL: userData["profileImageUrl"] as? String,
                     authProvider: .email,
                     createdAt: Date(),
-                    lastLoginAt: Date()
+                    lastLoginAt: Date(),
+                    tier: UserTier(rawValue: userData["tier"] as? String ?? "free") ?? .free,
+                    isAnonymous: userData["is_anonymous"] as? Bool ?? false
                 )
 
                 // Save user data
@@ -556,7 +595,9 @@ final class AuthenticationService: ObservableObject {
                     profileImageURL: userData["profileImageURL"] as? String ?? userData["profileImageUrl"] as? String ?? userData["profile_image_url"] as? String,
                     authProvider: .apple,
                     createdAt: Date(),
-                    lastLoginAt: Date()
+                    lastLoginAt: Date(),
+                    tier: UserTier(rawValue: userData["tier"] as? String ?? "free") ?? .free,
+                    isAnonymous: userData["is_anonymous"] as? Bool ?? false
                 )
 
                 // Use the token from our backend instead of generating one locally
@@ -672,7 +713,9 @@ final class AuthenticationService: ObservableObject {
                 profileImageURL: userData["profileImageURL"] as? String ?? userData["profileImageUrl"] as? String ?? userData["profile_image_url"] as? String ?? googleUser.profileImageURL?.absoluteString,
                 authProvider: .google,
                 createdAt: Date(),
-                lastLoginAt: Date()
+                lastLoginAt: Date(),
+                tier: UserTier(rawValue: userData["tier"] as? String ?? "free") ?? .free,
+                isAnonymous: userData["is_anonymous"] as? Bool ?? false
             )
             
             // Use the token from our backend instead of generating one locally
@@ -797,6 +840,42 @@ final class AuthenticationService: ObservableObject {
                keychainService.hasStoredCredentials()
     }
     
+    // MARK: - Guest Sign In
+
+    func signInAsGuest() async {
+        await MainActor.run { isLoading = true }
+        defer { Task { @MainActor in isLoading = false } }
+        do {
+            let result = try await networkService.anonymousLogin()
+            guard let userData = result["user"] as? [String: Any],
+                  let token = result["token"] as? String,
+                  let userId = userData["id"] as? String,
+                  let userName = userData["name"] as? String else {
+                await MainActor.run { errorMessage = "Invalid guest session response" }
+                return
+            }
+            let guestUser = User(
+                id: userId,
+                email: "",
+                name: userName,
+                profileImageURL: nil,
+                authProvider: .anonymous,
+                createdAt: Date(),
+                lastLoginAt: Date(),
+                tier: .free,
+                isAnonymous: true
+            )
+            try keychainService.saveAuthToken(token)
+            try keychainService.saveUser(guestUser)
+            await MainActor.run {
+                currentUser = guestUser
+                isAuthenticated = true
+            }
+        } catch {
+            await MainActor.run { errorMessage = error.localizedDescription }
+        }
+    }
+
     // MARK: - Sign Out
 
     func signOut() {

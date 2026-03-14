@@ -81,9 +81,10 @@ class GeminiEducationalAIService:
                 # Model names (NEW API uses different naming)
                 # - gemini-2.5-flash: Fast parsing AND standard grading (optimized for speed)
                 # - gemini-3-flash-preview: Gemini 3 Flash with advanced reasoning capabilities
-                self.model_name = "gemini-3-flash-preview"  # UPGRADED: 2.5 → 3 flash for better parsing
-                self.thinking_model_name = "gemini-3.1-pro-preview"  # Gemini 3.1 Pro Preview for deep reasoning grading
-                self.grading_model_name = "gemini-2.5-flash"  # Fast grading (1.5-3s per question)
+                self.model_name = "gemini-3-flash-preview"  # Gemini 3 Flash for parsing
+                self.thinking_model_name = "gemini-3-flash-preview"  # Gemini 3 Flash for deep reasoning grading
+                self.localization_model_name = "gemini-2.5-flash"  # gemini-2.5-flash for image region/cropping detection
+                self.grading_model_name = "gemini-3-flash-preview"  # Gemini 3 Flash for fast grading
 
                 # Set client references (for compatibility)
                 self.client = self.gemini_client
@@ -1043,6 +1044,138 @@ class GeminiEducationalAIService:
 
         return "".join(text_parts).strip()
 
+    async def locate_diagram_regions(
+        self,
+        base64_image: str,
+        questions: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """
+        Locate bounding boxes of diagrams/figures for need_image=true questions.
+
+        Dedicated spatial-localization call — separate from parse so it can use:
+        - MEDIA_RESOLUTION_HIGH for better spatial accuracy
+        - thinking_level="low" (more than parse, less than deep grading)
+        - Focused single-task prompt (no competing OCR tasks)
+
+        Returns:
+            {
+              "success": True,
+              "regions": [
+                {"question_id": "3", "image_region": {"top_left": [x,y], "bottom_right": [x,y]}, "confidence": 0.91}
+              ]
+            }
+        Questions omitted from regions = diagram not found (caller skips silently).
+        """
+        if not self.client:
+            return {"success": False, "error": "Gemini client not initialized", "regions": []}
+
+        if not questions:
+            return {"success": True, "regions": []}
+
+        start_time = time.time()
+        logger.info(f"🔍 locate_diagram_regions: {len(questions)} questions")
+
+        try:
+            prompt = self._build_locate_diagram_prompt(questions)
+
+            image_bytes = base64.b64decode(base64_image)
+            image_part = genai_types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg")
+
+            generation_config = genai_types.GenerateContentConfig(
+                temperature=0,
+                max_output_tokens=4096,
+                # No response_mime_type — JSON mode suppresses spatial reasoning/CoT.
+                # The prompt instructs "Return ONLY this JSON", and _extract_json_from_response parses it.
+                media_resolution="MEDIA_RESOLUTION_HIGH",
+            )
+
+            response = await self.client.aio.models.generate_content(
+                model=self.localization_model_name,
+                contents=[image_part, genai_types.Part.from_text(text=prompt)],
+                config=generation_config
+            )
+
+            duration_ms = int((time.time() - start_time) * 1000)
+            raw = self._extract_response_text(response)
+            logger.info(f"🔍 locate_diagram_regions RAW response ({duration_ms}ms): {raw[:500]}")
+            result = self._extract_json_from_response(raw)
+            logger.info(f"🔍 locate_diagram_regions parsed result keys={list(result.keys())} regions_count={len(result.get('regions', []))}")
+
+            regions = result.get("regions", [])
+            # Validate each region — support both:
+            #   box_2d: [ymin, xmin, ymax, xmax] in 0-1000 (Gemini native format)
+            #   image_region: {top_left, bottom_right} in 0-1 (legacy format)
+            valid_regions = []
+            for r in regions:
+                if not isinstance(r, dict):
+                    continue
+                qid = r.get("question_id")
+                if not qid:
+                    continue
+
+                tl, br = None, None
+
+                # Gemini native box_2d format: [ymin, xmin, ymax, xmax] in 0-1000
+                box_2d = r.get("box_2d")
+                if box_2d and len(box_2d) == 4:
+                    ymin, xmin, ymax, xmax = [v / 1000.0 for v in box_2d]
+                    tl = [xmin, ymin]
+                    br = [xmax, ymax]
+                else:
+                    # Fallback: legacy image_region format
+                    region = r.get("image_region", {})
+                    tl = region.get("top_left")
+                    br = region.get("bottom_right")
+
+                if tl and br and len(tl) == 2 and len(br) == 2:
+                    valid_regions.append({
+                        "question_id": str(qid),
+                        "image_region": {"top_left": tl, "bottom_right": br},
+                        "confidence": float(r.get("confidence", 0.8))
+                    })
+
+            logger.info(f"✅ locate_diagram_regions: {len(valid_regions)}/{len(questions)} regions found in {duration_ms}ms")
+            logger.info(f"🔍 valid_regions: {valid_regions}")
+            return {"success": True, "regions": valid_regions, "_raw_gemini": raw[:600]}
+
+        except Exception as e:
+            duration_ms = int((time.time() - start_time) * 1000)
+            logger.error(f"❌ locate_diagram_regions failed after {duration_ms}ms: {e}")
+            return {"success": False, "error": str(e), "regions": []}
+
+    def _build_locate_diagram_prompt(self, questions: List[Dict[str, Any]]) -> str:
+        """Build a focused prompt for diagram spatial localization using Gemini native box_2d format."""
+        question_lines = []
+        for q in questions:
+            qid = q.get("id", "?")
+            num = q.get("question_number", qid)
+            text = q.get("question_text", "")
+            question_lines.append(f'- question_id="{qid}" (Q{num}): "{text}"')
+
+        questions_block = "\n".join(question_lines)
+
+        return f"""Look at this homework image. For each question below, find the visual element (clock face, shape, diagram, figure, coins, shaded fraction, number line, etc.) that the student needs to see to answer it.
+
+QUESTIONS:
+{questions_block}
+
+For each question, detect the visual element and return its bounding box.
+Use box_2d format: [ymin, xmin, ymax, xmax] where values are 0-1000 (0=top/left edge, 1000=bottom/right edge).
+Add ~20 units of padding around each element.
+If a question has no visual element on the page, omit it.
+For subquestions that each reference a separate visual (e.g. 1a, 1b each have their own clock face), return individual boxes for each.
+
+Return ONLY this JSON (no markdown, no explanation):
+{{
+  "regions": [
+    {{
+      "question_id": "1a",
+      "box_2d": [ymin, xmin, ymax, xmax],
+      "label": "clock face showing 9:30"
+    }}
+  ]
+}}"""
+
     async def reparse_single_question(
         self,
         base64_image: str,
@@ -1096,7 +1229,7 @@ RULES:
 1. Focus ONLY on question {question_number} — ignore all other questions
 2. Extract EXACTLY what is written — do NOT paraphrase or translate
 3. PRESERVE the original language (Chinese stays Chinese, English stays English)
-4. For need_image: true ONLY if this question references a diagram/graph/figure
+4. For need_image: true if the question requires seeing a visual element to answer correctly (diagram, graph, chart, figure, table, shaded shape, fraction model, number line, clock face, grid, coin/money image, geometric figure, or any visual the student must observe). When in doubt, set true.
 5. For parent: extract ALL visible sub-items (a, b, c...) from the image
 6. student_answer is what the student wrote, NOT the correct answer
 7. Return valid JSON with no trailing commas"""
@@ -1218,7 +1351,7 @@ FIELD RULES:
 - id: ALWAYS string. Top-level questions: the question_number exactly ("1", "5", "12"). Subquestions: MUST use the ACTUAL parent question_number as prefix + letter suffix — e.g. subquestions of question 5 → "5a", "5b", "5c". NEVER use "1" as the prefix for subquestions of a non-first question.
 - Regular questions: MUST have question_text, student_answer, question_type, need_image
 - Parent questions: MUST have is_parent, has_subquestions, parent_content, subquestions
-- need_image: true ONLY if question references a diagram, graph, chart, or figure the student must annotate; false otherwise
+- need_image: true if the question requires seeing a visual element to answer correctly. Set true for ANY of: diagram, graph, chart, figure, table, image, picture, drawing, illustration, shaded shape, fraction model, number line, clock face, grid, coin/money image, geometric figure, map, bar graph, pie chart, measurement diagram, or any visual the student must observe or interact with. Set false ONLY if the question is purely text-based with no visual component. When in doubt, set true. For parent questions: if the parent references a visual, ALL subquestions inherit need_image=true. For subquestions: if the question text references something visual (e.g. "identify the shaded part", "write the value of the coins", "label the diagram"), set need_image=true.
 - Omit fields that don't apply (DO NOT use null)
 - questions array ONLY contains top-level questions
 - total_questions = questions.length

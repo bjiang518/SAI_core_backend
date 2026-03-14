@@ -400,6 +400,18 @@
 "auth.signIn" = "Se connecter";
 "auth.dontHaveAccount" = "Don't have an account?";
 "auth.signUp" = "Sign Up";
+"auth.continueAsGuest" = "Continuer en tant qu'invité";
+"upgrade.title" = "Débloquer plus de fonctionnalités";
+"upgrade.createFreeAccount" = "Créer un compte gratuit";
+"upgrade.upgradeToPremium" = "Passer à Premium";
+"upgrade.monthlyLimitReached" = "Limite mensuelle atteinte";
+"upgrade.coppaRestricted" = "Fonctionnalité restreinte";
+"upgrade.createAccountSubtitle" = "Créez un compte gratuit pour sauvegarder votre progression.";
+"upgrade.upgradeToPremiumSubtitle" = "Accès illimité avec Premium.";
+"upgrade.monthlyLimitSubtitle" = "Vous avez atteint votre limite mensuelle. Passez à Premium pour plus.";
+"upgrade.coppaRestrictedSubtitle" = "Demandez à un parent de débloquer cette fonctionnalité.";
+"upgrade.continueFree" = "Continuer gratuitement";
+"common.dismiss" = "Fermer";
 "faceIDReauth.title" = "Session expirée";
 "faceIDReauth.message" = "Pour votre sécurité, vous devez vous ré-authentifier.";
 "faceIDReauth.biometricPrompt" = "Utilisez %@ pour reprendre là où vous en étiez.";
@@ -1852,6 +1864,7 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "proMode.addAnnotation" = "Add Annotation";
 "proMode.editAnnotations" = "Edit Annotations (%d)";
 "proMode.annotationImageHint" = "Some questions need images — tap to crop from photo";
+"proMode.aiAnalyzeDiagrams" = "Localiser automatiquement les zones de diagramme avec l'IA";
 "proMode.selectAIModel" = "Select AI Model";
 "proMode.revertGrading" = "Revert Grading";
 "proMode.revertGradingAlert.title" = "Revert Grading?";
@@ -1911,6 +1924,8 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "proMode.grading.grading" = "Grading Q%@...";
 "proMode.grading.progress" = "Completed %d/%d (%d%%)";
 "proMode.grading.complete" = "Grading complete!";
+"proMode.analyzingDiagrams" = "Analyse des zones de diagramme…";
+"proMode.diagramAnalysisFailed" = "Correction sans contexte d'image";
 
 // PDF Preview
 "pdfPreview.title" = "PDF Preview";
