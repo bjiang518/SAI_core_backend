@@ -1082,11 +1082,10 @@ class GeminiEducationalAIService:
 
             generation_config = genai_types.GenerateContentConfig(
                 temperature=0,
-                top_p=0.95,
-                top_k=40,
-                max_output_tokens=2048,
-                response_mime_type="application/json",
-                media_resolution="MEDIA_RESOLUTION_MEDIUM",
+                max_output_tokens=4096,
+                # No response_mime_type — JSON mode suppresses spatial reasoning/CoT.
+                # The prompt instructs "Return ONLY this JSON", and _extract_json_from_response parses it.
+                media_resolution="MEDIA_RESOLUTION_HIGH",
             )
 
             response = await self.client.aio.models.generate_content(
@@ -1102,16 +1101,32 @@ class GeminiEducationalAIService:
             logger.info(f"🔍 locate_diagram_regions parsed result keys={list(result.keys())} regions_count={len(result.get('regions', []))}")
 
             regions = result.get("regions", [])
-            # Validate each region has required fields
+            # Validate each region — support both:
+            #   box_2d: [ymin, xmin, ymax, xmax] in 0-1000 (Gemini native format)
+            #   image_region: {top_left, bottom_right} in 0-1 (legacy format)
             valid_regions = []
             for r in regions:
                 if not isinstance(r, dict):
                     continue
                 qid = r.get("question_id")
-                region = r.get("image_region", {})
-                tl = region.get("top_left")
-                br = region.get("bottom_right")
-                if qid and tl and br and len(tl) == 2 and len(br) == 2:
+                if not qid:
+                    continue
+
+                tl, br = None, None
+
+                # Gemini native box_2d format: [ymin, xmin, ymax, xmax] in 0-1000
+                box_2d = r.get("box_2d")
+                if box_2d and len(box_2d) == 4:
+                    ymin, xmin, ymax, xmax = [v / 1000.0 for v in box_2d]
+                    tl = [xmin, ymin]
+                    br = [xmax, ymax]
+                else:
+                    # Fallback: legacy image_region format
+                    region = r.get("image_region", {})
+                    tl = region.get("top_left")
+                    br = region.get("bottom_right")
+
+                if tl and br and len(tl) == 2 and len(br) == 2:
                     valid_regions.append({
                         "question_id": str(qid),
                         "image_region": {"top_left": tl, "bottom_right": br},
@@ -1128,7 +1143,7 @@ class GeminiEducationalAIService:
             return {"success": False, "error": str(e), "regions": []}
 
     def _build_locate_diagram_prompt(self, questions: List[Dict[str, Any]]) -> str:
-        """Build a focused prompt for diagram spatial localization."""
+        """Build a focused prompt for diagram spatial localization using Gemini native box_2d format."""
         question_lines = []
         for q in questions:
             qid = q.get("id", "?")
@@ -1138,29 +1153,24 @@ class GeminiEducationalAIService:
 
         questions_block = "\n".join(question_lines)
 
-        return f"""Analyze the homework image and find the bounding box of the visual element that each question refers to or requires the student to interact with.
-
-Visual elements include: diagrams, circuit diagrams, graphs, charts, figures, tables, clock faces, number lines, grids, blank shapes, drawings, illustrations, or any other image the student must label, fill in, or annotate.
+        return f"""Look at this homework image. For each question below, find the visual element (clock face, shape, diagram, figure, coins, shaded fraction, number line, etc.) that the student needs to see to answer it.
 
 QUESTIONS:
 {questions_block}
 
-RULES:
-1. Return the bounding box of the VISUAL element — NOT the question text and NOT the student's written answer.
-2. Include any visual element the student drew or filled in (e.g. clock hands on a clock face, dots on a number line).
-3. If multiple questions reference the SAME visual element, return identical coordinates for each.
-4. If you genuinely cannot find a visual element for a question, OMIT that question from the response.
-5. Coordinates are normalized [x, y] in [0.0, 1.0] where [0,0] = top-left corner of image.
-6. Add small padding (0.02-0.03) around the element to avoid clipping edges.
-7. confidence: how certain you are the region contains the right visual element (0.0-1.0).
+For each question, detect the visual element and return its bounding box.
+Use box_2d format: [ymin, xmin, ymax, xmax] where values are 0-1000 (0=top/left edge, 1000=bottom/right edge).
+Add ~20 units of padding around each element.
+If a question has no visual element on the page, omit it.
+For subquestions that each reference a separate visual (e.g. 1a, 1b each have their own clock face), return individual boxes for each.
 
 Return ONLY this JSON (no markdown, no explanation):
 {{
   "regions": [
     {{
-      "question_id": "3",
-      "image_region": {{"top_left": [x, y], "bottom_right": [x, y]}},
-      "confidence": 0.91
+      "question_id": "1a",
+      "box_2d": [ymin, xmin, ymax, xmax],
+      "label": "clock face showing 9:30"
     }}
   ]
 }}"""
@@ -1218,7 +1228,7 @@ RULES:
 1. Focus ONLY on question {question_number} — ignore all other questions
 2. Extract EXACTLY what is written — do NOT paraphrase or translate
 3. PRESERVE the original language (Chinese stays Chinese, English stays English)
-4. For need_image: true ONLY if this question references a diagram/graph/figure
+4. For need_image: true if the question requires seeing a visual element to answer correctly (diagram, graph, chart, figure, table, shaded shape, fraction model, number line, clock face, grid, coin/money image, geometric figure, or any visual the student must observe). When in doubt, set true.
 5. For parent: extract ALL visible sub-items (a, b, c...) from the image
 6. student_answer is what the student wrote, NOT the correct answer
 7. Return valid JSON with no trailing commas"""
@@ -1340,7 +1350,7 @@ FIELD RULES:
 - id: ALWAYS string. Top-level questions: the question_number exactly ("1", "5", "12"). Subquestions: MUST use the ACTUAL parent question_number as prefix + letter suffix — e.g. subquestions of question 5 → "5a", "5b", "5c". NEVER use "1" as the prefix for subquestions of a non-first question.
 - Regular questions: MUST have question_text, student_answer, question_type, need_image
 - Parent questions: MUST have is_parent, has_subquestions, parent_content, subquestions
-- need_image: true ONLY if question references a diagram, graph, chart, or figure the student must annotate; false otherwise
+- need_image: true if the question requires seeing a visual element to answer correctly. Set true for ANY of: diagram, graph, chart, figure, table, image, picture, drawing, illustration, shaded shape, fraction model, number line, clock face, grid, coin/money image, geometric figure, map, bar graph, pie chart, measurement diagram, or any visual the student must observe or interact with. Set false ONLY if the question is purely text-based with no visual component. When in doubt, set true. For parent questions: if the parent references a visual, ALL subquestions inherit need_image=true. For subquestions: if the question text references something visual (e.g. "identify the shaded part", "write the value of the coins", "label the diagram"), set need_image=true.
 - Omit fields that don't apply (DO NOT use null)
 - questions array ONLY contains top-level questions
 - total_questions = questions.length
