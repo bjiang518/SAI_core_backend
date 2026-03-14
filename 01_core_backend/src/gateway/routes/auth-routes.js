@@ -426,7 +426,8 @@ class AuthRoutes {
     this.fastify.post('/api/auth/anonymous', {
       schema: {
         description: 'Create anonymous guest session (no registration required)',
-        tags: ['Authentication']
+        tags: ['Authentication'],
+        body: {}
       },
       config: {
         rateLimit: { max: 10, timeWindow: '1 hour' }
