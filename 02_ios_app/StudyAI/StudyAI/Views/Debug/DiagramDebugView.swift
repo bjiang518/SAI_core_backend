@@ -89,7 +89,7 @@ struct DiagramDebugView: View {
 
                     ScrollView {
                         Text(testCases[selectedTest].svgCode)
-                            .font(.system(size: 10, family: .monospaced))
+                            .font(.system(size: 10, design: .monospaced))
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .frame(height: 100)

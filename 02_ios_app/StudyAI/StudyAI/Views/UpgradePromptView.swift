@@ -60,10 +60,10 @@ struct UpgradePromptView: View {
             }
         }
         .sheet(isPresented: $showingConversionLogin) {
-            ModernLoginView(conversionMode: true) {
+            ModernSignUpView(onSignUpSuccess: {
                 showingConversionLogin = false
                 onDismiss()
-            }
+            })
         }
     }
 

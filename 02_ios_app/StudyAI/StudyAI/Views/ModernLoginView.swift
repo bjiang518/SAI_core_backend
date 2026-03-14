@@ -206,6 +206,18 @@ struct ModernLoginView: View {
                 // Social authentication buttons
                 socialAuthButtons
 
+                // Guest login — shown below social buttons, before email form
+                if !conversionMode {
+                    Button {
+                        Task { await authService.signInAsGuest() }
+                    } label: {
+                        Text(NSLocalizedString("auth.continueAsGuest", comment: "Continue as Guest button"))
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .disabled(authService.isLoading)
+                }
+
                 // Divider
                 dividerWithText(NSLocalizedString("auth.login.orContinueWithEmail", comment: "Or continue with email divider text"))
 
@@ -425,7 +437,7 @@ struct ModernLoginView: View {
             HStack {
                 Text(NSLocalizedString("auth.dontHaveAccount", comment: "Don't have account text"))
                     .font(.caption)
-                    .foregroundColor(.secondary)  // ✅ Adaptive
+                    .foregroundColor(.secondary)
 
                 Button(NSLocalizedString("auth.signUp", comment: "Sign up button")) {
                     showingSignUp = true
@@ -434,19 +446,6 @@ struct ModernLoginView: View {
                 .foregroundColor(.blue)
             }
             .padding(.top, 8)
-
-            if !conversionMode {
-                Divider().padding(.vertical, 4)
-
-                Button {
-                    Task { await authService.signInAsGuest() }
-                } label: {
-                    Text(NSLocalizedString("auth.continueAsGuest", comment: "Continue as Guest button"))
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-                .disabled(authService.isLoading)
-            }
         }
     }
     
@@ -770,6 +769,54 @@ struct ModernSignUpView: View {
                     }
                     .disabled(!isFormValid || authService.isLoading)
 
+                    // Divider
+                    HStack {
+                        Rectangle().frame(height: 0.5).foregroundColor(.secondary.opacity(0.4))
+                        Text("or").font(.caption).foregroundColor(.secondary)
+                        Rectangle().frame(height: 0.5).foregroundColor(.secondary.opacity(0.4))
+                    }
+                    .padding(.vertical, 4)
+
+                    // Apple Sign In
+                    Button {
+                        Task { await performAppleSignIn() }
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "applelogo")
+                                .font(.system(size: 20))
+                                .foregroundColor(.white)
+                            Text(NSLocalizedString("login.continueWithApple", comment: "Continue with Apple button"))
+                                .font(.headline)
+                                .foregroundColor(.white)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.black)
+                        .clipShape(Capsule())
+                    }
+                    .disabled(authService.isLoading)
+
+                    // Google Sign In
+                    Button {
+                        Task {
+                            do { try await authService.signInWithGoogle() }
+                            catch { authService.errorMessage = error.localizedDescription }
+                        }
+                    } label: {
+                        HStack(spacing: 12) {
+                            GoogleLogoView().frame(width: 20, height: 20)
+                            Text(NSLocalizedString("auth.continueWithGoogle", comment: "Continue with Google button"))
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color(.secondarySystemBackground))
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(Color.primary.opacity(0.2), lineWidth: 1))
+                    }
+                    .disabled(authService.isLoading)
+
                     Spacer()
                 }
                 .padding(.horizontal, 32)
@@ -929,6 +976,21 @@ struct ModernSignUpView: View {
 
     private func hideKeyboard() {
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
+
+    private func performAppleSignIn() async {
+        do {
+            try await authService.signInWithApple()
+            await MainActor.run {
+                dismiss()
+                onSignUpSuccess()
+            }
+        } catch {
+            await MainActor.run {
+                authService.errorMessage = error.localizedDescription
+                showingError = true
+            }
+        }
     }
 }
 

@@ -913,6 +913,8 @@ struct ModernProfileView: View {
             return "applelogo"
         case .phone:
             return "phone.fill"
+        case .anonymous:
+            return "person.crop.circle.badge.questionmark"
         }
     }
 
