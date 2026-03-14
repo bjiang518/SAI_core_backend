@@ -400,6 +400,18 @@
 "auth.signIn" = "Sign In";
 "auth.dontHaveAccount" = "Don't have an account?";
 "auth.signUp" = "Sign Up";
+"auth.continueAsGuest" = "Continue as Guest";
+"upgrade.title" = "Unlock More Features";
+"upgrade.createFreeAccount" = "Create Free Account";
+"upgrade.upgradeToPremium" = "Upgrade to Premium";
+"upgrade.monthlyLimitReached" = "Monthly Limit Reached";
+"upgrade.coppaRestricted" = "Feature Restricted";
+"upgrade.createAccountSubtitle" = "Save your progress and unlock more with a free account.";
+"upgrade.upgradeToPremiumSubtitle" = "Get unlimited access with Premium.";
+"upgrade.monthlyLimitSubtitle" = "You've used all of your monthly allowance. Upgrade for more.";
+"upgrade.coppaRestrictedSubtitle" = "Ask a parent to unlock this feature.";
+"upgrade.continueFree" = "Continue with Free";
+"common.dismiss" = "Dismiss";
 "faceIDReauth.title" = "Session Expired";
 "faceIDReauth.message" = "For your security, you need to re-authenticate.";
 "faceIDReauth.biometricPrompt" = "Use %@ to continue where you left off.";
@@ -1915,6 +1927,7 @@
 "proMode.addAnnotation" = "Add Annotation";
 "proMode.editAnnotations" = "Edit Annotations (%d)";
 "proMode.annotationImageHint" = "Some questions need images — tap to crop from photo";
+"proMode.aiAnalyzeDiagrams" = "Auto-locate diagram regions with AI";
 "proMode.selectAIModel" = "Select AI Model";
 "proMode.revertGrading" = "Revert Grading";
 "proMode.revertGradingAlert.title" = "Revert Grading?";
@@ -1971,6 +1984,8 @@
 "proMode.grading.grading" = "Grading Q%@...";
 "proMode.grading.progress" = "Completed %d/%d (%d%%)";
 "proMode.grading.complete" = "Grading complete!";
+"proMode.analyzingDiagrams" = "Analyzing diagram regions…";
+"proMode.diagramAnalysisFailed" = "Grading without image context";
 
 // PDF Preview
 "pdfPreview.title" = "PDF Preview";

@@ -164,6 +164,25 @@ class NetworkService: ObservableObject {
         setupNetworkMonitoring()
         setupURLCache()
     }
+
+    // MARK: - Tier Error Handling
+
+    /// Decodes 403/429 tier-related errors and flags UsageService for global UI handling.
+    /// Call after any HTTP response from a gated endpoint.
+    private func handleTierError(statusCode: Int, data: Data?, feature: String) {
+        guard statusCode == 403 || statusCode == 429 else { return }
+        let code: String
+        if let data,
+           let json = try? JSONDecoder().decode([String: String].self, from: data),
+           let err = json["error"] {
+            code = err
+        } else {
+            code = statusCode == 403 ? "UPGRADE_REQUIRED" : "MONTHLY_LIMIT_REACHED"
+        }
+        let tierCodes: Set<String> = ["UPGRADE_REQUIRED", "MONTHLY_LIMIT_REACHED", "LIFETIME_LIMIT_REACHED"]
+        guard tierCodes.contains(code) else { return }
+        UsageService.shared.flagLimitReached(feature: feature, errorCode: code)
+    }
     
     // MARK: - Enhanced Cache Management
     private struct CachedResponse {
@@ -535,7 +554,23 @@ class NetworkService: ObservableObject {
             return (false, "Login request failed: \(error.localizedDescription)", nil, nil, nil)
         }
     }
-    
+
+    // MARK: - Anonymous / Guest Login
+    func anonymousLogin() async throws -> [String: Any] {
+        let url = URL(string: "\(baseURL)/api/auth/anonymous")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: [:])
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode == 200,
+              let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw URLError(.badServerResponse)
+        }
+        return json
+    }
+
     // MARK: - Question Processing
     func submitQuestion(question: String, subject: String = "general") async -> (success: Bool, answer: String?) {
         // Try AI Engine first (with improved prompts)
@@ -913,13 +948,16 @@ class NetworkService: ObservableObject {
                     print("❌ Authentication expired in createSession")
                     AuthenticationService.shared.handleExpiredSession()
                     return (false, nil, "Authentication expired")
+                } else if httpResponse.statusCode == 403 || httpResponse.statusCode == 429 {
+                    handleTierError(statusCode: httpResponse.statusCode, data: data, feature: "chat_messages")
+                    return (false, nil, "HTTP \(httpResponse.statusCode)")
                 }
-                
+
                 let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
                 print("❌ Session Creation HTTP \(httpResponse.statusCode): \(String(rawResponse.prefix(200)))")
                 return (false, nil, "HTTP \(httpResponse.statusCode)")
             }
-            
+
             return (false, nil, "No HTTP response")
         } catch {
             print("❌ Session creation failed: \(error.localizedDescription)")
@@ -1134,8 +1172,9 @@ class NetworkService: ObservableObject {
                     // Authentication failed - let AuthenticationService handle it
                     print("❌ Authentication expired in sendSessionMessage")
                     return (false, "Authentication expired", nil, nil, nil)
-                } else if httpResponse.statusCode == 403 {
-                    return (false, "Access denied - session belongs to different user", nil, nil, nil)
+                } else if httpResponse.statusCode == 403 || httpResponse.statusCode == 429 {
+                    handleTierError(statusCode: httpResponse.statusCode, data: data, feature: "chat_messages")
+                    return (false, nil, nil, nil, nil)
                 }
 
                 let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
@@ -1404,11 +1443,22 @@ class NetworkService: ObservableObject {
                 if httpResponse.statusCode == 401 {
                     AuthenticationService.shared.handleExpiredSession()
                 }
+                await MainActor.run {
+                    self.handleTierError(statusCode: httpResponse.statusCode, data: Data(errorBody.utf8), feature: "chat_messages")
+                }
                 onComplete(false, nil, nil, nil)
                 return false
             }
 
             print("✅ Streaming connection established, receiving AI response...")
+
+            // Read usage remaining header for UI badge
+            if let remaining = httpResponse.value(forHTTPHeaderField: "X-Usage-Remaining"),
+               let count = Int(remaining) {
+                await MainActor.run {
+                    UsageService.shared.update(feature: "chat_messages", remaining: count)
+                }
+            }
 
             var accumulatedText = ""
             var buffer = ""
@@ -2573,8 +2623,16 @@ class NetworkService: ObservableObject {
             if let httpResponse = response as? HTTPURLResponse {
                 if let responseData = String(data: data, encoding: .utf8) {
                     if httpResponse.statusCode == 200 {
+                        // Track usage remaining
+                        if let remaining = httpResponse.value(forHTTPHeaderField: "X-Usage-Remaining"),
+                           let count = Int(remaining) {
+                            UsageService.shared.update(feature: "homework_single", remaining: count)
+                        }
                         print("✅ Raw AI Response: \(String(responseData.prefix(200)))...")
                         return (true, responseData)
+                    } else if httpResponse.statusCode == 429 || httpResponse.statusCode == 403 {
+                        handleTierError(statusCode: httpResponse.statusCode, data: data, feature: "homework_single")
+                        return (false, "HTTP \(httpResponse.statusCode): \(responseData)")
                     } else {
                         return (false, "HTTP \(httpResponse.statusCode): \(responseData)")
                     }
@@ -2757,6 +2815,7 @@ class NetworkService: ObservableObject {
                 } else {
                     let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
                     print("❌ Homework Parsing HTTP \(httpResponse.statusCode): \(String(rawResponse.prefix(200)))")
+                    handleTierError(statusCode: httpResponse.statusCode, data: data, feature: "homework_single")
                     return (false, "HTTP \(httpResponse.statusCode): \(rawResponse)")
                 }
             } else {
@@ -3110,7 +3169,8 @@ class NetworkService: ObservableObject {
             if httpResponse.statusCode == 401 {
                 throw NetworkError.authenticationRequired
             }
-            if httpResponse.statusCode == 429 {
+            if httpResponse.statusCode == 429 || httpResponse.statusCode == 403 {
+                handleTierError(statusCode: httpResponse.statusCode, data: data, feature: "homework_single")
                 throw NetworkError.rateLimited
             }
             throw NetworkError.serverError(httpResponse.statusCode)
@@ -3184,6 +3244,50 @@ class NetworkService: ObservableObject {
         return gradeResponse
     }
     
+    // MARK: - Locate Diagram Regions (Phase 1.5)
+
+    /// Locate diagram bounding boxes for need_image=true questions.
+    /// Single batch call per page. 30s timeout — failure is acceptable (grade proceeds without image context).
+    func locateDiagramRegions(
+        base64Image: String,
+        questions: [DiagramQuestion]
+    ) async throws -> LocateDiagramRegionsResponse {
+        guard let url = URL(string: "\(baseURL)/api/ai/locate-diagram-regions") else {
+            throw NetworkError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 30.0  // 30s — Gemini spatial analysis can take 10-20s
+
+        if let token = AuthenticationService.shared.getAuthToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        let questionsPayload = questions.map { q -> [String: Any] in
+            var d: [String: Any] = ["id": q.id]
+            if let num = q.questionNumber { d["question_number"] = num }
+            if let text = q.questionText { d["question_text"] = text }
+            return d
+        }
+
+        let body: [String: Any] = [
+            "base64_image": base64Image,
+            "questions": questionsPayload
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+            throw NetworkError.invalidResponse
+        }
+
+        let decoder = JSONDecoder()
+        return try decoder.decode(LocateDiagramRegionsResponse.self, from: data)
+    }
+
     // MARK: - Registration
     func register(name: String, email: String, password: String) async -> (success: Bool, message: String, token: String?, userData: [String: Any]?, statusCode: Int?) {
         print("📝 Testing registration functionality...")
@@ -5350,6 +5454,7 @@ class NetworkService: ObservableObject {
 
         guard httpResponse.statusCode == 200 else {
             print("❌ [Network] Error analysis failed: HTTP \(httpResponse.statusCode)")
+            handleTierError(statusCode: httpResponse.statusCode, data: data, feature: "error_analysis")
             throw NetworkError.invalidResponse
         }
 
@@ -5557,6 +5662,7 @@ class NetworkService: ObservableObject {
 
             guard httpResponse.statusCode == 200 else {
                 print("❌ [ParentReports] Enable failed: HTTP \(httpResponse.statusCode)")
+                handleTierError(statusCode: httpResponse.statusCode, data: data, feature: "reports")
                 return (false, "Server error", nil)
             }
 

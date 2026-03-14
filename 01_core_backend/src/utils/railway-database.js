@@ -543,6 +543,92 @@ const db = {
     return result.rows[0];
   },
 
+  // ============================================
+  // TIER SYSTEM HELPERS
+  // ============================================
+
+  /**
+   * Get user's tier info (cached 1hr via userCache)
+   * Returns: { tier, tier_expires_at, monthly_usage, usage_reset_date, is_anonymous }
+   */
+  async getUserTier(userId) {
+    const cacheKey = `tier:${userId}`;
+    const cached = userCache.get(cacheKey);
+    if (cached) return cached;
+
+    const result = await this.query(
+      `SELECT tier, tier_expires_at, is_anonymous, monthly_usage, usage_reset_date
+       FROM users WHERE id = $1`,
+      [userId],
+      { cache: false }
+    );
+    const row = result.rows[0];
+    if (!row) return { tier: 'free', is_anonymous: false, monthly_usage: {}, usage_reset_date: null };
+
+    const data = {
+      tier: row.tier || 'free',
+      tier_expires_at: row.tier_expires_at,
+      is_anonymous: row.is_anonymous || false,
+      monthly_usage: row.monthly_usage || {},
+      usage_reset_date: row.usage_reset_date,
+    };
+    userCache.set(cacheKey, data);
+    return data;
+  },
+
+  /**
+   * Increment usage counter in users.monthly_usage JSONB (DB fallback for Redis)
+   */
+  async incrementUsage(userId, featureKey) {
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    await this.query(
+      `UPDATE users
+       SET monthly_usage = CASE
+         WHEN usage_reset_date < DATE_TRUNC('month', NOW())
+         THEN jsonb_build_object($2::text, 1)
+         ELSE jsonb_set(
+           COALESCE(monthly_usage, '{}'),
+           ARRAY[$2::text],
+           (COALESCE((monthly_usage->>$2)::int, 0) + 1)::text::jsonb
+         )
+       END,
+       usage_reset_date = DATE_TRUNC('month', NOW())
+       WHERE id = $1`,
+      [userId, featureKey],
+      { cache: false }
+    );
+  },
+
+  /**
+   * Increment usage by an amount (used for voice_minutes)
+   */
+  async incrementUsageBy(userId, featureKey, amount) {
+    await this.query(
+      `UPDATE users
+       SET monthly_usage = CASE
+         WHEN usage_reset_date < DATE_TRUNC('month', NOW())
+         THEN jsonb_build_object($2::text, $3::int)
+         ELSE jsonb_set(
+           COALESCE(monthly_usage, '{}'),
+           ARRAY[$2::text],
+           (COALESCE((monthly_usage->>$2)::int, 0) + $3)::text::jsonb
+         )
+       END,
+       usage_reset_date = DATE_TRUNC('month', NOW())
+       WHERE id = $1`,
+      [userId, featureKey, amount],
+      { cache: false }
+    );
+  },
+
+  /**
+   * Bust 1hr tier cache for a user (call after subscription upgrade)
+   */
+  invalidateTierCache(userId) {
+    userCache.del(`tier:${userId}`);
+  },
+
   /**
    * Email Verification Methods
    */
@@ -2243,7 +2329,8 @@ const db = {
         u.name as user_name,
         u.email as user_email,
         u.profile_image_url,
-        u.auth_provider
+        u.auth_provider,
+        u.account_restricted
       FROM users u
       LEFT JOIN profiles p ON p.email = u.email
       WHERE u.id = $1 AND u.is_active = true
@@ -5218,6 +5305,69 @@ async function runDatabaseMigrations() {
       }
     }
 
+    // ============================================
+    // MIGRATION: Guest login + tier/subscription system (2026-03-13)
+    // ============================================
+    const migration022Check = await db.query(`
+      SELECT 1 FROM migration_history WHERE migration_name = '022_tier_subscription_system'
+    `);
+    if (migration022Check.rows.length === 0) {
+      try {
+        // Tier + anonymous columns on users table
+        await db.query(`
+          ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS tier VARCHAR(20) NOT NULL DEFAULT 'free',
+            ADD COLUMN IF NOT EXISTS tier_expires_at TIMESTAMP,
+            ADD COLUMN IF NOT EXISTS is_anonymous BOOLEAN NOT NULL DEFAULT false,
+            ADD COLUMN IF NOT EXISTS account_restricted BOOLEAN NOT NULL DEFAULT false,
+            ADD COLUMN IF NOT EXISTS monthly_usage JSONB NOT NULL DEFAULT '{}',
+            ADD COLUMN IF NOT EXISTS usage_reset_date DATE NOT NULL DEFAULT CURRENT_DATE;
+        `);
+
+        // Subscriptions table (future StoreKit 2 / Stripe receipts)
+        await db.query(`
+          CREATE TABLE IF NOT EXISTS subscriptions (
+            id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id        UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            tier           VARCHAR(20) NOT NULL,
+            started_at     TIMESTAMP NOT NULL DEFAULT NOW(),
+            expires_at     TIMESTAMP,
+            platform       VARCHAR(20),
+            transaction_id VARCHAR(255),
+            is_active      BOOLEAN NOT NULL DEFAULT true,
+            created_at     TIMESTAMP NOT NULL DEFAULT NOW()
+          );
+          CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions(user_id);
+          CREATE INDEX IF NOT EXISTS idx_subscriptions_active  ON subscriptions(user_id, is_active);
+        `);
+
+        // Allow NULL email for anonymous users (existing UNIQUE NOT NULL blocks INSERT)
+        await db.query(`
+          ALTER TABLE users ALTER COLUMN email DROP NOT NULL;
+        `);
+
+        await db.query(`INSERT INTO migration_history (migration_name) VALUES ('022_tier_subscription_system') ON CONFLICT DO NOTHING`);
+        logger.debug('✅ Tier/subscription system migration completed');
+      } catch (migrationError) {
+        logger.error({ err: migrationError }, '❌ Migration 022 failed');
+
+      }
+    }
+
+    // Migration 023: Allow NULL email in profiles table (guest users have no email)
+    const migration023Check = await db.query(`
+      SELECT 1 FROM migration_history WHERE migration_name = '023_profiles_email_nullable'
+    `);
+    if (migration023Check.rows.length === 0) {
+      try {
+        await db.query(`ALTER TABLE profiles ALTER COLUMN email DROP NOT NULL`);
+        await db.query(`INSERT INTO migration_history (migration_name) VALUES ('023_profiles_email_nullable') ON CONFLICT DO NOTHING`);
+        logger.debug('✅ Migration 023: profiles.email is now nullable');
+      } catch (migrationError) {
+        logger.error({ err: migrationError }, '❌ Migration 023 failed');
+      }
+    }
+
   } catch (error) {
     logger.error('❌ Database migration failed:', error);
     // Don't throw - let the app continue with what it has
@@ -5908,5 +6058,6 @@ module.exports = {
   db,
   initializeDatabase,
   getPoolStats,      // PHASE 1: Export pool statistics
-  getPoolHealth      // PHASE 1: Export pool health check
+  getPoolHealth,     // PHASE 1: Export pool health check
+  userCache          // Tier system: exposed for cache invalidation via db.invalidateTierCache()
 };

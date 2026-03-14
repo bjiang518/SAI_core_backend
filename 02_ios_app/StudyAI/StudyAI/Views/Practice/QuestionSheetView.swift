@@ -1654,81 +1654,12 @@ struct MasteryFireworkOverlay: View {
 
     var body: some View {
         ZStack {
-            // Background
             Color.black.opacity(0.55)
                 .ignoresSafeArea()
                 .onTapGesture { dismissOverlay() }
-
-            // Outer burst ring — 16 circles
-            ForEach(0..<16, id: \.self) { i in
-                let angle = Double(i) * 22.5
-                let rad = angle * .pi / 180
-                Circle()
-                    .fill(particleColors[i])
-                    .frame(width: i % 3 == 0 ? 13 : 8)
-                    .offset(
-                        x: burst ? cos(rad) * 180 : 0,
-                        y: burst ? sin(rad) * 180 : 0
-                    )
-                    .opacity(burst ? 0 : 0.92)
-                    .animation(.easeOut(duration: 0.9).delay(Double(i) * 0.018), value: burst)
-            }
-
-            // Inner burst ring — 12 squares, offset by 15°
-            ForEach(0..<12, id: \.self) { i in
-                let angle = Double(i) * 30.0 + 15.0
-                let rad = angle * .pi / 180
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(particleColors[i + 8])
-                    .frame(width: 7, height: 7)
-                    .offset(
-                        x: burst ? cos(rad) * 110 : 0,
-                        y: burst ? sin(rad) * 110 : 0
-                    )
-                    .opacity(burst ? 0 : 0.75)
-                    .animation(.easeOut(duration: 0.7).delay(Double(i) * 0.025 + 0.08), value: burst)
-            }
-
-            // Center card
-            VStack(spacing: 14) {
-                // Trophy circle
-                ZStack {
-                    Circle()
-                        .fill(LinearGradient(
-                            colors: [Color.yellow, Color.orange],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ))
-                        .frame(width: 76, height: 76)
-                    Text("🏆")
-                        .font(.system(size: 38))
-                }
-
-                Text(NSLocalizedString("mastery.title", value: "Weakness Cleared!", comment: ""))
-                    .font(.title2.bold())
-                    .foregroundColor(.primary)
-
-                Text(topicDisplayName)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(.green)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 8)
-
-                Text(NSLocalizedString("mastery.subtitle", value: "Now in your Strengths tab ✨", comment: ""))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-            .padding(.vertical, 28)
-            .padding(.horizontal, 24)
-            .frame(maxWidth: 320)
-            .background(
-                RoundedRectangle(cornerRadius: 24)
-                    .fill(Color(uiColor: .systemBackground))
-                    .shadow(color: .black.opacity(0.18), radius: 24, x: 0, y: 8)
-            )
-            .scaleEffect(cardScale)
-            .opacity(cardOpacity)
+            outerBurstRing
+            innerBurstRing
+            centerCard
         }
         .onAppear {
             withAnimation(.spring(response: 0.45, dampingFraction: 0.62)) {
@@ -1738,6 +1669,80 @@ struct MasteryFireworkOverlay: View {
             withAnimation { burst = true }
             DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) { dismissOverlay() }
         }
+    }
+
+    private var outerBurstRing: some View {
+        ForEach(0..<16, id: \.self) { i in
+            let angle = Double(i) * 22.5
+            let rad = angle * .pi / 180
+            Circle()
+                .fill(particleColors[i])
+                .frame(width: i % 3 == 0 ? 13 : 8)
+                .offset(
+                    x: burst ? cos(rad) * 180 : 0,
+                    y: burst ? sin(rad) * 180 : 0
+                )
+                .opacity(burst ? 0 : 0.92)
+                .animation(.easeOut(duration: 0.9).delay(Double(i) * 0.018), value: burst)
+        }
+    }
+
+    private var innerBurstRing: some View {
+        ForEach(0..<12, id: \.self) { i in
+            innerBurstParticle(index: i)
+        }
+    }
+
+    @ViewBuilder
+    private func innerBurstParticle(index i: Int) -> some View {
+        let angle = Double(i) * 30.0 + 15.0
+        let rad = angle * .pi / 180
+        let xOffset: CGFloat = burst ? cos(rad) * 110 : 0
+        let yOffset: CGFloat = burst ? sin(rad) * 110 : 0
+        RoundedRectangle(cornerRadius: 2)
+            .fill(particleColors[i + 8])
+            .frame(width: 7, height: 7)
+            .offset(x: xOffset, y: yOffset)
+            .opacity(burst ? 0 : 0.75)
+            .animation(.easeOut(duration: 0.7).delay(Double(i) * 0.025 + 0.08), value: burst)
+    }
+
+    private var centerCard: some View {
+        VStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(LinearGradient(
+                        colors: [Color.yellow, Color.orange],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ))
+                    .frame(width: 76, height: 76)
+                Text("🏆")
+                    .font(.system(size: 38))
+            }
+            Text(NSLocalizedString("mastery.title", value: "Weakness Cleared!", comment: ""))
+                .font(.title2.bold())
+                .foregroundColor(.primary)
+            Text(topicDisplayName)
+                .font(.subheadline.weight(.semibold))
+                .foregroundColor(.green)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 8)
+            Text(NSLocalizedString("mastery.subtitle", value: "Now in your Strengths tab ✨", comment: ""))
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.vertical, 28)
+        .padding(.horizontal, 24)
+        .frame(maxWidth: 320)
+        .background(
+            RoundedRectangle(cornerRadius: 24)
+                .fill(Color(uiColor: .systemBackground))
+                .shadow(color: .black.opacity(0.18), radius: 24, x: 0, y: 8)
+        )
+        .scaleEffect(cardScale)
+        .opacity(cardOpacity)
     }
 
     private func dismissOverlay() {

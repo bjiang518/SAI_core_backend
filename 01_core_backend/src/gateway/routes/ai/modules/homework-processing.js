@@ -7,6 +7,7 @@
 
 const AIServiceClient = require('../../../services/ai-client');
 const AuthHelper = require('../utils/auth-helper');
+const tierCheck = require('../../../middleware/tier-check');
 
 class HomeworkProcessingRoutes {
   constructor(fastify) {
@@ -96,7 +97,8 @@ class HomeworkProcessingRoutes {
             };
           }
         }
-      }
+      },
+      preHandler: [tierCheck({ feature: 'homework_single' })]
     }, this.processHomeworkImageJSON.bind(this));
 
     // Process multiple homework images in batch
@@ -144,7 +146,8 @@ class HomeworkProcessingRoutes {
             };
           }
         }
-      }
+      },
+      preHandler: [tierCheck({ feature: 'homework_batch' })]
     }, this.processHomeworkImagesBatch.bind(this));
 
     // Progressive grading - Phase 1: Parse questions with coordinates
@@ -288,6 +291,43 @@ class HomeworkProcessingRoutes {
         }
       }
     }, this.gradeSingleQuestion.bind(this));
+
+    // Locate diagram bounding boxes for need_image=true questions (Phase 1.5)
+    this.fastify.post('/api/ai/locate-diagram-regions', {
+      schema: {
+        description: 'Locate diagram/figure bounding boxes for questions that need image context',
+        tags: ['AI', 'Homework', 'Progressive'],
+        body: {
+          type: 'object',
+          required: ['base64_image', 'questions'],
+          properties: {
+            base64_image: { type: 'string' },
+            questions: {
+              type: 'array',
+              items: {
+                type: 'object',
+                required: ['id'],
+                properties: {
+                  id: { type: 'string' },
+                  question_number: { type: 'string' },
+                  question_text: { type: 'string' }
+                }
+              }
+            }
+          }
+        }
+      },
+      config: {
+        rateLimit: {
+          max: 30,
+          timeWindow: '1 minute',
+          keyGenerator: async (request) => {
+            const userId = await this.authHelper.getUserIdFromToken(request);
+            return userId || request.ip;
+          }
+        }
+      }
+    }, this.locateDiagramRegions.bind(this));
 
     // Reparse a single question from its source image
     this.fastify.post('/api/ai/reparse-question', {
@@ -754,6 +794,45 @@ class HomeworkProcessingRoutes {
     } catch (error) {
       const duration = Date.now() - startTime;
       this.fastify.log.error(`[${reqId}] grade FAILED after ${duration}ms: ${error.message}`);
+      return this.handleProxyError(reply, error);
+    }
+  }
+
+  /**
+   * Locate diagram bounding boxes for need_image=true questions (Phase 1.5)
+   */
+  async locateDiagramRegions(request, reply) {
+    const startTime = Date.now();
+    const { questions = [] } = request.body || {};
+
+    try {
+      const result = await this.aiClient.proxyRequest(
+        'POST',
+        '/api/v1/locate-diagram-regions',
+        request.body,
+        { 'Content-Type': 'application/json' }
+      );
+
+      const duration = Date.now() - startTime;
+      const regionCount = result.data?.regions?.length ?? 0;
+      // Log full AI engine response for diagnosis when regions=0
+      if (regionCount === 0) {
+        this.fastify.log.info(`locate-diagram-regions | found=0 — full AI engine response: ${JSON.stringify(result.data)}`);
+      }
+      this.fastify.log.info(`locate-diagram-regions | questions=${questions.length} found=${regionCount} ${duration}ms`);
+
+      return reply.send({
+        ...result.data,
+        _gateway: {
+          processTime: duration,
+          service: 'ai-engine',
+          mode: 'locate_diagram_regions'
+        }
+      });
+
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      this.fastify.log.error(`locate-diagram-regions failed after ${duration}ms: ${error.message}`);
       return this.handleProxyError(reply, error);
     }
   }

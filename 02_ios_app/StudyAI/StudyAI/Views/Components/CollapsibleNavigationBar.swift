@@ -7,6 +7,8 @@
 //
 
 import SwiftUI
+import Combine
+import UIKit
 
 /// Global state manager for navigation bar collapse state
 class NavigationBarState: ObservableObject {
@@ -188,16 +190,6 @@ struct CollapsibleNavigationBar<Content: View>: View {
             }
         }
         .buttonStyle(ScaleButtonStyle())
-    }
-}
-
-// MARK: - Scale Button Style
-
-struct ScaleButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.92 : 1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: configuration.isPressed)
     }
 }
 

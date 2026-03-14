@@ -276,6 +276,12 @@ struct SessionChatView: View {
                         }
                     } else {
                         Button(action: {
+                        // Tier gate: voice chat requires Premium
+                        let gateResult = FeatureGate.check(.voiceChat, user: AuthenticationService.shared.currentUser)
+                        if case .blocked = gateResult {
+                            UsageService.shared.flagLimitReached(feature: "voice_minutes", errorCode: "UPGRADE_REQUIRED")
+                            return
+                        }
                         Task { @MainActor in
                             @MainActor func doEnterLive(_ sessionId: String) {
                                 // Stop any playing TTS before entering Live mode

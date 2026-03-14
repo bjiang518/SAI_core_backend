@@ -400,6 +400,18 @@
 "auth.signIn" = "登录";
 "auth.dontHaveAccount" = "还没有帐户？";
 "auth.signUp" = "注册";
+"auth.continueAsGuest" = "以游客身份继续";
+"upgrade.title" = "解锁更多功能";
+"upgrade.createFreeAccount" = "创建免费账户";
+"upgrade.upgradeToPremium" = "升级至高级版";
+"upgrade.monthlyLimitReached" = "已达到每月上限";
+"upgrade.coppaRestricted" = "功能受限";
+"upgrade.createAccountSubtitle" = "创建免费账户，保存进度并解锁更多功能。";
+"upgrade.upgradeToPremiumSubtitle" = "升级高级版，享受无限制访问。";
+"upgrade.monthlyLimitSubtitle" = "您已用完本月的额度，升级以获得更多。";
+"upgrade.coppaRestrictedSubtitle" = "请让家长来解锁此功能。";
+"upgrade.continueFree" = "继续免费使用";
+"common.dismiss" = "关闭";
 "faceIDReauth.title" = "登录已过期";
 "faceIDReauth.message" = "为保障账户安全，请重新验证身份。";
 "faceIDReauth.biometricPrompt" = "使用 %@ 继续上次的学习。";
@@ -1864,6 +1876,7 @@
 "proMode.addAnnotation" = "添加标注";
 "proMode.editAnnotations" = "编辑标注 (%d)";
 "proMode.annotationImageHint" = "部分题目需要配图 — 点击裁剪照片";
+"proMode.aiAnalyzeDiagrams" = "使用AI自动定位图表区域";
 "proMode.selectAIModel" = "选择AI模型";
 "proMode.revertGrading" = "撤销批改";
 "proMode.revertGradingAlert.title" = "撤销批改？";
@@ -1904,6 +1917,8 @@
 "proMode.grading.grading" = "批改 Q%@...";
 "proMode.grading.progress" = "已完成 %d/%d (%d%%)";
 "proMode.grading.complete" = "批改完成！";
+"proMode.analyzingDiagrams" = "正在分析图表区域…";
+"proMode.diagramAnalysisFailed" = "将不含图片上下文进行批改";
 
 // PDF Preview
 "pdfPreview.title" = "PDF 预览";

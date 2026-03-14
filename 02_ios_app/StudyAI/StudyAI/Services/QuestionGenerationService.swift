@@ -466,6 +466,7 @@ class QuestionGenerationService: ObservableObject {
                     }
                 } else {
                     let errorMsg = "Server error: HTTP \(httpResponse.statusCode)"
+                    UsageService.shared.flagLimitReached(feature: "questions", errorCode: httpResponse.statusCode == 403 ? "UPGRADE_REQUIRED" : "MONTHLY_LIMIT_REACHED")
                     await MainActor.run { self.lastError = errorMsg }
                     return .failure(.serverError(httpResponse.statusCode))
                 }
@@ -623,6 +624,7 @@ class QuestionGenerationService: ObservableObject {
                     }
 
                     await MainActor.run { self.lastError = errorMsg }
+                    UsageService.shared.flagLimitReached(feature: "questions", errorCode: httpResponse.statusCode == 403 ? "UPGRADE_REQUIRED" : "MONTHLY_LIMIT_REACHED")
                     return .failure(.serverError(httpResponse.statusCode))
                 }
             }
@@ -1256,6 +1258,7 @@ class QuestionGenerationService: ObservableObject {
                 } else {
                     let errorMsg = "Server error: HTTP \(httpResponse.statusCode)"
                     await MainActor.run { self.lastError = errorMsg }
+                    UsageService.shared.flagLimitReached(feature: "questions", errorCode: httpResponse.statusCode == 403 ? "UPGRADE_REQUIRED" : "MONTHLY_LIMIT_REACHED")
                     return .failure(.serverError(httpResponse.statusCode))
                 }
             }

@@ -13,6 +13,7 @@ const AIServiceClient = require('../../../services/ai-client');
 const { getUserId } = require('../utils/auth-helper');
 const { db } = require('../../../../utils/railway-database');
 const crypto = require('crypto');
+const tierCheck = require('../../../middleware/tier-check');
 
 module.exports = async function (fastify, opts) {
   const aiClient = new AIServiceClient();
@@ -112,7 +113,25 @@ module.exports = async function (fastify, opts) {
           }
         }
       }
-    }
+    },
+    preHandler: [
+      // Step 1: Block Mode 3 for non-premium BEFORE any counter is incremented
+      async (request, reply) => {
+        const { mode } = request.body || {};
+        if (mode === 3) {
+          const userId = await getUserId(request);
+          if (!userId) return;
+          const { tier, is_anonymous } = await db.getUserTier(userId);
+          const effectiveTier = is_anonymous ? 'guest' : tier;
+          if (effectiveTier !== 'premium' && effectiveTier !== 'premium_plus') {
+            return reply.status(403).send({ error: 'UPGRADE_REQUIRED', tier_required: 'premium', feature: 'questions_mode3' });
+          }
+        }
+        // Mode 1 and 2 fall through to count check
+      },
+      // Step 2: Check/increment the questions usage counter
+      tierCheck({ feature: 'questions' }),
+    ]
   }, async (request, reply) => {
     const startTime = Date.now();
     const userId = await getUserId(request);
@@ -254,7 +273,9 @@ module.exports = async function (fastify, opts) {
   /**
    * Legacy: Mistake-based questions → redirect to unified mode 2
    */
-  fastify.post('/api/ai/generate-questions/mistakes', async (request, reply) => {
+  fastify.post('/api/ai/generate-questions/mistakes', {
+    preHandler: [tierCheck({ feature: 'questions' })]
+  }, async (request, reply) => {
     const { subject, mistakes_data = [], config = {} } = request.body;
     const userId = await getUserId(request);
 
