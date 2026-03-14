@@ -5823,6 +5823,118 @@ class NetworkService: ObservableObject {
         }
     }
 
+    // MARK: - Payments (StoreKit 2)
+
+    /// Validate an App Store receipt with the backend.
+    /// Called by StoreKitService after a successful purchase.
+    func validateReceipt(
+        transactionId: String,
+        originalTransactionId: String,
+        productId: String,
+        expiresDateMs: Int64?
+    ) async -> (success: Bool, tier: String?, error: String?) {
+        guard let url = URL(string: "\(baseURL)/api/payments/validate-receipt") else {
+            return (false, nil, "Invalid URL")
+        }
+        var body: [String: Any] = [
+            "transaction_id": transactionId,
+            "original_transaction_id": originalTransactionId,
+            "product_id": productId,
+        ]
+        if let ms = expiresDateMs { body["expires_date_ms"] = ms }
+
+        guard let token = AuthenticationService.shared.getAuthToken() else {
+            print("❌ [validateReceipt] No auth token — user not logged in")
+            return (false, nil, "Not authenticated")
+        }
+        print("💳 [validateReceipt] token present, txId=\(transactionId)")
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse else {
+                return (false, nil, "No HTTP response")
+            }
+            print("💳 [validateReceipt] HTTP \(http.statusCode)")
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                let success = json["success"] as? Bool ?? false
+                let tier = (json["data"] as? [String: Any])?["tier"] as? String
+                let errMsg = json["error"] as? String
+                return (success && http.statusCode == 200, tier, errMsg)
+            }
+            return (false, nil, "HTTP \(http.statusCode)")
+        } catch {
+            return (false, nil, error.localizedDescription)
+        }
+    }
+
+    // MARK: - Debug Admin (DEBUG only)
+
+    #if DEBUG
+    private var debugAdminJWT: String? {
+        // Hardcoded debug-only admin JWT (expires 2027, DEBUG builds only, never ships to App Store)
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYWRtaW4iLCJlbWFpbCI6ImRlYnVnQHN0dWR5YWkuZGV2IiwiaWF0IjoxNzczNDcxNDQ4LCJleHAiOjE4MDUwMDc0NDh9.VuRsc2npfDn1sJlenV9t4aAp3SQePmp57NUhwHffuCU"
+    }
+
+    /// Instantly override a user's tier. QA use only.
+    func debugSetTier(userId: String, tier: UserTier) async -> (success: Bool, error: String?) {
+        guard let jwt = debugAdminJWT, !jwt.isEmpty else {
+            return (false, "DEBUG_ADMIN_JWT not set in scheme environment variables")
+        }
+        guard let url = URL(string: "\(baseURL)/api/admin/users/\(userId)/set-tier") else {
+            return (false, "Invalid URL")
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(jwt)", forHTTPHeaderField: "Authorization")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["tier": tier.rawValue])
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse else {
+                return (false, "No HTTP response")
+            }
+            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            let success = (json?["success"] as? Bool ?? false) && http.statusCode == 200
+            return (success, json?["error"] as? String)
+        } catch {
+            return (false, error.localizedDescription)
+        }
+    }
+
+    /// Reset all usage counters for a user. QA use only.
+    func debugResetUsage(userId: String) async -> (success: Bool, error: String?) {
+        guard let jwt = debugAdminJWT, !jwt.isEmpty else {
+            return (false, "DEBUG_ADMIN_JWT not set in scheme environment variables")
+        }
+        guard let url = URL(string: "\(baseURL)/api/admin/users/\(userId)/reset-usage") else {
+            return (false, "Invalid URL")
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(jwt)", forHTTPHeaderField: "Authorization")
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse else {
+                return (false, "No HTTP response")
+            }
+            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            let success = (json?["success"] as? Bool ?? false) && http.statusCode == 200
+            return (success, json?["error"] as? String)
+        } catch {
+            return (false, error.localizedDescription)
+        }
+    }
+    #endif
+
     private func todayDateString() -> String {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd"

@@ -630,6 +630,18 @@ const db = {
   },
 
   /**
+   * Set user tier directly (used by admin override + payment webhook)
+   */
+  async setUserTier(userId, tier, expiresAt = null) {
+    await this.query(
+      `UPDATE users SET tier = $1, tier_expires_at = $2 WHERE id = $3`,
+      [tier, expiresAt, userId],
+      { cache: false }
+    );
+    this.invalidateTierCache(userId);
+  },
+
+  /**
    * Email Verification Methods
    */
 

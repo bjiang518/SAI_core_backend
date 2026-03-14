@@ -197,17 +197,24 @@ struct HomeView: View {
                 .onTapGesture { showingProfile = true }
 
             // Center: Greeting text — ZCOOLKuaiLe for Chinese, IndieFlower for other languages
-            Text("\(greetingText), \(userName)")
-                .font(
-                    "\(greetingText) \(userName)".unicodeScalars.contains {
-                        (0x4E00...0x9FFF ~= $0.value) || (0x3400...0x4DBF ~= $0.value)
-                    }
-                    ? Font.custom("ZCOOLKuaiLe-Regular", size: 24)
-                    : Font.custom("IndieFlower", size: 24)
-                )
-                .foregroundColor(themeManager.primaryText)
-                .fontWeight(.bold)
-                .lineLimit(1)
+            HStack(spacing: 4) {
+                Text("\(greetingText), \(userName)")
+                    .font(
+                        "\(greetingText) \(userName)".unicodeScalars.contains {
+                            (0x4E00...0x9FFF ~= $0.value) || (0x3400...0x4DBF ~= $0.value)
+                        }
+                        ? Font.custom("ZCOOLKuaiLe-Regular", size: 24)
+                        : Font.custom("IndieFlower", size: 24)
+                    )
+                    .foregroundColor(themeManager.primaryText)
+                    .fontWeight(.bold)
+                    .lineLimit(1)
+                if let tier = AuthenticationService.shared.currentUser?.tier, tier.isPaid {
+                    Image(systemName: "crown.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(Color(hex: "D97706"))
+                }
+            }
                 .minimumScaleFactor(0.7)
 
             Spacer()

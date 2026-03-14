@@ -74,6 +74,18 @@
             ReferencedContainer = "container:StudyAI.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
+      <EnvironmentVariables>
+         <EnvironmentVariable
+            key = "DEBUG_ADMIN_JWT =  a5a0ca3b309226171e4cd1ceda39903f638ef9160c5f21586553f51efaac95ab8152d85991427cb3d60bfed5a3a51df0af1553f0c0ab4c92558d1a0572dcd3f4"
+            value = ""
+            isEnabled = "YES">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "DEBUG_ADMIN_JWT "
+            value = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYWRtaW4iLCJlbWFpbCI6ImRlYnVnQHN0dWR5YWkuZGV2IiwiaWF0IjoxNzczNDcxNDQ4LCJleHAiOjE4MDUwMDc0NDh9.VuRsc2npfDn1sJlenV9t4aAp3SQePmp57NUhwHffuCU"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+      </EnvironmentVariables>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"

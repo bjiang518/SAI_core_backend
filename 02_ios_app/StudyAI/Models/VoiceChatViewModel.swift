@@ -62,7 +62,7 @@ class VoiceChatViewModel: ObservableObject {
     private var responseTimeoutTimer: Timer?
 
     /// How long to wait for an AI response before showing the reconnect option (seconds).
-    private let responseTimeoutInterval: TimeInterval = 5.0
+    private let responseTimeoutInterval: TimeInterval = 15.0
 
     /// Audio engine for recording
     private var audioEngine: AVAudioEngine?

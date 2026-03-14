@@ -478,6 +478,9 @@ if (features.useGateway) {
   // Admin dashboard routes - NEW: Admin panel API endpoints
   fastify.register(require('./routes/admin-routes'));
 
+  // Payments + Apple webhook routes (IAP receipt validation, tier sync)
+  fastify.register(require('./routes/payments'));
+
   fastify.log.info('✅ API Gateway enabled with enhanced routing and performance optimization');
 } else {
   // Fallback to simple health check only

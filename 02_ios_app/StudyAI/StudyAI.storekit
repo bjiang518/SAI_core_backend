@@ -1,0 +1,125 @@
+{
+  "identifier" : "StudyAI",
+  "nonConsumableProducts" : [
+
+  ],
+  "consumableProducts" : [
+
+  ],
+  "subscriptionGroups" : [
+    {
+      "name" : "StudyAI Pro",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "9.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "10001",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Unlimited AI tutoring with 500 chats, 50 homework uploads, 200 practice questions, voice tutor, and parent reports per month.",
+              "displayName" : "Premium",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.studyai.premium.monthly",
+          "referenceName" : "Premium Monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "subscriptionGroupID" : "StudyAIPro",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "19.99",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "10002",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Unlimited everything — homework, chats, practice, voice tutor, and parent reports with no monthly caps.",
+              "displayName" : "Premium Plus (Ultra)",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.studyai.ultra.monthly",
+          "referenceName" : "Ultra Monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "subscriptionGroupID" : "StudyAIPro",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "1234567890",
+    "_customerEmail" : "",
+    "_enableAskToBuyButton" : false,
+    "_enableFamilySharingButton" : false,
+    "_purchasesAreConsistentWithApplicationReceiptVersion" : true,
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Purchase"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Verification"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Store Sync"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Subscription Status"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Transaction"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Transaction Info"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Offer Code Redemption"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Win-Back Offer"
+      }
+    ]
+  },
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

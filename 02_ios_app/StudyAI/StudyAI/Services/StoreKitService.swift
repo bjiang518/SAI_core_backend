@@ -7,7 +7,6 @@
 //
 
 import Foundation
-import Combine
 import StoreKit
 
 @MainActor
@@ -34,15 +33,10 @@ class StoreKitService: ObservableObject {
     // MARK: - Load Products
 
     func loadProducts() async {
-        print("🛒 [StoreKit] loadProducts() called — fetching IDs: \(productIDs)")
         do {
             let fetched = try await Product.products(for: productIDs)
-            print("🛒 [StoreKit] Fetched \(fetched.count) product(s): \(fetched.map { "\($0.id) (\($0.displayPrice))" })")
             // Sort so premium comes before ultra in UI
             products = fetched.sorted { $0.price < $1.price }
-            if fetched.isEmpty {
-                print("⚠️ [StoreKit] No products returned — check App Store Connect product IDs and In-App Purchase capability")
-            }
         } catch {
             print("❌ [StoreKit] Failed to load products: \(error)")
         }
@@ -51,35 +45,28 @@ class StoreKitService: ObservableObject {
     // MARK: - Purchase
 
     func purchase(_ product: Product) async {
-        guard !purchaseInProgress else {
-            print("⚠️ [StoreKit] Purchase already in progress, ignoring")
-            return
-        }
-        print("🛒 [StoreKit] Starting purchase for: \(product.id)")
+        guard !purchaseInProgress else { return }
         purchaseInProgress = true
         purchaseError = nil
         defer { purchaseInProgress = false }
 
         do {
-            print("🛒 [StoreKit] Calling product.purchase()...")
             let result = try await product.purchase()
             switch result {
             case .success(let verification):
-                print("✅ [StoreKit] Purchase succeeded, verifying transaction...")
                 let transaction = try checkVerified(verification)
-                print("✅ [StoreKit] Transaction verified: id=\(transaction.id)")
                 await handlePurchasedTransaction(transaction, productId: product.id)
                 await transaction.finish()
-                print("✅ [StoreKit] Transaction finished")
 
             case .pending:
-                print("⏳ [StoreKit] Purchase pending (Ask to Buy)")
+                // Awaiting approval (e.g. Ask to Buy) — tier will update via listener
+                break
 
             case .userCancelled:
-                print("🚫 [StoreKit] User cancelled purchase")
+                break
 
             @unknown default:
-                print("⚠️ [StoreKit] Unknown purchase result")
+                break
             }
         } catch {
             purchaseError = error.localizedDescription
@@ -117,8 +104,8 @@ class StoreKitService: ObservableObject {
     // MARK: - Verify + send receipt to backend
 
     private func handlePurchasedTransaction(_ transaction: Transaction, productId: String) async {
+        // Build expiry from transaction
         let expiresDateMs = transaction.expirationDate.map { Int64($0.timeIntervalSince1970 * 1000) }
-        print("💳 [StoreKit] handlePurchasedTransaction: productId=\(productId) txId=\(transaction.id)")
 
         let result = await NetworkService.shared.validateReceipt(
             transactionId: String(transaction.id),
@@ -126,10 +113,11 @@ class StoreKitService: ObservableObject {
             productId: productId,
             expiresDateMs: expiresDateMs
         )
-        print("💳 [StoreKit] validateReceipt result: success=\(result.success) tier=\(result.tier ?? "nil") error=\(result.error ?? "nil")")
 
         if result.success, let tier = result.tier {
+            // Update Keychain and in-memory user
             updateLocalUserTier(tier)
+            print("✅ [StoreKit] Tier updated to \(tier)")
         } else {
             print("⚠️ [StoreKit] Backend receipt validation failed: \(result.error ?? "unknown")")
         }
@@ -147,13 +135,8 @@ class StoreKitService: ObservableObject {
     // MARK: - Update local user tier after purchase
 
     private func updateLocalUserTier(_ tierString: String) {
-        let currentUser = AuthenticationService.shared.currentUser
-        print("💳 [StoreKit] updateLocalUserTier(\(tierString)) — userId=\(currentUser?.id ?? "nil") parsedTier=\(String(describing: UserTier(rawValue: tierString)))")
-        guard let user = currentUser,
-              let newTier = UserTier(rawValue: tierString) else {
-            print("⚠️ [StoreKit] updateLocalUserTier FAILED — user=\(String(describing: currentUser?.id)) tier=\(String(describing: UserTier(rawValue: tierString)))")
-            return
-        }
+        guard let user = AuthenticationService.shared.currentUser,
+              let newTier = UserTier(rawValue: tierString) else { return }
 
         let updated = User(
             id: user.id,
@@ -169,6 +152,5 @@ class StoreKitService: ObservableObject {
 
         AuthenticationService.shared.currentUser = updated
         try? KeychainService.shared.saveUser(updated)
-        print("✅ [StoreKit] currentUser.tier updated to \(newTier) — isPaid=\(newTier.isPaid)")
     }
 }
