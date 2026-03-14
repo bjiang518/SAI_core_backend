@@ -714,7 +714,10 @@ class DigitalHomeworkViewModel: ObservableObject {
         // Skip if already running
         guard !isDiagramAnalysisPending else { return }
 
-        let needImageQuestions = questions.filter { $0.question.needImage == true }
+        let needImageQuestions = questions.filter {
+            $0.question.needImage == true ||
+            $0.question.subquestions?.contains { $0.needImage == true } == true
+        }
         guard !needImageQuestions.isEmpty else {
             logger.info("No need_image questions — skipping diagram analysis")
             return

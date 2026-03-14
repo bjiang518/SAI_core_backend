@@ -81,9 +81,10 @@ class GeminiEducationalAIService:
                 # Model names (NEW API uses different naming)
                 # - gemini-2.5-flash: Fast parsing AND standard grading (optimized for speed)
                 # - gemini-3-flash-preview: Gemini 3 Flash with advanced reasoning capabilities
-                self.model_name = "gemini-3-flash-preview"  # UPGRADED: 2.5 → 3 flash for better parsing
-                self.thinking_model_name = "gemini-3.1-pro-preview"  # Gemini 3.1 Pro Preview for deep reasoning grading
-                self.grading_model_name = "gemini-2.5-flash"  # Fast grading (1.5-3s per question)
+                self.model_name = "gemini-3-flash-preview"  # Gemini 3 Flash for parsing
+                self.thinking_model_name = "gemini-3-flash-preview"  # Gemini 3 Flash for deep reasoning grading
+                self.localization_model_name = "gemini-2.5-flash"  # gemini-2.5-flash for image region/cropping detection
+                self.grading_model_name = "gemini-3-flash-preview"  # Gemini 3 Flash for fast grading
 
                 # Set client references (for compatibility)
                 self.client = self.gemini_client
@@ -1089,7 +1090,7 @@ class GeminiEducationalAIService:
             )
 
             response = await self.client.aio.models.generate_content(
-                model=self.model_name,
+                model=self.localization_model_name,
                 contents=[image_part, genai_types.Part.from_text(text=prompt)],
                 config=generation_config
             )

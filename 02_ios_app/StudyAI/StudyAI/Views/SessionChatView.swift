@@ -131,10 +131,6 @@ struct SessionChatView: View {
     // Live mode leave confirmation
     @State private var showingLiveLeaveAlert = false
     @State private var pendingTab: MainTab? = nil
-    // Tier / upgrade gate
-    @State private var showingUpgradePrompt = false
-    @State private var upgradeBlockedReason: FeatureGate.BlockReason = .upgradeRequired(minTier: .premium)
-    @StateObject private var usageService = UsageService.shared
     /// Single unified message list — both text and voice messages live here.
     /// Populated via callbacks from NetworkService and VoiceChatViewModel.
     @State private var allMessages: [UnifiedChatMessage] = []
@@ -282,9 +278,8 @@ struct SessionChatView: View {
                         Button(action: {
                         // Tier gate: voice chat requires Premium
                         let gateResult = FeatureGate.check(.voiceChat, user: AuthenticationService.shared.currentUser)
-                        if case .blocked(let reason) = gateResult {
-                            upgradeBlockedReason = reason
-                            showingUpgradePrompt = true
+                        if case .blocked = gateResult {
+                            UsageService.shared.flagLimitReached(feature: "voice_minutes", errorCode: "UPGRADE_REQUIRED")
                             return
                         }
                         Task { @MainActor in
@@ -389,24 +384,6 @@ struct SessionChatView: View {
             // }
             .sheet(isPresented: $showingVoiceSettings) {
                 VoiceSettingsView()
-            }
-            .sheet(isPresented: $showingUpgradePrompt) {
-                UpgradePromptView(
-                    blockedFeature: .voiceChat,
-                    reason: upgradeBlockedReason,
-                    onDismiss: { showingUpgradePrompt = false }
-                )
-            }
-            .onChange(of: usageService.limitReachedFeature) { _, feature in
-                guard let feature else { return }
-                let code = usageService.limitReachedCode ?? ""
-                if code == "UPGRADE_REQUIRED" {
-                    upgradeBlockedReason = .upgradeRequired(minTier: .premium)
-                } else {
-                    upgradeBlockedReason = .monthlyLimitReached(feature: .chatMessage)
-                }
-                showingUpgradePrompt = true
-                usageService.clearLimitReached()
             }
             .sheet(isPresented: $showingScenarioPicker) {
                 LiveModeScenarioPicker { scenario in
