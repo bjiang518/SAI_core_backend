@@ -10,7 +10,7 @@
  */
 
 const { getUserId } = require('../utils/auth-helper');
-const tierCheck = require('../../../../middleware/tier-check');
+const tierCheck = require('../../../middleware/tier-check');
 
 module.exports = async function (fastify, opts) {
   /**
