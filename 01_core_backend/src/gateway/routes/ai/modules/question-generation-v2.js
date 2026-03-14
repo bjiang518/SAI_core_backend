@@ -13,7 +13,7 @@ const AIServiceClient = require('../../../services/ai-client');
 const { getUserId } = require('../utils/auth-helper');
 const { db } = require('../../../../utils/railway-database');
 const crypto = require('crypto');
-const tierCheck = require('../../../../middleware/tier-check');
+const tierCheck = require('../../../middleware/tier-check');
 
 module.exports = async function (fastify, opts) {
   const aiClient = new AIServiceClient();

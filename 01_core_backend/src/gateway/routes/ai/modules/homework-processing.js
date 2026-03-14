@@ -7,7 +7,7 @@
 
 const AIServiceClient = require('../../../services/ai-client');
 const AuthHelper = require('../utils/auth-helper');
-const tierCheck = require('../../../../middleware/tier-check');
+const tierCheck = require('../../../middleware/tier-check');
 
 class HomeworkProcessingRoutes {
   constructor(fastify) {
