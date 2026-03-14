@@ -6,7 +6,7 @@
  */
 
 const cron = require('node-cron');
-const { authenticateUser } = require('../../middleware/railway-auth');
+const { authenticateUser } = require('../middleware/railway-auth');
 
 // Map StoreKit product IDs → DB tier values
 const PRODUCT_TIER_MAP = {
