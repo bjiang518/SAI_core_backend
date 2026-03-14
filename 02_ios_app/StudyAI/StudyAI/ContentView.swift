@@ -792,6 +792,26 @@ struct ModernProfileView: View {
                     .buttonStyle(.plain)
                 }
 
+                #if DEBUG
+                Section(header: Text("Developer")) {
+                    Button {
+                        showingDebugSettings = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "wrench.and.screwdriver.fill")
+                                .foregroundColor(.orange)
+                                .frame(width: 20)
+                            Text("Tier Switcher")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+                #endif
+
                 // APP INFO SECTION
                 Section {
                     VStack(spacing: 8) {
@@ -873,12 +893,11 @@ struct ModernProfileView: View {
         .sheet(isPresented: $showingThemeSelection) {
             ThemeSelectionView()
         }
-        // TODO: Add DebugSettings.swift to Xcode project to enable debug settings menu
-        // #if DEBUG
-        // .sheet(isPresented: $showingDebugSettings) {
-        //     DebugSettingsView()
-        // }
-        // #endif
+        #if DEBUG
+        .sheet(isPresented: $showingDebugSettings) {
+            DebugTierView()
+        }
+        #endif
     }
 
     private func loadGradeFromProfile(_ profile: UserProfile?) {

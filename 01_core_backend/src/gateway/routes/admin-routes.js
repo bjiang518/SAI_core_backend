@@ -849,6 +849,59 @@ module.exports = async function (fastify, opts) {
   });
 
   // ============================================================================
+  // TIER MANAGEMENT ROUTES (dev/QA overrides)
+  // ============================================================================
+
+  /**
+   * POST /api/admin/users/:userId/set-tier
+   * Body: { tier: "free"|"premium"|"premium_plus", expires_at?: ISO8601 }
+   * Instantly overrides a user's subscription tier. Use for QA testing.
+   */
+  fastify.post('/api/admin/users/:userId/set-tier', { preHandler: verifyAdmin }, async (request, reply) => {
+    const { userId } = request.params;
+    const { tier, expires_at } = request.body || {};
+
+    const validTiers = ['free', 'premium', 'premium_plus'];
+    if (!tier || !validTiers.includes(tier)) {
+      return reply.code(400).send({ success: false, error: `tier must be one of: ${validTiers.join(', ')}` });
+    }
+
+    const expiresAt = expires_at ? new Date(expires_at) : null;
+    if (expires_at && isNaN(expiresAt?.getTime())) {
+      return reply.code(400).send({ success: false, error: 'expires_at must be a valid ISO8601 date' });
+    }
+
+    try {
+      await db.setUserTier(userId, tier, expiresAt);
+      fastify.log.info(`[Admin] set-tier: user=${userId} tier=${tier} expires=${expiresAt || 'null'} by=${request.adminUser?.email}`);
+      return reply.send({ success: true, data: { tier, expires_at: expiresAt } });
+    } catch (error) {
+      fastify.log.error({ err: error }, 'Error setting user tier');
+      return reply.code(500).send({ success: false, error: 'Failed to set tier' });
+    }
+  });
+
+  /**
+   * POST /api/admin/users/:userId/reset-usage
+   * Clears all Redis usage counters + monthly_usage DB field for the user.
+   * Lets testers re-hit rate limits without waiting for monthly reset.
+   */
+  fastify.post('/api/admin/users/:userId/reset-usage', { preHandler: verifyAdmin }, async (request, reply) => {
+    const { userId } = request.params;
+
+    try {
+      const { usageTracker } = require('./ai/utils/usage-tracker');
+      await usageTracker.resetUserUsage(userId);
+      db.invalidateTierCache(userId);
+      fastify.log.info(`[Admin] reset-usage: user=${userId} by=${request.adminUser?.email}`);
+      return reply.send({ success: true });
+    } catch (error) {
+      fastify.log.error({ err: error }, 'Error resetting user usage');
+      return reply.code(500).send({ success: false, error: 'Failed to reset usage' });
+    }
+  });
+
+  // ============================================================================
   // UTILITY ROUTES
   // ============================================================================
 

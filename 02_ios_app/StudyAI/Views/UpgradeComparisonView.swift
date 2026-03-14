@@ -5,6 +5,7 @@
 
 import SwiftUI
 import Lottie
+import StoreKit
 
 struct UpgradeComparisonView: View {
 
@@ -16,6 +17,10 @@ struct UpgradeComparisonView: View {
     let blockedFeature: String
     let reason: Reason
     var onDismiss: () -> Void
+
+    @StateObject private var storeKit = StoreKitService.shared
+    @State private var purchasingUltra = false
+    @State private var purchasingPremium = false
 
     // MARK: - Design tokens
     private let teal       = DesignTokens.Colors.libraryTeal
@@ -80,6 +85,10 @@ struct UpgradeComparisonView: View {
             }
             .padding(.top, 16)
             .padding(.leading, 20)
+        }
+        .task {
+            print("🛒 [UpgradeView] View appeared — loading products")
+            await storeKit.loadProducts()
         }
     }
 
@@ -234,24 +243,73 @@ struct UpgradeComparisonView: View {
 
     private var bottomCTAs: some View {
         VStack(spacing: 10) {
-            Button { onDismiss() } label: {
-                Text("Start Ultra")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(badgeGold)
-                    .cornerRadius(14)
+            Button {
+                print("🛒 [UpgradeView] Start Ultra tapped — products: \(storeKit.products.count)")
+                Task {
+                    if let product = storeKit.products.first(where: { $0.id.contains("ultra") }) {
+                        print("🛒 [UpgradeView] Purchasing: \(product.id) price=\(product.displayPrice)")
+                        purchasingUltra = true
+                        await storeKit.purchase(product)
+                        purchasingUltra = false
+                        if storeKit.purchaseError == nil { onDismiss() }
+                    } else {
+                        print("⚠️ [UpgradeView] No ultra product. Available: \(storeKit.products.map { "\($0.id) \($0.displayPrice)" })")
+                    }
+                }
+            } label: {
+                Group {
+                    if purchasingUltra {
+                        ProgressView().tint(.white).frame(maxWidth: .infinity).padding(.vertical, 16)
+                    } else {
+                        Text("Start Ultra  $19.99/mo")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                    }
+                }
+                .background(badgeGold)
+                .cornerRadius(14)
             }
-            Button { onDismiss() } label: {
-                Text("Start Premium")
-                    .fontWeight(.semibold)
-                    .font(.subheadline)
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(teal)
-                    .cornerRadius(14)
+            .disabled(purchasingUltra || purchasingPremium)
+
+            Button {
+                print("🛒 [UpgradeView] Start Premium tapped — products: \(storeKit.products.count)")
+                Task {
+                    if let product = storeKit.products.first(where: { $0.id.contains("premium") && !$0.id.contains("ultra") }) {
+                        print("🛒 [UpgradeView] Purchasing: \(product.id) price=\(product.displayPrice)")
+                        purchasingPremium = true
+                        await storeKit.purchase(product)
+                        purchasingPremium = false
+                        if storeKit.purchaseError == nil { onDismiss() }
+                    } else {
+                        print("⚠️ [UpgradeView] No premium product. Available: \(storeKit.products.map { "\($0.id) \($0.displayPrice)" })")
+                    }
+                }
+            } label: {
+                Group {
+                    if purchasingPremium {
+                        ProgressView().tint(.white).frame(maxWidth: .infinity).padding(.vertical, 14)
+                    } else {
+                        Text("Start Premium  $9.99/mo")
+                            .fontWeight(.semibold)
+                            .font(.subheadline)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                    }
+                }
+                .background(teal)
+                .cornerRadius(14)
+            }
+            .disabled(purchasingUltra || purchasingPremium)
+
+            if let error = storeKit.purchaseError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 8)
             }
         }
     }

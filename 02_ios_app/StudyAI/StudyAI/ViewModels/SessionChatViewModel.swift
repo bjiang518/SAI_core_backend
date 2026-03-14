@@ -1254,6 +1254,17 @@ class SessionChatViewModel: ObservableObject {
 
                             self.cancelStreamingUpdates()
 
+                            // If the user pressed Stop AI, stopGeneration() already committed the
+                            // partial text to allMessages + SwiftData and cleared isActivelyStreaming.
+                            // Skip the append here to prevent a duplicate bubble appearing.
+                            guard self.isActivelyStreaming else {
+                                withAnimation {
+                                    self.isSubmitting = false
+                                    self.showTypingIndicator = false
+                                }
+                                return
+                            }
+
                             if success {
                                 // ✅ PERFORMANCE FIX: Move streaming message to conversationHistory
                                 if let finalText = fullText {
@@ -1771,6 +1782,9 @@ class SessionChatViewModel: ObservableObject {
                     "role": "assistant",
                     "content": activeStreamingMessage
                 ])
+                // Persist the stopped content so it survives session reload.
+                // addToHistory: false because appendToConversationHistory already added it above.
+                persistMessage(role: "assistant", content: activeStreamingMessage, addToHistory: false)
             }
         }
 

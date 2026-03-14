@@ -186,6 +186,39 @@ const usageTracker = {
   },
 
   /**
+   * Delete all usage counters for a user (Redis + DB).
+   * Called by the admin reset-usage endpoint.
+   */
+  async resetUserUsage(userId) {
+    // Redis: scan + delete all matching keys for this user
+    try {
+      const rc = getRedis();
+      if (redisReady && rc) {
+        const monthlyPattern = `usage:${userId}:*`;
+        const lifetimePattern = `usage_lifetime:${userId}:*`;
+        for (const pattern of [monthlyPattern, lifetimePattern]) {
+          let cursor = 0;
+          do {
+            const reply = await rc.scan(cursor, { MATCH: pattern, COUNT: 100 });
+            cursor = reply.cursor;
+            if (reply.keys.length > 0) {
+              await rc.del(reply.keys);
+            }
+          } while (cursor !== 0);
+        }
+      }
+    } catch (e) {
+      console.warn('[usage-tracker] Redis reset failed, falling back to DB only:', e.message);
+    }
+    // DB: clear monthly_usage JSONB
+    await db.query(
+      `UPDATE users SET monthly_usage = '{}', usage_reset_date = CURRENT_DATE WHERE id = $1`,
+      [userId],
+      { cache: false }
+    );
+  },
+
+  /**
    * Increment counter by `amount`. Used for voice_minutes.
    * Amount is Math.ceil'd to ensure it's an integer for Redis INCRBY.
    */

@@ -600,6 +600,16 @@
 		7B278D132F65319500DA84B0 /* Upgrade.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B278D122F65319500DA84B0 /* Upgrade.json */; };
 		7B278D142F65319500DA84B0 /* Upgrade.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B278D122F65319500DA84B0 /* Upgrade.json */; };
 		7B278D152F65319500DA84B0 /* Upgrade.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B278D122F65319500DA84B0 /* Upgrade.json */; };
+		7B278D182F653B9300DA84B0 /* StoreKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278D172F653B9300DA84B0 /* StoreKitService.swift */; };
+		7B278D192F653B9300DA84B0 /* StoreKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278D172F653B9300DA84B0 /* StoreKitService.swift */; };
+		7B278D1A2F653B9300DA84B0 /* StoreKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278D172F653B9300DA84B0 /* StoreKitService.swift */; };
+		7B278D1C2F653BA900DA84B0 /* DebugTierView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278D1B2F653BA900DA84B0 /* DebugTierView.swift */; };
+		7B278D1D2F653BA900DA84B0 /* DebugTierView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278D1B2F653BA900DA84B0 /* DebugTierView.swift */; };
+		7B278D1E2F653BA900DA84B0 /* DebugTierView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278D1B2F653BA900DA84B0 /* DebugTierView.swift */; };
+		7B278D202F653BD900DA84B0 /* StudyAI.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 7B278D1F2F653BD900DA84B0 /* StudyAI.storekit */; };
+		7B278D212F653BD900DA84B0 /* StudyAI.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 7B278D1F2F653BD900DA84B0 /* StudyAI.storekit */; };
+		7B278D222F653BD900DA84B0 /* StudyAI.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 7B278D1F2F653BD900DA84B0 /* StudyAI.storekit */; };
+		7B278D242F65534900DA84B0 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7B278D232F65534900DA84B0 /* StoreKit.framework */; };
 		7B4F9C022F9A100200AB12C3 /* DailyQuestionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B4F9C012F9A100200AB12C3 /* DailyQuestionCard.swift */; };
 		7B4F9C032F9A100200AB12C3 /* DailyQuestionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B4F9C012F9A100200AB12C3 /* DailyQuestionCard.swift */; };
 		7B4F9C042F9A100200AB12C3 /* DailyQuestionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B4F9C012F9A100200AB12C3 /* DailyQuestionCard.swift */; };
@@ -1220,6 +1230,10 @@
 		7B278CE22F64DC8E00DA84B0 /* UserTier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UserTier.swift; path = StudyAI/Models/UserTier.swift; sourceTree = SOURCE_ROOT; };
 		7B278D0A2F64F57000DA84B0 /* UpgradeComparisonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpgradeComparisonView.swift; sourceTree = "<group>"; };
 		7B278D122F65319500DA84B0 /* Upgrade.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Upgrade.json; sourceTree = "<group>"; };
+		7B278D172F653B9300DA84B0 /* StoreKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreKitService.swift; sourceTree = "<group>"; };
+		7B278D1B2F653BA900DA84B0 /* DebugTierView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugTierView.swift; sourceTree = "<group>"; };
+		7B278D1F2F653BD900DA84B0 /* StudyAI.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = StudyAI.storekit; sourceTree = "<group>"; };
+		7B278D232F65534900DA84B0 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 		7B4F9C012F9A100200AB12C3 /* DailyQuestionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyQuestionCard.swift; path = StudyAI/Views/Components/DailyQuestionCard.swift; sourceTree = SOURCE_ROOT; };
 		7B6B2B0C2ED6E7E8004E70C2 /* ImageCropper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ImageCropper.swift; path = StudyAI/Utils/ImageCropper.swift; sourceTree = SOURCE_ROOT; };
 		7B74A2032EB18078002DBE2B /* Fire.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Fire.json; sourceTree = "<group>"; };
@@ -1413,6 +1427,7 @@
 				7BC00E6A2E714B68002DF625 /* GoogleSignIn in Frameworks */,
 				7BC00E6C2E714B68002DF625 /* GoogleSignInSwift in Frameworks */,
 				7BEEB6182E8E40EA00957748 /* Lottie in Frameworks */,
+				7B278D242F65534900DA84B0 /* StoreKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1657,6 +1672,15 @@
 			path = StudyAI/Views;
 			sourceTree = SOURCE_ROOT;
 		};
+		7B278D162F653B6800DA84B0 /* appstore */ = {
+			isa = PBXGroup;
+			children = (
+				7B278D1B2F653BA900DA84B0 /* DebugTierView.swift */,
+				7B278D172F653B9300DA84B0 /* StoreKitService.swift */,
+			);
+			path = appstore;
+			sourceTree = "<group>";
+		};
 		7B8353322EA6F0DA00199AC3 /* utils */ = {
 			isa = PBXGroup;
 			children = (
@@ -1674,6 +1698,8 @@
 		7B9EC4642E61663B005E4BFB = {
 			isa = PBXGroup;
 			children = (
+				7B278D1F2F653BD900DA84B0 /* StudyAI.storekit */,
+				7B278D162F653B6800DA84B0 /* appstore */,
 				7B278A392F5D55BE00DA84B0 /* fonts */,
 				7BEC07F12F4C332900B6E573 /* de.lproj */,
 				7BEC07F42F4C332900B6E573 /* es.lproj */,
@@ -1713,6 +1739,7 @@
 		7BC00E682E714B68002DF625 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				7B278D232F65534900DA84B0 /* StoreKit.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -2215,6 +2242,7 @@
 				7BEC080E2F4D7CB100B6E573 /* Report.json in Resources */,
 				7BEC080F2F4D7CB100B6E573 /* createquiz.json in Resources */,
 				7BEC08102F4D7CB100B6E573 /* Imageicontadah.json in Resources */,
+				7B278D222F653BD900DA84B0 /* StudyAI.storekit in Resources */,
 				7B19619C2E9285F20024317A /* Customised_report.json in Resources */,
 				7B9045202E8FB42E00E5DDFA /* Checklist.json in Resources */,
 				7B1961A92E93AD240024317A /* Wave Animation.json in Resources */,
@@ -2265,6 +2293,7 @@
 				7BEEB61E2E8E411900957748 /* Education edit.json in Resources */,
 				7B90451C2E8FB1FE00E5DDFA /* Books.json in Resources */,
 				7B19619F2E9285F20024317A /* Sandy_Loading.json in Resources */,
+				7B278D202F653BD900DA84B0 /* StudyAI.storekit in Resources */,
 				7B278A432F5D55E200DA84B0 /* Gaegu-Regular.ttf in Resources */,
 				7B278A442F5D55E200DA84B0 /* Gaegu-Bold.ttf in Resources */,
 				7B278A452F5D55E200DA84B0 /* Gaegu-Light.ttf in Resources */,
@@ -2323,6 +2352,7 @@
 				7BEEB61D2E8E411900957748 /* Education edit.json in Resources */,
 				7B90451B2E8FB1FE00E5DDFA /* Books.json in Resources */,
 				7B19619D2E9285F20024317A /* Sandy_Loading.json in Resources */,
+				7B278D212F653BD900DA84B0 /* StudyAI.storekit in Resources */,
 				7B278A402F5D55E200DA84B0 /* Gaegu-Regular.ttf in Resources */,
 				7B278A412F5D55E200DA84B0 /* Gaegu-Bold.ttf in Resources */,
 				7B278A422F5D55E200DA84B0 /* Gaegu-Light.ttf in Resources */,
@@ -2372,6 +2402,7 @@
 				7BDE566F2EC1C667004A8629 /* SessionChatViewModel.swift in Sources */,
 				C42D5B1E2F9F422F898D739B /* NetworkService.swift in Sources */,
 				7B2248A72F2DCDE4006ADD93 /* AppSessionManager.swift in Sources */,
+				7B278D1E2F653BA900DA84B0 /* DebugTierView.swift in Sources */,
 				7BD668752ED05FAE00E09E55 /* DigitalHomeworkView.swift in Sources */,
 				7BD668762ED05FAE00E09E55 /* HomeworkSummaryView.swift in Sources */,
 				3CAC0FF7EDE94A0B9ACDC78F /* AuthenticationService.swift in Sources */,
@@ -2400,6 +2431,7 @@
 				7BDE56992EC1CA4D004A8629 /* UIComponents.swift in Sources */,
 				7BDE569A2EC1CA4D004A8629 /* MessageBubbles.swift in Sources */,
 				7BDE56EB2EC31AC7004A8629 /* GrammarCorrectionView.swift in Sources */,
+				7B278D182F653B9300DA84B0 /* StoreKitService.swift in Sources */,
 				7BDE56EC2EC31AC7004A8629 /* HTMLRendererView.swift in Sources */,
 				7BD668B82ED9AC9D00E09E55 /* SavedDigitalHomeworkView.swift in Sources */,
 				7BDE569B2EC1CA4D004A8629 /* VoiceComponents.swift in Sources */,
@@ -2717,6 +2749,7 @@
 				7B22485B2F202156006ADD93 /* PassiveReportsViewModel.swift in Sources */,
 				7B2248BE2F331667006ADD93 /* InteractiveModeSettings.swift in Sources */,
 				7B2248B52F309BEC006ADD93 /* AnswerMatchingService.swift in Sources */,
+				7B278D192F653B9300DA84B0 /* StoreKitService.swift in Sources */,
 				7B2249542F3AC54E006ADD93 /* CuteTabBar.swift in Sources */,
 				7B8E9EB72EAF395200E83DA8 /* FaceIDReauthView.swift in Sources */,
 				7B278CE42F64DC8E00DA84B0 /* UserTier.swift in Sources */,
@@ -2866,6 +2899,7 @@
 				7B278CBA2F64DC7500DA84B0 /* QuestionTypeRenderers.swift in Sources */,
 				7B278CBB2F64DC7500DA84B0 /* CuteTabBar.swift in Sources */,
 				7B278CBC2F64DC7500DA84B0 /* ImageSourceSelectionView.swift in Sources */,
+				7B278D1D2F653BA900DA84B0 /* DebugTierView.swift in Sources */,
 				7B278CBD2F64DC7500DA84B0 /* LibraryPDFPreviewView.swift in Sources */,
 				7B278CBE2F64DC7500DA84B0 /* HomeworkImageDetailView.swift in Sources */,
 				7B278CBF2F64DC7500DA84B0 /* ArchivedQuestionsView.swift in Sources */,
@@ -2936,6 +2970,7 @@
 				7BDE56912EC1CA4D004A8629 /* UIComponents.swift in Sources */,
 				7BDE56922EC1CA4D004A8629 /* MessageBubbles.swift in Sources */,
 				7B2248AA2F2DDF1F006ADD93 /* MistakeDetectionHelper.swift in Sources */,
+				7B278D1C2F653BA900DA84B0 /* DebugTierView.swift in Sources */,
 				7BDE56932EC1CA4D004A8629 /* VoiceComponents.swift in Sources */,
 				7B2248832F26F838006ADD93 /* ShortTermStatusService.swift in Sources */,
 				7B2249232F39BE97006ADD93 /* ThemeSelectionView.swift in Sources */,
@@ -3039,6 +3074,7 @@
 				7B278C042F64DC7500DA84B0 /* PassiveReportsView.swift in Sources */,
 				7B278C052F64DC7500DA84B0 /* ZoomableImageView.swift in Sources */,
 				7B278C062F64DC7500DA84B0 /* EditProfileView.swift in Sources */,
+				7B278D1A2F653B9300DA84B0 /* StoreKitService.swift in Sources */,
 				7B278C072F64DC7500DA84B0 /* ArchiveSelectionView.swift in Sources */,
 				7B278C082F64DC7500DA84B0 /* View+CollapsibleNavigation.swift in Sources */,
 				7B278C092F64DC7500DA84B0 /* HTMLRendererView.swift in Sources */,
