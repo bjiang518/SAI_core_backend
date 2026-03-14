@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import StoreKit
 
 struct AccountUsageView: View {
 
@@ -38,6 +39,10 @@ struct AccountUsageView: View {
                             if !isUnlimitedTier(data.tier) {
                                 upgradeButton
                             }
+                            if isPaidTier(data.tier) {
+                                manageSubscriptionButton
+                            }
+                            restorePurchasesButton
                         }
                         .padding(16)
                         .padding(.bottom, 24)
@@ -59,6 +64,7 @@ struct AccountUsageView: View {
             .navigationBarTitleDisplayMode(.inline)
         }
         .task { await loadData() }
+        .refreshable { await loadData() }
         .sheet(isPresented: $showingUpgrade) {
             UpgradeComparisonView(
                 blockedFeature: "",
@@ -223,6 +229,38 @@ struct AccountUsageView: View {
         }
     }
 
+    // Required by App Store Guideline 3.1.1 — visible wherever purchases are possible
+    private var restorePurchasesButton: some View {
+        Button {
+            Task { await StoreKitService.shared.restorePurchases() }
+        } label: {
+            Text("Restore Purchases")
+                .font(.subheadline)
+                .foregroundColor(teal)
+                .frame(maxWidth: .infinity)
+        }
+    }
+
+    // Shown for paid tiers — lets user manage or cancel their subscription
+    private var manageSubscriptionButton: some View {
+        Button {
+            Task {
+                if let scene = await UIApplication.shared.connectedScenes
+                    .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene {
+                    try? await AppStore.showManageSubscriptions(in: scene)
+                }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "gear")
+                Text("Manage Subscription")
+            }
+            .font(.subheadline)
+            .foregroundColor(.secondary)
+            .frame(maxWidth: .infinity)
+        }
+    }
+
     // MARK: - Helpers
 
     private func loadData() async {
@@ -233,6 +271,10 @@ struct AccountUsageView: View {
 
     private func isUnlimitedTier(_ tier: String) -> Bool {
         tier == "premium_plus"
+    }
+
+    private func isPaidTier(_ tier: String) -> Bool {
+        tier == "premium" || tier == "premium_plus"
     }
 
     private func barColor(used: Int, limit: Int) -> Color {

@@ -71,7 +71,8 @@ class SessionManagementRoutes {
             language: { type: 'string' }
           }
         }
-      }
+      },
+      preHandler: [tierCheck({ feature: 'chat_messages' })]
     }, this.sendSessionMessage.bind(this));
 
     // Send message to session (streaming)
