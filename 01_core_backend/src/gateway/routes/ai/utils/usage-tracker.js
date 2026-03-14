@@ -179,6 +179,67 @@ const usageTracker = {
   },
 
   /**
+   * Read current usage count for one feature (read-only, no increment).
+   */
+  async getUsage(userId, featureKey, isAnonymous) {
+    const key = redisKey(userId, featureKey, isAnonymous);
+    try {
+      const rc = getRedis();
+      if (redisReady && rc) {
+        const val = await rc.get(key);
+        return val ? parseInt(val, 10) : 0;
+      }
+      throw new Error('redis not ready');
+    } catch (_) {
+      try {
+        const tierData = await db.getUserTier(userId);
+        const usage = tierData.monthly_usage || {};
+        const resetDate = tierData.usage_reset_date ? new Date(tierData.usage_reset_date) : null;
+        const now = new Date();
+        const isCurrentMonth = resetDate &&
+          resetDate.getFullYear() === now.getFullYear() &&
+          resetDate.getMonth() === now.getMonth();
+        return isCurrentMonth ? (usage[featureKey] || 0) : 0;
+      } catch { return 0; }
+    }
+  },
+
+  /**
+   * Return full usage summary for all gated features.
+   * Used by GET /api/account/usage.
+   * limit=null → unlimited; limit=0 → blocked for this tier.
+   */
+  async getUsageSummary(userId, tier, isAnonymous) {
+    const effectiveTier = isAnonymous ? 'guest' : tier;
+    const limits = TIER_LIMITS[effectiveTier] ?? {};
+
+    const FEATURE_META = [
+      { key: 'homework_single', label: 'Homework Upload',    unit: null },
+      { key: 'chat_messages',   label: 'AI Chat',            unit: null },
+      { key: 'voice_minutes',   label: 'Live Tutor',         unit: 'min' },
+      { key: 'questions',       label: 'Practice Questions', unit: null },
+      { key: 'error_analysis',  label: 'Weakness Analysis',  unit: null },
+      { key: 'reports',         label: 'Parent Reports',     unit: null },
+      { key: 'homework_batch',  label: 'Batch Upload',       unit: null },
+    ];
+
+    const results = [];
+    for (const { key, label, unit } of FEATURE_META) {
+      const rawLimit = limits[key];
+      // undefined = premium_plus unlimited; Infinity = unlimited; 0 = blocked; N = quota
+      const limit = (rawLimit === undefined || !isFinite(rawLimit)) ? null : rawLimit;
+
+      let used = 0;
+      if (limit !== null && limit > 0) {
+        used = await this.getUsage(userId, key, isAnonymous);
+      }
+
+      results.push({ key, label, used, limit, unit });
+    }
+    return results;
+  },
+
+  /**
    * Increment counter by 1. Call AFTER confirming the request is allowed.
    */
   async increment(userId, featureKey, isAnonymous) {

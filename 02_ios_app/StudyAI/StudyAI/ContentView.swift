@@ -487,6 +487,7 @@ struct ModernProfileView: View {
     @State private var showingPrivacySettings = false
     @State private var showingDebugSettings = false
     @State private var showingThemeSelection = false
+    @State private var showingUsage = false
     @State private var refreshID = UUID()  // Force refresh when profile updates
     @State private var selectedGradeLevel: GradeLevel? = nil
 
@@ -648,6 +649,33 @@ struct ModernProfileView: View {
                         }
                     }
                     .padding(.vertical, 4)
+                }
+
+                // SUBSCRIPTION SECTION
+                Section("Subscription") {
+                    Button(action: { showingUsage = true }) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "chart.bar.fill")
+                                .foregroundColor(DesignTokens.Colors.libraryTeal)
+                                .frame(width: 20)
+                            Text("Plan & Usage")
+                                .font(.body)
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Text(tierBadgeText)
+                                .font(.caption.bold())
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(tierBadgeColor.opacity(0.15))
+                                .foregroundColor(tierBadgeColor)
+                                .cornerRadius(6)
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
                 }
 
                 // STUDY SETTINGS SECTION (Voice + Learning Goals combined)
@@ -893,11 +921,30 @@ struct ModernProfileView: View {
         .sheet(isPresented: $showingThemeSelection) {
             ThemeSelectionView()
         }
+        .sheet(isPresented: $showingUsage) {
+            AccountUsageView()
+        }
         #if DEBUG
         .sheet(isPresented: $showingDebugSettings) {
             DebugTierView()
         }
         #endif
+    }
+
+    private var tierBadgeText: String {
+        let user = authService.currentUser
+        if user?.isAnonymous == true { return "Guest" }
+        return user?.tier.displayName ?? "Free"
+    }
+
+    private var tierBadgeColor: Color {
+        let user = authService.currentUser
+        if user?.isAnonymous == true { return .secondary }
+        switch user?.tier {
+        case .premium:     return DesignTokens.Colors.libraryTeal
+        case .premiumPlus: return Color(hex: "D97706")
+        default:           return .secondary
+        }
     }
 
     private func loadGradeFromProfile(_ profile: UserProfile?) {

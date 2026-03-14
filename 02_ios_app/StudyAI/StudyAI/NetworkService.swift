@@ -5873,6 +5873,26 @@ class NetworkService: ObservableObject {
         }
     }
 
+    // MARK: - Account Usage
+
+    func fetchAccountUsage() async -> AccountUsageData? {
+        guard let url = URL(string: "\(baseURL)/api/account/usage"),
+              let token = AuthenticationService.shared.getAuthToken() else { return nil }
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        do {
+            let (data, _) = try await URLSession.shared.data(for: request)
+            struct Wrapper: Decodable {
+                let success: Bool
+                let data: AccountUsageData?
+            }
+            return try JSONDecoder().decode(Wrapper.self, from: data).data
+        } catch {
+            AppLogger.error("[fetchAccountUsage] \(error)")
+            return nil
+        }
+    }
+
     // MARK: - Debug Admin (DEBUG only)
 
     #if DEBUG
@@ -6060,6 +6080,30 @@ struct InsightErrorCount: Encodable {
 struct InsightWeaknessCount: Encodable {
     let key: String
     let count: Int
+}
+
+// MARK: - Account Usage Models
+
+struct FeatureUsage: Decodable {
+    let key: String
+    let label: String
+    let used: Int
+    let limit: Int?    // nil = unlimited; 0 = blocked for tier
+    let unit: String?
+}
+
+struct AccountUsageData: Decodable {
+    let tier: String
+    let isAnonymous: Bool
+    let resetsAt: String?
+    let features: [FeatureUsage]
+
+    enum CodingKeys: String, CodingKey {
+        case tier
+        case isAnonymous = "is_anonymous"
+        case resetsAt    = "resets_at"
+        case features
+    }
 }
 
 // MARK: - Dictionary Extension for Key Conversion
