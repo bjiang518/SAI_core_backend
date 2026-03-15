@@ -339,7 +339,14 @@ struct SessionChatView: View {
 
                     // 4. Scenarios
                     if !isLiveMode {
-                        Button(action: { showingScenarioPicker = true }) {
+                        Button(action: {
+                            let gateResult = FeatureGate.check(.voiceChat, user: AuthenticationService.shared.currentUser)
+                            if case .blocked = gateResult {
+                                UsageService.shared.flagLimitReached(feature: "voice_minutes", errorCode: "UPGRADE_REQUIRED")
+                                return
+                            }
+                            showingScenarioPicker = true
+                        }) {
                             Label(NSLocalizedString("chat.menu.liveScenario", comment: ""), systemImage: "theatermask.and.paintbrush.fill")
                         }
 
@@ -778,6 +785,7 @@ struct SessionChatView: View {
                     // Clear unified message list when switching to a different session
                     // (oldSessionId != nil means this is a real session change, not initial load)
                     if oldSessionId != nil {
+                        print("⚠️ [HISTORY RESET] allMessages wiped — session changed from \(oldSessionId ?? "nil") to \(newSessionId ?? "nil") (\(allMessages.count) messages lost)")
                         allMessages.removeAll()
                         textMessageIndex = 0
                     }
