@@ -232,11 +232,19 @@ final class AuthenticationService: ObservableObject {
                         await loadUserProfileAfterLogin()
                     }
                 } else {
-                    // Session expired, require Face ID re-authentication
-                    authLogger.info("⏰ Session expired, requiring Face ID re-authentication")
-                    currentUser = userData  // Keep user data for Face ID context
-                    isAuthenticated = false
-                    requiresFaceIDReauth = true  // Signal UI to show Face ID prompt
+                    // Guest users have no Face ID — restore their session directly
+                    if userData.isAnonymous {
+                        authLogger.info("👤 Guest session expired — restoring without Face ID")
+                        currentUser = userData
+                        isAuthenticated = true
+                        requiresFaceIDReauth = false
+                    } else {
+                        // Session expired, require Face ID re-authentication
+                        authLogger.info("⏰ Session expired, requiring Face ID re-authentication")
+                        currentUser = userData  // Keep user data for Face ID context
+                        isAuthenticated = false
+                        requiresFaceIDReauth = true  // Signal UI to show Face ID prompt
+                    }
                 }
             } else {
                 let noUserTime = CFAbsoluteTimeGetCurrent()
@@ -843,6 +851,16 @@ final class AuthenticationService: ObservableObject {
     // MARK: - Guest Sign In
 
     func signInAsGuest() async {
+        // If there's already a guest user in keychain, restore it — don't create a new account
+        if let existingGuest = keychainService.getUser(), existingGuest.isAnonymous {
+            authLogger.info("👤 Restoring existing guest session: \(existingGuest.id)")
+            await MainActor.run {
+                currentUser = existingGuest
+                isAuthenticated = true
+            }
+            return
+        }
+
         await MainActor.run { isLoading = true }
         defer { Task { @MainActor in isLoading = false } }
         do {
