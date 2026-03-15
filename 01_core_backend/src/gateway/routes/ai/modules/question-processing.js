@@ -6,6 +6,7 @@
  */
 
 const AIServiceClient = require('../../../services/ai-client');
+const tierCheck = require('../../../middleware/tier-check');
 
 class QuestionProcessingRoutes {
   constructor(fastify) {
@@ -17,7 +18,7 @@ class QuestionProcessingRoutes {
    * Register all question processing routes
    */
   registerRoutes() {
-    // Process individual question
+    // Process individual question — legacy endpoint, gated to prevent abuse
     this.fastify.post('/api/ai/process-question', {
       schema: {
         description: 'Process individual question with detailed analysis',
@@ -36,7 +37,8 @@ class QuestionProcessingRoutes {
             include_followups: { type: 'boolean' }
           }
         }
-      }
+      },
+      preHandler: [tierCheck({ feature: 'chat_messages' })]
     }, this.processQuestion.bind(this));
 
     // Generate practice questions
