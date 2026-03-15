@@ -191,7 +191,8 @@ class HomeworkProcessingRoutes {
             };
           }
         }
-      }
+      },
+      preHandler: [tierCheck({ feature: 'homework_single' })]
     }, this.parseHomeworkQuestions.bind(this));
 
     // Progressive grading - Phase 1 BATCH: Parse multiple homework pages (2+ images)
@@ -238,7 +239,8 @@ class HomeworkProcessingRoutes {
             };
           }
         }
-      }
+      },
+      preHandler: [tierCheck({ feature: 'homework_batch' })]
     }, this.parseHomeworkQuestionsBatch.bind(this));
 
     // NOTE: POST /api/ai/evaluate-handwriting moved to homework-processing.REDACTED.js

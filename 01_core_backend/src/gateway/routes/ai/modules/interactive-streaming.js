@@ -12,6 +12,7 @@ const TextChunker = require('../../../utils/TextChunker');
 const AuthHelper = require('../utils/auth-helper');
 const SessionHelper = require('../utils/session-helper');
 const { buildSystemPrompt, MATH_FORMATTING_SYSTEM_PROMPT } = require('../utils/prompts');
+const tierCheck = require('../../../middleware/tier-check');
 
 module.exports = async function (fastify, opts) {
   const authHelper = new AuthHelper(fastify);
@@ -28,7 +29,9 @@ module.exports = async function (fastify, opts) {
    * 4. Send chunks to ElevenLabs for TTS
    * 5. Forward both text and audio to iOS client
    */
-  fastify.post('/api/ai/sessions/:sessionId/interactive-stream', async (request, reply) => {
+  fastify.post('/api/ai/sessions/:sessionId/interactive-stream', {
+    preHandler: [tierCheck({ feature: 'chat_messages' })]
+  }, async (request, reply) => {
     const controller = new AbortController();
     let elevenWs = null;
     const chunker = new TextChunker({

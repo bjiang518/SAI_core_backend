@@ -453,7 +453,7 @@ class EnhancedTTSService: NSObject, ObservableObject {
                 // Flag tier errors for global upgrade UI
                 if httpResponse.statusCode == 403 || httpResponse.statusCode == 429 {
                     UsageService.shared.flagLimitReached(
-                        feature: "voice_minutes",
+                        feature: "tts_calls",
                         errorCode: httpResponse.statusCode == 403 ? "UPGRADE_REQUIRED" : "MONTHLY_LIMIT_REACHED"
                     )
                 }

@@ -242,8 +242,14 @@ class NetworkService: ObservableObject {
     }
     
     private func clearConversationHistory() {
+        let previousCount = conversationHistory.count
         internalConversationHistory.removeAll()
         conversationHistory.removeAll()
+        if previousCount > 0 {
+            print("⚠️ [HISTORY RESET] clearConversationHistory() wiped \(previousCount) messages — triggered by currentSessionId change")
+            // To identify the caller, check the stack: this fires from the willSet on currentSessionId.
+            // If this fires unexpectedly mid-chat, check ensureValidSession() or any code that sets currentSessionId.
+        }
     }
     
     // MARK: - Circuit Breaker Implementation
@@ -938,7 +944,10 @@ class NetworkService: ObservableObject {
                         print("📚 Subject: \(json["subject"] as? String ?? "unknown")")
                         
                         await MainActor.run {
+                            // Setting currentSessionId triggers willSet → clearConversationHistory().
+                            // The explicit removeAll() below is redundant but kept as a safety net.
                             self.currentSessionId = sessionId
+                            // conversationHistory already cleared by willSet above — no-op:
                             self.conversationHistory.removeAll()
                         }
                         
@@ -998,21 +1007,26 @@ class NetworkService: ObservableObject {
         }
     }
 
-    /// Ensure we have a valid session - create new one if current is invalid
+    /// Ensure we have a valid session - create new one only if none exists.
+    ///
+    /// ⚠️ IMPORTANT: We intentionally do NOT call validateSession() here.
+    /// Previously, validateSession() made a GET network request on every send.
+    /// Any transient failure (timeout, server load, network blip) caused it to
+    /// return false → createSession() → currentSessionId changed → clearConversationHistory()
+    /// → allMessages.removeAll() → the entire conversation was wiped mid-chat.
+    ///
+    /// The backend already recovers AI engine in-memory state from PostgreSQL prior_turns
+    /// on every message request, so iOS-side session validation is both unnecessary and
+    /// harmful to conversation continuity.
     func ensureValidSession() async -> String? {
-        // Check if we have a current session
+        // If we have a session ID, use it — don't validate over the network.
         if let sessionId = await MainActor.run(body: { self.currentSessionId }) {
-            // Validate it
-            let isValid = await validateSession(sessionId)
-            if isValid {
-                print("✅ Using existing session: \(sessionId.prefix(8))...")
-                return sessionId
-            } else {
-                print("⚠️ Current session invalid - creating new one")
-            }
+            print("✅ Using existing session: \(sessionId.prefix(8))...")
+            return sessionId
         }
 
-        // No session or invalid session - create new one
+        // No session at all — create one.
+        print("📝 No session found — creating new one")
         let result = await createSession(subject: "general")
         if result.success, let newSessionId = result.sessionId {
             print("✅ Created new session: \(newSessionId.prefix(8))...")
@@ -1698,6 +1712,7 @@ class NetworkService: ObservableObject {
 
             guard httpResponse.statusCode == 200 else {
                 logger.error("❌ Interactive streaming failed: \(httpResponse.statusCode)")
+                handleTierError(statusCode: httpResponse.statusCode, data: nil, feature: "chat_messages")
                 onComplete(false, nil)
                 return
             }
@@ -2902,10 +2917,19 @@ class NetworkService: ObservableObject {
         RateLimitManager.shared.updateFromHeaders(httpResponse, endpoint: .homeworkImage)
 
         guard httpResponse.statusCode == 200 else {
+            if httpResponse.statusCode == 403 || httpResponse.statusCode == 429 {
+                handleTierError(statusCode: httpResponse.statusCode, data: data, feature: "homework_single")
+            }
             if httpResponse.statusCode == 429 {
                 throw NetworkError.rateLimited
             }
             throw NetworkError.serverError(httpResponse.statusCode)
+        }
+
+        // Read remaining uses from header
+        if let remaining = httpResponse.value(forHTTPHeaderField: "X-Usage-Remaining"),
+           let count = Int(remaining) {
+            UsageService.shared.update(feature: "homework_single", remaining: count)
         }
 
         // ========================================
@@ -3029,10 +3053,19 @@ class NetworkService: ObservableObject {
         RateLimitManager.shared.updateFromHeaders(httpResponse, endpoint: .homeworkImage)
 
         guard httpResponse.statusCode == 200 else {
+            if httpResponse.statusCode == 403 || httpResponse.statusCode == 429 {
+                handleTierError(statusCode: httpResponse.statusCode, data: data, feature: "homework_single")
+            }
             if httpResponse.statusCode == 429 {
                 throw NetworkError.rateLimited
             }
             throw NetworkError.serverError(httpResponse.statusCode)
+        }
+
+        // Read remaining uses from header
+        if let remaining = httpResponse.value(forHTTPHeaderField: "X-Usage-Remaining"),
+           let count = Int(remaining) {
+            UsageService.shared.update(feature: "homework_single", remaining: count)
         }
 
         // Log raw response for debugging
@@ -5888,8 +5921,40 @@ class NetworkService: ObservableObject {
             }
             return try JSONDecoder().decode(Wrapper.self, from: data).data
         } catch {
-            AppLogger.error("[fetchAccountUsage] \(error)")
+            #if DEBUG
+            print("❌ [fetchAccountUsage] \(error)")
+            #endif
             return nil
+        }
+    }
+
+    // MARK: - Tester Tier Switcher (TestFlight — requires TESTER_CODE set on backend)
+
+    /// Switch the current user's own tier. Works in all builds (DEBUG + TestFlight + Release).
+    /// Backend validates the tester code; only active when TESTER_CODE env var is set on Railway.
+    func testerSetTier(tier: UserTier, testerCode: String) async -> (success: Bool, error: String?) {
+        guard let url = URL(string: "\(baseURL)/api/tester/set-tier") else {
+            return (false, "Invalid URL")
+        }
+        guard let token = AuthenticationService.shared.getAuthToken() else {
+            return (false, "Not authenticated")
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: [
+            "tier": tier.rawValue,
+            "code": testerCode
+        ])
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse else { return (false, "No response") }
+            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            if http.statusCode == 200 { return (true, nil) }
+            return (false, json?["error"] as? String ?? "HTTP \(http.statusCode)")
+        } catch {
+            return (false, error.localizedDescription)
         }
     }
 

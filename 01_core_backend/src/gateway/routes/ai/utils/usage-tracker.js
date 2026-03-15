@@ -23,6 +23,7 @@ const TIER_LIMITS = {
     error_analysis:  0,
     reports:         0,
     voice_minutes:   0,
+    tts_calls:       20,  // lifetime — AI avatar reads responses
   },
   free: {
     homework_single: 10,
@@ -32,6 +33,7 @@ const TIER_LIMITS = {
     error_analysis:  5,
     reports:         0,
     voice_minutes:   0,
+    tts_calls:       200, // monthly
   },
   premium: {
     homework_single: 50,
@@ -41,6 +43,7 @@ const TIER_LIMITS = {
     error_analysis:  Infinity,
     reports:         2,
     voice_minutes:   300,
+    tts_calls:       Infinity,
   },
   premium_plus: {
     // Empty = all features unlimited. usageTracker.check() handles missing key → unlimited.
@@ -217,6 +220,7 @@ const usageTracker = {
       { key: 'homework_single', label: 'Homework Upload',    unit: null },
       { key: 'chat_messages',   label: 'AI Chat',            unit: null },
       { key: 'voice_minutes',   label: 'Live Tutor',         unit: 'min' },
+      { key: 'tts_calls',       label: 'AI Voice (TTS)',     unit: null },
       { key: 'questions',       label: 'Practice Questions', unit: null },
       { key: 'error_analysis',  label: 'Weakness Analysis',  unit: null },
       { key: 'reports',         label: 'Parent Reports',     unit: null },

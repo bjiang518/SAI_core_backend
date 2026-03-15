@@ -6,6 +6,7 @@
  */
 
 const AuthHelper = require('../utils/auth-helper');
+const tierCheck = require('../../../middleware/tier-check');
 
 class TTSRoutes {
   constructor(fastify) {
@@ -44,7 +45,8 @@ class TTSRoutes {
             provider: { type: 'string', enum: ['openai', 'elevenlabs'], default: 'openai' }
           }
         }
-      }
+      },
+      preHandler: [tierCheck({ feature: 'tts_calls' })]
     }, this.generateTTS.bind(this));
   }
 
