@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { MetricCard } from '@/components/dashboard/MetricCard'
 import { Users, MessageSquare, Zap, AlertCircle, Database, TrendingUp } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { statsAPI } from '@/lib/api'
 
 interface OverviewStats {
   totalUsers: number
@@ -35,21 +36,7 @@ export default function DashboardPage() {
 
   const fetchStats = async () => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://sai-backend-production.up.railway.app'
-      const token = localStorage.getItem('admin_token')
-
-      const response = await fetch(`${apiUrl}/api/admin/stats/overview`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-
-      const data = await response.json().catch(() => null)
-
-      if (!response.ok) {
-        const msg = data?.error || data?.message || `HTTP ${response.status} ${response.statusText}`
-        setError(`API error: ${msg}`)
-        return
-      }
-
+      const data = await statsAPI.getOverview()
       if (data?.success) {
         setStats(data.data)
         setError(null)
