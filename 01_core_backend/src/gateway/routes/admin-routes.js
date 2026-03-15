@@ -45,8 +45,13 @@ module.exports = async function (fastify, opts) {
       }
       request.adminUser = decoded;
     } catch (error) {
+      const isExpired = error.name === 'TokenExpiredError';
       fastify.log.warn(`[verifyAdmin] jwt.verify threw: ${error.message}`);
-      return reply.code(401).send({ success: false, error: 'Unauthorized: Invalid token' });
+      return reply.code(401).send({
+        success: false,
+        error: isExpired ? 'Token expired — please log in again' : 'Unauthorized: Invalid token',
+        code: isExpired ? 'TOKEN_EXPIRED' : 'INVALID_TOKEN',
+      });
     }
   }
 
@@ -81,7 +86,7 @@ module.exports = async function (fastify, opts) {
       const token = jwt.sign(
         { id: admin.id, email: admin.email, role: admin.role },
         ADMIN_JWT_SECRET,
-        { expiresIn: '24h' }
+        { expiresIn: '7d' }
       );
 
       return reply.send({
