@@ -45,6 +45,11 @@ module.exports = async function (fastify, opts) {
       }
       request.adminUser = decoded;
     } catch (error) {
+      // Decode without verifying to see iat/exp regardless of failure
+      try {
+        const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
+        fastify.log.warn(`[verifyAdmin] Token iat=${new Date(payload.iat * 1000).toISOString()} exp=${new Date(payload.exp * 1000).toISOString()} now=${new Date().toISOString()}`);
+      } catch {}
       const isExpired = error.name === 'TokenExpiredError';
       fastify.log.warn(`[verifyAdmin] jwt.verify threw: ${error.message}`);
       return reply.code(401).send({
@@ -88,6 +93,8 @@ module.exports = async function (fastify, opts) {
         ADMIN_JWT_SECRET,
         { expiresIn: '7d' }
       );
+      const decoded = jwt.decode(token);
+      fastify.log.info(`[AdminLogin] Issued token for ${admin.email} — iat=${new Date(decoded.iat * 1000).toISOString()} exp=${new Date(decoded.exp * 1000).toISOString()}`);
 
       return reply.send({
         success: true,
