@@ -146,12 +146,14 @@ export default function UsersPage() {
     }
   }
 
-  const getStatusBadge = (status: string) => {
-    switch (status.toLowerCase()) {
+  const getStatusBadge = (status: string | undefined) => {
+    switch ((status || '').toLowerCase()) {
       case 'active': return <Badge variant="success">Active</Badge>
+      case 'guest': return <Badge variant="secondary">Guest</Badge>
+      case 'free': return <Badge variant="outline">Free</Badge>
       case 'trial': return <Badge variant="warning">Trial</Badge>
       case 'inactive': return <Badge variant="error">Inactive</Badge>
-      default: return <Badge>{status}</Badge>
+      default: return <Badge>{status || '—'}</Badge>
     }
   }
 

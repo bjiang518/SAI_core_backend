@@ -220,7 +220,13 @@ module.exports = async function (fastify, opts) {
           u.created_at as join_date,
           u.last_login_at as last_active,
           EXTRACT(day FROM NOW() - u.last_login_at)::int as days_inactive,
-          (SELECT COUNT(*) FROM sessions s WHERE s.user_id = u.id) as total_sessions
+          (SELECT COUNT(*) FROM sessions s WHERE s.user_id = u.id) as total_sessions,
+          CASE
+            WHEN u.is_anonymous = true THEN 'guest'
+            WHEN u.tier IN ('premium', 'premium_plus') THEN 'active'
+            WHEN u.last_login_at IS NULL OR u.last_login_at < NOW() - INTERVAL '30 days' THEN 'inactive'
+            ELSE 'free'
+          END as "subscriptionStatus"
         FROM users u
       `;
       const params = [];
