@@ -26,20 +26,26 @@ module.exports = async function (fastify, opts) {
 
   async function verifyAdmin(request, reply) {
     if (!ADMIN_JWT_SECRET) {
+      fastify.log.error('[verifyAdmin] ADMIN_JWT_SECRET is not set — returning 503');
       return reply.code(503).send({ success: false, error: 'Admin authentication is not configured' });
     }
     try {
       const authHeader = request.headers.authorization;
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        fastify.log.warn('[verifyAdmin] No Bearer token — header was: ' + JSON.stringify(authHeader));
         return reply.code(401).send({ success: false, error: 'Unauthorized: No token provided' });
       }
       const token = authHeader.substring(7);
+      fastify.log.info(`[verifyAdmin] Token value: "${token.substring(0, 30)}..." length=${token.length}`);
       const decoded = jwt.verify(token, ADMIN_JWT_SECRET);
+      fastify.log.info(`[verifyAdmin] OK — role=${decoded.role} email=${decoded.email} exp=${new Date(decoded.exp * 1000).toISOString()}`);
       if (decoded.role !== 'admin' && decoded.role !== 'superadmin') {
+        fastify.log.warn(`[verifyAdmin] Role check failed — got role="${decoded.role}"`);
         return reply.code(403).send({ success: false, error: 'Forbidden: Admin access required' });
       }
       request.adminUser = decoded;
     } catch (error) {
+      fastify.log.warn(`[verifyAdmin] jwt.verify threw: ${error.message}`);
       return reply.code(401).send({ success: false, error: 'Unauthorized: Invalid token' });
     }
   }
