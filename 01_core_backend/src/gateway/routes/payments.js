@@ -26,16 +26,20 @@ module.exports = async function (fastify, opts) {
       CREATE INDEX IF NOT EXISTS idx_subscriptions_original_tx
         ON subscriptions(original_transaction_id) WHERE original_transaction_id IS NOT NULL;
     `);
-    // Add UNIQUE constraint on transaction_id for ON CONFLICT upsert (ignore if already exists)
+    // Add UNIQUE constraint only if it doesn't already exist (avoids 42P07 on every boot)
     await db.query(`
-      ALTER TABLE subscriptions
-        ADD CONSTRAINT subscriptions_transaction_id_unique UNIQUE (transaction_id);
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint WHERE conname = 'subscriptions_transaction_id_unique'
+        ) THEN
+          ALTER TABLE subscriptions
+            ADD CONSTRAINT subscriptions_transaction_id_unique UNIQUE (transaction_id);
+        END IF;
+      END $$;
     `);
   } catch (e) {
-    // Ignore "already exists" errors from the UNIQUE constraint
-    if (!e.message?.includes('already exists')) {
-      fastify.log.warn('[Payments] subscriptions migration warning:', e.message);
-    }
+    fastify.log.warn('[Payments] subscriptions migration warning:', e.message);
   }
 
   // ──────────────────────────────────────────────────────────────────────────
