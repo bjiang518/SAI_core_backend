@@ -41,6 +41,7 @@ struct HomeView: View {
     @State private var userName = ""
     @State private var navigateToSession = false
     @State private var showingProfile = false
+    @State private var showingUpgrade = false
     @State private var showingMistakeReview = false
     @State private var showingQuestionGeneration = false
     // ── Practice todo shortcut configuration ──────────────────────────────
@@ -153,6 +154,13 @@ struct HomeView: View {
                 NavigationView {
                     ParentReportsContainerView()
                 }
+            }
+            .sheet(isPresented: $showingUpgrade) {
+                UpgradeComparisonView(
+                    blockedFeature: "Live Tutor",
+                    reason: .featureBlocked,
+                    onDismiss: { showingUpgrade = false }
+                )
             }
             .sheet(isPresented: $showingHomeworkAlbum) {
                 HomeworkAlbumView()
@@ -431,9 +439,17 @@ struct HomeView: View {
             onSelectTab(.progress)
         // ── Category 4: Deep Extension ────────────────────────────────────────
         case .startOralPractice:
+            guard case .allowed = FeatureGate.check(.voiceChat, user: AuthenticationService.shared.currentUser) else {
+                showingUpgrade = true
+                return
+            }
             AppState.shared.pendingChatAction = .startLiveMode(starterPrompt: NSLocalizedString("chat.liveMode.oralPractice.starterPrompt", comment: ""))
             onSelectTab(.chat)
         case .startLiveScenario(let scenario):
+            guard case .allowed = FeatureGate.check(.voiceChat, user: AuthenticationService.shared.currentUser) else {
+                showingUpgrade = true
+                return
+            }
             let profile = ProfileService.shared.currentProfile
             let grade   = profile?.gradeLevel ?? ""
             let name    = profile?.firstName ?? profile?.displayName ?? userName
