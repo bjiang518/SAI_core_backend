@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { MetricCard } from '@/components/dashboard/MetricCard'
 import { Users, MessageSquare, Zap, AlertCircle, Database, TrendingUp } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -22,7 +23,18 @@ interface OverviewStats {
   cacheHitRate: number
 }
 
+function isTokenExpired(token: string | null): boolean {
+  if (!token) return true
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    return payload.exp * 1000 < Date.now()
+  } catch {
+    return true
+  }
+}
+
 export default function DashboardPage() {
+  const router = useRouter()
   const [stats, setStats] = useState<OverviewStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -35,6 +47,14 @@ export default function DashboardPage() {
   }, [])
 
   const fetchStats = async () => {
+    const token = localStorage.getItem('admin_token')
+    if (isTokenExpired(token)) {
+      console.log('[Dashboard] Token missing or expired — redirecting to login')
+      localStorage.removeItem('admin_token')
+      router.push('/login')
+      return
+    }
+
     try {
       const data = await statsAPI.getOverview()
       if (data?.success) {
@@ -45,6 +65,7 @@ export default function DashboardPage() {
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
+      // 401 from axios interceptor redirects automatically; other errors shown inline
       setError(`Network error: ${msg}`)
     } finally {
       setLoading(false)
