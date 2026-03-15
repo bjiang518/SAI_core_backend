@@ -223,7 +223,8 @@ module.exports = async function (fastify, opts) {
           (SELECT COUNT(*) FROM sessions s WHERE s.user_id = u.id) as total_sessions,
           CASE
             WHEN u.is_anonymous = true THEN 'guest'
-            WHEN u.tier IN ('premium', 'premium_plus') THEN 'active'
+            WHEN u.tier = 'premium_plus' THEN 'ultra'
+            WHEN u.tier = 'premium' THEN 'premium'
             WHEN u.last_login_at IS NULL OR u.last_login_at < NOW() - INTERVAL '30 days' THEN 'inactive'
             ELSE 'free'
           END as "subscriptionStatus"

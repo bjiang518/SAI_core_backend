@@ -21,6 +21,12 @@ interface OverviewStats {
   errorRate: number
   databaseStatus: 'healthy' | 'degraded' | 'down'
   cacheHitRate: number
+  tierDistribution: {
+    free: number
+    premium: number
+    premiumPlus: number
+    guest: number
+  }
 }
 
 function isTokenExpired(token: string | null): boolean {
@@ -177,6 +183,34 @@ export default function DashboardPage() {
           icon={TrendingUp}
         />
       </div>
+
+      {/* Tier Distribution */}
+      {stats.tierDistribution && (
+        <div className="rounded-lg border bg-card p-6">
+          <h2 className="text-base font-semibold mb-4">Users by Plan</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {[
+              { label: 'Ultra',   value: stats.tierDistribution.premiumPlus, color: 'bg-yellow-400' },
+              { label: 'Premium', value: stats.tierDistribution.premium,     color: 'bg-teal-400' },
+              { label: 'Free',    value: stats.tierDistribution.free,        color: 'bg-gray-300' },
+              { label: 'Guest',   value: stats.tierDistribution.guest,       color: 'bg-slate-200' },
+            ].map(({ label, value, color }) => {
+              const pct = stats.totalUsers > 0 ? Math.round((value / stats.totalUsers) * 100) : 0
+              return (
+                <div key={label} className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium">{label}</span>
+                    <span className="text-muted-foreground">{value.toLocaleString()} <span className="text-xs">({pct}%)</span></span>
+                  </div>
+                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* System Health Row */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
