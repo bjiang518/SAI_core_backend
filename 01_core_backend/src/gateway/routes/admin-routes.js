@@ -16,7 +16,6 @@ module.exports = async function (fastify, opts) {
   const aiClient = new AIServiceClient();
 
   const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET;
-  fastify.log.info(`[AdminRoutes] ADMIN_JWT_SECRET is ${ADMIN_JWT_SECRET ? 'SET (length=' + ADMIN_JWT_SECRET.length + ')' : 'NOT SET'}`);
   if (!ADMIN_JWT_SECRET) {
     fastify.log.error('FATAL: ADMIN_JWT_SECRET environment variable is not set. Admin routes are disabled.');
   }
@@ -27,27 +26,20 @@ module.exports = async function (fastify, opts) {
 
   async function verifyAdmin(request, reply) {
     if (!ADMIN_JWT_SECRET) {
-      fastify.log.error('[verifyAdmin] ADMIN_JWT_SECRET is not set — returning 503');
       return reply.code(503).send({ success: false, error: 'Admin authentication is not configured' });
     }
     try {
       const authHeader = request.headers.authorization;
-      fastify.log.info(`[verifyAdmin] Authorization header: ${authHeader ? authHeader.substring(0, 30) + '...' : 'MISSING'}`);
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        fastify.log.warn('[verifyAdmin] No Bearer token in Authorization header');
         return reply.code(401).send({ success: false, error: 'Unauthorized: No token provided' });
       }
       const token = authHeader.substring(7);
-      fastify.log.info(`[verifyAdmin] Token first 20 chars: ${token.substring(0, 20)}...`);
       const decoded = jwt.verify(token, ADMIN_JWT_SECRET);
-      fastify.log.info(`[verifyAdmin] Token decoded — role=${decoded.role} email=${decoded.email} exp=${decoded.exp}`);
       if (decoded.role !== 'admin' && decoded.role !== 'superadmin') {
-        fastify.log.warn(`[verifyAdmin] Role check failed — got role="${decoded.role}"`);
         return reply.code(403).send({ success: false, error: 'Forbidden: Admin access required' });
       }
       request.adminUser = decoded;
     } catch (error) {
-      fastify.log.warn(`[verifyAdmin] JWT verification failed: ${error.message}`);
       return reply.code(401).send({ success: false, error: 'Unauthorized: Invalid token' });
     }
   }
