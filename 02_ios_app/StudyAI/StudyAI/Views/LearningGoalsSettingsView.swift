@@ -39,10 +39,10 @@ struct LearningGoalsSettingsView: View {
                 }
             }
             .onAppear {
-                print("🎯 DEBUG: LearningGoalsSettingsView appeared - using PointsEarningManager instance")
-                print("🎯 DEBUG: Current learning goals in settings view:")
+                debugPrint("🎯 DEBUG: LearningGoalsSettingsView appeared - using PointsEarningManager instance")
+                debugPrint("🎯 DEBUG: Current learning goals in settings view:")
                 for (index, goal) in pointsManager.learningGoals.enumerated() {
-                    print("🎯 DEBUG:   Goal \(index): \(goal.type.displayName) - Progress: \(goal.currentProgress)/\(goal.targetValue)")
+                    debugPrint("🎯 DEBUG:   Goal \(index): \(goal.type.displayName) - Progress: \(goal.currentProgress)/\(goal.targetValue)")
                 }
                 loadCurrentValues()
             }
@@ -251,10 +251,10 @@ struct LearningGoalsSettingsView: View {
     }
 
     private func saveGoals() {
-        print("🎯 DEBUG: Saving goals to database...")
-        print("🎯 DEBUG: Daily Questions Target: \(Int(dailyQuestionsTarget))")
-        print("🎯 DEBUG: Study Consistency Target: \(Int(studyConsistencyTarget))")
-        print("🎯 DEBUG: Accuracy Target: \(Int(accuracyTarget))")
+        debugPrint("🎯 DEBUG: Saving goals to database...")
+        debugPrint("🎯 DEBUG: Daily Questions Target: \(Int(dailyQuestionsTarget))")
+        debugPrint("🎯 DEBUG: Study Consistency Target: \(Int(studyConsistencyTarget))")
+        debugPrint("🎯 DEBUG: Accuracy Target: \(Int(accuracyTarget))")
 
         // Update the goals in PointsEarningManager
         for goal in pointsManager.learningGoals {
@@ -271,7 +271,7 @@ struct LearningGoalsSettingsView: View {
         }
 
         // TODO: Add actual database sync logic here
-        print("🎯 DEBUG: Goals saved successfully!")
+        debugPrint("🎯 DEBUG: Goals saved successfully!")
 
         // Show success feedback
         let impactFeedback = UIImpactFeedbackGenerator(style: .medium)

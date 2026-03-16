@@ -458,7 +458,7 @@ struct MusicSelectionSheet: View {
 
         // If remote track is not downloaded, don't allow selection
         if track.source == .remote && !downloadService.isTrackDownloaded(track.id) {
-            print("⚠️ Cannot play remote track: not downloaded yet")
+            debugPrint("⚠️ Cannot play remote track: not downloaded yet")
             return
         }
 

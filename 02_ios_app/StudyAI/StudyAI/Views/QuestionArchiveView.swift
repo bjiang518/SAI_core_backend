@@ -61,7 +61,7 @@ struct QuestionArchiveView: View {
             // Use AI-detected subject if available, otherwise auto-detect from questions
             if let initialSubject = initialDetectedSubject, !initialSubject.isEmpty {
                 detectedSubject = initialSubject
-                print("📚 Using AI-detected subject: \(initialSubject)")
+                debugPrint("📚 Using AI-detected subject: \(initialSubject)")
             } else {
                 // Fallback to auto-detect subject from questions (simple heuristic)
                 autoDetectSubject()
@@ -70,7 +70,7 @@ struct QuestionArchiveView: View {
             // Use AI-provided confidence if available
             if let initialConfidence = initialSubjectConfidence {
                 subjectConfidence = initialConfidence
-                print("🎯 Using AI subject confidence: \(initialConfidence)")
+                debugPrint("🎯 Using AI subject confidence: \(initialConfidence)")
             }
         }
     }

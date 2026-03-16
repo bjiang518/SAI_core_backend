@@ -158,11 +158,11 @@ struct SessionHistoryView: View {
             .navigationTitle("📚 My Study Library")
             .navigationBarTitleDisplayMode(.large)
             .refreshable {
-                print("🔄 Refresh triggered")
+                debugPrint("🔄 Refresh triggered")
                 await loadSessions()
             }
             .onAppear {
-                print("👀 SessionHistoryView appeared, sessions count: \(sessions.count)")
+                debugPrint("👀 SessionHistoryView appeared, sessions count: \(sessions.count)")
                 if sessions.isEmpty && !isLoading {
                     Task {
                         await loadSessions()
@@ -170,7 +170,7 @@ struct SessionHistoryView: View {
                 }
             }
             .onDisappear {
-                print("👋 SessionHistoryView disappeared, cancelling tasks")
+                debugPrint("👋 SessionHistoryView disappeared, cancelling tasks")
                 loadTask?.cancel()
             }
         }
@@ -182,11 +182,11 @@ struct SessionHistoryView: View {
         
         // Prevent multiple concurrent loads
         if isLoading {
-            print("⚠️ Load already in progress, skipping...")
+            debugPrint("⚠️ Load already in progress, skipping...")
             return
         }
         
-        print("🔄 === STARTING LOAD SESSIONS ===")
+        debugPrint("🔄 === STARTING LOAD SESSIONS ===")
         
         guard authService.isAuthenticated else {
             await MainActor.run {
@@ -208,9 +208,9 @@ struct SessionHistoryView: View {
             
             // Try QuestionArchiveService first (this works and has 12 questions)
             do {
-                print("📚 Fetching questions from QuestionArchiveService...")
+                debugPrint("📚 Fetching questions from QuestionArchiveService...")
                 let archivedQuestions = try await questionArchiveService.fetchArchivedQuestions()
-                print("📦 Found \(archivedQuestions.count) questions from QuestionArchiveService")
+                debugPrint("📦 Found \(archivedQuestions.count) questions from QuestionArchiveService")
                 
                 // Convert QuestionSummary objects to dictionary format for unified display
                 let convertedSessions = archivedQuestions.map { summary -> [String: Any] in
@@ -231,35 +231,35 @@ struct SessionHistoryView: View {
                 
                 allSessions.append(contentsOf: convertedSessions)
             } catch {
-                print("⚠️ QuestionArchiveService failed: \(error.localizedDescription)")
+                debugPrint("⚠️ QuestionArchiveService failed: \(error.localizedDescription)")
             }
             
             // Check if task was cancelled
             if Task.isCancelled {
-                print("⚠️ Load task cancelled, stopping...")
+                debugPrint("⚠️ Load task cancelled, stopping...")
                 return
             }
             
             // Now try NetworkService for conversation sessions (without concurrent requests)
-            print("💬 Fetching conversations from NetworkService...")
+            debugPrint("💬 Fetching conversations from NetworkService...")
             let networkResult = await networkService.getArchivedSessionsWithParams([:], forceRefresh: false)
             if networkResult.success, let networkSessions = networkResult.sessions {
-                print("📦 Found \(networkSessions.count) sessions from NetworkService")
+                debugPrint("📦 Found \(networkSessions.count) sessions from NetworkService")
                 allSessions.append(contentsOf: networkSessions)
             } else {
-                print("⚠️ NetworkService failed: \(networkResult.message)")
+                debugPrint("⚠️ NetworkService failed: \(networkResult.message)")
             }
             
             // Check if task was cancelled again
             if Task.isCancelled {
-                print("⚠️ Load task cancelled after network fetch, stopping...")
+                debugPrint("⚠️ Load task cancelled after network fetch, stopping...")
                 return
             }
             
             // Update UI on main thread
             sessions = allSessions
             isLoading = false
-            print("✅ Total sessions loaded: \(allSessions.count)")
+            debugPrint("✅ Total sessions loaded: \(allSessions.count)")
             
             if allSessions.isEmpty {
                 errorMessage = "No archived sessions found. Try creating some conversations or homework sessions first."

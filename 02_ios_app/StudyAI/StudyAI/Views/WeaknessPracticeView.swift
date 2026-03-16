@@ -151,7 +151,7 @@ class WeaknessPracticeViewModel: ObservableObject {
         isLoading = true
         error = nil
 
-        print("📚 [WeaknessPractice] Loading questions for weakness key: \(weaknessKey)")
+        debugPrint("📚 [WeaknessPractice] Loading questions for weakness key: \(weaknessKey)")
 
         do {
             // Parse weakness key: "Math/algebra/calculation"
@@ -164,7 +164,7 @@ class WeaknessPracticeViewModel: ObservableObject {
             let localStorage = currentUserQuestionStorage()
             let allQuestions = localStorage.getLocalQuestions()
 
-            print("   📊 Total questions in storage: \(allQuestions.count)")
+            debugPrint("   📊 Total questions in storage: \(allQuestions.count)")
 
             // Filter for questions with matching weakness key
             let mistakeQuestions = allQuestions.filter { question in
@@ -174,15 +174,15 @@ class WeaknessPracticeViewModel: ObservableObject {
                 return questionWeaknessKey == weaknessKey
             }
 
-            print("   🎯 Found \(mistakeQuestions.count) original mistake questions for '\(weaknessKey)'")
+            debugPrint("   🎯 Found \(mistakeQuestions.count) original mistake questions for '\(weaknessKey)'")
             #if DEBUG
             // Show IDs of all matching questions
-            print("   📋 Question IDs with this weakness key:")
+            debugPrint("   📋 Question IDs with this weakness key:")
             for (idx, q) in mistakeQuestions.enumerated() {
                 let qId = q["id"] as? String ?? "unknown"
                 let hasRaw = q["rawQuestionText"] != nil
                 let rawLength = (q["rawQuestionText"] as? String)?.count ?? 0
-                print("      \(idx + 1). ID: \(qId), hasRawQuestionText: \(hasRaw), length: \(rawLength)")
+                debugPrint("      \(idx + 1). ID: \(qId), hasRawQuestionText: \(hasRaw), length: \(rawLength)")
             }
             #endif
 
@@ -192,7 +192,7 @@ class WeaknessPracticeViewModel: ObservableObject {
             for (index, questionData) in mistakeQuestions.enumerated() {
                 guard let questionText = questionData["questionText"] as? String,
                       let correctAnswer = questionData["answerText"] as? String else {
-                    print("   ⚠️ Skipping question \(index) - missing required fields")
+                    debugPrint("   ⚠️ Skipping question \(index) - missing required fields")
                     continue
                 }
 
@@ -205,21 +205,21 @@ class WeaknessPracticeViewModel: ObservableObject {
                 #if DEBUG
                 // Log what's in local storage BEFORE fallback
                 let rawFromStorage = questionData["rawQuestionText"] as? String
-                print("📦 [WeaknessPractice-Storage] Question \(index + 1) data from local storage:")
-                print("   Question ID: \(questionId)")
-                print("   weaknessKey: \(weaknessKey)")
-                print("   questionText length: \(questionText.count)")
-                print("   questionText: '\(questionText.prefix(100))'...")
-                print("   rawQuestionText from storage: \(rawFromStorage != nil ? "EXISTS (\(rawFromStorage!.count) chars)" : "NIL/MISSING")")
+                debugPrint("📦 [WeaknessPractice-Storage] Question \(index + 1) data from local storage:")
+                debugPrint("   Question ID: \(questionId)")
+                debugPrint("   weaknessKey: \(weaknessKey)")
+                debugPrint("   questionText length: \(questionText.count)")
+                debugPrint("   questionText: '\(questionText.prefix(100))'...")
+                debugPrint("   rawQuestionText from storage: \(rawFromStorage != nil ? "EXISTS (\(rawFromStorage!.count) chars)" : "NIL/MISSING")")
                 if let raw = rawFromStorage {
-                    print("   rawQuestionText content: '\(raw.prefix(100))'...")
+                    debugPrint("   rawQuestionText content: '\(raw.prefix(100))'...")
                     if raw.isEmpty {
-                        print("   ⚠️ rawQuestionText is EMPTY STRING - will fallback to questionText")
+                        debugPrint("   ⚠️ rawQuestionText is EMPTY STRING - will fallback to questionText")
                     }
                 } else {
-                    print("   ⚠️ rawQuestionText is NIL - will fallback to questionText")
+                    debugPrint("   ⚠️ rawQuestionText is NIL - will fallback to questionText")
                 }
-                print("   All keys in questionData: \(questionData.keys.sorted())")
+                debugPrint("   All keys in questionData: \(questionData.keys.sorted())")
                 #endif
 
                 // ✅ FIX: Add fallback to questionText if rawQuestionText is nil OR empty (same as MistakeReviewService)
@@ -230,9 +230,9 @@ class WeaknessPracticeViewModel: ObservableObject {
                 // Only log image-related data
                 if let imageUrl = questionImageUrl {
                     let fileExists = FileManager.default.fileExists(atPath: imageUrl)
-                    print("🖼️ [WeaknessPractice] Question \(index + 1) - Image file exists: \(fileExists)")
+                    debugPrint("🖼️ [WeaknessPractice] Question \(index + 1) - Image file exists: \(fileExists)")
                     if fileExists {
-                        print("   📍 Image path: \(imageUrl)")
+                        debugPrint("   📍 Image path: \(imageUrl)")
                     }
                 }
                 #endif
@@ -259,10 +259,10 @@ class WeaknessPracticeViewModel: ObservableObject {
             #if DEBUG
             // Only log image-related info
             if !questions.isEmpty {
-                print("   🖼️ [WeaknessPractice] Loaded \(questions.count) questions with images:")
+                debugPrint("   🖼️ [WeaknessPractice] Loaded \(questions.count) questions with images:")
                 for (idx, q) in questions.enumerated() {
                     if let imageUrl = q.questionImageUrl, !imageUrl.isEmpty {
-                        print("      Question \(idx + 1): has image at '\(imageUrl)'")
+                        debugPrint("      Question \(idx + 1): has image at '\(imageUrl)'")
                     }
                 }
             }

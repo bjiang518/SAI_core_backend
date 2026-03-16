@@ -735,8 +735,8 @@ class DigitalHomeworkViewModel: ObservableObject {
         }
 
         logger.info("Starting diagram analysis for \(needImageQuestions.count) questions")
-        print("🔍 [DiagramAnalysis] STEP 1: Found \(needImageQuestions.count) need_image questions: \(needImageQuestions.map { $0.question.id })")
-        print("🔍 [DiagramAnalysis] originalImages.count = \(originalImages.count)")
+        debugPrint("🔍 [DiagramAnalysis] STEP 1: Found \(needImageQuestions.count) need_image questions: \(needImageQuestions.map { $0.question.id })")
+        debugPrint("🔍 [DiagramAnalysis] originalImages.count = \(originalImages.count)")
 
         // Collect all IDs that need an image (top-level + subquestions)
         // Only include parent question id when the parent itself has needImage=true
@@ -767,13 +767,13 @@ class DigitalHomeworkViewModel: ObservableObject {
         for qwg in needImageQuestions {
             let pageIndex = (qwg.question.pageNumber ?? 1) - 1
             guard pageIndex < originalImages.count else {
-                print("🔍 [DiagramAnalysis] ⚠️ pageIndex \(pageIndex) out of bounds (count=\(originalImages.count)) for q=\(qwg.question.id)")
+                debugPrint("🔍 [DiagramAnalysis] ⚠️ pageIndex \(pageIndex) out of bounds (count=\(originalImages.count)) for q=\(qwg.question.id)")
                 continue
             }
             byPage[pageIndex, default: []].append((qwg, originalImages[pageIndex]))
         }
 
-        print("🔍 [DiagramAnalysis] STEP 2: byPage keys = \(byPage.keys.sorted())")
+        debugPrint("🔍 [DiagramAnalysis] STEP 2: byPage keys = \(byPage.keys.sorted())")
 
         // Capture base state once — task children must not read ViewModel properties directly
         let baseAnnotations = annotations
@@ -808,13 +808,13 @@ class DigitalHomeworkViewModel: ObservableObject {
             for id in foundIds { questionsMissingDiagramImage.remove(id) }
             if !mergedCrops.isEmpty {
                 stateManager.updateHomework(annotations: mergedAnnotations, croppedImages: mergedCrops)
-                print("🔍 [DiagramAnalysis] STEP 6c: stateManager updated — croppedImages.count=\(stateManager.currentHomework?.croppedImages.count ?? -1)")
+                debugPrint("🔍 [DiagramAnalysis] STEP 6c: stateManager updated — croppedImages.count=\(stateManager.currentHomework?.croppedImages.count ?? -1)")
             }
             diagramAnalysisAttemptCount += 1
             diagramAnalysisFoundRegions = !mergedCrops.isEmpty
         }
 
-        print("🔍 [DiagramAnalysis] STEP 7: COMPLETE — crops=\(mergedCrops.count), keys=\(mergedCrops.keys.sorted())")
+        debugPrint("🔍 [DiagramAnalysis] STEP 7: COMPLETE — crops=\(mergedCrops.count), keys=\(mergedCrops.keys.sorted())")
         logger.info("Diagram analysis complete. Cropped images: \(mergedCrops.count)")
     }
 
@@ -824,7 +824,7 @@ class DigitalHomeworkViewModel: ObservableObject {
         pageIndex: Int
     ) async -> (crops: [String: UIImage], annotations: [QuestionAnnotation])? {
         guard let image = entries.first?.image else {
-            print("🔍 [DiagramAnalysis] STEP 3 FAIL: could not get image for pageIndex=\(pageIndex)")
+            debugPrint("🔍 [DiagramAnalysis] STEP 3 FAIL: could not get image for pageIndex=\(pageIndex)")
             return nil
         }
 
@@ -832,11 +832,11 @@ class DigitalHomeworkViewModel: ObservableObject {
         // The original full-res image is kept for cropping — normalized coords are scale-independent.
         let apiImage = image.resizedForUpload(maxDimension: 1024)
         guard let jpegData = apiImage.jpegData(compressionQuality: 0.7) else {
-            print("🔍 [DiagramAnalysis] STEP 3 FAIL: could not compress image for pageIndex=\(pageIndex)")
+            debugPrint("🔍 [DiagramAnalysis] STEP 3 FAIL: could not compress image for pageIndex=\(pageIndex)")
             return nil
         }
 
-        print("🔍 [DiagramAnalysis] STEP 3: image size=\(image.size) → api size=\(apiImage.size) pageIndex=\(pageIndex) jpegData=\(jpegData.count) bytes")
+        debugPrint("🔍 [DiagramAnalysis] STEP 3: image size=\(image.size) → api size=\(apiImage.size) pageIndex=\(pageIndex) jpegData=\(jpegData.count) bytes")
         let base64Image = jpegData.base64EncodedString()
 
         // Build DiagramQuestion list (top-level + subquestions that need images)
@@ -857,7 +857,7 @@ class DigitalHomeworkViewModel: ObservableObject {
             }
         }
 
-        print("🔍 [DiagramAnalysis] STEP 4: sending \(diagramQuestions.count) questions to API: \(diagramQuestions.map { "\($0.id)=\($0.questionText?.prefix(30) ?? "nil")" })")
+        debugPrint("🔍 [DiagramAnalysis] STEP 4: sending \(diagramQuestions.count) questions to API: \(diagramQuestions.map { "\($0.id)=\($0.questionText?.prefix(30) ?? "nil")" })")
 
         do {
             let response = try await networkService.locateDiagramRegions(
@@ -865,9 +865,9 @@ class DigitalHomeworkViewModel: ObservableObject {
                 questions: diagramQuestions
             )
 
-            print("🔍 [DiagramAnalysis] STEP 5: API response success=\(response.success) regions=\(response.regions.count) error=\(response.error ?? "nil")")
+            debugPrint("🔍 [DiagramAnalysis] STEP 5: API response success=\(response.success) regions=\(response.regions.count) error=\(response.error ?? "nil")")
             for r in response.regions {
-                print("🔍 [DiagramAnalysis]   region qid=\(r.questionId) topLeft=\(r.imageRegion.topLeft) bottomRight=\(r.imageRegion.bottomRight) confidence=\(r.confidence)")
+                debugPrint("🔍 [DiagramAnalysis]   region qid=\(r.questionId) topLeft=\(r.imageRegion.topLeft) bottomRight=\(r.imageRegion.bottomRight) confidence=\(r.confidence)")
             }
 
             guard response.success else {
@@ -884,10 +884,10 @@ class DigitalHomeworkViewModel: ObservableObject {
 
             // Crop from full-res orientation-normalized image
             guard let normalizedImage = image.normalizedOrientation() else {
-                print("🔍 [DiagramAnalysis] STEP 6 FAIL: normalizedOrientation() returned nil for image size=\(image.size)")
+                debugPrint("🔍 [DiagramAnalysis] STEP 6 FAIL: normalizedOrientation() returned nil for image size=\(image.size)")
                 return nil
             }
-            print("🔍 [DiagramAnalysis] STEP 6: normalizedImage size=\(normalizedImage.size) cgImage=\(normalizedImage.cgImage != nil)")
+            debugPrint("🔍 [DiagramAnalysis] STEP 6: normalizedImage size=\(normalizedImage.size) cgImage=\(normalizedImage.cgImage != nil)")
 
             var pageCrops: [String: UIImage] = [:]
             var pageAnnotations: [QuestionAnnotation] = []
@@ -899,7 +899,7 @@ class DigitalHomeworkViewModel: ObservableObject {
                 if let region = regionMap[q.id] {
                     if let cropped = cropRegion(region, from: normalizedImage) {
                         pageCrops[q.id] = cropped
-                        print("🔍 [DiagramAnalysis] ✅ Cropped q.id=\(q.id) size=\(cropped.size)")
+                        debugPrint("🔍 [DiagramAnalysis] ✅ Cropped q.id=\(q.id) size=\(cropped.size)")
                         addAnnotationIfAbsent(
                             region: region,
                             questionNumber: q.questionNumber,
@@ -907,10 +907,10 @@ class DigitalHomeworkViewModel: ObservableObject {
                             into: &pageAnnotations
                         )
                     } else {
-                        print("🔍 [DiagramAnalysis] ❌ cropRegion returned nil for q.id=\(q.id) tl=\(region.topLeft) br=\(region.bottomRight)")
+                        debugPrint("🔍 [DiagramAnalysis] ❌ cropRegion returned nil for q.id=\(q.id) tl=\(region.topLeft) br=\(region.bottomRight)")
                     }
                 } else {
-                    print("🔍 [DiagramAnalysis] ⚠️ no region in regionMap for q.id=\(q.id) — regionMap keys=\(regionMap.keys.sorted())")
+                    debugPrint("🔍 [DiagramAnalysis] ⚠️ no region in regionMap for q.id=\(q.id) — regionMap keys=\(regionMap.keys.sorted())")
                 }
 
                 // Subquestions — use their own region, fallback to parent's
@@ -919,7 +919,7 @@ class DigitalHomeworkViewModel: ObservableObject {
                     let subRegion = regionMap[sub.id] ?? parentRegion
                     if let subRegion, let cropped = cropRegion(subRegion, from: normalizedImage) {
                         pageCrops[sub.id] = cropped
-                        print("🔍 [DiagramAnalysis] ✅ Cropped sub.id=\(sub.id) size=\(cropped.size)")
+                        debugPrint("🔍 [DiagramAnalysis] ✅ Cropped sub.id=\(sub.id) size=\(cropped.size)")
                         addAnnotationIfAbsent(
                             region: subRegion,
                             questionNumber: sub.id,
@@ -930,11 +930,11 @@ class DigitalHomeworkViewModel: ObservableObject {
                 }
             }
 
-            print("🔍 [DiagramAnalysis] STEP 6b: page \(pageIndex) produced crops=\(pageCrops.count) annotations=\(pageAnnotations.count)")
+            debugPrint("🔍 [DiagramAnalysis] STEP 6b: page \(pageIndex) produced crops=\(pageCrops.count) annotations=\(pageAnnotations.count)")
             return (crops: pageCrops, annotations: pageAnnotations)
 
         } catch {
-            print("🔍 [DiagramAnalysis] ❌ CATCH: \(error)")
+            debugPrint("🔍 [DiagramAnalysis] ❌ CATCH: \(error)")
             logger.warning("locate-diagram-regions call failed (will grade without image context): \(error.localizedDescription)")
             await MainActor.run { diagramAnalysisFailed = true }
             return nil
@@ -950,13 +950,13 @@ class DigitalHomeworkViewModel: ObservableObject {
             width: CGFloat(region.bottomRight[0] - region.topLeft[0]) * w,
             height: CGFloat(region.bottomRight[1] - region.topLeft[1]) * h
         )
-        print("🔍 [DiagramAnalysis] cropRegion: imageSize=(\(w)x\(h)) rect=\(rect) cgImage=\(image.cgImage != nil)")
+        debugPrint("🔍 [DiagramAnalysis] cropRegion: imageSize=(\(w)x\(h)) rect=\(rect) cgImage=\(image.cgImage != nil)")
         guard rect.width > 10, rect.height > 10 else {
-            print("🔍 [DiagramAnalysis] cropRegion FAIL: rect too small \(rect)")
+            debugPrint("🔍 [DiagramAnalysis] cropRegion FAIL: rect too small \(rect)")
             return nil
         }
         guard let cgCropped = image.cgImage?.cropping(to: rect) else {
-            print("🔍 [DiagramAnalysis] cropRegion FAIL: cgImage?.cropping returned nil")
+            debugPrint("🔍 [DiagramAnalysis] cropRegion FAIL: cgImage?.cropping returned nil")
             return nil
         }
         return UIImage(cgImage: cgCropped)
@@ -1824,18 +1824,18 @@ class DigitalHomeworkViewModel: ObservableObject {
         let added   = idMappings.count - skipped
         log.info("🗂️ [SMART ORGANIZE]   💾 \(pLabel) subquestions — added: \(added), skipped (duplicate): \(skipped)")
 
-        print("🔬 [EA-DBG] ── archiveSubquestions \(pLabel): \(questionsToArchive.count) subqs, idMappings (\(idMappings.count)):")
+        debugPrint("🔬 [EA-DBG] ── archiveSubquestions \(pLabel): \(questionsToArchive.count) subqs, idMappings (\(idMappings.count)):")
         for m in idMappings {
             if m.originalId != m.savedId {
-                print("🔬 [EA-DBG]   REMAP \(m.originalId.prefix(20)) → \(m.savedId.prefix(12))  ⚠️ duplicate")
+                debugPrint("🔬 [EA-DBG]   REMAP \(m.originalId.prefix(20)) → \(m.savedId.prefix(12))  ⚠️ duplicate")
             } else {
-                print("🔬 [EA-DBG]   OK    \(m.originalId.prefix(20))")
+                debugPrint("🔬 [EA-DBG]   OK    \(m.originalId.prefix(20))")
             }
         }
 
         // Pass 2: error analysis
         var wrongSubquestions = questionsToArchive.filter { ($0["isCorrect"] as? Bool) == false }
-        print("🔬 [EA-DBG] subq wrong filter: \(wrongSubquestions.count)/\(questionsToArchive.count)")
+        debugPrint("🔬 [EA-DBG] subq wrong filter: \(wrongSubquestions.count)/\(questionsToArchive.count)")
         if wrongSubquestions.isEmpty {
             log.info("🗂️ [SMART ORGANIZE]   🧠 \(pLabel) — no wrong subquestions for error analysis")
         } else {
@@ -1843,15 +1843,15 @@ class DigitalHomeworkViewModel: ObservableObject {
                 if let originalId = wrongSubquestions[index]["id"] as? String,
                    let mapping = idMappings.first(where: { $0.originalId == originalId }) {
                     if mapping.originalId != mapping.savedId {
-                        print("🔬 [EA-DBG]   remap subq wrong[\(index)] \(originalId.prefix(20)) → \(mapping.savedId.prefix(12))")
+                        debugPrint("🔬 [EA-DBG]   remap subq wrong[\(index)] \(originalId.prefix(20)) → \(mapping.savedId.prefix(12))")
                     }
                     wrongSubquestions[index]["id"] = mapping.savedId
                 } else if let originalId = wrongSubquestions[index]["id"] as? String {
-                    print("🔬 [EA-DBG]   ⚠️ subq wrong[\(index)] id=\(originalId.prefix(20)) NOT FOUND in idMappings!")
+                    debugPrint("🔬 [EA-DBG]   ⚠️ subq wrong[\(index)] id=\(originalId.prefix(20)) NOT FOUND in idMappings!")
                 }
             }
             let sessionId = UUID().uuidString
-            print("🔬 [EA-DBG] → subq queueErrorAnalysis sessionId=\(sessionId.prefix(8)) count=\(wrongSubquestions.count) ids=\(wrongSubquestions.compactMap { ($0["id"] as? String)?.prefix(20) })")
+            debugPrint("🔬 [EA-DBG] → subq queueErrorAnalysis sessionId=\(sessionId.prefix(8)) count=\(wrongSubquestions.count) ids=\(wrongSubquestions.compactMap { ($0["id"] as? String)?.prefix(20) })")
             ErrorAnalysisQueueService.shared.queueErrorAnalysisAfterGrading(sessionId: sessionId, wrongQuestions: wrongSubquestions)
             log.info("🗂️ [SMART ORGANIZE]   🧠 \(pLabel) — queued \(wrongSubquestions.count) wrong subquestion(s) for error analysis")
         }
@@ -1966,14 +1966,14 @@ class DigitalHomeworkViewModel: ObservableObject {
         log.info("🗂️ [SMART ORGANIZE]   Prepared \(questionsToArchive.count) regular + \(subquestionsToArchive.count) parent(s) for storage")
 
         // Debug: dump each question going into storage
-        print("🔬 [EA-DBG] ── archiveQuestions: \(questionsToArchive.count) questions to save ──")
+        debugPrint("🔬 [EA-DBG] ── archiveQuestions: \(questionsToArchive.count) questions to save ──")
         for q in questionsToArchive {
             let qid     = (q["id"]            as? String) ?? "nil"
             let correct = (q["isCorrect"]     as? Bool)   ?? false
             let graded  = (q["isGraded"]      as? Bool)   ?? false
             let student = (q["studentAnswer"] as? String) ?? ""
             let answer  = (q["answerText"]    as? String) ?? ""
-            print("🔬 [EA-DBG]   id=\(qid.prefix(12)) isCorrect=\(correct) isGraded=\(graded) student='\(student.prefix(30))' answerText='\(answer.prefix(30))'")
+            debugPrint("🔬 [EA-DBG]   id=\(qid.prefix(12)) isCorrect=\(correct) isGraded=\(graded) student='\(student.prefix(30))' answerText='\(answer.prefix(30))'")
         }
 
         // Pass 1: save to local storage
@@ -1982,23 +1982,23 @@ class DigitalHomeworkViewModel: ObservableObject {
         let skipped = idMappings.filter { $0.originalId != $0.savedId }.count
         let added   = idMappings.count - skipped
         log.info("🗂️ [SMART ORGANIZE]   💾 Storage result — added: \(added), skipped (duplicate): \(skipped)")
-        print("🔬 [EA-DBG] saveQuestions idMappings (\(idMappings.count) total, \(skipped) remapped):")
+        debugPrint("🔬 [EA-DBG] saveQuestions idMappings (\(idMappings.count) total, \(skipped) remapped):")
         for m in idMappings {
             if m.originalId != m.savedId {
                 log.info("🗂️ [SMART ORGANIZE]      ⏭️  duplicate remapped \(m.originalId.prefix(8))… → \(m.savedId.prefix(8))…")
-                print("🔬 [EA-DBG]   REMAP \(m.originalId.prefix(12)) → \(m.savedId.prefix(12))  ⚠️ duplicate — error analysis will use savedId")
+                debugPrint("🔬 [EA-DBG]   REMAP \(m.originalId.prefix(12)) → \(m.savedId.prefix(12))  ⚠️ duplicate — error analysis will use savedId")
             } else {
-                print("🔬 [EA-DBG]   OK    \(m.originalId.prefix(12)) → \(m.savedId.prefix(12))")
+                debugPrint("🔬 [EA-DBG]   OK    \(m.originalId.prefix(12)) → \(m.savedId.prefix(12))")
             }
         }
 
         // Pass 2: error analysis for wrong answers
         var wrongQuestions = questionsToArchive.filter { ($0["isCorrect"] as? Bool) == false }
-        print("🔬 [EA-DBG] wrong filter: \(wrongQuestions.count)/\(questionsToArchive.count) questions are isCorrect=false")
+        debugPrint("🔬 [EA-DBG] wrong filter: \(wrongQuestions.count)/\(questionsToArchive.count) questions are isCorrect=false")
         for q in wrongQuestions {
             let qid    = (q["id"]        as? String) ?? "nil"
             let graded = (q["isGraded"]  as? Bool)   ?? false
-            print("🔬 [EA-DBG]   wrong id=\(qid.prefix(12)) isGraded=\(graded)")
+            debugPrint("🔬 [EA-DBG]   wrong id=\(qid.prefix(12)) isGraded=\(graded)")
         }
         if wrongQuestions.isEmpty {
             log.info("🗂️ [SMART ORGANIZE]   🧠 Pass 2 (error analysis) — no wrong answers, skipped")
@@ -2007,15 +2007,15 @@ class DigitalHomeworkViewModel: ObservableObject {
                 if let originalId = wrongQuestions[index]["id"] as? String,
                    let mapping = idMappings.first(where: { $0.originalId == originalId }) {
                     if mapping.originalId != mapping.savedId {
-                        print("🔬 [EA-DBG]   remap wrong[\(index)] \(originalId.prefix(12)) → \(mapping.savedId.prefix(12))")
+                        debugPrint("🔬 [EA-DBG]   remap wrong[\(index)] \(originalId.prefix(12)) → \(mapping.savedId.prefix(12))")
                     }
                     wrongQuestions[index]["id"] = mapping.savedId
                 } else if let originalId = wrongQuestions[index]["id"] as? String {
-                    print("🔬 [EA-DBG]   ⚠️ wrong[\(index)] id=\(originalId.prefix(12)) NOT FOUND in idMappings — id mismatch!")
+                    debugPrint("🔬 [EA-DBG]   ⚠️ wrong[\(index)] id=\(originalId.prefix(12)) NOT FOUND in idMappings — id mismatch!")
                 }
             }
             let sessionId = UUID().uuidString
-            print("🔬 [EA-DBG] → queueErrorAnalysis sessionId=\(sessionId.prefix(8)) count=\(wrongQuestions.count) ids=\(wrongQuestions.compactMap { ($0["id"] as? String)?.prefix(12) })")
+            debugPrint("🔬 [EA-DBG] → queueErrorAnalysis sessionId=\(sessionId.prefix(8)) count=\(wrongQuestions.count) ids=\(wrongQuestions.compactMap { ($0["id"] as? String)?.prefix(12) })")
             ErrorAnalysisQueueService.shared.queueErrorAnalysisAfterGrading(
                 sessionId: sessionId,
                 wrongQuestions: wrongQuestions

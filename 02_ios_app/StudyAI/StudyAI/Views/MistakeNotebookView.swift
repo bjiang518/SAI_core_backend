@@ -209,8 +209,8 @@ class MistakeNotebookViewModel: ObservableObject {
         }
         .sorted { $0.count > $1.count }
 
-        print("📚 [Notebook] Loaded \(mistakes.count) mistakes from local storage")
-        print("📊 [Notebook] Grouped into \(mistakeGroups.count) error types")
+        debugPrint("📚 [Notebook] Loaded \(mistakes.count) mistakes from local storage")
+        debugPrint("📊 [Notebook] Grouped into \(mistakeGroups.count) error types")
     }
 }
 

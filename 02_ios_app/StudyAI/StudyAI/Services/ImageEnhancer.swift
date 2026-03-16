@@ -33,7 +33,7 @@ class ImageEnhancer {
         // Step 4: Sharpen text for better boundary detection
         processedImage = sharpenText(processedImage)
         
-        print("✅ Image preprocessing completed")
+        debugPrint("✅ Image preprocessing completed")
         return processedImage
     }
     

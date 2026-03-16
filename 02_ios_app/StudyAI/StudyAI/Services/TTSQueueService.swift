@@ -143,7 +143,7 @@ class TTSQueueService: ObservableObject {
                     // ✅ Lock to prevent re-entrance
                     self.isProcessingNextChunk = true
 
-                    print("🎵 [TTSQueue] Observer triggered (queue: \(self.effectiveQueueSize) items)")
+                    debugPrint("🎵 [TTSQueue] Observer triggered (queue: \(self.effectiveQueueSize) items)")
 
                     // Reset watchdog since we're making progress
                     self.resetWatchdog()
@@ -195,7 +195,7 @@ class TTSQueueService: ObservableObject {
 
         // ✅ Phase 3.6: Check memory limits with INCREMENTAL tracking (O(1)!)
         if effectiveQueueSize >= maxQueueSize {
-            print("⚠️ [TTSQueue] Queue full (\(maxQueueSize)), dropping oldest item")
+            debugPrint("⚠️ [TTSQueue] Queue full (\(maxQueueSize)), dropping oldest item")
             if let removed = dequeueItem() {
                 // Decrement memory counter
                 totalQueueMemoryBytes -= removed.estimatedMemoryBytes
@@ -204,7 +204,7 @@ class TTSQueueService: ObservableObject {
 
         // Check total memory using cached value - O(1) instead of O(n)!
         if totalQueueMemoryBytes + newItem.estimatedMemoryBytes > maxQueueMemoryBytes {
-            print("⚠️ [TTSQueue] Memory limit reached (\(totalQueueMemoryBytes/1024)KB), dropping oldest items")
+            debugPrint("⚠️ [TTSQueue] Memory limit reached (\(totalQueueMemoryBytes/1024)KB), dropping oldest items")
             while totalQueueMemoryBytes + newItem.estimatedMemoryBytes > maxQueueMemoryBytes && effectiveQueueSize > 0 {
                 if let removed = dequeueItem() {
                     totalQueueMemoryBytes -= removed.estimatedMemoryBytes
@@ -220,13 +220,13 @@ class TTSQueueService: ObservableObject {
 
         // ✅ Phase 3.7: Enhanced logging with text preview
         let textPreview = text.prefix(80).replacingOccurrences(of: "\n", with: " ")
-        print("📥 [TTSQueue] Enqueued chunk #\(effectiveQueueSize): \(text.count) chars")
-        print("   └─ Preview: \"\(textPreview)...\"")
-        print("   └─ Queue: \(effectiveQueueSize) items, \(totalQueueMemoryBytes/1024)KB")
+        debugPrint("📥 [TTSQueue] Enqueued chunk #\(effectiveQueueSize): \(text.count) chars")
+        debugPrint("   └─ Preview: \"\(textPreview)...\"")
+        debugPrint("   └─ Queue: \(effectiveQueueSize) items, \(totalQueueMemoryBytes/1024)KB")
 
         // Start playing if not already playing
         if !isPlayingTTS {
-            print("▶️ [TTSQueue] Starting playback (queue was idle)")
+            debugPrint("▶️ [TTSQueue] Starting playback (queue was idle)")
             playNextTTSChunk()
         } else {
             // ✅ Phase 3.9: Trigger prefetch for newly enqueued chunks
@@ -240,15 +240,15 @@ class TTSQueueService: ObservableObject {
     ///
     /// **Phase 3.6**: Adds watchdog timer to detect stuck states
     func playNextTTSChunk() {
-        print("🎬 [TTSQueue] playNextTTSChunk() called")
-        print("   └─ Queue size: \(effectiveQueueSize)")
-        print("   └─ isPlayingTTS: \(isPlayingTTS)")
-        print("   └─ isPaused: \(isPaused)")
-        print("   └─ voiceEnabled: \(voiceService.isVoiceEnabled)")
-        print("   └─ voiceService.isProcessingTTS: \(voiceService.isProcessingTTS)")
+        debugPrint("🎬 [TTSQueue] playNextTTSChunk() called")
+        debugPrint("   └─ Queue size: \(effectiveQueueSize)")
+        debugPrint("   └─ isPlayingTTS: \(isPlayingTTS)")
+        debugPrint("   └─ isPaused: \(isPaused)")
+        debugPrint("   └─ voiceEnabled: \(voiceService.isVoiceEnabled)")
+        debugPrint("   └─ voiceService.isProcessingTTS: \(voiceService.isProcessingTTS)")
 
         guard !isPaused else {
-            print("⏸️ [TTSQueue] Paused — not advancing queue")
+            debugPrint("⏸️ [TTSQueue] Paused — not advancing queue")
             return
         }
 
@@ -257,18 +257,18 @@ class TTSQueueService: ObservableObject {
             // If isProcessingTTS=true, it means audio is being fetched/prepared in EnhancedTTS
             // We must wait for it to finish before stopping playback
             if voiceService.isProcessingTTS {
-                print("⏸️ [TTSQueue] Queue empty but voice is PROCESSING - waiting for audio to finish")
+                debugPrint("⏸️ [TTSQueue] Queue empty but voice is PROCESSING - waiting for audio to finish")
                 return
             }
 
-            print("⏹️ [TTSQueue] Queue empty - stopping playback")
+            debugPrint("⏹️ [TTSQueue] Queue empty - stopping playback")
             isPlayingTTS = false
             currentSessionIdForTTS = nil
             cancelWatchdog() // ✅ Cancel watchdog when done
 
             // ✅ Phase 3.7 (2026-02-18): Deactivate audio session when queue is truly empty
             // This ensures battery optimization and allows other apps to play audio
-            print("⏹️ [TTSQueue] Deactivating audio session (queue empty)")
+            debugPrint("⏹️ [TTSQueue] Deactivating audio session (queue empty)")
             voiceService.stopSpeech()  // This will deactivate the audio session
 
             compactQueueIfNeeded()
@@ -278,22 +278,22 @@ class TTSQueueService: ObservableObject {
         // ✅ SAFETY CHECK: Ensure current session matches the TTS session
         guard let ttsSessionId = currentSessionIdForTTS,
               ttsSessionId == networkService.currentSessionId else {
-            print("⚠️ [TTSQueue] Session mismatch - clearing queue")
-            print("   └─ TTS session: \(currentSessionIdForTTS ?? "nil")")
-            print("   └─ Current session: \(networkService.currentSessionId ?? "nil")")
+            debugPrint("⚠️ [TTSQueue] Session mismatch - clearing queue")
+            debugPrint("   └─ TTS session: \(currentSessionIdForTTS ?? "nil")")
+            debugPrint("   └─ Current session: \(networkService.currentSessionId ?? "nil")")
             clearQueue()
             return
         }
 
         guard voiceService.isVoiceEnabled else {
-            print("⚠️ [TTSQueue] Voice disabled - clearing queue")
+            debugPrint("⚠️ [TTSQueue] Voice disabled - clearing queue")
             clearQueue()
             return
         }
 
         // Phase 3.4: Efficient dequeue using head index (O(1))
         guard let nextItem = dequeueItem() else {
-            print("⚠️ [TTSQueue] Failed to dequeue item (unexpected)")
+            debugPrint("⚠️ [TTSQueue] Failed to dequeue item (unexpected)")
             isPlayingTTS = false
             cancelWatchdog() // ✅ Cancel watchdog
             return
@@ -305,10 +305,10 @@ class TTSQueueService: ObservableObject {
         startWatchdog()
 
         let textPreview = nextItem.text.prefix(80).replacingOccurrences(of: "\n", with: " ")
-        print("▶️ [TTSQueue] Playing chunk: \(nextItem.text.count) chars")
-        print("   └─ Preview: \"\(textPreview)...\"")
-        print("   └─ Remaining in queue: \(effectiveQueueSize)")
-        print("   └─ Watchdog: started (\(watchdogTimeout)s timeout)")
+        debugPrint("▶️ [TTSQueue] Playing chunk: \(nextItem.text.count) chars")
+        debugPrint("   └─ Preview: \"\(textPreview)...\"")
+        debugPrint("   └─ Remaining in queue: \(effectiveQueueSize)")
+        debugPrint("   └─ Watchdog: started (\(watchdogTimeout)s timeout)")
 
         // Set as current speaking message
         voiceService.setCurrentSpeakingMessage(nextItem.messageId)
@@ -327,7 +327,7 @@ class TTSQueueService: ObservableObject {
     /// Stop all TTS playback and clear queue
     func stopAllTTS() {
         if Self.debugMode {
-        print("🎵 [TTSQueueService] Stopping all TTS playback")
+        debugPrint("🎵 [TTSQueueService] Stopping all TTS playback")
         }
         isPaused = false
         voiceService.stopSpeech()
@@ -338,7 +338,7 @@ class TTSQueueService: ObservableObject {
     func pauseResumeTTS() {
         if isPaused {
             isPaused = false
-            print("▶️ [TTSQueue] Resumed")
+            debugPrint("▶️ [TTSQueue] Resumed")
             enhancedTTS.resumeSpeech()
             // If the audio player has nothing left to resume (chunk boundary),
             // advance the queue normally.
@@ -347,7 +347,7 @@ class TTSQueueService: ObservableObject {
             }
         } else {
             isPaused = true
-            print("⏸️ [TTSQueue] Paused")
+            debugPrint("⏸️ [TTSQueue] Paused")
             enhancedTTS.pauseSpeech()
         }
     }
@@ -358,7 +358,7 @@ class TTSQueueService: ObservableObject {
     func clearTTSQueueForSession(_ sessionId: String) {
         if currentSessionIdForTTS == sessionId {
             if Self.debugMode {
-            print("🎵 [TTSQueueService] Clearing TTS queue for session: \(sessionId)")
+            debugPrint("🎵 [TTSQueueService] Clearing TTS queue for session: \(sessionId)")
             }
             stopAllTTS()
         }
@@ -405,7 +405,7 @@ class TTSQueueService: ObservableObject {
             return
         }
 
-        print("🧹 [TTSQueueService] Compacting queue (head: \(headIndex), total: \(queueStorage.count))")
+        debugPrint("🧹 [TTSQueueService] Compacting queue (head: \(headIndex), total: \(queueStorage.count))")
 
         // Remove dequeued items
         queueStorage.removeFirst(headIndex)
@@ -468,7 +468,7 @@ class TTSQueueService: ObservableObject {
                     // Remove from prefetching set
                     self.prefetchingMessageIds.remove(item.messageId)
                 } catch {
-                    print("⚠️ [Prefetch] Failed: \(error.localizedDescription)")
+                    debugPrint("⚠️ [Prefetch] Failed: \(error.localizedDescription)")
                     // Remove from set even on error so we can retry
                     self.prefetchingMessageIds.remove(item.messageId)
                 }
@@ -503,7 +503,7 @@ class TTSQueueService: ObservableObject {
         }
 
         if Self.debugMode {
-        print("🐕 [TTSQueueService] Watchdog started (\(watchdogTimeout)s timeout)")
+        debugPrint("🐕 [TTSQueueService] Watchdog started (\(watchdogTimeout)s timeout)")
         }
     }
 
@@ -525,18 +525,18 @@ class TTSQueueService: ObservableObject {
         // ✅ Phase 3.6 (2026-02-16): Cancel watchdog FIRST to prevent double timers
         cancelWatchdog()
 
-        print("⚠️⚠️⚠️ [TTSQueue] WATCHDOG TIMEOUT - TTS STUCK FOR \(watchdogTimeout)s!")
-        print("   └─ Queue size: \(effectiveQueueSize)")
-        print("   └─ isPlayingTTS: \(isPlayingTTS)")
-        print("   └─ Voice state: \(voiceService.interactionState)")
-        print("   └─ isProcessingTTS: \(voiceService.isProcessingTTS)")
-        print("   └─ isProcessingNextChunk: \(isProcessingNextChunk)")
-        print("   └─ currentSessionId: \(currentSessionIdForTTS ?? "nil")")
+        debugPrint("⚠️⚠️⚠️ [TTSQueue] WATCHDOG TIMEOUT - TTS STUCK FOR \(watchdogTimeout)s!")
+        debugPrint("   └─ Queue size: \(effectiveQueueSize)")
+        debugPrint("   └─ isPlayingTTS: \(isPlayingTTS)")
+        debugPrint("   └─ Voice state: \(voiceService.interactionState)")
+        debugPrint("   └─ isProcessingTTS: \(voiceService.isProcessingTTS)")
+        debugPrint("   └─ isProcessingNextChunk: \(isProcessingNextChunk)")
+        debugPrint("   └─ currentSessionId: \(currentSessionIdForTTS ?? "nil")")
 
         // ✅ Phase 3.8 (2026-02-18): CRITICAL FIX - Don't interrupt if still processing!
         // If isProcessingTTS=true, audio is being downloaded/prepared - give it more time
         if voiceService.isProcessingTTS {
-            print("⏸️ [TTSQueue] Audio still PROCESSING - giving 10 more seconds...")
+            debugPrint("⏸️ [TTSQueue] Audio still PROCESSING - giving 10 more seconds...")
             // Restart watchdog with extra time for slow network
             watchdogTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: false) { [weak self] _ in
                 guard let self = self else { return }
@@ -550,7 +550,7 @@ class TTSQueueService: ObservableObject {
         // ✅ Phase 3.8 (2026-02-18): CRITICAL FIX - Don't interrupt if audio is actively SPEAKING!
         // Voice state is .speaking means audio is currently playing - extend watchdog
         if voiceService.interactionState == .speaking {
-            print("⏸️ [TTSQueue] Audio is SPEAKING - giving 30 more seconds...")
+            debugPrint("⏸️ [TTSQueue] Audio is SPEAKING - giving 30 more seconds...")
             // Long audio can be 30+ seconds, give plenty of time
             watchdogTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: false) { [weak self] _ in
                 guard let self = self else { return }
@@ -562,29 +562,29 @@ class TTSQueueService: ObservableObject {
         }
 
         // Now it's truly stuck - force recovery
-        print("🛑 [TTSQueue] Voice is stuck (not speaking, not processing) - forcing recovery")
+        debugPrint("🛑 [TTSQueue] Voice is stuck (not speaking, not processing) - forcing recovery")
 
         // ✅ Phase 3.8: Set recovery flag to prevent observer from interfering
         isInWatchdogRecovery = true
-        print("🔒 [TTSQueue] Watchdog recovery mode ACTIVE - observer blocked")
+        debugPrint("🔒 [TTSQueue] Watchdog recovery mode ACTIVE - observer blocked")
 
         voiceService.stopSpeech()
 
         // If queue has more items, try playing next
         if effectiveQueueSize > 0 {
-            print("🔄 [TTSQueue] Recovery attempt - playing next chunk (\(effectiveQueueSize) remaining)")
+            debugPrint("🔄 [TTSQueue] Recovery attempt - playing next chunk (\(effectiveQueueSize) remaining)")
             // playNextTTSChunk will start a new watchdog
             playNextTTSChunk()
         } else {
             // Queue empty - just stop
             isPlayingTTS = false
-            print("🛑 [TTSQueue] Queue empty after timeout - stopping TTS")
+            debugPrint("🛑 [TTSQueue] Queue empty after timeout - stopping TTS")
         }
 
         // ✅ Release recovery lock after 1 second (allows new chunk to start)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             self.isInWatchdogRecovery = false
-            print("🔓 [TTSQueue] Watchdog recovery mode CLEARED - observer re-enabled")
+            debugPrint("🔓 [TTSQueue] Watchdog recovery mode CLEARED - observer re-enabled")
         }
     }
 

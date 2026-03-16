@@ -386,7 +386,7 @@ struct UnifiedLibraryView: View {
             await loadContent()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("StorageSyncCompleted"))) { _ in
-            print("📚 [Library] Received sync completion notification, reloading from local storage...")
+            debugPrint("📚 [Library] Received sync completion notification, reloading from local storage...")
             Task {
                 // ✅ FIX: Don't force server refresh after sync - just reload local data
                 // StorageSyncService already synced with server, so we just need to display local data
@@ -828,7 +828,7 @@ struct UnifiedLibraryView: View {
     }
 
     private func deleteLibraryItem(_ item: LibraryItem) async {
-        print("🗑️ [Library] Deleting item: \(item.id)")
+        debugPrint("🗑️ [Library] Deleting item: \(item.id)")
 
         let success = await libraryService.deleteLibraryItem(item)
 
@@ -854,9 +854,9 @@ struct UnifiedLibraryView: View {
                     )
                 }
             }
-            print("✅ [Library] Item deleted successfully and UI updated")
+            debugPrint("✅ [Library] Item deleted successfully and UI updated")
         } else {
-            print("❌ [Library] Failed to delete item")
+            debugPrint("❌ [Library] Failed to delete item")
         }
     }
 
@@ -1149,29 +1149,29 @@ struct LibraryItemRow: View {
             return
         }
 
-        print("🔍 [Library] Checking Pro Mode image for question: \(questionSummary.id)")
-        print("   proMode: \(questionSummary.proMode ?? false)")
+        debugPrint("🔍 [Library] Checking Pro Mode image for question: \(questionSummary.id)")
+        debugPrint("   proMode: \(questionSummary.proMode ?? false)")
 
         guard questionSummary.proMode == true else {
-            print("   ⏭️ Not a Pro Mode question, skipping")
+            debugPrint("   ⏭️ Not a Pro Mode question, skipping")
             return
         }
 
         guard let imagePath = questionSummary.questionImageUrl, !imagePath.isEmpty else {
-            print("   ⚠️ Pro Mode question but no questionImageUrl")
-            print("   questionImageUrl value: \(String(describing: questionSummary.questionImageUrl))")
+            debugPrint("   ⚠️ Pro Mode question but no questionImageUrl")
+            debugPrint("   questionImageUrl value: \(String(describing: questionSummary.questionImageUrl))")
             return
         }
 
-        print("   📂 Image path: \(imagePath)")
-        print("   📂 File exists at path: \(FileManager.default.fileExists(atPath: imagePath))")
+        debugPrint("   📂 Image path: \(imagePath)")
+        debugPrint("   📂 File exists at path: \(FileManager.default.fileExists(atPath: imagePath))")
 
         // Load image from file system
         if let loadedImage = ProModeImageStorage.shared.loadImage(from: imagePath) {
             proModeImage = loadedImage
-            print("   ✅ Successfully loaded Pro Mode image (size: \(loadedImage.size))")
+            debugPrint("   ✅ Successfully loaded Pro Mode image (size: \(loadedImage.size))")
         } else {
-            print("   ❌ Failed to load Pro Mode image from path")
+            debugPrint("   ❌ Failed to load Pro Mode image from path")
         }
     }
 

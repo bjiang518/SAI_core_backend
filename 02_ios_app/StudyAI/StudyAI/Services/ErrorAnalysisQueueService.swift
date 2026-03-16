@@ -36,13 +36,13 @@ class ErrorAnalysisQueueService: ObservableObject {
     /// ✅ ACCUMULATES questions if analysis is already running (prevents cancellation)
     func queueErrorAnalysisAfterGrading(sessionId: String, wrongQuestions: [[String: Any]]) {
         guard !wrongQuestions.isEmpty else {
-            print("📊 [ErrorAnalysis] No wrong answers - skipping Pass 2")
+            debugPrint("📊 [ErrorAnalysis] No wrong answers - skipping Pass 2")
             return
         }
 
         // Guest users have 0 error_analysis quota — skip entirely without a network round-trip
         if AuthenticationService.shared.currentUser?.isAnonymous == true {
-            print("📊 [ErrorAnalysis] Guest account — error analysis not available, skipping")
+            debugPrint("📊 [ErrorAnalysis] Guest account — error analysis not available, skipping")
             return
         }
 
@@ -52,8 +52,8 @@ class ErrorAnalysisQueueService: ObservableObject {
             await retryFailedAnalyses()
         }
 
-        print("📊 [ErrorAnalysis] Received \(wrongQuestions.count) wrong answers for Pass 2")
-        print("🔬 [EA-DBG] ── queueErrorAnalysisAfterGrading entry ──")
+        debugPrint("📊 [ErrorAnalysis] Received \(wrongQuestions.count) wrong answers for Pass 2")
+        debugPrint("🔬 [EA-DBG] ── queueErrorAnalysisAfterGrading entry ──")
         for (i, q) in wrongQuestions.enumerated() {
             let qid = (q["id"] as? String) ?? "NO-ID"
             let qt  = (q["questionText"] as? String) ?? ""
@@ -61,26 +61,26 @@ class ErrorAnalysisQueueService: ObservableObject {
             let sub = (q["subject"] as? String) ?? ""
             let preBase = (q["baseBranch"] as? String) ?? ""
             let preKey  = (q["weaknessKey"] as? String) ?? ""
-            print("🔬 [EA-DBG]   [\(i)] id=\(qid.prefix(12)) sub=\(sub) baseBranch='\(preBase.prefix(20))' wk='\(preKey.prefix(30))'")
-            print("🔬 [EA-DBG]       q='\(qt.prefix(40))' sa='\(sa.prefix(30))'")
+            debugPrint("🔬 [EA-DBG]   [\(i)] id=\(qid.prefix(12)) sub=\(sub) baseBranch='\(preBase.prefix(20))' wk='\(preKey.prefix(30))'")
+            debugPrint("🔬 [EA-DBG]       q='\(qt.prefix(40))' sa='\(sa.prefix(30))'")
         }
 
         // Always route all wrong questions through the analysis pipeline.
         // Deduplication of displayed mistakes is handled in getMistakeQuestions().
         let unanalyzedWrongQuestions = wrongQuestions.filter { question in
             guard question["id"] as? String != nil else {
-                print("⚠️ [ErrorAnalysis] Question has no ID - skipping")
+                debugPrint("⚠️ [ErrorAnalysis] Question has no ID - skipping")
                 return false
             }
             return true
         }
 
         guard !unanalyzedWrongQuestions.isEmpty else {
-            print("✅ [ErrorAnalysis] No valid wrong answers to analyze")
+            debugPrint("✅ [ErrorAnalysis] No valid wrong answers to analyze")
             return
         }
 
-        print("📊 [ErrorAnalysis] Queuing Pass 2 for \(unanalyzedWrongQuestions.count) wrong answers")
+        debugPrint("📊 [ErrorAnalysis] Queuing Pass 2 for \(unanalyzedWrongQuestions.count) wrong answers")
 
         // ✅ SPLIT: questions that already have Gemini-pre-filled error keys (from mistake-based
         // question generation) vs. questions that need backend AI analysis (random/archive context).
@@ -103,14 +103,14 @@ class ErrorAnalysisQueueService: ObservableObject {
         // preserves them. Do NOT mark as completed yet — backend will do that after populating
         // errorEvidence and learningSuggestion.
         if !questionsWithPrefilledKeys.isEmpty {
-            print("📊 [ErrorAnalysis] \(questionsWithPrefilledKeys.count) questions have pre-filled error keys — recording mistakes immediately, then routing to backend for narratives")
+            debugPrint("📊 [ErrorAnalysis] \(questionsWithPrefilledKeys.count) questions have pre-filled error keys — recording mistakes immediately, then routing to backend for narratives")
             Task {
                 for q in questionsWithPrefilledKeys {
                     guard let questionId  = q["id"]          as? String,
                           let weaknessKey = q["weaknessKey"] as? String,
                           let errorType   = q["errorType"]   as? String,
                           !weaknessKey.isEmpty else {
-                        print("⚠️ [ErrorAnalysis] Pre-keyed question missing id/weaknessKey/errorType — skipping")
+                        debugPrint("⚠️ [ErrorAnalysis] Pre-keyed question missing id/weaknessKey/errorType — skipping")
                         continue
                     }
                     // Write taxonomy to local storage (status stays pending so backend fills narratives)
@@ -128,7 +128,7 @@ class ErrorAnalysisQueueService: ObservableObject {
                         fields["weaknessKey"] = canonicalKey
                     }
                     localStorage.updateQuestion(id: questionId, fields: fields)
-                    print("✅ [ErrorAnalysis] Recorded mistake for pre-keyed Q \(questionId.prefix(8))… key=\(weaknessKey)")
+                    debugPrint("✅ [ErrorAnalysis] Recorded mistake for pre-keyed Q \(questionId.prefix(8))… key=\(weaknessKey)")
                 }
             }
         }
@@ -138,7 +138,7 @@ class ErrorAnalysisQueueService: ObservableObject {
         // and only update errorEvidence / learningSuggestion.
         let allForBackend = questionsWithPrefilledKeys + questionsNeedingAnalysis
         guard !allForBackend.isEmpty else {
-            print("📊 [ErrorAnalysis] No questions need backend analysis — done")
+            debugPrint("📊 [ErrorAnalysis] No questions need backend analysis — done")
             return
         }
 
@@ -146,7 +146,7 @@ class ErrorAnalysisQueueService: ObservableObject {
         queueLock.lock()
         let currentlyAnalyzing = isAnalyzing
         if currentlyAnalyzing {
-            print("⏳ [ErrorAnalysis] Analysis already running - adding \(allForBackend.count) questions to pending queue")
+            debugPrint("⏳ [ErrorAnalysis] Analysis already running - adding \(allForBackend.count) questions to pending queue")
             pendingQuestions.append(contentsOf: allForBackend)
             queueLock.unlock()
             return
@@ -178,11 +178,11 @@ class ErrorAnalysisQueueService: ObservableObject {
         }
 
         guard !failedQuestions.isEmpty else {
-            print("📊 [ErrorAnalysis] No failed analyses to retry")
+            debugPrint("📊 [ErrorAnalysis] No failed analyses to retry")
             return
         }
 
-        print("📊 [ErrorAnalysis] Retrying \(failedQuestions.count) failed analyses")
+        debugPrint("📊 [ErrorAnalysis] Retrying \(failedQuestions.count) failed analyses")
         await analyzeBatch(sessionId: "retry", questions: failedQuestions)
     }
 
@@ -193,38 +193,38 @@ class ErrorAnalysisQueueService: ObservableObject {
     /// ✅ FILTER: Skip questions that have already been ANALYZED (not just archived)
     func queueConceptExtractionForCorrectAnswers(sessionId: String, correctQuestions: [[String: Any]]) {
         guard !correctQuestions.isEmpty else {
-            print("📊 [ConceptExtraction] No correct answers - skipping")
+            debugPrint("📊 [ConceptExtraction] No correct answers - skipping")
             return
         }
 
-        print("📊 [ConceptExtraction] Received \(correctQuestions.count) correct answers for concept extraction")
+        debugPrint("📊 [ConceptExtraction] Received \(correctQuestions.count) correct answers for concept extraction")
 
         // ✅ FIXED: Filter by analysis status, not just existence in storage
         let analyzedQuestionIds = Set(getAnalyzedQuestionIds())
-        print("📊 [ConceptExtraction] Found \(analyzedQuestionIds.count) already-analyzed question IDs")
+        debugPrint("📊 [ConceptExtraction] Found \(analyzedQuestionIds.count) already-analyzed question IDs")
 
         let unanalyzedCorrectQuestions = correctQuestions.filter { question in
             guard let questionId = question["id"] as? String else {
-                print("⚠️ [ConceptExtraction] Question has no ID - skipping")
+                debugPrint("⚠️ [ConceptExtraction] Question has no ID - skipping")
                 return false
             }
 
             let isAnalyzed = analyzedQuestionIds.contains(questionId)
             if isAnalyzed {
-                print("  ✓ [ConceptExtraction] Question \(questionId.prefix(8))... already analyzed - SKIP")
+                debugPrint("  ✓ [ConceptExtraction] Question \(questionId.prefix(8))... already analyzed - SKIP")
                 return false
             } else {
-                print("  ✓ [ConceptExtraction] Question \(questionId.prefix(8))... needs analysis - QUEUE")
+                debugPrint("  ✓ [ConceptExtraction] Question \(questionId.prefix(8))... needs analysis - QUEUE")
                 return true
             }
         }
 
         guard !unanalyzedCorrectQuestions.isEmpty else {
-            print("✅ [ConceptExtraction] All correct answers already analyzed - skipping concept extraction")
+            debugPrint("✅ [ConceptExtraction] All correct answers already analyzed - skipping concept extraction")
             return
         }
 
-        print("📊 [ConceptExtraction] Queuing concept extraction for \(unanalyzedCorrectQuestions.count) unanalyzed correct answers (filtered from \(correctQuestions.count) total)")
+        debugPrint("📊 [ConceptExtraction] Queuing concept extraction for \(unanalyzedCorrectQuestions.count) unanalyzed correct answers (filtered from \(correctQuestions.count) total)")
 
         // ✅ FAST PATH: questions that already carry a weaknessKey (e.g. from weakness-based
         // practice) skip backend AI extraction entirely. The key is already known, so we record
@@ -237,12 +237,12 @@ class ErrorAnalysisQueueService: ObservableObject {
         }
 
         if !preKeyedCorrect.isEmpty {
-            print("📊 [ConceptExtraction] \(preKeyedCorrect.count) questions have pre-filled weakness key — recording correct attempts directly (no backend call)")
+            debugPrint("📊 [ConceptExtraction] \(preKeyedCorrect.count) questions have pre-filled weakness key — recording correct attempts directly (no backend call)")
             Task {
                 for q in preKeyedCorrect {
                     guard let weaknessKey = q["weaknessKey"] as? String, !weaknessKey.isEmpty else { continue }
                     let questionId = q["id"] as? String
-                    print("✅ [WeaknessTracking] Fast-path correct: key='\(weaknessKey)' qid=\(questionId?.prefix(8) ?? "?")")
+                    debugPrint("✅ [WeaknessTracking] Fast-path correct: key='\(weaknessKey)' qid=\(questionId?.prefix(8) ?? "?")")
                     await MainActor.run {
                         ShortTermStatusService.shared.recordCorrectAttempt(
                             key: weaknessKey,
@@ -262,11 +262,11 @@ class ErrorAnalysisQueueService: ObservableObject {
         }
 
         guard !unknownKeyCorrect.isEmpty else {
-            print("📊 [ConceptExtraction] No questions need backend extraction — done")
+            debugPrint("📊 [ConceptExtraction] No questions need backend extraction — done")
             return
         }
 
-        print("📊 [ConceptExtraction] \(unknownKeyCorrect.count) questions need backend concept extraction")
+        debugPrint("📊 [ConceptExtraction] \(unknownKeyCorrect.count) questions need backend concept extraction")
         Task {
             await extractConceptsBatch(sessionId: sessionId, questions: unknownKeyCorrect)
         }
@@ -274,14 +274,14 @@ class ErrorAnalysisQueueService: ObservableObject {
 
     /// Extract concepts for a batch of correct questions
     private func extractConceptsBatch(sessionId: String, questions: [[String: Any]]) async {
-        print("📊 [ConceptExtraction] Starting batch extraction for \(questions.count) questions")
+        debugPrint("📊 [ConceptExtraction] Starting batch extraction for \(questions.count) questions")
 
         // Build extraction requests
         let extractionRequests = questions.compactMap { question -> ConceptExtractionRequest? in
             let questionText = question["questionText"] as? String ?? ""
             let subject = question["subject"] as? String ?? "Mathematics"
 
-            print("📝 [ConceptExtraction] Building request for Q: '\(questionText.prefix(50))...'")
+            debugPrint("📝 [ConceptExtraction] Building request for Q: '\(questionText.prefix(50))...'")
 
             return ConceptExtractionRequest(
                 questionText: questionText,
@@ -290,13 +290,13 @@ class ErrorAnalysisQueueService: ObservableObject {
         }
 
         do {
-            print("📤 [ConceptExtraction] Sending \(extractionRequests.count) requests to backend")
+            debugPrint("📤 [ConceptExtraction] Sending \(extractionRequests.count) requests to backend")
 
             let concepts = try await NetworkService.shared.extractConceptsBatch(
                 questions: extractionRequests
             )
 
-            print("📥 [ConceptExtraction] Received \(concepts.count) concepts from backend")
+            debugPrint("📥 [ConceptExtraction] Received \(concepts.count) concepts from backend")
 
             // Update ShortTermStatusService with negative values (mastery)
             for (index, concept) in concepts.enumerated() {
@@ -325,9 +325,9 @@ class ErrorAnalysisQueueService: ObservableObject {
                     let weaknessKey = "\(normalizedSubject)/\(baseBranch)/\(detailedBranch)"
                     let questionId = questions[index]["id"] as? String
 
-                    print("✅ [ConceptExtraction] Correct answer detected:")
-                    print("   Key: \(weaknessKey)")
-                    print("   Reducing weakness value (mastery bonus)")
+                    debugPrint("✅ [ConceptExtraction] Correct answer detected:")
+                    debugPrint("   Key: \(weaknessKey)")
+                    debugPrint("   Reducing weakness value (mastery bonus)")
 
                     // ✅ BIDIRECTIONAL TRACKING: Correct answer reduces weakness
                     ShortTermStatusService.shared.recordCorrectAttempt(
@@ -336,11 +336,11 @@ class ErrorAnalysisQueueService: ObservableObject {
                         questionId: questionId
                     )
                 } else {
-                    print("⚠️ [ConceptExtraction] Extraction failed for question \(index)")
+                    debugPrint("⚠️ [ConceptExtraction] Extraction failed for question \(index)")
                 }
             }
 
-            print("✅ [ConceptExtraction] Completed extraction for \(concepts.count) questions")
+            debugPrint("✅ [ConceptExtraction] Completed extraction for \(concepts.count) questions")
 
             // Post notification for UI update
             NotificationCenter.default.post(
@@ -350,7 +350,7 @@ class ErrorAnalysisQueueService: ObservableObject {
             )
 
         } catch {
-            print("❌ [ConceptExtraction] Batch extraction failed: \(error)")
+            debugPrint("❌ [ConceptExtraction] Batch extraction failed: \(error)")
         }
     }
 
@@ -368,7 +368,7 @@ class ErrorAnalysisQueueService: ObservableObject {
         pendingQuestions = []  // Clear the queue
         queueLock.unlock()
 
-        print("📊 [ErrorAnalysis] Processing \(questionsToProcess.count) pending questions from queue")
+        debugPrint("📊 [ErrorAnalysis] Processing \(questionsToProcess.count) pending questions from queue")
 
         // Process the accumulated questions
         await analyzeBatch(sessionId: "queued-batch", questions: questionsToProcess)
@@ -390,13 +390,13 @@ class ErrorAnalysisQueueService: ObservableObject {
             }
         }
 
-        print("📊 [ErrorAnalysis] Starting batch analysis for \(questions.count) questions")
-        print("🔬 [EA-DBG] ── analyzeBatch: IDs being sent to backend ──")
+        debugPrint("📊 [ErrorAnalysis] Starting batch analysis for \(questions.count) questions")
+        debugPrint("🔬 [EA-DBG] ── analyzeBatch: IDs being sent to backend ──")
         for (i, q) in questions.enumerated() {
             let qid = (q["id"] as? String) ?? "NO-ID"
             let qt  = (q["questionText"] as? String) ?? ""
             let sa  = (q["studentAnswer"] as? String) ?? ""
-            print("🔬 [EA-DBG]   [\(i)] id=\(qid.prefix(12)) q='\(qt.prefix(40))' sa='\(sa.prefix(30))'")
+            debugPrint("🔬 [EA-DBG]   [\(i)] id=\(qid.prefix(12)) q='\(qt.prefix(40))' sa='\(sa.prefix(30))'")
         }
 
         // Mark questions as 'processing' in local storage
@@ -422,19 +422,19 @@ class ErrorAnalysisQueueService: ObservableObject {
                     // Load image from file system
                     if let image = ProModeImageStorage.shared.loadImage(from: imageUrl),
                        let jpegData = image.jpegData(compressionQuality: 0.85) {
-                        print("   📸 [ErrorAnalysis] Including image for Q: '\(questionText.prefix(30))...'")
+                        debugPrint("   📸 [ErrorAnalysis] Including image for Q: '\(questionText.prefix(30))...'")
                         return jpegData.base64EncodedString()
                     }
 
                     return nil
                 }()
 
-                print("📝 [ErrorAnalysis] Building request for Q: '\(questionText.prefix(50))...'")
-                print("   Student: '\(studentAnswer.prefix(30))...', Correct: '\(correctAnswer.prefix(30))...'")
+                debugPrint("📝 [ErrorAnalysis] Building request for Q: '\(questionText.prefix(50))...'")
+                debugPrint("   Student: '\(studentAnswer.prefix(30))...', Correct: '\(correctAnswer.prefix(30))...'")
                 if questionImageBase64 != nil {
-                    print("   📸 Image: YES (base64 encoded)")
+                    debugPrint("   📸 Image: YES (base64 encoded)")
                 } else {
-                    print("   📸 Image: NO")
+                    debugPrint("   📸 Image: NO")
                 }
 
                 return ErrorAnalysisRequest(
@@ -448,31 +448,31 @@ class ErrorAnalysisQueueService: ObservableObject {
                 )
             }
 
-            print("📤 [ErrorAnalysis] Sending \(analysisRequests.count) requests to backend")
+            debugPrint("📤 [ErrorAnalysis] Sending \(analysisRequests.count) requests to backend")
 
             let analyses = try await NetworkService.shared.analyzeErrorsBatch(
                 questions: analysisRequests
             )
 
-            print("📥 [ErrorAnalysis] Received \(analyses.count) analyses from backend")
-            print("🔬 [EA-DBG] ── analyzeBatch: backend response pairing ──")
+            debugPrint("📥 [ErrorAnalysis] Received \(analyses.count) analyses from backend")
+            debugPrint("🔬 [EA-DBG] ── analyzeBatch: backend response pairing ──")
             for (i, analysis) in analyses.enumerated() {
                 let qid = (i < questions.count) ? ((questions[i]["id"] as? String) ?? "NO-ID") : "OUT-OF-RANGE"
-                print("🔬 [EA-DBG]   [\(i)] qid=\(qid.prefix(12)) errType=\(analysis.error_type ?? "nil") base='\(analysis.base_branch ?? "nil")' detailed='\((analysis.detailed_branch ?? "nil").prefix(30))' failed=\(analysis.analysis_failed)")
+                debugPrint("🔬 [EA-DBG]   [\(i)] qid=\(qid.prefix(12)) errType=\(analysis.error_type ?? "nil") base='\(analysis.base_branch ?? "nil")' detailed='\((analysis.detailed_branch ?? "nil").prefix(30))' failed=\(analysis.analysis_failed)")
             }
 
             // Update local storage with results
             for (index, analysis) in analyses.enumerated() {
                 guard index < questions.count,
                       let questionId = questions[index]["id"] as? String else {
-                    print("⚠️ [ErrorAnalysis] Skipping analysis \(index) - invalid question ID")
+                    debugPrint("⚠️ [ErrorAnalysis] Skipping analysis \(index) - invalid question ID")
                     continue
                 }
 
-                print("📊 [ErrorAnalysis] Analysis \(index + 1)/\(analyses.count):")
-                print("   Error Type: \(analysis.error_type ?? "none")")
-                print("   Confidence: \(analysis.confidence)")
-                print("   Failed: \(analysis.analysis_failed)")
+                debugPrint("📊 [ErrorAnalysis] Analysis \(index + 1)/\(analyses.count):")
+                debugPrint("   Error Type: \(analysis.error_type ?? "none")")
+                debugPrint("   Confidence: \(analysis.confidence)")
+                debugPrint("   Failed: \(analysis.analysis_failed)")
 
                 updateLocalQuestionWithAnalysis(
                     questionId: questionId,
@@ -485,7 +485,7 @@ class ErrorAnalysisQueueService: ObservableObject {
                 }
             }
 
-            print("✅ [ErrorAnalysis] Completed Pass 2 for \(analyses.count) questions")
+            debugPrint("✅ [ErrorAnalysis] Completed Pass 2 for \(analyses.count) questions")
 
             // Post notification for UI update
             NotificationCenter.default.post(
@@ -498,12 +498,12 @@ class ErrorAnalysisQueueService: ObservableObject {
             // Backend returned 403 (UPGRADE_REQUIRED) or 429 (MONTHLY_LIMIT_REACHED).
             // Leave questions in their current state — do NOT mark as "failed" or they
             // would be picked up by retryFailedAnalyses() on every subsequent grading call.
-            print("⚠️ [ErrorAnalysis] Tier limit reached — questions left pending until quota renews or plan upgrades")
+            debugPrint("⚠️ [ErrorAnalysis] Tier limit reached — questions left pending until quota renews or plan upgrades")
 
         } catch {
-            print("❌ [ErrorAnalysis] Failed: \(error.localizedDescription)")
-            print("❌ [ErrorAnalysis] Error type: \(type(of: error))")
-            print("❌ [ErrorAnalysis] Full error: \(error)")
+            debugPrint("❌ [ErrorAnalysis] Failed: \(error.localizedDescription)")
+            debugPrint("❌ [ErrorAnalysis] Error type: \(type(of: error))")
+            debugPrint("❌ [ErrorAnalysis] Full error: \(error)")
 
             // Mark all as failed
             updateLocalStatus(
@@ -516,18 +516,18 @@ class ErrorAnalysisQueueService: ObservableObject {
     private func updateLocalQuestionWithAnalysis(questionId: String, analysis: ErrorAnalysisResponse) {
         var allQuestions = localStorage.getLocalQuestions()
 
-        print("🔬 [EA-DBG] updateLocalQuestionWithAnalysis: searching for id=\(questionId.prefix(12)) in \(allQuestions.count) local questions")
+        debugPrint("🔬 [EA-DBG] updateLocalQuestionWithAnalysis: searching for id=\(questionId.prefix(12)) in \(allQuestions.count) local questions")
 
         guard let index = allQuestions.firstIndex(where: { ($0["id"] as? String) == questionId }) else {
-            print("⚠️ [ErrorAnalysis] Question \(questionId) not found in local storage")
-            print("🔬 [EA-DBG] ── PATCH-BACK FAILED: id not found. First 5 local IDs:")
+            debugPrint("⚠️ [ErrorAnalysis] Question \(questionId) not found in local storage")
+            debugPrint("🔬 [EA-DBG] ── PATCH-BACK FAILED: id not found. First 5 local IDs:")
             for q in allQuestions.prefix(5) {
-                print("🔬 [EA-DBG]   local id=\((q["id"] as? String ?? "nil").prefix(12))")
+                debugPrint("🔬 [EA-DBG]   local id=\((q["id"] as? String ?? "nil").prefix(12))")
             }
             return
         }
 
-        print("🔬 [EA-DBG] FOUND at index=\(index). Existing keys: base='\((allQuestions[index]["baseBranch"] as? String ?? "").prefix(20))' detailed='\((allQuestions[index]["detailedBranch"] as? String ?? "").prefix(20))' errType='\(allQuestions[index]["errorType"] as? String ?? "")'")
+        debugPrint("🔬 [EA-DBG] FOUND at index=\(index). Existing keys: base='\((allQuestions[index]["baseBranch"] as? String ?? "").prefix(20))' detailed='\((allQuestions[index]["detailedBranch"] as? String ?? "").prefix(20))' errType='\(allQuestions[index]["errorType"] as? String ?? "")'")
 
         // ✅ PRESERVE pre-existing error keys (set by Gemini at question-generation time for
         // mistake-based sessions). Only update taxonomy fields from backend analysis when the
@@ -565,7 +565,7 @@ class ErrorAnalysisQueueService: ObservableObject {
                 }
             }
             localStorage.updateQuestion(id: questionId, fields: updatedFields)
-            print("✅ [ErrorAnalysis] Preserved pre-filled keys for Q \(questionId.prefix(8))… — only updated narratives")
+            debugPrint("✅ [ErrorAnalysis] Preserved pre-filled keys for Q \(questionId.prefix(8))… — only updated narratives")
             return
         }
 
@@ -612,11 +612,11 @@ class ErrorAnalysisQueueService: ObservableObject {
             let weaknessKey = "\(normalizedSubject)/\(baseBranch)/\(detailedBranch)"
 
             allQuestions[index]["weaknessKey"] = weaknessKey
-            print("   🔑 [WeaknessTracking] Generated weakness key: \(weaknessKey)")
+            debugPrint("   🔑 [WeaknessTracking] Generated weakness key: \(weaknessKey)")
         } else {
-            print("   ⚠️ [WeaknessTracking] Could NOT generate weakness key:")
-            print("      base_branch: \(analysis.base_branch ?? "nil")")
-            print("      detailed_branch: \(analysis.detailed_branch ?? "nil")")
+            debugPrint("   ⚠️ [WeaknessTracking] Could NOT generate weakness key:")
+            debugPrint("      base_branch: \(analysis.base_branch ?? "nil")")
+            debugPrint("      detailed_branch: \(analysis.detailed_branch ?? "nil")")
         }
 
         // Patch fields back using updateQuestion (bypasses dedup — this is an update, not a new insert)
@@ -634,17 +634,17 @@ class ErrorAnalysisQueueService: ObservableObject {
         if let wk = allQuestions[index]["weaknessKey"] as? String {
             updatedFields["weaknessKey"] = wk
         }
-        print("🔬 [EA-DBG] PATCH-BACK id=\(questionId.prefix(12)): base='\((analysis.base_branch ?? "").prefix(20))' detailed='\((analysis.detailed_branch ?? "").prefix(20))' errType='\(analysis.error_type ?? "nil")' wk='\((updatedFields["weaknessKey"] as? String ?? "").prefix(30))'")
+        debugPrint("🔬 [EA-DBG] PATCH-BACK id=\(questionId.prefix(12)): base='\((analysis.base_branch ?? "").prefix(20))' detailed='\((analysis.detailed_branch ?? "").prefix(20))' errType='\(analysis.error_type ?? "nil")' wk='\((updatedFields["weaknessKey"] as? String ?? "").prefix(30))'")
         localStorage.updateQuestion(id: questionId, fields: updatedFields)
 
-        print("✅ [ErrorAnalysis] Updated question \(questionId): \(analysis.error_type ?? "unknown") (branch: \(analysis.detailed_branch ?? "N/A"))")
+        debugPrint("✅ [ErrorAnalysis] Updated question \(questionId): \(analysis.error_type ?? "unknown") (branch: \(analysis.detailed_branch ?? "N/A"))")
 
         // ✅ Update short-term status (use the weaknessKey we just saved)
         if let weaknessKey = allQuestions[index]["weaknessKey"] as? String,
            let errorType = analysis.error_type {
 
-            print("   📊 [WeaknessTracking] Calling recordMistake for key: \(weaknessKey)")
-            print("      Error type: \(errorType)")
+            debugPrint("   📊 [WeaknessTracking] Calling recordMistake for key: \(weaknessKey)")
+            debugPrint("      Error type: \(errorType)")
 
             Task { @MainActor in
                 ShortTermStatusService.shared.recordMistake(
@@ -654,7 +654,7 @@ class ErrorAnalysisQueueService: ObservableObject {
                 )
             }
         } else {
-            print("   ⚠️ [WeaknessTracking] Skipping recordMistake - no weaknessKey or errorType")
+            debugPrint("   ⚠️ [WeaknessTracking] Skipping recordMistake - no weaknessKey or errorType")
         }
     }
 

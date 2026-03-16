@@ -106,9 +106,9 @@ class ChatMessageManager: ObservableObject {
             modelContainer = try ModelContainer(for: schema, configurations: [modelConfiguration])
             modelContext = ModelContext(modelContainer!)
             isInitialized = true
-            print("✅ ChatMessageManager: SwiftData initialized successfully")
+            debugPrint("✅ ChatMessageManager: SwiftData initialized successfully")
         } catch {
-            print("❌ ChatMessageManager: Failed to initialize SwiftData: \(error)")
+            debugPrint("❌ ChatMessageManager: Failed to initialize SwiftData: \(error)")
             isInitialized = false
         }
     }
@@ -117,13 +117,13 @@ class ChatMessageManager: ObservableObject {
 
     func saveMessage(_ message: PersistedChatMessage) {
         guard let context = modelContext else {
-            print("❌ ChatMessageManager: Model context not available")
+            debugPrint("❌ ChatMessageManager: Model context not available")
             return
         }
 
         // ✅ CHECK 1: Does ID already exist?
         if messageExists(id: message.id) {
-            print("⚠️ ChatMessageManager: Message with ID \(message.id) already exists, skipping save")
+            debugPrint("⚠️ ChatMessageManager: Message with ID \(message.id) already exists, skipping save")
             return
         }
 
@@ -133,7 +133,7 @@ class ChatMessageManager: ObservableObject {
             role: message.role,
             content: message.content
         ) {
-            print("⚠️ ChatMessageManager: Similar message already saved recently, skipping")
+            debugPrint("⚠️ ChatMessageManager: Similar message already saved recently, skipping")
             return
         }
 
@@ -142,9 +142,9 @@ class ChatMessageManager: ObservableObject {
 
         do {
             try context.save()
-            print("✅ ChatMessageManager: Saved message \(message.id) for session \(message.sessionId)")
+            debugPrint("✅ ChatMessageManager: Saved message \(message.id) for session \(message.sessionId)")
         } catch {
-            print("❌ ChatMessageManager: Failed to save message: \(error)")
+            debugPrint("❌ ChatMessageManager: Failed to save message: \(error)")
         }
     }
 
@@ -162,7 +162,7 @@ class ChatMessageManager: ObservableObject {
             let existing = try context.fetch(descriptor)
             return !existing.isEmpty
         } catch {
-            print("❌ ChatMessageManager: Failed to check for existing message: \(error)")
+            debugPrint("❌ ChatMessageManager: Failed to check for existing message: \(error)")
             return false
         }
     }
@@ -192,7 +192,7 @@ class ChatMessageManager: ObservableObject {
             let existing = try context.fetch(descriptor)
             return !existing.isEmpty
         } catch {
-            print("❌ ChatMessageManager: Failed to check for existing content: \(error)")
+            debugPrint("❌ ChatMessageManager: Failed to check for existing content: \(error)")
             return false
         }
     }
@@ -201,7 +201,7 @@ class ChatMessageManager: ObservableObject {
 
     func loadMessages(for sessionId: String) -> [PersistedChatMessage] {
         guard let context = modelContext else {
-            print("❌ ChatMessageManager: Model context not available")
+            debugPrint("❌ ChatMessageManager: Model context not available")
             return []
         }
 
@@ -212,10 +212,10 @@ class ChatMessageManager: ObservableObject {
 
         do {
             let messages = try context.fetch(descriptor)
-            print("✅ ChatMessageManager: Loaded \(messages.count) messages for session \(sessionId)")
+            debugPrint("✅ ChatMessageManager: Loaded \(messages.count) messages for session \(sessionId)")
             return messages
         } catch {
-            print("❌ ChatMessageManager: Failed to load messages: \(error)")
+            debugPrint("❌ ChatMessageManager: Failed to load messages: \(error)")
             return []
         }
     }
@@ -224,7 +224,7 @@ class ChatMessageManager: ObservableObject {
 
     func deleteMessage(_ messageId: String) {
         guard let context = modelContext else {
-            print("❌ ChatMessageManager: Model context not available")
+            debugPrint("❌ ChatMessageManager: Model context not available")
             return
         }
 
@@ -238,15 +238,15 @@ class ChatMessageManager: ObservableObject {
                 context.delete(message)
             }
             try context.save()
-            print("✅ ChatMessageManager: Deleted message \(messageId)")
+            debugPrint("✅ ChatMessageManager: Deleted message \(messageId)")
         } catch {
-            print("❌ ChatMessageManager: Failed to delete message: \(error)")
+            debugPrint("❌ ChatMessageManager: Failed to delete message: \(error)")
         }
     }
 
     func deleteAllMessages(for sessionId: String) {
         guard let context = modelContext else {
-            print("❌ ChatMessageManager: Model context not available")
+            debugPrint("❌ ChatMessageManager: Model context not available")
             return
         }
 
@@ -260,9 +260,9 @@ class ChatMessageManager: ObservableObject {
                 context.delete(message)
             }
             try context.save()
-            print("✅ ChatMessageManager: Deleted \(messages.count) messages for session \(sessionId)")
+            debugPrint("✅ ChatMessageManager: Deleted \(messages.count) messages for session \(sessionId)")
         } catch {
-            print("❌ ChatMessageManager: Failed to delete messages: \(error)")
+            debugPrint("❌ ChatMessageManager: Failed to delete messages: \(error)")
         }
     }
 
@@ -270,7 +270,7 @@ class ChatMessageManager: ObservableObject {
 
     func searchMessages(query: String, sessionId: String? = nil) -> [PersistedChatMessage] {
         guard let context = modelContext else {
-            print("❌ ChatMessageManager: Model context not available")
+            debugPrint("❌ ChatMessageManager: Model context not available")
             return []
         }
 
@@ -296,10 +296,10 @@ class ChatMessageManager: ObservableObject {
 
         do {
             let messages = try context.fetch(descriptor)
-            print("✅ ChatMessageManager: Found \(messages.count) messages matching '\(query)'")
+            debugPrint("✅ ChatMessageManager: Found \(messages.count) messages matching '\(query)'")
             return messages
         } catch {
-            print("❌ ChatMessageManager: Failed to search messages: \(error)")
+            debugPrint("❌ ChatMessageManager: Failed to search messages: \(error)")
             return []
         }
     }

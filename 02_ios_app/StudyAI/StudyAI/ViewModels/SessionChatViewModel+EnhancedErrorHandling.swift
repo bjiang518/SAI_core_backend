@@ -13,12 +13,12 @@ extension SessionChatViewModel {
 
     /// Send message with automatic retry and exponential backoff
     func sendMessageWithRetry() {
-        print("🔄 === SEND MESSAGE WITH RETRY ===")
-        print("🔄 Message: \(messageText)")
-        print("🔄 Session ID: \(networkService.currentSessionId ?? "nil")")
+        debugPrint("🔄 === SEND MESSAGE WITH RETRY ===")
+        debugPrint("🔄 Message: \(messageText)")
+        debugPrint("🔄 Session ID: \(networkService.currentSessionId ?? "nil")")
 
         guard !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            print("🔄 ⚠️ Message is empty, returning early")
+            debugPrint("🔄 ⚠️ Message is empty, returning early")
             return
         }
 
@@ -55,7 +55,7 @@ extension SessionChatViewModel {
                                 format: NSLocalizedString("chat.retry.attempting", comment: ""),
                                 attempt
                             )
-                            print("🔄 Retry attempt \(attempt): \(error.errorDescription ?? "Unknown error")")
+                            debugPrint("🔄 Retry attempt \(attempt): \(error.errorDescription ?? "Unknown error")")
                             self.errorMessage = retryMessage
 
                             // Hide after 2 seconds
@@ -70,7 +70,7 @@ extension SessionChatViewModel {
 
                 await MainActor.run {
                     if result {
-                        print("✅ Message sent successfully (with or without retry)")
+                        debugPrint("✅ Message sent successfully (with or without retry)")
                         isSubmitting = false
                     } else {
                         handleSendFailure(message: message, error: .unknown(details: "Send returned false"))
@@ -223,7 +223,7 @@ extension SessionChatViewModel {
             break
         }
 
-        print("❌ Message send failed: \(error.errorDescription ?? "Unknown"), added to retry queue (\(failedMessages.count) total)")
+        debugPrint("❌ Message send failed: \(error.errorDescription ?? "Unknown"), added to retry queue (\(failedMessages.count) total)")
     }
 
     private func categorizeErrorFromMessage(_ errorMessage: String) -> MessageError {

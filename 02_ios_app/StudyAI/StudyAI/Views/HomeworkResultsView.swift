@@ -960,13 +960,13 @@ Question: \(question.rawQuestionText ?? question.questionText)
                                 userMessage += "\n\nI'm unclear about how to approach this problem. Can you help me understand it better?"
 
                                 // Enhanced logging for debugging
-                                print("📚 === ASK AI FOR HELP - CONTEXT ===")
-                                print("Question #\(question.questionNumber ?? 0)")
-                                print("Grade: \(question.grade ?? "None")")
-                                print("Student Answer: \(question.studentAnswer ?? "None")")
-                                print("Correct Answer: \(question.correctAnswer ?? "None")")
-                                print("Points: \(question.pointsEarned ?? 0)/\(question.pointsPossible ?? 0)")
-                                print("===================================")
+                                debugPrint("📚 === ASK AI FOR HELP - CONTEXT ===")
+                                debugPrint("Question #\(question.questionNumber ?? 0)")
+                                debugPrint("Grade: \(question.grade ?? "None")")
+                                debugPrint("Student Answer: \(question.studentAnswer ?? "None")")
+                                debugPrint("Correct Answer: \(question.correctAnswer ?? "None")")
+                                debugPrint("Points: \(question.pointsEarned ?? 0)/\(question.pointsPossible ?? 0)")
+                                debugPrint("===================================")
 
                                 // Navigate to chat with full homework context
                                 appState.navigateToChatWithHomeworkQuestion(
@@ -1482,7 +1482,7 @@ extension HomeworkResultsView {
             numberOfCorrectQuestions: correctCount
         )
 
-        print("📊 [trackHomeworkUsage] ✅ Marked progress: \(totalQuestions) total questions, \(correctCount) correct, \(incorrectCount) incorrect")
+        debugPrint("📊 [trackHomeworkUsage] ✅ Marked progress: \(totalQuestions) total questions, \(correctCount) correct, \(incorrectCount) incorrect")
     }
     
     /// Simple subject detection from question text

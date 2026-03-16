@@ -25,7 +25,7 @@ class UserSessionManager: ObservableObject {
     
     private init() {
         setupAuthenticationBinding()
-        print("🔐 UserSessionManager: Initialized")
+        debugPrint("🔐 UserSessionManager: Initialized")
     }
     
     // MARK: - Setup
@@ -50,11 +50,11 @@ class UserSessionManager: ObservableObject {
             currentUserName = user.name
             isAuthenticated = true
             
-            print("🔐 UserSessionManager: User authenticated")
-            print("   - User ID: \(user.id)")
-            print("   - Email: \(user.email)")
-            print("   - Name: \(user.name)")
-            print("   - Provider: \(user.authProvider.rawValue)")
+            debugPrint("🔐 UserSessionManager: User authenticated")
+            debugPrint("   - User ID: \(user.id)")
+            debugPrint("   - Email: \(user.email)")
+            debugPrint("   - Name: \(user.name)")
+            debugPrint("   - Provider: \(user.authProvider.rawValue)")
             
         } else {
             currentUserId = nil
@@ -62,7 +62,7 @@ class UserSessionManager: ObservableObject {
             currentUserName = nil
             isAuthenticated = false
             
-            print("🔐 UserSessionManager: User signed out")
+            debugPrint("🔐 UserSessionManager: User signed out")
         }
         
         // Notify if user ID changed
@@ -104,18 +104,18 @@ class UserSessionManager: ObservableObject {
     // MARK: - Debug Helpers
     
     func printCurrentState() {
-        print("🔐 UserSessionManager Current State:")
-        print("   - Authenticated: \(isAuthenticated)")
-        print("   - User ID: \(currentUserId ?? "nil")")
-        print("   - Email: \(currentUserEmail ?? "nil")")
-        print("   - Name: \(currentUserName ?? "nil")")
+        debugPrint("🔐 UserSessionManager Current State:")
+        debugPrint("   - Authenticated: \(isAuthenticated)")
+        debugPrint("   - User ID: \(currentUserId ?? "nil")")
+        debugPrint("   - Email: \(currentUserEmail ?? "nil")")
+        debugPrint("   - Name: \(currentUserName ?? "nil")")
         
         // Compare with AuthenticationService (our source of truth)
         let authUserId = authService.currentUser?.id
         
 
-        print("   - AuthService ID: \(authUserId ?? "nil")")
-        print("   - Unified Authentication: ✅")
+        debugPrint("   - AuthService ID: \(authUserId ?? "nil")")
+        debugPrint("   - Unified Authentication: ✅")
     }
 }
 

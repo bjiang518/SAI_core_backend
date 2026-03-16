@@ -204,10 +204,10 @@ struct RecentMistakesSection: View {
         }
         .padding()
         .onAppear {
-            print("👀 [WeaknessTracking] RecentMistakesSection appeared")
-            print("   Active weaknesses count: \(statusService.status.activeWeaknesses.count)")
-            print("   Selected subject filter: \(selectedSubject ?? "ALL")")
-            print("   Filtered weaknesses count: \(filteredWeaknesses.count)")
+            debugPrint("👀 [WeaknessTracking] RecentMistakesSection appeared")
+            debugPrint("   Active weaknesses count: \(statusService.status.activeWeaknesses.count)")
+            debugPrint("   Selected subject filter: \(selectedSubject ?? "ALL")")
+            debugPrint("   Filtered weaknesses count: \(filteredWeaknesses.count)")
         }
     }
 

@@ -354,7 +354,7 @@ extension View {
         title: "Parent Verification",
         message: "This feature requires parent permission",
         onSuccess: {
-            print("Authentication successful")
+            debugPrint("Authentication successful")
         }
     )
 }

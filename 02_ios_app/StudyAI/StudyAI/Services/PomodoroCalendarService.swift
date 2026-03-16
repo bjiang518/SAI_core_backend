@@ -35,7 +35,7 @@ class PomodoroCalendarService: ObservableObject {
             authorizationStatus = EKEventStore.authorizationStatus(for: .event)
             hasCalendarAccess = (authorizationStatus == .authorized)
         }
-        print("📅 Calendar authorization status: \(authorizationStatus.rawValue)")
+        debugPrint("📅 Calendar authorization status: \(authorizationStatus.rawValue)")
     }
 
     /// 请求日历访问权限
@@ -48,7 +48,7 @@ class PomodoroCalendarService: ObservableObject {
                     self.authorizationStatus = granted ? .fullAccess : .denied
                     self.hasCalendarAccess = granted
                 }
-                print("📅 Calendar access \(granted ? "granted" : "denied")")
+                debugPrint("📅 Calendar access \(granted ? "granted" : "denied")")
                 return granted
             } else {
                 // iOS 16及以下
@@ -59,14 +59,14 @@ class PomodoroCalendarService: ObservableObject {
                             self.hasCalendarAccess = granted
                         }
                         if let error = error {
-                            print("❌ Calendar access error: \(error.localizedDescription)")
+                            debugPrint("❌ Calendar access error: \(error.localizedDescription)")
                         }
                         continuation.resume(returning: granted)
                     }
                 }
             }
         } catch {
-            print("❌ Failed to request calendar access: \(error.localizedDescription)")
+            debugPrint("❌ Failed to request calendar access: \(error.localizedDescription)")
             return false
         }
     }
@@ -76,7 +76,7 @@ class PomodoroCalendarService: ObservableObject {
     /// 获取指定日期范围内的所有事件
     func fetchEvents(from startDate: Date, to endDate: Date) -> [PomodoroCalendarEvent] {
         guard hasCalendarAccess else {
-            print("⚠️ No calendar access - cannot fetch events")
+            debugPrint("⚠️ No calendar access - cannot fetch events")
             return []
         }
 
@@ -84,7 +84,7 @@ class PomodoroCalendarService: ObservableObject {
         let ekEvents = eventStore.events(matching: predicate)
 
         let events = ekEvents.map { PomodoroCalendarEvent(from: $0) }
-        print("📅 Fetched \(events.count) events from \(startDate) to \(endDate)")
+        debugPrint("📅 Fetched \(events.count) events from \(startDate) to \(endDate)")
         return events
     }
 
@@ -154,7 +154,7 @@ class PomodoroCalendarService: ObservableObject {
                           notes: String? = nil,
                           withReminder: Bool = true) -> String? {
         guard hasCalendarAccess else {
-            print("⚠️ No calendar access - cannot add event")
+            debugPrint("⚠️ No calendar access - cannot add event")
             return nil
         }
 
@@ -173,10 +173,10 @@ class PomodoroCalendarService: ObservableObject {
 
         do {
             try eventStore.save(event, span: .thisEvent)
-            print("✅ Pomodoro event added: \(event.title ?? "Untitled") at \(startDate)")
+            debugPrint("✅ Pomodoro event added: \(event.title ?? "Untitled") at \(startDate)")
             return event.eventIdentifier
         } catch {
-            print("❌ Failed to save event: \(error.localizedDescription)")
+            debugPrint("❌ Failed to save event: \(error.localizedDescription)")
             return nil
         }
     }
@@ -191,7 +191,7 @@ class PomodoroCalendarService: ObservableObject {
             }
         }
 
-        print("✅ Added \(eventIds.count) pomodoro events")
+        debugPrint("✅ Added \(eventIds.count) pomodoro events")
         return eventIds
     }
 
@@ -200,21 +200,21 @@ class PomodoroCalendarService: ObservableObject {
     /// 删除番茄专注事件
     func deletePomodoroEvent(eventId: String) -> Bool {
         guard hasCalendarAccess else {
-            print("⚠️ No calendar access - cannot delete event")
+            debugPrint("⚠️ No calendar access - cannot delete event")
             return false
         }
 
         guard let event = eventStore.event(withIdentifier: eventId) else {
-            print("❌ Event not found: \(eventId)")
+            debugPrint("❌ Event not found: \(eventId)")
             return false
         }
 
         do {
             try eventStore.remove(event, span: .thisEvent)
-            print("✅ Event deleted: \(eventId)")
+            debugPrint("✅ Event deleted: \(eventId)")
             return true
         } catch {
-            print("❌ Failed to delete event: \(error.localizedDescription)")
+            debugPrint("❌ Failed to delete event: \(error.localizedDescription)")
             return false
         }
     }
@@ -222,12 +222,12 @@ class PomodoroCalendarService: ObservableObject {
     /// 更新番茄专注事件时间
     func updatePomodoroEvent(eventId: String, newStartDate: Date) -> Bool {
         guard hasCalendarAccess else {
-            print("⚠️ No calendar access - cannot update event")
+            debugPrint("⚠️ No calendar access - cannot update event")
             return false
         }
 
         guard let event = eventStore.event(withIdentifier: eventId) else {
-            print("❌ Event not found: \(eventId)")
+            debugPrint("❌ Event not found: \(eventId)")
             return false
         }
 
@@ -237,10 +237,10 @@ class PomodoroCalendarService: ObservableObject {
 
         do {
             try eventStore.save(event, span: .thisEvent)
-            print("✅ Event updated: \(eventId)")
+            debugPrint("✅ Event updated: \(eventId)")
             return true
         } catch {
-            print("❌ Failed to update event: \(error.localizedDescription)")
+            debugPrint("❌ Failed to update event: \(error.localizedDescription)")
             return false
         }
     }

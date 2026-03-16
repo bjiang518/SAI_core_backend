@@ -92,8 +92,8 @@ struct VerticalPagesViewer: View {
     private func loadAllPages() {
         let storage = HomeworkImageStorageService.shared
 
-        print("📱 [loadAllPages] Starting load for \(record.pageCount) pages")
-        print("   File names: \(record.imageFileNames)")
+        debugPrint("📱 [loadAllPages] Starting load for \(record.pageCount) pages")
+        debugPrint("   File names: \(record.imageFileNames)")
 
         DispatchQueue.global(qos: .userInitiated).async {
             var images: [UIImage] = []
@@ -101,14 +101,14 @@ struct VerticalPagesViewer: View {
             for fileName in record.imageFileNames {
                 if let image = storage.loadImageByFileName(fileName) {
                     images.append(image)
-                    print("  ✅ Loaded: \(fileName) - \(image.size)")
+                    debugPrint("  ✅ Loaded: \(fileName) - \(image.size)")
                 } else {
-                    print("  ❌ Failed to load: \(fileName)")
+                    debugPrint("  ❌ Failed to load: \(fileName)")
                 }
             }
 
             DispatchQueue.main.async {
-                print("📱 [loadAllPages] Completed: \(images.count) images loaded")
+                debugPrint("📱 [loadAllPages] Completed: \(images.count) images loaded")
                 self.loadedImages = images
                 self.isLoading = false
             }
@@ -146,7 +146,7 @@ struct NativeVerticalImagePager: UIViewRepresentable {
         context.coordinator.containerView = containerView
         context.coordinator.setupPages()
 
-        print("📱 [VerticalPagesViewer] makeUIView: \(images.count) images")
+        debugPrint("📱 [VerticalPagesViewer] makeUIView: \(images.count) images")
 
         return scrollView
     }
@@ -173,7 +173,7 @@ struct NativeVerticalImagePager: UIViewRepresentable {
         func setupPages() {
             guard let scrollView = scrollView,
                   let containerView = containerView else {
-                print("❌ [setupPages] scrollView or containerView is nil")
+                debugPrint("❌ [setupPages] scrollView or containerView is nil")
                 return
             }
 
@@ -184,7 +184,7 @@ struct NativeVerticalImagePager: UIViewRepresentable {
             let screenHeight = UIScreen.main.bounds.height
             let screenWidth = UIScreen.main.bounds.width
 
-            print("📱 [setupPages] Creating \(parent.images.count) pages, screen: \(screenWidth)x\(screenHeight)")
+            debugPrint("📱 [setupPages] Creating \(parent.images.count) pages, screen: \(screenWidth)x\(screenHeight)")
 
             // Create a page view for each image
             for (index, image) in parent.images.enumerated() {
@@ -196,7 +196,7 @@ struct NativeVerticalImagePager: UIViewRepresentable {
                     width: screenWidth,
                     height: screenHeight
                 )
-                print("  📄 Page \(index): frame=\(pageView.frame), imageSize=\(image.size)")
+                debugPrint("  📄 Page \(index): frame=\(pageView.frame), imageSize=\(image.size)")
                 containerView.addSubview(pageView)
                 pageViews.append(pageView)
             }
@@ -206,7 +206,7 @@ struct NativeVerticalImagePager: UIViewRepresentable {
             containerView.frame = CGRect(x: 0, y: 0, width: screenWidth, height: totalHeight)
             scrollView.contentSize = CGSize(width: screenWidth, height: totalHeight)
 
-            print("✅ [setupPages] Container: \(containerView.frame), ContentSize: \(scrollView.contentSize)")
+            debugPrint("✅ [setupPages] Container: \(containerView.frame), ContentSize: \(scrollView.contentSize)")
         }
 
         func updatePages() {
@@ -287,7 +287,7 @@ class ZoomablePageView: UIScrollView, UIScrollViewDelegate {
 
         addSubview(imageView)
 
-        print("📱 [ZoomablePageView] Initialized with zoom: \(minimumZoomScale)-\(maximumZoomScale), image size: \(image.size)")
+        debugPrint("📱 [ZoomablePageView] Initialized with zoom: \(minimumZoomScale)-\(maximumZoomScale), image size: \(image.size)")
     }
 
     required init?(coder: NSCoder) {
@@ -325,7 +325,7 @@ class ZoomablePageView: UIScrollView, UIScrollViewDelegate {
             // ✅ CRITICAL: contentSize must be imageView size for zoom calculations
             contentSize = CGSize(width: scaledWidth, height: scaledHeight)
 
-            print("📱 [layoutSubviews] bounds: \(bounds.size), imageView: \(imageView.frame.size), contentSize: \(contentSize), zoomScale: \(zoomScale)")
+            debugPrint("📱 [layoutSubviews] bounds: \(bounds.size), imageView: \(imageView.frame.size), contentSize: \(contentSize), zoomScale: \(zoomScale)")
         }
 
         // ✅ Center the image

@@ -203,8 +203,8 @@ extension View {
     .archiveProgressOverlay(isPresented: .constant(true), archiveTask: {
         // Simulate async archive
         try? await Task.sleep(nanoseconds: 3_000_000_000)
-        print("Archive complete!")
+        debugPrint("Archive complete!")
     }) {
-        print("Overlay dismissed!")
+        debugPrint("Overlay dismissed!")
     }
 }

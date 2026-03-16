@@ -11,7 +11,7 @@ import Combine
 // MARK: - Production Logging Safety
 // Disable debug print statements in production builds to prevent archived Q&A data exposure
 #if !DEBUG
-private func print(_ items: Any...) { }
+private func debugPrint(_ items: Any...) { }
 private func debugPrint(_ items: Any...) { }
 #endif
 
@@ -40,7 +40,7 @@ class QuestionArchiveService: ObservableObject {
             throw QuestionArchiveError.notAuthenticated
         }
 
-        print("📚 [Archive] Archiving \(request.selectedQuestionIndices.count) questions to LOCAL storage only")
+        debugPrint("📚 [Archive] Archiving \(request.selectedQuestionIndices.count) questions to LOCAL storage only")
 
         // ✅ LOCAL-ONLY: No server POST, no deduplication check against server
         // Deduplication will be handled by StorageSyncService when syncing to server
@@ -156,23 +156,23 @@ class QuestionArchiveService: ObservableObject {
 
             questionDataForLocalStorage.append(questionData)
 
-            print("   📝 [Archive] Question \(arrayIndex + 1): \(question.questionText.prefix(50))... (ID: \(questionId))")
-            print("      ✓ Original grade: \(question.grade ?? "N/A") → Normalized: \(normalizedGrade ?? "N/A")")
-            print("      ✓ isCorrect: \(isCorrect) \(isCorrect ? "✅" : "❌ MISTAKE")")
+            debugPrint("   📝 [Archive] Question \(arrayIndex + 1): \(question.questionText.prefix(50))... (ID: \(questionId))")
+            debugPrint("      ✓ Original grade: \(question.grade ?? "N/A") → Normalized: \(normalizedGrade ?? "N/A")")
+            debugPrint("      ✓ isCorrect: \(isCorrect) \(isCorrect ? "✅" : "❌ MISTAKE")")
             #if DEBUG
             // Log what's being saved for critical fields
             if let raw = question.rawQuestionText {
-                print("      📦 Saving rawQuestionText: \(raw.count) chars - '\(raw.prefix(60))'...")
+                debugPrint("      📦 Saving rawQuestionText: \(raw.count) chars - '\(raw.prefix(60))'...")
             } else {
-                print("      ⚠️ rawQuestionText is NIL - falling back to questionText (\(question.questionText.count) chars)")
+                debugPrint("      ⚠️ rawQuestionText is NIL - falling back to questionText (\(question.questionText.count) chars)")
             }
             if let imageUrl = request.originalImageUrl, !imageUrl.isEmpty {
-                print("      🖼️ Saving questionImageUrl from request: '\(imageUrl)'")
+                debugPrint("      🖼️ Saving questionImageUrl from request: '\(imageUrl)'")
             } else {
-                print("      ℹ️ No questionImageUrl in request")
+                debugPrint("      ℹ️ No questionImageUrl in request")
             }
             if let feedback = question.feedback, !feedback.isEmpty {
-                print("      💡 Saving feedback: \(feedback.count) chars")
+                debugPrint("      💡 Saving feedback: \(feedback.count) chars")
             }
             #endif
         }
@@ -210,26 +210,26 @@ class QuestionArchiveService: ObservableObject {
         }
 
         // ✅ DEBUG: Verify what was saved
-        print("\n🔍 [DEBUG] === VERIFYING SAVED DATA ===")
+        debugPrint("\n🔍 [DEBUG] === VERIFYING SAVED DATA ===")
         let savedQuestions = currentUserQuestionStorage().getLocalQuestions()
-        print("🔍 [DEBUG] Total questions in storage after save: \(savedQuestions.count)")
+        debugPrint("🔍 [DEBUG] Total questions in storage after save: \(savedQuestions.count)")
 
         if let firstSaved = savedQuestions.first {
-            print("🔍 [DEBUG] First saved question:")
-            print("   - ID: \(firstSaved["id"] ?? "nil")")
-            print("   - Grade: \(firstSaved["grade"] ?? "nil")")
-            print("   - isCorrect: \(firstSaved["isCorrect"] ?? "nil")")
-            print("   - Subject: \(firstSaved["subject"] ?? "nil")")
-            print("   - Question: \(String(describing: firstSaved["questionText"] ?? "nil").prefix(50))...")
+            debugPrint("🔍 [DEBUG] First saved question:")
+            debugPrint("   - ID: \(firstSaved["id"] ?? "nil")")
+            debugPrint("   - Grade: \(firstSaved["grade"] ?? "nil")")
+            debugPrint("   - isCorrect: \(firstSaved["isCorrect"] ?? "nil")")
+            debugPrint("   - Subject: \(firstSaved["subject"] ?? "nil")")
+            debugPrint("   - Question: \(String(describing: firstSaved["questionText"] ?? "nil").prefix(50))...")
         }
 
         // Check how many mistakes are in storage
         let mistakes = currentUserQuestionStorage().getMistakeQuestions()
-        print("🔍 [DEBUG] Total mistakes in storage: \(mistakes.count)")
-        print("🔍 [DEBUG] === END VERIFICATION ===\n")
+        debugPrint("🔍 [DEBUG] Total mistakes in storage: \(mistakes.count)")
+        debugPrint("🔍 [DEBUG] === END VERIFICATION ===\n")
 
-        print("✅ [Archive] Saved \(archivedQuestions.count) questions to LOCAL storage only")
-        print("   💡 [Archive] Use 'Sync with Server' to upload to backend")
+        debugPrint("✅ [Archive] Saved \(archivedQuestions.count) questions to LOCAL storage only")
+        debugPrint("   💡 [Archive] Use 'Sync with Server' to upload to backend")
 
         return archivedQuestions
     }
@@ -238,12 +238,12 @@ class QuestionArchiveService: ObservableObject {
 
     /// Fetch archived questions list (summaries) - LOCAL ONLY
     func fetchArchivedQuestions(limit: Int = 50, offset: Int = 0, subject: String? = nil) async throws -> [QuestionSummary] {
-        print("🔍 [Archive] Fetching questions from LOCAL storage only")
+        debugPrint("🔍 [Archive] Fetching questions from LOCAL storage only")
 
         // ✅ Get local questions only (no server fetch)
         let localStorage = currentUserQuestionStorage()
         let localQuestions = localStorage.getLocalQuestions()
-        print("   💾 [Archive] Found \(localQuestions.count) questions in local storage")
+        debugPrint("   💾 [Archive] Found \(localQuestions.count) questions in local storage")
 
         // Convert to QuestionSummary
         var summaries: [QuestionSummary] = []
@@ -252,27 +252,27 @@ class QuestionArchiveService: ObservableObject {
                 let summary = try convertQuestionSummaryFromRailwayFormat(questionData)
                 summaries.append(summary)
             } catch {
-                print("   ⚠️ [Archive] Failed to convert question: \(error)")
+                debugPrint("   ⚠️ [Archive] Failed to convert question: \(error)")
             }
         }
 
-        print("   ✅ [Archive] Converted \(summaries.count) questions to summaries")
+        debugPrint("   ✅ [Archive] Converted \(summaries.count) questions to summaries")
         return summaries
     }
 
     /// Fetch full question details by ID - LOCAL ONLY
     func getQuestionDetails(questionId: String) async throws -> ArchivedQuestion {
-        print("🔍 [Archive] Fetching question details from LOCAL storage: \(questionId)")
+        debugPrint("🔍 [Archive] Fetching question details from LOCAL storage: \(questionId)")
 
         // ✅ Get from local storage only (no server fetch)
         guard let localQuestion = currentUserQuestionStorage().getQuestionById(questionId) else {
-            print("   ❌ [Archive] Question not found in local storage")
+            debugPrint("   ❌ [Archive] Question not found in local storage")
             throw QuestionArchiveError.questionNotFound
         }
 
-        print("   💾 [Archive] Found in local storage")
+        debugPrint("   💾 [Archive] Found in local storage")
         let question = try convertFullQuestionFromRailwayFormat(localQuestion)
-        print("   ✅ [Archive] Loaded from local storage: \(question.subject)")
+        debugPrint("   ✅ [Archive] Loaded from local storage: \(question.subject)")
 
         return question
     }
@@ -329,10 +329,10 @@ class QuestionArchiveService: ObservableObject {
 
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
 
-        print("   📤 [Archive] Uploading question to server: \(url)")
-        print("   📝 [Archive] Grade: \(rawGrade) → \(normalizedGrade)")
-        print("   📝 [Archive] isCorrect: \(requestBody["isCorrect"] ?? "nil")")
-        print("   📅 [Archive] archivedAt: \(requestBody["archivedAt"] ?? "nil")")
+        debugPrint("   📤 [Archive] Uploading question to server: \(url)")
+        debugPrint("   📝 [Archive] Grade: \(rawGrade) → \(normalizedGrade)")
+        debugPrint("   📝 [Archive] isCorrect: \(requestBody["isCorrect"] ?? "nil")")
+        debugPrint("   📅 [Archive] archivedAt: \(requestBody["archivedAt"] ?? "nil")")
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
@@ -341,9 +341,9 @@ class QuestionArchiveService: ObservableObject {
         }
 
         guard httpResponse.statusCode == 201 || httpResponse.statusCode == 200 else {
-            print("   ❌ [Archive] Server returned error: \(httpResponse.statusCode)")
+            debugPrint("   ❌ [Archive] Server returned error: \(httpResponse.statusCode)")
             if let errorText = String(data: data, encoding: .utf8) {
-                print("   ❌ [Archive] Error response: \(errorText)")
+                debugPrint("   ❌ [Archive] Error response: \(errorText)")
             }
             throw QuestionArchiveError.archiveFailed("Server returned status code \(httpResponse.statusCode)")
         }
@@ -353,7 +353,7 @@ class QuestionArchiveService: ObservableObject {
             throw QuestionArchiveError.invalidData
         }
 
-        print("   ✅ [Archive] Successfully uploaded question (ID: \(questionId))")
+        debugPrint("   ✅ [Archive] Successfully uploaded question (ID: \(questionId))")
 
         return questionId
     }
@@ -374,7 +374,7 @@ class QuestionArchiveService: ObservableObject {
         request.httpMethod = "DELETE"
         request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
 
-        print("   🗑️ [Archive] Deleting all questions from server: \(url)")
+        debugPrint("   🗑️ [Archive] Deleting all questions from server: \(url)")
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
@@ -383,9 +383,9 @@ class QuestionArchiveService: ObservableObject {
         }
 
         guard httpResponse.statusCode == 200 else {
-            print("   ❌ [Archive] Server returned error: \(httpResponse.statusCode)")
+            debugPrint("   ❌ [Archive] Server returned error: \(httpResponse.statusCode)")
             if let errorText = String(data: data, encoding: .utf8) {
-                print("   ❌ [Archive] Error response: \(errorText)")
+                debugPrint("   ❌ [Archive] Error response: \(errorText)")
             }
             throw QuestionArchiveError.archiveFailed("Server returned status code \(httpResponse.statusCode)")
         }
@@ -395,7 +395,7 @@ class QuestionArchiveService: ObservableObject {
             throw QuestionArchiveError.invalidData
         }
 
-        print("   ✅ [Archive] Successfully deleted \(deletedCount) questions from server")
+        debugPrint("   ✅ [Archive] Successfully deleted \(deletedCount) questions from server")
 
         return deletedCount
     }
@@ -489,13 +489,13 @@ class QuestionArchiveService: ObservableObject {
         let rawQuestionText = data["rawQuestionText"] as? String
 
         // Debug logging for rawQuestionText extraction
-        print("   📊 [Convert] Extracting rawQuestionText from storage:")
-        print("      - Has rawQuestionText in data: \(data["rawQuestionText"] != nil)")
+        debugPrint("   📊 [Convert] Extracting rawQuestionText from storage:")
+        debugPrint("      - Has rawQuestionText in data: \(data["rawQuestionText"] != nil)")
         if let rawText = rawQuestionText {
-            print("      - rawQuestionText length: \(rawText.count) chars")
-            print("      - rawQuestionText preview: \(rawText.prefix(100))...")
+            debugPrint("      - rawQuestionText length: \(rawText.count) chars")
+            debugPrint("      - rawQuestionText preview: \(rawText.prefix(100))...")
         } else {
-            print("      - ❌ rawQuestionText is NIL in stored data")
+            debugPrint("      - ❌ rawQuestionText is NIL in stored data")
         }
 
         let confidence = (data["confidence"] as? Float) ?? (data["confidence"] as? Double).map(Float.init) ?? 0.0
@@ -559,7 +559,7 @@ class QuestionArchiveService: ObservableObject {
         let subquestionId = data["subquestionId"] as? String
 
         // Log the isCorrect value for debugging
-        print("   📊 [Convert] Question \(id): grade=\(gradeString ?? "nil"), isCorrect=\(isCorrect?.description ?? "nil")")
+        debugPrint("   📊 [Convert] Question \(id): grade=\(gradeString ?? "nil"), isCorrect=\(isCorrect?.description ?? "nil")")
 
         return ArchivedQuestion(
             id: id,

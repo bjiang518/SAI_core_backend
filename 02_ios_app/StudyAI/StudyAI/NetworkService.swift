@@ -15,7 +15,7 @@ import os.log
 // MARK: - Production Logging Safety
 // Disable debug print statements in production builds to prevent user data exposure
 #if !DEBUG
-private func print(_ items: Any...) { }
+private func debugPrint(_ items: Any...) { }
 private func debugPrint(_ items: Any...) { }
 #endif
 
@@ -29,7 +29,7 @@ private let enableProfileDebugLogs = false  // Always false in release
 private func profileLog(_ message: String) {
     #if DEBUG
     if enableProfileDebugLogs {
-        print(message)
+        debugPrint(message)
     }
     #endif
 }
@@ -246,7 +246,7 @@ class NetworkService: ObservableObject {
         internalConversationHistory.removeAll()
         conversationHistory.removeAll()
         if previousCount > 0 {
-            print("⚠️ [HISTORY RESET] clearConversationHistory() wiped \(previousCount) messages — triggered by currentSessionId change")
+            debugPrint("⚠️ [HISTORY RESET] clearConversationHistory() wiped \(previousCount) messages — triggered by currentSessionId change")
             // To identify the caller, check the stack: this fires from the willSet on currentSessionId.
             // If this fires unexpectedly mid-chat, check ensureValidSession() or any code that sets currentSessionId.
         }
@@ -274,7 +274,7 @@ class NetworkService: ObservableObject {
         failureCount += 1
         if failureCount >= maxFailures {
             circuitBreakerOpenUntil = Date().addingTimeInterval(circuitBreakerTimeout)
-            print("Circuit breaker opened due to failures")
+            debugPrint("Circuit breaker opened due to failures")
         }
     }
     
@@ -525,7 +525,7 @@ class NetworkService: ObservableObject {
         }
 
         let loginData = [
-            "email": email,
+            "email": email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
             "password": password
         ]
 
@@ -627,7 +627,7 @@ class NetworkService: ObservableObject {
                        let responseData = json["response"] as? [String: Any],
                        let answer = responseData["answer"] as? String {
 
-                        print("✅ Raw AI Response: \(answer)")
+                        debugPrint("✅ Raw AI Response: \(answer)")
 
                         return (true, answer)
                     }
@@ -668,7 +668,7 @@ class NetworkService: ObservableObject {
                 if httpResponse.statusCode == 200 {
                     do {
                         if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                            print("✅ Raw AI Response: \(json)")
+                            debugPrint("✅ Raw AI Response: \(json)")
 
                             let answer = json["answer"] as? String
 
@@ -762,17 +762,17 @@ class NetworkService: ObservableObject {
             let (data, response) = try await URLSession.shared.data(from: url)
             
             if let httpResponse = response as? HTTPURLResponse {
-                print("✅ Debug Status: \(httpResponse.statusCode)")
+                debugPrint("✅ Debug Status: \(httpResponse.statusCode)")
                 
                 if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                    print("✅ Debug Response: \(json)")
+                    debugPrint("✅ Debug Response: \(json)")
                     return (true, json)
                 }
             }
             
             return (false, nil)
         } catch {
-            print("❌ Debug test failed: \(error.localizedDescription)")
+            debugPrint("❌ Debug test failed: \(error.localizedDescription)")
             return (false, nil)
         }
     }
@@ -782,10 +782,10 @@ class NetworkService: ObservableObject {
         // Memory optimization: Compress image if too large
         let optimizedImageData = optimizeImageData(imageData)
         
-        print("📷 === OPTIMIZED IMAGE UPLOAD ===")
-        print("📊 Original size: \(imageData.count) bytes")
-        print("📊 Optimized size: \(optimizedImageData.count) bytes")
-        print("📚 Subject: \(subject)")
+        debugPrint("📷 === OPTIMIZED IMAGE UPLOAD ===")
+        debugPrint("📊 Original size: \(imageData.count) bytes")
+        debugPrint("📊 Optimized size: \(optimizedImageData.count) bytes")
+        debugPrint("📚 Subject: \(subject)")
         
         let imageUploadURL = "\(baseURL)/api/ai/analyze-image"
         
@@ -849,7 +849,7 @@ class NetworkService: ObservableObject {
         
         // Compress image
         if let compressedData = image.jpegData(compressionQuality: targetQuality) {
-            print("🗜️ Image compressed from \(imageData.count) to \(compressedData.count) bytes")
+            debugPrint("🗜️ Image compressed from \(imageData.count) to \(compressedData.count) bytes")
             return compressedData
         }
         
@@ -893,18 +893,18 @@ class NetworkService: ObservableObject {
     func createSession(subject: String) async -> (success: Bool, sessionId: String?, message: String) {
         // Check authentication first - use unified auth system
         guard AuthenticationService.shared.getAuthToken() != nil else {
-            print("❌ Authentication required to create session")
+            debugPrint("❌ Authentication required to create session")
             return (false, nil, "Authentication required")
         }
         
-        print("🆕 Creating new study session...")
-        print("📚 Subject: \(subject)")
+        debugPrint("🆕 Creating new study session...")
+        debugPrint("📚 Subject: \(subject)")
         
         let sessionURL = "\(baseURL)/api/ai/sessions/create"
-        print("🔗 Session URL: \(sessionURL)")
+        debugPrint("🔗 Session URL: \(sessionURL)")
         
         guard let url = URL(string: sessionURL) else {
-            print("❌ Invalid session URL")
+            debugPrint("❌ Invalid session URL")
             return (false, nil, "Invalid URL")
         }
         
@@ -928,20 +928,20 @@ class NetworkService: ObservableObject {
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: sessionData)
             
-            print("📡 Creating session...")
+            debugPrint("📡 Creating session...")
             let (data, response) = try await URLSession.shared.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse {
-                print("✅ Session Creation Response Status: \(httpResponse.statusCode)")
+                debugPrint("✅ Session Creation Response Status: \(httpResponse.statusCode)")
                 
                 if httpResponse.statusCode == 200 {
                     if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                        let sessionId = json["session_id"] as? String {
                         
-                        print("🎉 === SESSION CREATED ===")
-                        print("🆔 Session ID: \(sessionId)")
-                        print("👤 User: \(json["user_id"] as? String ?? "unknown")")
-                        print("📚 Subject: \(json["subject"] as? String ?? "unknown")")
+                        debugPrint("🎉 === SESSION CREATED ===")
+                        debugPrint("🆔 Session ID: \(sessionId)")
+                        debugPrint("👤 User: \(json["user_id"] as? String ?? "unknown")")
+                        debugPrint("📚 Subject: \(json["subject"] as? String ?? "unknown")")
                         
                         await MainActor.run {
                             // Setting currentSessionId triggers willSet → clearConversationHistory().
@@ -954,7 +954,7 @@ class NetworkService: ObservableObject {
                         return (true, sessionId, "Session created successfully")
                     }
                 } else if httpResponse.statusCode == 401 {
-                    print("❌ Authentication expired in createSession")
+                    debugPrint("❌ Authentication expired in createSession")
                     AuthenticationService.shared.handleExpiredSession()
                     return (false, nil, "Authentication expired")
                 } else if httpResponse.statusCode == 403 || httpResponse.statusCode == 429 {
@@ -963,13 +963,13 @@ class NetworkService: ObservableObject {
                 }
 
                 let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
-                print("❌ Session Creation HTTP \(httpResponse.statusCode): \(String(rawResponse.prefix(200)))")
+                debugPrint("❌ Session Creation HTTP \(httpResponse.statusCode): \(String(rawResponse.prefix(200)))")
                 return (false, nil, "HTTP \(httpResponse.statusCode)")
             }
 
             return (false, nil, "No HTTP response")
         } catch {
-            print("❌ Session creation failed: \(error.localizedDescription)")
+            debugPrint("❌ Session creation failed: \(error.localizedDescription)")
             return (false, nil, error.localizedDescription)
         }
     }
@@ -979,7 +979,7 @@ class NetworkService: ObservableObject {
     /// Validate if a session still exists on the backend
     func validateSession(_ sessionId: String) async -> Bool {
         guard AuthenticationService.shared.getAuthToken() != nil else {
-            print("❌ Authentication required to validate session")
+            debugPrint("❌ Authentication required to validate session")
             return false
         }
 
@@ -997,12 +997,12 @@ class NetworkService: ObservableObject {
             let (_, response) = try await URLSession.shared.data(for: request)
             if let httpResponse = response as? HTTPURLResponse {
                 let isValid = httpResponse.statusCode == 200
-                print(isValid ? "✅ Session \(sessionId.prefix(8))... is valid" : "❌ Session \(sessionId.prefix(8))... is invalid (status: \(httpResponse.statusCode))")
+                debugPrint(isValid ? "✅ Session \(sessionId.prefix(8))... is valid" : "❌ Session \(sessionId.prefix(8))... is invalid (status: \(httpResponse.statusCode))")
                 return isValid
             }
             return false
         } catch {
-            print("❌ Session validation error: \(error.localizedDescription)")
+            debugPrint("❌ Session validation error: \(error.localizedDescription)")
             return false
         }
     }
@@ -1021,70 +1021,70 @@ class NetworkService: ObservableObject {
     func ensureValidSession() async -> String? {
         // If we have a session ID, use it — don't validate over the network.
         if let sessionId = await MainActor.run(body: { self.currentSessionId }) {
-            print("✅ Using existing session: \(sessionId.prefix(8))...")
+            debugPrint("✅ Using existing session: \(sessionId.prefix(8))...")
             return sessionId
         }
 
         // No session at all — create one.
-        print("📝 No session found — creating new one")
+        debugPrint("📝 No session found — creating new one")
         let result = await createSession(subject: "general")
         if result.success, let newSessionId = result.sessionId {
-            print("✅ Created new session: \(newSessionId.prefix(8))...")
+            debugPrint("✅ Created new session: \(newSessionId.prefix(8))...")
             return newSessionId
         } else {
-            print("❌ Failed to create session: \(result.message)")
+            debugPrint("❌ Failed to create session: \(result.message)")
             return nil
         }
     }
 
     func sendSessionMessage(sessionId: String, message: String, questionContext: [String: Any]? = nil) async -> (success: Bool, aiResponse: String?, suggestions: [FollowUpSuggestion]?, tokensUsed: Int?, compressed: Bool?) {
-        print("🌐 ============================================")
-        print("🌐 === NETWORK SERVICE: SEND SESSION MESSAGE ===")
-        print("🌐 ============================================")
-        print("🌐 Timestamp: \(Date())")
+        debugPrint("🌐 ============================================")
+        debugPrint("🌐 === NETWORK SERVICE: SEND SESSION MESSAGE ===")
+        debugPrint("🌐 ============================================")
+        debugPrint("🌐 Timestamp: \(Date())")
         // Thread.current not available in async context
         // print("🌐 Thread: \(Thread.current)")
 
         // Check authentication first - use unified auth system
         guard AuthenticationService.shared.getAuthToken() != nil else {
-            print("❌ Authentication required to send messages")
+            debugPrint("❌ Authentication required to send messages")
             return (false, nil, nil, nil, nil)
         }
 
-        print("🌐 Session ID: \(sessionId)")
-        print("🌐 Message: \(message)")
-        print("🌐 Language: \(appLanguage)")
-        print("🌐 ============================================")
-        print("🌐 === QUESTION CONTEXT CHECK ===")
-        print("🌐 ============================================")
-        print("🌐 questionContext parameter is nil: \(questionContext == nil)")
+        debugPrint("🌐 Session ID: \(sessionId)")
+        debugPrint("🌐 Message: \(message)")
+        debugPrint("🌐 Language: \(appLanguage)")
+        debugPrint("🌐 ============================================")
+        debugPrint("🌐 === QUESTION CONTEXT CHECK ===")
+        debugPrint("🌐 ============================================")
+        debugPrint("🌐 questionContext parameter is nil: \(questionContext == nil)")
 
         if let context = questionContext {
-            print("🌐 ✅ QUESTION CONTEXT PROVIDED!")
-            print("🌐 Context keys: \(context.keys.sorted())")
-            print("🌐 Full context data: \(context)")
+            debugPrint("🌐 ✅ QUESTION CONTEXT PROVIDED!")
+            debugPrint("🌐 Context keys: \(context.keys.sorted())")
+            debugPrint("🌐 Full context data: \(context)")
             if let questionText = context["questionText"] as? String {
-                print("🌐    - questionText: \(questionText.prefix(100))")
+                debugPrint("🌐    - questionText: \(questionText.prefix(100))")
             }
             if let studentAnswer = context["studentAnswer"] as? String {
-                print("🌐    - studentAnswer: \(studentAnswer.prefix(50))")
+                debugPrint("🌐    - studentAnswer: \(studentAnswer.prefix(50))")
             }
             if let correctAnswer = context["correctAnswer"] as? String {
-                print("🌐    - correctAnswer: \(correctAnswer.prefix(50))")
+                debugPrint("🌐    - correctAnswer: \(correctAnswer.prefix(50))")
             }
             if let currentGrade = context["currentGrade"] as? String {
-                print("🌐    - currentGrade: \(currentGrade)")
+                debugPrint("🌐    - currentGrade: \(currentGrade)")
             }
         } else {
-            print("🌐 ℹ️ No question context - regular chat message")
+            debugPrint("🌐 ℹ️ No question context - regular chat message")
         }
-        print("🌐 ============================================")
+        debugPrint("🌐 ============================================")
 
         let messageURL = "\(baseURL)/api/ai/sessions/\(sessionId)/message"
-        print("🌐 Message URL: \(messageURL)")
+        debugPrint("🌐 Message URL: \(messageURL)")
 
         guard let url = URL(string: messageURL) else {
-            print("❌ Invalid message URL")
+            debugPrint("❌ Invalid message URL")
             return (false, nil, nil, nil, nil)
         }
 
@@ -1096,10 +1096,10 @@ class NetworkService: ObservableObject {
         // Add homework context if provided (for grade correction support)
         if let context = questionContext {
             messageData["question_context"] = context
-            print("🌐 ✅ Added question_context to messageData")
-            print("🌐 Final messageData keys: \(messageData.keys.sorted())")
+            debugPrint("🌐 ✅ Added question_context to messageData")
+            debugPrint("🌐 Final messageData keys: \(messageData.keys.sorted())")
         } else {
-            print("🌐 ℹ️ No question_context added to messageData")
+            debugPrint("🌐 ℹ️ No question_context added to messageData")
         }
 
         var request = URLRequest(url: url)
@@ -1113,18 +1113,18 @@ class NetworkService: ObservableObject {
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: messageData)
 
-            print("📡 Sending session message...")
+            debugPrint("📡 Sending session message...")
             let (data, response) = try await URLSession.shared.data(for: request)
 
             if let httpResponse = response as? HTTPURLResponse {
-                print("✅ Session Message Response Status: \(httpResponse.statusCode)")
+                debugPrint("✅ Session Message Response Status: \(httpResponse.statusCode)")
 
                 if httpResponse.statusCode == 200 {
                     // Log raw response for debugging
                     let rawResponseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
-                    print("🔍 === RAW AI ENDPOINT RESPONSE ===")
-                    print("📡 Full Raw Response: \(rawResponseString)")
-                    print("=====================================")
+                    debugPrint("🔍 === RAW AI ENDPOINT RESPONSE ===")
+                    debugPrint("📡 Full Raw Response: \(rawResponseString)")
+                    debugPrint("=====================================")
 
                     if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
                         // Try parsing as new structured format first
@@ -1149,34 +1149,34 @@ class NetworkService: ObservableObject {
                                     }
                                     return FollowUpSuggestion(key: key, value: value)
                                 }
-                                print("✨ Parsed \(suggestions?.count ?? 0) AI-generated suggestions")
+                                debugPrint("✨ Parsed \(suggestions?.count ?? 0) AI-generated suggestions")
                             }
                         } else if let oldFormatResponse = json["ai_response"] as? String {
                             // Legacy format fallback
                             aiResponse = oldFormatResponse
                             tokensUsed = json["tokens_used"] as? Int
                             compressed = json["compressed"] as? Bool
-                            print("⚠️ Using legacy response format (no suggestions)")
+                            debugPrint("⚠️ Using legacy response format (no suggestions)")
                         }
 
                         if let aiResponse = aiResponse {
-                            print("🎉 === SESSION MESSAGE SUCCESS ===")
-                            print("🤖 Raw AI Response: '\(aiResponse)'")
-                            print("📏 AI Response Length: \(aiResponse.count) characters")
-                            print("🔍 Response Preview: \(String(aiResponse.prefix(200)))...")
-                            print("📊 Tokens Used: \(tokensUsed ?? 0)")
-                            print("🗜️ Context Compressed: \(compressed ?? false)")
+                            debugPrint("🎉 === SESSION MESSAGE SUCCESS ===")
+                            debugPrint("🤖 Raw AI Response: '\(aiResponse)'")
+                            debugPrint("📏 AI Response Length: \(aiResponse.count) characters")
+                            debugPrint("🔍 Response Preview: \(String(aiResponse.prefix(200)))...")
+                            debugPrint("📊 Tokens Used: \(tokensUsed ?? 0)")
+                            debugPrint("🗜️ Context Compressed: \(compressed ?? false)")
 
                             // Update conversation history - only add AI response since user message was already added optimistically
                             await MainActor.run {
                                 self.addToConversationHistory(role: "assistant", content: aiResponse)
 
                                 // Additional debug for conversation history update
-                                print("📚 === CONVERSATION HISTORY UPDATE ===")
-                                print("👤 User Message Already Added: '\(message)' (optimistic update)")
-                                print("🤖 AI Message Added: '\(aiResponse)'")
-                                print("📈 Total Messages in History: \(self.conversationHistory.count)")
-                                print("=====================================")
+                                debugPrint("📚 === CONVERSATION HISTORY UPDATE ===")
+                                debugPrint("👤 User Message Already Added: '\(message)' (optimistic update)")
+                                debugPrint("🤖 AI Message Added: '\(aiResponse)'")
+                                debugPrint("📈 Total Messages in History: \(self.conversationHistory.count)")
+                                debugPrint("=====================================")
                             }
 
                             return (true, aiResponse, suggestions, tokensUsed, compressed)
@@ -1184,7 +1184,7 @@ class NetworkService: ObservableObject {
                     }
                 } else if httpResponse.statusCode == 401 {
                     // Authentication failed - let AuthenticationService handle it
-                    print("❌ Authentication expired in sendSessionMessage")
+                    debugPrint("❌ Authentication expired in sendSessionMessage")
                     return (false, "Authentication expired", nil, nil, nil)
                 } else if httpResponse.statusCode == 403 || httpResponse.statusCode == 429 {
                     handleTierError(statusCode: httpResponse.statusCode, data: data, feature: "chat_messages")
@@ -1192,13 +1192,13 @@ class NetworkService: ObservableObject {
                 }
 
                 let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
-                print("❌ Session Message HTTP \(httpResponse.statusCode): \(String(rawResponse.prefix(200)))")
+                debugPrint("❌ Session Message HTTP \(httpResponse.statusCode): \(String(rawResponse.prefix(200)))")
                 return (false, nil, nil, nil, nil)
             }
 
             return (false, nil, nil, nil, nil)
         } catch {
-            print("❌ Session message failed: \(error.localizedDescription)")
+            debugPrint("❌ Session message failed: \(error.localizedDescription)")
             return (false, nil, nil, nil, nil)
         }
     }
@@ -1227,7 +1227,7 @@ class NetworkService: ObservableObject {
         onComplete: @escaping (Bool, String?, Int?, Bool?) -> Void,
         onRetryAvailable: @escaping (String) -> Void  // Called with partial text when retry is available
     ) async -> Bool {
-        print("🔄 === STREAMING WITH RETRY (Phase 2.3) ===")
+        debugPrint("🔄 === STREAMING WITH RETRY (Phase 2.3) ===")
 
         // Initialize retry state if this is the first attempt
         if streamingRetryState == nil {
@@ -1237,12 +1237,12 @@ class NetworkService: ObservableObject {
                 deepMode: deepMode,
                 questionContext: questionContext
             )
-            print("🔄 Initialized retry state for new request")
+            debugPrint("🔄 Initialized retry state for new request")
         }
 
         // Check max retries
         guard let retryState = streamingRetryState, retryState.retryCount < maxStreamingRetries else {
-            print("❌ Max retries (\(maxStreamingRetries)) exceeded")
+            debugPrint("❌ Max retries (\(maxStreamingRetries)) exceeded")
             if let partialText = streamingRetryState?.accumulatedText, !partialText.isEmpty {
                 onComplete(false, partialText, nil, nil)
             } else {
@@ -1252,7 +1252,7 @@ class NetworkService: ObservableObject {
             return false
         }
 
-        print("🔄 Attempt \(retryState.retryCount + 1) of \(maxStreamingRetries)")
+        debugPrint("🔄 Attempt \(retryState.retryCount + 1) of \(maxStreamingRetries)")
 
         var latestAccumulatedText = retryState.accumulatedText
 
@@ -1273,22 +1273,22 @@ class NetworkService: ObservableObject {
 
         if success {
             // Success - clear retry state
-            print("✅ Streaming succeeded, clearing retry state")
+            debugPrint("✅ Streaming succeeded, clearing retry state")
             streamingRetryState = nil
             return true
         } else {
             // Failure - increment retry count and notify about partial response
             streamingRetryState?.retryCount += 1
 
-            print("⚠️ Streaming failed (attempt \(retryState.retryCount + 1))")
-            print("📦 Partial response saved: \(latestAccumulatedText.count) characters")
+            debugPrint("⚠️ Streaming failed (attempt \(retryState.retryCount + 1))")
+            debugPrint("📦 Partial response saved: \(latestAccumulatedText.count) characters")
 
             if !latestAccumulatedText.isEmpty && retryState.retryCount < maxStreamingRetries {
                 // Partial response available and retries remaining
                 onRetryAvailable(latestAccumulatedText)
             } else if retryState.retryCount >= maxStreamingRetries {
                 // Max retries exhausted
-                print("❌ Max retries exhausted")
+                debugPrint("❌ Max retries exhausted")
                 streamingRetryState = nil
             }
 
@@ -1305,11 +1305,11 @@ class NetworkService: ObservableObject {
         onRetryAvailable: @escaping (String) -> Void
     ) async -> Bool {
         guard let retryState = streamingRetryState else {
-            print("❌ No retry state available")
+            debugPrint("❌ No retry state available")
             return false
         }
 
-        print("🔄 Manual retry requested")
+        debugPrint("🔄 Manual retry requested")
         return await sendSessionMessageStreamingWithRetry(
             sessionId: retryState.sessionId,
             message: retryState.message,
@@ -1343,65 +1343,65 @@ class NetworkService: ObservableObject {
         onSuggestions: @escaping ([FollowUpSuggestion]) -> Void,
         onComplete: @escaping (Bool, String?, Int?, Bool?) -> Void
     ) async -> Bool {
-        print("🟢 ============================================")
-        print("🟢 === NETWORK SERVICE: STREAMING SESSION MESSAGE ===")
-        print("🟢 ============================================")
-        print("🟢 Timestamp: \(Date())")
+        debugPrint("🟢 ============================================")
+        debugPrint("🟢 === NETWORK SERVICE: STREAMING SESSION MESSAGE ===")
+        debugPrint("🟢 ============================================")
+        debugPrint("🟢 Timestamp: \(Date())")
         // Thread.current not available in async context
         // print("🟢 Thread: \(Thread.current)")
-        print("🟢 Session ID: \(sessionId)")
-        print("🟢 Message: \(message)")
-        print("🟢 Deep Mode: \(deepMode ? "YES (o4-mini)" : "NO (intelligent routing)")")  // ✅ NEW: Log deep mode
-        print("🟢 Language: \(appLanguage)")
-        print("🟢 ============================================")
-        print("🟢 === QUESTION CONTEXT CHECK ===")
-        print("🟢 ============================================")
-        print("🟢 questionContext parameter: \(questionContext != nil ? "PROVIDED ✓" : "NIL ✗")")
+        debugPrint("🟢 Session ID: \(sessionId)")
+        debugPrint("🟢 Message: \(message)")
+        debugPrint("🟢 Deep Mode: \(deepMode ? "YES (o4-mini)" : "NO (intelligent routing)")")  // ✅ NEW: Log deep mode
+        debugPrint("🟢 Language: \(appLanguage)")
+        debugPrint("🟢 ============================================")
+        debugPrint("🟢 === QUESTION CONTEXT CHECK ===")
+        debugPrint("🟢 ============================================")
+        debugPrint("🟢 questionContext parameter: \(questionContext != nil ? "PROVIDED ✓" : "NIL ✗")")
 
         // Enhanced logging for homework context
         if let questionContext = questionContext {
-            print("🟢 ✅ HOMEWORK CONTEXT DETECTED IN NETWORKSERVICE!")
-            print("🟢 Context keys: \(questionContext.keys.sorted())")
-            print("🟢 Full context: \(questionContext)")
+            debugPrint("🟢 ✅ HOMEWORK CONTEXT DETECTED IN NETWORKSERVICE!")
+            debugPrint("🟢 Context keys: \(questionContext.keys.sorted())")
+            debugPrint("🟢 Full context: \(questionContext)")
 
             if let questionText = questionContext["questionText"] as? String {
-                print("🟢    - questionText: \(questionText)")
+                debugPrint("🟢    - questionText: \(questionText)")
             }
             if let rawQuestionText = questionContext["rawQuestionText"] as? String {
-                print("🟢    - rawQuestionText: \(rawQuestionText.prefix(100))")
+                debugPrint("🟢    - rawQuestionText: \(rawQuestionText.prefix(100))")
             }
             if let studentAnswer = questionContext["studentAnswer"] as? String {
-                print("🟢    - studentAnswer: \(studentAnswer)")
+                debugPrint("🟢    - studentAnswer: \(studentAnswer)")
             }
             if let correctAnswer = questionContext["correctAnswer"] as? String {
-                print("🟢    - correctAnswer: \(correctAnswer)")
+                debugPrint("🟢    - correctAnswer: \(correctAnswer)")
             }
             if let currentGrade = questionContext["currentGrade"] as? String {
-                print("🟢    - currentGrade: \(currentGrade)")
+                debugPrint("🟢    - currentGrade: \(currentGrade)")
             }
             if let originalFeedback = questionContext["originalFeedback"] as? String {
-                print("🟢    - originalFeedback: \(originalFeedback.prefix(100))")
+                debugPrint("🟢    - originalFeedback: \(originalFeedback.prefix(100))")
             }
             if let points = questionContext["pointsEarned"] as? Float,
                let possible = questionContext["pointsPossible"] as? Float {
-                print("🟢    - points: \(points)/\(possible)")
+                debugPrint("🟢    - points: \(points)/\(possible)")
             }
             if let questionNumber = questionContext["questionNumber"] as? Int {
-                print("🟢    - questionNumber: \(questionNumber)")
+                debugPrint("🟢    - questionNumber: \(questionNumber)")
             }
             if let subject = questionContext["subject"] as? String {
-                print("🟢    - subject: \(subject)")
+                debugPrint("🟢    - subject: \(subject)")
             }
-            print("🟢 📤 Will include question_context in request body...")
+            debugPrint("🟢 📤 Will include question_context in request body...")
         } else {
-            print("🟢 ℹ️ No question context - regular chat message")
+            debugPrint("🟢 ℹ️ No question context - regular chat message")
         }
-        print("🟢 ============================================")
+        debugPrint("🟢 ============================================")
 
         let streamURL = "\(baseURL)/api/ai/sessions/\(sessionId)/message/stream"
 
         guard let url = URL(string: streamURL) else {
-            print("❌ Invalid streaming URL")
+            debugPrint("❌ Invalid streaming URL")
             onComplete(false, nil, nil, nil)
             return false
         }
@@ -1415,10 +1415,10 @@ class NetworkService: ObservableObject {
         // Add question context if provided (for homework follow-up)
         if let questionContext = questionContext {
             messageData["question_context"] = questionContext
-            print("✅ Added question_context to request body")
-            print("📦 Request body keys: \(messageData.keys)")
+            debugPrint("✅ Added question_context to request body")
+            debugPrint("📦 Request body keys: \(messageData.keys)")
         } else {
-            print("ℹ️ No question_context - regular chat message")
+            debugPrint("ℹ️ No question_context - regular chat message")
         }
 
         var request = URLRequest(url: url)
@@ -1432,18 +1432,18 @@ class NetworkService: ObservableObject {
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: messageData)
 
-            print("📡 Sending request to AI Engine...")
+            debugPrint("📡 Sending request to AI Engine...")
 
             let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)
 
             guard let httpResponse = response as? HTTPURLResponse else {
-                print("❌ Invalid HTTP response")
+                debugPrint("❌ Invalid HTTP response")
                 onComplete(false, nil, nil, nil)
                 return false
             }
 
             guard httpResponse.statusCode == 200 else {
-                print("❌ Streaming request failed with status: \(httpResponse.statusCode)")
+                debugPrint("❌ Streaming request failed with status: \(httpResponse.statusCode)")
 
                 // Try to read error body
                 var errorBody = ""
@@ -1452,7 +1452,7 @@ class NetworkService: ObservableObject {
                     errorBody += character
                     if errorBody.count > 1000 { break }
                 }
-                print("❌ Error: \(errorBody)")
+                debugPrint("❌ Error: \(errorBody)")
 
                 if httpResponse.statusCode == 401 {
                     AuthenticationService.shared.handleExpiredSession()
@@ -1464,7 +1464,7 @@ class NetworkService: ObservableObject {
                 return false
             }
 
-            print("✅ Streaming connection established, receiving AI response...")
+            debugPrint("✅ Streaming connection established, receiving AI response...")
 
             // Read usage remaining header for UI badge
             if let remaining = httpResponse.value(forHTTPHeaderField: "X-Usage-Remaining"),
@@ -1514,17 +1514,17 @@ class NetworkService: ObservableObject {
                                         }
 
                                     case "end":
-                                        print("✅ AI response complete (\(accumulatedText.count) chars)")
+                                        debugPrint("✅ AI response complete (\(accumulatedText.count) chars)")
 
                                         // Show first 200 chars of final response for debugging
                                         if accumulatedText.count > 0 {
-                                            print("📄 Response preview: \(accumulatedText.prefix(200))...")
+                                            debugPrint("📄 Response preview: \(accumulatedText.prefix(200))...")
                                         }
 
                                         // 🚀 OPTIMIZATION: Suggestions now sent separately
                                         // Legacy support: Check for suggestions in end event (will be empty after backend update)
                                         if let suggestions = event.suggestions, !suggestions.isEmpty {
-                                            print("💡 Received suggestions in 'end' event (legacy format)")
+                                            debugPrint("💡 Received suggestions in 'end' event (legacy format)")
                                             await MainActor.run {
                                                 onSuggestions(suggestions)
                                             }
@@ -1532,7 +1532,7 @@ class NetworkService: ObservableObject {
 
                                         // ⚠️ BUG FIX: Don't return here! Keep reading stream for suggestions/grade_correction events
                                         // Call completion callback but DON'T exit the loop
-                                        print("📡 Stream complete, continuing to listen for suggestions/grade_correction...")
+                                        debugPrint("📡 Stream complete, continuing to listen for suggestions/grade_correction...")
                                         streamComplete = true  // Mark as complete but continue listening
 
                                         await MainActor.run {
@@ -1541,18 +1541,18 @@ class NetworkService: ObservableObject {
 
                                     case "suggestions":
                                         // 🚀 NEW: Handle deferred suggestions event (sent after 'end' event)
-                                        print("💡 === SUGGESTIONS EVENT (deferred) ===")
+                                        debugPrint("💡 === SUGGESTIONS EVENT (deferred) ===")
                                         if let suggestions = event.suggestions, !suggestions.isEmpty {
-                                            print("📋 Received \(suggestions.count) follow-up suggestions")
+                                            debugPrint("📋 Received \(suggestions.count) follow-up suggestions")
                                             await MainActor.run {
                                                 onSuggestions(suggestions)
                                             }
                                         } else {
-                                            print("ℹ️ No suggestions provided")
+                                            debugPrint("ℹ️ No suggestions provided")
                                         }
 
                                     case "error":
-                                        print("❌ Stream error: \(event.error ?? "Unknown error")")
+                                        debugPrint("❌ Stream error: \(event.error ?? "Unknown error")")
                                         onComplete(false, nil, nil, nil)
                                         return false
 
@@ -1560,7 +1560,7 @@ class NetworkService: ObservableObject {
                                         break  // Ignore unknown event types
                                     }
                                 } catch {
-                                    print("❌ JSON decode error: \(error)")
+                                    debugPrint("❌ JSON decode error: \(error)")
                                 }
                             }
                         }
@@ -1572,16 +1572,16 @@ class NetworkService: ObservableObject {
 
             // Only report failure if we never received the "end" event
             if !streamComplete {
-                print("⚠️ Stream ended without completion event")
+                debugPrint("⚠️ Stream ended without completion event")
                 onComplete(false, accumulatedText.isEmpty ? nil : accumulatedText, nil, nil)
                 return false
             } else {
-                print("✅ Stream closed naturally after completion event")
+                debugPrint("✅ Stream closed naturally after completion event")
                 return true
             }
 
         } catch {
-            print("❌ Streaming failed: \(error.localizedDescription)")
+            debugPrint("❌ Streaming failed: \(error.localizedDescription)")
             onComplete(false, nil, nil, nil)
             return false
         }
@@ -1987,18 +1987,18 @@ class NetworkService: ObservableObject {
     func getSessionInfo(sessionId: String) async -> (success: Bool, sessionInfo: [String: Any]?) {
         // Check authentication first - use unified auth system
         guard AuthenticationService.shared.getAuthToken() != nil else {
-            print("❌ Authentication required to get session info")
+            debugPrint("❌ Authentication required to get session info")
             return (false, nil)
         }
         
-        print("📊 Getting session info...")
-        print("🆔 Session ID: \(sessionId.prefix(8))...")
+        debugPrint("📊 Getting session info...")
+        debugPrint("🆔 Session ID: \(sessionId.prefix(8))...")
         
         let infoURL = "\(baseURL)/api/ai/sessions/\(sessionId)"
-        print("🔗 Info URL: \(infoURL)")
+        debugPrint("🔗 Info URL: \(infoURL)")
         
         guard let url = URL(string: infoURL) else {
-            print("❌ Invalid info URL")
+            debugPrint("❌ Invalid info URL")
             return (false, nil)
         }
         
@@ -2010,32 +2010,32 @@ class NetworkService: ObservableObject {
             let (data, response) = try await URLSession.shared.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse {
-                print("✅ Session Info Response Status: \(httpResponse.statusCode)")
+                debugPrint("✅ Session Info Response Status: \(httpResponse.statusCode)")
                 
                 if httpResponse.statusCode == 200 {
                     if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                        print("🎉 === SESSION INFO SUCCESS ===")
-                        print("📊 Session Info: \(json)")
+                        debugPrint("🎉 === SESSION INFO SUCCESS ===")
+                        debugPrint("📊 Session Info: \(json)")
                         
                         return (true, json)
                     }
                 } else if httpResponse.statusCode == 401 {
                     // Authentication failed - let AuthenticationService handle it
-                    print("❌ Authentication expired in getSessionInfo")
+                    debugPrint("❌ Authentication expired in getSessionInfo")
                     return (false, nil)
                 } else if httpResponse.statusCode == 403 {
-                    print("❌ Access denied - session belongs to different user")
+                    debugPrint("❌ Access denied - session belongs to different user")
                     return (false, nil)
                 }
                 
                 let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
-                print("❌ Session Info HTTP \(httpResponse.statusCode): \(String(rawResponse.prefix(200)))")
+                debugPrint("❌ Session Info HTTP \(httpResponse.statusCode): \(String(rawResponse.prefix(200)))")
                 return (false, nil)
             }
             
             return (false, nil)
         } catch {
-            print("❌ Session info failed: \(error.localizedDescription)")
+            debugPrint("❌ Session info failed: \(error.localizedDescription)")
             return (false, nil)
         }
     }
@@ -2051,20 +2051,20 @@ class NetworkService: ObservableObject {
         language: String = "en",
         regenerate: Bool = false  // If true, uses o1-mini for two-step reasoning
     ) async -> DiagramGenerationResponse {
-        print("📊 ============================================")
-        print("📊 === NETWORK SERVICE: GENERATE DIAGRAM ===")
-        print("📊 ============================================")
-        print("📊 Timestamp: \(Date())")
-        print("📊 Session ID: \(sessionId)")
-        print("📊 Subject: \(subject)")
-        print("📊 Language: \(language)")
-        print("📊 Regenerate mode: \(regenerate ? "YES (o1-mini)" : "NO (gpt-4o)")")
-        print("📊 Request: \(diagramRequest)")
-        print("📊 Conversation history length: \(conversationHistory.count)")
+        debugPrint("📊 ============================================")
+        debugPrint("📊 === NETWORK SERVICE: GENERATE DIAGRAM ===")
+        debugPrint("📊 ============================================")
+        debugPrint("📊 Timestamp: \(Date())")
+        debugPrint("📊 Session ID: \(sessionId)")
+        debugPrint("📊 Subject: \(subject)")
+        debugPrint("📊 Language: \(language)")
+        debugPrint("📊 Regenerate mode: \(regenerate ? "YES (o1-mini)" : "NO (gpt-4o)")")
+        debugPrint("📊 Request: \(diagramRequest)")
+        debugPrint("📊 Conversation history length: \(conversationHistory.count)")
 
         // Check authentication first
         guard AuthenticationService.shared.getAuthToken() != nil else {
-            print("❌ Authentication required to generate diagrams")
+            debugPrint("❌ Authentication required to generate diagrams")
             return DiagramGenerationResponse(
                 success: false,
                 diagramType: nil,
@@ -2081,7 +2081,7 @@ class NetworkService: ObservableObject {
 
         let diagramURL = "\(baseURL)/api/ai/generate-diagram"
         guard let url = URL(string: diagramURL) else {
-            print("❌ Invalid diagram generation URL")
+            debugPrint("❌ Invalid diagram generation URL")
             return DiagramGenerationResponse(
                 success: false,
                 diagramType: nil,
@@ -2116,48 +2116,48 @@ class NetworkService: ObservableObject {
         do {
             request.httpBody = try JSONEncoder().encode(requestData)
 
-            print("📊 Sending diagram generation request...")
+            debugPrint("📊 Sending diagram generation request...")
             let startTime = Date()
             let (data, response) = try await URLSession.shared.data(for: request)
             let networkTime = Date().timeIntervalSince(startTime) * 1000
 
             if let httpResponse = response as? HTTPURLResponse {
-                print("📊 HTTP Status Code: \(httpResponse.statusCode)")
+                debugPrint("📊 HTTP Status Code: \(httpResponse.statusCode)")
 
                 if httpResponse.statusCode == 200 {
                     do {
                         let decodedResponse = try JSONDecoder().decode(DiagramGenerationResponse.self, from: data)
 
-                        print("📊 ============================================")
-                        print("📊 === AI RESPONSE ANALYSIS ===")
-                        print("📊 ============================================")
-                        print("📊 Diagram generation successful!")
-                        print("📊 Type: \(decodedResponse.diagramType ?? "unknown")")
-                        print("📊 Title: '\(decodedResponse.diagramTitle ?? "No title")'")
-                        print("📊 Code length: \(decodedResponse.diagramCode?.count ?? 0) characters")
-                        print("📊 Has explanation: \(decodedResponse.explanation != nil)")
+                        debugPrint("📊 ============================================")
+                        debugPrint("📊 === AI RESPONSE ANALYSIS ===")
+                        debugPrint("📊 ============================================")
+                        debugPrint("📊 Diagram generation successful!")
+                        debugPrint("📊 Type: \(decodedResponse.diagramType ?? "unknown")")
+                        debugPrint("📊 Title: '\(decodedResponse.diagramTitle ?? "No title")'")
+                        debugPrint("📊 Code length: \(decodedResponse.diagramCode?.count ?? 0) characters")
+                        debugPrint("📊 Has explanation: \(decodedResponse.explanation != nil)")
                         if let explanation = decodedResponse.explanation {
-                            print("📊 Explanation preview: '\(explanation.prefix(100))...'")
+                            debugPrint("📊 Explanation preview: '\(explanation.prefix(100))...'")
                         }
                         if let renderingHint = decodedResponse.renderingHint {
-                            print("📊 Rendering hint: \(renderingHint.width)x\(renderingHint.height), bg=\(renderingHint.background), scale=\(renderingHint.scaleFactor ?? 1.0)")
+                            debugPrint("📊 Rendering hint: \(renderingHint.width)x\(renderingHint.height), bg=\(renderingHint.background), scale=\(renderingHint.scaleFactor ?? 1.0)")
                         }
-                        print("📊 Processing time: \(decodedResponse.processingTimeMs ?? 0)ms")
-                        print("📊 Tokens used: \(decodedResponse.tokensUsed ?? 0)")
-                        print("📊 Network time: \(Int(networkTime))ms")
+                        debugPrint("📊 Processing time: \(decodedResponse.processingTimeMs ?? 0)ms")
+                        debugPrint("📊 Tokens used: \(decodedResponse.tokensUsed ?? 0)")
+                        debugPrint("📊 Network time: \(Int(networkTime))ms")
 
                         // Log the actual diagram code (truncated for readability)
                         if let diagramCode = decodedResponse.diagramCode {
-                            print("📊 Diagram code preview:")
+                            debugPrint("📊 Diagram code preview:")
                             let preview = diagramCode.prefix(200)
-                            print("📊 \(preview)\(diagramCode.count > 200 ? "..." : "")")
+                            debugPrint("📊 \(preview)\(diagramCode.count > 200 ? "..." : "")")
                         }
-                        print("📊 ============================================")
+                        debugPrint("📊 ============================================")
 
                         return decodedResponse
 
                     } catch {
-                        print("❌ Failed to decode diagram response: \(error)")
+                        debugPrint("❌ Failed to decode diagram response: \(error)")
 
                         // Try to get error message from raw response
                         if let jsonData = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -2190,7 +2190,7 @@ class NetworkService: ObservableObject {
                         )
                     }
                 } else {
-                    print("❌ HTTP Error: \(httpResponse.statusCode)")
+                    debugPrint("❌ HTTP Error: \(httpResponse.statusCode)")
 
                     // Try to get error message from response body
                     if let jsonData = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -2223,7 +2223,7 @@ class NetworkService: ObservableObject {
                     )
                 }
             } else {
-                print("❌ No HTTP response")
+                debugPrint("❌ No HTTP response")
                 return DiagramGenerationResponse(
                     success: false,
                     diagramType: nil,
@@ -2239,7 +2239,7 @@ class NetworkService: ObservableObject {
             }
 
         } catch {
-            print("❌ Diagram generation error: \(error.localizedDescription)")
+            debugPrint("❌ Diagram generation error: \(error.localizedDescription)")
             return DiagramGenerationResponse(
                 success: false,
                 diagramType: nil,
@@ -2262,21 +2262,21 @@ class NetworkService: ObservableObject {
     
     // MARK: - Enhanced Image Processing with Fallback Strategy
     func processImageWithQuestion(imageData: Data, question: String = "", subject: String = "general") async -> (success: Bool, result: [String: Any]?) {
-        print("📷 === NEW CHAT IMAGE PROCESSING ===")
-        print("📊 Original image size: \(imageData.count) bytes")
-        print("❓ Question: \(question)")
-        print("📚 Subject: \(subject)")
+        debugPrint("📷 === NEW CHAT IMAGE PROCESSING ===")
+        debugPrint("📊 Original image size: \(imageData.count) bytes")
+        debugPrint("❓ Question: \(question)")
+        debugPrint("📚 Subject: \(subject)")
         
         // Apply aggressive compression for better performance
         let optimizedImageData = aggressivelyOptimizeImageData(imageData)
-        print("🗜️ Optimized image size: \(optimizedImageData.count) bytes")
+        debugPrint("🗜️ Optimized image size: \(optimizedImageData.count) bytes")
         
         // Use the new chat-image endpoint directly
         let chatImageURL = "\(baseURL)/api/ai/chat-image"
-        print("🔗 Using new chat-image endpoint: \(chatImageURL)")
+        debugPrint("🔗 Using new chat-image endpoint: \(chatImageURL)")
         
         guard let url = URL(string: chatImageURL) else {
-            print("❌ Invalid chat-image URL")
+            debugPrint("❌ Invalid chat-image URL")
             return (false, ["error": "Invalid URL"])
         }
         
@@ -2301,16 +2301,16 @@ class NetworkService: ObservableObject {
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
             
-            print("📡 Sending request to new chat-image endpoint...")
+            debugPrint("📡 Sending request to new chat-image endpoint...")
             let (data, response) = try await URLSession.shared.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse {
-                print("✅ Chat Image Response Status: \(httpResponse.statusCode)")
+                debugPrint("✅ Chat Image Response Status: \(httpResponse.statusCode)")
                 
                 if httpResponse.statusCode == 200 {
                     if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                        print("🎉 === NEW CHAT IMAGE SUCCESS ===")
-                        print("✅ Response: \(json)")
+                        debugPrint("🎉 === NEW CHAT IMAGE SUCCESS ===")
+                        debugPrint("✅ Response: \(json)")
                         
                         // Extract the response in the expected format
                         if let success = json["success"] as? Bool, success,
@@ -2320,40 +2320,40 @@ class NetworkService: ObservableObject {
                             // Handle case where success field might be missing but response exists
                             return (true, ["answer": response, "processing_method": "chat_image_endpoint"])
                         } else {
-                            print("⚠️ Unexpected response format: \(json)")
+                            debugPrint("⚠️ Unexpected response format: \(json)")
                             return (false, ["error": "Unexpected response format"])
                         }
                     } else {
                         let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
-                        print("❌ Failed to parse JSON: \(rawResponse)")
+                        debugPrint("❌ Failed to parse JSON: \(rawResponse)")
                         return (false, ["error": "Invalid JSON response"])
                     }
                 } else {
                     let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
-                    print("❌ HTTP \(httpResponse.statusCode): \(rawResponse)")
+                    debugPrint("❌ HTTP \(httpResponse.statusCode): \(rawResponse)")
                     
                     // If the new endpoint fails, fall back to the working homework endpoint
-                    print("🔄 Falling back to homework endpoint...")
+                    debugPrint("🔄 Falling back to homework endpoint...")
                     return await fallbackToHomeworkEndpoint(imageData: optimizedImageData, question: question, subject: subject)
                 }
             }
             
             return (false, ["error": "No HTTP response"])
         } catch {
-            print("❌ Chat image request failed: \(error.localizedDescription)")
+            debugPrint("❌ Chat image request failed: \(error.localizedDescription)")
             
             // If network error, fall back to the working homework endpoint
-            print("🔄 Network error, falling back to homework endpoint...")
+            debugPrint("🔄 Network error, falling back to homework endpoint...")
             return await fallbackToHomeworkEndpoint(imageData: optimizedImageData, question: question, subject: subject)
         }
     }
     
     // MARK: - Fallback to Working Homework Endpoint
     private func fallbackToHomeworkEndpoint(imageData: Data, question: String, subject: String) async -> (success: Bool, result: [String: Any]?) {
-        print("🔄 === FALLBACK TO HOMEWORK ENDPOINT ===")
+        debugPrint("🔄 === FALLBACK TO HOMEWORK ENDPOINT ===")
         
         let homeworkURL = "\(baseURL)/api/ai/process-homework-image-json"
-        print("🔗 Fallback URL: \(homeworkURL)")
+        debugPrint("🔗 Fallback URL: \(homeworkURL)")
         
         guard let url = URL(string: homeworkURL) else {
             return (false, ["error": "Invalid fallback URL"])
@@ -2374,26 +2374,26 @@ class NetworkService: ObservableObject {
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
             
-            print("📡 Sending fallback request...")
+            debugPrint("📡 Sending fallback request...")
             let (data, response) = try await URLSession.shared.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse {
-                print("✅ Fallback Response Status: \(httpResponse.statusCode)")
+                debugPrint("✅ Fallback Response Status: \(httpResponse.statusCode)")
                 
                 if httpResponse.statusCode == 200 {
                     if let responseText = String(data: data, encoding: .utf8) {
-                        print("✅ Fallback success with homework endpoint")
+                        debugPrint("✅ Fallback success with homework endpoint")
                         return (true, ["answer": responseText, "processing_method": "homework_endpoint_fallback"])
                     }
                 } else {
                     let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
-                    print("❌ Fallback failed: HTTP \(httpResponse.statusCode): \(rawResponse)")
+                    debugPrint("❌ Fallback failed: HTTP \(httpResponse.statusCode): \(rawResponse)")
                 }
             }
             
             return (false, ["error": "Fallback endpoint failed"])
         } catch {
-            print("❌ Fallback request failed: \(error.localizedDescription)")
+            debugPrint("❌ Fallback request failed: \(error.localizedDescription)")
             return (false, ["error": "All endpoints failed: \(error.localizedDescription)"])
         }
     }
@@ -2463,7 +2463,7 @@ class NetworkService: ObservableObject {
             let (data, response) = try await URLSession.shared.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse {
-                print("📡 Response status: \(httpResponse.statusCode) from \(endpoint)")
+                debugPrint("📡 Response status: \(httpResponse.statusCode) from \(endpoint)")
                 
                 if httpResponse.statusCode == 200 {
                     if isHomeworkEndpoint {
@@ -2487,14 +2487,14 @@ class NetworkService: ObservableObject {
                     }
                 } else {
                     let errorText = String(data: data, encoding: .utf8) ?? "Unknown error"
-                    print("❌ HTTP \(httpResponse.statusCode): \(errorText)")
+                    debugPrint("❌ HTTP \(httpResponse.statusCode): \(errorText)")
                     return (false, ["error": "HTTP \(httpResponse.statusCode)", "details": errorText])
                 }
             }
             
             return (false, ["error": "No HTTP response"])
         } catch {
-            print("❌ Request failed: \(error.localizedDescription)")
+            debugPrint("❌ Request failed: \(error.localizedDescription)")
             return (false, ["error": error.localizedDescription])
         }
     }
@@ -2502,11 +2502,11 @@ class NetworkService: ObservableObject {
     // MARK: - Aggressive Image Optimization
     private func aggressivelyOptimizeImageData(_ imageData: Data) -> Data {
         guard let image = UIImage(data: imageData) else {
-            print("❌ Failed to create UIImage from data")
+            debugPrint("❌ Failed to create UIImage from data")
             return imageData
         }
         
-        print("🖼️ Original image dimensions: \(image.size)")
+        debugPrint("🖼️ Original image dimensions: \(image.size)")
         
         // Target: 1MB max, but prefer smaller for faster uploads
         let targetSize = 1024 * 1024 // 1MB
@@ -2514,7 +2514,7 @@ class NetworkService: ObservableObject {
         
         // Detect original format
         let originalFormat = detectImageFormat(imageData)
-        print("🔍 Detected original format: \(originalFormat)")
+        debugPrint("🔍 Detected original format: \(originalFormat)")
         
         // Step 1: Resize if image is too large
         let maxDimension: CGFloat = 1024
@@ -2532,14 +2532,14 @@ class NetworkService: ObservableObject {
             processedImage = UIGraphicsGetImageFromCurrentImageContext() ?? image
             UIGraphicsEndImageContext()
             
-            print("📐 Resized to: \(newSize)")
+            debugPrint("📐 Resized to: \(newSize)")
         }
         
         // Step 2: Try to preserve original format first, then compress
         if originalFormat == "png" {
             // For PNG, try PNG compression first
             if let pngData = processedImage.pngData() {
-                print("🖼️ PNG format preserved: \(pngData.count) bytes")
+                debugPrint("🖼️ PNG format preserved: \(pngData.count) bytes")
                 if pngData.count <= targetSize {
                     return pngData
                 }
@@ -2552,7 +2552,7 @@ class NetworkService: ObservableObject {
         
         for quality in qualities {
             if let compressedData = processedImage.jpegData(compressionQuality: quality) {
-                print("🗜️ JPEG Quality \(quality): \(compressedData.count) bytes")
+                debugPrint("🗜️ JPEG Quality \(quality): \(compressedData.count) bytes")
                 if compressedData.count <= targetSize {
                     currentData = compressedData
                     break
@@ -2564,12 +2564,12 @@ class NetworkService: ObservableObject {
         // Step 4: If JPEG is still too large, fallback to PNG (for better compatibility)
         if currentData.count > targetSize {
             if let pngData = processedImage.pngData() {
-                print("🔄 Fallback to PNG: \(pngData.count) bytes")
+                debugPrint("🔄 Fallback to PNG: \(pngData.count) bytes")
                 currentData = pngData
             }
         }
         
-        print("✅ Final optimized size: \(currentData.count) bytes (\(String(format: "%.1f", Double(currentData.count) / Double(imageData.count) * 100))% of original)")
+        debugPrint("✅ Final optimized size: \(currentData.count) bytes (\(String(format: "%.1f", Double(currentData.count) / Double(imageData.count) * 100))% of original)")
         
         return currentData
     }
@@ -2643,7 +2643,7 @@ class NetworkService: ObservableObject {
                            let count = Int(remaining) {
                             UsageService.shared.update(feature: "homework_single", remaining: count)
                         }
-                        print("✅ Raw AI Response: \(String(responseData.prefix(200)))...")
+                        debugPrint("✅ Raw AI Response: \(String(responseData.prefix(200)))...")
                         return (true, responseData)
                     } else if httpResponse.statusCode == 429 || httpResponse.statusCode == 403 {
                         handleTierError(statusCode: httpResponse.statusCode, data: data, feature: "homework_single")
@@ -2737,7 +2737,7 @@ class NetworkService: ObservableObject {
 
                 if httpResponse.statusCode == 200 {
                     if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                        print("✅ Raw AI Response: \(json)")
+                        debugPrint("✅ Raw AI Response: \(json)")
 
                         let totalImages = json["totalImages"] as? Int ?? base64Images.count
                         let successfulImages = json["successfulImages"] as? Int ?? 0
@@ -2762,12 +2762,12 @@ class NetworkService: ObservableObject {
     
     /// Send homework image for AI-powered parsing and question extraction
     func processHomeworkImage(base64Image: String, prompt: String) async -> (success: Bool, response: String?) {
-        print("📝 Processing homework for AI parsing...")
-        print("📄 Base64 Image Length: \(base64Image.count) characters")
-        print("🤖 Using structured AI parsing with deterministic format")
+        debugPrint("📝 Processing homework for AI parsing...")
+        debugPrint("📄 Base64 Image Length: \(base64Image.count) characters")
+        debugPrint("🤖 Using structured AI parsing with deterministic format")
         
         guard let url = URL(string: "\(baseURL)/api/ai/process-homework-image-json") else {
-            print("❌ Invalid homework parsing URL")
+            debugPrint("❌ Invalid homework parsing URL")
             return (false, nil)
         }
         
@@ -2785,60 +2785,60 @@ class NetworkService: ObservableObject {
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
             
-            print("📡 Sending homework to AI engine for structured parsing...")
+            debugPrint("📡 Sending homework to AI engine for structured parsing...")
             let (data, response) = try await URLSession.shared.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse {
-                print("✅ Homework Parsing Response Status: \(httpResponse.statusCode)")
+                debugPrint("✅ Homework Parsing Response Status: \(httpResponse.statusCode)")
 
                 // Track rate limits
                 RateLimitManager.shared.updateFromHeaders(httpResponse, endpoint: .homeworkImage)
 
                 if httpResponse.statusCode == 200 {
                     if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                        print("🎉 === HOMEWORK PARSING SUCCESS ===")
+                        debugPrint("🎉 === HOMEWORK PARSING SUCCESS ===")
                         
                         // Check if parsing was successful
                         if let success = json["success"] as? Bool, success {
                             if let structuredResponse = json["response"] as? String {
-                                print("📈 Structured Response Length: \(structuredResponse.count) characters")
-                                print("🔍 Response Preview: \(String(structuredResponse.prefix(200)))")
+                                debugPrint("📈 Structured Response Length: \(structuredResponse.count) characters")
+                                debugPrint("🔍 Response Preview: \(String(structuredResponse.prefix(200)))")
                                 
                                 // Verify the response has the expected format
                                 if structuredResponse.contains("═══QUESTION_SEPARATOR═══") {
-                                    print("✅ Structured format verified")
+                                    debugPrint("✅ Structured format verified")
                                     return (true, structuredResponse)
                                 } else {
-                                    print("⚠️ Response lacks expected structure, but proceeding...")
+                                    debugPrint("⚠️ Response lacks expected structure, but proceeding...")
                                     return (true, structuredResponse)
                                 }
                             } else {
-                                print("⚠️ No response field in successful result")
+                                debugPrint("⚠️ No response field in successful result")
                                 return (false, "AI parsing succeeded but no response content")
                             }
                         } else {
                             // Handle error case from AI engine
                             let errorMessage = json["error"] as? String ?? "Unknown parsing error"
-                            print("❌ AI Engine Error: \(errorMessage)")
+                            debugPrint("❌ AI Engine Error: \(errorMessage)")
                             return (false, errorMessage)
                         }
                     } else {
-                        print("❌ Failed to parse JSON response")
+                        debugPrint("❌ Failed to parse JSON response")
                         let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
                         return (false, "Invalid JSON: \(rawResponse)")
                     }
                 } else {
                     let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
-                    print("❌ Homework Parsing HTTP \(httpResponse.statusCode): \(String(rawResponse.prefix(200)))")
+                    debugPrint("❌ Homework Parsing HTTP \(httpResponse.statusCode): \(String(rawResponse.prefix(200)))")
                     handleTierError(statusCode: httpResponse.statusCode, data: data, feature: "homework_single")
                     return (false, "HTTP \(httpResponse.statusCode): \(rawResponse)")
                 }
             } else {
-                print("❌ No HTTP response for homework parsing")
+                debugPrint("❌ No HTTP response for homework parsing")
                 return (false, "No HTTP response")
             }
         } catch {
-            print("❌ Homework parsing failed: \(error.localizedDescription)")
+            debugPrint("❌ Homework parsing failed: \(error.localizedDescription)")
             return (false, error.localizedDescription)
         }
     }
@@ -2854,14 +2854,14 @@ class NetworkService: ObservableObject {
         expectedQuestions: [Int]? = nil,
         subject: String? = nil
     ) async throws -> ParseHomeworkQuestionsResponse {
-        print("📝 === PHASE 1: PARSING HOMEWORK QUESTIONS ===")
-        print("🔧 Mode: \(parsingMode)")
+        debugPrint("📝 === PHASE 1: PARSING HOMEWORK QUESTIONS ===")
+        debugPrint("🔧 Mode: \(parsingMode)")
         if let subj = subject {
-            print("📚 Subject: \(subj)")
+            debugPrint("📚 Subject: \(subj)")
         }
-        print("📄 Image size: \(base64Image.count) characters")
+        debugPrint("📄 Image size: \(base64Image.count) characters")
         if skipBboxDetection {
-            print("🎨 Pro Mode: Skip bbox detection, expected questions: \(expectedQuestions?.count ?? 0)")
+            debugPrint("🎨 Pro Mode: Skip bbox detection, expected questions: \(expectedQuestions?.count ?? 0)")
         }
 
         guard let url = URL(string: "\(baseURL)/api/ai/parse-homework-questions") else {
@@ -2899,19 +2899,19 @@ class NetworkService: ObservableObject {
 
         request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
 
-        print("📡 Sending to backend for question parsing...")
+        debugPrint("📡 Sending to backend for question parsing...")
         let startTime = Date()
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
         let duration = Date().timeIntervalSince(startTime)
-        print("⏱️ Parsing completed in \(String(format: "%.1f", duration))s")
+        debugPrint("⏱️ Parsing completed in \(String(format: "%.1f", duration))s")
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw NetworkError.invalidResponse
         }
 
-        print("📊 Response status: \(httpResponse.statusCode)")
+        debugPrint("📊 Response status: \(httpResponse.statusCode)")
 
         // Track rate limits
         RateLimitManager.shared.updateFromHeaders(httpResponse, endpoint: .homeworkImage)
@@ -2935,36 +2935,36 @@ class NetworkService: ObservableObject {
         // ========================================
         // 🔍 RAW RESPONSE LOGGING - PHASE 1
         // ========================================
-        print("\n" + String(repeating: "=", count: 80))
-        print("🔍 === RAW AI ENGINE RESPONSE - PHASE 1 (PARSING) ===")
-        print(String(repeating: "=", count: 80))
+        debugPrint("\n" + String(repeating: "=", count: 80))
+        debugPrint("🔍 === RAW AI ENGINE RESPONSE - PHASE 1 (PARSING) ===")
+        debugPrint(String(repeating: "=", count: 80))
 
         // Log raw JSON response
         if let rawJSON = String(data: data, encoding: .utf8) {
-            print("\n📄 RAW JSON RESPONSE:")
-            print(String(repeating: "-", count: 80))
+            debugPrint("\n📄 RAW JSON RESPONSE:")
+            debugPrint(String(repeating: "-", count: 80))
 
             // Try to pretty-print JSON
             if let jsonObject = try? JSONSerialization.jsonObject(with: data),
                let prettyData = try? JSONSerialization.data(withJSONObject: jsonObject, options: [.prettyPrinted, .sortedKeys]),
                let prettyJSON = String(data: prettyData, encoding: .utf8) {
-                print(prettyJSON)
+                debugPrint(prettyJSON)
             } else {
                 // Fallback to raw JSON if pretty-print fails
-                print(rawJSON)
+                debugPrint(rawJSON)
             }
-            print(String(repeating: "-", count: 80))
+            debugPrint(String(repeating: "-", count: 80))
 
             // Log data size
             let jsonSizeKB = Double(data.count) / 1024.0
-            print("\n📊 Response Size: \(String(format: "%.2f", jsonSizeKB)) KB")
-            print("⏱️ Processing Time: \(String(format: "%.1f", duration))s")
+            debugPrint("\n📊 Response Size: \(String(format: "%.2f", jsonSizeKB)) KB")
+            debugPrint("⏱️ Processing Time: \(String(format: "%.1f", duration))s")
         } else {
-            print("⚠️ WARNING: Unable to decode raw response as UTF-8 string")
-            print("Data size: \(data.count) bytes")
+            debugPrint("⚠️ WARNING: Unable to decode raw response as UTF-8 string")
+            debugPrint("Data size: \(data.count) bytes")
         }
 
-        print(String(repeating: "=", count: 80) + "\n")
+        debugPrint(String(repeating: "=", count: 80) + "\n")
         // ========================================
 
         // Decode response
@@ -2972,24 +2972,24 @@ class NetworkService: ObservableObject {
         let parseResponse = try decoder.decode(ParseHomeworkQuestionsResponse.self, from: data)
 
         // 🔍 DEBUG: Log handwriting evaluation specifically
-        print("\n" + String(repeating: "=", count: 80))
-        print("🔍 [HANDWRITING DEBUG - iOS NetworkService]")
-        print(String(repeating: "=", count: 80))
+        debugPrint("\n" + String(repeating: "=", count: 80))
+        debugPrint("🔍 [HANDWRITING DEBUG - iOS NetworkService]")
+        debugPrint(String(repeating: "=", count: 80))
         if let handwriting = parseResponse.handwritingEvaluation {
-            print("✅ Handwriting Evaluation RECEIVED from backend:")
-            print("   - has_handwriting: \(handwriting.hasHandwriting)")
-            print("   - score: \(handwriting.score ?? -1)")
-            print("   - feedback: \(handwriting.feedback ?? "N/A")")
+            debugPrint("✅ Handwriting Evaluation RECEIVED from backend:")
+            debugPrint("   - has_handwriting: \(handwriting.hasHandwriting)")
+            debugPrint("   - score: \(handwriting.score ?? -1)")
+            debugPrint("   - feedback: \(handwriting.feedback ?? "N/A")")
         } else {
-            print("⚠️ NO handwriting_evaluation in parseResponse")
-            print("   Available response keys: subject, subjectConfidence, totalQuestions, questions, processingTimeMs, error")
+            debugPrint("⚠️ NO handwriting_evaluation in parseResponse")
+            debugPrint("   Available response keys: subject, subjectConfidence, totalQuestions, questions, processingTimeMs, error")
         }
-        print(String(repeating: "=", count: 80) + "\n")
+        debugPrint(String(repeating: "=", count: 80) + "\n")
 
-        print("✅ === PHASE 1 COMPLETE ===")
-        print("📚 Subject: \(parseResponse.subject) (confidence: \(parseResponse.subjectConfidence))")
-        print("📊 Questions found: \(parseResponse.totalQuestions)")
-        print("🖼️ Questions with images: \(parseResponse.questions.filter { $0.hasImage == true }.count)")
+        debugPrint("✅ === PHASE 1 COMPLETE ===")
+        debugPrint("📚 Subject: \(parseResponse.subject) (confidence: \(parseResponse.subjectConfidence))")
+        debugPrint("📊 Questions found: \(parseResponse.totalQuestions)")
+        debugPrint("🖼️ Questions with images: \(parseResponse.questions.filter { $0.hasImage == true }.count)")
 
         return parseResponse
     }
@@ -3005,10 +3005,10 @@ class NetworkService: ObservableObject {
             throw NetworkError.invalidData
         }
 
-        print("📝 === PHASE 1: BATCH PARSING (\(base64Images.count) PAGES) ===")
-        print("🔧 Mode: \(parsingMode)")
+        debugPrint("📝 === PHASE 1: BATCH PARSING (\(base64Images.count) PAGES) ===")
+        debugPrint("🔧 Mode: \(parsingMode)")
         if let subj = subject {
-            print("📚 Subject: \(subj)")
+            debugPrint("📚 Subject: \(subj)")
         }
 
         guard let url = URL(string: "\(baseURL)/api/ai/parse-homework-questions-batch") else {
@@ -3035,19 +3035,19 @@ class NetworkService: ObservableObject {
 
         request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
 
-        print("📡 Sending batch request to backend...")
+        debugPrint("📡 Sending batch request to backend...")
         let startTime = Date()
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
         let duration = Date().timeIntervalSince(startTime)
-        print("⏱️ Batch parsing completed in \(String(format: "%.1f", duration))s")
+        debugPrint("⏱️ Batch parsing completed in \(String(format: "%.1f", duration))s")
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw NetworkError.invalidResponse
         }
 
-        print("📊 Response status: \(httpResponse.statusCode)")
+        debugPrint("📊 Response status: \(httpResponse.statusCode)")
 
         // Track rate limits
         RateLimitManager.shared.updateFromHeaders(httpResponse, endpoint: .homeworkImage)
@@ -3070,32 +3070,32 @@ class NetworkService: ObservableObject {
 
         // Log raw response for debugging
         if let rawJSON = String(data: data, encoding: .utf8) {
-            print("\n" + String(repeating: "=", count: 80))
-            print("🔍 === RAW BATCH PARSING RESPONSE ===")
-            print(String(repeating: "=", count: 80))
+            debugPrint("\n" + String(repeating: "=", count: 80))
+            debugPrint("🔍 === RAW BATCH PARSING RESPONSE ===")
+            debugPrint(String(repeating: "=", count: 80))
 
             if let jsonObject = try? JSONSerialization.jsonObject(with: data),
                let prettyData = try? JSONSerialization.data(withJSONObject: jsonObject, options: [.prettyPrinted]),
                let prettyJSON = String(data: prettyData, encoding: .utf8) {
-                print(prettyJSON)
+                debugPrint(prettyJSON)
             } else {
-                print(rawJSON)
+                debugPrint(rawJSON)
             }
 
             let jsonSizeKB = Double(data.count) / 1024.0
-            print("\n📊 Response Size: \(String(format: "%.2f", jsonSizeKB)) KB")
-            print("⏱️ Processing Time: \(String(format: "%.1f", duration))s")
-            print(String(repeating: "=", count: 80) + "\n")
+            debugPrint("\n📊 Response Size: \(String(format: "%.2f", jsonSizeKB)) KB")
+            debugPrint("⏱️ Processing Time: \(String(format: "%.1f", duration))s")
+            debugPrint(String(repeating: "=", count: 80) + "\n")
         }
 
         // Decode response
         let decoder = JSONDecoder()
         let parseResponse = try decoder.decode(ParseHomeworkQuestionsResponse.self, from: data)
 
-        print("✅ === BATCH PARSING COMPLETE ===")
-        print("📚 Subject: \(parseResponse.subject) (confidence: \(parseResponse.subjectConfidence))")
-        print("📊 Total questions: \(parseResponse.totalQuestions) from \(base64Images.count) pages")
-        print("🖼️ Questions with page numbers: \(parseResponse.questions.filter { $0.pageNumber != nil }.count)")
+        debugPrint("✅ === BATCH PARSING COMPLETE ===")
+        debugPrint("📚 Subject: \(parseResponse.subject) (confidence: \(parseResponse.subjectConfidence))")
+        debugPrint("📊 Total questions: \(parseResponse.totalQuestions) from \(base64Images.count) pages")
+        debugPrint("🖼️ Questions with page numbers: \(parseResponse.questions.filter { $0.pageNumber != nil }.count)")
 
         return parseResponse
     }
@@ -3209,35 +3209,35 @@ class NetworkService: ObservableObject {
             throw NetworkError.serverError(httpResponse.statusCode)
         }
         let modelLabel = useDeepReasoning ? "gemini-3-flash-preview (deep)" : "gpt-5.2 (fast)"
-        print("\n" + String(repeating: "=", count: 80))
-        print("🔍 === RAW AI ENGINE RESPONSE - PHASE 2 (GRADING) === model: \(modelLabel)")
-        print(String(repeating: "=", count: 80))
+        debugPrint("\n" + String(repeating: "=", count: 80))
+        debugPrint("🔍 === RAW AI ENGINE RESPONSE - PHASE 2 (GRADING) === model: \(modelLabel)")
+        debugPrint(String(repeating: "=", count: 80))
 
         // Log raw JSON response
         if let rawJSON = String(data: data, encoding: .utf8) {
-            print("\n📄 RAW JSON RESPONSE:")
-            print(String(repeating: "-", count: 80))
+            debugPrint("\n📄 RAW JSON RESPONSE:")
+            debugPrint(String(repeating: "-", count: 80))
 
             // Try to pretty-print JSON
             if let jsonObject = try? JSONSerialization.jsonObject(with: data),
                let prettyData = try? JSONSerialization.data(withJSONObject: jsonObject, options: [.prettyPrinted, .sortedKeys]),
                let prettyJSON = String(data: prettyData, encoding: .utf8) {
-                print(prettyJSON)
+                debugPrint(prettyJSON)
             } else {
                 // Fallback to raw JSON if pretty-print fails
-                print(rawJSON)
+                debugPrint(rawJSON)
             }
-            print(String(repeating: "-", count: 80))
+            debugPrint(String(repeating: "-", count: 80))
 
             // Log data size
             let jsonSizeKB = Double(data.count) / 1024.0
-            print("\n📊 Response Size: \(String(format: "%.2f", jsonSizeKB)) KB")
+            debugPrint("\n📊 Response Size: \(String(format: "%.2f", jsonSizeKB)) KB")
         } else {
-            print("⚠️ WARNING: Unable to decode raw response as UTF-8 string")
-            print("Data size: \(data.count) bytes")
+            debugPrint("⚠️ WARNING: Unable to decode raw response as UTF-8 string")
+            debugPrint("Data size: \(data.count) bytes")
         }
 
-        print(String(repeating: "=", count: 80) + "\n")
+        debugPrint(String(repeating: "=", count: 80) + "\n")
         // ========================================
 
         // Decode response
@@ -3245,34 +3245,34 @@ class NetworkService: ObservableObject {
         let gradeResponse = try decoder.decode(GradeSingleQuestionResponse.self, from: data)
 
         // 🔍 DEBUG: Log decoded grade response structure
-        print("\n" + String(repeating: "=", count: 80))
-        print("🔍 === DECODED GRADE RESPONSE (NetworkService) ===")
-        print(String(repeating: "=", count: 80))
-        print("📊 Success: \(gradeResponse.success)")
+        debugPrint("\n" + String(repeating: "=", count: 80))
+        debugPrint("🔍 === DECODED GRADE RESPONSE (NetworkService) ===")
+        debugPrint(String(repeating: "=", count: 80))
+        debugPrint("📊 Success: \(gradeResponse.success)")
         if let grade = gradeResponse.grade {
-            print("✅ Grade Object Present:")
-            print("   - score: \(grade.score)")
-            print("   - isCorrect: \(grade.isCorrect)")
-            print("   - feedback: '\(grade.feedback)'")
-            print("   - confidence: \(grade.confidence)")
-            print("   - correctAnswer: '\(grade.correctAnswer ?? "NIL")'")  // ✅ CRITICAL: Log correctAnswer
-            print("   - feedback length: \(grade.feedback.count) chars")
-            print("   - feedback empty: \(grade.feedback.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)")
+            debugPrint("✅ Grade Object Present:")
+            debugPrint("   - score: \(grade.score)")
+            debugPrint("   - isCorrect: \(grade.isCorrect)")
+            debugPrint("   - feedback: '\(grade.feedback)'")
+            debugPrint("   - confidence: \(grade.confidence)")
+            debugPrint("   - correctAnswer: '\(grade.correctAnswer ?? "NIL")'")  // ✅ CRITICAL: Log correctAnswer
+            debugPrint("   - feedback length: \(grade.feedback.count) chars")
+            debugPrint("   - feedback empty: \(grade.feedback.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)")
 
             // ✅ CRITICAL: Additional correctAnswer validation
             if let correctAnswer = grade.correctAnswer {
-                print("   - correctAnswer present: YES (\(correctAnswer.count) chars)")
-                print("   - correctAnswer preview: '\(correctAnswer.prefix(100))...'")
+                debugPrint("   - correctAnswer present: YES (\(correctAnswer.count) chars)")
+                debugPrint("   - correctAnswer preview: '\(correctAnswer.prefix(100))...'")
             } else {
-                print("   - ⚠️  WARNING: correctAnswer is NIL! Backend may not be returning this field!")
+                debugPrint("   - ⚠️  WARNING: correctAnswer is NIL! Backend may not be returning this field!")
             }
         } else {
-            print("❌ Grade Object is NIL")
+            debugPrint("❌ Grade Object is NIL")
         }
         if let error = gradeResponse.error {
-            print("⚠️ Error: \(error)")
+            debugPrint("⚠️ Error: \(error)")
         }
-        print(String(repeating: "=", count: 80) + "\n")
+        debugPrint(String(repeating: "=", count: 80) + "\n")
 
         return gradeResponse
     }
@@ -3323,10 +3323,10 @@ class NetworkService: ObservableObject {
 
     // MARK: - Registration
     func register(name: String, email: String, password: String) async -> (success: Bool, message: String, token: String?, userData: [String: Any]?, statusCode: Int?) {
-        print("📝 Testing registration functionality...")
+        debugPrint("📝 Testing registration functionality...")
         
         let registerURL = "\(baseURL)/api/auth/register"
-        print("🔗 Using Railway backend for registration")
+        debugPrint("🔗 Using Railway backend for registration")
         
         guard let url = URL(string: registerURL) else {
             return (false, "Invalid URL", nil, nil, nil)
@@ -3334,7 +3334,7 @@ class NetworkService: ObservableObject {
         
         let registerData = [
             "name": name,
-            "email": email,
+            "email": email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
             "password": password
         ]
         
@@ -3349,15 +3349,15 @@ class NetworkService: ObservableObject {
             
             if let httpResponse = response as? HTTPURLResponse {
                 let statusCode = httpResponse.statusCode
-                print("✅ Registration Status: \(statusCode)")
+                debugPrint("✅ Registration Status: \(statusCode)")
                 
                 if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                    print("✅ Registration Response: \(json)")
+                    debugPrint("✅ Registration Response: \(json)")
                     
                     if statusCode == 201 {  // 201 Created for successful registration
                         let token = json["token"] as? String
                         let userData = json["user"] as? [String: Any] ?? json  // Try 'user' key first, fallback to full response
-                        print("🔍 Registration - Extracted user data: \(userData)")
+                        debugPrint("🔍 Registration - Extracted user data: \(userData)")
                         // NOTE: Do not save auth data here - AuthenticationService will handle it
                         return (true, "Registration successful", token, userData, statusCode)
                     } else {
@@ -3370,7 +3370,7 @@ class NetworkService: ObservableObject {
             return (false, "Invalid response", nil, nil, nil)
         } catch {
             let errorMsg = "Registration request failed: \(error.localizedDescription)"
-            print("❌ \(errorMsg)")
+            debugPrint("❌ \(errorMsg)")
             return (false, errorMsg, nil, nil, nil)
         }
     }
@@ -3379,7 +3379,7 @@ class NetworkService: ObservableObject {
 
     /// Send verification code to user's email during registration
     func sendVerificationCode(email: String, name: String) async -> (success: Bool, message: String, expiresIn: Int?, statusCode: Int?) {
-        print("📧 Sending verification code to: \(email)")
+        debugPrint("📧 Sending verification code to: \(email)")
 
         let verificationURL = "\(baseURL)/api/auth/send-verification-code"
 
@@ -3388,7 +3388,7 @@ class NetworkService: ObservableObject {
         }
 
         let requestData = [
-            "email": email,
+            "email": email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
             "name": name
         ]
 
@@ -3404,10 +3404,10 @@ class NetworkService: ObservableObject {
 
             if let httpResponse = response as? HTTPURLResponse {
                 let statusCode = httpResponse.statusCode
-                print("📧 Verification code send status: \(statusCode)")
+                debugPrint("📧 Verification code send status: \(statusCode)")
 
                 if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                    print("📧 Response: \(json)")
+                    debugPrint("📧 Response: \(json)")
 
                     if statusCode == 200 {
                         let message = json["message"] as? String ?? "Verification code sent"
@@ -3423,14 +3423,14 @@ class NetworkService: ObservableObject {
             return (false, "Invalid response", nil, nil)
         } catch {
             let errorMsg = "Failed to send verification code: \(error.localizedDescription)"
-            print("❌ \(errorMsg)")
+            debugPrint("❌ \(errorMsg)")
             return (false, errorMsg, nil, nil)
         }
     }
 
     /// Verify email with code and complete registration
     func verifyEmailCode(email: String, code: String, name: String, password: String) async -> (success: Bool, message: String, token: String?, userData: [String: Any]?, statusCode: Int?) {
-        print("✅ Verifying email code for: \(email)")
+        debugPrint("✅ Verifying email code for: \(email)")
 
         let verifyURL = "\(baseURL)/api/auth/verify-email"
 
@@ -3439,7 +3439,7 @@ class NetworkService: ObservableObject {
         }
 
         let requestData = [
-            "email": email,
+            "email": email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
             "code": code,
             "name": name,
             "password": password
@@ -3457,10 +3457,10 @@ class NetworkService: ObservableObject {
 
             if let httpResponse = response as? HTTPURLResponse {
                 let statusCode = httpResponse.statusCode
-                print("✅ Email verification status: \(statusCode)")
+                debugPrint("✅ Email verification status: \(statusCode)")
 
                 if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                    print("✅ Verification Response: \(json)")
+                    debugPrint("✅ Verification Response: \(json)")
 
                     // Backend returns 201 (Created) for successful verification
                     if statusCode == 200 || statusCode == 201 {
@@ -3478,14 +3478,14 @@ class NetworkService: ObservableObject {
             return (false, "Invalid response", nil, nil, nil)
         } catch {
             let errorMsg = "Email verification request failed: \(error.localizedDescription)"
-            print("❌ \(errorMsg)")
+            debugPrint("❌ \(errorMsg)")
             return (false, errorMsg, nil, nil, nil)
         }
     }
 
     /// Resend verification code to user's email
     func resendVerificationCode(email: String) async -> (success: Bool, message: String, expiresIn: Int?, statusCode: Int?) {
-        print("🔄 Resending verification code to: \(email)")
+        debugPrint("🔄 Resending verification code to: \(email)")
 
         let resendURL = "\(baseURL)/api/auth/resend-verification-code"
 
@@ -3494,7 +3494,7 @@ class NetworkService: ObservableObject {
         }
 
         let requestData = [
-            "email": email
+            "email": email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         ]
 
         var request = URLRequest(url: url)
@@ -3509,10 +3509,10 @@ class NetworkService: ObservableObject {
 
             if let httpResponse = response as? HTTPURLResponse {
                 let statusCode = httpResponse.statusCode
-                print("🔄 Resend verification status: \(statusCode)")
+                debugPrint("🔄 Resend verification status: \(statusCode)")
 
                 if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                    print("🔄 Response: \(json)")
+                    debugPrint("🔄 Response: \(json)")
 
                     if statusCode == 200 {
                         let message = json["message"] as? String ?? "Verification code resent"
@@ -3528,7 +3528,7 @@ class NetworkService: ObservableObject {
             return (false, "Invalid response", nil, nil)
         } catch {
             let errorMsg = "Failed to resend verification code: \(error.localizedDescription)"
-            print("❌ \(errorMsg)")
+            debugPrint("❌ \(errorMsg)")
             return (false, errorMsg, nil, nil)
         }
     }
@@ -3544,7 +3544,7 @@ class NetworkService: ObservableObject {
         request.timeoutInterval = 30.0
 
         do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: ["email": email])
+            request.httpBody = try JSONSerialization.data(withJSONObject: ["email": email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()])
             let (data, response) = try await URLSession.shared.data(for: request)
             if let httpResponse = response as? HTTPURLResponse,
                let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
@@ -3566,7 +3566,7 @@ class NetworkService: ObservableObject {
         request.timeoutInterval = 30.0
 
         do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: ["email": email, "code": code])
+            request.httpBody = try JSONSerialization.data(withJSONObject: ["email": email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), "code": code])
             let (data, response) = try await URLSession.shared.data(for: request)
             if let httpResponse = response as? HTTPURLResponse,
                let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
@@ -3588,7 +3588,7 @@ class NetworkService: ObservableObject {
         request.timeoutInterval = 30.0
 
         do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: ["email": email, "code": code, "newPassword": newPassword])
+            request.httpBody = try JSONSerialization.data(withJSONObject: ["email": email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), "code": code, "newPassword": newPassword])
             let (data, response) = try await URLSession.shared.data(for: request)
             if let httpResponse = response as? HTTPURLResponse,
                let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
@@ -3603,10 +3603,10 @@ class NetworkService: ObservableObject {
 
     // MARK: - Google Authentication
     func googleLogin(idToken: String, accessToken: String?, name: String, email: String, profileImageUrl: String?) async -> (success: Bool, message: String, token: String?, userData: [String: Any]?, statusCode: Int?) {
-        print("🔐 Google authentication with Railway backend...")
+        debugPrint("🔐 Google authentication with Railway backend...")
         
         let googleURL = "\(baseURL)/api/auth/google"
-        print("🔗 Using Railway backend for Google auth")
+        debugPrint("🔗 Using Railway backend for Google auth")
         
         guard let url = URL(string: googleURL) else {
             return (false, "Invalid URL", nil, nil, nil)
@@ -3616,7 +3616,7 @@ class NetworkService: ObservableObject {
             "idToken": idToken,
             "accessToken": accessToken ?? "",
             "name": name,
-            "email": email,
+            "email": email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
             "profileImageUrl": profileImageUrl ?? ""
         ]
         
@@ -3630,28 +3630,28 @@ class NetworkService: ObservableObject {
             let (data, response) = try await URLSession.shared.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse {
-                print("✅ Google Auth Status: \(httpResponse.statusCode)")
+                debugPrint("✅ Google Auth Status: \(httpResponse.statusCode)")
                 
                 do {
                     if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
-                        print("✅ Google Auth Response: \(json)")
+                        debugPrint("✅ Google Auth Response: \(json)")
                         
                         let success = json["success"] as? Bool ?? false
                         let message = json["message"] as? String ?? "Unknown error"
                         let token = json["token"] as? String
                         let userData = json["user"] as? [String: Any] ?? json  // Try 'user' key first, fallback to full response
-                        print("🔍 Google Auth - Extracted user data: \(userData)")
+                        debugPrint("🔍 Google Auth - Extracted user data: \(userData)")
                         
                         // NOTE: Do not save auth data here - AuthenticationService will handle it
                         return (success, message, token, userData, httpResponse.statusCode)
                     }
                 } catch {
-                    print("❌ JSON parsing error: \(error)")
+                    debugPrint("❌ JSON parsing error: \(error)")
                 }
             }
             
         } catch {
-            print("❌ Network error: \(error)")
+            debugPrint("❌ Network error: \(error)")
             return (false, "Network error: \(error.localizedDescription)", nil, nil, nil)
         }
         
@@ -3660,19 +3660,19 @@ class NetworkService: ObservableObject {
 
     // MARK: - Apple Authentication
     func appleLogin(identityToken: String, authorizationCode: String?, userIdentifier: String, name: String, email: String) async -> (success: Bool, message: String, token: String?, userData: [String: Any]?, statusCode: Int?) {
-        print("🍏 === NetworkService.appleLogin() STARTED ===")
-        print("🍏 Request details:")
-        print("   - Identity Token: \(identityToken.isEmpty ? "❌ EMPTY" : "✅ \(identityToken.prefix(20))...")")
-        print("   - Auth Code: \(authorizationCode?.isEmpty ?? true ? "❌ EMPTY/NIL" : "✅ \(authorizationCode!.prefix(20))...")")
-        print("   - User Identifier: \(userIdentifier)")
-        print("   - Name: \(name)")
-        print("   - Email: \(email)")
+        debugPrint("🍏 === NetworkService.appleLogin() STARTED ===")
+        debugPrint("🍏 Request details:")
+        debugPrint("   - Identity Token: \(identityToken.isEmpty ? "❌ EMPTY" : "✅ \(identityToken.prefix(20))...")")
+        debugPrint("   - Auth Code: \(authorizationCode?.isEmpty ?? true ? "❌ EMPTY/NIL" : "✅ \(authorizationCode!.prefix(20))...")")
+        debugPrint("   - User Identifier: \(userIdentifier)")
+        debugPrint("   - Name: \(name)")
+        debugPrint("   - Email: \(email)")
 
         let appleURL = "\(baseURL)/api/auth/apple"
-        print("🍏 Backend URL: \(appleURL)")
+        debugPrint("🍏 Backend URL: \(appleURL)")
 
         guard let url = URL(string: appleURL) else {
-            print("🍏 ❌ Invalid URL")
+            debugPrint("🍏 ❌ Invalid URL")
             return (false, "Invalid URL", nil, nil, nil)
         }
 
@@ -3681,7 +3681,7 @@ class NetworkService: ObservableObject {
             "authorizationCode": authorizationCode ?? "",
             "userIdentifier": userIdentifier,
             "name": name,
-            "email": email
+            "email": email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         ]
 
         var request = URLRequest(url: url)
@@ -3690,25 +3690,25 @@ class NetworkService: ObservableObject {
 
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: appleData)
-            print("🍏 Sending request to backend...")
+            debugPrint("🍏 Sending request to backend...")
 
             let (data, response) = try await URLSession.shared.data(for: request)
 
             if let httpResponse = response as? HTTPURLResponse {
-                print("🍏 Backend Response Status: \(httpResponse.statusCode)")
+                debugPrint("🍏 Backend Response Status: \(httpResponse.statusCode)")
 
                 // Log raw response for debugging
                 if let rawResponse = String(data: data, encoding: .utf8) {
-                    print("🍏 Raw Response (first 500 chars): \(rawResponse.prefix(500))")
+                    debugPrint("🍏 Raw Response (first 500 chars): \(rawResponse.prefix(500))")
                 }
 
                 do {
                     if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
-                        print("🍏 Parsed JSON Response:")
-                        print("   - Success: \(json["success"] as? Bool ?? false)")
-                        print("   - Message: \(json["message"] as? String ?? "No message")")
-                        print("   - Token present: \(json["token"] != nil)")
-                        print("   - User data present: \(json["user"] != nil)")
+                        debugPrint("🍏 Parsed JSON Response:")
+                        debugPrint("   - Success: \(json["success"] as? Bool ?? false)")
+                        debugPrint("   - Message: \(json["message"] as? String ?? "No message")")
+                        debugPrint("   - Token present: \(json["token"] != nil)")
+                        debugPrint("   - User data present: \(json["user"] != nil)")
 
                         let success = json["success"] as? Bool ?? false
                         let message = json["message"] as? String ?? "Unknown error"
@@ -3716,33 +3716,33 @@ class NetworkService: ObservableObject {
                         let userData = json["user"] as? [String: Any] ?? json
 
                         if let token = token {
-                            print("🍏 ✅ Token received (first 30 chars): \(token.prefix(30))...")
+                            debugPrint("🍏 ✅ Token received (first 30 chars): \(token.prefix(30))...")
                         } else {
-                            print("🍏 ❌ No token in response")
+                            debugPrint("🍏 ❌ No token in response")
                         }
 
                         if let userData = json["user"] as? [String: Any] {
-                            print("🍏 User data keys: \(userData.keys.sorted())")
+                            debugPrint("🍏 User data keys: \(userData.keys.sorted())")
                         }
 
-                        print("🍏 === NetworkService.appleLogin() COMPLETED ===")
+                        debugPrint("🍏 === NetworkService.appleLogin() COMPLETED ===")
                         return (success, message, token, userData, httpResponse.statusCode)
                     } else {
-                        print("🍏 ❌ Failed to parse JSON")
+                        debugPrint("🍏 ❌ Failed to parse JSON")
                     }
                 } catch {
-                    print("🍏 ❌ JSON parsing error: \(error)")
+                    debugPrint("🍏 ❌ JSON parsing error: \(error)")
                 }
             } else {
-                print("🍏 ❌ Invalid HTTP response")
+                debugPrint("🍏 ❌ Invalid HTTP response")
             }
 
         } catch {
-            print("🍏 ❌ Network error: \(error)")
+            debugPrint("🍏 ❌ Network error: \(error)")
             return (false, "Network error: \(error.localizedDescription)", nil, nil, nil)
         }
 
-        print("🍏 ❌ === NetworkService.appleLogin() FAILED - Unknown error ===")
+        debugPrint("🍏 ❌ === NetworkService.appleLogin() FAILED - Unknown error ===")
         return (false, "Unknown error", nil, nil, nil)
     }
 
@@ -3750,12 +3750,12 @@ class NetworkService: ObservableObject {
 
     /// Refresh authentication token before expiration
     func refreshAuthToken(_ oldToken: String) async -> (success: Bool, message: String, token: String?) {
-        print("🔄 === TOKEN REFRESH STARTED ===")
-        print("🔄 Old Token (first 20 chars): \(oldToken.prefix(20))...")
+        debugPrint("🔄 === TOKEN REFRESH STARTED ===")
+        debugPrint("🔄 Old Token (first 20 chars): \(oldToken.prefix(20))...")
 
         let refreshURL = "\(baseURL)/api/auth/refresh"
         guard let url = URL(string: refreshURL) else {
-            print("🔄 ❌ Invalid refresh URL")
+            debugPrint("🔄 ❌ Invalid refresh URL")
             return (false, "Invalid URL", nil)
         }
 
@@ -3767,12 +3767,12 @@ class NetworkService: ObservableObject {
 
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: refreshData)
-            print("🔄 Sending refresh request to backend...")
+            debugPrint("🔄 Sending refresh request to backend...")
 
             let (data, response) = try await URLSession.shared.data(for: request)
 
             if let httpResponse = response as? HTTPURLResponse {
-                print("🔄 Response Status: \(httpResponse.statusCode)")
+                debugPrint("🔄 Response Status: \(httpResponse.statusCode)")
 
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                     let success = json["success"] as? Bool ?? false
@@ -3780,20 +3780,20 @@ class NetworkService: ObservableObject {
                     let newToken = json["token"] as? String
 
                     if success, let newToken = newToken {
-                        print("🔄 ✅ Token refreshed successfully (first 20 chars): \(newToken.prefix(20))...")
+                        debugPrint("🔄 ✅ Token refreshed successfully (first 20 chars): \(newToken.prefix(20))...")
                         return (true, "Token refreshed", newToken)
                     } else {
-                        print("🔄 ❌ Refresh failed: \(message)")
+                        debugPrint("🔄 ❌ Refresh failed: \(message)")
                         return (false, message, nil)
                     }
                 }
             }
         } catch {
-            print("🔄 ❌ Network error: \(error.localizedDescription)")
+            debugPrint("🔄 ❌ Network error: \(error.localizedDescription)")
             return (false, "Network error: \(error.localizedDescription)", nil)
         }
 
-        print("🔄 ❌ Token refresh failed - unknown error")
+        debugPrint("🔄 ❌ Token refresh failed - unknown error")
         return (false, "Unknown error", nil)
     }
 
@@ -3842,9 +3842,9 @@ class NetworkService: ObservableObject {
     }
 
     func archiveSession(sessionId: String, title: String? = nil, topic: String? = nil, subject: String? = nil, notes: String? = nil, diagrams: [String: DiagramGenerationResponse]? = nil, liveConversationContent: String? = nil, voiceAudioFiles: [String: String]? = nil, videos: [VideoSearchResult]? = nil) async -> (success: Bool, message: String, conversation: [String: Any]?) {
-        print("📦 === ARCHIVE CONVERSATION SESSION (local-first) ===")
-        print("📁 Session ID: \(sessionId)")
-        print("📚 Subject: \(subject ?? "General")")
+        debugPrint("📦 === ARCHIVE CONVERSATION SESSION (local-first) ===")
+        debugPrint("📁 Session ID: \(sessionId)")
+        debugPrint("📚 Subject: \(subject ?? "General")")
 
         // ──────────────────────────────────────────────
         // STEP 1: Collect conversation content
@@ -3856,13 +3856,13 @@ class NetworkService: ObservableObject {
             // Live mode: content built directly from vm.messages on the caller side — no network needed
             finalTextContent = liveContent
             finalMessageCount = liveContent.components(separatedBy: "\n\n").filter { !$0.isEmpty }.count
-            print("🎙️ Using in-memory Live conversation content (\(finalMessageCount) messages)")
+            debugPrint("🎙️ Using in-memory Live conversation content (\(finalMessageCount) messages)")
         } else {
             // Text mode: build from local conversationHistory
             let processedConversation = await processConversationForArchive()
             finalTextContent = processedConversation.textContent
             finalMessageCount = processedConversation.messageCount
-            print("🔍 Local conversation: \(finalMessageCount) messages")
+            debugPrint("🔍 Local conversation: \(finalMessageCount) messages")
         }
 
         // ──────────────────────────────────────────────
@@ -3942,7 +3942,7 @@ class NetworkService: ObservableObject {
         // ──────────────────────────────────────────────
         currentUserConversationStorage().saveConversation(conversationData)
         invalidateCache()
-        print("✅ [Archive] Saved conversation locally (ID: \(conversationId), \(finalMessageCount) messages)")
+        debugPrint("✅ [Archive] Saved conversation locally (ID: \(conversationId), \(finalMessageCount) messages)")
 
         // Invalidate LibraryDataService cache and notify UI so the new card appears immediately (no subject yet)
         await MainActor.run {
@@ -3956,19 +3956,19 @@ class NetworkService: ObservableObject {
         // ──────────────────────────────────────────────
         Task.detached { [weak self] in
             guard let self else { return }
-            print("🤖 [Archive] Starting background AI analysis for \(conversationId)…")
+            debugPrint("🤖 [Archive] Starting background AI analysis for \(conversationId)…")
             let backendResult = await self.archiveSessionToBackend(
                 sessionId: sessionId, title: title, topic: topic, subject: subject, notes: notes
             )
             guard backendResult.success else {
-                print("⚠️ [Archive] Backend AI analysis failed: \(backendResult.message)")
+                debugPrint("⚠️ [Archive] Backend AI analysis failed: \(backendResult.message)")
                 return
             }
             var patch: [String: Any] = [:]
             if let summary = backendResult.summary { patch["summary"] = summary }
             if let detectedSubject = backendResult.detectedSubject {
                 patch["subject"] = detectedSubject
-                print("📚 [Archive] Patching subject with AI-detected: \(detectedSubject)")
+                debugPrint("📚 [Archive] Patching subject with AI-detected: \(detectedSubject)")
             }
             if let insights = backendResult.behaviorInsights { patch["behaviorSummary"] = insights }
             if !patch.isEmpty {
@@ -3976,7 +3976,7 @@ class NetworkService: ObservableObject {
                     currentUserConversationStorage().updateConversation(withId: conversationId, fields: patch)
                     LibraryDataService.shared.patchCachedConversation(withId: conversationId, fields: patch)
                     self.invalidateCache()
-                    print("✨ [Archive] Patched local record with AI summary + subject + insights")
+                    debugPrint("✨ [Archive] Patched local record with AI summary + subject + insights")
                 }
             }
         }
@@ -3999,18 +3999,18 @@ class NetworkService: ObservableObject {
 
         // Check authentication
         guard AuthenticationService.shared.getAuthToken() != nil else {
-            print("❌ Authentication required to archive session")
+            debugPrint("❌ Authentication required to archive session")
             return (false, nil, nil, nil, "Authentication required", nil, nil)
         }
 
-        print("📦 === ARCHIVING SESSION TO BACKEND ===")
-        print("🆔 Session ID: \(sessionId)")
-        print("📝 Title: \(title ?? "Auto-generated")")
-        print("📚 Subject: \(subject ?? "General")")
+        debugPrint("📦 === ARCHIVING SESSION TO BACKEND ===")
+        debugPrint("🆔 Session ID: \(sessionId)")
+        debugPrint("📝 Title: \(title ?? "Auto-generated")")
+        debugPrint("📚 Subject: \(subject ?? "General")")
 
         let archiveURL = "\(baseURL)/api/ai/sessions/\(sessionId)/archive"
         guard let url = URL(string: archiveURL) else {
-            print("❌ Invalid archive URL")
+            debugPrint("❌ Invalid archive URL")
             return (false, nil, nil, nil, "Invalid URL", nil, nil)
         }
 
@@ -4034,11 +4034,11 @@ class NetworkService: ObservableObject {
                 request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
             }
 
-            print("📡 Archiving session to backend...")
+            debugPrint("📡 Archiving session to backend...")
             let (data, response) = try await URLSession.shared.data(for: request)
 
             if let httpResponse = response as? HTTPURLResponse {
-                print("✅ Archive Response Status: \(httpResponse.statusCode)")
+                debugPrint("✅ Archive Response Status: \(httpResponse.statusCode)")
 
                 if httpResponse.statusCode == 200 {
                     if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
@@ -4049,42 +4049,42 @@ class NetworkService: ObservableObject {
                         let conversationContent = json["conversation_content"] as? String
                         let messageCount = json["message_count"] as? Int
 
-                        print("🎉 === SESSION ARCHIVED TO BACKEND ===")
-                        print("📝 Summary: \(summary ?? "No summary generated")")
-                        print("📚 Detected Subject: \(detectedSubject ?? "none")")
-                        print("💬 Message count from backend: \(messageCount ?? 0)")
+                        debugPrint("🎉 === SESSION ARCHIVED TO BACKEND ===")
+                        debugPrint("📝 Summary: \(summary ?? "No summary generated")")
+                        debugPrint("📚 Detected Subject: \(detectedSubject ?? "none")")
+                        debugPrint("💬 Message count from backend: \(messageCount ?? 0)")
                         if let content = conversationContent {
-                            print("📄 Conversation content length: \(content.count) chars")
+                            debugPrint("📄 Conversation content length: \(content.count) chars")
                         }
                         if let insights = behaviorInsights {
-                            print("🧠 Behavior Insights:")
-                            print("   - Frustration Level: \(insights["frustrationLevel"] ?? "N/A")")
-                            print("   - Has Red Flags: \(insights["hasRedFlags"] ?? "N/A")")
-                            print("   - Engagement Score: \(insights["engagementScore"] ?? "N/A")")
-                            print("   - Curiosity Count: \(insights["curiosityCount"] ?? "N/A")")
+                            debugPrint("🧠 Behavior Insights:")
+                            debugPrint("   - Frustration Level: \(insights["frustrationLevel"] ?? "N/A")")
+                            debugPrint("   - Has Red Flags: \(insights["hasRedFlags"] ?? "N/A")")
+                            debugPrint("   - Engagement Score: \(insights["engagementScore"] ?? "N/A")")
+                            debugPrint("   - Curiosity Count: \(insights["curiosityCount"] ?? "N/A")")
                         }
 
                         return (true, summary, detectedSubject, behaviorInsights, "Session archived successfully", conversationContent, messageCount)
                     }
                 } else if httpResponse.statusCode == 404 {
-                    print("❌ Session not found on backend")
+                    debugPrint("❌ Session not found on backend")
                     return (false, nil, nil, nil, "Session not found", nil, nil)
                 } else if httpResponse.statusCode == 400 {
-                    print("❌ Cannot archive empty session")
+                    debugPrint("❌ Cannot archive empty session")
                     return (false, nil, nil, nil, "Cannot archive empty session", nil, nil)
                 } else if httpResponse.statusCode == 401 {
-                    print("❌ Authentication expired in archiveSessionToBackend")
+                    debugPrint("❌ Authentication expired in archiveSessionToBackend")
                     return (false, nil, nil, nil, "Authentication expired", nil, nil)
                 }
 
                 let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
-                print("❌ Archive Failed HTTP \(httpResponse.statusCode): \(String(rawResponse.prefix(200)))")
+                debugPrint("❌ Archive Failed HTTP \(httpResponse.statusCode): \(String(rawResponse.prefix(200)))")
                 return (false, nil, nil, nil, "HTTP \(httpResponse.statusCode)", nil, nil)
             }
 
             return (false, nil, nil, nil, "No HTTP response", nil, nil)
         } catch {
-            print("❌ Session archive to backend failed: \(error.localizedDescription)")
+            debugPrint("❌ Session archive to backend failed: \(error.localizedDescription)")
             return (false, nil, nil, nil, error.localizedDescription, nil, nil)
         }
     }
@@ -4103,7 +4103,7 @@ class NetworkService: ObservableObject {
     /// Images are converted to detailed summaries to preserve context while avoiding database storage issues
     /// Diagrams are saved with their full data for later retrieval
     private func processConversationForArchive() async -> ProcessedConversation {
-        print("🔄 === PROCESSING CONVERSATION FOR ARCHIVE ===")
+        debugPrint("🔄 === PROCESSING CONVERSATION FOR ARCHIVE ===")
 
         var processedMessages: [String] = []
         var imageCount = 0
@@ -4117,7 +4117,7 @@ class NetworkService: ObservableObject {
             let messageId = message["messageId"] ?? ""
             let diagramKey = message["diagramKey"]
 
-            print("📝 Processing message \(index): role=\(role), hasImage=\(hasImage), hasDiagram=\(diagramKey != nil)")
+            debugPrint("📝 Processing message \(index): role=\(role), hasImage=\(hasImage), hasDiagram=\(diagramKey != nil)")
 
             // Check if this message has a diagram attached
             if let diagramKey = diagramKey {
@@ -4132,7 +4132,7 @@ class NetworkService: ObservableObject {
                 // Add a note that diagram was generated
                 processedMessages.append("[DIAGRAM: Saved and available in library]")
 
-                print("✅ Preserved diagram message \(index) with key: \(diagramKey)")
+                debugPrint("✅ Preserved diagram message \(index) with key: \(diagramKey)")
             }
             else if hasImage && !messageId.isEmpty {
                 // This message contains an image - create a detailed summary instead
@@ -4147,7 +4147,7 @@ class NetworkService: ObservableObject {
                 if !imageSummary.isEmpty {
                     processedMessages.append(imageSummary)
                     summaryCount += 1
-                    print("✅ Created image summary for message \(index)")
+                    debugPrint("✅ Created image summary for message \(index)")
                 } else {
                     // Fallback if summary creation fails
                     let fallbackMessage = """
@@ -4155,23 +4155,23 @@ class NetworkService: ObservableObject {
                     User prompt: \(content.isEmpty ? "No additional text provided" : content)
                     """
                     processedMessages.append(fallbackMessage)
-                    print("⚠️ Used fallback summary for message \(index)")
+                    debugPrint("⚠️ Used fallback summary for message \(index)")
                 }
             } else {
                 // Regular text message - preserve as-is
                 let formattedMessage = "\(role.uppercased()): \(content)"
                 processedMessages.append(formattedMessage)
-                print("✅ Preserved text message \(index)")
+                debugPrint("✅ Preserved text message \(index)")
             }
         }
         
         let finalContent = processedMessages.joined(separator: "\n\n")
         
-        print("📊 Processing complete:")
-        print("   - Total messages: \(conversationHistory.count)")
-        print("   - Images processed: \(imageCount)")
-        print("   - Summaries created: \(summaryCount)")
-        print("   - Final content length: \(finalContent.count) characters")
+        debugPrint("📊 Processing complete:")
+        debugPrint("   - Total messages: \(conversationHistory.count)")
+        debugPrint("   - Images processed: \(imageCount)")
+        debugPrint("   - Summaries created: \(summaryCount)")
+        debugPrint("   - Final content length: \(finalContent.count) characters")
         
         return ProcessedConversation(
             textContent: finalContent,
@@ -4225,21 +4225,21 @@ class NetworkService: ObservableObject {
     
     /// Get archived sessions list with query parameters for server-side filtering
     func getArchivedSessionsWithParams(_ queryParams: [String: String], forceRefresh: Bool = false) async -> (success: Bool, sessions: [[String: Any]]?, message: String) {
-        print("📦 === GET ARCHIVED SESSIONS WITH CACHING ===")
-        print("📄 Query Params: \(queryParams)")
-        print("🔄 Force Refresh: \(forceRefresh)")
-        print("🔐 Auth Status: \(AuthenticationService.shared.getAuthToken() != nil ? "✅ Token OK" : "❌ No Token")")
-        print("👤 User: \(AuthenticationService.shared.currentUser?.email ?? "None")")
+        debugPrint("📦 === GET ARCHIVED SESSIONS WITH CACHING ===")
+        debugPrint("📄 Query Params: \(queryParams)")
+        debugPrint("🔄 Force Refresh: \(forceRefresh)")
+        debugPrint("🔐 Auth Status: \(AuthenticationService.shared.getAuthToken() != nil ? "✅ Token OK" : "❌ No Token")")
+        debugPrint("👤 User: \(AuthenticationService.shared.currentUser?.email ?? "None")")
         
         // Check cache first (unless force refresh is requested or search parameters are present)
         let hasSearchParams = queryParams.keys.contains { ["search", "subject", "startDate", "endDate"].contains($0) }
         
         if !forceRefresh && !hasSearchParams && isCacheValid(), let cached = cachedSessions {
-            print("⚡ Using cached data with \(cached.count) sessions")
+            debugPrint("⚡ Using cached data with \(cached.count) sessions")
             return (true, cached, "Loaded from cache")
         }
         
-        print("🌐 Fetching fresh data from server...")
+        debugPrint("🌐 Fetching fresh data from server...")
         
         // Fetch from both homework sessions and conversation sessions
         let homeworkResult = await fetchHomeworkSessions(queryParams)
@@ -4250,13 +4250,13 @@ class NetworkService: ObservableObject {
         var allSessions: [[String: Any]] = []
         
         if homeworkResult.success, let homeworkSessions = homeworkResult.sessions {
-            print("📚 Found \(homeworkSessions.count) homework sessions")
+            debugPrint("📚 Found \(homeworkSessions.count) homework sessions")
             allSessions.append(contentsOf: homeworkSessions)
         }
         
         // Add conversation sessions if found
         if conversationResult.success, let conversationSessions = conversationResult.sessions {
-            print("💬 Found \(conversationSessions.count) conversation sessions")
+            debugPrint("💬 Found \(conversationSessions.count) conversation sessions")
             allSessions.append(contentsOf: conversationSessions)
         }
         
@@ -4266,32 +4266,32 @@ class NetworkService: ObservableObject {
         }
         
         // Log what we're returning for debugging
-        print("📦 Total archived items: \(allSessions.count)")
+        debugPrint("📦 Total archived items: \(allSessions.count)")
         if allSessions.isEmpty {
-            print("ℹ️ No archives found. Try using 'AI Homework' feature to create some content.")
+            debugPrint("ℹ️ No archives found. Try using 'AI Homework' feature to create some content.")
         }
         
         return (true, allSessions, "Successfully loaded \(allSessions.count) archived items")
     }
     
     private func fetchHomeworkSessions(_ queryParams: [String: String]) async -> (success: Bool, sessions: [[String: Any]]?) {
-        print("📊 === FETCHING HOMEWORK SESSIONS SEQUENTIALLY ===")
+        debugPrint("📊 === FETCHING HOMEWORK SESSIONS SEQUENTIALLY ===")
         var allSessions: [[String: Any]] = []
         
         // First, fetch sessions from /api/archive/sessions (sequential, not concurrent)
-        print("🔗 Step 1: Trying archived sessions...")
+        debugPrint("🔗 Step 1: Trying archived sessions...")
         let sessionsResult = await fetchArchivedSessions(queryParams)
         if sessionsResult.success, let sessions = sessionsResult.sessions {
-            print("✅ Step 1: Found \(sessions.count) archived sessions")
+            debugPrint("✅ Step 1: Found \(sessions.count) archived sessions")
             allSessions.append(contentsOf: sessions)
         } else {
-            print("⚠️ Step 1: No archived sessions found")
+            debugPrint("⚠️ Step 1: No archived sessions found")
         }
         
         // Note: Archived questions endpoints not yet available on backend
         // Skipping questions fetch to avoid unnecessary failed API calls
         
-        print("📊 Total homework sessions found: \(allSessions.count)")
+        debugPrint("📊 Total homework sessions found: \(allSessions.count)")
         return (allSessions.count > 0, allSessions)
     }
     
@@ -4322,7 +4322,7 @@ class NetworkService: ObservableObject {
             return (false, nil)
         }
         
-        print("🔗 Trying Sessions URL: \(url.absoluteString)")
+        debugPrint("🔗 Trying Sessions URL: \(url.absoluteString)")
         
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
@@ -4334,33 +4334,33 @@ class NetworkService: ObservableObject {
             let (data, response) = try await URLSession.shared.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse {
-                print("✅ Sessions Status (\(endpoint)): \(httpResponse.statusCode)")
+                debugPrint("✅ Sessions Status (\(endpoint)): \(httpResponse.statusCode)")
                 
                 if httpResponse.statusCode == 200 {
                     if let json = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
                        let success = json["success"] as? Bool, success,
                        let sessions = json["data"] as? [[String: Any]] {
-                        print("📦 Found \(sessions.count) sessions from \(endpoint)")
+                        debugPrint("📦 Found \(sessions.count) sessions from \(endpoint)")
                         return (true, sessions)
                     } else if let rawResponse = String(data: data, encoding: .utf8) {
-                        print("📄 Raw sessions response: \(String(rawResponse.prefix(200)))")
+                        debugPrint("📄 Raw sessions response: \(String(rawResponse.prefix(200)))")
                         // Try parsing as array directly
                         if let sessions = try? JSONSerialization.jsonObject(with: data, options: []) as? [[String: Any]] {
-                            print("📦 Found \(sessions.count) sessions in direct array format from \(endpoint)")
+                            debugPrint("📦 Found \(sessions.count) sessions in direct array format from \(endpoint)")
                             return (true, sessions)
                         }
                     }
                 } else if httpResponse.statusCode == 404 {
-                    print("ℹ️ Endpoint \(endpoint) not available (404)")
+                    debugPrint("ℹ️ Endpoint \(endpoint) not available (404)")
                 } else {
-                    print("⚠️ Endpoint \(endpoint) returned \(httpResponse.statusCode)")
+                    debugPrint("⚠️ Endpoint \(endpoint) returned \(httpResponse.statusCode)")
                     if let rawResponse = String(data: data, encoding: .utf8) {
-                        print("📄 Error response: \(String(rawResponse.prefix(200)))")
+                        debugPrint("📄 Error response: \(String(rawResponse.prefix(200)))")
                     }
                 }
             }
         } catch {
-            print("❌ Sessions request failed for \(endpoint): \(error.localizedDescription)")
+            debugPrint("❌ Sessions request failed for \(endpoint): \(error.localizedDescription)")
         }
         
         return (false, nil)
@@ -4374,10 +4374,10 @@ class NetworkService: ObservableObject {
     // Removed to eliminate unnecessary failed API calls (all return 404)
 
     private func fetchConversationSessions(_ queryParams: [String: String]) async -> (success: Bool, sessions: [[String: Any]]?) {
-        print("🔄 === FETCHING CONVERSATION SESSIONS ===")
-        print("📄 Input Query Params: \(queryParams)")
-        print("🔐 Auth Token Available: \(AuthenticationService.shared.getAuthToken() != nil)")
-        print("🌐 Base URL: \(baseURL)")
+        debugPrint("🔄 === FETCHING CONVERSATION SESSIONS ===")
+        debugPrint("📄 Input Query Params: \(queryParams)")
+        debugPrint("🔐 Auth Token Available: \(AuthenticationService.shared.getAuthToken() != nil)")
+        debugPrint("🌐 Base URL: \(baseURL)")
         
         // Try multiple endpoints for conversation sessions - AVOID /api/ai/sessions/archived due to routing conflict
         let endpoints = [
@@ -4389,20 +4389,20 @@ class NetworkService: ObservableObject {
         
         // First try direct endpoints
         for endpoint in endpoints {
-            print("🔗 Trying conversation endpoint: \(endpoint)")
+            debugPrint("🔗 Trying conversation endpoint: \(endpoint)")
             let result = await tryFetchConversationsFrom(endpoint, queryParams: queryParams)
             if result.success {
-                print("✅ SUCCESS: Found conversations from \(endpoint)")
+                debugPrint("✅ SUCCESS: Found conversations from \(endpoint)")
                 return result
             } else {
-                print("❌ FAILED: No data from \(endpoint)")
+                debugPrint("❌ FAILED: No data from \(endpoint)")
             }
         }
         
         // Then try the search endpoint with corrected parameters
-        print("🔍 Trying search endpoint as fallback...")
+        debugPrint("🔍 Trying search endpoint as fallback...")
         let fallbackResult = await tryConversationSearch(queryParams)
-        print("🔍 Fallback result: success=\(fallbackResult.success), sessions=\(fallbackResult.sessions?.count ?? 0)")
+        debugPrint("🔍 Fallback result: success=\(fallbackResult.success), sessions=\(fallbackResult.sessions?.count ?? 0)")
         return fallbackResult
     }
     
@@ -4411,11 +4411,11 @@ class NetworkService: ObservableObject {
         urlComponents.queryItems = queryParams.map { URLQueryItem(name: $0.key, value: $0.value) }
         
         guard let url = urlComponents.url else {
-            print("❌ Invalid URL for \(endpoint)")
+            debugPrint("❌ Invalid URL for \(endpoint)")
             return (false, nil)
         }
         
-        print("🔗 Conversation URL: \(url.absoluteString)")
+        debugPrint("🔗 Conversation URL: \(url.absoluteString)")
         
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
@@ -4427,33 +4427,33 @@ class NetworkService: ObservableObject {
             let (data, response) = try await URLSession.shared.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse {
-                print("✅ Conversation Status (\(endpoint)): \(httpResponse.statusCode)")
+                debugPrint("✅ Conversation Status (\(endpoint)): \(httpResponse.statusCode)")
                 
                 if httpResponse.statusCode == 200 {
                     if let rawResponse = String(data: data, encoding: .utf8) {
-                        print("📄 Raw conversation response (\(endpoint)): \(String(rawResponse.prefix(300)))")
+                        debugPrint("📄 Raw conversation response (\(endpoint)): \(String(rawResponse.prefix(300)))")
                     }
                     
                     if let json = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
                        let success = json["success"] as? Bool, success,
                        let conversations = json["data"] as? [[String: Any]] {
-                        print("💬 Found \(conversations.count) conversations from \(endpoint)")
+                        debugPrint("💬 Found \(conversations.count) conversations from \(endpoint)")
                         return (true, conversations)
                     } else if let conversations = try? JSONSerialization.jsonObject(with: data, options: []) as? [[String: Any]] {
-                        print("💬 Found \(conversations.count) conversations in direct array format from \(endpoint)")
+                        debugPrint("💬 Found \(conversations.count) conversations in direct array format from \(endpoint)")
                         return (true, conversations)
                     }
                 } else if httpResponse.statusCode == 404 {
-                    print("ℹ️ Endpoint \(endpoint) not available (404)")
+                    debugPrint("ℹ️ Endpoint \(endpoint) not available (404)")
                 } else {
-                    print("⚠️ Endpoint \(endpoint) returned \(httpResponse.statusCode)")
+                    debugPrint("⚠️ Endpoint \(endpoint) returned \(httpResponse.statusCode)")
                     if let rawResponse = String(data: data, encoding: .utf8) {
-                        print("📄 Error response: \(String(rawResponse.prefix(200)))")
+                        debugPrint("📄 Error response: \(String(rawResponse.prefix(200)))")
                     }
                 }
             }
         } catch {
-            print("❌ Conversation request failed for \(endpoint): \(error.localizedDescription)")
+            debugPrint("❌ Conversation request failed for \(endpoint): \(error.localizedDescription)")
         }
         
         return (false, nil)
@@ -4463,7 +4463,7 @@ class NetworkService: ObservableObject {
         // Skip search endpoint for now since it has validation issues
         // The error "querystring/datePattern must be equal to one of the allowed values" 
         // indicates the API expects specific date format parameters we don't have
-        print("⚠️ Skipping search endpoint due to datePattern validation requirements")
+        debugPrint("⚠️ Skipping search endpoint due to datePattern validation requirements")
         return (false, nil)
     }
     
@@ -4489,8 +4489,8 @@ class NetworkService: ObservableObject {
     
     /// Get archived sessions list
     func getArchivedSessions(limit: Int = 20, offset: Int = 0) async -> (success: Bool, sessions: [[String: Any]]?, message: String) {
-        print("📦 === GET ARCHIVED SESSIONS ===")
-        print("📄 Limit: \(limit), Offset: \(offset)")
+        debugPrint("📦 === GET ARCHIVED SESSIONS ===")
+        debugPrint("📄 Limit: \(limit), Offset: \(offset)")
         
         let archiveURL = "\(baseURL)/api/ai/archives/conversations?limit=\(limit)&offset=\(offset)"
         
@@ -4508,16 +4508,16 @@ class NetworkService: ObservableObject {
             let (data, response) = try await URLSession.shared.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse {
-                print("✅ Archived Sessions Status: \(httpResponse.statusCode)")
+                debugPrint("✅ Archived Sessions Status: \(httpResponse.statusCode)")
                 
                 do {
                     if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
-                        print("✅ Archived Sessions Response: \(json)")
+                        debugPrint("✅ Archived Sessions Response: \(json)")
                         
                         let success = json["success"] as? Bool ?? false
                         
                         if success, let sessions = json["data"] as? [[String: Any]] {
-                            print("📦 Found \(sessions.count) archived sessions")
+                            debugPrint("📦 Found \(sessions.count) archived sessions")
                             return (true, sessions, "Successfully loaded archived sessions")
                         } else {
                             let error = json["error"] as? String ?? "Failed to load archived sessions"
@@ -4525,13 +4525,13 @@ class NetworkService: ObservableObject {
                         }
                     }
                 } catch {
-                    print("❌ JSON parsing error: \(error)")
+                    debugPrint("❌ JSON parsing error: \(error)")
                     return (false, nil, "Invalid response format")
                 }
             }
             
         } catch {
-            print("❌ Get archived sessions request failed: \(error.localizedDescription)")
+            debugPrint("❌ Get archived sessions request failed: \(error.localizedDescription)")
             return (false, nil, "Network error: \(error.localizedDescription)")
         }
         
@@ -4579,7 +4579,7 @@ class NetworkService: ObservableObject {
             return (false, nil, "Invalid response")
         } catch {
             let errorMsg = "Profile request failed: \(error.localizedDescription)"
-            print("❌ \(errorMsg)")
+            debugPrint("❌ \(errorMsg)")
             return (false, nil, errorMsg)
         }
     }
@@ -4623,7 +4623,7 @@ class NetworkService: ObservableObject {
             return (false, nil, "Invalid response")
         } catch {
             let errorMsg = "Update profile request failed: \(error.localizedDescription)"
-            print("❌ \(errorMsg)")
+            debugPrint("❌ \(errorMsg)")
             return (false, nil, errorMsg)
         }
     }
@@ -4667,19 +4667,19 @@ class NetworkService: ObservableObject {
                         let code = json["code"] as? String ?? "UNKNOWN_ERROR"
                         let errorDetail = json["error"] as? String
 
-                        print("❌ [NetworkService] Upload failed with status \(statusCode)")
-                        print("❌ [NetworkService] Error code: \(code)")
-                        print("❌ [NetworkService] Error message: \(message)")
+                        debugPrint("❌ [NetworkService] Upload failed with status \(statusCode)")
+                        debugPrint("❌ [NetworkService] Error code: \(code)")
+                        debugPrint("❌ [NetworkService] Error message: \(message)")
                         if let errorDetail = errorDetail {
-                            print("❌ [NetworkService] Error detail: \(errorDetail)")
+                            debugPrint("❌ [NetworkService] Error detail: \(errorDetail)")
                         }
                         return (false, nil, message)
                     }
                 } else {
                     // Failed to parse JSON
                     let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
-                    print("❌ [NetworkService] Failed to parse JSON response")
-                    print("❌ [NetworkService] Raw response: \(responseString)")
+                    debugPrint("❌ [NetworkService] Failed to parse JSON response")
+                    debugPrint("❌ [NetworkService] Raw response: \(responseString)")
                     return (false, nil, "Invalid response format")
                 }
             }
@@ -4687,14 +4687,14 @@ class NetworkService: ObservableObject {
             return (false, nil, "Invalid response")
         } catch {
             let errorMsg = "Upload avatar request failed: \(error.localizedDescription)"
-            print("❌ \(errorMsg)")
+            debugPrint("❌ \(errorMsg)")
             return (false, nil, errorMsg)
         }
     }
 
     /// Get profile completion status
     func getProfileCompletion() async -> (success: Bool, completion: [String: Any]?, message: String) {
-        print("📊 === GET PROFILE COMPLETION ===")
+        debugPrint("📊 === GET PROFILE COMPLETION ===")
         
         let completionURL = "\(baseURL)/api/user/profile-completion"
         
@@ -4714,10 +4714,10 @@ class NetworkService: ObservableObject {
             
             if let httpResponse = response as? HTTPURLResponse {
                 let statusCode = httpResponse.statusCode
-                print("✅ Profile Completion Status: \(statusCode)")
+                debugPrint("✅ Profile Completion Status: \(statusCode)")
                 
                 if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                    print("✅ Profile Completion Response: \(json)")
+                    debugPrint("✅ Profile Completion Response: \(json)")
                     
                     if statusCode == 200 {
                         let completion = json["completion"] as? [String: Any] ?? json
@@ -4733,7 +4733,7 @@ class NetworkService: ObservableObject {
             return (false, nil, "Invalid response")
         } catch {
             let errorMsg = "Profile completion request failed: \(error.localizedDescription)"
-            print("❌ \(errorMsg)")
+            debugPrint("❌ \(errorMsg)")
             return (false, nil, errorMsg)
         }
     }
@@ -5095,7 +5095,7 @@ class NetworkService: ObservableObject {
         let syncURL = "\(baseURL)/api/user/sync-points"
 
         guard let url = URL(string: syncURL) else {
-            print("❌ Invalid sync URL: \(syncURL)")
+            debugPrint("❌ Invalid sync URL: \(syncURL)")
             return (false, nil, "Invalid URL")
         }
 
@@ -5106,7 +5106,7 @@ class NetworkService: ObservableObject {
         ]
 
         guard let jsonData = try? JSONSerialization.data(withJSONObject: requestBody) else {
-            print("❌ Failed to serialize sync request")
+            debugPrint("❌ Failed to serialize sync request")
             return (false, nil, "Failed to serialize request")
         }
 
@@ -5143,7 +5143,7 @@ class NetworkService: ObservableObject {
 
             return (false, nil, "Invalid response")
         } catch {
-            print("❌ Sync error: \(error.localizedDescription)")
+            debugPrint("❌ Sync error: \(error.localizedDescription)")
             return (false, nil, error.localizedDescription)
         }
     }
@@ -5154,7 +5154,7 @@ class NetworkService: ObservableObject {
         let levelURL = "\(baseURL)/api/user/level/\(userId)"
 
         guard let url = URL(string: levelURL) else {
-            print("❌ Invalid level URL: \(levelURL)")
+            debugPrint("❌ Invalid level URL: \(levelURL)")
             return (false, nil, "Invalid URL")
         }
 
@@ -5188,7 +5188,7 @@ class NetworkService: ObservableObject {
 
             return (false, nil, "Invalid response")
         } catch {
-            print("❌ Level fetch error: \(error.localizedDescription)")
+            debugPrint("❌ Level fetch error: \(error.localizedDescription)")
             return (false, nil, error.localizedDescription)
         }
     }
@@ -5196,16 +5196,16 @@ class NetworkService: ObservableObject {
     /// Sync daily progress data with backend
     /// Sends subject-specific counters and aggregated daily totals
     func syncDailyProgress(userId: String, dailyProgress: DailyProgress) async -> (success: Bool, message: String?) {
-        print("🔄 [NetworkService] === SYNCING DAILY PROGRESS ===")
-        print("🔄 [NetworkService] Date: \(dailyProgress.date)")
-        print("🔄 [NetworkService] Total questions: \(dailyProgress.totalQuestions)")
-        print("🔄 [NetworkService] Correct answers: \(dailyProgress.correctAnswers)")
-        print("🔄 [NetworkService] Accuracy: \(String(format: "%.1f%%", dailyProgress.accuracy))")
+        debugPrint("🔄 [NetworkService] === SYNCING DAILY PROGRESS ===")
+        debugPrint("🔄 [NetworkService] Date: \(dailyProgress.date)")
+        debugPrint("🔄 [NetworkService] Total questions: \(dailyProgress.totalQuestions)")
+        debugPrint("🔄 [NetworkService] Correct answers: \(dailyProgress.correctAnswers)")
+        debugPrint("🔄 [NetworkService] Accuracy: \(String(format: "%.1f%%", dailyProgress.accuracy))")
 
         let syncURL = "\(baseURL)/api/user/sync-daily-progress"
 
         guard let url = URL(string: syncURL) else {
-            print("❌ Invalid sync URL: \(syncURL)")
+            debugPrint("❌ Invalid sync URL: \(syncURL)")
             return (false, "Invalid URL")
         }
 
@@ -5231,7 +5231,7 @@ class NetworkService: ObservableObject {
         ]
 
         guard let jsonData = try? JSONSerialization.data(withJSONObject: requestBody) else {
-            print("❌ Failed to serialize sync request")
+            debugPrint("❌ Failed to serialize sync request")
             return (false, "Failed to serialize request")
         }
 
@@ -5255,20 +5255,20 @@ class NetworkService: ObservableObject {
                         let success = responseDict["success"] as? Bool ?? false
                         let message = responseDict["message"] as? String
 
-                        print("🔄 [NetworkService] ✅ Daily progress synced successfully")
+                        debugPrint("🔄 [NetworkService] ✅ Daily progress synced successfully")
                         return (success, message)
                     } else {
                         let message = responseDict["message"] as? String ?? "Sync failed"
-                        print("🔄 [NetworkService] ❌ Sync failed: \(message)")
+                        debugPrint("🔄 [NetworkService] ❌ Sync failed: \(message)")
                         return (false, message)
                     }
                 }
             }
 
-            print("🔄 [NetworkService] ❌ Invalid response")
+            debugPrint("🔄 [NetworkService] ❌ Invalid response")
             return (false, "Invalid response")
         } catch {
-            print("🔄 [NetworkService] ❌ Sync error: \(error.localizedDescription)")
+            debugPrint("🔄 [NetworkService] ❌ Sync error: \(error.localizedDescription)")
             return (false, error.localizedDescription)
         }
     }
@@ -5308,7 +5308,7 @@ class NetworkService: ObservableObject {
                         return (requiresConsent, consentStatus, isRestricted, message)
                     } else {
                         let message = json["message"] as? String ?? "Failed to check consent status"
-                        print("❌ Consent status check failed: \(message)")
+                        debugPrint("❌ Consent status check failed: \(message)")
                         return (false, nil, false, message)
                     }
                 }
@@ -5316,7 +5316,7 @@ class NetworkService: ObservableObject {
 
             return (false, nil, false, "Invalid response")
         } catch {
-            print("❌ Consent status error: \(error.localizedDescription)")
+            debugPrint("❌ Consent status error: \(error.localizedDescription)")
             return (false, nil, false, error.localizedDescription)
         }
     }
@@ -5335,7 +5335,7 @@ class NetworkService: ObservableObject {
 
         // Get current user ID
         guard let childUserId = AuthenticationService.shared.currentUser?.id else {
-            print("❌ Cannot request consent: User ID not available")
+            debugPrint("❌ Cannot request consent: User ID not available")
             return (false, "User not authenticated", nil)
         }
 
@@ -5360,10 +5360,10 @@ class NetworkService: ObservableObject {
                     if success {
                         let consent = json["consent"] as? [String: Any]
                         let verificationCode = consent?["verification_code"] as? String
-                        print("✅ Parental consent requested successfully")
+                        debugPrint("✅ Parental consent requested successfully")
                         return (true, message, verificationCode)
                     } else {
-                        print("❌ Consent request failed: \(message)")
+                        debugPrint("❌ Consent request failed: \(message)")
                         return (false, message, nil)
                     }
                 }
@@ -5371,7 +5371,7 @@ class NetworkService: ObservableObject {
 
             return (false, "Invalid response", nil)
         } catch {
-            print("❌ Consent request error: \(error.localizedDescription)")
+            debugPrint("❌ Consent request error: \(error.localizedDescription)")
             return (false, error.localizedDescription, nil)
         }
     }
@@ -5390,7 +5390,7 @@ class NetworkService: ObservableObject {
 
         // Get current user ID
         guard let childUserId = AuthenticationService.shared.currentUser?.id else {
-            print("❌ Cannot verify consent: User ID not available")
+            debugPrint("❌ Cannot verify consent: User ID not available")
             return (false, "User not authenticated")
         }
 
@@ -5410,10 +5410,10 @@ class NetworkService: ObservableObject {
                     let message = json["message"] as? String ?? "Unknown error"
 
                     if success {
-                        print("✅ Parental consent verified successfully")
+                        debugPrint("✅ Parental consent verified successfully")
                         return (true, message)
                     } else {
-                        print("❌ Consent verification failed: \(message)")
+                        debugPrint("❌ Consent verification failed: \(message)")
                         return (false, message)
                     }
                 }
@@ -5421,7 +5421,7 @@ class NetworkService: ObservableObject {
 
             return (false, "Invalid response")
         } catch {
-            print("❌ Consent verification error: \(error.localizedDescription)")
+            debugPrint("❌ Consent verification error: \(error.localizedDescription)")
             return (false, error.localizedDescription)
         }
     }
@@ -5445,16 +5445,16 @@ class NetworkService: ObservableObject {
             guard let http = response as? HTTPURLResponse, http.statusCode == 200,
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let completion = json["completion"] as? [String: Any] else {
-                print("⚠️ [NetworkService] checkProfileCompletion: unexpected response — assuming onboarded")
+                debugPrint("⚠️ [NetworkService] checkProfileCompletion: unexpected response — assuming onboarded")
                 return (true, true, 0)
             }
             let onboardingCompleted = completion["onboardingCompleted"] as? Bool ?? false
             let dataSharingConsent = completion["dataSharingConsent"] as? Bool ?? false
             let percentage = completion["percentage"] as? Int ?? 0
-            print("📋 [NetworkService] Profile completion: onboarding=\(onboardingCompleted), consent=\(dataSharingConsent), \(percentage)%")
+            debugPrint("📋 [NetworkService] Profile completion: onboarding=\(onboardingCompleted), consent=\(dataSharingConsent), \(percentage)%")
             return (onboardingCompleted, dataSharingConsent, percentage)
         } catch {
-            print("❌ [NetworkService] checkProfileCompletion error: \(error.localizedDescription) — assuming onboarded")
+            debugPrint("❌ [NetworkService] checkProfileCompletion error: \(error.localizedDescription) — assuming onboarded")
             return (true, true, 0)
         }
     }
@@ -5477,7 +5477,7 @@ class NetworkService: ObservableObject {
         let encoder = JSONEncoder()
         request.httpBody = try encoder.encode(["questions": questions])
 
-        print("📊 [Network] POST /api/ai/analyze-errors-batch (\(questions.count) questions)")
+        debugPrint("📊 [Network] POST /api/ai/analyze-errors-batch (\(questions.count) questions)")
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
@@ -5486,7 +5486,7 @@ class NetworkService: ObservableObject {
         }
 
         guard httpResponse.statusCode == 200 else {
-            print("❌ [Network] Error analysis failed: HTTP \(httpResponse.statusCode)")
+            debugPrint("❌ [Network] Error analysis failed: HTTP \(httpResponse.statusCode)")
             handleTierError(statusCode: httpResponse.statusCode, data: data, feature: "error_analysis")
             // Throw rateLimited for 403/429 so the queue service knows NOT to retry
             throw httpResponse.statusCode == 403 || httpResponse.statusCode == 429
@@ -5496,7 +5496,7 @@ class NetworkService: ObservableObject {
 
         // 🔍 DEBUG: Print raw response
         if let jsonString = String(data: data, encoding: .utf8) {
-            print("📄 [Network] Raw response: \(jsonString)")
+            debugPrint("📄 [Network] Raw response: \(jsonString)")
         }
 
         // Backend returns: {"success": true, "analyses": [...], "count": 1}
@@ -5512,15 +5512,15 @@ class NetworkService: ObservableObject {
             let result = try decoder.decode(ErrorAnalysisBatchResponse.self, from: data)
 
             guard result.success else {
-                print("❌ [Network] Backend reported failure")
+                debugPrint("❌ [Network] Backend reported failure")
                 throw NetworkError.invalidResponse
             }
 
-            print("✅ [Network] Received \(result.analyses.count) error analyses")
+            debugPrint("✅ [Network] Received \(result.analyses.count) error analyses")
             return result.analyses
         } catch {
-            print("❌ [Network] Decoding error: \(error)")
-            print("❌ [Network] Error details: \(error.localizedDescription)")
+            debugPrint("❌ [Network] Decoding error: \(error)")
+            debugPrint("❌ [Network] Error details: \(error.localizedDescription)")
             throw error
         }
     }
@@ -5573,7 +5573,7 @@ class NetworkService: ObservableObject {
         let encoder = JSONEncoder()
         request.httpBody = try encoder.encode(["questions": questions])
 
-        print("📊 [Network] POST /api/ai/extract-concepts-batch (\(questions.count) questions)")
+        debugPrint("📊 [Network] POST /api/ai/extract-concepts-batch (\(questions.count) questions)")
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
@@ -5582,7 +5582,7 @@ class NetworkService: ObservableObject {
         }
 
         guard httpResponse.statusCode == 200 else {
-            print("❌ [Network] Concept extraction failed: HTTP \(httpResponse.statusCode)")
+            debugPrint("❌ [Network] Concept extraction failed: HTTP \(httpResponse.statusCode)")
             throw NetworkError.invalidResponse
         }
 
@@ -5599,14 +5599,14 @@ class NetworkService: ObservableObject {
             let result = try decoder.decode(ConceptBatchResponse.self, from: data)
 
             guard result.success else {
-                print("❌ [Network] Backend reported concept extraction failure")
+                debugPrint("❌ [Network] Backend reported concept extraction failure")
                 throw NetworkError.invalidResponse
             }
 
-            print("✅ [Network] Received \(result.concepts.count) concept extractions")
+            debugPrint("✅ [Network] Received \(result.concepts.count) concept extractions")
             return result.concepts
         } catch {
-            print("❌ [Network] Concept extraction decoding error: \(error)")
+            debugPrint("❌ [Network] Concept extraction decoding error: \(error)")
             throw error
         }
     }
@@ -5627,7 +5627,7 @@ class NetworkService: ObservableObject {
 
         request.httpBody = try JSONSerialization.data(withJSONObject: ["weaknesses": weaknesses])
 
-        print("📊 [Network] POST /api/ai/generate-weakness-descriptions (\(weaknesses.count) weaknesses)")
+        debugPrint("📊 [Network] POST /api/ai/generate-weakness-descriptions (\(weaknesses.count) weaknesses)")
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
@@ -5636,7 +5636,7 @@ class NetworkService: ObservableObject {
         }
 
         guard httpResponse.statusCode == 200 else {
-            print("❌ [Network] Weakness description generation failed: HTTP \(httpResponse.statusCode)")
+            debugPrint("❌ [Network] Weakness description generation failed: HTTP \(httpResponse.statusCode)")
             throw NetworkError.invalidResponse
         }
 
@@ -5649,10 +5649,10 @@ class NetworkService: ObservableObject {
 
         do {
             let result = try decoder.decode(WeaknessDescriptionsResponse.self, from: data)
-            print("✅ [Network] Received \(result.descriptions.count) weakness descriptions")
+            debugPrint("✅ [Network] Received \(result.descriptions.count) weakness descriptions")
             return result.descriptions
         } catch {
-            print("❌ [Network] Decoding error: \(error)")
+            debugPrint("❌ [Network] Decoding error: \(error)")
             throw error
         }
     }
@@ -5685,7 +5685,7 @@ class NetworkService: ObservableObject {
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
         } catch {
-            print("❌ [ParentReports] Failed to encode request: \(error)")
+            debugPrint("❌ [ParentReports] Failed to encode request: \(error)")
             return (false, "Failed to encode request", nil)
         }
 
@@ -5697,7 +5697,7 @@ class NetworkService: ObservableObject {
             }
 
             guard httpResponse.statusCode == 200 else {
-                print("❌ [ParentReports] Enable failed: HTTP \(httpResponse.statusCode)")
+                debugPrint("❌ [ParentReports] Enable failed: HTTP \(httpResponse.statusCode)")
                 handleTierError(statusCode: httpResponse.statusCode, data: data, feature: "reports")
                 return (false, "Server error", nil)
             }
@@ -5707,13 +5707,13 @@ class NetworkService: ObservableObject {
                 let message = json["message"] as? String ?? ""
                 let nextReportTime = json["nextReportTime"] as? String
 
-                print("✅ [ParentReports] Enabled successfully. Next report: \(nextReportTime ?? "N/A")")
+                debugPrint("✅ [ParentReports] Enabled successfully. Next report: \(nextReportTime ?? "N/A")")
                 return (success, message, nextReportTime)
             }
 
             return (false, "Invalid response format", nil)
         } catch {
-            print("❌ [ParentReports] Enable error: \(error)")
+            debugPrint("❌ [ParentReports] Enable error: \(error)")
             return (false, "Network error: \(error.localizedDescription)", nil)
         }
     }
@@ -5739,7 +5739,7 @@ class NetworkService: ObservableObject {
             }
 
             guard httpResponse.statusCode == 200 else {
-                print("❌ [ParentReports] Disable failed: HTTP \(httpResponse.statusCode)")
+                debugPrint("❌ [ParentReports] Disable failed: HTTP \(httpResponse.statusCode)")
                 return (false, "Server error")
             }
 
@@ -5747,13 +5747,13 @@ class NetworkService: ObservableObject {
                 let success = json["success"] as? Bool ?? false
                 let message = json["message"] as? String ?? ""
 
-                print("✅ [ParentReports] Disabled successfully")
+                debugPrint("✅ [ParentReports] Disabled successfully")
                 return (success, message)
             }
 
             return (false, "Invalid response format")
         } catch {
-            print("❌ [ParentReports] Disable error: \(error)")
+            debugPrint("❌ [ParentReports] Disable error: \(error)")
             return (false, "Network error: \(error.localizedDescription)")
         }
     }
@@ -5880,10 +5880,10 @@ class NetworkService: ObservableObject {
         if let ms = expiresDateMs { body["expires_date_ms"] = ms }
 
         guard let token = AuthenticationService.shared.getAuthToken() else {
-            print("❌ [validateReceipt] No auth token — user not logged in")
+            debugPrint("❌ [validateReceipt] No auth token — user not logged in")
             return (false, nil, "Not authenticated")
         }
-        print("💳 [validateReceipt] token present, txId=\(transactionId)")
+        debugPrint("💳 [validateReceipt] token present, txId=\(transactionId)")
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -5896,7 +5896,7 @@ class NetworkService: ObservableObject {
             guard let http = response as? HTTPURLResponse else {
                 return (false, nil, "No HTTP response")
             }
-            print("💳 [validateReceipt] HTTP \(http.statusCode)")
+            debugPrint("💳 [validateReceipt] HTTP \(http.statusCode)")
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 let success = json["success"] as? Bool ?? false
                 let tier = (json["data"] as? [String: Any])?["tier"] as? String
@@ -5933,6 +5933,56 @@ class NetworkService: ObservableObject {
         }
     }
 
+    // MARK: - Account Data Management
+
+    func clearMyData() async -> (success: Bool, message: String) {
+        guard let url = URL(string: "\(baseURL)/api/user/clear-my-data") else {
+            return (false, "Invalid URL")
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        addAuthHeader(to: &request)
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse else { return (false, "Invalid response") }
+            if http.statusCode == 200 {
+                return (true, "All server data has been cleared. Local data remains intact.")
+            } else {
+                let message = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["message"] as? String
+                    ?? String(data: data, encoding: .utf8)
+                    ?? "Unknown error"
+                return (false, message)
+            }
+        } catch {
+            return (false, error.localizedDescription)
+        }
+    }
+
+    func deleteAccount(confirmEmail: String) async -> (success: Bool, message: String) {
+        guard let url = URL(string: "\(baseURL)/api/user/delete-account") else {
+            return (false, "Invalid URL")
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        addAuthHeader(to: &request)
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: ["confirmEmail": confirmEmail])
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse else { return (false, "Invalid response") }
+            if http.statusCode == 200 {
+                return (true, "Account deleted successfully")
+            } else {
+                let message = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["message"] as? String
+                    ?? String(data: data, encoding: .utf8)
+                    ?? "Unknown error"
+                return (false, message)
+            }
+        } catch {
+            return (false, error.localizedDescription)
+        }
+    }
+
     // MARK: - Account Usage
 
     func fetchAccountUsage() async -> AccountUsageData? {
@@ -5949,7 +5999,7 @@ class NetworkService: ObservableObject {
             return try JSONDecoder().decode(Wrapper.self, from: data).data
         } catch {
             #if DEBUG
-            print("❌ [fetchAccountUsage] \(error)")
+            debugPrint("❌ [fetchAccountUsage] \(error)")
             #endif
             return nil
         }

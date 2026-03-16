@@ -13,7 +13,7 @@ import os.log
 // MARK: - Production Logging Safety
 // Disable debug print statements in production builds to prevent practice question exposure
 #if !DEBUG
-private func print(_ items: Any...) { }
+private func debugPrint(_ items: Any...) { }
 private func debugPrint(_ items: Any...) { }
 #endif
 
@@ -352,10 +352,10 @@ class QuestionGenerationService: ObservableObject {
         let cacheKey = "random_\(subject)_\(topicsString)_\(config.difficulty.rawValue)_\(config.questionCount)_\(config.questionType.rawValue)_\(focusNotesHash)"
 
         if let cached = questionCache[cacheKey], !cached.isExpired {
-            print("✅ Using cached questions (generated \(Int(Date().timeIntervalSince(cached.timestamp)))s ago)")
+            debugPrint("✅ Using cached questions (generated \(Int(Date().timeIntervalSince(cached.timestamp)))s ago)")
             return .success(cached.questions)
         } else if let cached = questionCache[cacheKey] {
-            print("⏰ Cache expired (generated \(Int(Date().timeIntervalSince(cached.timestamp)))s ago), generating new questions...")
+            debugPrint("⏰ Cache expired (generated \(Int(Date().timeIntervalSince(cached.timestamp)))s ago), generating new questions...")
         }
 
         await MainActor.run {
@@ -372,11 +372,11 @@ class QuestionGenerationService: ObservableObject {
         }
 
 
-        print("📚 Subject: \(subject)")
+        debugPrint("📚 Subject: \(subject)")
 
 
-        print("🏷️ Topics: \(config.topics)")
-        print("👤 User Grade: \(userProfile.grade)")
+        debugPrint("🏷️ Topics: \(config.topics)")
+        debugPrint("👤 User Grade: \(userProfile.grade)")
 
         // NEW: Use Assistants API endpoint
         let endpoint = "/api/ai/generate-questions/practice"
@@ -399,7 +399,7 @@ class QuestionGenerationService: ObservableObject {
         // ✅ FIX 1: Include personalized focus notes if available
         if let focusNotes = config.focusNotes, !focusNotes.isEmpty {
             requestBody["focus_notes"] = focusNotes
-            print("📝 [QuestionGen] Sending personalized focus notes to backend (\(focusNotes.count) chars)")
+            debugPrint("📝 [QuestionGen] Sending personalized focus notes to backend (\(focusNotes.count) chars)")
         }
 
         var request = URLRequest(url: url)
@@ -418,7 +418,7 @@ class QuestionGenerationService: ObservableObject {
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
 
-            print("📤 Sending random questions request to AI engine...")
+            debugPrint("📤 Sending random questions request to AI engine...")
             let (data, response) = try await URLSession.shared.data(for: request)
 
             if let httpResponse = response as? HTTPURLResponse {
@@ -457,7 +457,7 @@ class QuestionGenerationService: ObservableObject {
                             self.currentSessionId = savedSession.id
                         }
 
-                        print("🎉 Generated \(responseResult.questions.count) random questions successfully")
+                        debugPrint("🎉 Generated \(responseResult.questions.count) random questions successfully")
                         return .success(responseResult.questions)
                     } else {
                         let errorMsg = responseResult.error ?? "Unknown error from AI engine"
@@ -505,7 +505,7 @@ class QuestionGenerationService: ObservableObject {
         }
 
 
-        print("📚 Subject: \(subject)")
+        debugPrint("📚 Subject: \(subject)")
 
 
 
@@ -548,7 +548,7 @@ class QuestionGenerationService: ObservableObject {
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
 
-            print("📤 Sending mistake-based questions request to AI engine...")
+            debugPrint("📤 Sending mistake-based questions request to AI engine...")
             let (data, response) = try await URLSession.shared.data(for: request)
 
             if let httpResponse = response as? HTTPURLResponse {
@@ -572,7 +572,7 @@ class QuestionGenerationService: ObservableObject {
                             self.currentSessionId = savedSession2.id
                         }
 
-                        print("🎉 Generated \(responseResult.questions.count) mistake-based questions successfully")
+                        debugPrint("🎉 Generated \(responseResult.questions.count) mistake-based questions successfully")
                         return .success(responseResult.questions)
                     } else {
                         let errorMsg = responseResult.error ?? "Unknown error from AI engine"
@@ -599,7 +599,7 @@ class QuestionGenerationService: ObservableObject {
                             }
 
                             let friendlyMsg = "There's a temporary issue with mistake-based question generation. The system is having trouble processing the generated questions. Please try using 'Random Practice' instead, or try again later."
-                            print("🐛 Detected field validation bug in mistake-based generation: \(errorMsg)")
+                            debugPrint("🐛 Detected field validation bug in mistake-based generation: \(errorMsg)")
                             await MainActor.run { self.lastError = friendlyMsg }
                             return .failure(.backendValidationBug(friendlyMsg))
                         }
@@ -617,7 +617,7 @@ class QuestionGenerationService: ObservableObject {
                            errorString.contains("addresses_mistake") ||
                            errorString.contains("missing required field:") {
                             let friendlyMsg = "There's a temporary issue with mistake-based question generation. The system is having trouble processing the generated questions. Please try using 'Random Practice' instead, or try again later."
-                            print("🐛 Detected field validation bug in error response: \(errorString)")
+                            debugPrint("🐛 Detected field validation bug in error response: \(errorString)")
                             await MainActor.run { self.lastError = friendlyMsg }
                             return .failure(.backendValidationBug(friendlyMsg))
                         }
@@ -663,8 +663,8 @@ class QuestionGenerationService: ObservableObject {
         }
 
 
-        print("📚 Subject: \(subject)")
-        print("💬 Conversations Count: \(conversations.count)")
+        debugPrint("📚 Subject: \(subject)")
+        debugPrint("💬 Conversations Count: \(conversations.count)")
 
 
         let endpoint = "/api/ai/generate-questions/practice"
@@ -700,7 +700,7 @@ class QuestionGenerationService: ObservableObject {
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
 
-            print("📤 Sending conversation-based questions request to AI engine...")
+            debugPrint("📤 Sending conversation-based questions request to AI engine...")
             let (data, response) = try await URLSession.shared.data(for: request)
 
             if let httpResponse = response as? HTTPURLResponse {
@@ -733,29 +733,29 @@ class QuestionGenerationService: ObservableObject {
                             self.currentSessionId = savedSession3.id
                         }
 
-                        print("🎉 Generated \(responseResult.questions.count) conversation-based questions successfully (Status: \(httpResponse.statusCode))")
+                        debugPrint("🎉 Generated \(responseResult.questions.count) conversation-based questions successfully (Status: \(httpResponse.statusCode))")
                         return .success(responseResult.questions)
                     }
 
                     // If no questions but successful response
                     if httpResponse.statusCode == 200 && responseResult.success {
-                        print("⚠️ Successful response but no questions generated")
+                        debugPrint("⚠️ Successful response but no questions generated")
                         await MainActor.run { self.lastError = "No questions were generated" }
                         return .failure(.aiProcessingError("No questions were generated"))
                     }
 
                 } catch {
-                    print("⚠️ Failed to parse JSON response: \(error)")
+                    debugPrint("⚠️ Failed to parse JSON response: \(error)")
                 }
 
                 // FALLBACK: If JSON parsing failed, try raw extraction from any response
 
 
                 if let rawString = String(data: data, encoding: .utf8) {
-                    print("📄 Raw response for extraction (Status \(httpResponse.statusCode)):")
-                    print("--- START RESPONSE ---")
-                    print(String(rawString.prefix(1000))) // Show first 1000 chars for debugging
-                    print("--- END RESPONSE ---")
+                    debugPrint("📄 Raw response for extraction (Status \(httpResponse.statusCode)):")
+                    debugPrint("--- START RESPONSE ---")
+                    debugPrint(String(rawString.prefix(1000))) // Show first 1000 chars for debugging
+                    debugPrint("--- END RESPONSE ---")
 
                     // Try to extract questions using the intelligent recovery system
                     if let extractedQuestions = tryExtractQuestionsFromErrorResponse(data: data) {
@@ -792,7 +792,7 @@ class QuestionGenerationService: ObservableObject {
     /// Clear all cached questions
     func clearCache() {
         questionCache.removeAll()
-        print("🗑️ Question generation cache cleared")
+        debugPrint("🗑️ Question generation cache cleared")
     }
 
     /// Get cache statistics
@@ -809,11 +809,11 @@ class QuestionGenerationService: ObservableObject {
     private func parseQuestionResponse(data: Data, generationType: String) throws -> QuestionGenerationResponse {
         // First, let's see what we got - SHOW FULL RESPONSE
         if let rawString = String(data: data, encoding: .utf8) {
-            print("📄 Raw Response (\(generationType)) - FULL VERSION:")
-            print("--- START RESPONSE ---")
-            print(rawString)
-            print("--- END RESPONSE ---")
-            print("📏 Total response length: \(rawString.count) characters")
+            debugPrint("📄 Raw Response (\(generationType)) - FULL VERSION:")
+            debugPrint("--- START RESPONSE ---")
+            debugPrint(rawString)
+            debugPrint("--- END RESPONSE ---")
+            debugPrint("📏 Total response length: \(rawString.count) characters")
         }
 
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
@@ -827,11 +827,11 @@ class QuestionGenerationService: ObservableObject {
         let processingDetails = json["processing_details"] as? [String: Any]
         let error = json["error"] as? String
 
-        print("✅ Success: \(success)")
-        print("📚 Subject: \(subject)")
-        print("🔢 Question Count: \(questionCount)")
+        debugPrint("✅ Success: \(success)")
+        debugPrint("📚 Subject: \(subject)")
+        debugPrint("🔢 Question Count: \(questionCount)")
         if let error = error {
-            print("❌ Error from backend: \(error)")
+            debugPrint("❌ Error from backend: \(error)")
         }
 
         var questions: [GeneratedQuestion] = []
@@ -839,27 +839,27 @@ class QuestionGenerationService: ObservableObject {
         // AGGRESSIVE PARSING: Try to extract questions even if backend reports success=false
         // This handles the case where backend generates valid JSON but has validation bugs
         if let questionsArray = json["questions"] as? [[String: Any]], !questionsArray.isEmpty {
-            print("📝 Found questions array with \(questionsArray.count) questions, attempting to parse regardless of success flag...")
+            debugPrint("📝 Found questions array with \(questionsArray.count) questions, attempting to parse regardless of success flag...")
 
             for (index, questionDict) in questionsArray.enumerated() {
-                print("\n🔍 Parsing Question #\(index + 1):")
-                print("  - question_type: \(questionDict["question_type"] ?? "MISSING")")
-                print("  - question: \(String(describing: questionDict["question"] ?? "MISSING").prefix(100))...")
-                print("  - correct_answer: \(questionDict["correct_answer"] ?? "MISSING")")
-                print("  - multiple_choice_options: \(questionDict["multiple_choice_options"] ?? "null")")
+                debugPrint("\n🔍 Parsing Question #\(index + 1):")
+                debugPrint("  - question_type: \(questionDict["question_type"] ?? "MISSING")")
+                debugPrint("  - question: \(String(describing: questionDict["question"] ?? "MISSING").prefix(100))...")
+                debugPrint("  - correct_answer: \(questionDict["correct_answer"] ?? "MISSING")")
+                debugPrint("  - multiple_choice_options: \(questionDict["multiple_choice_options"] ?? "null")")
 
                 do {
                     let question = try parseGeneratedQuestion(from: questionDict)
-                    print("  ✅ Parsed as type: \(question.type.rawValue)")
+                    debugPrint("  ✅ Parsed as type: \(question.type.rawValue)")
                     questions.append(question)
                 } catch {
-                    print("  ❌ Failed to parse question \(index + 1): \(error)")
+                    debugPrint("  ❌ Failed to parse question \(index + 1): \(error)")
                 }
             }
 
             // If we successfully parsed questions, ignore the backend success flag
             if !questions.isEmpty {
-                print("🎉 Successfully parsed \(questions.count) questions despite backend success=false")
+                debugPrint("🎉 Successfully parsed \(questions.count) questions despite backend success=false")
                 return QuestionGenerationResponse(
                     success: true, // Override backend success flag
                     questions: questions,
@@ -875,14 +875,14 @@ class QuestionGenerationService: ObservableObject {
 
         // Fallback to original logic only if no questions were found
         if success, let questionsArray = json["questions"] as? [[String: Any]] {
-            print("📝 Parsing \(questionsArray.count) questions with success=true...")
+            debugPrint("📝 Parsing \(questionsArray.count) questions with success=true...")
 
             for (index, questionDict) in questionsArray.enumerated() {
                 do {
                     let question = try parseGeneratedQuestion(from: questionDict)
                     questions.append(question)
                 } catch {
-                    print("⚠️ Failed to parse question \(index + 1): \(error)")
+                    debugPrint("⚠️ Failed to parse question \(index + 1): \(error)")
                 }
             }
         }
@@ -907,7 +907,7 @@ class QuestionGenerationService: ObservableObject {
         }
 
 
-        print("📄 Raw response length: \(rawString.count) characters")
+        debugPrint("📄 Raw response length: \(rawString.count) characters")
 
         // Strategy 1: Look for complete JSON objects with questions array
         let jsonPattern = #"\{[^{}]*"questions"\s*:\s*\[[^\]]*\][^{}]*\}"#
@@ -938,7 +938,7 @@ class QuestionGenerationService: ObservableObject {
         if let match = regex?.firstMatch(in: rawString, options: [], range: range),
            let jsonRange = Range(match.range, in: rawString) {
             let jsonString = String(rawString[jsonRange])
-            print("📄 Found JSON block using \(strategy) strategy, attempting to parse...")
+            debugPrint("📄 Found JSON block using \(strategy) strategy, attempting to parse...")
 
             // If it's not a complete object, wrap it in one
             let finalJsonString = jsonString.hasPrefix("{") ? jsonString : "{\(jsonString)}"
@@ -962,7 +962,7 @@ class QuestionGenerationService: ObservableObject {
         if let match = regex?.firstMatch(in: rawString, options: [], range: range),
            let jsonRange = Range(match.range, in: rawString) {
             let questionsString = String(rawString[jsonRange])
-            print("📄 Found questions array, attempting to parse...")
+            debugPrint("📄 Found questions array, attempting to parse...")
 
             // Wrap in a JSON object
             let jsonString = "{\(questionsString)}"
@@ -986,13 +986,13 @@ class QuestionGenerationService: ObservableObject {
                 questions.append(question)
 
             } catch {
-                print("⚠️ Failed to parse \(strategy) question \(index + 1): \(error)")
+                debugPrint("⚠️ Failed to parse \(strategy) question \(index + 1): \(error)")
                 // Continue with other questions instead of failing completely
             }
         }
 
         if !questions.isEmpty {
-            print("🎉 Successfully recovered \(questions.count) questions using \(strategy)")
+            debugPrint("🎉 Successfully recovered \(questions.count) questions using \(strategy)")
             return questions
         }
         return nil
@@ -1035,14 +1035,14 @@ class QuestionGenerationService: ObservableObject {
                 let text = option["text"] as? String ?? ""
                 return "\(label). \(text)"
             }
-            print("  ✅ Parsed \(options?.count ?? 0) multiple choice options (object format)")
+            debugPrint("  ✅ Parsed \(options?.count ?? 0) multiple choice options (object format)")
         } else if let simpleOptions = dict["multiple_choice_options"] as? [String] {
             // ✅ NEW: Handle simple string array format from backend
             options = simpleOptions
-            print("  ✅ Parsed \(options?.count ?? 0) multiple choice options (string array format)")
+            debugPrint("  ✅ Parsed \(options?.count ?? 0) multiple choice options (string array format)")
         } else if let simpleOptions = dict["options"] as? [String] {
             options = simpleOptions
-            print("  ✅ Parsed \(options?.count ?? 0) multiple choice options (legacy format)")
+            debugPrint("  ✅ Parsed \(options?.count ?? 0) multiple choice options (legacy format)")
         }
 
         let tags = dict["tags"] as? [String]
@@ -1054,18 +1054,18 @@ class QuestionGenerationService: ObservableObject {
         let weaknessKey = dict["weakness_key"] as? String
 
         // Debug logging
-        print("  📝 Parsed Question:")
-        print("     - Type: \(typeString) → \(type.rawValue)")
-        print("     - Has options: \(options != nil)")
+        debugPrint("  📝 Parsed Question:")
+        debugPrint("     - Type: \(typeString) → \(type.rawValue)")
+        debugPrint("     - Has options: \(options != nil)")
         if let opts = options {
-            print("     - Options count: \(opts.count)")
+            debugPrint("     - Options count: \(opts.count)")
         }
         // ✅ NEW: Log error keys if present
         if let errorType = errorType {
-            print("     - Error Type: \(errorType)")
-            print("     - Base Branch: \(baseBranch ?? "nil")")
-            print("     - Detailed Branch: \(detailedBranch ?? "nil")")
-            print("     - Weakness Key: \(weaknessKey ?? "nil")")
+            debugPrint("     - Error Type: \(errorType)")
+            debugPrint("     - Base Branch: \(baseBranch ?? "nil")")
+            debugPrint("     - Detailed Branch: \(detailedBranch ?? "nil")")
+            debugPrint("     - Weakness Key: \(weaknessKey ?? "nil")")
         }
 
         return GeneratedQuestion(
@@ -1223,7 +1223,7 @@ class QuestionGenerationService: ObservableObject {
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
-            print("📤 [V2] Sending request to \(endpoint) (mode=\(mode), type=\(config.questionType.rawValue), count=\(config.questionCount))")
+            debugPrint("📤 [V2] Sending request to \(endpoint) (mode=\(mode), type=\(config.questionType.rawValue), count=\(config.questionCount))")
             let (data, response) = try await URLSession.shared.data(for: request)
 
             if let httpResponse = response as? HTTPURLResponse {
@@ -1248,7 +1248,7 @@ class QuestionGenerationService: ObservableObject {
                             self.lastGenerationType = generationType
                             self.currentSessionId = savedSession4.id
                         }
-                        print("🎉 [V2] Generated \(responseResult.questions.count) questions successfully")
+                        debugPrint("🎉 [V2] Generated \(responseResult.questions.count) questions successfully")
                         return .success(responseResult.questions)
                     } else {
                         let errorMsg = responseResult.error ?? "Unknown error from v2 endpoint"

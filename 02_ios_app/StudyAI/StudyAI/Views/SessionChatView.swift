@@ -780,12 +780,12 @@ struct SessionChatView: View {
                 if oldSessionId != newSessionId {
                     avatarState.spokenMessageIds.removeAll()
                     if Self.debugMode {
-                    print("🔄 [TTS] Cleared spoken messages for new session (old: \(oldSessionId ?? "nil"), new: \(newSessionId ?? "nil"))")
+                    debugPrint("🔄 [TTS] Cleared spoken messages for new session (old: \(oldSessionId ?? "nil"), new: \(newSessionId ?? "nil"))")
                     }
                     // Clear unified message list when switching to a different session
                     // (oldSessionId != nil means this is a real session change, not initial load)
                     if oldSessionId != nil {
-                        print("⚠️ [HISTORY RESET] allMessages wiped — session changed from \(oldSessionId ?? "nil") to \(newSessionId ?? "nil") (\(allMessages.count) messages lost)")
+                        debugPrint("⚠️ [HISTORY RESET] allMessages wiped — session changed from \(oldSessionId ?? "nil") to \(newSessionId ?? "nil") (\(allMessages.count) messages lost)")
                         allMessages.removeAll()
                         textMessageIndex = 0
                     }
@@ -2520,13 +2520,13 @@ struct SessionChatView: View {
               let voiceTypeRaw = userInfo["voiceType"] as? String,
               let voiceType = VoiceType(rawValue: voiceTypeRaw) else {
             if Self.debugMode {
-            print("⚠️ [Avatar] handleAIMessageAppeared: Missing notification data")
+            debugPrint("⚠️ [Avatar] handleAIMessageAppeared: Missing notification data")
             }
             return
         }
 
         if Self.debugMode {
-        print("📢 [Avatar] AI message appeared: messageId=\(messageId), length=\(message.count)")
+        debugPrint("📢 [Avatar] AI message appeared: messageId=\(messageId), length=\(message.count)")
         }
 
         // Update latest message info
@@ -2537,7 +2537,7 @@ struct SessionChatView: View {
         // DON'T auto-play here - let the streaming TTS queue handle it
         // The avatar should only play when user taps it
         if Self.debugMode {
-        print("ℹ️ [Avatar] Not auto-playing - letting TTS queue handle playback")
+        debugPrint("ℹ️ [Avatar] Not auto-playing - letting TTS queue handle playback")
         }
 
         // Set to idle initially - will change to .speaking when TTS actually plays
@@ -2553,14 +2553,14 @@ struct SessionChatView: View {
     /// Toggle TTS playback when avatar is tapped
     private func toggleTopAvatarTTS() {
         if Self.debugMode {
-        print("🔵🔵🔵 [Avatar] toggleTopAvatarTTS CALLED - Button was tapped!")
+        debugPrint("🔵🔵🔵 [Avatar] toggleTopAvatarTTS CALLED - Button was tapped!")
         }
 
         guard !avatarState.latestMessage.isEmpty else {
             if Self.debugMode {
-            print("⚠️ [Avatar] toggleTopAvatarTTS: No message to play - latestMessage is empty")
-            print("⚠️ [Avatar] hasConversationStarted: \(hasConversationStarted)")
-            print("⚠️ [Avatar] conversationHistory count: \(networkService.conversationHistory.count)")
+            debugPrint("⚠️ [Avatar] toggleTopAvatarTTS: No message to play - latestMessage is empty")
+            debugPrint("⚠️ [Avatar] hasConversationStarted: \(hasConversationStarted)")
+            debugPrint("⚠️ [Avatar] conversationHistory count: \(networkService.conversationHistory.count)")
             }
 
             // Still provide haptic feedback so user knows tap was detected
@@ -2585,7 +2585,7 @@ struct SessionChatView: View {
             // Idle — play the latest message if not already spoken
             if let messageId = avatarState.latestMessageId, avatarState.spokenMessageIds.contains(messageId) {
                 if Self.debugMode {
-                print("⏭️ [Avatar] Message already spoken - skipping TTS (ID: \(messageId))")
+                debugPrint("⏭️ [Avatar] Message already spoken - skipping TTS (ID: \(messageId))")
                 }
                 let notificationFeedback = UINotificationFeedbackGenerator()
                 notificationFeedback.notificationOccurred(.warning)
@@ -2601,26 +2601,26 @@ struct SessionChatView: View {
     private func playLatestMessage() {
         guard !avatarState.latestMessage.isEmpty else {
             if Self.debugMode {
-            print("⚠️ [Avatar] playLatestMessage: No message to play")
+            debugPrint("⚠️ [Avatar] playLatestMessage: No message to play")
             }
             return
         }
 
         if Self.debugMode {
-        print("🎬 [Avatar] playLatestMessage called")
-        print("🎬 [Avatar] Message ID: \(avatarState.latestMessageId ?? "nil")")
-        print("🎬 [Avatar] Message length: \(avatarState.latestMessage.count)")
+        debugPrint("🎬 [Avatar] playLatestMessage called")
+        debugPrint("🎬 [Avatar] Message ID: \(avatarState.latestMessageId ?? "nil")")
+        debugPrint("🎬 [Avatar] Message length: \(avatarState.latestMessage.count)")
         }
 
         // Stop any currently playing audio first
         if Self.debugMode {
-        print("🎬 [Avatar] Stopping any existing TTS")
+        debugPrint("🎬 [Avatar] Stopping any existing TTS")
         }
         ttsQueueService.stopAllTTS()
 
         // Set this message as the current speaking message
         if Self.debugMode {
-        print("🎬 [Avatar] Setting current speaking message")
+        debugPrint("🎬 [Avatar] Setting current speaking message")
         }
         voiceService.setCurrentSpeakingMessage(avatarState.latestMessageId ?? "")
 
@@ -2628,20 +2628,20 @@ struct SessionChatView: View {
         if let messageId = avatarState.latestMessageId {
             avatarState.spokenMessageIds.insert(messageId)
             if Self.debugMode {
-            print("✅ [Avatar] Marked message as spoken (ID: \(messageId))")
-            print("✅ [Avatar] Total spoken messages: \(avatarState.spokenMessageIds.count)")
+            debugPrint("✅ [Avatar] Marked message as spoken (ID: \(messageId))")
+            debugPrint("✅ [Avatar] Total spoken messages: \(avatarState.spokenMessageIds.count)")
             }
         }
 
         // Start TTS - state will update to .speaking via onReceive when audio actually starts
         if Self.debugMode {
-        print("🎬 [Avatar] Calling speakText with autoSpeak=false")
+        debugPrint("🎬 [Avatar] Calling speakText with autoSpeak=false")
         }
         voiceService.speakText(avatarState.latestMessage, autoSpeak: false)
 
         // Temporarily show processing state (will switch to speaking when audio starts)
         if Self.debugMode {
-        print("🎬 [Avatar] Setting state to .processing")
+        debugPrint("🎬 [Avatar] Setting state to .processing")
         }
         avatarState.animationState = .processing
     }
@@ -2651,30 +2651,30 @@ struct SessionChatView: View {
         // Interactive TTS controls avatar state via isInteractiveTTSPlaying — don't interfere
         guard !viewModel.isInteractiveTTSPlaying else { return }
         if Self.debugMode {
-        print("🔄 [Avatar] updateTopAvatarState called")
-        print("🔄 [Avatar] VoiceService state: \(voiceService.interactionState)")
-        print("🔄 [Avatar] Current speaking ID: \(voiceService.currentSpeakingMessageId ?? "nil")")
-        print("🔄 [Avatar] Latest AI message ID: \(avatarState.latestMessageId ?? "nil")")
-        print("🔄 [Avatar] Current avatar state: \(avatarState.animationState)")
+        debugPrint("🔄 [Avatar] updateTopAvatarState called")
+        debugPrint("🔄 [Avatar] VoiceService state: \(voiceService.interactionState)")
+        debugPrint("🔄 [Avatar] Current speaking ID: \(voiceService.currentSpeakingMessageId ?? "nil")")
+        debugPrint("🔄 [Avatar] Latest AI message ID: \(avatarState.latestMessageId ?? "nil")")
+        debugPrint("🔄 [Avatar] Current avatar state: \(avatarState.animationState)")
         }
 
         // Check if audio is actually playing (not just queued)
         if voiceService.interactionState == .speaking &&
            voiceService.currentSpeakingMessageId == avatarState.latestMessageId {
             if Self.debugMode {
-            print("🔄 [Avatar] Conditions met: Setting to .speaking")
+            debugPrint("🔄 [Avatar] Conditions met: Setting to .speaking")
             }
             avatarState.animationState = .speaking
         } else if voiceService.interactionState == .speaking {
             // Audio is playing but not the latest message
             if Self.debugMode {
-            print("🔄 [Avatar] Audio playing but not latest message")
+            debugPrint("🔄 [Avatar] Audio playing but not latest message")
             }
             avatarState.animationState = .idle  // Or keep current state
         } else {
             // No audio playing
             if Self.debugMode {
-            print("🔄 [Avatar] No audio playing: Setting to .idle")
+            debugPrint("🔄 [Avatar] No audio playing: Setting to .idle")
             }
             avatarState.animationState = .idle
         }
@@ -2759,7 +2759,7 @@ struct SessionChatView: View {
                 // Interactive TTS controls avatar via isInteractiveTTSPlaying — don't interfere
                 guard !viewModel.isInteractiveTTSPlaying else { return }
                 if Self.debugMode {
-                    print("🎭 [Avatar] VoiceService state: \(state)")
+                    debugPrint("🎭 [Avatar] VoiceService state: \(state)")
                 }
                 switch state {
                 case .speaking:
@@ -2801,7 +2801,7 @@ struct SessionChatView: View {
     /// Handle diagram generation request from follow-up suggestion
     private func handleDiagramGenerationRequest(_ suggestion: NetworkService.FollowUpSuggestion) {
         if Self.debugMode {
-        print("📊 Diagram generation requested: \(suggestion.key)")
+        debugPrint("📊 Diagram generation requested: \(suggestion.key)")
         }
 
         Task {
@@ -3131,14 +3131,14 @@ struct YouTubePlayerView: UIViewRepresentable {
                   let event = body["event"] as? String else { return }
             switch event {
             case "ready":
-                print("[YT] Player ready for videoId: \(videoId)")
+                debugPrint("[YT] Player ready for videoId: \(videoId)")
             case "stateChange":
-                print("[YT] State change: \(body["data"] ?? "?")")
+                debugPrint("[YT] State change: \(body["data"] ?? "?")")
             case "error":
                 // IFrame API error codes: 2=bad param, 5=HTML5 error, 100=not found,
                 // 101/150=embedding not allowed by owner
                 let code = body["data"] as? Int ?? -1
-                print("[YT] IFrame error code \(code) for videoId: \(videoId)")
+                debugPrint("[YT] IFrame error code \(code) for videoId: \(videoId)")
                 DispatchQueue.main.async { self.onEmbedBlocked() }
             default:
                 break
@@ -3146,11 +3146,11 @@ struct YouTubePlayerView: UIViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-            print("[YT] Navigation FAILED: \(error.localizedDescription)")
+            debugPrint("[YT] Navigation FAILED: \(error.localizedDescription)")
         }
 
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-            print("[YT] Provisional navigation FAILED: \(error.localizedDescription)")
+            debugPrint("[YT] Provisional navigation FAILED: \(error.localizedDescription)")
         }
 
         // Cancel any redirect out to youtube.com/watch (shouldn't happen with local HTML,
@@ -3158,7 +3158,7 @@ struct YouTubePlayerView: UIViewRepresentable {
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
             let url = navigationAction.request.url?.absoluteString ?? ""
             if url.contains("youtube.com/watch") {
-                print("[YT] Blocked redirect to watch URL — embed disallowed for videoId: \(videoId)")
+                debugPrint("[YT] Blocked redirect to watch URL — embed disallowed for videoId: \(videoId)")
                 DispatchQueue.main.async { self.onEmbedBlocked() }
                 decisionHandler(.cancel)
                 return

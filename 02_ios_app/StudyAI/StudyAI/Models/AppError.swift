@@ -460,10 +460,10 @@ class ErrorLogger {
         let timestamp = ISO8601DateFormatter().string(from: Date())
         let contextInfo = context.map { " [Context: \($0)]" } ?? ""
 
-        print("❌ [\(timestamp)] [\(error.severity)] \(error.errorDescription ?? "Unknown error")\(contextInfo)")
+        debugPrint("❌ [\(timestamp)] [\(error.severity)] \(error.errorDescription ?? "Unknown error")\(contextInfo)")
 
         if let recovery = error.recoverySuggestion {
-            print("   💡 Recovery: \(recovery)")
+            debugPrint("   💡 Recovery: \(recovery)")
         }
 
         // In production, send to analytics/crash reporting

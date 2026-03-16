@@ -175,7 +175,7 @@ class EnhancedImageProcessor {
         for quality in qualityLevels {
             if let data = targetImage.jpegData(compressionQuality: quality),
                data.count <= maxSizeBytes {
-                print("📷 Image compressed to \(data.count) bytes at \(quality) quality")
+                debugPrint("📷 Image compressed to \(data.count) bytes at \(quality) quality")
                 return data
             }
         }
@@ -186,7 +186,7 @@ class EnhancedImageProcessor {
         for quality in qualityLevels {
             if let data = smallerImage.jpegData(compressionQuality: quality),
                data.count <= maxSizeBytes {
-                print("📷 Image compressed to \(data.count) bytes at reduced size and \(quality) quality")
+                debugPrint("📷 Image compressed to \(data.count) bytes at reduced size and \(quality) quality")
                 return data
             }
         }
@@ -230,7 +230,7 @@ class EnhancedImageProcessor {
         let hasEvenWidth = width % 2 == 0
         let hasEvenHeight = height % 2 == 0
         
-        print("📐 Image dimensions: \(width)x\(height) - Even width: \(hasEvenWidth), Even height: \(hasEvenHeight)")
+        debugPrint("📐 Image dimensions: \(width)x\(height) - Even width: \(hasEvenWidth), Even height: \(hasEvenHeight)")
         
         return hasEvenWidth && hasEvenHeight
     }
@@ -274,7 +274,7 @@ extension EnhancedImageProcessor {
         var error = vImageBuffer_InitWithCGImage(&sourceBuffer, &format, nil, cgImage, vImage_Flags(kvImageNoFlags))
         
         guard error == kvImageNoError else {
-            print("❌ Failed to create source buffer: \(error)")
+            debugPrint("❌ Failed to create source buffer: \(error)")
             return nil
         }
         
@@ -287,7 +287,7 @@ extension EnhancedImageProcessor {
         error = vImageBuffer_Init(&destinationBuffer, vImagePixelCount(evenHeight), vImagePixelCount(evenWidth), 32, vImage_Flags(kvImageNoFlags))
         
         guard error == kvImageNoError else {
-            print("❌ Failed to create destination buffer: \(error)")
+            debugPrint("❌ Failed to create destination buffer: \(error)")
             return nil
         }
         
@@ -299,13 +299,13 @@ extension EnhancedImageProcessor {
         error = vImageScale_ARGB8888(&sourceBuffer, &destinationBuffer, nil, vImage_Flags(kvImageHighQualityResampling))
         
         guard error == kvImageNoError else {
-            print("❌ Failed to scale image: \(error)")
+            debugPrint("❌ Failed to scale image: \(error)")
             return nil
         }
         
         // Create CGImage from result
         guard let outputCGImage = vImageCreateCGImageFromBuffer(&destinationBuffer, &format, nil, nil, vImage_Flags(kvImageNoAllocate), &error)?.takeRetainedValue() else {
-            print("❌ Failed to create output CGImage: \(error)")
+            debugPrint("❌ Failed to create output CGImage: \(error)")
             return nil
         }
         

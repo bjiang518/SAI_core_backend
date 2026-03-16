@@ -87,9 +87,9 @@ struct PassiveReportsView: View {
                         // Three-dot dropdown menu
                         Menu {
                             Button {
-                                print("🔧 [EditMode] Entering edit mode")
+                                debugPrint("🔧 [EditMode] Entering edit mode")
                                 isEditMode = true
-                                print("🔧 [EditMode] isEditMode = \(isEditMode)")
+                                debugPrint("🔧 [EditMode] isEditMode = \(isEditMode)")
                             } label: {
                                 Label(NSLocalizedString("reports.passive.editReports", value: "Edit Reports", comment: ""), systemImage: "checkmark.circle")
                             }
@@ -155,7 +155,7 @@ struct PassiveReportsView: View {
             }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenParentReports"))) { notification in
                 // Handle notification tap to open specific report
-                print("📊 [PassiveReports] Received notification tap - reloading reports")
+                debugPrint("📊 [PassiveReports] Received notification tap - reloading reports")
                 Task {
                     await viewModel.loadAllBatches()
                 }
@@ -310,7 +310,7 @@ struct PassiveReportsView: View {
             // Get batches to delete
             let batchesToDelete = batches.filter { selectedBatches.contains($0.id) }
 
-            print("🗑️ [PassiveReportsView] Deleting \(batchesToDelete.count) selected batches")
+            debugPrint("🗑️ [PassiveReportsView] Deleting \(batchesToDelete.count) selected batches")
 
             // Delete all batches atomically
             let (succeeded, failed) = await viewModel.deleteBatches(batchesToDelete)
@@ -321,9 +321,9 @@ struct PassiveReportsView: View {
 
             // Show result if there were failures
             if failed > 0 {
-                print("⚠️ [PassiveReportsView] Batch delete partial success: \(succeeded) succeeded, \(failed) failed")
+                debugPrint("⚠️ [PassiveReportsView] Batch delete partial success: \(succeeded) succeeded, \(failed) failed")
             } else {
-                print("✅ [PassiveReportsView] All \(succeeded) batches deleted successfully")
+                debugPrint("✅ [PassiveReportsView] All \(succeeded) batches deleted successfully")
             }
         }
     }

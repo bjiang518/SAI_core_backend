@@ -13,7 +13,7 @@ import Combine
 // MARK: - Production Logging Safety
 // Disable debug print statements in production builds to prevent chat message exposure
 #if !DEBUG
-private func print(_ items: Any...) { }
+private func debugPrint(_ items: Any...) { }
 private func debugPrint(_ items: Any...) { }
 #endif
 
@@ -218,11 +218,11 @@ class SessionChatViewModel: ObservableObject {
                 if !isAvailable {
                     // Network lost - show banner immediately
                     self.showNetworkBanner = true
-                    print("📡 Network connection lost")
+                    debugPrint("📡 Network connection lost")
                 } else if !wasConnected && isAvailable {
                     // Network restored - show brief "reconnected" message
                     self.showNetworkBanner = true
-                    print("📡 Network connection restored")
+                    debugPrint("📡 Network connection restored")
 
                     // Hide banner after 3 seconds
                     DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
@@ -238,17 +238,17 @@ class SessionChatViewModel: ObservableObject {
     /// Send a message in the current chat session
     /// - Parameter deepMode: If true, uses o4 model for deeper reasoning (default: false)
     func sendMessage(deepMode: Bool = false) {
-        print("🟢 ============================================")
-        print("🟢 === SEND MESSAGE CALLED ===")
-        print("🟢 ============================================")
-        print("🟢 Timestamp: \(Date())")
-        print("🟢 Thread: \(Thread.current)")
-        print("🟢 Message Text: \(messageText)")
-        print("🟢 Deep Mode: \(deepMode ? "YES (o4 model)" : "NO (gpt-4o-mini)")")
-        print("🟢 Current Session ID: \(networkService.currentSessionId ?? "nil")")
+        debugPrint("🟢 ============================================")
+        debugPrint("🟢 === SEND MESSAGE CALLED ===")
+        debugPrint("🟢 ============================================")
+        debugPrint("🟢 Timestamp: \(Date())")
+        debugPrint("🟢 Thread: \(Thread.current)")
+        debugPrint("🟢 Message Text: \(messageText)")
+        debugPrint("🟢 Deep Mode: \(deepMode ? "YES (o4 model)" : "NO (gpt-4o-mini)")")
+        debugPrint("🟢 Current Session ID: \(networkService.currentSessionId ?? "nil")")
 
         guard !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            print("🟢 ⚠️ Message is empty, returning early")
+            debugPrint("🟢 ⚠️ Message is empty, returning early")
             return
         }
 
@@ -260,15 +260,15 @@ class SessionChatViewModel: ObservableObject {
         let shouldUseInteractive = interactiveModeSettings.shouldUseInteractiveMode() && voiceService.isVoiceEnabled
 
         if shouldUseInteractive {
-            print("🎙️ Interactive mode enabled - using real-time TTS")
-            print("🧠 Deep Mode: \(deepMode)")
+            debugPrint("🎙️ Interactive mode enabled - using real-time TTS")
+            debugPrint("🧠 Deep Mode: \(deepMode)")
             Task {
                 await sendMessageInteractive(deepMode: deepMode)
             }
             return
         }
 
-        print("📝 Using standard streaming mode")
+        debugPrint("📝 Using standard streaming mode")
         // Continue with existing logic below
 
         // Stop any currently playing audio when sending a new message
@@ -280,24 +280,24 @@ class SessionChatViewModel: ObservableObject {
         errorMessage = ""
 
         // ✅ CRITICAL FIX: Clear follow-up suggestions IMMEDIATELY to prevent auto-trigger
-        print("🔴 CLEARING aiGeneratedSuggestions at sendMessage start")
+        debugPrint("🔴 CLEARING aiGeneratedSuggestions at sendMessage start")
         aiGeneratedSuggestions = []
         isStreamingComplete = false
         generationWasStopped = false
 
         // ✅ Reset chunking for new streaming response
-        print("🔄 Starting new message - resetting chunking state")
+        debugPrint("🔄 Starting new message - resetting chunking state")
         streamingService.resetChunking()
 
-        print("🟢 Prepared message: \(message.prefix(100))")
-        print("🟢 Checking session ID: \(networkService.currentSessionId ?? "nil")")
+        debugPrint("🟢 Prepared message: \(message.prefix(100))")
+        debugPrint("🟢 Checking session ID: \(networkService.currentSessionId ?? "nil")")
 
         // ✅ Phase 2.6: Validate session before sending
         Task {
             // Ensure we have a valid session
             if let validSessionId = await networkService.ensureValidSession() {
-                print("🟢 ➡️ Routing to EXISTING SESSION path")
-                print("🟢 Session ID: \(validSessionId)")
+                debugPrint("🟢 ➡️ Routing to EXISTING SESSION path")
+                debugPrint("🟢 Session ID: \(validSessionId)")
 
                 // ✅ FIX: Check if homework context has image and persist it
                 let homeworkContext = appState.pendingHomeworkContext
@@ -307,9 +307,9 @@ class SessionChatViewModel: ObservableObject {
                     // Convert UIImage to Data for storage
                     if let imageData = questionImage.jpegData(compressionQuality: 0.8) {
                         imageMessages[messageId] = imageData
-                        print("🖼️ Stored homework question image with messageId: \(messageId)")
+                        debugPrint("🖼️ Stored homework question image with messageId: \(messageId)")
                     } else {
-                        print("⚠️ Failed to convert homework question image to Data")
+                        debugPrint("⚠️ Failed to convert homework question image to Data")
                     }
 
                     // Add message with image marker
@@ -320,7 +320,7 @@ class SessionChatViewModel: ObservableObject {
                         "messageId": messageId,
                         "deepMode": deepMode ? "true" : "false"
                     ])
-                    print("✅ Added user message to history WITH image marker")
+                    debugPrint("✅ Added user message to history WITH image marker")
                 } else {
                     // For existing session: Add user message immediately (no image)
                     persistMessage(role: "user", content: message, deepMode: deepMode)
@@ -332,7 +332,7 @@ class SessionChatViewModel: ObservableObject {
                 sendMessageToExistingSession(sessionId: validSessionId, message: message, deepMode: deepMode)
             } else {
                 // Failed to get valid session - show error
-                print("❌ Failed to validate or create session")
+                debugPrint("❌ Failed to validate or create session")
                 errorMessage = NSLocalizedString("error.session.creation", comment: "")
                 isSubmitting = false
                 messageText = message  // Restore message so user can retry
@@ -344,12 +344,12 @@ class SessionChatViewModel: ObservableObject {
     func startNewSession() {
         // Clear AI-generated suggestions when starting new session
         aiGeneratedSuggestions = []
-        print("🔄 Starting new session - cleared AI suggestions")
+        debugPrint("🔄 Starting new session - cleared AI suggestions")
 
         // ✅ FIX: Clear diagrams from previous session to prevent them from appearing in archive
         generatedDiagrams.removeAll()
         lastGeneratedDiagramKey = nil
-        print("🔄 Starting new session - cleared generated diagrams")
+        debugPrint("🔄 Starting new session - cleared generated diagrams")
 
         Task {
             let result = await networkService.startNewSession(subject: selectedSubject.lowercased())
@@ -367,32 +367,32 @@ class SessionChatViewModel: ObservableObject {
 
     /// Proceed with homework question from grading report
     func proceedWithHomeworkQuestion() {
-        print("🟣 ============================================")
-        print("🟣 === PROCEED WITH HOMEWORK QUESTION ===")
-        print("🟣 ============================================")
-        print("🟣 Timestamp: \(Date())")
-        print("🟣 Selected Subject: \(selectedSubject)")
-        print("🟣 Pending Homework Question: \(pendingHomeworkQuestion)")
+        debugPrint("🟣 ============================================")
+        debugPrint("🟣 === PROCEED WITH HOMEWORK QUESTION ===")
+        debugPrint("🟣 ============================================")
+        debugPrint("🟣 Timestamp: \(Date())")
+        debugPrint("🟣 Selected Subject: \(selectedSubject)")
+        debugPrint("🟣 Pending Homework Question: \(pendingHomeworkQuestion)")
 
         // ✅ CRITICAL FIX: Clear AI suggestions from previous session
         aiGeneratedSuggestions = []
-        print("🟣 Cleared AI-generated suggestions before homework follow-up")
+        debugPrint("🟣 Cleared AI-generated suggestions before homework follow-up")
 
         // Set the subject
         selectedSubject = pendingHomeworkSubject
 
         // ✅ FIX: Check if session exists before creating new one
         if let existingSessionId = networkService.currentSessionId {
-            print("🟣 ✅ Using existing session: \(existingSessionId)")
+            debugPrint("🟣 ✅ Using existing session: \(existingSessionId)")
 
             // Send homework question to existing session
             messageText = pendingHomeworkQuestion
-            print("🟣 🔴 Clearing pendingHomeworkQuestion to prevent reuse")
+            debugPrint("🟣 🔴 Clearing pendingHomeworkQuestion to prevent reuse")
             pendingHomeworkQuestion = ""
 
             // ✅ NEW: Check if we should use deep mode for "Ask AI for Help"
             let shouldUseDeepMode = appState.shouldUseDeepModeForFirstMessage
-            print("🧠 Deep Mode for first message: \(shouldUseDeepMode ? "YES (o4)" : "NO (gpt-4o-mini)")")
+            debugPrint("🧠 Deep Mode for first message: \(shouldUseDeepMode ? "YES (o4)" : "NO (gpt-4o-mini)")")
 
             // ✅ NEW: Clear the flag immediately after reading it
             if shouldUseDeepMode {
@@ -402,26 +402,26 @@ class SessionChatViewModel: ObservableObject {
             sendMessage(deepMode: shouldUseDeepMode)  // ✅ MODIFIED: Pass deep mode flag
         } else {
             // No existing session - create new one
-            print("🟣 No existing session - creating new one")
+            debugPrint("🟣 No existing session - creating new one")
 
             // ✅ FIX: Clear diagrams before creating new session
             generatedDiagrams.removeAll()
-            print("🟣 Cleared generated diagrams before creating new session")
+            debugPrint("🟣 Cleared generated diagrams before creating new session")
 
             Task {
                 let result = await networkService.startNewSession(subject: selectedSubject.lowercased())
 
                 if result.success {
-                    print("🟣 ✅ New session created successfully!")
+                    debugPrint("🟣 ✅ New session created successfully!")
 
                     // Send the message immediately
                     messageText = pendingHomeworkQuestion
-                    print("🟣 🔴 Clearing pendingHomeworkQuestion to prevent reuse")
+                    debugPrint("🟣 🔴 Clearing pendingHomeworkQuestion to prevent reuse")
                     pendingHomeworkQuestion = ""
 
                     // ✅ NEW: Check if we should use deep mode for "Ask AI for Help"
                     let shouldUseDeepMode = appState.shouldUseDeepModeForFirstMessage
-                    print("🧠 Deep Mode for first message (new session): \(shouldUseDeepMode ? "YES (o4)" : "NO (gpt-4o-mini)")")
+                    debugPrint("🧠 Deep Mode for first message (new session): \(shouldUseDeepMode ? "YES (o4)" : "NO (gpt-4o-mini)")")
 
                     // ✅ NEW: Clear the flag immediately after reading it
                     if shouldUseDeepMode {
@@ -430,7 +430,7 @@ class SessionChatViewModel: ObservableObject {
 
                     sendMessage(deepMode: shouldUseDeepMode)  // ✅ MODIFIED: Pass deep mode flag
                 } else {
-                    print("🟣 ❌ Failed to create new session: \(result.message)")
+                    debugPrint("🟣 ❌ Failed to create new session: \(result.message)")
                     errorMessage = NSLocalizedString("error.session.creation", comment: "")
                     appState.clearPendingChatMessage()
                 }
@@ -440,52 +440,52 @@ class SessionChatViewModel: ObservableObject {
 
     /// Start a completely new conversation with homework question (discard current session)
     func startNewConversationWithHomeworkQuestion() {
-        print("🟢 ============================================")
-        print("🟢 === START NEW CONVERSATION WITH HOMEWORK ===")
-        print("🟢 ============================================")
-        print("🟢 Timestamp: \(Date())")
-        print("🟢 Selected Subject: \(selectedSubject)")
-        print("🟢 Pending Homework Question: \(pendingHomeworkQuestion)")
+        debugPrint("🟢 ============================================")
+        debugPrint("🟢 === START NEW CONVERSATION WITH HOMEWORK ===")
+        debugPrint("🟢 ============================================")
+        debugPrint("🟢 Timestamp: \(Date())")
+        debugPrint("🟢 Selected Subject: \(selectedSubject)")
+        debugPrint("🟢 Pending Homework Question: \(pendingHomeworkQuestion)")
 
         // ✅ CRITICAL FIX: Clear conversation history IMMEDIATELY (synchronously)
         // This ensures old messages disappear from UI right away, before async session creation
         networkService.conversationHistory.removeAll()
-        print("🟢 🔴 CLEARED conversation history synchronously to remove old messages from UI")
+        debugPrint("🟢 🔴 CLEARED conversation history synchronously to remove old messages from UI")
 
         // Clear AI suggestions from previous session
         aiGeneratedSuggestions = []
-        print("🟢 Cleared AI-generated suggestions before new conversation")
+        debugPrint("🟢 Cleared AI-generated suggestions before new conversation")
 
         // Clear diagrams from previous session
         generatedDiagrams.removeAll()
-        print("🟢 Cleared generated diagrams before new conversation")
+        debugPrint("🟢 Cleared generated diagrams before new conversation")
 
         // ✅ FIX: Clear last generated diagram key
         lastGeneratedDiagramKey = nil
-        print("🟢 Cleared last diagram key")
+        debugPrint("🟢 Cleared last diagram key")
 
         // Set the subject
         selectedSubject = pendingHomeworkSubject
 
         // ✅ KEY FIX: Always start a new session regardless of existing session
-        print("🟢 Starting completely new session (discarding current if exists)")
+        debugPrint("🟢 Starting completely new session (discarding current if exists)")
 
         Task {
             // Start a brand new session
             let result = await networkService.startNewSession(subject: selectedSubject.lowercased())
 
             if result.success {
-                print("🟢 ✅ New session created successfully!")
-                print("🟢 New session ID: \(networkService.currentSessionId ?? "unknown")")
+                debugPrint("🟢 ✅ New session created successfully!")
+                debugPrint("🟢 New session ID: \(networkService.currentSessionId ?? "unknown")")
 
                 // Send the message immediately
                 messageText = pendingHomeworkQuestion
-                print("🟢 🔴 Clearing pendingHomeworkQuestion to prevent reuse")
+                debugPrint("🟢 🔴 Clearing pendingHomeworkQuestion to prevent reuse")
                 pendingHomeworkQuestion = ""
 
                 sendMessage()
             } else {
-                print("🟢 ❌ Failed to create new session: \(result.message)")
+                debugPrint("🟢 ❌ Failed to create new session: \(result.message)")
                 errorMessage = NSLocalizedString("error.session.creation", comment: "")
                 appState.clearPendingChatMessage()
             }
@@ -742,18 +742,18 @@ class SessionChatViewModel: ObservableObject {
             mappedLanguage = "en"  // Default to English for all other languages
         }
 
-        print("🌐 User's preferred language: \(preferredLanguage) -> \(mappedLanguage)")
+        debugPrint("🌐 User's preferred language: \(preferredLanguage) -> \(mappedLanguage)")
         return mappedLanguage
     }
 
     /// Generate a diagram based on current conversation context
     func generateDiagram(request: String) async {
-        print("🎨 === GENERATING DIAGRAM ===")
-        print("🎨 Request: \(request)")
-        print("🎨 Session ID: \(networkService.currentSessionId ?? "nil")")
+        debugPrint("🎨 === GENERATING DIAGRAM ===")
+        debugPrint("🎨 Request: \(request)")
+        debugPrint("🎨 Session ID: \(networkService.currentSessionId ?? "nil")")
 
         guard let sessionId = networkService.currentSessionId else {
-            print("❌ No session ID for diagram generation")
+            debugPrint("❌ No session ID for diagram generation")
             return
         }
 
@@ -814,12 +814,12 @@ class SessionChatViewModel: ObservableObject {
                 // Insert regenerate button at the beginning, keeping other suggestions
                 aiGeneratedSuggestions.insert(regenerateSuggestion, at: 0)
 
-                print("✅ Diagram generated and added to conversation")
-                print("🎨 Title: \(response.diagramTitle ?? "No title")")
-                print("🎨 Type: \(response.diagramType ?? "Unknown")")
-                print("🔄 Added 'Regenerate Image' button (total suggestions: \(aiGeneratedSuggestions.count))")
+                debugPrint("✅ Diagram generated and added to conversation")
+                debugPrint("🎨 Title: \(response.diagramTitle ?? "No title")")
+                debugPrint("🎨 Type: \(response.diagramType ?? "Unknown")")
+                debugPrint("🔄 Added 'Regenerate Image' button (total suggestions: \(aiGeneratedSuggestions.count))")
             } else {
-                print("❌ Diagram generation failed: \(response.error ?? "Unknown error")")
+                debugPrint("❌ Diagram generation failed: \(response.error ?? "Unknown error")")
 
                 // Add error message to conversation
                 let errorMessage = "Sorry, I couldn't generate the diagram. \(response.error ?? "Please try again.")"
@@ -867,8 +867,8 @@ class SessionChatViewModel: ObservableObject {
 
     /// Remove a diagram from the conversation
     func removeDiagram(withKey diagramKey: String) {
-        print("🗑️ === REMOVING DIAGRAM ===")
-        print("🗑️ Diagram key: \(diagramKey)")
+        debugPrint("🗑️ === REMOVING DIAGRAM ===")
+        debugPrint("🗑️ Diagram key: \(diagramKey)")
 
         // Remove from diagrams dictionary
         generatedDiagrams.removeValue(forKey: diagramKey)
@@ -882,9 +882,9 @@ class SessionChatViewModel: ObservableObject {
             return false
         }) {
             networkService.conversationHistory.remove(at: index)
-            print("✅ Diagram and message removed from conversation history")
+            debugPrint("✅ Diagram and message removed from conversation history")
         } else {
-            print("⚠️ Message with diagram key not found in conversation history")
+            debugPrint("⚠️ Message with diagram key not found in conversation history")
         }
 
         // Trigger UI refresh
@@ -893,18 +893,18 @@ class SessionChatViewModel: ObservableObject {
 
     /// Regenerate a diagram with cache bypass
     func regenerateDiagram(withKey diagramKey: String) async {
-        print("🔄 === REGENERATING DIAGRAM ===")
-        print("🔄 Diagram key: \(diagramKey)")
+        debugPrint("🔄 === REGENERATING DIAGRAM ===")
+        debugPrint("🔄 Diagram key: \(diagramKey)")
 
         // Get the original request
         guard let originalRequest = diagramRequests[diagramKey] else {
-            print("❌ Original request not found for diagram key: \(diagramKey)")
+            debugPrint("❌ Original request not found for diagram key: \(diagramKey)")
             errorMessage = "Cannot regenerate diagram: Original request not found"
             return
         }
 
         guard let sessionId = networkService.currentSessionId else {
-            print("❌ No session ID for diagram regeneration")
+            debugPrint("❌ No session ID for diagram regeneration")
             return
         }
 
@@ -917,7 +917,7 @@ class SessionChatViewModel: ObservableObject {
             // ✅ Remove old diagram from dictionary immediately
             // This ensures old image disappears from view
             generatedDiagrams.removeValue(forKey: diagramKey)
-            print("🔄 Removed old diagram from view - showing loading animation")
+            debugPrint("🔄 Removed old diagram from view - showing loading animation")
         }
 
         // ✅ CRITICAL: Force cache bypass by adding UUID to request
@@ -950,9 +950,9 @@ class SessionChatViewModel: ObservableObject {
                 // ✅ Clear regenerating state to show new diagram
                 regeneratingDiagramKey = nil
 
-                print("✅ Diagram regenerated successfully")
-                print("🔄 Title: \(response.diagramTitle ?? "No title")")
-                print("🔄 Type: \(response.diagramType ?? "Unknown")")
+                debugPrint("✅ Diagram regenerated successfully")
+                debugPrint("🔄 Title: \(response.diagramTitle ?? "No title")")
+                debugPrint("🔄 Type: \(response.diagramType ?? "Unknown")")
 
                 // Keep the "Regenerate Image" button available
                 if !aiGeneratedSuggestions.contains(where: { $0.key.contains("Regenerate") }) {
@@ -966,7 +966,7 @@ class SessionChatViewModel: ObservableObject {
                 // Trigger UI refresh to show new diagram
                 refreshTrigger = UUID()
             } else {
-                print("❌ Diagram regeneration failed: \(response.error ?? "Unknown error")")
+                debugPrint("❌ Diagram regeneration failed: \(response.error ?? "Unknown error")")
 
                 // ✅ Clear regenerating state even on failure
                 regeneratingDiagramKey = nil
@@ -1153,9 +1153,9 @@ class SessionChatViewModel: ObservableObject {
 
     /// Retry a specific failed message
     func retryFailedMessage(_ failedMessage: FailedMessage) {
-        print("🔄 === RETRYING FAILED MESSAGE ===")
-        print("🔄 Message: \(failedMessage.message)")
-        print("🔄 Original error: \(failedMessage.errorReason)")
+        debugPrint("🔄 === RETRYING FAILED MESSAGE ===")
+        debugPrint("🔄 Message: \(failedMessage.message)")
+        debugPrint("🔄 Original error: \(failedMessage.errorReason)")
 
         // Remove from failed messages list
         failedMessages.removeAll { $0.id == failedMessage.id }
@@ -1200,10 +1200,10 @@ class SessionChatViewModel: ObservableObject {
 
     private func sendMessageToExistingSession(sessionId: String, message: String, deepMode: Bool = false) {
         Task {
-            print("🟡 === SEND MESSAGE TO EXISTING SESSION (START) ===")
-            print("🟡 Session ID: \(sessionId)")
-            print("🟡 Message: \(message)")
-            print("🟡 Deep Mode: \(deepMode)")
+            debugPrint("🟡 === SEND MESSAGE TO EXISTING SESSION (START) ===")
+            debugPrint("🟡 Session ID: \(sessionId)")
+            debugPrint("🟡 Message: \(message)")
+            debugPrint("🟡 Deep Mode: \(deepMode)")
 
             // Check for homework context
             let homeworkContext = appState.pendingHomeworkContext
@@ -1240,7 +1240,7 @@ class SessionChatViewModel: ObservableObject {
                                         let chunkIndex = self.streamingService.streamingChunks.count - newChunks.count + index
                                         let messageId = "chunk-\(sessionId)-\(chunkIndex)"
                                         self.ttsQueueService.enqueueTTSChunk(text: chunk, messageId: messageId, sessionId: sessionId)
-                                        print("🎤 [TTS] Enqueued chunk \(chunkIndex): \(chunk.prefix(50))...")
+                                        debugPrint("🎤 [TTS] Enqueued chunk \(chunkIndex): \(chunk.prefix(50))...")
                                     }
                                 }
                             }
@@ -1288,35 +1288,35 @@ class SessionChatViewModel: ObservableObject {
                                     // Enqueue any remaining incomplete chunk for TTS
                                     let finalIncompleteChunk = String(finalText.dropFirst(self.streamingService.totalProcessedLength))
 
-                                    print("🎯 [TTS-Final] Checking final chunk:")
-                                    print("   └─ Full text length: \(finalText.count) chars")
-                                    print("   └─ Already processed: \(self.streamingService.totalProcessedLength) chars")
-                                    print("   └─ Remaining chunk: \(finalIncompleteChunk.count) chars")
-                                    print("   └─ Voice enabled: \(self.voiceService.isVoiceEnabled)")
+                                    debugPrint("🎯 [TTS-Final] Checking final chunk:")
+                                    debugPrint("   └─ Full text length: \(finalText.count) chars")
+                                    debugPrint("   └─ Already processed: \(self.streamingService.totalProcessedLength) chars")
+                                    debugPrint("   └─ Remaining chunk: \(finalIncompleteChunk.count) chars")
+                                    debugPrint("   └─ Voice enabled: \(self.voiceService.isVoiceEnabled)")
 
                                     if !finalIncompleteChunk.isEmpty && self.voiceService.isVoiceEnabled {
                                         let chunkIndex = self.streamingService.streamingChunks.count
                                         let messageId = "final-chunk-\(sessionId)-\(chunkIndex)"
 
                                         let preview = finalIncompleteChunk.prefix(80).replacingOccurrences(of: "\n", with: " ")
-                                        print("📤 [TTS-Final] Enqueueing final chunk #\(chunkIndex)")
-                                        print("   └─ Preview: \"\(preview)...\"")
-                                        print("   └─ MessageId: \(messageId)")
+                                        debugPrint("📤 [TTS-Final] Enqueueing final chunk #\(chunkIndex)")
+                                        debugPrint("   └─ Preview: \"\(preview)...\"")
+                                        debugPrint("   └─ MessageId: \(messageId)")
 
                                         self.ttsQueueService.enqueueTTSChunk(text: finalIncompleteChunk, messageId: messageId, sessionId: sessionId)
 
-                                        print("✅ [TTS-Final] Final chunk successfully enqueued")
+                                        debugPrint("✅ [TTS-Final] Final chunk successfully enqueued")
                                     } else if finalIncompleteChunk.isEmpty {
-                                        print("✅ [TTS-Final] No remaining text - all chunks already queued")
+                                        debugPrint("✅ [TTS-Final] No remaining text - all chunks already queued")
                                     } else {
-                                        print("⚠️ [TTS-Final] Voice disabled - skipping final chunk")
+                                        debugPrint("⚠️ [TTS-Final] Voice disabled - skipping final chunk")
                                     }
                                 }
 
                                 // Clear streaming state and retry UI
                                 let timestamp = Date()
                                 let timestampStr = DateFormatter.localizedString(from: timestamp, dateStyle: .none, timeStyle: .medium)
-                                print("[\(timestampStr)] ✅ Streaming complete - setting isActivelyStreaming = false")
+                                debugPrint("[\(timestampStr)] ✅ Streaming complete - setting isActivelyStreaming = false")
                                 self.isActivelyStreaming = false
                                 self.activeStreamingMessage = ""
                                 self.showRetryStreamingButton = false
@@ -1334,7 +1334,7 @@ class SessionChatViewModel: ObservableObject {
                                 }
                             } else {
                                 // Reset UI state so the app doesn't freeze
-                                print("⚠️ Streaming failed, retry may be available")
+                                debugPrint("⚠️ Streaming failed, retry may be available")
                                 self.isActivelyStreaming = false
                                 self.activeStreamingMessage = ""
                                 withAnimation {
@@ -1351,11 +1351,11 @@ class SessionChatViewModel: ObservableObject {
                             guard !self.generationWasStopped else { return }
 
                             // Show retry UI with partial response
-                            print("🔄 Retry available with partial response: \(partialText.count) chars")
+                            debugPrint("🔄 Retry available with partial response: \(partialText.count) chars")
 
                             let timestamp = Date()
                             let timestampStr = DateFormatter.localizedString(from: timestamp, dateStyle: .none, timeStyle: .medium)
-                            print("[\(timestampStr)] ⚠️ Streaming retry - setting isActivelyStreaming = false")
+                            debugPrint("[\(timestampStr)] ⚠️ Streaming retry - setting isActivelyStreaming = false")
 
                             self.partialResponseText = partialText
                             self.showRetryStreamingButton = true
@@ -1402,9 +1402,9 @@ class SessionChatViewModel: ObservableObject {
                     // Convert UIImage to Data for storage
                     if let imageData = questionImage.jpegData(compressionQuality: 0.8) {
                         imageMessages[messageId!] = imageData
-                        print("🖼️ Stored homework question image with messageId: \(messageId!)")
+                        debugPrint("🖼️ Stored homework question image with messageId: \(messageId!)")
                     } else {
-                        print("⚠️ Failed to convert homework question image to Data")
+                        debugPrint("⚠️ Failed to convert homework question image to Data")
                         messageId = nil
                     }
                 }
@@ -1419,7 +1419,7 @@ class SessionChatViewModel: ObservableObject {
                         "messageId": msgId,
                         "deepMode": deepMode ? "true" : "false"
                     ])
-                    print("✅ Added user message to history WITH image marker")
+                    debugPrint("✅ Added user message to history WITH image marker")
                 } else {
                     // Regular message without image
                     persistMessage(role: "user", content: message, addToHistory: false, deepMode: deepMode)
@@ -1449,7 +1449,7 @@ class SessionChatViewModel: ObservableObject {
                                             let chunkIndex = self.streamingService.streamingChunks.count - newChunks.count + index
                                             let messageId = "chunk-\(sessionId)-\(chunkIndex)"
                                             self.ttsQueueService.enqueueTTSChunk(text: chunk, messageId: messageId, sessionId: sessionId)
-                                            print("🎤 [TTS] Enqueued chunk \(chunkIndex): \(chunk.prefix(50))...")
+                                            debugPrint("🎤 [TTS] Enqueued chunk \(chunkIndex): \(chunk.prefix(50))...")
                                         }
                                     }
                                 }
@@ -1498,28 +1498,28 @@ class SessionChatViewModel: ObservableObject {
                                         // Enqueue any remaining incomplete chunk for TTS
                                         let finalIncompleteChunk = String(finalText.dropFirst(self.streamingService.totalProcessedLength))
 
-                                        print("🎯 [TTS-Final] Checking final chunk (non-interactive mode):")
-                                        print("   └─ Full text length: \(finalText.count) chars")
-                                        print("   └─ Already processed: \(self.streamingService.totalProcessedLength) chars")
-                                        print("   └─ Remaining chunk: \(finalIncompleteChunk.count) chars")
-                                        print("   └─ Voice enabled: \(self.voiceService.isVoiceEnabled)")
+                                        debugPrint("🎯 [TTS-Final] Checking final chunk (non-interactive mode):")
+                                        debugPrint("   └─ Full text length: \(finalText.count) chars")
+                                        debugPrint("   └─ Already processed: \(self.streamingService.totalProcessedLength) chars")
+                                        debugPrint("   └─ Remaining chunk: \(finalIncompleteChunk.count) chars")
+                                        debugPrint("   └─ Voice enabled: \(self.voiceService.isVoiceEnabled)")
 
                                         if !finalIncompleteChunk.isEmpty && self.voiceService.isVoiceEnabled {
                                             let chunkIndex = self.streamingService.streamingChunks.count
                                             let messageId = "final-chunk-\(sessionId)-\(chunkIndex)"
 
                                             let preview = finalIncompleteChunk.prefix(80).replacingOccurrences(of: "\n", with: " ")
-                                            print("📤 [TTS-Final] Enqueueing final chunk #\(chunkIndex)")
-                                            print("   └─ Preview: \"\(preview)...\"")
-                                            print("   └─ MessageId: \(messageId)")
+                                            debugPrint("📤 [TTS-Final] Enqueueing final chunk #\(chunkIndex)")
+                                            debugPrint("   └─ Preview: \"\(preview)...\"")
+                                            debugPrint("   └─ MessageId: \(messageId)")
 
                                             self.ttsQueueService.enqueueTTSChunk(text: finalIncompleteChunk, messageId: messageId, sessionId: sessionId)
 
-                                            print("✅ [TTS-Final] Final chunk successfully enqueued")
+                                            debugPrint("✅ [TTS-Final] Final chunk successfully enqueued")
                                         } else if finalIncompleteChunk.isEmpty {
-                                            print("✅ [TTS-Final] No remaining text - all chunks already queued")
+                                            debugPrint("✅ [TTS-Final] No remaining text - all chunks already queued")
                                         } else {
-                                            print("⚠️ [TTS-Final] Voice disabled - skipping final chunk")
+                                            debugPrint("⚠️ [TTS-Final] Voice disabled - skipping final chunk")
                                         }
 
                                         // ✅ FIX: Persist complete message as single entry
@@ -1540,7 +1540,7 @@ class SessionChatViewModel: ObservableObject {
                                     }
                                 } else {
                                     // ⚠️ Phase 2.3: Retry logic will handle showing retry UI
-                                    print("⚠️ Streaming failed, retry may be available")
+                                    debugPrint("⚠️ Streaming failed, retry may be available")
                                 }
                             }
                         },
@@ -1548,7 +1548,7 @@ class SessionChatViewModel: ObservableObject {
                             Task { @MainActor in
                                 guard let self = self else { return }
 
-                                print("🔄 Retry available: \(partialText.count) chars")
+                                debugPrint("🔄 Retry available: \(partialText.count) chars")
 
                                 self.partialResponseText = partialText
                                 self.showRetryStreamingButton = true
@@ -1608,7 +1608,7 @@ class SessionChatViewModel: ObservableObject {
 
                 errorMessage = NSLocalizedString("error.session.creation", comment: "")
 
-                print("❌ Session creation failed, added to retry queue: \(failedMessages.count) total")
+                debugPrint("❌ Session creation failed, added to retry queue: \(failedMessages.count) total")
             }
         }
     }
@@ -1650,7 +1650,7 @@ class SessionChatViewModel: ObservableObject {
             failedMessages.append(failedMessage)
             showRetryBanner = true
 
-            print("❌ Message failed, added to retry queue: \(failedMessages.count) total")
+            debugPrint("❌ Message failed, added to retry queue: \(failedMessages.count) total")
 
             // Handle specific errors
             if errorDetail.contains("session") || errorDetail.contains("expired") {
@@ -1672,7 +1672,7 @@ class SessionChatViewModel: ObservableObject {
     private func startNewSessionAndRetry(message: String) async {
         // ✅ FIX: Clear diagrams before creating new session
         generatedDiagrams.removeAll()
-        print("🔄 Cleared generated diagrams before retry with new session")
+        debugPrint("🔄 Cleared generated diagrams before retry with new session")
 
         let result = await networkService.startNewSession(subject: selectedSubject.lowercased())
 

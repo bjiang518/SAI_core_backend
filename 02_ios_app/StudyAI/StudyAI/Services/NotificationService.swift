@@ -40,12 +40,12 @@ class NotificationService: NSObject, ObservableObject {
 
     func loadSettings() {
         settings = NotificationSettings.load()
-        print("📱 NotificationService: Settings loaded")
+        debugPrint("📱 NotificationService: Settings loaded")
     }
 
     func saveSettings() {
         settings.save()
-        print("📱 NotificationService: Settings saved")
+        debugPrint("📱 NotificationService: Settings saved")
     }
 
     // MARK: - Permission Management
@@ -58,14 +58,14 @@ class NotificationService: NSObject, ObservableObject {
             await checkAuthorizationStatus()
 
             if granted {
-                print("📱 NotificationService: Authorization granted")
+                debugPrint("📱 NotificationService: Authorization granted")
             } else {
-                print("📱 NotificationService: Authorization denied")
+                debugPrint("📱 NotificationService: Authorization denied")
             }
 
             return granted
         } catch {
-            print("📱 NotificationService: Authorization error: \(error)")
+            debugPrint("📱 NotificationService: Authorization error: \(error)")
             return false
         }
     }
@@ -76,7 +76,7 @@ class NotificationService: NSObject, ObservableObject {
         authorizationStatus = settings.authorizationStatus
         isAuthorized = (settings.authorizationStatus == .authorized)
 
-        print("📱 NotificationService: Authorization status: \(authorizationStatus.rawValue)")
+        debugPrint("📱 NotificationService: Authorization status: \(authorizationStatus.rawValue)")
     }
 
     func openSystemSettings() {
@@ -89,7 +89,7 @@ class NotificationService: NSObject, ObservableObject {
 
     func scheduleStudyReminders() {
         guard settings.isEnabled && settings.studyReminders.isEnabled else {
-            print("📱 NotificationService: Study reminders disabled, skipping scheduling")
+            debugPrint("📱 NotificationService: Study reminders disabled, skipping scheduling")
             return
         }
 
@@ -101,7 +101,7 @@ class NotificationService: NSObject, ObservableObject {
         let timeComponents = calendar.dateComponents([.hour, .minute], from: config.time)
 
         guard let hour = timeComponents.hour, let minute = timeComponents.minute else {
-            print("📱 NotificationService: Invalid time components")
+            debugPrint("📱 NotificationService: Invalid time components")
             return
         }
 
@@ -132,14 +132,14 @@ class NotificationService: NSObject, ObservableObject {
             // Add notification
             notificationCenter.add(request) { error in
                 if let error = error {
-                    print("📱 NotificationService: Failed to schedule \(day.displayName) reminder: \(error)")
+                    debugPrint("📱 NotificationService: Failed to schedule \(day.displayName) reminder: \(error)")
                 } else {
-                    print("📱 NotificationService: Scheduled reminder for \(day.displayName) at \(hour):\(String(format: "%02d", minute))")
+                    debugPrint("📱 NotificationService: Scheduled reminder for \(day.displayName) at \(hour):\(String(format: "%02d", minute))")
                 }
             }
         }
 
-        print("📱 NotificationService: Scheduled \(config.days.count) study reminders")
+        debugPrint("📱 NotificationService: Scheduled \(config.days.count) study reminders")
     }
 
     func cancelStudyReminders() {
@@ -151,7 +151,7 @@ class NotificationService: NSObject, ObservableObject {
 
             if !studyReminderIds.isEmpty {
                 self.notificationCenter.removePendingNotificationRequests(withIdentifiers: studyReminderIds)
-                print("📱 NotificationService: Cancelled \(studyReminderIds.count) study reminders")
+                debugPrint("📱 NotificationService: Cancelled \(studyReminderIds.count) study reminders")
             }
         }
     }
@@ -170,14 +170,14 @@ class NotificationService: NSObject, ObservableObject {
 
     func removeAllPendingNotifications() {
         notificationCenter.removeAllPendingNotificationRequests()
-        print("📱 NotificationService: Removed all pending notifications")
+        debugPrint("📱 NotificationService: Removed all pending notifications")
     }
 
     // MARK: - Homework Completion Notification
 
     func sendHomeworkCompletionNotification(questionCount: Int) {
         guard settings.isEnabled else {
-            print("📱 NotificationService: Notifications disabled, skipping homework completion notification")
+            debugPrint("📱 NotificationService: Notifications disabled, skipping homework completion notification")
             return
         }
 
@@ -200,9 +200,9 @@ class NotificationService: NSObject, ObservableObject {
         // Add notification
         notificationCenter.add(request) { error in
             if let error = error {
-                print("📱 NotificationService: Failed to send homework completion notification: \(error)")
+                debugPrint("📱 NotificationService: Failed to send homework completion notification: \(error)")
             } else {
-                print("📱 NotificationService: Sent homework completion notification for \(questionCount) questions")
+                debugPrint("📱 NotificationService: Sent homework completion notification for \(questionCount) questions")
             }
         }
     }
@@ -216,7 +216,7 @@ class NotificationService: NSObject, ObservableObject {
     ///   - overallGrade: Optional overall grade (A/B/C)
     func sendParentReportAvailableNotification(period: String, reportCount: Int, overallGrade: String? = nil) {
         guard settings.isEnabled else {
-            print("📱 NotificationService: Notifications disabled, skipping parent report notification")
+            debugPrint("📱 NotificationService: Notifications disabled, skipping parent report notification")
             return
         }
 
@@ -259,9 +259,9 @@ class NotificationService: NSObject, ObservableObject {
         // Add notification
         notificationCenter.add(request) { error in
             if let error = error {
-                print("📱 NotificationService: Failed to send parent report notification: \(error)")
+                debugPrint("📱 NotificationService: Failed to send parent report notification: \(error)")
             } else {
-                print("📱 NotificationService: Sent parent report notification for \(period) report with \(reportCount) insights")
+                debugPrint("📱 NotificationService: Sent parent report notification for \(period) report with \(reportCount) insights")
             }
         }
     }
@@ -270,7 +270,7 @@ class NotificationService: NSObject, ObservableObject {
     /// - Parameter delay: Delay in seconds (default: 1 hour = 3600 seconds)
     func scheduleParentReportCheckReminder(delay: TimeInterval = 3600) {
         guard settings.isEnabled else {
-            print("📱 NotificationService: Notifications disabled, skipping report check reminder")
+            debugPrint("📱 NotificationService: Notifications disabled, skipping report check reminder")
             return
         }
 
@@ -296,9 +296,9 @@ class NotificationService: NSObject, ObservableObject {
         // Add notification
         notificationCenter.add(request) { error in
             if let error = error {
-                print("📱 NotificationService: Failed to schedule report check reminder: \(error)")
+                debugPrint("📱 NotificationService: Failed to schedule report check reminder: \(error)")
             } else {
-                print("📱 NotificationService: Scheduled report check reminder for \(Int(delay / 60)) minutes from now")
+                debugPrint("📱 NotificationService: Scheduled report check reminder for \(Int(delay / 60)) minutes from now")
             }
         }
     }
@@ -307,7 +307,7 @@ class NotificationService: NSObject, ObservableObject {
     func cancelParentReportCheckReminder() {
         let identifier = "com.studyai.parentReport.checkReminder"
         notificationCenter.removePendingNotificationRequests(withIdentifiers: [identifier])
-        print("📱 NotificationService: Cancelled parent report check reminder")
+        debugPrint("📱 NotificationService: Cancelled parent report check reminder")
     }
 
     // MARK: - Badge Management
@@ -317,7 +317,7 @@ class NotificationService: NSObject, ObservableObject {
         if #available(iOS 16.0, *) {
             notificationCenter.setBadgeCount(0) { error in
                 if let error = error {
-                    print("📱 NotificationService: Failed to clear badge: \(error)")
+                    debugPrint("📱 NotificationService: Failed to clear badge: \(error)")
                 }
             }
         } else {
@@ -336,7 +336,7 @@ extension NotificationService: UNUserNotificationCenterDelegate {
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
-        print("📱 NotificationService: Notification received in foreground")
+        debugPrint("📱 NotificationService: Notification received in foreground")
         // Show notification even when app is in foreground
         completionHandler([.banner, .sound, .badge])
     }
@@ -347,7 +347,7 @@ extension NotificationService: UNUserNotificationCenterDelegate {
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
-        print("📱 NotificationService: User tapped notification: \(response.notification.request.identifier)")
+        debugPrint("📱 NotificationService: User tapped notification: \(response.notification.request.identifier)")
 
         // Handle different notification types here
         let identifier = response.notification.request.identifier
@@ -355,10 +355,10 @@ extension NotificationService: UNUserNotificationCenterDelegate {
 
         if identifier.hasPrefix(studyReminderIdentifierPrefix) {
             // User tapped study reminder - could open app to specific view
-            print("📱 NotificationService: Study reminder tapped")
+            debugPrint("📱 NotificationService: Study reminder tapped")
         } else if identifier.hasPrefix("com.studyai.parentReport") {
             // User tapped parent report notification
-            print("📱 NotificationService: Parent report notification tapped")
+            debugPrint("📱 NotificationService: Parent report notification tapped")
 
             // Post notification to open parent reports view
             NotificationCenter.default.post(
@@ -368,7 +368,7 @@ extension NotificationService: UNUserNotificationCenterDelegate {
             )
         } else if identifier.hasPrefix("com.studyai.homeworkComplete") {
             // User tapped homework completion notification
-            print("📱 NotificationService: Homework completion notification tapped")
+            debugPrint("📱 NotificationService: Homework completion notification tapped")
         }
 
         completionHandler()

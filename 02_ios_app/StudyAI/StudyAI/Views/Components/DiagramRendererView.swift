@@ -157,7 +157,7 @@ struct DiagramRendererView: View {
                     isLoading = false
                 }
             } catch {
-                print("⚠️ [DiagramRenderer] Primary render failed for \(diagramType): \(error.localizedDescription)")
+                debugPrint("⚠️ [DiagramRenderer] Primary render failed for \(diagramType): \(error.localizedDescription)")
                 // Fallback: render a simple SVG placeholder so the chat never shows a hard error state
                 do {
                     let fallback = try await renderFallbackSVG()
@@ -180,19 +180,19 @@ struct DiagramRendererView: View {
 
         switch diagramType.lowercased() {
         case "matplotlib":
-            print("🎨 [DiagramImage] ➡️ Using Matplotlib renderer (base64 PNG)")
+            debugPrint("🎨 [DiagramImage] ➡️ Using Matplotlib renderer (base64 PNG)")
             return try MatplotlibRenderer.shared.renderMatplotlib(diagramCode)
         case "png":
-            print("🎨 [DiagramImage] ➡️ Using PNG renderer (base64 PNG from Graphviz)")
+            debugPrint("🎨 [DiagramImage] ➡️ Using PNG renderer (base64 PNG from Graphviz)")
             return try MatplotlibRenderer.shared.renderPNG(diagramCode)
         case "latex", "tikz":
-            print("🎨 [DiagramImage] ➡️ Using LaTeX renderer")
+            debugPrint("🎨 [DiagramImage] ➡️ Using LaTeX renderer")
             return try await LaTeXRenderer.shared.renderLaTeX(diagramCode, hint: renderingHint)
         case "svg":
-            print("🎨 [DiagramImage] ➡️ Using SVG renderer")
+            debugPrint("🎨 [DiagramImage] ➡️ Using SVG renderer")
             return try await SVGRenderer.shared.renderSVG(diagramCode, hint: renderingHint)
         default:
-            print("🎨 [DiagramImage] ❌ Unsupported format: \(diagramType)")
+            debugPrint("🎨 [DiagramImage] ❌ Unsupported format: \(diagramType)")
             throw DiagramError.unsupportedFormat(diagramType)
         }
     }
@@ -214,7 +214,7 @@ struct DiagramRendererView: View {
             <text x="200" y="132" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#8895b3">Simplified view</text>
         </svg>
         """
-        print("🎨 [DiagramRenderer] Rendering fallback SVG for \(diagramType)")
+        debugPrint("🎨 [DiagramRenderer] Rendering fallback SVG for \(diagramType)")
         return try await SVGRenderer.shared.renderSVG(
             fallbackSVG,
             hint: NetworkService.DiagramRenderingHint(width: 400, height: 180, background: "white", scaleFactor: 1.0)
@@ -238,62 +238,62 @@ class MatplotlibRenderer {
     private init() {}
 
     func renderMatplotlib(_ base64PngCode: String) throws -> UIImage {
-        print("🎨 [MatplotlibRenderer] Starting base64 PNG decode...")
-        print("🎨 [MatplotlibRenderer] Code length: \(base64PngCode.count) characters")
+        debugPrint("🎨 [MatplotlibRenderer] Starting base64 PNG decode...")
+        debugPrint("🎨 [MatplotlibRenderer] Code length: \(base64PngCode.count) characters")
 
         // Decode base64 string to Data
         guard let imageData = Data(base64Encoded: base64PngCode, options: .ignoreUnknownCharacters) else {
-            print("🎨 [MatplotlibRenderer] ❌ Failed to decode base64 string")
+            debugPrint("🎨 [MatplotlibRenderer] ❌ Failed to decode base64 string")
             throw DiagramError.invalidCode("Invalid base64 PNG data from matplotlib")
         }
 
-        print("🎨 [MatplotlibRenderer] ✅ Decoded \(imageData.count) bytes")
+        debugPrint("🎨 [MatplotlibRenderer] ✅ Decoded \(imageData.count) bytes")
 
         // Create UIImage from data
         guard let image = UIImage(data: imageData) else {
-            print("🎨 [MatplotlibRenderer] ❌ Failed to create UIImage from data")
+            debugPrint("🎨 [MatplotlibRenderer] ❌ Failed to create UIImage from data")
             throw DiagramError.renderingFailed("Could not create image from matplotlib PNG data")
         }
 
-        print("🎨 [MatplotlibRenderer] ✅ Created UIImage successfully")
-        print("🎨 [MatplotlibRenderer] Image size: \(image.size.width)x\(image.size.height)")
-        print("🎨 [MatplotlibRenderer] Image scale: \(image.scale)")
+        debugPrint("🎨 [MatplotlibRenderer] ✅ Created UIImage successfully")
+        debugPrint("🎨 [MatplotlibRenderer] Image size: \(image.size.width)x\(image.size.height)")
+        debugPrint("🎨 [MatplotlibRenderer] Image scale: \(image.scale)")
 
         return image
     }
 
     func renderPNG(_ dataURL: String) throws -> UIImage {
-        print("🎨 [MatplotlibRenderer] Rendering PNG from data URL...")
-        print("🎨 [MatplotlibRenderer] Data URL length: \(dataURL.count) characters")
+        debugPrint("🎨 [MatplotlibRenderer] Rendering PNG from data URL...")
+        debugPrint("🎨 [MatplotlibRenderer] Data URL length: \(dataURL.count) characters")
 
         // Extract base64 data from data URL format: "data:image/png;base64,{base64_string}"
         let base64String: String
         if dataURL.hasPrefix("data:image/png;base64,") {
             base64String = String(dataURL.dropFirst("data:image/png;base64,".count))
-            print("🎨 [MatplotlibRenderer] Extracted base64 from data URL")
+            debugPrint("🎨 [MatplotlibRenderer] Extracted base64 from data URL")
         } else {
             // Assume it's already base64 without the data URL prefix
             base64String = dataURL
-            print("🎨 [MatplotlibRenderer] Using string as-is (no data URL prefix)")
+            debugPrint("🎨 [MatplotlibRenderer] Using string as-is (no data URL prefix)")
         }
 
         // Decode base64 string to Data
         guard let imageData = Data(base64Encoded: base64String, options: .ignoreUnknownCharacters) else {
-            print("🎨 [MatplotlibRenderer] ❌ Failed to decode base64 string")
+            debugPrint("🎨 [MatplotlibRenderer] ❌ Failed to decode base64 string")
             throw DiagramError.invalidCode("Invalid base64 PNG data from Graphviz")
         }
 
-        print("🎨 [MatplotlibRenderer] ✅ Decoded \(imageData.count) bytes")
+        debugPrint("🎨 [MatplotlibRenderer] ✅ Decoded \(imageData.count) bytes")
 
         // Create UIImage from data
         guard let image = UIImage(data: imageData) else {
-            print("🎨 [MatplotlibRenderer] ❌ Failed to create UIImage from data")
+            debugPrint("🎨 [MatplotlibRenderer] ❌ Failed to create UIImage from data")
             throw DiagramError.renderingFailed("Could not create image from PNG data")
         }
 
-        print("🎨 [MatplotlibRenderer] ✅ Created UIImage successfully")
-        print("🎨 [MatplotlibRenderer] Image size: \(image.size.width)x\(image.size.height)")
-        print("🎨 [MatplotlibRenderer] Image scale: \(image.scale)")
+        debugPrint("🎨 [MatplotlibRenderer] ✅ Created UIImage successfully")
+        debugPrint("🎨 [MatplotlibRenderer] Image size: \(image.size.width)x\(image.size.height)")
+        debugPrint("🎨 [MatplotlibRenderer] Image scale: \(image.scale)")
 
         return image
     }
@@ -314,11 +314,11 @@ class LaTeXRenderer {
     func renderLaTeX(_ code: String, hint: NetworkService.DiagramRenderingHint?) async throws -> UIImage {
         let continuationId = "LaTeX-\(UUID().uuidString.prefix(8))"
 
-        print("🎨 [LaTeXRenderer] Starting LaTeX rendering...")
-        print("🎨 [LaTeXRenderer] Code length: \(code.count) characters")
-        print("🎨 [LaTeXRenderer] Continuation ID: \(continuationId)")
+        debugPrint("🎨 [LaTeXRenderer] Starting LaTeX rendering...")
+        debugPrint("🎨 [LaTeXRenderer] Code length: \(code.count) characters")
+        debugPrint("🎨 [LaTeXRenderer] Continuation ID: \(continuationId)")
         if let hint = hint {
-            print("🎨 [LaTeXRenderer] Size: \(hint.width)x\(hint.height)")
+            debugPrint("🎨 [LaTeXRenderer] Size: \(hint.width)x\(hint.height)")
         }
 
         // For LaTeX rendering, we'll use a WebView with MathJax.
@@ -327,19 +327,19 @@ class LaTeXRenderer {
             group.addTask { [self] in
                 return try await withCheckedThrowingContinuation { continuation in
                     DispatchQueue.main.async {
-                        print("🎨 [LaTeXRenderer] Creating WebView renderer...")
+                        debugPrint("🎨 [LaTeXRenderer] Creating WebView renderer...")
 
                         let renderer = LaTeXWebRenderer(
                             latexCode: code,
                             hint: hint,
                             completion: { [weak self] result in
-                                print("🎨 [LaTeXRenderer] ✅ Renderer completion called for \(continuationId)")
+                                debugPrint("🎨 [LaTeXRenderer] ✅ Renderer completion called for \(continuationId)")
                                 continuation.resume(with: result)
 
                                 // ✅ FIX: Remove renderer from active list after completion
                                 self?.queue.async {
                                     self?.activeRenderers.removeValue(forKey: continuationId)
-                                    print("🎨 [LaTeXRenderer] ✅ Removed renderer \(continuationId) from active list (count: \(self?.activeRenderers.count ?? 0))")
+                                    debugPrint("🎨 [LaTeXRenderer] ✅ Removed renderer \(continuationId) from active list (count: \(self?.activeRenderers.count ?? 0))")
                                 }
                             }
                         )
@@ -347,10 +347,10 @@ class LaTeXRenderer {
                         // ✅ FIX: Store renderer in active list to prevent deallocation
                         self.queue.async {
                             self.activeRenderers[continuationId] = renderer
-                            print("🎨 [LaTeXRenderer] ✅ Stored renderer \(continuationId) in active list (count: \(self.activeRenderers.count))")
+                            debugPrint("🎨 [LaTeXRenderer] ✅ Stored renderer \(continuationId) in active list (count: \(self.activeRenderers.count))")
                         }
 
-                        print("🎨 [LaTeXRenderer] WebView renderer created and started")
+                        debugPrint("🎨 [LaTeXRenderer] WebView renderer created and started")
                     }
                 }
             }
@@ -377,23 +377,23 @@ class DiagramDebugLogger {
     func logContinuationCreated(_ id: String) {
         queue.async {
             self.activeContinuations.insert(id)
-            print("🔍 [DEBUG] Continuation CREATED: \(id)")
-            print("🔍 [DEBUG] Active continuations: \(self.activeContinuations.count)")
+            debugPrint("🔍 [DEBUG] Continuation CREATED: \(id)")
+            debugPrint("🔍 [DEBUG] Active continuations: \(self.activeContinuations.count)")
         }
     }
 
     func logContinuationResumed(_ id: String) {
         queue.async {
             self.activeContinuations.remove(id)
-            print("🔍 [DEBUG] Continuation RESUMED: \(id)")
-            print("🔍 [DEBUG] Active continuations: \(self.activeContinuations.count)")
+            debugPrint("🔍 [DEBUG] Continuation RESUMED: \(id)")
+            debugPrint("🔍 [DEBUG] Active continuations: \(self.activeContinuations.count)")
         }
     }
 
     func logContinuationLeak(_ id: String) {
         queue.async {
-            print("🔍 [DEBUG] ❌ Continuation LEAKED: \(id)")
-            print("🔍 [DEBUG] All active: \(self.activeContinuations)")
+            debugPrint("🔍 [DEBUG] ❌ Continuation LEAKED: \(id)")
+            debugPrint("🔍 [DEBUG] All active: \(self.activeContinuations)")
         }
     }
 
@@ -418,34 +418,34 @@ class SVGRenderer {
         let continuationId = "SVG-\(UUID().uuidString.prefix(8))"
         DiagramDebugLogger.shared.logContinuationCreated(continuationId)
 
-        print("🎨 [SVGRenderer] Starting SVG rendering...")
-        print("🎨 [SVGRenderer] Code length: \(svgCode.count) characters")
-        print("🎨 [SVGRenderer] Continuation ID: \(continuationId)")
+        debugPrint("🎨 [SVGRenderer] Starting SVG rendering...")
+        debugPrint("🎨 [SVGRenderer] Code length: \(svgCode.count) characters")
+        debugPrint("🎨 [SVGRenderer] Continuation ID: \(continuationId)")
         if let hint = hint {
-            print("🎨 [SVGRenderer] Size: \(hint.width)x\(hint.height)")
+            debugPrint("🎨 [SVGRenderer] Size: \(hint.width)x\(hint.height)")
         }
 
         return try await withCheckedThrowingContinuation { continuation in
-            print("🔍 [DEBUG] withCheckedThrowingContinuation ENTERED for \(continuationId)")
+            debugPrint("🔍 [DEBUG] withCheckedThrowingContinuation ENTERED for \(continuationId)")
 
             DispatchQueue.main.async {
-                print("🎨 [SVGRenderer] Creating SVG renderer...")
-                print("🔍 [DEBUG] About to create SVGImageRenderer with continuation \(continuationId)")
+                debugPrint("🎨 [SVGRenderer] Creating SVG renderer...")
+                debugPrint("🔍 [DEBUG] About to create SVGImageRenderer with continuation \(continuationId)")
 
                 let renderer = SVGImageRenderer(
                     svgCode: svgCode,
                     hint: hint,
                     continuationId: continuationId,  // Pass the ID for tracking
                     completion: { [weak self] result in
-                        print("🔍 [DEBUG] SVGImageRenderer completion called for \(continuationId)")
+                        debugPrint("🔍 [DEBUG] SVGImageRenderer completion called for \(continuationId)")
                         DiagramDebugLogger.shared.logContinuationResumed(continuationId)
                         continuation.resume(with: result)
-                        print("🔍 [DEBUG] continuation.resume(with:) called for \(continuationId)")
+                        debugPrint("🔍 [DEBUG] continuation.resume(with:) called for \(continuationId)")
 
                         // ✅ FIX: Remove renderer from active list after completion
                         self?.queue.async {
                             self?.activeRenderers.removeValue(forKey: continuationId)
-                            print("🎨 [SVGRenderer] ✅ Removed renderer \(continuationId) from active list (count: \(self?.activeRenderers.count ?? 0))")
+                            debugPrint("🎨 [SVGRenderer] ✅ Removed renderer \(continuationId) from active list (count: \(self?.activeRenderers.count ?? 0))")
                         }
                     }
                 )
@@ -453,10 +453,10 @@ class SVGRenderer {
                 // ✅ FIX: Store renderer in active list to prevent deallocation
                 self.queue.async {
                     self.activeRenderers[continuationId] = renderer
-                    print("🎨 [SVGRenderer] ✅ Stored renderer \(continuationId) in active list (count: \(self.activeRenderers.count))")
+                    debugPrint("🎨 [SVGRenderer] ✅ Stored renderer \(continuationId) in active list (count: \(self.activeRenderers.count))")
                 }
 
-                print("🎨 [SVGRenderer] Starting render process...")
+                debugPrint("🎨 [SVGRenderer] Starting render process...")
                 renderer.render()
             }
         }
@@ -505,12 +505,12 @@ class LaTeXWebRenderer: NSObject, WKNavigationDelegate {
         let width = hint?.width ?? 400
         let height = hint?.height ?? 300
 
-        print("🎨 [LaTeXWebRenderer] Setting up WebView: \(width)x\(height)")
+        debugPrint("🎨 [LaTeXWebRenderer] Setting up WebView: \(width)x\(height)")
         webView.frame = CGRect(x: 0, y: 0, width: width, height: height)
 
         let htmlContent = generateHTMLForLaTeX()
-        print("🎨 [LaTeXWebRenderer] HTML content length: \(htmlContent.count) characters")
-        print("🎨 [LaTeXWebRenderer] Loading HTML content...")
+        debugPrint("🎨 [LaTeXWebRenderer] HTML content length: \(htmlContent.count) characters")
+        debugPrint("🎨 [LaTeXWebRenderer] Loading HTML content...")
         webView.loadHTMLString(htmlContent, baseURL: nil)
     }
 
@@ -588,7 +588,7 @@ class LaTeXWebRenderer: NSObject, WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-        print("🎨 [LaTeXWebRenderer] ❌ Navigation failed: \(error.localizedDescription)")
+        debugPrint("🎨 [LaTeXWebRenderer] ❌ Navigation failed: \(error.localizedDescription)")
         completeOnce(with: .failure(error))
     }
 
@@ -598,48 +598,48 @@ class LaTeXWebRenderer: NSObject, WKNavigationDelegate {
         defer { completionLock.unlock() }
 
         guard !hasCompleted else {
-            print("⚠️ [LaTeXWebRenderer] Completion already called - ignoring duplicate call")
+            debugPrint("⚠️ [LaTeXWebRenderer] Completion already called - ignoring duplicate call")
             return
         }
 
         hasCompleted = true
-        print("🎨 [LaTeXWebRenderer] Calling completion (first time)")
+        debugPrint("🎨 [LaTeXWebRenderer] Calling completion (first time)")
         completion(result)
     }
 
     private func captureWebViewImage() {
-        print("🎨 [LaTeXWebRenderer] === STARTING WEBVIEW IMAGE CAPTURE ===")
-        print("🎨 [LaTeXWebRenderer] Taking WebView snapshot...")
-        print("🎨 [LaTeXWebRenderer] WebView frame: \(webView.frame)")
-        print("🎨 [LaTeXWebRenderer] WebView content size: \(webView.scrollView.contentSize)")
+        debugPrint("🎨 [LaTeXWebRenderer] === STARTING WEBVIEW IMAGE CAPTURE ===")
+        debugPrint("🎨 [LaTeXWebRenderer] Taking WebView snapshot...")
+        debugPrint("🎨 [LaTeXWebRenderer] WebView frame: \(webView.frame)")
+        debugPrint("🎨 [LaTeXWebRenderer] WebView content size: \(webView.scrollView.contentSize)")
 
         webView.takeSnapshot(with: nil) { [weak self] image, error in
-            print("🎨 [LaTeXWebRenderer] === SNAPSHOT RESULT RECEIVED ===")
+            debugPrint("🎨 [LaTeXWebRenderer] === SNAPSHOT RESULT RECEIVED ===")
 
             if let image = image {
-                print("🎨 [LaTeXWebRenderer] ✅ Snapshot captured successfully")
-                print("🎨 [LaTeXWebRenderer] - Image size: \(image.size)")
-                print("🎨 [LaTeXWebRenderer] - Image scale: \(image.scale)")
-                print("🎨 [LaTeXWebRenderer] - Total pixels: \(Int(image.size.width * image.size.height))")
-                print("🎨 [LaTeXWebRenderer] Calling completeOnce(.success)")
+                debugPrint("🎨 [LaTeXWebRenderer] ✅ Snapshot captured successfully")
+                debugPrint("🎨 [LaTeXWebRenderer] - Image size: \(image.size)")
+                debugPrint("🎨 [LaTeXWebRenderer] - Image scale: \(image.scale)")
+                debugPrint("🎨 [LaTeXWebRenderer] - Total pixels: \(Int(image.size.width * image.size.height))")
+                debugPrint("🎨 [LaTeXWebRenderer] Calling completeOnce(.success)")
                 self?.completeOnce(with: .success(image))
             } else if let error = error {
-                print("🎨 [LaTeXWebRenderer] ❌ Snapshot failed with error")
-                print("🎨 [LaTeXWebRenderer] - Error type: \(type(of: error))")
-                print("🎨 [LaTeXWebRenderer] - Error description: \(error.localizedDescription)")
-                print("🎨 [LaTeXWebRenderer] Calling completeOnce(.failure) with error")
+                debugPrint("🎨 [LaTeXWebRenderer] ❌ Snapshot failed with error")
+                debugPrint("🎨 [LaTeXWebRenderer] - Error type: \(type(of: error))")
+                debugPrint("🎨 [LaTeXWebRenderer] - Error description: \(error.localizedDescription)")
+                debugPrint("🎨 [LaTeXWebRenderer] Calling completeOnce(.failure) with error")
                 self?.completeOnce(with: .failure(error))
             } else {
-                print("🎨 [LaTeXWebRenderer] ❌ Snapshot failed with no error information")
-                print("🎨 [LaTeXWebRenderer] This is an unexpected state - no image and no error")
-                print("🎨 [LaTeXWebRenderer] Calling completeOnce(.failure) with generic error")
+                debugPrint("🎨 [LaTeXWebRenderer] ❌ Snapshot failed with no error information")
+                debugPrint("🎨 [LaTeXWebRenderer] This is an unexpected state - no image and no error")
+                debugPrint("🎨 [LaTeXWebRenderer] Calling completeOnce(.failure) with generic error")
                 self?.completeOnce(with: .failure(DiagramError.renderingFailed("Unknown error during LaTeX rendering")))
             }
 
-            print("🎨 [LaTeXWebRenderer] === LATEX RENDERING COMPLETE ===")
+            debugPrint("🎨 [LaTeXWebRenderer] === LATEX RENDERING COMPLETE ===")
         }
 
-        print("🎨 [LaTeXWebRenderer] Snapshot capture request submitted to WebView")
+        debugPrint("🎨 [LaTeXWebRenderer] Snapshot capture request submitted to WebView")
     }
 }
 
@@ -647,7 +647,7 @@ class LaTeXWebRenderer: NSObject, WKNavigationDelegate {
 
 extension LaTeXWebRenderer: WKScriptMessageHandler {
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        print("🎨 [LaTeXWebRenderer] Received message: '\(message.name)' = '\(message.body)'")
+        debugPrint("🎨 [LaTeXWebRenderer] Received message: '\(message.name)' = '\(message.body)'")
 
         if message.name == "renderComplete" {
             // MathJax has finished typesetting — capture immediately
@@ -764,7 +764,7 @@ class SVGImageRenderer: NSObject {
         // Validate SVG
         let svgLower = svgCode.lowercased()
         if !svgLower.contains("<svg") {
-            print("❌ [SVGImageRenderer] Invalid SVG: missing <svg> tag")
+            debugPrint("❌ [SVGImageRenderer] Invalid SVG: missing <svg> tag")
             completeWithResult(image: nil, error: DiagramError.invalidCode("SVG content missing <svg> tag"))
             return
         }
@@ -775,7 +775,7 @@ class SVGImageRenderer: NSObject {
         }
 
         guard let webView = webView else {
-            print("❌ [SVGImageRenderer] WebView creation failed")
+            debugPrint("❌ [SVGImageRenderer] WebView creation failed")
             completeWithResult(image: nil, error: DiagramError.renderingFailed("WebView creation failed"))
             return
         }
@@ -790,7 +790,7 @@ class SVGImageRenderer: NSObject {
 
         webView.takeSnapshot(with: nil) { [weak self] image, error in
             if let error = error {
-                print("❌ [SVGImageRenderer] Snapshot failed: \(error.localizedDescription)")
+                debugPrint("❌ [SVGImageRenderer] Snapshot failed: \(error.localizedDescription)")
             }
             self?.completeWithResult(image: image, error: error)
         }
@@ -804,7 +804,7 @@ class SVGImageRenderer: NSObject {
         hasCompleted = true
 
         if let error = error {
-            print("❌ [SVGRenderer] Rendering failed: \(error.localizedDescription)")
+            debugPrint("❌ [SVGRenderer] Rendering failed: \(error.localizedDescription)")
         }
 
         // Clean up timeout timer
@@ -840,34 +840,34 @@ class SVGImageRenderer: NSObject {
 
     // NEW: Alternative rendering fallback
     private func attemptAlternativeRendering() {
-        print("🎨 [SVGRenderer] === ATTEMPTING ALTERNATIVE RENDERING ===")
-        print("🎨 [SVGRenderer] WebView-based rendering failed, trying alternative approach")
+        debugPrint("🎨 [SVGRenderer] === ATTEMPTING ALTERNATIVE RENDERING ===")
+        debugPrint("🎨 [SVGRenderer] WebView-based rendering failed, trying alternative approach")
 
         guard !hasCompleted else {
-            print("🎨 [SVGRenderer] ❌ Already completed, skipping alternative rendering")
+            debugPrint("🎨 [SVGRenderer] ❌ Already completed, skipping alternative rendering")
             return
         }
 
         // Try to create a simple bitmap representation of basic SVG
         if let simpleImage = createBasicSVGFallbackImage() {
-            print("🎨 [SVGRenderer] ✅ Created fallback bitmap image")
-            print("🎨 [SVGRenderer] Fallback image size: \(simpleImage.size)")
+            debugPrint("🎨 [SVGRenderer] ✅ Created fallback bitmap image")
+            debugPrint("🎨 [SVGRenderer] Fallback image size: \(simpleImage.size)")
             completeWithResult(image: simpleImage, error: nil)
         } else {
-            print("🎨 [SVGRenderer] ❌ Alternative rendering also failed")
+            debugPrint("🎨 [SVGRenderer] ❌ Alternative rendering also failed")
             completeWithResult(image: nil, error: DiagramError.renderingFailed("SVG rendering timeout - all methods failed"))
         }
     }
 
     // NEW: Create a basic fallback image for simple SVG content
     private func createBasicSVGFallbackImage() -> UIImage? {
-        print("🎨 [SVGRenderer] === CREATING BASIC SVG FALLBACK IMAGE ===")
+        debugPrint("🎨 [SVGRenderer] === CREATING BASIC SVG FALLBACK IMAGE ===")
 
         let width = hint?.width ?? 400
         let height = hint?.height ?? 300
         let size = CGSize(width: CGFloat(width), height: CGFloat(height))
 
-        print("🎨 [SVGRenderer] Creating fallback with size: \(size)")
+        debugPrint("🎨 [SVGRenderer] Creating fallback with size: \(size)")
 
         // Analyze SVG for basic shapes we can render
         let svgLower = svgCode.lowercased()
@@ -894,7 +894,7 @@ class SVGImageRenderer: NSObject {
             }
         }
 
-        print("🎨 [SVGRenderer] ✅ Fallback image created successfully")
+        debugPrint("🎨 [SVGRenderer] ✅ Fallback image created successfully")
         return image
     }
 
@@ -912,7 +912,7 @@ class SVGImageRenderer: NSObject {
     }
 
     private func drawCircleFromSVG(in context: CGContext, size: CGSize) {
-        print("🎨 [SVGRenderer] Drawing basic circle fallback")
+        debugPrint("🎨 [SVGRenderer] Drawing basic circle fallback")
 
         context.setFillColor(UIColor.blue.cgColor)
         context.setStrokeColor(UIColor.systemBlue.cgColor)
@@ -927,7 +927,7 @@ class SVGImageRenderer: NSObject {
     }
 
     private func drawRectFromSVG(in context: CGContext, size: CGSize) {
-        print("🎨 [SVGRenderer] Drawing basic rectangle fallback")
+        debugPrint("🎨 [SVGRenderer] Drawing basic rectangle fallback")
 
         context.setFillColor(UIColor.green.cgColor)
         context.setStrokeColor(UIColor.systemGreen.cgColor)
@@ -944,7 +944,7 @@ class SVGImageRenderer: NSObject {
     }
 
     private func drawLineFromSVG(in context: CGContext, size: CGSize) {
-        print("🎨 [SVGRenderer] Drawing basic line fallback")
+        debugPrint("🎨 [SVGRenderer] Drawing basic line fallback")
 
         context.setStrokeColor(UIColor.red.cgColor)
         context.setLineWidth(3.0)
@@ -955,7 +955,7 @@ class SVGImageRenderer: NSObject {
     }
 
     private func drawPlaceholder(in context: CGContext, size: CGSize) {
-        print("🎨 [SVGRenderer] Drawing generic SVG placeholder")
+        debugPrint("🎨 [SVGRenderer] Drawing generic SVG placeholder")
 
         // Draw a border
         context.setStrokeColor(UIColor.lightGray.cgColor)
@@ -984,106 +984,106 @@ class SVGImageRenderer: NSObject {
 
 extension SVGImageRenderer: WKNavigationDelegate {
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
-        print("🎨 [SVGRenderer] === NAVIGATION: DID START PROVISIONAL ===")
-        print("🎨 [SVGRenderer] Navigation object: \(navigation?.description ?? "nil")")
-        print("🎨 [SVGRenderer] WebView URL: \(webView.url?.absoluteString ?? "No URL")")
-        print("🎨 [SVGRenderer] WebView loading: \(webView.isLoading)")
-        print("🎨 [SVGRenderer] Expected next: didFinish or didFailProvisionalNavigation")
+        debugPrint("🎨 [SVGRenderer] === NAVIGATION: DID START PROVISIONAL ===")
+        debugPrint("🎨 [SVGRenderer] Navigation object: \(navigation?.description ?? "nil")")
+        debugPrint("🎨 [SVGRenderer] WebView URL: \(webView.url?.absoluteString ?? "No URL")")
+        debugPrint("🎨 [SVGRenderer] WebView loading: \(webView.isLoading)")
+        debugPrint("🎨 [SVGRenderer] Expected next: didFinish or didFailProvisionalNavigation")
     }
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
-        print("🎨 [SVGRenderer] === NAVIGATION: DID COMMIT ===")
-        print("🎨 [SVGRenderer] Navigation committed successfully")
-        print("🎨 [SVGRenderer] Navigation object: \(navigation?.description ?? "nil")")
-        print("🎨 [SVGRenderer] WebView URL: \(webView.url?.absoluteString ?? "No URL")")
-        print("🎨 [SVGRenderer] Expected next: didFinish")
+        debugPrint("🎨 [SVGRenderer] === NAVIGATION: DID COMMIT ===")
+        debugPrint("🎨 [SVGRenderer] Navigation committed successfully")
+        debugPrint("🎨 [SVGRenderer] Navigation object: \(navigation?.description ?? "nil")")
+        debugPrint("🎨 [SVGRenderer] WebView URL: \(webView.url?.absoluteString ?? "No URL")")
+        debugPrint("🎨 [SVGRenderer] Expected next: didFinish")
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        print("🎨 [SVGRenderer] === NAVIGATION: DID FINISH (SUCCESS) ===")
-        print("🎨 [SVGRenderer] 🎉 WebView finished loading HTML content")
-        print("🎨 [SVGRenderer] Navigation object: \(navigation?.description ?? "nil")")
-        print("🎨 [SVGRenderer] WebView title: '\(webView.title ?? "No title")'")
-        print("🎨 [SVGRenderer] WebView URL: \(webView.url?.absoluteString ?? "No URL")")
-        print("🎨 [SVGRenderer] WebView loading: \(webView.isLoading)")
-        print("🎨 [SVGRenderer] WebView content size: \(webView.scrollView.contentSize)")
-        print("🎨 [SVGRenderer] Has completed: \(hasCompleted)")
+        debugPrint("🎨 [SVGRenderer] === NAVIGATION: DID FINISH (SUCCESS) ===")
+        debugPrint("🎨 [SVGRenderer] 🎉 WebView finished loading HTML content")
+        debugPrint("🎨 [SVGRenderer] Navigation object: \(navigation?.description ?? "nil")")
+        debugPrint("🎨 [SVGRenderer] WebView title: '\(webView.title ?? "No title")'")
+        debugPrint("🎨 [SVGRenderer] WebView URL: \(webView.url?.absoluteString ?? "No URL")")
+        debugPrint("🎨 [SVGRenderer] WebView loading: \(webView.isLoading)")
+        debugPrint("🎨 [SVGRenderer] WebView content size: \(webView.scrollView.contentSize)")
+        debugPrint("🎨 [SVGRenderer] Has completed: \(hasCompleted)")
 
         // Check if already completed
         if hasCompleted {
-            print("🎨 [SVGRenderer] ⚠️ Already completed, skipping snapshot")
+            debugPrint("🎨 [SVGRenderer] ⚠️ Already completed, skipping snapshot")
             return
         }
 
         // Wait a bit for SVG to render, then capture
-        print("🎨 [SVGRenderer] Scheduling snapshot capture in 0.5 seconds...")
+        debugPrint("🎨 [SVGRenderer] Scheduling snapshot capture in 0.5 seconds...")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            print("🎨 [SVGRenderer] ⏰ 0.5 second delay elapsed, starting snapshot capture")
+            debugPrint("🎨 [SVGRenderer] ⏰ 0.5 second delay elapsed, starting snapshot capture")
             self.captureSnapshot()
         }
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-        print("🎨 [SVGRenderer] === NAVIGATION: DID FAIL (ERROR) ===")
-        print("🎨 [SVGRenderer] ❌ WebView navigation failed")
-        print("🎨 [SVGRenderer] Navigation object: \(navigation?.description ?? "nil")")
-        print("🎨 [SVGRenderer] Error type: \(type(of: error))")
-        print("🎨 [SVGRenderer] Error code: \((error as NSError).code)")
-        print("🎨 [SVGRenderer] Error domain: \((error as NSError).domain)")
-        print("🎨 [SVGRenderer] Error description: \(error.localizedDescription)")
-        print("🎨 [SVGRenderer] Error user info: \((error as NSError).userInfo)")
+        debugPrint("🎨 [SVGRenderer] === NAVIGATION: DID FAIL (ERROR) ===")
+        debugPrint("🎨 [SVGRenderer] ❌ WebView navigation failed")
+        debugPrint("🎨 [SVGRenderer] Navigation object: \(navigation?.description ?? "nil")")
+        debugPrint("🎨 [SVGRenderer] Error type: \(type(of: error))")
+        debugPrint("🎨 [SVGRenderer] Error code: \((error as NSError).code)")
+        debugPrint("🎨 [SVGRenderer] Error domain: \((error as NSError).domain)")
+        debugPrint("🎨 [SVGRenderer] Error description: \(error.localizedDescription)")
+        debugPrint("🎨 [SVGRenderer] Error user info: \((error as NSError).userInfo)")
 
-        print("🎨 [SVGRenderer] Calling completion with navigation error...")
+        debugPrint("🎨 [SVGRenderer] Calling completion with navigation error...")
         completeWithResult(image: nil, error: error)
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-        print("🎨 [SVGRenderer] === NAVIGATION: DID FAIL PROVISIONAL (ERROR) ===")
-        print("🎨 [SVGRenderer] ❌ WebView provisional navigation failed")
-        print("🎨 [SVGRenderer] This typically occurs during initial load setup")
-        print("🎨 [SVGRenderer] Navigation object: \(navigation?.description ?? "nil")")
-        print("🎨 [SVGRenderer] Error type: \(type(of: error))")
-        print("🎨 [SVGRenderer] Error code: \((error as NSError).code)")
-        print("🎨 [SVGRenderer] Error domain: \((error as NSError).domain)")
-        print("🎨 [SVGRenderer] Error description: \(error.localizedDescription)")
-        print("🎨 [SVGRenderer] Error user info: \((error as NSError).userInfo)")
+        debugPrint("🎨 [SVGRenderer] === NAVIGATION: DID FAIL PROVISIONAL (ERROR) ===")
+        debugPrint("🎨 [SVGRenderer] ❌ WebView provisional navigation failed")
+        debugPrint("🎨 [SVGRenderer] This typically occurs during initial load setup")
+        debugPrint("🎨 [SVGRenderer] Navigation object: \(navigation?.description ?? "nil")")
+        debugPrint("🎨 [SVGRenderer] Error type: \(type(of: error))")
+        debugPrint("🎨 [SVGRenderer] Error code: \((error as NSError).code)")
+        debugPrint("🎨 [SVGRenderer] Error domain: \((error as NSError).domain)")
+        debugPrint("🎨 [SVGRenderer] Error description: \(error.localizedDescription)")
+        debugPrint("🎨 [SVGRenderer] Error user info: \((error as NSError).userInfo)")
 
-        print("🎨 [SVGRenderer] Calling completion with provisional navigation error...")
+        debugPrint("🎨 [SVGRenderer] Calling completion with provisional navigation error...")
         completeWithResult(image: nil, error: error)
     }
 
     // NEW: Add decidePolicyFor methods to catch navigation policy issues
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-        print("🎨 [SVGRenderer] === NAVIGATION POLICY: ACTION ===")
-        print("🎨 [SVGRenderer] Navigation type: \(navigationAction.navigationType.rawValue)")
-        print("🎨 [SVGRenderer] Request URL: \(navigationAction.request.url?.absoluteString ?? "nil")")
-        print("🎨 [SVGRenderer] Source frame: \(navigationAction.sourceFrame.request.url?.absoluteString ?? "nil")")
-        print("🎨 [SVGRenderer] Target frame: \(navigationAction.targetFrame?.request.url?.absoluteString ?? "nil")")
-        print("🎨 [SVGRenderer] Allowing navigation...")
+        debugPrint("🎨 [SVGRenderer] === NAVIGATION POLICY: ACTION ===")
+        debugPrint("🎨 [SVGRenderer] Navigation type: \(navigationAction.navigationType.rawValue)")
+        debugPrint("🎨 [SVGRenderer] Request URL: \(navigationAction.request.url?.absoluteString ?? "nil")")
+        debugPrint("🎨 [SVGRenderer] Source frame: \(navigationAction.sourceFrame.request.url?.absoluteString ?? "nil")")
+        debugPrint("🎨 [SVGRenderer] Target frame: \(navigationAction.targetFrame?.request.url?.absoluteString ?? "nil")")
+        debugPrint("🎨 [SVGRenderer] Allowing navigation...")
         decisionHandler(.allow)
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse, decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
-        print("🎨 [SVGRenderer] === NAVIGATION POLICY: RESPONSE ===")
-        print("🎨 [SVGRenderer] Response URL: \(navigationResponse.response.url?.absoluteString ?? "nil")")
-        print("🎨 [SVGRenderer] MIME type: \(navigationResponse.response.mimeType ?? "nil")")
+        debugPrint("🎨 [SVGRenderer] === NAVIGATION POLICY: RESPONSE ===")
+        debugPrint("🎨 [SVGRenderer] Response URL: \(navigationResponse.response.url?.absoluteString ?? "nil")")
+        debugPrint("🎨 [SVGRenderer] MIME type: \(navigationResponse.response.mimeType ?? "nil")")
 
         if let httpResponse = navigationResponse.response as? HTTPURLResponse {
-            print("🎨 [SVGRenderer] HTTP status code: \(httpResponse.statusCode)")
-            print("🎨 [SVGRenderer] HTTP headers: \(httpResponse.allHeaderFields)")
+            debugPrint("🎨 [SVGRenderer] HTTP status code: \(httpResponse.statusCode)")
+            debugPrint("🎨 [SVGRenderer] HTTP headers: \(httpResponse.allHeaderFields)")
         }
 
-        print("🎨 [SVGRenderer] Can show MIME type: \(navigationResponse.canShowMIMEType)")
-        print("🎨 [SVGRenderer] Allowing response...")
+        debugPrint("🎨 [SVGRenderer] Can show MIME type: \(navigationResponse.canShowMIMEType)")
+        debugPrint("🎨 [SVGRenderer] Allowing response...")
         decisionHandler(.allow)
     }
 
     // NEW: Add WebView content process methods
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
-        print("🎨 [SVGRenderer] === CRITICAL: WEB CONTENT PROCESS TERMINATED ===")
-        print("🎨 [SVGRenderer] ❌ WebView content process was terminated")
-        print("🎨 [SVGRenderer] This means the WebView renderer crashed")
-        print("🎨 [SVGRenderer] Calling completion with process termination error...")
+        debugPrint("🎨 [SVGRenderer] === CRITICAL: WEB CONTENT PROCESS TERMINATED ===")
+        debugPrint("🎨 [SVGRenderer] ❌ WebView content process was terminated")
+        debugPrint("🎨 [SVGRenderer] This means the WebView renderer crashed")
+        debugPrint("🎨 [SVGRenderer] Calling completion with process termination error...")
         completeWithResult(image: nil, error: DiagramError.renderingFailed("WebView content process terminated"))
     }
 }

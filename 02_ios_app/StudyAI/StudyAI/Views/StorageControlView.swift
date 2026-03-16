@@ -341,7 +341,7 @@ struct StorageControlView: View {
             do {
                 // First, delete from server
                 let deletedCount = try await QuestionArchiveService.shared.deleteAllQuestionsFromServer()
-                print("🗑️ [StorageControl] Deleted \(deletedCount) questions from server")
+                debugPrint("🗑️ [StorageControl] Deleted \(deletedCount) questions from server")
 
                 // Then clear local storage
                 currentUserQuestionStorage().clearAll()
@@ -349,7 +349,7 @@ struct StorageControlView: View {
                 clearMessage = NSLocalizedString("storage.clearQuestions.success", comment: "")
                 showingClearSuccess = true
             } catch {
-                print("❌ [StorageControl] Failed to delete questions: \(error)")
+                debugPrint("❌ [StorageControl] Failed to delete questions: \(error)")
                 clearMessage = "Failed to delete questions: \(error.localizedDescription)"
                 showingClearSuccess = true
             }

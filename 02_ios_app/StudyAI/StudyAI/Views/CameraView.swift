@@ -305,11 +305,11 @@ struct PhotoLibraryPicker: UIViewControllerRepresentable {
             // Ensure proper thread handling
             Task { @MainActor in
                 if let image = info[.originalImage] as? UIImage {
-                    print("✅ Selected image from photo library: \(image.size)")
+                    debugPrint("✅ Selected image from photo library: \(image.size)")
                     
                     // FIXED: Set image FIRST, then dismiss to prevent race condition
                     self.parent.selectedImage = image
-                    print("📱 Photo library image stored: \(image.size)")
+                    debugPrint("📱 Photo library image stored: \(image.size)")
                     
                     // Brief delay for UI stability
                     try? await Task.sleep(nanoseconds: 200_000_000) // 0.2 second delay
@@ -320,11 +320,11 @@ struct PhotoLibraryPicker: UIViewControllerRepresentable {
                     // Verify image retention after dismissal
                     try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 second
                     if self.parent.selectedImage == nil {
-                        print("⚠️ Photo library image lost after dismissal, restoring...")
+                        debugPrint("⚠️ Photo library image lost after dismissal, restoring...")
                         self.parent.selectedImage = image
                     }
                 } else {
-                    print("❌ No image found in photo library result")
+                    debugPrint("❌ No image found in photo library result")
                     self.parent.isPresented = false
                 }
             }
@@ -437,24 +437,24 @@ struct CameraView: UIViewControllerRepresentable {
         }
         
         func documentCameraViewController(_ controller: VNDocumentCameraViewController, didFinishWith scan: VNDocumentCameraScan) {
-            print("📸 Native document scan completed: \(scan.pageCount) pages")
+            debugPrint("📸 Native document scan completed: \(scan.pageCount) pages")
             
             // FIXED: Robust image capture and retention with enhanced session cleanup
             Task { @MainActor in
                 if scan.pageCount > 0 {
                     // Step 1: Immediately extract and process the image
                     let rawImage = scan.imageOfPage(at: 0)
-                    print("✅ Raw scan result: \(rawImage.size)")
+                    debugPrint("✅ Raw scan result: \(rawImage.size)")
                     
                     // Step 2: Process image to fix dimension and memory issues
                     let processedImage = await self.processScannedImage(rawImage)
                     
                     // Step 3: Store processed image BEFORE any dismissal
                     self.parent.selectedImage = processedImage
-                    print("✅ Processed image stored: \(processedImage.size)")
+                    debugPrint("✅ Processed image stored: \(processedImage.size)")
                     
                     // Step 4: Enhanced delay for camera session cleanup
-                    print("⏳ Allowing camera session cleanup...")
+                    debugPrint("⏳ Allowing camera session cleanup...")
                     try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 second for camera cleanup
                     
                     // Step 5: Cleanup camera session manually before dismissing
@@ -469,11 +469,11 @@ struct CameraView: UIViewControllerRepresentable {
                     // Step 8: Verify image is still set after dismissal
                     try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 second
                     if self.parent.selectedImage == nil {
-                        print("⚠️ Image lost after dismissal, restoring...")
+                        debugPrint("⚠️ Image lost after dismissal, restoring...")
                         self.parent.selectedImage = processedImage
                     }
                 } else {
-                    print("❌ No pages scanned")
+                    debugPrint("❌ No pages scanned")
                     // Cleanup even on no scan
                     self.parent.cameraManager.cleanupAfterCameraUsage()
                     try? await Task.sleep(nanoseconds: 200_000_000)
@@ -507,7 +507,7 @@ struct CameraView: UIViewControllerRepresentable {
             let newHeight = size.height.truncatingRemainder(dividingBy: 2) == 0 ? size.height : size.height + 1
             
             if newWidth != size.width || newHeight != size.height {
-                print("🔧 Fixing odd dimensions: \(size) → \(CGSize(width: newWidth, height: newHeight))")
+                debugPrint("🔧 Fixing odd dimensions: \(size) → \(CGSize(width: newWidth, height: newHeight))")
                 
                 let newSize = CGSize(width: newWidth, height: newHeight)
                 let renderer = UIGraphicsImageRenderer(size: newSize)
@@ -546,16 +546,16 @@ struct CameraView: UIViewControllerRepresentable {
             guard let newCGImage = context.makeImage() else { return image }
             
             let retainedImage = UIImage(cgImage: newCGImage, scale: image.scale, orientation: image.imageOrientation)
-            print("💾 Image retained in memory: \(retainedImage.size)")
+            debugPrint("💾 Image retained in memory: \(retainedImage.size)")
             return retainedImage
         }
         
         func documentCameraViewController(_ controller: VNDocumentCameraViewController, didFailWithError error: Error) {
-            print("❌ Native scan failed: \(error.localizedDescription)")
+            debugPrint("❌ Native scan failed: \(error.localizedDescription)")
             
             // Enhanced cleanup on failure with immediate termination
             Task { @MainActor in
-                print("🧹 Cleaning up camera session after failure...")
+                debugPrint("🧹 Cleaning up camera session after failure...")
                 self.parent.cameraManager.terminateSessionOnViewClose()
                 self.parent.cameraManager.cleanupAfterCameraUsage()
                 
@@ -567,11 +567,11 @@ struct CameraView: UIViewControllerRepresentable {
         }
         
         func documentCameraViewControllerDidCancel(_ controller: VNDocumentCameraViewController) {
-            print("🚫 Native scan cancelled")
+            debugPrint("🚫 Native scan cancelled")
             
             // Enhanced cleanup on cancel with immediate termination
             Task { @MainActor in
-                print("🧹 Cleaning up camera session after cancel...")
+                debugPrint("🧹 Cleaning up camera session after cancel...")
                 self.parent.cameraManager.terminateSessionOnViewClose()
                 self.parent.cameraManager.cleanupAfterCameraUsage()
                 
@@ -587,13 +587,13 @@ struct CameraView: UIViewControllerRepresentable {
                 // Step 1: Extract image immediately
                 let rawImage: UIImage?
                 if let editedImage = info[.editedImage] as? UIImage {
-                    print("✅ Using edited image from camera")
+                    debugPrint("✅ Using edited image from camera")
                     rawImage = editedImage
                 } else if let originalImage = info[.originalImage] as? UIImage {
-                    print("⚠️ Using original image from camera")
+                    debugPrint("⚠️ Using original image from camera")
                     rawImage = originalImage
                 } else {
-                    print("❌ No image found in camera result")
+                    debugPrint("❌ No image found in camera result")
                     // CRITICAL: Force termination and cleanup on failure
                     self.parent.cameraManager.terminateSessionOnViewClose()
                     self.parent.cameraManager.cleanupAfterCameraUsage()
@@ -603,7 +603,7 @@ struct CameraView: UIViewControllerRepresentable {
                 }
                 
                 guard let image = rawImage else {
-                    print("❌ Failed to extract image")
+                    debugPrint("❌ Failed to extract image")
                     self.parent.cameraManager.terminateSessionOnViewClose()
                     self.parent.cameraManager.cleanupAfterCameraUsage()
                     try? await Task.sleep(nanoseconds: 200_000_000)
@@ -616,10 +616,10 @@ struct CameraView: UIViewControllerRepresentable {
                 
                 // Step 3: Store image BEFORE cleanup and dismissal
                 self.parent.selectedImage = processedImage
-                print("✅ Camera image stored: \(processedImage.size)")
+                debugPrint("✅ Camera image stored: \(processedImage.size)")
                 
                 // Step 4: CRITICAL - Force immediate termination after image capture
-                print("⏳ Terminating and cleaning up camera session...")
+                debugPrint("⏳ Terminating and cleaning up camera session...")
                 self.parent.cameraManager.terminateSessionOnViewClose()
                 self.parent.cameraManager.cleanupAfterCameraUsage()
                 
@@ -632,7 +632,7 @@ struct CameraView: UIViewControllerRepresentable {
                 // Step 7: Verify image retention
                 try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 second
                 if self.parent.selectedImage == nil {
-                    print("⚠️ Camera image lost after dismissal, restoring...")
+                    debugPrint("⚠️ Camera image lost after dismissal, restoring...")
                     self.parent.selectedImage = processedImage
                 }
             }
@@ -640,8 +640,8 @@ struct CameraView: UIViewControllerRepresentable {
         
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
             Task { @MainActor in
-                print("🚫 Camera picker cancelled")
-                print("🧹 Cleaning up camera session after cancel...")
+                debugPrint("🚫 Camera picker cancelled")
+                debugPrint("🧹 Cleaning up camera session after cancel...")
                 self.parent.cameraManager.terminateSessionOnViewClose()
                 self.parent.cameraManager.cleanupAfterCameraUsage()
                 

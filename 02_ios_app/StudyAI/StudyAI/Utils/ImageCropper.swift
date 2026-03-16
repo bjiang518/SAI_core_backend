@@ -64,12 +64,12 @@ struct ImageCropper {
 
         // Validate input
         guard topLeft.count == 2, bottomRight.count == 2 else {
-            print("❌ ImageCropper: Invalid coordinate arrays")
+            debugPrint("❌ ImageCropper: Invalid coordinate arrays")
             return nil
         }
 
         guard let cgImage = image.cgImage else {
-            print("❌ ImageCropper: Failed to get CGImage")
+            debugPrint("❌ ImageCropper: Failed to get CGImage")
             return nil
         }
 
@@ -86,10 +86,10 @@ struct ImageCropper {
             scaleX = originalWidth / CGFloat(backendWidth)
             scaleY = originalHeight / CGFloat(backendHeight)
 
-            print("🔧 ImageCropper: Coordinate scaling enabled")
-            print("   Backend image: \(backendWidth)x\(backendHeight)")
-            print("   Original image: \(Int(originalWidth))x\(Int(originalHeight))")
-            print("   Scale factors: x=\(String(format: "%.2f", scaleX)), y=\(String(format: "%.2f", scaleY))")
+            debugPrint("🔧 ImageCropper: Coordinate scaling enabled")
+            debugPrint("   Backend image: \(backendWidth)x\(backendHeight)")
+            debugPrint("   Original image: \(Int(originalWidth))x\(Int(originalHeight))")
+            debugPrint("   Scale factors: x=\(String(format: "%.2f", scaleX)), y=\(String(format: "%.2f", scaleY))")
         }
 
         // Convert normalized coordinates to pixel coordinates
@@ -106,7 +106,7 @@ struct ImageCropper {
 
         // Validate crop dimensions
         guard cropWidth > 0, cropHeight > 0 else {
-            print("❌ ImageCropper: Invalid crop dimensions")
+            debugPrint("❌ ImageCropper: Invalid crop dimensions")
             return nil
         }
 
@@ -118,11 +118,11 @@ struct ImageCropper {
             height: cropHeight
         )
 
-        print("📐 ImageCropper: Cropping region (\(Int(x1)), \(Int(y1))) to (\(Int(x2)), \(Int(y2)))")
+        debugPrint("📐 ImageCropper: Cropping region (\(Int(x1)), \(Int(y1))) to (\(Int(x2)), \(Int(y2)))")
 
         // Perform crop
         guard let croppedCGImage = cgImage.cropping(to: cropRect) else {
-            print("❌ ImageCropper: CGImage cropping failed")
+            debugPrint("❌ ImageCropper: CGImage cropping failed")
             return nil
         }
 
@@ -133,7 +133,7 @@ struct ImageCropper {
             orientation: image.imageOrientation
         )
 
-        print("✅ ImageCropper: Successfully cropped image (\(Int(cropWidth))x\(Int(cropHeight)))")
+        debugPrint("✅ ImageCropper: Successfully cropped image (\(Int(cropWidth))x\(Int(cropHeight)))")
 
         return croppedImage
     }
@@ -156,12 +156,12 @@ struct ImageCropper {
 
         var croppedImages: [String: UIImage] = [:]
 
-        print("📝 ImageCropper: Batch cropping \(regions.count) regions...")
+        debugPrint("📝 ImageCropper: Batch cropping \(regions.count) regions...")
 
         for region in regions {
             // Validate region
             guard region.isValid else {
-                print("⚠️ ImageCropper: Invalid region for question \(region.questionId), skipping")
+                debugPrint("⚠️ ImageCropper: Invalid region for question \(region.questionId), skipping")
                 continue
             }
 
@@ -174,13 +174,13 @@ struct ImageCropper {
                 backendImageHeight: backendImageHeight
             ) {
                 croppedImages[region.questionId] = cropped
-                print("✅ Q\(region.questionId): \(region.description)")
+                debugPrint("✅ Q\(region.questionId): \(region.description)")
             } else {
-                print("❌ Q\(region.questionId): Crop failed")
+                debugPrint("❌ Q\(region.questionId): Crop failed")
             }
         }
 
-        print("🎉 ImageCropper: Successfully cropped \(croppedImages.count)/\(regions.count) regions")
+        debugPrint("🎉 ImageCropper: Successfully cropped \(croppedImages.count)/\(regions.count) regions")
 
         return croppedImages
     }

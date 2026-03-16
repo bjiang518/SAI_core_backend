@@ -187,7 +187,7 @@ extension View {
         error: .noInternetConnection,
         onDismiss: {},
         onRetry: {
-            print("Retry tapped")
+            debugPrint("Retry tapped")
         }
     )
 }

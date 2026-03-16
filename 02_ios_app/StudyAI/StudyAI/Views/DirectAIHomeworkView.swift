@@ -1720,7 +1720,7 @@ struct DirectAIHomeworkView: View {
     private func prepareBase64Image(_ image: UIImage) -> String {
         // Compress image using the same logic as batch processing
         guard let compressedData = compressPreprocessedImage(image) else {
-            print("⚠️ Failed to compress image for progressive grading, using fallback")
+            debugPrint("⚠️ Failed to compress image for progressive grading, using fallback")
             // Fallback: basic JPEG compression
             if let fallbackData = image.jpegData(compressionQuality: 0.7) {
                 return fallbackData.base64EncodedString()
@@ -1825,18 +1825,18 @@ struct DirectAIHomeworkView: View {
         await MainActor.run {
             backgroundTaskID = UIApplication.shared.beginBackgroundTask {
                 // Called if time expires - clean up
-                print("⚠️ Background task time expired for batch processing")
+                debugPrint("⚠️ Background task time expired for batch processing")
                 UIApplication.shared.endBackgroundTask(backgroundTaskID)
                 backgroundTaskID = .invalid
             }
-            print("✅ Background task started for batch processing (ID: \(backgroundTaskID.rawValue))")
+            debugPrint("✅ Background task started for batch processing (ID: \(backgroundTaskID.rawValue))")
         }
 
         defer {
             // Always end background task when done
             if backgroundTaskID != .invalid {
                 Task { @MainActor in
-                    print("✅ Ending background task for batch processing (ID: \(backgroundTaskID.rawValue))")
+                    debugPrint("✅ Ending background task for batch processing (ID: \(backgroundTaskID.rawValue))")
                     UIApplication.shared.endBackgroundTask(backgroundTaskID)
                 }
             }
@@ -1926,8 +1926,8 @@ struct DirectAIHomeworkView: View {
     /// Shows phased status updates: "正在图像分割" → "AI正在分析原题"
     /// Pro Mode: Direct AI Parse (Detail Mode) → Summary → Digital Homework
     private func processWithProMode() async {
-        print("🎨 === STARTING PRO MODE PROCESSING (NEW FLOW) ===")
-        print("📋 Flow: AI Parse (Detail) → Summary View → Digital Homework View")
+        debugPrint("🎨 === STARTING PRO MODE PROCESSING (NEW FLOW) ===")
+        debugPrint("📋 Flow: AI Parse (Detail) → Summary View → Digital Homework View")
 
         await MainActor.run {
             isProcessing = true
@@ -1973,9 +1973,9 @@ struct DirectAIHomeworkView: View {
 
         let imagesToParse = selectedImages.isEmpty ? [originalImage] : selectedImages
 
-        print("📚 === PRO MODE PARSING ===")
-        print("📄 Total images to parse: \(imagesToParse.count)")
-        print("🤖 Using AI Model: \(selectedAIModel)")
+        debugPrint("📚 === PRO MODE PARSING ===")
+        debugPrint("📄 Total images to parse: \(imagesToParse.count)")
+        debugPrint("🤖 Using AI Model: \(selectedAIModel)")
 
         // Compress all selected images
         let base64Images = imagesToParse.compactMap { image -> String? in
@@ -2001,7 +2001,7 @@ struct DirectAIHomeworkView: View {
         for attempt in 1...maxRetries {
             do {
                 if attempt > 1 {
-                    print("🔄 Retry attempt \(attempt)/\(maxRetries)...")
+                    debugPrint("🔄 Retry attempt \(attempt)/\(maxRetries)...")
                     await MainActor.run {
                         self.stateManager.processingStatus = String(format: NSLocalizedString("aiHomework.retrying", comment: "Retrying"), attempt, maxRetries)
                     }
@@ -2037,23 +2037,23 @@ struct DirectAIHomeworkView: View {
 
                 if base64Images.count >= 2 {
                     // Batch parsing for multiple pages
-                    print("🔄 Using BATCH parsing endpoint (\(base64Images.count) pages)...")
+                    debugPrint("🔄 Using BATCH parsing endpoint (\(base64Images.count) pages)...")
                     parseResponse = try await NetworkService.shared.parseHomeworkQuestionsBatch(
                         base64Images: base64Images,
                         parsingMode: "standard",
                         subject: nil
                     )
-                    print("✅ Batch parsed \(base64Images.count) pages: \(parseResponse.totalQuestions) total questions")
+                    debugPrint("✅ Batch parsed \(base64Images.count) pages: \(parseResponse.totalQuestions) total questions")
                 } else {
                     // Single page parsing (existing flow)
-                    print("🔄 Using SINGLE parsing endpoint (1 page)...")
+                    debugPrint("🔄 Using SINGLE parsing endpoint (1 page)...")
                     parseResponse = try await NetworkService.shared.parseHomeworkQuestions(
                         base64Image: base64Images[0],
                         parsingMode: "standard",
                         skipBboxDetection: true,
                         expectedQuestions: nil
                     )
-                    print("✅ Single parsed 1 page: \(parseResponse.totalQuestions) questions")
+                    debugPrint("✅ Single parsed 1 page: \(parseResponse.totalQuestions) questions")
                 }
 
                 guard parseResponse.success else {
@@ -2065,7 +2065,7 @@ struct DirectAIHomeworkView: View {
                 statusCycleTask?.cancel()
                 statusCycleTask = nil
 
-                print("📚 Subject: \(parseResponse.subject)")
+                debugPrint("📚 Subject: \(parseResponse.subject)")
 
                 // Navigate to Summary View
                 await MainActor.run {
@@ -2077,7 +2077,7 @@ struct DirectAIHomeworkView: View {
                     self.showProModeSummary = true  // NEW: Show summary instead of direct grading
                 }
 
-                print("✅ Pro Mode parsing complete, showing summary view")
+                debugPrint("✅ Pro Mode parsing complete, showing summary view")
                 return  // ✅ Success - exit retry loop
 
             } catch {
@@ -2094,14 +2094,14 @@ struct DirectAIHomeworkView: View {
 
                 if !shouldRetry || attempt == maxRetries {
                     // Don't retry, or this was the last attempt
-                    print("❌ Pro Mode processing failed: \(error.localizedDescription)")
+                    debugPrint("❌ Pro Mode processing failed: \(error.localizedDescription)")
                     if attempt == maxRetries {
-                        print("❌ All \(maxRetries) retry attempts exhausted")
+                        debugPrint("❌ All \(maxRetries) retry attempts exhausted")
                     }
                     break
                 }
 
-                print("⚠️ Network error (attempt \(attempt)/\(maxRetries)): \(error.localizedDescription)")
+                debugPrint("⚠️ Network error (attempt \(attempt)/\(maxRetries)): \(error.localizedDescription)")
             }
         }
 
@@ -2134,7 +2134,7 @@ struct DirectAIHomeworkView: View {
                 if let rawJson = data["raw_json"] as? [String: Any] {
                     parsed = EnhancedHomeworkParser.shared.parseBackendJSON(rawJson)
                     if parsed != nil {
-                        print("✅ Using fast JSON parsing for batch image \(index + 1)")
+                        debugPrint("✅ Using fast JSON parsing for batch image \(index + 1)")
                     }
                 }
 
@@ -2142,7 +2142,7 @@ struct DirectAIHomeworkView: View {
                 if parsed == nil, let response = data["response"] as? String {
                     parsed = EnhancedHomeworkParser.shared.parseEnhancedHomeworkResponse(response)
                     if parsed != nil {
-                        print("⚠️ Using legacy text parsing for batch image \(index + 1)")
+                        debugPrint("⚠️ Using legacy text parsing for batch image \(index + 1)")
                     }
                 }
 
@@ -2262,18 +2262,18 @@ struct DirectAIHomeworkView: View {
         await MainActor.run {
             backgroundTaskID = UIApplication.shared.beginBackgroundTask {
                 // Called if time expires - clean up
-                print("⚠️ Background task time expired for single image processing")
+                debugPrint("⚠️ Background task time expired for single image processing")
                 UIApplication.shared.endBackgroundTask(backgroundTaskID)
                 backgroundTaskID = .invalid
             }
-            print("✅ Background task started for single image processing (ID: \(backgroundTaskID.rawValue))")
+            debugPrint("✅ Background task started for single image processing (ID: \(backgroundTaskID.rawValue))")
         }
 
         defer {
             // Always end background task when done
             if backgroundTaskID != .invalid {
                 Task { @MainActor in
-                    print("✅ Ending background task for single image processing (ID: \(backgroundTaskID.rawValue))")
+                    debugPrint("✅ Ending background task for single image processing (ID: \(backgroundTaskID.rawValue))")
                     UIApplication.shared.endBackgroundTask(backgroundTaskID)
                 }
             }
@@ -2381,17 +2381,17 @@ struct DirectAIHomeworkView: View {
             // Check for Essay response first
             if let rawJson = jsonObject["raw_json"] as? [String: Any],
                EnhancedHomeworkParser.shared.isEssayResponse(rawJson) {
-                print("📝 Detected Essay response")
+                debugPrint("📝 Detected Essay response")
                 essayGrading = EnhancedHomeworkParser.shared.parseEssayResponse(rawJson)
                 if essayGrading != nil {
-                    print("✅ Using Essay parsing for single image")
+                    debugPrint("✅ Using Essay parsing for single image")
                 }
             }
             // Try standard homework JSON parsing if not Essay
             else if let rawJson = jsonObject["raw_json"] as? [String: Any] {
                 enhanced = EnhancedHomeworkParser.shared.parseBackendJSON(rawJson)
                 if enhanced != nil {
-                    print("✅ Using fast JSON parsing for single image")
+                    debugPrint("✅ Using fast JSON parsing for single image")
                 }
             }
 
@@ -2400,14 +2400,14 @@ struct DirectAIHomeworkView: View {
                 actualResponse = textResponse  // Update for error handling
                 enhanced = EnhancedHomeworkParser.shared.parseEnhancedHomeworkResponse(textResponse)
                 if enhanced != nil {
-                    print("⚠️ Using legacy text parsing for single image")
+                    debugPrint("⚠️ Using legacy text parsing for single image")
                 }
             }
         } else {
             // Response is plain text, use text parsing
             enhanced = EnhancedHomeworkParser.shared.parseEnhancedHomeworkResponse(response)
             if enhanced != nil {
-                print("⚠️ Using legacy text parsing for plain text response")
+                debugPrint("⚠️ Using legacy text parsing for plain text response")
             }
         }
 
@@ -2485,10 +2485,10 @@ struct DirectAIHomeworkView: View {
     private func compressPreprocessedImage(_ image: UIImage) -> Data? {
         let resized = resizeImage(image, maxDimension: 1024)
         guard let data = resized.jpegData(compressionQuality: 0.7) else {
-            print("❌ [Compression] Failed to compress image")
+            debugPrint("❌ [Compression] Failed to compress image")
             return nil
         }
-        print("✅ [Compression] Compressed to \(data.count / 1024)KB at 1024px quality 0.7")
+        debugPrint("✅ [Compression] Compressed to \(data.count / 1024)KB at 1024px quality 0.7")
         return data
     }
     
@@ -2646,19 +2646,19 @@ struct CameraPickerView: UIViewControllerRepresentable {
 
         func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
             if let image = info[.originalImage] as? UIImage {
-                print("📸 [CameraPickerView] Captured image: size=\(image.size), orientation=\(image.imageOrientation.rawValue)")
+                debugPrint("📸 [CameraPickerView] Captured image: size=\(image.size), orientation=\(image.imageOrientation.rawValue)")
 
                 // Mirror the image if front camera was used (selfie mode)
                 if parent.useFrontCamera {
                     let startTime = Date()
                     parent.selectedImage = mirrorImageOptimized(image)
                     let duration = Date().timeIntervalSince(startTime)
-                    print("✅ [CameraPickerView] Mirrored in \(String(format: "%.3f", duration))s")
+                    debugPrint("✅ [CameraPickerView] Mirrored in \(String(format: "%.3f", duration))s")
                 } else {
                     let startTime = Date()
                     parent.selectedImage = normalizeOrientation(image)
                     let duration = Date().timeIntervalSince(startTime)
-                    print("✅ [CameraPickerView] Normalized in \(String(format: "%.3f", duration))s")
+                    debugPrint("✅ [CameraPickerView] Normalized in \(String(format: "%.3f", duration))s")
                 }
             }
             parent.isPresented = false
@@ -2670,11 +2670,11 @@ struct CameraPickerView: UIViewControllerRepresentable {
 
         // Normalize image orientation (fix rotation from camera)
         private func normalizeOrientation(_ image: UIImage) -> UIImage {
-            print("🔄 [CameraPickerView] Normalizing orientation: \(image.imageOrientation.rawValue)")
+            debugPrint("🔄 [CameraPickerView] Normalizing orientation: \(image.imageOrientation.rawValue)")
 
             // If already upright, return as-is
             if image.imageOrientation == .up {
-                print("✅ [CameraPickerView] Already upright, no normalization needed")
+                debugPrint("✅ [CameraPickerView] Already upright, no normalization needed")
                 return image
             }
 
@@ -2684,16 +2684,16 @@ struct CameraPickerView: UIViewControllerRepresentable {
             let normalizedImage = UIGraphicsGetImageFromCurrentImageContext()
             UIGraphicsEndImageContext()
 
-            print("✅ [CameraPickerView] Normalized to upright orientation")
+            debugPrint("✅ [CameraPickerView] Normalized to upright orientation")
             return normalizedImage ?? image
         }
 
         // Optimized mirror for front camera - single render pass
         private func mirrorImageOptimized(_ image: UIImage) -> UIImage {
-            print("🪞 [CameraPickerView] Mirroring selfie: orientation=\(image.imageOrientation.rawValue), size=\(image.size)")
+            debugPrint("🪞 [CameraPickerView] Mirroring selfie: orientation=\(image.imageOrientation.rawValue), size=\(image.size)")
 
             guard image.cgImage != nil else {
-                print("❌ [CameraPickerView] No CGImage, returning original")
+                debugPrint("❌ [CameraPickerView] No CGImage, returning original")
                 return image
             }
 
@@ -2704,7 +2704,7 @@ struct CameraPickerView: UIViewControllerRepresentable {
             UIGraphicsBeginImageContextWithOptions(size, false, image.scale)
             guard let context = UIGraphicsGetCurrentContext() else {
                 UIGraphicsEndImageContext()
-                print("❌ [CameraPickerView] Failed to create graphics context")
+                debugPrint("❌ [CameraPickerView] Failed to create graphics context")
                 return image
             }
 
@@ -2719,7 +2719,7 @@ struct CameraPickerView: UIViewControllerRepresentable {
             let mirroredImage = UIGraphicsGetImageFromCurrentImageContext()
             UIGraphicsEndImageContext()
 
-            print("✅ [CameraPickerView] Mirrored successfully")
+            debugPrint("✅ [CameraPickerView] Mirrored successfully")
             return mirroredImage ?? image
         }
     }

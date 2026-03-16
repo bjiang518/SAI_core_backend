@@ -59,7 +59,7 @@ class FocusSessionService: ObservableObject {
         // Track when app goes to background
         if isRunning && !isPaused {
             backgroundStartTime = Date()
-            print("📱 App entering background - timer at \(formatTime(elapsedTime))")
+            debugPrint("📱 App entering background - timer at \(formatTime(elapsedTime))")
 
             // BATTERY OPTIMIZATION: Stop timer to save battery
             // Time will be recalculated based on actual elapsed time when returning
@@ -81,7 +81,7 @@ class FocusSessionService: ObservableObject {
             if remainingTime <= 0 && !isCompleted {
                 isCompleted = true
                 // 可以触发完成提示音或振动
-                print("✅ Pomodoro completed!")
+                debugPrint("✅ Pomodoro completed!")
             }
 
             // Update current session duration
@@ -96,7 +96,7 @@ class FocusSessionService: ObservableObject {
             }
 
             backgroundStartTime = nil
-            print("📱 App returned to foreground - remaining: \(formatTime(remainingTime))")
+            debugPrint("📱 App returned to foreground - remaining: \(formatTime(remainingTime))")
         }
     }
 
@@ -109,7 +109,7 @@ class FocusSessionService: ObservableObject {
     /// Start a new focus session
     func startSession(withMusic trackId: String? = nil, enableDeepFocus: Bool = false) {
         guard currentSession == nil else {
-            print("⚠️ Session already in progress")
+            debugPrint("⚠️ Session already in progress")
             return
         }
 
@@ -117,14 +117,14 @@ class FocusSessionService: ObservableObject {
         previousPowerSavingMode = AppState.shared.isPowerSavingMode
         if !previousPowerSavingMode {
             AppState.shared.isPowerSavingMode = true
-            print("🔋 Enabled Power Saving Mode for focus session")
+            debugPrint("🔋 Enabled Power Saving Mode for focus session")
         }
 
         // 启用深度专注模式（如果用户选择）
         if enableDeepFocus || deepFocusService.autoEnableDeepFocus {
             deepFocusService.enableDeepFocus()
             isDeepFocusEnabled = true
-            print("🔇 Deep Focus Mode enabled")
+            debugPrint("🔇 Deep Focus Mode enabled")
         }
 
         let session = FocusSession(
@@ -143,7 +143,7 @@ class FocusSessionService: ObservableObject {
 
         startTimer()
 
-        print("✅ Pomodoro session started: 25:00")
+        debugPrint("✅ Pomodoro session started: 25:00")
     }
 
     // MARK: - Deep Focus Control
@@ -168,7 +168,7 @@ class FocusSessionService: ObservableObject {
         // Keep isRunning true to maintain session state
         // isRunning = false  // REMOVED: This was causing the UI issue
 
-        print("⏸️ Session paused at \(formatTime(elapsedTime))")
+        debugPrint("⏸️ Session paused at \(formatTime(elapsedTime))")
     }
 
     /// Resume the paused session
@@ -179,13 +179,13 @@ class FocusSessionService: ObservableObject {
         // isRunning should already be true from pause
         startTimer()
 
-        print("▶️ Session resumed")
+        debugPrint("▶️ Session resumed")
     }
 
     /// End the current session and save it
     func endSession() -> FocusSession? {
         guard var session = currentSession else {
-            print("⚠️ No active session to end")
+            debugPrint("⚠️ No active session to end")
             return nil
         }
 
@@ -214,12 +214,12 @@ class FocusSessionService: ObservableObject {
             isDeepFocusEnabled = false
         }
 
-        print("✅ Session ended: \(session.formattedDuration)")
+        debugPrint("✅ Session ended: \(session.formattedDuration)")
 
         // Restore previous Power Saving Mode state
         if !previousPowerSavingMode && AppState.shared.isPowerSavingMode {
             AppState.shared.isPowerSavingMode = false
-            print("🔋 Restored Power Saving Mode to: off")
+            debugPrint("🔋 Restored Power Saving Mode to: off")
         }
 
         // Reset state
@@ -242,11 +242,11 @@ class FocusSessionService: ObservableObject {
         // Restore previous Power Saving Mode state
         if !previousPowerSavingMode && AppState.shared.isPowerSavingMode {
             AppState.shared.isPowerSavingMode = false
-            print("🔋 Restored Power Saving Mode to: off")
+            debugPrint("🔋 Restored Power Saving Mode to: off")
         }
 
         reset()
-        print("❌ Session cancelled")
+        debugPrint("❌ Session cancelled")
     }
 
     // MARK: - Timer Management
@@ -275,7 +275,7 @@ class FocusSessionService: ObservableObject {
 
     /// 处理番茄钟完成
     private func handlePomodoroCompletion() {
-        print("🍅 Pomodoro completed! 25 minutes focused.")
+        debugPrint("🍅 Pomodoro completed! 25 minutes focused.")
         // 触发震动反馈
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(.success)
@@ -298,7 +298,7 @@ class FocusSessionService: ObservableObject {
         if let encoded = try? JSONEncoder().encode(sessions) {
             let userId = AuthenticationService.shared.currentUser?.id ?? "anonymous"
             UserDefaults.standard.set(encoded, forKey: "focus_sessions_\(userId)")
-            print("💾 Session saved to UserDefaults")
+            debugPrint("💾 Session saved to UserDefaults")
         }
     }
 
@@ -344,7 +344,7 @@ class FocusSessionService: ObservableObject {
                 durationMinutes: session.durationInMinutes,
                 pointsEarned: pointsToAward
             )
-            print("🎯 Awarded \(pointsToAward) points for \(session.durationInMinutes) min focus")
+            debugPrint("🎯 Awarded \(pointsToAward) points for \(session.durationInMinutes) min focus")
         }
     }
 

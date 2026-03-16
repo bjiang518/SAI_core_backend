@@ -247,13 +247,13 @@ class TomatoPhysicsScene: SKScene {
             baseSize = 68
         case .tmt6:     // tmt6
             baseSize = 68
-        case .batman:   // tmt_batman
+        case .darkKnight:   // tmt_darkKnight
             baseSize = 70
-        case .ironman:  // tmt_ironman
+        case .ironSuit:     // tmt_ironSuit
             baseSize = 70
-        case .mario:    // tmt_mario
+        case .superTomatorio:  // tmt_superTomatorio
             baseSize = 70
-        case .pokemon:  // tmt_pokemon
+        case .flashingTomato:  // tmt_flashingTomato
             baseSize = 70
         case .golden:   // tmt_gold
             baseSize = 72
@@ -323,7 +323,7 @@ class TomatoPhysicsScene: SKScene {
 
     private func startMotionDetection() {
         guard motionManager.isAccelerometerAvailable else {
-            print("⚠️ Accelerometer not available")
+            debugPrint("⚠️ Accelerometer not available")
             return
         }
 

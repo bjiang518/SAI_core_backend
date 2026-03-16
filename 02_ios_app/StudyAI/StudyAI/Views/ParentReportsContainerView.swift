@@ -44,19 +44,19 @@ struct ParentReportsContainerView: View {
 
         // Skip if user has already enabled reports
         if settings.parentReportsEnabled {
-            print("✅ [ParentReportsContainer] Reports already enabled, skipping onboarding")
+            debugPrint("✅ [ParentReportsContainer] Reports already enabled, skipping onboarding")
             return
         }
 
         // Skip if user has already seen and dismissed onboarding this install
         let dismissedKey = "parent_reports_onboarding_dismissed"
         if UserDefaults.standard.bool(forKey: dismissedKey) {
-            print("✅ [ParentReportsContainer] Onboarding already seen, skipping")
+            debugPrint("✅ [ParentReportsContainer] Onboarding already seen, skipping")
             return
         }
 
         // First-time visitor — show onboarding
-        print("📊 [ParentReportsContainer] Showing parent reports onboarding")
+        debugPrint("📊 [ParentReportsContainer] Showing parent reports onboarding")
         showingOnboarding = true
     }
 
@@ -71,9 +71,9 @@ struct ParentReportsContainerView: View {
                 reportHour: settings.reportTimeHour
             )
             if result.success {
-                print("✅ [ParentReportsContainer] Reports enabled on backend. Next: \(result.nextReportTime ?? "N/A")")
+                debugPrint("✅ [ParentReportsContainer] Reports enabled on backend. Next: \(result.nextReportTime ?? "N/A")")
             } else {
-                print("⚠️ [ParentReportsContainer] Backend sync failed: \(result.message). Will retry on next app launch.")
+                debugPrint("⚠️ [ParentReportsContainer] Backend sync failed: \(result.message). Will retry on next app launch.")
             }
         }
     }
@@ -83,9 +83,9 @@ struct ParentReportsContainerView: View {
         Task {
             let result = await networkService.disableParentReports()
             if result.success {
-                print("✅ [ParentReportsContainer] Reports disabled on backend.")
+                debugPrint("✅ [ParentReportsContainer] Reports disabled on backend.")
             } else {
-                print("⚠️ [ParentReportsContainer] Backend disable failed: \(result.message).")
+                debugPrint("⚠️ [ParentReportsContainer] Backend disable failed: \(result.message).")
             }
         }
     }

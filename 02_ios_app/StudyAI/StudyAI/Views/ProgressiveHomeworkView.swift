@@ -634,11 +634,11 @@ struct QuestionGradeCard: View {
                             error: questionWithGrade.subquestionErrors[subquestion.id],
                             onAskAI: {
                                 // TODO: Navigate to SessionChatView with subquestion context
-                                print("💬 Ask AI for help with subquestion \(subquestion.id)")
+                                debugPrint("💬 Ask AI for help with subquestion \(subquestion.id)")
                             },
                             onArchive: {
                                 // TODO: Archive this specific subquestion
-                                print("⭐ Archive subquestion \(subquestion.id)")
+                                debugPrint("⭐ Archive subquestion \(subquestion.id)")
                             }
                         )
                     }

@@ -157,12 +157,12 @@ class BackgroundMusicService: NSObject, ObservableObject {
 
             try audioSession.setActive(true)
 
-            print("✅ Audio session configured for HIGH-QUALITY music playback")
-            print("   🎵 Mode: .moviePlayback (stereo, high fidelity)")
-            print("   📊 Sample Rate: 44.1kHz")
-            print("   ⚡ Buffer: 5ms (low latency)")
+            debugPrint("✅ Audio session configured for HIGH-QUALITY music playback")
+            debugPrint("   🎵 Mode: .moviePlayback (stereo, high fidelity)")
+            debugPrint("   📊 Sample Rate: 44.1kHz")
+            debugPrint("   ⚡ Buffer: 5ms (low latency)")
         } catch {
-            print("❌ Failed to configure audio session: \(error.localizedDescription)")
+            debugPrint("❌ Failed to configure audio session: \(error.localizedDescription)")
         }
     }
 
@@ -194,7 +194,7 @@ class BackgroundMusicService: NSObject, ObservableObject {
     /// Start playing a playlist
     func playPlaylist(_ playlist: MusicPlaylist, startIndex: Int = 0) {
         guard !playlist.isEmpty, startIndex < playlist.trackIds.count else {
-            print("⚠️ Cannot play empty playlist or invalid index")
+            debugPrint("⚠️ Cannot play empty playlist or invalid index")
             return
         }
 
@@ -230,7 +230,7 @@ class BackgroundMusicService: NSObject, ObservableObject {
             if downloadService.isTrackDownloaded(track.id) {
                 audioURL = downloadService.getLocalURL(for: track.fileName)
             } else {
-                print("❌ Track not downloaded: \(track.name)")
+                debugPrint("❌ Track not downloaded: \(track.name)")
                 // Could trigger download here or show alert
                 return
             }
@@ -241,7 +241,7 @@ class BackgroundMusicService: NSObject, ObservableObject {
         }
 
         guard let url = audioURL else {
-            print("❌ Audio file not found: \(track.fileName)")
+            debugPrint("❌ Audio file not found: \(track.fileName)")
             return
         }
 
@@ -254,11 +254,11 @@ class BackgroundMusicService: NSObject, ObservableObject {
             audioPlayer?.play()
 
             isPlaying = true
-            print("✅ Playing track: \(track.name)")
-            print("📊 Duration: \(audioPlayer?.duration ?? 0) seconds")
-            print("🎵 Source: \(track.source.displayName)")
+            debugPrint("✅ Playing track: \(track.name)")
+            debugPrint("📊 Duration: \(audioPlayer?.duration ?? 0) seconds")
+            debugPrint("🎵 Source: \(track.source.displayName)")
         } catch {
-            print("❌ Failed to initialize audio player: \(error.localizedDescription)")
+            debugPrint("❌ Failed to initialize audio player: \(error.localizedDescription)")
         }
     }
 
@@ -320,14 +320,14 @@ class BackgroundMusicService: NSObject, ObservableObject {
     func pause() {
         audioPlayer?.pause()
         isPlaying = false
-        print("⏸️ Playback paused")
+        debugPrint("⏸️ Playback paused")
     }
 
     /// Resume playback
     func resume() {
         audioPlayer?.play()
         isPlaying = true
-        print("▶️ Playback resumed")
+        debugPrint("▶️ Playback resumed")
     }
 
     /// Stop playback
@@ -335,7 +335,7 @@ class BackgroundMusicService: NSObject, ObservableObject {
         audioPlayer?.stop()
         audioPlayer = nil
         isPlaying = false
-        print("⏹️ Playback stopped")
+        debugPrint("⏹️ Playback stopped")
     }
 
     /// Toggle play/pause
@@ -354,7 +354,7 @@ class BackgroundMusicService: NSObject, ObservableObject {
         let playlist = MusicPlaylist(name: name, trackIds: trackIds)
         playlists.append(playlist)
         savePlaylists()
-        print("✅ Created playlist: \(name) with \(trackIds.count) tracks")
+        debugPrint("✅ Created playlist: \(name) with \(trackIds.count) tracks")
         return playlist
     }
 
@@ -362,7 +362,7 @@ class BackgroundMusicService: NSObject, ObservableObject {
     func deletePlaylist(id: String) {
         playlists.removeAll { $0.id == id }
         savePlaylists()
-        print("🗑️ Deleted playlist: \(id)")
+        debugPrint("🗑️ Deleted playlist: \(id)")
     }
 
     /// Update a playlist
@@ -370,7 +370,7 @@ class BackgroundMusicService: NSObject, ObservableObject {
         if let index = playlists.firstIndex(where: { $0.id == playlist.id }) {
             playlists[index] = playlist
             savePlaylists()
-            print("✏️ Updated playlist: \(playlist.name)")
+            debugPrint("✏️ Updated playlist: \(playlist.name)")
         }
     }
 
@@ -390,12 +390,12 @@ class BackgroundMusicService: NSObject, ObservableObject {
     private func loadPlaylists() {
         guard let data = UserDefaults.standard.data(forKey: playlistsKey),
               let loadedPlaylists = try? JSONDecoder().decode([MusicPlaylist].self, from: data) else {
-            print("📂 No saved playlists found")
+            debugPrint("📂 No saved playlists found")
             return
         }
 
         playlists = loadedPlaylists
-        print("📂 Loaded \(playlists.count) playlists")
+        debugPrint("📂 Loaded \(playlists.count) playlists")
     }
 
     // MARK: - Track Management

@@ -40,14 +40,14 @@ struct ParentReportSettings: Codable {
     static func load() -> ParentReportSettings {
         guard let data = UserDefaults.standard.data(forKey: key),
               let settings = try? JSONDecoder().decode(ParentReportSettings.self, from: data) else {
-            print("📊 [Settings] No saved parent report settings, using defaults")
+            debugPrint("📊 [Settings] No saved parent report settings, using defaults")
             return ParentReportSettings()
         }
 
-        print("📊 [Settings] Loaded parent report settings:")
-        print("   - Reports enabled: \(settings.parentReportsEnabled)")
-        print("   - Auto-sync enabled: \(settings.autoSyncEnabled)")
-        print("   - Has seen onboarding: \(settings.hasSeenOnboarding)")
+        debugPrint("📊 [Settings] Loaded parent report settings:")
+        debugPrint("   - Reports enabled: \(settings.parentReportsEnabled)")
+        debugPrint("   - Auto-sync enabled: \(settings.autoSyncEnabled)")
+        debugPrint("   - Has seen onboarding: \(settings.hasSeenOnboarding)")
 
         return settings
     }
@@ -55,12 +55,12 @@ struct ParentReportSettings: Codable {
     /// Save settings to UserDefaults
     func save() {
         guard let data = try? JSONEncoder().encode(self) else {
-            print("❌ [Settings] Failed to encode parent report settings")
+            debugPrint("❌ [Settings] Failed to encode parent report settings")
             return
         }
 
         UserDefaults.standard.set(data, forKey: ParentReportSettings.key)
-        print("✅ [Settings] Saved parent report settings")
+        debugPrint("✅ [Settings] Saved parent report settings")
     }
 
     // MARK: - Sync Logic
@@ -70,13 +70,13 @@ struct ParentReportSettings: Codable {
     func shouldSync() -> Bool {
         // Only auto-sync if enabled
         guard autoSyncEnabled else {
-            print("📊 [Settings] Auto-sync disabled, skipping sync check")
+            debugPrint("📊 [Settings] Auto-sync disabled, skipping sync check")
             return false
         }
 
         // Sync if never synced before
         guard let lastSync = lastSyncTimestamp else {
-            print("📊 [Settings] Never synced before, sync needed")
+            debugPrint("📊 [Settings] Never synced before, sync needed")
             return true
         }
 
@@ -84,7 +84,7 @@ struct ParentReportSettings: Codable {
         let hoursSinceSync = Date().timeIntervalSince(lastSync) / 3600
         let shouldSync = hoursSinceSync > 1.0
 
-        print("📊 [Settings] Last sync: \(lastSync), hours ago: \(String(format: "%.1f", hoursSinceSync)), should sync: \(shouldSync)")
+        debugPrint("📊 [Settings] Last sync: \(lastSync), hours ago: \(String(format: "%.1f", hoursSinceSync)), should sync: \(shouldSync)")
 
         return shouldSync
     }
@@ -93,7 +93,7 @@ struct ParentReportSettings: Codable {
     mutating func updateLastSync() {
         lastSyncTimestamp = Date()
         save()
-        print("✅ [Settings] Updated last sync timestamp to \(Date())")
+        debugPrint("✅ [Settings] Updated last sync timestamp to \(Date())")
     }
 
     /// Calculate next report time

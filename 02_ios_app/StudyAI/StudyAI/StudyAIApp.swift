@@ -74,9 +74,9 @@ struct StudyAIApp: App {
             }
             ShortTermStatusService.shared.scheduleNextBackgroundMigration()
         }
-        print("✅ [App] Background task registered: com.studyai.weaknessmigration")
+        debugPrint("✅ [App] Background task registered: com.studyai.weaknessmigration")
         #else
-        print("⚠️ [App] Background tasks disabled in simulator")
+        debugPrint("⚠️ [App] Background tasks disabled in simulator")
         #endif
     }
 }

@@ -18,7 +18,7 @@ import os.log
 // MARK: - Production Logging Safety
 // Disable debug print statements in production builds to prevent auth token/password exposure
 #if !DEBUG
-private func print(_ items: Any...) { }
+private func debugPrint(_ items: Any...) { }
 private func debugPrint(_ items: Any...) { }
 #endif
 
@@ -284,8 +284,8 @@ final class AuthenticationService: ObservableObject {
             }
         }
         
-        print("🔐 === EMAIL LOGIN DEBUG FLOW ===")
-        print("📧 Attempting login for: \(email)")
+        debugPrint("🔐 === EMAIL LOGIN DEBUG FLOW ===")
+        debugPrint("📧 Attempting login for: \(email)")
         
         let result = await networkService.login(email: email, password: password)
         
@@ -298,18 +298,18 @@ final class AuthenticationService: ObservableObject {
                   let serverUserId = userData["id"] as? String ?? userData["userId"] as? String ?? userData["user_id"] as? String else {
 
                 if let responseData = result.userData {
-                    print("📄 Available keys in userData: \(responseData.keys.sorted())")
+                    debugPrint("📄 Available keys in userData: \(responseData.keys.sorted())")
                 } else {
-                    print("📄 userData is nil")
+                    debugPrint("📄 userData is nil")
                 }
                 throw AuthError.serverError("Backend response missing user ID")
             }
             
 
-            print("🖥️ Server User ID Found: \(serverUserId)")
-            print("📧 Email: \(userData["email"] as? String ?? email)")
-            print("👤 Name: \(userData["name"] as? String ?? "N/A")")
-            print("==========================================")
+            debugPrint("🖥️ Server User ID Found: \(serverUserId)")
+            debugPrint("📧 Email: \(userData["email"] as? String ?? email)")
+            debugPrint("👤 Name: \(userData["name"] as? String ?? "N/A")")
+            debugPrint("==========================================")
             
             let user = User(
                 id: serverUserId,  // Use server UID instead of random UUID
@@ -327,18 +327,18 @@ final class AuthenticationService: ObservableObject {
                 try keychainService.saveAuthToken(token)
                 try keychainService.saveUser(user)
                 
-                print("💾 === KEYCHAIN SAVE COMPLETE ===")
-                print("🔑 Token saved: \(String(token.prefix(20)))...")
-                print("👤 User saved with Server UID: \(user.id)")
-                print("================================")
+                debugPrint("💾 === KEYCHAIN SAVE COMPLETE ===")
+                debugPrint("🔑 Token saved: \(String(token.prefix(20)))...")
+                debugPrint("👤 User saved with Server UID: \(user.id)")
+                debugPrint("================================")
                 
                 await MainActor.run {
                     currentUser = user
                     isAuthenticated = true
 
 
-                    print("👤 Current user ID now: \(user.id)")
-                    print("===========================")
+                    debugPrint("👤 Current user ID now: \(user.id)")
+                    debugPrint("===========================")
                 }
 
                 // ✅ NEW: Start session after successful login
@@ -552,21 +552,21 @@ final class AuthenticationService: ObservableObject {
     // MARK: - Apple Sign In
 
     func signInWithApple() async throws {
-        print("🍎 === AuthenticationService.signInWithApple() STARTED ===")
+        debugPrint("🍎 === AuthenticationService.signInWithApple() STARTED ===")
         let appleSignIn = AppleSignInService()
         do {
-            print("🍎 Step 1: Calling AppleSignInService.signIn()...")
+            debugPrint("🍎 Step 1: Calling AppleSignInService.signIn()...")
             let appleUser = try await appleSignIn.signIn()
 
-            print("🍎 Step 2: Received Apple user data:")
-            print("   - User ID: \(appleUser.userIdentifier)")
-            print("   - Email: \(appleUser.email ?? "nil")")
-            print("   - Full Name: \(appleUser.fullName ?? "nil")")
-            print("   - Identity Token: \(appleUser.identityToken != nil ? "✅ Present (\(appleUser.identityToken!.prefix(20))...)" : "❌ Missing")")
-            print("   - Auth Code: \(appleUser.authorizationCode != nil ? "✅ Present (\(appleUser.authorizationCode!.prefix(20))...)" : "❌ Missing")")
+            debugPrint("🍎 Step 2: Received Apple user data:")
+            debugPrint("   - User ID: \(appleUser.userIdentifier)")
+            debugPrint("   - Email: \(appleUser.email ?? "nil")")
+            debugPrint("   - Full Name: \(appleUser.fullName ?? "nil")")
+            debugPrint("   - Identity Token: \(appleUser.identityToken != nil ? "✅ Present (\(appleUser.identityToken!.prefix(20))...)" : "❌ Missing")")
+            debugPrint("   - Auth Code: \(appleUser.authorizationCode != nil ? "✅ Present (\(appleUser.authorizationCode!.prefix(20))...)" : "❌ Missing")")
 
             // Send Apple authentication data to our Railway backend
-            print("🍎 Step 3: Calling backend at /api/auth/apple...")
+            debugPrint("🍎 Step 3: Calling backend at /api/auth/apple...")
             let networkService = NetworkService.shared
             let result = await networkService.appleLogin(
                 identityToken: appleUser.identityToken ?? "",
@@ -576,25 +576,25 @@ final class AuthenticationService: ObservableObject {
                 email: appleUser.email ?? "apple_user@icloud.com"
             )
 
-            print("🍎 Step 4: Backend response:")
-            print("   - Success: \(result.success)")
-            print("   - Message: \(result.message)")
-            print("   - Status Code: \(result.statusCode ?? 0)")
-            print("   - Token: \(result.token != nil ? "✅ Present (\(result.token!.prefix(20))...)" : "❌ Missing")")
+            debugPrint("🍎 Step 4: Backend response:")
+            debugPrint("   - Success: \(result.success)")
+            debugPrint("   - Message: \(result.message)")
+            debugPrint("   - Status Code: \(result.statusCode ?? 0)")
+            debugPrint("   - Token: \(result.token != nil ? "✅ Present (\(result.token!.prefix(20))...)" : "❌ Missing")")
 
             if result.success {
                 // Extract server user ID from backend response
                 guard let userData = result.userData,
                       let serverUserId = userData["id"] as? String ?? userData["userId"] as? String ?? userData["user_id"] as? String else {
-                    print("🍎 ❌ ERROR: Backend response missing user ID")
-                    print("🍎    Available keys: \(result.userData?.keys.sorted() ?? [])")
+                    debugPrint("🍎 ❌ ERROR: Backend response missing user ID")
+                    debugPrint("🍎    Available keys: \(result.userData?.keys.sorted() ?? [])")
                     throw AuthError.serverError("Backend response missing user ID")
                 }
 
-                print("🍎 Step 5: Creating user object:")
-                print("   - Server User ID: \(serverUserId)")
-                print("   - Email: \(userData["email"] as? String ?? appleUser.email ?? "N/A")")
-                print("   - Name: \(userData["name"] as? String ?? "N/A")")
+                debugPrint("🍎 Step 5: Creating user object:")
+                debugPrint("   - Server User ID: \(serverUserId)")
+                debugPrint("   - Email: \(userData["email"] as? String ?? appleUser.email ?? "N/A")")
+                debugPrint("   - Name: \(userData["name"] as? String ?? "N/A")")
 
                 let user = User(
                     id: serverUserId,  // Use server UID instead of Apple UID
@@ -610,32 +610,32 @@ final class AuthenticationService: ObservableObject {
 
                 // Use the token from our backend instead of generating one locally
                 if let token = result.token {
-                    print("🍎 Step 6: Saving to keychain:")
-                    print("   - Token (first 30 chars): \(token.prefix(30))...")
-                    print("   - User ID: \(user.id)")
-                    print("   - Email: \(user.email)")
+                    debugPrint("🍎 Step 6: Saving to keychain:")
+                    debugPrint("   - Token (first 30 chars): \(token.prefix(30))...")
+                    debugPrint("   - User ID: \(user.id)")
+                    debugPrint("   - Email: \(user.email)")
 
                     try keychainService.saveAuthToken(token)
-                    print("   ✅ Token saved to keychain")
+                    debugPrint("   ✅ Token saved to keychain")
 
                     try keychainService.saveUser(user)
-                    print("   ✅ User saved to keychain")
+                    debugPrint("   ✅ User saved to keychain")
 
                     // Verify keychain storage
                     if let savedToken = keychainService.getAuthToken() {
-                        print("🍎 Step 7: Keychain verification:")
-                        print("   ✅ Token retrieved: \(savedToken.prefix(30))...")
-                        print("   ✅ Tokens match: \(savedToken == token)")
+                        debugPrint("🍎 Step 7: Keychain verification:")
+                        debugPrint("   ✅ Token retrieved: \(savedToken.prefix(30))...")
+                        debugPrint("   ✅ Tokens match: \(savedToken == token)")
                     } else {
-                        print("🍎 ❌ WARNING: Token not found in keychain after save!")
+                        debugPrint("🍎 ❌ WARNING: Token not found in keychain after save!")
                     }
 
                     await MainActor.run {
                         currentUser = user
                         isAuthenticated = true
-                        print("🍎 Step 8: Auth state updated on main thread")
-                        print("   - isAuthenticated: \(isAuthenticated)")
-                        print("   - currentUser.id: \(currentUser?.id ?? "nil")")
+                        debugPrint("🍎 Step 8: Auth state updated on main thread")
+                        debugPrint("   - isAuthenticated: \(isAuthenticated)")
+                        debugPrint("   - currentUser.id: \(currentUser?.id ?? "nil")")
                     }
 
                     // ✅ NEW: Start session after successful Apple Sign-In
@@ -646,22 +646,22 @@ final class AuthenticationService: ObservableObject {
                     startTokenMonitoring()
 
                     // Auto-load user profile after successful login
-                    print("🍎 Step 9: Loading user profile...")
+                    debugPrint("🍎 Step 9: Loading user profile...")
                     await loadUserProfileAfterLogin()
 
-                    print("🍎 === AuthenticationService.signInWithApple() COMPLETED SUCCESSFULLY ===")
+                    debugPrint("🍎 === AuthenticationService.signInWithApple() COMPLETED SUCCESSFULLY ===")
                 } else {
-                    print("🍎 ❌ ERROR: No token in backend response")
+                    debugPrint("🍎 ❌ ERROR: No token in backend response")
                     throw AuthError.serverError("No authentication token received from backend")
                 }
             } else {
-                print("🍎 ❌ Backend authentication failed")
+                debugPrint("🍎 ❌ Backend authentication failed")
                 let specificError = mapBackendError(statusCode: result.statusCode ?? 0, message: result.message)
                 throw specificError
             }
         } catch {
-            print("🍎 ❌ === AuthenticationService.signInWithApple() FAILED ===")
-            print("🍎 Error: \(error)")
+            debugPrint("🍎 ❌ === AuthenticationService.signInWithApple() FAILED ===")
+            debugPrint("🍎 Error: \(error)")
 
             // Handle specific Apple Sign-In errors with helpful messages
             if let authError = error as? AuthError {
@@ -1075,7 +1075,7 @@ final class AuthenticationService: ObservableObject {
     
     /// Fix existing user's UID by fetching server UID using current token
     func fixExistingUserUID() async throws {
-        print("🔧 === FIXING EXISTING USER UID ===")
+        debugPrint("🔧 === FIXING EXISTING USER UID ===")
         
         guard getAuthToken() != nil else {
 
@@ -1087,7 +1087,7 @@ final class AuthenticationService: ObservableObject {
         
         if debugResult.success, let serverUserId = debugResult.backendUserId {
 
-            print("🖥️ Backend User ID: \(serverUserId)")
+            debugPrint("🖥️ Backend User ID: \(serverUserId)")
             
             // Update existing user with server UID
             if let currentUser = currentUser {
@@ -1596,7 +1596,7 @@ class GoogleSignInService: NSObject {
             return
         }
         
-        print("🔐 Configuring Google Sign-In with client ID: \(clientID.prefix(20))...")
+        debugPrint("🔐 Configuring Google Sign-In with client ID: \(clientID.prefix(20))...")
         
         // Configure Google Sign-In
         let config = GIDConfiguration(clientID: clientID)
@@ -1605,14 +1605,14 @@ class GoogleSignInService: NSObject {
         // Perform Google Sign-In
         GIDSignIn.sharedInstance.signIn(withPresenting: presentingViewController) { result, error in
             if let error = error {
-                print("🔴 Google Sign-In Error: \(error.localizedDescription)")
+                debugPrint("🔴 Google Sign-In Error: \(error.localizedDescription)")
                 continuation.resume(throwing: AuthError.providerError("Google Sign-In failed: \(error.localizedDescription)"))
                 return
             }
             
             guard let result = result,
                   let idToken = result.user.idToken?.tokenString else {
-                print("🔴 Google Sign-In: Missing user data or token")
+                debugPrint("🔴 Google Sign-In: Missing user data or token")
                 continuation.resume(throwing: AuthError.providerError("Google Sign-In failed: Missing authentication data"))
                 return
             }

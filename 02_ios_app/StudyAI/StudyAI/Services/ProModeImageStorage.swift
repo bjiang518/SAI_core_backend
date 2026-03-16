@@ -24,7 +24,7 @@ class ProModeImageStorage {
     /// Get the directory URL for Pro Mode images
     private var imageDirectoryURL: URL? {
         guard let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
-            print("❌ [ProModeImageStorage] Failed to get documents directory")
+            debugPrint("❌ [ProModeImageStorage] Failed to get documents directory")
             return nil
         }
         return documentsURL.appendingPathComponent(imageDirectoryName)
@@ -37,9 +37,9 @@ class ProModeImageStorage {
         if !fileManager.fileExists(atPath: directoryURL.path) {
             do {
                 try fileManager.createDirectory(at: directoryURL, withIntermediateDirectories: true)
-                print("✅ [ProModeImageStorage] Created image directory at: \(directoryURL.path)")
+                debugPrint("✅ [ProModeImageStorage] Created image directory at: \(directoryURL.path)")
             } catch {
-                print("❌ [ProModeImageStorage] Failed to create directory: \(error)")
+                debugPrint("❌ [ProModeImageStorage] Failed to create directory: \(error)")
             }
         }
     }
@@ -52,7 +52,7 @@ class ProModeImageStorage {
     /// - Note: Returns relative path to avoid issues with changing Documents directory paths on iOS
     func saveImage(_ image: UIImage) -> String? {
         guard let directoryURL = imageDirectoryURL else {
-            print("❌ [ProModeImageStorage] Image directory not available")
+            debugPrint("❌ [ProModeImageStorage] Image directory not available")
             return nil
         }
 
@@ -62,19 +62,19 @@ class ProModeImageStorage {
 
         // Convert UIImage to JPEG data (0.85 quality for balance between size and quality)
         guard let imageData = image.jpegData(compressionQuality: 0.85) else {
-            print("❌ [ProModeImageStorage] Failed to convert image to JPEG data")
+            debugPrint("❌ [ProModeImageStorage] Failed to convert image to JPEG data")
             return nil
         }
 
         // Write to file
         do {
             try imageData.write(to: fileURL)
-            print("✅ [ProModeImageStorage] Saved image: \(filename)")
-            print("   📂 Full path: \(fileURL.path)")
+            debugPrint("✅ [ProModeImageStorage] Saved image: \(filename)")
+            debugPrint("   📂 Full path: \(fileURL.path)")
             // ✅ CRITICAL FIX: Return only the filename, not the full path
             return filename
         } catch {
-            print("❌ [ProModeImageStorage] Failed to write image: \(error)")
+            debugPrint("❌ [ProModeImageStorage] Failed to write image: \(error)")
             return nil
         }
     }
@@ -91,30 +91,30 @@ class ProModeImageStorage {
         if path.hasPrefix("/") {
             // Absolute path - use as is (backward compatibility with old stored paths)
             fullPath = path
-            print("⚠️ [ProModeImageStorage] Using absolute path (legacy): \(path)")
+            debugPrint("⚠️ [ProModeImageStorage] Using absolute path (legacy): \(path)")
         } else {
             // Relative path (filename only) - construct full path dynamically
             guard let directoryURL = imageDirectoryURL else {
-                print("❌ [ProModeImageStorage] Image directory not available")
+                debugPrint("❌ [ProModeImageStorage] Image directory not available")
                 return nil
             }
             fullPath = directoryURL.appendingPathComponent(path).path
-            print("🔍 [ProModeImageStorage] Loading from relative path: \(path)")
-            print("   📂 Full path: \(fullPath)")
+            debugPrint("🔍 [ProModeImageStorage] Loading from relative path: \(path)")
+            debugPrint("   📂 Full path: \(fullPath)")
         }
 
         guard fileManager.fileExists(atPath: fullPath) else {
-            print("⚠️ [ProModeImageStorage] Image file not found at: \(fullPath)")
+            debugPrint("⚠️ [ProModeImageStorage] Image file not found at: \(fullPath)")
             return nil
         }
 
         guard let imageData = fileManager.contents(atPath: fullPath),
               let image = UIImage(data: imageData) else {
-            print("❌ [ProModeImageStorage] Failed to load image from: \(fullPath)")
+            debugPrint("❌ [ProModeImageStorage] Failed to load image from: \(fullPath)")
             return nil
         }
 
-        print("✅ [ProModeImageStorage] Successfully loaded image (size: \(image.size))")
+        debugPrint("✅ [ProModeImageStorage] Successfully loaded image (size: \(image.size))")
         return image
     }
 
@@ -132,23 +132,23 @@ class ProModeImageStorage {
             fullPath = path
         } else {
             guard let directoryURL = imageDirectoryURL else {
-                print("❌ [ProModeImageStorage] Image directory not available")
+                debugPrint("❌ [ProModeImageStorage] Image directory not available")
                 return false
             }
             fullPath = directoryURL.appendingPathComponent(path).path
         }
 
         guard fileManager.fileExists(atPath: fullPath) else {
-            print("⚠️ [ProModeImageStorage] Image file not found at: \(fullPath)")
+            debugPrint("⚠️ [ProModeImageStorage] Image file not found at: \(fullPath)")
             return false
         }
 
         do {
             try fileManager.removeItem(atPath: fullPath)
-            print("✅ [ProModeImageStorage] Deleted image at: \(fullPath)")
+            debugPrint("✅ [ProModeImageStorage] Deleted image at: \(fullPath)")
             return true
         } catch {
-            print("❌ [ProModeImageStorage] Failed to delete image: \(error)")
+            debugPrint("❌ [ProModeImageStorage] Failed to delete image: \(error)")
             return false
         }
     }
@@ -164,9 +164,9 @@ class ProModeImageStorage {
         for (questionId, image) in images {
             if let path = saveImage(image) {
                 filePaths[questionId] = path
-                print("✅ [ProModeImageStorage] Saved image for question \(questionId)")
+                debugPrint("✅ [ProModeImageStorage] Saved image for question \(questionId)")
             } else {
-                print("❌ [ProModeImageStorage] Failed to save image for question \(questionId)")
+                debugPrint("❌ [ProModeImageStorage] Failed to save image for question \(questionId)")
             }
         }
 
@@ -197,7 +197,7 @@ class ProModeImageStorage {
                         totalSize += Int64(fileSize)
                     }
                 } catch {
-                    print("❌ [ProModeImageStorage] Error getting file size: \(error)")
+                    debugPrint("❌ [ProModeImageStorage] Error getting file size: \(error)")
                 }
             }
         }
@@ -213,7 +213,7 @@ class ProModeImageStorage {
             let files = try fileManager.contentsOfDirectory(at: directoryURL, includingPropertiesForKeys: nil)
             return files.filter { $0.pathExtension == "jpg" }.count
         } catch {
-            print("❌ [ProModeImageStorage] Error counting files: \(error)")
+            debugPrint("❌ [ProModeImageStorage] Error counting files: \(error)")
             return 0
         }
     }
@@ -241,10 +241,10 @@ class ProModeImageStorage {
             }
 
             if deletedCount > 0 {
-                print("🧹 [ProModeImageStorage] Cleaned up \(deletedCount) orphaned images")
+                debugPrint("🧹 [ProModeImageStorage] Cleaned up \(deletedCount) orphaned images")
             }
         } catch {
-            print("❌ [ProModeImageStorage] Error cleaning up orphaned images: \(error)")
+            debugPrint("❌ [ProModeImageStorage] Error cleaning up orphaned images: \(error)")
         }
     }
 }

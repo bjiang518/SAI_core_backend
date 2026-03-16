@@ -171,11 +171,11 @@ struct SavedDigitalHomeworkView: View {
             let decoder = JSONDecoder()
             let decodedData = try decoder.decode(DigitalHomeworkData.self, from: proModeData)
             homeworkData = decodedData
-            print("✅ Successfully loaded Pro Mode homework data")
-            print("   Questions: \(decodedData.questions.count)")
-            print("   Annotations: \(decodedData.annotations.count)")
+            debugPrint("✅ Successfully loaded Pro Mode homework data")
+            debugPrint("   Questions: \(decodedData.questions.count)")
+            debugPrint("   Annotations: \(decodedData.annotations.count)")
         } catch {
-            print("❌ Failed to decode Pro Mode data: \(error.localizedDescription)")
+            debugPrint("❌ Failed to decode Pro Mode data: \(error.localizedDescription)")
         }
     }
 

@@ -487,117 +487,27 @@ struct PrivacySettingsView: View {
 
     private func clearMyData() {
         Task {
-            do {
-                guard let token = AuthenticationService.shared.getAuthToken() else {
-                    print("❌ No authentication token")
-                    return
-                }
-
-                guard let url = URL(string: "https://sai-backend-production.up.railway.app/api/user/clear-my-data") else {
-                    print("❌ Invalid URL")
-                    return
-                }
-
-                var request = URLRequest(url: url)
-                request.httpMethod = "DELETE"
-                request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
-                print("🗑️ Calling clear-my-data endpoint...")
-                let (data, response) = try await URLSession.shared.data(for: request)
-
-                guard let httpResponse = response as? HTTPURLResponse else {
-                    print("❌ Invalid response")
-                    return
-                }
-
-                print("📡 Response status: \(httpResponse.statusCode)")
-
-                if httpResponse.statusCode == 200 {
-                    if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                        print("✅ Server data cleared successfully:")
-                        print(json)
-
-                        await MainActor.run {
-                            clearDataResult = "All server data has been cleared. Local data remains intact."
-                            // ✅ DO NOT clear local storage - only server data is cleared
-                            // Local data will remain for offline access
-                        }
-                    }
-                } else {
-                    let errorText = String(data: data, encoding: .utf8) ?? "Unknown error"
-                    print("❌ Failed to clear data: \(errorText)")
-                    await MainActor.run {
-                        clearDataResult = "Failed to clear data: \(errorText)"
-                    }
-                }
-            } catch {
-                print("❌ Error clearing data: \(error.localizedDescription)")
-                await MainActor.run {
-                    clearDataResult = "Error: \(error.localizedDescription)"
-                }
+            let result = await networkService.clearMyData()
+            await MainActor.run {
+                clearDataResult = result.success
+                    ? "All server data has been cleared. Local data remains intact."
+                    : "Failed to clear data: \(result.message)"
             }
         }
     }
 
     private func deleteAccount() {
         Task {
-            do {
-                guard let token = AuthenticationService.shared.getAuthToken() else {
-                    print("❌ No authentication token")
-                    return
-                }
-
-                guard let url = URL(string: "https://sai-backend-production.up.railway.app/api/user/delete-account") else {
-                    print("❌ Invalid URL")
-                    return
-                }
-
-                var request = URLRequest(url: url)
-                request.httpMethod = "DELETE"
-                request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-                let requestBody: [String: Any] = [
-                    "confirmEmail": confirmEmailText
-                ]
-                request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
-
-                print("🗑️ Calling delete-account endpoint with email: \(confirmEmailText)")
-                let (data, response) = try await URLSession.shared.data(for: request)
-
-                guard let httpResponse = response as? HTTPURLResponse else {
-                    print("❌ Invalid response")
-                    return
-                }
-
-                print("📡 Response status: \(httpResponse.statusCode)")
-
-                if httpResponse.statusCode == 200 {
-                    print("✅ Account deleted successfully")
-
-                    await MainActor.run {
-                        // Clear local storage
-                        currentUserQuestionStorage().clearAll()
-                        currentUserConversationStorage().clearAll()
-
-                        // Log out user
-                        AuthenticationService.shared.signOut()
-
-                        deleteAccountResult = "Account deleted successfully"
-                        confirmEmailText = ""
-                    }
+            let result = await networkService.deleteAccount(confirmEmail: confirmEmailText)
+            await MainActor.run {
+                if result.success {
+                    currentUserQuestionStorage().clearAll()
+                    currentUserConversationStorage().clearAll()
+                    AuthenticationService.shared.signOut()
+                    deleteAccountResult = "Account deleted successfully"
+                    confirmEmailText = ""
                 } else {
-                    let errorText = String(data: data, encoding: .utf8) ?? "Unknown error"
-                    print("❌ Failed to delete account: \(errorText)")
-                    await MainActor.run {
-                        deleteAccountResult = "Failed: \(errorText)"
-                        confirmEmailText = ""
-                    }
-                }
-            } catch {
-                print("❌ Error deleting account: \(error.localizedDescription)")
-                await MainActor.run {
-                    deleteAccountResult = "Error: \(error.localizedDescription)"
+                    deleteAccountResult = "Failed: \(result.message)"
                     confirmEmailText = ""
                 }
             }
@@ -611,7 +521,7 @@ struct PrivacySettingsView: View {
             // Show agreement screen if not already enabled
             let settings = ParentReportSettings.load()
             if !settings.parentReportsEnabled {
-                print("📊 [PrivacySettings] Showing onboarding before enabling reports")
+                debugPrint("📊 [PrivacySettings] Showing onboarding before enabling reports")
                 showingOnboarding = true
                 return  // Don't proceed with enabling yet - onboarding will handle it
             }
@@ -633,12 +543,12 @@ struct PrivacySettingsView: View {
                     isEnablingReports = false
 
                     if result.success {
-                        print("✅ [PrivacySettings] Parent reports enabled successfully")
+                        debugPrint("✅ [PrivacySettings] Parent reports enabled successfully")
                         parentReportsSettings.parentReportsEnabled = true
                         parentReportsSettings.autoSyncEnabled = true
                         parentReportsSettings.save()
                     } else {
-                        print("❌ [PrivacySettings] Failed to enable parent reports: \(result.message)")
+                        debugPrint("❌ [PrivacySettings] Failed to enable parent reports: \(result.message)")
                         // Revert toggle
                         parentReportsSettings.parentReportsEnabled = false
                     }
@@ -651,12 +561,12 @@ struct PrivacySettingsView: View {
                     isEnablingReports = false
 
                     if result.success {
-                        print("✅ [PrivacySettings] Parent reports disabled successfully")
+                        debugPrint("✅ [PrivacySettings] Parent reports disabled successfully")
                         parentReportsSettings.parentReportsEnabled = false
                         parentReportsSettings.autoSyncEnabled = false
                         parentReportsSettings.save()
                     } else {
-                        print("❌ [PrivacySettings] Failed to disable parent reports: \(result.message)")
+                        debugPrint("❌ [PrivacySettings] Failed to disable parent reports: \(result.message)")
                         // Revert toggle
                         parentReportsSettings.parentReportsEnabled = true
                     }
@@ -670,7 +580,7 @@ struct PrivacySettingsView: View {
 
         Task {
             do {
-                print("🔄 [PrivacySettings] Starting manual sync...")
+                debugPrint("🔄 [PrivacySettings] Starting manual sync...")
                 let result = try await StorageSyncService.shared.syncAllToServer()
 
                 await MainActor.run {
@@ -679,12 +589,12 @@ struct PrivacySettingsView: View {
                     parentReportsSettings.save()
                     lastSyncDate = Date()
 
-                    print("✅ [PrivacySettings] Manual sync completed: \(result.totalSynced) items synced")
+                    debugPrint("✅ [PrivacySettings] Manual sync completed: \(result.totalSynced) items synced")
                 }
             } catch {
                 await MainActor.run {
                     isSyncing = false
-                    print("❌ [PrivacySettings] Manual sync failed: \(error.localizedDescription)")
+                    debugPrint("❌ [PrivacySettings] Manual sync failed: \(error.localizedDescription)")
                 }
             }
         }

@@ -838,7 +838,7 @@ struct QuestionSheetView: View {
                         retryType: retryType,
                         questionId: archivedQ.id
                     )
-                    print("✅ [WeaknessTracking] Per-question correct archived: key='\(weaknessKey)' retry=\(retryType) qid=\(archivedQ.id.prefix(8))")
+                    debugPrint("✅ [WeaknessTracking] Per-question correct archived: key='\(weaknessKey)' retry=\(retryType) qid=\(archivedQ.id.prefix(8))")
                 }
             }
             archivedQuestionIds.insert(qId)

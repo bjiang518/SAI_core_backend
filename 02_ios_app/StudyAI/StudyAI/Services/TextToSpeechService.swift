@@ -12,7 +12,7 @@ import Combine
 // MARK: - Production Logging Safety
 // Disable debug print statements in production builds to prevent AI response exposure
 #if !DEBUG
-private func print(_ items: Any...) { }
+private func debugPrint(_ items: Any...) { }
 private func debugPrint(_ items: Any...) { }
 #endif
 
@@ -45,18 +45,18 @@ class TextToSpeechService: NSObject, ObservableObject {
     }
     
     private func setupAudioSession() {
-        print("🔊 TextToSpeechService: Setting up audio session")
+        debugPrint("🔊 TextToSpeechService: Setting up audio session")
         do {
             let audioSession = AVAudioSession.sharedInstance()
             
             // Use playback category with enhanced options for Elsa-like voice
             try audioSession.setCategory(.playback, options: [.duckOthers, .defaultToSpeaker, .allowBluetoothA2DP])
             try audioSession.setActive(true)
-            print("🔊 TextToSpeechService: Audio session setup successful")
-            print("🔊 TextToSpeechService: Current category: \(audioSession.category)")
-            print("🔊 TextToSpeechService: Current mode: \(audioSession.mode)")
+            debugPrint("🔊 TextToSpeechService: Audio session setup successful")
+            debugPrint("🔊 TextToSpeechService: Current category: \(audioSession.category)")
+            debugPrint("🔊 TextToSpeechService: Current mode: \(audioSession.mode)")
         } catch {
-            print("🔊 TextToSpeechService: Failed to setup audio session: \(error)")
+            debugPrint("🔊 TextToSpeechService: Failed to setup audio session: \(error)")
             errorMessage = "Audio setup failed"
         }
     }
@@ -68,7 +68,7 @@ class TextToSpeechService: NSObject, ObservableObject {
     // MARK: - Public Methods
     
     func speak(_ text: String, with settings: VoiceSettings? = nil) {
-        print("🔊 TextToSpeechService: speak() called with text: '\(text)'")
+        debugPrint("🔊 TextToSpeechService: speak() called with text: '\(text)'")
         let voiceSettings = settings ?? currentVoiceSettings
         let configuration = VoiceOutputConfiguration(text: text, voiceSettings: voiceSettings)
         
@@ -134,14 +134,14 @@ class TextToSpeechService: NSObject, ObservableObject {
     // MARK: - Private Methods
     
     private func speakImmediately(_ configuration: VoiceOutputConfiguration) {
-        print("🔊 TextToSpeechService: speakImmediately() called")
+        debugPrint("🔊 TextToSpeechService: speakImmediately() called")
         
         // Ensure audio session is properly configured for playback
         setupAudioSessionForPlayback()
         
         // Stop current speech if configured to interrupt
         if configuration.interruptCurrent && isSpeaking {
-            print("🔊 TextToSpeechService: Stopping current speech")
+            debugPrint("🔊 TextToSpeechService: Stopping current speech")
             stopSpeech()
         }
         
@@ -151,20 +151,20 @@ class TextToSpeechService: NSObject, ObservableObject {
         totalCharacters = configuration.text.count
         spokenCharacters = 0
         
-        print("🔊 TextToSpeechService: Created utterance with voice: \(utterance.voice?.name ?? "nil")")
-        print("🔊 TextToSpeechService: Rate: \(utterance.rate), Pitch: \(utterance.pitchMultiplier), Volume: \(utterance.volume)")
+        debugPrint("🔊 TextToSpeechService: Created utterance with voice: \(utterance.voice?.name ?? "nil")")
+        debugPrint("🔊 TextToSpeechService: Rate: \(utterance.rate), Pitch: \(utterance.pitchMultiplier), Volume: \(utterance.volume)")
         
         isSpeaking = true
         isPaused = false
         speechProgress = 0.0
         errorMessage = nil
         
-        print("🔊 TextToSpeechService: Starting speech synthesis")
+        debugPrint("🔊 TextToSpeechService: Starting speech synthesis")
         speechSynthesizer.speak(utterance)
     }
     
     private func setupAudioSessionForPlayback() {
-        print("🔊 TextToSpeechService: Setting up audio session for playback")
+        debugPrint("🔊 TextToSpeechService: Setting up audio session for playback")
         do {
             let audioSession = AVAudioSession.sharedInstance()
 
@@ -172,9 +172,9 @@ class TextToSpeechService: NSObject, ObservableObject {
             // .playback always routes to speaker, not earpiece
             try audioSession.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
             try audioSession.setActive(true)
-            print("🔊 TextToSpeechService: Audio session configured for playback (speaker routing)")
+            debugPrint("🔊 TextToSpeechService: Audio session configured for playback (speaker routing)")
         } catch {
-            print("🔊 TextToSpeechService: Failed to setup playback audio session: \(error)")
+            debugPrint("🔊 TextToSpeechService: Failed to setup playback audio session: \(error)")
         }
     }
     
@@ -260,32 +260,32 @@ class TextToSpeechService: NSObject, ObservableObject {
     }
     
     private func findBestVoice(for languageCode: String) -> AVSpeechSynthesisVoice? {
-        print("🔊 TextToSpeechService: Finding best voice for language: \(languageCode)")
+        debugPrint("🔊 TextToSpeechService: Finding best voice for language: \(languageCode)")
         let voices = AVSpeechSynthesisVoice.speechVoices()
         
         // Log all available voices for debugging
-        print("🔊 Available voices:")
+        debugPrint("🔊 Available voices:")
         for voice in voices {
-            print("  - \(voice.name) (\(voice.language)) [\(voice.identifier)] - Quality: \(voice.quality.rawValue)")
+            debugPrint("  - \(voice.name) (\(voice.language)) [\(voice.identifier)] - Quality: \(voice.quality.rawValue)")
         }
         
         // Get current voice type preferences
         let voiceType = currentVoiceSettings.voiceType
         let preferredNames = voiceType.preferredVoiceNames
         
-        print("🔊 TextToSpeechService: Voice type: \(voiceType), preferred names: \(preferredNames)")
+        debugPrint("🔊 TextToSpeechService: Voice type: \(voiceType), preferred names: \(preferredNames)")
         
         // First, try to find preferred voices by name for the language
         for name in preferredNames {
             // Try exact match first
             if let voice = voices.first(where: { $0.name == name && $0.language.hasPrefix(languageCode) }) {
-                print("🔊 TextToSpeechService: Found exact preferred voice: \(voice.name) (Quality: \(voice.quality.rawValue))")
+                debugPrint("🔊 TextToSpeechService: Found exact preferred voice: \(voice.name) (Quality: \(voice.quality.rawValue))")
                 return voice
             }
             
             // Try partial match for enhanced voices (e.g., "Ava (Enhanced)")
             if let voice = voices.first(where: { $0.name.contains(name) && $0.language.hasPrefix(languageCode) }) {
-                print("🔊 TextToSpeechService: Found partial match preferred voice: \(voice.name) (Quality: \(voice.quality.rawValue))")
+                debugPrint("🔊 TextToSpeechService: Found partial match preferred voice: \(voice.name) (Quality: \(voice.quality.rawValue))")
                 return voice
             }
         }
@@ -303,7 +303,7 @@ class TextToSpeechService: NSObject, ObservableObject {
                     return femaleSoundingNames.contains { voice.name.contains($0) }
                 }
                 if let voice = femaleEnhancedVoices.first {
-                    print("🔊 TextToSpeechService: Found female enhanced voice for Eva: \(voice.name)")
+                    debugPrint("🔊 TextToSpeechService: Found female enhanced voice for Eva: \(voice.name)")
                     return voice
                 }
             }
@@ -315,13 +315,13 @@ class TextToSpeechService: NSObject, ObservableObject {
                     return maleSoundingNames.contains { voice.name.contains($0) }
                 }
                 if let voice = maleEnhancedVoices.first {
-                    print("🔊 TextToSpeechService: Found male enhanced voice for Adam: \(voice.name)")
+                    debugPrint("🔊 TextToSpeechService: Found male enhanced voice for Adam: \(voice.name)")
                     return voice
                 }
             }
             
             let voice = enhancedVoices.first!
-            print("🔊 TextToSpeechService: Found enhanced voice: \(voice.name)")
+            debugPrint("🔊 TextToSpeechService: Found enhanced voice: \(voice.name)")
             return voice
         }
         
@@ -332,13 +332,13 @@ class TextToSpeechService: NSObject, ObservableObject {
         
         if !defaultVoices.isEmpty {
             let voice = defaultVoices.first!
-            print("🔊 TextToSpeechService: Found default voice: \(voice.name)")
+            debugPrint("🔊 TextToSpeechService: Found default voice: \(voice.name)")
             return voice
         }
         
         // Final fallback
         let fallbackVoice = AVSpeechSynthesisVoice(language: languageCode)
-        print("🔊 TextToSpeechService: Using fallback voice: \(fallbackVoice?.name ?? "system default")")
+        debugPrint("🔊 TextToSpeechService: Using fallback voice: \(fallbackVoice?.name ?? "system default")")
         return fallbackVoice
     }
     
@@ -370,13 +370,13 @@ class TextToSpeechService: NSObject, ObservableObject {
     // MARK: - Voice Enumeration (Debug Helper)
     
     func enumerateAllVoices() {
-        print("🔊 === All Available Voices ===")
+        debugPrint("🔊 === All Available Voices ===")
         for voice in AVSpeechSynthesisVoice.speechVoices() {
-            print("Name: \(voice.name)")
-            print("Language: \(voice.language)")
-            print("Identifier: \(voice.identifier)")
-            print("Quality: \(voice.quality.rawValue)")
-            print("---")
+            debugPrint("Name: \(voice.name)")
+            debugPrint("Language: \(voice.language)")
+            debugPrint("Identifier: \(voice.identifier)")
+            debugPrint("Quality: \(voice.quality.rawValue)")
+            debugPrint("---")
         }
     }
     
@@ -392,7 +392,7 @@ class TextToSpeechService: NSObject, ObservableObject {
 extension TextToSpeechService: AVSpeechSynthesizerDelegate {
     
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
-        print("🔊 TextToSpeechService: didStart utterance")
+        debugPrint("🔊 TextToSpeechService: didStart utterance")
         DispatchQueue.main.async {
             self.isSpeaking = true
             self.isPaused = false
@@ -401,7 +401,7 @@ extension TextToSpeechService: AVSpeechSynthesizerDelegate {
     }
     
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-        print("🔊 TextToSpeechService: didFinish utterance")
+        debugPrint("🔊 TextToSpeechService: didFinish utterance")
         DispatchQueue.main.async {
             self.isSpeaking = false
             self.isPaused = false

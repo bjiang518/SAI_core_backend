@@ -130,7 +130,7 @@ struct HomeView: View {
                 QuestionSheetView(session: session)
             }
             .onChange(of: appState.homeNavResetToken) { _, newToken in
-                print("🏠 [HomeView] homeNavResetToken fired (\(newToken)) → resetting nav. showingMistakeReview=\(showingMistakeReview), showingQuestionGeneration=\(showingQuestionGeneration), selectedTab=\(appState.selectedTab)")
+                debugPrint("🏠 [HomeView] homeNavResetToken fired (\(newToken)) → resetting nav. showingMistakeReview=\(showingMistakeReview), showingQuestionGeneration=\(showingQuestionGeneration), selectedTab=\(appState.selectedTab)")
                 showingMistakeReview = false
                 showingQuestionGeneration = false
                 feynmanSheetItem = nil
@@ -140,19 +140,19 @@ struct HomeView: View {
             }
             // ── Track HomeView navigation state ──────────────────────────────────
             .onChange(of: showingMistakeReview) { _, v in
-                print("🏠 [HomeView.nav] showingMistakeReview → \(v) | selectedTab=\(appState.selectedTab)")
+                debugPrint("🏠 [HomeView.nav] showingMistakeReview → \(v) | selectedTab=\(appState.selectedTab)")
             }
             .onChange(of: showingQuestionGeneration) { _, v in
-                print("🏠 [HomeView.nav] showingQuestionGeneration → \(v) | selectedTab=\(appState.selectedTab)")
+                debugPrint("🏠 [HomeView.nav] showingQuestionGeneration → \(v) | selectedTab=\(appState.selectedTab)")
             }
             .onChange(of: showingFocusMode) { _, v in
-                print("🏠 [HomeView.nav] showingFocusMode → \(v) | selectedTab=\(appState.selectedTab)")
+                debugPrint("🏠 [HomeView.nav] showingFocusMode → \(v) | selectedTab=\(appState.selectedTab)")
             }
             .onChange(of: showingHomeworkAlbum) { _, v in
-                print("🏠 [HomeView.nav] showingHomeworkAlbum → \(v) | selectedTab=\(appState.selectedTab)")
+                debugPrint("🏠 [HomeView.nav] showingHomeworkAlbum → \(v) | selectedTab=\(appState.selectedTab)")
             }
             .onChange(of: showingProfile) { _, v in
-                print("🏠 [HomeView.nav] showingProfile → \(v) | selectedTab=\(appState.selectedTab)")
+                debugPrint("🏠 [HomeView.nav] showingProfile → \(v) | selectedTab=\(appState.selectedTab)")
             }
             .sheet(isPresented: $showingParentReports) {
                 NavigationView {
@@ -295,15 +295,26 @@ struct HomeView: View {
                 .clipShape(Circle())
         } else if let customUrl = profileService.currentProfile?.customAvatarUrl,
                   !customUrl.isEmpty {
-            AsyncImage(url: URL(string: customUrl)) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: size, height: size)
-                        .clipShape(Circle())
-                default:
-                    fallbackAvatarCircle(size: size)
+            if customUrl.hasPrefix("data:image/"),
+               let commaIndex = customUrl.firstIndex(of: ","),
+               let imageData = Data(base64Encoded: String(customUrl[customUrl.index(after: commaIndex)...])),
+               let uiImage = UIImage(data: imageData) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: size, height: size)
+                    .clipShape(Circle())
+            } else {
+                AsyncImage(url: URL(string: customUrl)) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image.resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: size, height: size)
+                            .clipShape(Circle())
+                    default:
+                        fallbackAvatarCircle(size: size)
+                    }
                 }
             }
         } else if let avatarId = profileService.currentProfile?.avatarId,

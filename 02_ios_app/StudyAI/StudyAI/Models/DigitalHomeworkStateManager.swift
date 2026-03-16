@@ -327,7 +327,7 @@ class DigitalHomeworkStateManager: ObservableObject {
         // Show resume prompt if there's existing homework in parsed or graded state
         if currentState != .nothing && currentHomework != nil {
             showResumePrompt = true
-            print("💡 [StateManager] Resume prompt enabled (existing homework found)")
+            debugPrint("💡 [StateManager] Resume prompt enabled (existing homework found)")
         } else {
             showResumePrompt = false
         }
@@ -336,13 +336,13 @@ class DigitalHomeworkStateManager: ObservableObject {
     /// Resume existing homework (dismiss prompt and continue)
     func resumeHomework() {
         showResumePrompt = false
-        print("▶️ [StateManager] Resuming existing homework (state: \(currentState))")
+        debugPrint("▶️ [StateManager] Resuming existing homework (state: \(currentState))")
     }
 
     /// Start fresh (dismiss prompt and clear state)
     func startFresh() {
         showResumePrompt = false
         clearAll()
-        print("🆕 [StateManager] Starting fresh (state cleared)")
+        debugPrint("🆕 [StateManager] Starting fresh (state cleared)")
     }
 }

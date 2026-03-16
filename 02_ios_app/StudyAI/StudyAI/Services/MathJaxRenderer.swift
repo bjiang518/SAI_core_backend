@@ -274,7 +274,7 @@ struct MathWebView: UIViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-            print("📐 [MathJax] ❌ \(error.localizedDescription)")
+            debugPrint("📐 [MathJax] ❌ \(error.localizedDescription)")
         }
     }
 
