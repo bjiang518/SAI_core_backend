@@ -40,6 +40,12 @@ class ErrorAnalysisQueueService: ObservableObject {
             return
         }
 
+        // Guest users have 0 error_analysis quota — skip entirely without a network round-trip
+        if AuthenticationService.shared.currentUser?.isAnonymous == true {
+            print("📊 [ErrorAnalysis] Guest account — error analysis not available, skipping")
+            return
+        }
+
         // Opportunistically retry any permanently-failed analyses from previous sessions.
         // Runs in background — does not block the current batch or create a lock conflict.
         Task {
@@ -59,60 +65,22 @@ class ErrorAnalysisQueueService: ObservableObject {
             print("🔬 [EA-DBG]       q='\(qt.prefix(40))' sa='\(sa.prefix(30))'")
         }
 
-        // ✅ FIXED: Filter by analysis status, not just existence in storage
-        let analyzedQuestionIds = Set(getAnalyzedQuestionIds())
-        print("📊 [ErrorAnalysis] Found \(analyzedQuestionIds.count) already-analyzed question IDs")
-
+        // Always route all wrong questions through the analysis pipeline.
+        // Deduplication of displayed mistakes is handled in getMistakeQuestions().
         let unanalyzedWrongQuestions = wrongQuestions.filter { question in
-            guard let questionId = question["id"] as? String else {
+            guard question["id"] as? String != nil else {
                 print("⚠️ [ErrorAnalysis] Question has no ID - skipping")
                 return false
             }
-
-            let isAnalyzed = analyzedQuestionIds.contains(questionId)
-            if isAnalyzed {
-                print("  ✓ [ErrorAnalysis] Question \(questionId.prefix(8))... already analyzed - SKIP")
-                return false
-            } else {
-                print("  ✓ [ErrorAnalysis] Question \(questionId.prefix(8))... needs analysis - QUEUE")
-                return true
-            }
-        }
-
-        // ✅ For already-analyzed wrong questions (exact same mistake re-submitted), still update
-        // weakness score so repeated mistakes are reflected in tracking.
-        let alreadyAnalyzedWrong = wrongQuestions.filter { q in
-            guard let questionId = q["id"] as? String else { return false }
-            return analyzedQuestionIds.contains(questionId)
-        }
-        if !alreadyAnalyzedWrong.isEmpty {
-            print("📊 [ErrorAnalysis] \(alreadyAnalyzedWrong.count) already-analyzed wrong questions — recording repeated mistakes")
-            Task {
-                let allStoredQuestions = localStorage.getLocalQuestions()
-                for q in alreadyAnalyzedWrong {
-                    guard let questionId = q["id"] as? String,
-                          let storedQ = allStoredQuestions.first(where: { $0["id"] as? String == questionId }),
-                          let weaknessKey = storedQ["weaknessKey"] as? String,
-                          let errorType = storedQ["errorType"] as? String,
-                          !weaknessKey.isEmpty else { continue }
-                    await MainActor.run {
-                        ShortTermStatusService.shared.recordMistake(
-                            key: weaknessKey,
-                            errorType: errorType,
-                            questionId: questionId
-                        )
-                    }
-                    print("✅ [ErrorAnalysis] Recorded repeated mistake for Q \(questionId.prefix(8))… key=\(weaknessKey)")
-                }
-            }
+            return true
         }
 
         guard !unanalyzedWrongQuestions.isEmpty else {
-            print("✅ [ErrorAnalysis] All wrong answers already analyzed - skipping Pass 2")
+            print("✅ [ErrorAnalysis] No valid wrong answers to analyze")
             return
         }
 
-        print("📊 [ErrorAnalysis] Queuing Pass 2 for \(unanalyzedWrongQuestions.count) unanalyzed wrong answers (filtered from \(wrongQuestions.count) total)")
+        print("📊 [ErrorAnalysis] Queuing Pass 2 for \(unanalyzedWrongQuestions.count) wrong answers")
 
         // ✅ SPLIT: questions that already have Gemini-pre-filled error keys (from mistake-based
         // question generation) vs. questions that need backend AI analysis (random/archive context).
@@ -525,6 +493,12 @@ class ErrorAnalysisQueueService: ObservableObject {
                 object: nil,
                 userInfo: ["sessionId": sessionId, "count": analyses.count]
             )
+
+        } catch NetworkService.NetworkError.rateLimited {
+            // Backend returned 403 (UPGRADE_REQUIRED) or 429 (MONTHLY_LIMIT_REACHED).
+            // Leave questions in their current state — do NOT mark as "failed" or they
+            // would be picked up by retryFailedAnalyses() on every subsequent grading call.
+            print("⚠️ [ErrorAnalysis] Tier limit reached — questions left pending until quota renews or plan upgrades")
 
         } catch {
             print("❌ [ErrorAnalysis] Failed: \(error.localizedDescription)")

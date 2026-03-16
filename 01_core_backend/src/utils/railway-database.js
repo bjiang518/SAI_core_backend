@@ -10,6 +10,7 @@ const { promisify } = require('util');
 const InputValidation = require('./input-validation');  // SECURITY: Input validation
 const encryptionService = require('./encryption-service');  // PRIVACY: Encryption at rest
 const logger = require('./logger');  // PRODUCTION: Structured logging with environment-aware levels
+const { redisCacheManager } = require('../gateway/services/redis-cache');  // Redis caching layer
 
 // PHASE 1 OPTIMIZATION: Enhanced connection pool configuration
 // Optimized for Railway's PostgreSQL limits (20 connections max)
@@ -416,9 +417,16 @@ const db = {
     const startTime = Date.now();
     try {
       const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-      
+
+      // Redis cache check — avoids a DB round-trip on every request
+      const cached = await redisCacheManager.get('auth_token', tokenHash);
+      if (cached) {
+        logger.debug(`✅ Token verification cache HIT for hash: ${tokenHash.substring(0, 8)}...`);
+        return cached;
+      }
+
       const query = `
-        SELECT 
+        SELECT
           us.id as session_id,
           us.user_id,
           us.expires_at,
@@ -428,7 +436,7 @@ const db = {
           u.auth_provider
         FROM user_sessions us
         JOIN users u ON us.user_id = u.id
-        WHERE us.token_hash = $1 
+        WHERE us.token_hash = $1
           AND us.expires_at > NOW()
           AND u.is_active = true
       `;
@@ -436,10 +444,16 @@ const db = {
       logger.debug(`🔍 Starting token verification for hash: ${tokenHash.substring(0, 8)}...`);
       const result = await this.query(query, [tokenHash]);
       const duration = Date.now() - startTime;
-      
+
       if (result.rows.length > 0) {
         logger.debug(`✅ Token verification successful in ${duration}ms for user: ${result.rows[0].user_id}`);
-        return result.rows[0];
+        const row = result.rows[0];
+        // Cache for up to 5 minutes (or until token expiry, whichever is sooner)
+        const ttlSeconds = Math.min(300, Math.floor((new Date(row.expires_at) - Date.now()) / 1000));
+        if (ttlSeconds > 10) {
+          await redisCacheManager.set('auth_token', tokenHash, row, ttlSeconds);
+        }
+        return row;
       } else {
         logger.debug(`❌ Token verification failed in ${duration}ms - no matching session found`);
         return null;
@@ -1794,6 +1808,8 @@ const db = {
 
     const values = [userId, questionId, sessionId, messageType, messageText, msgData ? JSON.stringify(msgData) : null, tokensUsed];
     const result = await this.query(query, values);
+    // Invalidate conversation history cache for this session on write
+    await redisCacheManager.delete('conv_hist', sessionId);
     return result.rows[0];
   },
 
@@ -1801,8 +1817,15 @@ const db = {
    * Get conversation history for a session
    */
   async getConversationHistory(sessionId, limit = 50) {
+    // Redis cache: 60s TTL — short enough to pick up new messages, long enough to
+    // avoid a DB round-trip on every reseeding (which happens on every new worker pick-up).
+    const cached = await redisCacheManager.get('conv_hist', sessionId);
+    if (cached) {
+      return cached;
+    }
+
     const query = `
-      SELECT 
+      SELECT
         id,
         user_id,
         question_id,
@@ -1819,6 +1842,7 @@ const db = {
     `;
 
     const result = await this.query(query, [sessionId, limit]);
+    await redisCacheManager.set('conv_hist', sessionId, result.rows, 60);
     return result.rows;
   },
 

@@ -211,31 +211,30 @@ final class MathJaxPDFRenderer: NSObject {
         <body>
         <div id="content">\(escaped)</div>
         <script>
-        var readySent = false;
-        function reportHeight(signalReady) {
+        var heightReported = false;
+        function reportHeight() {
             var h = Math.max(
                 document.getElementById('content').scrollHeight,
                 document.body.scrollHeight,
                 document.documentElement.scrollHeight
             );
             window.webkit.messageHandlers.resize.postMessage(h);
-            if (signalReady && !readySent) {
-                readySent = true;
+            if (!heightReported) {
+                heightReported = true;
                 window.webkit.messageHandlers.mathJaxReady.postMessage('ready');
             }
         }
+        function updateHeight() {
+            requestAnimationFrame(reportHeight);
+        }
         MathJax.startup.promise.then(function() {
-            // First pass: update height immediately after MathJax typesetting
-            requestAnimationFrame(function() { reportHeight(false); });
-            // Second pass: wait for CHTML web fonts to load and re-measure
-            // Only THIS call signals mathJaxReady so the snapshot uses the final height
-            setTimeout(function() {
-                requestAnimationFrame(function() { reportHeight(true); });
-            }, 600);
+            updateHeight();
+            // Safety-net: catches slow font metrics or multi-pass typesetting
+            setTimeout(updateHeight, 800);
         });
         // Hard fallback: if MathJax startup promise never resolves, signal after 5s
         setTimeout(function() {
-            if (!readySent) { reportHeight(true); }
+            if (!heightReported) { reportHeight(); }
         }, 5000);
         </script>
         </body>

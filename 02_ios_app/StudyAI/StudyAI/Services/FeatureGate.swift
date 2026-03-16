@@ -46,6 +46,9 @@ struct FeatureGate {
             if !user.tier.isPaid { return .blocked(reason: .upgradeRequired(minTier: .premium)) }
         case .parentReport:
             if !user.tier.isPaid { return .blocked(reason: .upgradeRequired(minTier: .premium)) }
+        case .errorAnalysis:
+            // Guests have a lifetime limit of 0 — block immediately without a network round-trip
+            if user.isAnonymous { return .blocked(reason: .upgradeRequired(minTier: .free)) }
         default:
             break
         }

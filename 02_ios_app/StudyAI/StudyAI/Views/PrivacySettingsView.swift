@@ -16,6 +16,10 @@ struct PrivacySettingsView: View {
     @State private var consentStatus: ConsentStatusInfo?
     @State private var showingParentalConsent = false
     @State private var showingDataExport = false
+    @State private var exportedFileURL: URL? = nil
+    @State private var isExporting = false
+    @State private var showingExportShare = false
+    @State private var exportError: String? = nil
     @State private var showingClearData = false
     @State private var showingDeleteAccount = false
     @State private var showingPrivacyPolicy = false
@@ -180,12 +184,17 @@ struct PrivacySettingsView: View {
                 // Data Privacy Section
                 Section {
                     Button(action: {
-                        showingDataExport = true
+                        Task { await performExportUserData() }
                     }) {
                         HStack {
-                            Image(systemName: "arrow.down.doc.fill")
-                                .foregroundColor(.blue)
-                                .frame(width: 24)
+                            if isExporting {
+                                ProgressView()
+                                    .frame(width: 24)
+                            } else {
+                                Image(systemName: "arrow.down.doc.fill")
+                                    .foregroundColor(.blue)
+                                    .frame(width: 24)
+                            }
 
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(NSLocalizedString("privacy.settings.exportData", comment: ""))
@@ -203,6 +212,7 @@ struct PrivacySettingsView: View {
                         }
                     }
                     .buttonStyle(.plain)
+                    .disabled(isExporting)
 
                     Button(action: {
                         showingClearData = true
@@ -349,13 +359,23 @@ struct PrivacySettingsView: View {
                     }
                 )
             }
-            .alert(NSLocalizedString("privacy.settings.exportDataAlert.title", comment: ""), isPresented: $showingDataExport) {
-                Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) { }
-                Button(NSLocalizedString("privacy.settings.exportDataAlert.button", comment: "")) {
-                    exportUserData()
+            .sheet(isPresented: $showingExportShare, onDismiss: {
+                if let url = exportedFileURL {
+                    try? FileManager.default.removeItem(at: url)
+                    exportedFileURL = nil
                 }
+            }) {
+                if let url = exportedFileURL {
+                    ShareSheet(items: [url])
+                }
+            }
+            .alert(NSLocalizedString("common.error", comment: ""), isPresented: Binding(
+                get: { exportError != nil },
+                set: { if !$0 { exportError = nil } }
+            )) {
+                Button(NSLocalizedString("common.ok", comment: ""), role: .cancel) { }
             } message: {
-                Text(NSLocalizedString("privacy.settings.exportDataAlert.message", comment: ""))
+                Text(exportError ?? "")
             }
             .alert(NSLocalizedString("privacy.clearData.alertTitle", comment: ""), isPresented: $showingClearData) {
                 Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) { }
@@ -440,10 +460,29 @@ struct PrivacySettingsView: View {
         }
     }
 
-    private func exportUserData() {
-        // TODO: Implement data export
-        // Call /api/user/export-data endpoint
-        print("Export user data requested")
+    private func performExportUserData() async {
+        await MainActor.run { isExporting = true }
+
+        let result = await networkService.exportUserData()
+
+        await MainActor.run {
+            isExporting = false
+            switch result {
+            case .success(let data):
+                // Write to a temp file so share sheet can offer Save/AirDrop/Mail
+                let fileName = "StudyMates_DataExport_\(DateFormatter.exportDateFormatter.string(from: Date())).json"
+                let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+                do {
+                    try data.write(to: url)
+                    exportedFileURL = url
+                    showingExportShare = true
+                } catch {
+                    exportError = error.localizedDescription
+                }
+            case .failure(let error):
+                exportError = error.localizedDescription
+            }
+        }
     }
 
     private func clearMyData() {
@@ -660,4 +699,14 @@ struct ConsentStatusInfo {
 
 #Preview {
     PrivacySettingsView()
+}
+
+// MARK: - Helpers
+
+private extension DateFormatter {
+    static let exportDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
 }

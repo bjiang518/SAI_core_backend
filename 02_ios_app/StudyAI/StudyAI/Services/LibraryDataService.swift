@@ -1606,7 +1606,31 @@ class QuestionLocalStorage {
             return !isCorrect && matchesSubject
         }
 
-        return mistakes
+        // Deduplicate by question ID: keep the entry with the richest taxonomy,
+        // falling back to the first (most recently archived) entry.
+        var seen: [String: [String: Any]] = [:]
+        var orderedIds: [String] = []
+        for q in mistakes {
+            let qid = (q["id"] as? String) ?? ""
+            if qid.isEmpty {
+                // No ID — always include (shouldn't happen but be safe)
+                orderedIds.append(UUID().uuidString)
+                seen[orderedIds.last!] = q
+                continue
+            }
+            if let existing = seen[qid] {
+                // Prefer the entry with a non-empty baseBranch (taxonomy present)
+                let existingHasTaxonomy = !((existing["baseBranch"] as? String) ?? "").isEmpty
+                let newHasTaxonomy = !((q["baseBranch"] as? String) ?? "").isEmpty
+                if newHasTaxonomy && !existingHasTaxonomy {
+                    seen[qid] = q
+                }
+            } else {
+                orderedIds.append(qid)
+                seen[qid] = q
+            }
+        }
+        return orderedIds.compactMap { seen[$0] }
     }
 
     /// Get subjects with mistake counts from local storage

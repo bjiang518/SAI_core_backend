@@ -45,6 +45,10 @@ struct EditProfileView: View {
     @State private var city: String = ""
     @State private var stateProvince: String = ""
     @State private var country: String = ""
+    // Country code derived from `country` for driving the state/province picker
+    @State private var selectedCountryCode: String = ""
+    @State private var showingCountryPicker = false
+    @State private var showingStatePicker = false
     @State private var favoriteSubjects: Set<Subject> = []
     @State private var learningStyle: String = ""
     @State private var timezone: String = "UTC"
@@ -136,6 +140,8 @@ struct EditProfileView: View {
             } message: {
                 Text(NSLocalizedString("editProfile.profileUpdatedMessage", comment: ""))
             }
+            .sheet(isPresented: $showingCountryPicker) { countryPickerSheet }
+            .sheet(isPresented: $showingStatePicker)  { statePickerSheet  }
         }
     }
 
@@ -343,6 +349,39 @@ struct EditProfileView: View {
         }
     }
 
+    // MARK: - Location Picker Sheets
+
+    @ViewBuilder
+    private var countryPickerSheet: some View {
+        let countries = LocationData.allCountries()
+        LocationPickerSheet(
+            title: NSLocalizedString("editProfile.country", comment: ""),
+            items: countries.map { (key: $0.code, label: $0.name) },
+            selectedKey: selectedCountryCode
+        ) { code, name in
+            selectedCountryCode = code
+            country = name
+            // Reset state when country changes to a country without a known list
+            if !LocationData.hasStates(for: code) {
+                stateProvince = ""
+            }
+            showingCountryPicker = false
+        }
+    }
+
+    @ViewBuilder
+    private var statePickerSheet: some View {
+        let stateList = LocationData.states(for: selectedCountryCode) ?? []
+        LocationPickerSheet(
+            title: NSLocalizedString("editProfile.stateProvince", comment: ""),
+            items: stateList.map { (key: $0, label: $0) },
+            selectedKey: stateProvince
+        ) { _, name in
+            stateProvince = name
+            showingStatePicker = false
+        }
+    }
+
     // MARK: - Personal Information Section
 
     private var personalInformationSection: some View {
@@ -399,27 +438,69 @@ struct EditProfileView: View {
                         .fontWeight(.medium)
                         .foregroundColor(.secondary)
 
+                    // Country picker
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(NSLocalizedString("editProfile.country", comment: ""))
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        Button {
+                            showingCountryPicker = true
+                        } label: {
+                            HStack {
+                                Text(country.isEmpty
+                                     ? NSLocalizedString("editProfile.countryPlaceholder", comment: "")
+                                     : country)
+                                    .foregroundColor(country.isEmpty ? Color(.placeholderText) : .primary)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 9)
+                            .background(Color(.systemBackground))
+                            .cornerRadius(6)
+                            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(.systemGray4), lineWidth: 1))
+                        }
+                    }
+
+                    // State / Province — picker if list available, text field otherwise
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(NSLocalizedString("editProfile.stateProvince", comment: ""))
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        if LocationData.hasStates(for: selectedCountryCode) {
+                            Button {
+                                showingStatePicker = true
+                            } label: {
+                                HStack {
+                                    Text(stateProvince.isEmpty
+                                         ? NSLocalizedString("editProfile.stateProvincePlaceholder", comment: "")
+                                         : stateProvince)
+                                        .foregroundColor(stateProvince.isEmpty ? Color(.placeholderText) : .primary)
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 9)
+                                .background(Color(.systemBackground))
+                                .cornerRadius(6)
+                                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(.systemGray4), lineWidth: 1))
+                            }
+                        } else {
+                            TextField(NSLocalizedString("editProfile.stateProvincePlaceholder", comment: ""), text: $stateProvince)
+                                .textFieldStyle(.roundedBorder)
+                        }
+                    }
+
+                    // City — always free text
                     VStack(alignment: .leading, spacing: 4) {
                         Text(NSLocalizedString("editProfile.city", comment: ""))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                         TextField(NSLocalizedString("editProfile.cityPlaceholder", comment: ""), text: $city)
-                            .textFieldStyle(.roundedBorder)
-                    }
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(NSLocalizedString("editProfile.stateProvince", comment: ""))
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                        TextField(NSLocalizedString("editProfile.stateProvincePlaceholder", comment: ""), text: $stateProvince)
-                            .textFieldStyle(.roundedBorder)
-                    }
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(NSLocalizedString("editProfile.country", comment: ""))
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                        TextField(NSLocalizedString("editProfile.countryPlaceholder", comment: ""), text: $country)
                             .textFieldStyle(.roundedBorder)
                     }
                 }
@@ -747,6 +828,8 @@ struct EditProfileView: View {
             city = profile.city ?? ""
             stateProvince = profile.stateProvince ?? ""
             country = profile.country ?? ""
+            // Derive country code for the state picker
+            selectedCountryCode = LocationData.countryCode(for: country) ?? ""
 
             // Map stored string array to Subject enum set
             favoriteSubjects = Set(profile.favoriteSubjects.compactMap { Subject(rawValue: $0) })

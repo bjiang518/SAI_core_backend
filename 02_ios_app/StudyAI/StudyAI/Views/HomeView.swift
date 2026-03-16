@@ -41,6 +41,7 @@ struct HomeView: View {
     @State private var userName = ""
     @State private var navigateToSession = false
     @State private var showingProfile = false
+    @State private var showingSettings = false
     @State private var showingUpgrade = false
     @State private var showingMistakeReview = false
     @State private var showingQuestionGeneration = false
@@ -110,9 +111,12 @@ struct HomeView: View {
                 updateUserName(from: profile)
             }
             .sheet(isPresented: $showingProfile) {
+                EditProfileView()
+            }
+            .sheet(isPresented: $showingSettings) {
                 ModernProfileView(onLogout: {
                     AuthenticationService.shared.signOut()
-                    showingProfile = false
+                    showingSettings = false
                 })
             }
             .navigationDestination(isPresented: $showingMistakeReview) {
@@ -247,7 +251,7 @@ struct HomeView: View {
                 }
                 .buttonStyle(PlainButtonStyle())
 
-                Button(action: { showingProfile = true }) {
+                Button(action: { showingSettings = true }) {
                     Image(systemName: "gearshape.fill")
                         .font(.system(size: 20))
                         .foregroundColor(themeManager.secondaryText)

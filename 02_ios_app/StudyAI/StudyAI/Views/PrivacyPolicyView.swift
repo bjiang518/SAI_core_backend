@@ -91,6 +91,11 @@ struct PrivacyPolicyView: View {
             .navigationTitle(NSLocalizedString("privacy.title", comment: ""))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Link(destination: AppURLs.privacyPolicy) {
+                        Image(systemName: "safari")
+                    }
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(NSLocalizedString("common.done", comment: "")) {
                         dismiss()

@@ -2536,3 +2536,145 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "report.priority.high" = "Élevé";
 "report.priority.medium" = "Moyen";
 "report.priority.low" = "Faible";
+
+// MARK: - Common
+"common.apply" = "Appliquer";
+
+// MARK: - Heatmap
+"heatmap.back" = "Retour";
+"heatmap.noDetailedData" = "Pas encore de données détaillées pour cette branche.";
+"heatmap.noPracticeData" = "Pas encore de données d'entraînement. Répondez à des questions pour voir vos points faibles ici.";
+"heatmap.subTopics" = "· Sous-thèmes";
+"heatmap.title" = "Carte de chaleur des points faibles";
+
+// MARK: - Library PDF / Selection
+"library.pdf.email.subject" = "Questions de bibliothèque — %@";
+"library.pdf.emailBody" = "Bonjour \!\n\nJ'ai joint %d question(s) de bibliothèque pour %@ de StudyMates.\n\nGénéré par StudyMates — Votre compagnon d'étude IA\n\nCordialement";
+"library.pdf.error" = "Échec de la génération du PDF";
+"library.pdf.generating" = "Génération du PDF…";
+"library.selection.countSelected" = "%d sélectionné(s)";
+"library.selection.deselectAll" = "Tout désélectionner";
+"library.selection.noneSelected" = "Aucun sélectionné";
+"library.selection.pdf" = "PDF";
+"library.selection.selectAll" = "Tout sélectionner";
+
+// MARK: - Live Chat
+"live.leave.cancel" = "Rester";
+"live.leave.confirm" = "Quitter et effacer";
+"live.leave.message" = "Quitter cette page mettra fin à votre session en direct et effacera la conversation.";
+"live.leave.title" = "Quitter le chat en direct ?";
+
+// MARK: - Mistake Review
+"mistakeReview.categorizeMistakes" = "Catégoriser";
+"mistakeReview.categorizing" = "Catégorisation…";
+"mistakeReview.filter.goodAt" = "Bon en";
+"mistakeReview.filter.noLongerWeak" = "Plus une faiblesse";
+"mistakeReview.filter.noStrengthsData" = "Pas encore de données — répondez à des questions pour voir vos points forts.";
+"mistakeReview.filter.strengthsTopicCount" = "%d sujets";
+"mistakeReview.filter.yourStrengths" = "Vos points forts";
+"mistakeReview.uncategorized" = "non classifié";
+
+// MARK: - PDF Export
+"pdf.header.generatedOn.withCount" = "Généré le %@ • %d questions";
+"pdf.header.generatedOn.withType" = "Généré le %@ • %@";
+"pdf.header.questionCount" = "%d questions";
+"pdf.header.subject" = "Matière : %@";
+"pdf.homework.title" = "Questions de devoirs";
+"pdf.instruction.homework" = "Voici les questions de votre devoir.";
+"pdf.instruction.library" = "Révisez chaque question et écrivez vos réponses dans l'espace prévu.";
+"pdf.instruction.mistakes" = "Révisez ces questions et écrivez vos réponses dans l'espace prévu sous chaque question.";
+"pdf.instruction.practice" = "Répondez à chaque question dans l'espace prévu. Montrez votre travail si nécessaire.";
+"pdf.library.title" = "Questions de bibliothèque";
+"pdf.mistake.hint" = "💡 Vous avez initialement répondu : \"%@\"";
+"pdf.mistake.noAnswer" = "Pas de réponse";
+"pdf.mistakes.title" = "Révision des erreurs";
+"pdf.options.fontSize" = "Taille de police";
+"pdf.options.footer" = "Appuyez sur Appliquer pour régénérer le PDF avec ces paramètres.";
+"pdf.options.gap" = "Espacement entre les questions";
+"pdf.options.maxImageSize" = "Taille max. de l'image";
+"pdf.options.maxSubImageSize" = "Taille max. de la sous-image";
+"pdf.options.reset" = "Rétablir les valeurs par défaut";
+"pdf.options.section.images" = "Images";
+"pdf.options.section.spacing" = "Espacement";
+"pdf.options.section.text" = "Texte";
+"pdf.options.title" = "Options d'exportation";
+"pdf.practice.title" = "Questions d'entraînement";
+"pdf.question.label" = "Question %@";
+"pdf.question.noText" = "[Texte de la question non disponible]";
+
+// MARK: - Practice Sheet
+"practiceSheet.holdToSpeak" = "Maintenir pour parler";
+"practiceSheet.voiceInput.release" = "Relâcher pour définir la réponse";
+
+// MARK: - Pro Mode
+"proMode.archive.toast.mistakesAnalyzed" = "Erreurs analysées, cahier mis à jour";
+"proMode.smartOrganize.toast.mistakesAnalyzed" = "Erreurs analysées, cahier mis à jour";
+
+// MARK: - Passive Reports
+"reports.passive.activity" = "Rapport d'activité";
+"reports.passive.areas_of_improvement" = "Points à améliorer";
+"reports.passive.mental_health" = "Santé mentale et bien-être";
+"reports.passive.monthly" = "Mensuel";
+"reports.passive.summary" = "Résumé hebdomadaire/mensuel";
+"reports.passive.weekly" = "Hebdomadaire";
+
+// MARK: - Saved Digital Homework
+"savedDigitalHomework.redo" = "Refaire";
+"savedDigitalHomework.title" = "Devoirs numériques";
+
+// MARK: - Settings
+"settings.grade" = "Niveau scolaire";
+"settings.notSet" = "Non défini";
+"settings.subscription" = "Abonnement";
+
+// MARK: - Suggested Todo
+"suggestedTodo.focusMode.subtitleDone" = "Terminé %d aujourd'hui · recommencer";
+"suggestedTodo.progress.subtitleToday" = "Voir les résultats d'apprentissage d'aujourd'hui";
+
+// MARK: - Tomato Garden
+"tomato.garden.desc.batman" = "Le gardien du Chevalier Noir, incarnation de la justice";
+"tomato.garden.desc.classic" = "La tomate classique — simple et adorable";
+"tomato.garden.desc.curly" = "Une tomate aux tiges frisées, pleine d'énergie";
+"tomato.garden.desc.cute" = "Une tomate rose douce, chaleureuse et douce";
+"tomato.garden.desc.diamond" = "La légendaire tomate diamant — extraordinairement rare et précieuse";
+"tomato.garden.desc.golden" = "Une tomate dorée brillante, symbole de richesse et de gloire";
+"tomato.garden.desc.ironman" = "La parfaite fusion de la technologie et de la puissance";
+"tomato.garden.desc.mario" = "Un courageux aventurier plombier";
+"tomato.garden.desc.platinum" = "Aussi précieuse que le platine, rayonnant d'une brillance noble";
+"tomato.garden.desc.pokemon" = "Un merveilleux compagnon Pokémon";
+"tomato.garden.desc.tmt4" = "Une tomate ordinaire, humble et sincère";
+"tomato.garden.desc.tmt5" = "Une tomate ordinaire, simple et joyeuse";
+"tomato.garden.desc.tmt6" = "Une tomate ordinaire, travailleuse et mignonne";
+"tomato.garden.type.tmt4" = "Tomate 4";
+"tomato.garden.type.tmt5" = "Tomate 5";
+"tomato.garden.type.tmt6" = "Tomate 6";
+
+// MARK: - Upgrade Comparison
+"upgrade.comparison.badgeBestValue" = "Meilleur rapport qualité-prix";
+"upgrade.comparison.badgeFreeToTry" = "Gratuit à essayer";
+"upgrade.comparison.badgeMostPopular" = "Le plus populaire";
+"upgrade.comparison.continueFree" = "Continuer avec l'offre gratuite";
+"upgrade.comparison.ctaPremium" = "Commencer Premium  %@";
+"upgrade.comparison.ctaUltra" = "Commencer Ultra  %@";
+"upgrade.comparison.featureAiChat" = "Chat\nIA";
+"upgrade.comparison.featureHomework" = "Devoirs\nen ligne";
+"upgrade.comparison.featureLiveTutor" = "Tuteur\nen direct";
+"upgrade.comparison.featureMultipleKids" = "Plusieurs\nenfants";
+"upgrade.comparison.featurePractice" = "Entraînement\nciblé";
+"upgrade.comparison.featureReports" = "Rapports\nparentaux";
+"upgrade.comparison.featureWeakness" = "Analyse des\nfaiblesses";
+"upgrade.comparison.headerSubtitle" = "Obtenez une aide illimitée avec un tuteur IA interactif.";
+"upgrade.comparison.headerTitle" = "Améliorez votre StudyMate IA";
+"upgrade.comparison.planFree" = "Gratuit";
+"upgrade.comparison.planPremium" = "Premium";
+"upgrade.comparison.planUltra" = "Ultra";
+"upgrade.comparison.pricePeriod" = "/mois";
+"upgrade.comparison.restorePurchases" = "Restaurer les achats";
+"upgrade.comparison.terms" = "Les abonnements se renouvellent automatiquement sauf annulation au moins 24 heures avant la fin de la période en cours. Gérez ou annulez à tout moment dans Réglages > Identifiant Apple > Abonnements.";
+"upgrade.comparison.usageChat" = "Chat";
+"upgrade.comparison.usageHomework" = "Devoirs";
+"upgrade.comparison.usagePractice" = "Entraînement";
+"upgrade.comparison.usageUsed" = "%1$d / %2$d utilisés";
+"upgrade.comparison.valueLiveTutor" = "300 min";
+"upgrade.comparison.valueMultipleKids" = "Partage familial";
+"upgrade.comparison.yourCurrentUsage" = "Votre utilisation actuelle";

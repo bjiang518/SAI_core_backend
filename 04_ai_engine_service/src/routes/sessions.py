@@ -145,7 +145,19 @@ def select_chat_model(message: str, subject: str, conversation_length: int = 0):
 
 async def generate_follow_up_suggestions(ai_response: str, user_message: str, subject: str, prior_messages=None, language: str = "en"):
     """Generate 3 contextual follow-up suggestions. Returns list of {key, value} dicts."""
+    import hashlib as _hashlib
     try:
+        # Cache key based on the AI response content, subject and language
+        _cache_input = f"{ai_response[:500]}|{subject}|{language}".encode()
+        _cache_key = f"sugg:{_hashlib.md5(_cache_input).hexdigest()}"
+        _redis = session_service.redis_client
+        if _redis:
+            try:
+                _cached = await _redis.get(_cache_key)
+                if _cached:
+                    return _json.loads(_cached)
+            except Exception:
+                pass  # Redis errors are non-fatal for suggestions
         # Use the app's language setting; fall back to detecting Chinese from response
         def detect_chinese(text: str) -> bool:
             return any(0x4E00 <= ord(char) <= 0x9FFF for char in text)
@@ -249,7 +261,13 @@ Return ONLY the JSON array, no other text."""
         if json_match:
             suggestions = _json.loads(json_match.group())
             valid = [s for s in suggestions if isinstance(s, dict) and 'key' in s and 'value' in s]
-            return valid[:4]
+            result = valid[:4]
+            if _redis and result:
+                try:
+                    await _redis.setex(_cache_key, 86400, _json.dumps(result))  # 24h TTL
+                except Exception:
+                    pass  # Redis errors are non-fatal
+            return result
         return []
     except Exception:
         return []

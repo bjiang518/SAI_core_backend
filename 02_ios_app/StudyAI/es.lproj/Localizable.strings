@@ -2549,7 +2549,7 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "upgrade.comparison.featureReports" = "Informes\npara padres";
 "upgrade.comparison.featureMultipleKids" = "Varios\nhijos";
 "upgrade.comparison.valueLiveTutor" = "300 min";
-"upgrade.comparison.valueMultipleKids" = "Hasta 3";
+"upgrade.comparison.valueMultipleKids" = "Compartir en familia";
 "upgrade.comparison.ctaUltra" = "Empezar Ultra  %@";
 "upgrade.comparison.ctaPremium" = "Empezar Premium  %@";
 "upgrade.comparison.continueFree" = "Continuar con Gratis";

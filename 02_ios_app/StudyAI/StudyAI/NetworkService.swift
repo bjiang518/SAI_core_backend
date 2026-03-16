@@ -5488,7 +5488,10 @@ class NetworkService: ObservableObject {
         guard httpResponse.statusCode == 200 else {
             print("❌ [Network] Error analysis failed: HTTP \(httpResponse.statusCode)")
             handleTierError(statusCode: httpResponse.statusCode, data: data, feature: "error_analysis")
-            throw NetworkError.invalidResponse
+            // Throw rateLimited for 403/429 so the queue service knows NOT to retry
+            throw httpResponse.statusCode == 403 || httpResponse.statusCode == 429
+                ? NetworkError.rateLimited
+                : NetworkError.invalidResponse
         }
 
         // 🔍 DEBUG: Print raw response
@@ -5903,6 +5906,30 @@ class NetworkService: ObservableObject {
             return (false, nil, "HTTP \(http.statusCode)")
         } catch {
             return (false, nil, error.localizedDescription)
+        }
+    }
+
+    // MARK: - GDPR Data Export
+
+    /// Fetches all user data from the backend as a JSON Data blob (GDPR Article 20).
+    func exportUserData() async -> Result<Data, Error> {
+        guard let url = URL(string: "\(baseURL)/api/user/export-data") else {
+            return .failure(URLError(.badURL))
+        }
+        guard let token = AuthenticationService.shared.getAuthToken() else {
+            return .failure(URLError(.userAuthenticationRequired))
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                return .failure(URLError(.badServerResponse))
+            }
+            return .success(data)
+        } catch {
+            return .failure(error)
         }
     }
 
