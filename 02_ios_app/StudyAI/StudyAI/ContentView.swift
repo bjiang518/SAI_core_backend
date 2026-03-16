@@ -488,6 +488,8 @@ struct ModernProfileView: View {
     @State private var showingDebugSettings = false
     @State private var showingThemeSelection = false
     @State private var showingUsage = false
+    @State private var showingTesterTierSwitcher = false
+    @State private var versionTapCount = 0
     @State private var refreshID = UUID()  // Force refresh when profile updates
     @State private var selectedGradeLevel: GradeLevel? = nil
 
@@ -630,14 +632,14 @@ struct ModernProfileView: View {
                                 .foregroundColor(Color(hex: "7EC8E3"))
                         }
 
-                        Text("Grade")
+                        Text(NSLocalizedString("settings.grade", comment: ""))
                             .font(.body)
                             .foregroundColor(.primary)
 
                         Spacer()
 
                         Picker("", selection: $selectedGradeLevel) {
-                            Text("Not set").tag(Optional<GradeLevel>(nil))
+                            Text(NSLocalizedString("settings.notSet", comment: "")).tag(Optional<GradeLevel>(nil))
                             ForEach(GradeLevel.allCases, id: \.self) { grade in
                                 Text(grade.displayName).tag(Optional(grade))
                             }
@@ -649,16 +651,15 @@ struct ModernProfileView: View {
                         }
                     }
                     .padding(.vertical, 4)
-                }
 
-                // SUBSCRIPTION SECTION
-                Section("Subscription") {
+                    // SUBSCRIPTION SECTION
+                Section(NSLocalizedString("settings.subscription", comment: "")) {
                     Button(action: { showingUsage = true }) {
                         HStack(spacing: 12) {
                             Image(systemName: "chart.bar.fill")
                                 .foregroundColor(DesignTokens.Colors.libraryTeal)
                                 .frame(width: 20)
-                            Text("Plan & Usage")
+                            Text(NSLocalizedString("account.usage.title", comment: ""))
                                 .font(.body)
                                 .foregroundColor(.primary)
                             Spacer()
@@ -857,6 +858,13 @@ struct ModernProfileView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .listRowBackground(Color.clear)
+                    .onTapGesture {
+                        versionTapCount += 1
+                        if versionTapCount >= 3 {
+                            versionTapCount = 0
+                            showingTesterTierSwitcher = true
+                        }
+                    }
                 }
             }
             .navigationTitle(NSLocalizedString("settings.title", comment: ""))
@@ -924,13 +932,21 @@ struct ModernProfileView: View {
         .sheet(isPresented: $showingUsage) {
             AccountUsageView()
         }
+        .sheet(isPresented: $showingTesterTierSwitcher) {
+            TesterTierSwitcherView(onDismiss: { showingTesterTierSwitcher = false })
+        }
         #if DEBUG
         .sheet(isPresented: $showingDebugSettings) {
             DebugTierView()
         }
         #endif
     }
+}
+}
 
+// MARK: - Helpers (ModernProfileView)
+
+extension ModernProfileView {
     private var tierBadgeText: String {
         let user = authService.currentUser
         if user?.isAnonymous == true { return "Guest" }

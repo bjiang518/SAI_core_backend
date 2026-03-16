@@ -21,6 +21,11 @@ class StoreKitService: ObservableObject {
     @Published var purchaseInProgress = false
     @Published var purchaseError: String?
 
+    /// DEBUG only — when true, StoreKit renewals won't overwrite the manually set tier.
+    #if DEBUG
+    var debugTierOverrideActive = false
+    #endif
+
     private var transactionListenerTask: Task<Void, Never>?
 
     private init() {
@@ -34,17 +39,25 @@ class StoreKitService: ObservableObject {
     // MARK: - Load Products
 
     func loadProducts() async {
+        #if DEBUG
         print("🛒 [StoreKit] loadProducts() called — fetching IDs: \(productIDs)")
+        #endif
         do {
             let fetched = try await Product.products(for: productIDs)
+            #if DEBUG
             print("🛒 [StoreKit] Fetched \(fetched.count) product(s): \(fetched.map { "\($0.id) (\($0.displayPrice))" })")
+            #endif
             // Sort so premium comes before ultra in UI
             products = fetched.sorted { $0.price < $1.price }
+            #if DEBUG
             if fetched.isEmpty {
                 print("⚠️ [StoreKit] No products returned — check App Store Connect product IDs and In-App Purchase capability")
             }
+            #endif
         } catch {
+            #if DEBUG
             print("❌ [StoreKit] Failed to load products: \(error)")
+            #endif
         }
     }
 
@@ -52,38 +65,58 @@ class StoreKitService: ObservableObject {
 
     func purchase(_ product: Product) async {
         guard !purchaseInProgress else {
+            #if DEBUG
             print("⚠️ [StoreKit] Purchase already in progress, ignoring")
+            #endif
             return
         }
+        #if DEBUG
         print("🛒 [StoreKit] Starting purchase for: \(product.id)")
+        #endif
         purchaseInProgress = true
         purchaseError = nil
         defer { purchaseInProgress = false }
 
         do {
+            #if DEBUG
             print("🛒 [StoreKit] Calling product.purchase()...")
+            #endif
             let result = try await product.purchase()
             switch result {
             case .success(let verification):
+                #if DEBUG
                 print("✅ [StoreKit] Purchase succeeded, verifying transaction...")
+                #endif
                 let transaction = try checkVerified(verification)
+                #if DEBUG
                 print("✅ [StoreKit] Transaction verified: id=\(transaction.id)")
+                #endif
                 await handlePurchasedTransaction(transaction, productId: product.id)
                 await transaction.finish()
+                #if DEBUG
                 print("✅ [StoreKit] Transaction finished")
+                #endif
 
             case .pending:
+                #if DEBUG
                 print("⏳ [StoreKit] Purchase pending (Ask to Buy)")
+                #endif
 
             case .userCancelled:
+                #if DEBUG
                 print("🚫 [StoreKit] User cancelled purchase")
+                #endif
 
             @unknown default:
+                #if DEBUG
                 print("⚠️ [StoreKit] Unknown purchase result")
+                #endif
             }
         } catch {
             purchaseError = error.localizedDescription
+            #if DEBUG
             print("❌ [StoreKit] Purchase error: \(error)")
+            #endif
         }
     }
 
@@ -93,7 +126,9 @@ class StoreKitService: ObservableObject {
         do {
             try await AppStore.sync()
         } catch {
+            #if DEBUG
             print("❌ [StoreKit] Restore error: \(error)")
+            #endif
         }
     }
 
@@ -108,7 +143,9 @@ class StoreKitService: ObservableObject {
                     await self.handlePurchasedTransaction(transaction, productId: transaction.productID)
                     await transaction.finish()
                 } catch {
+                    #if DEBUG
                     print("❌ [StoreKit] Unverified transaction: \(error)")
+                    #endif
                 }
             }
         }
@@ -118,7 +155,9 @@ class StoreKitService: ObservableObject {
 
     private func handlePurchasedTransaction(_ transaction: Transaction, productId: String) async {
         let expiresDateMs = transaction.expirationDate.map { Int64($0.timeIntervalSince1970 * 1000) }
+        #if DEBUG
         print("💳 [StoreKit] handlePurchasedTransaction: productId=\(productId) txId=\(transaction.id)")
+        #endif
 
         let result = await NetworkService.shared.validateReceipt(
             transactionId: String(transaction.id),
@@ -126,12 +165,22 @@ class StoreKitService: ObservableObject {
             productId: productId,
             expiresDateMs: expiresDateMs
         )
+        #if DEBUG
         print("💳 [StoreKit] validateReceipt result: success=\(result.success) tier=\(result.tier ?? "nil") error=\(result.error ?? "nil")")
+        #endif
 
         if result.success, let tier = result.tier {
+            #if DEBUG
+            if debugTierOverrideActive {
+                print("🛑 [StoreKit] Skipping tier update (\(tier)) — debug override active")
+                return
+            }
+            #endif
             updateLocalUserTier(tier)
         } else {
+            #if DEBUG
             print("⚠️ [StoreKit] Backend receipt validation failed: \(result.error ?? "unknown")")
+            #endif
         }
     }
 
@@ -148,10 +197,14 @@ class StoreKitService: ObservableObject {
 
     private func updateLocalUserTier(_ tierString: String) {
         let currentUser = AuthenticationService.shared.currentUser
+        #if DEBUG
         print("💳 [StoreKit] updateLocalUserTier(\(tierString)) — userId=\(currentUser?.id ?? "nil") parsedTier=\(String(describing: UserTier(rawValue: tierString)))")
+        #endif
         guard let user = currentUser,
               let newTier = UserTier(rawValue: tierString) else {
+            #if DEBUG
             print("⚠️ [StoreKit] updateLocalUserTier FAILED — user=\(String(describing: currentUser?.id)) tier=\(String(describing: UserTier(rawValue: tierString)))")
+            #endif
             return
         }
 
@@ -169,6 +222,8 @@ class StoreKitService: ObservableObject {
 
         AuthenticationService.shared.currentUser = updated
         try? KeychainService.shared.saveUser(updated)
+        #if DEBUG
         print("✅ [StoreKit] currentUser.tier updated to \(newTier) — isPaid=\(newTier.isPaid)")
+        #endif
     }
 }

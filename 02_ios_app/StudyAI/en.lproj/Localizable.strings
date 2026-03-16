@@ -46,6 +46,9 @@
 "settings.voiceSettings" = "Select your study mate";
 "settings.learning" = "Learning";
 "settings.learningGoals" = "Learning Goals & Progress";
+"settings.grade" = "Grade";
+"settings.notSet" = "Not set";
+"settings.subscription" = "Subscription";
 "settings.support" = "Support";
 "settings.help" = "Help & FAQ";
 "settings.contact" = "Contact Support";
@@ -411,6 +414,61 @@
 "upgrade.monthlyLimitSubtitle" = "You've used all of your monthly allowance. Upgrade for more.";
 "upgrade.coppaRestrictedSubtitle" = "Ask a parent to unlock this feature.";
 "upgrade.continueFree" = "Continue with Free";
+
+// Upgrade Comparison View
+"upgrade.comparison.headerTitle" = "Upgrade your AI StudyMate";
+"upgrade.comparison.headerSubtitle" = "Get unlimited help with an interactive AI tutor.";
+"upgrade.comparison.badgeFreeToTry" = "Free to try";
+"upgrade.comparison.badgeMostPopular" = "Most Popular";
+"upgrade.comparison.badgeBestValue" = "Best Value";
+"upgrade.comparison.planFree" = "Free";
+"upgrade.comparison.planPremium" = "Premium";
+"upgrade.comparison.planUltra" = "Ultra";
+"upgrade.comparison.pricePeriod" = "/mo";
+"upgrade.comparison.featureHomework" = "Homework\nUpload";
+"upgrade.comparison.featureAiChat" = "AI\nChat";
+"upgrade.comparison.featureLiveTutor" = "Live\nTutor";
+"upgrade.comparison.featurePractice" = "Targeted\nPractice";
+"upgrade.comparison.featureWeakness" = "Weakness\nAnalysis";
+"upgrade.comparison.featureReports" = "Parent\nReports";
+"upgrade.comparison.featureMultipleKids" = "Multiple\nKids";
+"upgrade.comparison.valueLiveTutor" = "300 min";
+"upgrade.comparison.valueMultipleKids" = "Up to 3";
+"upgrade.comparison.ctaUltra" = "Start Ultra  %@";
+"upgrade.comparison.ctaPremium" = "Start Premium  %@";
+"upgrade.comparison.continueFree" = "Continue with Free";
+"upgrade.comparison.restorePurchases" = "Restore Purchases";
+"upgrade.comparison.terms" = "Subscriptions auto-renew unless cancelled at least 24 hours before the end of the current period. Manage or cancel anytime in Settings > Apple ID > Subscriptions.";
+"upgrade.comparison.yourCurrentUsage" = "Your current usage";
+"upgrade.comparison.usageHomework" = "Homework";
+"upgrade.comparison.usageChat" = "Chat";
+"upgrade.comparison.usagePractice" = "Practice";
+"upgrade.comparison.usageUsed" = "%1$d / %2$d used";
+
+// Account Usage View
+"account.usage.title" = "Plan & Usage";
+"account.usage.loadError" = "Could not load usage";
+"account.usage.lifetimeLimits" = "Lifetime limits apply";
+"account.usage.resetsOn" = "Resets %@";
+"account.usage.unlimited" = "Unlimited";
+"account.usage.upgradeLabel" = "Upgrade";
+"account.usage.upgradePlan" = "Upgrade Plan";
+"account.usage.restorePurchases" = "Restore Purchases";
+"account.usage.manageSubscription" = "Manage Subscription";
+"account.usage.tierGuest" = "Guest Account";
+"account.usage.tierPremium" = "Premium";
+"account.usage.tierUltra" = "Ultra";
+"account.usage.tierFree" = "Free";
+"account.usage.badgeGuest" = "Guest";
+"account.usage.feature.homework_single" = "Homework Upload";
+"account.usage.feature.homework_batch" = "Batch Upload";
+"account.usage.feature.chat_messages" = "AI Chat";
+"account.usage.feature.questions" = "Practice Questions";
+"account.usage.feature.error_analysis" = "Weakness Analysis";
+"account.usage.feature.reports" = "Parent Reports";
+"account.usage.feature.voice_minutes" = "Live Tutor";
+"account.usage.feature.tts_calls" = "AI Voice";
+
 "common.dismiss" = "Dismiss";
 "faceIDReauth.title" = "Session Expired";
 "faceIDReauth.message" = "For your security, you need to re-authenticate.";
@@ -1368,6 +1426,24 @@
 "editProfile.gradeLevelPicker" = "Grade Level";
 "editProfile.selectGradeLevel" = "Select Grade Level";
 "editProfile.favoriteSubjects" = "Favorite Subjects";
+
+// Grade Level Options
+"gradeLevel.preK" = "Pre-K";
+"gradeLevel.kindergarten" = "Kindergarten";
+"gradeLevel.grade1" = "1st Grade";
+"gradeLevel.grade2" = "2nd Grade";
+"gradeLevel.grade3" = "3rd Grade";
+"gradeLevel.grade4" = "4th Grade";
+"gradeLevel.grade5" = "5th Grade";
+"gradeLevel.grade6" = "6th Grade";
+"gradeLevel.grade7" = "7th Grade";
+"gradeLevel.grade8" = "8th Grade";
+"gradeLevel.grade9" = "9th Grade";
+"gradeLevel.grade10" = "10th Grade";
+"gradeLevel.grade11" = "11th Grade";
+"gradeLevel.grade12" = "12th Grade";
+"gradeLevel.college" = "College";
+"gradeLevel.adult" = "Adult Learner";
 "editProfile.addSubjects" = "Add Subjects";
 "editProfile.learningStyle" = "Learning Style";
 "editProfile.selectLearningStyle" = "Select Learning Style";
@@ -1537,6 +1613,8 @@
 "mistakeReview.sliderMax" = "10 questions";
 "mistakeReview.generateCount" = "Generate %d Questions";
 "mistakeReview.practiceConfiguration" = "Practice Configuration";
+"mistakeReview.weaknessHint.one" = "%d more question to clear %@ weakness";
+"mistakeReview.weaknessHint.other" = "%d more questions to clear %@ weakness";
 "mistakeReview.filter.severityLabel" = "Severity";
 "mistakeReview.filter.timeLabel" = "Time";
 "mistakeReview.filter.severity.all" = "All";
@@ -1558,6 +1636,11 @@
 "mistakeReview.filter.strengthsTopicCount" = "%d topics";
 "mistakeReview.filter.noStrengthsData" = "No data yet — answer some questions to see your strengths.";
 "mistakeReview.filter.uncategorized" = "Uncategorized";
+"heatmap.title" = "Weak Point Heatmap";
+"heatmap.subTopics" = "· Sub-topics";
+"heatmap.back" = "Back";
+"heatmap.noDetailedData" = "No detailed data yet for this branch.";
+"heatmap.noPracticeData" = "No practice data yet. Answer some questions to see your weak areas here.";
 "difficulty.desc.beginner" = "Foundation-building questions for new concepts";
 "difficulty.desc.intermediate" = "Balanced questions for practice and review";
 "difficulty.desc.advanced" = "Challenging questions to push understanding";
@@ -1986,6 +2069,11 @@
 "proMode.grading.complete" = "Grading complete!";
 "proMode.analyzingDiagrams" = "Analyzing diagram regions…";
 "proMode.diagramAnalysisFailed" = "Grading without image context";
+"proMode.smartCrop" = "Smart Crop";
+"proMode.retryCrop" = "Retry";
+"proMode.croppedDone" = "Cropped";
+"proMode.addPictureHint" = "Add a picture here";
+"proMode.selectQuestionFor" = "Please select a question number for";
 
 // PDF Preview
 "pdfPreview.title" = "PDF Preview";
@@ -2071,6 +2159,22 @@
 "tomato.garden.type.golden" = "Golden Tomato";
 "tomato.garden.type.platinum" = "Platinum Tomato";
 "tomato.garden.type.diamond" = "Diamond Tomato";
+"tomato.garden.type.tmt4" = "Tomato 4";
+"tomato.garden.type.tmt5" = "Tomato 5";
+"tomato.garden.type.tmt6" = "Tomato 6";
+"tomato.garden.desc.classic" = "The classic tomato — simple and adorable";
+"tomato.garden.desc.curly" = "A tomato with curly vines, full of energy";
+"tomato.garden.desc.cute" = "A soft pink tomato, warm and gentle";
+"tomato.garden.desc.tmt4" = "An ordinary tomato, humble and sincere";
+"tomato.garden.desc.tmt5" = "An ordinary tomato, simple and cheerful";
+"tomato.garden.desc.tmt6" = "An ordinary tomato, hardworking and cute";
+"tomato.garden.desc.batman" = "The Dark Knight guardian, embodiment of justice";
+"tomato.garden.desc.ironman" = "The perfect fusion of technology and power";
+"tomato.garden.desc.mario" = "A brave plumber adventurer";
+"tomato.garden.desc.pokemon" = "A wonderful Pokémon companion";
+"tomato.garden.desc.golden" = "A gleaming golden tomato, symbol of wealth and glory";
+"tomato.garden.desc.platinum" = "As precious as platinum, radiating noble brilliance";
+"tomato.garden.desc.diamond" = "The legendary diamond tomato — extraordinarily rare and precious";
 "tomato.garden.exchange" = "Exchange";
 "tomato.garden.exchange.title" = "Tomato Exchange";
 "tomato.garden.exchange.5to1" = "5 Ordinary → 1 Rare";
@@ -2540,3 +2644,10 @@
 "live.scenario.presentation.subtitle" = "Deliver in full, AI gives 3-part feedback";
 "live.scenario.historicalFigure.title" = "Historical Figure";
 "live.scenario.historicalFigure.subtitle" = "Travel through history, talk with a legend";
+"live.scenarioPicker.title" = "Choose a Live Scenario";
+"live.scenarioPicker.subtitle" = "AI will guide you through the whole session";
+
+// Report priority labels
+"report.priority.high" = "High";
+"report.priority.medium" = "Medium";
+"report.priority.low" = "Low";

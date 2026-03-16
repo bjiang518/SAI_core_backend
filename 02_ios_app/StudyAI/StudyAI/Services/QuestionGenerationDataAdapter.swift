@@ -57,12 +57,27 @@ class QuestionGenerationDataAdapter {
 
     /// Get common subjects for selection.
     /// Returns English canonical names (used as API keys); UI localizes via BranchLocalizer.
+    /// Dynamically appends any "Others: X" subjects the user has encountered in their history.
     func getMostCommonSubjects() -> [String] {
-        return [
+        let base: [String] = [
             "Mathematics", "Science", "Physics", "Chemistry", "Biology",
             "English", "History", "Geography", "Computer Science",
-            "Literature", "Social Studies", "Economics", "Art", "Music", "Other"
+            "Literature", "Social Studies", "Economics", "Art", "Music"
         ]
+
+        // Append unique "Others: X" subjects from the user's local question history
+        let allQuestions = currentUserQuestionStorage().getLocalQuestions()
+        var seen = Set<String>()
+        var othersSubjects: [String] = []
+        for q in allQuestions {
+            if let s = q["subject"] as? String, s.hasPrefix("Others: "), !seen.contains(s) {
+                seen.insert(s)
+                othersSubjects.append(s)
+            }
+        }
+        othersSubjects.sort()
+
+        return base + othersSubjects + ["Other"]
     }
 
     // MARK: - Personalized Data from Short-Term Status

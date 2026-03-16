@@ -151,6 +151,10 @@ class SessionChatViewModel: ObservableObject {
     // ✅ NEW: Flag to track if synchronized rendering is active
     private var isSynchronizing: Bool = false
 
+    /// Set to true by stopGeneration() (standard mode) to gate in-flight onChunk/onComplete
+    /// callbacks from the still-running network stream. Reset at the start of each new message.
+    private var generationWasStopped = false
+
     // MARK: - Initialization
 
     init() {
@@ -279,6 +283,7 @@ class SessionChatViewModel: ObservableObject {
         print("🔴 CLEARING aiGeneratedSuggestions at sendMessage start")
         aiGeneratedSuggestions = []
         isStreamingComplete = false
+        generationWasStopped = false
 
         // ✅ Reset chunking for new streaming response
         print("🔄 Starting new message - resetting chunking state")
@@ -1213,6 +1218,8 @@ class SessionChatViewModel: ObservableObject {
                     onChunk: { [weak self] accumulatedText in
                         Task { @MainActor in
                             guard let self = self else { return }
+                            // If Stop AI was pressed, discard all remaining in-flight chunks.
+                            guard !self.generationWasStopped else { return }
 
                             // Hide typing indicator as soon as first chunk arrives
                             if self.showTypingIndicator {
@@ -1257,7 +1264,8 @@ class SessionChatViewModel: ObservableObject {
                             // If the user pressed Stop AI, stopGeneration() already committed the
                             // partial text to allMessages + SwiftData and cleared isActivelyStreaming.
                             // Skip the append here to prevent a duplicate bubble appearing.
-                            guard self.isActivelyStreaming else {
+                            guard !self.generationWasStopped else {
+                                self.generationWasStopped = false
                                 withAnimation {
                                     self.isSubmitting = false
                                     self.showTypingIndicator = false
@@ -1339,6 +1347,8 @@ class SessionChatViewModel: ObservableObject {
                     onRetryAvailable: { [weak self] partialText in
                         Task { @MainActor in
                             guard let self = self else { return }
+                            // Don't show retry UI if user intentionally stopped generation.
+                            guard !self.generationWasStopped else { return }
 
                             // Show retry UI with partial response
                             print("🔄 Retry available with partial response: \(partialText.count) chars")
@@ -1777,6 +1787,10 @@ class SessionChatViewModel: ObservableObject {
 
         } else {
             // ── STANDARD MODE ────────────────────────────────────────────
+            // Set the flag FIRST so any Task-queued onChunk/onComplete callbacks
+            // that fire after this point are gated out.
+            generationWasStopped = true
+
             if !activeStreamingMessage.isEmpty {
                 networkService.appendToConversationHistory([
                     "role": "assistant",

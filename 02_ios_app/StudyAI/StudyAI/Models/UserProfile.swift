@@ -258,7 +258,24 @@ enum GradeLevel: String, CaseIterable {
     case adult = "Adult Learner"
 
     var displayName: String {
-        return self.rawValue
+        switch self {
+        case .preK:         return NSLocalizedString("gradeLevel.preK", comment: "")
+        case .kindergarten: return NSLocalizedString("gradeLevel.kindergarten", comment: "")
+        case .grade1:       return NSLocalizedString("gradeLevel.grade1", comment: "")
+        case .grade2:       return NSLocalizedString("gradeLevel.grade2", comment: "")
+        case .grade3:       return NSLocalizedString("gradeLevel.grade3", comment: "")
+        case .grade4:       return NSLocalizedString("gradeLevel.grade4", comment: "")
+        case .grade5:       return NSLocalizedString("gradeLevel.grade5", comment: "")
+        case .grade6:       return NSLocalizedString("gradeLevel.grade6", comment: "")
+        case .grade7:       return NSLocalizedString("gradeLevel.grade7", comment: "")
+        case .grade8:       return NSLocalizedString("gradeLevel.grade8", comment: "")
+        case .grade9:       return NSLocalizedString("gradeLevel.grade9", comment: "")
+        case .grade10:      return NSLocalizedString("gradeLevel.grade10", comment: "")
+        case .grade11:      return NSLocalizedString("gradeLevel.grade11", comment: "")
+        case .grade12:      return NSLocalizedString("gradeLevel.grade12", comment: "")
+        case .college:      return NSLocalizedString("gradeLevel.college", comment: "")
+        case .adult:        return NSLocalizedString("gradeLevel.adult", comment: "")
+        }
     }
 
     var integerValue: Int {

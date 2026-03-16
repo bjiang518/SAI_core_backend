@@ -365,6 +365,7 @@ struct DigitalHomeworkView: View {
                                         },
                                         isUnderDiagramAnalysis: viewModel.questionsUnderDiagramAnalysis
                                             .contains(questionWithGrade.question.id),
+                                        subquestionsUnderAnalysis: viewModel.questionsUnderDiagramAnalysis,
                                         missingDiagramImageIds: viewModel.questionsMissingDiagramImage
                                     )
                                     .id(questionWithGrade.question.id)
@@ -909,7 +910,7 @@ struct DigitalHomeworkView: View {
         return VStack(spacing: 0) {
             // Header row — always visible; tap left side to expand/collapse
             ZStack(alignment: .trailing) {
-                // Full-width tap area for expand/collapse
+                // Full-width tap area for expand/collapse (no chevron inside — it lives in the overlay)
                 Button(action: {
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                         viewModel.isAnnotationSectionExpanded.toggle()
@@ -944,48 +945,83 @@ struct DigitalHomeworkView: View {
                                 .foregroundColor(.orange)
                         }
 
-                        // Spacer for AI button + chevron
-                        Color.clear.frame(width: viewModel.anyQuestionNeedsImage ? 70 : 20, height: 1)
-
-                        Image(systemName: viewModel.isAnnotationSectionExpanded ? "chevron.up" : "chevron.down")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(.secondary)
+                        // Reserve space for the trailing overlay (Smart Crop pill + chevron)
+                        Color.clear.frame(width: viewModel.anyQuestionNeedsImage ? 124 : 28, height: 1)
                     }
                     .frame(height: collapsedHeight)
                     .padding(.horizontal, 16)
                 }
                 .buttonStyle(.plain)
 
-                // AI crop button — overlaid on trailing edge, outside the toggle tap area
-                if viewModel.anyQuestionNeedsImage {
-                    Button(action: {
-                        Task { await viewModel.runDiagramAnalysisIfNeeded() }
-                    }) {
-                        ZStack {
-                            if viewModel.isDiagramAnalysisPending {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                    .scaleEffect(0.65)
-                            } else {
-                                Image(systemName: "sparkles")
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundColor(.white)
+                // Trailing overlay: Smart Crop pill (when needed) + chevron
+                HStack(spacing: 8) {
+                    if viewModel.anyQuestionNeedsImage {
+                        // Smart Crop button state machine:
+                        //   .running  — spinner, disabled
+                        //   .available — "✨ Smart Crop", tappable
+                        //   .retry    — "↺ Retry", tappable (first attempt found nothing)
+                        //   .inactive — label only, no action (found regions, or already retried)
+                        let attemptDone = viewModel.diagramAnalysisAttemptCount
+                        let isRetryState = attemptDone == 1 && !viewModel.diagramAnalysisFoundRegions
+                        let isInactive   = attemptDone >= 1 && (viewModel.diagramAnalysisFoundRegions || attemptDone >= 2)
+
+                        Button(action: {
+                            if !isInactive {
+                                Task { await viewModel.runDiagramAnalysisIfNeeded() }
                             }
-                        }
-                        .frame(width: 30, height: 30)
-                        .background(
-                            Circle().fill(
-                                LinearGradient(colors: [.orange, Color.pink.opacity(0.8)],
-                                               startPoint: .topLeading, endPoint: .bottomTrailing)
+                        }) {
+                            HStack(spacing: 5) {
+                                if viewModel.isDiagramAnalysisPending {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                        .scaleEffect(0.7)
+                                        .frame(width: 14, height: 14)
+                                } else if isInactive {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .foregroundColor(.white.opacity(0.7))
+                                    Text(NSLocalizedString("proMode.croppedDone", comment: "Smart Crop button: already cropped state"))
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundColor(.white.opacity(0.7))
+                                } else if isRetryState {
+                                    Image(systemName: "arrow.clockwise")
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundColor(.white)
+                                    Text(NSLocalizedString("proMode.retryCrop", comment: "Smart Crop button: retry state"))
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundColor(.white)
+                                } else {
+                                    Image(systemName: "sparkles")
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundColor(.white)
+                                    Text(NSLocalizedString("proMode.smartCrop", comment: "Smart Crop button: initial state"))
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundColor(.white)
+                                }
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(
+                                Capsule().fill(
+                                    isInactive
+                                        ? LinearGradient(colors: [Color.gray.opacity(0.5), Color.gray.opacity(0.4)],
+                                                         startPoint: .leading, endPoint: .trailing)
+                                        : LinearGradient(colors: [.orange, Color(red: 1.0, green: 0.45, blue: 0.35)],
+                                                         startPoint: .leading, endPoint: .trailing)
+                                )
                             )
-                        )
-                        .shadow(color: .orange.opacity(0.4), radius: 4, x: 0, y: 2)
+                            .shadow(color: isInactive ? .clear : .orange.opacity(0.35), radius: 4, x: 0, y: 2)
+                        }
+                        .disabled(viewModel.isDiagramAnalysisPending || isInactive)
+                        .accessibilityLabel(NSLocalizedString("proMode.aiAnalyzeDiagrams",
+                                             comment: "Auto-locate diagram regions with AI"))
                     }
-                    .disabled(viewModel.isDiagramAnalysisPending)
-                    .accessibilityLabel(NSLocalizedString("proMode.aiAnalyzeDiagrams",
-                                         comment: "Auto-locate diagram regions with AI"))
-                    .padding(.trailing, 44)  // leave room for chevron
+
+                    Image(systemName: viewModel.isAnnotationSectionExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.secondary)
                 }
+                .padding(.trailing, 16)
             }
 
             // Expanded image + annotation button
@@ -1021,7 +1057,7 @@ struct DigitalHomeworkView: View {
                 .background(Color.black.opacity(0.3))
             }
 
-            // 添加标注按钮
+            // Add Annotation button
             VStack(spacing: 6) {
                 Button(action: {
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
@@ -1468,7 +1504,7 @@ struct DigitalHomeworkView: View {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundColor(.orange)
                 .font(.subheadline)
-            Text("Please select a question number for")
+            Text(NSLocalizedString("proMode.selectQuestionFor", comment: "Annotation missing question number warning"))
                 .font(.caption)
                 .foregroundColor(.primary)
             RoundedRectangle(cornerRadius: 3)
@@ -2062,9 +2098,11 @@ struct QuestionCard: View {
     let onLongPress: () -> Void  // ✅ NEW: Long press gesture callback
     let onRemoveImage: () -> Void  // NEW: callback to remove image
     let isUnderDiagramAnalysis: Bool
+    let subquestionsUnderAnalysis: Set<String>  // subquestion ids currently being analyzed
     let missingDiagramImageIds: Set<String>
 
     @State private var isShaking = false
+    @State private var isPulsing = false
 
     // MARK: - Helper Views
 
@@ -2169,7 +2207,24 @@ struct QuestionCard: View {
                 }
                 .offset(x: 8, y: -8)
             }
-        } else if missingDiagramImageIds.contains(questionWithGrade.question.id) {
+        } else if isUnderDiagramAnalysis {
+            // Pulsing icon while AI is locating the diagram
+            HStack(spacing: 6) {
+                Image(systemName: "photo.badge.exclamationmark.fill")
+                    .font(.title3)
+                    .foregroundColor(.orange)
+                    .opacity(isPulsing ? 1.0 : 0.25)
+                    .animation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true),
+                               value: isPulsing)
+                    .onAppear { isPulsing = true }
+                    .onDisappear { isPulsing = false }
+                Text(NSLocalizedString("proMode.annotationImageHint", comment: ""))
+                    .font(.caption2)
+                    .foregroundColor(.orange)
+            }
+        } else if missingDiagramImageIds.contains(questionWithGrade.question.id)
+                    || questionWithGrade.question.needImage == true {
+            // Shaking icon: initial state (needImage before any analysis) or AI failed to locate
             HStack(spacing: 6) {
                 Image(systemName: "photo.badge.exclamationmark.fill")
                     .font(.title3)
@@ -2179,7 +2234,7 @@ struct QuestionCard: View {
                                value: isShaking)
                     .onAppear { isShaking = true }
                     .onDisappear { isShaking = false }
-                Text(NSLocalizedString("proMode.annotationImageHint", comment: ""))
+                Text(NSLocalizedString("proMode.addPictureHint", comment: "Shaking icon label asking user to add a picture"))
                     .font(.caption2)
                     .foregroundColor(.orange)
             }
@@ -2207,6 +2262,7 @@ struct QuestionCard: View {
                                 modelType: modelType,
                                 isArchived: questionWithGrade.archivedSubquestions.contains(subquestion.id),  // ✅ NEW: Check if archived
                                 croppedImage: subquestionCroppedImages[subquestion.id],
+                                isUnderDiagramAnalysis: subquestionsUnderAnalysis.contains(subquestion.id),
                                 missingDiagramImageIds: missingDiagramImageIds,
                                 onAskAI: {
                                     // ✅ FIXED: Pass subquestion to parent callback
@@ -2311,7 +2367,7 @@ struct QuestionCard: View {
             Group {
                 if isUnderDiagramAnalysis {
                     RoundedRectangle(cornerRadius: 16)
-                        .fill(Color(.systemBackground).opacity(0.55))
+                        .fill(Color.black.opacity(0.45))
                     ProgressView()
                         .scaleEffect(0.9)
                 }
@@ -2791,6 +2847,7 @@ struct SubquestionRow: View {
     let modelType: String  // ✅ NEW: Track AI model for loading indicator
     let isArchived: Bool  // ✅ NEW: Track if this subquestion is archived
     let croppedImage: UIImage?  // Image cropped for this specific subquestion
+    let isUnderDiagramAnalysis: Bool  // true while AI is locating this subquestion's diagram
     let missingDiagramImageIds: Set<String>  // IDs where AI couldn't locate diagram
     let onAskAI: () -> Void
     let onArchive: () -> Void  // This archives the parent question
@@ -2874,7 +2931,25 @@ struct SubquestionRow: View {
                     .background(Color.gray.opacity(0.1))
                     .cornerRadius(6)
                     .padding(.leading, 24)
-            } else if missingDiagramImageIds.contains(subquestion.id) {
+            } else if isUnderDiagramAnalysis {
+                // Pulsing icon while AI is locating this subquestion's diagram
+                HStack(spacing: 6) {
+                    Image(systemName: "photo.badge.exclamationmark.fill")
+                        .font(.title3)
+                        .foregroundColor(.orange)
+                        .opacity(isSubShaking ? 1.0 : 0.25)
+                        .animation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true),
+                                   value: isSubShaking)
+                        .onAppear { isSubShaking = true }
+                        .onDisappear { isSubShaking = false }
+                    Text(NSLocalizedString("proMode.annotationImageHint", comment: ""))
+                        .font(.caption2)
+                        .foregroundColor(.orange)
+                }
+                .padding(.leading, 24)
+            } else if missingDiagramImageIds.contains(subquestion.id)
+                        || subquestion.needImage == true {
+                // Shaking icon: initial state (needImage before any analysis) or AI failed to locate
                 HStack(spacing: 6) {
                     Image(systemName: "photo.badge.exclamationmark.fill")
                         .font(.title3)
@@ -2884,7 +2959,7 @@ struct SubquestionRow: View {
                                    value: isSubShaking)
                         .onAppear { isSubShaking = true }
                         .onDisappear { isSubShaking = false }
-                    Text(NSLocalizedString("proMode.annotationImageHint", comment: ""))
+                    Text(NSLocalizedString("proMode.addPictureHint", comment: "Shaking icon label asking user to add a picture"))
                         .font(.caption2)
                         .foregroundColor(.orange)
                 }

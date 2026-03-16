@@ -33,7 +33,7 @@ const TIER_LIMITS = {
     error_analysis:  5,
     reports:         0,
     voice_minutes:   0,
-    tts_calls:       200, // monthly
+    tts_calls:       50, // monthly
   },
   premium: {
     homework_single: 50,
@@ -65,11 +65,14 @@ function getRedis() {
       url: process.env.REDIS_URL || 'redis://localhost:6379',
       socket: {
         reconnectStrategy: (retries) => {
-          if (retries >= 2) {
+          if (retries >= 5) {
+            // Reset so the next call to getRedis() creates a fresh client and retries,
+            // rather than permanently staying in the DB-fallback path.
             redisReady = false;
+            redisClient = null;
             return false;
           }
-          return 500;
+          return Math.min(500 * (retries + 1), 3000); // 500ms, 1s, 1.5s, 2s, 2.5s back-off
         },
       },
     });
@@ -160,11 +163,16 @@ const usageTracker = {
         throw new Error('redis not ready');
       }
     } catch (_) {
-      // DB fallback: read from users.monthly_usage
+      // DB fallback: read fresh from DB (bypass the 1hr userCache)
       try {
-        const tierData = await db.getUserTier(userId);
-        const usage = tierData.monthly_usage || {};
-        const resetDate = tierData.usage_reset_date ? new Date(tierData.usage_reset_date) : null;
+        const result = await db.query(
+          `SELECT monthly_usage, usage_reset_date FROM users WHERE id = $1`,
+          [userId],
+          { cache: false }
+        );
+        const row = result.rows[0];
+        const usage = (row && row.monthly_usage) || {};
+        const resetDate = (row && row.usage_reset_date) ? new Date(row.usage_reset_date) : null;
         const now = new Date();
         const isCurrentMonth = resetDate &&
           resetDate.getFullYear() === now.getFullYear() &&
@@ -195,9 +203,17 @@ const usageTracker = {
       throw new Error('redis not ready');
     } catch (_) {
       try {
-        const tierData = await db.getUserTier(userId);
-        const usage = tierData.monthly_usage || {};
-        const resetDate = tierData.usage_reset_date ? new Date(tierData.usage_reset_date) : null;
+        // Bypass the 1-hour userCache — read monthly_usage fresh from DB so we
+        // always see increments written by the DB fallback of incrementBy().
+        const result = await db.query(
+          `SELECT monthly_usage, usage_reset_date FROM users WHERE id = $1`,
+          [userId],
+          { cache: false }
+        );
+        const row = result.rows[0];
+        if (!row) return 0;
+        const usage = row.monthly_usage || {};
+        const resetDate = row.usage_reset_date ? new Date(row.usage_reset_date) : null;
         const now = new Date();
         const isCurrentMonth = resetDate &&
           resetDate.getFullYear() === now.getFullYear() &&

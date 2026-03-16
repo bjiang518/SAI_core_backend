@@ -123,6 +123,8 @@ struct WeeklyProgressGrid: View {
         }
 
         let formatter = DateFormatter()
+        let lang = UserDefaults.standard.string(forKey: "appLanguage") ?? "en"
+        formatter.locale = Locale(identifier: lang)
         formatter.dateFormat = "MMM d"
 
         return "\(formatter.string(from: startDate)) - \(formatter.string(from: endDate))"

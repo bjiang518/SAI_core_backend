@@ -3,61 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Terms of Service - StudyMates</title>
+    <title>Terms of Service — StudyMates</title>
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         .legal-page {
-            padding: 120px 0 60px;
-            max-width: 900px;
+            padding: 120px 0 80px;
+            max-width: 860px;
             margin: 0 auto;
         }
-        .legal-page h1 {
-            font-size: 2.5rem;
-            margin-bottom: 0.5rem;
-        }
-        .legal-page .last-updated {
-            color: var(--text-light);
-            margin-bottom: 3rem;
-        }
-        .legal-page h2 {
-            font-size: 1.8rem;
-            margin: 2.5rem 0 1rem;
-        }
-        .legal-page p, .legal-page li {
-            color: var(--text-light);
-            line-height: 1.8;
-            margin-bottom: 1rem;
-        }
-        .legal-page ul {
-            margin-left: 2rem;
-        }
+        .legal-page h1 { font-size: 2.4rem; margin-bottom: 0.5rem; }
+        .legal-page .last-updated { color: var(--text-light); margin-bottom: 3rem; }
+        .legal-page h2 { font-size: 1.6rem; margin: 2.5rem 0 0.75rem; }
+        .legal-page p, .legal-page li { color: var(--text-light); line-height: 1.85; margin-bottom: 0.9rem; }
+        .legal-page ul { margin-left: 2rem; }
     </style>
 </head>
 <body>
-    <!-- Navigation -->
     <nav class="navbar">
         <div class="container">
             <div class="nav-wrapper">
-                <a href="index.html" class="logo">
-                    <span class="logo-text">StudyMates</span>
-                </a>
+                <a href="index.html" class="logo"><span class="logo-text">StudyMates</span></a>
                 <ul class="nav-links">
-                    <li><a href="index.html#product">Features</a></li>
-                    <li><a href="index.html#how-it-works">How It Works</a></li>
+                    <li><a href="features.html">Features</a></li>
+                    <li><a href="index.html#how-it-works">How it works</a></li>
                     <li><a href="index.html#about">About</a></li>
                     <li><a href="index.html#contact">Contact</a></li>
                 </ul>
                 <button class="mobile-menu-btn" aria-label="Toggle menu">
-                    <span></span>
-                    <span></span>
-                    <span></span>
+                    <span></span><span></span><span></span>
                 </button>
             </div>
         </div>
     </nav>
 
-    <!-- Terms of Service Content -->
     <div class="container legal-page">
         <h1>Terms of Service</h1>
         <p class="last-updated">Last Updated: February 13, 2026</p>
@@ -154,7 +133,7 @@
         <h2>15. Contact Information</h2>
         <p>For questions about these Terms of Service, contact us:</p>
         <ul>
-            <li>Email: legal@study-mates.net</li>
+            <li>Email: <a href="mailto:legal@study-mates.net" style="text-decoration:underline">legal@study-mates.net</a></li>
             <li>Website: www.study-mates.net</li>
         </ul>
 
@@ -162,26 +141,26 @@
         <p>If any provision of these Terms is found to be unenforceable, the remaining provisions shall remain in full effect.</p>
     </div>
 
-    <!-- Footer -->
     <footer class="footer">
         <div class="container">
             <div class="footer-content">
                 <div class="footer-section">
                     <h3>StudyMates</h3>
-                    <p>Your AI-Powered Learning Companion</p>
+                    <p>Privacy-first learning support for students and families.</p>
+                    <p class="footer-meta">Company registered in Hong Kong.</p>
                 </div>
                 <div class="footer-section">
                     <h4>Product</h4>
                     <ul>
-                        <li><a href="index.html#product">Features</a></li>
-                        <li><a href="index.html#how-it-works">How It Works</a></li>
+                        <li><a href="features.html">Features</a></li>
+                        <li><a href="index.html#how-it-works">How it works</a></li>
                     </ul>
                 </div>
                 <div class="footer-section">
                     <h4>Company</h4>
                     <ul>
-                        <li><a href="index.html#about">About Us</a></li>
-                        <li><a href="index.html#contact">Contact</a></li>
+                        <li><a href="index.html#about">About</a></li>
+                        <li><a href="mailto:support@study-mates.net">Email us</a></li>
                     </ul>
                 </div>
                 <div class="footer-section">
@@ -197,7 +176,6 @@
             </div>
         </div>
     </footer>
-
     <script src="script.js"></script>
 </body>
 </html>

@@ -19,7 +19,7 @@ struct SubjectDetailView: View {
     @State private var subjectData: SubjectProgressData?
     @State private var subjectTrends: [SubjectTrendData] = []
     @State private var sourceCounts: (homework: Int, practice: Int, mistakeReview: Int) = (0, 0, 0)
-    @State private var weeklyTrend: [WeeklyAccuracyPoint] = []
+    @State private var rawSubjectQuestions: [[String: Any]] = []
     @State private var isLoading = true
     @State private var errorMessage = ""
     @Environment(\.dismiss) private var dismiss
@@ -68,9 +68,9 @@ struct SubjectDetailView: View {
         // Question Source Breakdown (NEW)
         QuestionSourceBreakdownCard(counts: sourceCounts)
 
-        // Weekly Accuracy Trend (NEW)
-        if weeklyTrend.count >= 2 {
-            WeeklyAccuracyTrendCard(trend: weeklyTrend, subjectColor: subject.swiftUIColor)
+        // Accuracy Trend (Daily / Weekly / Monthly)
+        if !rawSubjectQuestions.isEmpty {
+            AccuracyTrendCard(rawQuestions: rawSubjectQuestions, subjectColor: subject.swiftUIColor)
         }
 
         // Performance Breakdown
@@ -125,57 +125,17 @@ struct SubjectDetailView: View {
                 ($0["source"] as? String) == "mistake_review"
             }.count
 
-            let trend = buildWeeklyTrend(from: subjectQuestions)
-
             await MainActor.run {
                 // Find the specific subject data
                 self.subjectData = data.subjectProgress.first { $0.subject == subject }
                 self.subjectTrends = data.trends.filter { $0.subject == subject }
                 self.sourceCounts = (homework, practice, mistakeReview)
-                self.weeklyTrend = trend
+                self.rawSubjectQuestions = subjectQuestions
                 self.isLoading = false
             }
         }
     }
 
-    /// Groups raw questions by calendar week (last 8 weeks) and computes per-week accuracy.
-    private func buildWeeklyTrend(from questions: [[String: Any]]) -> [WeeklyAccuracyPoint] {
-        let iso = ISO8601DateFormatter()
-        let calendar = Calendar.current
-        let now = Date()
-
-        // Build a map of weekStart → (total, correct)
-        var weekBuckets: [Date: (total: Int, correct: Int)] = [:]
-
-        for q in questions {
-            guard let dateStr = q["archivedAt"] as? String,
-                  let date = iso.date(from: dateStr) else { continue }
-            let weekStart = calendar.dateInterval(of: .weekOfYear, for: date)?.start ?? date
-            let isCorrect = (q["grade"] as? String ?? q["isCorrect"] as? String) == "correct"
-                || (q["isCorrect"] as? Bool == true)
-            var bucket = weekBuckets[weekStart] ?? (0, 0)
-            bucket.total += 1
-            if isCorrect { bucket.correct += 1 }
-            weekBuckets[weekStart] = bucket
-        }
-
-        // Keep only the last 8 weeks and sort ascending
-        let cutoff = calendar.date(byAdding: .weekOfYear, value: -8, to: now) ?? now
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "M/d"
-
-        return weekBuckets
-            .filter { $0.key >= cutoff }
-            .sorted { $0.key < $1.key }
-            .map { (weekStart, bucket) in
-                let accuracy = bucket.total > 0 ? Double(bucket.correct) / Double(bucket.total) * 100 : 0
-                return WeeklyAccuracyPoint(
-                    weekLabel: dateFormatter.string(from: weekStart),
-                    accuracy: accuracy,
-                    totalQuestions: bucket.total
-                )
-            }
-    }
 }
 
 // MARK: - Subject Overview Card
@@ -799,11 +759,26 @@ struct FlowLayout<T: Hashable, V: View>: View {
     }
 }
 
-// MARK: - Weekly Accuracy Point
+// MARK: - Trend Granularity
 
-struct WeeklyAccuracyPoint: Identifiable {
+enum TrendGranularity: String, CaseIterable {
+    case daily, weekly, monthly
+
+    var localizedLabel: String {
+        switch self {
+        case .daily:   return NSLocalizedString("trend.granularity.daily",   value: "Daily",   comment: "")
+        case .weekly:  return NSLocalizedString("trend.granularity.weekly",  value: "Weekly",  comment: "")
+        case .monthly: return NSLocalizedString("trend.granularity.monthly", value: "Monthly", comment: "")
+        }
+    }
+}
+
+// MARK: - Accuracy Trend Point
+
+struct AccuracyTrendPoint: Identifiable {
     let id = UUID()
-    let weekLabel: String
+    let bucketDate: Date   // canonical bucket key — used for sort order
+    let label: String      // display label (data-driven, not calendar-week-start)
     let accuracy: Double
     let totalQuestions: Int
 }
@@ -903,131 +878,208 @@ struct SourceTile: View {
     }
 }
 
-// MARK: - Weekly Accuracy Trend Card
+// MARK: - Accuracy Trend Card
 
-struct WeeklyAccuracyTrendCard: View {
-    let trend: [WeeklyAccuracyPoint]
+struct AccuracyTrendCard: View {
+    let rawQuestions: [[String: Any]]
     let subjectColor: Color
 
+    @State private var granularity: TrendGranularity = .weekly
+
+    private var trendPoints: [AccuracyTrendPoint] { buildTrend(granularity) }
+
     private var averageAccuracy: Double {
-        guard !trend.isEmpty else { return 0 }
-        return trend.map { $0.accuracy }.reduce(0, +) / Double(trend.count)
+        guard !trendPoints.isEmpty else { return 0 }
+        return trendPoints.map { $0.accuracy }.reduce(0, +) / Double(trendPoints.count)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
+            // Header
             HStack {
                 Image(systemName: "chart.line.uptrend.xyaxis")
                     .foregroundColor(subjectColor)
                     .font(.subheadline)
-                Text("Weekly Accuracy Trend")
+                Text(NSLocalizedString("trend.title", value: "Accuracy Trend", comment: ""))
                     .font(.headline)
                     .fontWeight(.bold)
                 Spacer()
-                Text("Avg \(Int(averageAccuracy))%")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                if !trendPoints.isEmpty {
+                    Text("Avg \(Int(averageAccuracy))%")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
 
-            if #available(iOS 16.0, *) {
-                Chart {
-                    ForEach(trend) { point in
-                        LineMark(
-                            x: .value("Week", point.weekLabel),
-                            y: .value("Accuracy", point.accuracy)
-                        )
-                        .foregroundStyle(subjectColor.gradient)
-                        .interpolationMethod(.catmullRom)
-
-                        AreaMark(
-                            x: .value("Week", point.weekLabel),
-                            y: .value("Accuracy", point.accuracy)
-                        )
-                        .foregroundStyle(subjectColor.opacity(0.1).gradient)
-                        .interpolationMethod(.catmullRom)
-
-                        PointMark(
-                            x: .value("Week", point.weekLabel),
-                            y: .value("Accuracy", point.accuracy)
-                        )
-                        .foregroundStyle(subjectColor)
-                        .symbolSize(40)
-                        .annotation(position: .top) {
-                            Text("\(Int(point.accuracy))%")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-
-                    // 80% reference line
-                    RuleMark(y: .value("Target", 80))
-                        .foregroundStyle(Color.green.opacity(0.4))
-                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [4]))
-                        .annotation(position: .trailing) {
-                            Text("80%")
-                                .font(.caption2)
-                                .foregroundColor(.green.opacity(0.6))
-                        }
+            // Granularity selector
+            Picker("", selection: $granularity) {
+                ForEach(TrendGranularity.allCases, id: \.self) { g in
+                    Text(g.localizedLabel).tag(g)
                 }
-                .chartYScale(domain: 0...100)
-                .chartXAxis {
-                    AxisMarks(values: .automatic) { value in
-                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.3))
-                        AxisValueLabel()
-                            .font(.caption2)
-                    }
-                }
-                .chartYAxis {
-                    AxisMarks(values: [0, 25, 50, 75, 100]) { value in
-                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.3))
-                        AxisValueLabel {
-                            if let v = value.as(Double.self) {
-                                Text("\(Int(v))%")
+            }
+            .pickerStyle(.segmented)
+
+            if trendPoints.count >= 2 {
+                if #available(iOS 16.0, *) {
+                    Chart {
+                        ForEach(trendPoints) { point in
+                            LineMark(
+                                x: .value("Period", point.label),
+                                y: .value("Accuracy", point.accuracy)
+                            )
+                            .foregroundStyle(subjectColor.gradient)
+                            .interpolationMethod(.catmullRom)
+
+                            AreaMark(
+                                x: .value("Period", point.label),
+                                y: .value("Accuracy", point.accuracy)
+                            )
+                            .foregroundStyle(subjectColor.opacity(0.1).gradient)
+                            .interpolationMethod(.catmullRom)
+
+                            PointMark(
+                                x: .value("Period", point.label),
+                                y: .value("Accuracy", point.accuracy)
+                            )
+                            .foregroundStyle(subjectColor)
+                            .symbolSize(40)
+                            .annotation(position: .top) {
+                                Text("\(Int(point.accuracy))%")
                                     .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+
+                        RuleMark(y: .value("Target", 80))
+                            .foregroundStyle(Color.green.opacity(0.4))
+                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [4]))
+                            .annotation(position: .trailing) {
+                                Text("80%")
+                                    .font(.caption2)
+                                    .foregroundColor(.green.opacity(0.6))
+                            }
+                    }
+                    .chartYScale(domain: 0...100)
+                    .chartXAxis {
+                        AxisMarks(values: .automatic) { _ in
+                            AxisGridLine(stroke: StrokeStyle(lineWidth: 0.3))
+                            AxisValueLabel()
+                                .font(.caption2)
+                        }
+                    }
+                    .chartYAxis {
+                        AxisMarks(values: [0, 25, 50, 75, 100]) { value in
+                            AxisGridLine(stroke: StrokeStyle(lineWidth: 0.3))
+                            AxisValueLabel {
+                                if let v = value.as(Double.self) {
+                                    Text("\(Int(v))%").font(.caption2)
+                                }
                             }
                         }
                     }
-                }
-                .frame(height: 180)
-            } else {
-                // iOS 15 fallback: simple row of bars
-                HStack(alignment: .bottom, spacing: 8) {
-                    ForEach(trend) { point in
-                        VStack(spacing: 4) {
-                            Text("\(Int(point.accuracy))%")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(subjectColor)
-                                .frame(height: max(4, CGFloat(point.accuracy) * 0.9))
-                            Text(point.weekLabel)
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
+                    .frame(height: 180)
+                } else {
+                    // iOS 15 fallback
+                    HStack(alignment: .bottom, spacing: 8) {
+                        ForEach(trendPoints) { point in
+                            VStack(spacing: 4) {
+                                Text("\(Int(point.accuracy))%")
+                                    .font(.caption2).foregroundColor(.secondary)
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(subjectColor)
+                                    .frame(height: max(4, CGFloat(point.accuracy) * 0.9))
+                                Text(point.label)
+                                    .font(.caption2).foregroundColor(.secondary)
+                            }
+                            .frame(maxWidth: .infinity)
                         }
-                        .frame(maxWidth: .infinity)
+                    }
+                    .frame(height: 110)
+                }
+
+                // Best / worst summary
+                if let best = trendPoints.max(by: { $0.accuracy < $1.accuracy }),
+                   let worst = trendPoints.min(by: { $0.accuracy < $1.accuracy }),
+                   best.label != worst.label {
+                    HStack {
+                        Label("Best: \(best.label) (\(Int(best.accuracy))%)", systemImage: "arrow.up.circle.fill")
+                            .font(.caption).foregroundColor(.green)
+                        Spacer()
+                        Label("Low: \(worst.label) (\(Int(worst.accuracy))%)", systemImage: "arrow.down.circle.fill")
+                            .font(.caption).foregroundColor(.orange)
                     }
                 }
-                .frame(height: 110)
-            }
-
-            // Summary row: best week, worst week
-            if let best = trend.max(by: { $0.accuracy < $1.accuracy }),
-               let worst = trend.min(by: { $0.accuracy < $1.accuracy }),
-               best.weekLabel != worst.weekLabel {
-                HStack {
-                    Label("Best: \(best.weekLabel) (\(Int(best.accuracy))%)", systemImage: "arrow.up.circle.fill")
-                        .font(.caption)
-                        .foregroundColor(.green)
-                    Spacer()
-                    Label("Low: \(worst.weekLabel) (\(Int(worst.accuracy))%)", systemImage: "arrow.down.circle.fill")
-                        .font(.caption)
-                        .foregroundColor(.orange)
-                }
+            } else {
+                Text(NSLocalizedString("trend.noData", value: "Not enough data to show a trend.", comment: ""))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .frame(height: 60)
             }
         }
         .padding()
         .background(Color(.systemGroupedBackground))
         .cornerRadius(12)
+    }
+
+    // MARK: Data-driven aggregation
+
+    private func buildTrend(_ granularity: TrendGranularity) -> [AccuracyTrendPoint] {
+        let iso = ISO8601DateFormatter()
+        let calendar = Calendar.current
+
+        struct Bucket {
+            var total: Int = 0
+            var correct: Int = 0
+            var earliestDate: Date = .distantFuture
+        }
+        var buckets: [Date: Bucket] = [:]
+
+        for q in rawQuestions {
+            guard let dateStr = q["archivedAt"] as? String,
+                  let date = iso.date(from: dateStr) else { continue }
+
+            let key: Date
+            switch granularity {
+            case .daily:
+                key = calendar.startOfDay(for: date)
+            case .weekly:
+                key = calendar.dateInterval(of: .weekOfYear, for: date)?.start
+                    ?? calendar.startOfDay(for: date)
+            case .monthly:
+                let c = calendar.dateComponents([.year, .month], from: date)
+                key = calendar.date(from: c) ?? calendar.startOfDay(for: date)
+            }
+
+            let isCorrect = (q["grade"] as? String) == "correct"
+                || (q["isCorrect"] as? Bool == true)
+
+            var b = buckets[key] ?? Bucket()
+            b.total += 1
+            if isCorrect { b.correct += 1 }
+            if date < b.earliestDate { b.earliestDate = date }
+            buckets[key] = b
+        }
+
+        let fmt = DateFormatter()
+        switch granularity {
+        case .daily, .weekly: fmt.dateFormat = "M/d"
+        case .monthly:        fmt.dateFormat = "MMM"
+        }
+
+        return buckets
+            .sorted { $0.key < $1.key }
+            .map { (bucketDate, b) in
+                let accuracy = b.total > 0 ? Double(b.correct) / Double(b.total) * 100 : 0
+                // Label shows earliest actual data date (avoids calendar-week-start drift)
+                let labelDate = granularity == .monthly ? bucketDate : b.earliestDate
+                return AccuracyTrendPoint(
+                    bucketDate: bucketDate,
+                    label: fmt.string(from: labelDate),
+                    accuracy: accuracy,
+                    totalQuestions: b.total
+                )
+            }
     }
 }
 

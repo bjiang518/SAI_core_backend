@@ -52,15 +52,15 @@ struct AccountUsageView: View {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.system(size: 40))
                             .foregroundColor(.secondary)
-                        Text("Could not load usage")
+                        Text(NSLocalizedString("account.usage.loadError", comment: ""))
                             .foregroundColor(themeManager.secondaryText)
-                        Button("Retry") { Task { await loadData() } }
+                        Button(NSLocalizedString("common.retry", comment: "")) { Task { await loadData() } }
                             .foregroundColor(teal)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
-            .navigationTitle("Plan & Usage")
+            .navigationTitle(NSLocalizedString("account.usage.title", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
         }
         .task { await loadData() }
@@ -89,11 +89,11 @@ struct AccountUsageView: View {
                         .foregroundColor(themeManager.primaryText)
 
                     if data.isAnonymous {
-                        Text("Lifetime limits apply")
+                        Text(NSLocalizedString("account.usage.lifetimeLimits", comment: ""))
                             .font(.caption)
                             .foregroundColor(themeManager.secondaryText)
                     } else if let resetsAt = data.resetsAt, let date = isoDate(resetsAt) {
-                        Text("Resets \(date.formatted(.dateTime.month(.abbreviated).day()))")
+                        Text(String(format: NSLocalizedString("account.usage.resetsOn", comment: ""), date.formatted(.dateTime.month(.abbreviated).day())))
                             .font(.caption)
                             .foregroundColor(themeManager.secondaryText)
                     }
@@ -134,9 +134,10 @@ struct AccountUsageView: View {
     }
 
     private func featureRow(_ feature: FeatureUsage) -> some View {
-        VStack(spacing: 8) {
+        let localizedLabel = NSLocalizedString("account.usage.feature.\(feature.key)", value: feature.label, comment: "")
+        return VStack(spacing: 8) {
             HStack {
-                Text(feature.label)
+                Text(localizedLabel)
                     .font(.subheadline)
                     .foregroundColor(themeManager.primaryText)
 
@@ -161,7 +162,7 @@ struct AccountUsageView: View {
             HStack(spacing: 4) {
                 Image(systemName: "infinity")
                     .font(.caption.bold())
-                Text("Unlimited")
+                Text(NSLocalizedString("account.usage.unlimited", comment: ""))
                     .font(.caption.bold())
             }
             .foregroundColor(teal)
@@ -170,7 +171,7 @@ struct AccountUsageView: View {
             HStack(spacing: 4) {
                 Image(systemName: "lock.fill")
                     .font(.caption)
-                Text("Upgrade")
+                Text(NSLocalizedString("account.usage.upgradeLabel", comment: ""))
                     .font(.caption.bold())
             }
             .foregroundColor(.secondary)
@@ -210,7 +211,7 @@ struct AccountUsageView: View {
             HStack {
                 Image(systemName: "star.circle.fill")
                     .font(.system(size: 18))
-                Text("Upgrade Plan")
+                Text(NSLocalizedString("account.usage.upgradePlan", comment: ""))
                     .font(.headline)
                 Spacer()
                 Image(systemName: "chevron.right")
@@ -234,7 +235,7 @@ struct AccountUsageView: View {
         Button {
             Task { await StoreKitService.shared.restorePurchases() }
         } label: {
-            Text("Restore Purchases")
+            Text(NSLocalizedString("account.usage.restorePurchases", comment: ""))
                 .font(.subheadline)
                 .foregroundColor(teal)
                 .frame(maxWidth: .infinity)
@@ -253,7 +254,7 @@ struct AccountUsageView: View {
         } label: {
             HStack(spacing: 6) {
                 Image(systemName: "gear")
-                Text("Manage Subscription")
+                Text(NSLocalizedString("account.usage.manageSubscription", comment: ""))
             }
             .font(.subheadline)
             .foregroundColor(.secondary)
@@ -304,20 +305,20 @@ struct AccountUsageView: View {
     }
 
     private func tierTitle(_ tier: String, isAnonymous: Bool) -> String {
-        if isAnonymous { return "Guest Account" }
+        if isAnonymous { return NSLocalizedString("account.usage.tierGuest", comment: "") }
         switch tier {
-        case "premium":      return "Premium"
-        case "premium_plus": return "Ultra"
-        default:             return "Free"
+        case "premium":      return NSLocalizedString("account.usage.tierPremium", comment: "")
+        case "premium_plus": return NSLocalizedString("account.usage.tierUltra", comment: "")
+        default:             return NSLocalizedString("account.usage.tierFree", comment: "")
         }
     }
 
     private func tierBadge(_ tier: String, isAnonymous: Bool) -> String {
-        if isAnonymous { return "Guest" }
+        if isAnonymous { return NSLocalizedString("account.usage.badgeGuest", comment: "") }
         switch tier {
-        case "premium":      return "Premium"
-        case "premium_plus": return "Ultra"
-        default:             return "Free"
+        case "premium":      return NSLocalizedString("account.usage.tierPremium", comment: "")
+        case "premium_plus": return NSLocalizedString("account.usage.tierUltra", comment: "")
+        default:             return NSLocalizedString("account.usage.tierFree", comment: "")
         }
     }
 

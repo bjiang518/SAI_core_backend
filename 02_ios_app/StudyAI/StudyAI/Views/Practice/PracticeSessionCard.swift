@@ -95,9 +95,7 @@ struct PracticeSessionCard: View {
             }
         }
         .sheet(isPresented: $showingPDF) {
-            if let url = currentSession?.pdfFileURL {
-                PracticeSessionPDFView(pdfURL: url, session: session)
-            }
+            PracticeSessionPDFView(session: currentSession ?? session)
         }
     }
 
@@ -140,7 +138,7 @@ struct PracticeSessionCard: View {
         )
         .contentShape(Rectangle())
         .onTapGesture {
-            if currentSession?.pdfFileURL != nil { showingPDF = true }
+            showingPDF = true
         }
     }
 
@@ -255,29 +253,107 @@ private struct PDFFirstPageThumbnail: View {
 // MARK: - Practice Session PDF Viewer
 
 struct PracticeSessionPDFView: View {
-    let pdfURL: URL
     let session: PracticeSession
     @Environment(\.dismiss) private var dismiss
 
+    @StateObject private var pdfGenerator = PDFGeneratorService()
+    @State private var pdfDocument: PDFDocument?
+    @State private var pdfURL: URL?
+    @State private var isLoading = true
+    @State private var showingOptions = false
+    @State private var options = PDFExportOptions()
+
     var body: some View {
         NavigationView {
-            PDFKitRepresentedView(document: PDFDocument(url: pdfURL) ?? PDFDocument())
-                .ignoresSafeArea(edges: .bottom)
-                .navigationTitle(PracticeSessionManager.localizeSubject(session.subject))
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        Button(NSLocalizedString("common.close", value: "Close", comment: "")) {
-                            dismiss()
-                        }
+            Group {
+                if isLoading {
+                    VStack(spacing: 16) {
+                        ProgressView(value: pdfGenerator.generationProgress)
+                            .progressViewStyle(LinearProgressViewStyle(tint: .blue))
+                            .frame(width: 200)
+                        Text(NSLocalizedString("pdf.generating", value: "Generating PDF…", comment: ""))
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
                     }
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        ShareLink(item: pdfURL) {
-                            Image(systemName: "square.and.arrow.up")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let doc = pdfDocument {
+                    PDFKitRepresentedView(document: doc)
+                        .ignoresSafeArea(edges: .bottom)
+                } else {
+                    VStack(spacing: 12) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 48))
+                            .foregroundColor(.red)
+                        Text(NSLocalizedString("pdf.failed", value: "Failed to generate PDF", comment: ""))
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+                        Button(NSLocalizedString("common.retry", value: "Retry", comment: "")) {
+                            Task { await generatePDF() }
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+            .navigationTitle(PracticeSessionManager.localizeSubject(session.subject))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(NSLocalizedString("common.close", value: "Close", comment: "")) {
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    HStack(spacing: 16) {
+                        Button {
+                            showingOptions = true
+                        } label: {
+                            Image(systemName: "slider.horizontal.3")
+                        }
+                        .disabled(isLoading)
+
+                        if let url = pdfURL {
+                            ShareLink(item: url) {
+                                Image(systemName: "square.and.arrow.up")
+                            }
                         }
                     }
                 }
+            }
+            .task { await generatePDF() }
+            .sheet(isPresented: $showingOptions) {
+                PDFOptionsSheet(options: $options, hasImages: false) {
+                    Task { await generatePDF() }
+                }
+            }
         }
+    }
+
+    // MARK: - Generation
+
+    private func generatePDF() async {
+        isLoading = true
+        let document = await pdfGenerator.generatePracticePDF(
+            questions: session.questions,
+            subject: session.subject,
+            generationType: session.generationType,
+            options: options
+        )
+        if let document = document {
+            self.pdfDocument = document
+            pdfURL = savePDFToTemp(document)
+        } else {
+            self.pdfDocument = nil
+            pdfURL = nil
+        }
+        isLoading = false
+    }
+
+    private func savePDFToTemp(_ document: PDFDocument) -> URL? {
+        let tempDir = FileManager.default.temporaryDirectory
+        let fileName = "practice-\(session.id).pdf"
+        let url = tempDir.appendingPathComponent(fileName)
+        return document.write(to: url) ? url : nil
     }
 }
 

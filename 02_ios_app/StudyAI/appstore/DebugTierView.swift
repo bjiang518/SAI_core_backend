@@ -136,6 +136,8 @@ struct DebugTierView: View {
     }
 
     private func updateLocalTier(_ tier: UserTier) {
+        // Block sandbox renewals from overwriting a free/downgraded debug override
+        StoreKitService.shared.debugTierOverrideActive = !tier.isPaid
         guard let user = AuthenticationService.shared.currentUser else { return }
         let updated = User(
             id: user.id,

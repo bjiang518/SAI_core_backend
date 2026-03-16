@@ -45,6 +45,9 @@
 "settings.voiceSettings" = "選擇你的學習夥伴";
 "settings.learning" = "學習";
 "settings.learningGoals" = "學習目標與進度";
+"settings.grade" = "年級";
+"settings.notSet" = "未設定";
+"settings.subscription" = "訂閱";
 "settings.support" = "支援";
 "settings.help" = "協助與常見問題";
 "settings.contact" = "聯絡支援";
@@ -411,6 +414,61 @@
 "upgrade.monthlyLimitSubtitle" = "您已用完本月額度，升級以獲得更多。";
 "upgrade.coppaRestrictedSubtitle" = "請讓家長解鎖此功能。";
 "upgrade.continueFree" = "繼續免費使用";
+
+// Upgrade Comparison View
+"upgrade.comparison.headerTitle" = "升級你的 AI 學習助手";
+"upgrade.comparison.headerSubtitle" = "享受互動 AI 家教的無限輔導。";
+"upgrade.comparison.badgeFreeToTry" = "免費體驗";
+"upgrade.comparison.badgeMostPopular" = "最受歡迎";
+"upgrade.comparison.badgeBestValue" = "最超值";
+"upgrade.comparison.planFree" = "免費版";
+"upgrade.comparison.planPremium" = "高級版";
+"upgrade.comparison.planUltra" = "旗艦版";
+"upgrade.comparison.pricePeriod" = "/月";
+"upgrade.comparison.featureHomework" = "作業\n上傳";
+"upgrade.comparison.featureAiChat" = "AI\n對話";
+"upgrade.comparison.featureLiveTutor" = "即時\n輔導";
+"upgrade.comparison.featurePractice" = "針對性\n練習";
+"upgrade.comparison.featureWeakness" = "薄弱點\n分析";
+"upgrade.comparison.featureReports" = "家長\n報告";
+"upgrade.comparison.featureMultipleKids" = "多孩子\n帳號";
+"upgrade.comparison.valueLiveTutor" = "300 分鐘";
+"upgrade.comparison.valueMultipleKids" = "最多 3 位";
+"upgrade.comparison.ctaUltra" = "開通旗艦版  %@";
+"upgrade.comparison.ctaPremium" = "開通高級版  %@";
+"upgrade.comparison.continueFree" = "繼續免費使用";
+"upgrade.comparison.restorePurchases" = "恢復購買";
+"upgrade.comparison.terms" = "訂閱將在當前週期結束前至少 24 小時自動續訂，除非取消。可隨時在設定 > Apple ID > 訂閱中管理或取消。";
+"upgrade.comparison.yourCurrentUsage" = "目前使用情況";
+"upgrade.comparison.usageHomework" = "作業";
+"upgrade.comparison.usageChat" = "對話";
+"upgrade.comparison.usagePractice" = "練習";
+"upgrade.comparison.usageUsed" = "已用 %1$d / %2$d";
+
+// Account Usage View
+"account.usage.title" = "方案與用量";
+"account.usage.loadError" = "無法載入用量資訊";
+"account.usage.lifetimeLimits" = "適用終身限額";
+"account.usage.resetsOn" = "重置於 %@";
+"account.usage.unlimited" = "無限制";
+"account.usage.upgradeLabel" = "升級";
+"account.usage.upgradePlan" = "升級方案";
+"account.usage.restorePurchases" = "恢復購買";
+"account.usage.manageSubscription" = "管理訂閱";
+"account.usage.tierGuest" = "訪客帳戶";
+"account.usage.tierPremium" = "高級版";
+"account.usage.tierUltra" = "旗艦版";
+"account.usage.tierFree" = "免費版";
+"account.usage.badgeGuest" = "訪客";
+"account.usage.feature.homework_single" = "作業上傳";
+"account.usage.feature.homework_batch" = "批量上傳";
+"account.usage.feature.chat_messages" = "AI 對話";
+"account.usage.feature.questions" = "練習題";
+"account.usage.feature.error_analysis" = "薄弱點分析";
+"account.usage.feature.reports" = "家長報告";
+"account.usage.feature.voice_minutes" = "即時輔導";
+"account.usage.feature.tts_calls" = "AI 語音";
+
 "common.dismiss" = "關閉";
 "faceIDReauth.title" = "登入已過期";
 "faceIDReauth.message" = "為保障帳戶安全，請重新驗證身份。";
@@ -1221,6 +1279,24 @@
 "editProfile.learningStyle" = "學習風格";
 "editProfile.selectLearningStyle" = "選擇學習風格";
 
+// Grade Level Options
+"gradeLevel.preK" = "學前班";
+"gradeLevel.kindergarten" = "幼稚園";
+"gradeLevel.grade1" = "一年級";
+"gradeLevel.grade2" = "二年級";
+"gradeLevel.grade3" = "三年級";
+"gradeLevel.grade4" = "四年級";
+"gradeLevel.grade5" = "五年級";
+"gradeLevel.grade6" = "六年級";
+"gradeLevel.grade7" = "七年級";
+"gradeLevel.grade8" = "八年級";
+"gradeLevel.grade9" = "九年級";
+"gradeLevel.grade10" = "高一";
+"gradeLevel.grade11" = "高二";
+"gradeLevel.grade12" = "高三";
+"gradeLevel.college" = "大學";
+"gradeLevel.adult" = "成人學習者";
+
 // Optional Information
 "editProfile.optionalInfo" = "選填資訊";
 "editProfile.gender" = "性別（選填）";
@@ -1466,6 +1542,8 @@
 "mistakeReview.sliderMax" = "10 道題";
 "mistakeReview.generateCount" = "生成 %d 道題";
 "mistakeReview.practiceConfiguration" = "練習配置";
+"mistakeReview.weaknessHint.one" = "還需 %d 道題攻克「%@」弱點";
+"mistakeReview.weaknessHint.other" = "還需 %d 道題攻克「%@」弱點";
 "mistakeReview.filter.severityLabel" = "嚴重程度";
 "mistakeReview.filter.timeLabel" = "時間";
 "mistakeReview.filter.severity.all" = "全部";
@@ -1487,6 +1565,11 @@
 "mistakeReview.filter.noLongerWeak" = "不再是弱點";
 "mistakeReview.filter.strengthsTopicCount" = "%d 個主題";
 "mistakeReview.filter.noStrengthsData" = "暫無數據 — 多做題後即可查看掌握情況。";
+"heatmap.title" = "薄弱點熱力圖";
+"heatmap.subTopics" = "· 子主題";
+"heatmap.back" = "返回";
+"heatmap.noDetailedData" = "此分支暫無詳細數據。";
+"heatmap.noPracticeData" = "暫無練習數據。先做幾道題，這裡會顯示你的薄弱點。";
 "difficulty.desc.beginner" = "適合新概念打基礎的題目";
 "difficulty.desc.intermediate" = "用於練習和複習的均衡題目";
 "difficulty.desc.advanced" = "挑戰理解的高難度題目";
@@ -1924,6 +2007,11 @@
 "proMode.grading.complete" = "批改完成！";
 "proMode.analyzingDiagrams" = "正在分析圖表區域…";
 "proMode.diagramAnalysisFailed" = "將不含圖片上下文進行批改";
+"proMode.smartCrop" = "智慧裁切";
+"proMode.retryCrop" = "重試";
+"proMode.croppedDone" = "已裁切";
+"proMode.addPictureHint" = "請在此處新增圖片";
+"proMode.selectQuestionFor" = "請為此題選擇題號";
 
 // PDF Preview
 "pdfPreview.title" = "PDF 預覽";
@@ -2009,6 +2097,22 @@
 "tomato.garden.type.golden" = "黃金番茄";
 "tomato.garden.type.platinum" = "白金番茄";
 "tomato.garden.type.diamond" = "鑽石番茄";
+"tomato.garden.type.tmt4" = "普通番茄4";
+"tomato.garden.type.tmt5" = "普通番茄5";
+"tomato.garden.type.tmt6" = "普通番茄6";
+"tomato.garden.desc.classic" = "最經典的番茄，簡單可愛";
+"tomato.garden.desc.curly" = "帶著捲曲藤蔓的番茄，活力十足";
+"tomato.garden.desc.cute" = "粉嫩可愛的番茄，溫柔體貼";
+"tomato.garden.desc.tmt4" = "普通番茄，樸實無華";
+"tomato.garden.desc.tmt5" = "普通番茄，簡單快樂";
+"tomato.garden.desc.tmt6" = "普通番茄，勤奮可愛";
+"tomato.garden.desc.batman" = "黑暗騎士守護者，正義的化身";
+"tomato.garden.desc.ironman" = "科技與力量的完美結合";
+"tomato.garden.desc.mario" = "勇敢的水管工冒險家";
+"tomato.garden.desc.pokemon" = "神奇的寶可夢夥伴";
+"tomato.garden.desc.golden" = "金光閃閃的番茄，象徵財富與榮耀";
+"tomato.garden.desc.platinum" = "鉑金般珍貴，閃耀著高貴光芒";
+"tomato.garden.desc.diamond" = "傳說中的鑽石番茄，極其珍貴稀有";
 "tomato.garden.exchange" = "兌換";
 "tomato.garden.exchange.title" = "番茄兌換";
 "tomato.garden.exchange.5to1" = "5個普通 → 1個稀有";
@@ -2538,3 +2642,10 @@
 "live.scenario.presentation.subtitle" = "講完整版，AI 三維度點評";
 "live.scenario.historicalFigure.title" = "歷史人物";
 "live.scenario.historicalFigure.subtitle" = "穿越歷史，與大師對話";
+"live.scenarioPicker.title" = "選擇 Live 場景";
+"live.scenarioPicker.subtitle" = "AI 會引導你完成整個對話";
+
+// Report priority labels
+"report.priority.high" = "高";
+"report.priority.medium" = "中";
+"report.priority.low" = "低";

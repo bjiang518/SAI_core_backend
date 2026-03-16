@@ -92,6 +92,34 @@ struct Language: Identifiable {
             englishName: "Chinese (Traditional)",
             nativeName: "繁體中文",
             flag: "🇹🇼"
+        ),
+        Language(
+            id: "de",
+            code: "de",
+            englishName: "German",
+            nativeName: "Deutsch",
+            flag: "🇩🇪"
+        ),
+        Language(
+            id: "es",
+            code: "es",
+            englishName: "Spanish",
+            nativeName: "Español",
+            flag: "🇪🇸"
+        ),
+        Language(
+            id: "fr",
+            code: "fr",
+            englishName: "French",
+            nativeName: "Français",
+            flag: "🇫🇷"
+        ),
+        Language(
+            id: "ja",
+            code: "ja",
+            englishName: "Japanese",
+            nativeName: "日本語",
+            flag: "🇯🇵"
         )
     ]
 }

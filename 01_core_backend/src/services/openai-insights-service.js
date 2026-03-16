@@ -136,8 +136,17 @@ OUTPUT FORMAT:
 - Do NOT wrap output in \`\`\`html or any code block
 - Keep it parent-friendly and actionable`;
 
-        const languageInstruction = context.language && context.language !== 'en'
-            ? `\n\nIMPORTANT: Respond entirely in ${context.language === 'zh-Hans' ? 'Simplified Chinese (zh-Hans)' : context.language === 'zh-Hant' ? 'Traditional Chinese (zh-Hant)' : context.language}. All output text must be in that language.`
+        const languageMap = {
+            'zh-Hans': 'Simplified Chinese (zh-Hans)',
+            'zh-Hant': 'Traditional Chinese (zh-Hant)',
+            'fr': 'French',
+            'de': 'German',
+            'es': 'Spanish',
+            'ja': 'Japanese',
+        };
+        const targetLang = context.language && languageMap[context.language];
+        const languageInstruction = targetLang
+            ? `\n\nIMPORTANT: Respond entirely in ${targetLang}. All output text must be in that language.`
             : '';
 
         const typeSpecific = {

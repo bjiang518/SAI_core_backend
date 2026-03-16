@@ -45,6 +45,9 @@
 "settings.voiceSettings" = "选择你的学习伙伴";
 "settings.learning" = "学习";
 "settings.learningGoals" = "学习目标与进度";
+"settings.grade" = "年级";
+"settings.notSet" = "未设置";
+"settings.subscription" = "订阅";
 "settings.support" = "支持";
 "settings.help" = "协助与常见问题";
 "settings.contact" = "联系支持";
@@ -411,6 +414,61 @@
 "upgrade.monthlyLimitSubtitle" = "您已用完本月的额度，升级以获得更多。";
 "upgrade.coppaRestrictedSubtitle" = "请让家长来解锁此功能。";
 "upgrade.continueFree" = "继续免费使用";
+
+// Upgrade Comparison View
+"upgrade.comparison.headerTitle" = "升级你的 AI 学习助手";
+"upgrade.comparison.headerSubtitle" = "享受互动 AI 家教的无限辅导。";
+"upgrade.comparison.badgeFreeToTry" = "免费体验";
+"upgrade.comparison.badgeMostPopular" = "最受欢迎";
+"upgrade.comparison.badgeBestValue" = "最超值";
+"upgrade.comparison.planFree" = "免费版";
+"upgrade.comparison.planPremium" = "高级版";
+"upgrade.comparison.planUltra" = "旗舰版";
+"upgrade.comparison.pricePeriod" = "/月";
+"upgrade.comparison.featureHomework" = "作业\n上传";
+"upgrade.comparison.featureAiChat" = "AI\n对话";
+"upgrade.comparison.featureLiveTutor" = "实时\n辅导";
+"upgrade.comparison.featurePractice" = "针对性\n练习";
+"upgrade.comparison.featureWeakness" = "薄弱点\n分析";
+"upgrade.comparison.featureReports" = "家长\n报告";
+"upgrade.comparison.featureMultipleKids" = "多孩子\n账号";
+"upgrade.comparison.valueLiveTutor" = "300 分钟";
+"upgrade.comparison.valueMultipleKids" = "最多 3 位";
+"upgrade.comparison.ctaUltra" = "开通旗舰版  %@";
+"upgrade.comparison.ctaPremium" = "开通高级版  %@";
+"upgrade.comparison.continueFree" = "继续免费使用";
+"upgrade.comparison.restorePurchases" = "恢复购买";
+"upgrade.comparison.terms" = "订阅将在当前周期结束前至少 24 小时内自动续订，除非取消。可随时在设置 > Apple ID > 订阅中管理或取消。";
+"upgrade.comparison.yourCurrentUsage" = "当前使用情况";
+"upgrade.comparison.usageHomework" = "作业";
+"upgrade.comparison.usageChat" = "对话";
+"upgrade.comparison.usagePractice" = "练习";
+"upgrade.comparison.usageUsed" = "已用 %1$d / %2$d";
+
+// Account Usage View
+"account.usage.title" = "套餐与用量";
+"account.usage.loadError" = "无法加载用量信息";
+"account.usage.lifetimeLimits" = "适用终身限额";
+"account.usage.resetsOn" = "重置于 %@";
+"account.usage.unlimited" = "无限制";
+"account.usage.upgradeLabel" = "升级";
+"account.usage.upgradePlan" = "升级套餐";
+"account.usage.restorePurchases" = "恢复购买";
+"account.usage.manageSubscription" = "管理订阅";
+"account.usage.tierGuest" = "访客账户";
+"account.usage.tierPremium" = "高级版";
+"account.usage.tierUltra" = "旗舰版";
+"account.usage.tierFree" = "免费版";
+"account.usage.badgeGuest" = "访客";
+"account.usage.feature.homework_single" = "作业上传";
+"account.usage.feature.homework_batch" = "批量上传";
+"account.usage.feature.chat_messages" = "AI 对话";
+"account.usage.feature.questions" = "练习题";
+"account.usage.feature.error_analysis" = "薄弱点分析";
+"account.usage.feature.reports" = "家长报告";
+"account.usage.feature.voice_minutes" = "实时辅导";
+"account.usage.feature.tts_calls" = "AI 语音";
+
 "common.dismiss" = "关闭";
 "faceIDReauth.title" = "登录已过期";
 "faceIDReauth.message" = "为保障账户安全，请重新验证身份。";
@@ -1175,6 +1233,24 @@
 "editProfile.learningStyle" = "学习风格";
 "editProfile.selectLearningStyle" = "选择学习风格";
 
+// Grade Level Options
+"gradeLevel.preK" = "学前班";
+"gradeLevel.kindergarten" = "幼儿园";
+"gradeLevel.grade1" = "一年级";
+"gradeLevel.grade2" = "二年级";
+"gradeLevel.grade3" = "三年级";
+"gradeLevel.grade4" = "四年级";
+"gradeLevel.grade5" = "五年级";
+"gradeLevel.grade6" = "六年级";
+"gradeLevel.grade7" = "七年级";
+"gradeLevel.grade8" = "八年级";
+"gradeLevel.grade9" = "九年级";
+"gradeLevel.grade10" = "高一";
+"gradeLevel.grade11" = "高二";
+"gradeLevel.grade12" = "高三";
+"gradeLevel.college" = "大学";
+"gradeLevel.adult" = "成人学习者";
+
 // Optional Information
 "editProfile.optionalInfo" = "选填资讯";
 "editProfile.gender" = "性别（选填）";
@@ -1479,6 +1555,8 @@
 "mistakeReview.sliderMax" = "10 道题";
 "mistakeReview.generateCount" = "生成 %d 道题";
 "mistakeReview.practiceConfiguration" = "练习配置";
+"mistakeReview.weaknessHint.one" = "还需 %d 道题攻克「%@」弱点";
+"mistakeReview.weaknessHint.other" = "还需 %d 道题攻克「%@」弱点";
 "mistakeReview.filter.severityLabel" = "严重程度";
 "mistakeReview.filter.timeLabel" = "时间";
 "mistakeReview.filter.severity.all" = "全部";
@@ -1500,6 +1578,11 @@
 "mistakeReview.filter.strengthsTopicCount" = "%d 个主题";
 "mistakeReview.filter.noStrengthsData" = "暂无数据 — 多做题后即可查看掌握情况。";
 "mistakeReview.filter.uncategorized" = "未分类";
+"heatmap.title" = "薄弱点热力图";
+"heatmap.subTopics" = "· 子主题";
+"heatmap.back" = "返回";
+"heatmap.noDetailedData" = "该分支暂无详细数据。";
+"heatmap.noPracticeData" = "暂无练习数据。先做几道题，这里会显示你的薄弱点。";
 "difficulty.desc.beginner" = "适合新概念打基础的题目";
 "difficulty.desc.intermediate" = "用于练习和复习的均衡题目";
 "difficulty.desc.advanced" = "挑战理解的高难度题目";
@@ -1919,6 +2002,11 @@
 "proMode.grading.complete" = "批改完成！";
 "proMode.analyzingDiagrams" = "正在分析图表区域…";
 "proMode.diagramAnalysisFailed" = "将不含图片上下文进行批改";
+"proMode.smartCrop" = "智能裁剪";
+"proMode.retryCrop" = "重试";
+"proMode.croppedDone" = "已裁剪";
+"proMode.addPictureHint" = "请在此处添加图片";
+"proMode.selectQuestionFor" = "请为此题选择题号";
 
 // PDF Preview
 "pdfPreview.title" = "PDF 预览";
@@ -2004,6 +2092,22 @@
 "tomato.garden.type.golden" = "黄金番茄";
 "tomato.garden.type.platinum" = "白金番茄";
 "tomato.garden.type.diamond" = "钻石番茄";
+"tomato.garden.type.tmt4" = "普通番茄4";
+"tomato.garden.type.tmt5" = "普通番茄5";
+"tomato.garden.type.tmt6" = "普通番茄6";
+"tomato.garden.desc.classic" = "最经典的番茄，简单可爱";
+"tomato.garden.desc.curly" = "带着卷曲藤蔓的番茄，活力十足";
+"tomato.garden.desc.cute" = "粉嫩可爱的番茄，温柔贴心";
+"tomato.garden.desc.tmt4" = "普通番茄，朴实无华";
+"tomato.garden.desc.tmt5" = "普通番茄，简单快乐";
+"tomato.garden.desc.tmt6" = "普通番茄，勤奋可爱";
+"tomato.garden.desc.batman" = "黑暗骑士守护者，正义的化身";
+"tomato.garden.desc.ironman" = "科技与力量的完美结合";
+"tomato.garden.desc.mario" = "勇敢的水管工冒险家";
+"tomato.garden.desc.pokemon" = "神奇的宝可梦伙伴";
+"tomato.garden.desc.golden" = "金光闪闪的番茄，象征财富与荣耀";
+"tomato.garden.desc.platinum" = "铂金般珍贵，闪耀着高贵光芒";
+"tomato.garden.desc.diamond" = "传说中的钻石番茄，极其珍贵稀有";
 "tomato.garden.exchange" = "兑换";
 "tomato.garden.exchange.title" = "番茄兑换";
 "tomato.garden.exchange.5to1" = "5个普通 → 1个稀有";
@@ -2531,3 +2635,10 @@
 "live.scenario.presentation.subtitle" = "讲完整版，AI 三维度点评";
 "live.scenario.historicalFigure.title" = "历史人物";
 "live.scenario.historicalFigure.subtitle" = "穿越历史，与大师对话";
+"live.scenarioPicker.title" = "选择 Live 场景";
+"live.scenarioPicker.subtitle" = "AI 会引导你完成整个对话";
+
+// Report priority labels
+"report.priority.high" = "高";
+"report.priority.medium" = "中";
+"report.priority.low" = "低";

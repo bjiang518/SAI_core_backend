@@ -276,7 +276,7 @@ private struct PracticeRetryProvider: SuggestedTodoItemProvider {
         return SuggestedTodo(
             id:       todoId,
             icon:     "arrow.clockwise.circle",
-            title:    String(format: NSLocalizedString("todo.practiceRetry.title", value: "再练一次 %@", comment: ""), worst.session.subject),
+            title:    String(format: NSLocalizedString("todo.practiceRetry.title", value: "再练一次 %@", comment: ""), localizeSubject(worst.session.subject)),
             subtitle: String(format: NSLocalizedString("todo.practiceRetry.subtitle", value: "上次得分 %@，继续加油！", comment: ""), scoreStr),
             color:    Color(hex: "FF6B6B"),
             action:   .retryPracticeSession(sessionId: worst.session.id, subject: worst.session.subject)
@@ -326,7 +326,7 @@ private struct FeynmanPracticeProvider: SuggestedTodoItemProvider {
             id:       todoId,
             icon:     "brain.head.profile",
             title:    NSLocalizedString("todo.feynman.title",    value: "费曼练习",             comment: ""),
-            subtitle: String(format: NSLocalizedString("todo.feynman.subtitle", value: "针对「%@」生成专项习题", comment: ""), top),
+            subtitle: String(format: NSLocalizedString("todo.feynman.subtitle", value: "针对「%@」生成专项习题", comment: ""), localizeSubject(top)),
             color:    Color(hex: "5B8EF0"),
             action:   .startFeynmanPractice(weaknessKey: top)
         )
@@ -378,7 +378,7 @@ private struct ConceptReviewProvider: SuggestedTodoItemProvider {
             id:       todoId,
             icon:     "books.vertical",
             title:    NSLocalizedString("todo.conceptReview.title",    value: "概念复习",               comment: ""),
-            subtitle: String(format: NSLocalizedString("todo.conceptReview.subtitle", value: "根据「%@」出题", comment: ""), subject),
+            subtitle: String(format: NSLocalizedString("todo.conceptReview.subtitle", value: "根据「%@」出题", comment: ""), localizeSubject(subject)),
             color:    Color(hex: "9C7EE8"),
             action:   .startConceptReview(recentSessionId: sessionId, subject: subject)
         )
@@ -394,7 +394,7 @@ private struct RandomPracticeProvider: SuggestedTodoItemProvider {
 
     func evaluate() -> SuggestedTodo? {
         let subjects = ProfileService.shared.currentProfile?.favoriteSubjects ?? []
-        let display  = subjects.first
+        let display  = subjects.first.map { localizeSubject($0) }
             ?? NSLocalizedString("todo.randomPractice.defaultSubject", value: "综合", comment: "")
 
         return SuggestedTodo(
@@ -488,7 +488,7 @@ private struct HomeworkAlbumProvider: SuggestedTodoItemProvider {
         let subject = records.first?.subject ?? ""
         let subtitle = subject.isEmpty
             ? NSLocalizedString("todo.album.subtitle.generic", value: "查看保存的作业",   comment: "")
-            : String(format: NSLocalizedString("todo.album.subtitle.subject", value: "最近：%@", comment: ""), subject)
+            : String(format: NSLocalizedString("todo.album.subtitle.subject", value: "最近：%@", comment: ""), localizeSubject(subject))
 
         return SuggestedTodo(
             id:       todoId,
@@ -657,4 +657,11 @@ private func topSubjectName(from mistakes: [[String: Any]]) -> String? {
         }
     }
     return counts.max(by: { $0.value < $1.value })?.key
+}
+
+/// Localizes a raw stored subject string (e.g. "Math" → "数学" / "Matemáticas").
+/// Falls back to the raw value when no translation exists.
+private func localizeSubject(_ raw: String) -> String {
+    let key = "subject.\(raw.lowercased().replacingOccurrences(of: " ", with: ""))"
+    return NSLocalizedString(key, value: raw, comment: "")
 }

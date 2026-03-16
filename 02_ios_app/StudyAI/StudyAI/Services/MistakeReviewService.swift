@@ -197,20 +197,8 @@ class MistakeReviewService: ObservableObject {
 
     /// Get icon for subject (uses SF Symbols compatible with Image(systemName:))
     private func getSubjectIcon(_ subject: String) -> String {
-        // Normalize subject first to handle "Math"/"Mathematics" variants
-        let normalized = QuestionSummary.normalizeSubject(subject)
-
-        switch normalized {
-        case "Math": return "function"  // SF Symbol for mathematical function
-        case "Physics": return "atom"  // SF Symbol for atom
-        case "Chemistry": return "flask.fill"  // SF Symbol for flask
-        case "Biology": return "leaf.fill"  // SF Symbol for biology/nature
-        case "English": return "book.fill"  // SF Symbol for books
-        case "History": return "clock.fill"  // SF Symbol for history/time
-        case "Geography": return "globe"  // SF Symbol for globe
-        case "Computer Science": return "desktopcomputer"  // SF Symbol for computer
-        default: return "book.closed.fill"  // SF Symbol for general subject
-        }
+        if subject.hasPrefix("Others:") { return "folder.fill" }
+        return Subject.normalizeWithFallback(subject).icon
     }
 
     // MARK: - Hierarchical Filtering Support
@@ -227,13 +215,7 @@ class MistakeReviewService: ObservableObject {
                 guard let key = mistake["weaknessKey"] as? String, !key.isEmpty else {
                     return true // no weakness key → include (old/untracked questions)
                 }
-                // Key present with positive value = still active weakness → include.
-                // Key present with non-positive value = mastered → exclude.
-                // Key absent (untracked/pruned) = exclude to match question list filter.
-                if let tracked = activeWeaknesses[key] {
-                    return tracked.value > 0
-                }
-                return false  // key not tracked → exclude (matches filteredMistakes logic)
+                return ShortTermStatusService.shared.isActiveWeakness(key)
             }
         }
 
@@ -423,6 +405,98 @@ class MistakeReviewService: ObservableObject {
         default: return .gray
         }
     }
+
+    // MARK: - Branch Accuracy (for Weak Point Heatmap)
+
+    /// Top `limit` base branches for a subject ranked by weakness value (highest = most weak).
+    /// Reads ShortTermStatusService.activeWeaknesses and aggregates by key component[1].
+    func getBaseBranchAccuracy(for subject: String, limit: Int = 3) -> [BranchAccuracyData] {
+        let activeWeaknesses = ShortTermStatusService.shared.status.activeWeaknesses
+
+        struct Agg { var total = 0; var correct = 0; var valueSum = 0.0; var count = 0 }
+        var groups: [String: Agg] = [:]
+
+        for (key, val) in activeWeaknesses {
+            let parts = key.split(separator: "/", maxSplits: 2)
+            guard parts.count >= 2, String(parts[0]) == subject else { continue }
+            let normBase = String(parts[1])   // already lowercased+underscored
+            var g = groups[normBase] ?? Agg()
+            g.total += val.totalAttempts
+            g.correct += val.correctAttempts
+            g.valueSum += val.value
+            g.count += 1
+            groups[normBase] = g
+        }
+
+        return groups
+            .filter { $0.value.total > 0 }
+            .map { normBase, g in
+                BranchAccuracyData(
+                    name: normBase
+                        .replacingOccurrences(of: "_", with: " ")
+                        .split(separator: " ")
+                        .map { $0.prefix(1).uppercased() + $0.dropFirst() }
+                        .joined(separator: " "),
+                    totalAttempts: g.total,
+                    correctAttempts: g.correct,
+                    weaknessValue: g.count > 0 ? g.valueSum / Double(g.count) : 0
+                )
+            }
+            .sorted { $0.weaknessValue > $1.weaknessValue }
+            .prefix(limit)
+            .map { $0 }
+    }
+
+    /// Top `limit` detailed branches under a given base branch, ranked by weakness value.
+    /// `baseBranch` is the humanized display name (e.g. "Algebra - Advanced") — normalized internally.
+    func getDetailedBranchAccuracy(for subject: String, baseBranch: String, limit: Int = 3) -> [BranchAccuracyData] {
+        let activeWeaknesses = ShortTermStatusService.shared.status.activeWeaknesses
+
+        struct Agg { var total = 0; var correct = 0; var valueSum = 0.0; var count = 0 }
+        var groups: [String: Agg] = [:]
+
+        for (key, val) in activeWeaknesses {
+            let parts = key.split(separator: "/", maxSplits: 2)
+            guard parts.count >= 3,
+                  String(parts[0]) == subject else { continue }
+
+            // Humanize the stored key part the same way getBaseBranchAccuracy builds display names,
+            // so the comparison works regardless of whether the stored value uses spaces, dashes,
+            // underscores, or mixed case.
+            let storedDisplayName = String(parts[1])
+                .replacingOccurrences(of: "_", with: " ")
+                .split(separator: " ")
+                .map { $0.prefix(1).uppercased() + $0.dropFirst() }
+                .joined(separator: " ")
+
+            guard storedDisplayName == baseBranch else { continue }
+            let detail = String(parts[2])
+            var g = groups[detail] ?? Agg()
+            g.total += val.totalAttempts
+            g.correct += val.correctAttempts
+            g.valueSum += val.value
+            g.count += 1
+            groups[detail] = g
+        }
+
+        return groups
+            .filter { $0.value.total > 0 }
+            .map { detail, g in
+                BranchAccuracyData(
+                    name: detail
+                        .replacingOccurrences(of: "_", with: " ")
+                        .split(separator: " ")
+                        .map { $0.prefix(1).uppercased() + $0.dropFirst() }
+                        .joined(separator: " "),
+                    totalAttempts: g.total,
+                    correctAttempts: g.correct,
+                    weaknessValue: g.count > 0 ? g.valueSum / Double(g.count) : 0
+                )
+            }
+            .sorted { $0.weaknessValue > $1.weaknessValue }
+            .prefix(limit)
+            .map { $0 }
+    }
 }
 
 // MARK: - Hierarchical Data Structures
@@ -495,5 +569,29 @@ struct ErrorTypeCount: Identifiable {
         case "needs_refinement": return "star.circle"
         default: return "questionmark.circle"
         }
+    }
+}
+
+// MARK: - Branch Accuracy (for Weak Point Heatmap)
+
+struct BranchAccuracyData: Identifiable {
+    let id = UUID()
+    let name: String           // humanized display name
+    let totalAttempts: Int
+    let correctAttempts: Int
+    let weaknessValue: Double  // average .value across all keys in this branch; ≤0 = mastered
+
+    var accuracy: Double {
+        totalAttempts > 0 ? Double(correctAttempts) / Double(totalAttempts) : 0.0
+    }
+
+    var isMastered: Bool { weaknessValue <= 0 }
+
+    var heatColor: Color {
+        if isMastered { return .green }
+        if accuracy >= 0.75 { return Color(hue: 0.28, saturation: 0.7, brightness: 0.65) }
+        if accuracy >= 0.55 { return .yellow }
+        if accuracy >= 0.35 { return .orange }
+        return .red
     }
 }

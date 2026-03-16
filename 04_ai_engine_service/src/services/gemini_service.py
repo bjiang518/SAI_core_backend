@@ -1230,6 +1230,7 @@ RULES:
 2. Extract EXACTLY what is written — do NOT paraphrase or translate
 3. PRESERVE the original language (Chinese stays Chinese, English stays English)
 4. For need_image: true if the question requires seeing a visual element to answer correctly (diagram, graph, chart, figure, table, shaded shape, fraction model, number line, clock face, grid, coin/money image, geometric figure, or any visual the student must observe). When in doubt, set true.
+   For parent questions with subquestions: if all subquestions share ONE diagram, set need_image=true on the PARENT ONLY (not on subquestions). If each subquestion has its OWN distinct visual, set need_image=true on those specific subquestions only. Never blindly copy need_image to all subquestions.
 5. For parent: extract ALL visible sub-items (a, b, c...) from the image
 6. student_answer is what the student wrote, NOT the correct answer
 7. Return valid JSON with no trailing commas"""
@@ -1351,7 +1352,12 @@ FIELD RULES:
 - id: ALWAYS string. Top-level questions: the question_number exactly ("1", "5", "12"). Subquestions: MUST use the ACTUAL parent question_number as prefix + letter suffix — e.g. subquestions of question 5 → "5a", "5b", "5c". NEVER use "1" as the prefix for subquestions of a non-first question.
 - Regular questions: MUST have question_text, student_answer, question_type, need_image
 - Parent questions: MUST have is_parent, has_subquestions, parent_content, subquestions
-- need_image: true if the question requires seeing a visual element to answer correctly. Set true for ANY of: diagram, graph, chart, figure, table, image, picture, drawing, illustration, shaded shape, fraction model, number line, clock face, grid, coin/money image, geometric figure, map, bar graph, pie chart, measurement diagram, or any visual the student must observe or interact with. Set false ONLY if the question is purely text-based with no visual component. When in doubt, set true. For parent questions: if the parent references a visual, ALL subquestions inherit need_image=true. For subquestions: if the question text references something visual (e.g. "identify the shaded part", "write the value of the coins", "label the diagram"), set need_image=true.
+- need_image: true if the question requires seeing a visual element to answer correctly. Set true for ANY of: diagram, graph, chart, figure, table, image, picture, drawing, illustration, shaded shape, fraction model, number line, clock face, grid, coin/money image, geometric figure, map, bar graph, pie chart, measurement diagram, or any visual the student must observe or interact with. Set false ONLY if the question is purely text-based with no visual component. When in doubt, set true.
+  For parent questions with subquestions — decide based on visual structure:
+  • SHARED visual (one diagram/figure that all subquestions refer to, most common case) → set need_image=true on the PARENT ONLY. Do NOT set need_image on the subquestions.
+  • INDEPENDENT visuals (each subquestion has its own distinct diagram) → set need_image=true on the specific subquestions only. Parent does NOT need need_image.
+  • MIXED (shared context image + some subquestions also have their own separate diagram) → parent gets need_image=true; only the specific subquestion(s) with their own distinct image also get need_image=true.
+  Default to SHARED when uncertain — it is far more common for subquestions to share one diagram than to each have their own.
 - Omit fields that don't apply (DO NOT use null)
 - questions array ONLY contains top-level questions
 - total_questions = questions.length

@@ -13,7 +13,7 @@
 const { db } = require('../utils/railway-database');
 const logger = require('../utils/logger');
 const { getInsightsService } = require('./openai-insights-service');
-const { getT } = require('./report-i18n');
+const { getT, translateSubject } = require('./report-i18n');
 
 class AreasOfImprovementGenerator {
     /**
@@ -810,7 +810,7 @@ class AreasOfImprovementGenerator {
                 <div class="subject-section">
                     <div class="subject-header">
                         <div>
-                            <div class="subject-title">${subject.subject}</div>
+                            <div class="subject-title">${translateSubject(subject.subject, language)}</div>
                         </div>
                         <div style="text-align: right;">
                             <span class="mistake-count">${subject.totalMistakes} ${ti.mistakes}</span>
@@ -860,7 +860,7 @@ class AreasOfImprovementGenerator {
                     <div class="parent-action">
                         <div class="parent-action-title">${ti.parentActionTitle}</div>
                         <div class="parent-action-content">
-                            ${ti.parentActionText(subject.subject)}
+                            ${ti.parentActionText(translateSubject(subject.subject, language))}
                         </div>
                     </div>
                 </div>

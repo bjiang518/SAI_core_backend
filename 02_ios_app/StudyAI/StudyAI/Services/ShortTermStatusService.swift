@@ -142,7 +142,7 @@ class ShortTermStatusService: ObservableObject {
     /// Handles format mismatches between backend and iOS:
     ///   - Backend uses pipe separator, no subject: "baseBranch|detailedBranch"
     ///   - iOS stores slash format with subject:    "Subject/baseBranch/detailedBranch"
-    private func resolveWeaknessKey(_ key: String) -> String {
+    func resolveWeaknessKey(_ key: String) -> String {
         // 1. Exact match with POSITIVE value = real active weakness, use immediately.
         //    Skip negative (phantom/mastered) entries — they may have been created by old code
         //    with the wrong key format and should not block resolution to the real weakness.
@@ -188,6 +188,13 @@ class ShortTermStatusService: ObservableObject {
         let currentKeys = status.activeWeaknesses.keys.sorted().joined(separator: ", ")
         weaknessLogger.info("⚠️ Key NOT resolved: '\(key)' — stored keys: [\(currentKeys)]")
         return normalized
+    }
+
+    /// Returns true if `key` maps to an active (value > 0) weakness entry.
+    /// Handles format mismatches such as `"Branch|Detail"` vs `"Subject/Branch/Detail"`.
+    func isActiveWeakness(_ key: String) -> Bool {
+        let canonical = resolveWeaknessKey(key)
+        return (status.activeWeaknesses[canonical]?.value ?? 0) > 0
     }
 
     // MARK: - Record Mistake

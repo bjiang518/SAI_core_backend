@@ -4,28 +4,28 @@
 */
 
 // Loading Screen
-"loading.appTagline" = "Votre StudyMate";
+"loading.appTagline" = "あなたの StudyMate";
 
 // Biometric Authentication (NEW - no existing alternatives)
-"login.enableBiometric" = "Activer %@?";
-"login.enable" = "Activer";
-"login.notNow" = "Plus tard";
-"login.biometricMessage" = "Sign in faster next time with %@. You can change this later in Paramètres.";
+"login.enableBiometric" = "有効にする %@?";
+"login.enable" = "有効にする";
+"login.notNow" = "後で";
+"login.biometricMessage" = "Sign in faster next time with %@. You can change this later in 設定.";
 "login.signInWithBiometric" = "Sign in with %@";
-"login.continueWithApple" = "Continuer avec Apple";
+"login.continueWithApple" = "Appleで続ける";
 
 // Main Tabs
-"tab.home" = "Accueil";
+"tab.home" = "ホーム";
 "tab.grader" = "Grader";
-"tab.chat" = "Discussion";
-"tab.progress" = "Progrès";
-"tab.library" = "Bibliothèque";
+"tab.chat" = "チャット";
+"tab.progress" = "進捗";
+"tab.library" = "ライブラリ";
 
 // Settings
-"settings.title" = "Paramètres";
-"settings.account" = "Compte";
+"settings.title" = "設定";
+"settings.account" = "アカウント";
 "settings.editProfile" = "Edit Profile";
-"settings.signOut" = "Se déconnecter";
+"settings.signOut" = "ログアウト";
 "settings.biometricLogin" = "%@ Login";
 "settings.parentControls.message" = "Verify parental access to manage settings";
 "settings.appVersion" = "StudyMates v1.0";
@@ -33,22 +33,22 @@
 "settings.appPoweredBy" = "Powered by OpenAI GPT-4";
 "settings.security" = "Security & Privacy";
 "settings.passwordManager" = "Password Manager";
-"settings.privacySettings" = "Privacy Paramètres";
-"settings.appSettings" = "App Paramètres";
+"settings.privacySettings" = "Privacy 設定";
+"settings.appSettings" = "App 設定";
 "settings.studyReminders" = "Study Reminders";
 "settings.textSize" = "Text Size";
-"settings.language" = "Langue";
-"languageSettings.sectionHeader" = "Select Langue";
+"settings.language" = "言語";
+"languageSettings.sectionHeader" = "Select 言語";
 "languageSettings.sectionFooter" = "Choose your preferred language for the app interface. This will affect all text in the app.";
 "languageSettings.restartRequired" = "Restart Required";
 "languageSettings.restartMessage" = "The app will close now. Please reopen it to see the language change.";
 "settings.voiceAudio" = "Study Mates";
 "settings.voiceSettings" = "Select your study mate";
 "settings.learning" = "Learning";
-"settings.learningGoals" = "Learning Goals & Progrès";
-"settings.support" = "Support";
-"settings.help" = "Aide & FAQ";
-"settings.contact" = "Contact Support";
+"settings.learningGoals" = "Learning Goals & 進捗";
+"settings.support" = "サポート";
+"settings.help" = "ヘルプ & FAQ";
+"settings.contact" = "Contact サポート";
 "settings.rateApp" = "Rate App";
 "settings.shareApp" = "Share App";
 
@@ -63,8 +63,8 @@
 "studyReminders.enabled" = "Notifications enabled";
 "studyReminders.denied" = "Notifications denied";
 "studyReminders.notConfigured" = "Not configured";
-"studyReminders.enable" = "Activer Notifications";
-"studyReminders.description" = "Activer notifications to receive study reminders and stay on track with your learning goals.";
+"studyReminders.enable" = "有効にする Notifications";
+"studyReminders.description" = "有効にする notifications to receive study reminders and stay on track with your learning goals.";
 "studyReminders.daily" = "Daily Study Reminders";
 "studyReminders.dailyDescription" = "Get reminded to study at your scheduled time each day.";
 "studyReminders.schedule" = "Schedule";
@@ -105,8 +105,8 @@
 "common.of" = "of";
 "common.add" = "Add";
 "common.years" = "years";
-"common.openSettings" = "Open Paramètres";
-"common.settings" = "Paramètres";
+"common.openSettings" = "Open 設定";
+"common.settings" = "設定";
 "common.delete" = "Delete";
 "common.continueHere" = "Continue Here";
 "common.moveOnAndNotify" = "Move On & Notify";
@@ -117,20 +117,20 @@
 "home.goodEvening" = "Good evening";
 "home.defaultStudentName" = "Student";
 "home.pleaseEditProfile" = "Please edit your profile";
-"home.todaysProgress" = "Today's Progrès";
+"home.todaysProgress" = "Today's 進捗";
 "home.startLearningMessage" = "Start learning to track progress";
 "home.questions" = "Questions";
 "home.accuracy" = "Accuracy";
 "home.streak" = "Day Streak";
 "home.quickActions" = "Quick Actions";
 "home.moreFeatures" = "More Features";
-"home.homeworkGrader" = "Accueilwork Grader";
+"home.homeworkGrader" = "ホームwork Grader";
 "home.scanAndGrade" = "Scan & grade";
 "home.chat" = "Snap & Ask";
 "home.conversationalAI" = "AI learning Assistant";
-"home.library" = "Bibliothèque";
+"home.library" = "ライブラリ";
 "home.studySessions" = "All your archived questions and conversations";
-"home.progress" = "Progrès";
+"home.progress" = "進捗";
 "home.trackLearning" = "Track learning";
 "home.practice" = "Practice";
 "home.practiceDescription" = "Generate & test";
@@ -138,7 +138,7 @@
 "home.mistakeReviewDescription" = "Target your weakness";
 "home.parentReports" = "Parent Reports";
 "home.parentReportsDescription" = "Study progress & insights";
-"home.homeworkAlbum" = "Accueilwork Album";
+"home.homeworkAlbum" = "ホームwork Album";
 "home.homeworkAlbumDescription" = "View all submitted homework";
 
 // Parent Reports
@@ -148,7 +148,7 @@
 "parentReport.quickActions" = "Quick Actions";
 "parentReport.weeklyReport" = "Weekly\nReport";
 "parentReport.monthlyReport" = "Monthly\nReport";
-"parentReport.progressReport" = "Progrès\nReport";
+"parentReport.progressReport" = "進捗\nReport";
 "parentReport.recentReports" = "Recent Reports";
 "parentReport.viewAll" = "View All";
 "parentReport.noReportsYet" = "No Reports Yet";
@@ -166,10 +166,10 @@
 "common.error" = "Error";
 
 // AI Homework
-"aiHomework.title" = "AI Accueilwork";
-"aiHomework.assistant.title" = "AI Accueilwork Assistant";
+"aiHomework.title" = "AI ホームwork";
+"aiHomework.assistant.title" = "AI ホームwork Assistant";
 "aiHomework.assistant.description" = "Scan homework images and get AI-powered solutions with step-by-step explanations";
-"aiHomework.startAnalysis" = "Start Accueilwork Analysis";
+"aiHomework.startAnalysis" = "Start ホームwork Analysis";
 "aiHomework.selectImage" = "Select an image to analyze homework";
 "aiHomework.optimizing" = "Optimizing image...";
 "aiHomework.parsingHomework" = "🤖 AI parsing homework...";
@@ -183,7 +183,7 @@
 "aiHomework.preparingResults" = "Preparing results...";
 "aiHomework.analysisComplete" = "Analysis complete!";
 "aiHomework.processingError" = "Processing Error";
-"aiHomework.homeworkAnalysisComplete" = "Accueilwork Analysis Complete";
+"aiHomework.homeworkAnalysisComplete" = "ホームwork Analysis Complete";
 "aiHomework.gradingCompleteMessage" = "Your homework has been graded. Found %d question(s).";
 "aiHomework.selectImageSource.title" = "Select Image Source";
 "aiHomework.selectImageSource.subtitle" = "Choose how you'd like to upload your homework";
@@ -193,7 +193,7 @@
 "aiHomework.imageSource.choosePhotosSubtitle" = "Select from photo library";
 "aiHomework.imageSource.chooseFiles" = "Choose from Files";
 "aiHomework.imageSource.chooseFilesSubtitle" = "Import from Files app";
-"aiHomework.imageSource.chooseHomework" = "Choose Recent Accueilwork";
+"aiHomework.imageSource.chooseHomework" = "Choose Recent ホームwork";
 "aiHomework.imageSource.chooseHomeworkSubtitle" = "Select from previously graded homework";
 "aiHomework.preview.singleImage" = "Preview Image";
 "aiHomework.preview.multipleImages" = "Preview Images";
@@ -204,9 +204,9 @@
 "aiHomework.imageCounter" = "%d of %d";
 "aiHomework.continueInBackground" = "Continue analyzing in background? You'll get a notification when it's done.";
 "aiHomework.photoAccessRequired" = "Photo Access Required";
-"aiHomework.photoAccessMessage" = "Please allow access to your photo library in Paramètres to select images.";
+"aiHomework.photoAccessMessage" = "Please allow access to your photo library in 設定 to select images.";
 "aiHomework.cameraAccessRequired" = "Camera Access Required";
-"aiHomework.cameraAccessMessage" = "Please allow camera access in Paramètres to take photos.";
+"aiHomework.cameraAccessMessage" = "Please allow camera access in 設定 to take photos.";
 "aiHomework.imageLimitReached" = "Image Limit Reached";
 "aiHomework.imageLimitMessage" = "You can add up to %d images. Please remove an image to add a new one.";
 "aiHomework.selectOneImage" = "Select One Image";
@@ -224,7 +224,7 @@
 "aiHomework.subject" = "Subject";
 "aiHomework.model" = "Model";
 "aiHomework.mode" = "Mode";
-"aiHomework.digitalHomework" = "AI Digital Accueilwork";
+"aiHomework.digitalHomework" = "AI Digital ホームwork";
 "aiHomework.compressing" = "Compressing...";
 "aiHomework.scannedDocument.single" = "Scanned Document";
 "aiHomework.scannedDocument.multiple" = "Scanned Documents";
@@ -241,7 +241,7 @@
 
 // Homework Results
 "homeworkResults.yourScore" = "Your Score";
-"homeworkResults.titleWithSubject" = "Your %@ Accueilwork Report";
+"homeworkResults.titleWithSubject" = "Your %@ ホームwork Report";
 "homeworkResults.archive" = "Archive";
 "homeworkResults.report" = "Report";
 "homeworkResults.subject" = "Subject:";
@@ -264,7 +264,7 @@
 "homeworkResults.slideToMarkProgress" = "Slide to Smart Organize";
 "homeworkResults.progressMarked" = "Organized!";
 "homeworkResults.progressUpdated" = "✅ Your study progress has been updated!";
-"homeworkResults.progressTip" = "💡 Tip: Progrès is automatically tracked when you archive questions!";
+"homeworkResults.progressTip" = "💡 Tip: 進捗 is automatically tracked when you archive questions!";
 "homeworkResults.tapToAddQuestions" = "Tap here to manually add %d questions to your progress";
 "homeworkResults.manuallyAddPrefix" = "Or tap here to manually add these ";
 "homeworkResults.manuallyAddSuffix" = " questions to your daily learning goals";
@@ -274,7 +274,7 @@
 "homeworkResults.noAnswerProvided" = "(No answer provided)";
 "homeworkResults.correctAnswer" = "Correct Answer:";
 "homeworkResults.feedback" = "Feedback:";
-"homeworkResults.askAiForHelp" = "Ask AI for Aide";
+"homeworkResults.askAiForHelp" = "Ask AI for ヘルプ";
 
 // Question type renderers
 "renderer.fullQuestion" = "Full Question:";
@@ -320,21 +320,21 @@
 "password_reset_success" = "Password reset successfully. Please log in.";
 
 // Account Password Management
-"accountPassword.title" = "Compte Password";
+"accountPassword.title" = "アカウント Password";
 "accountPassword.subtitle" = "Change your account login password";
-"accountPassword.sectionHeader" = "Compte Security";
+"accountPassword.sectionHeader" = "アカウント Security";
 "accountPassword.sectionFooter" = "Your account password is used to sign in to your account";
 "accountPassword.current" = "Current Password";
 "accountPassword.new" = "New Password";
 "accountPassword.confirm" = "Confirm Password";
-"accountPassword.changeHeader" = "Change Compte Password";
+"accountPassword.changeHeader" = "Change アカウント Password";
 "accountPassword.requirementFooter" = "Password must be at least 6 characters";
 "accountPassword.button" = "Change Password";
-"accountPassword.comingSoon" = "Compte password change will be available in a future update";
+"accountPassword.comingSoon" = "アカウント password change will be available in a future update";
 
 // Parent Password Management
 "parentPassword.title" = "Parent Mode Password";
-"parentPassword.statusEnabled" = "Activerd";
+"parentPassword.statusEnabled" = "有効にするd";
 "parentPassword.statusNotSet" = "Not set";
 "parentPassword.set" = "Set Parent Password";
 "parentPassword.setSubtitle" = "Create a PIN to protect parent mode";
@@ -345,7 +345,7 @@
 "parentPassword.controlsHeader" = "Parent Mode Controls";
 "parentPassword.controlsFooter" = "Parent mode allows you to control app features and set restrictions";
 "parentPassword.featureAccessHeader" = "Protected Features";
-"parentPassword.featureAccessFooter" = "Activer protection for features that require parent authorization";
+"parentPassword.featureAccessFooter" = "有効にする protection for features that require parent authorization";
 
 // Parent Password - Set Password
 "parentPasswordSet.title" = "Set Parent Password";
@@ -397,39 +397,39 @@
 "auth.enterEmail" = "Enter your email";
 "auth.password" = "Password";
 "auth.enterPassword" = "Enter your password";
-"auth.signIn" = "Se connecter";
+"auth.signIn" = "ログイン";
 "auth.dontHaveAccount" = "Don't have an account?";
 "auth.signUp" = "Sign Up";
-"auth.continueAsGuest" = "Continuer en tant qu'invité";
-"upgrade.title" = "Débloquer plus de fonctionnalités";
-"upgrade.createFreeAccount" = "Créer un compte gratuit";
-"upgrade.upgradeToPremium" = "Passer à Premium";
-"upgrade.monthlyLimitReached" = "Limite mensuelle atteinte";
-"upgrade.coppaRestricted" = "Fonctionnalité restreinte";
-"upgrade.createAccountSubtitle" = "Créez un compte gratuit pour sauvegarder votre progression.";
-"upgrade.upgradeToPremiumSubtitle" = "Accès illimité avec Premium.";
-"upgrade.monthlyLimitSubtitle" = "Vous avez atteint votre limite mensuelle. Passez à Premium pour plus.";
-"upgrade.coppaRestrictedSubtitle" = "Demandez à un parent de débloquer cette fonctionnalité.";
-"upgrade.continueFree" = "Continuer gratuitement";
-"common.dismiss" = "Fermer";
-"faceIDReauth.title" = "Session expirée";
-"faceIDReauth.message" = "Pour votre sécurité, vous devez vous ré-authentifier.";
-"faceIDReauth.biometricPrompt" = "Utilisez %@ pour reprendre là où vous en étiez.";
-"faceIDReauth.authenticateButton" = "S'authentifier avec %@";
-"faceIDReauth.signOut" = "Se déconnecter";
-"faceIDReauth.error.cancelled" = "Authentification annulée. Réessayez ou déconnectez-vous.";
-"faceIDReauth.error.notAvailable" = "%@ n'est pas disponible. Déconnectez-vous et reconnectez-vous.";
-"faceIDReauth.error.notEnrolled" = "%@ n'est pas configuré. Déconnectez-vous et reconnectez-vous.";
-"faceIDReauth.error.failed" = "L'authentification %@ a échoué. Réessayez.";
-"faceIDReauth.error.generic" = "Authentification échouée : %@";
-"auth.signup.title" = "Create Your Compte";
+"auth.continueAsGuest" = "ゲストとして続ける";
+"upgrade.title" = "より多くの機能をアンロック";
+"upgrade.createFreeAccount" = "無料アカウントを作成";
+"upgrade.upgradeToPremium" = "プレミアムにアップグレード";
+"upgrade.monthlyLimitReached" = "月間利用上限に達しました";
+"upgrade.coppaRestricted" = "機能が制限されています";
+"upgrade.createAccountSubtitle" = "無料アカウントを作成して進捗を保存しましょう。";
+"upgrade.upgradeToPremiumSubtitle" = "プレミアムで無制限にアクセス。";
+"upgrade.monthlyLimitSubtitle" = "今月の利用枠を使い切りました。アップグレードでさらに。";
+"upgrade.coppaRestrictedSubtitle" = "保護者にこの機能を解除してもらってください。";
+"upgrade.continueFree" = "無料で続ける";
+"common.dismiss" = "閉じる";
+"faceIDReauth.title" = "セッションの有効期限切れ";
+"faceIDReauth.message" = "セキュリティのため、再認証が必要です。";
+"faceIDReauth.biometricPrompt" = "%@ を使用して続きから再開できます。";
+"faceIDReauth.authenticateButton" = "%@ で認証する";
+"faceIDReauth.signOut" = "サインアウト";
+"faceIDReauth.error.cancelled" = "認証がキャンセルされました。再試行またはサインアウトしてください。";
+"faceIDReauth.error.notAvailable" = "%@ は使用できません。サインアウトして再ログインしてください。";
+"faceIDReauth.error.notEnrolled" = "%@ が設定されていません。サインアウトして再ログインしてください。";
+"faceIDReauth.error.failed" = "%@ 認証に失敗しました。再試行してください。";
+"faceIDReauth.error.generic" = "認証に失敗しました：%@";
+"auth.signup.title" = "Create Your アカウント";
 "auth.signup.subtitle" = "Join StudyAI to start your learning adventure!";
 "auth.fullName" = "Full Name";
 "auth.enterFullName" = "Enter your full name";
 "auth.createPassword" = "Create a password";
 "auth.confirmPassword" = "Confirm Password";
 "auth.confirmYourPassword" = "Confirm your password";
-"auth.createAccount" = "Create Compte";
+"auth.createAccount" = "Create アカウント";
 "auth.signup.error" = "Sign Up Error";
 "auth.passwordRequirement.minLength" = "At least 6 characters";
 "auth.passwordRequirement.match" = "Passwords match";
@@ -507,25 +507,25 @@
 "success.session.recreated" = "New session created successfully.";
 
 // Homework Album
-"homeworkAlbum.title" = "Accueilwork Album";
+"homeworkAlbum.title" = "ホームwork Album";
 "homeworkAlbum.select" = "Select";
 "homeworkAlbum.done" = "Done";
 "homeworkAlbum.delete" = "Delete";
 "homeworkAlbum.deleteCount" = "Delete (%d)";
 "homeworkAlbum.deleteConfirmation" = "Delete %d homework image%@?";
 "homeworkAlbum.deleteConfirmationMessage" = "This action cannot be undone.";
-"homeworkAlbum.emptyStateTitle" = "No Accueilwork Yet";
-"homeworkAlbum.emptyStateMessage" = "Accueilwork images will appear here after you submit them for AI grading";
+"homeworkAlbum.emptyStateTitle" = "No ホームwork Yet";
+"homeworkAlbum.emptyStateMessage" = "ホームwork images will appear here after you submit them for AI grading";
 "homeworkAlbum.questionCount" = "%d question%@";
 "homeworkAlbum.filters" = "Filters";
 "homeworkAlbum.timeRange" = "Time Range";
 "homeworkAlbum.subject" = "Subject";
 "homeworkAlbum.grade" = "Grade";
-"homeworkAlbum.chooseHomework" = "Choose Accueilwork";
+"homeworkAlbum.chooseHomework" = "Choose ホームwork";
 "homeworkAlbum.selectionHint" = "Tap any homework to select it for AI re-analysis";
 
 // Homework Image Detail
-"homeworkImageDetail.deleteTitle" = "Delete Accueilwork Image?";
+"homeworkImageDetail.deleteTitle" = "Delete ホームwork Image?";
 "homeworkImageDetail.deleteMessage" = "This action cannot be undone.";
 "homeworkImageDetail.questions" = "Questions";
 "homeworkImageDetail.correct" = "Correct";
@@ -549,7 +549,7 @@
 "questionGeneration.description.fromMistakes" = "Target your weak areas";
 "questionGeneration.description.fromArchives" = "Build on archived sessions";
 "questionGeneration.configuration" = "Configuration";
-"questionGeneration.generalSettings" = "General Paramètres";
+"questionGeneration.generalSettings" = "General 設定";
 "questionGeneration.difficultyLevel" = "Difficulty Level";
 "questionGeneration.difficulty.beginner" = "Beginner";
 "questionGeneration.difficulty.advanced" = "Advanced";
@@ -561,16 +561,16 @@
 "questionGeneration.recentQuestions" = "Recent Questions";
 "questionGeneration.viewAll" = "View All";
 "questionGeneration.error.title" = "Generation Error";
-"questionGeneration.randomPracticeSettings" = "Random Practice Paramètres";
+"questionGeneration.randomPracticeSettings" = "Random Practice 設定";
 "questionGeneration.chooseSubject" = "Choose subject";
 "questionGeneration.usingGeneralMath" = "Using general math topics";
-"questionGeneration.mistakeBasedSettings" = "Mistake-Based Paramètres";
+"questionGeneration.mistakeBasedSettings" = "Mistake-Based 設定";
 "questionGeneration.loadingMistakes" = "Loading mistakes...";
 "questionGeneration.mistakesAvailable" = "mistakes available";
 "questionGeneration.tapToSelectMistakes" = "Tap to select mistakes";
 "questionGeneration.mistakesSelected" = "mistakes selected";
 "questionGeneration.noMistakes" = "No mistakes found. Complete some homework first.";
-"questionGeneration.archiveBasedSettings" = "Archive-Based Paramètres";
+"questionGeneration.archiveBasedSettings" = "Archive-Based 設定";
 "questionGeneration.loadingArchiveData" = "Loading archive data...";
 "questionGeneration.conversationsCount" = "conversations, ";
 "questionGeneration.questionsAvailable" = "questions available";
@@ -585,13 +585,13 @@
 "questionGeneration.conversations" = "Conversations";
 "questionGeneration.questions" = "Questions";
 "questionGeneration.selectArchives" = "Select Archives";
-"questionGeneration.sourceLimitTitle" = "Limite de sélection";
-"questionGeneration.sourceLimitMessage" = "Vous pouvez sélectionner au maximum %d sources.";
-"questionGeneration.subjectLock.hint" = "Seuls les éléments du même sujet peuvent être ajoutés";
-"questionGeneration.subjectMismatch.title" = "Sujet différent";
-"questionGeneration.subjectMismatch.clearAndSwitch" = "Effacer et changer";
-"questionGeneration.subjectMismatch.message" = "Vous avez déjà sélectionné du contenu de %@. Effacez votre sélection pour choisir un autre sujet.";
-"questionGeneration.subjectMismatch.messageFallback" = "Effacez votre sélection pour choisir un autre sujet.";
+"questionGeneration.sourceLimitTitle" = "選択上限";
+"questionGeneration.sourceLimitMessage" = "最大 %d 件まで選択できます。";
+"questionGeneration.subjectLock.hint" = "同じ科目のみ追加できます";
+"questionGeneration.subjectMismatch.title" = "科目が異なります";
+"questionGeneration.subjectMismatch.clearAndSwitch" = "クリアして切替";
+"questionGeneration.subjectMismatch.message" = "%@の教材をすでに選択しています。別の科目を選ぶには選択を解除してください。";
+"questionGeneration.subjectMismatch.messageFallback" = "別の科目を選ぶには選択を解除してください。";
 "questionGeneration.conversation" = "Conversation";
 "questionGeneration.failedToLoadData" = "Failed to load data: %@";
 "questionGeneration.defaultSubject.mathematics" = "Mathematics";
@@ -611,18 +611,18 @@
 "questionGeneration.conversationsAvailable" = "%d conversations available for question generation";
 "questionGeneration.noConversationsFound" = "No archived conversations found. Have some conversations first.";
 "questionGeneration.messagesInConversation" = "%d messages in conversation";
-"questionGeneration.studySession" = "Session d'étude";
-"questionGeneration.discussionAbout" = "Discussion sur %@";
-"questionGeneration.filter.all" = "Tout";
-"questionGeneration.filter.conversations" = "Conversations";
-"questionGeneration.filter.questions" = "Questions";
-"questionGeneration.filter.subject" = "Matière";
-"questionGeneration.filter.archiveType" = "Type d'archive";
-"questionGeneration.filter.noResults" = "Aucun élément ne correspond aux filtres sélectionnés.";
-"questionGeneration.timeFilter.thisWeek" = "Cette semaine";
-"questionGeneration.timeFilter.thisMonth" = "Ce mois-ci";
-"questionGeneration.timeFilter.thisYear" = "Cette année";
-"questionGeneration.timeFilter.allTime" = "Tout le temps";
+"questionGeneration.studySession" = "学習セッション";
+"questionGeneration.discussionAbout" = "%@についての議論";
+"questionGeneration.filter.all" = "すべて";
+"questionGeneration.filter.conversations" = "会話";
+"questionGeneration.filter.questions" = "問題";
+"questionGeneration.filter.subject" = "科目";
+"questionGeneration.filter.archiveType" = "アーカイブの種類";
+"questionGeneration.filter.noResults" = "選択したフィルターに一致する項目がありません。";
+"questionGeneration.timeFilter.thisWeek" = "今週";
+"questionGeneration.timeFilter.thisMonth" = "今月";
+"questionGeneration.timeFilter.thisYear" = "今年";
+"questionGeneration.timeFilter.allTime" = "すべての期間";
 
 // Question Detail View
 "questionDetail.title" = "Question Details";
@@ -633,10 +633,10 @@
 "questionDetail.hideExplanation" = "Hide Explanation";
 "questionDetail.yourAnswer" = "Your Answer:";
 "questionDetail.correctAnswer" = "Correct Answer:";
-"questionDetail.feedbackExactMatch" = "Parfait ! Ta réponse est exactement correcte.";
-"practice.feedbackCorrect" = "Correct ! Bien joué.";
-"practice.feedbackIncorrect" = "Incorrect. La bonne réponse est : %@";
-"practice.feedbackTryAgain" = "Presque. Revois la bonne réponse et essaie des questions similaires.";
+"questionDetail.feedbackExactMatch" = "完璧！あなたの答えは正確です。";
+"practice.feedbackCorrect" = "正解！よくできました。";
+"practice.feedbackIncorrect" = "不正解。正しい答えは：%@";
+"practice.feedbackTryAgain" = "もう少しです。正しい答えを確認して、似た問題に挑戦しましょう。";
 "questionDetail.archiveQuestion" = "Archive Question";
 "questionDetail.archiving" = "Archiving...";
 "questionDetail.archived" = "Archived";
@@ -712,25 +712,25 @@
 // Days of Week
 
 // Common
-"progress.title" = "Progrès";
+"progress.title" = "進捗";
 "progress.loadingProgress" = "Loading your progress...";
 "progress.unableToLoadData" = "Unable to Load Data";
 "progress.tryAgain" = "Try Again";
-"progress.info.title" = "How to Use Learning Progrès";
-"progress.info.message" = "📊 Understanding Your Progrès:\n\n• Timeframe Filter: Tap the three-dot menu to switch between Current Week, Current Month, or All Time\n• Subject Breakdown: View your performance across different subjects with accuracy percentages\n• Color-Coded Cards: Each subject shows questions answered, accuracy rate, and trend indicators (↑ improving, → stable, ↓ needs work)\n• Tap any subject card to see detailed analytics and personalized insights\n\n🎯 Tips:\n• Pull down to refresh your latest progress\n• Check your daily streak to stay motivated\n• Focus on subjects with lower accuracy for improvement";
+"progress.info.title" = "How to Use Learning 進捗";
+"progress.info.message" = "📊 Understanding Your 進捗:\n\n• Timeframe Filter: Tap the three-dot menu to switch between Current Week, Current Month, or All Time\n• Subject Breakdown: View your performance across different subjects with accuracy percentages\n• Color-Coded Cards: Each subject shows questions answered, accuracy rate, and trend indicators (↑ improving, → stable, ↓ needs work)\n• Tap any subject card to see detailed analytics and personalized insights\n\n🎯 Tips:\n• Pull down to refresh your latest progress\n• Check your daily streak to stay motivated\n• Focus on subjects with lower accuracy for improvement";
 
 "tomatoGarden.info.title" = "About Tomato Garden";
 "tomatoGarden.info.message" = "🍅 Your Tomato Collection:\n\n• Each completed focus session earns you a tomato\n• Filter by time (Today, This Week) or by tomato type\n• Three tomato varieties:\n  - Classic Tomato: Standard 25-minute sessions\n  - Curly Vine Tomato: Deep focus sessions\n  - Cute Tomato: Short focus sessions\n\n✨ Physics Mode:\nTap the physics mode button to see your tomatoes with physics-based animations and interactions!\n\n🏆 Milestones:\nCollect more tomatoes to unlock achievement milestones and track your focus journey.";
 
 "passiveReports.info.title" = "About Parent Reports";
-"passiveReports.info.message" = "📊 Automated Learning Insights:\n\n• Weekly/Monthly Reports: Switch between report periods using the tabs\n• Tap '+' to manually generate a new report batch\n• Each batch contains 8 specialized reports:\n  1. Executive Summary - Overall performance overview\n  2. Academic Performance - Subject-wise analysis\n  3. Learning Behavior - Study habits and patterns\n  4. Motivation & Emotional - Engagement indicators\n  5. Progrès Trajectory - Improvement trends\n  6. Social Learning - Collaboration insights\n  7. Risk & Opportunity - Areas needing attention\n  8. Action Plan - Personalized recommendations\n\n💡 Tips:\n• Reports analyze your study sessions, archived conversations, and practice results\n• Tap any report card to view detailed insights\n• Use Edit mode to manage or delete old report batches";
+"passiveReports.info.message" = "📊 Automated Learning Insights:\n\n• Weekly/Monthly Reports: Switch between report periods using the tabs\n• Tap '+' to manually generate a new report batch\n• Each batch contains 8 specialized reports:\n  1. Executive Summary - Overall performance overview\n  2. Academic Performance - Subject-wise analysis\n  3. Learning Behavior - Study habits and patterns\n  4. Motivation & Emotional - Engagement indicators\n  5. 進捗 Trajectory - Improvement trends\n  6. Social Learning - Collaboration insights\n  7. Risk & Opportunity - Areas needing attention\n  8. Action Plan - Personalized recommendations\n\n💡 Tips:\n• Reports analyze your study sessions, archived conversations, and practice results\n• Tap any report card to view detailed insights\n• Use Edit mode to manage or delete old report batches";
 
-"library.info.title" = "How to Use Bibliothèque";
+"library.info.title" = "How to Use ライブラリ";
 "library.info.message" = "📚 Your Learning Archive:\n\n• Content Types: Switch between All Sessions, Questions Only, or Conversations Only using the tabs\n• Search: Use the search bar to find specific content\n• Quick Filters: Filter by subject, date range, or content with images\n• Advanced Search: Tap the three-dot menu for detailed filtering options\n• Subject Filter: Filter content by specific subjects from the menu\n\n💡 Tips:\n• Pull down to refresh your library content\n• Tap any item to view full details, answers, and explanations\n• Use 'Clear Filters' from the menu to reset all active filters\n• Statistics at the top show your total questions and conversations";
-"library.select" = "Sélectionner";
+"library.select" = "選択";
 
 "homeworkResults.info.title" = "Understanding Your Results";
-"homeworkResults.info.message" = "📝 Accueilwork Analysis Results:\n\n• Question Cards: Tap any card to expand and see full details, answers, and explanations\n• Checkboxes: Select questions you want to archive for later review\n• Color Indicators:\n  - Green: Correct answer\n  - Orange: Partially correct\n  - Red: Incorrect answer\n• Archive Button: Tap the book icon to save selected questions to your library\n\n💡 Tips:\n• Review incorrect answers carefully to understand mistakes\n• Use archived questions for focused practice later\n• Each question can be expanded to see step-by-step solutions\n• Progrès is automatically tracked for learning analytics";
+"homeworkResults.info.message" = "📝 ホームwork Analysis Results:\n\n• Question Cards: Tap any card to expand and see full details, answers, and explanations\n• Checkboxes: Select questions you want to archive for later review\n• Color Indicators:\n  - Green: Correct answer\n  - Orange: Partially correct\n  - Red: Incorrect answer\n• Archive Button: Tap the book icon to save selected questions to your library\n\n💡 Tips:\n• Review incorrect answers carefully to understand mistakes\n• Use archived questions for focused practice later\n• Each question can be expanded to see step-by-step solutions\n• 進捗 is automatically tracked for learning analytics";
 
 
 
@@ -769,7 +769,7 @@
 "progress.more" = "More";
 "progress.questionsThisMonth" = "questions this month";
 "progress.questionsThisWeek" = "questions this week";
-"progress.weeklyProgressEmpty" = "Weekly Progrès";
+"progress.weeklyProgressEmpty" = "Weekly 進捗";
 "progress.weeklyProgressEmptyMessage" = "Start asking questions to see your weekly activity pattern!";
 
 // Subject names
@@ -781,7 +781,7 @@
 "subject.history" = "History";
 "subject.geography" = "Geography";
 "subject.computerscience" = "Computer Science";
-"subject.foreignlanguage" = "Foreign Langue";
+"subject.foreignlanguage" = "Foreign 言語";
 "subject.arts" = "Arts";
 "subject.other" = "Other";
 
@@ -801,134 +801,133 @@
 "progress.pointsAvailable" = "+%d pts";
 
 // Inline Subject Accordion
-"source.homework" = "Devoirs";
-"source.practice" = "Pratique";
-"source.mistakeReview" = "Révision des erreurs";
-"progress.inline.questions" = "Questions";
-"progress.inline.correct" = "Correctes";
-"progress.inline.studyTime" = "Temps d'étude";
-"progress.inline.streak" = "Série";
-"progress.inline.avgPerDay" = "Moy/jour";
-"progress.inline.weaknesses" = "Faiblesses";
-"progress.inline.mastered" = "Maîtrisées";
-"progress.inline.converted" = "Converties";
+"source.homework" = "宿題";
+"source.practice" = "練習";
+"source.mistakeReview" = "間違い復習";
+"progress.inline.questions" = "問題数";
+"progress.inline.correct" = "正解";
+"progress.inline.studyTime" = "学習時間";
+"progress.inline.streak" = "連続日数";
+"progress.inline.avgPerDay" = "日平均";
+"progress.inline.weaknesses" = "弱点";
+"progress.inline.mastered" = "習得済み";
+"progress.inline.converted" = "克服済み";
 
 // Library View
-"library.title" = "Bibliothèque d'étude";
-"library.refreshLibrary" = "Actualiser la bibliothèque";
-"library.advancedSearch" = "Recherche avancée";
-"library.clearFilters" = "Effacer les filtres";
-"library.filterBySubject" = "Filtrer par matière";
-"library.allSubjects" = "Toutes les matières";
-"library.debugInfo" = "Infos de débogage";
-"library.searchPlaceholder" = "Rechercher par question, matière ou contenu...";
-"library.updating" = "Mise à jour...";
+"library.refreshLibrary" = "ライブラリを更新";
+"library.advancedSearch" = "詳細検索";
+"library.clearFilters" = "フィルターをリセット";
+"library.filterBySubject" = "科目でフィルター";
+"library.allSubjects" = "すべての科目";
+"library.debugInfo" = "デバッグ情報";
+"library.searchPlaceholder" = "質問、科目、内容で検索...";
+"library.updating" = "更新中...";
 
 // Content Type Filters
-"library.contentType.allSessions" = "Toutes les sessions";
-"library.contentType.questionsOnly" = "Questions seulement";
-"library.contentType.conversationsOnly" = "Conversations seulement";
+"library.contentType.allSessions" = "すべてのセッション";
+"library.contentType.questionsOnly" = "質問のみ";
+"library.contentType.conversationsOnly" = "会話のみ";
 
 // Quick Filters
-"library.filter.allTime" = "Tout le temps";
-"library.filter.allSubjects" = "Toutes les matières";
-"library.filter.allTypes" = "Tous les types";
-"library.filter.thisWeek" = "Cette semaine";
-"library.filter.thisMonth" = "Ce mois";
-"library.filter.withImages" = "Avec images";
+"library.filter.allTime" = "全期間";
+"library.filter.allSubjects" = "すべての科目";
+"library.filter.allTypes" = "すべての種類";
+"library.filter.thisWeek" = "今週";
+"library.filter.thisMonth" = "今月";
+"library.filter.withImages" = "画像あり";
 
 // Stats Header
-"library.stats.questions" = "Questions";
-"library.stats.conversations" = "Conversations";
-"library.stats.totalSessions" = "Sessions totales";
-"library.stats.showing" = "Affichage : %@";
-"library.stats.showAll" = "Tout afficher";
-"library.stats.subject" = "Matière : %@";
+"library.stats.questions" = "質問";
+"library.stats.conversations" = "会話";
+"library.stats.totalSessions" = "総セッション数";
+"library.stats.showing" = "表示中: %@";
+"library.stats.showAll" = "すべて表示";
+"library.stats.subject" = "科目: %@";
 
 // Library Item
-"library.item.tapToReview" = "Appuyer pour réviser";
-"library.item.homeworkSession" = "Session de devoirs";
-"library.item.archivedQuestion" = "Question archivée";
-"library.item.conversationSession" = "Session de conversation";
+"library.item.tapToReview" = "タップして確認";
+"library.item.homeworkSession" = "宿題セッション";
+"library.item.archivedQuestion" = "保存済みの質問";
+"library.item.conversationSession" = "会話セッション";
 
 // Empty States
-"library.empty.signInRequired" = "Connexion requise";
-"library.empty.signInMessage" = "Veuillez vous connecter pour accéder à votre bibliothèque d'étude personnelle";
-"library.empty.libraryEmpty" = "Votre bibliothèque d'étude est vide";
-"library.empty.libraryEmptyMessage" = "Complétez des devoirs avec l'IA ou commencez des conversations pour construire votre bibliothèque";
-"library.empty.loading" = "Chargement de votre bibliothèque d'étude...";
+"library.empty.signInRequired" = "ログインが必要です";
+"library.empty.signInMessage" = "個人の学習ライブラリにアクセスするにはサインインしてください";
+"library.empty.libraryEmpty" = "学習ライブラリは空です";
+"library.empty.libraryEmptyMessage" = "AI宿題や会話を始めて学習ライブラリを作りましょう";
+"library.empty.loading" = "学習ライブラリを読み込み中...";
 
 // No Results
-"library.noResults.title" = "Aucun résultat trouvé";
-"library.noResults.adjustFilters" = "Essayez d'ajuster votre recherche ou vos filtres";
-"library.noResults.noMatch" = "Aucune session d'étude ne correspond à vos critères";
+"library.noResults.title" = "結果が見つかりません";
+"library.noResults.adjustFilters" = "検索またはフィルターを調整してみてください";
+"library.noResults.noMatch" = "条件に一致する学習セッションがありません";
 
 // Advanced Search
-"library.advancedSearch.title" = "Recherche avancée";
-"library.advancedSearch.cancel" = "Annuler";
-"library.advancedSearch.search" = "Rechercher";
-"library.advancedSearch.clearSearch" = "Effacer la recherche";
+"library.advancedSearch.title" = "詳細検索";
+"library.advancedSearch.cancel" = "キャンセル";
+"library.advancedSearch.search" = "検索";
+"library.advancedSearch.clearSearch" = "検索をクリア";
 
-"library.advancedSearch.searchText" = "Texte de recherche";
-"library.advancedSearch.searchPlaceholder" = "Rechercher des questions...";
+"library.advancedSearch.searchText" = "検索テキスト";
+"library.advancedSearch.searchPlaceholder" = "質問を検索...";
 
-"library.advancedSearch.subjectFilter" = "Filtre par matière";
-"library.advancedSearch.subject" = "Matière";
-"library.advancedSearch.allSubjects" = "Toutes les matières";
+"library.advancedSearch.subjectFilter" = "科目フィルター";
+"library.advancedSearch.subject" = "科目";
+"library.advancedSearch.allSubjects" = "すべての科目";
 
-"library.advancedSearch.gradeFilter" = "Filtre par note";
-"library.advancedSearch.grade" = "Note";
-"library.advancedSearch.allGrades" = "Toutes les notes";
+"library.advancedSearch.gradeFilter" = "評価フィルター";
+"library.advancedSearch.grade" = "評価";
+"library.advancedSearch.allGrades" = "すべての評価";
 
-"library.advancedSearch.dateRange" = "Plage de dates";
-"library.advancedSearch.allTime" = "Tout le temps";
-"library.advancedSearch.last7Days" = "7 derniers jours";
-"library.advancedSearch.last30Days" = "30 derniers jours";
-"library.advancedSearch.last3Months" = "3 derniers mois";
+"library.advancedSearch.dateRange" = "期間";
+"library.advancedSearch.allTime" = "全期間";
+"library.advancedSearch.last7Days" = "過去7日間";
+"library.advancedSearch.last30Days" = "過去30日間";
+"library.advancedSearch.last3Months" = "過去3ヶ月";
 
-"library.advancedSearch.sortOrder" = "Ordre de tri";
-"library.advancedSearch.sortBy" = "Trier par";
+"library.advancedSearch.sortOrder" = "並び順";
+"library.advancedSearch.sortBy" = "並び替え";
 
-"library.gradeFilter.all" = "Toutes les notes";
-"library.gradeFilter.correct" = "Correct ✅";
-"library.gradeFilter.incorrect" = "Incorrect ❌";
-"library.gradeFilter.empty" = "Vide 📝";
-"library.gradeFilter.partialCredit" = "Crédit partiel ⚡";
-"library.gradeFilter.notGraded" = "Non noté 📋";
+"library.gradeFilter.all" = "すべての評価";
+"library.gradeFilter.correct" = "正解 ✅";
+"library.gradeFilter.incorrect" = "不正解 ❌";
+"library.gradeFilter.empty" = "未回答 📝";
+"library.gradeFilter.partialCredit" = "部分点 ⚡";
+"library.gradeFilter.notGraded" = "未採点 📋";
 
-"library.sortOrder.dateNewest" = "Date (plus récent d'abord)";
-"library.sortOrder.dateOldest" = "Date (plus ancien d'abord)";
-"library.sortOrder.confidenceHigh" = "Confiance (haute à basse)";
-"library.sortOrder.confidenceLow" = "Confiance (basse à haute)";
-"library.sortOrder.subjectAZ" = "Matière (A-Z)";
+"library.sortOrder.dateNewest" = "日付（新しい順）";
+"library.sortOrder.dateOldest" = "日付（古い順）";
+"library.sortOrder.confidenceHigh" = "正答率（高い順）";
+"library.sortOrder.confidenceLow" = "正答率（低い順）";
+"library.sortOrder.subjectAZ" = "科目（A-Z）";
 
 // Contact Support
 "contactSupport.subtitle" = "We're here to help\!";
-"contactSupport.emailTitle" = "Email Support";
+"contactSupport.emailTitle" = "Email サポート";
 "contactSupport.emailDescription" = "Get detailed help via email";
-"contactSupport.chatTitle" = "Live Discussion";
+"contactSupport.chatTitle" = "Live チャット";
 "contactSupport.chatSubtitle" = "Available Mon-Fri 9am-5pm EST";
-"contactSupport.chatDescription" = "Discussion with our support team";
+"contactSupport.chatDescription" = "チャット with our support team";
 "contactSupport.forumTitle" = "Community Forum";
 "contactSupport.forumSubtitle" = "Join the conversation";
 "contactSupport.forumDescription" = "Connect with other students";
-"contactSupport.phoneTitle" = "Phone Support";
+"contactSupport.phoneTitle" = "Phone サポート";
 "contactSupport.phoneDescription" = "Mon-Fri 9am-5pm EST";
 "contactSupport.averageResponseTime" = "Average Response Time";
 "contactSupport.emailResponseTime" = "Email: 24-48 hours";
-"contactSupport.chatResponseTime" = "Live Discussion: < 5 minutes";
+"contactSupport.chatResponseTime" = "Live チャット: < 5 minutes";
 "contactSupport.phoneResponseTime" = "Phone: Immediate";
 "contactSupport.emailNotAvailable" = "Email Not Available";
 "contactSupport.emailNotAvailableMessage" = "Please configure an email account in your device settings.";
 
 // Help Center
 "helpCenter.subtitle" = "Find answers to common questions";
-"helpCenter.faq1.question" = "How do I use the Accueilwork Grader?";
+"helpCenter.faq1.question" = "How do I use the ホームwork Grader?";
 "helpCenter.faq1.answer" = "Take a photo of your homework or upload an image. Our AI will analyze it, detect questions, and provide detailed feedback with corrections and explanations.";
 "helpCenter.faq2.question" = "What subjects are supported?";
 "helpCenter.faq2.answer" = "StudyAI supports Mathematics, Physics, Chemistry, Biology, English, History, Geography, and Computer Science. We're constantly adding more subjects\!";
 "helpCenter.faq3.question" = "How do I change the AI voice?";
-"helpCenter.faq3.answer" = "Go to Paramètres > Study Mates > Select your study mate. You can choose between Adam (boy voice) and Eva (girl voice), and customize speed and volume.";
+"helpCenter.faq3.answer" = "Go to 設定 > Study Mates > Select your study mate. You can choose between Adam (boy voice) and Eva (girl voice), and customize speed and volume.";
 "helpCenter.faq4.question" = "Can I review my past mistakes?";
 "helpCenter.faq4.answer" = "Yes\! Use the Mistake Review feature from the home screen to revisit questions you got wrong and practice similar problems.";
 "helpCenter.faq5.question" = "How does the streak system work?";
@@ -936,7 +935,7 @@
 "helpCenter.faq6.question" = "Is my data secure?";
 "helpCenter.faq6.answer" = "Yes\! We use industry-standard encryption and secure authentication. Your homework and learning data are stored securely and never shared with third parties.";
 "helpCenter.faq7.question" = "How do I track my progress?";
-"helpCenter.faq7.answer" = "Visit the Progrès tab to see detailed statistics, accuracy trends, subject performance, and weekly learning patterns.";
+"helpCenter.faq7.answer" = "Visit the 進捗 tab to see detailed statistics, accuracy trends, subject performance, and weekly learning patterns.";
 "helpCenter.faq8.question" = "What is the difference between Detail and Fast parsing?";
 "helpCenter.faq8.answer" = "Detail mode provides more accurate parsing with hierarchical structure and parent-child relationships. Fast mode is quicker but simpler. Use Detail for complex homework.";
 "helpCenter.quickLinks" = "Quick Links";
@@ -945,13 +944,13 @@
 "helpCenter.studyTips" = "Study Tips & Best Practices";
 
 // Share App
-"shareApp.subtitle" = "Aide your friends excel in their studies\!";
+"shareApp.subtitle" = "ヘルプ your friends excel in their studies\!";
 "shareApp.messageTitle" = "Share Message";
 "shareApp.messagePreview" = "\"Check out StudyAI - the best AI-powered homework helper\!\"";
 "shareApp.feature1" = "✓ AI-powered homework grading";
 "shareApp.feature2" = "✓ Interactive AI tutor";
 "shareApp.feature3" = "✓ Mistake review & practice";
-"shareApp.feature4" = "✓ Progrès tracking";
+"shareApp.feature4" = "✓ 進捗 tracking";
 "shareApp.downloadLink" = "Download now: https://studyai.app";
 "shareApp.shareViaTitle" = "Share via...";
 "shareApp.shareViaSubtitle" = "Messages, Email, Social Media & More";
@@ -981,49 +980,49 @@
 // Menu Items
 "chat.menu.newSession" = "New Session";
 "chat.menu.sessionInfo" = "Session Info";
-"chat.menu.voiceSettings" = "Voice Paramètres";
-"chat.menu.enableVoice" = "Activer Voice";
+"chat.menu.voiceSettings" = "Voice 設定";
+"chat.menu.enableVoice" = "有効にする Voice";
 "chat.menu.disableVoice" = "Disable Voice";
 "chat.menu.synchronizedAudio" = "Synchronized Audio";
 "chat.menu.liveTalk" = "Live Talk";
 "chat.menu.archiveSession" = "Archive Session";
-"chat.menu.viewTutorial" = "Voir le tutoriel";
-"chat.menu.endLive" = "Terminer le live";
-"chat.menu.liveScenario" = "Scénario live";
-"chat.menu.audioConfig" = "Configuration audio";
-"chat.menu.voice" = "Voix";
-"chat.menu.syncWithText" = "Synchroniser avec le texte";
-"chat.menu.aiMate" = "Votre compagnon IA";
-"chat.menu.selectAIMate" = "Choisir un compagnon IA";
+"chat.menu.viewTutorial" = "チュートリアルを見る";
+"chat.menu.endLive" = "ライブ終了";
+"chat.menu.liveScenario" = "ライブシナリオ";
+"chat.menu.audioConfig" = "音声設定";
+"chat.menu.voice" = "音声";
+"chat.menu.syncWithText" = "テキストと同期";
+"chat.menu.aiMate" = "AI メイト";
+"chat.menu.selectAIMate" = "AI メイトを選択";
 
 // Chat Onboarding Tutorial
-"onboarding.skip" = "Passer";
-"onboarding.next" = "Suivant";
-"onboarding.done" = "Terminé";
-"onboarding.chat.subject.title" = "Choisir une matière";
-"onboarding.chat.subject.desc" = "Sélectionne une matière ou laisse-la en Général. Cela m'aide à donner des réponses plus précises.";
-"onboarding.chat.camera.title" = "Ajouter des images";
-"onboarding.chat.camera.desc" = "Appuie pour prendre une photo ou en choisir une dans ta galerie. Je peux lire les questions de devoirs dans les images.";
-"onboarding.chat.deepmode.title" = "Envoyer ou approfondir";
-"onboarding.chat.deepmode.desc" = "Appuie sur ↑ pour envoyer. Ou maintiens le bouton enfoncé et glisse vers le haut — il devient violet et utilise un modèle de raisonnement plus approfondi pour les questions difficiles.";
-"onboarding.chat.mic.title" = "Saisie vocale";
-"onboarding.chat.mic.desc" = "Maintiens ce bouton enfoncé pour parler plutôt que de taper. Ta voix est transcrite automatiquement.";
-"onboarding.chat.live.title" = "Mode en direct et plus";
-"onboarding.chat.live.desc" = "Appuie sur ··· pour accéder aux paramètres. Tu peux passer au mode vocal en temps réel depuis ici.";
-"onboarding.chat.library.title" = "Enregistrer dans la bibliothèque";
-"onboarding.chat.library.desc" = "Appuie pour archiver cette conversation. Je l'analyserai et sauvegarderai les points clés dans ta bibliothèque personnelle.";
-"onboarding.chat.deepBadge" = "Profond";
-"onboarding.chat.deepThinkingMode" = "Mode pensée profonde";
-"onboarding.chat.releaseToCancel" = "Relâcher pour annuler";
-"onboarding.chat.releaseToSend" = "Relâcher pour envoyer";
-"onboarding.chat.holdToTalk" = "Maintenir pour parler";
-"onboarding.chat.micDemoText" = "explique-le plus en détail";
+"onboarding.skip" = "スキップ";
+"onboarding.next" = "次へ";
+"onboarding.done" = "完了";
+"onboarding.chat.subject.title" = "科目を選ぶ";
+"onboarding.chat.subject.desc" = "科目を選ぶか、「一般」のままにしてください。より正確な回答ができます。";
+"onboarding.chat.camera.title" = "画像を追加";
+"onboarding.chat.camera.desc" = "タップして写真を撮るか、ギャラリーから選んでください。宿題の問題を画像から読み取れます。";
+"onboarding.chat.deepmode.title" = "送信または深く考える";
+"onboarding.chat.deepmode.desc" = "↑ をタップして送信するか、ボタンを押したまま上にスワイプしてください。紫になると高度な推論モードが有効になります。";
+"onboarding.chat.mic.title" = "音声入力";
+"onboarding.chat.mic.desc" = "このボタンを押し続けると、文字を入力する代わりに話すことができます。音声は自動的に文字に変換されます。";
+"onboarding.chat.live.title" = "ライブモードとその他";
+"onboarding.chat.live.desc" = "··· をタップして設定にアクセスします。ここからリアルタイム音声会話モードに切り替えられます。";
+"onboarding.chat.library.title" = "ライブラリに保存";
+"onboarding.chat.library.desc" = "タップしてこの会話をアーカイブします。内容を分析し、重要な情報をライブラリに保存します。";
+"onboarding.chat.deepBadge" = "深層";
+"onboarding.chat.deepThinkingMode" = "深層思考モード";
+"onboarding.chat.releaseToCancel" = "離してキャンセル";
+"onboarding.chat.releaseToSend" = "離して送信";
+"onboarding.chat.holdToTalk" = "押して話す";
+"onboarding.chat.micDemoText" = "もっと詳しく説明してください";
 
 // Voice Chat (Gemini Live)
 "voice_chat.title" = "Live Talk";
 "voice_chat.end" = "End";
 "voice_chat.connecting" = "Connecting to Gemini Live...";
-"voice_chat.empty.title" = "Start Voice Discussion";
+"voice_chat.empty.title" = "Start Voice チャット";
 "voice_chat.empty.subtitle" = "Tap the microphone button below to start talking with your AI tutor";
 "voice_chat.tip.tap" = "Tap and hold to speak";
 "voice_chat.tip.realtime" = "Real-time conversation with AI";
@@ -1057,8 +1056,8 @@
 "chat.diagram.regenerate" = "Regenerate Image";
 "chat.diagram.regenerating" = "Regenerating diagram...";
 "chat.diagram.generating" = "Generating diagram...";
-"chat.video.searching" = "Recherche de vidéo éducative...";
-"chat.stopGenerating" = "Arrêter la génération";
+"chat.video.searching" = "教育動画を検索中...";
+"chat.stopGenerating" = "生成を停止";
 
 // Input
 "chat.input.placeholder" = "Message";
@@ -1069,48 +1068,48 @@
 
 // Alerts
 "chat.alert.cameraPermission.title" = "Camera Permission";
-"chat.alert.cameraPermission.message" = "StudyAI needs camera access to scan homework questions. Please enable camera permission in Paramètres.";
-"chat.alert.currentChatExists.title" = "Current Discussion Exists";
+"chat.alert.cameraPermission.message" = "StudyAI needs camera access to scan homework questions. Please enable camera permission in 設定.";
+"chat.alert.currentChatExists.title" = "Current チャット Exists";
 "chat.alert.currentChatExists.message" = "You have an active chat session. Would you like to archive it first, or discard it and start a new session with this homework question?";
-"chat.alert.currentChatExists.archiveCurrent" = "Archive Current Discussion";
+"chat.alert.currentChatExists.archiveCurrent" = "Archive Current チャット";
 "chat.alert.currentChatExists.discardAndStart" = "Discard & Start New";
-"chat.alert.currentChatExists.continueCurrent" = "Continue with Previous Discussion";
+"chat.alert.currentChatExists.continueCurrent" = "Continue with Previous チャット";
 "chat.alert.currentChatExists.startNew" = "Start New";
 "chat.alert.error.title" = "Error";
 "chat.alert.archiveSuccess.title" = "Archive Successful! 🎉";
-"chat.alert.archiveSuccess.message" = "%@ has been successfully archived and saved to your Study Bibliothèque.";
-"chat.alert.archiveSuccess.viewInLibrary" = "View in Bibliothèque";
-"chat.alert.archiveSuccess.startNewChat" = "Start New Discussion";
+"chat.alert.archiveSuccess.message" = "%@ has been successfully archived and saved to your Study ライブラリ.";
+"chat.alert.archiveSuccess.viewInLibrary" = "View in ライブラリ";
+"chat.alert.archiveSuccess.startNewChat" = "Start New チャット";
 
 // Empty State
-"chat.emptyState.greeting" = "Bonjour ! Je suis %@";
-"chat.emptyState.subtext" = "Pose-moi n'importe quelle question sur %@ et je t'aiderai à apprendre !";
-"chat.emptyState.tryAsking" = "Essaie de demander :";
-"chat.emptyState.subtitle.0" = "Je peux répondre à toutes les questions";
-"chat.emptyState.subtitle.1" = "Comment puis-je t'aider ?";
-"chat.emptyState.subtitle.2" = "Que veux-tu apprendre aujourd'hui ?";
-"chat.emptyState.subtitle.3" = "Prêt à commencer !";
-"chat.emptyState.subtitle.4" = "Pose-moi tout ce qui t'intéresse";
-"chat.emptyState.subtitle.5" = "Explorons ensemble !";
-"chat.emptyState.subtitle.6" = "N'hésite pas à me poser des questions";
-"chat.emptyState.subtitle.7" = "L'apprentissage commence ici";
-"chat.emptyState.subtitle.8" = "Besoin d'aide avec tes devoirs ?";
-"chat.emptyState.subtitle.9" = "Tu as une question difficile ?";
-"chat.emptyState.subtitle.10" = "Je suis là quand tu as besoin";
-"chat.emptyState.subtitle.11" = "Résolvons ça ensemble";
-"chat.emptyState.subtitle.12" = "La curiosité est le meilleur professeur";
-"chat.emptyState.subtitle.13" = "Quelque chose que tu veux comprendre ?";
-"chat.emptyState.subtitle.14" = "Je suis prêt à t'aider";
-"chat.emptyState.subtitle.15" = "Quel est le défi du jour ?";
-"chat.emptyState.subtitle.16" = "Aucune question n'est trop petite";
-"chat.emptyState.subtitle.17" = "Chaque question est un pas en avant";
-"chat.emptyState.subtitle.18" = "Rendons l'apprentissage amusant";
-"chat.emptyState.subtitle.19" = "Quelque chose que je peux expliquer ?";
-"chat.emptyState.subtitle.20" = "Confie-moi les sujets difficiles";
-"chat.emptyState.subtitle.21" = "Tu as appris quelque chose de nouveau ?";
-"chat.emptyState.subtitle.22" = "Curiosité illimitée — moi aussi";
-"chat.emptyState.subtitle.23" = "Plus il y a de questions, mieux c'est !";
-"chat.emptyState.subtitle.24" = "L'apprentissage ne s'arrête jamais — commençons";
+"chat.emptyState.greeting" = "こんにちは！私は %@ です";
+"chat.emptyState.subtext" = "%@について何でも聞いてください。学習をお手伝いします！";
+"chat.emptyState.tryAsking" = "こんな質問をしてみよう：";
+"chat.emptyState.subtitle.0" = "どんな質問でも答えます";
+"chat.emptyState.subtitle.1" = "何かお手伝いできますか？";
+"chat.emptyState.subtitle.2" = "今日は何を学びたいですか？";
+"chat.emptyState.subtitle.3" = "さあ始めましょう！";
+"chat.emptyState.subtitle.4" = "気になることを何でも聞いてください";
+"chat.emptyState.subtitle.5" = "一緒に探求しましょう！";
+"chat.emptyState.subtitle.6" = "何でも気軽に聞いてください";
+"chat.emptyState.subtitle.7" = "学びはここから始まります";
+"chat.emptyState.subtitle.8" = "宿題を手伝いましょうか？";
+"chat.emptyState.subtitle.9" = "難しい問題がありますか？";
+"chat.emptyState.subtitle.10" = "いつでもここにいます";
+"chat.emptyState.subtitle.11" = "一緒に解決しましょう";
+"chat.emptyState.subtitle.12" = "好奇心は最高の先生です";
+"chat.emptyState.subtitle.13" = "何か理解したいことはありますか？";
+"chat.emptyState.subtitle.14" = "準備完了、いつでもどうぞ";
+"chat.emptyState.subtitle.15" = "今日の挑戦は何ですか？";
+"chat.emptyState.subtitle.16" = "どんな小さな質問でも大丈夫";
+"chat.emptyState.subtitle.17" = "質問するたびに成長できます";
+"chat.emptyState.subtitle.18" = "学びを楽しくしましょう";
+"chat.emptyState.subtitle.19" = "何か説明しましょうか？";
+"chat.emptyState.subtitle.20" = "難しい問題を任せてください";
+"chat.emptyState.subtitle.21" = "今日は新しいことを学びましたか？";
+"chat.emptyState.subtitle.22" = "好奇心は無限大、私もです";
+"chat.emptyState.subtitle.23" = "質問は多ければ多いほどいい！";
+"chat.emptyState.subtitle.24" = "学びに終わりはない、始めましょう";
 
 // Smart Suggestions
 "chat.suggestion.showSteps" = "Show steps";
@@ -1227,7 +1226,7 @@
 "chat.example.philosophy.4" = "Describe ethical theories";
 
 // Example Prompts - General
-"chat.example.general.1" = "Aide me understand this concept";
+"chat.example.general.1" = "ヘルプ me understand this concept";
 "chat.example.general.2" = "Explain this step by step";
 "chat.example.general.3" = "What does this mean?";
 "chat.example.general.4" = "Can you give me an example?";
@@ -1246,29 +1245,29 @@
 "editProfile.error" = "Error";
 "editProfile.profileUpdated" = "Profile Updated";
 "editProfile.profileUpdatedMessage" = "Your profile has been updated successfully\!";
-"editProfile.savingProfile" = "Saving Profile...";
-"editProfile.takeSelfie" = "Prendre un selfie";
-"editProfile.uploadFromAlbum" = "Télécharger depuis l'album";
-"editProfile.or" = "ou";
-"editProfile.choosePresetAvatar" = "Choisir un avatar prédéfini";
-"editProfile.orChoosePresetAvatar" = "ou choisir un avatar prédéfini";
-"editProfile.studentInformation" = "Informations de l'étudiant";
-"editProfile.age" = "Âge";
-"editProfile.agePlaceholder" = "Entrez l'âge";
-"editProfile.noneOption" = "Aucun";
-"editProfile.language" = "Langue";
-"editProfile.selectedCount" = "%d sélectionné(s)";
-"editProfile.learningStyle" = "Style d'apprentissage";
-"editProfile.learningStyleHeuristic" = "Heuristique";
-"editProfile.learningStyleHeuristicDesc" = "Apprendre par l'exploration et la résolution de problèmes";
-"editProfile.learningStyleStraightforward" = "Direct";
-"editProfile.learningStyleStraightforwardDesc" = "Apprendre par des explications claires et directes";
-"editProfile.avatarEditorHint" = "Pincez pour zoomer, faites glisser pour déplacer";
-"editProfile.zoomOut" = "Dézoomer";
-"editProfile.zoomIn" = "Zoomer";
-"editProfile.rotateLeft" = "Tourner à gauche";
-"editProfile.rotateRight" = "Tourner à droite";
-"editProfile.adjustAvatar" = "Ajuster l'avatar";
+"editProfile.savingProfile" = "プロフィールを保存中...";
+"editProfile.takeSelfie" = "自撮りを撮る";
+"editProfile.uploadFromAlbum" = "アルバムからアップロード";
+"editProfile.or" = "または";
+"editProfile.choosePresetAvatar" = "プリセットアバターを選択";
+"editProfile.orChoosePresetAvatar" = "またはプリセットアバターを選択";
+"editProfile.studentInformation" = "学生情報";
+"editProfile.age" = "年齢";
+"editProfile.agePlaceholder" = "例：14";
+"editProfile.noneOption" = "—";
+"editProfile.language" = "言語";
+"editProfile.selectedCount" = "%d 件選択済み";
+"editProfile.learningStyle" = "学習スタイル";
+"editProfile.learningStyleHeuristic" = "発見型";
+"editProfile.learningStyleHeuristicDesc" = "ガイド付き探索";
+"editProfile.learningStyleStraightforward" = "直接型";
+"editProfile.learningStyleStraightforwardDesc" = "直接的な回答";
+"editProfile.avatarEditorHint" = "ピンチでズーム、ドラッグで調整";
+"editProfile.zoomOut" = "縮小";
+"editProfile.zoomIn" = "拡大";
+"editProfile.rotateLeft" = "左に回転";
+"editProfile.rotateRight" = "右に回転";
+"editProfile.adjustAvatar" = "アバターを調整";
 
 // Avatar Selection
 "editProfile.selectAvatar" = "Select Your Avatar";
@@ -1310,6 +1309,24 @@
 "editProfile.learningStyle" = "Learning Style";
 "editProfile.selectLearningStyle" = "Select Learning Style";
 
+// Grade Level Options
+"gradeLevel.preK" = "未就学";
+"gradeLevel.kindergarten" = "幼稚園";
+"gradeLevel.grade1" = "小学1年生";
+"gradeLevel.grade2" = "小学2年生";
+"gradeLevel.grade3" = "小学3年生";
+"gradeLevel.grade4" = "小学4年生";
+"gradeLevel.grade5" = "小学5年生";
+"gradeLevel.grade6" = "小学6年生";
+"gradeLevel.grade7" = "中学1年生";
+"gradeLevel.grade8" = "中学2年生";
+"gradeLevel.grade9" = "中学3年生";
+"gradeLevel.grade10" = "高校1年生";
+"gradeLevel.grade11" = "高校2年生";
+"gradeLevel.grade12" = "高校3年生";
+"gradeLevel.college" = "大学生";
+"gradeLevel.adult" = "社会人学習者";
+
 // Optional Information
 "editProfile.optionalInfo" = "Optional Information";
 "editProfile.gender" = "Gender (Optional)";
@@ -1319,8 +1336,8 @@
 "editProfile.genderMale" = "Male";
 "editProfile.genderNonBinary" = "Non-binary";
 "editProfile.genderOther" = "Other";
-"editProfile.languagePreference" = "Langue Preference";
-"editProfile.languagePicker" = "Langue";
+"editProfile.languagePreference" = "言語 Preference";
+"editProfile.languagePicker" = "言語";
 "editProfile.languageEnglish" = "English";
 "editProfile.languageSpanish" = "Spanish";
 "editProfile.languageFrench" = "French";
@@ -1360,7 +1377,7 @@
 "storage.title" = "Storage Control";
 "storage.totalUsed" = "Total Storage Used";
 "storage.archivedQuestions" = "Archived Questions";
-"storage.progressData" = "Progrès Data";
+"storage.progressData" = "進捗 Data";
 "storage.archivedConversations" = "Archived Conversations";
 "storage.clear" = "Clear";
 "storage.clearAll.button" = "Clear All Data";
@@ -1373,9 +1390,9 @@
 "storage.clearQuestions.message" = "This will delete all archived questions from local storage. This cannot be undone.";
 "storage.clearQuestions.success" = "Archived questions cleared successfully";
 
-"storage.clearProgress.title" = "Clear Progrès Data?";
+"storage.clearProgress.title" = "Clear 進捗 Data?";
 "storage.clearProgress.message" = "This will delete all your learning progress, points, and streaks. This cannot be undone.";
-"storage.clearProgress.success" = "Progrès data cleared successfully";
+"storage.clearProgress.success" = "進捗 data cleared successfully";
 
 "storage.clearConversations.title" = "Clear Archived Conversations?";
 "storage.clearConversations.message" = "This will delete all archived conversations from local storage. This cannot be undone.";
@@ -1418,10 +1435,10 @@
 "mistakeReview.instructions.title" = "How to Use Mistake Review";
 "mistakeReview.instructions.message" = "1. Select a time range (This Week, This Month, or All Time) to filter your mistakes\n\n2. Choose a subject to review incorrect answers\n\n3. Tap 'Start Review' to see your mistakes\n\n4. Use 'Let's do them again' to select questions and generate a PDF for practice\n\n5. Review the correct answers and explanations to improve your understanding";
 "mistakeReview.startReview" = "Start Review (%d Mistakes)";
-"mistakeReview.letsPractise" = "Commencer l'entraînement";
+"mistakeReview.letsPractise" = "練習を始める";
 "mistakeReview.resumePractice" = "Resume Practice";
-"mistakeReview.showFullQuestion" = "Afficher la question complète et l'analyse";
-"mistakeReview.hideDetails" = "Masquer les détails";
+"mistakeReview.showFullQuestion" = "全問題と分析を表示";
+"mistakeReview.hideDetails" = "詳細を非表示";
 "mistakeReview.questionsLeftDone" = "%d questions left · %d%% done";
 "mistakeReview.generatePractice" = "Generate Practice (%d mistakes)";
 "mistakeReview.doThemAgain" = "Do them again (%d)";
@@ -1438,7 +1455,7 @@
 "mistakeReview.errorType.unknown" = "Unknown Error";
 "mistakeReview.targetedPractice" = "Targeted Practice";
 "mistakeReview.questionsBasedOnMistakes" = "%d questions based on your mistakes";
-"mistakeReview.progressAnswered" = "Progrès: %d/%d answered";
+"mistakeReview.progressAnswered" = "進捗: %d/%d answered";
 "mistakeReview.correctCount" = "%d/%d correct";
 "mistakeReview.exportToPDF" = "Export to PDF";
 "mistakeReview.feedbackExact" = "Perfect! Your answer is exactly correct.";
@@ -1471,7 +1488,9 @@
 "mistakeReview.sliderMin" = "1 question";
 "mistakeReview.sliderMax" = "10 questions";
 "mistakeReview.generateCount" = "Generate %d Questions";
-"mistakeReview.practiceConfiguration" = "Practice Configuration";
+"mistakeReview.practiceConfiguration" = "練習設定";
+"mistakeReview.weaknessHint.one" = "「%2$@」の弱点を克服するにはあと %1$d 問";
+"mistakeReview.weaknessHint.other" = "「%2$@」の弱点を克服するにはあと %1$d 問";
 "mistakeReview.filter.severityLabel" = "Severity";
 "mistakeReview.filter.timeLabel" = "Time";
 "mistakeReview.filter.severity.all" = "All";
@@ -1488,6 +1507,14 @@
 "mistakeReview.filter.active" = "Active";
 "mistakeReview.filter.allFilter" = "All";
 "mistakeReview.filter.uncategorized" = "Uncategorized";
+"mistakeReview.filter.yourStrengths" = "あなたの強み";
+"mistakeReview.filter.goodAt" = "得意なこと";
+"mistakeReview.filter.noLongerWeak" = "もう弱点ではない";
+"mistakeReview.filter.noStrengthsData" = "まだデータがありません — 問題を解いて強みを確認しましょう。";
+"mistakeReview.filter.strengthsTopicCount" = "%dトピック";
+"mistakeReview.categorizeMistakes" = "分類";
+"mistakeReview.categorizing" = "分類中…";
+"mistakeReview.uncategorized" = "未分類";
 "difficulty.desc.beginner" = "Foundation-building questions for new concepts";
 "difficulty.desc.intermediate" = "Balanced questions for practice and review";
 "difficulty.desc.advanced" = "Challenging questions to push understanding";
@@ -1496,6 +1523,7 @@
 "common.continue" = "Continue";
 "common.true" = "True";
 "common.false" = "False";
+"common.apply" = "適用";
 
 // Parent Mode - Face ID
 "parentAuth.useFaceID" = "Use Face ID";
@@ -1507,7 +1535,7 @@
 "parentMode.faceIDForParentMode" = "Face ID for Parent Mode";
 "parentMode.touchIDForParentMode" = "Touch ID for Parent Mode";
 "parentMode.opticIDForParentMode" = "Optic ID for Parent Mode";
-"parentMode.enabled" = "Activerd";
+"parentMode.enabled" = "有効にするd";
 "parentMode.disabled" = "Disabled";
 "parentMode.faceIDUsageDescription" = "StudyMates uses Face ID to securely authenticate parents for accessing protected features and parental controls.";
 
@@ -1551,7 +1579,7 @@
 
 // Question Generation - How to Use
 "questionGeneration.howToUse.title" = "How to Use Question Generation";
-"questionGeneration.howToUse.message" = "• Select practice type: Random Practice, Mistake Review, or From Bibliothèque\n• Choose subject and difficulty level\n• Select question type (Multiple Choice, True/False, Fill in Blank, etc.)\n• Set number of questions\n• Tap 'Generate Practice Questions' button\n• Start answering and receive instant feedback";
+"questionGeneration.howToUse.message" = "• Select practice type: Random Practice, Mistake Review, or From ライブラリ\n• Choose subject and difficulty level\n• Select question type (Multiple Choice, True/False, Fill in Blank, etc.)\n• Set number of questions\n• Tap 'Generate Practice Questions' button\n• Start answering and receive instant feedback";
 
 // Question Types
 "questionType.multipleChoice" = "Multiple Choice";
@@ -1629,16 +1657,16 @@
 "privacy.rights.title" = "Your Rights";
 "privacy.security.content" = "We implement industry-standard security measures including encryption, secure authentication, and regular security audits to protect your data from unauthorized access.";
 "privacy.security.title" = "Data Security";
-"privacy.thirdParty.content" = "Nous travaillons avec les services tiers suivants pour vous offrir nos fonctionnalités :
+"privacy.thirdParty.content" = "当社は以下のサードパーティサービスを使用して機能を提供しています：
 
-• OpenAI (openai.com) — traite les photos de devoirs, les textes des élèves et les transcriptions vocales pour le tutorat et la notation par IA
-• Google Gemini (deepmind.google) — alimente le chat vocal en temps réel et les réponses IA avancées
-• ElevenLabs (elevenlabs.io) — convertit les réponses textuelles de l'IA en audio vocal
-• Connexion Google (google.com) — connexion optionnelle au compte
-• Connexion Apple (apple.com) — connexion optionnelle au compte
-• Railway (railway.app) — hébergement cloud sécurisé et stockage de base de données
+• OpenAI（openai.com）— 宿題の写真、生徒のテキスト、音声テキストをAI個別指導および採点のために処理
+• Google Gemini（deepmind.google）— リアルタイム音声チャットと高度なAI応答を実現
+• ElevenLabs（elevenlabs.io）— AIのテキスト応答を音声に変換
+• Googleログイン（google.com）— 任意のアカウントログイン
+• Appleログイン（apple.com）— 任意のアカウントログイン
+• Railway（railway.app）— 安全なクラウドホスティングとデータベースストレージ
 
-Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne vendons pas vos données. Pour les utilisateurs de moins de 13 ans, un consentement parental vérifiable est requis avant que ces services traitent toute donnée.";
+すべてのデータは暗号化されたHTTPS接続で送信されます。お客様のデータを販売することはありません。13歳未満のユーザーについては、これらのサービスがデータを処理する前に、保護者による確認可能な同意が必要です。";
 "privacy.thirdParty.title" = "Third-Party Services";
 "privacy.title" = "Privacy Policy";
 "privacy.usage.content" = "We use your information to provide and improve our educational services, personalize your learning experience, communicate with you, and ensure the safety of our platform.";
@@ -1650,7 +1678,7 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "terms.acceptance.content" = "By accessing or using StudyAI, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use our application.";
 "terms.acceptance.title" = "Acceptance of Terms";
 "terms.accounts.content" = "You are responsible for maintaining the security of your account and password. You must provide accurate information and keep it up to date.";
-"terms.accounts.title" = "User Comptes";
+"terms.accounts.title" = "User アカウントs";
 "terms.changes.content" = "We reserve the right to modify these terms at any time. We will notify you of significant changes, and your continued use constitutes acceptance of the updated terms.";
 "terms.changes.title" = "Changes to Terms";
 "terms.contact.content" = "For questions about these Terms of Service, please contact us at service@study-mates.net";
@@ -1685,10 +1713,10 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "privacy.settings.coppaNotice" = "According to COPPA regulations, users under 13 require parental consent to use certain features.";
 "privacy.settings.dataManagement" = "Data Management";
 "privacy.settings.dataManagementFooter" = "You have the right to access, export, or delete your personal data at any time.";
-"privacy.settings.deleteAccount" = "Delete Compte";
+"privacy.settings.deleteAccount" = "Delete アカウント";
 "privacy.settings.deleteAccountAlert.button" = "Delete";
 "privacy.settings.deleteAccountAlert.message" = "This action cannot be undone. All your data will be permanently deleted.";
-"privacy.settings.deleteAccountAlert.title" = "Delete Compte";
+"privacy.settings.deleteAccountAlert.title" = "Delete アカウント";
 "privacy.settings.deleteAccountDesc" = "Permanently delete your account and all data";
 "privacy.settings.exportData" = "Export My Data";
 "privacy.settings.exportDataAlert.button" = "Export";
@@ -1700,20 +1728,20 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "privacy.settings.privacyPolicy" = "Privacy Policy";
 "privacy.settings.requestConsent" = "Request Parental Consent";
 "privacy.settings.termsOfService" = "Terms of Service";
-"privacy.settings.title" = "Privacy Paramètres";
+"privacy.settings.title" = "Privacy 設定";
 
 // Parent Reports section
 "privacy.parentReports.sectionHeader" = "Parent Reports";
 "privacy.parentReports.automatedReports" = "Automated Weekly Reports";
 "privacy.parentReports.automatedReportsDesc" = "Generate parent reports every Sunday at 9 PM";
-"privacy.parentReports.backgroundSync" = "Background Accueilwork Sync";
+"privacy.parentReports.backgroundSync" = "Background ホームwork Sync";
 "privacy.parentReports.backgroundSyncDesc" = "Automatically sync homework data for reports";
 "privacy.parentReports.lastSync" = "Last Sync";
 "privacy.parentReports.never" = "Never";
 "privacy.parentReports.syncNow" = "Sync Now";
 "privacy.parentReports.nextReport" = "Next Report";
 "privacy.parentReports.footerEnabled" = "Reports are generated every Sunday at 9 PM using homework data synced throughout the week.";
-"privacy.parentReports.footerDisabled" = "Activer automated weekly parent reports to track learning progress.";
+"privacy.parentReports.footerDisabled" = "有効にする automated weekly parent reports to track learning progress.";
 
 // Clear Server Data
 "privacy.clearData.title" = "Clear Server Data";
@@ -1753,17 +1781,20 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "home.focusMode" = "Focus Mode";
 "home.focusModeDescription" = "Study with focus music & timer";
 "settings.parentControls" = "Parent Controls";
-"settings.studySettings" = "Study Paramètres";
+"settings.studySettings" = "Study 設定";
+"settings.grade" = "学年";
+"settings.notSet" = "未設定";
+"settings.subscription" = "サブスクリプション";
 
 // Custom Date Range Picker
-"library.filter.moreSpecific" = "Plus spécifique";
-"library.customDate.title" = "Sélectionner une plage de dates personnalisée";
-"library.customDate.subtitle" = "Choisissez les dates de début et de fin pour votre filtre";
-"library.customDate.startDate" = "Date de début";
-"library.customDate.endDate" = "Date de fin";
-"library.customDate.selectedRange" = "Plage sélectionnée :";
-"library.customDate.apply" = "Appliquer le filtre de date";
-"library.customDate.navigationTitle" = "Plage de dates personnalisée";
+"library.filter.moreSpecific" = "より具体的に";
+"library.customDate.title" = "カスタム期間を選択";
+"library.customDate.subtitle" = "フィルターの開始日と終了日を選択してください";
+"library.customDate.startDate" = "開始日";
+"library.customDate.endDate" = "終了日";
+"library.customDate.selectedRange" = "選択した期間:";
+"library.customDate.apply" = "日付フィルターを適用";
+"library.customDate.navigationTitle" = "カスタム期間";
 
 // Question Archive View
 "archive.title" = "Archive Questions";
@@ -1815,7 +1846,7 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "subject.music" = "Music";
 
 // Pro Mode - Digital Homework
-"proMode.title" = "Digital Accueilwork";
+"proMode.title" = "Digital ホームwork";
 "proMode.cancel" = "Cancel";
 "proMode.selectAll" = "Select All";
 "proMode.deselectAll" = "Deselect All";
@@ -1846,11 +1877,11 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "proMode.quickGrade" = "Quick Grade";  // ✅ Production: Fast Mode button text
 "proMode.deepGrade" = "Deep Grade";  // ✅ Production: Deep Mode button text
 "proMode.standardGradingDescription" = "Standard grading speed (fast but may lack depth)";
-"proMode.gradeHomework" = "Grade Accueilwork with AI";
-"proMode.deepGradeHomework" = "Deep Grade Accueilwork";
+"proMode.gradeHomework" = "Grade ホームwork with AI";
+"proMode.deepGradeHomework" = "Deep Grade ホームwork";
 "proMode.annotationHint" = "Tip: Add annotations to provide image context for questions";
 "proMode.studentAnswerLabel" = "Student Answer: %@";
-"proMode.askAI" = "Ask AI for Aide";
+"proMode.askAI" = "Ask AI for ヘルプ";
 "proMode.askAIPrompt" = "Please help me understand this question";
 "proMode.askAIPromptWithSubquestion" = "Please help me understand this question (Sub-question %@)";
 "proMode.parentQuestionContext" = "[Parent Question Context]";
@@ -1864,7 +1895,7 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "proMode.addAnnotation" = "Add Annotation";
 "proMode.editAnnotations" = "Edit Annotations (%d)";
 "proMode.annotationImageHint" = "Some questions need images — tap to crop from photo";
-"proMode.aiAnalyzeDiagrams" = "Localiser automatiquement les zones de diagramme avec l'IA";
+"proMode.aiAnalyzeDiagrams" = "AIで図の領域を自動検出";
 "proMode.selectAIModel" = "Select AI Model";
 "proMode.revertGrading" = "Revert Grading";
 "proMode.revertGradingAlert.title" = "Revert Grading?";
@@ -1873,46 +1904,48 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 
 
 // Homework Summary View
-"homeworkSummary.title" = "Accueilwork Analysis Complete";
+"homeworkSummary.title" = "ホームwork Analysis Complete";
 "homeworkSummary.questionCount" = "%d questions";
 "homeworkSummary.hierarchicalQuestions" = "Hierarchical";
 "homeworkSummary.questionsPreview" = "Questions Preview";
 "homeworkSummary.moreQuestions" = "%d more questions";
-"homeworkSummary.viewDigitalHomework" = "View Digital Accueilwork";
+"homeworkSummary.viewDigitalHomework" = "View Digital ホームwork";
 "homeworkSummary.subquestionCount" = "%d subquestions";
 "homeworkSummary.answer" = "Answer: %@";
 
 // Subject Names
-"subject.math" = "Mathématiques";
-"subject.mathematics" = "Mathématiques";
-"subject.english" = "Anglais";
-"subject.science" = "Sciences";
-"subject.history" = "Histoire";
-"subject.geography" = "Géographie";
-"subject.physics" = "Physique";
-"subject.chemistry" = "Chimie";
-"subject.biology" = "Biologie";
-"subject.social_studies" = "Sciences Sociales";
-"subject.chinese" = "Chinois";
-"subject.art" = "Art";
-"subject.music" = "Musique";
-"subject.physical_education" = "Éducation Physique";
-"subject.computer_science" = "Informatique";
-"subject.general" = "Général";
+"subject.math" = "数学";
+"subject.mathematics" = "数学";
+"subject.english" = "英語";
+"subject.science" = "理科";
+"subject.history" = "歴史";
+"subject.geography" = "地理";
+"subject.physics" = "物理";
+"subject.chemistry" = "化学";
+"subject.biology" = "生物";
+"subject.social_studies" = "社会科";
+"subject.chinese" = "中国語";
+"subject.art" = "美術";
+"subject.music" = "音楽";
+"subject.physical_education" = "体育";
+"subject.computer_science" = "コンピューターサイエンス";
+"subject.general" = "一般";
 
 "proMode.slideToMarkProgress" = "Slide to Smart Organize";
 "proMode.progressMarked" = "Already Organized";
 "proMode.partial" = "Partial";
 
 // Pro Mode - Archive / Smart Organize result toast
-"proMode.archive.toastTitle" = "✅ Added to Bibliothèque";
+"proMode.archive.toastTitle" = "✅ Added to ライブラリ";
 "proMode.archive.toast.added" = "%d question(s) added to library";
 "proMode.archive.toast.mistakesAdded" = "%d added to mistake notebook";
 "proMode.archive.toast.duplicates" = "%d duplicate(s) skipped";
 "proMode.smartOrganize.toastTitle" = "✅ Smart Organize Complete";
 "proMode.smartOrganize.toast.mistakesAdded" = "%d wrong question(s) added to mistake notebook";
+"proMode.archive.toast.mistakesAnalyzed" = "ミスを分析しました。ノートを更新しました";
+"proMode.smartOrganize.toast.mistakesAnalyzed" = "ミスを分析しました。ノートを更新しました";
 "proMode.smartOrganize.toast.noMistakes" = "No mistakes — great work!";
-"proMode.smartOrganize.toast.progressMarked" = "Progrès marked";
+"proMode.smartOrganize.toast.progressMarked" = "進捗 marked";
 "proMode.smartOrganize.toast.albumSaved" = "Image saved to homework album";
 "proMode.smartOrganize.toast.duplicates" = "%d duplicate(s) skipped";
 
@@ -1924,8 +1957,13 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "proMode.grading.grading" = "Grading Q%@...";
 "proMode.grading.progress" = "Completed %d/%d (%d%%)";
 "proMode.grading.complete" = "Grading complete!";
-"proMode.analyzingDiagrams" = "Analyse des zones de diagramme…";
-"proMode.diagramAnalysisFailed" = "Correction sans contexte d'image";
+"proMode.analyzingDiagrams" = "図の領域を分析中…";
+"proMode.diagramAnalysisFailed" = "画像コンテキストなしで採点";
+"proMode.smartCrop" = "スマート切り取り";
+"proMode.retryCrop" = "再試行";
+"proMode.croppedDone" = "切り取り済み";
+"proMode.addPictureHint" = "ここに画像を追加してください";
+"proMode.selectQuestionFor" = "この問題の番号を選択してください";
 
 // PDF Preview
 "pdfPreview.title" = "PDF Preview";
@@ -1950,7 +1988,7 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "tomato.garden.longestSession" = "Longest Session";
 "tomato.garden.currentStreak" = "Current Streak";
 "tomato.garden.collection" = "Collection";
-"tomato.garden.collectionProgress" = "Collection Progrès";
+"tomato.garden.collectionProgress" = "Collection 進捗";
 "tomato.garden.rarity.ordinary" = "Ordinary";
 "tomato.garden.rarity.rare" = "Rare";
 "tomato.garden.rarity.superRare" = "Super Rare";
@@ -1965,6 +2003,22 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "tomato.garden.type.golden" = "Golden Tomato";
 "tomato.garden.type.platinum" = "Platinum Tomato";
 "tomato.garden.type.diamond" = "Diamond Tomato";
+"tomato.garden.type.tmt4" = "トマト4";
+"tomato.garden.type.tmt5" = "トマト5";
+"tomato.garden.type.tmt6" = "トマト6";
+"tomato.garden.desc.classic" = "シンプルで愛らしいクラシックトマト";
+"tomato.garden.desc.curly" = "エネルギー溢れる巻きつるのトマト";
+"tomato.garden.desc.cute" = "温かくやさしいピンクのトマト";
+"tomato.garden.desc.batman" = "ダークナイトの守護者、正義の体現者";
+"tomato.garden.desc.ironman" = "技術と力の完璧な融合";
+"tomato.garden.desc.mario" = "勇敢な配管工の冒険家";
+"tomato.garden.desc.pokemon" = "素晴らしいポケモンの仲間";
+"tomato.garden.desc.golden" = "富と栄光の象徴、輝く黄金のトマト";
+"tomato.garden.desc.platinum" = "プラチナのように貴重で、高貴な輝きを放つ";
+"tomato.garden.desc.diamond" = "伝説のダイヤモンドトマト — 非常に希少で貴重";
+"tomato.garden.desc.tmt4" = "謙虚で誠実な普通のトマト";
+"tomato.garden.desc.tmt5" = "シンプルで陽気な普通のトマト";
+"tomato.garden.desc.tmt6" = "勤勉で可愛い普通のトマト";
 "tomato.garden.exchange" = "Exchange";
 "tomato.garden.exchange.title" = "Tomato Exchange";
 "tomato.garden.exchange.5to1" = "5 Ordinary → 1 Rare";
@@ -2047,11 +2101,11 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "pomodoroCalendar.accessDescription" = "Allow access to view and schedule focus sessions in your calendar.";
 "pomodoroCalendar.grantAccess" = "Grant Calendar Access";
 "pomodoroCalendar.permissionRequired" = "Calendar Permission Required";
-"pomodoroCalendar.permissionMessage" = "Please enable calendar access in Paramètres to schedule focus sessions.";
+"pomodoroCalendar.permissionMessage" = "Please enable calendar access in 設定 to schedule focus sessions.";
 
 // Deep Focus Mode
 "deepFocus.title" = "Deep Focus Mode";
-"deepFocus.enable" = "Activer Deep Focus";
+"deepFocus.enable" = "有効にする Deep Focus";
 "deepFocus.disable" = "Disable Deep Focus";
 "deepFocus.active" = "Deep Focus Active";
 "deepFocus.ready" = "Deep Focus Ready";
@@ -2078,9 +2132,9 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "directAIHomework.performanceSummary" = "Performance Summary";
 
 // MARK: - Session Chat View
-"sessionChat.archiveSuccess" = "'%@' saved successfully\!\n\nYou can view it anytime in the Bibliothèque tab.\n\nA new chat session is ready for you\!";
+"sessionChat.archiveSuccess" = "'%@' saved successfully\!\n\nYou can view it anytime in the ライブラリ tab.\n\nA new chat session is ready for you\!";
 "sessionChat.archiveSuccessDefault" = "Your conversation";
-"sessionChat.homeworkHelpMode" = "Accueilwork Aide Mode";
+"sessionChat.homeworkHelpMode" = "ホームwork ヘルプ Mode";
 "sessionChat.questionNumber" = "Question #%d";
 "sessionChat.currentGrade" = "Current: %@";
 "sessionChat.deepBadge" = "DEEP";
@@ -2097,10 +2151,10 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "sessionChat.releaseToSend" = "Release to Send";
 
 // MARK: - Live Voice Chat
-"live.connected" = "En direct";
-"live.connecting" = "Connexion...";
-"live.sending_image" = "Envoi de l'image…";
-"live.stop" = "Arrêter l'IA";
+"live.connected" = "ライブ中";
+"live.connecting" = "接続中...";
+"live.sending_image" = "画像を送信中…";
+"live.stop" = "AI を停止";
 "live.hold_to_talk" = "Hold to Talk";
 "live.release_to_send" = "Release to Send";
 "live.slide_to_cancel" = "Slide to Cancel";
@@ -2155,7 +2209,7 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "progressiveHomework.selectAIModelDescription" = "Choose the AI model for grading";
 "progressiveHomework.aiModelLabel" = "AI Model";
 "progressiveHomework.startGrading" = "Start Grading";
-"progressiveHomework.gradingProgress" = "Grading Progrès";
+"progressiveHomework.gradingProgress" = "Grading 進捗";
 "progressiveHomework.saveToMistakeBook" = "Save to Wrong Answer Book";
 "progressiveHomework.errorTitle" = "Error";
 "progressiveHomework.questionLabel" = "Question %@";
@@ -2167,7 +2221,7 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "progressiveHomework.gradingError" = "Grading error: %@";
 "progressiveHomework.scoreLabel" = "Score:";
 "progressiveHomework.aiFeedback" = "AI Feedback";
-"progressiveHomework.askAIForHelp" = "Ask AI for Aide";
+"progressiveHomework.askAIForHelp" = "Ask AI for ヘルプ";
 "progressiveHomework.answerLabel" = "Answer:";
 "progressiveHomework.askAI" = "Ask AI";
 "progressiveHomework.accuracyLabel" = "Accuracy";
@@ -2199,7 +2253,7 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "voiceSettings.speakingSpeed" = "Speaking Speed";
 "voiceSettings.speakingRate" = "Speaking Rate";
 "voiceSettings.volume" = "Volume";
-"voiceSettings.autoSpeakSettings" = "Auto-Speak Paramètres";
+"voiceSettings.autoSpeakSettings" = "Auto-Speak 設定";
 "voiceSettings.autoSpeakResponses" = "Auto-Speak AI Responses";
 "voiceSettings.autoSpeakDesc" = "Automatically read AI responses aloud";
 "voiceSettings.voicePreview" = "Voice Preview";
@@ -2215,134 +2269,140 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "voiceSettings.avatar.eva.desc" = "A kind, supportive girl";
 "voiceSettings.avatar.max.desc" = "An energetic, enthusiastic boy";
 "voiceSettings.avatar.mia.desc" = "A playful, curious girl";
-"voiceSettings.stability" = "Stabilité";
-"voiceSettings.stability.variable" = "Variable";
-"voiceSettings.stability.balanced" = "Équilibré";
-"voiceSettings.stability.stable" = "Stable";
-"voiceSettings.style" = "Style";
-"voiceSettings.style.neutral" = "Neutre";
-"voiceSettings.style.expressive" = "Expressif";
-"voiceSettings.style.bold" = "Intense";
+"voiceSettings.stability" = "安定性";
+"voiceSettings.stability.variable" = "変動的";
+"voiceSettings.stability.balanced" = "バランス";
+"voiceSettings.stability.stable" = "安定";
+"voiceSettings.style" = "スタイル";
+"voiceSettings.style.neutral" = "ニュートラル";
+"voiceSettings.style.expressive" = "表現豊か";
+"voiceSettings.style.bold" = "大胆";
 
 // Onboarding — Parent Setup
-"onboarding.continue" = "Continuer";
-"onboarding.parentSetup.title" = "Configuration parentale";
-"onboarding.parentSetup.subtitle" = "Sécurisez vos contrôles parentaux";
-"onboarding.parentSetup.ageLabel" = "Votre âge";
-"onboarding.parentSetup.agePlaceholder" = "ex. 35";
-"onboarding.parentSetup.nameLabel" = "Nom";
-"onboarding.parentSetup.namePlaceholder" = "Votre nom";
-"onboarding.parentSetup.pinLabel" = "PIN parental (6 chiffres)";
-"onboarding.parentSetup.pinPlaceholder" = "Saisir un PIN à 6 chiffres";
-"onboarding.parentSetup.confirmPinPlaceholder" = "Confirmer le PIN";
-"onboarding.parentSetup.pinMismatch" = "Les PINs ne correspondent pas";
-"onboarding.parentSetup.pinHint" = "PIN à 6 chiffres pour verrouiller les contrôles parentaux afin que votre enfant ne puisse pas les modifier.";
-"onboarding.parentSetup.controlsLabel" = "Contrôles parentaux";
-"onboarding.parentSetup.protectChat" = "Protéger le chat IA";
-"onboarding.parentSetup.protectGrader" = "Protéger le correcteur de devoirs";
-"onboarding.parentSetup.protectReports" = "Protéger les rapports parentaux";
-"onboarding.parentSetup.pinLockHint" = "Entrez et confirmez un PIN valide à 6 chiffres ci-dessus pour activer les contrôles";
+"onboarding.continue" = "続ける";
+"onboarding.parentSetup.title" = "保護者設定";
+"onboarding.parentSetup.subtitle" = "保護者コントロールを設定する";
+"onboarding.parentSetup.ageLabel" = "年齢";
+"onboarding.parentSetup.agePlaceholder" = "例：35";
+"onboarding.parentSetup.nameLabel" = "お名前";
+"onboarding.parentSetup.namePlaceholder" = "名前を入力";
+"onboarding.parentSetup.pinLabel" = "保護者 PIN（6桁）";
+"onboarding.parentSetup.pinPlaceholder" = "6桁のPINを入力";
+"onboarding.parentSetup.confirmPinPlaceholder" = "PINを確認";
+"onboarding.parentSetup.pinMismatch" = "PINが一致しません";
+"onboarding.parentSetup.pinHint" = "6桁のPINでお子様が保護者コントロールを変更できないようにします。";
+"onboarding.parentSetup.controlsLabel" = "保護者コントロール";
+"onboarding.parentSetup.protectChat" = "AIチャットを保護";
+"onboarding.parentSetup.protectGrader" = "採点機能を保護";
+"onboarding.parentSetup.protectReports" = "保護者レポートを保護";
+"onboarding.parentSetup.pinLockHint" = "コントロールを有効にするには、上で有効な6桁のPINを入力して確認してください";
 
 // Onboarding — Language Selection (first page)
-"onboarding.language.title" = "Choisissez votre langue";
-"onboarding.language.subtitle" = "Vous pouvez le modifier à tout moment dans Réglages";
+"onboarding.language.title" = "言語を選択";
+"onboarding.language.subtitle" = "設定でいつでも変更できます";
 
 // Onboarding — Role
-"onboarding.role.title" = "Bienvenue !";
-"onboarding.role.subtitle" = "Qui configure l'application ?";
-"onboarding.role.student.title" = "Élève";
-"onboarding.role.student.subtitle" = "Je veux de l'aide pour mes études";
-"onboarding.role.parent.title" = "Parent";
-"onboarding.role.parent.subtitle" = "Je configure ça pour mon enfant";
+"onboarding.role.title" = "ようこそ！";
+"onboarding.role.subtitle" = "誰がアプリを設定しますか？";
+"onboarding.role.student.title" = "生徒";
+"onboarding.role.student.subtitle" = "勉強のサポートが欲しい";
+"onboarding.role.parent.title" = "保護者";
+"onboarding.role.parent.subtitle" = "子どものために設定しています";
 
 // Onboarding — Age
-"onboarding.age.title" = "Quel âge as-tu ?";
-"onboarding.age.subtitle" = "Nous aide à personnaliser l'expérience";
-"onboarding.age.placeholder" = "Entrez votre âge";
+"onboarding.age.title" = "何歳ですか？";
+"onboarding.age.subtitle" = "体験をパーソナライズするのに役立ちます";
+"onboarding.age.placeholder" = "年齢を入力";
 
 // Onboarding — Learning Style
-"onboarding.learningStyle.title" = "Comment veux-tu que l'IA t'aide ?";
-"onboarding.learningStyle.subtitle" = "Tu peux le modifier à tout moment dans Réglages";
-"onboarding.learningStyle.guide" = "Guide-moi";
-"onboarding.learningStyle.tell" = "Dis-moi";
-"onboarding.learningStyle.guide.desc" = "Pose-moi des questions pour que je trouve moi-même";
-"onboarding.learningStyle.tell.desc" = "Donne-moi la meilleure solution et explique-la étape par étape";
+"onboarding.learningStyle.title" = "AIにどんなサポートをしてほしいですか？";
+"onboarding.learningStyle.subtitle" = "設定でいつでも変更できます";
+"onboarding.learningStyle.guide" = "導いてください";
+"onboarding.learningStyle.tell" = "教えてください";
+"onboarding.learningStyle.guide.desc" = "質問してもらって自分で考えます";
+"onboarding.learningStyle.tell.desc" = "最良の解決策を示して、ステップごとに説明してください";
 
 // Onboarding — Consent
-"onboarding.consent.title" = "Dernière étape";
-"onboarding.consent.privacy.questions" = "Tes questions restent privées";
-"onboarding.consent.privacy.activity" = "Ton activité aide à personnaliser l'apprentissage";
-"onboarding.consent.privacy.profile" = "Ton profil n'est jamais partagé";
-"onboarding.consent.privacyPolicy" = "Politique de confidentialité";
-"onboarding.consent.agree" = "J'accepte la Politique de confidentialité";
-"onboarding.consent.required" = "Tu dois accepter pour continuer";
-"onboarding.getStarted" = "Commencer";
+"onboarding.consent.title" = "最後のステップ";
+"onboarding.consent.privacy.questions" = "質問はプライベートです";
+"onboarding.consent.privacy.activity" = "あなたの活動が学習のパーソナライズに役立ちます";
+"onboarding.consent.privacy.profile" = "プロフィールは共有されません";
+"onboarding.consent.privacyPolicy" = "プライバシーポリシー";
+"onboarding.consent.agree" = "プライバシーポリシーに同意します";
+"onboarding.consent.required" = "続けるには同意する必要があります";
+"onboarding.getStarted" = "始める";
 
 // Parent Reports — List View
-"reports.passive.title" = "Rapports Parents";
-"reports.passive.subtitle" = "Bilans d'apprentissage hebdomadaires et mensuels";
-"reports.passive.editReports" = "Modifier les rapports";
-"reports.passive.testingMode" = "Mode test";
-"reports.passive.testingMode.message" = "Déclenchez manuellement la génération de rapports pour les tests. Ce bouton sera supprimé en production.";
-"reports.passive.generateWeekly" = "Générer un rapport hebdomadaire";
-"reports.passive.generateMonthly" = "Générer un rapport mensuel";
-"reports.passive.deleteTitle" = "Supprimer les rapports ?";
-"reports.passive.deleteOne" = "Supprimer 1 rapport";
-"reports.passive.deleteMany" = "Supprimer %d rapports";
-"reports.passive.deleteConfirmOne" = "Voulez-vous vraiment supprimer 1 rapport ? Cette action est irréversible.";
-"reports.passive.deleteConfirmMany" = "Voulez-vous vraiment supprimer %d rapports ? Cette action est irréversible.";
-"reports.passive.loading" = "Chargement des rapports...";
-"reports.passive.empty.title" = "Aucun rapport disponible";
-"reports.passive.empty.weekly" = "Les rapports hebdomadaires sont générés chaque dimanche à 22h. Revenez bientôt !";
-"reports.passive.empty.monthly" = "Les rapports mensuels sont générés le 1er de chaque mois.";
-"reports.passive.reportsAvailable" = "%d rapports disponibles";
-"reports.passive.metric.accuracy" = "Précision";
-"reports.passive.metric.questions" = "Questions";
-"reports.passive.metric.studyTime" = "Temps d'étude";
-"reports.passive.metric.streak" = "Série";
-"reports.passive.metric.engagement" = "Engagement";
-"reports.passive.metric.confidence" = "Confiance";
-"reports.passive.trend.accuracy" = "Précision";
-"reports.passive.trend.activity" = "Activité";
+"reports.passive.title" = "保護者レポート";
+"reports.passive.subtitle" = "週次・月次の学習インサイト";
+"reports.passive.editReports" = "レポートを編集";
+"reports.passive.testingMode" = "テストモード";
+"reports.passive.testingMode.message" = "テスト用にレポート生成を手動で起動します。このボタンは本番環境では削除されます。";
+"reports.passive.generateWeekly" = "週次レポートを生成";
+"reports.passive.generateMonthly" = "月次レポートを生成";
+"reports.passive.deleteTitle" = "レポートを削除しますか？";
+"reports.passive.deleteOne" = "1件のレポートを削除";
+"reports.passive.deleteMany" = "%d件のレポートを削除";
+"reports.passive.deleteConfirmOne" = "本当に1件のレポートを削除しますか？この操作は元に戻せません。";
+"reports.passive.deleteConfirmMany" = "本当に%d件のレポートを削除しますか？この操作は元に戻せません。";
+"reports.passive.loading" = "レポートを読み込んでいます...";
+"reports.passive.empty.title" = "レポートがありません";
+"reports.passive.empty.weekly" = "週次レポートは毎週日曜日の22時に生成されます。後でまた確認してください！";
+"reports.passive.empty.monthly" = "月次レポートは毎月1日に生成されます。";
+"reports.passive.reportsAvailable" = "%d件のレポートが利用可能";
+"reports.passive.metric.accuracy" = "正確さ";
+"reports.passive.metric.questions" = "問題数";
+"reports.passive.metric.studyTime" = "学習時間";
+"reports.passive.metric.streak" = "連続日数";
+"reports.passive.metric.engagement" = "参加度";
+"reports.passive.metric.confidence" = "自信度";
+"reports.passive.trend.accuracy" = "正確さ";
+"reports.passive.trend.activity" = "活動";
 
 // Parent Reports — Detail View
-"reports.passive.weeklyReport" = "Rapport hebdomadaire";
-"reports.passive.monthlyReport" = "Rapport mensuel";
-"reports.passive.detailedReports" = "RAPPORTS DÉTAILLÉS";
-"reports.passive.keyInsights" = "Points clés";
-"reports.passive.recommendations" = "Recommandations";
-"reports.passive.learningProgress" = "PROGRÈS D'APPRENTISSAGE";
-"reports.passive.overallGrade" = "Note globale";
-"reports.passive.trend.improving" = "En progression";
-"reports.passive.trend.stable" = "Stable";
-"reports.passive.trend.declining" = "En baisse";
-"reports.passive.mental" = "Mental";
-"reports.passive.mentalHealth.excellent" = "Excellent";
-"reports.passive.mentalHealth.good" = "Bon";
-"reports.passive.mentalHealth.fair" = "Passable";
-"reports.passive.mentalHealth.low" = "Faible";
+"reports.passive.weekly" = "週次";
+"reports.passive.monthly" = "月次";
+"reports.passive.weeklyReport" = "週次レポート";
+"reports.passive.monthlyReport" = "月次レポート";
+"reports.passive.detailedReports" = "詳細レポート";
+"reports.passive.keyInsights" = "重要な洞察";
+"reports.passive.recommendations" = "おすすめ";
+"reports.passive.learningProgress" = "学習進捗";
+"reports.passive.overallGrade" = "総合評価";
+"reports.passive.trend.improving" = "向上中";
+"reports.passive.trend.stable" = "安定";
+"reports.passive.trend.declining" = "低下中";
+"reports.passive.mental" = "メンタル";
+"reports.passive.mental_health" = "メンタルヘルスとウェルビーイング";
+"reports.passive.mentalHealth.excellent" = "優秀";
+"reports.passive.mentalHealth.good" = "良好";
+"reports.passive.mentalHealth.fair" = "普通";
+"reports.passive.mentalHealth.low" = "低い";
+"reports.passive.activity" = "活動レポート";
+"reports.passive.areas_of_improvement" = "改善すべき分野";
+"reports.passive.summary" = "週次/月次サマリー";
 
 // Parent Reports — Onboarding
-"reports.passive.onboarding.title" = "Recevez des bilans d'apprentissage hebdomadaires";
-"reports.passive.onboarding.subtitle" = "Rapports générés par IA pour les parents, chaque semaine";
-"reports.passive.onboarding.feature.progress.title" = "Suivi des progrès";
-"reports.passive.onboarding.feature.progress.desc" = "Voyez comment votre enfant s'améliore chaque semaine";
-"reports.passive.onboarding.feature.ai.title" = "Insights par IA";
-"reports.passive.onboarding.feature.ai.desc" = "Recommandations personnalisées basées sur les données de devoirs";
-"reports.passive.onboarding.feature.mental.title" = "Bien-être mental";
-"reports.passive.onboarding.feature.mental.desc" = "Suivez les signaux d'engagement et de confiance";
-"reports.passive.onboarding.feature.private.title" = "Privé et sécurisé";
-"reports.passive.onboarding.feature.private.desc" = "Les données sont chiffrées et ne sont jamais partagées avec des tiers";
-"reports.passive.onboarding.dataNote" = "Les données de devoirs se synchronisent automatiquement lors de la génération d'un rapport";
-"reports.passive.onboarding.enable" = "Activer les rapports parents";
-"reports.passive.onboarding.noThanks" = "Non merci";
+"reports.passive.onboarding.title" = "週次学習インサイトを受け取ろう";
+"reports.passive.onboarding.subtitle" = "保護者向けAI生成レポート、毎週配信";
+"reports.passive.onboarding.feature.progress.title" = "進捗管理";
+"reports.passive.onboarding.feature.progress.desc" = "お子さんが毎週どのように成長しているか確認できます";
+"reports.passive.onboarding.feature.ai.title" = "AIによる洞察";
+"reports.passive.onboarding.feature.ai.desc" = "宿題データに基づいたパーソナライズされたアドバイス";
+"reports.passive.onboarding.feature.mental.title" = "メンタルウェルビーイング";
+"reports.passive.onboarding.feature.mental.desc" = "参加度と自信の信号を監視します";
+"reports.passive.onboarding.feature.private.title" = "プライベート＆安全";
+"reports.passive.onboarding.feature.private.desc" = "データは暗号化され、第三者と共有されることはありません";
+"reports.passive.onboarding.dataNote" = "レポート生成時に宿題データが自動的にサーバーと同期されます";
+"reports.passive.onboarding.enable" = "保護者レポートを有効にする";
+"reports.passive.onboarding.noThanks" = "いいえ、結構です";
 
 // New Practice Sheet
 "newPractice.title" = "New Practice";
 "newPractice.error.title" = "Generation Failed";
 "newPractice.error.sessionNotFound" = "Session not found after generation.";
 "newPractice.error.noSelection" = "Please select at least one conversation or question.";
-"newPractice.error.multipleSubjects" = "Les éléments sélectionnés couvrent plusieurs sujets. Veuillez ne sélectionner que des éléments d'un seul sujet.";
+"newPractice.error.multipleSubjects" = "選択されたアイテムが複数の科目にまたがっています。同じ科目のみ選択してください。";
 
 // Practice Library
 "practiceLibrary.title" = "Practice";
@@ -2360,8 +2420,8 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "practiceLibrary.card.questionPlural" = "questions";
 "practiceLibrary.card.complete" = "Complete";
 "practiceLibrary.card.inProgress" = "In Progress";
-"practiceLibrary.statusOngoing" = "En cours";
-"practiceLibrary.statusCompleted" = "Terminé";
+"practiceLibrary.statusOngoing" = "進行中";
+"practiceLibrary.statusCompleted" = "完了";
 
 // Practice Sheet
 "practiceSheet.questionCounter" = "Q %d/%d";
@@ -2382,101 +2442,223 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "practiceSheet.statSkipped" = "Skipped";
 "practiceSheet.slideToOrganizeHint" = "Slide to archive mistakes & mark progress";
 "practiceSheet.organizedConfirm" = "Mistakes archived · Progress marked";
-"practiceSheet.slideToOrganize" = "Glisser pour organiser";
-"practiceSheet.reviewButton" = "Revoir les réponses";
-"practiceSheet.redoButton" = "Refaire";
+"practiceSheet.slideToOrganize" = "スライドして整理";
+"practiceSheet.reviewButton" = "回答を見直す";
+"practiceSheet.redoButton" = "やり直す";
 "practiceSheet.aiAnalyzing" = "AI is analyzing your answer…";
 "practiceSheet.toastTitle" = "Smart Organize Complete";
 "practiceSheet.toastProgress" = "Progress marked for %@";
 "practiceSheet.toastMistakes" = "%d mistake(s) archived to library";
 "practiceSheet.toastSaved" = "Session saved";
+"practiceSheet.holdToSpeak" = "押して話す";
+"practiceSheet.voiceInput.release" = "離して回答を設定";
 "practiceSheet.scoreExcellent" = "Excellent!";
 "practiceSheet.scoreGreat" = "Great Job!";
 "practiceSheet.scoreGood" = "Keep It Up!";
 "practiceSheet.scorePractice" = "Keep Practicing!";
 
 // Suggested Daily Todos
-"suggestedTodo.sectionTitle" = "Suggestions";
-"suggestedTodo.empty" = "Toutes les tâches du jour complétées 🎉";
-"suggestedTodo.collapsed" = "Voir les suggestions du jour";
-"suggestedTodo.resumePractice.title" = "Reprendre la pratique";
-"suggestedTodo.resumePractice.subtitle" = "%d questions restantes";
-"suggestedTodo.resumePractice.subtitleGeneral" = "Continuer là où vous en étiez";
-"suggestedTodo.mistakeReview.title" = "Réviser les erreurs";
-"suggestedTodo.mistakeReview.subtitle" = "%d erreurs à réviser";
-"suggestedTodo.homeworkGrader.title" = "Faire analyser les devoirs par IA";
-"suggestedTodo.homeworkGrader.subtitle" = "Aucune notation aujourd'hui";
-"suggestedTodo.focusMode.title" = "Démarrer une session de focus";
-"suggestedTodo.focusMode.subtitle" = "Aucune session de focus aujourd'hui";
-"suggestedTodo.progress.title" = "Voir les progrès de la semaine";
-"suggestedTodo.progress.subtitle" = "Suivez votre parcours d'apprentissage";
-"suggestedTodo.greeting.0" = "Jette un coup d'œil ✨";
-"suggestedTodo.greeting.1" = "Qu'as-tu envie d'explorer aujourd'hui ?";
-"suggestedTodo.greeting.2" = "Quelques idées pour toi";
-"suggestedTodo.greeting.3" = "Et si tu essayais ça ?";
-"suggestedTodo.greeting.4" = "Sur quoi as-tu envie de te pencher ?";
-"suggestedTodo.greeting.5" = "Inspiré(e) ? Lance-toi";
-"suggestedTodo.greeting.6" = "Choisis-en une, sans pression";
-"suggestedTodo.greeting.7" = "Selon ton humeur";
-"suggestedTodo.greeting.8" = "Juste des suggestions, pas d'obligation";
-"suggestedTodo.greeting.9" = "Quelques pensées à partager";
-"suggestedTodo.greeting.10" = "Les petites découvertes du jour";
-"suggestedTodo.greeting.11" = "Prends ce qui te plaît";
-"suggestedTodo.greeting.12" = "Sans pression, rien d'obligatoire";
-"suggestedTodo.greeting.13" = "Viens voir ✨";
-"suggestedTodo.greeting.14" = "Quelque chose t'attire ?";
+"suggestedTodo.sectionTitle" = "おすすめ";
+"suggestedTodo.empty" = "今日のタスクはすべて完了 🎉";
+"suggestedTodo.collapsed" = "今日のおすすめを見てみる";
+"suggestedTodo.resumePractice.title" = "未完了の練習を再開";
+"suggestedTodo.resumePractice.subtitle" = "残り %d 問";
+"suggestedTodo.resumePractice.subtitleGeneral" = "前回の続きから";
+"suggestedTodo.mistakeReview.title" = "間違いを復習";
+"suggestedTodo.mistakeReview.subtitle" = "%d 問の間違いを復習";
+"suggestedTodo.homeworkGrader.title" = "宿題をAIに分析させる";
+"suggestedTodo.homeworkGrader.subtitle" = "今日はまだ採点なし";
+"suggestedTodo.focusMode.title" = "集中セッションを開始";
+"suggestedTodo.focusMode.subtitle" = "今日はまだ集中セッションなし";
+"suggestedTodo.focusMode.subtitleDone" = "%d件完了 · もう一度";
+"suggestedTodo.progress.title" = "今週の進捗を確認";
+"suggestedTodo.progress.subtitle" = "学習の軌跡を把握しよう";
+"suggestedTodo.progress.subtitleToday" = "今日の学習結果を確認";
+"suggestedTodo.greeting.0" = "気軽に見てみてね ✨";
+"suggestedTodo.greeting.1" = "今日は何を探索したい？";
+"suggestedTodo.greeting.2" = "いくつかアイデアがあるよ";
+"suggestedTodo.greeting.3" = "これはどう？";
+"suggestedTodo.greeting.4" = "今日は何をしたい気分？";
+"suggestedTodo.greeting.5" = "気が向いたらやってみて";
+"suggestedTodo.greeting.6" = "ひとつだけ試してみる？";
+"suggestedTodo.greeting.7" = "気分次第でどうぞ";
+"suggestedTodo.greeting.8" = "急がなくていいよ";
+"suggestedTodo.greeting.9" = "思いついたことをシェアするね";
+"suggestedTodo.greeting.10" = "今日の小さな発見";
+"suggestedTodo.greeting.11" = "好きなものを選んでね";
+"suggestedTodo.greeting.12" = "強制じゃないよ、ただの提案";
+"suggestedTodo.greeting.13" = "ちょっと見てみて ✨";
+"suggestedTodo.greeting.14" = "気になるものある？";
 
 // MARK: - Quick Action Labels
-"home.quickAction.chat" = "Demander à l'IA";
-"home.quickAction.homework" = "Devoirs";
-"home.quickAction.practice" = "Pratiquer";
+"home.quickAction.chat" = "AIに質問";
+"home.quickAction.homework" = "宿題採点";
+"home.quickAction.practice" = "練習";
 
 // MARK: - Suggested Todo Items
-"todo.mistakeReview.count.one" = "1 erreur";
-"todo.mistakeReview.count.many" = "%d erreurs";
-"todo.mistakeReview.title" = "Revoir les erreurs";
-"todo.feynman.title" = "Méthode Feynman";
-"todo.feynman.subtitle" = "Générer des exercices sur \"%@\"";
-"todo.conceptReview.defaultSubject" = "Conversation récente";
-"todo.conceptReview.title" = "Révision de concepts";
-"todo.conceptReview.subtitle" = "Questions sur \"%@\"";
-"todo.randomPractice.defaultSubject" = "Toutes les matières";
-"todo.randomPractice.title" = "Pratique aléatoire";
-"todo.randomPractice.subtitle" = "%@ · 5 questions";
-"todo.practiceRetry.title" = "Réessayer %@";
-"todo.practiceRetry.subtitle" = "Dernier score %@ — continue comme ça !";
-"todo.grader.title" = "Corriger les devoirs d'aujourd'hui";
-"todo.grader.subtitle" = "Prendre une photo pour analyse IA";
-"todo.chat.title" = "Poser une question à l'IA";
-"todo.chat.subtitle" = "Dis ce qui te perturbe aujourd'hui";
-"todo.focus.title" = "Pomodoro 25 min de concentration";
-"todo.focus.subtitle.none" = "Pas encore de session aujourd'hui";
-"todo.focus.subtitle.some" = "%d faites aujourd'hui · encore une";
-"todo.album.title" = "Album de devoirs";
-"todo.album.subtitle.generic" = "Voir les devoirs sauvegardés";
-"todo.album.subtitle.subject" = "Dernier : %@";
-"todo.progress.title" = "Progrès hebdomadaire";
-"todo.progress.subtitle.today" = "Voir les résultats d'aujourd'hui";
-"todo.progress.subtitle.general" = "Suivre ton apprentissage";
-"todo.oral.title" = "Pratique orale avec l'IA";
-"todo.oral.subtitle" = "Parle avec l'IA de la leçon du jour";
-"todo.dailyQuestion.title" = "Le savais-tu ?";
-"todo.dailyQuestion.fallback.title" = "Démarrer une conversation IA";
-"todo.dailyQuestion.fallback.subtitle" = "Pose une question à l'IA à tout moment";
-"chat.liveMode.oralPractice.starterPrompt" = "Pratiquons l'expression orale ! Tu peux me poser des questions, corriger ma prononciation ou converser librement. Qu'est-ce que tu veux travailler ?";
+"todo.mistakeReview.count.one" = "間違い1問";
+"todo.mistakeReview.count.many" = "間違い%d問";
+"todo.mistakeReview.title" = "間違いを復習";
+"todo.feynman.title" = "フェイマン練習";
+"todo.feynman.subtitle" = "「%@」の専門問題を生成";
+"todo.conceptReview.defaultSubject" = "最近の会話";
+"todo.conceptReview.title" = "概念復習";
+"todo.conceptReview.subtitle" = "「%@」から問題を生成";
+"todo.randomPractice.defaultSubject" = "全科目";
+"todo.randomPractice.title" = "ランダム練習";
+"todo.randomPractice.subtitle" = "%@ · 5問";
+"todo.practiceRetry.title" = "%@をもう一度";
+"todo.practiceRetry.subtitle" = "前回のスコア%@ — もう少しで上がる！";
+"todo.grader.title" = "今日の宿題を採点";
+"todo.grader.subtitle" = "写真を撮ってAIに分析させる";
+"todo.chat.title" = "AIに質問する";
+"todo.chat.subtitle" = "今日の疑問を聞いてみよう";
+"todo.focus.title" = "ポモドーロ25分集中";
+"todo.focus.subtitle.none" = "今日はまだ集中セッションなし";
+"todo.focus.subtitle.some" = "今日%d回完了・もう一回";
+"todo.album.title" = "宿題アルバム";
+"todo.album.subtitle.generic" = "保存した宿題を確認";
+"todo.album.subtitle.subject" = "最近：%@";
+"todo.progress.title" = "今週の進捗";
+"todo.progress.subtitle.today" = "今日の学習結果を確認";
+"todo.progress.subtitle.general" = "学習の軌跡を把握";
+"todo.oral.title" = "AIスピーキング練習";
+"todo.oral.subtitle" = "今日学んだことをAIと話そう";
+"todo.dailyQuestion.title" = "知ってた？";
+"todo.dailyQuestion.fallback.title" = "AIと会話を始める";
+"todo.dailyQuestion.fallback.subtitle" = "いつでもAIに質問できる";
+"chat.liveMode.oralPractice.starterPrompt" = "スピーキング練習をしましょう！質問したり、発音を直したり、自由に会話したりできます。何を練習しますか？";
 
 // MARK: - Live Mode Scenario Cards
-"live.scenario.oralPractice.title" = "Expression orale";
-"live.scenario.oralPractice.subtitle" = "Conversation libre, améliorer l'aisance";
-"live.scenario.oralComposition.title" = "Exposé oral";
-"live.scenario.oralComposition.subtitle" = "Exprime tes idées, l'IA structure ton plan";
-"live.scenario.debate.title" = "Partenaire de débat";
-"live.scenario.debate.subtitle" = "L'IA choisit le sujet, tu choisis ton camp";
-"live.scenario.interview.title" = "Entretien simulé";
-"live.scenario.interview.subtitle" = "Simule un vrai entretien, l'IA donne des retours";
-"live.scenario.classroomQA.title" = "Questions de classe";
-"live.scenario.classroomQA.subtitle" = "Cibler les points faibles, quiz oral";
-"live.scenario.presentation.title" = "Présentation";
-"live.scenario.presentation.subtitle" = "Présente en entier, l'IA donne un retour en 3 axes";
-"live.scenario.historicalFigure.title" = "Personnage historique";
-"live.scenario.historicalFigure.subtitle" = "Voyager dans l'histoire, dialoguer avec un génie";
+"live.scenario.oralPractice.title" = "スピーキング練習";
+"live.scenario.oralPractice.subtitle" = "自由会話でスキルアップ";
+"live.scenario.oralComposition.title" = "口頭作文";
+"live.scenario.oralComposition.subtitle" = "アイデアを語る・AIが構成を導く";
+"live.scenario.debate.title" = "ディベート相手";
+"live.scenario.debate.subtitle" = "AIがテーマを出す・あなたが立場を選ぶ";
+"live.scenario.interview.title" = "模擬面接";
+"live.scenario.interview.subtitle" = "リアルな面接を模擬・AIがフィードバック";
+"live.scenario.classroomQA.title" = "授業Q&A";
+"live.scenario.classroomQA.subtitle" = "弱点を狙った口頭テスト";
+"live.scenario.presentation.title" = "プレゼン練習";
+"live.scenario.presentation.subtitle" = "全体を発表・AIが3軸でフィードバック";
+"live.scenario.historicalFigure.title" = "歴史的人物";
+"live.scenario.historicalFigure.subtitle" = "歴史を旅して偉人と対話";
+"live.scenarioPicker.title" = "Liveシナリオを選択";
+"live.scenarioPicker.subtitle" = "AIがセッション全体をガイドします";
+
+// Report priority labels
+"report.priority.high" = "重要";
+"report.priority.medium" = "普通";
+"report.priority.low" = "低";
+
+// MARK: - Account Usage & Plan
+"account.usage.title" = "プランと使用状況";
+"account.usage.tierGuest" = "ゲストアカウント";
+"account.usage.tierFree" = "無料";
+"account.usage.tierPremium" = "プレミアム";
+"account.usage.tierUltra" = "ウルトラ";
+"account.usage.badgeGuest" = "ゲスト";
+"account.usage.unlimited" = "無制限";
+"account.usage.upgradeLabel" = "アップグレード";
+"account.usage.upgradePlan" = "プランをアップグレード";
+"account.usage.manageSubscription" = "サブスクリプション管理";
+"account.usage.restorePurchases" = "購入を復元";
+"account.usage.resetsOn" = "%@にリセット";
+"account.usage.lifetimeLimits" = "生涯制限が適用されます";
+"account.usage.loadError" = "使用状況を読み込めませんでした";
+"account.usage.feature.homework_single" = "宿題アップロード";
+"account.usage.feature.homework_batch" = "一括アップロード";
+"account.usage.feature.chat_messages" = "AIチャット";
+"account.usage.feature.questions" = "練習問題";
+"account.usage.feature.error_analysis" = "弱点分析";
+"account.usage.feature.reports" = "保護者レポート";
+"account.usage.feature.voice_minutes" = "ライブ家庭教師";
+"account.usage.feature.tts_calls" = "AI音声";
+
+// MARK: - Weak Point Heatmap
+"heatmap.title" = "弱点ヒートマップ";
+"heatmap.back" = "戻る";
+"heatmap.subTopics" = "· サブトピック";
+"heatmap.noPracticeData" = "まだ練習データがありません。問題を解いて弱点を確認しましょう。";
+"heatmap.noDetailedData" = "このブランチにはまだ詳細なデータがありません。";
+
+// MARK: - Library Selection & PDF Export
+"library.title" = "学習ライブラリ";
+"library.selection.selectAll" = "すべて選択";
+"library.selection.deselectAll" = "すべて解除";
+"library.selection.countSelected" = "%d件選択中";
+"library.selection.noneSelected" = "未選択";
+"library.selection.pdf" = "PDF";
+"library.pdf.generating" = "PDF生成中…";
+"library.pdf.error" = "PDFの生成に失敗しました";
+"library.pdf.email.subject" = "ライブラリ問題 — %@";
+"library.pdf.emailBody" = "こんにちは！\n\nStudyMatesから%@の%d問のライブラリ問題を添付しました。\n\nStudyMatesが作成 — あなたのAI学習パートナー\n\nよろしくお願いします";
+
+// MARK: - Live Mode Leave Confirmation
+"live.leave.title" = "ライブチャットを終了しますか？";
+"live.leave.message" = "このページを離れるとライブセッションが終了し、会話がクリアされます。";
+"live.leave.confirm" = "退出してクリア";
+"live.leave.cancel" = "そのまま";
+
+// MARK: - PDF Export
+"pdf.options.title" = "エクスポートオプション";
+"pdf.options.section.text" = "テキスト";
+"pdf.options.section.spacing" = "間隔";
+"pdf.options.section.images" = "画像";
+"pdf.options.fontSize" = "フォントサイズ";
+"pdf.options.gap" = "問題間のギャップ";
+"pdf.options.maxImageSize" = "最大画像サイズ";
+"pdf.options.maxSubImageSize" = "最大サブ画像サイズ";
+"pdf.options.reset" = "デフォルトにリセット";
+"pdf.options.footer" = "「適用」をタップしてこの設定でPDFを再生成してください。";
+"pdf.header.generatedOn.withCount" = "%@に生成 • %d問";
+"pdf.header.generatedOn.withType" = "%@に生成 • %@";
+"pdf.header.questionCount" = "%d問";
+"pdf.header.subject" = "科目：%@";
+"pdf.question.label" = "問題%@";
+"pdf.question.noText" = "【問題テキストが利用できません】";
+"pdf.homework.title" = "宿題の問題";
+"pdf.practice.title" = "練習問題";
+"pdf.library.title" = "ライブラリ問題";
+"pdf.mistakes.title" = "ミス復習";
+"pdf.instruction.homework" = "これらは宿題の問題です。";
+"pdf.instruction.practice" = "各問題に答えてください。必要に応じて計算過程を示してください。";
+"pdf.instruction.library" = "各問題を確認し、スペースに答えを書いてください。";
+"pdf.instruction.mistakes" = "これらの問題を確認し、各問題の下のスペースに答えを書いてください。";
+"pdf.mistake.hint" = "💡 元の解答：\"%@\"";
+"pdf.mistake.noAnswer" = "解答なし";
+
+// MARK: - Saved Digital Homework
+"savedDigitalHomework.title" = "デジタル宿題";
+"savedDigitalHomework.redo" = "やり直す";
+
+// MARK: - Upgrade Comparison View
+"upgrade.comparison.headerTitle" = "AI StudyMateをアップグレード";
+"upgrade.comparison.headerSubtitle" = "インタラクティブなAI家庭教師で無制限のサポートを受けましょう。";
+"upgrade.comparison.planFree" = "無料";
+"upgrade.comparison.planPremium" = "プレミアム";
+"upgrade.comparison.planUltra" = "ウルトラ";
+"upgrade.comparison.badgeFreeToTry" = "無料で試す";
+"upgrade.comparison.badgeMostPopular" = "最も人気";
+"upgrade.comparison.badgeBestValue" = "最もお得";
+"upgrade.comparison.pricePeriod" = "/月";
+"upgrade.comparison.featureHomework" = "宿題\nアップロード";
+"upgrade.comparison.featureAiChat" = "AI\nチャット";
+"upgrade.comparison.featurePractice" = "的を絞った\n練習";
+"upgrade.comparison.featureWeakness" = "弱点\n分析";
+"upgrade.comparison.featureLiveTutor" = "ライブ\n家庭教師";
+"upgrade.comparison.featureReports" = "保護者\nレポート";
+"upgrade.comparison.featureMultipleKids" = "複数の\n子供";
+"upgrade.comparison.valueLiveTutor" = "300分";
+"upgrade.comparison.valueMultipleKids" = "最大3人";
+"upgrade.comparison.yourCurrentUsage" = "現在の使用状況";
+"upgrade.comparison.usageHomework" = "宿題";
+"upgrade.comparison.usageChat" = "チャット";
+"upgrade.comparison.usagePractice" = "練習";
+"upgrade.comparison.usageUsed" = "%1$d / %2$d 使用";
+"upgrade.comparison.ctaPremium" = "プレミアムを始める  %@";
+"upgrade.comparison.ctaUltra" = "ウルトラを始める  %@";
+"upgrade.comparison.continueFree" = "無料で続ける";
+"upgrade.comparison.restorePurchases" = "購入を復元";
+"upgrade.comparison.terms" = "サブスクリプションは現在の期間終了の少なくとも24時間前にキャンセルしない限り自動更新されます。設定 > Apple ID > サブスクリプションでいつでも管理またはキャンセルできます。";

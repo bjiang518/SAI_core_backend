@@ -52,9 +52,15 @@ try:
     redis_url = os.getenv('REDIS_URL')
     if redis_url:
         redis_client = redis.from_url(redis_url)
-        logger.debug("✅ Redis connected for session storage")
+        logger.info(f"✅ Redis client created for session storage (url length={len(redis_url)})")
+    else:
+        logger.warning(
+            "⚠️  REDIS_URL not set in AI Engine — sessions use PER-WORKER in-memory storage. "
+            "With 3 Gunicorn workers, different workers cannot share session state, causing "
+            "AI memory loss. Set REDIS_URL in Railway env vars to fix."
+        )
 except ImportError:
-    logger.debug("⚠️ Redis not available, using in-memory session storage")
+    logger.warning("⚠️ redis package not available, using in-memory session storage")
 
 MATPLOTLIB_AVAILABLE = False
 try:

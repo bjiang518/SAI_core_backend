@@ -1123,7 +1123,7 @@ struct SubjectInlineDetailCard: View {
     @ObservedObject private var shortTermService = ShortTermStatusService.shared
     @ObservedObject private var themeManager = ThemeManager.shared
     @State private var sourceCounts: (homework: Int, practice: Int, mistakeReview: Int) = (0, 0, 0)
-    @State private var weeklyTrend: [WeeklyAccuracyPoint] = []
+    @State private var rawSubjectQuestions: [[String: Any]] = []
 
     private var weaknessCounts: (Int, Int, Int) {
         // Use rawValue (e.g. "Math") — weakness keys are stored as "Math/concept/type"
@@ -1147,9 +1147,9 @@ struct SubjectInlineDetailCard: View {
             let wc = weaknessCounts
             WeaknessAssessmentRow(counts: (weaknesses: wc.0, strengths: wc.1, conversions: wc.2))
 
-            if weeklyTrend.count >= 2 {
+            if !rawSubjectQuestions.isEmpty {
                 Divider().padding(.vertical, 10)
-                WeeklyAccuracyTrendCard(trend: weeklyTrend, subjectColor: progressData.subject.swiftUIColor)
+                AccuracyTrendCard(rawQuestions: rawSubjectQuestions, subjectColor: progressData.subject.swiftUIColor)
             }
         }
         .padding()
@@ -1169,34 +1169,7 @@ struct SubjectInlineDetailCard: View {
         let pr = subjectQuestions.filter { ($0["source"] as? String) == "practice" }.count
         let mr = subjectQuestions.filter { ($0["source"] as? String) == "mistake_review" }.count
         sourceCounts = (hw, pr, mr)
-        weeklyTrend = buildSubjectWeeklyTrend(from: subjectQuestions)
-    }
-
-    private func buildSubjectWeeklyTrend(from questions: [[String: Any]]) -> [WeeklyAccuracyPoint] {
-        let iso = ISO8601DateFormatter()
-        let calendar = Calendar.current
-        let now = Date()
-        var weekBuckets: [Date: (total: Int, correct: Int)] = [:]
-        for q in questions {
-            guard let dateStr = q["archivedAt"] as? String,
-                  let date = iso.date(from: dateStr) else { continue }
-            let weekStart = calendar.dateInterval(of: .weekOfYear, for: date)?.start ?? date
-            let isCorrect = (q["grade"] as? String) == "correct" || (q["isCorrect"] as? Bool == true)
-            var bucket = weekBuckets[weekStart] ?? (0, 0)
-            bucket.total += 1
-            if isCorrect { bucket.correct += 1 }
-            weekBuckets[weekStart] = bucket
-        }
-        let cutoff = calendar.date(byAdding: .weekOfYear, value: -8, to: now) ?? now
-        let fmt = DateFormatter()
-        fmt.dateFormat = "M/d"
-        return weekBuckets
-            .filter { $0.key >= cutoff }
-            .sorted { $0.key < $1.key }
-            .map { (weekStart, bucket) in
-                let accuracy = bucket.total > 0 ? Double(bucket.correct) / Double(bucket.total) * 100 : 0
-                return WeeklyAccuracyPoint(weekLabel: fmt.string(from: weekStart), accuracy: accuracy, totalQuestions: bucket.total)
-            }
+        rawSubjectQuestions = subjectQuestions
     }
 
     private var statsSection: some View {

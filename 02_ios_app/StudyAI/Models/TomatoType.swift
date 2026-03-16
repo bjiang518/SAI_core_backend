@@ -33,34 +33,7 @@ enum TomatoType: String, Codable, CaseIterable {
 
     /// 显示名称
     var displayName: String {
-        switch self {
-        case .classic:
-            return "经典番茄"
-        case .curly:
-            return "卷藤番茄"
-        case .cute:
-            return "萌萌番茄"
-        case .tmt4:
-            return "普通番茄4"
-        case .tmt5:
-            return "普通番茄5"
-        case .tmt6:
-            return "普通番茄6"
-        case .batman:
-            return "蝙蝠侠番茄"
-        case .ironman:
-            return "钢铁侠番茄"
-        case .mario:
-            return "马里奥番茄"
-        case .pokemon:
-            return "宝可梦番茄"
-        case .golden:
-            return "金色番茄"
-        case .platinum:
-            return "铂金番茄"
-        case .diamond:
-            return "钻石番茄"
-        }
+        NSLocalizedString("tomato.garden.type.\(rawValue)", value: rawValue, comment: "")
     }
 
     /// 图片名称（对应Assets中的图片）
@@ -97,34 +70,7 @@ enum TomatoType: String, Codable, CaseIterable {
 
     /// 描述
     var description: String {
-        switch self {
-        case .classic:
-            return "最经典的番茄，简单可爱"
-        case .curly:
-            return "带着卷曲藤蔓的番茄，活力十足"
-        case .cute:
-            return "粉嫩可爱的番茄，温柔贴心"
-        case .tmt4:
-            return "普通番茄，朴实无华"
-        case .tmt5:
-            return "普通番茄，简单快乐"
-        case .tmt6:
-            return "普通番茄，勤奋可爱"
-        case .batman:
-            return "黑暗骑士守护者，正义的化身"
-        case .ironman:
-            return "科技与力量的完美结合"
-        case .mario:
-            return "勇敢的水管工冒险家"
-        case .pokemon:
-            return "神奇的宝可梦伙伴"
-        case .golden:
-            return "金光闪闪的番茄，象征财富与荣耀"
-        case .platinum:
-            return "铂金般珍贵，闪耀着高贵光芒"
-        case .diamond:
-            return "传说中的钻石番茄，极其珍贵稀有"
-        }
+        NSLocalizedString("tomato.garden.desc.\(rawValue)", value: rawValue, comment: "")
     }
 
     /// 稀有度等级（1=普通，2=稀有，3=超稀有，4=传说）
@@ -160,16 +106,11 @@ enum TomatoType: String, Codable, CaseIterable {
     /// 稀有度标签
     var rarityLabel: String {
         switch rarity {
-        case 1:
-            return "普通"
-        case 2:
-            return "稀有"
-        case 3:
-            return "超稀有"
-        case 4:
-            return "传说"
-        default:
-            return "未知"
+        case 1: return NSLocalizedString("tomato.garden.rarity.ordinary",  comment: "")
+        case 2: return NSLocalizedString("tomato.garden.rarity.rare",      comment: "")
+        case 3: return NSLocalizedString("tomato.garden.rarity.superRare", comment: "")
+        case 4: return NSLocalizedString("tomato.garden.rarity.legendary", comment: "")
+        default: return NSLocalizedString("tomato.garden.rarity.ordinary", comment: "")
         }
     }
 

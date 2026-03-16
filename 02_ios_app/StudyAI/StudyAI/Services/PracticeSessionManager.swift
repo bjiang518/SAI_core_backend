@@ -151,13 +151,11 @@ class PracticeSessionManager: ObservableObject {
     /// Normalize + localize a raw subject string for display.
     /// Delegates to BranchLocalizer which uses Taxonomy.strings — the same table
     /// used everywhere else in the app for subject/topic names.
-    /// "Others: Science" → localizes prefix and suffix separately → "其他: 科学"
+    /// "Others: Science" → strips prefix, localizes suffix → "Science" / "科学"
     static func localizeSubject(_ raw: String) -> String {
         if raw.hasPrefix("Others: ") {
             let suffix = String(raw.dropFirst("Others: ".count))
-            let localizedPrefix = BranchLocalizer.localized("Others:")
-            let localizedSuffix = BranchLocalizer.localized(suffix)
-            return "\(localizedPrefix) \(localizedSuffix)"
+            return BranchLocalizer.localized(suffix)
         }
         return BranchLocalizer.localized(normalizeSubject(raw))
     }

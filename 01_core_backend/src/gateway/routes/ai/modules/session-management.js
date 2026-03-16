@@ -199,6 +199,7 @@ class SessionManagementRoutes {
       const sessionInfo = await this.sessionHelper.getSessionFromDatabase(sessionId);
 
       if (!sessionInfo) {
+        this.fastify.log.warn(`⚠️ [HISTORY RESET RISK] GET /api/ai/sessions/${sessionId} → 404 SESSION_NOT_FOUND. If iOS called this as a validation check, it will wipe conversation history and create a new session.`);
         return reply.status(404).send({
           error: 'Session not found',
           code: 'SESSION_NOT_FOUND'
@@ -334,10 +335,11 @@ class SessionManagementRoutes {
         return turn;
       }).filter(t => t.content);
 
-      this.fastify.log.info({
-        sessionId: sessionId.substring(0, 8),
-        priorTurns: priorTurns.length
-      }, '[Session] forwarding prior_turns to AI Engine');
+      this.fastify.log.info(
+        `[Session][DB] session=${sessionId.substring(0, 8)} ` +
+        `dbRows=${(dbRows || []).length} priorTurns=${priorTurns.length} ` +
+        `roles=${priorTurns.map(t => t.role[0]).join(',') || '(none)'}`
+      );
 
       // Send to AI Engine — it owns session state and conversation history
       const aiRequestPayload = {
@@ -487,10 +489,12 @@ class SessionManagementRoutes {
         return turn;
       }).filter(t => t.content);
 
-      this.fastify.log.info({
-        sessionId: sessionId.substring(0, 8),
-        priorTurns: priorTurns.length
-      }, '[Session] forwarding prior_turns to AI Engine (stream)');
+      // Inline count so it's visible in Railway log viewer regardless of JSON formatting
+      this.fastify.log.info(
+        `[Session][stream][DB] session=${sessionId.substring(0, 8)} ` +
+        `dbRows=${(dbRows || []).length} priorTurns=${priorTurns.length} ` +
+        `roles=${priorTurns.map(t => t.role[0]).join(',') || '(none)'}`
+      );
 
       // Build request payload — AI Engine owns session state and conversation history
       const requestPayload = {
@@ -565,6 +569,7 @@ class SessionManagementRoutes {
       let streamComplete = false;   // set true when bodyStream.on('end') fires
       let fullResponse = '';       // raw SSE bytes — forwarded to iOS as-is
       let extractedAiText = '';    // clean AI text — extracted for DB storage
+      let storePromise = null;     // fired on type:end so write races suggestions call
 
       bodyStream.on('data', (chunk) => {
         hasReceivedData = true;
@@ -586,6 +591,16 @@ class SessionManagementRoutes {
             if (event.type === 'end' && event.content) {
               // end event has the canonical full text — prefer over delta accumulation
               extractedAiText = event.content;
+              // Fire DB write immediately so it races the ~1-2s suggestions call
+              // rather than waiting until the stream fully ends.
+              if (!storePromise) {
+                this.fastify.log.info('[Session] type:end detected — starting DB write early');
+                storePromise = this.sessionHelper.storeConversation(
+                  sessionId, authenticatedUserId, message,
+                  { response: extractedAiText, tokensUsed: 0, service: 'ai-engine-stream', compressed: false },
+                  imageData
+                );
+              }
             } else if (event.type === 'content' && event.delta) {
               // fallback: accumulate deltas in case end event is missing
               extractedAiText += event.delta;
@@ -600,18 +615,24 @@ class SessionManagementRoutes {
         this.fastify.log.info(`✅ Streaming complete: ${duration}ms`);
 
         try {
-          await this.sessionHelper.storeConversation(
-            sessionId,
-            authenticatedUserId,
-            message,
-            {
-              response: extractedAiText || fullResponse,  // clean text preferred; raw fallback
-              tokensUsed: 0,
-              service: 'ai-engine-stream',
-              compressed: false
-            },
-            imageData
-          );
+          if (storePromise) {
+            // DB write already started when type:end was detected — just await it
+            await storePromise;
+          } else {
+            // Fallback: type:end never arrived (stream cut short)
+            await this.sessionHelper.storeConversation(
+              sessionId,
+              authenticatedUserId,
+              message,
+              {
+                response: extractedAiText || fullResponse,  // clean text preferred; raw fallback
+                tokensUsed: 0,
+                service: 'ai-engine-stream',
+                compressed: false
+              },
+              imageData
+            );
+          }
 
           this.fastify.log.info('✅ Conversation stored successfully');
           reply.raw.end();
@@ -646,7 +667,8 @@ class SessionManagementRoutes {
 
         // If the stream hadn't completed normally, save whatever AI text was
         // extracted so far — prevents the last turn from being lost on navigation.
-        if (!streamComplete && extractedAiText) {
+        // Guard with !storePromise to avoid double-write when type:end was processed.
+        if (!streamComplete && extractedAiText && !storePromise) {
           this.fastify.log.info('⚠️ Saving partial/complete AI response after client disconnect');
           this.sessionHelper.storeConversation(
             sessionId,

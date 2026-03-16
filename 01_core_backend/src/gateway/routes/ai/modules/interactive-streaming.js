@@ -13,6 +13,7 @@ const AuthHelper = require('../utils/auth-helper');
 const SessionHelper = require('../utils/session-helper');
 const { buildSystemPrompt, MATH_FORMATTING_SYSTEM_PROMPT } = require('../utils/prompts');
 const tierCheck = require('../../../middleware/tier-check');
+const { usageTracker } = require('../utils/usage-tracker');
 
 module.exports = async function (fastify, opts) {
   const authHelper = new AuthHelper(fastify);
@@ -454,6 +455,13 @@ module.exports = async function (fastify, opts) {
           null // No image data
         );
         fastify.log.info('💾 Conversation stored (text only)');
+
+        // Bill one tts_calls unit — ElevenLabs was used to generate audio for this response
+        const { db: dbForTier } = require('../../../../utils/railway-database');
+        dbForTier.getUserTier(userId).then(({ tier, is_anonymous }) => {
+          usageTracker.increment(userId, 'tts_calls', is_anonymous)
+            .catch(err => fastify.log.error({ err }, '[interactive-stream] Failed to bill tts_calls'));
+        }).catch(() => {});
       }
 
     } catch (error) {
