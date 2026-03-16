@@ -268,8 +268,22 @@ async def _seed_session_from_prior_turns(session, session_id: str, prior_turns: 
 
     Each item in prior_turns: {"role": "user"|"assistant", "content": str, "image_data": str|None}
     """
+    import logging as _log
+    logger = _log.getLogger("sessions")
+
+    # Defensive: strip trailing incomplete user turn (race condition guard).
+    # A well-formed history always ends with an assistant turn.
+    # If the last turn is user, the assistant INSERT hasn't committed yet.
+    sanitized = list(prior_turns)
+    if sanitized and sanitized[-1].get("role") == "user":
+        dropped = sanitized.pop()
+        logger.warning(
+            f"[Session] stripped trailing incomplete user turn | "
+            f"session={session_id[:8]} | preview={str(dropped.get('content', ''))[:60]!r}"
+        )
+
     seeded = 0
-    for turn in prior_turns:
+    for turn in sanitized:
         role = turn.get("role", "")
         content = turn.get("content", "").strip()
         image_data = turn.get("image_data")  # base64 string or None
@@ -277,9 +291,8 @@ async def _seed_session_from_prior_turns(session, session_id: str, prior_turns: 
             continue
         session.add_message(role, content, image_data=image_data if role == "user" else None)
         seeded += 1
-    import logging as _log
-    _log.getLogger("sessions").info(
-        f"[Session] seeded {seeded}/{len(prior_turns)} prior turns into in-memory session={session_id[:8]}"
+    logger.info(
+        f"[Session] seeded {seeded}/{len(prior_turns)} turns into session={session_id[:8]}"
     )
 
 @router.post("/api/v1/sessions/create", response_model=SessionResponse)
@@ -332,12 +345,16 @@ async def send_session_message(session_id: str, request: SessionMessageRequest):
                 session.compressed_context = None
                 await _seed_session_from_prior_turns(session, session_id, request.prior_turns)
 
-        await session_service.add_message_to_session(
+        # Pass the local session object so add_message_to_session mutates it
+        # in-place instead of fetching a stale copy from Redis.  Re-assign
+        # `session` so that get_context_for_api() sees the current user message.
+        session = await session_service.add_message_to_session(
             session_id=session_id,
             role="user",
             content=request.message,
             image_data=request.image_data,
-        )
+            _session=session,
+        ) or session
 
         if request.system_prompt:
             system_prompt = request.system_prompt
@@ -363,6 +380,24 @@ async def send_session_message(session_id: str, request: SessionMessageRequest):
                 subject=session.subject,
                 conversation_length=len(session.messages)
             )
+
+        # ── DEBUG: log full context sent to OpenAI (non-streaming) ───────────
+        _ctx_summary_ns = []
+        for _i, _m in enumerate(context_messages):
+            _role = _m.get("role", "?")
+            _raw = _m.get("content", "")
+            _text = (" ".join(p.get("text", "") for p in _raw if p.get("type") == "text")
+                     if isinstance(_raw, list) else str(_raw))
+            _ctx_summary_ns.append(f"  [{_i}] {_role}: {_text[:80].replace(chr(10), ' ')!r}")
+        import logging as _log_ns
+        _log_ns.getLogger("sessions").info(
+            f"[Session][CTX] session={session_id[:8]} "
+            f"model={selected_model} turns={len(context_messages)} "
+            f"in_memory={len(session.messages)} "
+            f"user_msg={request.message[:60].replace(chr(10), ' ')!r}\n"
+            + "\n".join(_ctx_summary_ns)
+        )
+        # ─────────────────────────────────────────────────────────────────────
 
         openai_params = {
             "model": selected_model,
@@ -436,6 +471,7 @@ async def send_session_message_stream(session_id: str, request: SessionMessageRe
             f"[Session][stream] msg received | session={session_id[:8]} | "
             f"new_in_memory={is_new_session} | in_memory_msgs={in_memory_count} | "
             f"prior_turns_received={len(request.prior_turns) if request.prior_turns else 0} | "
+            f"redis={'yes' if session_service.redis_client else 'NO-IN-MEMORY-ONLY'} | "
             f"last_4={in_memory_preview} | "
             f"user_msg={request.message[:80].replace(chr(10), ' ')!r}"
         )
@@ -453,12 +489,16 @@ async def send_session_message_stream(session_id: str, request: SessionMessageRe
                 session.compressed_context = None
                 await _seed_session_from_prior_turns(session, session_id, request.prior_turns)
 
-        await session_service.add_message_to_session(
+        # Pass the local session object so add_message_to_session mutates it
+        # in-place instead of fetching a stale copy from Redis.  Re-assign
+        # `session` so that get_context_for_api() sees the current user message.
+        session = await session_service.add_message_to_session(
             session_id=session_id,
             role="user",
             content=request.message,
             image_data=request.image_data,
-        )
+            _session=session,
+        ) or session
 
         is_homework_followup = request.question_context is not None
 
@@ -492,6 +532,23 @@ async def send_session_message_stream(session_id: str, request: SessionMessageRe
                 subject=session.subject,
                 conversation_length=len(session.messages)
             )
+
+        # ── DEBUG: log full context sent to OpenAI (streaming) ───────────────
+        _ctx_summary_s = []
+        for _i, _m in enumerate(context_messages):
+            _role = _m.get("role", "?")
+            _raw = _m.get("content", "")
+            _text = (" ".join(p.get("text", "") for p in _raw if p.get("type") == "text")
+                     if isinstance(_raw, list) else str(_raw))
+            _ctx_summary_s.append(f"  [{_i}] {_role}: {_text[:80].replace(chr(10), ' ')!r}")
+        logger.info(
+            f"[Session][stream][CTX] session={session_id[:8]} "
+            f"model={selected_model} turns={len(context_messages)} "
+            f"in_memory={len(session.messages)} "
+            f"user_msg={request.message[:60].replace(chr(10), ' ')!r}\n"
+            + "\n".join(_ctx_summary_s)
+        )
+        # ─────────────────────────────────────────────────────────────────────
 
         async def stream_generator():
             accumulated_content = ""

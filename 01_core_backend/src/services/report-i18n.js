@@ -1311,4 +1311,168 @@ function getT(locale) {
     return translations[locale] || translations['en'];
 }
 
-module.exports = { getT };
+// ─────────────────────────────────────────────────────────────────────────────
+// Subject name translations (DB stores English subject names)
+// ─────────────────────────────────────────────────────────────────────────────
+const subjectTranslations = {
+    en:       {},   // passthrough
+    'zh-Hans': {
+        'Mathematics': '数学', 'Math': '数学', 'English': '英语', 'Science': '科学',
+        'Physics': '物理', 'Chemistry': '化学', 'Biology': '生物', 'History': '历史',
+        'Geography': '地理', 'Literature': '文学', 'Social Studies': '社会',
+        'Computer Science': '计算机', 'Art': '美术', 'Music': '音乐',
+        'Physical Education': '体育', 'General': '综合', 'CHATS': '对话',
+    },
+    'zh-Hant': {
+        'Mathematics': '數學', 'Math': '數學', 'English': '英語', 'Science': '科學',
+        'Physics': '物理', 'Chemistry': '化學', 'Biology': '生物', 'History': '歷史',
+        'Geography': '地理', 'Literature': '文學', 'Social Studies': '社會',
+        'Computer Science': '電腦科學', 'Art': '美術', 'Music': '音樂',
+        'Physical Education': '體育', 'General': '綜合', 'CHATS': '對話',
+    },
+    de: {
+        'Mathematics': 'Mathematik', 'Math': 'Mathematik', 'English': 'Englisch',
+        'Science': 'Naturwissenschaften', 'Physics': 'Physik', 'Chemistry': 'Chemie',
+        'Biology': 'Biologie', 'History': 'Geschichte', 'Geography': 'Geographie',
+        'Literature': 'Literatur', 'Social Studies': 'Gesellschaftslehre',
+        'Computer Science': 'Informatik', 'Art': 'Kunst', 'Music': 'Musik',
+        'Physical Education': 'Sport', 'General': 'Allgemein', 'CHATS': 'Chats',
+    },
+    es: {
+        'Mathematics': 'Matemáticas', 'Math': 'Matemáticas', 'English': 'Inglés',
+        'Science': 'Ciencias', 'Physics': 'Física', 'Chemistry': 'Química',
+        'Biology': 'Biología', 'History': 'Historia', 'Geography': 'Geografía',
+        'Literature': 'Literatura', 'Social Studies': 'Estudios Sociales',
+        'Computer Science': 'Informática', 'Art': 'Arte', 'Music': 'Música',
+        'Physical Education': 'Educación Física', 'General': 'General', 'CHATS': 'Chats',
+    },
+    fr: {
+        'Mathematics': 'Mathématiques', 'Math': 'Mathématiques', 'English': 'Anglais',
+        'Science': 'Sciences', 'Physics': 'Physique', 'Chemistry': 'Chimie',
+        'Biology': 'Biologie', 'History': 'Histoire', 'Geography': 'Géographie',
+        'Literature': 'Littérature', 'Social Studies': 'Sciences Sociales',
+        'Computer Science': 'Informatique', 'Art': 'Art', 'Music': 'Musique',
+        'Physical Education': 'Éducation Physique', 'General': 'Général', 'CHATS': 'Chats',
+    },
+    ja: {
+        'Mathematics': '数学', 'Math': '数学', 'English': '英語', 'Science': '理科',
+        'Physics': '物理', 'Chemistry': '化学', 'Biology': '生物', 'History': '歴史',
+        'Geography': '地理', 'Literature': '国語', 'Social Studies': '社会',
+        'Computer Science': '情報', 'Art': '美術', 'Music': '音楽',
+        'Physical Education': '体育', 'General': '全般', 'CHATS': 'チャット',
+    },
+};
+
+/**
+ * Translate a subject name (stored in English in DB) to the target locale.
+ * Falls back to the original name if no translation exists.
+ * @param {string} name - English subject name from DB
+ * @param {string} locale
+ * @returns {string}
+ */
+function translateSubject(name, locale) {
+    const map = subjectTranslations[locale] || {};
+    return map[name] || name;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// oneLineSummary templates per locale
+// ─────────────────────────────────────────────────────────────────────────────
+const oneLineSummaryTemplates = {
+    en: {
+        noActivity: 'No learning activity recorded in this period.',
+        gradeEarning: (g) => `earning ${g}`,
+        gradeProgress: 'showing progress',
+        accuracy: (pct) => `${pct}% accuracy`,
+        accuracyFallback: 'working through questions',
+        trendImproving: ' with improving performance',
+        trendDeclining: ', needs more practice',
+        summary: (count, grade, accuracy, trend) => `Answered ${count} questions, ${grade} with ${accuracy}${trend}.`,
+    },
+    'zh-Hans': {
+        noActivity: '本期暂无学习记录。',
+        gradeEarning: (g) => `获得 ${g}`,
+        gradeProgress: '稳步进步',
+        accuracy: (pct) => `正确率 ${pct}%`,
+        accuracyFallback: '持续完成题目',
+        trendImproving: '，表现持续提升',
+        trendDeclining: '，需要加强练习',
+        summary: (count, grade, accuracy, trend) => `共完成 ${count} 道题，${grade}，${accuracy}${trend}。`,
+    },
+    'zh-Hant': {
+        noActivity: '本期暫無學習記錄。',
+        gradeEarning: (g) => `獲得 ${g}`,
+        gradeProgress: '穩步進步',
+        accuracy: (pct) => `正確率 ${pct}%`,
+        accuracyFallback: '持續完成題目',
+        trendImproving: '，表現持續提升',
+        trendDeclining: '，需要加強練習',
+        summary: (count, grade, accuracy, trend) => `共完成 ${count} 道題，${grade}，${accuracy}${trend}。`,
+    },
+    de: {
+        noActivity: 'Keine Lernaktivität in diesem Zeitraum aufgezeichnet.',
+        gradeEarning: (g) => `Note ${g} erreicht`,
+        gradeProgress: 'mit Fortschritten',
+        accuracy: (pct) => `${pct}% Genauigkeit`,
+        accuracyFallback: 'Aufgaben bearbeitet',
+        trendImproving: ' mit verbesserter Leistung',
+        trendDeclining: ', mehr Übung empfohlen',
+        summary: (count, grade, accuracy, trend) => `${count} Aufgaben beantwortet, ${grade} mit ${accuracy}${trend}.`,
+    },
+    es: {
+        noActivity: 'No se registró actividad de aprendizaje en este período.',
+        gradeEarning: (g) => `obteniendo ${g}`,
+        gradeProgress: 'mostrando progreso',
+        accuracy: (pct) => `${pct}% de precisión`,
+        accuracyFallback: 'completando preguntas',
+        trendImproving: ' con rendimiento en mejora',
+        trendDeclining: ', necesita más práctica',
+        summary: (count, grade, accuracy, trend) => `Respondió ${count} preguntas, ${grade} con ${accuracy}${trend}.`,
+    },
+    fr: {
+        noActivity: 'Aucune activité d\'apprentissage enregistrée cette période.',
+        gradeEarning: (g) => `avec la note ${g}`,
+        gradeProgress: 'en progression',
+        accuracy: (pct) => `${pct}% de précision`,
+        accuracyFallback: 'en complétant les exercices',
+        trendImproving: ' avec des performances en hausse',
+        trendDeclining: ', besoin de plus de pratique',
+        summary: (count, grade, accuracy, trend) => `${count} questions répondues, ${grade} avec ${accuracy}${trend}.`,
+    },
+    ja: {
+        noActivity: 'この期間の学習記録はありません。',
+        gradeEarning: (g) => `${g}を獲得`,
+        gradeProgress: '着実に進歩中',
+        accuracy: (pct) => `正答率${pct}%`,
+        accuracyFallback: '問題に取り組み中',
+        trendImproving: '、成績が向上しています',
+        trendDeclining: '、さらなる練習が必要です',
+        summary: (count, grade, accuracy, trend) => `${count}問に回答し、${grade}、${accuracy}${trend}。`,
+    },
+};
+
+/**
+ * Generate a localized one-line summary of the learning period.
+ * @param {number} questionCount
+ * @param {string|null} overallGrade
+ * @param {number|null} overallAccuracy  (0-1 float)
+ * @param {string|null} accuracyTrend    ('improving' | 'declining' | other)
+ * @param {string} locale
+ * @returns {string}
+ */
+function generateOneLineSummary(questionCount, overallGrade, overallAccuracy, accuracyTrend, locale = 'en') {
+    const tmpl = oneLineSummaryTemplates[locale] || oneLineSummaryTemplates['en'];
+    if (!questionCount || questionCount === 0) return tmpl.noActivity;
+
+    const gradeText   = overallGrade ? tmpl.gradeEarning(overallGrade) : tmpl.gradeProgress;
+    const accuracyText = overallAccuracy != null
+        ? tmpl.accuracy(Math.round(overallAccuracy * 100))
+        : tmpl.accuracyFallback;
+    const trendText   = accuracyTrend === 'improving' ? tmpl.trendImproving
+                      : accuracyTrend === 'declining'  ? tmpl.trendDeclining
+                      : '';
+
+    return tmpl.summary(questionCount, gradeText, accuracyText, trendText);
+}
+
+module.exports = { getT, translateSubject, generateOneLineSummary };

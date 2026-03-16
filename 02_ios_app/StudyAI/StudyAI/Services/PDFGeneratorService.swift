@@ -86,6 +86,37 @@ class PDFGeneratorService: ObservableObject {
         defer { isGenerating = false; generationProgress = 0.0 }
 
         let renderWidth = contentWidth - 20
+        let log = AppLogger.forFeature("PDFGen")
+        let pdfLog = AppLogger.pdfLatexLogger
+
+        pdfLog.pdfLatex("=== generatePracticePDF START — \(questions.count) questions, subject='\(subject)' ===")
+
+        // Phase 1 (0–60%): Pre-render questions containing LaTeX using MathJax.
+        var renderedContent: [Int: UIImage] = [:]
+        var latexCount = 0
+        for (index, question) in questions.enumerated() {
+            let content = buildPracticeQuestionContent(question: question, number: index + 1)
+            if containsLaTeX(content) {
+                latexCount += 1
+                pdfLog.pdfLatex("Q\(index+1): LaTeX detected — sending to MathJax renderer")
+                log.info("  [PracticeQ \(index+1)] LaTeX detected — rendering with MathJax")
+                if let img = await MathJaxPDFRenderer.shared.render(content, width: renderWidth, fontSize: options.questionFontSize) {
+                    renderedContent[index] = img
+                    pdfLog.pdfLatex("Q\(index+1): ✅ MathJax rendered → image \(img.size.width)×\(img.size.height)pt")
+                    log.info("  [PracticeQ \(index+1)] MathJax render ✓ size=\(img.size)")
+                } else {
+                    pdfLog.pdfLatex("Q\(index+1): ❌ MathJax FAILED → plain text fallback (LaTeX symbols stripped)")
+                    log.warning("  [PracticeQ \(index+1)] MathJax render failed — will fall back to plain text")
+                }
+            } else {
+                pdfLog.pdfLatex("Q\(index+1): no LaTeX → plain text")
+            }
+            generationProgress = Double(index + 1) / Double(questions.count) * 0.6
+        }
+        let mathJaxRendered = renderedContent.count
+        pdfLog.pdfLatex("=== Phase 1 done — \(latexCount)/\(questions.count) had LaTeX, \(mathJaxRendered)/\(latexCount) rendered by MathJax, \(latexCount - mathJaxRendered) fell back to plain text ===")
+
+        // Phase 2 (60–100%): Build the vector PDF.
         return buildVectorPDF(options: options, totalItems: questions.count) { ctx, pageRect, addPage in
             var y: CGFloat = margin
             let localizedType = PDFGeneratorService.localizedGenerationType(generationType)
@@ -99,17 +130,23 @@ class PDFGeneratorService: ObservableObject {
             y += options.questionGap
 
             for (index, question) in questions.enumerated() {
-                let imgH = multilineHeight(plainText(question.question), width: renderWidth, fontSize: options.questionFontSize)
-                let blockH = options.metaFontSize + 6 + options.labelFontSize + 8 + imgH + 12
-                    + (question.options.map { CGFloat($0.count) * (options.questionFontSize + 11) + 16 } ?? 0)
-                    + options.hintFontSize + 4 + 60
+                let rendered = renderedContent[index]
+                let contentH: CGFloat
+                if let r = rendered {
+                    contentH = scaledImageHeight(r, maxWidth: renderWidth, maxHeight: 4000)
+                } else {
+                    let textH = multilineHeight(plainText(question.question), width: renderWidth, fontSize: options.questionFontSize)
+                    let optH = question.options.map { CGFloat($0.count) * (options.questionFontSize + 11) + 16 } ?? 0
+                    contentH = textH + optH
+                }
+                let blockH = contentH + 60
 
                 if y + blockH > pageSize.height - margin { addPage(); y = margin }
 
                 y = drawPracticeQuestion(ctx: ctx, pageRect: pageRect, question: question,
-                    number: index + 1, startY: y, options: options)
+                    renderedContent: rendered, number: index + 1, startY: y, options: options)
                 y += options.questionGap
-                generationProgress = Double(index + 1) / Double(questions.count)
+                generationProgress = 0.6 + Double(index + 1) / Double(questions.count) * 0.4
             }
         }
     }
@@ -214,23 +251,35 @@ class PDFGeneratorService: ObservableObject {
 
         let renderWidth = contentWidth - 20
         let log = AppLogger.forFeature("PDFGen")
+        let pdfLog = AppLogger.pdfLatexLogger
+
+        pdfLog.pdfLatex("=== generateLibraryPDF START — \(questions.count) questions, subject='\(subject)' ===")
 
         // Phase 1 (0–60%): Pre-render questions containing LaTeX using MathJax.
         // buildVectorPDF's body is synchronous so all async work must happen here.
         var renderedContent: [Int: UIImage] = [:]
+        var latexCount = 0
         for (index, question) in questions.enumerated() {
             let content = buildQuestionContent(question: question, number: index + 1)
             if containsLaTeX(content) {
+                latexCount += 1
+                pdfLog.pdfLatex("Q\(index+1): LaTeX detected — sending to MathJax renderer")
                 log.info("  [LibraryQ \(index+1)] LaTeX detected — rendering with MathJax")
                 if let img = await MathJaxPDFRenderer.shared.render(content, width: renderWidth, fontSize: options.questionFontSize) {
                     renderedContent[index] = img
+                    pdfLog.pdfLatex("Q\(index+1): ✅ MathJax rendered → image \(img.size.width)×\(img.size.height)pt")
                     log.info("  [LibraryQ \(index+1)] MathJax render ✓ size=\(img.size)")
                 } else {
+                    pdfLog.pdfLatex("Q\(index+1): ❌ MathJax FAILED → plain text fallback (LaTeX symbols stripped)")
                     log.warning("  [LibraryQ \(index+1)] MathJax render failed — will fall back to plain text")
                 }
+            } else {
+                pdfLog.pdfLatex("Q\(index+1): no LaTeX → plain text")
             }
             generationProgress = Double(index + 1) / Double(questions.count) * 0.6
         }
+        let mathJaxRendered = renderedContent.count
+        pdfLog.pdfLatex("=== Phase 1 done — \(latexCount)/\(questions.count) had LaTeX, \(mathJaxRendered)/\(latexCount) rendered by MathJax, \(latexCount - mathJaxRendered) fell back to plain text ===")
 
         // Phase 2 (60–100%): Build the vector PDF.
         return buildVectorPDF(options: options, totalItems: questions.count) { ctx, pageRect, addPage in
@@ -354,6 +403,19 @@ class PDFGeneratorService: ObservableObject {
         return lines.joined(separator: "\n")
     }
 
+    /// Builds content string for a practice question (number + question text + options).
+    /// LaTeX delimiters are preserved for MathJaxPDFRenderer.
+    private func buildPracticeQuestionContent(question: QuestionGenerationService.GeneratedQuestion, number: Int) -> String {
+        var lines = ["\(number). \(question.question)"]
+        if let opts = question.options, !opts.isEmpty {
+            for (i, opt) in opts.enumerated() {
+                let cleanOpt = stripOptionPrefix(opt)
+                lines.append("    \(String(UnicodeScalar(65 + i)!))) \(cleanOpt)")
+            }
+        }
+        return lines.joined(separator: "\n")
+    }
+
     /// Builds a single plain-text content string (number + question text + options)
     /// suitable for passing to MathJaxPDFRenderer. LaTeX delimiters are preserved.
     private func buildQuestionContent(question: QuestionSummary, number: Int) -> String {
@@ -398,23 +460,35 @@ class PDFGeneratorService: ObservableObject {
 
         let renderWidth = contentWidth - 20
         let log = AppLogger.forFeature("PDFGen")
+        let pdfLog = AppLogger.pdfLatexLogger
+
+        pdfLog.pdfLatex("=== generateProModePDF START — \(toExport.count) questions, subject='\(subject)' ===")
 
         // Phase 1 (0–60%): Pre-render questions containing LaTeX using MathJax.
         // buildVectorPDF's body is synchronous so all async work must happen here.
         var renderedContent: [Int: UIImage] = [:]
+        var latexCount = 0
         for (index, q) in toExport.enumerated() {
             let content = buildProModeContent(q: q, number: index + 1)
             if containsLaTeX(content) {
+                latexCount += 1
+                pdfLog.pdfLatex("Q\(index+1): LaTeX detected — sending to MathJax renderer | preview: '\(content.prefix(60))'")
                 log.info("  [ProModeQ \(index+1)] LaTeX detected — rendering with MathJax")
                 if let img = await MathJaxPDFRenderer.shared.render(content, width: renderWidth, fontSize: options.questionFontSize) {
                     renderedContent[index] = img
+                    pdfLog.pdfLatex("Q\(index+1): ✅ MathJax rendered → image \(img.size.width)×\(img.size.height)pt")
                     log.info("  [ProModeQ \(index+1)] MathJax render ✓ size=\(img.size)")
                 } else {
+                    pdfLog.pdfLatex("Q\(index+1): ❌ MathJax FAILED → plain text fallback (LaTeX symbols stripped)")
                     log.warning("  [ProModeQ \(index+1)] MathJax render failed — will fall back to plain text")
                 }
+            } else {
+                pdfLog.pdfLatex("Q\(index+1): no LaTeX → plain text")
             }
             generationProgress = Double(index + 1) / Double(toExport.count) * 0.6
         }
+        let mathJaxRendered = renderedContent.count
+        pdfLog.pdfLatex("=== Phase 1 done — \(latexCount)/\(toExport.count) had LaTeX, \(mathJaxRendered)/\(latexCount) rendered by MathJax, \(latexCount - mathJaxRendered) fell back to plain text ===")
 
         // Phase 2 (60–100%): Build the vector PDF.
         let doc = buildVectorPDF(options: options, totalItems: toExport.count) { ctx, pageRect, addPage in
@@ -642,6 +716,7 @@ class PDFGeneratorService: ObservableObject {
         ctx: CGContext,
         pageRect: CGRect,
         question: QuestionGenerationService.GeneratedQuestion,
+        renderedContent: UIImage?,
         number: Int,
         startY: CGFloat,
         options: PDFExportOptions
@@ -649,20 +724,28 @@ class PDFGeneratorService: ObservableObject {
         var y = startY
         withUIKitContext(ctx: ctx, pageRect: pageRect) {
             let w = contentWidth
-            let bodyFont   = UIFont.systemFont(ofSize: options.questionFontSize, weight: .regular)
 
-            // Index + question body on one line: "1. Question text…"
-            y += drawMultiline("\(number). \(plainText(question.question))", font: bodyFont, x: margin, y: y, width: w) + 10
+            if let img = renderedContent {
+                // MathJax-rendered image: contains question number + text + MCQ options
+                let sz = scaledImageSize(img, maxWidth: w, maxHeight: 4000)
+                img.draw(in: CGRect(x: margin, y: y, width: sz.width, height: sz.height))
+                y += sz.height + 6
+            } else {
+                let bodyFont = UIFont.systemFont(ofSize: options.questionFontSize, weight: .regular)
 
-            // Options
-            if let opts = question.options, !opts.isEmpty {
-                y += 6
-                for (i, opt) in opts.enumerated() {
-                    let cleanOpt = stripOptionPrefix(plainText(opt))
-                    let label = "\(String(UnicodeScalar(65 + i)!))) \(cleanOpt)"
-                    y += drawMultiline(label, font: bodyFont, x: margin + 30, y: y, width: w - 30) + 5
+                // Index + question body on one line: "1. Question text…"
+                y += drawMultiline("\(number). \(plainText(question.question))", font: bodyFont, x: margin, y: y, width: w) + 10
+
+                // Options
+                if let opts = question.options, !opts.isEmpty {
+                    y += 6
+                    for (i, opt) in opts.enumerated() {
+                        let cleanOpt = stripOptionPrefix(plainText(opt))
+                        let label = "\(String(UnicodeScalar(65 + i)!))) \(cleanOpt)"
+                        y += drawMultiline(label, font: bodyFont, x: margin + 30, y: y, width: w - 30) + 5
+                    }
+                    y += 6
                 }
-                y += 6
             }
         }
         return y
@@ -813,8 +896,8 @@ class PDFGeneratorService: ObservableObject {
                 y += drawString(String(format: NSLocalizedString("pdf.question.label", value: "Question %@", comment: ""), qNum), font: headerFont, color: blue, alignment: .left,
                                 x: margin, y: y, width: w) + 12
 
-                // Question text
-                let qt = q.question.displayText
+                // Question text — strip LaTeX symbols in plain-text fallback
+                let qt = plainText(q.question.displayText)
                 if !qt.isEmpty {
                     y += drawMultiline(qt, font: bodyFont, x: margin, y: y, width: w) + 12
                 } else {
@@ -841,7 +924,7 @@ class PDFGeneratorService: ObservableObject {
                         }
 
                         if !sub.questionText.isEmpty {
-                            y += drawMultiline(sub.questionText, font: bodyFont,
+                            y += drawMultiline(plainText(sub.questionText), font: bodyFont,
                                                x: margin + indent + 20, y: y, width: subW) + 8
                         }
                     }

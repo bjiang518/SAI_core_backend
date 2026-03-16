@@ -59,7 +59,9 @@ struct DailyQuestionActivity: Codable, Identifiable {
     
     var dayName: String {
         let formatter = DateFormatter()
-        formatter.locale = Locale.current
+        // Use the in-app selected language, not the device system locale
+        let lang = UserDefaults.standard.string(forKey: "appLanguage") ?? "en"
+        formatter.locale = Locale(identifier: lang)
         // shortWeekdaySymbols: index 0 = Sunday
         let symbols = formatter.shortWeekdaySymbols ?? ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]
         let index = max(0, min(dayOfWeek - 1, symbols.count - 1))

@@ -181,7 +181,9 @@ struct ReportDetailSheet: View {
     }
 
     private func priorityBadge(_ priority: String) -> some View {
-        Text(priority.uppercased())
+        let key = "report.priority.\(priority.lowercased())"
+        let label = NSLocalizedString(key, value: priority.uppercased(), comment: "")
+        return Text(label)
             .font(.caption2)
             .fontWeight(.bold)
             .foregroundColor(.white)
@@ -252,6 +254,14 @@ struct HTMLView: UIViewRepresentable {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+            <script>
+                window.MathJax = {
+                    tex: { inlineMath: [['$','$'], ['\\\\(','\\\\)']], displayMath: [['$$','$$'], ['\\\\[','\\\\]']] },
+                    options: { skipHtmlTags: ['script','noscript','style','textarea','pre'] },
+                    startup: { ready() { MathJax.startup.defaultReady(); setTimeout(updateHeight, 800); } }
+                };
+            </script>
+            <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" async></script>
             <style>
                 body {
                     margin: 0;
@@ -321,6 +331,14 @@ struct HTMLView: UIViewRepresentable {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+            <script>
+                window.MathJax = {
+                    tex: { inlineMath: [['$','$'], ['\\\\(','\\\\)']], displayMath: [['$$','$$'], ['\\\\[','\\\\]']] },
+                    options: { skipHtmlTags: ['script','noscript','style','textarea','pre'] },
+                    startup: { ready() { MathJax.startup.defaultReady(); setTimeout(updateHeight, 800); } }
+                };
+            </script>
+            <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" async></script>
             <style>
                 body {
                     margin: 0;

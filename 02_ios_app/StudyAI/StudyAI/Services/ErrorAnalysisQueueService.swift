@@ -130,9 +130,12 @@ class ErrorAnalysisQueueService: ObservableObject {
             return base.isEmpty || detailed.isEmpty || errType.isEmpty
         }
 
-        // For questions with pre-filled keys: skip backend, record mistake directly
+        // For questions with pre-filled keys: record mistake immediately for instant active status,
+        // but also write taxonomy fields to local storage so updateLocalQuestionWithAnalysis
+        // preserves them. Do NOT mark as completed yet — backend will do that after populating
+        // errorEvidence and learningSuggestion.
         if !questionsWithPrefilledKeys.isEmpty {
-            print("📊 [ErrorAnalysis] \(questionsWithPrefilledKeys.count) questions have pre-filled error keys — recording mistakes directly (no backend call)")
+            print("📊 [ErrorAnalysis] \(questionsWithPrefilledKeys.count) questions have pre-filled error keys — recording mistakes immediately, then routing to backend for narratives")
             Task {
                 for q in questionsWithPrefilledKeys {
                     guard let questionId  = q["id"]          as? String,
@@ -142,28 +145,31 @@ class ErrorAnalysisQueueService: ObservableObject {
                         print("⚠️ [ErrorAnalysis] Pre-keyed question missing id/weaknessKey/errorType — skipping")
                         continue
                     }
-                    var fields: [String: Any] = [
-                        "errorAnalysisStatus": ErrorAnalysisStatus.completed.rawValue,
-                        "errorAnalyzedAt": ISO8601DateFormatter().string(from: Date()),
-                        "weaknessKey": weaknessKey,
-                        "errorType": errorType
-                    ]
+                    // Write taxonomy to local storage (status stays pending so backend fills narratives)
+                    var fields: [String: Any] = ["errorType": errorType]
                     if let baseBranch = q["baseBranch"] as? String { fields["baseBranch"] = baseBranch }
                     if let detailedBranch = q["detailedBranch"] as? String { fields["detailedBranch"] = detailedBranch }
-                    localStorage.updateQuestion(id: questionId, fields: fields)
+                    // Store weaknessKey using canonical format (resolved by ShortTermStatusService)
                     await MainActor.run {
                         ShortTermStatusService.shared.recordMistake(
                             key: weaknessKey,
                             errorType: errorType,
                             questionId: questionId
                         )
+                        let canonicalKey = ShortTermStatusService.shared.resolveWeaknessKey(weaknessKey)
+                        fields["weaknessKey"] = canonicalKey
                     }
+                    localStorage.updateQuestion(id: questionId, fields: fields)
                     print("✅ [ErrorAnalysis] Recorded mistake for pre-keyed Q \(questionId.prefix(8))… key=\(weaknessKey)")
                 }
             }
         }
 
-        guard !questionsNeedingAnalysis.isEmpty else {
+        // Send ALL unanalyzed questions (pre-filled + needs-analysis) to backend.
+        // updateLocalQuestionWithAnalysis will preserve existing taxonomy for pre-filled ones
+        // and only update errorEvidence / learningSuggestion.
+        let allForBackend = questionsWithPrefilledKeys + questionsNeedingAnalysis
+        guard !allForBackend.isEmpty else {
             print("📊 [ErrorAnalysis] No questions need backend analysis — done")
             return
         }
@@ -172,8 +178,8 @@ class ErrorAnalysisQueueService: ObservableObject {
         queueLock.lock()
         let currentlyAnalyzing = isAnalyzing
         if currentlyAnalyzing {
-            print("⏳ [ErrorAnalysis] Analysis already running - adding \(questionsNeedingAnalysis.count) questions to pending queue")
-            pendingQuestions.append(contentsOf: questionsNeedingAnalysis)
+            print("⏳ [ErrorAnalysis] Analysis already running - adding \(allForBackend.count) questions to pending queue")
+            pendingQuestions.append(contentsOf: allForBackend)
             queueLock.unlock()
             return
         }
@@ -181,7 +187,7 @@ class ErrorAnalysisQueueService: ObservableObject {
 
         // Start background analysis
         analysisTask = Task {
-            await analyzeBatch(sessionId: sessionId, questions: questionsNeedingAnalysis)
+            await analyzeBatch(sessionId: sessionId, questions: allForBackend)
 
             // ✅ NEW: Process pending questions after completion
             await processPendingQuestions()
@@ -559,7 +565,7 @@ class ErrorAnalysisQueueService: ObservableObject {
         let hasPrefilledKeys = !existingBase.isEmpty && !existingDetailed.isEmpty && !existingErrType.isEmpty
 
         if hasPrefilledKeys {
-            // Only update status + narrative fields; never overwrite taxonomy
+            // Preserve taxonomy; update status + narrative fields
             var updatedFields: [String: Any] = [
                 "errorAnalysisStatus": ErrorAnalysisStatus.completed.rawValue,
                 "errorAnalyzedAt": ISO8601DateFormatter().string(from: Date())
@@ -570,8 +576,7 @@ class ErrorAnalysisQueueService: ObservableObject {
             if let evidence = analysis.evidence, !evidence.isEmpty {
                 updatedFields["errorEvidence"] = evidence
             }
-            localStorage.updateQuestion(id: questionId, fields: updatedFields)
-
+            // Normalise the stored weaknessKey to the canonical format so the active filter finds it
             if !existingWK.isEmpty {
                 Task { @MainActor in
                     ShortTermStatusService.shared.recordMistake(
@@ -579,8 +584,13 @@ class ErrorAnalysisQueueService: ObservableObject {
                         errorType: existingErrType,
                         questionId: questionId
                     )
+                    let canonical = ShortTermStatusService.shared.resolveWeaknessKey(existingWK)
+                    if canonical != existingWK {
+                        self.localStorage.updateQuestion(id: questionId, fields: ["weaknessKey": canonical])
+                    }
                 }
             }
+            localStorage.updateQuestion(id: questionId, fields: updatedFields)
             print("✅ [ErrorAnalysis] Preserved pre-filled keys for Q \(questionId.prefix(8))… — only updated narratives")
             return
         }

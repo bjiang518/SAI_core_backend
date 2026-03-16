@@ -48,6 +48,8 @@ class DigitalHomeworkViewModel: ObservableObject {
     // Diagram analysis state (Phase 1.5)
     @Published var isDiagramAnalysisPending = false
     @Published var diagramAnalysisFailed = false
+    @Published var diagramAnalysisAttemptCount: Int = 0   // increments after each completed run
+    @Published var diagramAnalysisFoundRegions: Bool = false  // true if last run found ≥1 crop
     @Published var questionsUnderDiagramAnalysis: Set<String> = []
     @Published var questionsMissingDiagramImage: Set<String> = []
 
@@ -104,7 +106,16 @@ class DigitalHomeworkViewModel: ObservableObject {
         Binding(
             get: { self.annotations },
             set: { newValue in
+                let old = self.annotations
                 self.stateManager.updateHomework(annotations: newValue)
+                // Re-crop any annotation whose bounding box moved or resized
+                for ann in newValue {
+                    guard ann.questionNumber != nil else { continue }
+                    if let prev = old.first(where: { $0.id == ann.id }),
+                       prev.topLeft != ann.topLeft || prev.bottomRight != ann.bottomRight {
+                        self.cropImageForAnnotation(ann)
+                    }
+                }
             }
         )
     }
@@ -728,9 +739,12 @@ class DigitalHomeworkViewModel: ObservableObject {
         print("🔍 [DiagramAnalysis] originalImages.count = \(originalImages.count)")
 
         // Collect all IDs that need an image (top-level + subquestions)
+        // Only include parent question id when the parent itself has needImage=true
         var allNeedImageIds = Set<String>()
         for qwg in needImageQuestions {
-            allNeedImageIds.insert(qwg.question.id)
+            if qwg.question.needImage == true {
+                allNeedImageIds.insert(qwg.question.id)
+            }
             for sub in qwg.question.subquestions ?? [] where sub.needImage == true {
                 allNeedImageIds.insert(sub.id)
             }
@@ -796,6 +810,8 @@ class DigitalHomeworkViewModel: ObservableObject {
                 stateManager.updateHomework(annotations: mergedAnnotations, croppedImages: mergedCrops)
                 print("🔍 [DiagramAnalysis] STEP 6c: stateManager updated — croppedImages.count=\(stateManager.currentHomework?.croppedImages.count ?? -1)")
             }
+            diagramAnalysisAttemptCount += 1
+            diagramAnalysisFoundRegions = !mergedCrops.isEmpty
         }
 
         print("🔍 [DiagramAnalysis] STEP 7: COMPLETE — crops=\(mergedCrops.count), keys=\(mergedCrops.keys.sorted())")
@@ -904,6 +920,12 @@ class DigitalHomeworkViewModel: ObservableObject {
                     if let subRegion, let cropped = cropRegion(subRegion, from: normalizedImage) {
                         pageCrops[sub.id] = cropped
                         print("🔍 [DiagramAnalysis] ✅ Cropped sub.id=\(sub.id) size=\(cropped.size)")
+                        addAnnotationIfAbsent(
+                            region: subRegion,
+                            questionNumber: sub.id,
+                            pageIndex: pageIndex,
+                            into: &pageAnnotations
+                        )
                     }
                 }
             }
@@ -1834,22 +1856,6 @@ class DigitalHomeworkViewModel: ObservableObject {
             log.info("🗂️ [SMART ORGANIZE]   🧠 \(pLabel) — queued \(wrongSubquestions.count) wrong subquestion(s) for error analysis")
         }
 
-        // Pass 2: concept extraction
-        var correctSubquestions = questionsToArchive.filter { ($0["isCorrect"] as? Bool) == true }
-        if correctSubquestions.isEmpty {
-            log.info("🗂️ [SMART ORGANIZE]   ✅ \(pLabel) — no correct subquestions for concept extraction")
-        } else {
-            for index in 0..<correctSubquestions.count {
-                if let originalId = correctSubquestions[index]["id"] as? String,
-                   let mapping = idMappings.first(where: { $0.originalId == originalId }) {
-                    correctSubquestions[index]["id"] = mapping.savedId
-                }
-            }
-            let sessionId = UUID().uuidString
-            ErrorAnalysisQueueService.shared.queueConceptExtractionForCorrectAnswers(sessionId: sessionId, correctQuestions: correctSubquestions)
-            log.info("🗂️ [SMART ORGANIZE]   ✅ \(pLabel) — queued \(correctSubquestions.count) correct subquestion(s) for concept extraction")
-        }
-
         return (added: added, skipped: skipped)
     }
 
@@ -1894,11 +1900,19 @@ class DigitalHomeworkViewModel: ObservableObject {
             let question = questionWithGrade.question
             let qLabel = "Q\(question.questionNumber ?? questionId.prefix(4).description)"
 
-            // Parent question — delegate to subquestion archiving
+            // Parent question — delegate to subquestion archiving (wrong subquestions only)
             if question.isParentQuestion, let subquestions = question.subquestions, !subquestions.isEmpty {
-                log.info("🗂️ [SMART ORGANIZE]   🔀 \(qLabel) — parent with \(subquestions.count) subquestion(s), delegating")
-                let subquestionIds = subquestions.map { $0.id }
-                subquestionsToArchive.append((parentId: questionId, subquestionIds: subquestionIds))
+                let wrongSubquestionIds = subquestions.map { $0.id }.filter { subId in
+                    let grade = questionWithGrade.subquestionGrades[subId]
+                    let (_, isCorrect) = determineSubquestionGrade(grade: grade)
+                    return !isCorrect
+                }
+                if wrongSubquestionIds.isEmpty {
+                    log.info("🗂️ [SMART ORGANIZE]   ✅ \(qLabel) — all subquestions correct, nothing to archive")
+                    continue
+                }
+                log.info("🗂️ [SMART ORGANIZE]   🔀 \(qLabel) — \(wrongSubquestionIds.count)/\(subquestions.count) wrong subquestion(s) to archive")
+                subquestionsToArchive.append((parentId: questionId, subquestionIds: wrongSubquestionIds))
                 continue
             }
 

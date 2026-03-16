@@ -21,6 +21,7 @@ const { ActivityReportGenerator } = require('./activity-report-generator');
 const { AreasOfImprovementGenerator } = require('./areas-of-improvement-generator');
 const { MentalHealthReportGenerator } = require('./mental-health-report-generator');
 const { SummaryReportGenerator } = require('./summary-report-generator');
+const { generateOneLineSummary } = require('./report-i18n');
 
 class PassiveReportGenerator {
     constructor() {
@@ -378,7 +379,7 @@ class PassiveReportGenerator {
             // Step 4: Calculate summary metrics for the Learning Progress card
             logger.info('📊 Calculating summary metrics for batch...');
             const questions = await this.fetchQuestionsForPeriod(userId, dateRange.startDate, dateRange.endDate);
-            const summaryMetrics = await this.calculateSummaryMetrics(userId, questions, dateRange);
+            const summaryMetrics = await this.calculateSummaryMetrics(userId, questions, dateRange, language);
 
             logger.info(`   Calculated metrics:`);
             logger.info(`     Overall Grade: ${summaryMetrics.overallGrade || 'N/A'}`);
@@ -607,7 +608,7 @@ class PassiveReportGenerator {
      * Calculate summary metrics for the Learning Progress card
      * This populates the batch record with displayable data
      */
-    async calculateSummaryMetrics(userId, questions, dateRange) {
+    async calculateSummaryMetrics(userId, questions, dateRange, language = 'en') {
         logger.info('📊 [METRICS] Starting summary metrics calculation...');
         logger.info(`   Questions in period: ${questions.length}`);
 
@@ -653,13 +654,13 @@ class PassiveReportGenerator {
             questions.length
         );
 
-        // Generate one-line summary
-        const oneLineSummary = this.generateOneLineSummary(
+        // Generate one-line summary (localized)
+        const oneLineSummary = generateOneLineSummary(
             questions.length,
             overallGrade,
             overallAccuracy,
             accuracyTrend,
-            activityTrend
+            language
         );
 
         logger.info('✅ [METRICS] Summary metrics calculated successfully');
@@ -787,26 +788,6 @@ class PassiveReportGenerator {
         }
     }
 
-    /**
-     * Generate a one-line summary of the learning period
-     */
-    generateOneLineSummary(questionCount, overallGrade, overallAccuracy, accuracyTrend, activityTrend) {
-        if (questionCount === 0) {
-            return 'No learning activity recorded in this period.';
-        }
-
-        const gradeText = overallGrade ? `earning ${overallGrade}` : 'showing progress';
-        const accuracyText = overallAccuracy ? `${(overallAccuracy * 100).toFixed(0)}% accuracy` : 'working through questions';
-
-        let trendText = '';
-        if (accuracyTrend === 'improving') {
-            trendText = ' with improving performance';
-        } else if (accuracyTrend === 'declining') {
-            trendText = ', needs more practice';
-        }
-
-        return `Answered ${questionCount} questions, ${gradeText} with ${accuracyText}${trendText}.`;
-    }
 }
 
 module.exports = { PassiveReportGenerator };

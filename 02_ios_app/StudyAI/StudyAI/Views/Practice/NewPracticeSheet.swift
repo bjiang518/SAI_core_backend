@@ -185,7 +185,7 @@ struct NewPracticeSheet: View {
                                 proxy.scrollTo(subject, anchor: .center)
                             }
                         }) {
-                            Text(BranchLocalizer.localized(subject))
+                            Text(PracticeSessionManager.localizeSubject(subject))
                                 .font(isSelected ? .subheadline : .caption)
                                 .fontWeight(isSelected ? .bold : .medium)
                                 .foregroundColor(isSelected ? themeManager.accentColor : .secondary)

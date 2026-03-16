@@ -534,6 +534,29 @@ class AuthRoutes {
 
     this.fastify.log.info('✅ === ALL AUTH ROUTES REGISTERED ===');
     this.fastify.log.info('✅ Total COPPA routes: 5 (request, verify, consent-status x2, revoke)');
+
+    // ==============================
+    // TestFlight Tester Tier Switcher
+    // ==============================
+
+    const { authenticateUser } = require('../middleware/railway-auth');
+
+    this.fastify.post('/api/tester/set-tier', {
+      preHandler: [authenticateUser],
+      schema: {
+        description: 'TestFlight-only: switch own account tier with tester code',
+        tags: ['Testing'],
+        body: {
+          type: 'object',
+          required: ['tier', 'code'],
+          properties: {
+            tier: { type: 'string', enum: ['free', 'premium', 'premium_plus'] },
+            code: { type: 'string' }
+          }
+        }
+      },
+      config: { rateLimit: { max: 30, timeWindow: '1 hour' } }
+    }, this.testerSetTier.bind(this));
   }
 
   async login(request, reply) {
@@ -2556,6 +2579,44 @@ The Study Mates Team
         message: 'Failed to delete account',
         error: error.message
       });
+    }
+  }
+
+  // ==============================
+  // TestFlight Tester Tier Switcher
+  // ==============================
+
+  async testerSetTier(request, reply) {
+    const TESTER_CODE = process.env.TESTER_CODE;
+    if (!TESTER_CODE) {
+      return reply.status(403).send({ success: false, error: 'Tester mode not enabled on this environment' });
+    }
+
+    const { tier, code } = request.body;
+
+    if (code !== TESTER_CODE) {
+      return reply.status(403).send({ success: false, error: 'Invalid tester code' });
+    }
+
+    const validTiers = ['free', 'premium', 'premium_plus'];
+    if (!validTiers.includes(tier)) {
+      return reply.status(400).send({ success: false, error: `tier must be one of: ${validTiers.join(', ')}` });
+    }
+
+    try {
+      const userId = request.user.id;
+      await db.setUserTier(userId, tier, null);
+
+      // Reset usage counters so testers start fresh on each tier
+      const { usageTracker } = require('../routes/ai/utils/usage-tracker');
+      await usageTracker.resetUserUsage(userId);
+      db.invalidateTierCache(userId);
+
+      this.fastify.log.info(`[Tester] set-tier: user=${userId} tier=${tier}`);
+      return reply.send({ success: true, data: { tier } });
+    } catch (error) {
+      this.fastify.log.error('Tester set-tier error:', error);
+      return reply.status(500).send({ success: false, error: 'Failed to set tier' });
     }
   }
 

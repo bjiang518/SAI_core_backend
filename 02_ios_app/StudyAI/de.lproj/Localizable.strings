@@ -1264,6 +1264,24 @@
 "editProfile.learningStyle" = "Learning Style";
 "editProfile.selectLearningStyle" = "Select Learning Style";
 
+// Grade Level Options
+"gradeLevel.preK" = "Vorschule";
+"gradeLevel.kindergarten" = "Kindergarten";
+"gradeLevel.grade1" = "1. Klasse";
+"gradeLevel.grade2" = "2. Klasse";
+"gradeLevel.grade3" = "3. Klasse";
+"gradeLevel.grade4" = "4. Klasse";
+"gradeLevel.grade5" = "5. Klasse";
+"gradeLevel.grade6" = "6. Klasse";
+"gradeLevel.grade7" = "7. Klasse";
+"gradeLevel.grade8" = "8. Klasse";
+"gradeLevel.grade9" = "9. Klasse";
+"gradeLevel.grade10" = "10. Klasse";
+"gradeLevel.grade11" = "11. Klasse";
+"gradeLevel.grade12" = "12. Klasse";
+"gradeLevel.college" = "Hochschule";
+"gradeLevel.adult" = "Erwachsenenlernender";
+
 // Optional Information
 "editProfile.optionalInfo" = "Optional Information";
 "editProfile.gender" = "Gender (Optional)";
@@ -1425,7 +1443,9 @@
 "mistakeReview.sliderMin" = "1 question";
 "mistakeReview.sliderMax" = "10 questions";
 "mistakeReview.generateCount" = "Generate %d Questions";
-"mistakeReview.practiceConfiguration" = "Practice Configuration";
+"mistakeReview.practiceConfiguration" = "Übungskonfiguration";
+"mistakeReview.weaknessHint.one" = "Noch %d Aufgabe, um die Schwäche \"%@\" zu beheben";
+"mistakeReview.weaknessHint.other" = "Noch %d Aufgaben, um die Schwäche \"%@\" zu beheben";
 "mistakeReview.filter.severityLabel" = "Severity";
 "mistakeReview.filter.timeLabel" = "Time";
 "mistakeReview.filter.severity.all" = "All";
@@ -1862,6 +1882,11 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "proMode.grading.complete" = "Grading complete!";
 "proMode.analyzingDiagrams" = "Diagrammbereiche werden analysiert…";
 "proMode.diagramAnalysisFailed" = "Bewertung ohne Bildkontext";
+"proMode.smartCrop" = "Smart-Zuschnitt";
+"proMode.retryCrop" = "Wiederholen";
+"proMode.croppedDone" = "Zugeschnitten";
+"proMode.addPictureHint" = "Bild hier hinzufügen";
+"proMode.selectQuestionFor" = "Bitte Aufgabennummer auswählen für";
 
 // PDF Preview
 "pdfPreview.title" = "PDF Preview";
@@ -2416,3 +2441,34 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "live.scenario.presentation.subtitle" = "Vollständig vortragen, KI gibt 3-dimensionales Feedback";
 "live.scenario.historicalFigure.title" = "Historische Person";
 "live.scenario.historicalFigure.subtitle" = "Durch die Geschichte reisen, mit einem Meister reden";
+"live.scenarioPicker.title" = "Live-Szenario wählen";
+"live.scenarioPicker.subtitle" = "Die KI führt dich durch die gesamte Sitzung";
+
+// Account Usage View
+"account.usage.title" = "Tarif & Nutzung";
+"account.usage.loadError" = "Nutzung konnte nicht geladen werden";
+"account.usage.lifetimeLimits" = "Es gelten lebenslange Limits";
+"account.usage.resetsOn" = "Zurückgesetzt am %@";
+"account.usage.unlimited" = "Unbegrenzt";
+"account.usage.upgradeLabel" = "Upgrade";
+"account.usage.upgradePlan" = "Tarif upgraden";
+"account.usage.restorePurchases" = "Käufe wiederherstellen";
+"account.usage.manageSubscription" = "Abonnement verwalten";
+"account.usage.tierGuest" = "Gastkonto";
+"account.usage.tierPremium" = "Premium";
+"account.usage.tierUltra" = "Ultra";
+"account.usage.tierFree" = "Kostenlos";
+"account.usage.badgeGuest" = "Gast";
+"account.usage.feature.homework_single" = "Hausaufgaben-Upload";
+"account.usage.feature.homework_batch" = "Massen-Upload";
+"account.usage.feature.chat_messages" = "KI-Chat";
+"account.usage.feature.questions" = "Übungsfragen";
+"account.usage.feature.error_analysis" = "Schwächenanalyse";
+"account.usage.feature.reports" = "Elternberichte";
+"account.usage.feature.voice_minutes" = "Live-Nachhilfe";
+"account.usage.feature.tts_calls" = "KI-Stimme";
+
+// Report priority labels
+"report.priority.high" = "Hoch";
+"report.priority.medium" = "Mittel";
+"report.priority.low" = "Niedrig";

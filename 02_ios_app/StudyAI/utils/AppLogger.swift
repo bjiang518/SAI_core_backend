@@ -24,6 +24,7 @@ struct LogConfig {
     static let mistakeDetectionDebug = true  // ✅ NEW: Mistake detection and analysis
     static let archivingDebug = true         // ✅ NEW: Question archiving
     static let errorAnalysisDebug = true     // ✅ NEW: Error analysis queueing
+    static let pdfLatexDebug = true          // PDF LaTeX rendering — shows render/fallback per question
     #else
     static let verboseLogging = false
     static let networkLogging = false
@@ -36,6 +37,7 @@ struct LogConfig {
     static let mistakeDetectionDebug = false  // ✅ NEW
     static let archivingDebug = false         // ✅ NEW
     static let errorAnalysisDebug = false     // ✅ NEW
+    static let pdfLatexDebug = false          // PDF LaTeX rendering
     #endif
 
     // ✅ NEW: System log patterns to suppress
@@ -218,6 +220,18 @@ struct AppLogger {
         #endif
     }
 
+    /// PDF LaTeX rendering — shows per-question render/fallback outcome.
+    /// Uses print() in addition to os_log so it's always visible in Xcode console.
+    func pdfLatex(_ message: String) {
+        #if DEBUG
+        if LogConfig.pdfLatexDebug {
+            let tagged = "🧮 [PDF-LaTeX] \(message)"
+            logger.info("\(tagged)")
+            print(tagged)
+        }
+        #endif
+    }
+
     // MARK: - System Log Filtering
 
     /// ✅ NEW: Setup console filtering to suppress noisy iOS system logs
@@ -288,6 +302,9 @@ extension AppLogger {
 
     /// ✅ NEW: Error analysis logger
     static let errorAnalysis = AppLogger(category: "ErrorAnalysis")
+
+    /// PDF LaTeX rendering logger — filter Xcode console by "PDF-LaTeX" to isolate
+    static let pdfLatexLogger = AppLogger(category: "PDFLatex")
 }
 
 // MARK: - Performance Measurement Helper

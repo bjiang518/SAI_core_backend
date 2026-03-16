@@ -1,0 +1,29 @@
+/* Taxonomy.strings (French)
+   Localized branch names for error analysis taxonomy */
+
+/* ===== SUBJECT NAMES ===== */
+"Mathematics" = "Mathématiques";
+"Math" = "Mathématiques";
+"Science" = "Sciences";
+"Physics" = "Physique";
+"Chemistry" = "Chimie";
+"Biology" = "Biologie";
+"English" = "Anglais";
+"History" = "Histoire";
+"Geography" = "Géographie";
+"Computer Science" = "Informatique";
+"Literature" = "Littérature";
+"Social Studies" = "Sciences Sociales";
+"Economics" = "Économie";
+"Art" = "Art";
+"Music" = "Musique";
+"Other" = "Autre";
+"Others:" = "Autres :";
+"Chinese" = "Chinois";
+"French" = "Français";
+"Spanish" = "Espagnol";
+"German" = "Allemand";
+"Japanese" = "Japonais";
+"Korean" = "Coréen";
+"Latin" = "Latin";
+"Physical Education" = "Éducation Physique";

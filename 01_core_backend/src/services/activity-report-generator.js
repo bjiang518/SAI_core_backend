@@ -13,7 +13,7 @@
 const { db } = require('../utils/railway-database');
 const logger = require('../utils/logger');
 const { getInsightsService } = require('./openai-insights-service');
-const { getT } = require('./report-i18n');
+const { getT, translateSubject } = require('./report-i18n');
 
 class ActivityReportGenerator {
     /**
@@ -737,7 +737,7 @@ class ActivityReportGenerator {
         const comparisonLabel = period === 'monthly' ? ta.monthComparison : ta.weekComparison;
         const subjectArray = Object.entries(metrics.subjectBreakdown)
             .map(([name, data]) => ({
-                name,
+                name: translateSubject(name, language),
                 count: data.count,
                 accuracy: metrics.subjectAccuracy[name]?.accuracy || 0,
                 accuracyPercent: metrics.subjectAccuracy[name]?.accuracyPercent || 0
@@ -1176,7 +1176,7 @@ class ActivityReportGenerator {
                     <tbody>
                         ${Object.entries(metrics.practiceSheets.bySubject).map(([subj, data]) => `
                         <tr style="border-bottom:1px solid #e5e7eb;">
-                            <td style="padding:6px 10px;">${subj}</td>
+                            <td style="padding:6px 10px;">${translateSubject(subj, language)}</td>
                             <td style="text-align:center;padding:6px 10px;">${data.sessions}</td>
                             <td style="text-align:center;padding:6px 10px;">${data.avgScore !== null ? data.avgScore + '%' : '—'}</td>
                         </tr>`).join('')}

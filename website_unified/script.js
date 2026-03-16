@@ -15,12 +15,8 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
         e.preventDefault();
         const target = document.querySelector(this.getAttribute('href'));
         if (target) {
-            target.scrollIntoView({
-                behavior: 'smooth',
-                block: 'start'
-            });
-            // Close mobile menu if open
-            if (navLinks.classList.contains('active')) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (navLinks && navLinks.classList.contains('active')) {
                 navLinks.classList.remove('active');
                 mobileMenuBtn.classList.remove('active');
             }
@@ -28,22 +24,17 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
     });
 });
 
-// Navbar Background on Scroll
+// Navbar shadow on scroll
 const navbar = document.querySelector('.navbar');
 window.addEventListener('scroll', () => {
-    if (window.scrollY > 50) {
-        navbar.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-    } else {
-        navbar.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+    if (navbar) {
+        navbar.style.boxShadow = window.scrollY > 50
+            ? '0 4px 20px rgba(0, 0, 0, 0.15)'
+            : '0 4px 6px rgba(0, 0, 0, 0.1)';
     }
 });
 
-// Animation on Scroll
-const observerOptions = {
-    threshold: 0.1,
-    rootMargin: '0px 0px -50px 0px'
-};
-
+// Scroll-in animations
 const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
         if (entry.isIntersecting) {
@@ -51,17 +42,16 @@ const observer = new IntersectionObserver((entries) => {
             entry.target.style.transform = 'translateY(0)';
         }
     });
-}, observerOptions);
+}, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
 
-// Observe all feature cards and testimonial cards
-document.querySelectorAll('.feature-card, .testimonial-card, .step').forEach(el => {
+document.querySelectorAll('.feature-card, .about-card, .step, .showcase-inner').forEach(el => {
     el.style.opacity = '0';
-    el.style.transform = 'translateY(20px)';
-    el.style.transition = 'all 0.6s ease-out';
+    el.style.transform = 'translateY(24px)';
+    el.style.transition = 'opacity 0.55s ease-out, transform 0.55s ease-out';
     observer.observe(el);
 });
 
-// Add active class to mobile menu styles
+// Mobile menu styles
 const style = document.createElement('style');
 style.textContent = `
     .nav-links.active {
@@ -72,19 +62,16 @@ style.textContent = `
         left: 0;
         right: 0;
         background: white;
-        padding: 2rem;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        padding: 1.5rem 2rem;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
         gap: 1rem;
     }
-
     .mobile-menu-btn.active span:nth-child(1) {
         transform: rotate(45deg) translate(5px, 5px);
     }
-
     .mobile-menu-btn.active span:nth-child(2) {
         opacity: 0;
     }
-
     .mobile-menu-btn.active span:nth-child(3) {
         transform: rotate(-45deg) translate(7px, -7px);
     }

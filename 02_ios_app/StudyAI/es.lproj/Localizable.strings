@@ -1,0 +1,2653 @@
+/*
+  Localizable.strings (English)
+  StudyAI
+*/
+
+// Loading Screen
+"loading.appTagline" = "Tu StudyMate";
+
+// Biometric Authentication (NEW - no existing alternatives)
+"login.enableBiometric" = "Activar %@?";
+"login.enable" = "Activar";
+"login.notNow" = "Ahora no";
+"login.biometricMessage" = "La próxima vez, inicia sesión más rápido con %@. Puedes cambiarlo en Configuración.";
+"login.signInWithBiometric" = "Iniciar sesión con %@";
+"login.continueWithApple" = "Continuar con Apple";
+
+// Main Tabs
+"tab.home" = "Inicio";
+"tab.grader" = "Grader";
+"tab.chat" = "Chat";
+"tab.progress" = "Progreso";
+"tab.library" = "Biblioteca";
+
+// Settings
+"settings.title" = "Configuración";
+"settings.account" = "Cuenta";
+"settings.editProfile" = "Editar perfil";
+"settings.signOut" = "Cerrar sesión";
+"settings.biometricLogin" = "Inicio de sesión con %@";
+"settings.parentControls.message" = "Verifica el acceso parental para gestionar la configuración";
+"settings.appVersion" = "StudyMates v1.0";
+"settings.appTagline" = "Con autenticación moderna";
+"settings.appPoweredBy" = "Impulsado por OpenAI GPT-4";
+"settings.security" = "Seguridad y privacidad";
+"settings.passwordManager" = "Gestor de contraseñas";
+"settings.privacySettings" = "Configuración de privacidad";
+"settings.appSettings" = "Ajustes de la app";
+"settings.studyReminders" = "Recordatorios de estudio";
+"settings.textSize" = "Tamaño de texto";
+"settings.language" = "Idioma";
+"languageSettings.sectionHeader" = "Seleccionar idioma";
+"languageSettings.sectionFooter" = "Elige tu idioma preferido para la interfaz de la app. Afectará todo el texto de la app.";
+"languageSettings.restartRequired" = "Se requiere reiniciar";
+"languageSettings.restartMessage" = "La app se cerrará ahora. Por favor, ábrela de nuevo para ver el cambio de idioma.";
+"settings.voiceAudio" = "Compañeros de estudio";
+"settings.voiceSettings" = "Selecciona tu compañero de estudio";
+"settings.learning" = "Aprendizaje";
+"settings.learningGoals" = "Metas de aprendizaje y progreso";
+"settings.support" = "Soporte";
+"settings.help" = "Ayuda y preguntas frecuentes";
+"settings.contact" = "Contactar soporte";
+"settings.rateApp" = "Calificar aplicación";
+"settings.shareApp" = "Compartir aplicación";
+
+// Profile
+"profile.complete" = "Perfil %d%% completo";
+"profile.biometricLogin" = "Inicio de sesión con %@";
+
+// Study Reminders
+"studyReminders.title" = "Recordatorios de estudio";
+"studyReminders.permissions" = "Permisos";
+"studyReminders.notificationPermission" = "Permiso de notificaciones";
+"studyReminders.enabled" = "Notificaciones habilitadas";
+"studyReminders.denied" = "Notificaciones denegadas";
+"studyReminders.notConfigured" = "No configurado";
+"studyReminders.enable" = "Activar notificaciones";
+"studyReminders.description" = "Activa las notificaciones para recibir recordatorios de estudio y mantenerte al día con tus metas de aprendizaje.";
+"studyReminders.daily" = "Recordatorios diarios de estudio";
+"studyReminders.dailyDescription" = "Recibe un recordatorio para estudiar a tu hora programada cada día.";
+"studyReminders.schedule" = "Programación";
+"studyReminders.studyTime" = "Hora de estudio";
+"studyReminders.timeDescription" = "Se te recordará estudiar a las %@";
+"studyReminders.studyDays" = "Días de estudio";
+"studyReminders.daysDescription" = "Los recordatorios se enviarán los %@";
+"studyReminders.weekdays" = "Días laborables";
+"studyReminders.everyDay" = "Todos los días";
+"studyReminders.clear" = "Limpiar";
+"studyReminders.save" = "Guardar";
+"studyReminders.cancel" = "Cancelar";
+
+// Days of Week
+"day.monday" = "Lunes";
+"day.tuesday" = "Martes";
+"day.wednesday" = "Miércoles";
+"day.thursday" = "Jueves";
+"day.friday" = "Viernes";
+"day.saturday" = "Sábado";
+"day.sunday" = "Domingo";
+
+// Common
+"common.done" = "Listo";
+"common.cancel" = "Cancelar";
+"common.save" = "Guardar";
+"common.ok" = "Aceptar";
+"common.close" = "Cerrar";
+"common.edit" = "Editar";
+"common.clear" = "Limpiar";
+"common.clearAll" = "Limpiar todo";
+"common.new" = "Nuevo";
+"common.reset" = "Restablecer";
+"common.select" = "Seleccionar";
+"common.selectAll" = "Seleccionar todo";
+"common.deselectAll" = "Deseleccionar todo";
+"common.selected" = "seleccionado";
+"common.of" = "de";
+"common.add" = "Agregar";
+"common.years" = "años";
+"common.openSettings" = "Abrir Configuración";
+"common.settings" = "Configuración";
+"common.delete" = "Eliminar";
+"common.continueHere" = "Continuar aquí";
+"common.moveOnAndNotify" = "Continuar y notificar";
+
+// Home View
+"home.goodMorning" = "Buenos días";
+"home.goodAfternoon" = "Buenas tardes";
+"home.goodEvening" = "Buenas noches";
+"home.defaultStudentName" = "Estudiante";
+"home.pleaseEditProfile" = "Por favor, edita tu perfil";
+"home.todaysProgress" = "Progreso de hoy";
+"home.startLearningMessage" = "Empieza a aprender para ver tu progreso";
+"home.questions" = "Preguntas";
+"home.accuracy" = "Precisión";
+"home.streak" = "Racha diaria";
+"home.quickActions" = "Acciones rápidas";
+"home.moreFeatures" = "Más funciones";
+"home.homeworkGrader" = "Calificador de tareas";
+"home.scanAndGrade" = "Escanear y calificar";
+"home.chat" = "Captura y pregunta";
+"home.conversationalAI" = "Asistente de aprendizaje IA";
+"home.library" = "Biblioteca";
+"home.studySessions" = "Todas tus preguntas y conversaciones archivadas";
+"home.progress" = "Progreso";
+"home.trackLearning" = "Seguir aprendizaje";
+"home.practice" = "Práctica";
+"home.practiceDescription" = "Generar y practicar";
+"home.mistakeReview" = "Revisión de errores";
+"home.mistakeReviewDescription" = "Trabaja tus puntos débiles";
+"home.parentReports" = "Informes para padres";
+"home.parentReportsDescription" = "Progreso e información de estudio";
+"home.homeworkAlbum" = "Álbum de tareas";
+"home.homeworkAlbumDescription" = "Ver toda la tarea enviada";
+
+// Parent Reports
+"parentReport.title" = "Informes para padres";
+"parentReport.studyReports" = "Informes de estudio";
+"parentReport.trackProgress" = "Sigue el progreso académico de tu hijo";
+"parentReport.quickActions" = "Acciones rápidas";
+"parentReport.weeklyReport" = "Informe\nsemanal";
+"parentReport.monthlyReport" = "Informe\nmensual";
+"parentReport.progressReport" = "Informe de\nprogreso";
+"parentReport.recentReports" = "Informes recientes";
+"parentReport.viewAll" = "Ver todos";
+"parentReport.noReportsYet" = "Sin informes aún";
+"parentReport.generateFirstReport" = "Genera tu primer informe para ver detalles del progreso de estudio";
+"parentReport.generatingReport" = "Generando informe...";
+"parentReport.percentComplete" = "%d%% completado";
+"parentReport.aiAnalysis" = "Análisis de IA";
+"parentReport.reportDetails" = "Detalles del informe";
+"parentReport.loadingNarrative" = "Cargando contenido narrativo...";
+"parentReport.summary" = "Resumen";
+"parentReport.keyInsights" = "Puntos clave";
+"parentReport.recommendations" = "Recomendaciones";
+
+// Common
+"common.error" = "Error";
+
+// AI Homework
+"aiHomework.title" = "Tarea con IA";
+"aiHomework.assistant.title" = "Asistente de tarea con IA";
+"aiHomework.assistant.description" = "Escanea imágenes de tarea y obtén soluciones con IA con explicaciones paso a paso";
+"aiHomework.startAnalysis" = "Iniciar análisis de tarea";
+"aiHomework.selectImage" = "Selecciona una imagen para analizar la tarea";
+"aiHomework.optimizing" = "Optimizando imagen...";
+"aiHomework.parsingHomework" = "🤖 IA analizando tarea...";
+"aiHomework.parsingPages" = "🤖 IA analizando %d páginas...";
+"aiHomework.retrying" = "🔄 Reintentando... (%d/%d)";
+"aiHomework.cropping" = "Recortando imagen...";
+"aiHomework.uploading" = "Subiendo a la IA...";
+"aiHomework.autoDetecting" = "Detectando contenido automáticamente...";
+"aiHomework.analyzing" = "IA leyendo tarea...";
+"aiHomework.grading" = "Calificando respuestas...";
+"aiHomework.preparingResults" = "Preparando resultados...";
+"aiHomework.analysisComplete" = "¡Análisis completo!";
+"aiHomework.processingError" = "Error de procesamiento";
+"aiHomework.homeworkAnalysisComplete" = "Análisis de tarea completo";
+"aiHomework.gradingCompleteMessage" = "Tu tarea ha sido calificada. Se encontraron %d pregunta(s).";
+"aiHomework.selectImageSource.title" = "Seleccionar fuente de imagen";
+"aiHomework.selectImageSource.subtitle" = "Elige cómo quieres subir tu tarea";
+"aiHomework.imageSource.takePhoto" = "Tomar foto";
+"aiHomework.imageSource.takePhotoSubtitle" = "Usar la cámara para escanear la tarea";
+"aiHomework.imageSource.choosePhotos" = "Elegir de fotos";
+"aiHomework.imageSource.choosePhotosSubtitle" = "Seleccionar de la biblioteca de fotos";
+"aiHomework.imageSource.chooseFiles" = "Elegir de Archivos";
+"aiHomework.imageSource.chooseFilesSubtitle" = "Importar desde la app Archivos";
+"aiHomework.imageSource.chooseHomework" = "Elegir tarea reciente";
+"aiHomework.imageSource.chooseHomeworkSubtitle" = "Seleccionar de tareas calificadas anteriormente";
+"aiHomework.preview.singleImage" = "Vista previa de imagen";
+"aiHomework.preview.multipleImages" = "Vista previa de imágenes";
+"aiHomework.preview.selectedCount" = "seleccionadas";
+"aiHomework.editImage" = "Editar imagen";
+"aiHomework.analyzeWithAI" = "Analizar con IA";
+"aiHomework.analyzeMultipleImages" = "Analizar %d imágenes con IA";
+"aiHomework.imageCounter" = "%d de %d";
+"aiHomework.continueInBackground" = "¿Continuar analizando en segundo plano? Recibirás una notificación cuando termine.";
+"aiHomework.photoAccessRequired" = "Se requiere acceso a fotos";
+"aiHomework.photoAccessMessage" = "Permite el acceso a tu biblioteca de fotos en Configuración para seleccionar imágenes.";
+"aiHomework.cameraAccessRequired" = "Se requiere acceso a la cámara";
+"aiHomework.cameraAccessMessage" = "Permite el acceso a la cámara en Configuración para tomar fotos.";
+"aiHomework.imageLimitReached" = "Límite de imágenes alcanzado";
+"aiHomework.imageLimitMessage" = "Puedes agregar hasta %d imágenes. Elimina una imagen para agregar una nueva.";
+"aiHomework.selectOneImage" = "Selecciona una imagen";
+"aiHomework.selectOneImageMessage" = "Por favor, selecciona 1 imagen a la vez para editar.";
+"aiHomework.selectSubject" = "Seleccionar materia";
+"aiHomework.parsingMode.title" = "Modo de análisis";
+"aiHomework.parsingMode.progressive" = "Pro";
+"aiHomework.parsingMode.hierarchical" = "Detalle";
+"aiHomework.parsingMode.baseline" = "Rápido";
+"aiHomework.parsingMode.fast" = "Rápido";
+"aiHomework.parsingMode.progressive.description" = "Tarea digital inteligente con calificación bajo demanda. Flexible e interactiva.";
+"aiHomework.parsingMode.hierarchical.description" = "Análisis preciso con relaciones de preguntas padre-hijo. Ideal para tareas estructuradas.";
+"aiHomework.parsingMode.baseline.description" = "Análisis más rápido con estructura plana de preguntas. Bueno para tareas simples.";
+"aiHomework.parsingMode.fast.description" = "Análisis rápido con GPT-4o-mini. Resultados veloces con alta precisión.";
+"aiHomework.subject" = "Materia";
+"aiHomework.model" = "Modelo";
+"aiHomework.mode" = "Modo";
+"aiHomework.digitalHomework" = "Tarea digital con IA";
+"aiHomework.compressing" = "Comprimiendo...";
+"aiHomework.scannedDocument.single" = "Documento escaneado";
+"aiHomework.scannedDocument.multiple" = "Documentos escaneados";
+"aiHomework.results.complete" = "¡Análisis completo!";
+"aiHomework.results.analyzed" = "Tu tarea ha sido analizada";
+"aiHomework.results.subject" = "Materia";
+"aiHomework.results.questions" = "Preguntas";
+"aiHomework.results.accuracy" = "Precisión";
+"aiHomework.results.confidence" = "Confianza";
+"aiHomework.results.viewDetails" = "Ver resultados detallados";
+"aiHomework.processing.message" = "¡La IA está examinando tu tarea con cuidado!";
+"aiHomework.processing.waitMessage" = "Esto puede tardar un momento, por favor espera...";
+"imageViewer.instructions" = "Pellizca para hacer zoom • Arrastra para mover • Doble toque para restablecer • Usa el botón Cerrar para salir";
+
+// Homework Results
+"homeworkResults.yourScore" = "Tu puntuación";
+"homeworkResults.titleWithSubject" = "Tu informe de tarea de %@";
+"homeworkResults.archive" = "Archivar";
+"homeworkResults.report" = "Informe";
+"homeworkResults.subject" = "Materia:";
+"homeworkResults.confidence" = "confianza";
+"homeworkResults.questions" = "Preguntas";
+"homeworkResults.accuracy" = "Precisión";
+"homeworkResults.performanceSummary" = "Resumen de rendimiento";
+"homeworkResults.correct" = "Correcto";
+"homeworkResults.incorrect" = "Incorrecto";
+"homeworkResults.empty" = "Vacío";
+"homeworkResults.partialCredit" = "Crédito parcial";
+"homeworkResults.questionsAndAnswers" = "Preguntas y respuestas";
+"homeworkResults.additionalItems" = "Elementos adicionales";
+"homeworkResults.debugInfo" = "Información de depuración";
+"homeworkResults.selectQuestionsToArchive" = "Seleccionar preguntas para archivar";
+"homeworkResults.questionsSelected" = "preguntas seleccionadas";
+"homeworkResults.noQuestionsSelected" = "No hay preguntas seleccionadas";
+"homeworkResults.selectQuestionsToArchiveMessage" = "Por favor, selecciona al menos una pregunta para archivar.";
+"homeworkResults.markProgress" = "Organización automática";
+"homeworkResults.slideToMarkProgress" = "Desliza para organizar automáticamente";
+"homeworkResults.progressMarked" = "¡Organizado!";
+"homeworkResults.progressUpdated" = "✅ ¡Tu progreso de estudio ha sido actualizado!";
+"homeworkResults.progressTip" = "💡 Consejo: ¡El progreso se registra automáticamente al archivar preguntas!";
+"homeworkResults.tapToAddQuestions" = "Toca aquí para agregar manualmente %d preguntas a tu progreso";
+"homeworkResults.manuallyAddPrefix" = "O toca aquí para agregar manualmente estas ";
+"homeworkResults.manuallyAddSuffix" = " preguntas a tus metas de aprendizaje diarias";
+"homeworkResults.hasVisual" = "Tiene visual";
+"homeworkResults.rawQuestion" = "Pregunta original:";
+"homeworkResults.studentAnswer" = "Respuesta del estudiante:";
+"homeworkResults.noAnswerProvided" = "(Sin respuesta proporcionada)";
+"homeworkResults.correctAnswer" = "Respuesta correcta:";
+"homeworkResults.feedback" = "Retroalimentación:";
+"homeworkResults.askAiForHelp" = "Pedir ayuda a la IA";
+
+// Question type renderers
+"renderer.fullQuestion" = "Pregunta completa:";
+"renderer.ungraded" = "Sin calificar";
+"renderer.unknownGrade" = "Desconocido";
+"renderer.studentAnswer" = "Respuesta del estudiante";
+"renderer.correctAnswer" = "Respuesta correcta";
+"renderer.studentsWork" = "Trabajo del estudiante:";
+"renderer.studentAnswerWords" = "Respuesta del estudiante (%d palabras)";
+"renderer.keyPointsExpected" = "Puntos clave esperados";
+"renderer.showMore" = "Ver más";
+"renderer.showLess" = "Ver menos";
+"homeworkResults.archiveSuccess" = "Archivado correctamente ";
+"homeworkResults.archiveSuccessSuffix" = " pregunta(s) en tu cuaderno de errores.";
+"homeworkResults.archiveFailure" = "Error al archivar preguntas: ";
+
+// Authentication
+"auth.error.title" = "Error de autenticación";
+"auth.error.unknown" = "Ocurrió un error desconocido";
+
+// Email Verification
+"emailVerification.error.title" = "Error de verificación";
+"emailVerification.title" = "Verifica tu correo";
+"emailVerification.codeSentMessage" = "Hemos enviado un código de verificación de 6 dígitos a";
+"emailVerification.enterCode" = "Introduce el código de 6 dígitos";
+"emailVerification.verifying" = "Verificando...";
+"emailVerification.verifyButton" = "Verificar correo";
+"emailVerification.resendCode" = "Reenviar código";
+"emailVerification.resendCountdown" = "Reenviar código en %ds";
+"emailVerification.checkSpam" = "¿No recibiste el código? Revisa tu carpeta de spam";
+"emailVerification.wrongEmail" = "¿Correo incorrecto?";
+"emailVerification.change" = "Cambiar";
+
+// Password Reset
+"forgot_password" = "¿Olvidaste tu contraseña?";
+"reset_password_title" = "Restablecer contraseña";
+"reset_password_email_prompt" = "Introduce tu correo para recibir un código de restablecimiento";
+"send_reset_code" = "Enviar código de restablecimiento";
+"reset_code_sent" = "Se envió un código de 6 dígitos a tu correo";
+"new_password" = "Nueva contraseña";
+"confirm_new_password" = "Confirmar nueva contraseña";
+"reset_password_button" = "Restablecer contraseña";
+"password_reset_success" = "Contraseña restablecida correctamente. Por favor, inicia sesión.";
+
+// Account Password Management
+"accountPassword.title" = "Contraseña de la cuenta";
+"accountPassword.subtitle" = "Cambia la contraseña de inicio de sesión de tu cuenta";
+"accountPassword.sectionHeader" = "Seguridad de la cuenta";
+"accountPassword.sectionFooter" = "Tu contraseña de cuenta se usa para iniciar sesión";
+"accountPassword.current" = "Contraseña actual";
+"accountPassword.new" = "Nueva contraseña";
+"accountPassword.confirm" = "Confirmar contraseña";
+"accountPassword.changeHeader" = "Cambiar contraseña de la cuenta";
+"accountPassword.requirementFooter" = "La contraseña debe tener al menos 6 caracteres";
+"accountPassword.button" = "Cambiar contraseña";
+"accountPassword.comingSoon" = "El cambio de contraseña estará disponible en una futura actualización";
+
+// Parent Password Management
+"parentPassword.title" = "Contraseña del modo parental";
+"parentPassword.statusEnabled" = "Activado";
+"parentPassword.statusNotSet" = "No establecida";
+"parentPassword.set" = "Establecer contraseña parental";
+"parentPassword.setSubtitle" = "Crea un PIN para proteger el modo parental";
+"parentPassword.change" = "Cambiar contraseña parental";
+"parentPassword.changeSubtitle" = "Actualiza tu PIN del modo parental";
+"parentPassword.remove" = "Eliminar contraseña parental";
+"parentPassword.removeSubtitle" = "Desactivar la protección del modo parental";
+"parentPassword.controlsHeader" = "Controles del modo parental";
+"parentPassword.controlsFooter" = "El modo parental te permite controlar las funciones de la app y establecer restricciones";
+"parentPassword.featureAccessHeader" = "Funciones protegidas";
+"parentPassword.featureAccessFooter" = "Activa la protección para las funciones que requieren autorización parental";
+
+// Parent Password - Set Password
+"parentPasswordSet.title" = "Establecer contraseña parental";
+"parentPasswordSet.description" = "Crea un PIN de 6 dígitos para proteger las funciones y ajustes del modo parental";
+"parentPasswordSet.pinPlaceholder" = "Introduce el PIN (6 dígitos)";
+"parentPasswordSet.confirmPlaceholder" = "Confirmar PIN";
+"parentPasswordSet.header" = "Crea tu PIN";
+"parentPasswordSet.footer" = "Este PIN será requerido para acceder a las funciones del modo parental";
+"parentPasswordSet.button" = "Establecer contraseña";
+"parentPasswordSet.mismatch" = "Los PINs no coinciden. Por favor, inténtalo de nuevo.";
+"parentPasswordSet.invalid" = "El PIN debe tener exactamente 6 dígitos";
+"parentPasswordSet.success" = "✅ Contraseña parental establecida correctamente";
+"parentPasswordSet.failed" = "❌ Error al establecer la contraseña. Por favor, inténtalo de nuevo.";
+
+// Parent Password - Change Password
+"parentPasswordChange.title" = "Cambiar contraseña parental";
+"parentPasswordChange.currentPlaceholder" = "Introduce el PIN actual";
+"parentPasswordChange.currentHeader" = "Contraseña actual";
+"parentPasswordChange.newPlaceholder" = "Introduce el nuevo PIN (6 dígitos)";
+"parentPasswordChange.confirmPlaceholder" = "Confirmar nuevo PIN";
+"parentPasswordChange.newHeader" = "Nueva contraseña";
+"parentPasswordChange.footer" = "Introduce un nuevo PIN de 6 dígitos para cambiar tu contraseña parental";
+"parentPasswordChange.button" = "Cambiar contraseña";
+"parentPasswordChange.mismatch" = "Los PINs no coinciden. Por favor, inténtalo de nuevo.";
+"parentPasswordChange.success" = "✅ Contraseña parental cambiada correctamente";
+"parentPasswordChange.failed" = "❌ Error al cambiar la contraseña. Por favor, verifica tu PIN actual.";
+
+// Parent Password - Remove Password
+"parentPasswordRemove.title" = "Eliminar modo parental";
+"parentPasswordRemove.description" = "Esto desactivará el modo parental y eliminará todas las restricciones";
+"parentPasswordRemove.pinPlaceholder" = "Introduce el PIN actual";
+"parentPasswordRemove.header" = "Verificar contraseña";
+"parentPasswordRemove.footer" = "Introduce tu PIN parental actual para confirmar la eliminación";
+"parentPasswordRemove.button" = "Eliminar modo parental";
+"parentPasswordRemove.navigationTitle" = "Eliminar modo parental";
+"parentPasswordRemove.alertTitle" = "Eliminar modo parental";
+"parentPasswordRemove.success" = "✅ El modo parental ha sido eliminado";
+"parentPasswordRemove.incorrectPin" = "❌ PIN incorrecto. Por favor, inténtalo de nuevo.";
+
+
+"app.name" = "StudyAI";
+"app.tagline" = "Tu compañero de aprendizaje con IA";
+"auth.login.welcome" = "¡Bienvenido de nuevo!";
+"auth.login.subtitle" = "Inicia sesión para continuar tu viaje de aprendizaje.";
+"auth.login.orContinueWithEmail" = "o continúa con tu correo";
+"auth.signInWith" = "Iniciar sesión con ";
+"auth.continueWithGoogle" = "Continuar con Google";
+"auth.emailAddress" = "Correo electrónico";
+"auth.enterEmail" = "Introduce tu correo";
+"auth.password" = "Contraseña";
+"auth.enterPassword" = "Introduce tu contraseña";
+"auth.signIn" = "Iniciar sesión";
+"auth.dontHaveAccount" = "¿No tienes cuenta?";
+"auth.signUp" = "Registrarse";
+"auth.continueAsGuest" = "Continuar como invitado";
+"upgrade.title" = "Desbloquear más funciones";
+"upgrade.createFreeAccount" = "Crear cuenta gratuita";
+"upgrade.upgradeToPremium" = "Actualizar a Premium";
+"upgrade.monthlyLimitReached" = "Límite mensual alcanzado";
+"upgrade.coppaRestricted" = "Función restringida";
+"upgrade.createAccountSubtitle" = "Crea una cuenta gratuita para guardar tu progreso.";
+"upgrade.upgradeToPremiumSubtitle" = "Acceso ilimitado con Premium.";
+"upgrade.monthlyLimitSubtitle" = "Has agotado tu cuota mensual. Actualiza para obtener más.";
+"upgrade.coppaRestrictedSubtitle" = "Pide a un padre o tutor que desbloquee esta función.";
+"upgrade.continueFree" = "Continuar gratis";
+"common.dismiss" = "Cerrar";
+"faceIDReauth.title" = "Sesión expirada";
+"faceIDReauth.message" = "Por tu seguridad, necesitas volver a autenticarte.";
+"faceIDReauth.biometricPrompt" = "Usa %@ para continuar donde lo dejaste.";
+"faceIDReauth.authenticateButton" = "Autenticar con %@";
+"faceIDReauth.signOut" = "Cerrar sesión";
+"faceIDReauth.error.cancelled" = "Autenticación cancelada. Intenta de nuevo o cierra sesión.";
+"faceIDReauth.error.notAvailable" = "%@ no está disponible. Cierra sesión e inicia de nuevo.";
+"faceIDReauth.error.notEnrolled" = "%@ no está configurado. Cierra sesión e inicia de nuevo.";
+"faceIDReauth.error.failed" = "La autenticación con %@ falló. Inténtalo de nuevo.";
+"faceIDReauth.error.generic" = "Autenticación fallida: %@";
+"auth.signup.title" = "Crea tu cuenta";
+"auth.signup.subtitle" = "¡Únete a StudyAI para comenzar tu aventura de aprendizaje!";
+"auth.fullName" = "Nombre completo";
+"auth.enterFullName" = "Introduce tu nombre completo";
+"auth.createPassword" = "Crea una contraseña";
+"auth.confirmPassword" = "Confirmar contraseña";
+"auth.confirmYourPassword" = "Confirma tu contraseña";
+"auth.createAccount" = "Crear cuenta";
+"auth.signup.error" = "Error de registro";
+"auth.passwordRequirement.minLength" = "Al menos 6 caracteres";
+"auth.passwordRequirement.match" = "Las contraseñas coinciden";
+
+// Error Messages
+"error.offline" = "Sin conexión a internet";
+"error.rateLimit" = "Demasiadas solicitudes. Inténtalo de nuevo en %@";
+"error.rateLimitGeneric" = "Demasiadas solicitudes. Por favor, inténtalo más tarde";
+"error.invalidImage" = "Formato de imagen no compatible o dañado";
+"error.aiProcessing" = "El análisis con IA falló. Por favor, inténtalo de nuevo";
+"error.auth" = "Error de autenticación. Por favor, inicia sesión de nuevo";
+
+// Chat Session Errors
+"error.session.creation" = "No se pudo iniciar una nueva sesión de chat. Por favor, verifica tu conexión e inténtalo de nuevo.";
+"error.session.expired" = "Tu sesión ha expirado. No te preocupes — ¡tu mensaje está guardado! Toca reintentar para enviarlo en una nueva sesión.";
+"error.session.loadInfo" = "No se pudo cargar la información de la sesión. La sesión sigue activa y funcionando normalmente.";
+"error.session.archive" = "Error al guardar la conversación. Tus mensajes están seguros — por favor intenta archivar de nuevo.";
+
+// Message Errors
+"error.message.send" = "Mensaje no entregado. Toca el botón de reintento para intentarlo de nuevo.";
+"error.message.network" = "Problema de conexión de red. Por favor, verifica tu internet e inténtalo de nuevo.";
+"error.message.noResponse" = "La IA no respondió. Puede ser un problema temporal — por favor reintenta tu mensaje.";
+
+// Image Processing Errors
+"error.image.prepare" = "No se pudo preparar la imagen para subir. Por favor, selecciona una imagen diferente.";
+"error.image.process" = "El análisis de imagen falló. Asegúrate de que la imagen sea clara e inténtalo de nuevo.";
+"error.image.upload" = "Error al subir la imagen. Por favor, verifica tu conexión e inténtalo de nuevo.";
+
+// Loading States
+"loading.session.creating" = "Iniciando nueva conversación...";
+"loading.message.sending" = "Enviando mensaje...";
+"loading.image.processing" = "Analizando imagen con IA...";
+"loading.archive.saving" = "Guardando conversación...";
+
+// Success Messages
+"success.session.created" = "✓ Nueva conversación iniciada";
+"success.message.sent" = "✓ Mensaje entregado";
+"success.image.processed" = "✓ Imagen analizada correctamente";
+"success.archive.saved" = "✓ Conversación guardada en la biblioteca";
+"success.grade.updated" = "✅ Calificación actualizada a %@ (%@ puntos)";
+"success.network.restored" = "✓ Conexión restablecida";
+
+// Phase 2 Reliability - Network Monitoring (Phase 2.3)
+"error.network.disconnected" = "Conexión perdida. Respuesta parcial guardada.";
+"error.network.reconnecting" = "Reconectando...";
+"error.network.timeout" = "Tiempo de solicitud agotado. Por favor, verifica tu conexión e inténtalo de nuevo.";
+
+// Phase 2 Reliability - Streaming Retry (Phase 2.3)
+"error.streaming.interrupted" = "Conexión interrumpida durante la respuesta. Mensaje parcial guardado.";
+"error.streaming.retry" = "Reintentar";
+"success.streaming.recovered" = "Conexión recuperada. Mensaje completo.";
+"streaming.partialResponse" = "Respuesta parcial disponible. Toca Reintentar para continuar.";
+
+// Phase 2 Reliability - Circuit Breaker (Phase 2.1)
+"error.ai.circuitOpen" = "El servicio de IA no está disponible temporalmente. Por favor, inténtalo de nuevo en unos momentos.";
+"error.ai.serviceDown" = "El servicio de IA está fuera de línea. Nuestro equipo está trabajando para restaurarlo.";
+"error.ai.timeout" = "El procesamiento de IA está tardando más de lo esperado. Por favor, inténtalo de nuevo.";
+
+// Phase 2 Reliability - Database Errors (Phase 2.2)
+"error.database.writeFailed" = "No se pudo guardar tu mensaje. Por favor, verifica tu conexión e inténtalo de nuevo.";
+"error.database.unavailable" = "Base de datos temporalmente no disponible. Tu mensaje se reintentará automáticamente.";
+"error.database.saveFailed" = "Error al guardar la conversación. Tus mensajes están seguros en memoria.";
+
+// Phase 2 Reliability - Token Refresh (Phase 2.5)
+"error.token.expired" = "Tu sesión expiró. Por favor, inicia sesión de nuevo.";
+"error.token.refreshFailed" = "No se pudo renovar la sesión. Por favor, inicia sesión de nuevo.";
+"error.token.invalid" = "Sesión inválida. Por favor, inicia sesión de nuevo.";
+"success.token.refreshed" = "Sesión renovada correctamente.";
+
+// Phase 2 Reliability - Session Validation (Phase 2.6)
+"error.session.notfound" = "Sesión no encontrada. Creando una nueva...";
+"error.session.invalid" = "Sesión inválida. Iniciando nueva sesión...";
+"error.session.validation" = "No se pudo validar la sesión. Por favor, inténtalo de nuevo.";
+"success.session.validated" = "Sesión lista.";
+"success.session.recreated" = "Nueva sesión creada correctamente.";
+
+// Homework Album
+"homeworkAlbum.title" = "Álbum de tareas";
+"homeworkAlbum.select" = "Seleccionar";
+"homeworkAlbum.done" = "Listo";
+"homeworkAlbum.delete" = "Eliminar";
+"homeworkAlbum.deleteCount" = "Eliminar (%d)";
+"homeworkAlbum.deleteConfirmation" = "¿Eliminar %d imagen(es) de tarea?";
+"homeworkAlbum.deleteConfirmationMessage" = "Esta acción no se puede deshacer.";
+"homeworkAlbum.emptyStateTitle" = "Aún sin tareas";
+"homeworkAlbum.emptyStateMessage" = "Las imágenes de tarea aparecerán aquí después de enviarlas para calificación con IA";
+"homeworkAlbum.questionCount" = "%d pregunta(s)";
+"homeworkAlbum.filters" = "Filtros";
+"homeworkAlbum.timeRange" = "Rango de fechas";
+"homeworkAlbum.subject" = "Materia";
+"homeworkAlbum.grade" = "Calificación";
+"homeworkAlbum.chooseHomework" = "Elegir tarea";
+"homeworkAlbum.selectionHint" = "Toca cualquier tarea para seleccionarla y volver a analizarla con IA";
+
+// Homework Image Detail
+"homeworkImageDetail.deleteTitle" = "¿Eliminar imagen de tarea?";
+"homeworkImageDetail.deleteMessage" = "Esta acción no se puede deshacer.";
+"homeworkImageDetail.questions" = "Preguntas";
+"homeworkImageDetail.correct" = "Correcto";
+"homeworkImageDetail.score" = "Puntuación";
+
+// Question Generation
+"questionGeneration.title" = "Generar preguntas";
+"questionGeneration.aiQuestionGenerator" = "Generador de preguntas con IA";
+"questionGeneration.subtitle" = "Genera preguntas de práctica personalizadas con IA";
+"questionGeneration.chooseTemplate" = "Elegir plantilla";
+"questionGeneration.template.randomPractice" = "Práctica aleatoria";
+"questionGeneration.template.fromMistakes" = "De errores";
+"questionGeneration.template.fromArchives" = "De archivos";
+"questionGeneration.resume.title" = "Reanudar práctica";
+"questionGeneration.resume.subtitle" = "%@ • %d preguntas restantes";
+"questionGeneration.resume.button" = "Continuar";
+"questionGeneration.type.random" = "Práctica aleatoria";
+"questionGeneration.type.conversationBased" = "Práctica basada en conversaciones";
+"questionGeneration.type.mistakeBased" = "Práctica basada en errores";
+"questionGeneration.description.randomPractice" = "Genera nuevas preguntas de práctica";
+"questionGeneration.description.fromMistakes" = "Trabaja tus puntos débiles";
+"questionGeneration.description.fromArchives" = "Basado en sesiones archivadas";
+"questionGeneration.configuration" = "Configuración";
+"questionGeneration.generalSettings" = "Configuración general";
+"questionGeneration.difficultyLevel" = "Nivel de dificultad";
+"questionGeneration.difficulty.beginner" = "Principiante";
+"questionGeneration.difficulty.advanced" = "Avanzado";
+"questionGeneration.numberOfQuestions" = "Número de preguntas";
+"questionGeneration.questionType" = "Tipo de pregunta";
+"questionGeneration.generating" = "Generando...";
+"questionGeneration.generateQuestions" = "Generar preguntas";
+"questionGeneration.generatedQuestions" = "Preguntas generadas";
+"questionGeneration.recentQuestions" = "Preguntas recientes";
+"questionGeneration.viewAll" = "Ver todas";
+"questionGeneration.error.title" = "Error de generación";
+"questionGeneration.randomPracticeSettings" = "Configuración de práctica aleatoria";
+"questionGeneration.chooseSubject" = "Elige la materia";
+"questionGeneration.usingGeneralMath" = "Usando temas de matemáticas generales";
+"questionGeneration.mistakeBasedSettings" = "Configuración basada en errores";
+"questionGeneration.loadingMistakes" = "Cargando errores...";
+"questionGeneration.mistakesAvailable" = "errores disponibles";
+"questionGeneration.tapToSelectMistakes" = "Toca para seleccionar errores";
+"questionGeneration.mistakesSelected" = "errores seleccionados";
+"questionGeneration.noMistakes" = "No se encontraron errores. Completa algunas tareas primero.";
+"questionGeneration.archiveBasedSettings" = "Configuración basada en archivos";
+"questionGeneration.loadingArchiveData" = "Cargando datos del archivo...";
+"questionGeneration.conversationsCount" = "conversaciones, ";
+"questionGeneration.questionsAvailable" = "preguntas disponibles";
+"questionGeneration.tapToSelectArchives" = "Toca para seleccionar archivos";
+"questionGeneration.questionsSelected" = "preguntas seleccionadas";
+"questionGeneration.noArchives" = "No se encontró contenido archivado. Ten algunas conversaciones o completa tareas primero.";
+"questionGeneration.noMistakesFound" = "¡No se encontraron errores!";
+"questionGeneration.completeHomeworkToCreateMistakes" = "Completa algunas tareas para construir tu colección de errores.";
+"questionGeneration.selectMistakes" = "Seleccionar errores";
+"questionGeneration.noArchivesFound" = "¡No se encontraron archivos!";
+"questionGeneration.createArchivesMessage" = "Ten conversaciones o completa tareas para construir tu colección de archivos.";
+"questionGeneration.conversations" = "Conversaciones";
+"questionGeneration.questions" = "Preguntas";
+"questionGeneration.selectArchives" = "Seleccionar archivos";
+"questionGeneration.sourceLimitTitle" = "Límite de selección";
+"questionGeneration.sourceLimitMessage" = "Puedes seleccionar un máximo de %d fuentes.";
+"questionGeneration.subjectLock.hint" = "Solo se pueden agregar elementos del mismo tema";
+"questionGeneration.subjectMismatch.title" = "Tema diferente";
+"questionGeneration.subjectMismatch.clearAndSwitch" = "Limpiar y cambiar";
+"questionGeneration.subjectMismatch.message" = "Ya has seleccionado material de %@. Borra tu selección para elegir un tema diferente.";
+"questionGeneration.subjectMismatch.messageFallback" = "Borra tu selección para elegir un tema diferente.";
+"questionGeneration.conversation" = "Conversación";
+"questionGeneration.failedToLoadData" = "Error al cargar datos: %@";
+"questionGeneration.defaultSubject.mathematics" = "Matemáticas";
+"questionGeneration.focusNotes.diversePractice" = "Genera preguntas de práctica variadas para construir conocimientos básicos";
+"questionGeneration.focusNotes.improvementAreas" = "Enfócate en las áreas donde el estudiante necesita mejorar: %@";
+"questionGeneration.mistakeType.incorrectAnswer" = "respuesta_incorrecta";
+"questionGeneration.focusNotes.addressMistakes" = "Enfócate en corregir errores comunes y fortalecer las áreas débiles";
+"questionGeneration.untitled" = "Sin título";
+"questionGeneration.generalSubject" = "General";
+"questionGeneration.difficulty.intermediate" = "intermedio";
+"questionGeneration.strengths.activeParticipation" = "Participación activa";
+"questionGeneration.weaknesses.morePractice" = "Se necesita más práctica";
+"questionGeneration.engagement.high" = "alto";
+"questionGeneration.generalDiscussion" = "Discusión general";
+"questionGeneration.focusNotes.conversationPatterns" = "Basado en los temas de conversación y patrones de participación del usuario";
+"questionGeneration.loadingConversations" = "Cargando conversaciones...";
+"questionGeneration.conversationsAvailable" = "%d conversaciones disponibles para generar preguntas";
+"questionGeneration.noConversationsFound" = "No se encontraron conversaciones archivadas. Ten algunas conversaciones primero.";
+"questionGeneration.messagesInConversation" = "%d mensajes en la conversación";
+"questionGeneration.studySession" = "Sesión de estudio";
+"questionGeneration.discussionAbout" = "Discusión sobre %@";
+"questionGeneration.filter.all" = "Todo";
+"questionGeneration.filter.conversations" = "Conversaciones";
+"questionGeneration.filter.questions" = "Preguntas";
+"questionGeneration.filter.subject" = "Materia";
+"questionGeneration.filter.archiveType" = "Tipo de archivo";
+"questionGeneration.filter.noResults" = "Ningún elemento coincide con los filtros seleccionados.";
+"questionGeneration.timeFilter.thisWeek" = "Esta semana";
+"questionGeneration.timeFilter.thisMonth" = "Este mes";
+"questionGeneration.timeFilter.thisYear" = "Este año";
+"questionGeneration.timeFilter.allTime" = "Todo el tiempo";
+
+// Question Detail View
+"questionDetail.title" = "Detalles de la pregunta";
+"questionDetail.results" = "Resultados";
+"questionDetail.correct" = "¡Correcto!";
+"questionDetail.incorrect" = "Incorrecto";
+"questionDetail.showExplanation" = "Ver explicación";
+"questionDetail.hideExplanation" = "Ocultar explicación";
+"questionDetail.yourAnswer" = "Tu respuesta:";
+"questionDetail.correctAnswer" = "Respuesta correcta:";
+"questionDetail.feedbackExactMatch" = "¡Perfecto! Tu respuesta es exactamente correcta.";
+"practice.feedbackCorrect" = "¡Correcto! Bien hecho.";
+"practice.feedbackIncorrect" = "Incorrecto. La respuesta correcta es: %@";
+"practice.feedbackTryAgain" = "Casi. Revisa la respuesta correcta e intenta preguntas similares.";
+"questionDetail.archiveQuestion" = "Archivar pregunta";
+"questionDetail.archiving" = "Archivando...";
+"questionDetail.archived" = "Archivado";
+"questionDetail.archiveSuccess" = "¡Éxito!";
+"questionDetail.archiveSuccessMessage" = "Esta pregunta ha sido guardada en tu biblioteca para revisión futura.";
+"questionDetail.explanation" = "Explicación";
+"questionDetail.questionInfo" = "Información de la pregunta";
+"questionDetail.type" = "Tipo";
+"questionDetail.topic" = "Tema";
+"questionDetail.difficulty" = "Dificultad";
+"questionDetail.timeEstimate" = "Tiempo estimado";
+"questionDetail.points" = "Puntos";
+"questionDetail.pointsValue" = "%d pts";
+"questionDetail.question" = "Pregunta";
+"questionDetail.yourAnswerPrompt" = "Tu respuesta";
+"questionDetail.true" = "Verdadero";
+"questionDetail.false" = "Falso";
+"questionDetail.enterAnswer" = "Introduce tu respuesta...";
+"questionDetail.provideDetailedExplanation" = "Proporciona una explicación detallada";
+"questionDetail.typeAnswerAbove" = "Escribe tu respuesta arriba";
+"questionDetail.submitAnswer" = "Enviar respuesta";
+"questionDetail.markProgress" = "Organización automática";
+"questionDetail.marked" = "Marcado";
+"questionDetail.followUp" = "Seguimiento";
+"questionDetail.previous" = "Anterior";
+"questionDetail.next" = "Siguiente";
+"questionDetail.progressMarked" = "¡Organizado!";
+"questionDetail.progressUpdated" = "✅ ¡Tu progreso de estudio ha sido actualizado!";
+"questionDetail.progressTip" = "💡 ¡Toca para registrar esta pregunta en tus estadísticas diarias, semanales y mensuales!";
+
+// Generated Questions List View
+"generatedQuestions.title" = "Preguntas generadas";
+"generatedQuestions.generatePDF" = "Generar PDF";
+"generatedQuestions.questionsSelected" = "%d preguntas seleccionadas";
+"generatedQuestions.generatePDFCount" = "Generar PDF (%d)";
+"generatedQuestions.searchPlaceholder" = "Buscar preguntas...";
+"generatedQuestions.questionsCount" = "Mostrando %d de %d preguntas";
+"generatedQuestions.filteredBy" = "Filtrado por: %@";
+"generatedQuestions.noQuestions" = "Aún no hay preguntas";
+"generatedQuestions.noMatchingQuestions" = "No hay preguntas coincidentes";
+"generatedQuestions.noQuestionsMessage" = "Genera preguntas para comenzar a practicar";
+"generatedQuestions.noMatchingMessage" = "Intenta ajustar tus criterios de búsqueda";
+"generatedQuestions.clearSearch" = "Limpiar búsqueda";
+"generatedQuestions.summary" = "Resumen";
+"generatedQuestions.selected" = "Seleccionadas";
+"generatedQuestions.select" = "Seleccionar";
+"generatedQuestions.viewDetails" = "Ver detalles";
+"generatedQuestions.generatingPDF" = "Generando PDF...";
+"generatedQuestions.loading" = "Cargando...";
+"generatedQuestions.print" = "Imprimir";
+"generatedQuestions.email" = "Correo";
+"generatedQuestions.share" = "Compartir";
+"generatedQuestions.pdfError" = "Error al generar el PDF";
+"generatedQuestions.tryAgain" = "Por favor, inténtalo de nuevo";
+"generatedQuestions.retry" = "Reintentar";
+"generatedQuestions.pdfPreview" = "Vista previa del PDF";
+"generatedQuestions.markProgress" = "Organización automática";
+"generatedQuestions.progressMarked" = "¡Organizado!";
+"generatedQuestions.progressUpdated" = "✅ ¡Tu progreso de estudio ha sido actualizado!";
+"generatedQuestions.progressTip" = "💡 Consejo: ¡Usa la organización automática para registrar tu aprendizaje en estadísticas diarias, semanales y mensuales!";
+"generatedQuestions.answeredCount" = "Respondiste %d de %d preguntas";
+"generatedQuestions.points" = "%d pts";
+"generatedQuestions.emailGreeting" = "¡Hola!";
+"generatedQuestions.emailBody" = "Te comparto %d preguntas de práctica de %@.";
+"generatedQuestions.emailGeneratedBy" = "Este PDF fue generado con Study Mates, tu compañero de estudio con IA.";
+"generatedQuestions.emailClosing" = "¡Que disfrutes estudiando!";
+
+
+// Profile
+
+// Study Reminders
+
+// Days of Week
+
+// Common
+"progress.title" = "Progreso";
+"progress.loadingProgress" = "Cargando tu progreso...";
+"progress.unableToLoadData" = "No se pueden cargar los datos";
+"progress.tryAgain" = "Intentar de nuevo";
+"progress.info.title" = "Cómo usar el Progreso de aprendizaje";
+"progress.info.message" = "📊 Comprende tu progreso:\n\n• Filtro de tiempo: Toca el menú de tres puntos para cambiar entre Semana actual, Mes actual o Todo el tiempo\n• Desglose por materia: Ve tu rendimiento en diferentes materias con porcentajes de precisión\n• Tarjetas con código de color: Cada materia muestra preguntas respondidas, tasa de precisión e indicadores de tendencia (↑ mejorando, → estable, ↓ necesita trabajo)\n• Toca cualquier tarjeta de materia para ver análisis detallados e información personalizada\n\n🎯 Consejos:\n• Desliza hacia abajo para actualizar tu progreso más reciente\n• Revisa tu racha diaria para mantenerte motivado\n• Enfócate en las materias con menor precisión para mejorar";
+
+"tomatoGarden.info.title" = "Acerca del jardín de tomates";
+"tomatoGarden.info.message" = "🍅 Tu colección de tomates:\n\n• Cada sesión de enfoque completada te gana un tomate\n• Filtra por tiempo (Hoy, Esta semana) o por tipo de tomate\n• Tres variedades de tomates:\n  - Tomate clásico: Sesiones estándar de 25 minutos\n  - Tomate rizado: Sesiones de enfoque profundo\n  - Tomate lindo: Sesiones de enfoque cortas\n\n✨ Modo física:\n¡Toca el botón de modo física para ver tus tomates con animaciones e interacciones basadas en física!\n\n🏆 Hitos:\nColecciona más tomates para desbloquear hitos de logros y registrar tu recorrido de enfoque.";
+
+"passiveReports.info.title" = "Acerca de los informes para padres";
+"passiveReports.info.message" = "📊 Información de aprendizaje automatizada:\n\n• Informes semanales/mensuales: Cambia entre períodos de informes usando las pestañas\n• Toca '+' para generar manualmente un nuevo lote de informes\n• Cada lote contiene 8 informes especializados:\n  1. Resumen ejecutivo — Descripción general del rendimiento\n  2. Rendimiento académico — Análisis por materia\n  3. Comportamiento de aprendizaje — Hábitos y patrones de estudio\n  4. Motivación y emociones — Indicadores de participación\n  5. Trayectoria de progreso — Tendencias de mejora\n  6. Aprendizaje social — Información sobre colaboración\n  7. Riesgos y oportunidades — Áreas que necesitan atención\n  8. Plan de acción — Recomendaciones personalizadas\n\n💡 Consejos:\n• Los informes analizan tus sesiones de estudio, conversaciones archivadas y resultados de práctica\n• Toca cualquier tarjeta de informe para ver información detallada\n• Usa el modo Editar para gestionar o eliminar lotes de informes antiguos";
+
+"library.info.title" = "Cómo usar la Biblioteca";
+"library.info.message" = "📚 Tu archivo de aprendizaje:\n\n• Tipos de contenido: Cambia entre Todas las sesiones, Solo preguntas o Solo conversaciones con las pestañas\n• Búsqueda: Usa la barra de búsqueda para encontrar contenido específico\n• Filtros rápidos: Filtra por materia, rango de fechas o contenido con imágenes\n• Búsqueda avanzada: Toca el menú de tres puntos para opciones de filtrado detalladas\n• Filtro por materia: Filtra el contenido por materias específicas desde el menú\n\n💡 Consejos:\n• Desliza hacia abajo para actualizar el contenido de tu biblioteca\n• Toca cualquier elemento para ver todos los detalles, respuestas y explicaciones\n• Usa 'Limpiar filtros' desde el menú para restablecer todos los filtros activos\n• Las estadísticas en la parte superior muestran tu total de preguntas y conversaciones";
+"library.select" = "Seleccionar";
+
+"homeworkResults.info.title" = "Comprende tus resultados";
+"homeworkResults.info.message" = "📝 Resultados del análisis de tarea:\n\n• Tarjetas de preguntas: Toca cualquier tarjeta para expandirla y ver detalles, respuestas y explicaciones\n• Casillas: Selecciona las preguntas que deseas archivar para revisión futura\n• Indicadores de color:\n  - Verde: Respuesta correcta\n  - Naranja: Parcialmente correcto\n  - Rojo: Respuesta incorrecta\n• Botón Archivar: Toca el ícono de libro para guardar las preguntas seleccionadas en tu biblioteca\n\n💡 Consejos:\n• Revisa detenidamente las respuestas incorrectas para entender los errores\n• Usa las preguntas archivadas para práctica enfocada más adelante\n• Cada pregunta se puede expandir para ver soluciones paso a paso\n• El progreso se registra automáticamente para análisis de aprendizaje";
+
+
+
+
+
+"progress.yourLearningJourney" = "Tu recorrido de aprendizaje";
+"progress.pointsToday" = "Puntos hoy";
+"progress.streak" = "Racha";
+"progress.days" = "días";
+"progress.totalPoints" = "Puntos totales";
+"progress.todaysActivity" = "Actividad de hoy";
+"progress.questions" = "Preguntas";
+"progress.correct" = "Correctas";
+"progress.accuracy" = "Precisión";
+"progress.weeklyActivity" = "Actividad semanal";
+"progress.monthlyActivity" = "Actividad mensual";
+"progress.thisWeek" = "Esta semana";
+"progress.thisMonth" = "Este mes";
+"progress.lastMonth" = "Mes pasado";
+"progress.subjectBreakdown" = "Desglose por materia";
+"progress.allSubjects" = "Todas las materias";
+"progress.subjects" = "Materias";
+"progress.mostStudied" = "Más estudiada: %@";
+"progress.topPerforming" = "Mayor rendimiento: %@";
+"progress.viewAllSubjects" = "Ver todas las materias";
+"progress.learningGoals" = "Objetivos de aprendizaje";
+"progress.noActiveGoals" = "Sin objetivos de aprendizaje activos";
+"progress.checkedOut" = "Revisado";
+"progress.recentCheckouts" = "Revisiones recientes";
+"progress.goalsCompleted" = "%d objetivos completados";
+"progress.pointsEarned" = "+%d pts";
+"progress.weekendBonus" = "Bono de fin de semana 2x";
+"progress.total" = "Total";
+"progress.activityLevel" = "Nivel de actividad";
+"progress.less" = "Menos";
+"progress.more" = "Más";
+"progress.questionsThisMonth" = "preguntas este mes";
+"progress.questionsThisWeek" = "preguntas esta semana";
+"progress.weeklyProgressEmpty" = "Progreso semanal";
+"progress.weeklyProgressEmptyMessage" = "¡Comienza a hacer preguntas para ver tu patrón de actividad semanal!";
+
+// Subject names
+"subject.math" = "Matemáticas";
+"subject.physics" = "Física";
+"subject.chemistry" = "Química";
+"subject.biology" = "Biología";
+"subject.english" = "Inglés";
+"subject.history" = "Historia";
+"subject.geography" = "Geografía";
+"subject.computerscience" = "Informática";
+"subject.foreignlanguage" = "Idioma extranjero";
+"subject.arts" = "Arte";
+"subject.other" = "Otro";
+
+"progress.noSubjectData" = "Aún no hay datos por materia";
+"progress.noSubjectDataMessage" = "¡Responde preguntas de diferentes materias para ver tu desglose!";
+"progress.noSubjectDataForFilter" = "Aún no hay datos de %@";
+"progress.noSubjectDataForFilterMessage" = "¡Haz preguntas sobre %@ para ver tu progreso aquí!";
+"progress.quickInsights" = "Información rápida";
+"progress.insightsFor" = "Información de %@";
+"progress.focusOn" = "Enfócate en: %@";
+"progress.keepUp" = "Sigue así: %@";
+"progress.recommendedStudyTime" = "Tiempo de estudio recomendado: %d minutos al día";
+"progress.subjectComparison" = "Comparación de materias";
+"progress.topPerformingCategory" = "Mayor rendimiento";
+"progress.needsAttention" = "Necesita atención";
+"progress.noSubjectDataAvailable" = "No hay datos de materias disponibles";
+"progress.pointsAvailable" = "+%d pts";
+
+// Inline Subject Accordion
+"source.homework" = "Tarea";
+"source.practice" = "Práctica";
+"source.mistakeReview" = "Revisión de errores";
+"progress.inline.questions" = "Preguntas";
+"progress.inline.correct" = "Correctas";
+"progress.inline.studyTime" = "Tiempo de estudio";
+"progress.inline.streak" = "Racha";
+"progress.inline.avgPerDay" = "Prom/día";
+"progress.inline.weaknesses" = "Debilidades";
+"progress.inline.mastered" = "Dominadas";
+"progress.inline.converted" = "Convertidas";
+
+// Library View
+"library.title" = "Biblioteca de Estudio";
+"library.refreshLibrary" = "Actualizar biblioteca";
+"library.advancedSearch" = "Búsqueda avanzada";
+"library.clearFilters" = "Limpiar filtros";
+"library.filterBySubject" = "Filtrar por materia";
+"library.allSubjects" = "Todas las materias";
+"library.debugInfo" = "Info de depuración";
+"library.searchPlaceholder" = "Buscar por pregunta, materia o contenido...";
+"library.updating" = "Actualizando...";
+
+// Content Type Filters
+"library.contentType.allSessions" = "Todas las sesiones";
+"library.contentType.questionsOnly" = "Solo preguntas";
+"library.contentType.conversationsOnly" = "Solo conversaciones";
+
+// Quick Filters
+"library.filter.allTime" = "Todo el tiempo";
+"library.filter.allSubjects" = "Todas las materias";
+"library.filter.allTypes" = "Todos los tipos";
+"library.filter.thisWeek" = "Esta semana";
+"library.filter.thisMonth" = "Este mes";
+"library.filter.withImages" = "Con imágenes";
+
+// Stats Header
+"library.stats.questions" = "Preguntas";
+"library.stats.conversations" = "Conversaciones";
+"library.stats.totalSessions" = "Total de sesiones";
+"library.stats.showing" = "Mostrando: %@";
+"library.stats.showAll" = "Ver todo";
+"library.stats.subject" = "Materia: %@";
+
+// Library Item
+"library.item.tapToReview" = "Toca para revisar";
+"library.item.homeworkSession" = "Sesión de tarea";
+"library.item.archivedQuestion" = "Pregunta archivada";
+"library.item.conversationSession" = "Sesión de conversación";
+
+// Empty States
+"library.empty.signInRequired" = "Inicio de sesión requerido";
+"library.empty.signInMessage" = "Por favor, inicia sesión para acceder a tu biblioteca de estudio personal";
+"library.empty.libraryEmpty" = "Tu biblioteca de estudio está vacía";
+"library.empty.libraryEmptyMessage" = "Completa tareas con IA o inicia conversaciones para construir tu biblioteca de estudio";
+"library.empty.loading" = "Cargando tu biblioteca de estudio...";
+
+// No Results
+"library.noResults.title" = "No se encontraron resultados";
+"library.noResults.adjustFilters" = "Intenta ajustar tu búsqueda o filtros";
+"library.noResults.noMatch" = "Ninguna sesión de estudio coincide con tus criterios";
+
+// Advanced Search
+"library.advancedSearch.title" = "Búsqueda avanzada";
+"library.advancedSearch.cancel" = "Cancelar";
+"library.advancedSearch.search" = "Buscar";
+"library.advancedSearch.clearSearch" = "Limpiar búsqueda";
+
+"library.advancedSearch.searchText" = "Texto de búsqueda";
+"library.advancedSearch.searchPlaceholder" = "Buscar preguntas...";
+
+"library.advancedSearch.subjectFilter" = "Filtro por materia";
+"library.advancedSearch.subject" = "Materia";
+"library.advancedSearch.allSubjects" = "Todas las materias";
+
+"library.advancedSearch.gradeFilter" = "Filtro por calificación";
+"library.advancedSearch.grade" = "Calificación";
+"library.advancedSearch.allGrades" = "Todas las calificaciones";
+
+"library.advancedSearch.dateRange" = "Rango de fechas";
+"library.advancedSearch.allTime" = "Todo el tiempo";
+"library.advancedSearch.last7Days" = "Últimos 7 días";
+"library.advancedSearch.last30Days" = "Últimos 30 días";
+"library.advancedSearch.last3Months" = "Últimos 3 meses";
+
+"library.advancedSearch.sortOrder" = "Orden de clasificación";
+"library.advancedSearch.sortBy" = "Ordenar por";
+
+"library.gradeFilter.all" = "Todas las calificaciones";
+"library.gradeFilter.correct" = "Correcto ✅";
+"library.gradeFilter.incorrect" = "Incorrecto ❌";
+"library.gradeFilter.empty" = "Vacío 📝";
+"library.gradeFilter.partialCredit" = "Crédito parcial ⚡";
+"library.gradeFilter.notGraded" = "Sin calificar 📋";
+
+"library.sortOrder.dateNewest" = "Fecha (más reciente primero)";
+"library.sortOrder.dateOldest" = "Fecha (más antigua primero)";
+"library.sortOrder.confidenceHigh" = "Confianza (alta a baja)";
+"library.sortOrder.confidenceLow" = "Confianza (baja a alta)";
+"library.sortOrder.subjectAZ" = "Materia (A-Z)";
+
+// Contact Support
+"contactSupport.subtitle" = "¡Estamos aquí para ayudarte\!";
+"contactSupport.emailTitle" = "Soporte por correo";
+"contactSupport.emailDescription" = "Obtén ayuda detallada por correo electrónico";
+"contactSupport.chatTitle" = "Chat en vivo";
+"contactSupport.chatSubtitle" = "Disponible lun-vie 9am-5pm EST";
+"contactSupport.chatDescription" = "Chatea con nuestro equipo de soporte";
+"contactSupport.forumTitle" = "Foro de la comunidad";
+"contactSupport.forumSubtitle" = "Únete a la conversación";
+"contactSupport.forumDescription" = "Conéctate con otros estudiantes";
+"contactSupport.phoneTitle" = "Soporte telefónico";
+"contactSupport.phoneDescription" = "Lun-vie 9am-5pm EST";
+"contactSupport.averageResponseTime" = "Tiempo promedio de respuesta";
+"contactSupport.emailResponseTime" = "Correo: 24-48 horas";
+"contactSupport.chatResponseTime" = "Chat en vivo: < 5 minutos";
+"contactSupport.phoneResponseTime" = "Teléfono: Inmediato";
+"contactSupport.emailNotAvailable" = "Correo no disponible";
+"contactSupport.emailNotAvailableMessage" = "Por favor, configura una cuenta de correo en los ajustes de tu dispositivo.";
+
+// Help Center
+"helpCenter.subtitle" = "Encuentra respuestas a las preguntas más comunes";
+"helpCenter.faq1.question" = "¿Cómo uso el calificador de tareas?";
+"helpCenter.faq1.answer" = "Toma una foto de tu tarea o sube una imagen. Nuestra IA la analizará, detectará las preguntas y proporcionará retroalimentación detallada con correcciones y explicaciones.";
+"helpCenter.faq2.question" = "¿Qué materias son compatibles?";
+"helpCenter.faq2.answer" = "StudyAI es compatible con Matemáticas, Física, Química, Biología, Inglés, Historia, Geografía e Informática. ¡Constantemente añadimos más materias\!";
+"helpCenter.faq3.question" = "¿Cómo cambio la voz de la IA?";
+"helpCenter.faq3.answer" = "Ve a Configuración > Compañeros de estudio > Selecciona tu compañero. Puedes elegir entre Adam (voz masculina) y Eva (voz femenina), y personalizar la velocidad y el volumen.";
+"helpCenter.faq4.question" = "¿Puedo revisar mis errores pasados?";
+"helpCenter.faq4.answer" = "¡Sí\! Usa la función Revisión de errores desde la pantalla de inicio para volver a las preguntas que fallaste y practicar problemas similares.";
+"helpCenter.faq5.question" = "¿Cómo funciona el sistema de rachas?";
+"helpCenter.faq5.answer" = "Tu racha aumenta cada día que completas al menos una sesión de estudio. ¡Mantén tu racha para desbloquear logros y recompensas\!";
+"helpCenter.faq6.question" = "¿Mis datos están seguros?";
+"helpCenter.faq6.answer" = "¡Sí\! Tus datos son procesados por proveedores de IA de confianza (OpenAI, Google Gemini) únicamente para ofrecer las funciones de tutoría, y nunca se venden ni se usan para publicidad.";
+"helpCenter.faq7.question" = "¿Cómo hago seguimiento de mi progreso?";
+"helpCenter.faq7.answer" = "Visita la pestaña Progreso para ver estadísticas detalladas, tendencias de precisión, rendimiento por materia y patrones de aprendizaje semanal.";
+"helpCenter.faq8.question" = "¿Cuál es la diferencia entre el análisis Detallado y el Rápido?";
+"helpCenter.faq8.answer" = "El modo Detallado proporciona un análisis más preciso con estructura jerárquica y relaciones padre-hijo. El modo Rápido es más ágil pero más simple. Usa Detallado para tareas complejas.";
+"helpCenter.quickLinks" = "Enlaces rápidos";
+"helpCenter.gettingStarted" = "Guía de inicio";
+"helpCenter.videoTutorials" = "Tutoriales en vídeo";
+"helpCenter.studyTips" = "Consejos de estudio y mejores prácticas";
+
+// Share App
+"shareApp.subtitle" = "¡Ayuda a tus amigos a destacar en sus estudios!";
+"shareApp.messageTitle" = "Mensaje para compartir";
+"shareApp.messagePreview" = "\"¡Prueba StudyAI - el mejor asistente de tareas con IA\!\"";
+"shareApp.feature1" = "✓ Calificación de tareas con IA";
+"shareApp.feature2" = "✓ Tutor IA interactivo";
+"shareApp.feature3" = "✓ Revisión de errores y práctica";
+"shareApp.feature4" = "✓ Seguimiento del progreso";
+"shareApp.downloadLink" = "Descarga ahora: https://studyai.app";
+"shareApp.shareViaTitle" = "Compartir por...";
+"shareApp.shareViaSubtitle" = "Mensajes, Correo, Redes sociales y más";
+"shareApp.copyLinkTitle" = "Copiar enlace de la app";
+"shareApp.copyLinkSubtitle" = "Comparte el enlace de descarga en cualquier lugar";
+"shareApp.scanToDownload" = "Escanea para descargar";
+"shareApp.qrCode" = "Código QR";
+"shareApp.showQRCode" = "Muestra este código QR a tus amigos";
+"shareApp.comingSoonReferral" = "Próximamente: ¡Recompensas por referidos\!";
+"shareApp.earnPoints" = "Gana puntos por cada amigo que se una a StudyAI";
+"shareApp.downloadNow" = "Descarga ahora:";
+
+// Chat View
+"chat.subjects.mathematics" = "Matemáticas";
+"chat.subjects.physics" = "Física";
+"chat.subjects.chemistry" = "Química";
+"chat.subjects.biology" = "Biología";
+"chat.subjects.history" = "Historia";
+"chat.subjects.literature" = "Literatura";
+"chat.subjects.geography" = "Geografía";
+"chat.subjects.computerScience" = "Informática";
+"chat.subjects.economics" = "Economía";
+"chat.subjects.psychology" = "Psicología";
+"chat.subjects.philosophy" = "Filosofía";
+"chat.subjects.general" = "General";
+
+// Menu Items
+"chat.menu.newSession" = "Nueva sesión";
+"chat.menu.sessionInfo" = "Info de la sesión";
+"chat.menu.voiceSettings" = "Configuración de voz";
+"chat.menu.enableVoice" = "Activar voz";
+"chat.menu.disableVoice" = "Desactivar voz";
+"chat.menu.synchronizedAudio" = "Audio sincronizado";
+"chat.menu.liveTalk" = "Hablar en vivo";
+"chat.menu.archiveSession" = "Archivar sesión";
+"chat.menu.viewTutorial" = "Ver tutorial";
+"chat.menu.endLive" = "Finalizar en vivo";
+"chat.menu.liveScenario" = "Escenario en vivo";
+"chat.menu.audioConfig" = "Configuración de audio";
+"chat.menu.voice" = "Voz";
+"chat.menu.syncWithText" = "Sincronizar con texto";
+"chat.menu.aiMate" = "Tu compañero IA";
+"chat.menu.selectAIMate" = "Seleccionar compañero IA";
+
+// Chat Onboarding Tutorial
+"onboarding.skip" = "Omitir";
+"onboarding.next" = "Siguiente";
+"onboarding.done" = "Listo";
+"onboarding.chat.subject.title" = "Elige una materia";
+"onboarding.chat.subject.desc" = "Selecciona una materia o déjalo en General. Esto me ayuda a darte respuestas más precisas.";
+"onboarding.chat.camera.title" = "Añadir imágenes";
+"onboarding.chat.camera.desc" = "Toca para tomar una foto o elegir una de tu galería. Puedo leer preguntas de tarea desde imágenes.";
+"onboarding.chat.deepmode.title" = "Enviar o profundizar";
+"onboarding.chat.deepmode.desc" = "Toca ↑ para enviar. O mantén presionado y desliza hacia arriba — se vuelve morado y usa un modelo de razonamiento más profundo para preguntas difíciles.";
+"onboarding.chat.mic.title" = "Entrada de voz";
+"onboarding.chat.mic.desc" = "Mantén presionado este botón para hablar en lugar de escribir. Tu voz se transcribe automáticamente.";
+"onboarding.chat.live.title" = "Modo en vivo y más";
+"onboarding.chat.live.desc" = "Toca ··· para acceder a la configuración. Puedes cambiar al modo de voz en tiempo real desde aquí.";
+"onboarding.chat.library.title" = "Guardar en biblioteca";
+"onboarding.chat.library.desc" = "Toca para archivar esta conversación. La analizaré y guardaré los puntos clave en tu biblioteca personal.";
+"onboarding.chat.deepBadge" = "Profundo";
+"onboarding.chat.deepThinkingMode" = "Modo de pensamiento profundo";
+"onboarding.chat.releaseToCancel" = "Soltar para cancelar";
+"onboarding.chat.releaseToSend" = "Soltar para enviar";
+"onboarding.chat.holdToTalk" = "Mantener para hablar";
+"onboarding.chat.micDemoText" = "explícalo con más detalle";
+
+// Voice Chat (Gemini Live)
+"voice_chat.title" = "Hablar en vivo";
+"voice_chat.end" = "Finalizar";
+"voice_chat.connecting" = "Conectando a Gemini Live...";
+"voice_chat.empty.title" = "Iniciar chat de voz";
+"voice_chat.empty.subtitle" = "Toca el botón del micrófono para empezar a hablar con tu tutor IA";
+"voice_chat.tip.tap" = "Mantén pulsado para hablar";
+"voice_chat.tip.realtime" = "Conversación en tiempo real con IA";
+"voice_chat.tip.natural" = "Habla con naturalidad, la IA entiende el contexto";
+"voice_chat.ai_speaking" = "IA hablando";
+"voice_chat.listening" = "Escuchando";
+"voice_chat.interrupt" = "Detener";
+
+// Common
+"common.yes" = "Sí";
+"common.no" = "No";
+
+// Archive Dialog
+"chat.archive.title" = "Archivar sesión";
+"chat.archive.titleField" = "Título";
+"chat.archive.topicField" = "Tema";
+"chat.archive.notesField" = "Notas (opcional)";
+"chat.archive.titlePlaceholder" = "Introduce un título para el archivo...";
+"chat.archive.topicPlaceholder" = "Introduce el tema (ej. %@)...";
+"chat.archive.notesPlaceholder" = "Agrega notas sobre esta sesión...";
+"chat.archive.buttonTitle" = "Archivar sesión";
+"chat.archive.archiving" = "Archivando...";
+"chat.archive.infoTitle" = "Información del archivo";
+"chat.archive.infoMessage" = "Guarda esta conversación para referencia futura. Puedes agregar un título personalizado y notas para recordar lo que aprendiste.";
+"chat.archive.analyzingWithAI" = "Analizando con IA...";
+"chat.archive.generatingSummary" = "Generando resumen y temas clave";
+"chat.archive.complete" = "¡Archivo completo!";
+"chat.archive.summaryGenerated" = "Resumen generado correctamente";
+
+// Diagram
+"chat.diagram.regenerate" = "Regenerar imagen";
+"chat.diagram.regenerating" = "Regenerando diagrama...";
+"chat.diagram.generating" = "Generando diagrama...";
+"chat.video.searching" = "Buscando video educativo...";
+"chat.stopGenerating" = "Detener generación";
+
+// Input
+"chat.input.placeholder" = "Mensaje";
+"chat.input.archiveTitle" = "Introduce un título para el archivo...";
+"chat.input.archiveTopic" = "Introduce el tema (ej. %@)...";
+"chat.input.archiveNotes" = "Agrega notas sobre esta sesión...";
+"chat.input.addComment" = "Agrega un comentario...";
+
+// Alerts
+"chat.alert.cameraPermission.title" = "Permiso de cámara";
+"chat.alert.cameraPermission.message" = "StudyAI necesita acceso a la cámara para escanear preguntas de tarea. Por favor, activa el permiso de cámara en Configuración.";
+"chat.alert.currentChatExists.title" = "Hay un chat activo";
+"chat.alert.currentChatExists.message" = "Tienes una sesión de chat activa. ¿Quieres archivarla primero, o descartarla e iniciar una nueva sesión con esta pregunta?";
+"chat.alert.currentChatExists.archiveCurrent" = "Archivar chat actual";
+"chat.alert.currentChatExists.discardAndStart" = "Descartar e iniciar nuevo";
+"chat.alert.currentChatExists.continueCurrent" = "Continuar con el chat anterior";
+"chat.alert.currentChatExists.startNew" = "Iniciar nuevo";
+"chat.alert.error.title" = "Error";
+"chat.alert.archiveSuccess.title" = "¡Archivado con éxito! 🎉";
+"chat.alert.archiveSuccess.message" = "%@ se ha archivado correctamente y guardado en tu Biblioteca de estudio.";
+"chat.alert.archiveSuccess.viewInLibrary" = "Ver en biblioteca";
+"chat.alert.archiveSuccess.startNewChat" = "Iniciar nuevo chat";
+
+// Empty State
+"chat.emptyState.greeting" = "¡Hola! Soy %@";
+"chat.emptyState.subtext" = "¡Pregúntame cualquier cosa sobre %@ y te ayudaré a aprender!";
+"chat.emptyState.tryAsking" = "Prueba preguntar:";
+"chat.emptyState.subtitle.0" = "Puedo responder cualquier pregunta";
+"chat.emptyState.subtitle.1" = "¿Cómo puedo ayudarte?";
+"chat.emptyState.subtitle.2" = "¿Qué quieres aprender hoy?";
+"chat.emptyState.subtitle.3" = "¡Listo para empezar!";
+"chat.emptyState.subtitle.4" = "Pregúntame lo que te dé curiosidad";
+"chat.emptyState.subtitle.5" = "¡Exploremos juntos!";
+"chat.emptyState.subtitle.6" = "Pregúntame lo que quieras";
+"chat.emptyState.subtitle.7" = "El aprendizaje empieza aquí";
+"chat.emptyState.subtitle.8" = "¿Necesitas ayuda con los deberes?";
+"chat.emptyState.subtitle.9" = "¿Tienes alguna pregunta difícil?";
+"chat.emptyState.subtitle.10" = "Aquí estoy cuando me necesites";
+"chat.emptyState.subtitle.11" = "Resolveremos esto juntos";
+"chat.emptyState.subtitle.12" = "La curiosidad es el mejor maestro";
+"chat.emptyState.subtitle.13" = "¿Algo que quieras entender?";
+"chat.emptyState.subtitle.14" = "Aquí estoy, listo para ayudar";
+"chat.emptyState.subtitle.15" = "¿Cuál es el reto de hoy?";
+"chat.emptyState.subtitle.16" = "Ninguna pregunta es demasiado pequeña";
+"chat.emptyState.subtitle.17" = "Cada pregunta es un paso adelante";
+"chat.emptyState.subtitle.18" = "Hagamos el aprendizaje divertido";
+"chat.emptyState.subtitle.19" = "¿Algo que pueda explicarte?";
+"chat.emptyState.subtitle.20" = "Deja los temas difíciles para mí";
+"chat.emptyState.subtitle.21" = "¿Aprendiste algo nuevo hoy?";
+"chat.emptyState.subtitle.22" = "Curiosidad ilimitada — yo también";
+"chat.emptyState.subtitle.23" = "¡Cuantas más preguntas, mejor!";
+"chat.emptyState.subtitle.24" = "Aprender nunca termina — ¡empecemos!";
+
+// Smart Suggestions
+"chat.suggestion.showSteps" = "Mostrar pasos";
+"chat.suggestion.trySimilarProblem" = "Probar problema similar";
+"chat.suggestion.explainMethod" = "Explicar el método";
+"chat.suggestion.realExamples" = "Ejemplos reales";
+"chat.suggestion.howItWorks" = "Cómo funciona";
+"chat.suggestion.connectToDailyLife" = "Relacionar con la vida cotidiana";
+"chat.suggestion.giveExamples" = "Dar ejemplos";
+"chat.suggestion.compareWith" = "Comparar con";
+"chat.suggestion.useInSentence" = "Usar en una oración";
+"chat.suggestion.explainWhy" = "Explicar por qué";
+"chat.suggestion.alternativeApproach" = "Enfoque alternativo";
+"chat.suggestion.practiceProblem" = "Problema de práctica";
+"chat.suggestion.whenDidThisHappen" = "¿Cuándo ocurrió esto?";
+"chat.suggestion.whoWasInvolved" = "¿Quién estuvo involucrado?";
+"chat.suggestion.whatCausedThis" = "¿Qué causó esto?";
+"chat.suggestion.analyzeMeaning" = "Analizar el significado";
+"chat.suggestion.findThemes" = "Encontrar temas";
+"chat.suggestion.authorsIntent" = "Intención del autor";
+"chat.suggestion.explainDifferently" = "Explicar de otra manera";
+"chat.suggestion.giveExample" = "Dar un ejemplo";
+"chat.suggestion.moreDetails" = "Más detalles";
+
+// Contextual Prompts
+"chat.prompt.showSteps" = "¿Puedes desglosar la solución en pasos detallados?";
+"chat.prompt.trySimilarProblem" = "¿Puedes darme un problema similar para practicar?";
+"chat.prompt.explainMethod" = "¿Puedes explicar el método o la fórmula usada aquí?";
+"chat.prompt.moreExamples" = "¿Puedes proporcionar más ejemplos de este concepto?";
+"chat.prompt.relatedConcepts" = "¿Qué otros conceptos están relacionados con este tema?";
+"chat.prompt.giveExamples" = "¿Puedes darme algunos ejemplos concretos?";
+"chat.prompt.compareWith" = "¿Cómo se compara esto con conceptos similares?";
+"chat.prompt.useInSentence" = "¿Puedes mostrarme cómo usar esto en una oración?";
+"chat.prompt.explainWhy" = "¿Por qué funciona este método? ¿Puedes explicar el razonamiento?";
+"chat.prompt.alternativeApproach" = "¿Hay otra forma de resolver este problema?";
+"chat.prompt.practiceProblem" = "¿Puedes darme un problema de práctica para comprobar mi comprensión?";
+"chat.prompt.realExamples" = "¿Puedes darme ejemplos del mundo real de esto?";
+"chat.prompt.howItWorks" = "¿Puedes explicar detalladamente cómo funciona este proceso?";
+"chat.prompt.connectToDailyLife" = "¿Cómo se relaciona este concepto con la vida cotidiana?";
+"chat.prompt.explainDifferently" = "¿Puedes explicar este concepto de otra manera?";
+"chat.prompt.giveExample" = "¿Puedes proporcionar un ejemplo específico?";
+"chat.prompt.moreDetails" = "¿Puedes elaborar sobre este tema con más detalles?";
+
+// Diagram Generation
+"diagram.header" = "Diagrama generado";
+"diagram.explanation" = "Explicación";
+"diagram.generating" = "Generando diagrama...";
+"diagram.generatingSubtext" = "La IA está creando una representación visual";
+
+// Example Prompts - Mathematics
+"chat.example.math.1" = "Resuelve: 2x + 5 = 13";
+"chat.example.math.2" = "¿Cuál es la derivada de x²?";
+"chat.example.math.3" = "Explica el teorema de Pitágoras";
+"chat.example.math.4" = "¿Cómo factorizo x² + 5x + 6?";
+
+// Example Prompts - Physics
+"chat.example.physics.1" = "Explica las leyes del movimiento de Newton";
+"chat.example.physics.2" = "¿Qué es la energía cinética?";
+"chat.example.physics.3" = "¿Cómo funciona la gravedad?";
+"chat.example.physics.4" = "Calcula la fuerza con F = ma";
+
+// Example Prompts - Chemistry
+"chat.example.chemistry.1" = "¿Cómo balanceo ecuaciones químicas?";
+"chat.example.chemistry.2" = "Explica la tabla periódica";
+"chat.example.chemistry.3" = "¿Qué son los enlaces covalentes?";
+"chat.example.chemistry.4" = "Describe los estados de la materia";
+
+// Example Prompts - Biology
+"chat.example.biology.1" = "Explica la fotosíntesis";
+"chat.example.biology.2" = "¿Qué es el ADN?";
+"chat.example.biology.3" = "¿Cómo funciona la división celular?";
+"chat.example.biology.4" = "Describe el sistema circulatorio humano";
+
+// Example Prompts - History
+"chat.example.history.1" = "¿Qué causó la Segunda Guerra Mundial?";
+"chat.example.history.2" = "Explica la Revolución Francesa";
+"chat.example.history.3" = "¿Quién fue Julio César?";
+"chat.example.history.4" = "Describe la Revolución Industrial";
+
+// Example Prompts - Literature
+"chat.example.literature.1" = "Analiza el Hamlet de Shakespeare";
+"chat.example.literature.2" = "¿Qué son los recursos literarios?";
+"chat.example.literature.3" = "Explica el viaje del héroe";
+"chat.example.literature.4" = "Compara la metáfora y el símil";
+
+// Example Prompts - Geography
+"chat.example.geography.1" = "¿Dónde están los principales océanos?";
+"chat.example.geography.2" = "Explica la tectónica de placas";
+"chat.example.geography.3" = "¿Qué causa las zonas climáticas?";
+"chat.example.geography.4" = "Describe el ciclo del agua";
+
+// Example Prompts - Computer Science
+"chat.example.computerScience.1" = "¿Qué es un algoritmo?";
+"chat.example.computerScience.2" = "Explica los números binarios";
+"chat.example.computerScience.3" = "¿Cómo funcionan los bucles en programación?";
+"chat.example.computerScience.4" = "¿Qué es la programación orientada a objetos?";
+
+// Example Prompts - Economics
+"chat.example.economics.1" = "¿Qué es la oferta y la demanda?";
+"chat.example.economics.2" = "Explica la inflación";
+"chat.example.economics.3" = "¿Cómo funciona el PIB?";
+"chat.example.economics.4" = "¿Qué son las estructuras de mercado?";
+
+// Example Prompts - Psychology
+"chat.example.psychology.1" = "¿Qué es el condicionamiento clásico?";
+"chat.example.psychology.2" = "Explica el desarrollo cognitivo";
+"chat.example.psychology.3" = "¿Cómo funciona la memoria?";
+"chat.example.psychology.4" = "¿Qué son los mecanismos de defensa?";
+
+// Example Prompts - Philosophy
+"chat.example.philosophy.1" = "¿Qué es el método socrático?";
+"chat.example.philosophy.2" = "Explica el existencialismo";
+"chat.example.philosophy.3" = "¿Qué es el problema del tranvía?";
+"chat.example.philosophy.4" = "Describe las teorías éticas";
+
+// Example Prompts - General
+"chat.example.general.1" = "Ayúdame a entender este concepto";
+"chat.example.general.2" = "Explícalo paso a paso";
+"chat.example.general.3" = "¿Qué significa esto?";
+"chat.example.general.4" = "¿Puedes darme un ejemplo?";
+
+// Default Examples
+"chat.example.default.1" = "Hazme cualquier pregunta";
+"chat.example.default.2" = "Estoy aquí para ayudarte a aprender";
+"chat.example.default.3" = "Exploremos juntos";
+"chat.example.default.4" = "¿Qué te gustaría saber?";
+
+
+// Edit Profile View
+"editProfile.title" = "Editar perfil";
+"editProfile.cancel" = "Cancelar";
+"editProfile.save" = "Guardar";
+"editProfile.error" = "Error";
+"editProfile.profileUpdated" = "Perfil actualizado";
+"editProfile.profileUpdatedMessage" = "¡Tu perfil ha sido actualizado correctamente\!";
+"editProfile.savingProfile" = "Guardando perfil...";
+"editProfile.takeSelfie" = "Tomar selfie";
+"editProfile.uploadFromAlbum" = "Subir desde álbum";
+"editProfile.or" = "O";
+"editProfile.choosePresetAvatar" = "Elige un avatar predefinido";
+"editProfile.orChoosePresetAvatar" = "O elige un avatar predefinido";
+"editProfile.studentInformation" = "Información del estudiante";
+"editProfile.age" = "Edad";
+"editProfile.agePlaceholder" = "ej. 14";
+"editProfile.noneOption" = "—";
+"editProfile.language" = "Idioma";
+"editProfile.selectedCount" = "%d seleccionados";
+"editProfile.learningStyleHeuristic" = "Heurístico";
+"editProfile.learningStyleHeuristicDesc" = "Descubrimiento guiado";
+"editProfile.learningStyleStraightforward" = "Directo";
+"editProfile.learningStyleStraightforwardDesc" = "Respuestas directas";
+"editProfile.avatarEditorHint" = "Pellizca para hacer zoom, arrastra para ajustar";
+"editProfile.zoomOut" = "Alejar";
+"editProfile.zoomIn" = "Acercar";
+"editProfile.rotateLeft" = "Girar a la izquierda";
+"editProfile.rotateRight" = "Girar a la derecha";
+"editProfile.adjustAvatar" = "Ajustar avatar";
+
+// Avatar Selection
+"editProfile.selectAvatar" = "Selecciona tu avatar";
+"editProfile.selectAvatarDescription" = "Elige un avatar para representarte en la app";
+
+// Personal Information
+"editProfile.personalInfo" = "Información personal";
+"editProfile.firstName" = "Nombre";
+"editProfile.firstNamePlaceholder" = "Introduce el nombre";
+"editProfile.lastName" = "Apellido";
+"editProfile.lastNamePlaceholder" = "Introduce el apellido";
+"editProfile.displayName" = "Nombre para mostrar (opcional)";
+"editProfile.displayNamePlaceholder" = "Nombre preferido para mostrar";
+"editProfile.addDateOfBirth" = "Agregar fecha de nacimiento";
+"editProfile.dateOfBirth" = "Fecha de nacimiento";
+
+// Children Information
+"editProfile.childrenInfo" = "Información sobre los hijos";
+"editProfile.childrenInfoDescription" = "Introduce la edad de tu hijo si le estás ayudando con sus estudios";
+"editProfile.childAge" = "Edad del hijo";
+"editProfile.childAgePlaceholder" = "Introduce la edad del hijo (1-18)";
+
+// Location
+"editProfile.location" = "Ubicación";
+"editProfile.city" = "Ciudad";
+"editProfile.cityPlaceholder" = "Introduce la ciudad";
+"editProfile.stateProvince" = "Estado/Provincia";
+"editProfile.stateProvincePlaceholder" = "Introduce el estado o provincia";
+"editProfile.country" = "País";
+"editProfile.countryPlaceholder" = "Introduce el país";
+
+// Academic Preferences
+"editProfile.academicPreferences" = "Preferencias académicas";
+"editProfile.gradeLevel" = "Nivel de curso actual";
+"editProfile.gradeLevelPicker" = "Nivel de curso";
+"editProfile.selectGradeLevel" = "Seleccionar nivel de curso";
+"editProfile.favoriteSubjects" = "Materias favoritas";
+"editProfile.addSubjects" = "Agregar materias";
+"editProfile.learningStyle" = "Estilo de aprendizaje";
+"editProfile.selectLearningStyle" = "Seleccionar estilo de aprendizaje";
+
+// Grade Level Options
+"gradeLevel.preK" = "Pre-escolar";
+"gradeLevel.kindergarten" = "Kínder";
+"gradeLevel.grade1" = "1º de Primaria";
+"gradeLevel.grade2" = "2º de Primaria";
+"gradeLevel.grade3" = "3º de Primaria";
+"gradeLevel.grade4" = "4º de Primaria";
+"gradeLevel.grade5" = "5º de Primaria";
+"gradeLevel.grade6" = "6º de Primaria";
+"gradeLevel.grade7" = "1º de Secundaria";
+"gradeLevel.grade8" = "2º de Secundaria";
+"gradeLevel.grade9" = "3º de Secundaria";
+"gradeLevel.grade10" = "1º de Bachillerato";
+"gradeLevel.grade11" = "2º de Bachillerato";
+"gradeLevel.grade12" = "Preparatoria";
+"gradeLevel.college" = "Universidad";
+"gradeLevel.adult" = "Aprendiz adulto";
+
+// Optional Information
+"editProfile.optionalInfo" = "Información opcional";
+"editProfile.gender" = "Género (Opcional)";
+"editProfile.genderPicker" = "Género";
+"editProfile.genderPreferNotToSpecify" = "Prefiero no especificarlo";
+"editProfile.genderFemale" = "Femenino";
+"editProfile.genderMale" = "Masculino";
+"editProfile.genderNonBinary" = "No binario";
+"editProfile.genderOther" = "Otro";
+"editProfile.languagePreference" = "Preferencia de idioma";
+"editProfile.languagePicker" = "Idioma";
+"editProfile.languageEnglish" = "Inglés";
+"editProfile.languageSpanish" = "Español";
+"editProfile.languageFrench" = "Francés";
+"editProfile.languageGerman" = "Alemán";
+"editProfile.languageChinese" = "Chino";
+"editProfile.languageJapanese" = "Japonés";
+
+// Subject Picker
+"editProfile.selectSubjects" = "Seleccionar materias";
+
+// Validation
+"editProfile.validationNameRequired" = "El nombre y apellido son obligatorios";
+
+// Session Detail View
+"sessionDetail.loading" = "Cargando...";
+"sessionDetail.errorLoading" = "Error al cargar el contenido";
+"sessionDetail.contentNotFound" = "Contenido no encontrado";
+"sessionDetail.conversationDetails" = "Detalles de la conversación";
+"sessionDetail.sessionDetails" = "Detalles de la sesión";
+"sessionDetail.questions" = "Preguntas";
+"sessionDetail.confidence" = "Confianza";
+"sessionDetail.questionsAndAnswers" = "Preguntas y respuestas";
+"sessionDetail.items" = "elementos";
+"sessionDetail.notes" = "Notas";
+"sessionDetail.sessionInfo" = "Información de la sesión";
+"sessionDetail.processingTime" = "Tiempo de procesamiento";
+"sessionDetail.parsingMethod" = "Método de análisis";
+"sessionDetail.reviewCount" = "Número de revisiones";
+"sessionDetail.created" = "Creado";
+"sessionDetail.conversation" = "Conversación";
+"sessionDetail.conversationInfo" = "Información de la conversación";
+"sessionDetail.topic" = "Tema";
+
+// Storage Control
+"settings.storageControl" = "Control de almacenamiento";
+"settings.powerSavingMode" = "Modo de ahorro de energía";
+"storage.title" = "Control de almacenamiento";
+"storage.totalUsed" = "Almacenamiento total usado";
+"storage.archivedQuestions" = "Preguntas archivadas";
+"storage.progressData" = "Datos de progreso";
+"storage.archivedConversations" = "Conversaciones archivadas";
+"storage.clear" = "Limpiar";
+"storage.clearAll.button" = "Limpiar todos los datos";
+"storage.syncWithServer" = "Sincronizar con el servidor";
+"storage.syncing" = "Sincronizando...";
+"storage.sync.title" = "Resultado de sincronización";
+
+// Storage Clear Alerts
+"storage.clearQuestions.title" = "¿Limpiar preguntas archivadas?";
+"storage.clearQuestions.message" = "Esto eliminará todas las preguntas archivadas del almacenamiento local. Esta acción no se puede deshacer.";
+"storage.clearQuestions.success" = "Preguntas archivadas eliminadas correctamente";
+
+"storage.clearProgress.title" = "¿Limpiar datos de progreso?";
+"storage.clearProgress.message" = "Esto eliminará todo tu progreso de aprendizaje, puntos y rachas. Esta acción no se puede deshacer.";
+"storage.clearProgress.success" = "Datos de progreso eliminados correctamente";
+
+"storage.clearConversations.title" = "¿Limpiar conversaciones archivadas?";
+"storage.clearConversations.message" = "Esto eliminará todas las conversaciones archivadas del almacenamiento local. Esta acción no se puede deshacer.";
+"storage.clearConversations.success" = "Conversaciones archivadas eliminadas correctamente";
+
+"storage.clearAll.title" = "¿Limpiar todos los datos?";
+"storage.clearAll.message" = "Esto eliminará TODOS los datos locales, incluyendo preguntas, conversaciones y progreso archivados. Esta acción no se puede deshacer.";
+"storage.clearAll.success" = "Todos los datos locales eliminados correctamente";
+
+"storage.success.title" = "Éxito";
+
+// Mistake Review
+"mistakeReview.title" = "Revisión de errores";
+"mistakeReview.header.title" = "Aprende de tus errores";
+"mistakeReview.header.subtitle" = "Selecciona una materia y un período de tiempo para revisar las preguntas que fallaste";
+"mistakeReview.timeRangeTitle" = "Período de tiempo";
+"mistakeReview.timeRange.thisWeek" = "Esta semana";
+"mistakeReview.timeRange.thisMonth" = "Este mes";
+"mistakeReview.timeRange.allTime" = "Todo el tiempo";
+"mistakeReview.subjectsTitle" = "Materias con errores";
+"mistakeReview.loadingSubjects" = "Cargando materias...";
+"mistakeReview.noMistakesFound" = "¡No se encontraron errores\!";
+"mistakeReview.noMistakesMessage" = "¡Excelente\! No has cometido ningún error en el período de tiempo seleccionado.";
+"mistakeReview.startReview" = "Iniciar revisión";
+"mistakeReview.mistakeSingular" = "1 error";
+"mistakeReview.mistakePlural" = "%d errores";
+"mistakeReview.letsDoAgain" = "Intentémoslas de nuevo";
+"mistakeReview.selectedCount" = "%d seleccionadas";
+"mistakeReview.loadingMistakes" = "Cargando errores...";
+"mistakeReview.noMistakesInSubject" = "No has cometido ningún error en %@ durante este período de tiempo.";
+"mistakeReview.generatePDF" = "Generar PDF (%d preguntas)";
+"mistakeReview.subjectMistakes" = "Errores de %@";
+"mistakeReview.selected" = "Seleccionado";
+"mistakeReview.select" = "Seleccionar";
+"mistakeReview.questionLabel" = "Pregunta:";
+"mistakeReview.yourAnswerLabel" = "Tu respuesta:";
+"mistakeReview.noAnswer" = "No se proporcionó respuesta";
+"mistakeReview.correctAnswerLabel" = "Respuesta correcta:";
+"mistakeReview.showExplanation" = "Mostrar explicación";
+"mistakeReview.instructions.title" = "Cómo usar la revisión de errores";
+"mistakeReview.instructions.message" = "1. Selecciona un período de tiempo (Esta semana, Este mes o Todo el tiempo) para filtrar tus errores\n\n2. Elige una materia para revisar respuestas incorrectas\n\n3. Pulsa 'Iniciar revisión' para ver tus errores\n\n4. Usa 'Intentémoslas de nuevo' para seleccionar preguntas y generar un PDF para practicar\n\n5. Revisa las respuestas correctas y las explicaciones para mejorar tu comprensión";
+"mistakeReview.startReview" = "Iniciar revisión (%d errores)";
+"mistakeReview.letsPractise" = "Comenzar práctica";
+"mistakeReview.resumePractice" = "Retomar práctica";
+"mistakeReview.showFullQuestion" = "Mostrar pregunta completa y análisis";
+"mistakeReview.hideDetails" = "Ocultar detalles";
+"mistakeReview.questionsLeftDone" = "%d preguntas restantes · %d%% completado";
+"mistakeReview.generatePractice" = "Generar práctica (%d errores)";
+"mistakeReview.doThemAgain" = "Hacerlas de nuevo (%d)";
+"mistakeReview.generationFailed" = "Error al generar la práctica";
+"mistakeReview.generatingQuestions" = "Generando preguntas...";
+"mistakeReview.whatWentWrong" = "Qué salió mal";
+"mistakeReview.evidence" = "Evidencia";
+"mistakeReview.explanation" = "Explicación";
+"mistakeReview.howToImprove" = "Cómo mejorar";
+"mistakeReview.analyzingMistake" = "Analizando el error con IA...";
+"mistakeReview.errorType.executionError" = "Error de ejecución";
+"mistakeReview.errorType.conceptualGap" = "Brecha conceptual";
+"mistakeReview.errorType.needsRefinement" = "Necesita refinamiento";
+"mistakeReview.errorType.unknown" = "Error desconocido";
+"mistakeReview.targetedPractice" = "Práctica enfocada";
+"mistakeReview.questionsBasedOnMistakes" = "%d preguntas basadas en tus errores";
+"mistakeReview.progressAnswered" = "Progreso: %d/%d respondidas";
+"mistakeReview.correctCount" = "%d/%d correctas";
+"mistakeReview.exportToPDF" = "Exportar a PDF";
+"mistakeReview.feedbackExact" = "¡Perfecto\! Tu respuesta es exactamente correcta.";
+"mistakeReview.feedbackCorrect" = "¡Correcto\! Tu respuesta coincide con la solución esperada.";
+"mistakeReview.accuracy" = "Precisión";
+"mistakeReview.correct" = "Correcto";
+"mistakeReview.incorrect" = "Incorrecto";
+"mistakeReview.progressAlreadyMarked" = "Ya organizado";
+"mistakeReview.slideToMarkProgress" = "Desliza para organizar";
+"mistakeReview.masteredWeakness" = "¡Has dominado una debilidad\!";
+"mistakeReview.keepUpGreatWork" = "¡Sigue con el gran trabajo\!";
+"mistakeReview.questionNumber" = "Pregunta %d";
+"mistakeReview.yourAnswerColon" = "Tu respuesta:";
+"mistakeReview.submitAnswer" = "Enviar respuesta";
+"mistakeReview.yourAnswer" = "Tu respuesta";
+"mistakeReview.correctAnswer" = "Respuesta correcta";
+"mistakeReview.gradingInstant" = "Instantáneo";
+"mistakeReview.gradingAI" = "Analizado por IA";
+"mistakeReview.archived" = "Archivado";
+"mistakeReview.archiveQuestion" = "Archivar pregunta";
+"mistakeReview.followUp" = "Seguimiento";
+"mistakeReview.questionArchived" = "Pregunta archivada";
+"mistakeReview.questionArchivedMessage" = "Esta pregunta de práctica ha sido guardada en tu archivo para revisión futura.";
+"mistakeReview.configurePractice" = "Configurar preguntas de práctica";
+"mistakeReview.basedOnMistakes" = "Basado en %d errores seleccionados";
+"mistakeReview.questionTypes" = "Tipos de preguntas";
+"mistakeReview.selectQuestionTypes" = "Selecciona qué tipos de preguntas generar:";
+"mistakeReview.difficultyLevel" = "Nivel de dificultad";
+"mistakeReview.numberOfQuestions" = "Número de preguntas";
+"mistakeReview.sliderMin" = "1 pregunta";
+"mistakeReview.sliderMax" = "10 preguntas";
+"mistakeReview.generateCount" = "Generar %d preguntas";
+"mistakeReview.practiceConfiguration" = "Configuración de la práctica";
+"mistakeReview.weaknessHint.one" = "%d pregunta más para superar la debilidad «%@»";
+"mistakeReview.weaknessHint.other" = "%d preguntas más para superar la debilidad «%@»";
+"mistakeReview.filter.severityLabel" = "Gravedad";
+"mistakeReview.filter.timeLabel" = "Tiempo";
+"mistakeReview.filter.severity.all" = "Todo";
+"mistakeReview.filter.severity.medPlus" = "Med+";
+"mistakeReview.filter.severity.severe" = "Grave";
+"mistakeReview.filter.time.week" = "Semana";
+"mistakeReview.filter.time.month" = "Mes";
+"mistakeReview.filter.time.all" = "Todo";
+"mistakeReview.filter.subjectsLabel" = "Materias";
+"mistakeReview.filter.filterByTopic" = "Filtrar por tema";
+"mistakeReview.filter.noTaxonomyData" = "No hay datos de taxonomía disponibles";
+"mistakeReview.filter.clearCount" = "Limpiar (%d)";
+"mistakeReview.filter.allTopics" = "Todos los temas";
+"mistakeReview.filter.active" = "Activo";
+"mistakeReview.filter.allFilter" = "Todo";
+"mistakeReview.filter.uncategorized" = "Sin categoría";
+"mistakeReview.filter.yourStrengths" = "Tus fortalezas";
+"mistakeReview.filter.goodAt" = "Se te da bien";
+"mistakeReview.filter.noLongerWeak" = "Ya no es una debilidad";
+"mistakeReview.filter.noStrengthsData" = "Aún no hay datos — responde algunas preguntas para ver tus fortalezas.";
+"mistakeReview.filter.strengthsTopicCount" = "%d temas";
+"mistakeReview.categorizeMistakes" = "Categorizar";
+"mistakeReview.categorizing" = "Categorizando…";
+"mistakeReview.uncategorized" = "Sin clasificar";
+"difficulty.desc.beginner" = "Preguntas para asentar las bases de nuevos conceptos";
+"difficulty.desc.intermediate" = "Preguntas equilibradas para practicar y repasar";
+"difficulty.desc.advanced" = "Preguntas desafiantes para ampliar la comprensión";
+"difficulty.desc.adaptive" = "Dificultad ajustada por IA según tus errores";
+"common.retry" = "Reintentar";
+"common.continue" = "Continuar";
+"common.true" = "Verdadero";
+"common.false" = "Falso";
+
+// Parent Mode - Face ID
+"parentAuth.useFaceID" = "Usar Face ID";
+"parentAuth.useTouchID" = "Usar Touch ID";
+"parentAuth.useOpticID" = "Usar Optic ID";
+"parentAuth.biometricFailed" = "La autenticación biométrica falló. Por favor, inténtalo de nuevo.";
+"parentAuth.biometricError" = "Error de autenticación biométrica: %@";
+"parentAuth.or" = "O";
+"parentMode.faceIDForParentMode" = "Face ID para el modo padres";
+"parentMode.touchIDForParentMode" = "Touch ID para el modo padres";
+"parentMode.opticIDForParentMode" = "Optic ID para el modo padres";
+"parentMode.enabled" = "Activado";
+"parentMode.disabled" = "Desactivado";
+"parentMode.faceIDUsageDescription" = "StudyMates usa Face ID para autenticar a los padres de forma segura y acceder a las funciones protegidas y al control parental.";
+
+// Voice Input Preview
+"voicePreview.liveTranscription" = "Transcripción en vivo";
+"voicePreview.title" = "Vista previa de entrada de voz";
+"voicePreview.transcribedText" = "Texto transcrito (toca para editar)";
+"voicePreview.sendToAI" = "Enviar a IA";
+"voicePreview.reRecord" = "Volver a grabar";
+"voicePreview.confidence.high" = "Alta confianza - la transcripción se ve bien";
+"voicePreview.confidence.medium" = "Confianza media - por favor revisa con cuidado";
+"voicePreview.confidence.low" = "Baja confianza - la transcripción puede ser imprecisa";
+
+// Learning Goals
+"goals.learningGoalsTitle" = "Objetivos de aprendizaje";
+"goals.currentPoints" = "Puntos actuales";
+"goals.streak" = "Racha";
+"goals.days" = "días";
+"goals.dailyQuestions" = "Preguntas diarias";
+"goals.dailyQuestionsDescription" = "Responde preguntas diariamente para crear hábitos de aprendizaje constantes";
+"goals.target" = "Objetivo:";
+"goals.questionsPerDay" = "preguntas por día";
+"goals.accuracyGoal" = "Meta de precisión";
+"goals.accuracyGoalDescription" = "Mantén alta precisión en tus respuestas para ganar el máximo de puntos";
+"goals.percentAccuracy" = "% de precisión";
+"goals.weeklyStreak" = "Racha semanal";
+"goals.weeklyStreakDescription" = "Mantén una racha de 7 días de aprendizaje para ganar puntos extra";
+"goals.dailyStreak" = "Racha diaria";
+"goals.dailyStreakDescription" = "Mantén el impulso de tu aprendizaje con actividad diaria";
+"goals.studyTime" = "Tiempo de estudio";
+"goals.subjectMastery" = "Dominio de materia";
+"goals.studyConsistency" = "Constancia en el estudio";
+"goals.studyConsistencyDescription" = "Mantén hábitos de estudio regulares para un progreso constante";
+"goals.daysPerWeek" = "días por semana";
+"goals.saveToDatabase" = "Guardar en la base de datos";
+
+// Voice Input Controls
+"voice.pressToTalk" = "Mantén para hablar";
+"voice.slideUpToCancel" = "Desliza hacia arriba para cancelar";
+"voice.releaseToCancel" = "Suelta para cancelar";
+
+// Question Generation - How to Use
+"questionGeneration.howToUse.title" = "Cómo usar la generación de preguntas";
+"questionGeneration.howToUse.message" = "• Selecciona el tipo de práctica: Práctica aleatoria, Revisión de errores o Desde la biblioteca\n• Elige la materia y el nivel de dificultad\n• Selecciona el tipo de pregunta (Opción múltiple, Verdadero/Falso, Completar, etc.)\n• Establece el número de preguntas\n• Pulsa el botón 'Generar preguntas de práctica'\n• Comienza a responder y recibe retroalimentación inmediata";
+
+// Question Types
+"questionType.multipleChoice" = "Opción múltiple";
+"questionType.trueFalse" = "Verdadero/Falso";
+"questionType.fillBlank" = "Completar el espacio";
+"questionType.shortAnswer" = "Respuesta corta";
+"questionType.longAnswer" = "Respuesta larga";
+"questionType.calculation" = "Cálculo";
+"questionType.matching" = "Emparejar";
+"questionType.mixedTypes" = "Tipos mixtos";
+"questionType.unknown" = "Desconocido";
+
+// Difficulty Levels
+"difficulty.beginner" = "Principiante";
+"difficulty.intermediate" = "Intermedio";
+"difficulty.advanced" = "Avanzado";
+"difficulty.adaptive" = "Adaptativo";
+
+// Generated Questions - How to Use
+"generatedQuestions.howToUse.title" = "Cómo usar las preguntas de práctica";
+"generatedQuestions.howToUse.message" = "• Toca cualquier tarjeta de pregunta para comenzar a responder\n• Lee la pregunta y selecciona tu respuesta\n• Envía para ver la retroalimentación y la explicación inmediatas\n• Sigue tu progreso con las marcas de verificación\n• Usa 'Generar PDF' para exportar las preguntas seleccionadas para practicar sin conexión\n• Navega entre las preguntas con los botones Anterior/Siguiente";
+
+// Focus Mode - Music Player
+"focus.nowPlaying" = "Reproduciendo ahora";
+"focus.nextTrack" = "Siguiente: %@";
+"focus.cancelSession" = "Cancelar";
+"focus.earnedTree" = "¡Ganaste un árbol\!";
+"focus.endSession" = "Terminar";
+"focus.focusTime" = "Tiempo de concentración";
+"focus.garden.title" = "Mi jardín";
+"focus.keepGoing" = "¡Sigue para hacer crecer árboles más grandes\!";
+"focus.noMusic" = "Sin música";
+"focus.pauseSession" = "Pausar";
+"focus.resumeSession" = "Reanudar";
+"focus.selectMusic" = "Seleccionar música";
+"focus.sessionActive" = "Concentrándose";
+"focus.sessionPaused" = "Pausado";
+"focus.startSession" = "Iniciar concentración";
+
+// Focus Mode - Music Selection
+"focus.singleTrack" = "Pista individual";
+"focus.playlist" = "Lista de reproducción";
+"focus.createPlaylist" = "Crear lista de reproducción";
+"focus.createPlaylistDescription" = "Combinar varias pistas";
+"focus.noPlaylists" = "Aún no hay listas de reproducción";
+"focus.createFirstPlaylist" = "Crea tu primera lista de reproducción para empezar";
+"focus.tracks" = "pistas";
+"focus.deletePlaylist" = "Eliminar lista de reproducción";
+"focus.deletePlaylistConfirmation" = "¿Estás seguro de que deseas eliminar esta lista de reproducción?";
+
+// Focus Mode - Playlist Editor
+"focus.playlistName" = "Nombre de la lista de reproducción";
+"focus.enterPlaylistName" = "Introduce el nombre de la lista...";
+"focus.playlistNameRequired" = "El nombre de la lista de reproducción es obligatorio";
+"focus.selectTracks" = "Seleccionar pistas";
+"focus.editPlaylist" = "Editar lista de reproducción";
+
+// Privacy Policy
+"privacy.changes.content" = "Podemos actualizar esta Política de privacidad de vez en cuando. Te notificaremos cualquier cambio importante publicando la nueva política y actualizando la fecha de \"Última actualización\".";
+"privacy.changes.title" = "Cambios en esta política";
+"privacy.collect.content" = "Recopilamos la información que proporcionas directamente, incluyendo tu nombre, correo electrónico, edad y datos de estudio. También recopilamos automáticamente datos de uso, información del dispositivo y análisis para mejorar nuestro servicio.";
+"privacy.collect.title" = "Información que recopilamos";
+"privacy.contact.content" = "Si tienes preguntas sobre esta Política de privacidad o nuestras prácticas de privacidad, contáctanos en service@study-mates.net";
+"privacy.contact.title" = "Contáctanos";
+"privacy.coppa.content" = "Cumplimos con la Ley de Protección de la Privacidad Infantil en Línea (COPPA). Para usuarios menores de 13 años, requerimos consentimiento parental verificable antes de recopilar información personal.";
+"privacy.coppa.title" = "Cumplimiento de COPPA";
+"privacy.gdpr.content" = "Si te encuentras en el Espacio Económico Europeo, tienes derechos bajo el RGPD, incluido el acceso a tus datos, corrección, eliminación y portabilidad de datos. Contáctanos para ejercer estos derechos.";
+"privacy.gdpr.title" = "Derechos del RGPD";
+"privacy.intro.content" = "StudyAI se compromete a proteger tu privacidad. Esta Política de privacidad explica cómo recopilamos, usamos, divulgamos y protegemos tu información cuando usas nuestra aplicación educativa.";
+"privacy.intro.title" = "Introducción";
+"privacy.lastUpdated" = "Última actualización: marzo de 2026";
+"privacy.retention.content" = "Conservamos tu información personal durante el tiempo necesario para proporcionar nuestros servicios y cumplir con las obligaciones legales. Puedes solicitar la eliminación de tus datos en cualquier momento.";
+"privacy.retention.title" = "Retención de datos";
+"privacy.rights.content" = "Tienes derecho a acceder, corregir o eliminar tu información personal. También puedes oponerte al procesamiento y solicitar la portabilidad de los datos. Contáctanos para ejercer estos derechos.";
+"privacy.rights.title" = "Tus derechos";
+"privacy.security.content" = "Implementamos medidas de seguridad estándar de la industria, incluido el cifrado, la autenticación segura y las auditorías de seguridad periódicas, para proteger tus datos del acceso no autorizado.";
+"privacy.security.title" = "Seguridad de los datos";
+"privacy.thirdParty.content" = "Trabajamos con los siguientes servicios de terceros para ofrecer nuestras funciones:
+
+• OpenAI (openai.com) — procesa fotos de tareas, texto de estudiantes y transcripciones de voz para tutoría y calificación con IA
+• Google Gemini (deepmind.google) — impulsa el chat de voz en tiempo real y respuestas avanzadas de IA
+• ElevenLabs (elevenlabs.io) — convierte las respuestas de texto de IA en audio de voz
+• Inicio de sesión con Google (google.com) — inicio de sesión opcional
+• Inicio de sesión con Apple (apple.com) — inicio de sesión opcional
+• Railway (railway.app) — alojamiento seguro en la nube y almacenamiento de base de datos
+
+Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos sus datos. Para usuarios menores de 13 años, se requiere consentimiento parental verificable antes de que estos servicios procesen cualquier dato.";
+"privacy.thirdParty.title" = "Servicios de terceros";
+"privacy.title" = "Política de privacidad";
+"privacy.usage.content" = "Utilizamos tu información para proporcionar y mejorar nuestros servicios educativos, personalizar tu experiencia de aprendizaje, comunicarnos contigo y garantizar la seguridad de nuestra plataforma.";
+"privacy.usage.title" = "Cómo usamos tu información";
+
+// Terms of Service
+"terms.acceptable.content" = "Aceptas no utilizar el servicio para fines ilegales, para dañar a otros, para cargar contenido malicioso o para interferir con el funcionamiento del servicio.";
+"terms.acceptable.title" = "Uso aceptable";
+"terms.acceptance.content" = "Al acceder o utilizar StudyAI, aceptas estar sujeto a estos Términos de servicio. Si no estás de acuerdo con estos términos, por favor no uses nuestra aplicación.";
+"terms.acceptance.title" = "Aceptación de términos";
+"terms.accounts.content" = "Eres responsable de mantener la seguridad de tu cuenta y contraseña. Debes proporcionar información precisa y mantenerla actualizada.";
+"terms.accounts.title" = "Cuentas de usuario";
+"terms.changes.content" = "Nos reservamos el derecho de modificar estos términos en cualquier momento. Te notificaremos los cambios significativos y el uso continuado implica la aceptación de los términos actualizados.";
+"terms.changes.title" = "Cambios en los términos";
+"terms.contact.content" = "Para preguntas sobre estos Términos de servicio, contáctanos en service@study-mates.net";
+"terms.contact.title" = "Información de contacto";
+"terms.disclaimer.content" = "StudyAI se proporciona \"tal como está\" sin garantías de ningún tipo. Aunque nos esforzamos por ser precisos, no garantizamos que el contenido generado por IA esté libre de errores o sea completo.";
+"terms.disclaimer.title" = "Descargo de responsabilidad";
+"terms.intellectual.content" = "Todo el contenido y materiales de StudyAI son de nuestra propiedad o de nuestros licenciantes y están protegidos por las leyes de propiedad intelectual. No puedes copiar, modificar ni distribuir nuestro contenido sin permiso.";
+"terms.intellectual.title" = "Propiedad intelectual";
+"terms.lastUpdated" = "Última actualización: enero de 2025";
+"terms.law.content" = "Estos términos se rigen por las leyes de la jurisdicción en la que operamos, sin tener en cuenta los principios de conflicto de leyes.";
+"terms.law.title" = "Ley aplicable";
+"terms.liability.content" = "En la máxima medida permitida por la ley, StudyAI no será responsable de ningún daño indirecto, incidental, especial o consecuente que surja de tu uso del servicio.";
+"terms.liability.title" = "Limitación de responsabilidad";
+"terms.termination.content" = "Podemos suspender o cancelar tu acceso al servicio si incumples estos términos. También puedes cancelar tu cuenta en cualquier momento.";
+"terms.termination.title" = "Cancelación";
+"terms.title" = "Términos de servicio";
+"terms.use.content" = "StudyAI proporciona una plataforma educativa impulsada por IA. Solo puedes usar nuestro servicio para fines educativos personales y no comerciales.";
+"terms.use.title" = "Uso del servicio";
+"terms.userContent.content" = "Conservas la propiedad del contenido que envías. Al usar nuestro servicio, nos otorgas una licencia para usar, almacenar y procesar tu contenido para prestar nuestros servicios.";
+"terms.userContent.title" = "Contenido del usuario";
+
+// Privacy Settings
+"privacy.settings.consentGranted" = "El consentimiento parental ha sido otorgado";
+"privacy.settings.consentStatus.denied" = "Consentimiento denegado";
+"privacy.settings.consentStatus.expired" = "Consentimiento vencido";
+"privacy.settings.consentStatus.granted" = "Consentimiento otorgado";
+"privacy.settings.consentStatus.loading" = "Cargando estado de consentimiento...";
+"privacy.settings.consentStatus.notRequired" = "No requerido para tu grupo de edad";
+"privacy.settings.consentStatus.pending" = "Consentimiento pendiente";
+"privacy.settings.consentStatus.required" = "Se requiere consentimiento parental";
+"privacy.settings.coppaCompliance" = "Cumplimiento de COPPA";
+"privacy.settings.coppaNotice" = "Según las regulaciones de COPPA, los usuarios menores de 13 años requieren consentimiento parental para usar ciertas funciones.";
+"privacy.settings.dataManagement" = "Gestión de datos";
+"privacy.settings.dataManagementFooter" = "Tienes derecho a acceder, exportar o eliminar tus datos personales en cualquier momento.";
+"privacy.settings.deleteAccount" = "Eliminar cuenta";
+"privacy.settings.deleteAccountAlert.button" = "Eliminar";
+"privacy.settings.deleteAccountAlert.message" = "Esta acción no se puede deshacer. Todos tus datos se eliminarán permanentemente.";
+"privacy.settings.deleteAccountAlert.title" = "Eliminar cuenta";
+"privacy.settings.deleteAccountDesc" = "Elimina permanentemente tu cuenta y todos los datos";
+"privacy.settings.exportData" = "Exportar mis datos";
+"privacy.settings.exportDataAlert.button" = "Exportar";
+"privacy.settings.exportDataAlert.message" = "Prepararemos una copia de todos tus datos y la enviaremos a tu dirección de correo electrónico.";
+"privacy.settings.exportDataAlert.title" = "Exportar tus datos";
+"privacy.settings.exportDataDesc" = "Descarga una copia de tus datos personales";
+"privacy.settings.legal" = "Legal";
+"privacy.settings.parentalConsent" = "Consentimiento parental";
+"privacy.settings.privacyPolicy" = "Política de privacidad";
+"privacy.settings.requestConsent" = "Solicitar consentimiento parental";
+"privacy.settings.termsOfService" = "Términos de servicio";
+"privacy.settings.title" = "Configuración de privacidad";
+
+// Parent Reports section
+"privacy.parentReports.sectionHeader" = "Informes para padres";
+"privacy.parentReports.automatedReports" = "Informes semanales automáticos";
+"privacy.parentReports.automatedReportsDesc" = "Generar informes para padres cada domingo a las 9 PM";
+"privacy.parentReports.backgroundSync" = "Sincronización de tarea en segundo plano";
+"privacy.parentReports.backgroundSyncDesc" = "Sincroniza automáticamente los datos de tarea para los informes";
+"privacy.parentReports.lastSync" = "Última sincronización";
+"privacy.parentReports.never" = "Nunca";
+"privacy.parentReports.syncNow" = "Sincronizar ahora";
+"privacy.parentReports.nextReport" = "Próximo informe";
+"privacy.parentReports.footerEnabled" = "Los informes se generan cada domingo a las 9 PM usando los datos de tareas sincronizados durante la semana.";
+"privacy.parentReports.footerDisabled" = "Activa los informes semanales automáticos para hacer seguimiento del progreso de aprendizaje.";
+
+// Clear Server Data
+"privacy.clearData.title" = "Limpiar datos del servidor";
+"privacy.clearData.desc" = "Eliminar todos los datos de aprendizaje del servidor (mantiene los datos locales)";
+"privacy.clearData.alertTitle" = "Limpiar mis datos";
+"privacy.clearData.alertButton" = "Limpiar datos del servidor";
+"privacy.clearData.alertMessage" = "Esto eliminará permanentemente todos tus datos de aprendizaje del servidor.\n\nTus datos locales permanecerán intactos. Tu cuenta permanecerá activa. Esta acción no se puede deshacer.";
+
+// Delete Account alert
+"privacy.deleteAccount.emailPlaceholder" = "Introduce tu correo electrónico para confirmar";
+"privacy.deleteAccount.alertMessage" = "Esto eliminará permanentemente tu cuenta y todos los datos. Por favor, introduce tu correo electrónico para confirmar.";
+
+// Additional Focus Mode and Settings Translations
+"focus.garden.allTrees" = "Todos los árboles";
+"focus.garden.clearConfirmation" = "¿Estás seguro de que deseas limpiar todos los árboles de tu jardín? Esta acción no se puede deshacer.";
+"focus.garden.clearGarden" = "Limpiar jardín";
+"focus.garden.currentStreak" = "Racha actual";
+"focus.garden.days" = "días";
+"focus.garden.emptyState" = "Tu jardín está vacío";
+"focus.garden.emptyStateMessage" = "¡Completa sesiones de concentración para plantar árboles\!";
+"focus.garden.longestSession" = "Sesión más larga";
+"focus.garden.oldest" = "Más antigua";
+"focus.garden.recent" = "Reciente";
+"focus.garden.sortBy" = "Ordenar por:";
+"focus.garden.totalFocusTime" = "Tiempo total de concentración";
+"focus.garden.totalTrees" = "Total de árboles";
+"focus.selectMusicSubtitle" = "Elige música o crea una lista de reproducción para tu sesión de concentración";
+"focus.tree.ancientTree" = "Árboles ancestrales";
+"focus.tree.matureTree" = "Árboles maduros";
+"focus.tree.sapling" = "Plántulas";
+"focus.tree.youngTree" = "Árboles jóvenes";
+"focus.volume" = "Volumen";
+"home.focusMode" = "Modo de concentración";
+"home.focusModeDescription" = "Estudia con música de concentración y temporizador";
+"settings.parentControls" = "Control parental";
+"settings.studySettings" = "Configuración de estudio";
+
+// Custom Date Range Picker
+"library.filter.moreSpecific" = "Más específico";
+"library.customDate.title" = "Seleccionar rango de fechas personalizado";
+"library.customDate.subtitle" = "Elige fechas de inicio y fin para tu filtro";
+"library.customDate.startDate" = "Fecha de inicio";
+"library.customDate.endDate" = "Fecha de fin";
+"library.customDate.selectedRange" = "Rango seleccionado:";
+"library.customDate.apply" = "Aplicar filtro de fecha";
+"library.customDate.navigationTitle" = "Rango de fechas personalizado";
+
+// Question Archive View
+"archive.title" = "Archivar preguntas";
+"archive.archiveButton" = "Archivar";
+"archive.subjectClassification" = "Clasificación de materia";
+"archive.enterSubject" = "Introduce el nombre de la materia";
+"archive.useAIDetection" = "Usar detección de IA";
+"archive.enterCustomSubject" = "Introduce una materia personalizada";
+"archive.selectedQuestions" = "Preguntas seleccionadas";
+"archive.noQuestionsSelected" = "No hay preguntas seleccionadas";
+"archive.notesAndTags" = "Notas y etiquetas (opcional)";
+"archive.question" = "Pregunta";
+"archive.notes" = "Notas:";
+"archive.notesPlaceholder" = "Agrega notas sobre errores o aprendizajes...";
+"archive.tags" = "Etiquetas:";
+"archive.addTag" = "Agregar etiqueta";
+"archive.add" = "Agregar";
+"archive.visual" = "Visual";
+
+// Pomodoro Focus Mode
+"pomodoro.dragToStop" = "Arrastra el botón al círculo para detener";
+"pomodoro.stop" = "PARAR";
+"pomodoro.completed" = "¡Pomodoro completado\!";
+"pomodoro.focusMode" = "Concentración Pomodoro";
+"pomodoro.congratulations" = "🎉 ¡Felicitaciones\! ¡Ganaste un tomate\!";
+"pomodoro.focusDuration" = "Duración de la concentración";
+"pomodoro.pointsEarned" = "Puntos ganados";
+"pomodoro.viewGarden" = "Ver mi jardín de tomates";
+"pomodoro.deepFocusMode" = "Modo de concentración profunda";
+"pomodoro.autoOptimize" = "Optimizar automáticamente el entorno de concentración";
+"pomodoro.deepFocusReady" = "El modo de concentración profunda está listo";
+"pomodoro.deepFocusActive" = "Modo de concentración profunda activo";
+"pomodoro.deepFocusStatus" = "Entorno de concentración optimizado · Completamente protegido";
+"pomodoro.deepFocusAlertTitle" = "Modo de concentración profunda";
+"pomodoro.gotIt" = "Entendido";
+"pomodoro.viewSetupGuide" = "Ver guía de configuración";
+"pomodoro.powerSaving" = "Ahorro de energía";
+"pomodoro.deepFocusGuide" = "🌙 Funciones del modo de concentración profunda:\n\n✅ Bloquea automáticamente las notificaciones de la app\n✅ Reduce automáticamente el brillo de la pantalla al 50%\n✅ Optimiza el entorno de audio\n✅ Activación con un solo toque, concéntrate sin esfuerzo\n\n💡 Consejo avanzado (opcional):\nPara bloquear todas las notificaciones del sistema, activa manualmente \"No molestar\" en el Centro de control para una experiencia de concentración completa.\n\nTambién puedes decirle a Siri: \"Activar No molestar\"";
+
+
+// Pro Mode - Digital Homework
+"proMode.title" = "Tarea digital";
+"proMode.cancel" = "Cancelar";
+"proMode.selectAll" = "Seleccionar todo";
+"proMode.deselectAll" = "Deseleccionar todo";
+"proMode.viewOriginalImage" = "Ver imagen original";
+"proMode.resetAnnotations" = "Restablecer anotaciones";
+"proMode.batchArchive" = "Archivar en lote";
+"proMode.batchArchiveCount" = "Archivar en lote (%d)";
+"proMode.accuracy" = "Precisión";
+"proMode.correct" = "Correcto";
+"proMode.partialCorrect" = "Parcialmente correcto";
+"proMode.incorrect" = "Incorrecto";
+"proMode.markProgress" = "Organizar automáticamente";
+"proMode.questionPreview" = "Vista previa de pregunta";
+"proMode.tapToAnnotate" = "Toca para crear una anotación";
+"proMode.done" = "Listo";
+"proMode.selectQuestionNumber" = "Seleccionar número de pregunta";
+"proMode.questionPrefix" = "P";
+"proMode.pageCounter" = "Página %d/%d";
+"proMode.questionNumber" = "P %@";
+"proMode.studentAnswer" = "Respuesta del alumno";
+"proMode.grading" = "Calificando %d/%d";
+"proMode.deepGradingMode" = "Modo de calificación profunda";
+"proMode.deepMode" = "Modo profundo";
+"proMode.fastMode" = "Modo rápido";
+"proMode.deepGradingDescription" = "La IA analizará en profundidad (más lento pero más preciso)";
+"proMode.deepModeDescription" = "Análisis profundo con razonamiento avanzado";
+"proMode.fastModeDescription" = "Calificación rápida con verificación lógica";
+"proMode.quickGrade" = "Calificación rápida";
+"proMode.deepGrade" = "Calificación profunda";
+"proMode.standardGradingDescription" = "Velocidad de calificación estándar (rápida pero puede carecer de profundidad)";
+"proMode.gradeHomework" = "Calificar tarea con IA";
+"proMode.deepGradeHomework" = "Calificación profunda de tarea";
+"proMode.annotationHint" = "Consejo: Agrega anotaciones para proporcionar contexto de imagen para las preguntas";
+"proMode.studentAnswerLabel" = "Respuesta del alumno: %@";
+"proMode.askAI" = "Pedir ayuda a la IA";
+"proMode.askAIPrompt" = "Por favor, ayúdame a entender esta pregunta";
+"proMode.askAIPromptWithSubquestion" = "Por favor, ayúdame a entender esta pregunta (Subpregunta %@)";
+"proMode.parentQuestionContext" = "[Contexto de pregunta principal]";
+"proMode.subquestion" = "[Subpregunta]";
+"proMode.myAnswer" = "[Mi respuesta]";
+"proMode.teacherFeedback" = "[Retroalimentación del profesor]";
+"proMode.noFeedback" = "Sin retroalimentación";
+"proMode.archive" = "Archivar";
+"proMode.archived" = "Archivado";
+"proMode.subquestionAnswer" = "Respuesta: %@";
+"proMode.addAnnotation" = "Agregar anotación";
+"proMode.editAnnotations" = "Editar anotaciones (%d)";
+"proMode.annotationImageHint" = "Algunas preguntas necesitan imágenes — toca para recortar de la foto";
+"proMode.aiAnalyzeDiagrams" = "Localizar automáticamente regiones de diagramas con IA";
+"proMode.selectAIModel" = "Seleccionar modelo de IA";
+"proMode.revertGrading" = "Revertir calificación";
+"proMode.revertGradingAlert.title" = "¿Revertir calificación?";
+"proMode.revertGradingAlert.revert" = "Revertir";
+"proMode.revertGradingAlert.message" = "Esto borrará todos los resultados de calificación y regresará al estado original. Esta acción no se puede deshacer.";
+
+
+// Homework Summary View
+"homeworkSummary.title" = "Análisis de tarea completo";
+"homeworkSummary.questionCount" = "%d preguntas";
+"homeworkSummary.hierarchicalQuestions" = "Jerárquico";
+"homeworkSummary.questionsPreview" = "Vista previa de preguntas";
+"homeworkSummary.moreQuestions" = "%d preguntas más";
+"homeworkSummary.viewDigitalHomework" = "Ver tarea digital";
+"homeworkSummary.subquestionCount" = "%d subpreguntas";
+"homeworkSummary.answer" = "Respuesta: %@";
+
+// Subject Names
+"subject.math" = "Matemáticas";
+"subject.mathematics" = "Matemáticas";
+"subject.science" = "Ciencias";
+"subject.computerScience" = "Informática";
+"subject.literature" = "Literatura";
+"subject.socialStudies" = "Ciencias Sociales";
+"subject.economics" = "Economía";
+"subject.social_studies" = "Ciencias Sociales";
+"subject.chinese" = "Chino";
+"subject.art" = "Arte";
+"subject.music" = "Música";
+"subject.physical_education" = "Educación Física";
+"subject.computer_science" = "Informática";
+"subject.general" = "General";
+
+"proMode.slideToMarkProgress" = "Desliza para organizar automáticamente";
+"proMode.progressMarked" = "Ya organizado";
+"proMode.partial" = "Parcial";
+
+// Pro Mode - Archive / Smart Organize result toast
+"proMode.archive.toastTitle" = "✅ Agregado a la biblioteca";
+"proMode.archive.toast.added" = "%d pregunta(s) agregada(s) a la biblioteca";
+"proMode.archive.toast.mistakesAdded" = "%d agregado(s) al cuaderno de errores";
+"proMode.archive.toast.duplicates" = "%d duplicado(s) omitido(s)";
+"proMode.smartOrganize.toastTitle" = "✅ Organización automática completa";
+"proMode.smartOrganize.toast.mistakesAdded" = "%d pregunta(s) incorrecta(s) agregada(s) al cuaderno de errores";
+"proMode.archive.toast.mistakesAnalyzed" = "Errores analizados, cuaderno actualizado";
+"proMode.smartOrganize.toast.mistakesAnalyzed" = "Errores analizados, cuaderno actualizado";
+"proMode.smartOrganize.toast.noMistakes" = "Sin errores — ¡excelente trabajo!";
+"proMode.smartOrganize.toast.progressMarked" = "Progreso registrado";
+"proMode.smartOrganize.toast.albumSaved" = "Imagen guardada en el álbum de tareas";
+"proMode.smartOrganize.toast.duplicates" = "%d duplicado(s) omitido(s)";
+
+// Pro Mode - Grading Status Messages
+"proMode.grading.deepAnalyzing" = "Análisis profundo de preguntas...";
+"proMode.grading.analyzing" = "Analizando preguntas...";
+"proMode.grading.deepGrading" = "Calificación profunda P%@...";
+"proMode.grading.geminiGrading" = "Gemini calificando P%@...";
+"proMode.grading.grading" = "Calificando P%@...";
+"proMode.grading.progress" = "Completado %d/%d (%d%%)";
+"proMode.grading.complete" = "¡Calificación completa!";
+"proMode.analyzingDiagrams" = "Analizando regiones de diagrama…";
+"proMode.diagramAnalysisFailed" = "Calificando sin contexto de imagen";
+"proMode.smartCrop" = "Recorte inteligente";
+"proMode.retryCrop" = "Reintentar";
+"proMode.croppedDone" = "Recortado";
+"proMode.addPictureHint" = "Agrega una imagen aquí";
+"proMode.selectQuestionFor" = "Selecciona el número de pregunta para";
+
+// PDF Preview
+"pdfPreview.title" = "Vista previa del PDF";
+"pdfPreview.print" = "Imprimir";
+"pdfPreview.email" = "Correo";
+"pdfPreview.share" = "Compartir";
+
+// Theme Settings
+"theme.title" = "Apariencia";
+"theme.day" = "Modo día";
+"theme.night" = "Modo noche";
+"theme.cute" = "Modo adorable";
+"theme.description.day" = "Tema claro clásico para uso diurno";
+"theme.description.night" = "Tema oscuro para entornos con poca luz";
+"theme.description.cute" = "Colores pastel suaves para una experiencia divertida";
+
+// Tomato Garden Strings
+"tomato.garden.title" = "Mi jardín de tomates";
+"tomato.garden.stats" = "Estadísticas del jardín";
+"tomato.garden.total" = "Total de tomates";
+"tomato.garden.focusTime" = "Tiempo total de concentración";
+"tomato.garden.longestSession" = "Sesión más larga";
+"tomato.garden.currentStreak" = "Racha actual";
+"tomato.garden.collection" = "Colección";
+"tomato.garden.collectionProgress" = "Progreso de la colección";
+"tomato.garden.rarity.ordinary" = "Ordinario";
+"tomato.garden.rarity.rare" = "Raro";
+"tomato.garden.rarity.superRare" = "Súper raro";
+"tomato.garden.rarity.legendary" = "Legendario";
+"tomato.garden.type.classic" = "Tomate clásico";
+"tomato.garden.type.curly" = "Tomate de vid rizada";
+"tomato.garden.type.cute" = "Tomate adorable";
+"tomato.garden.type.batman" = "Tomate Batman";
+"tomato.garden.type.ironman" = "Tomate Iron Man";
+"tomato.garden.type.mario" = "Tomate Mario";
+"tomato.garden.type.pokemon" = "Tomate Pokémon";
+"tomato.garden.type.golden" = "Tomate dorado";
+"tomato.garden.type.platinum" = "Tomate platino";
+"tomato.garden.type.diamond" = "Tomate diamante";
+"tomato.garden.exchange" = "Canjear";
+"tomato.garden.exchange.title" = "Canje de tomates";
+"tomato.garden.exchange.5to1" = "5 ordinarios → 1 raro";
+"tomato.garden.exchange.5rare" = "5 raros → 1 súper raro";
+"tomato.garden.exchange.5super" = "5 súper raros → 1 diamante";
+"tomato.garden.filter" = "Filtrar";
+"tomato.garden.sortBy" = "Ordenar por";
+"tomato.garden.sort.recent" = "Reciente";
+"tomato.garden.sort.oldest" = "Más antiguo";
+"tomato.garden.physics" = "Modo físico";
+"tomato.garden.todayCount" = "%d hoy";
+"tomato.garden.weekCount" = "%d esta semana";
+"tomato.garden.emptyState" = "Aún no hay tomates";
+"tomato.garden.emptyMessage" = "¡Completa sesiones de concentración para ganar tomates\!";
+"tomato.garden.achievement" = "¡Logro desbloqueado\!";
+"tomato.garden.milestone" = "%d tomates recolectados";
+
+// Focus Session UI
+"focus.session.start" = "Iniciar concentración";
+"focus.session.pause" = "Pausar";
+"focus.session.resume" = "Reanudar";
+"focus.session.end" = "Terminar sesión";
+"focus.session.cancel" = "Cancelar";
+"focus.session.active" = "Concentrándose";
+"focus.session.paused" = "Pausado";
+"focus.session.remaining" = "Restante";
+"focus.session.elapsed" = "Transcurrido";
+"focus.session.minutes" = "%d min";
+"focus.session.completed" = "¡Sesión completada\!";
+"focus.session.congratulations" = "¡Felicitaciones\!";
+"focus.session.earnedTomato" = "¡Ganaste un tomate %@\!";
+"focus.session.pointsEarned" = "+%d puntos ganados";
+"focus.session.duration" = "Duración: %@";
+"focus.session.viewGarden" = "Ver mi jardín";
+"focus.session.startAnother" = "Iniciar otra sesión";
+
+// Music Player
+"focus.music.title" = "Música de concentración";
+"focus.music.select" = "Seleccionar música";
+"focus.music.noMusic" = "Sin música";
+"focus.music.nowPlaying" = "Reproduciendo ahora";
+"focus.music.nextTrack" = "Siguiente: %@";
+"focus.music.tracks" = "pistas";
+"focus.music.selectTrack" = "Seleccionar pista";
+"focus.music.selectPlaylist" = "Seleccionar lista de reproducción";
+"focus.music.volume" = "Volumen";
+"focus.music.singleTrack" = "Pista individual";
+"focus.music.playlist" = "Lista de reproducción";
+"focus.music.createPlaylist" = "Crear lista de reproducción";
+"focus.music.noPlaylists" = "Aún no hay listas de reproducción";
+"focus.music.category.ambient" = "Ambiental";
+"focus.music.category.classical" = "Clásica";
+"focus.music.category.lofi" = "Lo-fi Beats";
+"focus.music.category.nature" = "Sonidos de la naturaleza";
+
+// Pomodoro Calendar
+"pomodoroCalendar.title" = "Calendario de concentración";
+"pomodoroCalendar.addEvent" = "Agregar al calendario";
+"pomodoroCalendar.todayEvents" = "Sesiones de hoy";
+"pomodoroCalendar.weekEvents" = "Esta semana";
+"pomodoroCalendar.freeSlots" = "Franjas horarias libres";
+"pomodoroCalendar.freeSlotsDescription" = "Franjas disponibles para una sesión de concentración de 25 min";
+"pomodoroCalendar.scheduled" = "Programado";
+"pomodoroCalendar.noEvents" = "No hay eventos programados";
+"pomodoroCalendar.eventTitle" = "Sesión de concentración 🍅";
+"pomodoroCalendar.eventTitlePlaceholder" = "Título del evento";
+"pomodoroCalendar.reminderBefore" = "Recordarme %d minutos antes";
+"pomodoroCalendar.duration" = " min";
+"pomodoroCalendar.duration25" = "25 minutos";
+"pomodoroCalendar.duration50" = "50 minutos";
+"pomodoroCalendar.durationLabel" = "Duración";
+"pomodoroCalendar.selectDate" = "Seleccionar fecha";
+"pomodoroCalendar.date" = "Fecha";
+"pomodoroCalendar.eventsCount" = " eventos";
+"pomodoroCalendar.addCustom" = "Agregar sesión personalizada";
+"pomodoroCalendar.eventInfo" = "Información del evento";
+"pomodoroCalendar.startTime" = "Hora de inicio";
+"pomodoroCalendar.notes" = "Notas";
+"pomodoroCalendar.accessRequired" = "Se requiere acceso al calendario";
+"pomodoroCalendar.accessDescription" = "Permite el acceso para ver y programar sesiones de concentración en tu calendario.";
+"pomodoroCalendar.grantAccess" = "Otorgar acceso al calendario";
+"pomodoroCalendar.permissionRequired" = "Se requiere permiso del calendario";
+"pomodoroCalendar.permissionMessage" = "Por favor, habilita el acceso al calendario en Configuración para programar sesiones de concentración.";
+
+// Deep Focus Mode
+"deepFocus.title" = "Modo de concentración profunda";
+"deepFocus.enable" = "Activar concentración profunda";
+"deepFocus.disable" = "Desactivar concentración profunda";
+"deepFocus.active" = "Concentración profunda activa";
+"deepFocus.ready" = "Concentración profunda lista";
+"deepFocus.autoOptimize" = "Optimizar automáticamente el entorno de concentración";
+"deepFocus.status" = "Entorno de concentración optimizado · Completamente protegido";
+"deepFocus.features.title" = "Funciones de concentración profunda";
+"deepFocus.features.notifications" = "Bloquea las notificaciones de la app";
+"deepFocus.features.brightness" = "Reduce el brillo de la pantalla al 50%";
+"deepFocus.features.audio" = "Optimiza el entorno de audio";
+"deepFocus.features.oneClick" = "Activación con un solo toque";
+"deepFocus.guide.title" = "Guía de configuración de concentración profunda";
+"deepFocus.guide.message" = "🌙 Funciones del modo de concentración profunda:\n\n✅ Bloquea automáticamente las notificaciones de la app\n✅ Reduce automáticamente el brillo de la pantalla al 50%\n✅ Optimiza el entorno de audio\n✅ Activación con un solo toque, concéntrate sin esfuerzo\n\n💡 Consejo avanzado (opcional):\nPara bloquear todas las notificaciones del sistema, activa manualmente \"No molestar\" en el Centro de control para una experiencia de concentración completa.\n\nTambién puedes decirle a Siri: \"Activar No molestar\"";
+"deepFocus.gotIt" = "Entendido";
+"deepFocus.viewGuide" = "Ver guía de configuración";
+
+// MARK: - Library View
+"library.proBadge" = "Pro";
+"library.needsAttention" = "Necesita atención";
+
+// MARK: - Home View
+"home.startLearningPrompt" = "Empieza a aprender para seguir tu progreso";
+
+// MARK: - Direct AI Homework View
+"directAIHomework.performanceSummary" = "Resumen de rendimiento";
+
+// MARK: - Session Chat View
+"sessionChat.archiveSuccess" = "'%@' guardado correctamente\!\n\nPuedes verlo en cualquier momento en la pestaña Biblioteca.\n\n¡Una nueva sesión de chat está lista para ti\!";
+"sessionChat.archiveSuccessDefault" = "Tu conversación";
+"sessionChat.homeworkHelpMode" = "Modo de ayuda con tarea";
+"sessionChat.questionNumber" = "Pregunta n.º %d";
+"sessionChat.currentGrade" = "Actual: %@";
+"sessionChat.deepBadge" = "PROF";
+"sessionChat.sessionDetails" = "Detalles de la sesión";
+"sessionChat.sessionIdLabel" = "ID de sesión:";
+"sessionChat.subjectLabel" = "Materia:";
+"sessionChat.messagesLabel" = "Mensajes:";
+"sessionChat.createdLabel" = "Creado:";
+"sessionChat.lastActivityLabel" = "Última actividad:";
+"sessionChat.noSessionInfo" = "Sin información de sesión";
+"sessionChat.noSessionInfoDescription" = "Los detalles de la sesión aparecerán aquí cuando estén disponibles.";
+"sessionChat.slideUp" = "Desliza hacia arriba";
+"sessionChat.deepThinkingMode" = "Modo de pensamiento profundo";
+"sessionChat.releaseToSend" = "Suelta para enviar";
+
+// MARK: - Live Voice Chat
+"live.connected" = "En vivo";
+"live.connecting" = "Conectando...";
+"live.sending_image" = "Enviando imagen…";
+"live.stop" = "Detener IA";
+"live.hold_to_talk" = "Mantén para hablar";
+"live.release_to_send" = "Suelta para enviar";
+"live.slide_to_cancel" = "Desliza para cancelar";
+"live.release_to_cancel" = "Suelta para cancelar";
+
+// MARK: - Homework Results View
+"homeworkResults.subquestions" = "%d subpreguntas";
+"homeworkResults.overallFeedback" = "Retroalimentación general";
+
+// MARK: - Digital Homework View (Pro Mode)
+"proMode.analyzeMistakesPrompt" = "¿Quieres que los analice? (Los resultados estarán listos pronto en la revisión de errores)";
+"proMode.deleteConfirmation" = "Esto eliminará permanentemente la(s) pregunta(s) seleccionada(s) de esta sesión de tarea. Esta acción no se puede deshacer.";
+"proMode.deleteQuestions" = "Eliminar %d pregunta(s)";
+"proMode.deleteQuestionsTitle" = "¿Eliminar %d pregunta(s)?";
+"proMode.exportingProgress" = "Exportando... %d%%";
+"proMode.exportToPDF" = "Exportar a PDF";
+"proMode.archivedBadge" = "Archivado";
+"proMode.feedbackLabel" = "Retroalimentación";
+"proMode.archiveOptionsTitle" = "Opciones de archivo";
+"proMode.archivePrompt" = "Elige qué archivar:";
+"proMode.analyzeButton" = "Analizarlos";
+"proMode.deleteButton" = "Eliminar";
+"proMode.archiveWholeQuestion" = "Archivar pregunta completa";
+"proMode.archiveSubquestionOnly" = "Archivar solo esta subpregunta";
+"proMode.blankLabel" = "Espacio %d:";
+"proMode.trueFalse.true" = "Verdadero";
+"proMode.trueFalse.false" = "Falso";
+"proMode.trueFalse.trueShort" = "V";
+"proMode.trueFalse.falseShort" = "F";
+"proMode.followUp" = "Seguimiento";
+"proMode.regrade" = "Recalificar";
+"proMode.selectToDelete" = "Seleccionar para eliminar";
+"proMode.detectedErrors" = "Se detectaron %d errores en esta página";
+"proMode.pdfExportFailed" = "Error al exportar PDF";
+"proMode.handwritingQuality" = "Calidad de escritura";
+"proMode.handwritingCompact" = "Escritura:";
+"proMode.handwriting.noHandwriting" = "No se detectó escritura";
+"proMode.handwriting.exceptional" = "Excepcional";
+"proMode.handwriting.clear" = "Clara";
+"proMode.handwriting.readable" = "Legible";
+"proMode.handwriting.difficult" = "Difícil";
+"proMode.handwriting.illegible" = "Ilegible";
+"proMode.handwriting.desc.exceptional" = "Muy clara y consistente";
+"proMode.handwriting.desc.clear" = "Bien formada y legible";
+"proMode.handwriting.desc.readable" = "Comprensible";
+"proMode.handwriting.desc.difficult" = "Difícil de leer";
+"proMode.handwriting.desc.illegible" = "Muy difícil de descifrar";
+
+// MARK: - Progressive Homework View
+"progressiveHomework.loadingMessage" = "Esto puede tardar un momento...";
+"progressiveHomework.selectAIModelTitle" = "Seleccionar modelo de IA";
+"progressiveHomework.selectAIModelDescription" = "Elige el modelo de IA para calificar";
+"progressiveHomework.aiModelLabel" = "Modelo de IA";
+"progressiveHomework.startGrading" = "Iniciar calificación";
+"progressiveHomework.gradingProgress" = "Progreso de calificación";
+"progressiveHomework.saveToMistakeBook" = "Guardar en el cuaderno de errores";
+"progressiveHomework.errorTitle" = "Error";
+"progressiveHomework.questionLabel" = "Pregunta %@";
+"progressiveHomework.overallScore" = "Puntuación general:";
+"progressiveHomework.viewSubquestions" = "Ver subpreguntas (%d)";
+"progressiveHomework.subquestionGradeProgress" = "%d/%d";
+"progressiveHomework.someSubquestionsFailed" = "Algunas subpreguntas no se pudieron calificar";
+"progressiveHomework.yourAnswer" = "Tu respuesta:";
+"progressiveHomework.gradingError" = "Error de calificación: %@";
+"progressiveHomework.scoreLabel" = "Puntuación:";
+"progressiveHomework.aiFeedback" = "Retroalimentación de IA";
+"progressiveHomework.askAIForHelp" = "Pedir ayuda a la IA";
+"progressiveHomework.answerLabel" = "Respuesta:";
+"progressiveHomework.askAI" = "Preguntar a la IA";
+"progressiveHomework.accuracyLabel" = "Precisión";
+
+// MARK: - Common Buttons
+
+// Additional Tomato Garden Keys
+"tomato.garden.locked" = "Bloqueado";
+"tomato.garden.exchangeRequirement" = "%d canjear por 1";
+
+// Physics Tomato Garden
+"tomato.garden.shakePhone" = "Agita tu teléfono";
+"tomato.garden.todayNew" = "Nuevos de hoy";
+
+// Tomato Exchange View
+"tomato.garden.exchange.workshop" = "Taller de canje de tomates";
+"tomato.garden.exchange.description" = "Selecciona 5 tomates del mismo nivel para canjearlos por uno de nivel superior";
+"tomato.garden.exchange.button" = "Canjear tomates";
+"tomato.garden.exchange.selectTomatoes" = "Selecciona tomates para canjear";
+"tomato.garden.exchange.noTomatoes" = "No hay tomates disponibles para canjear";
+"tomato.garden.exchange.earnMore" = "Completa sesiones de concentración para ganar más tomates";
+"tomato.garden.exchange.exchanging" = "Canjeando...";
+"tomato.garden.exchange.congratulations" = "¡Felicitaciones\!";
+"tomato.garden.exchange.awesome" = "¡Genial\!";
+
+// MARK: - Voice Settings
+"voiceSettings.title" = "Tus compañeros de estudio IA";
+"voiceSettings.voiceControls" = "Controles de voz";
+"voiceSettings.speakingSpeed" = "Velocidad de habla";
+"voiceSettings.speakingRate" = "Ritmo de habla";
+"voiceSettings.volume" = "Volumen";
+"voiceSettings.autoSpeakSettings" = "Configuración de voz automática";
+"voiceSettings.autoSpeakResponses" = "Hablar respuestas de IA automáticamente";
+"voiceSettings.autoSpeakDesc" = "Leer las respuestas de IA en voz alta automáticamente";
+"voiceSettings.voicePreview" = "Vista previa de voz";
+"voiceSettings.previewHint" = "Toca para escuchar cómo sonará tu asistente de IA con esta configuración:";
+"voiceSettings.playPreview" = "Reproducir vista previa";
+"voiceSettings.stopPreview" = "Detener vista previa";
+"voiceSettings.speed.verySlow" = "Muy lento";
+"voiceSettings.speed.slow" = "Lento";
+"voiceSettings.speed.normal" = "Normal";
+"voiceSettings.speed.fast" = "Rápido";
+"voiceSettings.speed.veryFast" = "Muy rápido";
+"voiceSettings.avatar.adam.desc" = "Un chico amable y alentador";
+"voiceSettings.avatar.eva.desc" = "Una chica amable y solidaria";
+"voiceSettings.avatar.max.desc" = "Un chico enérgico y entusiasta";
+"voiceSettings.avatar.mia.desc" = "Una chica juguetona y curiosa";
+"voiceSettings.stability" = "Estabilidad";
+"voiceSettings.stability.variable" = "Variable";
+"voiceSettings.stability.balanced" = "Equilibrado";
+"voiceSettings.stability.stable" = "Estable";
+"voiceSettings.style" = "Estilo";
+"voiceSettings.style.neutral" = "Neutro";
+"voiceSettings.style.expressive" = "Expresivo";
+"voiceSettings.style.bold" = "Intenso";
+
+// Onboarding — Parent Setup
+"onboarding.continue" = "Continuar";
+"onboarding.parentSetup.title" = "Configuración de padres";
+"onboarding.parentSetup.subtitle" = "Asegura los controles parentales";
+"onboarding.parentSetup.ageLabel" = "Tu edad";
+"onboarding.parentSetup.agePlaceholder" = "ej. 35";
+"onboarding.parentSetup.nameLabel" = "Nombre";
+"onboarding.parentSetup.namePlaceholder" = "Tu nombre";
+"onboarding.parentSetup.pinLabel" = "PIN de padres (6 dígitos)";
+"onboarding.parentSetup.pinPlaceholder" = "Ingresar PIN de 6 dígitos";
+"onboarding.parentSetup.confirmPinPlaceholder" = "Confirmar PIN";
+"onboarding.parentSetup.pinMismatch" = "Los PINs no coinciden";
+"onboarding.parentSetup.pinHint" = "PIN de 6 dígitos para bloquear los controles parentales para que tu hijo no pueda cambiarlos.";
+"onboarding.parentSetup.controlsLabel" = "Controles parentales";
+"onboarding.parentSetup.protectChat" = "Proteger chat con IA";
+"onboarding.parentSetup.protectGrader" = "Proteger calificador de tareas";
+"onboarding.parentSetup.protectReports" = "Proteger reportes parentales";
+"onboarding.parentSetup.pinLockHint" = "Ingresa y confirma un PIN de 6 dígitos válido arriba para habilitar los controles";
+
+// Onboarding — Language Selection (first page)
+"onboarding.language.title" = "Elige tu idioma";
+"onboarding.language.subtitle" = "Puedes cambiarlo en cualquier momento en Configuración";
+
+// Onboarding — Role
+"onboarding.role.title" = "¡Bienvenido!";
+"onboarding.role.subtitle" = "¿Quién está configurando la app?";
+"onboarding.role.student.title" = "Estudiante";
+"onboarding.role.student.subtitle" = "Quiero ayuda con mis estudios";
+"onboarding.role.parent.title" = "Padre/Madre";
+"onboarding.role.parent.subtitle" = "Estoy configurando esto para mi hijo";
+
+// Onboarding — Age
+"onboarding.age.title" = "¿Cuántos años tienes?";
+"onboarding.age.subtitle" = "Nos ayuda a personalizar la experiencia";
+"onboarding.age.placeholder" = "Ingresa tu edad";
+
+// Onboarding — Learning Style
+"onboarding.learningStyle.title" = "¿Cómo quieres que te ayude la IA?";
+"onboarding.learningStyle.subtitle" = "Puedes cambiarlo en cualquier momento en Configuración";
+"onboarding.learningStyle.guide" = "Guíame";
+"onboarding.learningStyle.tell" = "Dímelo";
+"onboarding.learningStyle.guide.desc" = "Hazme preguntas para que pueda resolverlo yo mismo";
+"onboarding.learningStyle.tell.desc" = "Dame la mejor solución y explícamela paso a paso";
+
+// Onboarding — Consent
+"onboarding.consent.title" = "Un último paso";
+"onboarding.consent.privacy.questions" = "Tus preguntas son privadas";
+"onboarding.consent.privacy.activity" = "Tu actividad ayuda a personalizar el aprendizaje";
+"onboarding.consent.privacy.profile" = "Tu perfil nunca se comparte";
+"onboarding.consent.privacyPolicy" = "Política de privacidad";
+"onboarding.consent.agree" = "Acepto la Política de privacidad";
+"onboarding.consent.required" = "Debes aceptar para continuar";
+"onboarding.getStarted" = "Comenzar";
+
+// Parent Reports — List View
+"reports.passive.title" = "Informes para Padres";
+"reports.passive.subtitle" = "Resúmenes semanales y mensuales del aprendizaje";
+"reports.passive.editReports" = "Editar informes";
+"reports.passive.testingMode" = "Modo de prueba";
+"reports.passive.testingMode.message" = "Genera informes manualmente para pruebas. Este botón se eliminará en producción.";
+"reports.passive.generateWeekly" = "Generar informe semanal";
+"reports.passive.generateMonthly" = "Generar informe mensual";
+"reports.passive.deleteTitle" = "¿Eliminar informes?";
+"reports.passive.deleteOne" = "Eliminar 1 informe";
+"reports.passive.deleteMany" = "Eliminar %d informes";
+"reports.passive.deleteConfirmOne" = "¿Seguro que quieres eliminar 1 informe? Esta acción no se puede deshacer.";
+"reports.passive.deleteConfirmMany" = "¿Seguro que quieres eliminar %d informes? Esta acción no se puede deshacer.";
+"reports.passive.loading" = "Cargando informes...";
+"reports.passive.empty.title" = "No hay informes disponibles";
+"reports.passive.empty.weekly" = "Los informes semanales se generan cada domingo a las 22:00. ¡Vuelve pronto!";
+"reports.passive.empty.monthly" = "Los informes mensuales se generan el día 1 de cada mes.";
+"reports.passive.reportsAvailable" = "%d informes disponibles";
+"reports.passive.metric.accuracy" = "Precisión";
+"reports.passive.metric.questions" = "Preguntas";
+"reports.passive.metric.studyTime" = "Tiempo de estudio";
+"reports.passive.metric.streak" = "Racha";
+"reports.passive.metric.engagement" = "Participación";
+"reports.passive.metric.confidence" = "Confianza";
+"reports.passive.trend.accuracy" = "Precisión";
+"reports.passive.trend.activity" = "Actividad";
+
+// Parent Reports — Detail View
+"reports.passive.weekly" = "Semanal";
+"reports.passive.monthly" = "Mensual";
+"reports.passive.weeklyReport" = "Informe semanal";
+"reports.passive.monthlyReport" = "Informe mensual";
+"reports.passive.detailedReports" = "INFORMES DETALLADOS";
+"reports.passive.keyInsights" = "Puntos clave";
+"reports.passive.recommendations" = "Recomendaciones";
+"reports.passive.learningProgress" = "PROGRESO DE APRENDIZAJE";
+"reports.passive.overallGrade" = "Nota general";
+"reports.passive.trend.improving" = "Mejorando";
+"reports.passive.trend.stable" = "Estable";
+"reports.passive.trend.declining" = "Bajando";
+"reports.passive.mental" = "Mental";
+"reports.passive.mental_health" = "Salud Mental y Bienestar";
+"reports.passive.mentalHealth.excellent" = "Excelente";
+"reports.passive.mentalHealth.good" = "Bueno";
+"reports.passive.mentalHealth.fair" = "Regular";
+"reports.passive.mentalHealth.low" = "Bajo";
+"reports.passive.activity" = "Informe de Actividad";
+"reports.passive.areas_of_improvement" = "Áreas de Mejora";
+"reports.passive.summary" = "Resumen Semanal/Mensual";
+
+// Parent Reports — Onboarding
+"reports.passive.onboarding.title" = "Obtén Resúmenes Semanales de Aprendizaje";
+"reports.passive.onboarding.subtitle" = "Informes generados por IA para padres, cada semana";
+"reports.passive.onboarding.feature.progress.title" = "Seguimiento del progreso";
+"reports.passive.onboarding.feature.progress.desc" = "Ve cómo mejora tu hijo cada semana";
+"reports.passive.onboarding.feature.ai.title" = "Insights con IA";
+"reports.passive.onboarding.feature.ai.desc" = "Recomendaciones personalizadas basadas en datos de tareas";
+"reports.passive.onboarding.feature.mental.title" = "Bienestar mental";
+"reports.passive.onboarding.feature.mental.desc" = "Monitorea señales de compromiso y confianza";
+"reports.passive.onboarding.feature.private.title" = "Privado y seguro";
+"reports.passive.onboarding.feature.private.desc" = "Los datos están cifrados y nunca se comparten con terceros";
+"reports.passive.onboarding.dataNote" = "Los datos de tareas se sincronizan automáticamente al generar un informe";
+"reports.passive.onboarding.enable" = "Activar informes para padres";
+"reports.passive.onboarding.noThanks" = "No, gracias";
+
+// New Practice Sheet
+"newPractice.title" = "Nueva práctica";
+"newPractice.error.title" = "Error al generar";
+"newPractice.error.sessionNotFound" = "Sesión no encontrada después de generar.";
+"newPractice.error.noSelection" = "Por favor, selecciona al menos una conversación o pregunta.";
+"newPractice.error.multipleSubjects" = "Los elementos seleccionados pertenecen a varios temas. Selecciona solo elementos de un tema.";
+
+// Practice Library
+"practiceLibrary.title" = "Práctica";
+"practiceLibrary.filterAll" = "Todo";
+"practiceLibrary.deleteTitle" = "¿Eliminar sesión?";
+"practiceLibrary.deleteMessage" = "Esta sesión de práctica se eliminará permanentemente.";
+"practiceLibrary.emptyTitle" = "Aún no hay sesiones de práctica";
+"practiceLibrary.emptySubtitle" = "Toca \"Nueva\" para generar tu primera sesión de práctica.";
+"practiceLibrary.generateFirst" = "Genera tu primera sesión";
+"practiceLibrary.sortNewest" = "Más reciente";
+"practiceLibrary.sortOldest" = "Más antiguo";
+"practiceLibrary.sortScore" = "Puntuación ↓";
+"practiceLibrary.sortIncomplete" = "Incompletos primero";
+"practiceLibrary.card.questionSingular" = "pregunta";
+"practiceLibrary.card.questionPlural" = "preguntas";
+"practiceLibrary.card.complete" = "Completado";
+"practiceLibrary.card.inProgress" = "En curso";
+"practiceLibrary.statusOngoing" = "En curso";
+"practiceLibrary.statusCompleted" = "Completado";
+
+// Practice Sheet
+"practiceSheet.questionCounter" = "P %d/%d";
+"practiceSheet.typeAnswerPlaceholder" = "Escribe tu respuesta aquí…";
+"practiceSheet.answersSection" = "Respuestas";
+"practiceSheet.yourAnswerLabel" = "Tu respuesta";
+"practiceSheet.noAnswer" = "(sin respuesta)";
+"practiceSheet.partialCredit" = "Crédito parcial";
+"practiceSheet.gradingInstant" = "Instantáneo";
+"practiceSheet.gradingAI" = "Calificado por IA";
+"practiceSheet.correctAnswer" = "Respuesta correcta";
+"practiceSheet.aiExplanation" = "Explicación de IA";
+"practiceSheet.nextQuestion" = "Siguiente pregunta";
+"practiceSheet.seeResults" = "Ver resultados";
+"practiceSheet.practiceComplete" = "¡Práctica completada\!";
+"practiceSheet.statCorrect" = "Correctas";
+"practiceSheet.statIncorrect" = "Incorrectas";
+"practiceSheet.statSkipped" = "Omitidas";
+"practiceSheet.slideToOrganizeHint" = "Desliza para archivar errores y marcar el progreso";
+"practiceSheet.organizedConfirm" = "Errores archivados · Progreso marcado";
+"practiceSheet.slideToOrganize" = "Deslizar para organizar";
+"practiceSheet.reviewButton" = "Revisar respuestas";
+"practiceSheet.redoButton" = "Rehacer";
+"practiceSheet.aiAnalyzing" = "La IA está analizando tu respuesta…";
+"practiceSheet.toastTitle" = "Organización automática completa";
+"practiceSheet.toastProgress" = "Progreso marcado para %@";
+"practiceSheet.toastMistakes" = "%d error(es) archivado(s) en la biblioteca";
+"practiceSheet.toastSaved" = "Sesión guardada";
+"practiceSheet.scoreExcellent" = "¡Excelente\!";
+"practiceSheet.scoreGreat" = "¡Muy bien\!";
+"practiceSheet.scoreGood" = "¡Sigue así\!";
+"practiceSheet.scorePractice" = "¡Sigue practicando\!";
+"practiceSheet.holdToSpeak" = "Mantén para hablar";
+"practiceSheet.voiceInput.release" = "Suelta para establecer respuesta";
+
+// Suggested Daily Todos
+"suggestedTodo.sectionTitle" = "Sugerencias";
+"suggestedTodo.empty" = "Todas las tareas de hoy completadas 🎉";
+"suggestedTodo.collapsed" = "Toca para ver las sugerencias de hoy";
+"suggestedTodo.resumePractice.title" = "Continuar práctica";
+"suggestedTodo.resumePractice.subtitle" = "%d preguntas restantes";
+"suggestedTodo.resumePractice.subtitleGeneral" = "Retomar donde lo dejaste";
+"suggestedTodo.mistakeReview.title" = "Repasar errores";
+"suggestedTodo.mistakeReview.subtitle" = "%d errores para repasar";
+"suggestedTodo.homeworkGrader.title" = "Deja que la IA analice tu tarea";
+"suggestedTodo.homeworkGrader.subtitle" = "Sin calificaciones hoy";
+"suggestedTodo.focusMode.title" = "Iniciar sesión de foco";
+"suggestedTodo.focusMode.subtitle" = "Sin sesiones de enfoque hoy";
+"suggestedTodo.focusMode.subtitleDone" = "Listo %d hoy · volver a intentar";
+"suggestedTodo.progress.title" = "Ver progreso semanal";
+"suggestedTodo.progress.subtitle" = "Mantén el control de tu aprendizaje";
+"suggestedTodo.progress.subtitleToday" = "Ver los resultados de aprendizaje de hoy";
+"suggestedTodo.greeting.0" = "Echa un vistazo ✨";
+"suggestedTodo.greeting.1" = "¿Qué te gustaría explorar hoy?";
+"suggestedTodo.greeting.2" = "Algunas ideas para ti";
+"suggestedTodo.greeting.3" = "¿Por qué no probar esto?";
+"suggestedTodo.greeting.4" = "¿Qué te apetece hoy?";
+"suggestedTodo.greeting.5" = "¿Te sientes inspirado? ¡Adelante!";
+"suggestedTodo.greeting.6" = "Elige una, sin presión";
+"suggestedTodo.greeting.7" = "Lo que te apetezca";
+"suggestedTodo.greeting.8" = "Solo sugerencias, sin obligación";
+"suggestedTodo.greeting.9" = "Un par de ideas para compartir";
+"suggestedTodo.greeting.10" = "Pequeños descubrimientos de hoy";
+"suggestedTodo.greeting.11" = "Elige la que quieras";
+"suggestedTodo.greeting.12" = "Sin prisa, sin presión";
+"suggestedTodo.greeting.13" = "Date una vuelta ✨";
+"suggestedTodo.greeting.14" = "¿Algo que te llame la atención?";
+
+// MARK: - Quick Action Labels
+"home.quickAction.chat" = "Preguntar IA";
+"home.quickAction.homework" = "Tarea";
+"home.quickAction.practice" = "Práctica";
+
+// MARK: - Suggested Todo Items
+"todo.mistakeReview.count.one" = "1 error";
+"todo.mistakeReview.count.many" = "%d errores";
+"todo.mistakeReview.title" = "Repasar errores";
+"todo.feynman.title" = "Método Feynman";
+"todo.feynman.subtitle" = "Generar ejercicios sobre \"%@\"";
+"todo.conceptReview.defaultSubject" = "Conversación reciente";
+"todo.conceptReview.title" = "Repaso de conceptos";
+"todo.conceptReview.subtitle" = "Preguntas de \"%@\"";
+"todo.randomPractice.defaultSubject" = "Todas las materias";
+"todo.randomPractice.title" = "Práctica aleatoria";
+"todo.randomPractice.subtitle" = "%@ · 5 preguntas";
+"todo.practiceRetry.title" = "Intentar %@ de nuevo";
+"todo.practiceRetry.subtitle" = "Última puntuación %@ — ¡sigue adelante!";
+"todo.grader.title" = "Corregir tarea de hoy";
+"todo.grader.subtitle" = "Toma una foto para análisis de IA";
+"todo.chat.title" = "Pregunta a la IA";
+"todo.chat.subtitle" = "Pregunta lo que te confunde hoy";
+"todo.focus.title" = "Pomodoro 25 min";
+"todo.focus.subtitle.none" = "Sin sesión de enfoque hoy";
+"todo.focus.subtitle.some" = "%d completadas hoy · otra vez";
+"todo.album.title" = "Álbum de tareas";
+"todo.album.subtitle.generic" = "Ver tarea guardada";
+"todo.album.subtitle.subject" = "Último: %@";
+"todo.progress.title" = "Progreso semanal";
+"todo.progress.subtitle.today" = "Ver resultados de hoy";
+"todo.progress.subtitle.general" = "Seguir tu aprendizaje";
+"todo.oral.title" = "Práctica oral con IA";
+"todo.oral.subtitle" = "Habla con IA sobre la lección de hoy";
+"todo.dailyQuestion.title" = "¿Sabías que...?";
+"todo.dailyQuestion.fallback.title" = "Iniciar conversación con IA";
+"todo.dailyQuestion.fallback.subtitle" = "Pregúntale a la IA lo que quieras";
+"chat.liveMode.oralPractice.starterPrompt" = "¡Practiquemos la conversación! Puedes hacerme preguntas, corregir mi pronunciación o hablar libremente. ¿En qué quieres trabajar?";
+
+// MARK: - Live Mode Scenario Cards
+"live.scenario.oralPractice.title" = "Práctica oral";
+"live.scenario.oralPractice.subtitle" = "Conversación libre, mejorar la fluidez";
+"live.scenario.oralComposition.title" = "Ensayo oral";
+"live.scenario.oralComposition.subtitle" = "Habla tus ideas, la IA guía el plan";
+"live.scenario.debate.title" = "Compañero de debate";
+"live.scenario.debate.subtitle" = "La IA elige el tema, tú eliges posición";
+"live.scenario.interview.title" = "Entrevista simulada";
+"live.scenario.interview.subtitle" = "Simula una entrevista real, la IA da retroalimentación";
+"live.scenario.classroomQA.title" = "Preguntas de clase";
+"live.scenario.classroomQA.subtitle" = "Enfocarse en puntos débiles, examen oral";
+"live.scenario.presentation.title" = "Presentación";
+"live.scenario.presentation.subtitle" = "Entrega completa, la IA da retroalimentación en 3 ejes";
+"live.scenario.historicalFigure.title" = "Personaje histórico";
+"live.scenario.historicalFigure.subtitle" = "Viajar por la historia, hablar con un genio";
+"live.scenarioPicker.title" = "Elige un escenario";
+"live.scenarioPicker.subtitle" = "La IA te guiará durante toda la sesión";
+
+// Report priority labels
+"report.priority.high" = "Alto";
+"report.priority.medium" = "Medio";
+"report.priority.low" = "Bajo";
+
+// Heatmap
+"heatmap.title" = "Mapa de calor de puntos débiles";
+"heatmap.subTopics" = "· Subtemas";
+"heatmap.back" = "Atrás";
+"heatmap.noDetailedData" = "Aún no hay datos detallados para esta rama.";
+"heatmap.noPracticeData" = "Aún no hay datos de práctica. Responde algunas preguntas para ver tus áreas débiles aquí.";
+
+// Common additional
+"common.apply" = "Aplicar";
+
+// Settings additional
+"settings.grade" = "Curso";
+"settings.notSet" = "No establecido";
+"settings.subscription" = "Suscripción";
+
+// Upgrade Comparison View
+"upgrade.comparison.headerTitle" = "Mejora tu StudyMate IA";
+"upgrade.comparison.headerSubtitle" = "Obtén ayuda ilimitada con un tutor IA interactivo.";
+"upgrade.comparison.badgeFreeToTry" = "Prueba gratis";
+"upgrade.comparison.badgeMostPopular" = "Más popular";
+"upgrade.comparison.badgeBestValue" = "Mejor valor";
+"upgrade.comparison.planFree" = "Gratis";
+"upgrade.comparison.planPremium" = "Premium";
+"upgrade.comparison.planUltra" = "Ultra";
+"upgrade.comparison.pricePeriod" = "/mes";
+"upgrade.comparison.featureHomework" = "Subir\ntarea";
+"upgrade.comparison.featureAiChat" = "Chat\ncon IA";
+"upgrade.comparison.featureLiveTutor" = "Tutor\nen vivo";
+"upgrade.comparison.featurePractice" = "Práctica\nenfocada";
+"upgrade.comparison.featureWeakness" = "Análisis de\ndebilidades";
+"upgrade.comparison.featureReports" = "Informes\npara padres";
+"upgrade.comparison.featureMultipleKids" = "Varios\nhijos";
+"upgrade.comparison.valueLiveTutor" = "300 min";
+"upgrade.comparison.valueMultipleKids" = "Hasta 3";
+"upgrade.comparison.ctaUltra" = "Empezar Ultra  %@";
+"upgrade.comparison.ctaPremium" = "Empezar Premium  %@";
+"upgrade.comparison.continueFree" = "Continuar con Gratis";
+"upgrade.comparison.restorePurchases" = "Restaurar compras";
+"upgrade.comparison.terms" = "Las suscripciones se renuevan automáticamente a menos que se cancelen al menos 24 horas antes del final del período actual. Administra o cancela en cualquier momento en Configuración > ID de Apple > Suscripciones.";
+"upgrade.comparison.yourCurrentUsage" = "Tu uso actual";
+"upgrade.comparison.usageHomework" = "Tarea";
+"upgrade.comparison.usageChat" = "Chat";
+"upgrade.comparison.usagePractice" = "Práctica";
+"upgrade.comparison.usageUsed" = "%1$d / %2$d usados";
+
+// Account Usage View
+"account.usage.title" = "Plan y uso";
+"account.usage.loadError" = "No se pudo cargar el uso";
+"account.usage.lifetimeLimits" = "Se aplican límites de por vida";
+"account.usage.resetsOn" = "Restablece el %@";
+"account.usage.unlimited" = "Ilimitado";
+"account.usage.upgradeLabel" = "Mejorar";
+"account.usage.upgradePlan" = "Mejorar plan";
+"account.usage.restorePurchases" = "Restaurar compras";
+"account.usage.manageSubscription" = "Administrar suscripción";
+"account.usage.tierGuest" = "Cuenta de invitado";
+"account.usage.tierPremium" = "Premium";
+"account.usage.tierUltra" = "Ultra";
+"account.usage.tierFree" = "Gratis";
+"account.usage.badgeGuest" = "Invitado";
+"account.usage.feature.homework_single" = "Subir tarea";
+"account.usage.feature.homework_batch" = "Subida en lote";
+"account.usage.feature.chat_messages" = "Chat con IA";
+"account.usage.feature.questions" = "Preguntas de práctica";
+"account.usage.feature.error_analysis" = "Análisis de debilidades";
+"account.usage.feature.reports" = "Informes para padres";
+"account.usage.feature.voice_minutes" = "Tutor en vivo";
+"account.usage.feature.tts_calls" = "Voz IA";
+
+// Saved Digital Homework
+"savedDigitalHomework.title" = "Tarea digital";
+"savedDigitalHomework.redo" = "Rehacer";
+
+// Live leave
+"live.leave.title" = "¿Salir del chat en vivo?";
+"live.leave.message" = "Salir de esta página finalizará tu sesión en vivo y borrará la conversación.";
+"live.leave.confirm" = "Salir y limpiar";
+"live.leave.cancel" = "Quedarse";
+
+// PDF Options
+"pdf.options.title" = "Opciones de exportación";
+"pdf.options.section.text" = "Texto";
+"pdf.options.section.spacing" = "Espaciado";
+"pdf.options.section.images" = "Imágenes";
+"pdf.options.fontSize" = "Tamaño de fuente";
+"pdf.options.gap" = "Espacio entre preguntas";
+"pdf.options.maxImageSize" = "Tamaño máximo de imagen";
+"pdf.options.maxSubImageSize" = "Tamaño máximo de subimagen";
+"pdf.options.reset" = "Restablecer valores predeterminados";
+"pdf.options.footer" = "Toca Aplicar para regenerar el PDF con esta configuración.";
+"pdf.practice.title" = "Preguntas de práctica";
+"pdf.mistakes.title" = "Revisión de errores";
+"pdf.homework.title" = "Preguntas de tarea";
+"pdf.library.title" = "Preguntas de la biblioteca";
+"pdf.header.subject" = "Materia: %@";
+"pdf.header.generatedOn.withType" = "Generado el %@ • %@";
+"pdf.header.generatedOn.withCount" = "Generado el %@ • %d preguntas";
+"pdf.header.questionCount" = "%d preguntas";
+"pdf.instruction.practice" = "Responde cada pregunta en el espacio proporcionado. Muestra tu trabajo donde corresponda.";
+"pdf.instruction.mistakes" = "Revisa estas preguntas y escribe tus respuestas en el espacio proporcionado debajo de cada pregunta.";
+"pdf.instruction.homework" = "Estas son las preguntas de tu tarea.";
+"pdf.instruction.library" = "Revisa cada pregunta y escribe tus respuestas en el espacio proporcionado.";
+"pdf.question.label" = "Pregunta %@";
+"pdf.question.noText" = "[Texto de la pregunta no disponible]";
+"pdf.mistake.hint" = "💡 Originalmente respondiste: \"%@\"";
+"pdf.mistake.noAnswer" = "Sin respuesta";
+
+// Library PDF and Selection
+"library.pdf.generating" = "Generando PDF…";
+"library.pdf.error" = "Error al generar el PDF";
+"library.pdf.email.subject" = "Preguntas de la biblioteca — %@";
+"library.pdf.emailBody" = "¡Hola!\n\nAdjunto %d pregunta(s) de la biblioteca para %@ de StudyMates.\n\nGenerado por StudyMates — Tu compañero de estudio IA\n\nSaludos";
+"library.selection.selectAll" = "Seleccionar todo";
+"library.selection.deselectAll" = "Deseleccionar todo";
+"library.selection.noneSelected" = "Ninguno seleccionado";
+"library.selection.countSelected" = "%d seleccionados";
+"library.selection.pdf" = "PDF";
+
+// Tomato Garden — type names and descriptions
+"tomato.garden.type.tmt4" = "Tomate 4";
+"tomato.garden.type.tmt5" = "Tomate 5";
+"tomato.garden.type.tmt6" = "Tomate 6";
+"tomato.garden.desc.classic" = "El tomate clásico: sencillo y adorable";
+"tomato.garden.desc.curly" = "Un tomate con enredaderas rizadas, lleno de energía";
+"tomato.garden.desc.cute" = "Un suave tomate rosa, cálido y tierno";
+"tomato.garden.desc.tmt4" = "Un tomate ordinario, humilde y sincero";
+"tomato.garden.desc.tmt5" = "Un tomate ordinario, sencillo y alegre";
+"tomato.garden.desc.tmt6" = "Un tomate ordinario, trabajador y lindo";
+"tomato.garden.desc.batman" = "El guardián Caballero Oscuro, símbolo de la justicia";
+"tomato.garden.desc.ironman" = "La fusión perfecta entre tecnología y poder";
+"tomato.garden.desc.mario" = "Un valiente fontanero aventurero";
+"tomato.garden.desc.pokemon" = "Un maravilloso compañero Pokémon";
+"tomato.garden.desc.golden" = "Un brillante tomate dorado, símbolo de riqueza y gloria";
+"tomato.garden.desc.platinum" = "Tan precioso como el platino, irradiando brillo noble";
+"tomato.garden.desc.diamond" = "El legendario tomate de diamante: extraordinariamente raro y precioso";

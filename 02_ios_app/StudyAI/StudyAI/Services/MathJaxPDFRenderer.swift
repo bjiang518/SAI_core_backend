@@ -28,7 +28,6 @@ final class MathJaxPDFRenderer: NSObject {
     private var continuation: CheckedContinuation<UIImage?, Never>?
     private var pendingWidth: CGFloat = 504
     private var timeoutTask: Task<Void, Never>?
-    private var pendingTempURL: URL?
 
     // MARK: - Public API
 
@@ -46,6 +45,7 @@ final class MathJaxPDFRenderer: NSObject {
         scale: CGFloat = 2
     ) async -> UIImage? {
         pendingWidth = width * scale
+        let renderStart = CFAbsoluteTimeGetCurrent()
 
         log.info("▶︎ render() called — width=\(width)pt scaled=\(pendingWidth)px fontSize=\(fontSize)pt text.prefix(80)='\(text.prefix(80))'")
 
@@ -67,39 +67,38 @@ final class MathJaxPDFRenderer: NSObject {
 
         let html = makeHTML(text: text, fontSize: fontSize * scale)
 
-        // Write HTML to a temp file and use loadFileURL so the WebContent process
-        // gets explicit read access to Bundle.main.bundleURL. This is required on
-        // physical devices where loadHTMLString(baseURL:) does NOT grant the sandboxed
-        // WebContent process access to app-bundle font files (woff2 / woff).
-        let tempURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString + ".html")
-        do {
-            try html.write(to: tempURL, atomically: true, encoding: .utf8)
-        } catch {
-            log.error("  Failed to write temp HTML file: \(error)")
-            cleanup()
-            return nil
-        }
-        pendingTempURL = tempURL
-        log.info("  loadFileURL() — tempURL=\(tempURL.path) allowingReadAccessTo=\(Bundle.main.bundleURL.path) html.count=\(html.count)")
-        wv.loadFileURL(tempURL, allowingReadAccessTo: Bundle.main.bundleURL)
+        // Use loadHTMLString with baseURL = bundle resource URL — this is the same
+        // approach used by the working in-app MathJaxRenderer and avoids WebContent
+        // process crashes that occur with loadFileURL on physical devices.
+        let baseURL = Bundle.main.resourceURL
+        log.info("  loadHTMLString — baseURL=\(baseURL?.path ?? "nil") html.count=\(html.count)")
+        wv.loadHTMLString(html, baseURL: baseURL)
 
-        // Arm a 10-second timeout so the continuation always resumes
+        // Arm a 12-second timeout so the continuation always resumes
         let capturedLog = log
         timeoutTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 10_000_000_000)
+            try? await Task.sleep(nanoseconds: 12_000_000_000)
             guard !Task.isCancelled else { return }
             await MainActor.run {
-                capturedLog.error("  ⏱️ TIMEOUT — mathJaxReady never fired after 10 s. Resuming with nil.")
+                capturedLog.error("  ⏱️ TIMEOUT — mathJaxReady never fired after 12 s. Resuming with nil.")
                 self?.cleanup()
                 self?.resume(nil)
             }
         }
 
         // Await the mathJaxReady + resize signal, then snapshot
-        return await withCheckedContinuation { cont in
+        let result = await withCheckedContinuation { cont in
             self.continuation = cont
         }
+
+        let elapsed = CFAbsoluteTimeGetCurrent() - renderStart
+        let pdfLog = AppLogger.pdfLatexLogger
+        if let img = result {
+            pdfLog.pdfLatex("render ✅ SUCCESS in \(String(format: "%.2f", elapsed))s — image=\(img.size.width)×\(img.size.height)pt scale=\(img.scale)")
+        } else {
+            pdfLog.pdfLatex("render ❌ FAILED in \(String(format: "%.2f", elapsed))s — text.prefix(60)='\(text.prefix(60))'")
+        }
+        return result
     }
 
     // MARK: - WebView factory
@@ -153,16 +152,11 @@ final class MathJaxPDFRenderer: NSObject {
             scriptTag = "<script src=\"https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml.min.js\"></script>"
         }
 
-        // Escape for HTML but preserve LaTeX delimiters
+        // Escape HTML special characters (backslash and LaTeX delimiters are safe and need no escaping)
         let escaped = text
             .replacingOccurrences(of: "&", with: "&amp;")
             .replacingOccurrences(of: "<", with: "&lt;")
             .replacingOccurrences(of: ">", with: "&gt;")
-            // Restore LaTeX delimiters that got escaped
-            .replacingOccurrences(of: "\\(", with: "\\(")
-            .replacingOccurrences(of: "\\)", with: "\\)")
-            .replacingOccurrences(of: "\\[", with: "\\[")
-            .replacingOccurrences(of: "\\]", with: "\\]")
             .replacingOccurrences(of: "\n", with: "<br>")
 
         return """
@@ -187,24 +181,13 @@ final class MathJaxPDFRenderer: NSObject {
                 processEscapes: true,
                 processEnvironments: true
             },
+            chtml: {
+                fontURL: 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/output/chtml/fonts/woff-v2'
+            },
             options: { skipHtmlTags: ['script','noscript','style','textarea','pre'] },
             startup: {
                 ready() {
                     MathJax.startup.defaultReady();
-                    MathJax.startup.promise.then(() => {
-                        // Wait for fonts to finish loading before signalling ready.
-                        // Without this, CHTML snapshots are taken before font metrics
-                        // are available, producing near-zero-height images on device.
-                        return document.fonts.ready;
-                    }).then(() => {
-                        var h = document.body.scrollHeight;
-                        window.webkit.messageHandlers.resize.postMessage(h);
-                        window.webkit.messageHandlers.mathJaxReady.postMessage('ready');
-                    }).catch(function(err) {
-                        try {
-                            window.webkit.messageHandlers.jsError.postMessage('MathJax promise rejected: ' + err);
-                        } catch(e) {}
-                    });
                 }
             }
         };
@@ -222,9 +205,40 @@ final class MathJaxPDFRenderer: NSObject {
         }
         mjx-container { color: #000000 !important; background: transparent !important; }
         mjx-container[display="true"] { display:block !important; text-align:left; margin: 0.3em 0 !important; }
+        #content { padding-bottom: 60px; }
         </style>
         </head>
-        <body><div id="content">\(escaped)</div></body>
+        <body>
+        <div id="content">\(escaped)</div>
+        <script>
+        var readySent = false;
+        function reportHeight(signalReady) {
+            var h = Math.max(
+                document.getElementById('content').scrollHeight,
+                document.body.scrollHeight,
+                document.documentElement.scrollHeight
+            );
+            window.webkit.messageHandlers.resize.postMessage(h);
+            if (signalReady && !readySent) {
+                readySent = true;
+                window.webkit.messageHandlers.mathJaxReady.postMessage('ready');
+            }
+        }
+        MathJax.startup.promise.then(function() {
+            // First pass: update height immediately after MathJax typesetting
+            requestAnimationFrame(function() { reportHeight(false); });
+            // Second pass: wait for CHTML web fonts to load and re-measure
+            // Only THIS call signals mathJaxReady so the snapshot uses the final height
+            setTimeout(function() {
+                requestAnimationFrame(function() { reportHeight(true); });
+            }, 600);
+        });
+        // Hard fallback: if MathJax startup promise never resolves, signal after 5s
+        setTimeout(function() {
+            if (!readySent) { reportHeight(true); }
+        }, 5000);
+        </script>
+        </body>
         </html>
         """
     }
@@ -272,10 +286,6 @@ final class MathJaxPDFRenderer: NSObject {
     private func cleanup() {
         webView?.removeFromSuperview()
         webView = nil
-        if let url = pendingTempURL {
-            try? FileManager.default.removeItem(at: url)
-            pendingTempURL = nil
-        }
         log.info("  cleanup() — webView removed from superview")
     }
 }
@@ -288,8 +298,15 @@ extension MathJaxPDFRenderer: WKScriptMessageHandler {
         case "mathJaxReady":
             log.info("  ✓ mathJaxReady received")
             guard let wv = webView else { resume(nil); return }
-            let height = max(wv.scrollView.contentSize.height, 20)
-            log.info("  → taking snapshot at height=\(height)")
+            // Use the larger of:
+            //   • wv.frame.size.height — set synchronously by the JS resize handler
+            //   • wv.scrollView.contentSize.height — WebKit's own post-layout measurement
+            // The JS scrollHeight can undercount absolute-positioned MathJax elements;
+            // scrollView.contentSize reflects the actual rendered extent after layout.
+            let frameH = wv.frame.size.height
+            let scrollH = wv.scrollView.contentSize.height
+            let height = max(frameH, scrollH, 20)
+            log.info("  → taking snapshot at height=\(height) (frameH=\(frameH) scrollH=\(scrollH))")
             takeSnapshot(height: height)
 
         case "resize":

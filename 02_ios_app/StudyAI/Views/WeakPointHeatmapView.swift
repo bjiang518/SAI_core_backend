@@ -2,8 +2,9 @@
 //  WeakPointHeatmapView.swift
 //  StudyAI
 //
-//  Semicircular arc heatmap showing top-3 weak branches and their accuracy.
-//  Tapping a legend row drills into the branch's sub-topics.
+//  Semicircular arc heatmap. Each arc = one branch, full 180°.
+//  Green from left = correct proportion, Red from right = wrong proportion.
+//  Tap a chip to drill into sub-topics.
 //
 
 import SwiftUI
@@ -12,7 +13,6 @@ struct WeakPointHeatmapView: View {
     let subject: String
     let mistakeService: MistakeReviewService
 
-    // Observe so the view refreshes when weakness values change after practice
     @ObservedObject private var statusService = ShortTermStatusService.shared
 
     @State private var selectedBaseBranch: String? = nil
@@ -42,8 +42,8 @@ struct WeakPointHeatmapView: View {
                         reAnimate()
                     }
 
-                legendRows
-                    .padding(.top, 10)
+                legendChips
+                    .padding(.top, 12)
             }
         }
         .padding()
@@ -65,27 +65,16 @@ struct WeakPointHeatmapView: View {
                         .font(.caption.weight(.semibold))
                         .foregroundColor(.blue)
                 }
-
-                Text(base)
+                Text(BranchLocalizer.localized(base))
                     .font(.subheadline).fontWeight(.semibold)
                     .lineLimit(1)
-
-                Text("· Sub-topics")
+                Text(NSLocalizedString("heatmap.subTopics", comment: ""))
                     .font(.caption).foregroundColor(.secondary)
             } else {
-                Image(systemName: "flame.fill")
-                    .font(.caption).foregroundColor(.orange)
-
-                Text("Weak Point Heatmap")
+                Text(NSLocalizedString("heatmap.title", comment: ""))
                     .font(.subheadline).fontWeight(.semibold)
             }
-
             Spacer()
-
-            if selectedBaseBranch == nil && !displayBranches.isEmpty {
-                Text("Tap to drill in")
-                    .font(.caption2).foregroundColor(.secondary)
-            }
         }
     }
 
@@ -93,8 +82,8 @@ struct WeakPointHeatmapView: View {
 
     private var emptyState: some View {
         Text(selectedBaseBranch != nil
-             ? "No detailed data yet for this branch."
-             : "No practice data yet. Answer some questions to see your weak areas here.")
+             ? NSLocalizedString("heatmap.noDetailedData", comment: "")
+             : NSLocalizedString("heatmap.noPracticeData", comment: ""))
             .font(.caption)
             .foregroundColor(.secondary)
             .multilineTextAlignment(.center)
@@ -102,141 +91,192 @@ struct WeakPointHeatmapView: View {
             .padding(.vertical, 24)
     }
 
-    // MARK: - Arc Chart (Canvas)
+    // MARK: - Arc Chart
+
+    // Fixed geometry constants — change these to tune appearance
+    private let arcThickness: CGFloat = 22
+    private let arcOuterRadius: CGFloat = 80
+    private let arcGap: CGFloat = 26          // center-line gap between arcs
 
     private var arcChartHeight: CGFloat {
-        let count = CGFloat(max(displayBranches.count, 1))
-        return 34 + count * 34
+        // Frame tall enough so top of outermost arc stroke isn't clipped
+        arcOuterRadius + arcThickness / 2 + 14
     }
 
     private var arcChart: some View {
-        Canvas { ctx, size in
-            let count = displayBranches.count
+        let progress = arcProgress
+        let branches = displayBranches
+        let thickness = arcThickness
+        let outerRadius = arcOuterRadius
+        let gap = arcGap
+        return Canvas { ctx, size in
+            let count = branches.count
             guard count > 0 else { return }
 
             let cx = size.width / 2
-            let cy = size.height - 6
+            // Center at bottom; leave room for stroke cap at top
+            let cy = size.height - 4
             let center = CGPoint(x: cx, y: cy)
 
-            // Distribute arcs evenly between minRadius and the available width
-            let outerR: CGFloat = min(cx - 18, size.height - 10)
-            let innerR: CGFloat = max(outerR - CGFloat(count) * 32, 28)
-            let spacing: CGFloat = count > 1 ? (outerR - innerR) / CGFloat(count - 1) : 0
-            let thickness: CGFloat = min(22, (outerR - innerR) / CGFloat(count) * 0.72)
+            for idx in 0 ..< count {
+                let branch = branches[idx]
+                let r = outerRadius - CGFloat(idx) * gap
 
-            for (i, branch) in displayBranches.enumerated() {
-                let r = outerR - CGFloat(i) * spacing
+                let accuracy = branch.accuracy
+                let wrongFraction = branch.totalAttempts > 0
+                    ? Double(branch.totalAttempts - branch.correctAttempts) / Double(branch.totalAttempts)
+                    : 0.0
 
-                // Background track (full 180°)
+                // ── Gray background track (full 180°) ────────────────────────
                 var bgPath = Path()
                 bgPath.addArc(center: center, radius: r,
-                              startAngle: .degrees(180), endAngle: .degrees(0),
+                              startAngle: .degrees(180), endAngle: .degrees(360),
                               clockwise: false)
                 ctx.stroke(bgPath,
                            with: .color(.gray.opacity(0.15)),
                            style: StrokeStyle(lineWidth: thickness, lineCap: .round))
 
-                // Accuracy fill — animated from 0° to (accuracy × 180°)
-                let fillEnd = 180.0 - branch.accuracy * arcProgress * 180.0
-                if branch.accuracy > 0 {
-                    var fillPath = Path()
-                    fillPath.addArc(center: center, radius: r,
-                                    startAngle: .degrees(180), endAngle: .degrees(fillEnd),
-                                    clockwise: false)
-                    ctx.stroke(fillPath,
-                               with: .color(branch.heatColor),
+                guard branch.totalAttempts > 0 else { continue }
+
+                let junctionAngle = 180.0 + accuracy * progress * 180.0
+
+                // A round cap extends thickness/2 pixels past its endpoint along the arc.
+                // In degrees: capDeg = (thickness/2) / r * (180/π).
+                // halfGap must exceed capDeg so the two caps don't overlap each other.
+                // Adding an extra 2° on top creates a visible white gap.
+                let capDeg = Double(thickness) / 2.0 / Double(r) * (180.0 / .pi)
+                let halfGap = capDeg + 2.0   // endpoint offset so caps don't touch
+
+                let greenEnd = junctionAngle - halfGap
+                let redStart  = junctionAngle + halfGap
+
+                // ── Red (drawn first, green will be on top for its outer cap) ──
+                if wrongFraction > 0 && redStart < 359.5 {
+                    var redPath = Path()
+                    redPath.addArc(center: center, radius: r,
+                                   startAngle: .degrees(redStart), endAngle: .degrees(360),
+                                   clockwise: false)
+                    ctx.stroke(redPath,
+                               with: .color(Color.red),
+                               style: StrokeStyle(lineWidth: thickness, lineCap: .round))
+                }
+
+                // ── Green (drawn on top so its outer left cap is never hidden) ─
+                if accuracy > 0 && greenEnd > 181.0 {
+                    var greenPath = Path()
+                    greenPath.addArc(center: center, radius: r,
+                                     startAngle: .degrees(180), endAngle: .degrees(greenEnd),
+                                     clockwise: false)
+                    ctx.stroke(greenPath,
+                               with: .color(Color.green),
+                               style: StrokeStyle(lineWidth: thickness, lineCap: .round))
+                }
+
+                // ── Whole-arc case: only one color (draw with outer round caps) ─
+                if accuracy <= 0 && wrongFraction > 0 {
+                    // 0% correct — full red with round caps at both ends
+                    var redPath = Path()
+                    redPath.addArc(center: center, radius: r,
+                                   startAngle: .degrees(180), endAngle: .degrees(360),
+                                   clockwise: false)
+                    ctx.stroke(redPath,
+                               with: .color(Color.red),
+                               style: StrokeStyle(lineWidth: thickness, lineCap: .round))
+                } else if wrongFraction <= 0 && accuracy > 0 {
+                    // 100% correct — full green
+                    var greenPath = Path()
+                    greenPath.addArc(center: center, radius: r,
+                                     startAngle: .degrees(180), endAngle: .degrees(360),
+                                     clockwise: false)
+                    ctx.stroke(greenPath,
+                               with: .color(Color.green),
                                style: StrokeStyle(lineWidth: thickness, lineCap: .round))
                 }
             }
         }
     }
 
-    // MARK: - Legend Rows
+    // MARK: - Legend Chips
 
-    private var legendRows: some View {
-        VStack(spacing: 0) {
-            ForEach(Array(displayBranches.enumerated()), id: \.element.id) { idx, branch in
-                VStack(spacing: 0) {
-                    legendRow(branch: branch, rank: idx + 1)
-                        .padding(.vertical, 8)
-
-                    if idx < displayBranches.count - 1 {
-                        Divider().padding(.leading, 30)
+    private var legendChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                if selectedBaseBranch != nil {
+                    Button {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                            selectedBaseBranch = nil
+                        }
+                    } label: {
+                        HStack(spacing: 3) {
+                            Image(systemName: "chevron.left")
+                                .font(.caption2.weight(.semibold))
+                            Text(NSLocalizedString("heatmap.back", comment: ""))
+                        }
+                        .font(.caption2.weight(.medium))
+                        .foregroundColor(.blue)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Capsule().fill(Color.blue.opacity(0.10)))
                     }
+                    .buttonStyle(PlainButtonStyle())
+                }
+
+                let chips = displayBranches
+                ForEach(0 ..< chips.count, id: \.self) { idx in
+                    let branch = chips[idx]
+                    let borderColor: Color = branch.accuracy >= 0.5 ? .green : .red
+                    Button {
+                        guard selectedBaseBranch == nil else { return }
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                            selectedBaseBranch = branch.name
+                        }
+                    } label: {
+                        HStack(spacing: 5) {
+                            // Mini accuracy bar (two-tone 14pt wide strip)
+                            GeometryReader { g in
+                                ZStack(alignment: .leading) {
+                                    Capsule().fill(Color.red.opacity(0.85))
+                                    Capsule()
+                                        .fill(Color.green)
+                                        .frame(width: g.size.width * CGFloat(branch.accuracy))
+                                }
+                            }
+                            .frame(width: 14, height: 6)
+                            .clipShape(Capsule())
+
+                            Text(BranchLocalizer.localized(branch.name))
+                                .font(.caption2.weight(.medium))
+                                .foregroundColor(.primary)
+                                .lineLimit(1)
+
+                            Text("\(Int(branch.accuracy * 100))%")
+                                .font(.caption2.weight(.bold))
+                                .foregroundColor(borderColor)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(
+                            Capsule()
+                                .fill(borderColor.opacity(0.06))
+                                .overlay(Capsule().stroke(borderColor.opacity(0.40), lineWidth: 1))
+                        )
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .disabled(selectedBaseBranch != nil)
                 }
             }
+            .padding(.horizontal, 2)
         }
     }
 
-    private func legendRow(branch: BranchAccuracyData, rank: Int) -> some View {
-        Button {
-            guard selectedBaseBranch == nil else { return }
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-                selectedBaseBranch = branch.name
-            }
-        } label: {
-            HStack(spacing: 10) {
-                // Rank badge
-                ZStack {
-                    Circle()
-                        .fill(branch.heatColor)
-                        .frame(width: 20, height: 20)
-                    Text("\(rank)")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(.white)
-                }
-
-                // Branch name
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(branch.name)
-                        .font(.caption.weight(.medium))
-                        .foregroundColor(.primary)
-                        .lineLimit(1)
-
-                    if branch.isMastered {
-                        Text("Mastered")
-                            .font(.caption2)
-                            .foregroundColor(.green)
-                    }
-                }
-
-                Spacer()
-
-                // Accuracy display
-                if branch.totalAttempts > 0 {
-                    VStack(alignment: .trailing, spacing: 1) {
-                        Text("\(Int(branch.accuracy * 100))%")
-                            .font(.subheadline.monospacedDigit().weight(.bold))
-                            .foregroundColor(branch.heatColor)
-                        Text("\(branch.totalAttempts) attempts")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-                } else {
-                    Text("—")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-
-                // Drill-in chevron (base level only)
-                if selectedBaseBranch == nil {
-                    Image(systemName: "chevron.right")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(PlainButtonStyle())
-        .disabled(selectedBaseBranch != nil)
-    }
-
-    // MARK: - Animation Helpers
+    // MARK: - Animation
 
     private func animateIn() {
         arcProgress = 0
-        withAnimation(.easeOut(duration: 1.1).delay(0.1)) {
-            arcProgress = 1
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            withAnimation(.easeOut(duration: 1.1)) {
+                arcProgress = 1
+            }
         }
     }
 

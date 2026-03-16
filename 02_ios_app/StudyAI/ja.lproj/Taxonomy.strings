@@ -1,0 +1,29 @@
+/* Taxonomy.strings (Japanese)
+   Localized branch names for error analysis taxonomy */
+
+/* ===== SUBJECT NAMES ===== */
+"Mathematics" = "数学";
+"Math" = "数学";
+"Science" = "理科";
+"Physics" = "物理";
+"Chemistry" = "化学";
+"Biology" = "生物";
+"English" = "英語";
+"History" = "歴史";
+"Geography" = "地理";
+"Computer Science" = "情報科学";
+"Literature" = "文学";
+"Social Studies" = "社会科学";
+"Economics" = "経済学";
+"Art" = "美術";
+"Music" = "音楽";
+"Other" = "その他";
+"Others:" = "その他:";
+"Chinese" = "中国語";
+"French" = "フランス語";
+"Spanish" = "スペイン語";
+"German" = "ドイツ語";
+"Japanese" = "日本語";
+"Korean" = "韓国語";
+"Latin" = "ラテン語";
+"Physical Education" = "体育";

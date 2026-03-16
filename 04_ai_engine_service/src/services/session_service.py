@@ -308,10 +308,16 @@ Summary:"""
         role: str,
         content: str,
         image_data: Optional[str] = None,
+        _session: Optional["StudySession"] = None,
     ) -> Optional["StudySession"]:
-        """Add a message to an existing session with auto-compression."""
-        
-        session = await self.get_session(session_id)
+        """Add a message to an existing session with auto-compression.
+
+        Pass ``_session`` to reuse an already-fetched / seeded session object
+        instead of doing a second Redis round-trip.  This is critical for
+        correctness: the caller's local session variable must stay in sync with
+        what is sent to the OpenAI API (via get_context_for_api).
+        """
+        session = _session or await self.get_session(session_id)
         if not session:
             return None
         

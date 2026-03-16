@@ -159,9 +159,7 @@ struct DailyCheckoutView: View {
                     HStack {
                         Image(systemName: goal.type.icon)
                             .foregroundColor(goal.type.color)
-                        Text(goal.title)
-                        Spacer()
-                        Text("+\(goal.pointsEarned)")
+                        Text(goal.localizedTitle)
                             .font(.subheadline)
                             .fontWeight(.semibold)
                             .foregroundColor(.green)
@@ -488,10 +486,7 @@ struct GoalCheckoutCard: View {
             }
             
             VStack(alignment: .leading, spacing: 4) {
-                Text(goal.title)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .lineLimit(1)
+                Text(goal.localizedTitle)
                 
                 Text("\(goal.currentProgress)/\(goal.targetValue)")
                     .font(.caption)

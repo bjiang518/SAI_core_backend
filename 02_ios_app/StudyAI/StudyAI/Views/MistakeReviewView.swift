@@ -159,6 +159,12 @@ struct MistakeReviewView: View {
                         .padding(.horizontal)
                     }
 
+                    // SECTION 2.5: Weak Point Heatmap
+                    if let subject = selectedSubject, activeFilter != .goodAt {
+                        WeakPointHeatmapView(subject: subject, mistakeService: mistakeService)
+                            .padding(.horizontal)
+                    }
+
                     // SECTION 3: Taxonomy Filter OR Good At View
                     if let subject = selectedSubject {
                         if activeFilter == .goodAt {
@@ -362,12 +368,11 @@ struct MistakeReviewView: View {
 
         // Filter by active weakness
         if activeFilter == .active {
-            let activeWeaknesses = ShortTermStatusService.shared.status.activeWeaknesses
             allMistakes = allMistakes.filter { mistake in
                 guard let key = mistake["weaknessKey"] as? String, !key.isEmpty else {
                     return true // no key → include (safe fallback)
                 }
-                return (activeWeaknesses[key]?.value ?? 0) > 0
+                return ShortTermStatusService.shared.isActiveWeakness(key)
             }
         }
 
@@ -440,12 +445,11 @@ struct MistakeQuestionListView: View {
 
         // Filter by active weakness
         if activeFilter == .active {
-            let activeWeaknesses = ShortTermStatusService.shared.status.activeWeaknesses
             filtered = filtered.filter { mistake in
                 guard let key = mistake.weaknessKey, !key.isEmpty else {
                     return true // no key → include (safe fallback)
                 }
-                return (activeWeaknesses[key]?.value ?? 0) > 0
+                return ShortTermStatusService.shared.isActiveWeakness(key)
             }
         }
 
@@ -1295,9 +1299,7 @@ struct MistakeQuestionCard: View {
                                     .fontWeight(.semibold)
                                     .foregroundColor(.secondary)
                             }
-                            Text(suggestion)
-                                .font(.subheadline)
-                                .foregroundColor(.primary)
+                            FullLaTeXText(suggestion, fontSize: 15)
                         }
                         .padding(10)
                         .background(DesignTokens.Colors.warning.opacity(0.05))
@@ -2945,7 +2947,8 @@ struct PracticeConfigurationSheet: View {
         }
         var hints: [(label: String, needed: Int)] = []
         for (key, info) in keyInfo {
-            guard let weakness = service.status.activeWeaknesses[key], weakness.value > 0 else { continue }
+            let canonical = ShortTermStatusService.shared.resolveWeaknessKey(key)
+            guard let weakness = service.status.activeWeaknesses[canonical], weakness.value > 0 else { continue }
             let weights = info.errorTypes.isEmpty ? [1.5] : info.errorTypes.map { service.errorTypeWeight($0) }
             let avgWeight = weights.reduce(0, +) / Double(weights.count)
             let decrement = 1.0 * avgWeight * 0.6 * 1.0
@@ -3038,7 +3041,12 @@ struct PracticeConfigurationSheet: View {
                         Image(systemName: cleared ? "checkmark.circle.fill" : "circle.dotted")
                             .font(.caption)
                             .foregroundColor(cleared ? DesignTokens.Colors.success : .secondary)
-                        Text("\(hint.needed) more question\(hint.needed == 1 ? "" : "s") to clear \(hint.label) weakness")
+                        Text(String(format: NSLocalizedString(
+                            hint.needed == 1
+                                ? "mistakeReview.weaknessHint.one"
+                                : "mistakeReview.weaknessHint.other",
+                            comment: ""
+                        ), hint.needed, hint.label))
                             .font(.caption)
                             .foregroundColor(cleared ? DesignTokens.Colors.success : .secondary)
                     }
