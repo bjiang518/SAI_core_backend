@@ -1015,10 +1015,10 @@ struct QuestionView: View {
         guard !selectedImages.isEmpty else { return }
         
         isWaitingForAI = true
-        print("🚀 === STARTING MULTI-IMAGE SERVER ANALYSIS ===")
-        print("📊 Number of images: \(selectedImages.count)")
-        print("📚 Subject: \(selectedSubject)")
-        print("💭 Prompt: '\(selectedPrompt)'")
+        debugPrint("🚀 === STARTING MULTI-IMAGE SERVER ANALYSIS ===")
+        debugPrint("📊 Number of images: \(selectedImages.count)")
+        debugPrint("📚 Subject: \(selectedSubject)")
+        debugPrint("💭 Prompt: '\(selectedPrompt)'")
         
         Task {
             // Process the first image but include OCR context from all images
@@ -1029,19 +1029,19 @@ struct QuestionView: View {
                 await MainActor.run {
                     isWaitingForAI = false
                     errorMessage = "Failed to prepare image for upload"
-                    print("❌ Image compression failed")
+                    debugPrint("❌ Image compression failed")
                 }
                 return
             }
             
-            print("📦 Compressed primary image: \(imageData.count) bytes")
+            debugPrint("📦 Compressed primary image: \(imageData.count) bytes")
             
             // Create enhanced prompt that includes OCR context from all images
             let fullContext = selectedImages.count > 1 ? 
                 "\(selectedPrompt)\n\nIMPORTANT CONTEXT: I have \(selectedImages.count) images. Here is the text content extracted from all images:\n\n\(combinedOCRResult)\n\nPlease analyze the primary image I'm sending, but use the context above to understand the complete problem across all images." :
                 "\(selectedPrompt)\n\nExtracted text context: \(combinedOCRResult)"
             
-            print("📝 Enhanced prompt with OCR context: \(String(fullContext.prefix(200)))...")
+            debugPrint("📝 Enhanced prompt with OCR context: \(String(fullContext.prefix(200)))...")
             
             // Upload image to server for advanced analysis with full context
             let result = await networkService.processImageWithQuestion(
@@ -1053,31 +1053,31 @@ struct QuestionView: View {
             await MainActor.run {
                 isWaitingForAI = false
                 
-                print("📡 Server response received:")
-                print("✅ Success: \(result.success)")
+                debugPrint("📡 Server response received:")
+                debugPrint("✅ Success: \(result.success)")
                 
                 if result.success, let response = result.result {
-                    print("📋 Response keys: \(response.keys.joined(separator: ", "))")
+                    debugPrint("📋 Response keys: \(response.keys.joined(separator: ", "))")
                     
                     if let answer = response["answer"] as? String {
-                        print("🤖 AI answer length: \(answer.count) characters")
-                        print("🔍 Answer preview: \(String(answer.prefix(150)))...")
+                        debugPrint("🤖 AI answer length: \(answer.count) characters")
+                        debugPrint("🔍 Answer preview: \(String(answer.prefix(150)))...")
                         
                         // Server provided comprehensive analysis - show full response
                         aiResponse = answer
                         showingResponse = true
                         
-                        print("🎉 Multi-image server processing completed successfully")
+                        debugPrint("🎉 Multi-image server processing completed successfully")
                     } else if let extractedText = response["extracted_text"] as? String {
-                        print("📄 Fallback: using extracted text only")
+                        debugPrint("📄 Fallback: using extracted text only")
                         aiResponse = "Extracted content: \(extractedText)"
                         showingResponse = true
                     }
                 } else {
                     let errorDetails = result.result?["error"] as? String ?? "Unknown error"
-                    print("❌ Server processing failed: \(errorDetails)")
+                    debugPrint("❌ Server processing failed: \(errorDetails)")
                     if let details = result.result?["details"] as? String {
-                        print("🔍 Error details: \(String(details.prefix(200)))...")
+                        debugPrint("🔍 Error details: \(String(details.prefix(200)))...")
                     }
                     errorMessage = "Server processing failed: \(errorDetails)"
                 }
@@ -1342,7 +1342,7 @@ struct AIResponseView: View {
                         onConvertToSession()
                     } else {
                         // Handle error - session created but couldn't add message
-                        print("⚠️ Session created but failed to add message")
+                        debugPrint("⚠️ Session created but failed to add message")
                         // Still call conversion since session exists
                         onConvertToSession()
                     }
@@ -1351,7 +1351,7 @@ struct AIResponseView: View {
                 await MainActor.run {
                     isConverting = false
                     // Handle session creation failure
-                    print("❌ Failed to create session: \(sessionResult.message)")
+                    debugPrint("❌ Failed to create session: \(sessionResult.message)")
                     // Could show an error alert here
                 }
             }

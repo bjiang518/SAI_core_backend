@@ -693,9 +693,9 @@ struct GeneratedQuestionDetailView: View {
         hasSubmitted = true
         let currentAnswer = getCurrentAnswer()
 
-        print("📝 [Generation] Submitting answer for question: \(currentQuestion.question.prefix(50))...")
-        print("📝 [Generation] User answer: \(currentAnswer.prefix(100))")
-        print("📝 [Generation] Correct answer: \(currentQuestion.correctAnswer.prefix(100))")
+        debugPrint("📝 [Generation] Submitting answer for question: \(currentQuestion.question.prefix(50))...")
+        debugPrint("📝 [Generation] User answer: \(currentAnswer.prefix(100))")
+        debugPrint("📝 [Generation] Correct answer: \(currentQuestion.correctAnswer.prefix(100))")
 
         // TIER 1: Client-side answer matching (instant grading)
         // Convert options array to dictionary format for matching service
@@ -714,13 +714,13 @@ struct GeneratedQuestionDetailView: View {
             options: optionsDict
         )
 
-        print("🎯 [Generation] Client-side match score: \(String(format: "%.1f%%", matchResult.matchScore * 100))")
-        print("   Is exact match: \(matchResult.isExactMatch)")
+        debugPrint("🎯 [Generation] Client-side match score: \(String(format: "%.1f%%", matchResult.matchScore * 100))")
+        debugPrint("   Is exact match: \(matchResult.isExactMatch)")
 
         // ✅ CHANGED: Only use instant grading for EXACT matches (100%)
         // For anything less than exact, use AI grading immediately
         if matchResult.isExactMatch {
-            print("⚡ [Generation] INSTANT GRADING (exact match)")
+            debugPrint("⚡ [Generation] INSTANT GRADING (exact match)")
 
             // Instant grade result for exact matches only
             isCorrect = true
@@ -742,8 +742,8 @@ struct GeneratedQuestionDetailView: View {
         }
 
         // ✅ CHANGED: AI grading for ALL non-exact answers (no intermediate grading)
-        print("🤖 [Generation] AI GRADING (not exact match)")
-        print("   Sending to Gemini deep mode for analysis...")
+        debugPrint("🤖 [Generation] AI GRADING (not exact match)")
+        debugPrint("   Sending to Gemini deep mode for analysis...")
 
         isGradingWithAI = true
 
@@ -771,7 +771,7 @@ struct GeneratedQuestionDetailView: View {
                 useDeepReasoning: true  // Gemini deep mode for nuanced grading
             )
 
-            print("✅ [Generation] RECEIVED AI GRADING RESPONSE")
+            debugPrint("✅ [Generation] RECEIVED AI GRADING RESPONSE")
 
             if let grade = response.grade {
                 await MainActor.run {
@@ -781,9 +781,9 @@ struct GeneratedQuestionDetailView: View {
                     aiFeedback = grade.feedback
                     showingExplanation = true
 
-                    print("   Is Correct: \(grade.isCorrect ? "✅ YES" : "❌ NO")")
-                    print("   Score: \(String(format: "%.1f%%", grade.score * 100))")
-                    print("   Feedback: \(grade.feedback)")
+                    debugPrint("   Is Correct: \(grade.isCorrect ? "✅ YES" : "❌ NO")")
+                    debugPrint("   Score: \(String(format: "%.1f%%", grade.score * 100))")
+                    debugPrint("   Feedback: \(grade.feedback)")
 
                     if isCorrect {
                         logger.info("📝 Answer submitted: AI grade - Correct (100%)")
@@ -807,12 +807,12 @@ struct GeneratedQuestionDetailView: View {
                 }
             }
         } catch {
-            print("❌ [Generation] AI grading failed: \(error.localizedDescription)")
+            debugPrint("❌ [Generation] AI grading failed: \(error.localizedDescription)")
             logger.error("AI grading failed: \(error.localizedDescription)")
 
             await MainActor.run {
                 // Fallback to local flexible grading on error
-                print("🔄 [Generation] Falling back to local flexible grading")
+                debugPrint("🔄 [Generation] Falling back to local flexible grading")
                 let gradingResult = gradeAnswerFlexibly(
                     userAnswer: userAnswer,
                     correctAnswer: currentQuestion.correctAnswer,
@@ -825,7 +825,7 @@ struct GeneratedQuestionDetailView: View {
                 aiFeedback = "AI grading unavailable. Using local grading."
                 showingExplanation = true
 
-                print("   Fallback result: \(gradingResult.matchMethod), Credit: \(Int(partialCredit * 100))%")
+                debugPrint("   Fallback result: \(gradingResult.matchMethod), Credit: \(Int(partialCredit * 100))%")
 
                 // Save and notify
                 saveAnswer()

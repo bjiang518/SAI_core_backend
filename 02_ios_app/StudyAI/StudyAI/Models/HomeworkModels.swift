@@ -313,15 +313,15 @@ struct BackendHomeworkResponse: Decodable {  // Changed from Codable to Decodabl
         if let flatQuestions = try? container.decode([BackendQuestion].self, forKey: .questions) {
             // Baseline mode: flat questions array
             questions = flatQuestions
-            print("📊 Decoded flat questions array (baseline mode): \(flatQuestions.count) questions")
+            debugPrint("📊 Decoded flat questions array (baseline mode): \(flatQuestions.count) questions")
         } else if let sections = try? container.decode([BackendSection].self, forKey: .sections) {
             // Hierarchical mode: flatten sections into questions array
             questions = sections.flatMap { $0.questions }
-            print("📊 Decoded sections (hierarchical mode): \(sections.count) sections, \(questions.count) total questions")
+            debugPrint("📊 Decoded sections (hierarchical mode): \(sections.count) sections, \(questions.count) total questions")
         } else {
             // Fallback: empty array
             questions = []
-            print("⚠️ No questions or sections found, using empty array")
+            debugPrint("⚠️ No questions or sections found, using empty array")
         }
     }
 }

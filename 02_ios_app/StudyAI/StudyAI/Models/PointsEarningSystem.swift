@@ -573,7 +573,7 @@ class PointsEarningManager: ObservableObject {
             } else {
                 // Stale data from previous day, initialize empty
                 todayProgress = DailyProgress(date: todayString)
-                print("📊 [loadStoredData] Stale progress data detected, initialized empty for \(todayString)")
+                debugPrint("📊 [loadStoredData] Stale progress data detected, initialized empty for \(todayString)")
             }
         } else {
             // No saved data, initialize empty
@@ -771,9 +771,9 @@ class PointsEarningManager: ObservableObject {
     }
     
     private func resetDailyGoals() {
-        print("\n📊 ========================================")
-        print("📊 [RESET] Resetting daily progress and goals")
-        print("📊 ========================================")
+        debugPrint("\n📊 ========================================")
+        debugPrint("📊 [RESET] Resetting daily progress and goals")
+        debugPrint("📊 ========================================")
 
         // Get today's date string
         let dateFormatter = DateFormatter()
@@ -786,33 +786,33 @@ class PointsEarningManager: ObservableObject {
                 let oldProgress = learningGoals[i].currentProgress
                 learningGoals[i].currentProgress = 0
                 learningGoals[i].isCheckedOut = false
-                print("📊 [RESET] Goal '\(learningGoals[i].title)': \(oldProgress) → 0")
+                debugPrint("📊 [RESET] Goal '\(learningGoals[i].title)': \(oldProgress) → 0")
             }
         }
 
             // Reset today's progress counters (create new empty progress for today)
         todayProgress = DailyProgress(date: todayString)
-        print("📊 [RESET] Created new daily progress for \(todayString)")
+        debugPrint("📊 [RESET] Created new daily progress for \(todayString)")
 
         // CRITICAL: Reset daily-reset points to 0 for new day
         currentPoints = 0
-        print("📊 [RESET] Reset currentPoints (daily-reset points) to 0")
+        debugPrint("📊 [RESET] Reset currentPoints (daily-reset points) to 0")
 
         // CRITICAL: Reset daily points earned to 0 for new day
         dailyPointsEarned = 0
-        print("📊 [RESET] Reset dailyPointsEarned to 0")
+        debugPrint("📊 [RESET] Reset dailyPointsEarned to 0")
 
         // NOTE: totalPointsEarned is NEVER reset - it's the lifetime total
-        print("📊 [RESET] totalPointsEarned unchanged: \(totalPointsEarned) (lifetime total)")
+        debugPrint("📊 [RESET] totalPointsEarned unchanged: \(totalPointsEarned) (lifetime total)")
 
         // Reset updatedToday flag so streak can be updated when user marks progress
         updatedToday = false
         userDefaults.set(false, forKey: updatedTodayKey)
-        print("📊 [RESET] Reset updatedToday flag")
+        debugPrint("📊 [RESET] Reset updatedToday flag")
 
-        print("📊 ========================================")
-        print("📊 [RESET] Daily reset complete")
-        print("📊 ========================================\n")
+        debugPrint("📊 ========================================")
+        debugPrint("📊 [RESET] Daily reset complete")
+        debugPrint("📊 ========================================\n")
 
         saveData()
     }
@@ -987,12 +987,12 @@ class PointsEarningManager: ObservableObject {
     /// Update progress counters when user marks homework progress
     /// This is the ONLY way to update daily counters (not automatic on archive)
     func markHomeworkProgress(subject: String, numberOfQuestions: Int, numberOfCorrectQuestions: Int) {
-        print("\n📊 ========================================")
-        print("📊 [MARK PROGRESS] User marking progress for homework")
-        print("📊 ========================================")
-        print("📊 Subject: \(subject)")
-        print("📊 Questions: \(numberOfQuestions)")
-        print("📊 Correct: \(numberOfCorrectQuestions)")
+        debugPrint("\n📊 ========================================")
+        debugPrint("📊 [MARK PROGRESS] User marking progress for homework")
+        debugPrint("📊 ========================================")
+        debugPrint("📊 Subject: \(subject)")
+        debugPrint("📊 Questions: \(numberOfQuestions)")
+        debugPrint("📊 Correct: \(numberOfCorrectQuestions)")
 
         let _ = Calendar.current
         let now = Date()
@@ -1002,7 +1002,7 @@ class PointsEarningManager: ObservableObject {
 
         // Initialize today's progress if needed
         if todayProgress == nil || todayProgress?.date != todayString {
-            print("📊 [MARK PROGRESS] Initializing new daily progress for \(todayString)")
+            debugPrint("📊 [MARK PROGRESS] Initializing new daily progress for \(todayString)")
             todayProgress = DailyProgress(date: todayString)
         }
 
@@ -1012,9 +1012,9 @@ class PointsEarningManager: ObservableObject {
         currentSubjectProgress.numberOfCorrectQuestions += numberOfCorrectQuestions
         todayProgress?.subjectProgress[subject] = currentSubjectProgress
 
-        print("📊 [MARK PROGRESS] Updated \(subject): \(currentSubjectProgress.numberOfQuestions) questions, \(currentSubjectProgress.numberOfCorrectQuestions) correct")
-        print("📊 [MARK PROGRESS] Today's total: \(todayProgress?.totalQuestions ?? 0) questions, \(todayProgress?.correctAnswers ?? 0) correct")
-        print("📊 [MARK PROGRESS] Today's accuracy: \(String(format: "%.1f%%", todayProgress?.accuracy ?? 0.0))")
+        debugPrint("📊 [MARK PROGRESS] Updated \(subject): \(currentSubjectProgress.numberOfQuestions) questions, \(currentSubjectProgress.numberOfCorrectQuestions) correct")
+        debugPrint("📊 [MARK PROGRESS] Today's total: \(todayProgress?.totalQuestions ?? 0) questions, \(todayProgress?.correctAnswers ?? 0) correct")
+        debugPrint("📊 [MARK PROGRESS] Today's accuracy: \(String(format: "%.1f%%", todayProgress?.accuracy ?? 0.0))")
 
         // Update weekly progress
         updateWeeklyProgressCounters(todayProgress: todayProgress!)
@@ -1024,7 +1024,7 @@ class PointsEarningManager: ObservableObject {
 
         // Update streak if this is first progress today
         if !updatedToday && todayProgress!.totalQuestions > 0 {
-            print("📊 [MARK PROGRESS] First progress today - updating streak")
+            debugPrint("📊 [MARK PROGRESS] First progress today - updating streak")
             updateStreakForToday(todayString: todayString)
             updatedToday = true
             userDefaults.set(true, forKey: updatedTodayKey)
@@ -1040,9 +1040,9 @@ class PointsEarningManager: ObservableObject {
         // Sync will only happen when user explicitly chooses "Sync with Server" in Settings
         // No automatic backend sync on marking progress
 
-        print("📊 ========================================")
-        print("📊 [MARK PROGRESS] COMPLETE (LOCAL ONLY)")
-        print("📊 ========================================\n")
+        debugPrint("📊 ========================================")
+        debugPrint("📊 [MARK PROGRESS] COMPLETE (LOCAL ONLY)")
+        debugPrint("📊 ========================================\n")
     }
 
     /// Update weekly progress history with today's progress
@@ -1060,16 +1060,16 @@ class PointsEarningManager: ObservableObject {
         // Update or add today's progress
         if let index = thisWeekProgress.firstIndex(where: { $0.date == todayProgress.date }) {
             thisWeekProgress[index] = todayProgress
-            print("📊 [WEEKLY] Updated progress for \(todayProgress.date)")
+            debugPrint("📊 [WEEKLY] Updated progress for \(todayProgress.date)")
         } else {
             thisWeekProgress.append(todayProgress)
-            print("📊 [WEEKLY] Added progress for \(todayProgress.date)")
+            debugPrint("📊 [WEEKLY] Added progress for \(todayProgress.date)")
         }
 
-        print("📊 [WEEKLY] Total days this week: \(thisWeekProgress.count)")
+        debugPrint("📊 [WEEKLY] Total days this week: \(thisWeekProgress.count)")
         let weekTotal = thisWeekProgress.reduce(0) { $0 + $1.totalQuestions }
         let weekCorrect = thisWeekProgress.reduce(0) { $0 + $1.correctAnswers }
-        print("📊 [WEEKLY] Week total: \(weekTotal) questions, \(weekCorrect) correct")
+        debugPrint("📊 [WEEKLY] Week total: \(weekTotal) questions, \(weekCorrect) correct")
     }
 
     /// Update monthly progress history with today's progress
@@ -1087,30 +1087,30 @@ class PointsEarningManager: ObservableObject {
         // Update or add today's progress
         if let index = thisMonthProgress.firstIndex(where: { $0.date == todayProgress.date }) {
             thisMonthProgress[index] = todayProgress
-            print("📊 [MONTHLY] Updated progress for \(todayProgress.date)")
+            debugPrint("📊 [MONTHLY] Updated progress for \(todayProgress.date)")
         } else {
             thisMonthProgress.append(todayProgress)
-            print("📊 [MONTHLY] Added progress for \(todayProgress.date)")
+            debugPrint("📊 [MONTHLY] Added progress for \(todayProgress.date)")
         }
 
-        print("📊 [MONTHLY] Total days this month: \(thisMonthProgress.count)")
+        debugPrint("📊 [MONTHLY] Total days this month: \(thisMonthProgress.count)")
         let monthTotal = thisMonthProgress.reduce(0) { $0 + $1.totalQuestions }
         let monthCorrect = thisMonthProgress.reduce(0) { $0 + $1.correctAnswers }
-        print("📊 [MONTHLY] Month total: \(monthTotal) questions, \(monthCorrect) correct")
+        debugPrint("📊 [MONTHLY] Month total: \(monthTotal) questions, \(monthCorrect) correct")
     }
 
     /// Update streak for today
     private func updateStreakForToday(todayString: String) {
         // Check if we've already updated streak for today
         if lastStreakUpdateDate == todayString {
-            print("🔥 [STREAK] Already updated for today")
+            debugPrint("🔥 [STREAK] Already updated for today")
             return
         }
 
         // If we had activity, increment streak
         if todayProgress?.totalQuestions ?? 0 > 0 {
             currentStreak += 1
-            print("🔥 [STREAK] Incremented to \(currentStreak)")
+            debugPrint("🔥 [STREAK] Incremented to \(currentStreak)")
         }
 
         lastStreakUpdateDate = todayString
@@ -1165,18 +1165,18 @@ class PointsEarningManager: ObservableObject {
     /// Track focus session completion and award points
     /// Awards 1 point per 5 minutes of focus time
     func trackFocusSession(durationMinutes: Int, pointsEarned: Int) {
-        print("\n🧘 ========================================")
-        print("🧘 [FOCUS SESSION] Tracking completed session")
-        print("🧘 ========================================")
-        print("🧘 Duration: \(durationMinutes) minutes")
-        print("🧘 Points Earned: \(pointsEarned)")
+        debugPrint("\n🧘 ========================================")
+        debugPrint("🧘 [FOCUS SESSION] Tracking completed session")
+        debugPrint("🧘 ========================================")
+        debugPrint("🧘 Duration: \(durationMinutes) minutes")
+        debugPrint("🧘 Points Earned: \(pointsEarned)")
 
         // Award points immediately
         currentPoints += pointsEarned
         totalPointsEarned += pointsEarned
 
-        print("🧘 [FOCUS SESSION] ✅ Awarded \(pointsEarned) points")
-        print("🧘 [FOCUS SESSION] Current Total: \(currentPoints) points")
+        debugPrint("🧘 [FOCUS SESSION] ✅ Awarded \(pointsEarned) points")
+        debugPrint("🧘 [FOCUS SESSION] Current Total: \(currentPoints) points")
 
         saveData()
     }
@@ -1453,7 +1453,7 @@ class PointsEarningManager: ObservableObject {
         userDefaults.removeObject(forKey: thisMonthProgressKey)
         userDefaults.removeObject(forKey: lastResetDateKey)
 
-        print("✅ [resetProgress] Completely removed all progress data from UserDefaults")
+        debugPrint("✅ [resetProgress] Completely removed all progress data from UserDefaults")
 
     }
     
@@ -1487,16 +1487,16 @@ class PointsEarningManager: ObservableObject {
 
         // Create or update current week progress
         if currentWeeklyProgress == nil {
-            print("📊 [updateLocalWeeklyProgress] Creating new currentWeeklyProgress")
+            debugPrint("📊 [updateLocalWeeklyProgress] Creating new currentWeeklyProgress")
             currentWeeklyProgress = createCurrentWeekProgress(timezone: timezone)
         }
 
         guard var weeklyProgress = currentWeeklyProgress else {
-            print("❌ [updateLocalWeeklyProgress] Failed to get weeklyProgress")
+            debugPrint("❌ [updateLocalWeeklyProgress] Failed to get weeklyProgress")
             return
         }
 
-        print("📊 [updateLocalWeeklyProgress] Current weeklyProgress has \(weeklyProgress.dailyActivities.count) activities")
+        debugPrint("📊 [updateLocalWeeklyProgress] Current weeklyProgress has \(weeklyProgress.dailyActivities.count) activities")
 
         // Get today's date string
         let dateFormatter = DateFormatter()
@@ -1504,21 +1504,21 @@ class PointsEarningManager: ObservableObject {
         dateFormatter.timeZone = TimeZone.current
         let todayString = dateFormatter.string(from: currentDate)
 
-        print("📊 [updateLocalWeeklyProgress] Today's date: \(todayString), adding \(questionCount) questions")
+        debugPrint("📊 [updateLocalWeeklyProgress] Today's date: \(todayString), adding \(questionCount) questions")
 
         // Find or create today's activity
         if let existingIndex = weeklyProgress.dailyActivities.firstIndex(where: { $0.date == todayString }) {
             // Update existing day with bounds checking
             let currentCount = weeklyProgress.dailyActivities[existingIndex].questionCount
             weeklyProgress.dailyActivities[existingIndex].questionCount = max(0, currentCount + questionCount)
-            print("📊 [updateLocalWeeklyProgress] ✅ Updated existing activity at index \(existingIndex): \(currentCount) → \(weeklyProgress.dailyActivities[existingIndex].questionCount)")
+            debugPrint("📊 [updateLocalWeeklyProgress] ✅ Updated existing activity at index \(existingIndex): \(currentCount) → \(weeklyProgress.dailyActivities[existingIndex].questionCount)")
         } else {
             // Add new day activity
             let dayOfWeek = calendar.component(.weekday, from: currentDate)
             let adjustedDayOfWeek = dayOfWeek == 1 ? 7 : dayOfWeek - 1 // Convert Sunday=1 to Sunday=7, Monday=2 to Monday=1
 
             guard adjustedDayOfWeek >= 1 && adjustedDayOfWeek <= 7 else {
-                print("❌ [updateLocalWeeklyProgress] Invalid dayOfWeek: \(adjustedDayOfWeek)")
+                debugPrint("❌ [updateLocalWeeklyProgress] Invalid dayOfWeek: \(adjustedDayOfWeek)")
                 return
             }
 
@@ -1529,14 +1529,14 @@ class PointsEarningManager: ObservableObject {
                 timezone: timezone
             )
             weeklyProgress.dailyActivities.append(newActivity)
-            print("📊 [updateLocalWeeklyProgress] ✅ Created new activity: date=\(todayString), dayOfWeek=\(adjustedDayOfWeek), count=\(questionCount)")
+            debugPrint("📊 [updateLocalWeeklyProgress] ✅ Created new activity: date=\(todayString), dayOfWeek=\(adjustedDayOfWeek), count=\(questionCount)")
         }
 
         // Update total questions for the week with bounds checking
         weeklyProgress.totalQuestionsThisWeek = max(0, weeklyProgress.dailyActivities.reduce(0) { $0 + $1.questionCount })
 
-        print("📊 [updateLocalWeeklyProgress] Total questions this week: \(weeklyProgress.totalQuestionsThisWeek)")
-        print("📊 [updateLocalWeeklyProgress] Final dailyActivities count: \(weeklyProgress.dailyActivities.count)")
+        debugPrint("📊 [updateLocalWeeklyProgress] Total questions this week: \(weeklyProgress.totalQuestionsThisWeek)")
+        debugPrint("📊 [updateLocalWeeklyProgress] Final dailyActivities count: \(weeklyProgress.dailyActivities.count)")
 
         // Save updated progress
         currentWeeklyProgress = weeklyProgress

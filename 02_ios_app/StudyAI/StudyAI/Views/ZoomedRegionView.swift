@@ -31,7 +31,7 @@ struct ZoomedRegionView: View {
     private func createPreviewItem() {
         // Save image to temporary location for QuickLook
         guard let imageData = region.thumbnail.jpegData(compressionQuality: 0.9) else {
-            print("❌ Failed to convert image to JPEG data")
+            debugPrint("❌ Failed to convert image to JPEG data")
             isPresented = false
             return
         }
@@ -42,9 +42,9 @@ struct ZoomedRegionView: View {
         do {
             try imageData.write(to: tempURL)
             previewItem = PreviewItem(url: tempURL, title: getRegionTitle())
-            print("✅ Created preview item for region \(region.id)")
+            debugPrint("✅ Created preview item for region \(region.id)")
         } catch {
-            print("❌ Failed to write image to temp location: \(error)")
+            debugPrint("❌ Failed to write image to temp location: \(error)")
             isPresented = false
         }
     }

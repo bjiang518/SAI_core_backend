@@ -16,7 +16,7 @@ class ImageProcessingService {
     /// Aggressively preprocess image: Convert to binary with enhanced light correction
     /// This dramatically reduces file size while maintaining text readability
     func preprocessImageForAI(_ image: UIImage) -> UIImage? {
-        print("🔧 === ADVANCED IMAGE PREPROCESSING STARTED ===")
+        debugPrint("🔧 === ADVANCED IMAGE PREPROCESSING STARTED ===")
 
 
         guard let cgImage = image.cgImage else {
@@ -27,7 +27,7 @@ class ImageProcessingService {
         let inputImage = CIImage(cgImage: cgImage)
         let context = CIContext()
 
-        print("🌟 Step 1: Enhanced light correction and contrast...")
+        debugPrint("🌟 Step 1: Enhanced light correction and contrast...")
         // Step 1: Enhanced light correction and contrast
         let adjustedImage = inputImage
             .applyingFilter("CIExposureAdjust", parameters: ["inputEV": 0.5]) // Brighten
@@ -37,12 +37,12 @@ class ImageProcessingService {
                 "inputShadowAmount": 0.6      // Lift shadows
             ])
 
-        print("🎨 Step 2: Converting to grayscale...")
+        debugPrint("🎨 Step 2: Converting to grayscale...")
         // Step 2: Convert to grayscale
         let grayscaleImage = adjustedImage
             .applyingFilter("CIColorControls", parameters: ["inputSaturation": 0.0])
 
-        print("⚫⚪ Step 3: Applying adaptive thresholding for binary conversion...")
+        debugPrint("⚫⚪ Step 3: Applying adaptive thresholding for binary conversion...")
         // Step 3: Apply adaptive thresholding for binary conversion
         // This creates pure black text on white background
         let binaryImage = grayscaleImage
@@ -52,7 +52,7 @@ class ImageProcessingService {
             ])
             .applyingFilter("CIGammaAdjust", parameters: ["inputPower": 0.4]) // Sharp threshold
 
-        print("🖼️ Step 4: Converting back to UIImage...")
+        debugPrint("🖼️ Step 4: Converting back to UIImage...")
         // Convert back to UIImage
         guard let outputCGImage = context.createCGImage(binaryImage, from: binaryImage.extent) else {
 
@@ -85,7 +85,7 @@ class ImageProcessingService {
             let request = VNRecognizeTextRequest { request, error in
                 DispatchQueue.main.async {
                     if let error = error {
-                        print("OCR Error: \(error)")
+                        debugPrint("OCR Error: \(error)")
                         continuation.resume(returning: nil)
                         return
                     }
@@ -122,7 +122,7 @@ class ImageProcessingService {
                     try handler.perform([request])
                 } catch {
                     DispatchQueue.main.async {
-                        print("Failed to perform OCR: \(error)")
+                        debugPrint("Failed to perform OCR: \(error)")
                         continuation.resume(returning: nil)
                     }
                 }
@@ -325,7 +325,7 @@ class ImageProcessingService {
             imageData = resizedImage.jpegData(compressionQuality: compressionQuality)
         }
         
-        print("📷 Image compressed: \(imageData?.count ?? 0) bytes at \(compressionQuality) quality")
+        debugPrint("📷 Image compressed: \(imageData?.count ?? 0) bytes at \(compressionQuality) quality")
         return imageData
     }
     

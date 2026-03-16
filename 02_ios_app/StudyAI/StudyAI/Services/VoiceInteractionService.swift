@@ -191,7 +191,7 @@ class VoiceInteractionService: ObservableObject {
     
     func stopVoiceInput() {
         if Self.debugMode {
-        print("🎙️ VoiceInteractionService: stopVoiceInput called")
+        debugPrint("🎙️ VoiceInteractionService: stopVoiceInput called")
             }
         
         // Don't clear completion handler yet - let the speech service finish processing
@@ -213,14 +213,14 @@ class VoiceInteractionService: ObservableObject {
     
     func speakText(_ text: String, autoSpeak: Bool = false) {
         if Self.debugMode {
-        print("🎙️ VoiceInteractionService: speakText() called with: '\(text)', autoSpeak: \(autoSpeak)")
+        debugPrint("🎙️ VoiceInteractionService: speakText() called with: '\(text)', autoSpeak: \(autoSpeak)")
             }
         if Self.debugMode {
-        print("🎙️ VoiceInteractionService: isVoiceEnabled = \(isVoiceEnabled)")
+        debugPrint("🎙️ VoiceInteractionService: isVoiceEnabled = \(isVoiceEnabled)")
             }
         guard isVoiceEnabled else { 
             if Self.debugMode {
-            print("🎙️ VoiceInteractionService: Voice is disabled, not speaking")
+            debugPrint("🎙️ VoiceInteractionService: Voice is disabled, not speaking")
             }
             return 
         }
@@ -228,13 +228,13 @@ class VoiceInteractionService: ObservableObject {
         // Always stop previous speech when starting new speech (interruption behavior)
         if interactionState == .speaking {
             if Self.debugMode {
-            print("🎙️ VoiceInteractionService: Interrupting current speech to start new message")
+            debugPrint("🎙️ VoiceInteractionService: Interrupting current speech to start new message")
             }
             stopSpeech()
         }
         
         if Self.debugMode {
-        print("🎙️ VoiceInteractionService: Using premium TTS service for enhanced voice quality")
+        debugPrint("🎙️ VoiceInteractionService: Using premium TTS service for enhanced voice quality")
             }
         // NOTE: Do NOT set interactionState = .speaking here.
         // The state is driven by enhancedTTSService.$isSpeaking via setupBindings(),
@@ -251,12 +251,12 @@ class VoiceInteractionService: ObservableObject {
         // Use enhanced TTS for premium voice types (Elsa, friendly, professional)
         if shouldUseEnhancedTTS(for: voiceSettings.voiceType) {
             if Self.debugMode {
-            print("🎙️ VoiceInteractionService: Using EnhancedTTSService for premium voice: \(voiceSettings.voiceType)")
+            debugPrint("🎙️ VoiceInteractionService: Using EnhancedTTSService for premium voice: \(voiceSettings.voiceType)")
             }
             enhancedTTSService.speak(text, with: voiceSettings)
         } else {
             if Self.debugMode {
-            print("🎙️ VoiceInteractionService: Using system TTS for voice: \(voiceSettings.voiceType)")
+            debugPrint("🎙️ VoiceInteractionService: Using system TTS for voice: \(voiceSettings.voiceType)")
             }
             textToSpeechService.speakWithQueue(text, with: voiceSettings)
         }
@@ -283,7 +283,7 @@ class VoiceInteractionService: ObservableObject {
     
     func stopSpeech() {
         if Self.debugMode {
-        print("🎙️ VoiceInteractionService: Stopping all speech")
+        debugPrint("🎙️ VoiceInteractionService: Stopping all speech")
             }
         textToSpeechService.stopSpeech()
         enhancedTTSService.stopSpeech()
@@ -304,7 +304,7 @@ class VoiceInteractionService: ObservableObject {
         // Stop current speech if voice character changed
         if previousVoiceType != settings.voiceType {
             if Self.debugMode {
-            print("🎙️ VoiceInteractionService: Voice character changed from \(previousVoiceType.displayName) to \(settings.voiceType.displayName), stopping current speech")
+            debugPrint("🎙️ VoiceInteractionService: Voice character changed from \(previousVoiceType.displayName) to \(settings.voiceType.displayName), stopping current speech")
             }
             stopSpeech()
             
@@ -324,14 +324,14 @@ class VoiceInteractionService: ObservableObject {
     
     func setCurrentSpeakingMessage(_ messageId: String) {
         if Self.debugMode {
-        print("🎙️ VoiceInteractionService: Setting current speaking message: \(messageId)")
+        debugPrint("🎙️ VoiceInteractionService: Setting current speaking message: \(messageId)")
             }
         currentSpeakingMessageId = messageId
     }
     
     func clearCurrentSpeakingMessage() {
         if Self.debugMode {
-        print("🎙️ VoiceInteractionService: Clearing current speaking message")
+        debugPrint("🎙️ VoiceInteractionService: Clearing current speaking message")
             }
         currentSpeakingMessageId = nil
     }
@@ -374,20 +374,20 @@ class VoiceInteractionService: ObservableObject {
     
     private func handleVoiceInputResult(_ result: VoiceInputResult) {
         if Self.debugMode {
-        print("🎙️ VoiceInteractionService: handleVoiceInputResult called")
+        debugPrint("🎙️ VoiceInteractionService: handleVoiceInputResult called")
             }
         if Self.debugMode {
-        print("🎙️ Result text: '\(result.recognizedText)'")
+        debugPrint("🎙️ Result text: '\(result.recognizedText)'")
             }
         if Self.debugMode {
-        print("🎙️ Is final: \(result.isFinal)")
+        debugPrint("🎙️ Is final: \(result.isFinal)")
             }
         
         lastRecognizedText = result.recognizedText
         
         if result.isFinal {
             if Self.debugMode {
-            print("🎙️ VoiceInteractionService: Calling completion handler with: '\(result.recognizedText)'")
+            debugPrint("🎙️ VoiceInteractionService: Calling completion handler with: '\(result.recognizedText)'")
             }
             // Call completion handler
             currentVoiceInputCompletion?(result.recognizedText)

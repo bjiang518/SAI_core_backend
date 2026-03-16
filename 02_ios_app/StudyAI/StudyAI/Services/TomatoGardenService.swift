@@ -41,7 +41,7 @@ class TomatoGardenService: ObservableObject {
     @discardableResult
     func addTomato(from session: FocusSession) -> Tomato? {
         guard session.duration >= 15 * 60 else {
-            print("⏱️ Session too short (<15 min) — no tomato awarded")
+            debugPrint("⏱️ Session too short (<15 min) — no tomato awarded")
             return nil
         }
 
@@ -57,7 +57,7 @@ class TomatoGardenService: ObservableObject {
         saveTomatoes()
         updateStats()
 
-        print("🍅 Earned a new tomato: \(tomatoType.displayName)")
+        debugPrint("🍅 Earned a new tomato: \(tomatoType.displayName)")
         return tomato
     }
 
@@ -66,7 +66,7 @@ class TomatoGardenService: ObservableObject {
         tomatoes.removeAll { $0.id == id }
         saveTomatoes()
         updateStats()
-        print("🗑️ Removed tomato: \(id)")
+        debugPrint("🗑️ Removed tomato: \(id)")
     }
 
     /// 清空番茄园
@@ -74,7 +74,7 @@ class TomatoGardenService: ObservableObject {
         tomatoes.removeAll()
         saveTomatoes()
         updateStats()
-        print("🧹 Cleared tomato garden")
+        debugPrint("🧹 Cleared tomato garden")
     }
 
     // MARK: - Data Persistence
@@ -83,7 +83,7 @@ class TomatoGardenService: ObservableObject {
     func saveTomatoes() {
         if let encoded = try? JSONEncoder().encode(tomatoes) {
             userDefaults.set(encoded, forKey: tomatoesKey)
-            print("💾 Saved \(tomatoes.count) tomatoes")
+            debugPrint("💾 Saved \(tomatoes.count) tomatoes")
         }
     }
 
@@ -92,7 +92,7 @@ class TomatoGardenService: ObservableObject {
         if let data = userDefaults.data(forKey: tomatoesKey),
            let decoded = try? JSONDecoder().decode([Tomato].self, from: data) {
             tomatoes = decoded
-            print("📂 Loaded \(tomatoes.count) tomatoes")
+            debugPrint("📂 Loaded \(tomatoes.count) tomatoes")
         }
     }
 
@@ -118,10 +118,10 @@ class TomatoGardenService: ObservableObject {
             case .tmt4: newStats.tmt4Count += 1
             case .tmt5: newStats.tmt5Count += 1
             case .tmt6: newStats.tmt6Count += 1
-            case .batman: newStats.batmanCount += 1
-            case .ironman: newStats.ironmanCount += 1
-            case .mario: newStats.marioCount += 1
-            case .pokemon: newStats.pokemonCount += 1
+            case .darkKnight: newStats.darkKnightCount += 1
+            case .ironSuit: newStats.ironSuitCount += 1
+            case .superTomatorio: newStats.superTomatoCount += 1
+            case .flashingTomato: newStats.flashingTomatoCount += 1
             case .golden: newStats.goldenCount += 1
             case .platinum: newStats.platinumCount += 1
             case .diamond: newStats.diamondCount += 1
@@ -243,7 +243,7 @@ class TomatoGardenService: ObservableObject {
         // 检查是否有足够的番茄
         let sourceTomatoes = tomatoes.filter { $0.type.rarity == fromRarity }
         guard sourceTomatoes.count >= 5 else {
-            print("❌ Not enough tomatoes to exchange (need 5, have \(sourceTomatoes.count))")
+            debugPrint("❌ Not enough tomatoes to exchange (need 5, have \(sourceTomatoes.count))")
             return false
         }
 
@@ -265,7 +265,7 @@ class TomatoGardenService: ObservableObject {
         saveTomatoes()
         updateStats()
 
-        print("✨ \(exchangeName): \(newTomatoType.displayName)")
+        debugPrint("✨ \(exchangeName): \(newTomatoType.displayName)")
         return true
     }
 

@@ -559,7 +559,7 @@ struct ParentalConsentView_Previews: PreviewProvider {
             childEmail: "student@example.com",
             childDateOfBirth: "2012-05-15",
             onConsentGranted: {
-                print("Consent granted!")
+                debugPrint("Consent granted!")
             }
         )
     }

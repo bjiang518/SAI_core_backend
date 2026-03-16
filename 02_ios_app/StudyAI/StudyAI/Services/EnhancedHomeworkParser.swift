@@ -27,8 +27,8 @@ class EnhancedHomeworkParser {
 
     /// Parse Essay grading JSON response
     func parseEssayResponse(_ jsonData: [String: Any]) -> EssayGradingResult? {
-        print("📝 === PARSING ESSAY RESPONSE ===")
-        print("📊 JSON keys: \(jsonData.keys.joined(separator: ", "))")
+        debugPrint("📝 === PARSING ESSAY RESPONSE ===")
+        debugPrint("📊 JSON keys: \(jsonData.keys.joined(separator: ", "))")
 
         do {
             // Convert dictionary to Data
@@ -51,33 +51,33 @@ class EnhancedHomeworkParser {
                 overallFeedback: essayResponse.overallFeedback
             )
 
-            print("✅ === ESSAY PARSING SUCCESS ===")
-            print("📝 Title: \(essayResponse.essayTitle ?? "Untitled")")
-            print("📊 Word count: \(essayResponse.wordCount)")
-            print("📈 Overall score: \(essayResponse.overallScore)/100")
-            print("🔍 Grammar issues: \(grammarCorrections.count)")
-            print("⭐ Average criterion score: \(criterionScores.averageScore)/10")
+            debugPrint("✅ === ESSAY PARSING SUCCESS ===")
+            debugPrint("📝 Title: \(essayResponse.essayTitle ?? "Untitled")")
+            debugPrint("📊 Word count: \(essayResponse.wordCount)")
+            debugPrint("📈 Overall score: \(essayResponse.overallScore)/100")
+            debugPrint("🔍 Grammar issues: \(grammarCorrections.count)")
+            debugPrint("⭐ Average criterion score: \(criterionScores.averageScore)/10")
 
             return result
 
         } catch {
-            print("❌ Essay JSON parsing error: \(error)")
-            print("📋 Error details: \(error.localizedDescription)")
+            debugPrint("❌ Essay JSON parsing error: \(error)")
+            debugPrint("📋 Error details: \(error.localizedDescription)")
             if let decodingError = error as? DecodingError {
                 switch decodingError {
                 case .keyNotFound(let key, let context):
-                    print("❌ Missing key: \(key.stringValue)")
-                    print("❌ Context: \(context.debugDescription)")
+                    debugPrint("❌ Missing key: \(key.stringValue)")
+                    debugPrint("❌ Context: \(context.debugDescription)")
                 case .typeMismatch(let type, let context):
-                    print("❌ Type mismatch for type: \(type)")
-                    print("❌ Context: \(context.debugDescription)")
+                    debugPrint("❌ Type mismatch for type: \(type)")
+                    debugPrint("❌ Context: \(context.debugDescription)")
                 case .valueNotFound(let type, let context):
-                    print("❌ Value not found for type: \(type)")
-                    print("❌ Context: \(context.debugDescription)")
+                    debugPrint("❌ Value not found for type: \(type)")
+                    debugPrint("❌ Context: \(context.debugDescription)")
                 case .dataCorrupted(let context):
-                    print("❌ Data corrupted: \(context.debugDescription)")
+                    debugPrint("❌ Data corrupted: \(context.debugDescription)")
                 @unknown default:
-                    print("❌ Unknown decoding error")
+                    debugPrint("❌ Unknown decoding error")
                 }
             }
             return nil
@@ -88,8 +88,8 @@ class EnhancedHomeworkParser {
 
     /// Parse backend JSON response directly (NEW - High Performance)
     func parseBackendJSON(_ jsonData: [String: Any]) -> EnhancedHomeworkParsingResult? {
-        print("🚀 === PARSING BACKEND JSON DIRECTLY ===")
-        print("📊 JSON keys: \(jsonData.keys.joined(separator: ", "))")
+        debugPrint("🚀 === PARSING BACKEND JSON DIRECTLY ===")
+        debugPrint("📊 JSON keys: \(jsonData.keys.joined(separator: ", "))")
 
         do {
             // Convert dictionary to Data
@@ -119,29 +119,29 @@ class EnhancedHomeworkParser {
                 handwritingEvaluation: backendResponse.handwritingEvaluation
             )
 
-            print("✅ === JSON PARSING SUCCESS ===")
-            print("📚 Subject: \(backendResponse.subject) (confidence: \(backendResponse.subjectConfidence))")
-            print("📊 Questions: \(questions.count)")
-            print("📈 Accuracy: \(performanceSummary.accuracyPercentage)")
-            print("⚡ Method: Direct JSON (no conversion overhead)")
+            debugPrint("✅ === JSON PARSING SUCCESS ===")
+            debugPrint("📚 Subject: \(backendResponse.subject) (confidence: \(backendResponse.subjectConfidence))")
+            debugPrint("📊 Questions: \(questions.count)")
+            debugPrint("📈 Accuracy: \(performanceSummary.accuracyPercentage)")
+            debugPrint("⚡ Method: Direct JSON (no conversion overhead)")
 
             return result
 
         } catch {
-            print("❌ JSON parsing error: \(error)")
-            print("📋 Error details: \(error.localizedDescription)")
+            debugPrint("❌ JSON parsing error: \(error)")
+            debugPrint("📋 Error details: \(error.localizedDescription)")
             return nil
         }
     }
 
     /// Parse AI response that includes subject detection and questions
     func parseEnhancedHomeworkResponse(_ response: String) -> EnhancedHomeworkParsingResult? {
-        print("🔍 Parsing enhanced AI response...")
-        print("📄 Response length: \(response.count) characters")
+        debugPrint("🔍 Parsing enhanced AI response...")
+        debugPrint("📄 Response length: \(response.count) characters")
         
         // Try to detect if this is a JSON response from the improved AI engine
         if let jsonResult = tryParseImprovedAIResponse(response) {
-            print("✅ Successfully parsed improved AI JSON response")
+            debugPrint("✅ Successfully parsed improved AI JSON response")
             return jsonResult
         }
         
@@ -169,7 +169,7 @@ class EnhancedHomeworkParser {
         let questions = parseQuestionsFromResponse(remainingResponse)
         
         guard !questions.isEmpty else {
-            print("❌ No questions found in enhanced legacy response")
+            debugPrint("❌ No questions found in enhanced legacy response")
             return nil
         }
         
@@ -195,13 +195,13 @@ class EnhancedHomeworkParser {
             handwritingEvaluation: nil
         )
         
-        print("✅ Enhanced parsing successful:")
-        print("📚 Detected Subject: \(detectedSubject) (confidence: \(subjectConfidence))")
-        print("📊 Questions found: \(questions.count)")
-        print("🔧 Parsing Method: \(parsingMethod)")
-        print("🎯 Overall confidence: \(overallConfidence)")
+        debugPrint("✅ Enhanced parsing successful:")
+        debugPrint("📚 Detected Subject: \(detectedSubject) (confidence: \(subjectConfidence))")
+        debugPrint("📊 Questions found: \(questions.count)")
+        debugPrint("🔧 Parsing Method: \(parsingMethod)")
+        debugPrint("🎯 Overall confidence: \(overallConfidence)")
         if let summary = performanceSummary {
-            print("📈 Accuracy: \(summary.accuracyPercentage)")
+            debugPrint("📈 Accuracy: \(summary.accuracyPercentage)")
         }
         
         return result
@@ -216,7 +216,7 @@ class EnhancedHomeworkParser {
         let questions = parseQuestionsFromResponse(remainingResponse)
         
         guard !questions.isEmpty else {
-            print("❌ No questions found in traditional response")
+            debugPrint("❌ No questions found in traditional response")
             return nil
         }
         
@@ -237,10 +237,10 @@ class EnhancedHomeworkParser {
             handwritingEvaluation: nil
         )
         
-        print("✅ Traditional parsing successful:")
-        print("📚 Detected Subject: \(detectedSubject) (confidence: \(subjectConfidence))")
-        print("📊 Questions found: \(questions.count)")
-        print("🎯 Overall confidence: \(overallConfidence)")
+        debugPrint("✅ Traditional parsing successful:")
+        debugPrint("📚 Detected Subject: \(detectedSubject) (confidence: \(subjectConfidence))")
+        debugPrint("📊 Questions found: \(questions.count)")
+        debugPrint("🎯 Overall confidence: \(overallConfidence)")
         
         return result
     }
@@ -275,7 +275,7 @@ class EnhancedHomeworkParser {
         
         let remainingResponse = remainingLines.joined(separator: "\n")
         
-        print("🎯 Extracted subject: \(detectedSubject) (confidence: \(subjectConfidence))")
+        debugPrint("🎯 Extracted subject: \(detectedSubject) (confidence: \(subjectConfidence))")
         return (detectedSubject, subjectConfidence, remainingResponse)
     }
     
@@ -287,7 +287,7 @@ class EnhancedHomeworkParser {
            lowercaseResponse.contains("no questions found") ||
            lowercaseResponse.contains("unable to detect any questions") ||
            lowercaseResponse.contains("could not find any questions") {
-            print("📊 AI explicitly reported no questions detected")
+            debugPrint("📊 AI explicitly reported no questions detected")
             return []
         }
 
@@ -304,7 +304,7 @@ class EnhancedHomeworkParser {
             if lowercaseBlock.contains("no questions detected") ||
                lowercaseBlock.contains("no questions found") ||
                lowercaseBlock.contains("unable to detect") {
-                print("📊 Skipping 'no questions' message block")
+                debugPrint("📊 Skipping 'no questions' message block")
                 continue
             }
 
@@ -320,23 +320,23 @@ class EnhancedHomeworkParser {
                 if !question.questionText.isEmpty && (question.confidence ?? 0.0) > 0 {
                     questions.append(question)
                 } else {
-                    print("📊 Filtered out invalid question block")
+                    debugPrint("📊 Filtered out invalid question block")
                 }
             }
         }
 
-        print("📊 Parsed \(questions.count) valid questions from enhanced response")
+        debugPrint("📊 Parsed \(questions.count) valid questions from enhanced response")
         return questions
     }
 
     /// Parse parent question block with subquestions
     private func parseParentQuestionBlock(_ block: String, defaultNumber: Int) -> ParsedQuestion? {
-        print("🔍 Parsing parent question block...")
+        debugPrint("🔍 Parsing parent question block...")
 
         // Extract content between PARENT_QUESTION_START and PARENT_QUESTION_END
         guard let startRange = block.range(of: "═══PARENT_QUESTION_START═══"),
               let endRange = block.range(of: "═══PARENT_QUESTION_END═══") else {
-            print("❌ Missing parent question delimiters")
+            debugPrint("❌ Missing parent question delimiters")
             return nil
         }
 
@@ -397,7 +397,7 @@ class EnhancedHomeworkParser {
             )
         }
 
-        print("✅ Parsed parent question with \(subquestions.count) subquestions")
+        debugPrint("✅ Parsed parent question with \(subquestions.count) subquestions")
 
         return ParsedQuestion(
             questionNumber: questionNumber ?? defaultNumber,
@@ -665,7 +665,7 @@ class EnhancedHomeworkParser {
         
         let remainingResponse = remainingLines.joined(separator: "\n")
         
-        print("🎯 Enhanced subject extraction: \(detectedSubject) (confidence: \(subjectConfidence))")
+        debugPrint("🎯 Enhanced subject extraction: \(detectedSubject) (confidence: \(subjectConfidence))")
         return (detectedSubject, subjectConfidence, remainingResponse)
     }
     
@@ -699,7 +699,7 @@ class EnhancedHomeworkParser {
         let questions = parseQuestionsFromResponse(response)
         
         guard !questions.isEmpty else {
-            print("❌ No questions found in original response")
+            debugPrint("❌ No questions found in original response")
             return nil
         }
         

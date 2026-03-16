@@ -27,7 +27,7 @@ func currentUserConversationStorage() -> ConversationLocalStorage {
 // MARK: - Production Logging Safety
 // Disable debug print statements in production builds to prevent user study history exposure
 #if !DEBUG
-private func print(_ items: Any...) { }
+private func debugPrint(_ items: Any...) { }
 private func debugPrint(_ items: Any...) { }
 #endif
 
@@ -310,7 +310,7 @@ class LibraryDataService: ObservableObject {
                 cachedQuestions.removeAll { $0.id == item.id }
             }
 
-            print("🗑️ [LibraryDataService] Deleted question: \(item.id)")
+            debugPrint("🗑️ [LibraryDataService] Deleted question: \(item.id)")
             return true
         } else {
             // Delete conversation
@@ -321,7 +321,7 @@ class LibraryDataService: ObservableObject {
                 cachedConversations.removeAll { ($0["id"] as? String) == item.id }
             }
 
-            print("🗑️ [LibraryDataService] Deleted conversation: \(item.id)")
+            debugPrint("🗑️ [LibraryDataService] Deleted conversation: \(item.id)")
             return true
         }
     }
@@ -1116,14 +1116,14 @@ class ConversationLocalStorage {
 
         if let data = try? JSONSerialization.data(withJSONObject: conversations) {
             userDefaults.set(data, forKey: conversationsKey)
-            print("💾 [LocalStorage] Removed conversation \(id)")
+            debugPrint("💾 [LocalStorage] Removed conversation \(id)")
         }
     }
 
     /// Clear all local conversations (e.g., on logout)
     func clearAll() {
         userDefaults.removeObject(forKey: conversationsKey)
-        print("💾 [LocalStorage] Cleared all local conversations")
+        debugPrint("💾 [LocalStorage] Cleared all local conversations")
     }
 
     /// Sync with server: Remove local conversations that exist on server
@@ -1142,7 +1142,7 @@ class ConversationLocalStorage {
         if conversations.count != initialCount {
             if let data = try? JSONSerialization.data(withJSONObject: conversations) {
                 userDefaults.set(data, forKey: conversationsKey)
-                print("💾 [LocalStorage] Synced with server: removed \(initialCount - conversations.count) conversations")
+                debugPrint("💾 [LocalStorage] Synced with server: removed \(initialCount - conversations.count) conversations")
             }
         }
     }
@@ -1291,17 +1291,17 @@ class QuestionLocalStorage {
                 cacheLastModified = Date()
 
                 #if DEBUG
-                print("🧹 [QuestionLocalStorage] Cleaned up \(removedCount) old questions (older than \(days) days)")
-                print("   Remaining questions: \(questions.count)")
+                debugPrint("🧹 [QuestionLocalStorage] Cleaned up \(removedCount) old questions (older than \(days) days)")
+                debugPrint("   Remaining questions: \(questions.count)")
                 #endif
             } catch {
                 #if DEBUG
-                print("❌ [QuestionLocalStorage] Failed to save after cleanup: \(error)")
+                debugPrint("❌ [QuestionLocalStorage] Failed to save after cleanup: \(error)")
                 #endif
             }
         } else {
             #if DEBUG
-            print("✅ [QuestionLocalStorage] No old questions to clean up")
+            debugPrint("✅ [QuestionLocalStorage] No old questions to clean up")
             #endif
         }
     }
@@ -1335,7 +1335,7 @@ class QuestionLocalStorage {
     func clearDateCache() {
         dateCache.removeAll()
         #if DEBUG
-        print("🔄 [QuestionLocalStorage] Date cache cleared")
+        debugPrint("🔄 [QuestionLocalStorage] Date cache cleared")
         #endif
     }
 
@@ -1447,7 +1447,7 @@ class QuestionLocalStorage {
         storageQueue.sync {
             var allQuestions = getLocalQuestionsUnsafe()
             guard let index = allQuestions.firstIndex(where: { ($0["id"] as? String) == id }) else {
-                print("⚠️ [QuestionLocalStorage] updateQuestion: id \(id.prefix(8))… not found")
+                debugPrint("⚠️ [QuestionLocalStorage] updateQuestion: id \(id.prefix(8))… not found")
                 return
             }
             for (key, value) in fields {
@@ -1459,7 +1459,7 @@ class QuestionLocalStorage {
                 cachedQuestions = allQuestions
                 cacheLastModified = Date()
             } catch {
-                print("❌ [QuestionLocalStorage] updateQuestion serialize error: \(error)")
+                debugPrint("❌ [QuestionLocalStorage] updateQuestion serialize error: \(error)")
             }
         }
     }
@@ -1561,9 +1561,9 @@ class QuestionLocalStorage {
 
     /// Merge local questions with server questions (deduplicating by ID)
     func mergeWithServerData(localQuestions: [[String: Any]], serverQuestions: [QuestionSummary]) -> [QuestionSummary] {
-        print("🔄 [QuestionLocalStorage] Merging local and server data")
-        print("   • Local: \(localQuestions.count) questions")
-        print("   • Server: \(serverQuestions.count) questions")
+        debugPrint("🔄 [QuestionLocalStorage] Merging local and server data")
+        debugPrint("   • Local: \(localQuestions.count) questions")
+        debugPrint("   • Server: \(serverQuestions.count) questions")
 
         var mergedQuestions: [QuestionSummary] = []
         var seenIds = Set<String>()
@@ -1588,7 +1588,7 @@ class QuestionLocalStorage {
             }
         }
 
-        print("   ✅ Merged result: \(mergedQuestions.count) questions")
+        debugPrint("   ✅ Merged result: \(mergedQuestions.count) questions")
         return mergedQuestions
     }
 
@@ -1672,18 +1672,18 @@ class QuestionLocalStorage {
             let errorType = questionToDelete?["errorType"] as? String
             let isCorrect = questionToDelete?["isCorrect"] as? Bool ?? true
 
-            print("💾 [QuestionLocalStorage] Removing question \(id)")
+            debugPrint("💾 [QuestionLocalStorage] Removing question \(id)")
             if let key = weaknessKey {
-                print("   Weakness Key: \(key)")
-                print("   Error Type: \(errorType ?? "NONE")")
-                print("   Is Correct: \(isCorrect)")
+                debugPrint("   Weakness Key: \(key)")
+                debugPrint("   Error Type: \(errorType ?? "NONE")")
+                debugPrint("   Is Correct: \(isCorrect)")
             }
 
             // Remove content hash so identical question can be re-archived later
             if let hash = questionToDelete?["contentHash"] as? String, !hash.isEmpty {
                 contentHashSet.remove(hash)
                 persistHashSet()
-                print("💾 [QuestionLocalStorage] Removed content hash from dedup set: \(hash.prefix(16))…")
+                debugPrint("💾 [QuestionLocalStorage] Removed content hash from dedup set: \(hash.prefix(16))…")
             }
 
             // Remove from storage
@@ -1694,7 +1694,7 @@ class QuestionLocalStorage {
                 // ✅ FIX: Invalidate cache after deletion to ensure consistency
                 cachedQuestions = questions  // Update cache with new data
                 cacheLastModified = Date()
-                print("💾 [QuestionLocalStorage] Removed question from storage and updated cache")
+                debugPrint("💾 [QuestionLocalStorage] Removed question from storage and updated cache")
 
                 // ✅ NEW: Update ShortTermStatusService if this was a mistake question
                 if !isCorrect {
@@ -1705,9 +1705,9 @@ class QuestionLocalStorage {
                             errorType: errorType
                         )
                     }
-                    print("   ✅ Updated ShortTermStatusService to remove question contribution")
+                    debugPrint("   ✅ Updated ShortTermStatusService to remove question contribution")
                 } else {
-                    print("   ℹ️ Question was correct - no weakness tracking update needed")
+                    debugPrint("   ℹ️ Question was correct - no weakness tracking update needed")
                 }
             }
         }
@@ -1723,8 +1723,8 @@ class QuestionLocalStorage {
             cachedQuestions = nil
             cacheLastModified = nil
 
-            print("💾 [QuestionLocalStorage] Cleared all local questions")
-            print("🔄 [QuestionLocalStorage] Cache invalidated")
+            debugPrint("💾 [QuestionLocalStorage] Cleared all local questions")
+            debugPrint("🔄 [QuestionLocalStorage] Cache invalidated")
         }
     }
 
@@ -1749,7 +1749,7 @@ class QuestionLocalStorage {
                     // Update cache
                     cachedQuestions = questions
                     cacheLastModified = Date()
-                    print("💾 [QuestionLocalStorage] Synced with server: removed \(initialCount - questions.count) questions")
+                    debugPrint("💾 [QuestionLocalStorage] Synced with server: removed \(initialCount - questions.count) questions")
                 }
             }
         }
@@ -1869,7 +1869,7 @@ class SubjectBreakdownCache {
         if let encoded = try? JSONEncoder().encode(data) {
             userDefaults.set(encoded, forKey: cacheKey)
             userDefaults.set(Date(), forKey: cacheKey + "_timestamp")
-            print("💾 [SubjectBreakdownCache] Cached data for timeframe: \(timeframe)")
+            debugPrint("💾 [SubjectBreakdownCache] Cached data for timeframe: \(timeframe)")
         }
     }
 
@@ -1879,7 +1879,7 @@ class SubjectBreakdownCache {
 
         guard let data = userDefaults.data(forKey: cacheKey),
               let cached = try? JSONDecoder().decode(SubjectBreakdownData.self, from: data) else {
-            print("💾 [SubjectBreakdownCache] No cache found for timeframe: \(timeframe)")
+            debugPrint("💾 [SubjectBreakdownCache] No cache found for timeframe: \(timeframe)")
             return nil
         }
 
@@ -1887,12 +1887,12 @@ class SubjectBreakdownCache {
         if let timestamp = userDefaults.object(forKey: cacheKey + "_timestamp") as? Date {
             let age = Date().timeIntervalSince(timestamp)
             if age > cacheValidityInterval {
-                print("💾 [SubjectBreakdownCache] Cache expired for timeframe: \(timeframe) (age: \(Int(age))s)")
+                debugPrint("💾 [SubjectBreakdownCache] Cache expired for timeframe: \(timeframe) (age: \(Int(age))s)")
                 return nil
             }
         }
 
-        print("💾 [SubjectBreakdownCache] Returning cached data for timeframe: \(timeframe)")
+        debugPrint("💾 [SubjectBreakdownCache] Returning cached data for timeframe: \(timeframe)")
         return cached
     }
 
@@ -1901,7 +1901,7 @@ class SubjectBreakdownCache {
         let cacheKey = cacheKeyPrefix + timeframe
         userDefaults.removeObject(forKey: cacheKey)
         userDefaults.removeObject(forKey: cacheKey + "_timestamp")
-        print("💾 [SubjectBreakdownCache] Cleared cache for timeframe: \(timeframe)")
+        debugPrint("💾 [SubjectBreakdownCache] Cleared cache for timeframe: \(timeframe)")
     }
 
     /// Clear all cached subject breakdown data
@@ -1910,14 +1910,14 @@ class SubjectBreakdownCache {
         for timeframe in timeframes {
             clearCache(timeframe: timeframe)
         }
-        print("💾 [SubjectBreakdownCache] Cleared all subject breakdown cache")
+        debugPrint("💾 [SubjectBreakdownCache] Cleared all subject breakdown cache")
     }
 
     /// Invalidate cache to force refresh on next load
     func invalidateCache(timeframe: String) {
         let cacheKey = cacheKeyPrefix + timeframe
         userDefaults.set(Date.distantPast, forKey: cacheKey + "_timestamp")
-        print("💾 [SubjectBreakdownCache] Invalidated cache for timeframe: \(timeframe)")
+        debugPrint("💾 [SubjectBreakdownCache] Invalidated cache for timeframe: \(timeframe)")
     }
 }
 

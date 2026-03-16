@@ -39,7 +39,7 @@ class FocusTreeGardenService: ObservableObject {
     func plantTree(from session: FocusSession) -> FocusTree {
         guard session.isCompleted,
               let treeType = session.earnedTreeType else {
-            print("⚠️ Cannot plant tree: session not completed or no tree type")
+            debugPrint("⚠️ Cannot plant tree: session not completed or no tree type")
             // Return a default sapling tree as fallback
             let fallbackTree = FocusTree(
                 type: .sapling,
@@ -59,7 +59,7 @@ class FocusTreeGardenService: ObservableObject {
         updateStatistics(newTree: tree)
         saveTrees()
 
-        print("🌳 New tree planted: \(treeType.displayName) from \(tree.formattedDuration) focus")
+        debugPrint("🌳 New tree planted: \(treeType.displayName) from \(tree.formattedDuration) focus")
         return tree
     }
 
@@ -79,7 +79,7 @@ class FocusTreeGardenService: ObservableObject {
 
             saveTrees()
             saveStatistics()
-            print("🗑️ Tree removed: \(tree.id)")
+            debugPrint("🗑️ Tree removed: \(tree.id)")
         }
     }
 
@@ -89,7 +89,7 @@ class FocusTreeGardenService: ObservableObject {
         statistics = GardenStatistics()
         saveTrees()
         saveStatistics()
-        print("🗑️ Garden cleared")
+        debugPrint("🗑️ Garden cleared")
     }
 
     // MARK: - Statistics
@@ -188,37 +188,37 @@ class FocusTreeGardenService: ObservableObject {
     private func saveTrees() {
         if let encoded = try? JSONEncoder().encode(trees) {
             UserDefaults.standard.set(encoded, forKey: treesKey)
-            print("💾 Trees saved: \(trees.count) trees")
+            debugPrint("💾 Trees saved: \(trees.count) trees")
         }
     }
 
     private func loadTrees() {
         guard let data = UserDefaults.standard.data(forKey: treesKey),
               let loadedTrees = try? JSONDecoder().decode([FocusTree].self, from: data) else {
-            print("📂 No saved trees found")
+            debugPrint("📂 No saved trees found")
             return
         }
 
         trees = loadedTrees
-        print("📂 Loaded \(trees.count) trees from storage")
+        debugPrint("📂 Loaded \(trees.count) trees from storage")
     }
 
     private func saveStatistics() {
         if let encoded = try? JSONEncoder().encode(statistics) {
             UserDefaults.standard.set(encoded, forKey: statisticsKey)
-            print("💾 Statistics saved")
+            debugPrint("💾 Statistics saved")
         }
     }
 
     private func loadStatistics() {
         guard let data = UserDefaults.standard.data(forKey: statisticsKey),
               let loadedStats = try? JSONDecoder().decode(GardenStatistics.self, from: data) else {
-            print("📂 No saved statistics found, using defaults")
+            debugPrint("📂 No saved statistics found, using defaults")
             return
         }
 
         statistics = loadedStats
-        print("📂 Statistics loaded")
+        debugPrint("📂 Statistics loaded")
     }
 
     // MARK: - Achievements

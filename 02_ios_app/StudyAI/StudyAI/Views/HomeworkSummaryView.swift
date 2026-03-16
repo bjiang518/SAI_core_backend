@@ -58,11 +58,11 @@ struct HomeworkSummaryView: View {
         }
         // ✅ IMPROVED: Smart detection of new homework vs navigation back
         .onAppear {
-            print("📋 [HomeworkSummary] onAppear - Current state: \(stateManager.currentState)")
+            debugPrint("📋 [HomeworkSummary] onAppear - Current state: \(stateManager.currentState)")
 
             // Check if we already have homework in memory
             if stateManager.currentState != .nothing && stateManager.currentHomework != nil {
-                print("   Found existing homework in state: \(stateManager.currentState)")
+                debugPrint("   Found existing homework in state: \(stateManager.currentState)")
 
                 // ✅ KEY: Compare incoming image with stored homework to detect if it's NEW
                 // Generate hash for incoming image (use first image for comparison)
@@ -70,30 +70,30 @@ struct HomeworkSummaryView: View {
                 let incomingHash = "\(incomingImageData?.hashValue ?? 0)"
                 let existingHash = stateManager.currentHomework?.homeworkHash ?? ""
 
-                print("   Incoming image hash: \(incomingHash)")
-                print("   Existing homework hash: \(existingHash)")
+                debugPrint("   Incoming image hash: \(incomingHash)")
+                debugPrint("   Existing homework hash: \(existingHash)")
 
                 if incomingHash == existingHash {
                     // Same homework - user is navigating back from DigitalHomeworkView
-                    print("   ✅ SAME homework (hashes match) - skipping parseHomework()")
-                    print("   Reason: User navigated back from DigitalHomeworkView")
-                    print("   Preserving state: \(stateManager.currentState)")
+                    debugPrint("   ✅ SAME homework (hashes match) - skipping parseHomework()")
+                    debugPrint("   Reason: User navigated back from DigitalHomeworkView")
+                    debugPrint("   Preserving state: \(stateManager.currentState)")
                     return
                 } else {
                     // Different homework - user triggered new parse from camera
-                    print("   🆕 NEW homework detected (hashes differ)")
-                    print("   Reason: User parsed a different image from camera")
-                    print("   Calling parseHomework() to reset and parse new homework")
+                    debugPrint("   🆕 NEW homework detected (hashes differ)")
+                    debugPrint("   Reason: User parsed a different image from camera")
+                    debugPrint("   Calling parseHomework() to reset and parse new homework")
                     stateManager.parseHomework(parseResults: parseResults, images: originalImages)  // ✅ UPDATED: Pass array
                     return
                 }
             }
 
             // No existing homework - this is first parse
-            print("   No existing homework found")
-            print("   Calling parseHomework() for initial homework")
+            debugPrint("   No existing homework found")
+            debugPrint("   Calling parseHomework() for initial homework")
             stateManager.parseHomework(parseResults: parseResults, images: originalImages)  // ✅ UPDATED: Pass array
-            print("   ✅ State initialized: \(stateManager.currentState)")
+            debugPrint("   ✅ State initialized: \(stateManager.currentState)")
         }
         // ✅ NEW: Resume prompt alert
         .alert(NSLocalizedString("homeworkSummary.resumePrompt.title", comment: "Resume Homework?"), isPresented: $showResumePrompt) {

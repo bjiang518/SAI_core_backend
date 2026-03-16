@@ -135,16 +135,16 @@ class StreamingMessageService: ObservableObject {
                     // Mark that we've created the first chunk
                     if isFirstChunkOfResponse {
                         isFirstChunkOfResponse = false
-                        print("📦 [StreamingService] First chunk created: \(chunk.count) chars (target: \(targetSize))")
+                        debugPrint("📦 [StreamingService] First chunk created: \(chunk.count) chars (target: \(targetSize))")
                     }
 
                     // Update current index
                     currentIndex = boundary
 
-                    print("📦 [StreamingService] ✅ Complete chunk (LaTeX verified): \(chunk.count) chars, total processed: \(totalProcessedLength)")
+                    debugPrint("📦 [StreamingService] ✅ Complete chunk (LaTeX verified): \(chunk.count) chars, total processed: \(totalProcessedLength)")
                 } else {
                     // LaTeX incomplete - wait for closing delimiters
-                    print("⏳ [StreamingService] Incomplete LaTeX in chunk, waiting for closing delimiters")
+                    debugPrint("⏳ [StreamingService] Incomplete LaTeX in chunk, waiting for closing delimiters")
                     break
                 }
             } else {
@@ -164,7 +164,7 @@ class StreamingMessageService: ObservableObject {
         if streamingChunks.count > maxChunksInMemory {
             let excessCount = streamingChunks.count - maxChunksInMemory
             streamingChunks.removeFirst(excessCount)
-            print("⚠️ [StreamingService] Memory limit reached, removed \(excessCount) old chunks")
+            debugPrint("⚠️ [StreamingService] Memory limit reached, removed \(excessCount) old chunks")
         }
 
         return completedChunks
@@ -201,7 +201,7 @@ class StreamingMessageService: ObservableObject {
         openInlineDelimiters = 0
         openDisplayDelimiters = 0
 
-        print("🔄 [StreamingService] Chunking reset - ready for new response (cache cleared)")
+        debugPrint("🔄 [StreamingService] Chunking reset - ready for new response (cache cleared)")
     }
 
     // MARK: - Phase 3.2: Optimized Private Helpers
@@ -261,7 +261,7 @@ class StreamingMessageService: ObservableObject {
         let isComplete = (inlineOpen == 0) && (displayOpen == 0)
 
         if !isComplete {
-            print("📐 [StreamingService] LaTeX incomplete: inline=\(inlineOpen), display=\(displayOpen)")
+            debugPrint("📐 [StreamingService] LaTeX incomplete: inline=\(inlineOpen), display=\(displayOpen)")
         }
 
         return isComplete

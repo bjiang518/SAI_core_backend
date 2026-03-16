@@ -417,7 +417,7 @@ struct HTMLView: UIViewRepresentable {
                 if let height = result as? CGFloat {
                     DispatchQueue.main.async {
                         self?.contentHeight.wrappedValue = height
-                        print("🌐 [WKWebView] Content height updated: \(height)")
+                        debugPrint("🌐 [WKWebView] Content height updated: \(height)")
                     }
                 }
             }
@@ -427,7 +427,7 @@ struct HTMLView: UIViewRepresentable {
             if message.name == "heightChanged", let height = message.body as? CGFloat {
                 DispatchQueue.main.async {
                     self.contentHeight.wrappedValue = height
-                    print("🌐 [WKWebView] Content height from JS: \(height)")
+                    debugPrint("🌐 [WKWebView] Content height from JS: \(height)")
                 }
             }
         }

@@ -13,7 +13,7 @@ import Combine
 // MARK: - Production Logging Safety
 // Disable debug print statements in production builds to prevent voice input text exposure
 #if !DEBUG
-private func print(_ items: Any...) { }
+private func debugPrint(_ items: Any...) { }
 private func debugPrint(_ items: Any...) { }
 #endif
 
@@ -51,7 +51,7 @@ class SpeechRecognitionService: NSObject, ObservableObject {
 
         // Check if running on simulator
         #if targetEnvironment(simulator)
-        print("🎙️ SpeechRecognitionService: Running on simulator - speech recognition unavailable")
+        debugPrint("🎙️ SpeechRecognitionService: Running on simulator - speech recognition unavailable")
         self.permissionStatus = .restricted
         self.errorMessage = "Speech recognition is not available in the iOS Simulator. Please test on a physical device."
         #else
@@ -150,13 +150,13 @@ class SpeechRecognitionService: NSObject, ObservableObject {
     // MARK: - Speech Recognition
     
     func startListening(completion: @escaping (VoiceInputResult) -> Void) {
-        print("🎙️ SpeechRecognitionService: startListening called")
-        print("🎙️ Permission status: \(permissionStatus)")
-        print("🎙️ Can use voice: \(permissionStatus.canUseVoice)")
-        print("🎙️ Currently listening: \(isListening)")
+        debugPrint("🎙️ SpeechRecognitionService: startListening called")
+        debugPrint("🎙️ Permission status: \(permissionStatus)")
+        debugPrint("🎙️ Can use voice: \(permissionStatus.canUseVoice)")
+        debugPrint("🎙️ Currently listening: \(isListening)")
         
         guard permissionStatus.canUseVoice else {
-            print("🎙️ SpeechRecognitionService: No voice permission")
+            debugPrint("🎙️ SpeechRecognitionService: No voice permission")
             completion(VoiceInputResult(recognizedText: "", confidence: 0.0, isFinal: true))
             errorMessage = "Voice permissions not granted"
             return
@@ -164,11 +164,11 @@ class SpeechRecognitionService: NSObject, ObservableObject {
         
         // Prevent multiple simultaneous calls
         if isListening {
-            print("🎙️ SpeechRecognitionService: Already listening, stopping current session first")
+            debugPrint("🎙️ SpeechRecognitionService: Already listening, stopping current session first")
             forceStopListening() // Use force stop to bypass the guard
         }
         
-        print("🎙️ SpeechRecognitionService: Starting listening process")
+        debugPrint("🎙️ SpeechRecognitionService: Starting listening process")
         
         // Store completion handler
         self.completionHandler = completion
@@ -181,17 +181,17 @@ class SpeechRecognitionService: NSObject, ObservableObject {
                 self.isListening = true
                 self.recognizedText = ""
                 self.errorMessage = nil
-                print("🎙️ SpeechRecognitionService: Successfully started listening")
+                debugPrint("🎙️ SpeechRecognitionService: Successfully started listening")
                 
                 // Start timeout timer (30 seconds)
                 self.listeningTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: false) { _ in
-                    print("🎙️ SpeechRecognitionService: Listening timeout reached")
+                    debugPrint("🎙️ SpeechRecognitionService: Listening timeout reached")
                     self.handleTimeout()
                 }
             }
             
         } catch {
-            print("🎙️ SpeechRecognitionService: Error starting listening: \(error)")
+            debugPrint("🎙️ SpeechRecognitionService: Error starting listening: \(error)")
             DispatchQueue.main.async {
                 self.errorMessage = "Failed to start listening: \(error.localizedDescription)"
                 completion(VoiceInputResult(recognizedText: "", confidence: 0.0, isFinal: true))
@@ -200,11 +200,11 @@ class SpeechRecognitionService: NSObject, ObservableObject {
     }
     
     func stopListening() {
-        print("🎙️ SpeechRecognitionService: stopListening() called")
+        debugPrint("🎙️ SpeechRecognitionService: stopListening() called")
         
         // Ensure we're only stopping if we're actually listening
         guard isListening else {
-            print("🎙️ SpeechRecognitionService: Already stopped, ignoring stopListening call")
+            debugPrint("🎙️ SpeechRecognitionService: Already stopped, ignoring stopListening call")
             return
         }
         
@@ -212,7 +212,7 @@ class SpeechRecognitionService: NSObject, ObservableObject {
     }
     
     private func forceStopListening() {
-        print("🎙️ SpeechRecognitionService: forceStopListening() called")
+        debugPrint("🎙️ SpeechRecognitionService: forceStopListening() called")
         
         DispatchQueue.main.async {
             self.isListening = false
@@ -226,30 +226,30 @@ class SpeechRecognitionService: NSObject, ObservableObject {
         
         // Stop audio engine safely
         if audioEngine.isRunning {
-            print("🎙️ SpeechRecognitionService: Stopping audio engine")
+            debugPrint("🎙️ SpeechRecognitionService: Stopping audio engine")
             
             // Check if input node has any taps before trying to remove them
             let inputNode = audioEngine.inputNode
             if inputNode.numberOfInputs > 0 {
                 // Remove tap safely
                 inputNode.removeTap(onBus: 0)
-                print("🎙️ SpeechRecognitionService: Audio tap removed successfully")
+                debugPrint("🎙️ SpeechRecognitionService: Audio tap removed successfully")
             }
             
             // Stop the audio engine
             audioEngine.stop()
-            print("🎙️ SpeechRecognitionService: Audio engine stopped")
+            debugPrint("🎙️ SpeechRecognitionService: Audio engine stopped")
         }
         
         // Cancel recognition task safely
         if let task = recognitionTask {
-            print("🎙️ SpeechRecognitionService: Cancelling recognition task")
+            debugPrint("🎙️ SpeechRecognitionService: Cancelling recognition task")
             task.cancel()
         }
         
         // End audio for recognition request safely
         if let request = recognitionRequest {
-            print("🎙️ SpeechRecognitionService: Ending audio for recognition request")
+            debugPrint("🎙️ SpeechRecognitionService: Ending audio for recognition request")
             request.endAudio()
         }
         
@@ -257,19 +257,19 @@ class SpeechRecognitionService: NSObject, ObservableObject {
         recognitionTask = nil
         recognitionRequest = nil
         
-        print("🎙️ SpeechRecognitionService: forceStopListening() completed successfully")
+        debugPrint("🎙️ SpeechRecognitionService: forceStopListening() completed successfully")
     }
     
     private func startAudioSession() throws {
-        print("🎙️ SpeechRecognitionService: Setting up audio session for recording")
+        debugPrint("🎙️ SpeechRecognitionService: Setting up audio session for recording")
         let audioSession = AVAudioSession.sharedInstance()
         try audioSession.setCategory(.playAndRecord, mode: .measurement, options: [.defaultToSpeaker, .allowBluetoothA2DP])
         try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
-        print("🎙️ SpeechRecognitionService: Audio session configured for recording")
+        debugPrint("🎙️ SpeechRecognitionService: Audio session configured for recording")
     }
     
     private func startSpeechRecognition() throws {
-        print("🎙️ SpeechRecognitionService: startSpeechRecognition() called")
+        debugPrint("🎙️ SpeechRecognitionService: startSpeechRecognition() called")
         
         guard let speechRecognizer = speechRecognizer, speechRecognizer.isAvailable else {
             throw NSError(domain: "SpeechRecognitionService", code: 1, userInfo: [NSLocalizedDescriptionKey: "Speech recognizer not available"])
@@ -283,46 +283,46 @@ class SpeechRecognitionService: NSObject, ObservableObject {
         
         // Configure recognition request
         recognitionRequest.shouldReportPartialResults = true
-        print("🎙️ SpeechRecognitionService: Recognition request configured")
+        debugPrint("🎙️ SpeechRecognitionService: Recognition request configured")
         
         // Create audio input node
         let inputNode = audioEngine.inputNode
         let recordingFormat = inputNode.outputFormat(forBus: 0)
-        print("🎙️ SpeechRecognitionService: Audio input node configured")
+        debugPrint("🎙️ SpeechRecognitionService: Audio input node configured")
         
         // Ensure no existing taps before installing new one
         // Try to remove any existing tap first
         if inputNode.numberOfInputs > 0 {
             inputNode.removeTap(onBus: 0)
-            print("🎙️ SpeechRecognitionService: Removed existing audio tap")
+            debugPrint("🎙️ SpeechRecognitionService: Removed existing audio tap")
         }
 
         // Install new tap on audio input
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
             self?.recognitionRequest?.append(buffer)
         }
-        print("🎙️ SpeechRecognitionService: Audio tap installed successfully")
+        debugPrint("🎙️ SpeechRecognitionService: Audio tap installed successfully")
         
         // Start audio engine
-        print("🎙️ SpeechRecognitionService: Starting audio engine")
+        debugPrint("🎙️ SpeechRecognitionService: Starting audio engine")
         audioEngine.prepare()
         try audioEngine.start()
-        print("🎙️ SpeechRecognitionService: Audio engine started successfully")
+        debugPrint("🎙️ SpeechRecognitionService: Audio engine started successfully")
         
         // Start recognition task
-        print("🎙️ SpeechRecognitionService: Starting recognition task")
+        debugPrint("🎙️ SpeechRecognitionService: Starting recognition task")
         recognitionTask = speechRecognizer.recognitionTask(with: recognitionRequest) { [weak self] result, error in
             DispatchQueue.main.async {
                 self?.handleRecognitionResult(result: result, error: error)
             }
         }
-        print("🎙️ SpeechRecognitionService: Recognition task started successfully")
+        debugPrint("🎙️ SpeechRecognitionService: Recognition task started successfully")
     }
     
     private func handleRecognitionResult(result: SFSpeechRecognitionResult?, error: Error?) {
-        print("🎙️ SpeechRecognitionService: handleRecognitionResult called")
-        print("🎙️ Result: \(result?.bestTranscription.formattedString ?? "nil")")
-        print("🎙️ Error: \(error?.localizedDescription ?? "nil")")
+        debugPrint("🎙️ SpeechRecognitionService: handleRecognitionResult called")
+        debugPrint("🎙️ Result: \(result?.bestTranscription.formattedString ?? "nil")")
+        debugPrint("🎙️ Error: \(error?.localizedDescription ?? "nil")")
         
         var isFinal = false
         var recognizedText = ""
@@ -333,9 +333,9 @@ class SpeechRecognitionService: NSObject, ObservableObject {
             confidence = result.bestTranscription.segments.last?.confidence ?? 0.0
             isFinal = result.isFinal
             
-            print("🎙️ Recognized text: '\(recognizedText)'")
-            print("🎙️ Is final: \(isFinal)")
-            print("🎙️ Confidence: \(confidence)")
+            debugPrint("🎙️ Recognized text: '\(recognizedText)'")
+            debugPrint("🎙️ Is final: \(isFinal)")
+            debugPrint("🎙️ Confidence: \(confidence)")
             
             // Update published properties
             self.recognizedText = recognizedText
@@ -346,13 +346,13 @@ class SpeechRecognitionService: NSObject, ObservableObject {
             if !recognizedText.isEmpty {
                 silenceTimer?.invalidate()
                 silenceTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: false) { _ in
-                    print("🎙️ Silence detected, finalizing with last recognized text")
+                    debugPrint("🎙️ Silence detected, finalizing with last recognized text")
                     self.finalizeSpeechRecognition()
                 }
             }
             
             if isFinal {
-                print("🎙️ Final result, stopping and calling completion")
+                debugPrint("🎙️ Final result, stopping and calling completion")
                 listeningTimer?.invalidate()
                 listeningTimer = nil
                 silenceTimer?.invalidate()
@@ -363,11 +363,11 @@ class SpeechRecognitionService: NSObject, ObservableObject {
         }
         
         if let error = error {
-            print("🎙️ Recognition error: \(error.localizedDescription)")
+            debugPrint("🎙️ Recognition error: \(error.localizedDescription)")
             
             // If we have partial text and get "No speech detected", use the partial text
             if error.localizedDescription.contains("No speech detected") && !lastRecognizedText.isEmpty {
-                print("🎙️ Using last recognized text due to 'No speech detected' error: '\(lastRecognizedText)'")
+                debugPrint("🎙️ Using last recognized text due to 'No speech detected' error: '\(lastRecognizedText)'")
                 listeningTimer?.invalidate()
                 listeningTimer = nil
                 silenceTimer?.invalidate() 
@@ -383,11 +383,11 @@ class SpeechRecognitionService: NSObject, ObservableObject {
     }
     
     private func handleTimeout() {
-        print("🎙️ SpeechRecognitionService: Speech recognition timeout")
+        debugPrint("🎙️ SpeechRecognitionService: Speech recognition timeout")
         DispatchQueue.main.async {
             // Use last recognized text if available
             if !self.lastRecognizedText.isEmpty {
-                print("🎙️ Timeout: Using last recognized text: '\(self.lastRecognizedText)'")
+                debugPrint("🎙️ Timeout: Using last recognized text: '\(self.lastRecognizedText)'")
                 self.stopListening()
                 self.completionHandler?(VoiceInputResult(recognizedText: self.lastRecognizedText, confidence: 0.0, isFinal: true))
             } else {
@@ -399,7 +399,7 @@ class SpeechRecognitionService: NSObject, ObservableObject {
     }
     
     private func finalizeSpeechRecognition() {
-        print("🎙️ SpeechRecognitionService: Finalizing speech recognition with text: '\(lastRecognizedText)'")
+        debugPrint("🎙️ SpeechRecognitionService: Finalizing speech recognition with text: '\(lastRecognizedText)'")
         DispatchQueue.main.async {
             self.listeningTimer?.invalidate()
             self.listeningTimer = nil

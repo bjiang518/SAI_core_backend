@@ -99,7 +99,7 @@ struct MessageFeedbackButtons: View {
                 } else {
                     feedbackState = .thumbsUp
                     // TODO: Send feedback to backend
-                    print("👍 Positive feedback for message \(messageIndex)")
+                    debugPrint("👍 Positive feedback for message \(messageIndex)")
                 }
             }) {
                 Image(systemName: feedbackState == .thumbsUp ? "hand.thumbsup.fill" : "hand.thumbsup")
@@ -114,7 +114,7 @@ struct MessageFeedbackButtons: View {
                 } else {
                     feedbackState = .thumbsDown
                     // TODO: Send feedback to backend
-                    print("👎 Negative feedback for message \(messageIndex)")
+                    debugPrint("👎 Negative feedback for message \(messageIndex)")
                 }
             }) {
                 Image(systemName: feedbackState == .thumbsDown ? "hand.thumbsdown.fill" : "hand.thumbsdown")
@@ -144,7 +144,7 @@ class MessageActionsHandler: ObservableObject {
 
     func copyMessage(content: String) {
         UIPasteboard.general.string = content
-        print("📋 Copied message to clipboard")
+        debugPrint("📋 Copied message to clipboard")
 
         // Show haptic feedback
         let generator = UIImpactFeedbackGenerator(style: .medium)
@@ -156,7 +156,7 @@ class MessageActionsHandler: ObservableObject {
     func shareMessage(content: String) {
         shareText = content
         showingShareSheet = true
-        print("📤 Sharing message")
+        debugPrint("📤 Sharing message")
     }
 
     // MARK: - Edit Message
@@ -165,7 +165,7 @@ class MessageActionsHandler: ObservableObject {
         editText = content
         editingMessageIndex = index
         showingEditSheet = true
-        print("✏️ Editing message at index \(index)")
+        debugPrint("✏️ Editing message at index \(index)")
     }
 
     // MARK: - Regenerate Response
@@ -175,18 +175,18 @@ class MessageActionsHandler: ObservableObject {
         networkService: NetworkService,
         onComplete: @escaping () -> Void
     ) {
-        print("🔄 Regenerating response at index \(index)")
+        debugPrint("🔄 Regenerating response at index \(index)")
 
         // Find the user message that triggered this AI response
         guard index > 0 else {
-            print("❌ Cannot regenerate first message")
+            debugPrint("❌ Cannot regenerate first message")
             return
         }
 
         let previousMessage = networkService.conversationHistory[index - 1]
         guard previousMessage["role"] == "user",
               let userMessage = previousMessage["content"] else {
-            print("❌ Previous message is not a user message")
+            debugPrint("❌ Previous message is not a user message")
             return
         }
 
@@ -195,7 +195,7 @@ class MessageActionsHandler: ObservableObject {
 
         // TODO: Implement regenerate with proper API
         // The NetworkService API needs to be updated to support regeneration
-        print("⚠️ TODO: Regenerate message: \(userMessage)")
+        debugPrint("⚠️ TODO: Regenerate message: \(userMessage)")
         onComplete()
 
         // Future implementation:
@@ -215,11 +215,11 @@ class MessageActionsHandler: ObservableObject {
         networkService: NetworkService,
         messageManager: ChatMessageManager
     ) {
-        print("🗑️ Deleting message at index \(index)")
+        debugPrint("🗑️ Deleting message at index \(index)")
 
         // Delete from conversation history
         guard index < networkService.conversationHistory.count else {
-            print("❌ Invalid message index")
+            debugPrint("❌ Invalid message index")
             return
         }
 
@@ -239,6 +239,6 @@ class MessageActionsHandler: ObservableObject {
         }
 
         // TODO: Send feedback to backend analytics
-        print("📊 Feedback for message \(messageIndex): \(messageFeedback[messageIndex]?.rawValue ?? "none")")
+        debugPrint("📊 Feedback for message \(messageIndex): \(messageFeedback[messageIndex]?.rawValue ?? "none")")
     }
 }

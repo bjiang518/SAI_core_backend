@@ -18,58 +18,58 @@ class StorageSyncService {
 
     func syncAllToServer() async throws -> SyncResult {
         guard AuthenticationService.shared.getAuthToken() != nil else {
-            print("❌ [Sync] Authentication failed - no token")
+            debugPrint("❌ [Sync] Authentication failed - no token")
             throw SyncError.notAuthenticated
         }
 
-        print("🚀 [Sync] Starting full sync to server...")
+        debugPrint("🚀 [Sync] Starting full sync to server...")
         var result = SyncResult()
 
         // 1. Sync Archived Questions
-        print("\n📚 [Sync] === SYNCING ARCHIVED QUESTIONS ===")
+        debugPrint("\n📚 [Sync] === SYNCING ARCHIVED QUESTIONS ===")
         do {
             let questionResult = try await syncArchivedQuestions()
             result.questionsSynced = questionResult.synced
             result.questionsDuplicates = questionResult.duplicates
-            print("✅ [Sync] Questions sync completed: \(questionResult.synced) synced, \(questionResult.duplicates) duplicates")
+            debugPrint("✅ [Sync] Questions sync completed: \(questionResult.synced) synced, \(questionResult.duplicates) duplicates")
         } catch {
-            print("❌ [Sync] Questions sync failed: \(error.localizedDescription)")
+            debugPrint("❌ [Sync] Questions sync failed: \(error.localizedDescription)")
             result.errors.append("Questions: \(error.localizedDescription)")
         }
 
         // 2. Sync Archived Conversations
-        print("\n💬 [Sync] === SYNCING ARCHIVED CONVERSATIONS ===")
+        debugPrint("\n💬 [Sync] === SYNCING ARCHIVED CONVERSATIONS ===")
         do {
             let conversationResult = try await syncArchivedConversations()
             result.conversationsSynced = conversationResult.synced
             result.conversationsDuplicates = conversationResult.duplicates
-            print("✅ [Sync] Conversations sync completed: \(conversationResult.synced) synced, \(conversationResult.duplicates) duplicates")
+            debugPrint("✅ [Sync] Conversations sync completed: \(conversationResult.synced) synced, \(conversationResult.duplicates) duplicates")
         } catch {
-            print("❌ [Sync] Conversations sync failed: \(error.localizedDescription)")
+            debugPrint("❌ [Sync] Conversations sync failed: \(error.localizedDescription)")
             result.errors.append("Conversations: \(error.localizedDescription)")
         }
 
         // 3. Sync Progress Data
-        print("\n📊 [Sync] === SYNCING PROGRESS DATA ===")
+        debugPrint("\n📊 [Sync] === SYNCING PROGRESS DATA ===")
         do {
             try await syncProgressData()
             result.progressSynced = true
-            print("✅ [Sync] Progress sync completed successfully")
+            debugPrint("✅ [Sync] Progress sync completed successfully")
         } catch {
-            print("❌ [Sync] Progress sync failed: \(error.localizedDescription)")
+            debugPrint("❌ [Sync] Progress sync failed: \(error.localizedDescription)")
             result.errors.append("Progress: \(error.localizedDescription)")
         }
 
-        print("\n🏁 [Sync] === SYNC SUMMARY ===")
-        print("📈 Total synced: \(result.totalSynced)")
-        print("🔄 Total duplicates: \(result.totalDuplicates)")
-        print("❌ Errors: \(result.errors.count)")
+        debugPrint("\n🏁 [Sync] === SYNC SUMMARY ===")
+        debugPrint("📈 Total synced: \(result.totalSynced)")
+        debugPrint("🔄 Total duplicates: \(result.totalDuplicates)")
+        debugPrint("❌ Errors: \(result.errors.count)")
         if !result.errors.isEmpty {
-            result.errors.forEach { print("   - \($0)") }
+            result.errors.forEach { debugPrint("   - \($0)") }
         }
 
         // ✅ POST NOTIFICATION TO REFRESH LIBRARY
-        print("📢 [Sync] Posting StorageSyncCompleted notification...")
+        debugPrint("📢 [Sync] Posting StorageSyncCompleted notification...")
         NotificationCenter.default.post(name: NSNotification.Name("StorageSyncCompleted"), object: nil)
 
         return result
@@ -79,29 +79,29 @@ class StorageSyncService {
 
     private func syncArchivedQuestions() async throws -> (synced: Int, duplicates: Int) {
         guard let token = AuthenticationService.shared.getAuthToken() else {
-            print("❌ [Sync] No auth token for questions sync")
+            debugPrint("❌ [Sync] No auth token for questions sync")
             throw SyncError.notAuthenticated
         }
 
-        print("📚 [Sync] === SYNCING ARCHIVED QUESTIONS ===")
+        debugPrint("📚 [Sync] === SYNCING ARCHIVED QUESTIONS ===")
 
         // STEP 1: Fetch server questions
-        print("📥 [Sync] Step 1: Fetching server questions...")
+        debugPrint("📥 [Sync] Step 1: Fetching server questions...")
         let serverQuestions = try await fetchQuestionsFromServer(token: token)
-        print("   ✅ [Sync] Fetched \(serverQuestions.count) questions from server")
+        debugPrint("   ✅ [Sync] Fetched \(serverQuestions.count) questions from server")
 
         // STEP 2: Get local questions
-        print("📱 [Sync] Step 2: Getting local questions...")
+        debugPrint("📱 [Sync] Step 2: Getting local questions...")
         let localStorage = currentUserQuestionStorage()
         let localQuestions = localStorage.getLocalQuestions()
-        print("   ✅ [Sync] Found \(localQuestions.count) local questions")
+        debugPrint("   ✅ [Sync] Found \(localQuestions.count) local questions")
 
         var syncedToServerCount = 0
         var duplicateCount = 0
         var downloadedFromServerCount = 0
 
         // STEP 3: Build Sets for efficient comparison
-        print("🔍 [Sync] Step 3: Building ID sets for comparison...")
+        debugPrint("🔍 [Sync] Step 3: Building ID sets for comparison...")
         var serverQuestionIds = Set<String>()
         for serverQ in serverQuestions {
             if let id = serverQ["id"] as? String {
@@ -115,35 +115,35 @@ class StorageSyncService {
                 localQuestionIds.insert(id)
             }
         }
-        print("   📊 [Sync] Server IDs: \(serverQuestionIds.count), Local IDs: \(localQuestionIds.count)")
+        debugPrint("   📊 [Sync] Server IDs: \(serverQuestionIds.count), Local IDs: \(localQuestionIds.count)")
 
         // STEP 4: Download server questions that don't exist locally
-        print("\n📥 [Sync] Step 4: Downloading server questions to local storage...")
+        debugPrint("\n📥 [Sync] Step 4: Downloading server questions to local storage...")
         for (index, serverQuestion) in serverQuestions.enumerated() {
             guard let id = serverQuestion["id"] as? String else {
-                print("   ⚠️ [Sync] Server question \(index + 1) has no ID - skipping")
+                debugPrint("   ⚠️ [Sync] Server question \(index + 1) has no ID - skipping")
                 continue
             }
 
             // Check if this server question exists locally
             if localQuestionIds.contains(id) {
-                print("   ⏭️ [Sync] Question \(index + 1) already exists locally (ID: \(id)) - skipping")
+                debugPrint("   ⏭️ [Sync] Question \(index + 1) already exists locally (ID: \(id)) - skipping")
                 continue
             }
 
             // Download this question to local storage
-            print("   📥 [Sync] Downloading question \(index + 1)/\(serverQuestions.count) (ID: \(id))...")
+            debugPrint("   📥 [Sync] Downloading question \(index + 1)/\(serverQuestions.count) (ID: \(id))...")
 
             // Convert server question to local format
             // Backend returns camelCase keys (questionText, answerText, etc.)
             let questionText = serverQuestion["questionText"] as? String ?? ""
             let answerText = serverQuestion["answerText"] as? String ?? ""
 
-            print("   📝 [Sync] Question text: '\(questionText.prefix(100))...'")
-            print("   📝 [Sync] Answer text: '\(answerText.prefix(100))...'")
+            debugPrint("   📝 [Sync] Question text: '\(questionText.prefix(100))...'")
+            debugPrint("   📝 [Sync] Answer text: '\(answerText.prefix(100))...'")
 
             if questionText.isEmpty {
-                print("   ⚠️ [Sync] WARNING: Question text is EMPTY!")
+                debugPrint("   ⚠️ [Sync] WARNING: Question text is EMPTY!")
             }
 
             // ✅ NORMALIZE: Ensure grade is in uppercase format for enum compatibility
@@ -178,51 +178,51 @@ class StorageSyncService {
                 "archivedAt": serverQuestion["archivedAt"] as? String ?? ISO8601DateFormatter().string(from: Date())
             ]
 
-            print("   📊 [Sync] Grade: \(rawGrade) → \(normalizedGrade), isCorrect: \(localQuestion["isCorrect"] ?? "nil")")
+            debugPrint("   📊 [Sync] Grade: \(rawGrade) → \(normalizedGrade), isCorrect: \(localQuestion["isCorrect"] ?? "nil")")
 
             // Save to local storage
             _ = localStorage.saveQuestions([localQuestion])
             downloadedFromServerCount += 1
-            print("   ✅ [Sync] Downloaded question to local storage")
+            debugPrint("   ✅ [Sync] Downloaded question to local storage")
         }
 
         if downloadedFromServerCount > 0 {
-            print("\n📥 [Sync] Downloaded \(downloadedFromServerCount) questions from server to local storage")
+            debugPrint("\n📥 [Sync] Downloaded \(downloadedFromServerCount) questions from server to local storage")
         } else {
-            print("\n📥 [Sync] No new questions to download from server")
+            debugPrint("\n📥 [Sync] No new questions to download from server")
         }
 
         // STEP 5: Upload local questions that don't exist on server
-        print("\n📤 [Sync] Step 5: Uploading local questions to server...")
+        debugPrint("\n📤 [Sync] Step 5: Uploading local questions to server...")
 
         guard !localQuestions.isEmpty else {
-            print("   ℹ️ [Sync] No local questions to upload")
-            print("\n📊 [Sync] Questions summary: \(downloadedFromServerCount) downloaded, 0 uploaded, 0 duplicates")
+            debugPrint("   ℹ️ [Sync] No local questions to upload")
+            debugPrint("\n📊 [Sync] Questions summary: \(downloadedFromServerCount) downloaded, 0 uploaded, 0 duplicates")
             return (downloadedFromServerCount, 0)
         }
 
         for (index, questionData) in localQuestions.enumerated() {
-            print("\n   📝 [Sync] Question \(index + 1)/\(localQuestions.count):")
+            debugPrint("\n   📝 [Sync] Question \(index + 1)/\(localQuestions.count):")
 
             do {
                 // Check if already exists on server by checking if it has server ID
                 if let id = questionData["id"] as? String, id.count > 10 {
                     if serverQuestionIds.contains(id) {
-                        print("   ⏭️  [Sync] Already on server with ID: \(id) - SKIPPING (duplicate)")
+                        debugPrint("   ⏭️  [Sync] Already on server with ID: \(id) - SKIPPING (duplicate)")
                         duplicateCount += 1
                         continue
                     } else {
-                        print("   ❓ [Sync] Has ID but not on server - will upload")
+                        debugPrint("   ❓ [Sync] Has ID but not on server - will upload")
                     }
                 } else {
-                    print("   🆕 [Sync] No server ID found - will upload to server")
+                    debugPrint("   🆕 [Sync] No server ID found - will upload to server")
                 }
 
                 // Prepare question for archiving
                 guard let subject = questionData["subject"] as? String,
                       let questionText = questionData["questionText"] as? String,
                       let _ = questionData["answerText"] as? String else {
-                    print("   ⚠️  [Sync] Missing required fields - skipping")
+                    debugPrint("   ⚠️  [Sync] Missing required fields - skipping")
                     continue
                 }
 
@@ -230,11 +230,11 @@ class StorageSyncService {
                 let grade = questionData["grade"] as? String
                 let isCorrect = questionData["isCorrect"] as? Bool  // ✅ Extract for logging
 
-                print("   📋 [Sync] Subject: \(subject), Question: \(questionText.prefix(50))...")
-                print("   📊 [Sync] Grade: \(grade ?? "N/A"), isCorrect: \(isCorrect?.description ?? "nil")")
+                debugPrint("   📋 [Sync] Subject: \(subject), Question: \(questionText.prefix(50))...")
+                debugPrint("   📊 [Sync] Grade: \(grade ?? "N/A"), isCorrect: \(isCorrect?.description ?? "nil")")
 
                 // Upload directly to server using new method
-                print("   📤 [Sync] Uploading to server API...")
+                debugPrint("   📤 [Sync] Uploading to server API...")
                 let serverId = try await QuestionArchiveService.shared.uploadQuestionToServer(questionData)
 
                 // Update local storage with server ID
@@ -243,15 +243,15 @@ class StorageSyncService {
                 _ = currentUserQuestionStorage().saveQuestions([updatedQuestion])
 
                 syncedToServerCount += 1
-                print("   ✅ [Sync] Successfully uploaded question (Server ID: \(serverId))")
+                debugPrint("   ✅ [Sync] Successfully uploaded question (Server ID: \(serverId))")
 
             } catch {
-                print("   ❌ [Sync] Failed to upload question: \(error)")
+                debugPrint("   ❌ [Sync] Failed to upload question: \(error)")
             }
         }
 
         let totalSynced = downloadedFromServerCount + syncedToServerCount
-        print("\n📊 [Sync] Questions summary: \(downloadedFromServerCount) downloaded, \(syncedToServerCount) uploaded, \(duplicateCount) duplicates")
+        debugPrint("\n📊 [Sync] Questions summary: \(downloadedFromServerCount) downloaded, \(syncedToServerCount) uploaded, \(duplicateCount) duplicates")
         return (totalSynced, duplicateCount)
     }
 
@@ -272,12 +272,12 @@ class StorageSyncService {
             throw SyncError.invalidResponse
         }
 
-        print("   📡 [Sync] Server response: \(httpResponse.statusCode)")
+        debugPrint("   📡 [Sync] Server response: \(httpResponse.statusCode)")
 
         if httpResponse.statusCode == 200 {
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let questionsArray = json["data"] as? [[String: Any]] {
-                print("   ✅ [Sync] Server returned \(questionsArray.count) questions")
+                debugPrint("   ✅ [Sync] Server returned \(questionsArray.count) questions")
                 return questionsArray
             }
         }
@@ -303,12 +303,12 @@ class StorageSyncService {
             throw SyncError.invalidResponse
         }
 
-        print("   📡 [Sync] Server response: \(httpResponse.statusCode)")
+        debugPrint("   📡 [Sync] Server response: \(httpResponse.statusCode)")
 
         if httpResponse.statusCode == 200 {
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let conversationsArray = json["data"] as? [[String: Any]] {
-                print("   ✅ [Sync] Server returned \(conversationsArray.count) conversations")
+                debugPrint("   ✅ [Sync] Server returned \(conversationsArray.count) conversations")
                 return conversationsArray
             }
         }
@@ -321,29 +321,29 @@ class StorageSyncService {
 
     private func syncArchivedConversations() async throws -> (synced: Int, duplicates: Int) {
         guard let token = AuthenticationService.shared.getAuthToken() else {
-            print("❌ [Sync] No auth token for conversations sync")
+            debugPrint("❌ [Sync] No auth token for conversations sync")
             throw SyncError.notAuthenticated
         }
 
-        print("💬 [Sync] === SYNCING ARCHIVED CONVERSATIONS ===")
+        debugPrint("💬 [Sync] === SYNCING ARCHIVED CONVERSATIONS ===")
 
         // STEP 1: Fetch server conversations
-        print("📥 [Sync] Step 1: Fetching server conversations...")
+        debugPrint("📥 [Sync] Step 1: Fetching server conversations...")
         let serverConversations = try await fetchConversationsFromServer(token: token)
-        print("   ✅ [Sync] Fetched \(serverConversations.count) conversations from server")
+        debugPrint("   ✅ [Sync] Fetched \(serverConversations.count) conversations from server")
 
         // STEP 2: Get local conversations
-        print("📱 [Sync] Step 2: Getting local conversations...")
+        debugPrint("📱 [Sync] Step 2: Getting local conversations...")
         let localStorage = currentUserConversationStorage()
         let localConversations = localStorage.getLocalConversations()
-        print("   ✅ [Sync] Found \(localConversations.count) local conversations")
+        debugPrint("   ✅ [Sync] Found \(localConversations.count) local conversations")
 
         var syncedToServerCount = 0
         var duplicateCount = 0
         var downloadedFromServerCount = 0
 
         // STEP 3: Build Sets for efficient comparison
-        print("🔍 [Sync] Step 3: Building ID sets for comparison...")
+        debugPrint("🔍 [Sync] Step 3: Building ID sets for comparison...")
         var serverConversationIds = Set<String>()
         for serverConv in serverConversations {
             if let id = serverConv["id"] as? String {
@@ -357,33 +357,33 @@ class StorageSyncService {
                 localConversationIds.insert(id)
             }
         }
-        print("   📊 [Sync] Server IDs: \(serverConversationIds.count), Local IDs: \(localConversationIds.count)")
+        debugPrint("   📊 [Sync] Server IDs: \(serverConversationIds.count), Local IDs: \(localConversationIds.count)")
 
         // STEP 4: Download server conversations that don't exist locally
-        print("\n📥 [Sync] Step 4: Downloading server conversations to local storage...")
+        debugPrint("\n📥 [Sync] Step 4: Downloading server conversations to local storage...")
         for (index, serverConversation) in serverConversations.enumerated() {
             guard let id = serverConversation["id"] as? String else {
-                print("   ⚠️ [Sync] Server conversation \(index + 1) has no ID - skipping")
+                debugPrint("   ⚠️ [Sync] Server conversation \(index + 1) has no ID - skipping")
                 continue
             }
 
             // Check if this server conversation exists locally
             if localConversationIds.contains(id) {
-                print("   ⏭️ [Sync] Conversation \(index + 1) already exists locally (ID: \(id)) - skipping")
+                debugPrint("   ⏭️ [Sync] Conversation \(index + 1) already exists locally (ID: \(id)) - skipping")
                 continue
             }
 
             // Download this conversation to local storage
-            print("   📥 [Sync] Downloading conversation \(index + 1)/\(serverConversations.count) (ID: \(id))...")
+            debugPrint("   📥 [Sync] Downloading conversation \(index + 1)/\(serverConversations.count) (ID: \(id))...")
 
             // Convert server conversation to local format
             // Backend returns conversationContent (camelCase)
             let conversationContent = serverConversation["conversationContent"] as? String ?? ""
-            print("   📝 [Sync] Conversation content length: \(conversationContent.count) chars")
+            debugPrint("   📝 [Sync] Conversation content length: \(conversationContent.count) chars")
             if conversationContent.isEmpty {
-                print("   ⚠️ [Sync] WARNING: Conversation content is EMPTY!")
+                debugPrint("   ⚠️ [Sync] WARNING: Conversation content is EMPTY!")
             } else {
-                print("   ✅ [Sync] Conversation has content: \(conversationContent.prefix(100))...")
+                debugPrint("   ✅ [Sync] Conversation has content: \(conversationContent.prefix(100))...")
             }
 
             let localConversation: [String: Any] = [
@@ -397,51 +397,51 @@ class StorageSyncService {
             // Save to local storage
             localStorage.saveConversation(localConversation)
             downloadedFromServerCount += 1
-            print("   ✅ [Sync] Downloaded conversation to local storage")
+            debugPrint("   ✅ [Sync] Downloaded conversation to local storage")
         }
 
         if downloadedFromServerCount > 0 {
-            print("\n📥 [Sync] Downloaded \(downloadedFromServerCount) conversations from server to local storage")
+            debugPrint("\n📥 [Sync] Downloaded \(downloadedFromServerCount) conversations from server to local storage")
         } else {
-            print("\n📥 [Sync] No new conversations to download from server")
+            debugPrint("\n📥 [Sync] No new conversations to download from server")
         }
 
         // STEP 5: Upload local conversations that don't exist on server
-        print("\n📤 [Sync] Step 5: Uploading local conversations to server...")
+        debugPrint("\n📤 [Sync] Step 5: Uploading local conversations to server...")
 
         guard !localConversations.isEmpty else {
-            print("   ℹ️ [Sync] No local conversations to upload")
-            print("\n📊 [Sync] Conversations summary: \(downloadedFromServerCount) downloaded, 0 uploaded, 0 duplicates")
+            debugPrint("   ℹ️ [Sync] No local conversations to upload")
+            debugPrint("\n📊 [Sync] Conversations summary: \(downloadedFromServerCount) downloaded, 0 uploaded, 0 duplicates")
             return (downloadedFromServerCount, 0)
         }
 
         for (index, conversationData) in localConversations.enumerated() {
-            print("\n   💬 [Sync] Conversation \(index + 1)/\(localConversations.count):")
+            debugPrint("\n   💬 [Sync] Conversation \(index + 1)/\(localConversations.count):")
 
             do {
                 // Check if already exists on server by checking if it has server ID
                 if let id = conversationData["id"] as? String, id.count > 10 {
                     if serverConversationIds.contains(id) {
-                        print("   ⏭️  [Sync] Already on server with ID: \(id) - SKIPPING (duplicate)")
+                        debugPrint("   ⏭️  [Sync] Already on server with ID: \(id) - SKIPPING (duplicate)")
                         duplicateCount += 1
                         continue
                     } else {
-                        print("   ❓ [Sync] Has ID but not on server - will upload")
+                        debugPrint("   ❓ [Sync] Has ID but not on server - will upload")
                     }
                 } else {
-                    print("   🆕 [Sync] No server ID found - will upload to server")
+                    debugPrint("   🆕 [Sync] No server ID found - will upload to server")
                 }
 
                 let subject = conversationData["subject"] as? String ?? "General"
                 let topic = conversationData["topic"] as? String ?? "Chat Session"
                 let content = conversationData["conversationContent"] as? String ?? ""
 
-                print("   📋 [Sync] Subject: \(subject), Topic: \(topic)")
-                print("   📏 [Sync] Content length: \(content.count) chars")
+                debugPrint("   📋 [Sync] Subject: \(subject), Topic: \(topic)")
+                debugPrint("   📏 [Sync] Content length: \(content.count) chars")
 
                 // Archive conversation to server
                 guard let url = URL(string: "\(baseURL)/api/ai/conversations") else {
-                    print("   ❌ [Sync] Invalid URL")
+                    debugPrint("   ❌ [Sync] Invalid URL")
                     throw SyncError.invalidURL
                 }
 
@@ -460,34 +460,34 @@ class StorageSyncService {
 
                 request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
 
-                print("   📤 [Sync] Sending POST to /api/ai/conversations...")
+                debugPrint("   📤 [Sync] Sending POST to /api/ai/conversations...")
                 let (data, response) = try await URLSession.shared.data(for: request)
 
                 guard let httpResponse = response as? HTTPURLResponse else {
-                    print("   ❌ [Sync] Invalid response")
+                    debugPrint("   ❌ [Sync] Invalid response")
                     throw SyncError.invalidResponse
                 }
 
-                print("   📡 [Sync] Server response: \(httpResponse.statusCode)")
+                debugPrint("   📡 [Sync] Server response: \(httpResponse.statusCode)")
 
                 if httpResponse.statusCode == 201 || httpResponse.statusCode == 200 {
                     syncedToServerCount += 1
-                    print("   ✅ [Sync] Successfully uploaded conversation")
+                    debugPrint("   ✅ [Sync] Successfully uploaded conversation")
                 } else if httpResponse.statusCode == 409 {
                     duplicateCount += 1
-                    print("   🔄 [Sync] Server detected duplicate (409) - skipping")
+                    debugPrint("   🔄 [Sync] Server detected duplicate (409) - skipping")
                 } else {
                     let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
-                    print("   ❌ [Sync] Failed with status \(httpResponse.statusCode): \(errorMessage)")
+                    debugPrint("   ❌ [Sync] Failed with status \(httpResponse.statusCode): \(errorMessage)")
                 }
 
             } catch {
-                print("   ❌ [Sync] Failed to upload conversation: \(error)")
+                debugPrint("   ❌ [Sync] Failed to upload conversation: \(error)")
             }
         }
 
         let totalSynced = downloadedFromServerCount + syncedToServerCount
-        print("\n📊 [Sync] Conversations summary: \(downloadedFromServerCount) downloaded, \(syncedToServerCount) uploaded, \(duplicateCount) duplicates")
+        debugPrint("\n📊 [Sync] Conversations summary: \(downloadedFromServerCount) downloaded, \(syncedToServerCount) uploaded, \(duplicateCount) duplicates")
         return (totalSynced, duplicateCount)
     }
 
@@ -495,18 +495,18 @@ class StorageSyncService {
 
     private func syncProgressData() async throws {
         guard let token = AuthenticationService.shared.getAuthToken() else {
-            print("❌ [Sync] No auth token for progress sync")
+            debugPrint("❌ [Sync] No auth token for progress sync")
             throw SyncError.notAuthenticated
         }
 
-        print("📊 [Sync] === SYNCING PROGRESS DATA ===")
+        debugPrint("📊 [Sync] === SYNCING PROGRESS DATA ===")
 
         // STEP 1: Fetch server data
-        print("📥 [Sync] Step 1: Fetching server progress data...")
+        debugPrint("📥 [Sync] Step 1: Fetching server progress data...")
         let serverProgress = try await fetchProgressFromServer(token: token)
 
         // STEP 2: Get local progress data
-        print("📱 [Sync] Step 2: Getting local progress data...")
+        debugPrint("📱 [Sync] Step 2: Getting local progress data...")
         let pointsManager = PointsEarningManager.shared
 
         let localProgress: [String: Any] = [
@@ -542,19 +542,19 @@ class StorageSyncService {
         ]
 
         // STEP 3: Merge local and server data
-        print("🔄 [Sync] Step 3: Merging local and server data...")
+        debugPrint("🔄 [Sync] Step 3: Merging local and server data...")
         let mergedProgress = mergeProgressData(local: localProgress, server: serverProgress)
 
         // STEP 4: Compare merged with server
-        print("🔍 [Sync] Step 4: Comparing merged data with server...")
+        debugPrint("🔍 [Sync] Step 4: Comparing merged data with server...")
         let hasChanges = progressHasChanges(merged: mergedProgress, server: serverProgress)
 
         if hasChanges {
-            print("📤 [Sync] Step 5: Changes detected, updating server...")
+            debugPrint("📤 [Sync] Step 5: Changes detected, updating server...")
             try await updateProgressOnServer(progress: mergedProgress, token: token)
-            print("✅ [Sync] Progress data synced successfully")
+            debugPrint("✅ [Sync] Progress data synced successfully")
         } else {
-            print("✅ [Sync] No changes detected, server already up to date")
+            debugPrint("✅ [Sync] No changes detected, server already up to date")
         }
     }
 
@@ -575,14 +575,14 @@ class StorageSyncService {
             throw SyncError.invalidResponse
         }
 
-        print("   📡 [Sync] Server response: \(httpResponse.statusCode)")
+        debugPrint("   📡 [Sync] Server response: \(httpResponse.statusCode)")
 
         if httpResponse.statusCode == 200 {
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let serverData = json["data"] as? [String: Any] {
-                print("   ✅ [Sync] Server progress data retrieved")
-                print("   📊 [Sync] Server Points: \(serverData["currentPoints"] ?? 0)")
-                print("   📊 [Sync] Server Streak: \(serverData["currentStreak"] ?? 0)")
+                debugPrint("   ✅ [Sync] Server progress data retrieved")
+                debugPrint("   📊 [Sync] Server Points: \(serverData["currentPoints"] ?? 0)")
+                debugPrint("   📊 [Sync] Server Streak: \(serverData["currentStreak"] ?? 0)")
                 return serverData
             }
         }
@@ -606,18 +606,18 @@ class StorageSyncService {
         let localPoints = local["currentPoints"] as? Int ?? 0
         let serverPoints = server["currentPoints"] as? Int ?? 0
         merged["currentPoints"] = max(localPoints, serverPoints)
-        print("   🔀 [Sync] Points: local=\(localPoints), server=\(serverPoints), merged=\(merged["currentPoints"] ?? 0)")
+        debugPrint("   🔀 [Sync] Points: local=\(localPoints), server=\(serverPoints), merged=\(merged["currentPoints"] ?? 0)")
 
         let localTotalPoints = local["totalPoints"] as? Int ?? 0
         let serverTotalPoints = server["totalPoints"] as? Int ?? 0
         merged["totalPoints"] = max(localTotalPoints, serverTotalPoints)
-        print("   🔀 [Sync] Total Points: local=\(localTotalPoints), server=\(serverTotalPoints), merged=\(merged["totalPoints"] ?? 0)")
+        debugPrint("   🔀 [Sync] Total Points: local=\(localTotalPoints), server=\(serverTotalPoints), merged=\(merged["totalPoints"] ?? 0)")
 
         // Merge streak: take maximum
         let localStreak = local["currentStreak"] as? Int ?? 0
         let serverStreak = server["currentStreak"] as? Int ?? 0
         merged["currentStreak"] = max(localStreak, serverStreak)
-        print("   🔀 [Sync] Streak: local=\(localStreak), server=\(serverStreak), merged=\(merged["currentStreak"] ?? 0)")
+        debugPrint("   🔀 [Sync] Streak: local=\(localStreak), server=\(serverStreak), merged=\(merged["currentStreak"] ?? 0)")
 
         // Merge learning goals: prefer local (most recent)
         merged["learningGoals"] = local["learningGoals"] ?? []
@@ -646,16 +646,16 @@ class StorageSyncService {
         let totalPointsChanged = mergedTotalPoints != serverTotalPoints
         let streakChanged = mergedStreak != serverStreak
 
-        print("   🔍 [Sync] Points changed: \(pointsChanged) (\(mergedPoints) vs \(serverPoints))")
-        print("   🔍 [Sync] Total points changed: \(totalPointsChanged) (\(mergedTotalPoints) vs \(serverTotalPoints))")
-        print("   🔍 [Sync] Streak changed: \(streakChanged) (\(mergedStreak) vs \(serverStreak))")
+        debugPrint("   🔍 [Sync] Points changed: \(pointsChanged) (\(mergedPoints) vs \(serverPoints))")
+        debugPrint("   🔍 [Sync] Total points changed: \(totalPointsChanged) (\(mergedTotalPoints) vs \(serverTotalPoints))")
+        debugPrint("   🔍 [Sync] Streak changed: \(streakChanged) (\(mergedStreak) vs \(serverStreak))")
 
         return pointsChanged || totalPointsChanged || streakChanged
     }
 
     private func updateProgressOnServer(progress: [String: Any], token: String) async throws {
         guard let url = URL(string: "\(baseURL)/api/progress/sync") else {
-            print("   ❌ [Sync] Invalid URL")
+            debugPrint("   ❌ [Sync] Invalid URL")
             throw SyncError.invalidURL
         }
 
@@ -666,21 +666,21 @@ class StorageSyncService {
 
         request.httpBody = try JSONSerialization.data(withJSONObject: progress)
 
-        print("   📤 [Sync] Sending POST to /api/progress/sync...")
+        debugPrint("   📤 [Sync] Sending POST to /api/progress/sync...")
         let (data, response) = try await URLSession.shared.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
-            print("   ❌ [Sync] Invalid response")
+            debugPrint("   ❌ [Sync] Invalid response")
             throw SyncError.invalidResponse
         }
 
-        print("   📡 [Sync] Server response: \(httpResponse.statusCode)")
+        debugPrint("   📡 [Sync] Server response: \(httpResponse.statusCode)")
 
         if httpResponse.statusCode == 200 || httpResponse.statusCode == 201 {
-            print("   ✅ [Sync] Progress data updated successfully")
+            debugPrint("   ✅ [Sync] Progress data updated successfully")
         } else {
             let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
-            print("   ❌ [Sync] Failed with status \(httpResponse.statusCode): \(errorMessage)")
+            debugPrint("   ❌ [Sync] Failed with status \(httpResponse.statusCode): \(errorMessage)")
             throw SyncError.syncFailed(errorMessage)
         }
     }

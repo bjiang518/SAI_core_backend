@@ -197,7 +197,7 @@ struct MistakeReviewView: View {
                         HStack(spacing: 12) {
                             // Primary: Start Review
                             Button(action: {
-                                print("▶️ [MistakeReviewView] 'Start Review' tapped — opening MistakeQuestionListView sheet. selectedTab=\(appState.selectedTab), shouldDismissPracticeStack=\(appState.shouldDismissPracticeStack)")
+                                debugPrint("▶️ [MistakeReviewView] 'Start Review' tapped — opening MistakeQuestionListView sheet. selectedTab=\(appState.selectedTab), shouldDismissPracticeStack=\(appState.shouldDismissPracticeStack)")
                                 showingMistakeList = true
                             }) {
                                 HStack {
@@ -321,7 +321,7 @@ struct MistakeReviewView: View {
             }
             .onChange(of: appState.shouldDismissPracticeStack) { _, shouldDismiss in
                 if shouldDismiss {
-                    print("🔴 [MistakeReviewView] shouldDismissPracticeStack fired → dismissing showingMistakeList. selectedTab=\(appState.selectedTab)")
+                    debugPrint("🔴 [MistakeReviewView] shouldDismissPracticeStack fired → dismissing showingMistakeList. selectedTab=\(appState.selectedTab)")
                     showingMistakeList = false
                     appState.shouldDismissPracticeStack = false
                 }
@@ -937,12 +937,12 @@ struct MistakeQuestionListView: View {
             DebugSettings.shared.logGeneration("Using user profile - Grade: \(gradeLevel), Location: \(location)")
 
             // ✅ Call optimized service
-            print("🎯 [MistakeReview] Generating practice with user-selected configuration:")
-            print("   - Mistakes: \(mistakesData.count)")
-            print("   - Difficulty: \(difficulty.rawValue)")
-            print("   - Question Count: \(questionCount)")
-            print("   - Question Types: \(questionTypes.map { $0.rawValue }.joined(separator: ", "))")
-            print("   - Topics: \(topics)")
+            debugPrint("🎯 [MistakeReview] Generating practice with user-selected configuration:")
+            debugPrint("   - Mistakes: \(mistakesData.count)")
+            debugPrint("   - Difficulty: \(difficulty.rawValue)")
+            debugPrint("   - Question Count: \(questionCount)")
+            debugPrint("   - Question Types: \(questionTypes.map { $0.rawValue }.joined(separator: ", "))")
+            debugPrint("   - Topics: \(topics)")
 
             let result = await QuestionGenerationService.shared.generateQuestionsV2(
                 subject: subject,
@@ -961,7 +961,7 @@ struct MistakeQuestionListView: View {
                         activePracticeSession = session
                     }
                 }
-                print("🎉 Generated \(questions.count) targeted practice questions with type-based rendering")
+                debugPrint("🎉 Generated \(questions.count) targeted practice questions with type-based rendering")
 
             case .failure(_):
                 throw PracticeGenerationError.serverError
@@ -1617,24 +1617,24 @@ struct PracticeQuestionsView: View {
 
     private func logPracticeQuestionsDebug() {
         #if DEBUG
-        print("🎯 ============================================")
-        print("🎯 PRACTICE QUESTIONS VIEW LOADED")
-        print("🎯 ============================================")
-        print("📊 Total Questions: \(questions.count)")
-        print("📚 Subject: \(subject)")
-        print("")
+        debugPrint("🎯 ============================================")
+        debugPrint("🎯 PRACTICE QUESTIONS VIEW LOADED")
+        debugPrint("🎯 ============================================")
+        debugPrint("📊 Total Questions: \(questions.count)")
+        debugPrint("📚 Subject: \(subject)")
+        debugPrint("")
         for (index, question) in questions.enumerated() {
-            print("📝 Question #\(index + 1):")
-            print("   Type: \(question.type.rawValue)")
-            print("   Difficulty: \(question.difficulty)")
-            print("   Question: \(question.question.prefix(80))...")
-            print("   Correct Answer: \(question.correctAnswer)")
+            debugPrint("📝 Question #\(index + 1):")
+            debugPrint("   Type: \(question.type.rawValue)")
+            debugPrint("   Difficulty: \(question.difficulty)")
+            debugPrint("   Question: \(question.question.prefix(80))...")
+            debugPrint("   Correct Answer: \(question.correctAnswer)")
             if let options = question.options {
-                print("   Options: \(options)")
+                debugPrint("   Options: \(options)")
             }
-            print("")
+            debugPrint("")
         }
-        print("🎯 ============================================")
+        debugPrint("🎯 ============================================")
         #endif
     }
 
@@ -1668,16 +1668,16 @@ struct PracticeQuestionsView: View {
         }
 
         #if DEBUG
-        print("📤 ============================================")
-        print("📤 SUBMITTING ANSWER FOR GRADING")
-        print("📤 ============================================")
-        print("🔹 Question ID: \(question.id)")
-        print("🔹 Question Type: \(question.type.rawValue)")
-        print("🔹 Question Text: \(question.question.prefix(100))...")
-        print("🔹 Student Answer: \(userAnswer)")
-        print("🔹 Correct Answer: \(question.correctAnswer)")
-        print("🔹 Subject: \(subject)")
-        print("")
+        debugPrint("📤 ============================================")
+        debugPrint("📤 SUBMITTING ANSWER FOR GRADING")
+        debugPrint("📤 ============================================")
+        debugPrint("🔹 Question ID: \(question.id)")
+        debugPrint("🔹 Question Type: \(question.type.rawValue)")
+        debugPrint("🔹 Question Text: \(question.question.prefix(100))...")
+        debugPrint("🔹 Student Answer: \(userAnswer)")
+        debugPrint("🔹 Correct Answer: \(question.correctAnswer)")
+        debugPrint("🔹 Subject: \(subject)")
+        debugPrint("")
         #endif
 
         // ✅ OPTIMIZATION: Try client-side matching first
@@ -1699,20 +1699,20 @@ struct PracticeQuestionsView: View {
         )
 
         #if DEBUG
-        print("🎯 Matching Result:")
-        print("   Match Score: \(String(format: "%.1f%%", matchResult.matchScore * 100))")
-        print("   Is Exact Match: \(matchResult.isExactMatch)")
-        print("   Should Skip AI: \(matchResult.shouldSkipAIGrading)")
-        print("")
+        debugPrint("🎯 Matching Result:")
+        debugPrint("   Match Score: \(String(format: "%.1f%%", matchResult.matchScore * 100))")
+        debugPrint("   Is Exact Match: \(matchResult.isExactMatch)")
+        debugPrint("   Should Skip AI: \(matchResult.shouldSkipAIGrading)")
+        debugPrint("")
         #endif
 
         // If match score >= 90%, grade instantly without AI call
         if matchResult.shouldSkipAIGrading {
             #if DEBUG
-            print("⚡ INSTANT GRADING (score >= 90%)")
-            print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-            print("✅ Skipping AI grading - instant match detected!")
-            print("📤 ============================================")
+            debugPrint("⚡ INSTANT GRADING (score >= 90%)")
+            debugPrint("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            debugPrint("✅ Skipping AI grading - instant match detected!")
+            debugPrint("📤 ============================================")
             #endif
 
             // Instant grade result (curve to 100% correct if >= 90%)
@@ -1735,8 +1735,8 @@ struct PracticeQuestionsView: View {
                 persistGrade(questionId: question.id, userAnswer: userAnswer, result: result)
 
                 #if DEBUG
-                print("💾 Stored INSTANT grade result for question \(question.id)")
-                print("📈 Progress: \(gradedQuestions.count)/\(questions.count) answered")
+                debugPrint("💾 Stored INSTANT grade result for question \(question.id)")
+                debugPrint("📈 Progress: \(gradedQuestions.count)/\(questions.count) answered")
                 #endif
 
                 // Haptic feedback - success
@@ -1749,9 +1749,9 @@ struct PracticeQuestionsView: View {
 
         // If match score < 90%, send to AI for deep analysis
         #if DEBUG
-        print("🤖 AI GRADING (score < 90%)")
-        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        print("⏳ Sending to Gemini deep mode for analysis...")
+        debugPrint("🤖 AI GRADING (score < 90%)")
+        debugPrint("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        debugPrint("⏳ Sending to Gemini deep mode for analysis...")
         #endif
 
         // Use backend API for grading (supports semantic understanding, partial credit, etc.)
@@ -1767,26 +1767,26 @@ struct PracticeQuestionsView: View {
             )
 
             #if DEBUG
-            print("")
-            print("✅ RECEIVED AI GRADING RESPONSE")
-            print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            debugPrint("")
+            debugPrint("✅ RECEIVED AI GRADING RESPONSE")
+            debugPrint("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
             if let grade = response.grade {
-                print("📊 Grade Result:")
-                print("   ✓ Is Correct: \(grade.isCorrect ? "✅ YES" : "❌ NO")")
-                print("   ✓ Score: \(String(format: "%.1f%%", grade.score * 100))")
-                print("   ✓ Correct Answer: \(grade.correctAnswer ?? question.correctAnswer)")
-                print("   ✓ Feedback Length: \(grade.feedback.count) characters")
-                print("")
-                print("📝 AI Feedback:")
-                print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-                print(grade.feedback)
-                print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                debugPrint("📊 Grade Result:")
+                debugPrint("   ✓ Is Correct: \(grade.isCorrect ? "✅ YES" : "❌ NO")")
+                debugPrint("   ✓ Score: \(String(format: "%.1f%%", grade.score * 100))")
+                debugPrint("   ✓ Correct Answer: \(grade.correctAnswer ?? question.correctAnswer)")
+                debugPrint("   ✓ Feedback Length: \(grade.feedback.count) characters")
+                debugPrint("")
+                debugPrint("📝 AI Feedback:")
+                debugPrint("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                debugPrint(grade.feedback)
+                debugPrint("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
             } else if let error = response.error {
-                print("❌ ERROR in response: \(error)")
+                debugPrint("❌ ERROR in response: \(error)")
             } else {
-                print("⚠️ No grade data in response")
+                debugPrint("⚠️ No grade data in response")
             }
-            print("📤 ============================================")
+            debugPrint("📤 ============================================")
             #endif
 
             if let grade = response.grade {
@@ -1802,8 +1802,8 @@ struct PracticeQuestionsView: View {
                     persistGrade(questionId: question.id, userAnswer: userAnswer, result: result)
 
                     #if DEBUG
-                    print("💾 Stored AI grade result for question \(question.id)")
-                    print("📈 Progress: \(gradedQuestions.count)/\(questions.count) answered")
+                    debugPrint("💾 Stored AI grade result for question \(question.id)")
+                    debugPrint("📈 Progress: \(gradedQuestions.count)/\(questions.count) answered")
                     #endif
 
                     // Haptic feedback
@@ -1813,14 +1813,14 @@ struct PracticeQuestionsView: View {
             }
         } catch {
             #if DEBUG
-            print("❌ ============================================")
-            print("❌ AI GRADING FAILED")
-            print("❌ ============================================")
-            print("Error: \(error.localizedDescription)")
-            print("Full error: \(error)")
-            print("❌ ============================================")
+            debugPrint("❌ ============================================")
+            debugPrint("❌ AI GRADING FAILED")
+            debugPrint("❌ ============================================")
+            debugPrint("Error: \(error.localizedDescription)")
+            debugPrint("Full error: \(error)")
+            debugPrint("❌ ============================================")
             #endif
-            print("❌ Failed to grade answer: \(error.localizedDescription)")
+            debugPrint("❌ Failed to grade answer: \(error.localizedDescription)")
             // Could show error alert here
         }
     }
@@ -2012,7 +2012,7 @@ struct PracticeQuestionsView: View {
         guard !hasMarkedProgress else { return }
         hasMarkedProgress = true
 
-        print("📊 [MarkProgress] Marking progress for \(questions.count) practice questions")
+        debugPrint("📊 [MarkProgress] Marking progress for \(questions.count) practice questions")
 
         // Count correct/incorrect for daily progress
         var correctCount = 0
@@ -2034,7 +2034,7 @@ struct PracticeQuestionsView: View {
 
                 if gradeResult.isCorrect {
                     // Record correct attempt - reduces weakness value
-                    print("✅ [MarkProgress] Correct answer for: \(weaknessKey)")
+                    debugPrint("✅ [MarkProgress] Correct answer for: \(weaknessKey)")
                     ShortTermStatusService.shared.recordCorrectAttempt(
                         key: weaknessKey,
                         retryType: .firstTime,
@@ -2042,7 +2042,7 @@ struct PracticeQuestionsView: View {
                     )
                 } else {
                     // Record mistake - increases weakness value
-                    print("❌ [MarkProgress] Incorrect answer for: \(weaknessKey)")
+                    debugPrint("❌ [MarkProgress] Incorrect answer for: \(weaknessKey)")
                     if let errorType = question.errorType {
                         ShortTermStatusService.shared.recordMistake(
                             key: weaknessKey,
@@ -2052,13 +2052,13 @@ struct PracticeQuestionsView: View {
                     }
                 }
             } else {
-                print("⚠️ [MarkProgress] Question \(question.id) missing error taxonomy keys")
+                debugPrint("⚠️ [MarkProgress] Question \(question.id) missing error taxonomy keys")
             }
         }
 
         // ✅ NEW: Update daily progress counters (local-only, like random practice)
         if totalCount > 0 {
-            print("📊 [MarkProgress] Updating daily progress: \(correctCount)/\(totalCount) questions for \(subject)")
+            debugPrint("📊 [MarkProgress] Updating daily progress: \(correctCount)/\(totalCount) questions for \(subject)")
 
             // Update local progress counters only
             // Backend sync happens manually via Settings or automatic schedule
@@ -2069,7 +2069,7 @@ struct PracticeQuestionsView: View {
             )
         }
 
-        print("✅ [MarkProgress] Progress marked successfully (LOCAL ONLY)")
+        debugPrint("✅ [MarkProgress] Progress marked successfully (LOCAL ONLY)")
 
         // Archive only mistake questions; concept extraction for correct ones
         archiveMistakesAndExtractConcepts()
@@ -2141,7 +2141,7 @@ struct PracticeQuestionsView: View {
             )
         }
 
-        print("📚 [MarkProgress] Archived \(mistakeData.count) mistakes, concept extraction for \(correctData.count) correct")
+        debugPrint("📚 [MarkProgress] Archived \(mistakeData.count) mistakes, concept extraction for \(correctData.count) correct")
     }
 
     // MARK: - PDF Export
@@ -2354,23 +2354,23 @@ struct PracticeQuestionCard: View {
                     .padding(.vertical, 4)
                     .onAppear {
                         #if DEBUG
-                        print("🔍 ============================================")
-                        print("🔍 RENDERING QUESTION CARD #\(questionNumber)")
-                        print("🔍 ============================================")
-                        print("📝 Type: \(question.type.rawValue)")
-                        print("📝 Question: \(question.question)")
+                        debugPrint("🔍 ============================================")
+                        debugPrint("🔍 RENDERING QUESTION CARD #\(questionNumber)")
+                        debugPrint("🔍 ============================================")
+                        debugPrint("📝 Type: \(question.type.rawValue)")
+                        debugPrint("📝 Question: \(question.question)")
                         if let options = question.options {
-                            print("📝 Options Available: \(options.count)")
+                            debugPrint("📝 Options Available: \(options.count)")
                             for (idx, option) in options.enumerated() {
-                                print("   [\(idx + 1)] \(option)")
+                                debugPrint("   [\(idx + 1)] \(option)")
                             }
                         }
-                        print("📝 Expected Answer: \(question.correctAnswer)")
-                        print("📝 Is Graded: \(isGraded)")
+                        debugPrint("📝 Expected Answer: \(question.correctAnswer)")
+                        debugPrint("📝 Is Graded: \(isGraded)")
                         if isGraded {
-                            print("📝 Result: \(isCorrect ? "✅ CORRECT" : "❌ INCORRECT")")
+                            debugPrint("📝 Result: \(isCorrect ? "✅ CORRECT" : "❌ INCORRECT")")
                         }
-                        print("🔍 ============================================")
+                        debugPrint("🔍 ============================================")
                         #endif
                     }
 
@@ -2386,12 +2386,12 @@ struct PracticeQuestionCard: View {
                         case .multipleChoice:
                             if let options = question.options {
                                 #if DEBUG
-                                let _ = print("🎨 Rendering MULTIPLE CHOICE input with \(options.count) options")
+                                let _ = debugPrint("🎨 Rendering MULTIPLE CHOICE input with \(options.count) options")
                                 #endif
                                 PracticeMCInput(options: options, selectedOption: $selectedOption)
                                     .onChange(of: selectedOption) { _, newValue in
                                         #if DEBUG
-                                        print("✏️ User selected MC option: \(newValue)")
+                                        debugPrint("✏️ User selected MC option: \(newValue)")
                                         #endif
                                         onAnswerChange(newValue)
                                     }
@@ -2399,19 +2399,19 @@ struct PracticeQuestionCard: View {
 
                         case .trueFalse:
                             #if DEBUG
-                            let _ = print("🎨 Rendering TRUE/FALSE input")
+                            let _ = debugPrint("🎨 Rendering TRUE/FALSE input")
                             #endif
                             PracticeTFInput(selectedOption: $selectedOption)
                                 .onChange(of: selectedOption) { _, newValue in
                                     #if DEBUG
-                                    print("✏️ User selected T/F option: \(newValue)")
+                                    debugPrint("✏️ User selected T/F option: \(newValue)")
                                     #endif
                                     onAnswerChange(newValue)
                                 }
 
                         default:
                             #if DEBUG
-                            let _ = print("🎨 Rendering TEXT EDITOR for type: \(question.type.rawValue)")
+                            let _ = debugPrint("🎨 Rendering TEXT EDITOR for type: \(question.type.rawValue)")
                             #endif
                             TextEditor(text: $answerText)
                                 .frame(height: 80)
@@ -2420,7 +2420,7 @@ struct PracticeQuestionCard: View {
                                 .cornerRadius(8)
                                 .onChange(of: answerText) { _, newValue in
                                     #if DEBUG
-                                    print("✏️ User typed text: \(newValue.prefix(50))...")
+                                    debugPrint("✏️ User typed text: \(newValue.prefix(50))...")
                                     #endif
                                     onAnswerChange(newValue)
                                 }
@@ -2428,8 +2428,8 @@ struct PracticeQuestionCard: View {
 
                         Button(action: {
                             #if DEBUG
-                            print("🔘 Submit button pressed for question #\(questionNumber)")
-                            print("   Answer: \(currentAnswer)")
+                            debugPrint("🔘 Submit button pressed for question #\(questionNumber)")
+                            debugPrint("   Answer: \(currentAnswer)")
                             #endif
                             isSubmitting = true
                             onSubmitAnswer()
@@ -2616,16 +2616,16 @@ struct PracticeQuestionCard: View {
                     }
                     .onAppear {
                         #if DEBUG
-                        print("📊 ============================================")
-                        print("📊 DISPLAYING GRADED RESULT #\(questionNumber)")
-                        print("📊 ============================================")
-                        print("🎯 Result: \(isCorrect ? "✅ CORRECT" : "❌ INCORRECT")")
-                        print("📝 Student Answer: \(currentAnswer)")
+                        debugPrint("📊 ============================================")
+                        debugPrint("📊 DISPLAYING GRADED RESULT #\(questionNumber)")
+                        debugPrint("📊 ============================================")
+                        debugPrint("🎯 Result: \(isCorrect ? "✅ CORRECT" : "❌ INCORRECT")")
+                        debugPrint("📝 Student Answer: \(currentAnswer)")
                         if let result = gradeResult {
-                            print("💡 Correct Answer: \(result.correctAnswer)")
-                            print("📚 Feedback: \(result.feedback)")
+                            debugPrint("💡 Correct Answer: \(result.correctAnswer)")
+                            debugPrint("📚 Feedback: \(result.feedback)")
                         }
-                        print("📊 ============================================")
+                        debugPrint("📊 ============================================")
                         #endif
                     }
                 }
@@ -2671,7 +2671,7 @@ struct PracticeQuestionCard: View {
 
         isArchiving = true
 
-        print("📚 [Archive] Starting archive for mistake practice question: \(question.question.prefix(50))...")
+        debugPrint("📚 [Archive] Starting archive for mistake practice question: \(question.question.prefix(50))...")
 
         Task {
             // Build question data for archiving
@@ -2701,7 +2701,7 @@ struct PracticeQuestionCard: View {
                 "weaknessKey": question.weaknessKey as Any
             ]
 
-            print("📚 [Archive] Archive data - Subject: \(subject), Correct: \(isCorrect)")
+            debugPrint("📚 [Archive] Archive data - Subject: \(subject), Correct: \(isCorrect)")
 
             // Save to local storage
             _ = currentUserQuestionStorage().saveQuestions([questionData])
@@ -2710,7 +2710,7 @@ struct PracticeQuestionCard: View {
                 isArchiving = false
                 isArchived = true
                 showingArchiveSuccess = true
-                print("📚 [Archive] ✅ Mistake practice question archived successfully")
+                debugPrint("📚 [Archive] ✅ Mistake practice question archived successfully")
             }
         }
     }
@@ -2750,7 +2750,7 @@ struct PracticeMCInput: View {
             ForEach(options, id: \.self) { option in
                 Button {
                     #if DEBUG
-                    print("🎯 MC Option Selected: \(option)")
+                    debugPrint("🎯 MC Option Selected: \(option)")
                     #endif
                     selectedOption = option
                 } label: {
@@ -2773,9 +2773,9 @@ struct PracticeMCInput: View {
         }
         .onAppear {
             #if DEBUG
-            print("🎨 PracticeMCInput appeared with \(options.count) options:")
+            debugPrint("🎨 PracticeMCInput appeared with \(options.count) options:")
             for (idx, opt) in options.enumerated() {
-                print("   [\(idx + 1)] \(opt)")
+                debugPrint("   [\(idx + 1)] \(opt)")
             }
             #endif
         }
@@ -2790,7 +2790,7 @@ struct PracticeTFInput: View {
         HStack(spacing: 16) {
             Button {
                 #if DEBUG
-                print("🎯 T/F Option Selected: True")
+                debugPrint("🎯 T/F Option Selected: True")
                 #endif
                 selectedOption = "True"
             } label: {
@@ -2812,7 +2812,7 @@ struct PracticeTFInput: View {
 
             Button {
                 #if DEBUG
-                print("🎯 T/F Option Selected: False")
+                debugPrint("🎯 T/F Option Selected: False")
                 #endif
                 selectedOption = "False"
             } label: {
@@ -2834,7 +2834,7 @@ struct PracticeTFInput: View {
         }
         .onAppear {
             #if DEBUG
-            print("🎨 PracticeTFInput appeared")
+            debugPrint("🎨 PracticeTFInput appeared")
             #endif
         }
     }
@@ -2864,9 +2864,9 @@ struct SubquestionAwareTextView: View {
 
     var body: some View {
         #if DEBUG
-        let _ = print("📝 [SubquestionAware] Body evaluating")
-        let _ = print("   Text length: \(text.count) chars")
-        let _ = print("   Font size: \(fontSize)")
+        let _ = debugPrint("📝 [SubquestionAware] Body evaluating")
+        let _ = debugPrint("   Text length: \(text.count) chars")
+        let _ = debugPrint("   Font size: \(fontSize)")
         #endif
 
         VStack(alignment: .leading, spacing: 12) {
@@ -2874,7 +2874,7 @@ struct SubquestionAwareTextView: View {
             let parts = text.components(separatedBy: "\n\n")
 
             #if DEBUG
-            let _ = print("   Split into \(parts.count) parts")
+            let _ = debugPrint("   Split into \(parts.count) parts")
             #endif
 
             ForEach(Array(parts.enumerated()), id: \.offset) { index, part in
@@ -2882,11 +2882,11 @@ struct SubquestionAwareTextView: View {
                     #if DEBUG
                     let _ = {
                         let isSubquestion = isSubquestionFormat(part)  // ✅ Removed "subquestion" text check
-                        print("")
-                        print("   📋 Part \(index + 1):")
-                        print("      Content: \(part.prefix(50))...")
-                        print("      Matches regex pattern: \(isSubquestionFormat(part))")
-                        print("      → Rendering as: \(isSubquestion ? "✅ SUBQUESTION (with arrow)" : "⚪ PARENT (regular text)")")
+                        debugPrint("")
+                        debugPrint("   📋 Part \(index + 1):")
+                        debugPrint("      Content: \(part.prefix(50))...")
+                        debugPrint("      Matches regex pattern: \(isSubquestionFormat(part))")
+                        debugPrint("      → Rendering as: \(isSubquestion ? "✅ SUBQUESTION (with arrow)" : "⚪ PARENT (regular text)")")
                         return ()
                     }()
                     #endif

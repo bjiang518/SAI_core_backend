@@ -17,13 +17,13 @@ struct QuestionImageView: View {
 
     var body: some View {
         #if DEBUG
-        let _ = print("🎨 [QuestionImageView-Body] Evaluating body for imageUrl: '\(imageUrl)'")
-        let _ = print("   loadedImage is nil: \(loadedImage == nil)")
+        let _ = debugPrint("🎨 [QuestionImageView-Body] Evaluating body for imageUrl: '\(imageUrl)'")
+        let _ = debugPrint("   loadedImage is nil: \(loadedImage == nil)")
         #endif
 
         if let image = loadedImage {
             #if DEBUG
-            let _ = print("✅ [QuestionImageView-Body] Has loaded image, showing Image view")
+            let _ = debugPrint("✅ [QuestionImageView-Body] Has loaded image, showing Image view")
             #endif
 
             Image(uiImage: image)
@@ -33,7 +33,7 @@ struct QuestionImageView: View {
                 .padding(.vertical, 8)
         } else {
             #if DEBUG
-            let _ = print("⏳ [QuestionImageView-Body] Loading image, showing placeholder")
+            let _ = debugPrint("⏳ [QuestionImageView-Body] Loading image, showing placeholder")
             #endif
 
             // Show loading placeholder to ensure view exists
@@ -42,15 +42,15 @@ struct QuestionImageView: View {
                 .frame(maxWidth: .infinity)
                 .onAppear {
                     #if DEBUG
-                    print("🖼️ [QuestionImageView-onAppear] Firing for imageUrl: '\(imageUrl)'")
+                    debugPrint("🖼️ [QuestionImageView-onAppear] Firing for imageUrl: '\(imageUrl)'")
                     #endif
 
                     // ✅ Use ProModeImageStorage service to load image
                     loadedImage = ProModeImageStorage.shared.loadImage(from: imageUrl)
 
                     #if DEBUG
-                    print("🖼️ [QuestionImageView-onAppear] Load complete")
-                    print("   Result: \(loadedImage != nil ? "✅ Success" : "❌ Failed")")
+                    debugPrint("🖼️ [QuestionImageView-onAppear] Load complete")
+                    debugPrint("   Result: \(loadedImage != nil ? "✅ Success" : "❌ Failed")")
                     #endif
                 }
         }

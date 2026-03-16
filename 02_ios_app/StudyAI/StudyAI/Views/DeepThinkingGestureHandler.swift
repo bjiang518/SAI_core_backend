@@ -159,10 +159,10 @@ struct DeepThinkingGestureHandler_Previews: PreviewProvider {
             messageText: .constant("Test message"),
             isDeepMode: .constant(false),
             onSend: { deepMode in
-                print("Send with deep mode: \(deepMode)")
+                debugPrint("Send with deep mode: \(deepMode)")
             },
             onStateChange: { isHolding, isActivated in
-                print("State changed: holding=\(isHolding), activated=\(isActivated)")
+                debugPrint("State changed: holding=\(isHolding), activated=\(isActivated)")
             }
         )
         .frame(width: 44, height: 44)

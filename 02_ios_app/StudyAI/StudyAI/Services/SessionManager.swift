@@ -42,7 +42,7 @@ class SessionManager: ObservableObject {
         userDefaults.set(now.timeIntervalSince1970, forKey: sessionStartedTimestampKey)
         isSessionValid = true
         requiresFaceIDReauth = false
-        print("🔐 [SessionManager] Session started at \(now)")
+        debugPrint("🔐 [SessionManager] Session started at \(now)")
     }
 
     /// Update session activity (called when user interacts with app)
@@ -58,7 +58,7 @@ class SessionManager: ObservableObject {
         userDefaults.removeObject(forKey: sessionStartedTimestampKey)
         isSessionValid = false
         requiresFaceIDReauth = false
-        print("🔐 [SessionManager] Session ended")
+        debugPrint("🔐 [SessionManager] Session ended")
     }
 
     /// Check if the current session is valid
@@ -66,7 +66,7 @@ class SessionManager: ObservableObject {
     func checkSessionValidity() -> Bool {
         guard let lastActiveInterval = userDefaults.double(forKey: lastActiveTimestampKey) as Double?,
               lastActiveInterval > 0 else {
-            print("🔐 [SessionManager] No active session found")
+            debugPrint("🔐 [SessionManager] No active session found")
             isSessionValid = false
             requiresFaceIDReauth = false
             return false
@@ -77,7 +77,7 @@ class SessionManager: ObservableObject {
         let minutesSinceLastActivity = now.timeIntervalSince(lastActiveDate) / 60.0
 
         if minutesSinceLastActivity > sessionTimeoutMinutes {
-            print("🔐 [SessionManager] ⚠️ Session expired (\(String(format: "%.1f", minutesSinceLastActivity))min inactive)")
+            debugPrint("🔐 [SessionManager] ⚠️ Session expired (\(String(format: "%.1f", minutesSinceLastActivity))min inactive)")
             isSessionValid = false
             // If we have a stored session but it's expired, require Face ID re-auth
             requiresFaceIDReauth = true
@@ -119,7 +119,7 @@ class SessionManager: ObservableObject {
 
     /// Refresh session after successful Face ID re-authentication
     func refreshSessionAfterBiometricAuth() {
-        print("🔐 [SessionManager] Session refreshed after biometric authentication")
+        debugPrint("🔐 [SessionManager] Session refreshed after biometric authentication")
         startSession() // Restart session with new timestamp
     }
 }

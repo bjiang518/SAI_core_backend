@@ -60,9 +60,9 @@ final class HomeworkImageStorageService: ObservableObject {
             if !fileManager.fileExists(atPath: directory.path) {
                 do {
                     try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
-                    print("✅ Created directory: \(directory.lastPathComponent)")
+                    debugPrint("✅ Created directory: \(directory.lastPathComponent)")
                 } catch {
-                    print("❌ Failed to create directory \(directory.lastPathComponent): \(error)")
+                    debugPrint("❌ Failed to create directory \(directory.lastPathComponent): \(error)")
                 }
             }
         }
@@ -309,7 +309,7 @@ final class HomeworkImageStorageService: ObservableObject {
         homeworkImages.removeAll { $0.id == record.id }
         saveMetadata()
 
-        print("✅ Deleted homework image: \(record.id) (\(record.imageFileNames.count) page(s))")
+        debugPrint("✅ Deleted homework image: \(record.id) (\(record.imageFileNames.count) page(s))")
     }
 
     /// Delete multiple homework images
@@ -326,7 +326,7 @@ final class HomeworkImageStorageService: ObservableObject {
         }
 
         deleteHomeworkImage(record: oldest)
-        print("♻️ Deleted oldest image to make space")
+        debugPrint("♻️ Deleted oldest image to make space")
     }
 
     // MARK: - Metadata Management
@@ -338,15 +338,15 @@ final class HomeworkImageStorageService: ObservableObject {
         do {
             let data = try encoder.encode(homeworkImages)
             UserDefaults.standard.set(data, forKey: metadataKey)
-            print("✅ Saved metadata for \(homeworkImages.count) images")
+            debugPrint("✅ Saved metadata for \(homeworkImages.count) images")
         } catch {
-            print("❌ Failed to save metadata: \(error)")
+            debugPrint("❌ Failed to save metadata: \(error)")
         }
     }
 
     private func loadMetadata() {
         guard let data = UserDefaults.standard.data(forKey: metadataKey) else {
-            print("ℹ️ No existing homework image metadata found")
+            debugPrint("ℹ️ No existing homework image metadata found")
             return
         }
 
@@ -355,12 +355,12 @@ final class HomeworkImageStorageService: ObservableObject {
 
         do {
             homeworkImages = try decoder.decode([HomeworkImageRecord].self, from: data)
-            print("✅ Loaded metadata for \(homeworkImages.count) images")
+            debugPrint("✅ Loaded metadata for \(homeworkImages.count) images")
 
             // Clean up orphaned files (files without metadata)
             cleanupOrphanedFiles()
         } catch {
-            print("❌ Failed to load metadata: \(error)")
+            debugPrint("❌ Failed to load metadata: \(error)")
             homeworkImages = []
         }
     }
@@ -388,7 +388,7 @@ final class HomeworkImageStorageService: ObservableObject {
             let fileName = fileURL.lastPathComponent
             if !metadataFileNames.contains(fileName) && fileName != "Thumbnails" {
                 try? fileManager.removeItem(at: fileURL)
-                print("♻️ Removed orphaned file: \(fileName)")
+                debugPrint("♻️ Removed orphaned file: \(fileName)")
             }
         }
     }

@@ -43,8 +43,8 @@ class MusicDownloadService: NSObject, ObservableObject {
         // Load downloaded tracks list
         loadDownloadedTracks()
 
-        print("🎵 MusicDownloadService initialized")
-        print("📁 Cache directory: \(cacheDirectory.path)")
+        debugPrint("🎵 MusicDownloadService initialized")
+        debugPrint("📁 Cache directory: \(cacheDirectory.path)")
     }
 
     // MARK: - Download Management
@@ -52,26 +52,26 @@ class MusicDownloadService: NSObject, ObservableObject {
     /// Start downloading a track
     func downloadTrack(_ track: BackgroundMusicTrack) {
         guard track.source == .remote, let urlString = track.remoteURL else {
-            print("❌ Cannot download track: not a remote track or missing URL")
+            debugPrint("❌ Cannot download track: not a remote track or missing URL")
             return
         }
 
         guard !downloadedTracks.contains(track.id) else {
-            print("⚠️ Track already downloaded: \(track.name)")
+            debugPrint("⚠️ Track already downloaded: \(track.name)")
             return
         }
 
         guard activeDownloads[track.id] == nil else {
-            print("⚠️ Track is already downloading: \(track.name)")
+            debugPrint("⚠️ Track is already downloading: \(track.name)")
             return
         }
 
         guard let url = URL(string: urlString) else {
-            print("❌ Invalid URL for track: \(track.name)")
+            debugPrint("❌ Invalid URL for track: \(track.name)")
             return
         }
 
-        print("📥 Starting download: \(track.name)")
+        debugPrint("📥 Starting download: \(track.name)")
         let downloadTask = urlSession.downloadTask(with: url)
         downloadTask.taskDescription = track.id  // Store track ID
         activeDownloads[track.id] = downloadTask
@@ -86,7 +86,7 @@ class MusicDownloadService: NSObject, ObservableObject {
         task.cancel()
         activeDownloads.removeValue(forKey: trackId)
         downloadProgress.removeValue(forKey: trackId)
-        print("🚫 Cancelled download: \(trackId)")
+        debugPrint("🚫 Cancelled download: \(trackId)")
     }
 
     /// Delete a downloaded track
@@ -97,7 +97,7 @@ class MusicDownloadService: NSObject, ObservableObject {
         downloadedTracks.remove(trackId)
         saveDownloadedTracks()
 
-        print("🗑️ Deleted track: \(trackId)")
+        debugPrint("🗑️ Deleted track: \(trackId)")
     }
 
     /// Check if a track is downloaded
@@ -133,7 +133,7 @@ class MusicDownloadService: NSObject, ObservableObject {
         downloadedTracks.removeAll()
         saveDownloadedTracks()
 
-        print("🧹 Cache cleared")
+        debugPrint("🧹 Cache cleared")
     }
 
     // MARK: - Persistence
@@ -146,7 +146,7 @@ class MusicDownloadService: NSObject, ObservableObject {
     private func loadDownloadedTracks() {
         if let trackIds = UserDefaults.standard.array(forKey: downloadedTracksKey) as? [String] {
             downloadedTracks = Set(trackIds)
-            print("📂 Loaded \(downloadedTracks.count) downloaded tracks")
+            debugPrint("📂 Loaded \(downloadedTracks.count) downloaded tracks")
         }
     }
 }
@@ -174,11 +174,11 @@ extension MusicDownloadService: URLSessionDownloadDelegate {
                 self.downloadProgress.removeValue(forKey: trackId)
                 self.saveDownloadedTracks()
 
-                print("✅ Download completed: \(trackId)")
-                print("📁 Saved to: \(destinationURL.path)")
+                debugPrint("✅ Download completed: \(trackId)")
+                debugPrint("📁 Saved to: \(destinationURL.path)")
             }
         } catch {
-            print("❌ Failed to save downloaded file: \(error.localizedDescription)")
+            debugPrint("❌ Failed to save downloaded file: \(error.localizedDescription)")
         }
     }
 
@@ -196,7 +196,7 @@ extension MusicDownloadService: URLSessionDownloadDelegate {
         guard let trackId = task.taskDescription else { return }
 
         if let error = error {
-            print("❌ Download error for \(trackId): \(error.localizedDescription)")
+            debugPrint("❌ Download error for \(trackId): \(error.localizedDescription)")
 
             DispatchQueue.main.async {
                 self.activeDownloads.removeValue(forKey: trackId)

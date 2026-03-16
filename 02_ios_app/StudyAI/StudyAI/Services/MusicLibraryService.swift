@@ -77,7 +77,7 @@ class MusicLibraryService: ObservableObject {
         if !userTracks.contains(where: { $0.id == track.id }) {
             userTracks.append(track)
             saveUserTracks()
-            print("✅ Added user track: \(track.name)")
+            debugPrint("✅ Added user track: \(track.name)")
         }
     }
 
@@ -85,7 +85,7 @@ class MusicLibraryService: ObservableObject {
     func removeUserTrack(_ trackId: String) {
         userTracks.removeAll { $0.id == trackId }
         saveUserTracks()
-        print("🗑️ Removed user track: \(trackId)")
+        debugPrint("🗑️ Removed user track: \(trackId)")
     }
 
     /// Get MPMediaItem for a track
@@ -123,7 +123,7 @@ class MusicLibraryService: ObservableObject {
         if let data = UserDefaults.standard.data(forKey: userTracksKey),
            let tracks = try? JSONDecoder().decode([BackgroundMusicTrack].self, from: data) {
             userTracks = tracks
-            print("📂 Loaded \(userTracks.count) user tracks")
+            debugPrint("📂 Loaded \(userTracks.count) user tracks")
         }
     }
 }

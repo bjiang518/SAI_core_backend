@@ -797,24 +797,24 @@ class ShortTermStatusService: ObservableObject {
     ///   - weaknessKey: The weakness key associated with this question
     ///   - errorType: The error type that contributed to the weakness (optional)
     func removeQuestionFromWeakness(questionId: String, weaknessKey: String?, errorType: String?) {
-        print("🗑️ [WeaknessTracking] removeQuestionFromWeakness called:")
-        print("   Question ID: \(questionId)")
-        print("   Weakness Key: \(weaknessKey ?? "NONE")")
-        print("   Error Type: \(errorType ?? "NONE")")
+        debugPrint("🗑️ [WeaknessTracking] removeQuestionFromWeakness called:")
+        debugPrint("   Question ID: \(questionId)")
+        debugPrint("   Weakness Key: \(weaknessKey ?? "NONE")")
+        debugPrint("   Error Type: \(errorType ?? "NONE")")
 
         // If we have a weakness key, update that specific weakness
         if let key = weaknessKey, var weakness = status.activeWeaknesses[key] {
-            print("   📊 Found weakness for key: \(key)")
-            print("      Current value: \(weakness.value)")
-            print("      Question IDs before: \(weakness.recentQuestionIds)")
+            debugPrint("   📊 Found weakness for key: \(key)")
+            debugPrint("      Current value: \(weakness.value)")
+            debugPrint("      Question IDs before: \(weakness.recentQuestionIds)")
 
             // Remove question ID from recentQuestionIds
             let oldCount = weakness.recentQuestionIds.count
             weakness.recentQuestionIds.removeAll { $0 == questionId }
             let removed = oldCount - weakness.recentQuestionIds.count
 
-            print("      Removed \(removed) occurrence(s) of question ID")
-            print("      Question IDs after: \(weakness.recentQuestionIds)")
+            debugPrint("      Removed \(removed) occurrence(s) of question ID")
+            debugPrint("      Question IDs after: \(weakness.recentQuestionIds)")
 
             // ✅ CONSERVATIVE: Decrement weakness value by error type weight
             // This prevents inflated weakness scores when questions are deleted
@@ -823,40 +823,40 @@ class ShortTermStatusService: ObservableObject {
                 let oldValue = weakness.value
                 weakness.value = max(0, weakness.value - decrement)  // Never go below 0
 
-                print("      Decrementing value by \(decrement) (error type: \(errorType))")
-                print("      Value changed: \(oldValue) → \(weakness.value)")
+                debugPrint("      Decrementing value by \(decrement) (error type: \(errorType))")
+                debugPrint("      Value changed: \(oldValue) → \(weakness.value)")
             }
 
             // If weakness is now empty (no recent questions) and value is small, remove it
             if weakness.recentQuestionIds.isEmpty && weakness.value < 1.0 {
                 status.activeWeaknesses.removeValue(forKey: key)
-                print("      ✅ Removed weakness key (empty + low value)")
+                debugPrint("      ✅ Removed weakness key (empty + low value)")
             } else {
                 status.activeWeaknesses[key] = weakness
-                print("      ✅ Updated weakness key")
+                debugPrint("      ✅ Updated weakness key")
             }
 
             save()
         } else if let key = weaknessKey {
             // Weakness key provided but not found (already migrated or removed)
-            print("   ⚠️ Weakness key '\(key)' not found in active weaknesses (possibly migrated)")
+            debugPrint("   ⚠️ Weakness key '\(key)' not found in active weaknesses (possibly migrated)")
         } else {
             // No weakness key - scan all weaknesses to remove question ID
-            print("   🔍 No weakness key provided - scanning all weaknesses")
+            debugPrint("   🔍 No weakness key provided - scanning all weaknesses")
             var updated = false
 
             for (key, var weakness) in status.activeWeaknesses {
                 if weakness.recentQuestionIds.contains(questionId) {
-                    print("      Found question ID in key: \(key)")
+                    debugPrint("      Found question ID in key: \(key)")
                     weakness.recentQuestionIds.removeAll { $0 == questionId }
 
                     // Same cleanup logic
                     if weakness.recentQuestionIds.isEmpty && weakness.value < 1.0 {
                         status.activeWeaknesses.removeValue(forKey: key)
-                        print("      ✅ Removed weakness key (empty + low value)")
+                        debugPrint("      ✅ Removed weakness key (empty + low value)")
                     } else {
                         status.activeWeaknesses[key] = weakness
-                        print("      ✅ Updated weakness key")
+                        debugPrint("      ✅ Updated weakness key")
                     }
                     updated = true
                 }
@@ -864,13 +864,13 @@ class ShortTermStatusService: ObservableObject {
 
             if updated {
                 save()
-                print("   ✅ Completed scan and update")
+                debugPrint("   ✅ Completed scan and update")
             } else {
-                print("   ℹ️ Question ID not found in any weakness")
+                debugPrint("   ℹ️ Question ID not found in any weakness")
             }
         }
 
-        print("   📊 Final state: \(status.activeWeaknesses.count) active weaknesses")
+        debugPrint("   📊 Final state: \(status.activeWeaknesses.count) active weaknesses")
     }
 
     // MARK: - Handwriting Recording (for report generation)

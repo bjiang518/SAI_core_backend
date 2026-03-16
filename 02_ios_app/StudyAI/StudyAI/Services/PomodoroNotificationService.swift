@@ -37,7 +37,7 @@ class PomodoroNotificationService: ObservableObject {
             DispatchQueue.main.async {
                 self.authorizationStatus = settings.authorizationStatus
                 self.hasNotificationAccess = (settings.authorizationStatus == .authorized)
-                print("🔔 Notification authorization status: \(settings.authorizationStatus.rawValue)")
+                debugPrint("🔔 Notification authorization status: \(settings.authorizationStatus.rawValue)")
             }
         }
     }
@@ -53,10 +53,10 @@ class PomodoroNotificationService: ObservableObject {
                 self.authorizationStatus = granted ? .authorized : .denied
             }
 
-            print("🔔 Notification permission \(granted ? "granted" : "denied")")
+            debugPrint("🔔 Notification permission \(granted ? "granted" : "denied")")
             return granted
         } catch {
-            print("❌ Failed to request notification permission: \(error.localizedDescription)")
+            debugPrint("❌ Failed to request notification permission: \(error.localizedDescription)")
             return false
         }
     }
@@ -87,7 +87,7 @@ class PomodoroNotificationService: ObservableObject {
         )
 
         UNUserNotificationCenter.current().setNotificationCategories([category])
-        print("✅ Notification categories configured")
+        debugPrint("✅ Notification categories configured")
     }
 
     // MARK: - Schedule Notifications
@@ -98,7 +98,7 @@ class PomodoroNotificationService: ObservableObject {
                             startDate: Date,
                             minutesBefore: Int = 5) -> String? {
         guard hasNotificationAccess else {
-            print("⚠️ No notification access - cannot schedule notification")
+            debugPrint("⚠️ No notification access - cannot schedule notification")
             return nil
         }
 
@@ -108,13 +108,13 @@ class PomodoroNotificationService: ObservableObject {
             value: -minutesBefore,
             to: startDate
         ) else {
-            print("❌ Failed to calculate notification date")
+            debugPrint("❌ Failed to calculate notification date")
             return nil
         }
 
         // 检查通知时间是否在未来
         guard notificationDate > Date() else {
-            print("⚠️ Notification date is in the past, skipping")
+            debugPrint("⚠️ Notification date is in the past, skipping")
             return nil
         }
 
@@ -150,9 +150,9 @@ class PomodoroNotificationService: ObservableObject {
         // 添加到通知中心
         UNUserNotificationCenter.current().add(request) { error in
             if let error = error {
-                print("❌ Failed to schedule notification: \(error.localizedDescription)")
+                debugPrint("❌ Failed to schedule notification: \(error.localizedDescription)")
             } else {
-                print("✅ Notification scheduled: \(notificationId) at \(notificationDate)")
+                debugPrint("✅ Notification scheduled: \(notificationId) at \(notificationDate)")
             }
         }
 
@@ -173,7 +173,7 @@ class PomodoroNotificationService: ObservableObject {
             }
         }
 
-        print("✅ Scheduled \(notificationIds.count) notifications")
+        debugPrint("✅ Scheduled \(notificationIds.count) notifications")
         return notificationIds
     }
 
@@ -182,7 +182,7 @@ class PomodoroNotificationService: ObservableObject {
     /// 取消指定通知
     func cancelNotification(identifier: String) {
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [identifier])
-        print("🗑️ Notification cancelled: \(identifier)")
+        debugPrint("🗑️ Notification cancelled: \(identifier)")
     }
 
     /// 取消所有番茄专注通知
@@ -193,7 +193,7 @@ class PomodoroNotificationService: ObservableObject {
                 .map { $0.identifier }
 
             UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: pomodoroIds)
-            print("🗑️ Cancelled \(pomodoroIds.count) pomodoro notifications")
+            debugPrint("🗑️ Cancelled \(pomodoroIds.count) pomodoro notifications")
         }
     }
 
@@ -224,9 +224,9 @@ class PomodoroNotificationService: ObservableObject {
 
         UNUserNotificationCenter.current().add(request) { error in
             if let error = error {
-                print("❌ Failed to send test notification: \(error.localizedDescription)")
+                debugPrint("❌ Failed to send test notification: \(error.localizedDescription)")
             } else {
-                print("✅ Test notification sent")
+                debugPrint("✅ Test notification sent")
             }
         }
     }
@@ -246,7 +246,7 @@ class PomodoroNotificationService: ObservableObject {
         )
 
         UNUserNotificationCenter.current().add(request)
-        print("✅ Completion notification sent")
+        debugPrint("✅ Completion notification sent")
     }
 
     // MARK: - Helper Methods

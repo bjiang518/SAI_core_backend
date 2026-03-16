@@ -36,17 +36,17 @@ class PomodoroDeepLinkHandler: NSObject, ObservableObject {
 
     private func setupNotificationDelegate() {
         UNUserNotificationCenter.current().delegate = self
-        print("🔗 Deep link handler initialized")
+        debugPrint("🔗 Deep link handler initialized")
     }
 
     // MARK: - Handle Deep Link
 
     /// 处理Deep Link URL
     func handleDeepLink(url: URL) {
-        print("🔗 Handling deep link: \(url.absoluteString)")
+        debugPrint("🔗 Handling deep link: \(url.absoluteString)")
 
         guard url.scheme == "studyai" else {
-            print("⚠️ Invalid URL scheme: \(url.scheme ?? "nil")")
+            debugPrint("⚠️ Invalid URL scheme: \(url.scheme ?? "nil")")
             return
         }
 
@@ -60,7 +60,7 @@ class PomodoroDeepLinkHandler: NSObject, ObservableObject {
         case "garden":
             handleGardenDeepLink()
         default:
-            print("⚠️ Unknown deep link path: \(path)")
+            debugPrint("⚠️ Unknown deep link path: \(path)")
         }
     }
 
@@ -69,7 +69,7 @@ class PomodoroDeepLinkHandler: NSObject, ObservableObject {
         let pathComponents = url.pathComponents.filter { $0 != "/" }
 
         if pathComponents.contains("start") {
-            print("🍅 Starting pomodoro from deep link")
+            debugPrint("🍅 Starting pomodoro from deep link")
             DispatchQueue.main.async {
                 self.shouldShowPomodoro = true
                 self.shouldAutoStart = true
@@ -79,13 +79,13 @@ class PomodoroDeepLinkHandler: NSObject, ObservableObject {
 
     /// 处理日历Deep Link
     private func handleCalendarDeepLink() {
-        print("📅 Opening calendar from deep link")
+        debugPrint("📅 Opening calendar from deep link")
         // 可以添加显示日历的逻辑
     }
 
     /// 处理花园Deep Link
     private func handleGardenDeepLink() {
-        print("🌳 Opening garden from deep link")
+        debugPrint("🌳 Opening garden from deep link")
         // 可以添加显示花园的逻辑
     }
 
@@ -93,7 +93,7 @@ class PomodoroDeepLinkHandler: NSObject, ObservableObject {
 
     /// 处理通知操作
     func handleNotificationAction(action: String, userInfo: [AnyHashable: Any]) {
-        print("🔔 Handling notification action: \(action)")
+        debugPrint("🔔 Handling notification action: \(action)")
 
         switch action {
         case PomodoroNotificationService.shared.startActionIdentifier:
@@ -119,7 +119,7 @@ class PomodoroDeepLinkHandler: NSObject, ObservableObject {
             self.shouldAutoStart = true
         }
 
-        print("🍅 Starting pomodoro from notification action")
+        debugPrint("🍅 Starting pomodoro from notification action")
     }
 
     private func handleSnoozeAction(userInfo: [AnyHashable: Any]) {
@@ -135,7 +135,7 @@ class PomodoroDeepLinkHandler: NSObject, ObservableObject {
                 minutesBefore: 0  // 立即提醒
             )
 
-            print("⏰ Snoozed notification for 5 minutes")
+            debugPrint("⏰ Snoozed notification for 5 minutes")
         }
     }
 
@@ -158,7 +158,7 @@ extension PomodoroDeepLinkHandler: UNUserNotificationCenterDelegate {
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
-        print("🔔 Notification received while app in foreground")
+        debugPrint("🔔 Notification received while app in foreground")
 
         // 在iOS 14+显示横幅、声音和角标
         if #available(iOS 14.0, *) {
@@ -177,7 +177,7 @@ extension PomodoroDeepLinkHandler: UNUserNotificationCenterDelegate {
         let userInfo = response.notification.request.content.userInfo
         let actionIdentifier = response.actionIdentifier
 
-        print("🔔 Notification tapped: \(actionIdentifier)")
+        debugPrint("🔔 Notification tapped: \(actionIdentifier)")
 
         // 处理用户操作
         if actionIdentifier == UNNotificationDefaultActionIdentifier {

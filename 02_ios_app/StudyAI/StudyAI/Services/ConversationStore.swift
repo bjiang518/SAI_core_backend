@@ -264,14 +264,14 @@ class ConversationStore: ObservableObject {
             }
         }
         
-        print("✅ Successfully converted \(filteredConversations.count) valid sessions to conversations")
+        debugPrint("✅ Successfully converted \(filteredConversations.count) valid sessions to conversations")
         return filteredConversations.sorted { $0.updatedAt > $1.updatedAt }
     }
     
     func archiveConversation(_ conversationId: UUID, title: String? = nil, subject: String? = nil, notes: String? = nil) async -> Bool {
         // Convert UUID to string for session ID
         let sessionIdString = conversationId.uuidString
-        print("📦 Archiving conversation session: \(sessionIdString)")
+        debugPrint("📦 Archiving conversation session: \(sessionIdString)")
         
         let result = await networkService.archiveSession(
             sessionId: sessionIdString,
@@ -281,29 +281,29 @@ class ConversationStore: ObservableObject {
         )
         
         if result.success {
-            print("✅ Session archived successfully: \(result.message)")
+            debugPrint("✅ Session archived successfully: \(result.message)")
             return true
         } else {
-            print("❌ Session archive failed: \(result.message)")
+            debugPrint("❌ Session archive failed: \(result.message)")
             return false
         }
     }
     
     func unarchiveConversation(_ conversationId: UUID) async -> Bool {
         // For homework sessions, "unarchiving" doesn't apply
-        print("📦 Unarchive functionality not applicable to homework sessions")
+        debugPrint("📦 Unarchive functionality not applicable to homework sessions")
         return true
     }
     
     func deleteConversation(_ conversationId: UUID) async -> Bool {
         // This would require implementing a delete session API endpoint
-        print("🗑️ Delete functionality not implemented for server sessions")
+        debugPrint("🗑️ Delete functionality not implemented for server sessions")
         return false
     }
     
     func saveConversation(_ conversation: Conversation) async -> Bool {
         // For homework sessions, saving is handled through the archive session API
-        print("💾 Save functionality handled through archive session API")
+        debugPrint("💾 Save functionality handled through archive session API")
         return true
     }
 }

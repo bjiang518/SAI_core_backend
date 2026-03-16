@@ -20,7 +20,7 @@ struct NotificationSettings: Codable {
     func save() {
         if let encoded = try? JSONEncoder().encode(self) {
             UserDefaults.standard.set(encoded, forKey: Self.storageKey)
-            print("📱 NotificationSettings: Saved settings")
+            debugPrint("📱 NotificationSettings: Saved settings")
         }
     }
 
@@ -28,10 +28,10 @@ struct NotificationSettings: Codable {
     static func load() -> NotificationSettings {
         if let data = UserDefaults.standard.data(forKey: storageKey),
            let settings = try? JSONDecoder().decode(NotificationSettings.self, from: data) {
-            print("📱 NotificationSettings: Loaded existing settings")
+            debugPrint("📱 NotificationSettings: Loaded existing settings")
             return settings
         }
-        print("📱 NotificationSettings: Using default settings")
+        debugPrint("📱 NotificationSettings: Using default settings")
         return NotificationSettings()
     }
 }

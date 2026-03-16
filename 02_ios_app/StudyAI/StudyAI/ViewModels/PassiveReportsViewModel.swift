@@ -156,7 +156,7 @@ class RefreshCoordinator {
     func shouldRefresh() -> Bool {
         // Don't start new refresh if one is in progress
         guard !isRefreshing else {
-            print("⚠️ [RefreshCoordinator] Already refreshing, skipping")
+            debugPrint("⚠️ [RefreshCoordinator] Already refreshing, skipping")
             return false
         }
 
@@ -164,9 +164,9 @@ class RefreshCoordinator {
         if let lastRefresh = lastRefreshTime {
             let timeSinceLastRefresh = Date().timeIntervalSince(lastRefresh)
             if timeSinceLastRefresh < minimumRefreshInterval {
-                print("⚠️ [RefreshCoordinator] Debouncing: \(String(format: "%.1f", timeSinceLastRefresh))s since last refresh (min: \(minimumRefreshInterval)s)")
-                print("   Last refresh was at: \(lastRefresh)")
-                print("   Current time: \(Date())")
+                debugPrint("⚠️ [RefreshCoordinator] Debouncing: \(String(format: "%.1f", timeSinceLastRefresh))s since last refresh (min: \(minimumRefreshInterval)s)")
+                debugPrint("   Last refresh was at: \(lastRefresh)")
+                debugPrint("   Current time: \(Date())")
                 return false
             }
         }
@@ -177,22 +177,22 @@ class RefreshCoordinator {
     func startRefresh() {
         isRefreshing = true
         lastRefreshTime = Date()
-        print("🔄 [RefreshCoordinator] Refresh started at: \(Date())")
+        debugPrint("🔄 [RefreshCoordinator] Refresh started at: \(Date())")
     }
 
     func endRefresh() {
         isRefreshing = false
-        print("✅ [RefreshCoordinator] Refresh completed at: \(Date())")
+        debugPrint("✅ [RefreshCoordinator] Refresh completed at: \(Date())")
     }
 
     func forceRefresh() {
         // Reset state to allow immediate refresh
-        print("🔓 [RefreshCoordinator] Force refresh - resetting state")
-        print("   Previous lastRefreshTime: \(lastRefreshTime?.description ?? "nil")")
-        print("   Previous isRefreshing: \(isRefreshing)")
+        debugPrint("🔓 [RefreshCoordinator] Force refresh - resetting state")
+        debugPrint("   Previous lastRefreshTime: \(lastRefreshTime?.description ?? "nil")")
+        debugPrint("   Previous isRefreshing: \(isRefreshing)")
         isRefreshing = false
         lastRefreshTime = nil
-        print("   State reset complete - next refresh will proceed immediately")
+        debugPrint("   State reset complete - next refresh will proceed immediately")
     }
 }
 
@@ -229,13 +229,13 @@ class PassiveReportsViewModel: ObservableObject {
 
     /// Start background report checking (call when user logs in or app starts)
     func startReportMonitoring() {
-        print("📊 [PassiveReports] Starting report monitoring")
+        debugPrint("📊 [PassiveReports] Starting report monitoring")
         reportChecker.startPeriodicChecking()
     }
 
     /// Stop background report checking (call when user logs out)
     func stopReportMonitoring() {
-        print("📊 [PassiveReports] Stopping report monitoring")
+        debugPrint("📊 [PassiveReports] Stopping report monitoring")
         reportChecker.stopPeriodicChecking()
     }
 
@@ -248,12 +248,12 @@ class PassiveReportsViewModel: ObservableObject {
     func loadAllBatches() async {
         // Check if we should refresh (debouncing + in-progress check)
         guard refreshCoordinator.shouldRefresh() else {
-            print("⚠️ [PassiveReports] Skipping loadAllBatches - already in progress or too soon")
+            debugPrint("⚠️ [PassiveReports] Skipping loadAllBatches - already in progress or too soon")
             return
         }
 
-        print("🔄 [PassiveReports] loadAllBatches() called - fetching weekly and monthly batches")
-        print("   Current state: weeklyBatches=\(weeklyBatches.count), monthlyBatches=\(monthlyBatches.count)")
+        debugPrint("🔄 [PassiveReports] loadAllBatches() called - fetching weekly and monthly batches")
+        debugPrint("   Current state: weeklyBatches=\(weeklyBatches.count), monthlyBatches=\(monthlyBatches.count)")
 
         refreshCoordinator.startRefresh()
         isLoadingBatches = true
@@ -266,14 +266,14 @@ class PassiveReportsViewModel: ObservableObject {
 
             let (weeklyResult, monthlyResult) = try await (weekly, monthly)
 
-            print("✅ [PassiveReports] Fetch complete:")
-            print("   Weekly batches fetched: \(weeklyResult.count)")
+            debugPrint("✅ [PassiveReports] Fetch complete:")
+            debugPrint("   Weekly batches fetched: \(weeklyResult.count)")
             if !weeklyResult.isEmpty {
-                print("   Most recent weekly: \(weeklyResult[0].startDate) to \(weeklyResult[0].endDate)")
+                debugPrint("   Most recent weekly: \(weeklyResult[0].startDate) to \(weeklyResult[0].endDate)")
             }
-            print("   Monthly batches fetched: \(monthlyResult.count)")
+            debugPrint("   Monthly batches fetched: \(monthlyResult.count)")
             if !monthlyResult.isEmpty {
-                print("   Most recent monthly: \(monthlyResult[0].startDate) to \(monthlyResult[0].endDate)")
+                debugPrint("   Most recent monthly: \(monthlyResult[0].startDate) to \(monthlyResult[0].endDate)")
             }
 
             weeklyBatches = weeklyResult
@@ -282,12 +282,12 @@ class PassiveReportsViewModel: ObservableObject {
             isLoadingBatches = false
             refreshCoordinator.endRefresh()
 
-            print("✅ [PassiveReports] State updated: weeklyBatches=\(weeklyBatches.count), monthlyBatches=\(monthlyBatches.count)")
+            debugPrint("✅ [PassiveReports] State updated: weeklyBatches=\(weeklyBatches.count), monthlyBatches=\(monthlyBatches.count)")
 
         } catch {
             // Ignore cancellation errors from pull-to-refresh
             if (error as NSError).code == NSURLErrorCancelled {
-                print("ℹ️ [PassiveReports] Request cancelled (likely pull-to-refresh)")
+                debugPrint("ℹ️ [PassiveReports] Request cancelled (likely pull-to-refresh)")
                 isLoadingBatches = false
                 refreshCoordinator.endRefresh()
                 return
@@ -296,34 +296,34 @@ class PassiveReportsViewModel: ObservableObject {
             refreshCoordinator.endRefresh()
             errorMessage = error.localizedDescription
             showError = true
-            print("❌ [PassiveReports] Failed to load batches: \(error)")
+            debugPrint("❌ [PassiveReports] Failed to load batches: \(error)")
         }
     }
 
     /// Load batches for a specific period with request deduplication
     private func loadBatches(period: String) async throws -> [PassiveReportBatch] {
-        print("📥 [LOAD-BATCHES] ===== STARTING BATCH LOAD =====")
-        print("   Period: \(period)")
-        print("   Timestamp: \(Date())")
+        debugPrint("📥 [LOAD-BATCHES] ===== STARTING BATCH LOAD =====")
+        debugPrint("   Period: \(period)")
+        debugPrint("   Timestamp: \(Date())")
 
         // Check if there's already a request in flight for this period
         if let existingTask = inFlightRequests[period] {
-            print("♻️ [LOAD-BATCHES] Reusing in-flight request for period: \(period)")
+            debugPrint("♻️ [LOAD-BATCHES] Reusing in-flight request for period: \(period)")
             return try await existingTask.value
         }
 
         // Create new task
         let task = Task<[PassiveReportBatch], Error> {
             let endpoint = "/api/reports/passive/batches?period=\(period)&limit=10&offset=0"
-            print("🌐 [LOAD-BATCHES] Building request:")
-            print("   Endpoint: \(endpoint)")
+            debugPrint("🌐 [LOAD-BATCHES] Building request:")
+            debugPrint("   Endpoint: \(endpoint)")
 
             guard let url = URL(string: "\(networkService.apiBaseURL)\(endpoint)") else {
-                print("❌ [LOAD-BATCHES] Invalid URL")
+                debugPrint("❌ [LOAD-BATCHES] Invalid URL")
                 throw NSError(domain: "PassiveReportsViewModel", code: -1,
                              userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])
             }
-            print("   Full URL: \(url.absoluteString)")
+            debugPrint("   Full URL: \(url.absoluteString)")
 
             var request = URLRequest(url: url)
             request.httpMethod = "GET"
@@ -334,64 +334,64 @@ class PassiveReportsViewModel: ObservableObject {
             let token = AuthenticationService.shared.getAuthToken()
             if let authToken = token {
                 request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
-                print("   Auth: ✅ Token present (length: \(authToken.count))")
+                debugPrint("   Auth: ✅ Token present (length: \(authToken.count))")
             } else {
-                print("   Auth: ❌ No token found")
+                debugPrint("   Auth: ❌ No token found")
             }
 
-            print("🚀 [LOAD-BATCHES] Sending request...")
+            debugPrint("🚀 [LOAD-BATCHES] Sending request...")
             let requestStartTime = Date()
             let (data, response) = try await URLSession.shared.data(for: request)
             let requestDuration = Date().timeIntervalSince(requestStartTime)
-            print("📦 [LOAD-BATCHES] Response received in \(String(format: "%.2f", requestDuration))s")
+            debugPrint("📦 [LOAD-BATCHES] Response received in \(String(format: "%.2f", requestDuration))s")
 
             guard let httpResponse = response as? HTTPURLResponse else {
-                print("❌ [LOAD-BATCHES] Invalid response type")
+                debugPrint("❌ [LOAD-BATCHES] Invalid response type")
                 throw NSError(domain: "PassiveReportsViewModel", code: -1,
                              userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
             }
 
-            print("📊 [LOAD-BATCHES] HTTP Response:")
-            print("   Status Code: \(httpResponse.statusCode)")
-            print("   Data size: \(data.count) bytes")
+            debugPrint("📊 [LOAD-BATCHES] HTTP Response:")
+            debugPrint("   Status Code: \(httpResponse.statusCode)")
+            debugPrint("   Data size: \(data.count) bytes")
 
             guard httpResponse.statusCode == 200 else {
                 // Enhanced error handling for 401 (authentication issues)
                 if httpResponse.statusCode == 401 {
-                    print("❌ [LOAD-BATCHES] Authentication failed (401)")
-                    print("   Token present: \(token != nil)")
+                    debugPrint("❌ [LOAD-BATCHES] Authentication failed (401)")
+                    debugPrint("   Token present: \(token != nil)")
                     if let responseString = String(data: data, encoding: .utf8) {
-                        print("   Server response: \(responseString)")
+                        debugPrint("   Server response: \(responseString)")
                     }
                     throw NSError(domain: "PassiveReportsViewModel", code: 401,
                                  userInfo: [NSLocalizedDescriptionKey: "Authentication failed. Please log in again."])
                 }
 
-                print("❌ [LOAD-BATCHES] Server error: \(httpResponse.statusCode)")
+                debugPrint("❌ [LOAD-BATCHES] Server error: \(httpResponse.statusCode)")
                 if let responseString = String(data: data, encoding: .utf8) {
-                    print("   Response body: \(responseString.prefix(200))...")
+                    debugPrint("   Response body: \(responseString.prefix(200))...")
                 }
                 throw NSError(domain: "PassiveReportsViewModel", code: httpResponse.statusCode,
                              userInfo: [NSLocalizedDescriptionKey: "Server returned status \(httpResponse.statusCode)"])
             }
 
-            print("🔍 [LOAD-BATCHES] Decoding JSON response...")
+            debugPrint("🔍 [LOAD-BATCHES] Decoding JSON response...")
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
 
             let batchesResponse = try decoder.decode(BatchesResponse.self, from: data)
-            print("✅ [LOAD-BATCHES] Successfully decoded \(batchesResponse.batches.count) batches")
+            debugPrint("✅ [LOAD-BATCHES] Successfully decoded \(batchesResponse.batches.count) batches")
 
             // Log each batch
             for (index, batch) in batchesResponse.batches.enumerated() {
-                print("   [\(index + 1)] ID: \(batch.id.prefix(13))...")
-                print("       Period: \(batch.period)")
-                print("       Dates: \(batch.startDate) to \(batch.endDate)")
-                print("       Status: \(batch.status)")
-                print("       Reports: \(batch.reportCount ?? 0)")
+                debugPrint("   [\(index + 1)] ID: \(batch.id.prefix(13))...")
+                debugPrint("       Period: \(batch.period)")
+                debugPrint("       Dates: \(batch.startDate) to \(batch.endDate)")
+                debugPrint("       Status: \(batch.status)")
+                debugPrint("       Reports: \(batch.reportCount ?? 0)")
             }
 
-            print("✅ [LOAD-BATCHES] ===== BATCH LOAD COMPLETE =====")
+            debugPrint("✅ [LOAD-BATCHES] ===== BATCH LOAD COMPLETE =====")
             return batchesResponse.batches
         }
 
@@ -401,7 +401,7 @@ class PassiveReportsViewModel: ObservableObject {
         // Clean up after completion
         defer {
             inFlightRequests.removeValue(forKey: period)
-            print("🧹 [PassiveReports] Cleaned up in-flight request for period: \(period)")
+            debugPrint("🧹 [PassiveReports] Cleaned up in-flight request for period: \(period)")
         }
 
         return try await task.value
@@ -409,24 +409,24 @@ class PassiveReportsViewModel: ObservableObject {
 
     /// Load detailed reports for a specific batch
     func loadBatchDetails(batchId: String) async {
-        print("📖 [BATCH-DETAIL] ===== LOADING BATCH DETAILS =====")
-        print("   Batch ID: \(batchId)")
-        print("   Timestamp: \(Date())")
+        debugPrint("📖 [BATCH-DETAIL] ===== LOADING BATCH DETAILS =====")
+        debugPrint("   Batch ID: \(batchId)")
+        debugPrint("   Timestamp: \(Date())")
 
         isLoadingDetails = true
         errorMessage = nil
 
         do {
             let endpoint = "/api/reports/passive/batches/\(batchId)"
-            print("🌐 [BATCH-DETAIL] Building request:")
-            print("   Endpoint: \(endpoint)")
+            debugPrint("🌐 [BATCH-DETAIL] Building request:")
+            debugPrint("   Endpoint: \(endpoint)")
 
             guard let url = URL(string: "\(networkService.apiBaseURL)\(endpoint)") else {
-                print("❌ [BATCH-DETAIL] Invalid URL")
+                debugPrint("❌ [BATCH-DETAIL] Invalid URL")
                 throw NSError(domain: "PassiveReportsViewModel", code: -1,
                              userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])
             }
-            print("   Full URL: \(url.absoluteString)")
+            debugPrint("   Full URL: \(url.absoluteString)")
 
             var request = URLRequest(url: url)
             request.httpMethod = "GET"
@@ -436,66 +436,66 @@ class PassiveReportsViewModel: ObservableObject {
             let token = AuthenticationService.shared.getAuthToken()
             if let authToken = token {
                 request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
-                print("   Auth: ✅ Token present (length: \(authToken.count))")
+                debugPrint("   Auth: ✅ Token present (length: \(authToken.count))")
             } else {
-                print("   Auth: ❌ No token found")
+                debugPrint("   Auth: ❌ No token found")
             }
 
-            print("🚀 [BATCH-DETAIL] Sending request...")
+            debugPrint("🚀 [BATCH-DETAIL] Sending request...")
             let requestStartTime = Date()
             let (data, response) = try await URLSession.shared.data(for: request)
             let requestDuration = Date().timeIntervalSince(requestStartTime)
-            print("📦 [BATCH-DETAIL] Response received in \(String(format: "%.2f", requestDuration))s")
+            debugPrint("📦 [BATCH-DETAIL] Response received in \(String(format: "%.2f", requestDuration))s")
 
             guard let httpResponse = response as? HTTPURLResponse else {
-                print("❌ [BATCH-DETAIL] Invalid response type")
+                debugPrint("❌ [BATCH-DETAIL] Invalid response type")
                 throw NSError(domain: "PassiveReportsViewModel", code: -1,
                              userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
             }
 
-            print("📊 [BATCH-DETAIL] HTTP Response:")
-            print("   Status Code: \(httpResponse.statusCode)")
-            print("   Data size: \(data.count) bytes")
+            debugPrint("📊 [BATCH-DETAIL] HTTP Response:")
+            debugPrint("   Status Code: \(httpResponse.statusCode)")
+            debugPrint("   Data size: \(data.count) bytes")
 
             guard httpResponse.statusCode == 200 else {
-                print("❌ [BATCH-DETAIL] Server error: \(httpResponse.statusCode)")
+                debugPrint("❌ [BATCH-DETAIL] Server error: \(httpResponse.statusCode)")
                 if let responseString = String(data: data, encoding: .utf8) {
-                    print("   Response body: \(responseString.prefix(200))...")
+                    debugPrint("   Response body: \(responseString.prefix(200))...")
                 }
                 throw NSError(domain: "PassiveReportsViewModel", code: httpResponse.statusCode,
                              userInfo: [NSLocalizedDescriptionKey: "Server returned status \(httpResponse.statusCode)"])
             }
 
-            print("🔍 [BATCH-DETAIL] Decoding JSON response...")
+            debugPrint("🔍 [BATCH-DETAIL] Decoding JSON response...")
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
 
             let detailResponse = try decoder.decode(BatchDetailResponse.self, from: data)
-            print("✅ [BATCH-DETAIL] Successfully decoded response")
-            print("   Batch Period: \(detailResponse.batch.period)")
-            print("   Batch Dates: \(detailResponse.batch.startDate) to \(detailResponse.batch.endDate)")
-            print("   Reports Count: \(detailResponse.reports.count)")
+            debugPrint("✅ [BATCH-DETAIL] Successfully decoded response")
+            debugPrint("   Batch Period: \(detailResponse.batch.period)")
+            debugPrint("   Batch Dates: \(detailResponse.batch.startDate) to \(detailResponse.batch.endDate)")
+            debugPrint("   Reports Count: \(detailResponse.reports.count)")
 
             // Log each report
             for (index, report) in detailResponse.reports.enumerated() {
-                print("   [\(index + 1)] Type: \(report.reportType)")
-                print("       Content length: \(report.narrativeContent.count) chars")
-                print("       Word count: \(report.wordCount ?? 0)")
+                debugPrint("   [\(index + 1)] Type: \(report.reportType)")
+                debugPrint("       Content length: \(report.narrativeContent.count) chars")
+                debugPrint("       Word count: \(report.wordCount ?? 0)")
             }
 
             selectedBatch = detailResponse.batch
             detailedReports = detailResponse.reports
 
             isLoadingDetails = false
-            print("✅ [BATCH-DETAIL] ===== BATCH DETAILS LOADED =====")
+            debugPrint("✅ [BATCH-DETAIL] ===== BATCH DETAILS LOADED =====")
 
         } catch {
             isLoadingDetails = false
             errorMessage = error.localizedDescription
             showError = true
-            print("❌ [BATCH-DETAIL] Failed to load batch details: \(error)")
-            print("   Error type: \(type(of: error))")
-            print("   Localized description: \(error.localizedDescription)")
+            debugPrint("❌ [BATCH-DETAIL] Failed to load batch details: \(error)")
+            debugPrint("   Error type: \(type(of: error))")
+            debugPrint("   Localized description: \(error.localizedDescription)")
         }
     }
 
@@ -505,40 +505,40 @@ class PassiveReportsViewModel: ObservableObject {
         errorMessage = nil
 
         // CRITICAL: Validate token before starting
-        print("🔐 [PassiveReports] Validating authentication token...")
+        debugPrint("🔐 [PassiveReports] Validating authentication token...")
         if !AuthenticationService.shared.isTokenValid() {
-            print("❌ [PassiveReports] Token validation FAILED - cannot generate report")
-            print("   Token is either missing, corrupted, or expired")
+            debugPrint("❌ [PassiveReports] Token validation FAILED - cannot generate report")
+            debugPrint("   Token is either missing, corrupted, or expired")
             isGenerating = false
             errorMessage = "Your session is invalid. Please log in again."
             showError = true
             return
         }
-        print("✅ [PassiveReports] Token validation passed")
+        debugPrint("✅ [PassiveReports] Token validation passed")
 
         // CRITICAL: Sync local data to server BEFORE generating report
         // This ensures all locally-stored questions and conversations are uploaded
         // User has agreed to this sync requirement during onboarding
-        print("🔄 [PassiveReports] ===== SYNCING LOCAL DATA TO SERVER =====")
-        print("   Syncing questions, conversations, and progress data...")
+        debugPrint("🔄 [PassiveReports] ===== SYNCING LOCAL DATA TO SERVER =====")
+        debugPrint("   Syncing questions, conversations, and progress data...")
         do {
             let syncResult = try await StorageSyncService.shared.syncAllToServer()
-            print("✅ [PassiveReports] Sync completed successfully")
-            print("   Questions: \(syncResult.questionsSynced) synced, \(syncResult.questionsDuplicates) duplicates")
-            print("   Conversations: \(syncResult.conversationsSynced) synced, \(syncResult.conversationsDuplicates) duplicates")
-            print("   Progress: \(syncResult.progressSynced ? "synced" : "skipped")")
-            print("   Total synced: \(syncResult.totalSynced) items")
+            debugPrint("✅ [PassiveReports] Sync completed successfully")
+            debugPrint("   Questions: \(syncResult.questionsSynced) synced, \(syncResult.questionsDuplicates) duplicates")
+            debugPrint("   Conversations: \(syncResult.conversationsSynced) synced, \(syncResult.conversationsDuplicates) duplicates")
+            debugPrint("   Progress: \(syncResult.progressSynced ? "synced" : "skipped")")
+            debugPrint("   Total synced: \(syncResult.totalSynced) items")
 
             if !syncResult.isSuccess {
-                print("⚠️ [PassiveReports] Sync completed with errors:")
-                syncResult.errors.forEach { print("   - \($0)") }
+                debugPrint("⚠️ [PassiveReports] Sync completed with errors:")
+                syncResult.errors.forEach { debugPrint("   - \($0)") }
             }
         } catch {
-            print("❌ [PassiveReports] Sync failed: \(error.localizedDescription)")
-            print("   Proceeding with report generation using existing server data")
+            debugPrint("❌ [PassiveReports] Sync failed: \(error.localizedDescription)")
+            debugPrint("   Proceeding with report generation using existing server data")
             // Don't block report generation - user might have already synced manually
         }
-        print("🔄 [PassiveReports] ===== SYNC COMPLETE ======")
+        debugPrint("🔄 [PassiveReports] ===== SYNC COMPLETE ======")
 
         // IMPORTANT: Ensure token is fresh before long operation (can take 100+ seconds)
         await AuthenticationService.shared.ensureTokenFreshForLongOperation(
@@ -547,16 +547,16 @@ class PassiveReportsViewModel: ObservableObject {
         )
 
         // Re-validate after refresh attempt (in case refresh failed or cleared token)
-        print("🔐 [PassiveReports] Re-validating token after refresh check...")
+        debugPrint("🔐 [PassiveReports] Re-validating token after refresh check...")
         if !AuthenticationService.shared.isTokenValid() {
-            print("❌ [PassiveReports] Token still invalid after refresh attempt")
-            print("   User may have been logged out due to corrupted token")
+            debugPrint("❌ [PassiveReports] Token still invalid after refresh attempt")
+            debugPrint("   User may have been logged out due to corrupted token")
             isGenerating = false
             errorMessage = "Unable to refresh your session. Please log in again."
             showError = true
             return
         }
-        print("✅ [PassiveReports] Token still valid after refresh check")
+        debugPrint("✅ [PassiveReports] Token still valid after refresh check")
 
         do {
             let endpoint = "/api/reports/passive/generate-now"
@@ -585,72 +585,72 @@ class PassiveReportsViewModel: ObservableObject {
             // Extended timeout for report generation (can take 100+ seconds)
             request.timeoutInterval = 180.0  // 3 minutes
 
-            print("🧪 [PassiveReports] Triggering report generation for period: \(period)")
-            print("🧪 [PassiveReports] Endpoint: \(endpoint)")
-            print("🧪 [PassiveReports] Auth token: \(token != nil ? "✅ Present (refreshed if needed)" : "❌ Missing")")
-            print("🧪 [PassiveReports] Timeout: 180 seconds")
+            debugPrint("🧪 [PassiveReports] Triggering report generation for period: \(period)")
+            debugPrint("🧪 [PassiveReports] Endpoint: \(endpoint)")
+            debugPrint("🧪 [PassiveReports] Auth token: \(token != nil ? "✅ Present (refreshed if needed)" : "❌ Missing")")
+            debugPrint("🧪 [PassiveReports] Timeout: 180 seconds")
 
             // CRITICAL: Ensure refresh happens even if there are errors
             var shouldRefresh = false
             defer {
                 if shouldRefresh {
-                    print("🔄 [PassiveReports] DEFER: Triggering refresh after generation attempt")
+                    debugPrint("🔄 [PassiveReports] DEFER: Triggering refresh after generation attempt")
                     Task {
-                        print("🔄 [PassiveReports] DEFER: Forcing refresh coordinator to bypass debounce...")
+                        debugPrint("🔄 [PassiveReports] DEFER: Forcing refresh coordinator to bypass debounce...")
                         refreshCoordinator.forceRefresh()
-                        print("🔄 [PassiveReports] DEFER: Loading all batches...")
+                        debugPrint("🔄 [PassiveReports] DEFER: Loading all batches...")
                         await loadAllBatches()
-                        print("✅ [PassiveReports] DEFER: Post-generation refresh complete")
-                        print("   Weekly batches: \(weeklyBatches.count)")
-                        print("   Monthly batches: \(monthlyBatches.count)")
+                        debugPrint("✅ [PassiveReports] DEFER: Post-generation refresh complete")
+                        debugPrint("   Weekly batches: \(weeklyBatches.count)")
+                        debugPrint("   Monthly batches: \(monthlyBatches.count)")
                     }
                 }
             }
 
             let (data, response) = try await URLSession.shared.data(for: request)
 
-            print("📥 [PassiveReports] Response received from server")
-            print("   Response time: ~\((Date().timeIntervalSince1970 * 1000).rounded())ms since request")
+            debugPrint("📥 [PassiveReports] Response received from server")
+            debugPrint("   Response time: ~\((Date().timeIntervalSince1970 * 1000).rounded())ms since request")
 
             // CRITICAL: Set flag to trigger refresh in defer block
             // This ensures refresh happens even if JSON parsing fails
             shouldRefresh = true
-            print("✅ [PassiveReports] Refresh flag set - defer block will execute refresh")
+            debugPrint("✅ [PassiveReports] Refresh flag set - defer block will execute refresh")
 
             guard let httpResponse = response as? HTTPURLResponse else {
-                print("❌ [PassiveReports] Invalid response type")
+                debugPrint("❌ [PassiveReports] Invalid response type")
                 throw NSError(domain: "PassiveReportsViewModel", code: -1,
                              userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
             }
 
-            print("🧪 [PassiveReports] Response status: \(httpResponse.statusCode)")
+            debugPrint("🧪 [PassiveReports] Response status: \(httpResponse.statusCode)")
 
             // Print full response for debugging
             if let responseString = String(data: data, encoding: .utf8) {
-                print("🧪 [PassiveReports] Response body: \(responseString.prefix(500))...")
+                debugPrint("🧪 [PassiveReports] Response body: \(responseString.prefix(500))...")
             }
 
             guard httpResponse.statusCode == 200 else {
-                print("❌ [PassiveReports] Generation failed with status \(httpResponse.statusCode)")
+                debugPrint("❌ [PassiveReports] Generation failed with status \(httpResponse.statusCode)")
                 if let responseString = String(data: data, encoding: .utf8) {
-                    print("❌ [PassiveReports] Error details: \(responseString)")
+                    debugPrint("❌ [PassiveReports] Error details: \(responseString)")
                 }
                 throw NSError(domain: "PassiveReportsViewModel", code: httpResponse.statusCode,
                              userInfo: [NSLocalizedDescriptionKey: "Server returned status \(httpResponse.statusCode)"])
             }
 
-            print("🔍 [PassiveReports] Parsing JSON response...")
+            debugPrint("🔍 [PassiveReports] Parsing JSON response...")
             let result = try JSONDecoder().decode(GenerationResponse.self, from: data)
-            print("✅ [PassiveReports] JSON decoded successfully")
-            print("   Batch ID: \(result.batchId)")
-            print("   Report count: \(result.reportCount)")
-            print("   Generation time: \(result.generationTimeMs)ms")
+            debugPrint("✅ [PassiveReports] JSON decoded successfully")
+            debugPrint("   Batch ID: \(result.batchId)")
+            debugPrint("   Report count: \(result.reportCount)")
+            debugPrint("   Generation time: \(result.generationTimeMs)ms")
 
             isGenerating = false
 
-            print("✅ [PassiveReports] Manual generation complete: \(result.reportCount) reports in \(result.generationTimeMs)ms")
-            print("✅ [PassiveReports] Batch ID: \(result.batchId)")
-            print("🔄 [PassiveReports] EXPLICIT refresh (defer will be skipped)...")
+            debugPrint("✅ [PassiveReports] Manual generation complete: \(result.reportCount) reports in \(result.generationTimeMs)ms")
+            debugPrint("✅ [PassiveReports] Batch ID: \(result.batchId)")
+            debugPrint("🔄 [PassiveReports] EXPLICIT refresh (defer will be skipped)...")
 
             // Disable defer refresh since we're doing explicit refresh
             shouldRefresh = false
@@ -658,7 +658,7 @@ class PassiveReportsViewModel: ObservableObject {
             // CRITICAL FIX: Force refresh BEFORE sending notification
             // The notification will trigger another loadAllBatches() call from the View
             // We need to ensure the debounce timer is reset so both calls succeed
-            print("🔄 [PassiveReports] Forcing refresh coordinator to bypass debounce...")
+            debugPrint("🔄 [PassiveReports] Forcing refresh coordinator to bypass debounce...")
             refreshCoordinator.forceRefresh() // Reset lastRefreshTime and isRefreshing flag
 
             // Send notification for new report (this may trigger view to call loadAllBatches)
@@ -669,81 +669,81 @@ class PassiveReportsViewModel: ObservableObject {
             )
 
             // Reload batches to show new report
-            print("🔄 [PassiveReports] Loading all batches...")
+            debugPrint("🔄 [PassiveReports] Loading all batches...")
             await loadAllBatches()
 
-            print("✅ [PassiveReports] Explicit refresh complete")
-            print("   Weekly batches: \(weeklyBatches.count)")
-            print("   Monthly batches: \(monthlyBatches.count)")
+            debugPrint("✅ [PassiveReports] Explicit refresh complete")
+            debugPrint("   Weekly batches: \(weeklyBatches.count)")
+            debugPrint("   Monthly batches: \(monthlyBatches.count)")
 
             if weeklyBatches.isEmpty && monthlyBatches.isEmpty {
-                print("⚠️ [PassiveReports] WARNING: No batches loaded after generation!")
-                print("   Expected at least 1 batch for period: \(period)")
-                print("   This might indicate a backend issue or query cache problem")
+                debugPrint("⚠️ [PassiveReports] WARNING: No batches loaded after generation!")
+                debugPrint("   Expected at least 1 batch for period: \(period)")
+                debugPrint("   This might indicate a backend issue or query cache problem")
             }
 
         } catch {
             isGenerating = false
             errorMessage = error.localizedDescription
             showError = true
-            print("❌ [PassiveReports] Manual generation failed: \(error)")
-            print("❌ [PassiveReports] Error details: \(error.localizedDescription)")
+            debugPrint("❌ [PassiveReports] Manual generation failed: \(error)")
+            debugPrint("❌ [PassiveReports] Error details: \(error.localizedDescription)")
         }
     }
 
     /// Delete a report batch with optimistic updates and rollback on failure
     func deleteBatch(_ batch: PassiveReportBatch) async {
-        print("🗑️ [DELETE] ===== DELETE BATCH START =====")
-        print("   Timestamp: \(Date())")
-        print("   Batch ID: \(batch.id)")
-        print("   Period: \(batch.period)")
-        print("   Date Range: \(batch.startDate) to \(batch.endDate)")
-        print("   Current weekly batches: \(weeklyBatches.count)")
-        print("   Current monthly batches: \(monthlyBatches.count)")
+        debugPrint("🗑️ [DELETE] ===== DELETE BATCH START =====")
+        debugPrint("   Timestamp: \(Date())")
+        debugPrint("   Batch ID: \(batch.id)")
+        debugPrint("   Period: \(batch.period)")
+        debugPrint("   Date Range: \(batch.startDate) to \(batch.endDate)")
+        debugPrint("   Current weekly batches: \(weeklyBatches.count)")
+        debugPrint("   Current monthly batches: \(monthlyBatches.count)")
 
         // CRITICAL: Stop background checker to prevent false "new report" notifications
-        print("🛑 [DELETE] Stopping background report checker...")
+        debugPrint("🛑 [DELETE] Stopping background report checker...")
         reportChecker.stopPeriodicChecking()
-        print("   ✅ Report checker stopped")
+        debugPrint("   ✅ Report checker stopped")
 
         // OPTIMISTIC UPDATE: Save original state for rollback
         let originalWeeklyBatches = weeklyBatches
         let originalMonthlyBatches = monthlyBatches
-        print("💾 [DELETE] Saved original state for rollback:")
-        print("   Original weekly: \(originalWeeklyBatches.count)")
-        print("   Original monthly: \(originalMonthlyBatches.count)")
+        debugPrint("💾 [DELETE] Saved original state for rollback:")
+        debugPrint("   Original weekly: \(originalWeeklyBatches.count)")
+        debugPrint("   Original monthly: \(originalMonthlyBatches.count)")
 
         // Normalize period (case-insensitive comparison)
         let normalizedPeriod = batch.period.lowercased()
         let isWeekly = normalizedPeriod == "weekly"
-        print("📊 [DELETE] Batch classification:")
-        print("   Normalized period: \(normalizedPeriod)")
-        print("   Is weekly: \(isWeekly)")
+        debugPrint("📊 [DELETE] Batch classification:")
+        debugPrint("   Normalized period: \(normalizedPeriod)")
+        debugPrint("   Is weekly: \(isWeekly)")
 
         // Remove from local arrays immediately (optimistic)
-        print("🔄 [DELETE] Performing optimistic update...")
+        debugPrint("🔄 [DELETE] Performing optimistic update...")
         if isWeekly {
             let beforeCount = weeklyBatches.count
             weeklyBatches.removeAll { $0.id == batch.id }
-            print("   Weekly batches: \(beforeCount) → \(weeklyBatches.count)")
+            debugPrint("   Weekly batches: \(beforeCount) → \(weeklyBatches.count)")
         } else {
             let beforeCount = monthlyBatches.count
             monthlyBatches.removeAll { $0.id == batch.id }
-            print("   Monthly batches: \(beforeCount) → \(monthlyBatches.count)")
+            debugPrint("   Monthly batches: \(beforeCount) → \(monthlyBatches.count)")
         }
-        print("   ✅ Local state updated optimistically")
+        debugPrint("   ✅ Local state updated optimistically")
 
         do {
             let endpoint = "/api/reports/passive/batches/\(batch.id)"
-            print("🌐 [DELETE] Building DELETE request:")
-            print("   Endpoint: \(endpoint)")
+            debugPrint("🌐 [DELETE] Building DELETE request:")
+            debugPrint("   Endpoint: \(endpoint)")
 
             guard let url = URL(string: "\(networkService.apiBaseURL)\(endpoint)") else {
-                print("❌ [DELETE] Invalid URL")
+                debugPrint("❌ [DELETE] Invalid URL")
                 throw NSError(domain: "PassiveReportsViewModel", code: -1,
                              userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])
             }
-            print("   Full URL: \(url.absoluteString)")
+            debugPrint("   Full URL: \(url.absoluteString)")
 
             var request = URLRequest(url: url)
             request.httpMethod = "DELETE"
@@ -753,96 +753,96 @@ class PassiveReportsViewModel: ObservableObject {
             let token = AuthenticationService.shared.getAuthToken()
             if let authToken = token {
                 request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
-                print("   Auth: ✅ Token present (length: \(authToken.count))")
+                debugPrint("   Auth: ✅ Token present (length: \(authToken.count))")
             } else {
-                print("   Auth: ❌ No token - request will fail")
+                debugPrint("   Auth: ❌ No token - request will fail")
                 throw NSError(domain: "PassiveReportsViewModel", code: 401,
                              userInfo: [NSLocalizedDescriptionKey: "No authentication token available"])
             }
 
-            print("🚀 [DELETE] Sending DELETE request...")
+            debugPrint("🚀 [DELETE] Sending DELETE request...")
             let requestStartTime = Date()
             let (data, response) = try await URLSession.shared.data(for: request)
             let requestDuration = Date().timeIntervalSince(requestStartTime)
-            print("📦 [DELETE] Response received in \(String(format: "%.2f", requestDuration))s")
+            debugPrint("📦 [DELETE] Response received in \(String(format: "%.2f", requestDuration))s")
 
             guard let httpResponse = response as? HTTPURLResponse else {
-                print("❌ [DELETE] Invalid response type")
+                debugPrint("❌ [DELETE] Invalid response type")
                 throw NSError(domain: "PassiveReportsViewModel", code: -1,
                              userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
             }
 
-            print("📊 [DELETE] HTTP Response:")
-            print("   Status Code: \(httpResponse.statusCode)")
-            print("   Data size: \(data.count) bytes")
+            debugPrint("📊 [DELETE] HTTP Response:")
+            debugPrint("   Status Code: \(httpResponse.statusCode)")
+            debugPrint("   Data size: \(data.count) bytes")
 
             // Print response body for debugging
             if let responseString = String(data: data, encoding: .utf8) {
-                print("   Response body: \(responseString.prefix(200))")
+                debugPrint("   Response body: \(responseString.prefix(200))")
             }
 
             guard httpResponse.statusCode == 200 else {
-                print("❌ [DELETE] Server error: \(httpResponse.statusCode)")
+                debugPrint("❌ [DELETE] Server error: \(httpResponse.statusCode)")
                 throw NSError(domain: "PassiveReportsViewModel", code: httpResponse.statusCode,
                              userInfo: [NSLocalizedDescriptionKey: "Server returned status \(httpResponse.statusCode)"])
             }
 
-            print("✅ [DELETE] Successfully deleted batch from server")
-            print("   Batch ID: \(batch.id)")
-            print("   Local state already updated (optimistic)")
+            debugPrint("✅ [DELETE] Successfully deleted batch from server")
+            debugPrint("   Batch ID: \(batch.id)")
+            debugPrint("   Local state already updated (optimistic)")
 
             // CRITICAL FIX: Wait 2 seconds before restarting checker
             // This prevents immediate "new report" notification if regeneration was triggered
-            print("⏳ [DELETE] Waiting 2 seconds before restarting checker...")
+            debugPrint("⏳ [DELETE] Waiting 2 seconds before restarting checker...")
             try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
-            print("   ✅ Wait complete")
+            debugPrint("   ✅ Wait complete")
 
             // CRITICAL FIX: Force refresh from server to get latest state
             // This ensures we have correct batch IDs if backend regenerated
-            print("🔄 [DELETE] Force refreshing from server to sync state...")
-            print("   Resetting debounce timer...")
+            debugPrint("🔄 [DELETE] Force refreshing from server to sync state...")
+            debugPrint("   Resetting debounce timer...")
             refreshCoordinator.forceRefresh() // Reset debounce timer
-            print("   ✅ Debounce timer reset")
-            print("   Loading all batches...")
+            debugPrint("   ✅ Debounce timer reset")
+            debugPrint("   Loading all batches...")
             await loadAllBatches()
-            print("   ✅ Batches reloaded")
+            debugPrint("   ✅ Batches reloaded")
 
             // Restart checker after refresh completes
-            print("▶️ [DELETE] Restarting report checker...")
+            debugPrint("▶️ [DELETE] Restarting report checker...")
             reportChecker.startPeriodicChecking()
-            print("   ✅ Report checker restarted")
-            print("🗑️ [DELETE] ===== DELETE BATCH END (SUCCESS) =====")
+            debugPrint("   ✅ Report checker restarted")
+            debugPrint("🗑️ [DELETE] ===== DELETE BATCH END (SUCCESS) =====")
 
         } catch {
             // ROLLBACK: Restore original state on failure
-            print("❌ [DELETE] ===== DELETE BATCH FAILED - ROLLING BACK =====")
-            print("   Error type: \(type(of: error))")
-            print("   Error: \(error)")
-            print("   Localized: \(error.localizedDescription)")
+            debugPrint("❌ [DELETE] ===== DELETE BATCH FAILED - ROLLING BACK =====")
+            debugPrint("   Error type: \(type(of: error))")
+            debugPrint("   Error: \(error)")
+            debugPrint("   Localized: \(error.localizedDescription)")
 
-            print("🔄 [DELETE] Rolling back state...")
+            debugPrint("🔄 [DELETE] Rolling back state...")
             weeklyBatches = originalWeeklyBatches
             monthlyBatches = originalMonthlyBatches
 
-            print("   ✅ Rollback complete:")
-            print("      Weekly batches restored: \(weeklyBatches.count)")
-            print("      Monthly batches restored: \(monthlyBatches.count)")
+            debugPrint("   ✅ Rollback complete:")
+            debugPrint("      Weekly batches restored: \(weeklyBatches.count)")
+            debugPrint("      Monthly batches restored: \(monthlyBatches.count)")
 
             // Restart checker even after failure
-            print("▶️ [DELETE] Restarting report checker after failure...")
+            debugPrint("▶️ [DELETE] Restarting report checker after failure...")
             reportChecker.startPeriodicChecking()
-            print("   ✅ Report checker restarted")
+            debugPrint("   ✅ Report checker restarted")
 
             errorMessage = "Failed to delete report: \(error.localizedDescription)"
             showError = true
-            print("🗑️ [DELETE] ===== DELETE BATCH END (FAILED) =====")
+            debugPrint("🗑️ [DELETE] ===== DELETE BATCH END (FAILED) =====")
         }
     }
 
     /// Delete multiple batches atomically
     func deleteBatches(_ batches: [PassiveReportBatch]) async -> (succeeded: Int, failed: Int) {
-        print("🗑️ [PassiveReports] ===== BATCH DELETE START =====")
-        print("   Batches to delete: \(batches.count)")
+        debugPrint("🗑️ [PassiveReports] ===== BATCH DELETE START =====")
+        debugPrint("   Batches to delete: \(batches.count)")
 
         var succeeded = 0
         var failed = 0
@@ -856,33 +856,33 @@ class PassiveReportsViewModel: ObservableObject {
         weeklyBatches.removeAll { batchIds.contains($0.id) }
         monthlyBatches.removeAll { batchIds.contains($0.id) }
 
-        print("🗑️ [PassiveReports] Optimistically removed \(batches.count) batches")
+        debugPrint("🗑️ [PassiveReports] Optimistically removed \(batches.count) batches")
 
         // Attempt to delete each batch
         for batch in batches {
             do {
                 try await performSingleDelete(batch.id)
                 succeeded += 1
-                print("✅ [PassiveReports] Deleted batch \(batch.id.prefix(8))...")
+                debugPrint("✅ [PassiveReports] Deleted batch \(batch.id.prefix(8))...")
             } catch {
                 failed += 1
-                print("❌ [PassiveReports] Failed to delete batch \(batch.id.prefix(8))...: \(error.localizedDescription)")
+                debugPrint("❌ [PassiveReports] Failed to delete batch \(batch.id.prefix(8))...: \(error.localizedDescription)")
             }
         }
 
         if failed > 0 {
             // PARTIAL ROLLBACK: Reload from server to get correct state
-            print("⚠️ [PassiveReports] \(failed) deletions failed - reloading from server")
+            debugPrint("⚠️ [PassiveReports] \(failed) deletions failed - reloading from server")
             errorMessage = "Deleted \(succeeded) reports, but \(failed) failed. Refreshing..."
             showError = true
 
             // Reload to ensure consistency
             await loadAllBatches()
         } else {
-            print("✅ [PassiveReports] All \(succeeded) batches deleted successfully")
+            debugPrint("✅ [PassiveReports] All \(succeeded) batches deleted successfully")
         }
 
-        print("🗑️ [PassiveReports] ===== BATCH DELETE END =====")
+        debugPrint("🗑️ [PassiveReports] ===== BATCH DELETE END =====")
         return (succeeded, failed)
     }
 
@@ -923,7 +923,7 @@ class PassiveReportsViewModel: ObservableObject {
         var errorCode = "UNKNOWN_ERROR"
 
         if let responseString = String(data: data, encoding: .utf8) {
-            print("❌ [DELETE] Server error response: \(responseString)")
+            debugPrint("❌ [DELETE] Server error response: \(responseString)")
 
             // Try to parse JSON error response
             if let jsonData = responseString.data(using: .utf8),
@@ -943,8 +943,8 @@ class PassiveReportsViewModel: ObservableObject {
                     errorMessage = serverMessage
                 }
 
-                print("❌ [DELETE] Error code: \(errorCode)")
-                print("❌ [DELETE] User-friendly message: \(errorMessage)")
+                debugPrint("❌ [DELETE] Error code: \(errorCode)")
+                debugPrint("❌ [DELETE] User-friendly message: \(errorMessage)")
             }
         }
 

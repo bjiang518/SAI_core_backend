@@ -30,7 +30,7 @@ class PerspectiveCorrector {
     /// Returns a configured VNDocumentCameraViewController
     func createNativeDocumentScanner(delegate: VNDocumentCameraViewControllerDelegate) -> VNDocumentCameraViewController? {
         guard isNativeDocumentScanningAvailable else {
-            print("❌ Native document scanning not available on this device")
+            debugPrint("❌ Native document scanning not available on this device")
             return nil
         }
         
@@ -43,12 +43,12 @@ class PerspectiveCorrector {
     /// This handles the high-quality scanned image from VNDocumentCameraViewController
     func processNativeScannedDocument(_ scan: VNDocumentCameraScan, at index: Int) -> UIImage? {
         guard index < scan.pageCount else {
-            print("❌ Invalid scan index: \(index), pageCount: \(scan.pageCount)")
+            debugPrint("❌ Invalid scan index: \(index), pageCount: \(scan.pageCount)")
             return nil
         }
         
         let scannedImage = scan.imageOfPage(at: index)
-        print("✅ Native scan processed: page \(index), size: \(scannedImage.size)")
+        debugPrint("✅ Native scan processed: page \(index), size: \(scannedImage.size)")
         
         // The native scanner already handles:
         // - Edge detection
@@ -68,14 +68,14 @@ class PerspectiveCorrector {
             let request = VNDetectRectanglesRequest { request, error in
                 DispatchQueue.main.async {
                     if let error = error {
-                        print("❌ Document detection error: \(error)")
+                        debugPrint("❌ Document detection error: \(error)")
                         continuation.resume(returning: nil)
                         return
                     }
                     
                     guard let observations = request.results as? [VNRectangleObservation],
                           let largestRect = observations.first else {
-                        print("⚠️ No document rectangles detected")
+                        debugPrint("⚠️ No document rectangles detected")
                         continuation.resume(returning: nil)
                         return
                     }
@@ -87,7 +87,7 @@ class PerspectiveCorrector {
                         imageSize: imageSize
                     )
                     
-                    print("✅ Document bounds detected: \(corners.count) corners")
+                    debugPrint("✅ Document bounds detected: \(corners.count) corners")
                     continuation.resume(returning: corners)
                 }
             }
@@ -106,7 +106,7 @@ class PerspectiveCorrector {
                     try handler.perform([request])
                 } catch {
                     DispatchQueue.main.async {
-                        print("❌ Failed to perform document detection: \(error)")
+                        debugPrint("❌ Failed to perform document detection: \(error)")
                         continuation.resume(returning: nil)
                     }
                 }
@@ -118,7 +118,7 @@ class PerspectiveCorrector {
     func correctPerspective(_ image: UIImage, corners: [CGPoint]) -> UIImage? {
         guard corners.count == 4,
               let cgImage = image.cgImage else {
-            print("❌ Invalid corners for perspective correction")
+            debugPrint("❌ Invalid corners for perspective correction")
             return nil
         }
         
@@ -127,7 +127,7 @@ class PerspectiveCorrector {
         
         // Create perspective correction filter
         guard let perspectiveFilter = CIFilter(name: "CIPerspectiveCorrection") else {
-            print("❌ CIPerspectiveCorrection filter not available")
+            debugPrint("❌ CIPerspectiveCorrection filter not available")
             return image
         }
         
@@ -143,24 +143,24 @@ class PerspectiveCorrector {
         
         guard let outputImage = perspectiveFilter.outputImage,
               let correctedCGImage = context.createCGImage(outputImage, from: outputImage.extent) else {
-            print("❌ Failed to apply perspective correction")
+            debugPrint("❌ Failed to apply perspective correction")
             return image
         }
         
         let correctedUIImage = UIImage(cgImage: correctedCGImage, scale: image.scale, orientation: image.imageOrientation)
-        print("✅ Perspective correction applied successfully")
+        debugPrint("✅ Perspective correction applied successfully")
         return correctedUIImage
     }
     
     /// Auto-detect and correct perspective in one step
     func autoCorrectPerspective(_ image: UIImage) async -> UIImage {
         guard let corners = await detectPageBounds(image) else {
-            print("⚠️ No document bounds detected, returning original image")
+            debugPrint("⚠️ No document bounds detected, returning original image")
             return image
         }
         
         guard let correctedImage = correctPerspective(image, corners: corners) else {
-            print("⚠️ Perspective correction failed, returning original image")
+            debugPrint("⚠️ Perspective correction failed, returning original image")
             return image
         }
         
@@ -180,7 +180,7 @@ class PerspectiveCorrector {
         let threshold: Float = 0.85
         let needsCorrection = rectangularityScore < threshold
         
-        print("📐 Rectangularity score: \(rectangularityScore), needs correction: \(needsCorrection)")
+        debugPrint("📐 Rectangularity score: \(rectangularityScore), needs correction: \(needsCorrection)")
         return needsCorrection
     }
     

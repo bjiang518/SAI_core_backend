@@ -557,10 +557,10 @@ struct ShortAnswerRenderer: View {
     var body: some View {
         // Debug logging for ShortAnswerRenderer
         let displayText = question.rawQuestionText ?? question.questionText
-        print("📝 [ShortAnswer] === RENDERING ===")
-        print("📝 [ShortAnswer] Using text: \(question.rawQuestionText != nil ? "rawQuestionText" : "questionText")")
-        print("📝 [ShortAnswer] Display text length: \(displayText.count) chars")
-        print("📝 [ShortAnswer] Display text: \(displayText)")
+        debugPrint("📝 [ShortAnswer] === RENDERING ===")
+        debugPrint("📝 [ShortAnswer] Using text: \(question.rawQuestionText != nil ? "rawQuestionText" : "questionText")")
+        debugPrint("📝 [ShortAnswer] Display text length: \(displayText.count) chars")
+        debugPrint("📝 [ShortAnswer] Display text: \(displayText)")
 
         return VStack(alignment: .leading, spacing: 12) {
             // Question Text - Use full raw text if available
@@ -816,18 +816,18 @@ struct QuestionTypeRendererSelector: View {
 
     var body: some View {
         // Debug logging
-        print("🎨 [QuestionRenderer] === RENDERING QUESTION ===")
-        print("🎨 [QuestionRenderer] Question Type: \(question.detectedQuestionType)")
-        print("🎨 [QuestionRenderer] Has rawQuestionText: \(question.rawQuestionText != nil)")
+        debugPrint("🎨 [QuestionRenderer] === RENDERING QUESTION ===")
+        debugPrint("🎨 [QuestionRenderer] Question Type: \(question.detectedQuestionType)")
+        debugPrint("🎨 [QuestionRenderer] Has rawQuestionText: \(question.rawQuestionText != nil)")
         if let rawText = question.rawQuestionText {
-            print("🎨 [QuestionRenderer] rawQuestionText length: \(rawText.count) chars")
-            print("🎨 [QuestionRenderer] rawQuestionText preview: \(rawText.prefix(100))...")
+            debugPrint("🎨 [QuestionRenderer] rawQuestionText length: \(rawText.count) chars")
+            debugPrint("🎨 [QuestionRenderer] rawQuestionText preview: \(rawText.prefix(100))...")
         } else {
-            print("🎨 [QuestionRenderer] ❌ rawQuestionText is NIL")
+            debugPrint("🎨 [QuestionRenderer] ❌ rawQuestionText is NIL")
         }
-        print("🎨 [QuestionRenderer] questionText length: \(question.questionText.count) chars")
-        print("🎨 [QuestionRenderer] questionText preview: \(question.questionText.prefix(100))...")
-        print("🎨 [QuestionRenderer] isExpanded: \(isExpanded)")
+        debugPrint("🎨 [QuestionRenderer] questionText length: \(question.questionText.count) chars")
+        debugPrint("🎨 [QuestionRenderer] questionText preview: \(question.questionText.prefix(100))...")
+        debugPrint("🎨 [QuestionRenderer] isExpanded: \(isExpanded)")
 
         return Group {
             switch question.detectedQuestionType {

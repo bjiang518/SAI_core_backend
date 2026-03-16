@@ -77,11 +77,11 @@ class EnhancedTTSService: NSObject, ObservableObject {
 
         // Only clear if cache version changed (voice settings changed)
         if currentVersion != savedVersion {
-            print("💾 Voice settings changed, clearing old TTS cache...")
+            debugPrint("💾 Voice settings changed, clearing old TTS cache...")
             clearCache()
             UserDefaults.standard.set(currentVersion, forKey: cacheVersionKey)
         } else {
-            print("💾 Voice settings unchanged, keeping cached TTS audio files")
+            debugPrint("💾 Voice settings unchanged, keeping cached TTS audio files")
         }
     }
 
@@ -115,9 +115,9 @@ class EnhancedTTSService: NSObject, ObservableObject {
             // ✅ FIX: Activate immediately to ensure proper routing
             try audioSession.setActive(true, options: [])
 
-            print("🔊 Audio session configured: category=.playback, mode=.spokenAudio")
+            debugPrint("🔊 Audio session configured: category=.playback, mode=.spokenAudio")
         } catch {
-            print("⚠️ Failed to setup audio session: \(error)")
+            debugPrint("⚠️ Failed to setup audio session: \(error)")
             // Continue anyway - the system will use default settings
         }
     }
@@ -129,7 +129,7 @@ class EnhancedTTSService: NSObject, ObservableObject {
             // Use .notifyOthersOnDeactivation to allow other apps to resume audio
             try audioSession.setActive(false, options: [.notifyOthersOnDeactivation])
         } catch {
-            print("⚠️ Failed to deactivate audio session: \(error)")
+            debugPrint("⚠️ Failed to deactivate audio session: \(error)")
             // Non-critical error - continue anyway
         }
     }
@@ -252,7 +252,7 @@ class EnhancedTTSService: NSObject, ObservableObject {
         isCurrentlyPlayingAudio = false
 
         if pendingCount > 0 {
-            print("🛑 [Stop] [\(timeStr)] Stopped playback - CLEARED \(pendingCount) pending chunks")
+            debugPrint("🛑 [Stop] [\(timeStr)] Stopped playback - CLEARED \(pendingCount) pending chunks")
         }
 
         // Reset chunk tracking
@@ -304,8 +304,8 @@ class EnhancedTTSService: NSObject, ObservableObject {
         // Check memory cache first
         if let cachedData = audioCache.object(forKey: cacheKey as NSString) {
             let textPreview = request.text.prefix(50).replacingOccurrences(of: "\n", with: " ")
-            print("📦 [Chunk #\(thisChunkNumber)] [\(timeStr)] Retrieved from MEMORY cache")
-            print("   └─ Text: \"\(textPreview)...\"")
+            debugPrint("📦 [Chunk #\(thisChunkNumber)] [\(timeStr)] Retrieved from MEMORY cache")
+            debugPrint("   └─ Text: \"\(textPreview)...\"")
             // ✅ Phase 3.6: Keep processing=true during playback setup
             // Will be set to false in playAudioData when audio actually starts
             playAudioData(cachedData as Data, for: request, chunkNumber: thisChunkNumber)
@@ -323,14 +323,14 @@ class EnhancedTTSService: NSObject, ObservableObject {
 
         // Generate audio via server-side TTS endpoint
         let textPreview = request.text.prefix(50).replacingOccurrences(of: "\n", with: " ")
-        print("📤 [Chunk #\(thisChunkNumber)] [\(timeStr)] SENDING to ElevenLabs TTS")
-        print("   └─ Text: \"\(textPreview)...\" (\(request.text.count) chars)")
+        debugPrint("📤 [Chunk #\(thisChunkNumber)] [\(timeStr)] SENDING to ElevenLabs TTS")
+        debugPrint("   └─ Text: \"\(textPreview)...\" (\(request.text.count) chars)")
 
         activeFetchTask?.cancel()
         activeFetchTask = Task {
             do {
                 let audioData = try await requestServerTTS(for: request)
-                print("   └─ Audio size: \(audioData.count / 1024) KB")
+                debugPrint("   └─ Audio size: \(audioData.count / 1024) KB")
 
                 // Cache the audio data in memory
                 audioCache.setObject(audioData as NSData, forKey: cacheKey as NSString)
@@ -344,7 +344,7 @@ class EnhancedTTSService: NSObject, ObservableObject {
             } catch {
                 // ✅ Phase 3.6 (2026-02-16): ENABLE FALLBACK on network timeout/error
                 // Automatically fallback to system TTS to maintain continuous playback
-                print("🎵 EnhancedTTS: Network request failed (\(error)), falling back to SystemTTS")
+                debugPrint("🎵 EnhancedTTS: Network request failed (\(error)), falling back to SystemTTS")
 
                 await MainActor.run {
                     self.isProcessing = false
@@ -383,9 +383,9 @@ class EnhancedTTSService: NSObject, ObservableObject {
 
             do {
                 try audioData.write(to: fileURL)
-                print("💾 Cached TTS audio to disk: \(cacheKey)")
+                debugPrint("💾 Cached TTS audio to disk: \(cacheKey)")
             } catch {
-                print("⚠️ Failed to save TTS cache to disk: \(error)")
+                debugPrint("⚠️ Failed to save TTS cache to disk: \(error)")
             }
         }
     }
@@ -414,12 +414,12 @@ class EnhancedTTSService: NSObject, ObservableObject {
         let maxChars = provider == "elevenlabs" ? 5000 : 4096
         var textToSpeak = request.text
         if textToSpeak.count > maxChars {
-            print("⚠️ TTS text too long (\(textToSpeak.count) chars), truncating to \(maxChars) chars")
+            debugPrint("⚠️ TTS text too long (\(textToSpeak.count) chars), truncating to \(maxChars) chars")
             textToSpeak = String(textToSpeak.prefix(maxChars))
         }
 
         // Debug logging
-        print("🎵 EnhancedTTS: voiceType=\(voiceType.rawValue), provider=\(provider), voiceId=\(voiceId), speed=\(finalRate), textLength=\(textToSpeak.count)")
+        debugPrint("🎵 EnhancedTTS: voiceType=\(voiceType.rawValue), provider=\(provider), voiceId=\(voiceId), speed=\(finalRate), textLength=\(textToSpeak.count)")
 
         let requestBody: [String: Any] = [
             "text": textToSpeak,
@@ -488,8 +488,8 @@ class EnhancedTTSService: NSObject, ObservableObject {
             if self.isCurrentlyPlayingAudio {
                 let timestamp = Date()
                 let timeStr = DateFormatter.localizedString(from: timestamp, dateStyle: .none, timeStyle: .medium)
-                print("⏸️ [Chunk #\(chunkNumber)] [\(timeStr)] Audio already playing - QUEUEING chunk")
-                print("   └─ Pending queue size: \(self.pendingAudioQueue.count + 1) chunks")
+                debugPrint("⏸️ [Chunk #\(chunkNumber)] [\(timeStr)] Audio already playing - QUEUEING chunk")
+                debugPrint("   └─ Pending queue size: \(self.pendingAudioQueue.count + 1) chunks")
                 self.pendingAudioQueue.append((data: data, request: request))
                 return
             }
@@ -507,8 +507,8 @@ class EnhancedTTSService: NSObject, ObservableObject {
                 try audioSession.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
                 try audioSession.setActive(true)
             } catch {
-                print("⚠️ [EnhancedTTS] Failed to configure audio session: \(error)")
-                print("   └─ This will likely cause playback to fail")
+                debugPrint("⚠️ [EnhancedTTS] Failed to configure audio session: \(error)")
+                debugPrint("   └─ This will likely cause playback to fail")
             }
 
             // Initialize audio player on main actor (ensures delegate is properly retained)
@@ -540,10 +540,10 @@ class EnhancedTTSService: NSObject, ObservableObject {
                     let audioSession = AVAudioSession.sharedInstance()
                     let timestamp = Date()
                     let timeStr = DateFormatter.localizedString(from: timestamp, dateStyle: .none, timeStyle: .medium)
-                    print("❌ [Chunk #\(chunkNumber)] [\(timeStr)] PLAYBACK FAILED - AVAudioPlayer.play() returned false!")
-                    print("   └─ Audio session active: \(audioSession.isOtherAudioPlaying)")
-                    print("   └─ Audio category: \(audioSession.category)")
-                    print("   └─ Skipping this chunk and trying next from queue")
+                    debugPrint("❌ [Chunk #\(chunkNumber)] [\(timeStr)] PLAYBACK FAILED - AVAudioPlayer.play() returned false!")
+                    debugPrint("   └─ Audio session active: \(audioSession.isOtherAudioPlaying)")
+                    debugPrint("   └─ Audio category: \(audioSession.category)")
+                    debugPrint("   └─ Skipping this chunk and trying next from queue")
 
                     // Clean up and signal completion (skip this chunk)
                     self.audioPlayer?.delegate = nil
@@ -559,8 +559,8 @@ class EnhancedTTSService: NSObject, ObservableObject {
             } catch {
                 let timestamp = Date()
                 let timeStr = DateFormatter.localizedString(from: timestamp, dateStyle: .none, timeStyle: .medium)
-                print("❌ [Chunk #\(chunkNumber)] [\(timeStr)] Audio playback ERROR: \(error)")
-                print("   └─ Skipping this chunk to maintain voice consistency")
+                debugPrint("❌ [Chunk #\(chunkNumber)] [\(timeStr)] Audio playback ERROR: \(error)")
+                debugPrint("   └─ Skipping this chunk to maintain voice consistency")
                 // ✅ DISABLED FALLBACK: Don't use iOS TTS fallback to maintain consistent voice quality
                 self.errorMessage = "Audio playback failed"
                 self.isProcessing = false  // ✅ Phase 3.6: Clear on error too
@@ -578,7 +578,7 @@ class EnhancedTTSService: NSObject, ObservableObject {
         guard !pendingAudioQueue.isEmpty else {
             let timestamp = Date()
             let timeStr = DateFormatter.localizedString(from: timestamp, dateStyle: .none, timeStyle: .medium)
-            print("✅ [PlaybackQueue] [\(timeStr)] Pending queue EMPTY - all chunks processed")
+            debugPrint("✅ [PlaybackQueue] [\(timeStr)] Pending queue EMPTY - all chunks processed")
             return
         }
 
@@ -590,9 +590,9 @@ class EnhancedTTSService: NSObject, ObservableObject {
 
         let timestamp = Date()
         let timeStr = DateFormatter.localizedString(from: timestamp, dateStyle: .none, timeStyle: .medium)
-        print("⏩ [PlaybackQueue] [\(timeStr)] Playing NEXT from pending queue")
-        print("   └─ Will be Chunk #\(nextChunkNumber)")
-        print("   └─ Remaining in queue: \(pendingAudioQueue.count) chunks")
+        debugPrint("⏩ [PlaybackQueue] [\(timeStr)] Playing NEXT from pending queue")
+        debugPrint("   └─ Will be Chunk #\(nextChunkNumber)")
+        debugPrint("   └─ Remaining in queue: \(pendingAudioQueue.count) chunks")
 
         playAudioData(next.data, for: next.request, chunkNumber: nextChunkNumber)
     }
@@ -651,7 +651,7 @@ class EnhancedTTSService: NSObject, ObservableObject {
         // Check if voice-related settings changed
         let newVersion = getCurrentCacheVersion()
         if oldVersion != newVersion {
-            print("💾 Voice settings changed from \(oldVersion) to \(newVersion), clearing cache...")
+            debugPrint("💾 Voice settings changed from \(oldVersion) to \(newVersion), clearing cache...")
             clearCache()
             UserDefaults.standard.set(newVersion, forKey: cacheVersionKey)
         }
@@ -674,9 +674,9 @@ extension EnhancedTTSService: AVAudioPlayerDelegate {
         }
 
         let completionStatus = flag ? "COMPLETED ✅" : "INTERRUPTED ❌"
-        print("⏹️ [Chunk #\(currentChunkNumber)] [\(timeStr)] PLAYBACK STOPPED - \(completionStatus)")
-        print("   └─ Duration: \(durationStr)s")
-        print("   └─ Pending queue: \(pendingAudioQueue.count) chunks remaining")
+        debugPrint("⏹️ [Chunk #\(currentChunkNumber)] [\(timeStr)] PLAYBACK STOPPED - \(completionStatus)")
+        debugPrint("   └─ Duration: \(durationStr)s")
+        debugPrint("   └─ Pending queue: \(pendingAudioQueue.count) chunks remaining")
 
         progressTimer?.invalidate()
         progressTimer = nil
@@ -698,17 +698,17 @@ extension EnhancedTTSService: AVAudioPlayerDelegate {
                 }
             } else if !self.pendingAudioQueue.isEmpty {
                 // ✅ Play next from pending audio queue (serial playback)
-                print("🔄 [Delegate] Processing next chunk from pending queue...")
+                debugPrint("🔄 [Delegate] Processing next chunk from pending queue...")
                 self.playNextPendingAudio()
             } else {
-                print("✅ [Delegate] All queues empty - playback session complete")
+                debugPrint("✅ [Delegate] All queues empty - playback session complete")
                 // Don't deactivate audio session - let TTSQueueService manage this
             }
         }
     }
     
     func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
-        print("🎵 EnhancedTTSService: Audio decode error: \(error?.localizedDescription ?? "Unknown")")
+        debugPrint("🎵 EnhancedTTSService: Audio decode error: \(error?.localizedDescription ?? "Unknown")")
         
         DispatchQueue.main.async {
             self.errorMessage = "Audio playback error"

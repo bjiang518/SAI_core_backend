@@ -20,7 +20,7 @@ private let enableAvatarDebugLogs = false  // Always false in release
 private func avatarLog(_ message: String) {
     #if DEBUG
     if enableAvatarDebugLogs {
-        print(message)
+        debugPrint(message)
     }
     #endif
 }
@@ -172,7 +172,7 @@ struct ContentView: View {
         .onChange(of: authService.requiresFaceIDReauth) { _, requiresReauth in
             // Show Face ID re-auth sheet when session expires
             if requiresReauth && authService.currentUser != nil {
-                print("🔐 [ContentView] Session expired, showing Face ID re-authentication")
+                debugPrint("🔐 [ContentView] Session expired, showing Face ID re-authentication")
                 showingFaceIDReauth = true
             }
         }
@@ -218,7 +218,7 @@ struct ContentView: View {
             let result = await networkService.checkProfileCompletion()
             await MainActor.run {
                 if !result.onboardingCompleted || !result.dataSharingConsent {
-                    print("🎯 [ContentView] Onboarding/consent incomplete (onboarding=\(result.onboardingCompleted), consent=\(result.dataSharingConsent)) — showing FirstTimeOnboardingView")
+                    debugPrint("🎯 [ContentView] Onboarding/consent incomplete (onboarding=\(result.onboardingCompleted), consent=\(result.dataSharingConsent)) — showing FirstTimeOnboardingView")
                     showingOnboarding = true
                 } else {
                     // Cache locally so future launches skip this check
@@ -239,7 +239,7 @@ struct ContentView: View {
         isCheckingConsent = true
         hasCheckedConsentOnce = true
 
-        print("🔍 [ContentView] Checking parental consent status...")
+        debugPrint("🔍 [ContentView] Checking parental consent status...")
 
         Task {
             let result = await networkService.checkConsentStatus()
@@ -253,11 +253,11 @@ struct ContentView: View {
                 if result.requiresConsent && result.isRestricted {
                     let needsConsent = result.consentStatus != "granted"
                     if needsConsent {
-                        print("⚠️ [ContentView] Parental consent required - showing consent screen")
+                        debugPrint("⚠️ [ContentView] Parental consent required - showing consent screen")
                         requiresParentalConsent = true
                         showingParentalConsent = true
                     } else {
-                        print("✅ [ContentView] Parental consent already granted")
+                        debugPrint("✅ [ContentView] Parental consent already granted")
                     }
                 }
             }
@@ -293,7 +293,7 @@ struct ContentView: View {
 
         case .inactive:
             // App is temporarily inactive (e.g., during transition)
-            print("🔐 [ContentView] App inactive (transition state)")
+            debugPrint("🔐 [ContentView] App inactive (transition state)")
 
         @unknown default:
             break
@@ -541,23 +541,47 @@ struct ModernProfileView: View {
                                     let customAvatarUrl = profile.customAvatarUrl,
                                     !customAvatarUrl.isEmpty {
                                 let _ = avatarLog("🌐 [ContentView] Loading custom avatar from SERVER backup")
-                                AsyncImage(url: URL(string: customAvatarUrl)) { phase in
-                                    switch phase {
-                                    case .empty:
-                                        ProgressView()
-                                            .frame(width: 60, height: 60)
-                                    case .success(let image):
-                                        let _ = avatarLog("✅ [ContentView] Loaded custom avatar from SERVER")
-                                        image
-                                            .resizable()
-                                            .aspectRatio(contentMode: .fill)
-                                            .frame(width: 60, height: 60)
-                                            .clipShape(Circle())
-                                    case .failure(let error):
-                                        let _ = avatarLog("❌ [ContentView] Server custom avatar failed: \(error.localizedDescription)")
-                                        fallbackAvatarCircle()
-                                    @unknown default:
-                                        EmptyView()
+                                if customAvatarUrl.hasPrefix("data:image/"),
+                                   let commaIndex = customAvatarUrl.firstIndex(of: ","),
+                                   let imageData = Data(base64Encoded: String(customAvatarUrl[customAvatarUrl.index(after: commaIndex)...])),
+                                   let uiImage = UIImage(data: imageData) {
+                                    let _ = avatarLog("✅ [ContentView] Decoded custom avatar from SERVER data URL")
+                                    Image(uiImage: uiImage)
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(width: 60, height: 60)
+                                        .clipShape(Circle())
+                                        .onAppear {
+                                            // Cache locally so Priority 1 fires on next load
+                                            let userId = authService.currentUser?.id ?? "anonymous"
+                                            let key = "localAvatarFilename_\(userId)"
+                                            if UserDefaults.standard.string(forKey: key) == nil,
+                                               let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
+                                                let filename = "avatar_\(userId).jpg"
+                                                let fileURL = docs.appendingPathComponent(filename)
+                                                try? imageData.write(to: fileURL)
+                                                UserDefaults.standard.set(filename, forKey: key)
+                                            }
+                                        }
+                                } else {
+                                    AsyncImage(url: URL(string: customAvatarUrl)) { phase in
+                                        switch phase {
+                                        case .empty:
+                                            ProgressView()
+                                                .frame(width: 60, height: 60)
+                                        case .success(let image):
+                                            let _ = avatarLog("✅ [ContentView] Loaded custom avatar from SERVER")
+                                            image
+                                                .resizable()
+                                                .aspectRatio(contentMode: .fill)
+                                                .frame(width: 60, height: 60)
+                                                .clipShape(Circle())
+                                        case .failure(let error):
+                                            let _ = avatarLog("❌ [ContentView] Server custom avatar failed: \(error.localizedDescription)")
+                                            fallbackAvatarCircle()
+                                        @unknown default:
+                                            EmptyView()
+                                        }
                                     }
                                 }
                             }

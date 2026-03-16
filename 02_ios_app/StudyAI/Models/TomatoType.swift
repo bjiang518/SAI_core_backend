@@ -19,10 +19,10 @@ enum TomatoType: String, Codable, CaseIterable {
     case tmt6 = "tmt6"              // 普通番茄6 - tmt6
 
     // 稀有番茄 (Rare) - 卡通角色
-    case batman = "batman"          // 蝙蝠侠番茄
-    case ironman = "ironman"        // 钢铁侠番茄
-    case mario = "mario"            // 马里奥番茄
-    case pokemon = "pokemon"        // 宝可梦番茄
+    case darkKnight = "darkKnight"  // 暗夜骑士番茄
+    case ironSuit = "ironSuit"      // 铁甲番茄
+    case superTomatorio = "superTomatorio"  // 超级番茄里奥
+    case flashingTomato = "flashingTomato"  // 闪光番茄
 
     // 超稀有番茄 (Super Rare)
     case golden = "golden"          // 金色番茄
@@ -51,14 +51,14 @@ enum TomatoType: String, Codable, CaseIterable {
             return "tmt5"
         case .tmt6:
             return "tmt6"
-        case .batman:
-            return "tmt_batman"
-        case .ironman:
-            return "tmt_ironman"
-        case .mario:
-            return "tmt_mario"
-        case .pokemon:
-            return "tmt_pokemon"
+        case .darkKnight:
+            return "tmt_darkKnight"
+        case .ironSuit:
+            return "tmt_ironSuit"
+        case .superTomatorio:
+            return "tmt_superTomatorio"
+        case .flashingTomato:
+            return "tmt_flashingTomato"
         case .golden:
             return "tmt_gold"
         case .platinum:
@@ -78,7 +78,7 @@ enum TomatoType: String, Codable, CaseIterable {
         switch self {
         case .classic, .curly, .cute, .tmt4, .tmt5, .tmt6:
             return 1  // 普通
-        case .batman, .ironman, .mario, .pokemon:
+        case .darkKnight, .ironSuit, .superTomatorio, .flashingTomato:
             return 2  // 稀有
         case .golden, .platinum:
             return 3  // 超稀有
@@ -126,10 +126,10 @@ enum TomatoType: String, Codable, CaseIterable {
             .tmt6: 12,      // 12%
 
             // 稀有番茄 - 24% 总概率
-            .batman: 6,     // 6%
-            .ironman: 6,    // 6%
-            .mario: 6,      // 6%
-            .pokemon: 6,    // 6%
+            .darkKnight: 6,  // 6%
+            .ironSuit: 6,    // 6%
+            .superTomatorio: 6,  // 6%
+            .flashingTomato: 6,  // 6%
 
             // 超稀有番茄 - 5% 总概率
             .golden: 2,     // 2%
@@ -172,8 +172,8 @@ enum TomatoType: String, Codable, CaseIterable {
 
     /// 获取随机的稀有番茄（用于兑换）
     static func randomRare() -> TomatoType {
-        let rareTypes: [TomatoType] = [.batman, .ironman, .mario, .pokemon]
-        return rareTypes.randomElement() ?? .batman
+        let rareTypes: [TomatoType] = [.darkKnight, .ironSuit, .superTomatorio, .flashingTomato]
+        return rareTypes.randomElement() ?? .darkKnight
     }
 
     /// 获取随机的超稀有番茄（用于兑换）
@@ -234,10 +234,10 @@ struct TomatoGardenStats {
     var tmt6Count: Int = 0
 
     // 稀有番茄
-    var batmanCount: Int = 0
-    var ironmanCount: Int = 0
-    var marioCount: Int = 0
-    var pokemonCount: Int = 0
+    var darkKnightCount: Int = 0
+    var ironSuitCount: Int = 0
+    var superTomatoCount: Int = 0
+    var flashingTomatoCount: Int = 0
 
     // 超稀有番茄
     var goldenCount: Int = 0
@@ -270,10 +270,10 @@ struct TomatoGardenStats {
         case .tmt4: return tmt4Count
         case .tmt5: return tmt5Count
         case .tmt6: return tmt6Count
-        case .batman: return batmanCount
-        case .ironman: return ironmanCount
-        case .mario: return marioCount
-        case .pokemon: return pokemonCount
+        case .darkKnight: return darkKnightCount
+        case .ironSuit: return ironSuitCount
+        case .superTomatorio: return superTomatoCount
+        case .flashingTomato: return flashingTomatoCount
         case .golden: return goldenCount
         case .platinum: return platinumCount
         case .diamond: return diamondCount
@@ -308,7 +308,7 @@ struct TomatoGardenStats {
 
     /// 稀有番茄总数
     var rareCount: Int {
-        return batmanCount + ironmanCount + marioCount + pokemonCount
+        return darkKnightCount + ironSuitCount + superTomatoCount + flashingTomatoCount
     }
 
     /// 超稀有番茄总数

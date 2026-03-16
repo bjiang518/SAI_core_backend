@@ -219,7 +219,7 @@ struct PasswordManagementView: View {
                                             do {
                                                 try await parentModeManager.enableParentFaceID()
                                             } catch {
-                                                print("❌ Failed to enable Face ID: \(error.localizedDescription)")
+                                                debugPrint("❌ Failed to enable Face ID: \(error.localizedDescription)")
                                             }
                                         }
                                     } else {

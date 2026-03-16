@@ -87,8 +87,8 @@ class QuestionGenerationDataAdapter {
         let statusService = ShortTermStatusService.shared
         let weaknesses = statusService.status.activeWeaknesses
 
-        print("🔍 [Adapter] Analyzing short-term status for subject: \(subject)")
-        print("   Total active weaknesses: \(weaknesses.count)")
+        debugPrint("🔍 [Adapter] Analyzing short-term status for subject: \(subject)")
+        debugPrint("   Total active weaknesses: \(weaknesses.count)")
 
         // Filter by subject and extract base branches (prioritize high-value weaknesses)
         let subjectWeaknesses = weaknesses
@@ -101,7 +101,7 @@ class QuestionGenerationDataAdapter {
             }
             .sorted { $0.value.value > $1.value.value }  // Sort by weakness severity
 
-        print("   Subject-specific weaknesses (value > 0): \(subjectWeaknesses.count)")
+        debugPrint("   Subject-specific weaknesses (value > 0): \(subjectWeaknesses.count)")
 
         // Extract unique base branches (main topic areas)
         var baseBranches: [String] = []
@@ -111,14 +111,14 @@ class QuestionGenerationDataAdapter {
                 let baseBranch = components[1]
                 if !baseBranches.contains(baseBranch) {
                     baseBranches.append(baseBranch)
-                    print("      - \(baseBranch) (severity: \(String(format: "%.2f", weakness.value)))")
+                    debugPrint("      - \(baseBranch) (severity: \(String(format: "%.2f", weakness.value)))")
                 }
             }
         }
 
         // If no weaknesses found, return general subject
         let result = baseBranches.isEmpty ? [subject] : baseBranches
-        print("   ✅ Extracted weakness topics: \(result)")
+        debugPrint("   ✅ Extracted weakness topics: \(result)")
         return result
     }
 
@@ -168,8 +168,8 @@ class QuestionGenerationDataAdapter {
             notes += "- Build confidence through repetition\n"
         }
 
-        print("📝 [Adapter] Generated personalized focus notes:")
-        print(notes)
+        debugPrint("📝 [Adapter] Generated personalized focus notes:")
+        debugPrint(notes)
 
         return notes
     }
@@ -187,7 +187,7 @@ class QuestionGenerationDataAdapter {
         }
 
         if subjectWeaknesses.isEmpty {
-            print("📊 [Adapter] No performance data - using intermediate difficulty")
+            debugPrint("📊 [Adapter] No performance data - using intermediate difficulty")
             return .intermediate  // Default
         }
 
@@ -195,28 +195,28 @@ class QuestionGenerationDataAdapter {
         let totalCorrect = subjectWeaknesses.values.reduce(0) { $0 + $1.correctAttempts }
 
         guard totalAttempts > 0 else {
-            print("📊 [Adapter] No attempts recorded - using intermediate difficulty")
+            debugPrint("📊 [Adapter] No attempts recorded - using intermediate difficulty")
             return .intermediate
         }
 
         let accuracy = Double(totalCorrect) / Double(totalAttempts)
 
-        print("📊 [Adapter] Performance analysis:")
-        print("   Total attempts: \(totalAttempts)")
-        print("   Correct: \(totalCorrect)")
-        print("   Accuracy: \(String(format: "%.1f%%", accuracy * 100))")
+        debugPrint("📊 [Adapter] Performance analysis:")
+        debugPrint("   Total attempts: \(totalAttempts)")
+        debugPrint("   Correct: \(totalCorrect)")
+        debugPrint("   Accuracy: \(String(format: "%.1f%%", accuracy * 100))")
 
         // Adaptive difficulty based on accuracy
         let difficulty: QuestionGenerationService.RandomQuestionsConfig.QuestionDifficulty
         if accuracy < 0.5 {
             difficulty = .beginner  // Struggling - make it easier
-            print("   → Recommendation: BEGINNER (struggling)")
+            debugPrint("   → Recommendation: BEGINNER (struggling)")
         } else if accuracy < 0.75 {
             difficulty = .intermediate  // Still learning
-            print("   → Recommendation: INTERMEDIATE (learning)")
+            debugPrint("   → Recommendation: INTERMEDIATE (learning)")
         } else {
             difficulty = .advanced  // Strong performance - challenge them
-            print("   → Recommendation: ADVANCED (strong)")
+            debugPrint("   → Recommendation: ADVANCED (strong)")
         }
 
         return difficulty
@@ -236,8 +236,8 @@ class QuestionGenerationDataAdapter {
             }
             .sorted { $0.value.value < $1.value.value }  // Most negative = strongest mastery
 
-        print("🎯 [Adapter] Mixing topics for balanced practice:")
-        print("   Weakness topics (80%): \(weaknessTopics)")
+        debugPrint("🎯 [Adapter] Mixing topics for balanced practice:")
+        debugPrint("   Weakness topics (80%): \(weaknessTopics)")
 
         // Extract base branches from mastery
         var masteryBranches: [String] = []
@@ -246,7 +246,7 @@ class QuestionGenerationDataAdapter {
             if components.count >= 2 {
                 let branch = components[1]
                 masteryBranches.append(branch)
-                print("   Mastery topic found: \(branch) (mastery: \(String(format: "%.2f", weakness.value)))")
+                debugPrint("   Mastery topic found: \(branch) (mastery: \(String(format: "%.2f", weakness.value)))")
             }
         }
 
@@ -254,10 +254,10 @@ class QuestionGenerationDataAdapter {
         var mixed = weaknessTopics
         if !masteryBranches.isEmpty {
             mixed.append(masteryBranches.first!)
-            print("   Mastery topics (20%): [\(masteryBranches.first!)]")
+            debugPrint("   Mastery topics (20%): [\(masteryBranches.first!)]")
         }
 
-        print("   ✅ Final mixed topics: \(mixed)")
+        debugPrint("   ✅ Final mixed topics: \(mixed)")
         return mixed
     }
 }

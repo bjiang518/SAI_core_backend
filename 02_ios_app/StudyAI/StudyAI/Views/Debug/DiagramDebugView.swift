@@ -154,9 +154,9 @@ struct DiagramDebugView: View {
         guard !isRunningTests else { return }
 
         let testCase = testCases[selectedTest]
-        print("🧪 === STARTING SINGLE DIAGRAM TEST ===")
-        print("🧪 Test: \(testCase.name)")
-        print("🧪 Expected to work: \(testCase.expectedToWork)")
+        debugPrint("🧪 === STARTING SINGLE DIAGRAM TEST ===")
+        debugPrint("🧪 Test: \(testCase.name)")
+        debugPrint("🧪 Expected to work: \(testCase.expectedToWork)")
 
         isRunningTests = true
 
@@ -175,7 +175,7 @@ struct DiagramDebugView: View {
     private func runAllTests() {
         guard !isRunningTests else { return }
 
-        print("🧪 === STARTING ALL DIAGRAM TESTS ===")
+        debugPrint("🧪 === STARTING ALL DIAGRAM TESTS ===")
         isRunningTests = true
         testResults.removeAll()
 
@@ -193,7 +193,7 @@ struct DiagramDebugView: View {
 
             await MainActor.run {
                 isRunningTests = false
-                print("🧪 === ALL TESTS COMPLETED ===")
+                debugPrint("🧪 === ALL TESTS COMPLETED ===")
             }
         }
     }
@@ -201,7 +201,7 @@ struct DiagramDebugView: View {
     private func performDiagramTest(_ testCase: DiagramTestCase) async -> DiagramTestResult {
         let startTime = Date()
 
-        print("🧪 [Test: \(testCase.name)] Starting test...")
+        debugPrint("🧪 [Test: \(testCase.name)] Starting test...")
 
         do {
             let image = try await SVGRenderer.shared.renderSVG(
@@ -215,7 +215,7 @@ struct DiagramDebugView: View {
             )
 
             let duration = Date().timeIntervalSince(startTime)
-            print("🧪 [Test: \(testCase.name)] ✅ SUCCESS in \(Int(duration * 1000))ms")
+            debugPrint("🧪 [Test: \(testCase.name)] ✅ SUCCESS in \(Int(duration * 1000))ms")
 
             return DiagramTestResult(
                 id: UUID(),
@@ -229,7 +229,7 @@ struct DiagramDebugView: View {
         } catch {
             let duration = Date().timeIntervalSince(startTime)
             let errorMsg = error.localizedDescription
-            print("🧪 [Test: \(testCase.name)] ❌ FAILED in \(Int(duration * 1000))ms: \(errorMsg)")
+            debugPrint("🧪 [Test: \(testCase.name)] ❌ FAILED in \(Int(duration * 1000))ms: \(errorMsg)")
 
             return DiagramTestResult(
                 id: UUID(),

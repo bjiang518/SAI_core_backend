@@ -63,7 +63,7 @@ struct ModernLoginView: View {
                         // Navigate to main app after enabling
                         onLoginSuccess()
                     } catch {
-                        print("Failed to enable Face ID: \(error.localizedDescription)")
+                        debugPrint("Failed to enable Face ID: \(error.localizedDescription)")
                         // Navigate anyway even if Face ID setup failed
                         onLoginSuccess()
                     }
@@ -121,7 +121,7 @@ struct ModernLoginView: View {
                     } catch {
                         // If Face ID fails, just show the login screen
                         // Don't show error to avoid annoying the user
-                        print("Face ID auto-login failed: \(error.localizedDescription)")
+                        debugPrint("Face ID auto-login failed: \(error.localizedDescription)")
                     }
                 }
             }
@@ -272,7 +272,7 @@ struct ModernLoginView: View {
         VStack(spacing: 12) {
             // Apple Sign In - Custom styled button
             Button {
-                print("🍎🍎🍎 === CUSTOM APPLE BUTTON TAPPED ===")
+                debugPrint("🍎🍎🍎 === CUSTOM APPLE BUTTON TAPPED ===")
                 // Trigger Apple Sign-In
                 Task {
                     await performAppleSignIn()
@@ -495,18 +495,18 @@ struct ModernLoginView: View {
     }
 
     private func performAppleSignIn() async {
-        print("🍎🍎🍎 === ModernLoginView: Performing Apple Sign-In ===")
-        print("🍎🍎🍎 === Using AuthenticationService.signInWithApple() ===")
+        debugPrint("🍎🍎🍎 === ModernLoginView: Performing Apple Sign-In ===")
+        debugPrint("🍎🍎🍎 === Using AuthenticationService.signInWithApple() ===")
 
         do {
             // Use the proper authentication service method that calls the backend
             try await authService.signInWithApple()
-            print("🍎🍎🍎 ✅ Apple Sign-In completed successfully via AuthenticationService")
+            debugPrint("🍎🍎🍎 ✅ Apple Sign-In completed successfully via AuthenticationService")
         } catch {
-            print("🍎🍎🍎 ❌ Apple Sign-In failed: \(error)")
+            debugPrint("🍎🍎🍎 ❌ Apple Sign-In failed: \(error)")
             let nsError = error as NSError
             if nsError.code == ASAuthorizationError.canceled.rawValue {
-                print("🍎🍎🍎 User cancelled")
+                debugPrint("🍎🍎🍎 User cancelled")
                 return
             }
             await MainActor.run {
@@ -519,18 +519,18 @@ struct ModernLoginView: View {
         do {
             switch result {
             case .success(let authorization):
-                print("🍎🍎🍎 ✅ Success! Got authorization")
+                debugPrint("🍎🍎🍎 ✅ Success! Got authorization")
 
                 guard let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential else {
-                    print("🍎🍎🍎 ❌ Invalid credential type")
+                    debugPrint("🍎🍎🍎 ❌ Invalid credential type")
                     await MainActor.run {
                         authService.errorMessage = "Invalid Apple ID credential"
                     }
                     return
                 }
 
-                print("🍎🍎🍎 User ID: \(appleIDCredential.user)")
-                print("🍎🍎🍎 Email: \(appleIDCredential.email ?? "nil")")
+                debugPrint("🍎🍎🍎 User ID: \(appleIDCredential.user)")
+                debugPrint("🍎🍎🍎 Email: \(appleIDCredential.email ?? "nil")")
 
                 // Create user
                 let user = User(
@@ -548,20 +548,20 @@ struct ModernLoginView: View {
                 try KeychainService.shared.saveAuthToken(token)
                 try KeychainService.shared.saveUser(user)
 
-                print("🍎🍎🍎 ✅ Saved to keychain")
+                debugPrint("🍎🍎🍎 ✅ Saved to keychain")
 
                 // Update auth state
                 await MainActor.run {
                     authService.currentUser = user
                     authService.isAuthenticated = true
-                    print("🍎🍎🍎 ✅ Auth state updated")
+                    debugPrint("🍎🍎🍎 ✅ Auth state updated")
                 }
 
             case .failure(let error):
-                print("🍎🍎🍎 ❌ Sign-in failed: \(error)")
+                debugPrint("🍎🍎🍎 ❌ Sign-in failed: \(error)")
                 let nsError = error as NSError
                 if nsError.code == ASAuthorizationError.canceled.rawValue {
-                    print("🍎🍎🍎 User cancelled")
+                    debugPrint("🍎🍎🍎 User cancelled")
                     return
                 }
                 await MainActor.run {
@@ -569,7 +569,7 @@ struct ModernLoginView: View {
                 }
             }
         } catch {
-            print("🍎🍎🍎 ❌ Exception: \(error)")
+            debugPrint("🍎🍎🍎 ❌ Exception: \(error)")
             await MainActor.run {
                 authService.errorMessage = error.localizedDescription
             }

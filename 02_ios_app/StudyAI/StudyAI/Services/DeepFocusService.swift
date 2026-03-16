@@ -61,11 +61,11 @@ class DeepFocusService: ObservableObject {
     /// 启用深度专注模式
     func enableDeepFocus() {
         guard !isDeepFocusEnabled else {
-            print("⚡️ Deep focus already enabled")
+            debugPrint("⚡️ Deep focus already enabled")
             return
         }
 
-        print("🔇 Enabling deep focus mode...")
+        debugPrint("🔇 Enabling deep focus mode...")
 
         // 1. 保存当前状态
         savePreviousState()
@@ -89,17 +89,17 @@ class DeepFocusService: ObservableObject {
         let generator = UIImpactFeedbackGenerator(style: .medium)
         generator.impactOccurred()
 
-        print("✅ Deep focus mode enabled")
+        debugPrint("✅ Deep focus mode enabled")
     }
 
     /// 禁用深度专注模式
     func disableDeepFocus() {
         guard isDeepFocusEnabled else {
-            print("⚡️ Deep focus already disabled")
+            debugPrint("⚡️ Deep focus already disabled")
             return
         }
 
-        print("🔊 Disabling deep focus mode...")
+        debugPrint("🔊 Disabling deep focus mode...")
 
         // 1. 恢复通知
         restoreAppNotifications()
@@ -117,7 +117,7 @@ class DeepFocusService: ObservableObject {
         let generator = UIImpactFeedbackGenerator(style: .light)
         generator.impactOccurred()
 
-        print("✅ Deep focus mode disabled")
+        debugPrint("✅ Deep focus mode disabled")
     }
 
     /// 切换深度专注模式
@@ -154,7 +154,7 @@ class DeepFocusService: ObservableObject {
                     withIdentifiers: nonPomodoroIds
                 )
                 self.blockedNotificationsCount = nonPomodoroIds.count
-                print("🔇 Blocked \(nonPomodoroIds.count) non-pomodoro notifications")
+                debugPrint("🔇 Blocked \(nonPomodoroIds.count) non-pomodoro notifications")
             }
         }
 
@@ -164,7 +164,7 @@ class DeepFocusService: ObservableObject {
 
     /// 恢复App内通知
     private func restoreAppNotifications() {
-        print("🔊 Restoring app notifications")
+        debugPrint("🔊 Restoring app notifications")
         blockedNotificationsCount = 0
         // 通知会在后续自动重新安排
     }
@@ -173,13 +173,13 @@ class DeepFocusService: ObservableObject {
     private func reduceBrightness() {
         // 降低到50%亮度，保护眼睛
         UIScreen.main.brightness = min(previousBrightness, 0.5)
-        print("🔅 Reduced brightness to \(UIScreen.main.brightness)")
+        debugPrint("🔅 Reduced brightness to \(UIScreen.main.brightness)")
     }
 
     /// 恢复屏幕亮度
     private func restoreBrightness() {
         UIScreen.main.brightness = previousBrightness
-        print("🔆 Restored brightness to \(previousBrightness)")
+        debugPrint("🔆 Restored brightness to \(previousBrightness)")
     }
 
     /// 配置音频会话为专注模式
@@ -189,9 +189,9 @@ class DeepFocusService: ObservableObject {
             // 设置为仅播放背景音乐，不响铃
             try audioSession.setCategory(.playback, mode: .default, options: [.mixWithOthers])
             try audioSession.setActive(true)
-            print("🎵 Audio session configured for focus mode")
+            debugPrint("🎵 Audio session configured for focus mode")
         } catch {
-            print("❌ Failed to configure audio session: \(error.localizedDescription)")
+            debugPrint("❌ Failed to configure audio session: \(error.localizedDescription)")
         }
     }
 
@@ -200,9 +200,9 @@ class DeepFocusService: ObservableObject {
         do {
             let audioSession = AVAudioSession.sharedInstance()
             try audioSession.setActive(false)
-            print("🎵 Audio session restored")
+            debugPrint("🎵 Audio session restored")
         } catch {
-            print("❌ Failed to restore audio session: \(error.localizedDescription)")
+            debugPrint("❌ Failed to restore audio session: \(error.localizedDescription)")
         }
     }
 
@@ -232,7 +232,7 @@ class DeepFocusService: ObservableObject {
         )
 
         UNUserNotificationCenter.current().add(request)
-        print("💡 Sent focus mode suggestion")
+        debugPrint("💡 Sent focus mode suggestion")
     }
 
     // MARK: - Status Check
@@ -261,7 +261,7 @@ class DeepFocusService: ObservableObject {
     func openSystemFocusSettings() {
         if let url = URL(string: UIApplication.openSettingsURLString) {
             UIApplication.shared.open(url)
-            print("📱 Opening system settings")
+            debugPrint("📱 Opening system settings")
         }
     }
 
@@ -270,7 +270,7 @@ class DeepFocusService: ObservableObject {
     func createFocusShortcut() {
         // 创建启用专注模式的Siri快捷指令
         // 用户可以说 "Hey Siri, 开始学习专注"
-        print("📎 Creating Siri shortcut for focus mode")
+        debugPrint("📎 Creating Siri shortcut for focus mode")
 
         // 这需要使用App Intents Framework
         // 在实际应用中需要创建Intent定义文件
@@ -329,6 +329,6 @@ extension DeepFocusService {
         UserDefaults.standard.set(stats.totalFocusTime, forKey: userKeyPrefix + "deepFocusTotalTime")
         UserDefaults.standard.set(stats.notificationsBlocked, forKey: userKeyPrefix + "deepFocusBlockedNotifications")
 
-        print("📊 Recorded deep focus session: \(duration)s")
+        debugPrint("📊 Recorded deep focus session: \(duration)s")
     }
 }

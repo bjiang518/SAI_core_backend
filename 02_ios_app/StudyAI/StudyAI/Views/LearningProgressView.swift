@@ -65,8 +65,8 @@ struct LearningProgressView: View {
 
         // Check if we have stored auth token but no current user
         if let token = AuthenticationService.shared.getAuthToken() {
-            print("⚠️ DEBUG: Auth token exists but no currentUser! Token: \(String(token.prefix(20)))...")
-            print("⚠️ DEBUG: This suggests authentication state is inconsistent")
+            debugPrint("⚠️ DEBUG: Auth token exists but no currentUser! Token: \(String(token.prefix(20)))...")
+            debugPrint("⚠️ DEBUG: This suggests authentication state is inconsistent")
 
             // Try to fix the user UID issue
             Task {
@@ -79,7 +79,7 @@ struct LearningProgressView: View {
             }
         }
 
-        print("⚠️ DEBUG: No authenticated user found, falling back to guest_user")
+        debugPrint("⚠️ DEBUG: No authenticated user found, falling back to guest_user")
 
         return "guest_user" // Fallback for non-authenticated users
     }
@@ -810,10 +810,10 @@ struct LearningProgressView: View {
     // MARK: - Data Loading
     
     private func loadProgressData() {
-        print("🔄 ========================================")
-        print("🔄 === LEARNING PROGRESS VIEW: LOAD START ===")
-        print("🔄 === User ID: \(userId) ===")
-        print("🔄 ========================================")
+        debugPrint("🔄 ========================================")
+        debugPrint("🔄 === LEARNING PROGRESS VIEW: LOAD START ===")
+        debugPrint("🔄 === User ID: \(userId) ===")
+        debugPrint("🔄 ========================================")
         isLoading = true
         errorMessage = ""
 
@@ -823,10 +823,10 @@ struct LearningProgressView: View {
     }
 
     private func loadProgressDataAsync() async {
-        print("📡 LearningProgressView: loadProgressDataAsync() started")
+        debugPrint("📡 LearningProgressView: loadProgressDataAsync() started")
         // Check if task was cancelled before starting
         if Task.isCancelled {
-            print("⚠️ LearningProgressView: Task cancelled before starting")
+            debugPrint("⚠️ LearningProgressView: Task cancelled before starting")
             return
         }
 
@@ -863,9 +863,9 @@ struct LearningProgressView: View {
         // Just log current state for debugging
         await MainActor.run {
             if let todayProgress = pointsManager.todayProgress {
-                print("📊 [LearningProgressView] Today's progress: \(todayProgress.totalQuestions) questions, \(todayProgress.correctAnswers) correct, \(String(format: "%.1f%%", todayProgress.accuracy)) accuracy")
+                debugPrint("📊 [LearningProgressView] Today's progress: \(todayProgress.totalQuestions) questions, \(todayProgress.correctAnswers) correct, \(String(format: "%.1f%%", todayProgress.accuracy)) accuracy")
             } else {
-                print("📊 [LearningProgressView] No progress data for today")
+                debugPrint("📊 [LearningProgressView] No progress data for today")
             }
         }
     }

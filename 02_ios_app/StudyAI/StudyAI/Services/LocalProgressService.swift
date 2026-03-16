@@ -88,7 +88,7 @@ class LocalProgressService {
                 existingQuestions.append(contentsOf: syntheticQuestions)
                 questionsBySubject[normalized] = existingQuestions
 
-                print("📊 [LocalProgressService] Added \(syntheticQuestions.count) synthetic questions for \(subject) from marked progress")
+                debugPrint("📊 [LocalProgressService] Added \(syntheticQuestions.count) synthetic questions for \(subject) from marked progress")
             }
         }
 

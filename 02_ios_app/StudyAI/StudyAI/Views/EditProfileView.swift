@@ -18,7 +18,7 @@ private let enableAvatarDebugLogs = false  // Always false in release
 private func avatarLog(_ message: String) {
     #if DEBUG
     if enableAvatarDebugLogs {
-        print(message)
+        debugPrint(message)
     }
     #endif
 }

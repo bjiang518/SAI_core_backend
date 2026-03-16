@@ -2033,11 +2033,11 @@ struct DigitalHomeworkView: View {
     /// Delete selected questions from the homework session
     private func deleteSelectedQuestions() {
         guard !selectedQuestionsForDeletion.isEmpty else {
-            print("⚠️ deleteSelectedQuestions called with empty selection")
+            debugPrint("⚠️ deleteSelectedQuestions called with empty selection")
             return
         }
 
-        print("🗑️ Deleting \(selectedQuestionsForDeletion.count) questions from homework session")
+        debugPrint("🗑️ Deleting \(selectedQuestionsForDeletion.count) questions from homework session")
 
         // Remove questions from ViewModel
         viewModel.deleteQuestions(questionIds: Array(selectedQuestionsForDeletion))
@@ -2050,7 +2050,7 @@ struct DigitalHomeworkView: View {
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(.success)
 
-        print("✅ Successfully deleted \(selectedQuestionsForDeletion.count) questions")
+        debugPrint("✅ Successfully deleted \(selectedQuestionsForDeletion.count) questions")
         selectedQuestionsForDeletion.removeAll()
     }
 
@@ -2266,22 +2266,22 @@ struct QuestionCard: View {
                                 missingDiagramImageIds: missingDiagramImageIds,
                                 onAskAI: {
                                     // ✅ FIXED: Pass subquestion to parent callback
-                                    print("💬 Ask AI for subquestion \(subquestion.id)")
+                                    debugPrint("💬 Ask AI for subquestion \(subquestion.id)")
                                     onAskAI(subquestion)
                                 },
                                 onArchive: {
                                     // ✅ Archive whole parent question
-                                    print("⭐ Archive from subquestion \(subquestion.id) -> archiving parent Q\(questionWithGrade.question.id)")
+                                    debugPrint("⭐ Archive from subquestion \(subquestion.id) -> archiving parent Q\(questionWithGrade.question.id)")
                                     onArchive()
                                 },
                                 onArchiveSubquestion: {
                                     // ✅ NEW: Archive only this subquestion
-                                    print("⭐ Archive only subquestion \(subquestion.id)")
+                                    debugPrint("⭐ Archive only subquestion \(subquestion.id)")
                                     onArchiveSubquestion?(subquestion.id)
                                 },
                                 onRegrade: {
                                     // ✅ NEW: Regrade only this subquestion
-                                    print("🔄 Regrade subquestion \(subquestion.id)")
+                                    debugPrint("🔄 Regrade subquestion \(subquestion.id)")
                                     onRegradeSubquestion?(subquestion.id)
                                 }
                             )

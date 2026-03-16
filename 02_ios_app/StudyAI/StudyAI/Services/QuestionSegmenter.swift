@@ -65,38 +65,38 @@ class QuestionSegmenter {
     func detectQuestionBoundaries(_ image: UIImage) async -> [QuestionBoundary] {
         let startTime = CFAbsoluteTimeGetCurrent()
         
-        print("🚀 Starting question boundary detection...")
-        print("📐 Input image size: \(image.size)")
+        debugPrint("🚀 Starting question boundary detection...")
+        debugPrint("📐 Input image size: \(image.size)")
         
         // Preprocess image for better boundary detection
         let processedImage = await preprocessImageForSegmentation(image)
-        print("✅ Image preprocessing completed")
+        debugPrint("✅ Image preprocessing completed")
         
         // Compute horizontal projection
         guard let projection = await computeHorizontalProjection(processedImage) else {
-            print("❌ Failed to compute horizontal projection")
+            debugPrint("❌ Failed to compute horizontal projection")
             return []
         }
         
-        print("📊 Computed horizontal projection: \(projection.count) rows")
+        debugPrint("📊 Computed horizontal projection: \(projection.count) rows")
         
         // Find valleys (low text density areas)
         let valleys = findValleys(projection)
-        print("🏔️ Found \(valleys.count) initial valleys")
+        debugPrint("🏔️ Found \(valleys.count) initial valleys")
         
         // Apply non-maximum suppression with moderate distance for automatic detection
         let filteredValleys = applyNonMaxSuppression(valleys, minDistance: 0.08) // Reduced from 15% to 8% of image height
-        print("🔍 After NMS: \(filteredValleys.count) valleys")
+        debugPrint("🔍 After NMS: \(filteredValleys.count) valleys")
         
         // Convert to QuestionBoundary objects with confidence scores
         let boundaries = validateAndScoreBoundaries(filteredValleys, imageHeight: processedImage.size.height, projection: projection)
         
         let processingTime = CFAbsoluteTimeGetCurrent() - startTime
-        print("✅ Detected \(boundaries.count) question boundaries in \(Int(processingTime * 1000))ms")
+        debugPrint("✅ Detected \(boundaries.count) question boundaries in \(Int(processingTime * 1000))ms")
         
         // Log boundary details
         for (index, boundary) in boundaries.enumerated() {
-            print("📍 Boundary \(index): y=\(String(format: "%.3f", boundary.yPosition)), confidence=\(String(format: "%.3f", boundary.confidence))")
+            debugPrint("📍 Boundary \(index): y=\(String(format: "%.3f", boundary.yPosition)), confidence=\(String(format: "%.3f", boundary.confidence))")
         }
         
         return boundaries
@@ -115,7 +115,7 @@ class QuestionSegmenter {
         let processingTime = CFAbsoluteTimeGetCurrent() - startTime
         let qualityScore = assessSegmentationQuality(boundaries: boundaries, regions: regions)
         
-        print("✅ Segmented homework page: \(regions.count) questions in \(Int(processingTime * 1000))ms (quality: \(String(format: "%.2f", qualityScore)))")
+        debugPrint("✅ Segmented homework page: \(regions.count) questions in \(Int(processingTime * 1000))ms (quality: \(String(format: "%.2f", qualityScore)))")
         
         return SegmentationResult(
             boundaries: boundaries,
@@ -187,19 +187,19 @@ class QuestionSegmenter {
         let meanValue = projection.reduce(0, +) / projection.count
         let range = maxValue - minValue
         
-        print("📊 Projection stats: min=\(minValue), max=\(maxValue), mean=\(meanValue), range=\(range)")
+        debugPrint("📊 Projection stats: min=\(minValue), max=\(maxValue), mean=\(meanValue), range=\(range)")
         
         // Adaptive threshold based on content type - More balanced for automatic segmentation
         let dynamicThreshold: Int
         if range < meanValue / 2 {
             // Low variance content (like music sheets) - use moderate threshold
             dynamicThreshold = max(1, Int(Float(meanValue) * 0.12))
-            print("🎵 Low variance detected (music/uniform content), using threshold: \(dynamicThreshold)")
+            debugPrint("🎵 Low variance detected (music/uniform content), using threshold: \(dynamicThreshold)")
         } else {
             // High variance content (typical homework) - use moderate threshold for automatic detection
             // This will detect reasonable gaps between questions while avoiding sub-question splits
             dynamicThreshold = max(1, Int(Float(meanValue) * 0.18)) // More permissive than 0.1
-            print("📝 High variance detected (homework content), using threshold: \(dynamicThreshold)")
+            debugPrint("📝 High variance detected (homework content), using threshold: \(dynamicThreshold)")
         }
         
         var valleys: [CGFloat] = []
@@ -243,9 +243,9 @@ class QuestionSegmenter {
                        valleyEnd < projection.count - edgeMargin &&
                        qualityScore > 0.4 { // More permissive quality requirement
                         valleys.append(normalizedY)
-                        print("✅ Question boundary found: pos=\(String(format: "%.3f", normalizedY)), length=\(valleyLength), quality=\(String(format: "%.2f", qualityScore))")
+                        debugPrint("✅ Question boundary found: pos=\(String(format: "%.3f", normalizedY)), length=\(valleyLength), quality=\(String(format: "%.2f", qualityScore))")
                     } else {
-                        print("❌ Boundary rejected: pos=\(String(format: "%.3f", normalizedY)), length=\(valleyLength), quality=\(String(format: "%.2f", qualityScore))")
+                        debugPrint("❌ Boundary rejected: pos=\(String(format: "%.3f", normalizedY)), length=\(valleyLength), quality=\(String(format: "%.2f", qualityScore))")
                     }
                     
                     inValley = false
@@ -264,13 +264,13 @@ class QuestionSegmenter {
             
             if valleyLength >= 3 && qualityScore > 0.3 {
                 valleys.append(normalizedY)
-                print("✅ End valley found: pos=\(String(format: "%.3f", normalizedY)), length=\(valleyLength)")
+                debugPrint("✅ End valley found: pos=\(String(format: "%.3f", normalizedY)), length=\(valleyLength)")
             }
         }
         
         // If no valleys found with standard approach, try more aggressive detection
         if valleys.isEmpty && range > 0 {
-            print("🔍 No valleys found, trying aggressive detection...")
+            debugPrint("🔍 No valleys found, trying aggressive detection...")
             let aggressiveThreshold = minValue + (range / 4) // Bottom 25% of values
             
             for (index, value) in projection.enumerated() {
@@ -282,10 +282,10 @@ class QuestionSegmenter {
                     }
                 }
             }
-            print("🔍 Aggressive detection found \(valleys.count) potential valleys")
+            debugPrint("🔍 Aggressive detection found \(valleys.count) potential valleys")
         }
         
-        print("📊 Final valleys found: \(valleys.count)")
+        debugPrint("📊 Final valleys found: \(valleys.count)")
         return valleys.sorted()
     }
     
@@ -302,7 +302,7 @@ class QuestionSegmenter {
             }
         }
         
-        print("🔍 Non-max suppression: \(valleys.count) → \(filteredValleys.count) valleys")
+        debugPrint("🔍 Non-max suppression: \(valleys.count) → \(filteredValleys.count) valleys")
         return filteredValleys
     }
     
@@ -360,24 +360,24 @@ class QuestionSegmenter {
     private func createQuestionRegions(from boundaries: [QuestionBoundary], originalImage: UIImage) async -> [QuestionRegion] {
         var regions: [QuestionRegion] = []
         
-        print("🏗️ Creating question regions from \(boundaries.count) boundaries...")
+        debugPrint("🏗️ Creating question regions from \(boundaries.count) boundaries...")
         
         // Create regions between boundaries
         let sortedBoundaries = boundaries.sorted { $0.yPosition < $1.yPosition }
         let regionCount = sortedBoundaries.count + 1
         
-        print("📊 Will create \(regionCount) regions")
+        debugPrint("📊 Will create \(regionCount) regions")
         
         for i in 0..<regionCount {
             let topY: CGFloat = (i == 0) ? 0.015 : max(0.015, sortedBoundaries[i - 1].yPosition - 0.01) // Moderate expansion upward
             let bottomY: CGFloat = (i == sortedBoundaries.count) ? 0.985 : min(0.985, sortedBoundaries[i].yPosition + 0.01) // Moderate expansion downward
             
-            print("🔍 Region \(i): topY=\(String(format: "%.3f", topY)), bottomY=\(String(format: "%.3f", bottomY))")
+            debugPrint("🔍 Region \(i): topY=\(String(format: "%.3f", topY)), bottomY=\(String(format: "%.3f", bottomY))")
             
             // Skip regions that are too small - more permissive minimum
             let regionHeight = bottomY - topY
             if regionHeight < 0.05 { // Reduced to 5% of image height for more automatic detection
-                print("❌ Region \(i) too small: height=\(String(format: "%.3f", regionHeight))")
+                debugPrint("❌ Region \(i) too small: height=\(String(format: "%.3f", regionHeight))")
                 continue
             }
             
@@ -388,22 +388,22 @@ class QuestionSegmenter {
                 height: regionHeight
             )
             
-            print("📦 Creating region \(i) with bounds: \(regionBounds)")
+            debugPrint("📦 Creating region \(i) with bounds: \(regionBounds)")
             
             // Create thumbnail for this region
             guard let thumbnail = await createThumbnail(from: originalImage, bounds: regionBounds) else {
-                print("❌ Failed to create thumbnail for region \(i)")
+                debugPrint("❌ Failed to create thumbnail for region \(i)")
                 continue
             }
             
-            print("✅ Created thumbnail for region \(i): \(thumbnail.size)")
+            debugPrint("✅ Created thumbnail for region \(i): \(thumbnail.size)")
             
             // Detect question number and assess text content
             let questionNumber = await detectQuestionNumber(in: thumbnail)
             let textConfidence = await assessTextContent(in: thumbnail)
             let estimatedLines = await estimateLineCount(in: thumbnail)
             
-            print("📋 Region \(i) analysis: questionNumber=\(questionNumber?.description ?? "nil"), textConfidence=\(String(format: "%.2f", textConfidence)), lines=\(estimatedLines)")
+            debugPrint("📋 Region \(i) analysis: questionNumber=\(questionNumber?.description ?? "nil"), textConfidence=\(String(format: "%.2f", textConfidence)), lines=\(estimatedLines)")
             
             let region = QuestionRegion(
                 id: "region_\(i)_\(UUID().uuidString.prefix(8))",
@@ -417,7 +417,7 @@ class QuestionSegmenter {
             regions.append(region)
         }
         
-        print("✅ Created \(regions.count) question regions")
+        debugPrint("✅ Created \(regions.count) question regions")
         return regions
     }
     
@@ -450,7 +450,7 @@ class QuestionSegmenter {
         return await withCheckedContinuation { continuation in
             let request = VNRecognizeTextRequest { request, error in
                 if let error = error {
-                    print("⚠️ Question number detection error: \(error)")
+                    debugPrint("⚠️ Question number detection error: \(error)")
                     continuation.resume(returning: nil)
                     return
                 }
@@ -478,7 +478,7 @@ class QuestionSegmenter {
                 do {
                     try handler.perform([request])
                 } catch {
-                    print("⚠️ Failed to perform question number detection: \(error)")
+                    debugPrint("⚠️ Failed to perform question number detection: \(error)")
                     continuation.resume(returning: nil)
                 }
             }
@@ -610,14 +610,14 @@ extension QuestionSegmenter {
         image.draw(at: .zero)
         
         guard let context = UIGraphicsGetCurrentContext() else { 
-            print("❌ Failed to get graphics context for debug visualization")
+            debugPrint("❌ Failed to get graphics context for debug visualization")
             return image 
         }
         
         let imageWidth = image.size.width
         let imageHeight = image.size.height
         
-        print("🖼️ Drawing debug visualization: \(result.regions.count) regions, \(result.boundaries.count) boundaries")
+        debugPrint("🖼️ Drawing debug visualization: \(result.regions.count) regions, \(result.boundaries.count) boundaries")
         
         // Draw question regions with semi-transparent fill
         for (index, region) in result.regions.enumerated() {
@@ -628,7 +628,7 @@ extension QuestionSegmenter {
                 height: region.bounds.size.height * imageHeight
             )
             
-            print("📦 Drawing region \(index): \(rect)")
+            debugPrint("📦 Drawing region \(index): \(rect)")
             
             // Draw region with semi-transparent fill
             context.setFillColor(UIColor.blue.withAlphaComponent(0.15).cgColor)
@@ -668,7 +668,7 @@ extension QuestionSegmenter {
             let y = boundary.yPosition * imageHeight
             let alpha = max(0.5, CGFloat(boundary.confidence)) // Minimum 50% alpha for visibility
             
-            print("📍 Drawing boundary \(index): y=\(y), confidence=\(boundary.confidence)")
+            debugPrint("📍 Drawing boundary \(index): y=\(y), confidence=\(boundary.confidence)")
             
             context.setStrokeColor(UIColor.red.withAlphaComponent(alpha).cgColor)
             context.setLineWidth(3.0)
@@ -724,7 +724,7 @@ extension QuestionSegmenter {
         }
         
         let result = UIGraphicsGetImageFromCurrentImageContext()
-        print("✅ Debug visualization created: \(result != nil)")
+        debugPrint("✅ Debug visualization created: \(result != nil)")
         return result
     }
 }

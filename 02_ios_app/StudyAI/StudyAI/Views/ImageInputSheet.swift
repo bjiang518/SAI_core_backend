@@ -268,6 +268,6 @@ struct FullScreenImageView: View {
         userPrompt: .constant(""),
         isPresented: .constant(true)
     ) { image, prompt, deepMode in
-        print("Send image with prompt: \(prompt), deepMode: \(deepMode)")
+        debugPrint("Send image with prompt: \(prompt), deepMode: \(deepMode)")
     }
 }

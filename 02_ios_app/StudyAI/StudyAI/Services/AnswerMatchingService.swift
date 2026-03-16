@@ -50,9 +50,9 @@ class AnswerMatchingService {
         let normalizedCorrect = normalizeAnswer(correctAnswer)
 
         #if DEBUG
-        print("🔍 [AnswerMatching] Type: \(questionType)")
-        print("   User: '\(userAnswer)' → '\(normalizedUser)'")
-        print("   Correct: '\(correctAnswer)' → '\(normalizedCorrect)'")
+        debugPrint("🔍 [AnswerMatching] Type: \(questionType)")
+        debugPrint("   User: '\(userAnswer)' → '\(normalizedUser)'")
+        debugPrint("   Correct: '\(correctAnswer)' → '\(normalizedCorrect)'")
         #endif
 
         // Route to type-specific matching
@@ -80,9 +80,9 @@ class AnswerMatchingService {
         let shouldSkip = score >= 0.9
 
         #if DEBUG
-        print("   Score: \(String(format: "%.2f", score * 100))%")
-        print("   Exact: \(isExact)")
-        print("   Decision: \(shouldSkip ? "✅ SKIP AI (instant grade)" : "🤖 SEND TO AI")")
+        debugPrint("   Score: \(String(format: "%.2f", score * 100))%")
+        debugPrint("   Exact: \(isExact)")
+        debugPrint("   Decision: \(shouldSkip ? "✅ SKIP AI (instant grade)" : "🤖 SEND TO AI")")
         #endif
 
         return MatchResult(
@@ -119,7 +119,7 @@ class AnswerMatchingService {
         }
 
         #if DEBUG
-        print("   MC: No match — User: '\(userAnswer)' Correct: '\(correctAnswer)'")
+        debugPrint("   MC: No match — User: '\(userAnswer)' Correct: '\(correctAnswer)'")
         #endif
 
         return (0.0, false)
@@ -135,7 +135,7 @@ class AnswerMatchingService {
         let correctBool = parseBooleanAnswer(correctAnswer)
 
         #if DEBUG
-        print("   T/F: User \(userBool?.description ?? "nil") vs Correct \(correctBool?.description ?? "nil")")
+        debugPrint("   T/F: User \(userBool?.description ?? "nil") vs Correct \(correctBool?.description ?? "nil")")
         #endif
 
         guard let user = userBool, let correct = correctBool else {
@@ -160,7 +160,7 @@ class AnswerMatchingService {
         let similarity = calculateStringSimilarity(userAnswer, correctAnswer)
 
         #if DEBUG
-        print("   Short Answer Similarity: \(String(format: "%.2f", similarity * 100))%")
+        debugPrint("   Short Answer Similarity: \(String(format: "%.2f", similarity * 100))%")
         #endif
 
         // If 95%+ similar, consider it a match (typos allowed)
@@ -192,8 +192,8 @@ class AnswerMatchingService {
             let difference = abs(userNum - correctNum)
 
             #if DEBUG
-            print("   Numeric: User \(userNum) vs Correct \(correctNum)")
-            print("   Difference: \(difference), Tolerance: \(tolerance)")
+            debugPrint("   Numeric: User \(userNum) vs Correct \(correctNum)")
+            debugPrint("   Difference: \(difference), Tolerance: \(tolerance)")
             #endif
 
             if difference <= tolerance {
