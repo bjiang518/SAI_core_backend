@@ -97,6 +97,11 @@ struct TermsOfServiceView: View {
             .navigationTitle(NSLocalizedString("terms.title", comment: ""))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Link(destination: AppURLs.termsOfService) {
+                        Image(systemName: "safari")
+                    }
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(NSLocalizedString("common.done", comment: "")) {
                         dismiss()

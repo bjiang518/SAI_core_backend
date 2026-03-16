@@ -165,8 +165,8 @@ class AIServiceClient {
       // Always use the regular health endpoint since AI Engine doesn't support authentication yet
       const endpoint = this.config.healthEndpoint;
       const headers = {};
-      
-      const response = await this.client.get(endpoint, { headers });
+
+      const response = await this.client.get(endpoint, { headers, timeout: 5000 });
       return {
         healthy: true,
         status: response.status,

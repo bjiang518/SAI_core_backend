@@ -34,6 +34,7 @@ enum GatedFeature {
     case chatMessage
     case voiceChat
     case questionGeneration(mode: Int)   // mode 3 = premium only
+    case errorAnalysis                   // blocked for guests; 5/month for free
     case errorAnalysisDeep
     case parentReport
 }

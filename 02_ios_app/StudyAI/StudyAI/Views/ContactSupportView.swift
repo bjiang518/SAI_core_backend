@@ -41,7 +41,7 @@ struct ContactSupportView: View {
                                 showingMailComposer = true
                             } else {
                                 // Fallback to mailto URL
-                                if let url = URL(string: "mailto:support@studyai.com?subject=StudyMates Support Request") {
+                                if let url = URL(string: "mailto:\(AppURLs.supportEmail)?subject=StudyMates Support Request") {
                                     UIApplication.shared.open(url)
                                 }
                             }
@@ -49,17 +49,16 @@ struct ContactSupportView: View {
                             ContactMethodCard(
                                 icon: "envelope.fill",
                                 title: NSLocalizedString("contactSupport.emailTitle", comment: ""),
-                                subtitle: "support@studyai.com",
+                                subtitle: AppURLs.supportEmail,
                                 description: NSLocalizedString("contactSupport.emailDescription", comment: ""),
                                 color: .blue
                             )
                         }
                         .buttonStyle(.plain)
 
-                        // Live Chat (placeholder for future implementation)
+                        // Live Chat
                         Button(action: {
-                            // Future: Open live chat
-                            if let url = URL(string: "https://studyai.com/support/chat") {
+                            if let url = URL(string: "https://study-mates.net/support") {
                                 UIApplication.shared.open(url)
                             }
                         }) {
@@ -73,29 +72,14 @@ struct ContactSupportView: View {
                         }
                         .buttonStyle(.plain)
 
-                        // Community Forum
-                        Link(destination: URL(string: "https://community.studyai.com")!) {
+                        // Website
+                        Link(destination: AppURLs.website) {
                             ContactMethodCard(
                                 icon: "person.3.fill",
                                 title: NSLocalizedString("contactSupport.forumTitle", comment: ""),
                                 subtitle: NSLocalizedString("contactSupport.forumSubtitle", comment: ""),
                                 description: NSLocalizedString("contactSupport.forumDescription", comment: ""),
                                 color: .purple
-                            )
-                        }
-
-                        // Phone Support (business hours)
-                        Button(action: {
-                            if let url = URL(string: "tel:+1-800-STUDYAI") {
-                                UIApplication.shared.open(url)
-                            }
-                        }) {
-                            ContactMethodCard(
-                                icon: "phone.fill",
-                                title: NSLocalizedString("contactSupport.phoneTitle", comment: ""),
-                                subtitle: "+1 (800) STUDY-AI",
-                                description: NSLocalizedString("contactSupport.phoneDescription", comment: ""),
-                                color: .orange
                             )
                         }
                         .buttonStyle(.plain)
@@ -141,7 +125,7 @@ struct ContactSupportView: View {
         }
         .sheet(isPresented: $showingMailComposer) {
             MailComposeView(
-                recipient: "support@studyai.com",
+                recipient: AppURLs.supportEmail,
                 subject: "StudyMates Support Request"
             )
         }

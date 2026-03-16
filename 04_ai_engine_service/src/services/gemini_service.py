@@ -322,14 +322,17 @@ class GeminiEducationalAIService:
                 logger.debug(f"  Page {i+1}: {_pil.size[0]}×{_pil.size[1]}px")
                 _pil.close()
 
-            # Base prompt + multi-page preamble
-            base_prompt = self._build_parse_prompt(subject=subject)
+            # Build multi-page prompt (includes pageNumber field in schema)
+            base_prompt = self._build_parse_prompt(subject=subject, multi_page=True)
             multi_page_preamble = (
                 f"The following {n} images are pages of the SAME homework assignment, "
                 f"in order (page 1 through page {n}). "
                 f"Extract ALL questions and student answers across ALL pages into a single JSON response. "
                 f"Questions that span multiple pages should be treated as one question. "
-                f"Do NOT duplicate questions that appear on more than one page.\n\n"
+                f"Do NOT duplicate questions that appear on more than one page.\n"
+                f"CRITICAL: For EVERY top-level question, include a 'pageNumber' field (integer, 1-based) "
+                f"indicating which image/page the question physically appears on. "
+                f"Questions from the first image get pageNumber=1, second image get pageNumber=2, etc.\n\n"
             )
             prompt = multi_page_preamble + base_prompt
 
@@ -1262,13 +1265,14 @@ RULES:
             logger.error(f"reparse_single_question failed for Q{question_number}: {e}")
             raise
 
-    def _build_parse_prompt(self, subject: Optional[str] = None) -> str:
+    def _build_parse_prompt(self, subject: Optional[str] = None, multi_page: bool = False) -> str:
         """
         Build homework parsing prompt with optional subject-specific rules.
 
         Args:
             subject: Subject name (e.g., "Math", "Physics", "English")
                     If None or "General", uses universal rules only
+            multi_page: When True, adds pageNumber field to schema (multi-page batch only)
 
         Returns:
             Complete parsing prompt combining base rules + subject rules
@@ -1478,7 +1482,26 @@ OUTPUT CHECKLIST
 
         # Combine base prompt with subject-specific rules
         # If subject_rules is empty (General/unknown), it won't add anything
-        return base_prompt.format(subject_rules=subject_rules)
+        prompt = base_prompt.format(subject_rules=subject_rules)
+
+        # Multi-page only: inject pageNumber into schema and field rules
+        if multi_page:
+            prompt = prompt.replace(
+                '      "question_number": "1",\n      "is_parent": true,',
+                '      "question_number": "1",\n      "pageNumber": 1,\n      "is_parent": true,'
+            )
+            prompt = prompt.replace(
+                '      "question_number": "2",\n      "question_text":',
+                '      "question_number": "2",\n      "pageNumber": 1,\n      "question_text":'
+            )
+            prompt = prompt.replace(
+                "- id: ALWAYS string.",
+                "- pageNumber: Integer. Which page (image) this top-level question appears on (1-based). "
+                "Use the image index where the question physically appears: first image → 1, second image → 2, etc.\n"
+                "- id: ALWAYS string."
+            )
+
+        return prompt
 
     def _build_grading_prompt(
         self,

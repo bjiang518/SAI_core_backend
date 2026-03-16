@@ -10,6 +10,7 @@ const jwt = require('jsonwebtoken');
 const AIServiceClient = require('../services/ai-client');
 const { performanceAnalyzer } = require('../services/performance-analyzer');
 const { userApiTracker } = require('../services/user-api-tracker');
+const { healthCheckServiceInstance } = require('../middleware/health-check');
 
 module.exports = async function (fastify, opts) {
   const { db, getPoolHealth } = require('../../utils/railway-database');
@@ -157,6 +158,10 @@ module.exports = async function (fastify, opts) {
       const poolHealth = getPoolHealth();
       const databaseStatus = poolHealth.isHealthy ? 'healthy' : 'degraded';
 
+      // AI Engine health — read from shared cache (non-blocking, updated every 60s by periodic checker)
+      const cachedAiHealth = healthCheckServiceInstance.getCachedHealth('aiEngine');
+      const aiEngineStatus = cachedAiHealth ? (cachedAiHealth.healthy ? 'healthy' : 'down') : 'unknown';
+
       // Real cache stats
       let cacheHitRate = 0;
       if (global.cacheManager) {
@@ -180,6 +185,7 @@ module.exports = async function (fastify, opts) {
           avgResponseTime,
           errorRate,
           databaseStatus,
+          aiEngineStatus,
           cacheHitRate,
           tierDistribution: {
             free:         tierDistResult.rows[0].free_count,
@@ -660,11 +666,14 @@ module.exports = async function (fastify, opts) {
   fastify.get('/api/admin/system/services', { preHandler: verifyAdmin }, async (request, reply) => {
     try {
       const startTime = Date.now();
-      const [aiHealthResult, poolHealth, cacheInfo] = await Promise.all([
-        aiClient.healthCheck().catch(e => ({ healthy: false, error: e.message, responseTime: Date.now() - startTime })),
+      const [poolHealth, cacheInfo] = await Promise.all([
         Promise.resolve(getPoolHealth()),
         Promise.resolve(global.cacheManager ? global.cacheManager.getStats() : null),
       ]);
+
+      // Use cached AI health (updated every 60s by periodic checker) — avoids 134s live timeout
+      const cachedAiHealth = healthCheckServiceInstance.getCachedHealth('aiEngine');
+      const aiHealthResult = cachedAiHealth || await aiClient.healthCheck().catch(e => ({ healthy: false, error: e.message, responseTime: Date.now() - startTime }));
 
       const mem = process.memoryUsage();
 

@@ -2472,3 +2472,213 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "report.priority.high" = "Hoch";
 "report.priority.medium" = "Mittel";
 "report.priority.low" = "Niedrig";
+
+// MARK: - Chat
+"chat.menu.viewTutorial" = "Tutorial ansehen";
+
+// MARK: - Common
+"common.apply" = "Anwenden";
+
+// MARK: - Edit Profile
+"editProfile.adjustAvatar" = "Avatar anpassen";
+"editProfile.age" = "Alter";
+"editProfile.agePlaceholder" = "z. B. 14";
+"editProfile.avatarEditorHint" = "Zum Zoomen zusammenkneifen, zum Anpassen ziehen";
+"editProfile.choosePresetAvatar" = "Vorgefertigten Avatar auswählen";
+"editProfile.language" = "Sprache";
+"editProfile.learningStyle" = "Lernstil";
+"editProfile.learningStyleHeuristic" = "Heuristisch";
+"editProfile.learningStyleHeuristicDesc" = "Geführte Entdeckung";
+"editProfile.learningStyleStraightforward" = "Direkt";
+"editProfile.learningStyleStraightforwardDesc" = "Direkte Antworten";
+"editProfile.noneOption" = "—";
+"editProfile.or" = "ODER";
+"editProfile.orChoosePresetAvatar" = "Oder vorgefertigten Avatar auswählen";
+"editProfile.rotateLeft" = "Links drehen";
+"editProfile.rotateRight" = "Rechts drehen";
+"editProfile.selectedCount" = "%d ausgewählt";
+"editProfile.studentInformation" = "Schülerinformationen";
+"editProfile.takeSelfie" = "Selfie aufnehmen";
+"editProfile.uploadFromAlbum" = "Aus Album hochladen";
+"editProfile.zoomIn" = "Vergrößern";
+"editProfile.zoomOut" = "Verkleinern";
+
+// MARK: - Heatmap
+"heatmap.back" = "Zurück";
+"heatmap.noDetailedData" = "Noch keine detaillierten Daten für diesen Bereich.";
+"heatmap.noPracticeData" = "Noch keine Übungsdaten. Beantworte einige Fragen, um deine Schwachpunkte hier zu sehen.";
+"heatmap.subTopics" = "· Unterthemen";
+"heatmap.title" = "Schwachpunkt-Heatmap";
+
+// MARK: - Library PDF / Selection
+"library.pdf.email.subject" = "Bibliotheksfragen — %@";
+"library.pdf.emailBody" = "Hallo\!\n\nIch habe %d Bibliotheksfrage(n) für %@ von StudyMates angehängt.\n\nErstellt von StudyMates — Dein KI-Lernbegleiter\n\nMit freundlichen Grüßen";
+"library.pdf.error" = "PDF konnte nicht erstellt werden";
+"library.pdf.generating" = "PDF wird erstellt…";
+"library.selection.countSelected" = "%d ausgewählt";
+"library.selection.deselectAll" = "Alle abwählen";
+"library.selection.noneSelected" = "Nichts ausgewählt";
+"library.selection.pdf" = "PDF";
+"library.selection.selectAll" = "Alle auswählen";
+
+// MARK: - Live Chat
+"live.leave.cancel" = "Bleiben";
+"live.leave.confirm" = "Verlassen & löschen";
+"live.leave.message" = "Wenn du diese Seite verlässt, wird deine Live-Sitzung beendet und das Gespräch gelöscht.";
+"live.leave.title" = "Live-Chat verlassen?";
+
+// MARK: - Mistake Review
+"mistakeReview.categorizeMistakes" = "Kategorisieren";
+"mistakeReview.categorizing" = "Kategorisierung…";
+"mistakeReview.filter.goodAt" = "Gut in";
+"mistakeReview.filter.noLongerWeak" = "Keine Schwäche mehr";
+"mistakeReview.filter.noStrengthsData" = "Noch keine Daten — beantworte Fragen, um deine Stärken zu sehen.";
+"mistakeReview.filter.strengthsTopicCount" = "%d Themen";
+"mistakeReview.filter.yourStrengths" = "Deine Stärken";
+"mistakeReview.uncategorized" = "nicht klassifiziert";
+
+// MARK: - Onboarding
+"onboarding.chat.camera.desc" = "Tippe, um ein Foto aufzunehmen oder aus deiner Galerie auszuwählen. Ich kann Hausaufgabenfragen aus Bildern lesen.";
+"onboarding.chat.camera.title" = "Bilder hinzufügen";
+"onboarding.chat.deepBadge" = "Tief";
+"onboarding.chat.deepmode.desc" = "Tippe auf ↑ zum Senden. Oder halte die Schaltfläche gedrückt und wische nach oben — sie wird lila und verwendet ein gründlicheres Reasoning-Modell für schwierige Fragen.";
+"onboarding.chat.deepmode.title" = "Senden oder tiefer gehen";
+"onboarding.chat.deepThinkingMode" = "Tiefer Denkmodus";
+"onboarding.chat.holdToTalk" = "Gedrückt halten zum Sprechen";
+"onboarding.chat.library.desc" = "Tippe, um dieses Gespräch zu archivieren. Ich werde es analysieren und wichtige Erkenntnisse in deiner persönlichen Bibliothek speichern.";
+"onboarding.chat.library.title" = "In Bibliothek speichern";
+"onboarding.chat.live.desc" = "Tippe auf ···, um auf Einstellungen zuzugreifen. Von hier aus kannst du in den Echtzeit-Live-Gesprächsmodus wechseln.";
+"onboarding.chat.live.title" = "Live-Modus & mehr";
+"onboarding.chat.mic.desc" = "Halte diese Schaltfläche gedrückt, um zu sprechen statt zu tippen. Deine Stimme wird automatisch transkribiert.";
+"onboarding.chat.mic.title" = "Spracheingabe";
+"onboarding.chat.micDemoText" = "erkläre es ausführlicher";
+"onboarding.chat.releaseToCancel" = "Loslassen zum Abbrechen";
+"onboarding.chat.releaseToSend" = "Loslassen zum Senden";
+"onboarding.chat.subject.desc" = "Wähle ein Fach oder lasse es als Allgemein. Dies hilft mir, dir genauere Antworten zu geben.";
+"onboarding.chat.subject.title" = "Fach auswählen";
+"onboarding.done" = "Fertig";
+"onboarding.next" = "Weiter";
+"onboarding.skip" = "Überspringen";
+
+// MARK: - PDF Export
+"pdf.header.generatedOn.withCount" = "Erstellt am %@ • %d Fragen";
+"pdf.header.generatedOn.withType" = "Erstellt am %@ • %@";
+"pdf.header.questionCount" = "%d Fragen";
+"pdf.header.subject" = "Fach: %@";
+"pdf.homework.title" = "Hausaufgabenfragen";
+"pdf.instruction.homework" = "Dies sind die Fragen aus deiner Hausaufgabe.";
+"pdf.instruction.library" = "Überprüfe jede Frage und schreibe deine Antworten in den vorgesehenen Platz.";
+"pdf.instruction.mistakes" = "Überprüfe diese Fragen und schreibe deine Antworten in den vorgesehenen Platz unter jeder Frage.";
+"pdf.instruction.practice" = "Beantworte jede Frage im vorgesehenen Bereich. Zeige deine Arbeit, wenn nötig.";
+"pdf.library.title" = "Bibliotheksfragen";
+"pdf.mistake.hint" = "💡 Du hast ursprünglich geantwortet: \"%@\"";
+"pdf.mistake.noAnswer" = "Keine Antwort";
+"pdf.mistakes.title" = "Fehlerüberprüfung";
+"pdf.options.fontSize" = "Schriftgröße";
+"pdf.options.footer" = "Tippe auf Anwenden, um das PDF mit diesen Einstellungen neu zu erstellen.";
+"pdf.options.gap" = "Abstand zwischen Fragen";
+"pdf.options.maxImageSize" = "Max. Bildgröße";
+"pdf.options.maxSubImageSize" = "Max. Teilbildgröße";
+"pdf.options.reset" = "Auf Standardwerte zurücksetzen";
+"pdf.options.section.images" = "Bilder";
+"pdf.options.section.spacing" = "Abstände";
+"pdf.options.section.text" = "Text";
+"pdf.options.title" = "Exportoptionen";
+"pdf.practice.title" = "Übungsfragen";
+"pdf.question.label" = "Frage %@";
+"pdf.question.noText" = "[Fragetext nicht verfügbar]";
+
+// MARK: - Practice Sheet
+"practiceSheet.holdToSpeak" = "Gedrückt halten zum Sprechen";
+"practiceSheet.voiceInput.release" = "Loslassen, um Antwort festzulegen";
+
+// MARK: - Pro Mode
+"proMode.archive.toast.mistakesAnalyzed" = "Fehler analysiert, Notizbuch aktualisiert";
+"proMode.smartOrganize.toast.mistakesAnalyzed" = "Fehler analysiert, Notizbuch aktualisiert";
+
+// MARK: - Passive Reports
+"reports.passive.activity" = "Aktivitätsbericht";
+"reports.passive.areas_of_improvement" = "Verbesserungsbereiche";
+"reports.passive.mental_health" = "Mentale Gesundheit & Wohlbefinden";
+"reports.passive.monthly" = "Monatlich";
+"reports.passive.summary" = "Wochen-/Monatszusammenfassung";
+"reports.passive.weekly" = "Wöchentlich";
+
+// MARK: - Saved Digital Homework
+"savedDigitalHomework.redo" = "Wiederholen";
+"savedDigitalHomework.title" = "Digitale Hausaufgaben";
+
+// MARK: - Settings
+"settings.grade" = "Klasse";
+"settings.notSet" = "Nicht festgelegt";
+"settings.subscription" = "Abonnement";
+
+// MARK: - Subjects
+"subject.art" = "Kunst";
+"subject.biology" = "Biologie";
+"subject.chemistry" = "Chemie";
+"subject.chinese" = "Chinesisch";
+"subject.computer_science" = "Informatik";
+"subject.english" = "Englisch";
+"subject.general" = "Allgemein";
+"subject.geography" = "Geographie";
+"subject.history" = "Geschichte";
+"subject.math" = "Mathe";
+"subject.mathematics" = "Mathematik";
+"subject.music" = "Musik";
+"subject.physical_education" = "Sport";
+"subject.physics" = "Physik";
+"subject.science" = "Naturwissenschaften";
+"subject.social_studies" = "Gesellschaftskunde";
+
+// MARK: - Suggested Todo
+"suggestedTodo.focusMode.subtitleDone" = "Heute %d abgeschlossen · nochmal";
+"suggestedTodo.progress.subtitleToday" = "Heutige Lernergebnisse anzeigen";
+
+// MARK: - Tomato Garden
+"tomato.garden.desc.batman" = "Der dunkle Ritter, Verkörperung der Gerechtigkeit";
+"tomato.garden.desc.classic" = "Die klassische Tomate — einfach und entzückend";
+"tomato.garden.desc.curly" = "Eine Tomate mit lockigen Ranken, voller Energie";
+"tomato.garden.desc.cute" = "Eine weiche rosa Tomate, warm und sanft";
+"tomato.garden.desc.diamond" = "Die legendäre Diamanttomate — außergewöhnlich selten und kostbar";
+"tomato.garden.desc.golden" = "Eine glänzende goldene Tomate, Symbol für Reichtum und Ruhm";
+"tomato.garden.desc.ironman" = "Die perfekte Verschmelzung von Technologie und Kraft";
+"tomato.garden.desc.mario" = "Ein mutiger Klempner-Abenteurer";
+"tomato.garden.desc.platinum" = "So wertvoll wie Platin, strahlend in edlem Glanz";
+"tomato.garden.desc.pokemon" = "Ein wunderbarer Pokémon-Begleiter";
+"tomato.garden.desc.tmt4" = "Eine gewöhnliche Tomate, bescheiden und aufrichtig";
+"tomato.garden.desc.tmt5" = "Eine gewöhnliche Tomate, einfach und fröhlich";
+"tomato.garden.desc.tmt6" = "Eine gewöhnliche Tomate, fleißig und niedlich";
+"tomato.garden.type.tmt4" = "Tomate 4";
+"tomato.garden.type.tmt5" = "Tomate 5";
+"tomato.garden.type.tmt6" = "Tomate 6";
+
+// MARK: - Upgrade Comparison
+"upgrade.comparison.badgeBestValue" = "Bestes Preis-Leistungs-Verhältnis";
+"upgrade.comparison.badgeFreeToTry" = "Kostenlos testen";
+"upgrade.comparison.badgeMostPopular" = "Am beliebtesten";
+"upgrade.comparison.continueFree" = "Kostenlos weitermachen";
+"upgrade.comparison.ctaPremium" = "Premium starten  %@";
+"upgrade.comparison.ctaUltra" = "Ultra starten  %@";
+"upgrade.comparison.featureAiChat" = "KI-\nChat";
+"upgrade.comparison.featureHomework" = "Hausaufgaben-\nUpload";
+"upgrade.comparison.featureLiveTutor" = "Live-\nNachhilfe";
+"upgrade.comparison.featureMultipleKids" = "Mehrere\nKinder";
+"upgrade.comparison.featurePractice" = "Gezieltes\nÜben";
+"upgrade.comparison.featureReports" = "Eltern-\nberichte";
+"upgrade.comparison.featureWeakness" = "Schwächen-\nAnalyse";
+"upgrade.comparison.headerSubtitle" = "Erhalte unbegrenzte Hilfe mit einem interaktiven KI-Tutor.";
+"upgrade.comparison.headerTitle" = "Verbessere deinen KI-StudyMate";
+"upgrade.comparison.planFree" = "Kostenlos";
+"upgrade.comparison.planPremium" = "Premium";
+"upgrade.comparison.planUltra" = "Ultra";
+"upgrade.comparison.pricePeriod" = "/Monat";
+"upgrade.comparison.restorePurchases" = "Käufe wiederherstellen";
+"upgrade.comparison.terms" = "Abonnements verlängern sich automatisch, es sei denn, sie werden mindestens 24 Stunden vor Ende des aktuellen Zeitraums gekündigt. Verwalte oder kündige jederzeit in Einstellungen > Apple-ID > Abonnements.";
+"upgrade.comparison.usageChat" = "Chat";
+"upgrade.comparison.usageHomework" = "Hausaufgaben";
+"upgrade.comparison.usagePractice" = "Übungen";
+"upgrade.comparison.usageUsed" = "%1$d / %2$d verwendet";
+"upgrade.comparison.valueLiveTutor" = "300 Min.";
+"upgrade.comparison.valueMultipleKids" = "Familienfreigabe";
+"upgrade.comparison.yourCurrentUsage" = "Deine aktuelle Nutzung";

@@ -59,6 +59,14 @@ struct FeatureFlags {
     }
 }
 
+/// Canonical web URLs — single source of truth for all deep links and legal pages
+struct AppURLs {
+    static let privacyPolicy = URL(string: "https://study-mates.net/privacy")!
+    static let termsOfService = URL(string: "https://study-mates.net/terms")!
+    static let website = URL(string: "https://study-mates.net")!
+    static let supportEmail = "support@study-mates.net"
+}
+
 /// App version and build information
 struct AppInfo {
     static let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"

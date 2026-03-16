@@ -118,7 +118,7 @@ class HealthCheckService {
 
 // Middleware for health check routes
 const setupHealthRoutes = (fastify) => {
-  const healthService = new HealthCheckService();
+  const healthService = healthCheckServiceInstance;
 
   // Basic health endpoint
   fastify.get('/health', async (request, reply) => {
@@ -161,7 +161,11 @@ const setupHealthRoutes = (fastify) => {
   return healthService;
 };
 
+// Singleton instance — shared across admin routes and health routes
+const healthCheckServiceInstance = new HealthCheckService();
+
 module.exports = {
   HealthCheckService,
-  setupHealthRoutes
+  setupHealthRoutes,
+  healthCheckServiceInstance
 };

@@ -307,10 +307,13 @@ class MistakeReviewService: ObservableObject {
         return baseBranchGroups.compactMap { baseBranch, detailGroups -> GoodAtBranchCount? in
             let totalCount = detailGroups.values.reduce(0) { $0 + $1.total }
             let correctCount = detailGroups.values.reduce(0) { $0 + $1.correct }
-            guard correctCount > 0 else { return nil }
+            let overallAccuracy = totalCount > 0 ? Double(correctCount) / Double(totalCount) : 0.0
+            // Only show in "掌握" if accuracy is currently ≥ 50%
+            guard correctCount > 0, overallAccuracy >= 0.5 else { return nil }
 
             let detailedBranches = detailGroups.compactMap { detail, counts -> GoodAtDetailedBranchCount? in
-                guard counts.correct > 0 else { return nil }
+                let detailAccuracy = counts.total > 0 ? Double(counts.correct) / Double(counts.total) : 0.0
+                guard counts.correct > 0, detailAccuracy >= 0.5 else { return nil }
                 return GoodAtDetailedBranchCount(
                     detailedBranch: detail,
                     totalCount: counts.total,

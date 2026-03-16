@@ -22,8 +22,7 @@ struct HomeworkAlbumView: View {
     @State private var selectedImages: Set<String> = []
 
     // Detail view state
-    @State private var selectedIndex: Int = 0
-    @State private var showingDetailView = false
+    @State private var selectedRecord: HomeworkImageRecord?
 
     // Delete confirmation
     @State private var showingDeleteConfirmation = false
@@ -59,8 +58,7 @@ struct HomeworkAlbumView: View {
                                     if editMode == .active {
                                         toggleSelection(record.id)
                                     } else {
-                                        selectedIndex = index
-                                        showingDetailView = true
+                                        selectedRecord = record
                                     }
                                 }
                             }
@@ -104,10 +102,11 @@ struct HomeworkAlbumView: View {
                 }
             }
             .adaptiveNavigationBar() // iOS 18+ liquid glass / iOS < 18 solid background
-            .sheet(isPresented: $showingDetailView) {
+            .sheet(item: $selectedRecord) { record in
+                let index = filteredImages.firstIndex(where: { $0.id == record.id }) ?? 0
                 HomeworkImageDetailView(
                     records: filteredImages,
-                    initialIndex: selectedIndex
+                    initialIndex: index
                 )
             }
             .sheet(isPresented: $showingFilterMenu) {
