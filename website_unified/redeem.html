@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Redeem Promo Code — ChatGPA</title>
+    <title>Redeem Promo Code — StudyAgent</title>
     <link rel="icon" type="image/png" href="favicon.png">
     <link rel="apple-touch-icon" href="favicon.png">
     <link rel="stylesheet" href="styles.css">
@@ -336,8 +336,8 @@
 <nav class="navbar">
     <div class="container">
         <div class="nav-wrapper">
-            <a href="index.html" class="logo" aria-label="ChatGPA home">
-                <span class="logo-text">ChatGPA</span>
+            <a href="index.html" class="logo" aria-label="StudyAgent home">
+                <span class="logo-text">StudyAgent</span>
             </a>
         </div>
     </div>
@@ -353,7 +353,7 @@
         <p class="success-desc" id="success-desc">Your account has been upgraded.</p>
         <div class="tier-chip" id="tier-chip">⭐ Premium</div>
         <p style="font-size:13px;color:#888;margin-bottom:24px;">
-            Open the ChatGPA app and refresh your account to see the new features.
+            Open the StudyAgent app and refresh your account to see the new features.
         </p>
         <a href="index.html" style="display:inline-block;font-size:14px;color:#7c3aed;font-weight:600;text-decoration:none;">
             ← Back to home
@@ -363,7 +363,7 @@
     <!-- Main redemption flow -->
     <div id="main-flow">
         <div class="redeem-logo">
-            <span class="logo-text">ChatGPA</span>
+            <span class="logo-text">StudyAgent</span>
         </div>
 
         <h1 class="redeem-title">Redeem your code</h1>
@@ -403,7 +403,7 @@
                 <label for="input-name">Your name in the app <span class="optional">(required)</span></label>
                 <input type="text" id="input-name" placeholder="e.g. Bo Jiang" autocomplete="name">
                 <p class="hint">
-                    This is the name shown in Settings → Profile inside the ChatGPA app.
+                    This is the name shown in Settings → Profile inside the StudyAgent app.
                 </p>
             </div>
 
@@ -697,7 +697,7 @@
             });
 
             document.getElementById('success-desc').textContent =
-                `${selectedMatch.display.name}'s account now has ${tierLabel} access until ${expiryDate}. Open ChatGPA and enjoy all premium features!`;
+                `${selectedMatch.display.name}'s account now has ${tierLabel} access until ${expiryDate}. Open StudyAgent and enjoy all premium features!`;
             document.getElementById('tier-chip').textContent = `⭐ ${tierLabel}`;
 
             document.getElementById('main-flow').style.display = 'none';
