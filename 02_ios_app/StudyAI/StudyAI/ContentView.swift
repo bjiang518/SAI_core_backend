@@ -9,6 +9,7 @@
 import SwiftUI
 import UIKit
 import Combine
+import StoreKit
 
 // MARK: - Debug Configuration
 #if DEBUG
@@ -307,6 +308,7 @@ struct MainTabView: View {
     @StateObject private var sessionManager = SessionManager.shared  // ✅ Track user activity
     @StateObject private var themeManager = ThemeManager.shared  // ✅ Cute Mode: Black tab bar
     @Environment(\.horizontalSizeClass) private var sizeClass  // iPad vs iPhone
+    @Environment(\.verticalSizeClass) private var verticalSizeClass  // Landscape detection
     // Local @State binding for TabView selection.
     // SwiftUI DOES update @State bindings for physical tab bar taps.
     // The old Binding(get:set:) bridging AppState was never called by SwiftUI for
@@ -328,6 +330,8 @@ struct MainTabView: View {
     // ── iPhone 专用 TabBar（现有代码提取为计算属性，内容零改动）──────────
     @ViewBuilder
     private var iPhoneTabView: some View {
+        // In landscape, the custom bar is 54pt; in portrait, 120pt.
+        let cuteBarHeight: CGFloat = verticalSizeClass == .compact ? 54 : 120
         ZStack(alignment: .bottom) {
             TabView(selection: $selectedTabIndex) {
                 // Chat Tab
@@ -403,8 +407,14 @@ struct MainTabView: View {
                 }
                 .tag(MainTab.library.rawValue)
             }
-            // ✅ Hide iOS TabBar in Cute mode
-            .toolbar(themeManager.currentTheme == .cute ? .hidden : .visible, for: .tabBar)
+            // ✅ Hide iOS TabBar in Colorful Life mode
+            .toolbar(themeManager.currentTheme == .colorful ? .hidden : .visible, for: .tabBar)
+            // ✅ Reserve space so content isn't hidden under the custom CuteTabBar
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if themeManager.currentTheme == .colorful {
+                    Color.clear.frame(height: cuteBarHeight)
+                }
+            }
             .onChange(of: selectedTabIndex) { _, newIdx in
                 let newTab = MainTab(rawValue: newIdx) ?? .home
                 if appState.selectedTab != newTab {
@@ -425,8 +435,8 @@ struct MainTabView: View {
                 sessionManager.updateActivity()
             }
 
-            // Custom Cute Tab Bar (only shown in Cute Mode)
-            if themeManager.currentTheme == .cute {
+            // Custom Colorful Life Tab Bar (only shown in Colorful Life mode)
+            if themeManager.currentTheme == .colorful {
                 CuteTabBar(
                     selectedTab: $selectedTabIndex,
                     tabs: [
@@ -485,11 +495,8 @@ struct ModernProfileView: View {
     @State private var showingShareSheet = false
     @State private var showingStorageControl = false
     @State private var showingPrivacySettings = false
-    @State private var showingDebugSettings = false
     @State private var showingThemeSelection = false
     @State private var showingUsage = false
-    @State private var showingTesterTierSwitcher = false
-    @State private var versionTapCount = 0
     @State private var refreshID = UUID()  // Force refresh when profile updates
     @State private var selectedGradeLevel: GradeLevel? = nil
 
@@ -845,26 +852,6 @@ struct ModernProfileView: View {
                     .buttonStyle(.plain)
                 }
 
-                #if DEBUG
-                Section(header: Text("Developer")) {
-                    Button {
-                        showingDebugSettings = true
-                    } label: {
-                        HStack {
-                            Image(systemName: "wrench.and.screwdriver.fill")
-                                .foregroundColor(.orange)
-                                .frame(width: 20)
-                            Text("Tier Switcher")
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                }
-                #endif
-
                 // APP INFO SECTION
                 Section {
                     VStack(spacing: 8) {
@@ -882,13 +869,6 @@ struct ModernProfileView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .listRowBackground(Color.clear)
-                    .onTapGesture {
-                        versionTapCount += 1
-                        if versionTapCount >= 3 {
-                            versionTapCount = 0
-                            showingTesterTierSwitcher = true
-                        }
-                    }
                 }
             }
             .navigationTitle(NSLocalizedString("settings.title", comment: ""))
@@ -956,14 +936,6 @@ struct ModernProfileView: View {
         .sheet(isPresented: $showingUsage) {
             AccountUsageView()
         }
-        .sheet(isPresented: $showingTesterTierSwitcher) {
-            TesterTierSwitcherView(onDismiss: { showingTesterTierSwitcher = false })
-        }
-        #if DEBUG
-        .sheet(isPresented: $showingDebugSettings) {
-            DebugTierView()
-        }
-        #endif
     }
 }
 }
@@ -981,8 +953,8 @@ extension ModernProfileView {
         let user = authService.currentUser
         if user?.isAnonymous == true { return .secondary }
         switch user?.tier {
-        case .premium:     return DesignTokens.Colors.libraryTeal
-        case .premiumPlus: return Color(hex: "D97706")
+        case .premium:     return Color(hex: "8C95A6")
+        case .premiumPlus: return Color(hex: "D4AF37")
         default:           return .secondary
         }
     }
@@ -1029,8 +1001,15 @@ extension ModernProfileView {
     }
 
     private func rateApp() {
-        if let url = URL(string: "itms-apps://itunes.apple.com/app/id") {
-            UIApplication.shared.open(url)
+        // Primary: in-app native review prompt (no redirect)
+        if let scene = UIApplication.shared.connectedScenes
+            .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene {
+            SKStoreReviewController.requestReview(in: scene)
+        } else {
+            // Fallback: open App Store review page directly
+            if let url = URL(string: "itms-apps://itunes.apple.com/app/id6754365864?action=write-review") {
+                UIApplication.shared.open(url)
+            }
         }
     }
 
@@ -1122,7 +1101,7 @@ struct iPadSplitView: View {
                 }
             }
             .listStyle(.sidebar)
-            .navigationTitle("StudyAI")
+            .navigationTitle("StudyAgent")
             .toolbar {
                 ToolbarItem(placement: .bottomBar) {
                     Button(role: .destructive, action: onLogout) {
@@ -1156,28 +1135,36 @@ private struct iPadDetailView: View {
     @ObservedObject var sessionManager: SessionManager
 
     var body: some View {
-        // 注意：不包 NavigationStack，各 View 自带导航层
-        // HomeView 内含 NavigationView，SessionChatView/LearningProgressView 等使用 NavigationStack 父级
         Group {
             switch appState.selectedTab {
             case .chat:
-                SessionChatView()
-                    .environmentObject(appState)
-                    .onAppear { sessionManager.updateActivity() }
+                NavigationStack {
+                    SessionChatView()
+                        .environmentObject(appState)
+                        .onAppear { sessionManager.updateActivity() }
+                }
             case .grader:
-                DirectAIHomeworkView()
-                    .environmentObject(appState)
-                    .onAppear { sessionManager.updateActivity() }
+                NavigationStack {
+                    DirectAIHomeworkView()
+                        .environmentObject(appState)
+                        .onAppear { sessionManager.updateActivity() }
+                }
             case .home:
-                HomeView(onSelectTab: { appState.selectedTab = $0 })
-                    .onAppear { sessionManager.updateActivity() }
+                NavigationStack {
+                    HomeView(onSelectTab: { appState.selectedTab = $0 })
+                        .onAppear { sessionManager.updateActivity() }
+                }
             case .progress:
-                LearningProgressView()
-                    .onAppear { sessionManager.updateActivity() }
+                NavigationStack {
+                    LearningProgressView()
+                        .onAppear { sessionManager.updateActivity() }
+                }
             case .library:
-                UnifiedLibraryView()
-                    .environmentObject(appState)
-                    .onAppear { sessionManager.updateActivity() }
+                NavigationStack {
+                    UnifiedLibraryView()
+                        .environmentObject(appState)
+                        .onAppear { sessionManager.updateActivity() }
+                }
             }
         }
     }

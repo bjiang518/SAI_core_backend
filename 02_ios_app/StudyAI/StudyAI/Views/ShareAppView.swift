@@ -11,7 +11,8 @@ struct ShareAppView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showShareSheet = false
 
-    private let appURL = "https://apps.apple.com/app/id6504105201"
+    private let appURL = "https://apps.apple.com/us/app/studyagent/id6754365864"
+    private let websiteURL = "https://www.study-mates.net"
     private var shareText: String {
         """
         \(NSLocalizedString("shareApp.messagePreview", comment: ""))
@@ -21,6 +22,7 @@ struct ShareAppView: View {
         \(NSLocalizedString("shareApp.feature3", comment: ""))
         \(NSLocalizedString("shareApp.feature4", comment: ""))
 
+        🌐 \(websiteURL)
         \(NSLocalizedString("shareApp.downloadNow", comment: "")) \(appURL)
         """
     }
@@ -112,64 +114,7 @@ struct ShareAppView: View {
                             )
                         }
                         .buttonStyle(.plain)
-
-                        // QR Code
-                        VStack(spacing: 12) {
-                            Text(NSLocalizedString("shareApp.scanToDownload", comment: ""))
-                                .font(.headline)
-
-                            // QR Code placeholder (in production, generate actual QR code)
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color(.systemBackground))
-                                    .frame(width: 200, height: 200)
-                                    .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
-
-                                VStack(spacing: 8) {
-                                    Image(systemName: "qrcode")
-                                        .font(.system(size: 120))
-                                        .foregroundColor(.primary)
-
-                                    Text(NSLocalizedString("shareApp.qrCode", comment: ""))
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-
-                            Text(NSLocalizedString("shareApp.showQRCode", comment: ""))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        .padding()
-                        .background(Color(.systemGray6))
-                        .cornerRadius(12)
                     }
-
-                    // Referral Info (future feature)
-                    VStack(spacing: 8) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "gift.fill")
-                                .foregroundColor(.purple)
-                            Text(NSLocalizedString("shareApp.comingSoonReferral", comment: ""))
-                                .font(.headline)
-                                .foregroundColor(.purple)
-                        }
-
-                        Text(NSLocalizedString("shareApp.earnPoints", comment: ""))
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .padding()
-                    .background(
-                        LinearGradient(
-                            colors: [Color.purple.opacity(0.1), Color.blue.opacity(0.1)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .cornerRadius(12)
-                    .padding(.top)
 
                     Spacer(minLength: 40)
                 }
@@ -194,7 +139,7 @@ struct ShareAppView: View {
     }
 
     private func copyLink() {
-        let appURL = "https://apps.apple.com/app/id6504105201"
+        let appURL = "https://apps.apple.com/us/app/studyagent/id6754365864"
         UIPasteboard.general.string = appURL
 
         // Show feedback (you could add a toast notification here)
