@@ -955,6 +955,105 @@ module.exports = async function (fastify, opts) {
   });
 
   // ============================================================================
+  // PROMO CODE MANAGEMENT ROUTES
+  // ============================================================================
+
+  /**
+   * POST /api/admin/promo-codes
+   * Body: { code, tier?, duration_days?, max_uses?, expires_at? }
+   * Creates a new promo code.
+   */
+  fastify.post('/api/admin/promo-codes', { preHandler: verifyAdmin }, async (request, reply) => {
+    const { code, tier = 'premium', duration_days = 30, max_uses, expires_at } = request.body || {};
+
+    if (!code || typeof code !== 'string' || code.trim().length === 0) {
+      return reply.code(400).send({ success: false, error: 'code is required' });
+    }
+    const normalizedCode = code.trim().toUpperCase();
+    if (!/^[A-Z0-9_-]{3,50}$/.test(normalizedCode)) {
+      return reply.code(400).send({ success: false, error: 'code must be 3–50 alphanumeric characters (A-Z, 0-9, _, -)' });
+    }
+    const validTiers = ['premium', 'premium_plus'];
+    if (!validTiers.includes(tier)) {
+      return reply.code(400).send({ success: false, error: `tier must be one of: ${validTiers.join(', ')}` });
+    }
+    const days = parseInt(duration_days);
+    if (isNaN(days) || days < 1 || days > 3650) {
+      return reply.code(400).send({ success: false, error: 'duration_days must be between 1 and 3650' });
+    }
+
+    try {
+      const result = await db.query(
+        `INSERT INTO promo_codes (code, tier, duration_days, max_uses, expires_at, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING *`,
+        [normalizedCode, tier, days, max_uses || null, expires_at || null, request.adminUser?.email]
+      );
+      fastify.log.info(`[Admin] promo-code created: ${normalizedCode} by ${request.adminUser?.email}`);
+      return reply.send({ success: true, data: result.rows[0] });
+    } catch (error) {
+      if (error.code === '23505') {
+        return reply.code(409).send({ success: false, error: `Code "${normalizedCode}" already exists` });
+      }
+      fastify.log.error({ err: error }, 'Error creating promo code');
+      return reply.code(500).send({ success: false, error: 'Failed to create promo code' });
+    }
+  });
+
+  /**
+   * GET /api/admin/promo-codes
+   * Lists all promo codes with redemption stats.
+   */
+  fastify.get('/api/admin/promo-codes', { preHandler: verifyAdmin }, async (request, reply) => {
+    try {
+      const result = await db.query(`
+        SELECT
+          pc.*,
+          COALESCE(
+            JSON_AGG(
+              JSON_BUILD_OBJECT(
+                'user_id', pr.user_id,
+                'redeemed_at', pr.redeemed_at,
+                'tier_expires_at', pr.tier_expires_at
+              ) ORDER BY pr.redeemed_at DESC
+            ) FILTER (WHERE pr.id IS NOT NULL),
+            '[]'
+          ) AS redemptions
+        FROM promo_codes pc
+        LEFT JOIN promo_redemptions pr ON pr.code_id = pc.id
+        GROUP BY pc.id
+        ORDER BY pc.created_at DESC
+      `);
+      return reply.send({ success: true, data: result.rows });
+    } catch (error) {
+      fastify.log.error({ err: error }, 'Error listing promo codes');
+      return reply.code(500).send({ success: false, error: 'Failed to list promo codes' });
+    }
+  });
+
+  /**
+   * PATCH /api/admin/promo-codes/:codeId/deactivate
+   * Disables a promo code so it can no longer be redeemed.
+   */
+  fastify.patch('/api/admin/promo-codes/:codeId/deactivate', { preHandler: verifyAdmin }, async (request, reply) => {
+    const { codeId } = request.params;
+    try {
+      const result = await db.query(
+        `UPDATE promo_codes SET is_active = false WHERE id = $1 RETURNING code`,
+        [codeId]
+      );
+      if (result.rows.length === 0) {
+        return reply.code(404).send({ success: false, error: 'Promo code not found' });
+      }
+      fastify.log.info(`[Admin] promo-code deactivated: ${result.rows[0].code} by ${request.adminUser?.email}`);
+      return reply.send({ success: true });
+    } catch (error) {
+      fastify.log.error({ err: error }, 'Error deactivating promo code');
+      return reply.code(500).send({ success: false, error: 'Failed to deactivate promo code' });
+    }
+  });
+
+  // ============================================================================
   // UTILITY ROUTES
   // ============================================================================
 

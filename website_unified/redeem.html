@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redeem Promo Code — ChatGPA</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="favicon.png">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* ── Page layout ── */
+        .redeem-page {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #f8f4ff 0%, #fff0f8 50%, #f0f8ff 100%);
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 80px 16px 60px;
+        }
+        .redeem-card {
+            background: #fff;
+            border-radius: 24px;
+            box-shadow: 0 8px 48px rgba(0,0,0,0.10);
+            padding: 48px 40px;
+            max-width: 520px;
+            width: 100%;
+        }
+        .redeem-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 32px;
+        }
+        .redeem-logo .logo-text {
+            font-size: 22px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #7c3aed, #db2777);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .redeem-title {
+            font-size: 28px;
+            font-weight: 800;
+            color: #1a1a2e;
+            margin-bottom: 8px;
+        }
+        .redeem-subtitle {
+            font-size: 15px;
+            color: #666;
+            margin-bottom: 36px;
+            line-height: 1.6;
+        }
+
+        /* ── Step indicator ── */
+        .steps {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            margin-bottom: 36px;
+        }
+        .step {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #aaa;
+        }
+        .step.active { color: #7c3aed; }
+        .step.done { color: #22c55e; }
+        .step-num {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 2px solid currentColor;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .step.done .step-num {
+            background: #22c55e;
+            border-color: #22c55e;
+            color: #fff;
+        }
+        .step.active .step-num {
+            background: #7c3aed;
+            border-color: #7c3aed;
+            color: #fff;
+        }
+        .step-line {
+            flex: 1;
+            height: 2px;
+            background: #e5e7eb;
+            margin: 0 8px;
+        }
+        .step-line.done { background: #22c55e; }
+
+        /* ── Forms ── */
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 6px;
+        }
+        label .optional {
+            font-weight: 400;
+            color: #9ca3af;
+        }
+        input[type="text"], input[type="email"], select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 15px;
+            font-family: inherit;
+            color: #1a1a2e;
+            background: #fafafa;
+            outline: none;
+            transition: border-color 0.2s;
+            box-sizing: border-box;
+        }
+        input[type="text"]:focus, input[type="email"]:focus, select:focus {
+            border-color: #7c3aed;
+            background: #fff;
+        }
+        .hint {
+            font-size: 12px;
+            color: #9ca3af;
+            margin-top: 6px;
+            line-height: 1.5;
+        }
+
+        /* ── Buttons ── */
+        .btn-primary {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #7c3aed, #db2777);
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            font-family: inherit;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s;
+            margin-top: 8px;
+        }
+        .btn-primary:hover { opacity: 0.92; }
+        .btn-primary:active { transform: scale(0.98); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-secondary {
+            width: 100%;
+            padding: 12px;
+            background: transparent;
+            color: #7c3aed;
+            border: 2px solid #7c3aed;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .btn-secondary:hover { background: #f5f3ff; }
+
+        /* ── Match cards ── */
+        .matches-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        .match-card {
+            border: 2px solid #e5e7eb;
+            border-radius: 16px;
+            padding: 16px 20px;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+            position: relative;
+        }
+        .match-card:hover { border-color: #7c3aed; background: #faf5ff; }
+        .match-card.selected { border-color: #7c3aed; background: #faf5ff; }
+        .match-card .radio {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #e5e7eb;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .match-card.selected .radio {
+            border-color: #7c3aed;
+            background: #7c3aed;
+        }
+        .match-card.selected .radio::after {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #fff;
+        }
+        .match-name {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 4px;
+        }
+        .match-detail {
+            font-size: 13px;
+            color: #666;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .match-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 99px;
+            background: #f3f4f6;
+            color: #374151;
+        }
+        .match-badge.google { background: #fff1f0; color: #db4437; }
+        .match-badge.apple  { background: #f0f0f0; color: #1d1d1f; }
+        .match-badge.email  { background: #eff6ff; color: #1d4ed8; }
+
+        /* ── Code input ── */
+        #code-input {
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            font-size: 18px;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        /* ── Status messages ── */
+        .alert {
+            border-radius: 12px;
+            padding: 14px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .alert.show { display: block; }
+        .alert-error  { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+        .alert-info   { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+        .alert-success { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+
+        /* ── Success state ── */
+        .success-view {
+            text-align: center;
+            display: none;
+        }
+        .success-view.show { display: block; }
+        .success-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+        .success-title {
+            font-size: 24px;
+            font-weight: 800;
+            color: #1a1a2e;
+            margin-bottom: 8px;
+        }
+        .success-desc {
+            font-size: 15px;
+            color: #555;
+            margin-bottom: 24px;
+            line-height: 1.6;
+        }
+        .tier-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #7c3aed, #db2777);
+            color: #fff;
+            border-radius: 99px;
+            padding: 8px 20px;
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+
+        /* ── Loading spinner ── */
+        .spinner {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 3px solid rgba(255,255,255,0.4);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .no-matches {
+            text-align: center;
+            padding: 24px;
+            color: #888;
+            font-size: 14px;
+            background: #f9fafb;
+            border-radius: 12px;
+            margin-bottom: 16px;
+        }
+
+        @media (max-width: 540px) {
+            .redeem-card { padding: 32px 20px; }
+            .redeem-title { font-size: 22px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Navigation -->
+<nav class="navbar">
+    <div class="container">
+        <div class="nav-wrapper">
+            <a href="index.html" class="logo" aria-label="ChatGPA home">
+                <span class="logo-text">ChatGPA</span>
+            </a>
+        </div>
+    </div>
+</nav>
+
+<div class="redeem-page">
+<div class="redeem-card">
+
+    <!-- Success view (hidden until redemption completes) -->
+    <div class="success-view" id="success-view">
+        <div class="success-icon">🎉</div>
+        <h2 class="success-title">You're all set!</h2>
+        <p class="success-desc" id="success-desc">Your account has been upgraded.</p>
+        <div class="tier-chip" id="tier-chip">⭐ Premium</div>
+        <p style="font-size:13px;color:#888;margin-bottom:24px;">
+            Open the ChatGPA app and refresh your account to see the new features.
+        </p>
+        <a href="index.html" style="display:inline-block;font-size:14px;color:#7c3aed;font-weight:600;text-decoration:none;">
+            ← Back to home
+        </a>
+    </div>
+
+    <!-- Main redemption flow -->
+    <div id="main-flow">
+        <div class="redeem-logo">
+            <span class="logo-text">ChatGPA</span>
+        </div>
+
+        <h1 class="redeem-title">Redeem your code</h1>
+        <p class="redeem-subtitle">
+            Enter your account details to find your profile, then enter the promo code
+            to unlock Premium access.
+        </p>
+
+        <!-- Step indicator -->
+        <div class="steps">
+            <div class="step active" id="step-ind-1">
+                <div class="step-num">1</div>
+                <span>Find Account</span>
+            </div>
+            <div class="step-line" id="step-line-1"></div>
+            <div class="step" id="step-ind-2">
+                <div class="step-num">2</div>
+                <span>Confirm</span>
+            </div>
+            <div class="step-line" id="step-line-2"></div>
+            <div class="step" id="step-ind-3">
+                <div class="step-num">3</div>
+                <span>Redeem</span>
+            </div>
+        </div>
+
+        <!-- ── STEP 1: Find Account ── -->
+        <div id="step1">
+            <div class="alert alert-info show">
+                Enter the name you registered with in the app. Adding email or grade level
+                helps narrow the search if multiple accounts share the same name.
+            </div>
+
+            <div class="alert alert-error" id="step1-error"></div>
+
+            <div class="form-group">
+                <label for="input-name">Your name in the app <span class="optional">(required)</span></label>
+                <input type="text" id="input-name" placeholder="e.g. Bo Jiang" autocomplete="name">
+                <p class="hint">
+                    This is the name shown in Settings → Profile inside the ChatGPA app.
+                </p>
+            </div>
+
+            <div class="form-group">
+                <label for="input-email">Email address <span class="optional">(optional — helps narrow results)</span></label>
+                <input type="email" id="input-email" placeholder="e.g. bo@gmail.com" autocomplete="email">
+                <p class="hint">
+                    If you signed in with Apple and used "Hide My Email", go to
+                    Settings → your name → Edit Profile in the app to see the exact address stored.
+                </p>
+            </div>
+
+            <div class="form-group">
+                <label for="input-grade">Grade level <span class="optional">(optional)</span></label>
+                <select id="input-grade">
+                    <option value="">— Any grade —</option>
+                    <option>Kindergarten</option>
+                    <option>Grade 1</option><option>Grade 2</option><option>Grade 3</option>
+                    <option>Grade 4</option><option>Grade 5</option><option>Grade 6</option>
+                    <option>Grade 7</option><option>Grade 8</option><option>Grade 9</option>
+                    <option>Grade 10</option><option>Grade 11</option><option>Grade 12</option>
+                    <option>University / College</option>
+                    <option>Adult learner</option>
+                </select>
+            </div>
+
+            <button class="btn-primary" id="btn-find" onclick="findAccount()">
+                Search for my account
+            </button>
+        </div>
+
+        <!-- ── STEP 2: Choose match ── -->
+        <div id="step2" style="display:none;">
+            <div class="alert alert-info show" id="step2-info"></div>
+            <div class="alert alert-error" id="step2-error"></div>
+
+            <div class="matches-list" id="matches-list"></div>
+
+            <button class="btn-primary" id="btn-confirm" onclick="confirmAccount()" disabled>
+                This is my account — continue
+            </button>
+            <button class="btn-secondary" onclick="backToStep1()">
+                ← Search again
+            </button>
+        </div>
+
+        <!-- ── STEP 3: Enter code ── -->
+        <div id="step3" style="display:none;">
+            <div class="alert alert-error" id="step3-error"></div>
+
+            <div id="confirmed-account" style="background:#faf5ff;border-radius:12px;padding:16px 20px;margin-bottom:24px;">
+                <!-- filled by JS -->
+            </div>
+
+            <div class="form-group">
+                <label for="code-input">Promo code</label>
+                <input type="text" id="code-input" placeholder="e.g. LAUNCH2026"
+                       maxlength="50" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9_-]/g,'')">
+                <p class="hint">Promo codes are case-insensitive. Enter it exactly as you received it.</p>
+            </div>
+
+            <button class="btn-primary" id="btn-redeem" onclick="redeemCode()">
+                Redeem code
+            </button>
+            <button class="btn-secondary" onclick="backToStep2()">
+                ← Change account
+            </button>
+        </div>
+    </div><!-- /#main-flow -->
+
+</div><!-- /.redeem-card -->
+</div><!-- /.redeem-page -->
+
+<script>
+    const API_BASE = 'https://sai-backend-production.up.railway.app';
+
+    let selectedMatch = null; // { lookup_token, display }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    function showError(id, msg) {
+        const el = document.getElementById(id);
+        el.textContent = msg;
+        el.classList.add('show');
+    }
+
+    function hideError(id) {
+        const el = document.getElementById(id);
+        el.textContent = '';
+        el.classList.remove('show');
+    }
+
+    function setLoading(btnId, loading, label) {
+        const btn = document.getElementById(btnId);
+        if (loading) {
+            btn.disabled = true;
+            btn.innerHTML = `<span class="spinner"></span> ${label}`;
+        } else {
+            btn.disabled = false;
+            btn.innerHTML = label;
+        }
+    }
+
+    function providerBadge(provider) {
+        const map = {
+            google: '<span class="match-badge google">G Google</span>',
+            apple:  '<span class="match-badge apple"> Apple</span>',
+            email:  '<span class="match-badge email">✉ Email</span>',
+            anonymous: '<span class="match-badge">Guest</span>',
+        };
+        return map[provider] || map.email;
+    }
+
+    function setStep(n) {
+        [1, 2, 3].forEach(i => {
+            document.getElementById(`step${i}`).style.display = (i === n) ? 'block' : 'none';
+            const ind = document.getElementById(`step-ind-${i}`);
+            ind.classList.remove('active', 'done');
+            if (i < n) ind.classList.add('done');
+            if (i === n) ind.classList.add('active');
+            const line = document.getElementById(`step-line-${i}`);
+            if (line) line.classList.toggle('done', i < n);
+        });
+    }
+
+    // ── Step 1: Find account ─────────────────────────────────────────────────
+
+    async function findAccount() {
+        const name = document.getElementById('input-name').value.trim();
+        const email = document.getElementById('input-email').value.trim();
+        const grade = document.getElementById('input-grade').value;
+
+        hideError('step1-error');
+
+        if (name.length < 2) {
+            showError('step1-error', 'Please enter at least 2 characters for your name.');
+            return;
+        }
+
+        setLoading('btn-find', true, 'Searching…');
+
+        try {
+            const body = { name };
+            if (email) body.email = email;
+            if (grade) body.grade_level = grade;
+
+            const res = await fetch(`${API_BASE}/api/account/find-for-redeem`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+
+            const json = await res.json();
+
+            if (!res.ok || !json.success) {
+                showError('step1-error', json.error || 'Search failed. Please try again.');
+                return;
+            }
+
+            const matches = json.data.matches || [];
+
+            if (matches.length === 0) {
+                showError('step1-error',
+                    'No account found with that name. Double-check the name in Settings → Profile in the app, or try adding your email address.'
+                );
+                return;
+            }
+
+            renderMatches(matches);
+            setStep(2);
+
+        } catch (err) {
+            showError('step1-error', 'Network error. Please check your connection and try again.');
+        } finally {
+            setLoading('btn-find', false, 'Search for my account');
+        }
+    }
+
+    function renderMatches(matches) {
+        const list = document.getElementById('matches-list');
+        list.innerHTML = '';
+        selectedMatch = null;
+
+        const info = document.getElementById('step2-info');
+        info.textContent = matches.length === 1
+            ? 'We found 1 account. Is this you?'
+            : `We found ${matches.length} account${matches.length > 1 ? 's' : ''}. Select yours below.`;
+
+        matches.forEach((m, i) => {
+            const d = m.display;
+            const card = document.createElement('div');
+            card.className = 'match-card';
+            card.dataset.idx = i;
+            card.innerHTML = `
+                <div class="radio"></div>
+                <div class="match-name">${escapeHtml(d.name)}</div>
+                <div class="match-detail">
+                    <span>${escapeHtml(d.email)}</span>
+                    ${d.grade_level ? `<span>· ${escapeHtml(d.grade_level)}</span>` : ''}
+                    <span>· Member since ${escapeHtml(d.member_since)}</span>
+                </div>
+                <div style="margin-top:8px;">${providerBadge(d.auth_provider)}</div>
+            `;
+            card.addEventListener('click', () => selectMatch(card, m));
+            list.appendChild(card);
+        });
+
+        // Auto-select if only one match
+        if (matches.length === 1) {
+            selectMatch(list.firstChild, matches[0]);
+        }
+    }
+
+    function selectMatch(card, match) {
+        document.querySelectorAll('.match-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        selectedMatch = match;
+        document.getElementById('btn-confirm').disabled = false;
+    }
+
+    // ── Step 2: Confirm account ──────────────────────────────────────────────
+
+    function confirmAccount() {
+        if (!selectedMatch) return;
+
+        const d = selectedMatch.display;
+        document.getElementById('confirmed-account').innerHTML = `
+            <div style="display:flex;align-items:center;gap:12px;">
+                <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#db2777);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:18px;flex-shrink:0;">
+                    ${escapeHtml(d.name.charAt(0).toUpperCase())}
+                </div>
+                <div>
+                    <div style="font-weight:700;font-size:16px;color:#1a1a2e;">${escapeHtml(d.name)}</div>
+                    <div style="font-size:13px;color:#666;">${escapeHtml(d.email)}</div>
+                    <div style="margin-top:4px;">${providerBadge(d.auth_provider)}${d.grade_level ? `&nbsp;<span class="match-badge">${escapeHtml(d.grade_level)}</span>` : ''}</div>
+                </div>
+            </div>
+        `;
+
+        hideError('step2-error');
+        setStep(3);
+    }
+
+    // ── Step 3: Redeem code ──────────────────────────────────────────────────
+
+    async function redeemCode() {
+        const code = document.getElementById('code-input').value.trim();
+        hideError('step3-error');
+
+        if (!code) {
+            showError('step3-error', 'Please enter your promo code.');
+            return;
+        }
+        if (!selectedMatch) {
+            showError('step3-error', 'Session expired. Please start over.');
+            return;
+        }
+
+        setLoading('btn-redeem', true, 'Applying code…');
+
+        try {
+            const res = await fetch(`${API_BASE}/api/account/redeem-promo`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    lookup_token: selectedMatch.lookup_token,
+                    code,
+                }),
+            });
+
+            const json = await res.json();
+
+            if (!res.ok || !json.success) {
+                const errorCode = json.code || '';
+                let msg = json.error || 'Redemption failed. Please try again.';
+                if (errorCode === 'TOKEN_EXPIRED') {
+                    msg = 'Your session expired. Please search for your account again.';
+                    backToStep1();
+                    showError('step1-error', msg);
+                    return;
+                }
+                showError('step3-error', msg);
+                return;
+            }
+
+            // Success!
+            const data = json.data;
+            const tierLabel = data.tier === 'premium_plus' ? 'Premium Plus' : 'Premium';
+            const expiryDate = new Date(data.tier_expires_at).toLocaleDateString('en-US', {
+                year: 'numeric', month: 'long', day: 'numeric'
+            });
+
+            document.getElementById('success-desc').textContent =
+                `${selectedMatch.display.name}'s account now has ${tierLabel} access until ${expiryDate}. Open ChatGPA and enjoy all premium features!`;
+            document.getElementById('tier-chip').textContent = `⭐ ${tierLabel}`;
+
+            document.getElementById('main-flow').style.display = 'none';
+            document.getElementById('success-view').classList.add('show');
+
+        } catch (err) {
+            showError('step3-error', 'Network error. Please check your connection and try again.');
+        } finally {
+            setLoading('btn-redeem', false, 'Redeem code');
+        }
+    }
+
+    // ── Navigation helpers ───────────────────────────────────────────────────
+
+    function backToStep1() {
+        selectedMatch = null;
+        hideError('step1-error');
+        setStep(1);
+    }
+
+    function backToStep2() {
+        hideError('step3-error');
+        setStep(2);
+    }
+
+    // ── XSS helper ───────────────────────────────────────────────────────────
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    // Allow Enter key in step 1 fields
+    ['input-name', 'input-email'].forEach(id => {
+        document.getElementById(id)?.addEventListener('keydown', e => {
+            if (e.key === 'Enter') findAccount();
+        });
+    });
+    document.getElementById('code-input')?.addEventListener('keydown', e => {
+        if (e.key === 'Enter') redeemCode();
+    });
+</script>
+
+</body>
+</html>
