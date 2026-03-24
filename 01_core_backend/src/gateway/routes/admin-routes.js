@@ -1058,6 +1058,34 @@ module.exports = async function (fastify, opts) {
   // ============================================================================
 
   /**
+   * POST /api/admin/setup/run-migration
+   * Runs a named SQL migration file from src/migrations/.
+   * Body: { file: "20260324_promo_codes.sql" }
+   * Safe to call multiple times — SQL uses CREATE TABLE IF NOT EXISTS.
+   */
+  fastify.post('/api/admin/setup/run-migration', { preHandler: verifyAdmin }, async (request, reply) => {
+    const { file } = request.body || {};
+    if (!file || typeof file !== 'string' || !/^[\w.-]+\.sql$/.test(file)) {
+      return reply.code(400).send({ success: false, error: 'file must be a valid .sql filename' });
+    }
+    const fs = require('fs');
+    const path = require('path');
+    const sqlPath = path.join(__dirname, '../../migrations', file);
+    if (!fs.existsSync(sqlPath)) {
+      return reply.code(404).send({ success: false, error: `Migration file not found: ${file}` });
+    }
+    const sql = fs.readFileSync(sqlPath, 'utf8');
+    try {
+      await db.query(sql);
+      fastify.log.info(`[Admin] Migration applied: ${file} by ${request.adminUser?.email}`);
+      return reply.send({ success: true, message: `Migration applied: ${file}` });
+    } catch (error) {
+      fastify.log.error({ err: error }, `[Admin] Migration failed: ${file}`);
+      return reply.code(500).send({ success: false, error: error.message });
+    }
+  });
+
+  /**
    * POST /api/admin/setup/create-admin  (dev only)
    */
   fastify.post('/api/admin/setup/create-admin', async (request, reply) => {
