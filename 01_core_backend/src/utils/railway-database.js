@@ -562,14 +562,13 @@ const db = {
   // ============================================
 
   /**
-   * Get user's tier info (cached 1hr via userCache)
+   * Get user's tier info — always reads from DB (no in-memory cache).
+   * Previously cached 1hr via NodeCache, but that caused stale tier data
+   * across Railway instances after a subscription upgrade. The query is a
+   * fast PK lookup so no cache is needed here.
    * Returns: { tier, tier_expires_at, monthly_usage, usage_reset_date, is_anonymous }
    */
   async getUserTier(userId) {
-    const cacheKey = `tier:${userId}`;
-    const cached = userCache.get(cacheKey);
-    if (cached) return cached;
-
     const result = await this.query(
       `SELECT tier, tier_expires_at, is_anonymous, monthly_usage, usage_reset_date
        FROM users WHERE id = $1`,
@@ -579,15 +578,13 @@ const db = {
     const row = result.rows[0];
     if (!row) return { tier: 'free', is_anonymous: false, monthly_usage: {}, usage_reset_date: null };
 
-    const data = {
+    return {
       tier: row.tier || 'free',
       tier_expires_at: row.tier_expires_at,
       is_anonymous: row.is_anonymous || false,
       monthly_usage: row.monthly_usage || {},
       usage_reset_date: row.usage_reset_date,
     };
-    userCache.set(cacheKey, data);
-    return data;
   },
 
   /**
@@ -637,10 +634,11 @@ const db = {
   },
 
   /**
-   * Bust 1hr tier cache for a user (call after subscription upgrade)
+   * No-op — tier is no longer cached in memory (removed to fix stale data
+   * across Railway instances). Kept so existing call sites don't break.
    */
   invalidateTierCache(userId) {
-    userCache.del(`tier:${userId}`);
+    // intentionally empty
   },
 
   /**
@@ -5402,6 +5400,194 @@ async function runDatabaseMigrations() {
       } catch (migrationError) {
         logger.error({ err: migrationError }, '❌ Migration 023 failed');
       }
+    }
+
+    // MIGRATION 024: Backfill data_sharing_consent for users who completed onboarding (2026-03-16)
+    // Migration 018 backfilled onboarding_completed but not data_sharing_consent.
+    // Users who went through onboarding on Device 1 have onboarding_completed=true but
+    // data_sharing_consent=false in the DB, causing onboarding to re-appear on new devices
+    // because ContentView checks both flags. Backfill: any profile with onboarding_completed=true
+    // implicitly gave consent during their original onboarding session.
+    const migration024Check = await db.query(`
+      SELECT 1 FROM migration_history WHERE migration_name = '024_backfill_data_sharing_consent'
+    `);
+    if (migration024Check.rows.length === 0) {
+      try {
+        await db.query(`
+          UPDATE profiles
+          SET data_sharing_consent = true
+          WHERE onboarding_completed = true
+            AND data_sharing_consent = false;
+        `);
+        await db.query(`
+          INSERT INTO migration_history (migration_name)
+          VALUES ('024_backfill_data_sharing_consent')
+          ON CONFLICT (migration_name) DO NOTHING;
+        `);
+        logger.debug('✅ Migration 024: data_sharing_consent backfilled for onboarded users');
+      } catch (migrationError) {
+        logger.error({ err: migrationError }, '❌ Migration 024 failed');
+      }
+    } else {
+      logger.debug('✅ Migration 024: data_sharing_consent backfill already applied');
+    }
+
+    // MIGRATION 025: Add APNs device token to profiles (2026-03-16)
+    // Enables server-side push notifications for scheduled parent reports.
+    const migration025Check = await db.query(`
+      SELECT 1 FROM migration_history WHERE migration_name = '025_add_apns_token'
+    `);
+    if (migration025Check.rows.length === 0) {
+      try {
+        await db.query(`
+          ALTER TABLE profiles
+          ADD COLUMN IF NOT EXISTS apns_token TEXT,
+          ADD COLUMN IF NOT EXISTS apns_token_updated_at TIMESTAMPTZ
+        `);
+        await db.query(`
+          INSERT INTO migration_history (migration_name)
+          VALUES ('025_add_apns_token')
+          ON CONFLICT (migration_name) DO NOTHING
+        `);
+        logger.debug('✅ Migration 025: apns_token column added to profiles');
+      } catch (migrationError) {
+        logger.error({ err: migrationError }, '❌ Migration 025 failed');
+      }
+    } else {
+      logger.debug('✅ Migration 025: apns_token already exists');
+    }
+
+    // MIGRATION 026: Add apns_env column to profiles (2026-03-16)
+    // Stores whether each device token is sandbox or production so the
+    // correct APNs endpoint is used when sending push notifications.
+    const migration026Check = await db.query(`
+      SELECT 1 FROM migration_history WHERE migration_name = '026_add_apns_env'
+    `);
+    if (migration026Check.rows.length === 0) {
+      try {
+        await db.query(`
+          ALTER TABLE profiles
+          ADD COLUMN IF NOT EXISTS apns_env TEXT DEFAULT 'production'
+        `);
+        await db.query(`
+          INSERT INTO migration_history (migration_name)
+          VALUES ('026_add_apns_env')
+          ON CONFLICT (migration_name) DO NOTHING
+        `);
+        logger.debug('✅ Migration 026: apns_env column added to profiles');
+      } catch (migrationError) {
+        logger.error({ err: migrationError }, '❌ Migration 026 failed');
+      }
+    } else {
+      logger.debug('✅ Migration 026: apns_env already exists');
+    }
+
+    // MIGRATION 027: Unique constraint on questions (user_id, question_text, student_answer, grade)
+    // Rules:
+    //   - Same question + different student answer  → different row (allowed)
+    //   - Same question + same answer + different grade → different row (allowed)
+    //   - Same question + same answer + same grade  → duplicate (blocked)
+    const migration027Check = await db.query(`
+      SELECT 1 FROM migration_history WHERE migration_name = '027_questions_unique_constraint'
+    `);
+    if (migration027Check.rows.length === 0) {
+      try {
+        // Normalise NULLs so the unique index can enforce equality reliably
+        await db.query(`UPDATE questions SET question_text  = '' WHERE question_text  IS NULL`);
+        await db.query(`UPDATE questions SET student_answer = '' WHERE student_answer IS NULL`);
+        await db.query(`UPDATE questions SET grade          = 'EMPTY' WHERE grade IS NULL`);
+
+        // Remove exact duplicates, keeping the earliest row (lowest id)
+        await db.query(`
+          DELETE FROM questions q1
+          USING questions q2
+          WHERE q1.id > q2.id
+            AND q1.user_id        = q2.user_id
+            AND q1.question_text  = q2.question_text
+            AND q1.student_answer = q2.student_answer
+            AND q1.grade          = q2.grade
+        `);
+
+        await db.query(`
+          CREATE UNIQUE INDEX IF NOT EXISTS questions_dedup_unique
+          ON questions (user_id, question_text, student_answer, grade)
+        `);
+        await db.query(`
+          INSERT INTO migration_history (migration_name)
+          VALUES ('027_questions_unique_constraint')
+          ON CONFLICT (migration_name) DO NOTHING
+        `);
+        logger.debug('✅ Migration 027: unique constraint (question+answer+grade) added to questions table');
+      } catch (migrationError) {
+        logger.error({ err: migrationError }, '❌ Migration 027 failed');
+      }
+    } else {
+      logger.debug('✅ Migration 027: questions unique constraint already exists');
+    }
+
+    // Migration 028: Add indexes to fix slow token verification query (verifyUserSession)
+    const migration028Check = await db.query(`
+      SELECT migration_name FROM migration_history WHERE migration_name = '028_session_token_indexes'
+    `);
+    if (migration028Check.rows.length === 0) {
+      try {
+        await db.query(`CREATE INDEX IF NOT EXISTS idx_user_sessions_token_hash ON user_sessions (token_hash)`);
+        await db.query(`CREATE INDEX IF NOT EXISTS idx_user_sessions_expires_at ON user_sessions (expires_at)`);
+        await db.query(`CREATE INDEX IF NOT EXISTS idx_users_is_active ON users (is_active) WHERE is_active = true`);
+        await db.query(`
+          INSERT INTO migration_history (migration_name)
+          VALUES ('028_session_token_indexes')
+          ON CONFLICT (migration_name) DO NOTHING
+        `);
+        logger.debug('✅ Migration 028: session token indexes added');
+      } catch (migrationError) {
+        logger.error({ err: migrationError }, '❌ Migration 028 failed');
+      }
+    } else {
+      logger.debug('✅ Migration 028: session token indexes already exist');
+    }
+
+    // Migration 029: Promo codes + redemptions (gifting Premium access)
+    const migration029Check = await db.query(`
+      SELECT migration_name FROM migration_history WHERE migration_name = '029_promo_codes'
+    `);
+    if (migration029Check.rows.length === 0) {
+      try {
+        await db.query(`
+          CREATE TABLE IF NOT EXISTS promo_codes (
+            id              SERIAL PRIMARY KEY,
+            code            VARCHAR(50) UNIQUE NOT NULL,
+            tier            VARCHAR(20) NOT NULL DEFAULT 'premium',
+            duration_days   INTEGER NOT NULL DEFAULT 30,
+            max_uses        INTEGER,
+            uses_count      INTEGER NOT NULL DEFAULT 0,
+            created_by      VARCHAR(100),
+            expires_at      TIMESTAMP,
+            is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+            created_at      TIMESTAMP NOT NULL DEFAULT NOW()
+          );
+          CREATE TABLE IF NOT EXISTS promo_redemptions (
+            id              SERIAL PRIMARY KEY,
+            code_id         INTEGER NOT NULL REFERENCES promo_codes(id),
+            user_id         INTEGER NOT NULL REFERENCES users(id),
+            redeemed_at     TIMESTAMP NOT NULL DEFAULT NOW(),
+            tier_expires_at TIMESTAMP NOT NULL,
+            UNIQUE (code_id, user_id)
+          );
+          CREATE INDEX IF NOT EXISTS idx_promo_codes_code ON promo_codes (code);
+          CREATE INDEX IF NOT EXISTS idx_promo_redemptions_user ON promo_redemptions (user_id);
+        `);
+        await db.query(`
+          INSERT INTO migration_history (migration_name)
+          VALUES ('029_promo_codes')
+          ON CONFLICT (migration_name) DO NOTHING
+        `);
+        logger.debug('✅ Migration 029: promo_codes and promo_redemptions tables created');
+      } catch (migrationError) {
+        logger.error({ err: migrationError }, '❌ Migration 029 failed');
+      }
+    } else {
+      logger.debug('✅ Migration 029: promo_codes tables already exist');
     }
 
   } catch (error) {
