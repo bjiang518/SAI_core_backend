@@ -14,7 +14,7 @@ struct ContactSupportView: View {
     @State private var showingMailError = false
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
                     // Header
@@ -41,7 +41,7 @@ struct ContactSupportView: View {
                                 showingMailComposer = true
                             } else {
                                 // Fallback to mailto URL
-                                if let url = URL(string: "mailto:\(AppURLs.supportEmail)?subject=StudyMates Support Request") {
+                                if let url = URL(string: "mailto:\(AppURLs.supportEmail)?subject=StudyAgent Support Request") {
                                     UIApplication.shared.open(url)
                                 }
                             }
@@ -52,22 +52,6 @@ struct ContactSupportView: View {
                                 subtitle: AppURLs.supportEmail,
                                 description: NSLocalizedString("contactSupport.emailDescription", comment: ""),
                                 color: .blue
-                            )
-                        }
-                        .buttonStyle(.plain)
-
-                        // Live Chat
-                        Button(action: {
-                            if let url = URL(string: "https://study-mates.net/support") {
-                                UIApplication.shared.open(url)
-                            }
-                        }) {
-                            ContactMethodCard(
-                                icon: "message.fill",
-                                title: NSLocalizedString("contactSupport.chatTitle", comment: ""),
-                                subtitle: NSLocalizedString("contactSupport.chatSubtitle", comment: ""),
-                                description: NSLocalizedString("contactSupport.chatDescription", comment: ""),
-                                color: .green
                             )
                         }
                         .buttonStyle(.plain)
@@ -98,12 +82,6 @@ struct ContactSupportView: View {
                         Text(NSLocalizedString("contactSupport.emailResponseTime", comment: ""))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
-                        Text(NSLocalizedString("contactSupport.chatResponseTime", comment: ""))
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                        Text(NSLocalizedString("contactSupport.phoneResponseTime", comment: ""))
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
                     }
                     .padding()
                     .background(Color(.systemGray6))
@@ -126,7 +104,7 @@ struct ContactSupportView: View {
         .sheet(isPresented: $showingMailComposer) {
             MailComposeView(
                 recipient: AppURLs.supportEmail,
-                subject: "StudyMates Support Request"
+                subject: "StudyAgent Support Request"
             )
         }
         .alert(NSLocalizedString("contactSupport.emailNotAvailable", comment: ""), isPresented: $showingMailError) {

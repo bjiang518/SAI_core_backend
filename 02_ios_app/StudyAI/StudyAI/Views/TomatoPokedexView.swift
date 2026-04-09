@@ -15,7 +15,7 @@ struct TomatoPokedexView: View {
     @State private var showExchangeView = false
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 themeManager.backgroundColor
                     .ignoresSafeArea()

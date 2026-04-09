@@ -57,7 +57,7 @@ struct MyGardenView: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 // Adaptive Background
                 LinearGradient(

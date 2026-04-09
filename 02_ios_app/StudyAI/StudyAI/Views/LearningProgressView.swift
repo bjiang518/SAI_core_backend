@@ -104,7 +104,7 @@ struct LearningProgressView: View {
             .frame(maxWidth: sizeClass == .regular ? 880 : .infinity)
             .frame(maxWidth: .infinity)
         }
-        .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundCream : Color(.systemBackground))
+        .background(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.backgroundCream : Color(.systemBackground))
         .navigationTitle(NSLocalizedString("progress.title", comment: "Progress tab title"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -213,33 +213,33 @@ struct LearningProgressView: View {
             Text(NSLocalizedString("progress.yourLearningJourney", comment: "Your learning journey section title"))
                 .font(.headline)
                 .fontWeight(.bold)
-                .foregroundColor(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.textPrimary : .primary)
+                .foregroundColor(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.textPrimary : .primary)
 
             HStack(spacing: 20) {
                 ProgressMetric(
                     title: NSLocalizedString("progress.pointsToday", comment: "Points earned today"),
                     value: "\(calculateTodayPoints())",
                     lottieAnimation: "Star",
-                    color: themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.pink : .blue
+                    color: themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.pink : .blue
                 )
 
                 ProgressMetric(
                     title: NSLocalizedString("progress.streak", comment: "Current streak"),
                     value: "\(pointsManager.currentStreak) \(NSLocalizedString("progress.days", comment: "days unit"))",
                     lottieAnimation: "rocket 2",
-                    color: themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.peach : .orange
+                    color: themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.peach : .orange
                 )
 
                 ProgressMetric(
                     title: NSLocalizedString("progress.totalPoints", comment: "Total points earned"),
                     value: "\(pointsManager.totalPointsEarned)",
                     lottieAnimation: "Star rating",
-                    color: themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.mint : .green
+                    color: themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.mint : .green
                 )
             }
         }
         .padding()
-        .background(themeManager.currentTheme == .cute ? Color.white : Color(.systemGroupedBackground))
+        .background(themeManager.currentTheme == .colorful ? Color.white : Color(.systemGroupedBackground))
         .cornerRadius(12)
     }
 
@@ -251,7 +251,7 @@ struct LearningProgressView: View {
             Text(selectedTimeframe == .currentWeek ? NSLocalizedString("progress.weeklyActivity", comment: "Weekly activity title") : NSLocalizedString("progress.monthlyActivity", comment: "Monthly activity title"))
                 .font(.headline)
                 .fontWeight(.bold)
-                .foregroundColor(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.textPrimary : .primary)
+                .foregroundColor(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.textPrimary : .primary)
 
             if selectedTimeframe == .currentWeek {
                 // Show weekly grid for current week
@@ -263,7 +263,7 @@ struct LearningProgressView: View {
             }
         }
         .padding()
-        .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavenderLight.opacity(0.4) : Color(.systemGroupedBackground))
+        .background(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.lavenderLight.opacity(0.4) : Color(.systemGroupedBackground))
         .cornerRadius(12)
     }
 
@@ -276,7 +276,7 @@ struct LearningProgressView: View {
                 Text(NSLocalizedString("progress.subjectBreakdown", comment: "Subject breakdown section title"))
                     .font(.headline)
                     .fontWeight(.bold)
-                    .foregroundColor(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.textPrimary : .primary)
+                    .foregroundColor(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.textPrimary : .primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
 
@@ -290,18 +290,18 @@ struct LearningProgressView: View {
                                 .foregroundColor(filter.swiftUIColor)
                             Text(filter.displayName)
                                 .font(.caption)
-                                .foregroundColor(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : .blue)
+                                .foregroundColor(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.blue : .blue)
                         }
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender.opacity(0.2) : Color.blue.opacity(0.1))
+                        .background(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.lavender.opacity(0.2) : Color.blue.opacity(0.1))
                         .cornerRadius(8)
                     } else {
                         Button(selectedTimeframe.displayName) {
                             // Timeframe selector could be expanded here
                         }
                         .font(.caption)
-                        .foregroundColor(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : .blue)
+                        .foregroundColor(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.blue : .blue)
                     }
                 }
                 .fixedSize(horizontal: true, vertical: false)
@@ -326,7 +326,7 @@ struct LearningProgressView: View {
             }
         }
         .padding()
-        .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundSoftPink : Color(.systemGroupedBackground))
+        .background(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.backgroundSoftPink : Color(.systemGroupedBackground))
         .cornerRadius(12)
     }
     
@@ -338,7 +338,7 @@ struct LearningProgressView: View {
             Text(NSLocalizedString("progress.learningGoals", comment: "Learning goals section title"))
                 .font(.headline)
                 .fontWeight(.bold)
-                .foregroundColor(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.textPrimary : .primary)
+                .foregroundColor(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.textPrimary : .primary)
 
             // Filter out weekly streak goals to avoid duplication with WeeklyProgressGrid
             let filteredGoals = pointsManager.learningGoals.filter { $0.type != .weeklyStreak }
@@ -356,7 +356,7 @@ struct LearningProgressView: View {
             }
         }
         .padding()
-        .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.mintLight.opacity(0.4) : Color(.systemGroupedBackground))
+        .background(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.mintLight.opacity(0.4) : Color(.systemGroupedBackground))
         .cornerRadius(12)
     }
 
@@ -374,33 +374,33 @@ struct LearningProgressView: View {
             Text(NSLocalizedString("progress.todaysActivity", comment: "Today's activity section title"))
                 .font(.headline)
                 .fontWeight(.bold)
-                .foregroundColor(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.textPrimary : .primary)
+                .foregroundColor(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.textPrimary : .primary)
 
             HStack(spacing: 20) {
                 ProgressMetric(
                     title: NSLocalizedString("progress.questions", comment: "Questions count"),
                     value: "\(totalQuestions)",
                     lottieAnimation: "Question and Answer 2",
-                    color: themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : .blue
+                    color: themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.blue : .blue
                 )
 
                 ProgressMetric(
                     title: NSLocalizedString("progress.correct", comment: "Correct answers count"),
                     value: "\(correctAnswers)",
                     lottieAnimation: "Correct",
-                    color: themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.mint : .green
+                    color: themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.mint : .green
                 )
 
                 ProgressMetric(
                     title: NSLocalizedString("progress.accuracy", comment: "Accuracy percentage"),
                     value: "\(Int(accuracy))%",
                     lottieAnimation: "Target",
-                    color: themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender : .orange
+                    color: themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.lavender : .orange
                 )
             }
         }
         .padding()
-        .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.yellowLight.opacity(0.4) : Color(.systemGroupedBackground))
+        .background(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.yellowLight.opacity(0.4) : Color(.systemGroupedBackground))
         .cornerRadius(12)
     }
 
@@ -412,14 +412,14 @@ struct LearningProgressView: View {
             Text(NSLocalizedString("progress.recentCheckouts", comment: "Recent checkouts section title"))
                 .font(.headline)
                 .fontWeight(.bold)
-                .foregroundColor(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.textPrimary : .primary)
+                .foregroundColor(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.textPrimary : .primary)
 
             ForEach(pointsManager.dailyCheckoutHistory.suffix(5).reversed(), id: \.id) { checkout in
                 CheckoutHistoryRow(checkout: checkout)
             }
         }
         .padding()
-        .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundSoftPink : Color(.systemGroupedBackground))
+        .background(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.backgroundSoftPink : Color(.systemGroupedBackground))
         .cornerRadius(12)
     }
     
@@ -971,7 +971,7 @@ struct SubjectAccuracyBarChart: View {
         }
 
         return deduplicated.map { progress in
-            let color = themeManager.currentTheme == .cute
+            let color = themeManager.currentTheme == .colorful
                 ? cuteColorForSubject(progress.subject.displayName)
                 : standardColorForSubject(progress.subject.displayName)
 
@@ -1345,17 +1345,17 @@ struct LearningGoalProgressRow: View {
                             Text(String.localizedStringWithFormat(NSLocalizedString("progress.pointsAvailable", comment: ""), availablePoints))
                                 .font(.caption)
                                 .fontWeight(.semibold)
-                                .foregroundColor(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : .blue)
+                                .foregroundColor(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.blue : .blue)
                         }
                     } else if goal.isCheckedOut {
                         // Show checked out status
                         HStack(spacing: 4) {
                             Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.mint : .green)
+                                .foregroundColor(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.mint : .green)
                                 .font(.caption)
                             Text(NSLocalizedString("progress.checkedOut", comment: "Checked out status label"))
                                 .font(.caption)
-                                .foregroundColor(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.mint : .green)
+                                .foregroundColor(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.mint : .green)
                         }
                     } else {
                         // Show progress
@@ -1377,7 +1377,7 @@ struct LearningGoalProgressRow: View {
 
             // Animated progress bar with cute theme color
             ProgressView(value: Double(goal.currentProgress), total: Double(goal.targetValue))
-                .progressViewStyle(LinearProgressViewStyle(tint: themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.mint : goal.type.color))
+                .progressViewStyle(LinearProgressViewStyle(tint: themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.mint : goal.type.color))
                 .scaleEffect(x: isAnimating ? 1.05 : 1.0, y: 1.0, anchor: .leading)
                 .animation(.easeInOut(duration: 0.3), value: isAnimating)
         }

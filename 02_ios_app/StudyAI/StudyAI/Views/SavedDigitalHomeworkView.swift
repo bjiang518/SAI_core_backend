@@ -37,7 +37,7 @@ struct SavedDigitalHomeworkView: View {
     // MARK: - Body
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 if let homework = homeworkData {
                     ScrollView {

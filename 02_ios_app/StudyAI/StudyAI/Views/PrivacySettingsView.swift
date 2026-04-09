@@ -36,7 +36,7 @@ struct PrivacySettingsView: View {
     @State private var showingOnboarding = false
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             List {
                 // COPPA Parental Consent Section
                 if let consent = consentStatus, consent.requiresConsent {
@@ -470,7 +470,7 @@ struct PrivacySettingsView: View {
             switch result {
             case .success(let data):
                 // Write to a temp file so share sheet can offer Save/AirDrop/Mail
-                let fileName = "StudyMates_DataExport_\(DateFormatter.exportDateFormatter.string(from: Date())).json"
+                let fileName = "StudyAgent_DataExport_\(DateFormatter.exportDateFormatter.string(from: Date())).json"
                 let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
                 do {
                     try data.write(to: url)

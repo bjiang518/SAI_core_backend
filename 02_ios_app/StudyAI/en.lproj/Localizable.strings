@@ -4,7 +4,7 @@
 */
 
 // Loading Screen
-"loading.appTagline" = "Your StudyMate";
+"loading.appTagline" = "Your Study Agent";
 
 // Biometric Authentication (NEW - no existing alternatives)
 "login.enableBiometric" = "Enable %@?";
@@ -28,9 +28,9 @@
 "settings.signOut" = "Sign Out";
 "settings.biometricLogin" = "%@ Login";
 "settings.parentControls.message" = "Verify parental access to manage settings";
-"settings.appVersion" = "StudyMates v1.0";
+"settings.appVersion" = "StudyAgent v1.0";
 "settings.appTagline" = "Enhanced with Modern Authentication";
-"settings.appPoweredBy" = "Powered by OpenAI GPT-4";
+"settings.appPoweredBy" = "Powered by advanced AI models";
 "settings.security" = "Security & Privacy";
 "settings.passwordManager" = "Password Manager";
 "settings.privacySettings" = "Privacy Settings";
@@ -54,6 +54,7 @@
 "settings.contact" = "Contact Support";
 "settings.rateApp" = "Rate App";
 "settings.shareApp" = "Share App";
+"settings.visitWebsite" = "Visit Website";
 
 // Profile
 "profile.complete" = "Profile %d%% complete";
@@ -139,13 +140,13 @@
 "home.practiceDescription" = "Generate & test";
 "home.mistakeReview" = "Mistake Review";
 "home.mistakeReviewDescription" = "Target your weakness";
-"home.parentReports" = "Parent Reports";
+"home.parentReports" = "Study Reports";
 "home.parentReportsDescription" = "Study progress & insights";
 "home.homeworkAlbum" = "Homework Album";
 "home.homeworkAlbumDescription" = "View all submitted homework";
 
-// Parent Reports
-"parentReport.title" = "Parent Reports";
+// Study Reports
+"parentReport.title" = "Study Reports";
 "parentReport.studyReports" = "Study Reports";
 "parentReport.trackProgress" = "Track your child's academic progress";
 "parentReport.quickActions" = "Quick Actions";
@@ -185,6 +186,8 @@
 "aiHomework.grading" = "Grading answers...";
 "aiHomework.preparingResults" = "Preparing results...";
 "aiHomework.analysisComplete" = "Analysis complete!";
+"ai.disclaimer" = "AI may make mistakes — please verify carefully";
+"onboarding.consent.aiServices.disclaimer" = "AI may make mistakes — please verify carefully";
 "aiHomework.processingError" = "Processing Error";
 "aiHomework.homeworkAnalysisComplete" = "Homework Analysis Complete";
 "aiHomework.gradingCompleteMessage" = "Your homework has been graded. Found %d question(s).";
@@ -223,7 +226,7 @@
 "aiHomework.parsingMode.progressive.description" = "Smart digital homework with on-demand grading. Flexible and interactive.";
 "aiHomework.parsingMode.hierarchical.description" = "Accurate parsing with parent-child question relationships. Best for structured homework.";
 "aiHomework.parsingMode.baseline.description" = "Faster parsing with flat question structure. Good for simple homework.";
-"aiHomework.parsingMode.fast.description" = "Quick AI analysis with GPT-4o-mini. Fast results with high accuracy.";  // ✅ Production: Fast Mode description
+"aiHomework.parsingMode.fast.description" = "Quick AI analysis. Fast results with high accuracy.";  // ✅ Production: Fast Mode description
 "aiHomework.subject" = "Subject";
 "aiHomework.model" = "Model";
 "aiHomework.mode" = "Mode";
@@ -389,7 +392,7 @@
 "parentPasswordRemove.incorrectPin" = "❌ Incorrect PIN. Please try again.";
 
 
-"app.name" = "StudyAI";
+"app.name" = "StudyAgent";
 "app.tagline" = "Your AI-Powered Learning Companion";
 "auth.login.welcome" = "Welcome Back!";
 "auth.login.subtitle" = "Sign in to continue your learning journey.";
@@ -416,7 +419,7 @@
 "upgrade.continueFree" = "Continue with Free";
 
 // Upgrade Comparison View
-"upgrade.comparison.headerTitle" = "Upgrade your AI StudyMate";
+"upgrade.comparison.headerTitle" = "Upgrade your StudyAgent";
 "upgrade.comparison.headerSubtitle" = "Get unlimited help with an interactive AI tutor.";
 "upgrade.comparison.badgeFreeToTry" = "Free to try";
 "upgrade.comparison.badgeMostPopular" = "Most Popular";
@@ -425,7 +428,7 @@
 "upgrade.comparison.planPremium" = "Premium";
 "upgrade.comparison.planUltra" = "Ultra";
 "upgrade.comparison.pricePeriod" = "/mo";
-"upgrade.comparison.featureHomework" = "Homework\nUpload";
+"upgrade.comparison.featureHomework" = "Homework\nPages";
 "upgrade.comparison.featureAiChat" = "AI\nChat";
 "upgrade.comparison.featureLiveTutor" = "Live\nTutor";
 "upgrade.comparison.featurePractice" = "Targeted\nPractice";
@@ -439,6 +442,8 @@
 "upgrade.comparison.continueFree" = "Continue with Free";
 "upgrade.comparison.restorePurchases" = "Restore Purchases";
 "upgrade.comparison.terms" = "Subscriptions auto-renew unless cancelled at least 24 hours before the end of the current period. Manage or cancel anytime in Settings > Apple ID > Subscriptions.";
+"upgrade.comparison.termsLink" = "Terms of Use";
+"upgrade.comparison.privacyLink" = "Privacy Policy";
 "upgrade.comparison.yourCurrentUsage" = "Your current usage";
 "upgrade.comparison.usageHomework" = "Homework";
 "upgrade.comparison.usageChat" = "Chat";
@@ -465,7 +470,7 @@
 "account.usage.feature.chat_messages" = "AI Chat";
 "account.usage.feature.questions" = "Practice Questions";
 "account.usage.feature.error_analysis" = "Weakness Analysis";
-"account.usage.feature.reports" = "Parent Reports";
+"account.usage.feature.reports" = "Study Reports";
 "account.usage.feature.voice_minutes" = "Live Tutor";
 "account.usage.feature.tts_calls" = "AI Voice";
 
@@ -481,7 +486,7 @@
 "faceIDReauth.error.failed" = "%@ authentication failed. Please try again.";
 "faceIDReauth.error.generic" = "Authentication failed: %@";
 "auth.signup.title" = "Create Your Account";
-"auth.signup.subtitle" = "Join StudyAI to start your learning adventure!";
+"auth.signup.subtitle" = "Join StudyAgent to start your learning adventure!";
 "auth.fullName" = "Full Name";
 "auth.enterFullName" = "Enter your full name";
 "auth.createPassword" = "Create a password";
@@ -702,6 +707,11 @@
 "newPractice.error.sessionNotFound" = "Session not found after generation.";
 "newPractice.error.noSelection" = "Please select at least one conversation or question.";
 "newPractice.error.multipleSubjects" = "Selected items span multiple subjects. Please select items from one subject only.";
+"newPractice.archiveSelected" = "%d item(s) selected";
+"practiceLibrary.typeRandom" = "Random Practice";
+"practiceLibrary.typeConversation" = "Conversation Review";
+"practiceLibrary.typeMistake" = "Mistake Practice";
+"practiceLibrary.typeLibrary" = "Library Practice";
 
 // Practice Library
 "practiceLibrary.title" = "Practice";
@@ -721,6 +731,9 @@
 "practiceLibrary.card.inProgress" = "In Progress";
 "practiceLibrary.statusOngoing" = "Ongoing";
 "practiceLibrary.statusCompleted" = "Completed";
+
+"practiceLibrary.info.title" = "How to Generate Practice";
+"practiceLibrary.info.message" = "5 Ways to Create a Question Sheet\n\n1. Random Practice\nTap + New and choose Random Practice. AI generates adaptive questions based on your weakness data and selected subject. Adjust difficulty and question type.\n\n2. From Archives\nTap + New and choose From Archives. Select past conversations or saved questions. AI creates new review questions from that material. Items must be from a single subject.\n\n3. Weakness-Based Practice\nGo to Learning Progress, then tap any weakness item. AI generates targeted questions for that specific weak area.\n\n4. Mistake Retry\nGo to Mistake Review, select specific mistakes, and tap Re-attempt. Re-practices your exact original questions — no AI generation required.\n\n5. Redo a Session\nOpen any completed session from this list and tap Redo. Repeats the same question set from scratch.";
 
 // Practice Sheet
 "practiceSheet.questionCounter" = "Q %d/%d";
@@ -820,7 +833,7 @@
 "generatedQuestions.points" = "%d pts";
 "generatedQuestions.emailGreeting" = "Hi!";
 "generatedQuestions.emailBody" = "I'm sharing %d practice questions for %@.";
-"generatedQuestions.emailGeneratedBy" = "This PDF was generated using Study Mates, an AI-powered learning companion.";
+"generatedQuestions.emailGeneratedBy" = "This PDF was generated using StudyAgent, an AI-powered learning companion.";
 "generatedQuestions.emailClosing" = "Happy studying!";
 
 
@@ -836,27 +849,13 @@
 "progress.unableToLoadData" = "Unable to Load Data";
 "progress.tryAgain" = "Try Again";
 "progress.info.title" = "How to Use Learning Progress";
-"progress.info.message" = "📊 Understanding Your Progress:\n\n• Timeframe Filter: Tap the three-dot menu to switch between Current Week, Current Month, or All Time\n• Subject Breakdown: View your performance across different subjects with accuracy percentages\n• Color-Coded Cards: Each subject shows questions answered, accuracy rate, and trend indicators (↑ improving, → stable, ↓ needs work)\n• Tap any subject card to see detailed analytics and personalized insights\n\n🎯 Tips:\n• Pull down to refresh your latest progress\n• Check your daily streak to stay motivated\n• Focus on subjects with lower accuracy for improvement";
-
-"tomatoGarden.info.title" = "About Tomato Garden";
-"tomatoGarden.info.message" = "🍅 Your Tomato Collection:\n\n• Each completed focus session earns you a tomato\n• Filter by time (Today, This Week) or by tomato type\n• Three tomato varieties:\n  - Classic Tomato: Standard 25-minute sessions\n  - Curly Vine Tomato: Deep focus sessions\n  - Cute Tomato: Short focus sessions\n\n✨ Physics Mode:\nTap the physics mode button to see your tomatoes with physics-based animations and interactions!\n\n🏆 Milestones:\nCollect more tomatoes to unlock achievement milestones and track your focus journey.";
-
-"passiveReports.info.title" = "About Parent Reports";
-"passiveReports.info.message" = "📊 Automated Learning Insights:\n\n• Weekly/Monthly Reports: Switch between report periods using the tabs\n• Tap '+' to manually generate a new report batch\n• Each batch contains 8 specialized reports:\n  1. Executive Summary - Overall performance overview\n  2. Academic Performance - Subject-wise analysis\n  3. Learning Behavior - Study habits and patterns\n  4. Motivation & Emotional - Engagement indicators\n  5. Progress Trajectory - Improvement trends\n  6. Social Learning - Collaboration insights\n  7. Risk & Opportunity - Areas needing attention\n  8. Action Plan - Personalized recommendations\n\n💡 Tips:\n• Reports analyze your study sessions, archived conversations, and practice results\n• Tap any report card to view detailed insights\n• Use Edit mode to manage or delete old report batches";
-
-"library.select" = "Select";
+"progress.info.message" = "Learning Progress tracks your performance across all subjects based on graded homework and completed practice sessions.\n\nWhat You See:\n  • Subject cards showing accuracy percentage and total questions answered\n  • Trend arrows indicating whether performance is improving, stable, or declining\n  • Daily streak — consecutive days with recorded study activity\n\nHow to Filter:\n  • Tap the menu button (top right) to switch between This Week, This Month, and All Time\n  • Tap any subject card to open a detailed breakdown with charts and AI insights\n\nHow Accuracy Is Calculated:\n  • Correct answers divided by total graded attempts, as a percentage\n  • Both homework and practice session results are included\n\nTips:\n  • Pull down to refresh and load your latest results\n  • Focus on subjects with lower accuracy for the most efficient improvement";"tomatoGarden.info.title" = "About Tomato Garden";
+"tomatoGarden.info.message" = "Tomato Garden is a reward and collection system tied to your Pomodoro focus sessions.\n\nHow You Earn Tomatoes:\n  • Complete a 25-minute Pomodoro session to earn one tomato\n  • Each session awards a randomly selected tomato from 13 collectible types\n\nRarity Tiers:\n  • Tier 1 — Common: Classic, Curly, Cute\n  • Tier 2 — Uncommon varieties\n  • Tier 3 — Rare character varieties\n  • Tier 4 — Legendary: Golden, Platinum, Diamond\n\nUpgrading Your Collection:\n  • Collect 5 tomatoes of the same tier to exchange them for 1 tomato of the next higher tier\n  • Use the Exchange button to trade up your collection\n\nYour Garden:\n  • Displays up to 25 tomatoes at a time\n  • Tap the Physics button to enable Physics Garden mode with realistic movement\n\nFilters and Stats:\n  • Filter by tomato type or date earned\n  • Stats show total tomatoes collected, total focus time, and your longest session";"passiveReports.info.title" = "About Study Reports";
+"passiveReports.info.message" = "Study Reports are AI-generated analyses of your learning activity, produced automatically on a weekly and monthly basis.\n\nWhat Each Report Batch Includes:\n  • Executive Summary — overall performance overview for the period\n  • Academic Performance — accuracy and question counts by subject\n  • Learning Behavior — study session patterns and habits\n  • Motivation and Engagement — focus duration and effort indicators\n  • Progress Trajectory — improvement or decline trends over time\n  • Risk and Opportunity — subjects and topics that need the most attention\n  • Action Plan — specific, personalized recommendations for the next period\n\nHow to Use This Screen:\n  • Switch between the Weekly and Monthly tabs at the top\n  • Tap the + button to manually generate a new report batch\n  • Tap any report card to read the full analysis\n  • Tap Edit to delete old report batches\n\nData Sources:\n  • Reports draw from your completed homework sessions, archived AI chats, and practice results";"library.select" = "Select";
 
 "library.info.title" = "Your Library";
-"library.info.message" = "All your saved questions and conversations in one place.\n\n• Tap any card to review it\n• Swipe left to delete an item\n• Use Select (⋯ menu) to export PDF or delete multiple items\n• Use the search bar or filter tabs to find specific content";
-
-"homeworkResults.info.title" = "Understanding Your Results";
-"homeworkResults.info.message" = "📝 Homework Analysis Results:\n\n• Question Cards: Tap any card to expand and see full details, answers, and explanations\n• Checkboxes: Select questions you want to archive for later review\n• Color Indicators:\n  - Green: Correct answer\n  - Orange: Partially correct\n  - Red: Incorrect answer\n• Archive Button: Tap the book icon to save selected questions to your library\n\n💡 Tips:\n• Review incorrect answers carefully to understand mistakes\n• Use archived questions for focused practice later\n• Each question can be expanded to see step-by-step solutions\n• Progress is automatically tracked for learning analytics";
-
-
-
-
-
-"progress.yourLearningJourney" = "Your Learning Journey";
+"library.info.message" = "Your Library stores all saved questions and archived conversations in a single, searchable location.\n\nWhat Is Stored:\n  • Questions — individual questions archived after a homework session\n  • Conversations — full AI chat sessions saved from the Chat screen\n\nNavigating Your Library:\n  • Use the tabs at the top to filter by All, Questions, or Conversations\n  • Use the search bar to find items by subject, title, or keyword\n  • Tap any item to open and review its full content\n\nActions:\n  • Swipe left on any item to delete it\n  • Tap the menu button (top right) to enter Select mode\n  • In Select mode, choose multiple items to export as PDF or delete in bulk\n\nTips:\n  • Archive important questions immediately after reviewing homework results\n  • Use the Conversations tab to revisit AI explanations from past sessions";"homeworkResults.info.title" = "Understanding Your Results";
+"homeworkResults.info.message" = "Homework Results displays each question from your submission with a full AI-generated analysis and grade.\n\nReading Your Results:\n  • Each card shows the original question, the correct answer, and a step-by-step explanation\n  • Tap any card to expand it and read the full analysis\n\nColor Coding:\n  • Green — correct answer\n  • Orange — partially correct or incomplete\n  • Red — incorrect answer\n\nGrading Modes:\n  • Standard mode provides fast analysis for most homework\n  • Deep mode applies extended reasoning for complex or multi-step questions\n\nArchiving Questions:\n  • Tap the checkbox on a question card to select it\n  • Tap the Archive button (top right) to save selected questions to your Library\n  • Archived questions can be reviewed and re-attempted from the Library or Mistake Review screens\n\nProgress Tracking:\n  • Results automatically update your subject accuracy in the Learning Progress screen\n  • Incorrect answers are recorded for analysis in the Mistake Review screen";"progress.yourLearningJourney" = "Your Learning Journey";
 "progress.pointsToday" = "Points Today";
 "progress.streak" = "Streak";
 "progress.days" = "days";
@@ -1043,20 +1042,20 @@
 
 // Help Center
 "helpCenter.subtitle" = "Find answers to common questions";
-"helpCenter.faq1.question" = "How do I use the Homework Grader?";
-"helpCenter.faq1.answer" = "Take a photo of your homework or upload an image. Our AI will analyze it, detect questions, and provide detailed feedback with corrections and explanations.";
+"helpCenter.faq1.question" = "How do I grade my homework?";
+"helpCenter.faq1.answer" = "Open the Grader tab and tap the camera to take a photo, or choose from your photo library or Files app. The AI reads each question, grades your answers, and provides step-by-step solutions with explanations. You can archive individual questions to your Library for later review.";
 "helpCenter.faq2.question" = "What subjects are supported?";
-"helpCenter.faq2.answer" = "StudyAI supports Mathematics, Physics, Chemistry, Biology, English, History, Geography, and Computer Science. We're constantly adding more subjects\!";
-"helpCenter.faq3.question" = "How do I change the AI voice?";
-"helpCenter.faq3.answer" = "Go to Settings > Study Mates > Select your study mate. You can choose between Adam (boy voice) and Eva (girl voice), and customize speed and volume.";
-"helpCenter.faq4.question" = "Can I review my past mistakes?";
-"helpCenter.faq4.answer" = "Yes\! Use the Mistake Review feature from the home screen to revisit questions you got wrong and practice similar problems.";
-"helpCenter.faq5.question" = "How does the streak system work?";
-"helpCenter.faq5.answer" = "Your streak increases each day you complete at least one study session. Maintain your streak to unlock achievements and rewards\!";
+"helpCenter.faq2.answer" = "The Homework Grader supports Mathematics, Physics, Chemistry, Biology, English, History, Geography, and Computer Science. The AI chat assistant can also help with topics beyond these subjects.";
+"helpCenter.faq3.question" = "How do I use Live Mode?";
+"helpCenter.faq3.answer" = "Open the Chat tab, tap the menu icon at the top right, and select Live Talk. Live Mode lets you have a real-time spoken conversation with your AI tutor. It is available on Premium and Premium Plus plans.";
+"helpCenter.faq4.question" = "How do I practice and review my mistakes?";
+"helpCenter.faq4.answer" = "From the Home tab, tap Practice to generate custom questions by subject, difficulty, and type. Tap Mistake Review to see a breakdown of your weak areas — the app automatically tracks errors from every graded session and lets you generate targeted practice from them.";
+"helpCenter.faq5.question" = "How does Focus Mode and the Tomato Garden work?";
+"helpCenter.faq5.answer" = "Tap Focus Mode on the Home tab to start a 25-minute study session. Completing a session earns a collectible tomato. There are 13 tomato types across 4 rarity tiers. Collect 5 tomatoes of the same type to combine them into a rarer one. Your garden holds up to 25 tomatoes at a time.";
 "helpCenter.faq6.question" = "Is my data secure?";
-"helpCenter.faq6.answer" = "Yes\! We use industry-standard encryption and secure authentication. Your data is processed by trusted AI providers (OpenAI, Google Gemini) solely to deliver tutoring features, and is never sold or used for advertising.";
-"helpCenter.faq7.question" = "How do I track my progress?";
-"helpCenter.faq7.answer" = "Visit the Progress tab to see detailed statistics, accuracy trends, subject performance, and weekly learning patterns.";
+"helpCenter.faq6.answer" = "Yes. All communication is encrypted over HTTPS and your login credentials are stored securely in the device Keychain. Your data is processed by trusted AI providers solely to deliver tutoring features, and is never sold or used for advertising.";
+"helpCenter.faq7.question" = "What subscription plans are available?";
+"helpCenter.faq7.answer" = "StudyAgent offers four tiers: Guest (no sign-up, limited to 3 homework scans and 10 chat messages lifetime), Free (monthly limits on homework, chat, and practice), Premium (higher limits plus Live Mode and parent reports), and Premium Plus (unlimited everything). View your current usage in Settings > Account Usage.";
 "helpCenter.faq8.question" = "What is the difference between Detail and Fast parsing?";
 "helpCenter.faq8.answer" = "Detail mode provides more accurate parsing with hierarchical structure and parent-child relationships. Fast mode is quicker but simpler. Use Detail for complex homework.";
 "helpCenter.quickLinks" = "Quick Links";
@@ -1067,7 +1066,7 @@
 // Share App
 "shareApp.subtitle" = "Help your friends excel in their studies\!";
 "shareApp.messageTitle" = "Share Message";
-"shareApp.messagePreview" = "\"Check out StudyAI - the best AI-powered homework helper\!\"";
+"shareApp.messagePreview" = "\"Check out StudyAgent - the best AI-powered homework helper\!\"";
 "shareApp.feature1" = "✓ AI-powered homework grading";
 "shareApp.feature2" = "✓ Interactive AI tutor";
 "shareApp.feature3" = "✓ Mistake review & practice";
@@ -1081,7 +1080,7 @@
 "shareApp.qrCode" = "QR Code";
 "shareApp.showQRCode" = "Show this QR code to friends";
 "shareApp.comingSoonReferral" = "Coming Soon: Referral Rewards\!";
-"shareApp.earnPoints" = "Earn points for every friend who joins StudyAI";
+"shareApp.earnPoints" = "Earn points for every friend who joins StudyAgent";
 "shareApp.downloadNow" = "Download now:";
 
 // Chat View
@@ -1167,8 +1166,7 @@
 "chat.archive.buttonTitle" = "Archive Session";
 "chat.archive.archiving" = "Archiving...";
 "chat.archive.infoTitle" = "Archive Information";
-"chat.archive.infoMessage" = "Save this conversation for future reference. You can add a custom title and notes to help you remember what you learned.";
-"chat.archive.analyzingWithAI" = "Analyzing with AI...";
+"chat.archive.infoMessage" = "Archiving saves this conversation to your Library so you can review it at any time.\n\nWhat Gets Saved:\n  • The full conversation history including all questions, AI explanations, and diagrams\n  • The subject and session context\n\nAdding Details:\n  • Title — give this conversation a descriptive name to find it easily later\n  • Notes — add personal reminders about what you covered or want to revisit\n\nFinding Archived Conversations:\n  • Archived conversations appear in the Library screen under the Conversations tab\n  • Use the search bar to find a specific session by title or subject\n\nTip:\n  • Archive sessions that covered complex topics or exam material while the content is still fresh";"chat.archive.analyzingWithAI" = "Analyzing with AI...";
 "chat.archive.generatingSummary" = "Generating summary and key topics";
 "chat.archive.complete" = "Archive Complete!";
 "chat.archive.summaryGenerated" = "Summary generated successfully";
@@ -1189,7 +1187,7 @@
 
 // Alerts
 "chat.alert.cameraPermission.title" = "Camera Permission";
-"chat.alert.cameraPermission.message" = "StudyAI needs camera access to scan homework questions. Please enable camera permission in Settings.";
+"chat.alert.cameraPermission.message" = "StudyAgent needs camera access to scan homework questions. Please enable camera permission in Settings.";
 "chat.alert.currentChatExists.title" = "Current Chat Exists";
 "chat.alert.currentChatExists.message" = "You have an active chat session. Would you like to archive it first, or discard it and start a new session with this homework question?";
 "chat.alert.currentChatExists.archiveCurrent" = "Archive Current Chat";
@@ -1554,8 +1552,7 @@
 "mistakeReview.correctAnswerLabel" = "Correct Answer:";
 "mistakeReview.showExplanation" = "Show Explanation";
 "mistakeReview.instructions.title" = "How to Use Mistake Review";
-"mistakeReview.instructions.message" = "1. Select a time range (This Week, This Month, or All Time) to filter your mistakes\n\n2. Choose a subject to review incorrect answers\n\n3. Tap 'Start Review' to see your mistakes\n\n4. Use 'Let's do them again' to select questions and generate a PDF for practice\n\n5. Review the correct answers and explanations to improve your understanding";
-"mistakeReview.startReview" = "Start Review (%d Mistakes)";
+"mistakeReview.instructions.message" = "Mistake Review analyzes your past incorrect answers to identify patterns and weak areas across subjects.\n\nHow to Use:\n  1. Select a time range — This Week, This Month, or All Time\n  2. Choose a subject to view your errors in that area\n  3. Tap any mistake group to see the specific questions you got wrong\n  4. Tap Start Review to re-attempt those questions\n\nUnderstanding the Results:\n  • Each group shows the number of errors, the concept involved, and a weakness description\n  • Weakness strength is rated Low to High based on how often you made similar errors\n  • High-strength weaknesses indicate consistent, recurring errors\n\nRe-Attempting Mistakes:\n  • Tap Let's Do Them Again to generate a new set of similar questions\n  • New attempts are tracked separately so you can measure improvement\n\nTips:\n  • Address high-strength weaknesses first for the greatest accuracy gains\n  • Weekly reviews are more effective than infrequent large sessions";"mistakeReview.startReview" = "Start Review (%d Mistakes)";
 "mistakeReview.categorizeMistakes" = "Categorize";
 "mistakeReview.uncategorized" = "unclassified";
 "mistakeReview.categorizing" = "Categorizing…";
@@ -1662,7 +1659,7 @@
 "parentMode.opticIDForParentMode" = "Optic ID for Parent Mode";
 "parentMode.enabled" = "Enabled";
 "parentMode.disabled" = "Disabled";
-"parentMode.faceIDUsageDescription" = "StudyMates uses Face ID to securely authenticate parents for accessing protected features and parental controls.";
+"parentMode.faceIDUsageDescription" = "StudyAgent uses Face ID to securely authenticate parents for accessing protected features and parental controls.";
 
 // Voice Input Preview
 "voicePreview.liveTranscription" = "Live Transcription";
@@ -1773,7 +1770,7 @@
 "privacy.coppa.title" = "COPPA Compliance";
 "privacy.gdpr.content" = "If you are in the European Economic Area, you have rights under GDPR including access to your data, correction, deletion, and data portability. Contact us to exercise these rights.";
 "privacy.gdpr.title" = "GDPR Rights";
-"privacy.intro.content" = "StudyAI is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our educational application.";
+"privacy.intro.content" = "StudyAgent is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our educational application.";
 "privacy.intro.title" = "Introduction";
 "privacy.lastUpdated" = "Last Updated: March 2026";
 "privacy.retention.content" = "We retain your personal information for as long as necessary to provide our services and comply with legal obligations. You may request deletion of your data at any time.";
@@ -1782,7 +1779,7 @@
 "privacy.rights.title" = "Your Rights";
 "privacy.security.content" = "We implement industry-standard security measures including encryption, secure authentication, and regular security audits to protect your data from unauthorized access.";
 "privacy.security.title" = "Data Security";
-"privacy.thirdParty.content" = "We work with the following third-party services to deliver our features:\n\n• OpenAI (openai.com) — processes homework photos, student text, and voice transcripts for AI tutoring and grading\n• Google Gemini (deepmind.google) — powers real-time voice chat and advanced AI responses\n• ElevenLabs (elevenlabs.io) — converts AI text responses to voice audio\n• Google Sign-In (google.com) — optional account login\n• Apple Sign-In (apple.com) — optional account login\n• Railway (railway.app) — secure cloud hosting and database storage\n\nAll data is transmitted over encrypted HTTPS connections. We do not sell your data. For users under 13, verifiable parental consent is required before any data is processed by these services.";
+"privacy.thirdParty.content" = "We work with the following third-party services to deliver our features:\n\n• Advanced AI technology — processes homework photos, student text, and voice transcripts for AI tutoring and grading\n• Google Gemini (deepmind.google) — powers real-time voice chat and advanced AI responses\n• ElevenLabs (elevenlabs.io) — converts AI text responses to voice audio\n• Google Sign-In (google.com) — optional account login\n• Apple Sign-In (apple.com) — optional account login\n• Railway (railway.app) — secure cloud hosting and database storage\n\nAll data is transmitted over encrypted HTTPS connections. We do not sell your data. For users under 13, verifiable parental consent is required before any data is processed by these services.";
 "privacy.thirdParty.title" = "Third-Party Services";
 "privacy.title" = "Privacy Policy";
 "privacy.usage.content" = "We use your information to provide and improve our educational services, personalize your learning experience, communicate with you, and ensure the safety of our platform.";
@@ -1791,7 +1788,7 @@
 // Terms of Service
 "terms.acceptable.content" = "You agree not to use the service for any unlawful purpose, to harm others, to upload malicious content, or to interfere with the operation of the service.";
 "terms.acceptable.title" = "Acceptable Use";
-"terms.acceptance.content" = "By accessing or using StudyAI, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use our application.";
+"terms.acceptance.content" = "By accessing or using StudyAgent, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use our application.";
 "terms.acceptance.title" = "Acceptance of Terms";
 "terms.accounts.content" = "You are responsible for maintaining the security of your account and password. You must provide accurate information and keep it up to date.";
 "terms.accounts.title" = "User Accounts";
@@ -1799,19 +1796,19 @@
 "terms.changes.title" = "Changes to Terms";
 "terms.contact.content" = "For questions about these Terms of Service, please contact us at service@study-mates.net";
 "terms.contact.title" = "Contact Information";
-"terms.disclaimer.content" = "StudyAI is provided \"as is\" without warranties of any kind. While we strive for accuracy, we do not guarantee that our AI-generated content is error-free or complete.";
+"terms.disclaimer.content" = "StudyAgent is provided \"as is\" without warranties of any kind. While we strive for accuracy, we do not guarantee that our AI-generated content is error-free or complete.";
 "terms.disclaimer.title" = "Disclaimer";
-"terms.intellectual.content" = "All content and materials in StudyAI are owned by us or our licensors and protected by intellectual property laws. You may not copy, modify, or distribute our content without permission.";
+"terms.intellectual.content" = "All content and materials in StudyAgent are owned by us or our licensors and protected by intellectual property laws. You may not copy, modify, or distribute our content without permission.";
 "terms.intellectual.title" = "Intellectual Property";
 "terms.lastUpdated" = "Last Updated: January 2025";
 "terms.law.content" = "These terms are governed by the laws of the jurisdiction in which we operate, without regard to conflict of law principles.";
 "terms.law.title" = "Governing Law";
-"terms.liability.content" = "To the maximum extent permitted by law, StudyAI shall not be liable for any indirect, incidental, special, or consequential damages arising from your use of the service.";
+"terms.liability.content" = "To the maximum extent permitted by law, StudyAgent shall not be liable for any indirect, incidental, special, or consequential damages arising from your use of the service.";
 "terms.liability.title" = "Limitation of Liability";
 "terms.termination.content" = "We may suspend or terminate your access to the service if you violate these terms. You may also terminate your account at any time.";
 "terms.termination.title" = "Termination";
 "terms.title" = "Terms of Service";
-"terms.use.content" = "StudyAI provides an educational platform powered by AI. You may use our service for personal, non-commercial educational purposes only.";
+"terms.use.content" = "StudyAgent provides an educational platform powered by AI. You may use our service for personal, non-commercial educational purposes only.";
 "terms.use.title" = "Use of Service";
 "terms.userContent.content" = "You retain ownership of content you submit. By using our service, you grant us a license to use, store, and process your content to provide our services.";
 "terms.userContent.title" = "User Content";
@@ -1846,10 +1843,10 @@
 "privacy.settings.termsOfService" = "Terms of Service";
 "privacy.settings.title" = "Privacy Settings";
 
-// Parent Reports section
-"privacy.parentReports.sectionHeader" = "Parent Reports";
+// Study Reports section
+"privacy.parentReports.sectionHeader" = "Study Reports";
 "privacy.parentReports.automatedReports" = "Automated Weekly Reports";
-"privacy.parentReports.automatedReportsDesc" = "Generate parent reports every Sunday at 9 PM";
+"privacy.parentReports.automatedReportsDesc" = "Generate study reports every Sunday at 9 PM";
 "privacy.parentReports.backgroundSync" = "Background Homework Sync";
 "privacy.parentReports.backgroundSyncDesc" = "Automatically sync homework data for reports";
 "privacy.parentReports.lastSync" = "Last Sync";
@@ -1857,7 +1854,7 @@
 "privacy.parentReports.syncNow" = "Sync Now";
 "privacy.parentReports.nextReport" = "Next Report";
 "privacy.parentReports.footerEnabled" = "Reports are generated every Sunday at 9 PM using homework data synced throughout the week.";
-"privacy.parentReports.footerDisabled" = "Enable automated weekly parent reports to track learning progress.";
+"privacy.parentReports.footerDisabled" = "Enable automated weekly study reports to track learning progress.";
 
 // Clear Server Data
 "privacy.clearData.title" = "Clear Server Data";
@@ -2118,7 +2115,7 @@
 "library.pdf.generating" = "Generating PDF…";
 "library.pdf.error" = "Failed to generate PDF";
 "library.pdf.email.subject" = "Library Questions — %@";
-"library.pdf.emailBody" = "Hi there!\n\nI've attached %d library question(s) for %@ from StudyMates.\n\nGenerated by StudyMates — Your AI Study Companion\n\nBest regards";
+"library.pdf.emailBody" = "Hi there!\n\nI've attached %d library question(s) for %@ from StudyAgent.\n\nGenerated by StudyAgent — Your AI Study Companion\n\nBest regards";
 
 // Library Selection Bar
 "library.selection.selectAll" = "Select All";
@@ -2129,12 +2126,13 @@
 
 // Theme Settings
 "theme.title" = "Appearance";
-"theme.day" = "Day Mode";
-"theme.night" = "Night Mode";
-"theme.cute" = "Cute Mode";
-"theme.description.day" = "Classic light theme for daytime use";
-"theme.description.night" = "Dark theme for low-light environments";
-"theme.description.cute" = "Soft pastel colors for a playful experience";
+"theme.default" = "Default Mode";
+"theme.colorful" = "Colorful Life";
+"theme.description.default" = "Automatically adapts to light or dark based on your system settings";
+"theme.description.colorful" = "Soft pastel colors for a playful experience";
+"theme.override.auto" = "Auto";
+"theme.override.light" = "Light";
+"theme.override.dark" = "Dark";
 
 // Tomato Garden Strings
 "tomato.garden.title" = "My Tomato Garden";
@@ -2454,7 +2452,7 @@
 "onboarding.parentSetup.controlsLabel" = "Parental controls";
 "onboarding.parentSetup.protectChat" = "Protect AI chat";
 "onboarding.parentSetup.protectGrader" = "Protect homework grader";
-"onboarding.parentSetup.protectReports" = "Protect parent reports";
+"onboarding.parentSetup.protectReports" = "Protect study reports";
 "onboarding.parentSetup.pinLockHint" = "Enter and confirm a valid 6-digit PIN above to enable controls";
 
 // Onboarding — Language Selection (first page)
@@ -2488,12 +2486,16 @@
 "onboarding.consent.privacy.activity" = "Your activity helps personalise learning";
 "onboarding.consent.privacy.profile" = "Your profile is never shared";
 "onboarding.consent.privacyPolicy" = "Privacy Policy";
-"onboarding.consent.agree" = "I agree to the Privacy Policy";
+"onboarding.consent.agree" = "I agree to share data with the AI services listed above";
 "onboarding.consent.required" = "You must agree to continue";
+"onboarding.consent.aiServices.title" = "Data shared with AI services:";
+"onboarding.consent.aiServices.openai" = "OpenAI — homework images, chat, answers";
+"onboarding.consent.aiServices.gemini" = "Google Gemini — deep analysis, live voice";
+"onboarding.consent.aiServices.elevenlabs" = "ElevenLabs — text-to-speech voice audio";
 "onboarding.getStarted" = "Get Started";
 
-// Parent Reports — List View
-"reports.passive.title" = "Parent Reports";
+// Study Reports — List View
+"reports.passive.title" = "Study Reports";
 "reports.passive.subtitle" = "Weekly and monthly learning insights";
 "reports.passive.editReports" = "Edit Reports";
 "reports.passive.testingMode" = "Testing Mode";
@@ -2521,7 +2523,7 @@
 "reports.passive.trend.accuracy" = "Accuracy";
 "reports.passive.trend.activity" = "Activity";
 
-// Parent Reports — Detail View
+// Study Reports — Detail View
 "reports.passive.weeklyReport" = "Weekly Report";
 "reports.passive.monthlyReport" = "Monthly Report";
 "reports.passive.detailedReports" = "DETAILED REPORTS";
@@ -2542,7 +2544,7 @@
 "reports.passive.mental_health" = "Mental Health & Wellbeing";
 "reports.passive.summary" = "Weekly/Monthly Summary";
 
-// Parent Reports — Onboarding
+// Study Reports — Onboarding
 "reports.passive.onboarding.title" = "Get Weekly Learning Insights";
 "reports.passive.onboarding.subtitle" = "AI-generated reports for parents, every week";
 "reports.passive.onboarding.feature.progress.title" = "Progress Tracking";
@@ -2554,7 +2556,7 @@
 "reports.passive.onboarding.feature.private.title" = "Private & Secure";
 "reports.passive.onboarding.feature.private.desc" = "Data is encrypted and never shared with third parties";
 "reports.passive.onboarding.dataNote" = "Homework data syncs to server automatically when you generate a report";
-"reports.passive.onboarding.enable" = "Enable Parent Reports";
+"reports.passive.onboarding.enable" = "Enable Study Reports";
 "reports.passive.onboarding.noThanks" = "No Thanks";
 
 // Suggested Daily Todos
@@ -2651,3 +2653,17 @@
 "report.priority.high" = "High";
 "report.priority.medium" = "Medium";
 "report.priority.low" = "Low";
+
+// Grade result
+"grade.notGraded" = "Not Graded";
+
+// Promo code redemption
+"promo.link" = "Have a promo code?";
+"promo.placeholder" = "ENTER CODE";
+"promo.button.apply" = "Apply Code";
+"promo.success" = "Premium activated\! Valid until %@.";
+"promo.error.invalid" = "This code is invalid or has expired.";
+"promo.error.alreadyRedeemed" = "You've already redeemed this code.";
+"promo.error.expired" = "This promo code has expired.";
+"promo.error.maxUses" = "This promo code has reached its limit.";
+"promo.guestHint" = "Create a free account to redeem a promo code.";

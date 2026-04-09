@@ -266,7 +266,7 @@ struct AnalysisDetailView: View {
 
 struct MistakeGroupDetailView_Previews: PreviewProvider {
     static var previews: some View {
-        NavigationView {
+        NavigationStack {
             MistakeGroupDetailView(
                 group: MistakeGroup(
                     errorType: "procedural_error",

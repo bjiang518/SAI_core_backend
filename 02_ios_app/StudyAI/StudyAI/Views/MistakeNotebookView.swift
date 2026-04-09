@@ -13,7 +13,7 @@ struct MistakeNotebookView: View {
     @StateObject private var viewModel = MistakeNotebookViewModel()
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
                     // Header

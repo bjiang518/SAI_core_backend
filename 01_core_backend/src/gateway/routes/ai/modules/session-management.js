@@ -121,7 +121,7 @@ class SessionManagementRoutes {
    */
   async createSession(request, reply) {
     const startTime = Date.now();
-    const { subject, language = 'en' } = request.body;
+    const { subject, language = 'en', initialMessages } = request.body;
 
     try {
       // Get authenticated user ID
@@ -157,6 +157,21 @@ class SessionManagementRoutes {
       const result = await db.query(sessionQuery, sessionValues);
       const createdSession = result.rows[0];
 
+      // If continuing from an archived conversation, seed DB with prior messages
+      if (initialMessages && Array.isArray(initialMessages) && initialMessages.length > 0) {
+        this.fastify.log.info(`🔄 Seeding continuation session ${sessionId} with ${initialMessages.length} historical messages`);
+        for (const msg of initialMessages) {
+          if (!msg.role || !msg.content) continue;
+          const msgType = msg.role === 'user' ? 'user' : 'assistant';
+          await db.query(
+            `INSERT INTO conversations (user_id, session_id, message_type, message_text, tokens_used, created_at)
+             VALUES ($1, $2, $3, $4, 0, NOW())`,
+            [userId, sessionId, msgType, msg.content]
+          );
+        }
+        this.fastify.log.info(`✅ Seeded ${initialMessages.length} historical messages for continuation session`);
+      }
+
       this.fastify.log.info(`✅ Session created: ${sessionId} for user: ${PIIMasking.maskUserId(userId)}`);
 
       const duration = Date.now() - startTime;
@@ -170,6 +185,7 @@ class SessionManagementRoutes {
         session_type: 'conversation',
         status: 'active',
         created_at: createdSession.created_at,
+        isContinuation: !!(initialMessages && initialMessages.length > 0),
         _gateway: {
           processTime: duration,
           service: 'gateway-database'

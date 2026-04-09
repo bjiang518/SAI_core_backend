@@ -15,7 +15,7 @@ struct EssayResultsView: View {
     @State private var showExportSheet = false
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
                     // Overall Score Card (prominent)
@@ -260,7 +260,7 @@ struct EssayResultsView: View {
     // MARK: - Export Options Sheet
 
     private var exportOptionsSheet: some View {
-        NavigationView {
+        NavigationStack {
             List {
                 Section {
                     Button(action: { exportAsPDF() }) {

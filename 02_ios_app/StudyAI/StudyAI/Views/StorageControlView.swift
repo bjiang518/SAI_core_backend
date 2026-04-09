@@ -29,7 +29,7 @@ struct StorageControlView: View {
     @State private var showingSyncResult = false
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
                     // Total Storage Overview

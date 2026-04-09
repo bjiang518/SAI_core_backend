@@ -4,7 +4,7 @@
 */
 
 // Loading Screen
-"loading.appTagline" = "你的 StudyMate";
+"loading.appTagline" = "你的 Study Agent";
 
 // Biometric Authentication (NEW - no existing alternatives)
 "login.enableBiometric" = "啟用%@？";
@@ -28,9 +28,9 @@
 "settings.signOut" = "登出";
 "settings.biometricLogin" = "%@ 登入";
 "settings.parentControls.message" = "驗證家長身份以管理設定";
-"settings.appVersion" = "StudyMates v1.0";
+"settings.appVersion" = "StudyAgent v1.0";
 "settings.appTagline" = "搭載現代身份驗證";
-"settings.appPoweredBy" = "由 OpenAI GPT-4 驅動";
+"settings.appPoweredBy" = "由先進 AI 模型驅動";
 "settings.security" = "安全與隱私";
 "settings.passwordManager" = "密碼管理器";
 "settings.privacySettings" = "隱私設定";
@@ -53,6 +53,7 @@
 "settings.contact" = "聯絡支援";
 "settings.rateApp" = "評價應用程式";
 "settings.shareApp" = "分享應用程式";
+"settings.visitWebsite" = "訪問官網";
 
 // Profile
 "profile.complete" = "資料完成度 %d%%";
@@ -141,7 +142,7 @@
 "home.homeworkAlbum" = "作業相簿";
 "home.homeworkAlbumDescription" = "查看所有提交的作業";
 
-// Parent Reports
+// Study Reports
 "parentReport.title" = "家長報告";
 "parentReport.studyReports" = "學習報告";
 "parentReport.trackProgress" = "追蹤孩子的學習進度";
@@ -185,6 +186,8 @@
 "aiHomework.grading" = "評分中...";
 "aiHomework.preparingResults" = "準備結果中...";
 "aiHomework.analysisComplete" = "分析完成！";
+"ai.disclaimer" = "AI可能出錯 — 請仔細核實";
+"onboarding.consent.aiServices.disclaimer" = "AI可能出錯 — 請仔細核實";
 "aiHomework.processingError" = "處理錯誤";
 "aiHomework.homeworkAnalysisComplete" = "作業分析完成";
 "aiHomework.gradingCompleteMessage" = "您的作業已評分完成。發現%d道題。";
@@ -389,7 +392,7 @@
 "parentPasswordRemove.incorrectPin" = "❌ PIN錯誤。請重試。";
 
 
-"app.name" = "StudyAI";
+"app.name" = "StudyAgent";
 "app.tagline" = "您的AI驅動學習夥伴";
 "auth.login.welcome" = "歡迎回來！";
 "auth.login.subtitle" = "登入以繼續您的學習之旅。";
@@ -425,7 +428,7 @@
 "upgrade.comparison.planPremium" = "高級版";
 "upgrade.comparison.planUltra" = "旗艦版";
 "upgrade.comparison.pricePeriod" = "/月";
-"upgrade.comparison.featureHomework" = "作業\n上傳";
+"upgrade.comparison.featureHomework" = "作業\n頁數";
 "upgrade.comparison.featureAiChat" = "AI\n對話";
 "upgrade.comparison.featureLiveTutor" = "即時\n輔導";
 "upgrade.comparison.featurePractice" = "針對性\n練習";
@@ -439,6 +442,8 @@
 "upgrade.comparison.continueFree" = "繼續免費使用";
 "upgrade.comparison.restorePurchases" = "恢復購買";
 "upgrade.comparison.terms" = "訂閱將在當前週期結束前至少 24 小時自動續訂，除非取消。可隨時在設定 > Apple ID > 訂閱中管理或取消。";
+"upgrade.comparison.termsLink" = "使用條款";
+"upgrade.comparison.privacyLink" = "隱私政策";
 "upgrade.comparison.yourCurrentUsage" = "目前使用情況";
 "upgrade.comparison.usageHomework" = "作業";
 "upgrade.comparison.usageChat" = "對話";
@@ -481,7 +486,7 @@
 "faceIDReauth.error.failed" = "%@ 驗證失敗，請重試。";
 "faceIDReauth.error.generic" = "驗證失敗：%@";
 "auth.signup.title" = "建立您的帳戶";
-"auth.signup.subtitle" = "加入StudyAI，開始您的學習冒險！";
+"auth.signup.subtitle" = "加入StudyAgent，開始您的學習冒險！";
 "auth.fullName" = "全名";
 "auth.enterFullName" = "輸入您的全名";
 "auth.createPassword" = "建立密碼";
@@ -688,25 +693,11 @@
 "progress.unableToLoadData" = "無法載入數據";
 "progress.tryAgain" = "重試";
 "progress.info.title" = "如何使用學習進度";
-"progress.info.message" = "📊 理解您的進度：\n\n• 時間篩選：點選右上角三點選單切換查看本週、本月或全部時間的數據\n• 學科分類：查看各學科的答題情況和正確率\n• 彩色卡片：每個學科顯示已答題數、準確率和趨勢指標（↑ 進步中、→ 穩定、↓ 需要加強）\n• 點選任意學科卡片可查看詳細分析和個性化建議\n\n🎯 使用技巧：\n• 下拉重新整理獲取最新進度數據\n• 關注每日連續學習天數保持學習動力\n• 重點提升準確率較低的學科";
-
-"tomatoGarden.info.title" = "關於番茄園";
-"tomatoGarden.info.message" = "🍅 您的番茄收藏：\n\n• 每完成一次專注時段即可獲得一個番茄\n• 按時間（今天、本週）或按番茄類型篩選\n• 三種番茄品種：\n  - 經典番茄：標準25分鐘專注時段\n  - 卷藤番茄：深度專注時段\n  - 萌萌番茄：短時專注時段\n\n✨ 物理模式：\n點選物理模式按鈕可以看到番茄們的物理動畫和互動效果！\n\n🏆 成就里程碑：\n收集更多番茄解鎖成就里程碑，記錄您的專注歷程。";
-
-"passiveReports.info.title" = "關於家長報告";
-"passiveReports.info.message" = "📊 自動化學習洞察：\n\n• 週報/月報：使用標籤切換報告週期\n• 點選 '+' 手動產生新的報告批次\n• 每批包含8份專業報告：\n  1. 執行摘要 - 整體表現概覽\n  2. 學業表現 - 各學科分析\n  3. 學習行為 - 學習習慣和模式\n  4. 動機與情緒 - 參與度指標\n  5. 進步軌跡 - 提升趨勢\n  6. 社交學習 - 協作洞察\n  7. 風險與機會 - 需要關注的領域\n  8. 行動計劃 - 個性化建議\n\n💡 使用技巧：\n• 報告分析您的學習會話、歸檔對話和練習結果\n• 點選任意報告卡片查看詳細洞察\n• 使用編輯模式管理或刪除舊報告批次";
-
-"library.info.title" = "如何使用資料庫";
-"library.info.message" = "📚 您的學習檔案：\n\n• 內容類型：使用標籤在全部會話、僅題目或僅對話之間切換\n• 搜尋：使用搜尋列查找特定內容\n• 快速篩選：按學科、日期範圍或包含圖片的內容篩選\n• 進階搜尋：點選右上角三點選單進行詳細篩選\n• 學科篩選：從選單中按特定學科篩選內容\n\n💡 使用技巧：\n• 下拉重新整理您的資料庫內容\n• 點選任意項目查看完整詳情、答案和解釋\n• 使用選單中的「清除篩選」重置所有活動篩選器\n• 頂部統計顯示您的總題數和對話數";
-
-"homeworkResults.info.title" = "理解您的結果";
-"homeworkResults.info.message" = "📝 作業分析結果：\n\n• 題目卡片：點選任意卡片展開查看完整詳情、答案和解釋\n• 複選框：選擇您想要歸檔以供稍後複習的題目\n• 顏色指示器：\n  - 綠色：答案正確\n  - 橙色：部分正確\n  - 紅色：答案錯誤\n• 歸檔按鈕：點選書本圖示將選中的題目保存到資料庫\n\n💡 使用技巧：\n• 仔細複習錯誤答案以理解錯誤\n• 使用歸檔的題目進行針對性練習\n• 每道題目可以展開查看詳細解題步驟\n• 進度會自動記錄用於學習分析";
-
-
-
-
-
-"progress.yourLearningJourney" = "您的學習之旅";
+"progress.info.message" = "學習進度根據已評分的作業和完成的練習會話追蹤您在所有科目的表現。\n\n您將看到：\n  • 科目卡片，顯示準確率百分比和已答題目總數\n  • 趨勢箭頭，表示成績是提升、穩定還是下降\n  • 每日連續天數 — 連續記錄學習活動的天數\n\n如何篩選：\n  • 點擊右上角選單，切換本週、本月或全部時間\n  • 點擊��意科目卡片查看詳細圖表和AI洞察\n\n準確率計算方式：\n  • 正確答題數除以總評分嘗試次數，以百分比表示\n\n提示：\n  • 下拉重新整理獲取最新結果\n  • 專注於準確率較低的科目以提升效率";"tomatoGarden.info.title" = "關於番茄園";
+"tomatoGarden.info.message" = "番茄花園是與您的番茄鐘專注會話相關聯的獎勵收集系統。\n\n如何獲得番茄：\n  • 完成一個25分鐘的專注會話即可獲得一個番茄\n  • 每次會話隨機獎勵13種可收集類型之一\n\n稀有度等級：\n  • 等級1 — 普通：經典、捲曲、可愛\n  • 等級2 — 非普通\n  • 等級3 — 稀有\n  • 等級4 — 傳奇：金色、鉑金、鑽石\n\n升級收藏：\n  • 收集同等級5個番茄可兌換1個更高等級番茄\n\n您的花園：\n  • 最多展示25個番茄\n  • 點擊物理按鈕開啟物理花園模式";"passiveReports.info.title" = "關於家長報告";
+"passiveReports.info.message" = "學習報告是基於您學習活動自動生成的AI分析，每週和每月自動產生。\n\n每個報告批次包含：\n  • 執行摘要 — 該時期的整體績效概述\n  • 學業表現 — 各科目準確率和題目數量\n  • 學習行為 — 學習會話模式和習慣\n  • 動力與參與度 — 專注時長和努力指標\n  • 進度軌跡 — 隨時間的改善或下降趨勢\n  • 風險與機會 — 最需要關注的科目\n  • 行動計畫 — 針對下一階段的具體個人化建議\n\n如何使用此界面：\n  • 頂部切換每週和每月選項卡\n  • 點擊 + 手動產生新的報告批次\n  • 點擊任意報告卡片閱讀完整分析\n  • 點擊編輯刪除舊報告批次\n\n資料來源：\n  • 報告基於您的作業會話、封存AI聊天記錄和練習結果";"library.info.title" = "如何使用資料庫";
+"library.info.message" = "您的題庫儲存了所有已儲存的題目和封存的對話，集中在一個可搜尋的位置。\n\n儲存內容：\n  • 題目 — 作業會話後歸檔的單道題目\n  • 對話 — 從聊���界面儲存的完整AI聊天記錄\n\n瀏覽題庫：\n  • 使用頂部標籤按全部、題目或對話篩選\n  • 使用搜尋列按科目、標題或關鍵字查找\n  • 點擊任意條目查看完整內容\n\n操作：\n  • 向左滑動刪除條目\n  • 點擊右上角選單進入選取模式，可匯出PDF或批次刪除";"homeworkResults.info.title" = "理解您的結果";
+"homeworkResults.info.message" = "作業結果展示您提交的每道題目及AI生成的完整分析和評分。\n\n閱讀結果：\n  • 每張卡片顯示原始題目、正確答案和逐步解析\n  • 點擊任意卡片展開查看完整分析\n\n顏色編碼：\n  • 綠色 — 正確答案\n  • 橙色 — 部分正確\n  • 紅色 — 錯誤答案\n\n評分模式：\n  • 標準模式 — 快速分析\n  • 深度模式 — 針對複雜題目的擴展推理\n\n歸檔題目：\n  • 勾選卡片後點擊歸檔按鈕儲存至題庫";"progress.yourLearningJourney" = "您的學習之旅";
 "progress.pointsToday" = "今日積分";
 "progress.streak" = "連續天數";
 "progress.days" = "天";
@@ -897,7 +888,7 @@
 "helpCenter.faq1.question" = "如何使用作業評分器？";
 "helpCenter.faq1.answer" = "拍攝作業照片或上傳圖片。我們的AI將對其進行分析，檢測問題，並提供詳細的回饋、更正和說明。";
 "helpCenter.faq2.question" = "支援哪些科目？";
-"helpCenter.faq2.answer" = "StudyAI支援數學、物理、化學、生物、英語、歷史、地理和電腦科學。我們正在不斷新增更多科目！";
+"helpCenter.faq2.answer" = "StudyAgent支援數學、物理、化學、生物、英語、歷史、地理和電腦科學。我們正在不斷新增更多科目！";
 "helpCenter.faq3.question" = "如何更改AI語音？";
 "helpCenter.faq3.answer" = "前往設定>學習夥伴>選擇你的學習夥伴。您可以在Adam（男聲）和Eva（女聲）之間進行選擇，並自訂速度和音量。";
 "helpCenter.faq4.question" = "可以查看過去的錯誤嗎？";
@@ -918,7 +909,7 @@
 // Share App
 "shareApp.subtitle" = "幫助你的朋友在學習中取得優異成績！";
 "shareApp.messageTitle" = "分享訊息";
-"shareApp.messagePreview" = "\"看看StudyAI-最好的AI驅動的作業助手！\"";
+"shareApp.messagePreview" = "\"看看StudyAgent-最好的AI驅動的作業助手！\"";
 "shareApp.feature1" = "✓ AI驅動的作業評分";
 "shareApp.feature2" = "✓ 互動式AI導師";
 "shareApp.feature3" = "✓ 錯題復習和練習";
@@ -932,7 +923,7 @@
 "shareApp.qrCode" = "QR碼";
 "shareApp.showQRCode" = "向朋友展示此QR碼";
 "shareApp.comingSoonReferral" = "即將推出：推薦獎勵！";
-"shareApp.earnPoints" = "為每位加入StudyAI的朋友賺取積分";
+"shareApp.earnPoints" = "為每位加入StudyAgent的朋友賺取積分";
 "shareApp.downloadNow" = "立即下載：";
 
 // Chat View
@@ -1017,8 +1008,7 @@
 "chat.archive.notesPlaceholder" = "為此會話新增備註...";
 "chat.archive.buttonTitle" = "封存會話";
 "chat.archive.infoTitle" = "封存資訊";
-"chat.archive.infoMessage" = "儲存此對話以供日後參考。您可以新增自訂標題和備註，協助您記住所學內容。";
-"chat.archive.analyzingWithAI" = "正在使用AI分析...";
+"chat.archive.infoMessage" = "歸檔將此對話儲存至您的題庫，以便隨時查閱。\n\n儲存內容：\n  • 完整對話記錄，包括所有問題、AI解析和圖表\n  • 會話主題和背景\n\n新增詳情：\n  • 標題 — 為此對話起一個描述性名稱\n  • 筆記 — 新增個人提醒或複習要點\n\n查找已歸檔對話：\n  • 在題庫界面的對話標籤中查找";"chat.archive.analyzingWithAI" = "正在使用AI分析...";
 "chat.archive.generatingSummary" = "正在生成摘要和關鍵主題";
 "chat.archive.complete" = "歸檔完成！";
 "chat.archive.summaryGenerated" = "摘要生成成功";
@@ -1039,7 +1029,7 @@
 
 // Alerts
 "chat.alert.cameraPermission.title" = "相機權限";
-"chat.alert.cameraPermission.message" = "StudyAI需要相機存取權限來掃描作業題目。請在設定中啟用相機權限。";
+"chat.alert.cameraPermission.message" = "StudyAgent需要相機存取權限來掃描作業題目。請在設定中啟用相機權限。";
 "chat.alert.currentChatExists.title" = "目前聊天存在";
 "chat.alert.currentChatExists.message" = "您有一個活躍的聊天會話。您想先封存它，還是捨棄它並使用此作業題目開始新會話？";
 "chat.alert.currentChatExists.archiveCurrent" = "封存目前聊天";
@@ -1451,7 +1441,7 @@
 "generatedQuestions.points" = "%d 分";
 "generatedQuestions.emailGreeting" = "您好！";
 "generatedQuestions.emailBody" = "我正在分享 %d 道 %@ 練習題。";
-"generatedQuestions.emailGeneratedBy" = "此 PDF 由 Study Mates（AI 學習助手）產生。";
+"generatedQuestions.emailGeneratedBy" = "此 PDF 由 StudyAgent（AI 學習助手）產生。";
 "generatedQuestions.emailClosing" = "祝學習愉快！";
 
 // Mistake Review
@@ -1483,8 +1473,7 @@
 "mistakeReview.correctAnswerLabel" = "正確答案：";
 "mistakeReview.showExplanation" = "顯示解析";
 "mistakeReview.instructions.title" = "如何使用錯題複習";
-"mistakeReview.instructions.message" = "1. 選擇時間範圍（本週、本月或全部時間）來篩選錯題\n\n2. 選擇科目查看做錯的題目\n\n3. 點擊「開始複習」查看你的錯題\n\n4. 使用「讓我們再做一遍」選擇題目並生成PDF進行練習\n\n5. 查看正確答案和解析以提高理解";
-"mistakeReview.startReview" = "開始複習（%d 道錯題）";
+"mistakeReview.instructions.message" = "錯題複習分析您過去的錯誤答案，以識別各科目的模式和薄弱環節。\n\n使用方法：\n  1. 選擇時間範圍 — 本週、本月或全部時間\n  2. 選擇一個科目查看錯誤\n  3. 點擊任意錯題組查看具體答錯的題目\n  4. 點擊開始複習重新嘗試\n\n理解結果：\n  • 每組顯示錯誤數量和薄弱點描述\n  • 薄弱程度從低到高評定\n\n提示：\n  • 優先處理高強度薄弱點以獲得最大效益";"mistakeReview.startReview" = "開始複習（%d 道錯題）";
 "mistakeReview.categorizeMistakes" = "分類錯題";
 "mistakeReview.uncategorized" = "未分類";
 "mistakeReview.categorizing" = "分類中…";
@@ -1591,7 +1580,7 @@
 "parentMode.opticIDForParentMode" = "家長模式的 Optic ID";
 "parentMode.enabled" = "已啟用";
 "parentMode.disabled" = "已停用";
-"parentMode.faceIDUsageDescription" = "StudyMates 使用 Face ID 安全地驗證家長身分，以存取受保護的功能和家長控制。";
+"parentMode.faceIDUsageDescription" = "StudyAgent 使用 Face ID 安全地驗證家長身分，以存取受保護的功能和家長控制。";
 
 // Voice Input Preview
 "voicePreview.liveTranscription" = "即時轉寫";
@@ -1706,7 +1695,7 @@
 "privacy.coppa.title" = "COPPA合規";
 "privacy.gdpr.content" = "如果您在歐洲經濟區，您享有GDPR下的權利，包括存取您的資料、更正、刪除和資料可攜性。請聯絡我們行使這些權利。";
 "privacy.gdpr.title" = "GDPR權利";
-"privacy.intro.content" = "StudyAI致力於保護您的隱私。本隱私政策說明我們如何收集、使用、披露和保護您在使用我們的教育應用程式時的資訊。";
+"privacy.intro.content" = "StudyAgent致力於保護您的隱私。本隱私政策說明我們如何收集、使用、披露和保護您在使用我們的教育應用程式時的資訊。";
 "privacy.intro.title" = "簡介";
 "privacy.lastUpdated" = "最後更新：2026年3月";
 "privacy.retention.content" = "我們保留您的個人資訊的時間僅限於提供我們的服務和遵守法律義務所必需的時間。您可以隨時請求刪除您的資料。";
@@ -1717,7 +1706,7 @@
 "privacy.security.title" = "資料安全";
 "privacy.thirdParty.content" = "我們使用以下第三方服務提供功能：
 
-• OpenAI（openai.com）—— 處理作業照片、學生文字和語音轉錄，用於AI輔導和評分
+• 先進 AI 技術 —— 處理作業照片、學生文字和語音轉錄，用於 AI 輔導和評分
 • Google Gemini（deepmind.google）—— 支援即時語音對話和進階AI回覆
 • ElevenLabs（elevenlabs.io）—— 將AI文字回覆轉換為語音
 • Google登入（google.com）—— 可選的帳戶登入方式
@@ -1733,7 +1722,7 @@
 // Terms of Service
 "terms.acceptable.content" = "您同意不將服務用於任何非法目的、傷害他人、上傳惡意內容或干擾服務的運行。";
 "terms.acceptable.title" = "可接受的使用";
-"terms.acceptance.content" = "存取或使用StudyAI即表示您同意受這些服務條款的約束。如果您不同意這些條款，請不要使用我們的應用程式。";
+"terms.acceptance.content" = "存取或使用StudyAgent即表示您同意受這些服務條款的約束。如果您不同意這些條款，請不要使用我們的應用程式。";
 "terms.acceptance.title" = "接受條款";
 "terms.accounts.content" = "您負責維護您的帳戶和密碼的安全。您必須提供準確的資訊並保持更新。";
 "terms.accounts.title" = "使用者帳戶";
@@ -1741,19 +1730,19 @@
 "terms.changes.title" = "條款變更";
 "terms.contact.content" = "有關這些服務條款的問題，請透過support@studymates.app聯絡我們";
 "terms.contact.title" = "聯絡資訊";
-"terms.disclaimer.content" = "StudyAI「按原樣」提供，不提供任何形式的保證。雖然我們努力確保準確性，但我們不保證我們的AI生成內容是無錯誤或完整的。";
+"terms.disclaimer.content" = "StudyAgent「按原樣」提供，不提供任何形式的保證。雖然我們努力確保準確性，但我們不保證我們的AI生成內容是無錯誤或完整的。";
 "terms.disclaimer.title" = "免責聲明";
-"terms.intellectual.content" = "StudyAI中的所有內容和材料均歸我們或我們的授權方所有，並受智慧財產權法保護。未經許可，您不得複製、修改或分發我們的內容。";
+"terms.intellectual.content" = "StudyAgent中的所有內容和材料均歸我們或我們的授權方所有，並受智慧財產權法保護。未經許可，您不得複製、修改或分發我們的內容。";
 "terms.intellectual.title" = "智慧財產權";
 "terms.lastUpdated" = "最後更新：2025年1月";
 "terms.law.content" = "這些條款受我們營運所在司法管轄區的法律管轄，不考慮法律衝突原則。";
 "terms.law.title" = "管轄法律";
-"terms.liability.content" = "在法律允許的最大範圍內，StudyAI不對因您使用服務而產生的任何間接、附帶、特殊或後果性損害負責。";
+"terms.liability.content" = "在法律允許的最大範圍內，StudyAgent不對因您使用服務而產生的任何間接、附帶、特殊或後果性損害負責。";
 "terms.liability.title" = "責任限制";
 "terms.termination.content" = "如果您違反這些條款，我們可能會暫停或終止您對服務的存取。您也可以隨時終止您的帳戶。";
 "terms.termination.title" = "終止";
 "terms.title" = "服務條款";
-"terms.use.content" = "StudyAI提供由AI驅動的教育平台。您只能將我們的服務用於個人、非商業性教育目的。";
+"terms.use.content" = "StudyAgent提供由AI驅動的教育平台。您只能將我們的服務用於個人、非商業性教育目的。";
 "terms.use.title" = "服務使用";
 "terms.userContent.content" = "您保留對所提交內容的所有權。透過使用我們的服務，您授予我們使用、儲存和處理您的內容以提供我們服務的授權。";
 "terms.userContent.title" = "使用者內容";
@@ -1788,7 +1777,7 @@
 "privacy.settings.termsOfService" = "服務條款";
 "privacy.settings.title" = "隱私設定";
 
-// Parent Reports section
+// Study Reports section
 "privacy.parentReports.sectionHeader" = "家長報告";
 "privacy.parentReports.automatedReports" = "自動每週報告";
 "privacy.parentReports.automatedReportsDesc" = "每週日晚上9點生成家長報告";
@@ -2056,7 +2045,7 @@
 "library.pdf.generating" = "正在產生 PDF…";
 "library.pdf.error" = "產生 PDF 失敗";
 "library.pdf.email.subject" = "題庫題目 — %@";
-"library.pdf.emailBody" = "您好！\n\n請查收附件中來自 StudyMates 的 %d 道 %@ 題目。\n\n由 StudyMates — 您的 AI 學習夥伴產生\n\n祝好";
+"library.pdf.emailBody" = "您好！\n\n請查收附件中來自 StudyAgent 的 %d 道 %@ 題目。\n\n由 StudyAgent — 您的 AI 學習夥伴產生\n\n祝好";
 
 // Library Selection Bar
 "library.selection.selectAll" = "全選";
@@ -2067,12 +2056,13 @@
 
 // Theme Settings
 "theme.title" = "外觀";
-"theme.day" = "日間模式";
-"theme.night" = "夜間模式";
-"theme.cute" = "可愛模式";
-"theme.description.day" = "經典淺色主題，適合白天使用";
-"theme.description.night" = "深色主題，適合弱光環境";
-"theme.description.cute" = "柔和的粉彩色，帶來俏皮體驗";
+"theme.default" = "預設模式";
+"theme.colorful" = "多彩生活";
+"theme.description.default" = "根據系統設定自動切換亮色/暗色模式";
+"theme.description.colorful" = "柔和的馬卡龍色調，活潑可愛";
+"theme.override.auto" = "自動";
+"theme.override.light" = "淺色";
+"theme.override.dark" = "深色";
 
 // 番茄園字符串
 "tomato.garden.title" = "我的番茄園";
@@ -2428,11 +2418,15 @@
 "onboarding.consent.privacy.activity" = "你的活動有助於個人化學習";
 "onboarding.consent.privacy.profile" = "你的個人資料不會被分享";
 "onboarding.consent.privacyPolicy" = "隱私權政策";
-"onboarding.consent.agree" = "我同意隱私權政策";
+"onboarding.consent.agree" = "我同意與上列AI服務共享資料";
 "onboarding.consent.required" = "你必須同意才能繼續";
+"onboarding.consent.aiServices.title" = "與AI服務共享的資料：";
+"onboarding.consent.aiServices.openai" = "OpenAI — 作業圖片、聊天、答案";
+"onboarding.consent.aiServices.gemini" = "Google Gemini — 深度分析、即時語音";
+"onboarding.consent.aiServices.elevenlabs" = "ElevenLabs — 文字轉語音音訊";
 "onboarding.getStarted" = "開始使用";
 
-// Parent Reports — List View
+// Study Reports — List View
 "reports.passive.title" = "家長報告";
 "reports.passive.subtitle" = "每週、每月學習洞察";
 "reports.passive.editReports" = "編輯報告";
@@ -2461,7 +2455,7 @@
 "reports.passive.trend.accuracy" = "正確率";
 "reports.passive.trend.activity" = "活躍度";
 
-// Parent Reports — Detail View
+// Study Reports — Detail View
 "reports.passive.weeklyReport" = "週報";
 "reports.passive.monthlyReport" = "月報";
 "reports.passive.detailedReports" = "詳細報告";
@@ -2482,7 +2476,7 @@
 "reports.passive.mental_health" = "心理健康與幸福感";
 "reports.passive.summary" = "週/月度總結";
 
-// Parent Reports — Onboarding
+// Study Reports — Onboarding
 "reports.passive.onboarding.title" = "獲取每週學習洞察";
 "reports.passive.onboarding.subtitle" = "AI 為家長生成的報告，每週準時送達";
 "reports.passive.onboarding.feature.progress.title" = "進度追蹤";
@@ -2503,6 +2497,11 @@
 "newPractice.error.sessionNotFound" = "生成後未找到練習會話。";
 "newPractice.error.noSelection" = "請至少選擇一個對話或題目。";
 "newPractice.error.multipleSubjects" = "所選內容跨越多個科目，請只選擇同一科目的內容。";
+"newPractice.archiveSelected" = "已選擇 %d 項";
+"practiceLibrary.typeRandom" = "隨機練習";
+"practiceLibrary.typeConversation" = "對話複習";
+"practiceLibrary.typeMistake" = "錯題練習";
+"practiceLibrary.typeLibrary" = "題庫練習";
 
 // Practice Library
 "practiceLibrary.title" = "練習本";
@@ -2522,6 +2521,9 @@
 "practiceLibrary.card.inProgress" = "進行中";
 "practiceLibrary.statusOngoing" = "進行中";
 "practiceLibrary.statusCompleted" = "已完成";
+
+"practiceLibrary.info.title" = "如何生成練習";
+"practiceLibrary.info.message" = "5種建立題目的方式\n\n1. 隨機練習\n點擊 + 新增，選擇隨機練習。AI 根據您的弱點資料和所選科目自適應生成題目。\n\n2. 從檔案生成\n點擊 + 新增，選擇從檔案。選擇過去的對話或已儲存的題目，AI 根據這些內容生成新的複習題。\n\n3. 基於弱點練習\n進入學習進度，點擊任意弱點項目。AI 針對該具體薄弱點生成專項練習題。\n\n4. 重做錯誤題\n進入錯誤回顧，選擇錯誤題目，點擊重試。直接重做原始題目，無需 AI 重新生成。\n\n5. 重做已完成的練習\n開啟清單中任意已完成的練習，點擊重做。從頭重複相��的題目組合。";
 
 // Practice Sheet
 "practiceSheet.questionCounter" = "第 %d/%d 題";
@@ -2649,3 +2651,17 @@
 "report.priority.high" = "高";
 "report.priority.medium" = "中";
 "report.priority.low" = "低";
+
+// Grade result
+"grade.notGraded" = "未評級";
+
+// Promo code redemption
+"promo.link" = "有優惠碼？";
+"promo.placeholder" = "輸入優惠碼";
+"promo.button.apply" = "兌換";
+"promo.success" = "進階版已啟用！有效期至 %@。";
+"promo.error.invalid" = "此優惠碼無效或已過期。";
+"promo.error.alreadyRedeemed" = "您已兌換過此優惠碼。";
+"promo.error.expired" = "此優惠碼已過期。";
+"promo.error.maxUses" = "此優惠碼已達到使用上限。";
+"promo.guestHint" = "註冊免費帳號以兌換優惠碼。";

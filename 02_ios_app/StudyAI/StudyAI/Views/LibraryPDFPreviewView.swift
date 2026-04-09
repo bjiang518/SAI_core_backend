@@ -34,7 +34,7 @@ struct LibraryPDFPreviewView: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 0) {
                 if isLoading {
                     loadingView

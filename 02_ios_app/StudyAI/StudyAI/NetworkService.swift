@@ -16,7 +16,6 @@ import os.log
 // Disable debug print statements in production builds to prevent user data exposure
 #if !DEBUG
 private func debugPrint(_ items: Any...) { }
-private func debugPrint(_ items: Any...) { }
 #endif
 
 // MARK: - Debug Configuration for Avatar/Profile Logs
@@ -516,6 +515,24 @@ class NetworkService: ObservableObject {
     // MARK: - Authentication
     // Note: Authentication is now handled exclusively by AuthenticationService
     // These methods only interact with backend, do not store auth data locally
+
+    /// Register or update the APNs device token on the server.
+    func registerPushToken(_ token: String) async {
+        guard let url = URL(string: "\(apiBaseURL)/api/account/push-token") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        addAuthHeader(to: &request)
+        #if DEBUG
+        let env = "sandbox"
+        #else
+        let env = "production"
+        #endif
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["token": token, "env": env])
+        request.timeoutInterval = 10.0
+        _ = try? await URLSession.shared.data(for: request)
+        debugPrint("📱 [APNs] Registered push token (\(env)) — length: \(token.count)")
+    }
     
     func login(email: String, password: String) async -> (success: Bool, message: String, token: String?, userData: [String: Any]?, statusCode: Int?) {
         let loginURL = "\(baseURL)/api/auth/login"
@@ -890,7 +907,7 @@ class NetworkService: ObservableObject {
     }
     
     // MARK: - Session Management
-    func createSession(subject: String) async -> (success: Bool, sessionId: String?, message: String) {
+    func createSession(subject: String, initialMessages: [[String: String]]? = nil) async -> (success: Bool, sessionId: String?, message: String) {
         // Check authentication first - use unified auth system
         guard AuthenticationService.shared.getAuthToken() != nil else {
             debugPrint("❌ Authentication required to create session")
@@ -911,11 +928,14 @@ class NetworkService: ObservableObject {
         // Get current AI character from voice settings
         let currentCharacter = VoiceInteractionService.shared.voiceSettings.voiceType.rawValue
 
-        let sessionData: [String: Any] = [
+        var sessionData: [String: Any] = [
             "subject": subject,
             "language": appLanguage,  // Pass user's language preference
             "character": currentCharacter  // ✅ NEW: Pass AI character for personality-based responses
         ]
+        if let messages = initialMessages, !messages.isEmpty {
+            sessionData["initialMessages"] = messages
+        }
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -2641,12 +2661,12 @@ class NetworkService: ObservableObject {
                         // Track usage remaining
                         if let remaining = httpResponse.value(forHTTPHeaderField: "X-Usage-Remaining"),
                            let count = Int(remaining) {
-                            UsageService.shared.update(feature: "homework_single", remaining: count)
+                            UsageService.shared.update(feature: "homework_pages", remaining: count)
                         }
                         debugPrint("✅ Raw AI Response: \(String(responseData.prefix(200)))...")
                         return (true, responseData)
                     } else if httpResponse.statusCode == 429 || httpResponse.statusCode == 403 {
-                        handleTierError(statusCode: httpResponse.statusCode, data: data, feature: "homework_single")
+                        handleTierError(statusCode: httpResponse.statusCode, data: data, feature: "homework_pages")
                         return (false, "HTTP \(httpResponse.statusCode): \(responseData)")
                     } else {
                         return (false, "HTTP \(httpResponse.statusCode): \(responseData)")
@@ -2830,7 +2850,7 @@ class NetworkService: ObservableObject {
                 } else {
                     let rawResponse = String(data: data, encoding: .utf8) ?? "Unable to decode"
                     debugPrint("❌ Homework Parsing HTTP \(httpResponse.statusCode): \(String(rawResponse.prefix(200)))")
-                    handleTierError(statusCode: httpResponse.statusCode, data: data, feature: "homework_single")
+                    handleTierError(statusCode: httpResponse.statusCode, data: data, feature: "homework_pages")
                     return (false, "HTTP \(httpResponse.statusCode): \(rawResponse)")
                 }
             } else {
@@ -2918,7 +2938,7 @@ class NetworkService: ObservableObject {
 
         guard httpResponse.statusCode == 200 else {
             if httpResponse.statusCode == 403 || httpResponse.statusCode == 429 {
-                handleTierError(statusCode: httpResponse.statusCode, data: data, feature: "homework_single")
+                handleTierError(statusCode: httpResponse.statusCode, data: data, feature: "homework_pages")
             }
             if httpResponse.statusCode == 429 {
                 throw NetworkError.rateLimited
@@ -2929,7 +2949,7 @@ class NetworkService: ObservableObject {
         // Read remaining uses from header
         if let remaining = httpResponse.value(forHTTPHeaderField: "X-Usage-Remaining"),
            let count = Int(remaining) {
-            UsageService.shared.update(feature: "homework_single", remaining: count)
+            UsageService.shared.update(feature: "homework_pages", remaining: count)
         }
 
         // ========================================
@@ -3054,7 +3074,7 @@ class NetworkService: ObservableObject {
 
         guard httpResponse.statusCode == 200 else {
             if httpResponse.statusCode == 403 || httpResponse.statusCode == 429 {
-                handleTierError(statusCode: httpResponse.statusCode, data: data, feature: "homework_single")
+                handleTierError(statusCode: httpResponse.statusCode, data: data, feature: "homework_pages")
             }
             if httpResponse.statusCode == 429 {
                 throw NetworkError.rateLimited
@@ -3065,7 +3085,7 @@ class NetworkService: ObservableObject {
         // Read remaining uses from header
         if let remaining = httpResponse.value(forHTTPHeaderField: "X-Usage-Remaining"),
            let count = Int(remaining) {
-            UsageService.shared.update(feature: "homework_single", remaining: count)
+            UsageService.shared.update(feature: "homework_pages", remaining: count)
         }
 
         // Log raw response for debugging
@@ -3203,7 +3223,7 @@ class NetworkService: ObservableObject {
                 throw NetworkError.authenticationRequired
             }
             if httpResponse.statusCode == 429 || httpResponse.statusCode == 403 {
-                handleTierError(statusCode: httpResponse.statusCode, data: data, feature: "homework_single")
+                handleTierError(statusCode: httpResponse.statusCode, data: data, feature: "homework_pages")
                 throw NetworkError.rateLimited
             }
             throw NetworkError.serverError(httpResponse.statusCode)
@@ -5844,14 +5864,15 @@ class NetworkService: ObservableObject {
             let funFact  = payload["fun_fact"] as? String
             let subject  = payload["subject"]  as? String
             let grade    = payload["grade_level"].flatMap { ($0 as? Int).map(String.init) ?? ($0 as? String) } ?? "6"
-            // Use the backend's UTC date and time_slot — NOT local device values.
+            // Use the backend's UTC date — NOT local device values.
             let date = (payload["date"] as? String) ?? todayUTCDateString()
-            let slot = (payload["time_slot"] as? Int) ?? currentUTCSlot()
 
-            // Cache with date+slot+language+grade key so each 6-hour window gets its own question.
-            let cacheKey = "daily_question_\(date)_s\(slot)_\(lang)_\(grade)"
+            // Cache with date+language+grade key — one question per day per user profile.
+            // Dropping the slot component means the question refreshes daily (at UTC midnight),
+            // matching user expectations: one fresh question each day.
+            let cacheKey = "daily_question_\(date)_\(lang)_\(grade)"
             UserDefaults.standard.set(question, forKey: cacheKey)
-            if let ff = funFact { UserDefaults.standard.set(ff, forKey: "daily_question_fun_fact_\(date)_s\(slot)_\(lang)_\(grade)") }
+            if let ff = funFact { UserDefaults.standard.set(ff, forKey: "daily_question_fun_fact_\(date)_\(lang)_\(grade)") }
 
             return (question, funFact, subject)
         } catch {
@@ -5980,6 +6001,65 @@ class NetworkService: ObservableObject {
             }
         } catch {
             return (false, error.localizedDescription)
+        }
+    }
+
+    // MARK: - Promo Code Redemption
+
+    struct PromoRedemptionResult {
+        let success: Bool
+        let errorCode: String?   // "INVALID_CODE" | "ALREADY_REDEEMED" | "EXPIRED" | "MAX_USES_REACHED"
+        let tierExpiresAt: Date?
+        let message: String?
+    }
+
+    /// Redeem a promo code for the authenticated user. Always grants premium tier on success.
+    func redeemPromoCode(_ code: String) async -> PromoRedemptionResult {
+        guard let url = URL(string: "\(baseURL)/api/account/redeem-promo-self"),
+              let token = AuthenticationService.shared.getAuthToken() else {
+            return PromoRedemptionResult(success: false, errorCode: "INVALID_CODE", tierExpiresAt: nil, message: nil)
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["code": code.trimmingCharacters(in: .whitespaces).uppercased()])
+        request.timeoutInterval = 15
+        do {
+            let (data, _) = try await URLSession.shared.data(for: request)
+            guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                return PromoRedemptionResult(success: false, errorCode: "INVALID_CODE", tierExpiresAt: nil, message: nil)
+            }
+            let success = json["success"] as? Bool ?? false
+            if success {
+                let payload = json["data"] as? [String: Any]
+                var expiresAt: Date?
+                if let iso = payload?["tier_expires_at"] as? String {
+                    let df = ISO8601DateFormatter()
+                    expiresAt = df.date(from: iso)
+                }
+                let msg = payload?["message"] as? String
+                // Update local user object so tier-dependent UI refreshes immediately
+                if let user = AuthenticationService.shared.currentUser {
+                    let updated = User(
+                        id: user.id, email: user.email, name: user.name,
+                        profileImageURL: user.profileImageURL,
+                        authProvider: user.authProvider,
+                        createdAt: user.createdAt, lastLoginAt: user.lastLoginAt,
+                        tier: .premium, isAnonymous: user.isAnonymous
+                    )
+                    await MainActor.run {
+                        AuthenticationService.shared.currentUser = updated
+                        try? KeychainService.shared.saveUser(updated)
+                    }
+                }
+                return PromoRedemptionResult(success: true, errorCode: nil, tierExpiresAt: expiresAt, message: msg)
+            } else {
+                let errorCode = json["error"] as? String
+                return PromoRedemptionResult(success: false, errorCode: errorCode, tierExpiresAt: nil, message: nil)
+            }
+        } catch {
+            return PromoRedemptionResult(success: false, errorCode: "INVALID_CODE", tierExpiresAt: nil, message: nil)
         }
     }
 

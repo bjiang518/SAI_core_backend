@@ -1492,7 +1492,7 @@ OUTPUT CHECKLIST
             )
             prompt = prompt.replace(
                 '      "question_number": "2",\n      "question_text":',
-                '      "question_number": "2",\n      "pageNumber": 1,\n      "question_text":'
+                '      "question_number": "2",\n      "pageNumber": 2,\n      "question_text":'
             )
             prompt = prompt.replace(
                 "- id: ALWAYS string.",

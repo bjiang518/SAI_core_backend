@@ -680,9 +680,7 @@ private struct NewPracticeTypeCard: View {
                         .font(.body.bold())
                         .foregroundColor(.primary)
                     if tab == .archive && archiveSelectionCount > 0 {
-                        Text(NSLocalizedString("newPractice.archiveSelected",
-                            value: "已选择 \(archiveSelectionCount) 项",
-                            comment: "Archive items selected count"))
+                        Text(String(format: NSLocalizedString("newPractice.archiveSelected", comment: "Archive items selected count"), archiveSelectionCount))
                             .font(.footnote)
                             .foregroundColor(tab.color)
                     } else {

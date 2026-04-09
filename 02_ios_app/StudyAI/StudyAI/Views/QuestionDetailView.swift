@@ -89,7 +89,7 @@ struct GeneratedQuestionDetailView: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 32) {
                     // Question Content
@@ -371,7 +371,7 @@ struct GeneratedQuestionDetailView: View {
                 .foregroundColor(color)
 
             VStack(alignment: .leading, spacing: 4) {
-                let statusText = isCorrect ? NSLocalizedString("questionDetail.correct", comment: "") : (partialCredit > 0 ? "Partial Credit" : NSLocalizedString("questionDetail.incorrect", comment: ""))
+                let statusText = isCorrect ? NSLocalizedString("questionDetail.correct", comment: "") : (partialCredit > 0 ? NSLocalizedString("practiceSheet.partialCredit", comment: "") : NSLocalizedString("questionDetail.incorrect", comment: ""))
 
                 Text(statusText)
                     .font(.body.bold())
@@ -514,7 +514,7 @@ struct GeneratedQuestionDetailView: View {
                 .frame(height: 50)
                 .background(
                     LinearGradient(
-                        colors: themeManager.currentTheme == .cute ?
+                        colors: themeManager.currentTheme == .colorful ?
                             [DesignTokens.Colors.Cute.peach, DesignTokens.Colors.Cute.peach.opacity(0.8)] :
                             [Color.orange, Color.orange.opacity(0.8)],
                         startPoint: .leading,
@@ -522,7 +522,7 @@ struct GeneratedQuestionDetailView: View {
                     )
                 )
                 .cornerRadius(12)
-                .shadow(color: (themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.peach : Color.orange).opacity(0.3), radius: 8, x: 0, y: 4)
+                .shadow(color: (themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.peach : Color.orange).opacity(0.3), radius: 8, x: 0, y: 4)
             }
 
             // ✅ NEW: Previous/Next navigation buttons side by side
@@ -543,7 +543,7 @@ struct GeneratedQuestionDetailView: View {
                             .frame(height: 50)
                             .background(
                                 LinearGradient(
-                                    colors: themeManager.currentTheme == .cute ?
+                                    colors: themeManager.currentTheme == .colorful ?
                                         [DesignTokens.Colors.Cute.blue, DesignTokens.Colors.Cute.blue.opacity(0.8)] :
                                         [.blue, .blue.opacity(0.8)],
                                     startPoint: .leading,
@@ -575,7 +575,7 @@ struct GeneratedQuestionDetailView: View {
                             .frame(height: 50)
                             .background(
                                 LinearGradient(
-                                    colors: themeManager.currentTheme == .cute ?
+                                    colors: themeManager.currentTheme == .colorful ?
                                         [DesignTokens.Colors.Cute.blue, DesignTokens.Colors.Cute.blue.opacity(0.8)] :
                                         [.blue, .blue.opacity(0.8)],
                                     startPoint: .leading,
@@ -583,7 +583,7 @@ struct GeneratedQuestionDetailView: View {
                                 )
                             )
                             .cornerRadius(12)
-                            .shadow(color: (themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : Color.blue).opacity(0.3), radius: 8, x: 0, y: 4)
+                            .shadow(color: (themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.blue : Color.blue).opacity(0.3), radius: 8, x: 0, y: 4)
                         }
                     }
                 }

@@ -18,7 +18,7 @@ struct ScannedImageActionView: View {
     @State private var showPreprocessing = false
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 20) {
                 // Preview of scanned image
                 VStack(alignment: .leading, spacing: 12) {

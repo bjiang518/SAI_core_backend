@@ -14,7 +14,6 @@ import Combine
 // Disable debug print statements in production builds to prevent voice input text exposure
 #if !DEBUG
 private func debugPrint(_ items: Any...) { }
-private func debugPrint(_ items: Any...) { }
 #endif
 
 class SpeechRecognitionService: NSObject, ObservableObject {

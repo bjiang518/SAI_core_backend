@@ -38,8 +38,6 @@ struct FeatureGate {
 
         // Tier-based access gate (instant UI gate before network call)
         switch feature {
-        case .batchHomework:
-            if !user.tier.isPaid { return .blocked(reason: .upgradeRequired(minTier: .premium)) }
         case .voiceChat:
             if !user.tier.isPaid { return .blocked(reason: .upgradeRequired(minTier: .premium)) }
         case .questionGeneration(let mode) where mode == 3:

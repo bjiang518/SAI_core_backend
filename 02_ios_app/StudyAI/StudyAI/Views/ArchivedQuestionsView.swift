@@ -417,57 +417,91 @@ struct CompactQuestionCard: View {
     }
 }
 
-// MARK: - Minimal Question Detail View
+// MARK: - Notebook Highlighter Mark (organic felt-tip highlight shape)
+
+private struct NotebookHighlighterMark: Shape {
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        let top = rect.height * 0.18
+        let bot = rect.height * 0.88
+        let l   = rect.minX - 3
+        let r   = rect.maxX + 4
+        p.move(to: CGPoint(x: l, y: top + 1.5))
+        p.addCurve(
+            to: CGPoint(x: r, y: top - 0.5),
+            control1: CGPoint(x: rect.width * 0.32, y: top - 2.5),
+            control2: CGPoint(x: rect.width * 0.70, y: top + 2.0)
+        )
+        p.addLine(to: CGPoint(x: r, y: bot + 0.5))
+        p.addCurve(
+            to: CGPoint(x: l, y: bot - 0.5),
+            control1: CGPoint(x: rect.width * 0.65, y: bot + 2.5),
+            control2: CGPoint(x: rect.width * 0.28, y: bot - 2.0)
+        )
+        p.closeSubpath()
+        return p
+    }
+}
+
+// MARK: - Question Detail View (Library)
 
 struct QuestionDetailView: View {
     let questionId: String
-    var preloadedSummary: QuestionSummary? = nil  // bypass ID lookup for library nav
-    // ⚠️ REMOVED: @EnvironmentObject var appState (no longer needed after removing "Ask AI" button)
+    var preloadedSummary: QuestionSummary? = nil
+
+    @Environment(\.colorScheme) private var colorScheme
+    private let appState = AppState.shared
+
     @State private var question: ArchivedQuestion?
     @State private var isLoading = true
     @State private var errorMessage: String?
-    @State private var proModeImage: UIImage?  // ✅ For Pro Mode cropped images
-    @State private var hasStartedLoading = false  // guard against double onAppear
+    @State private var proModeImage: UIImage?
+    @State private var hasStartedLoading = false
+
+    // MARK: - Theme (matches SuggestedTodosSection notebook paper)
+
+    private var paperColor: Color {
+        colorScheme == .dark ? Color(hex: "27251F") : Color(hex: "FAF6EE")
+    }
+    private var lineColor: Color {
+        colorScheme == .dark
+            ? Color(hex: "4A4640").opacity(0.55)
+            : Color(hex: "B8C4C0").opacity(0.55)
+    }
+    private var primaryText: Color {
+        colorScheme == .dark ? Color(hex: "E8E8E8") : Color(hex: "2A2A2A")
+    }
+    private var secondaryText: Color {
+        colorScheme == .dark ? Color(hex: "909098") : Color(hex: "888888")
+    }
+
+    // MARK: - Handwriting font (matches SuggestedTodosSection)
+
+    private func handwritingFont(size: CGFloat, for text: String) -> Font {
+        let hasCJK = text.unicodeScalars.contains {
+            (0x4E00...0x9FFF ~= $0.value) || (0x3400...0x4DBF ~= $0.value)
+        }
+        return hasCJK
+            ? Font.custom("ZCOOLKuaiLe-Regular", size: size)
+            : Font.custom("IndieFlower", size: size)
+    }
+
+    // MARK: - Body
 
     var body: some View {
-        return ScrollView {
+        ScrollView {
             if isLoading {
-                ProgressView()
-                    .padding(.top, 100)
-            } else if let errorMessage = errorMessage {
-                // Error state
-                VStack(spacing: 16) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.largeTitle)
-                        .foregroundColor(.red)
-                    Text("Failed to Load Question")
-                        .font(.headline)
-                    Text(errorMessage)
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-
-                    Button("Retry") {
-                        loadQuestion()
-                    }
-                    .buttonStyle(.bordered)
+                ProgressView().padding(.top, 100)
+            } else if let err = errorMessage {
+                errorView(err)
+            } else if let q = question {
+                ZStack(alignment: .topLeading) {
+                    notebookBackground
+                    contentView(for: q)
                 }
-                .padding(.top, 100)
-            } else if let question = question {
-                VStack(alignment: .leading, spacing: 16) {
-                    // Check if we should use type-specific renderer
-                    if let questionType = question.questionType, !questionType.isEmpty {
-                        // Use type-specific renderer
-                        typeSpecificQuestionRenderer(for: question)
-                    } else {
-                        // Use default generic renderer
-                        defaultQuestionRenderer(for: question)
-                    }
-                }
-                .padding()
             }
         }
+        .background(paperColor.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             guard !hasStartedLoading else { return }
@@ -476,403 +510,336 @@ struct QuestionDetailView: View {
         }
     }
 
-    // MARK: - Type-Specific Renderer
+    // MARK: - Notebook paper background (grid lines)
 
-    @ViewBuilder
-    private func typeSpecificQuestionRenderer(for question: ArchivedQuestion) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Header with subject and grade
-            questionHeader(for: question)
-
-            // ✅ NEW: Pro Mode Image Display
-            if let image = proModeImage {
-                VStack(spacing: 8) {
-                    HStack {
-                        Image(systemName: "photo.fill")
-                            .font(.caption)
-                            .foregroundColor(.blue)
-                        Text("Question Image")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                        Spacer()
+    private var notebookBackground: some View {
+        GeometryReader { geo in
+            ZStack {
+                paperColor
+                Canvas { ctx, size in
+                    let spacing: CGFloat = 24
+                    let style = StrokeStyle(lineWidth: 0.5, lineCap: .round)
+                    var y: CGFloat = spacing
+                    while y < size.height {
+                        var p = Path()
+                        p.move(to: CGPoint(x: 0, y: y))
+                        p.addLine(to: CGPoint(x: size.width, y: y))
+                        ctx.stroke(p, with: .color(lineColor), style: style)
+                        y += spacing
                     }
-
-                    Image(uiImage: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .cornerRadius(8)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                        )
-                }
-                .padding()
-                .background(Color.gray.opacity(0.05))
-                .cornerRadius(12)
-            }
-
-            // Convert ArchivedQuestion to ParsedQuestion for renderer
-            let parsedQuestion = ParsedQuestion(
-                questionNumber: nil,
-                rawQuestionText: question.rawQuestionText,
-                questionText: question.questionText,
-                answerText: question.answerText,
-                confidence: question.confidence,
-                hasVisualElements: question.hasVisualElements,
-                studentAnswer: question.studentAnswer,
-                correctAnswer: question.answerText,
-                grade: question.grade?.rawValue,
-                pointsEarned: question.points,
-                pointsPossible: question.maxPoints,
-                feedback: question.feedback,
-                questionType: question.questionType,
-                options: question.options
-            )
-
-            // ⚠️ SIMPLIFIED: Removed QuestionTypeRendererSelector to avoid "Ask AI" button crash
-            // Display question content with student answer, correct answer, and feedback (no interactive buttons)
-
-            // Question section
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("Q")
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                        .frame(width: 20, height: 20)
-                        .background(Color.blue)
-                        .cornerRadius(4)
-
-                    Text("Question")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-
-                    Spacer()
-                }
-
-                EnhancedMathText(question.rawQuestionText ?? question.questionText, fontSize: 16)
-                    .fontWeight(.medium)
-                    .textSelection(.enabled)
-            }
-            .padding()
-            .background(Color.gray.opacity(0.05))
-            .cornerRadius(12)
-
-            // Student Answer
-            if let studentAnswer = question.studentAnswer, !studentAnswer.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Image(systemName: "person.fill")
-                            .font(.caption)
-                            .foregroundColor(.blue)
-                        Text("Student Answer")
-                            .font(.caption)
-                            .foregroundColor(.gray)
+                    var x: CGFloat = spacing
+                    while x < size.width {
+                        var p = Path()
+                        p.move(to: CGPoint(x: x, y: 0))
+                        p.addLine(to: CGPoint(x: x, y: size.height))
+                        ctx.stroke(p, with: .color(lineColor), style: style)
+                        x += spacing
                     }
-
-                    EnhancedMathText(studentAnswer, fontSize: 16)
-                        .foregroundColor(.primary)  // ✅ Adaptive color for dark mode
-                        .textSelection(.enabled)
-                }
-                .padding()
-                .background(Color.blue.opacity(0.05))
-                .cornerRadius(12)
-            }
-
-            // Correct Answer with Feedback
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Text("A")
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                        .frame(width: 20, height: 20)
-                        .background(Color.green)
-                        .cornerRadius(4)
-
-                    Text("Correct Answer")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                }
-
-                EnhancedMathText(question.answerText, fontSize: 16)
-                    .foregroundColor(.primary)  // ✅ Adaptive color for dark mode
-                    .textSelection(.enabled)
-
-                // AI Feedback (if available and not empty)
-                if let feedback = question.feedback, !feedback.isEmpty, feedback != "No feedback provided" {
-                    Divider()
-                        .padding(.vertical, 4)
-
-                    HStack {
-                        Image(systemName: "bubble.left.fill")
-                            .font(.caption)
-                            .foregroundColor(.purple)
-                        Text("AI Feedback")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                    }
-
-                    EnhancedMathText(feedback, fontSize: 16)
-                        .foregroundColor(.primary)  // ✅ Adaptive color for dark mode
-                        .textSelection(.enabled)
                 }
             }
-            .padding()
-            .background(Color.green.opacity(0.05))
-            .cornerRadius(12)
-
-            // User notes and tags
-            userNotesAndTags(for: question)
+            .frame(width: geo.size.width, height: geo.size.height)
         }
     }
 
-    // MARK: - Default Generic Renderer
+    // MARK: - Main content
 
     @ViewBuilder
-    private func defaultQuestionRenderer(for question: ArchivedQuestion) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Header with subject and grade (shared component)
-            questionHeader(for: question)
+    private func contentView(for q: ArchivedQuestion) -> some View {
+        VStack(alignment: .leading, spacing: 24) {
 
-            // ✅ NEW: Pro Mode Image Display (same as type-specific renderer)
-            if let image = proModeImage {
-                VStack(spacing: 8) {
-                    HStack {
-                        Image(systemName: "photo.fill")
-                            .font(.caption)
-                            .foregroundColor(.blue)
-                        Text("Question Image")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                        Spacer()
-                    }
-
-                    Image(uiImage: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .cornerRadius(8)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                        )
-                }
-                .padding()
-                .background(Color.gray.opacity(0.05))
-                .cornerRadius(12)
-            }
-
-            // Question (Full original text from image)
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("Q")
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                        .frame(width: 20, height: 20)
-                        .background(Color.blue)
-                        .cornerRadius(4)
-
-                    Text("Question")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-
-                    Spacer()
-                }
-
-                // ✅ Use EnhancedMathText for LaTeX/math rendering
-                EnhancedMathText(question.rawQuestionText ?? question.questionText, fontSize: 16)
-                    .fontWeight(.medium)
-                    .textSelection(.enabled)
-            }
-            .padding()
-            .background(Color.gray.opacity(0.05))
-            .cornerRadius(12)
-
-            // Raw Question (Full original text from image)
-            if let rawText = question.rawQuestionText, rawText != question.questionText {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Image(systemName: "doc.text.fill")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                        Text("Original Question")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                    }
-
-                    Text(rawText)
-                        .font(.callout)
-                        .foregroundColor(.primary)  // ✅ Adaptive color for dark mode
-                        .textSelection(.enabled)
-                }
-                .padding()
-                .background(Color.gray.opacity(0.03))
-                .cornerRadius(12)
-            }
-
-            // Student Answer
-            if let studentAnswer = question.studentAnswer, !studentAnswer.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Image(systemName: "person.fill")
-                            .font(.caption)
-                            .foregroundColor(.blue)
-                        Text("Student Answer")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                    }
-
-                    // ✅ Use EnhancedMathText for math support in student answers
-                    EnhancedMathText(studentAnswer, fontSize: 16)
-                        .foregroundColor(.primary)  // ✅ Adaptive color for dark mode
-                        .textSelection(.enabled)
-                }
-                .padding()
-                .background(Color.blue.opacity(0.05))
-                .cornerRadius(12)
-            }
-
-            // Correct Answer with Feedback
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Text("A")
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                        .frame(width: 20, height: 20)
-                        .background(Color.green)
-                        .cornerRadius(4)
-
-                    Text("Correct Answer")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                }
-
-                // ✅ Use EnhancedMathText for LaTeX/math rendering in answers
-                EnhancedMathText(question.answerText, fontSize: 16)
-                    .foregroundColor(.primary)  // ✅ Adaptive color for dark mode
-                    .textSelection(.enabled)
-
-                // AI Feedback (if available and not empty)
-                if let feedback = question.feedback, !feedback.isEmpty, feedback != "No feedback provided" {
-                    Divider()
-                        .padding(.vertical, 4)
-
-                    HStack {
-                        Image(systemName: "bubble.left.fill")
-                            .font(.caption)
-                            .foregroundColor(.purple)
-                        Text("AI Feedback")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                    }
-
-                    // ✅ Use EnhancedMathText for math support in feedback
-                    EnhancedMathText(feedback, fontSize: 16)
-                        .foregroundColor(.primary)  // ✅ Adaptive color for dark mode
-                        .textSelection(.enabled)
-                }
-            }
-            .padding()
-            .background(Color.green.opacity(0.05))
-            .cornerRadius(12)
-
-            // User notes and tags
-            userNotesAndTags(for: question)
-        }
-    }
-
-    // MARK: - Shared Components
-
-    @ViewBuilder
-    private func questionHeader(for question: ArchivedQuestion) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Grading Badge (if graded)
-            if question.isGraded, let grade = question.grade {
-                HStack(spacing: 8) {
-                    Image(systemName: gradeIcon(grade))
-                        .foregroundColor(gradeColor(grade))
-                    Text(grade.displayName)
-                        .font(.headline)
-                        .foregroundColor(gradeColor(grade))
-                    if let points = question.points, let maxPoints = question.maxPoints {
-                        Text("(\(String(format: "%.1f", points))/\(String(format: "%.1f", maxPoints)))")
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
-                    }
-                    Spacer()
-                }
-                .padding()
-                .background(gradeColor(grade).opacity(0.1))
-                .cornerRadius(12)
-            }
-
-            // Subject and confidence indicator
+            // Subject tag — top right
             HStack {
-                Text(question.subject)
-                    .font(.caption)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.blue.opacity(0.1))
-                    .foregroundColor(.blue)
-                    .cornerRadius(6)
-
                 Spacer()
-
-                Circle()
-                    .fill(confidenceColor(question.confidence))
-                    .frame(width: 8, height: 8)
+                Text(q.subject)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(subjectColor(q.subject))
+                    .cornerRadius(12)
             }
+
+            // Question
+            questionSection(for: q)
+
+            // Student answer (left) + Grade (right, floating)
+            studentAnswerAndGradeRow(for: q)
+
+            // Correct answer
+            correctAnswerSection(for: q)
+
+            // AI Feedback
+            if let feedback = q.feedback, !feedback.isEmpty, feedback != "No feedback provided" {
+                aiFeedbackSection(feedback)
+            }
+
+            // Tags & notes (if any)
+            userNotesAndTags(for: q)
+
+            // Follow Up with AI
+            followUpButton(for: q)
+
+            Spacer(minLength: 40)
         }
+        .padding(.horizontal, 20)
+        .padding(.top, 16)
+        .padding(.bottom, 16)
+    }
+
+    // MARK: - Question section (no box — content lives directly on paper)
+
+    private func containsLaTeX(_ text: String) -> Bool {
+        text.contains("$") || text.contains("\\(") || text.contains("\\[") ||
+        text.contains("\\frac") || text.contains("\\sqrt") || text.contains("\\sum") ||
+        text.contains("\\int") || text.contains("\\alpha") || text.contains("\\beta") ||
+        text.contains("\\pi") || text.contains("\\theta")
+    }
+
+    private func questionDisplayText(_ q: ArchivedQuestion) -> String {
+        let hasSeparateOptions = !(q.options ?? []).isEmpty
+        if q.questionType == "multiple_choice" && hasSeparateOptions {
+            return q.questionText  // stem only — options rendered separately below
+        }
+        return q.rawQuestionText ?? q.questionText
     }
 
     @ViewBuilder
-    private func userNotesAndTags(for question: ArchivedQuestion) -> some View {
-        // Tags (if any)
-        if let tags = question.tags, !tags.isEmpty {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 60))], spacing: 6) {
-                ForEach(tags, id: \.self) { tag in
-                    Text(tag)
-                        .font(.caption2)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.blue.opacity(0.1))
-                        .foregroundColor(.blue)
-                        .cornerRadius(8)
-                }
-            }
-        }
+    private func questionSection(for q: ArchivedQuestion) -> some View {
+        let qType = q.questionType ?? ""
+        let separateOptions = q.options ?? []
+        let letters = ["A", "B", "C", "D", "E", "F"]
 
-        // Notes (if any)
-        if let notes = question.notes, !notes.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Image(systemName: "note.text")
-                        .font(.caption)
-                        .foregroundColor(.orange)
-                    Text("Your Notes")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                }
+        VStack(alignment: .leading, spacing: 10) {
+            highlightedLabel("Question", highlightColor: Color(hex: "7EC8E3").opacity(0.50))
 
-                Text(notes)
-                    .font(.callout)
-                    .foregroundColor(.primary)  // ✅ Adaptive color for dark mode
-                    .textSelection(.enabled)
+            EnhancedMathText(questionDisplayText(q), fontSize: 17)
+
+            // Multiple choice — separate options array
+            if qType == "multiple_choice" && !separateOptions.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(Array(separateOptions.enumerated()), id: \.offset) { i, option in
+                        HStack(alignment: .top, spacing: 8) {
+                            Text(i < letters.count ? letters[i] : "\(i + 1)")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(secondaryText)
+                                .frame(width: 18, alignment: .leading)
+                            EnhancedMathText(option, fontSize: 15)
+                        }
+                    }
+                }
+                .padding(.top, 4)
             }
-            .padding()
-            .background(Color.yellow.opacity(0.1))
-            .cornerRadius(12)
+
+            // True / False — show the two choices explicitly
+            if qType == "true_false" {
+                HStack(spacing: 24) {
+                    ForEach(["True", "False"], id: \.self) { label in
+                        HStack(spacing: 5) {
+                            Image(systemName: "circle")
+                                .font(.system(size: 12))
+                                .foregroundColor(secondaryText)
+                            Text(label)
+                                .font(.system(size: 15))
+                                .foregroundColor(secondaryText)
+                        }
+                    }
+                }
+                .padding(.top, 4)
+            }
+
+            if let image = proModeImage {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .cornerRadius(6)
+            }
         }
     }
 
-    // MARK: - Data Loading
+    // MARK: - Student answer (3/4) + Grade (1/4, floating on paper)
+
+    @ViewBuilder
+    private func studentAnswerAndGradeRow(for q: ArchivedQuestion) -> some View {
+        let answerText = q.studentAnswer ?? "—"
+        let hasAnswer = !(q.studentAnswer ?? "").isEmpty
+        let hColor = q.grade.map { answerHighlightColor($0) } ?? Color(hex: "FFE066")
+        let gColor = q.grade.map { gradeColor($0) } ?? Color.gray
+
+        HStack(alignment: .top, spacing: 0) {
+
+            // Student answer — takes ~3/4, no box
+            VStack(alignment: .leading, spacing: 8) {
+                highlightedLabel("Your Answer", highlightColor: hColor.opacity(0.50))
+
+                if hasAnswer && containsLaTeX(answerText) {
+                    EnhancedMathText(answerText, fontSize: 17)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 4)
+                        .background(NotebookHighlighterMark().fill(hColor.opacity(0.32)))
+                } else {
+                    Text(hasAnswer ? answerText : "—")
+                        .font(handwritingFont(size: 22, for: answerText))
+                        .foregroundColor(primaryText)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 4)
+                        .background(NotebookHighlighterMark().fill(hColor.opacity(0.32)))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            // Grade indicator — ~1/4 width, just icon + text, no box
+            VStack(spacing: 4) {
+                Image(systemName: gradeIconName(q.grade))
+                    .font(.system(size: 32, weight: .bold))
+                    .foregroundColor(gColor)
+
+                if let grade = q.grade {
+                    Text(grade.displayName)
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(gColor)
+                        .multilineTextAlignment(.center)
+                }
+
+                if let pts = q.points, let max = q.maxPoints {
+                    Text("\(formatScore(pts))/\(formatScore(max))")
+                        .font(.caption2)
+                        .foregroundColor(secondaryText)
+                }
+            }
+            .frame(width: 72)
+        }
+    }
+
+    // MARK: - Correct answer section (no box)
+
+    @ViewBuilder
+    private func correctAnswerSection(for q: ArchivedQuestion) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            highlightedLabel("Correct Answer", highlightColor: Color.green.opacity(0.40))
+
+            EnhancedMathText(q.answerText, fontSize: 16)
+                .foregroundColor(primaryText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    // MARK: - AI Feedback section (no box)
+
+    @ViewBuilder
+    private func aiFeedbackSection(_ feedback: String) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            highlightedLabel("AI Feedback", highlightColor: Color.purple.opacity(0.30))
+
+            EnhancedMathText(feedback, fontSize: 16)
+                .foregroundColor(primaryText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    // MARK: - Notes & Tags (no box)
+
+    @ViewBuilder
+    private func userNotesAndTags(for q: ArchivedQuestion) -> some View {
+        if let tags = q.tags, !tags.isEmpty {
+            FlowLayout(items: tags) { tag in
+                Text(tag)
+                    .font(.caption2)
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .background(Color.blue.opacity(0.12))
+                    .foregroundColor(.blue)
+                    .cornerRadius(8)
+            }
+        }
+
+        if let notes = q.notes, !notes.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                highlightedLabel("Your Notes", highlightColor: Color(hex: "FFE066").opacity(0.55))
+                if containsLaTeX(notes) {
+                    EnhancedMathText(notes, fontSize: 15)
+                } else {
+                    Text(notes)
+                        .font(handwritingFont(size: 17, for: notes))
+                        .foregroundColor(primaryText)
+                        .textSelection(.enabled)
+                }
+            }
+        }
+    }
+
+    // MARK: - Follow Up button
+
+    @ViewBuilder
+    private func followUpButton(for q: ArchivedQuestion) -> some View {
+        Button {
+            let context = HomeworkQuestionContext(
+                questionText: q.questionText,
+                rawQuestionText: q.rawQuestionText,
+                studentAnswer: q.studentAnswer,
+                correctAnswer: q.answerText,
+                currentGrade: q.grade?.rawValue,
+                originalFeedback: q.feedback,
+                pointsEarned: q.points,
+                pointsPossible: q.maxPoints,
+                questionNumber: nil,
+                subject: q.subject,
+                questionImage: nil
+            )
+            let msg = "I need help understanding this \(q.subject) question from my study archive. Can you explain the solution step by step?"
+            appState.navigateToChatWithHomeworkQuestion(message: msg, context: context)
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "message.fill")
+                Text("Follow Up with AI")
+                    .fontWeight(.semibold)
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(
+                LinearGradient(
+                    colors: [Color(hex: "FFB6A3"), Color(hex: "FF85C1")],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .cornerRadius(14)
+            .shadow(color: Color(hex: "FFB6A3").opacity(0.40), radius: 6, x: 0, y: 3)
+        }
+    }
+
+    // MARK: - Highlighted subtitle label
+
+    @ViewBuilder
+    private func highlightedLabel(_ text: String, highlightColor: Color) -> some View {
+        Text(text)
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundColor(secondaryText)
+            .background(NotebookHighlighterMark().fill(highlightColor))
+    }
+
+    // MARK: - Error view
+
+    @ViewBuilder
+    private func errorView(_ message: String) -> some View {
+        VStack(spacing: 16) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.largeTitle).foregroundColor(.red)
+            Text("Failed to Load Question").font(.headline)
+            Text(message).font(.subheadline).foregroundColor(.gray)
+                .multilineTextAlignment(.center).padding(.horizontal)
+            Button("Retry") { loadQuestion() }.buttonStyle(.bordered)
+        }
+        .padding(.top, 100)
+    }
+
+    // MARK: - Data loading
 
     private func loadQuestion() {
-        // If we were given the summary directly from the library, convert it
-        // without an ID lookup — avoids the ambiguity of bare subquestion IDs
         if let summary = preloadedSummary {
+            // Quick path: show immediately from summary data
             let converted = ArchivedQuestion(
                 id: summary.id,
                 userId: "",
@@ -904,26 +871,36 @@ struct QuestionDetailView: View {
             )
             self.question = converted
             self.isLoading = false
+            if let path = summary.questionImageUrl, !path.isEmpty,
+               let img = ProModeImageStorage.shared.loadImage(from: path) {
+                self.proModeImage = img
+            }
 
-            // Load the question image (same logic as the fetch path below)
-            if let imagePath = summary.questionImageUrl, !imagePath.isEmpty,
-               let loadedImage = ProModeImageStorage.shared.loadImage(from: imagePath) {
-                self.proModeImage = loadedImage
+            // Background fetch to get full details including AI feedback
+            Task {
+                if let full = try? await QuestionArchiveService.shared.getQuestionDetails(questionId: questionId) {
+                    await MainActor.run {
+                        self.question = full
+                        if let path = full.questionImageUrl, !path.isEmpty,
+                           let img = ProModeImageStorage.shared.loadImage(from: path) {
+                            self.proModeImage = img
+                        }
+                    }
+                }
             }
             return
         }
 
         Task {
             do {
-                let fetchedQuestion = try await QuestionArchiveService.shared.getQuestionDetails(questionId: questionId)
+                let q = try await QuestionArchiveService.shared.getQuestionDetails(questionId: questionId)
                 await MainActor.run {
-                    if let imagePath = fetchedQuestion.questionImageUrl, !imagePath.isEmpty,
-                       let loadedImage = ProModeImageStorage.shared.loadImage(from: imagePath) {
-                        self.proModeImage = loadedImage
+                    if let path = q.questionImageUrl, !path.isEmpty,
+                       let img = ProModeImageStorage.shared.loadImage(from: path) {
+                        self.proModeImage = img
                     }
-                    self.question = fetchedQuestion
+                    self.question = q
                     self.isLoading = false
-                    self.errorMessage = nil
                 }
             } catch {
                 await MainActor.run {
@@ -934,19 +911,17 @@ struct QuestionDetailView: View {
         }
     }
 
-    // MARK: - Helper Methods
+    // MARK: - Helpers
 
-    private func confidenceColor(_ confidence: Float?) -> Color {
-        guard let confidence = confidence else { return .gray }
-        return confidence > 0.8 ? .green : confidence > 0.6 ? .orange : .red
-    }
-
-    private func gradeIcon(_ grade: GradeResult) -> String {
-        switch grade {
-        case .correct: return "checkmark.circle.fill"
-        case .incorrect: return "xmark.circle.fill"
-        case .empty: return "minus.circle.fill"
-        case .partialCredit: return "checkmark.circle"
+    private func subjectColor(_ subject: String) -> Color {
+        switch subject {
+        case "Mathematics", "Math": return .blue
+        case "Physics": return .purple
+        case "Chemistry": return Color(hex: "27AE60")
+        case "Biology": return .orange
+        case "English": return .red
+        case "History": return Color(hex: "8B6914")
+        default: return .gray
         }
     }
 
@@ -954,9 +929,31 @@ struct QuestionDetailView: View {
         switch grade {
         case .correct: return .green
         case .incorrect: return .red
-        case .empty: return .gray
         case .partialCredit: return .orange
+        case .empty: return .gray
         }
+    }
+
+    private func answerHighlightColor(_ grade: GradeResult) -> Color {
+        switch grade {
+        case .correct: return Color(hex: "7FDBCA")       // mint
+        case .incorrect: return Color(hex: "FFB6A3")     // peach-red
+        case .partialCredit: return Color(hex: "FFE066") // yellow
+        case .empty: return Color(hex: "FFE066")
+        }
+    }
+
+    private func gradeIconName(_ grade: GradeResult?) -> String {
+        switch grade {
+        case .correct: return "checkmark.circle.fill"
+        case .incorrect: return "xmark.circle.fill"
+        case .partialCredit: return "circle.lefthalf.filled"
+        case .empty, nil: return "minus.circle"
+        }
+    }
+
+    private func formatScore(_ value: Float) -> String {
+        value.truncatingRemainder(dividingBy: 1) == 0 ? "\(Int(value))" : String(format: "%.1f", value)
     }
 }
 

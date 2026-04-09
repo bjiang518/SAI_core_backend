@@ -250,9 +250,9 @@ Format as HTML list (<ul><li>points</li></ul>).`,
 
             'activity:engagement_quality': () => `Assess engagement quality:
 
-Question/Chat ratio: ${signals.questionsPerChat.toFixed(1)}
+Question/Chat ratio: ${signals.questionsPerChat}
 Avg session length: ${signals.avgSessionMinutes} minutes
-Questions per active day: ${signals.questionsPerDay.toFixed(1)}
+Questions per active day: ${signals.questionsPerDay}
 ${signals.handwritingQuality ? `Handwriting quality: ${signals.handwritingQuality}` : ''}
 
 Study session patterns:

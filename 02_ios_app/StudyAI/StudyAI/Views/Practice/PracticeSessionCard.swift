@@ -264,7 +264,7 @@ struct PracticeSessionPDFView: View {
     @State private var options = PDFExportOptions()
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Group {
                 if isLoading {
                     VStack(spacing: 16) {

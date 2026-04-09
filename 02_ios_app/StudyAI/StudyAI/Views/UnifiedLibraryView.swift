@@ -80,8 +80,6 @@ struct UnifiedLibraryView: View {
     // Navigation destination state
     @State private var navigationSelectedQuestion: QuestionSummary? = nil
     @State private var navigationSelectedConversation: ConversationLibraryItem? = nil
-    @State private var navigatingToQuestion = false
-    @State private var navigatingToConversation = false
 
     // Computed properties for filtered counts
     // These counts MUST reflect all active filters (time, subject, question type)
@@ -259,7 +257,7 @@ struct UnifiedLibraryView: View {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: { showingLibraryInfo = true }) {
                         Image(systemName: "info.circle")
-                            .foregroundColor(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary)
+                            .foregroundColor(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary)
                     }
                 }
 
@@ -360,12 +358,18 @@ struct UnifiedLibraryView: View {
             .fullScreenCover(item: $activeLibraryPracticeSession) { session in
                 QuestionSheetView(session: session)
             }
-            .navigationDestination(isPresented: $navigatingToQuestion) {
+            .navigationDestination(isPresented: Binding(
+                get: { navigationSelectedQuestion != nil },
+                set: { if !$0 { navigationSelectedQuestion = nil } }
+            )) {
                 if let q = navigationSelectedQuestion {
                     QuestionDetailView(questionId: q.id, preloadedSummary: q)
                 }
             }
-            .navigationDestination(isPresented: $navigatingToConversation) {
+            .navigationDestination(isPresented: Binding(
+                get: { navigationSelectedConversation != nil },
+                set: { if !$0 { navigationSelectedConversation = nil } }
+            )) {
                 if let conv = navigationSelectedConversation {
                     SessionDetailView(sessionId: conv.id, isConversation: conv.itemType == .conversation)
                 }
@@ -423,7 +427,7 @@ struct UnifiedLibraryView: View {
                     }
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(
-                        themeManager.currentTheme == .cute
+                        themeManager.currentTheme == .colorful
                             ? DesignTokens.Colors.Cute.backgroundCream
                             : Color(.systemGroupedBackground)
                     )
@@ -485,10 +489,8 @@ struct UnifiedLibraryView: View {
                                 }
                                 if item.itemType == .question, let q = item as? QuestionSummary {
                                     navigationSelectedQuestion = q
-                                    navigatingToQuestion = true
                                 } else if let conv = item as? ConversationLibraryItem {
                                     navigationSelectedConversation = conv
-                                    navigatingToConversation = true
                                 }
                             } label: {
                                 Color.clear
@@ -525,7 +527,7 @@ struct UnifiedLibraryView: View {
                 if showFloatingFilter {
                     filterBarContent
                         .background(
-                            (themeManager.currentTheme == .cute
+                            (themeManager.currentTheme == .colorful
                              ? DesignTokens.Colors.Cute.backgroundCream
                              : Color(.systemGroupedBackground))
                             .shadow(color: .black.opacity(0.08), radius: 4, x: 0, y: 2)
@@ -600,7 +602,7 @@ struct UnifiedLibraryView: View {
             } label: {
                 filterChip(
                     icon: "book.fill",
-                    label: selectedSubject ?? NSLocalizedString("library.filter.allSubjects", comment: "")
+                    label: selectedSubject.map { NSLocalizedString("subject.\($0.lowercased().replacingOccurrences(of: " ", with: ""))", value: $0, comment: "") } ?? NSLocalizedString("library.filter.allSubjects", comment: "")
                 )
             }
 
@@ -642,7 +644,7 @@ struct UnifiedLibraryView: View {
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity, minHeight: 44)
         .background(
-            themeManager.currentTheme == .cute
+            themeManager.currentTheme == .colorful
                 ? DesignTokens.Colors.Cute.backgroundSoftPink
                 : Color(.systemBackground)
         )
@@ -650,7 +652,7 @@ struct UnifiedLibraryView: View {
         .overlay(
             RoundedRectangle(cornerRadius: 10)
                 .stroke(
-                    themeManager.currentTheme == .cute
+                    themeManager.currentTheme == .colorful
                         ? DesignTokens.Colors.Cute.lavender.opacity(0.3)
                         : Color.gray.opacity(0.3),
                     lineWidth: 1
@@ -1016,6 +1018,21 @@ struct LibraryItemRow: View {
     @Environment(\.colorScheme) var colorScheme
     @State private var proModeImage: UIImage?
 
+    /// Truncates preview to the first 50 characters without splitting mid-LaTeX expression.
+    private var truncatedPreview: String {
+        let text = item.preview
+        let limit = 50
+        guard text.count > limit else { return text }
+        let cutIndex = text.index(text.startIndex, offsetBy: limit)
+        var truncated = String(text[..<cutIndex])
+        // If we're inside a $...$ block (odd number of $ signs), back up to the last $
+        let dollarCount = truncated.filter { $0 == "$" }.count
+        if dollarCount % 2 != 0, let lastDollar = truncated.lastIndex(of: "$") {
+            truncated = String(truncated[..<lastDollar])
+        }
+        return truncated.trimmingCharacters(in: .whitespaces) + "…"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // Header: source-type icon (left) + date (right)
@@ -1042,9 +1059,7 @@ struct LibraryItemRow: View {
             }
 
             // Enhanced preview content with full LaTeX/MathJax support
-            FullLaTeXText(item.preview, fontSize: 15, interactionEnabled: false)
-                .frame(maxHeight: 120)
-                .clipped()
+            FullLaTeXText(truncatedPreview, fontSize: 15, interactionEnabled: false)
                 .allowsHitTesting(false)
 
             // ✅ NEW: Red flag indicator for conversations with behavior concerns
@@ -1122,12 +1137,12 @@ struct LibraryItemRow: View {
             return .blue
         case .question:
             if item is ConversationLibraryItem {
-                return themeManager.currentTheme == .cute
+                return themeManager.currentTheme == .colorful
                     ? DesignTokens.Colors.Cute.lavender
                     : DesignTokens.Colors.analyticsPlum
             }
             if let q = item as? QuestionSummary, q.source == "practice" {
-                return themeManager.currentTheme == .cute
+                return themeManager.currentTheme == .colorful
                     ? DesignTokens.Colors.Cute.lavender
                     : DesignTokens.Colors.analyticsPlum
             }
@@ -1192,11 +1207,11 @@ struct LibraryItemRow: View {
         switch item.itemType {
         case .question:
             if item is ConversationLibraryItem {
-                return themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender : DesignTokens.Colors.analyticsPlum
+                return themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.lavender : DesignTokens.Colors.analyticsPlum
             }
-            return themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary
+            return themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary
         case .conversation:
-            return themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.mint : DesignTokens.Colors.success
+            return themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.mint : DesignTokens.Colors.success
         }
     }
 
@@ -1367,7 +1382,7 @@ struct AdvancedSearchView: View {
     }
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
                 searchTextSection
                 subjectFilterSection
@@ -1504,7 +1519,7 @@ struct CustomDateRangePickerView: View {
     @State private var selectedDate = Date()
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
                     // Single Calendar

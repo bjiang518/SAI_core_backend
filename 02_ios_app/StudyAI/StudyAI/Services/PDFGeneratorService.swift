@@ -548,7 +548,7 @@ class PDFGeneratorService: ObservableObject {
         log.info("  buildVectorPDF: pageSize=\(pageSize) totalItems=\(totalItems)")
 
         let metadata: [String: Any] = [
-            kCGPDFContextCreator as String: "StudyMates"
+            kCGPDFContextCreator as String: "StudyAgent"
         ]
 
         let pdfData = NSMutableData()
@@ -613,7 +613,7 @@ class PDFGeneratorService: ObservableObject {
                 .font: UIFont.systemFont(ofSize: 36, weight: .bold),
                 .foregroundColor: UIColor(red: 0.0, green: 0.478, blue: 1.0, alpha: 1.0)
             ]
-            let titleStr = NSAttributedString(string: "StudyMates", attributes: titleAttrs)
+            let titleStr = NSAttributedString(string: "StudyAgent", attributes: titleAttrs)
             titleStr.draw(at: CGPoint(x: cx - titleStr.size().width / 2, y: y))
             y += titleStr.size().height + 16
 

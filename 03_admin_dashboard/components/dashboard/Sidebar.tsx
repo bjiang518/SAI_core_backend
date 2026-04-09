@@ -13,6 +13,7 @@ import {
   LogOut,
   BarChart2,
   Lightbulb,
+  Tag,
 } from 'lucide-react'
 
 const navigation = [
@@ -22,6 +23,7 @@ const navigation = [
   { name: 'Insights', href: '/dashboard/insights', icon: Lightbulb },
   { name: 'System Health', href: '/dashboard/system', icon: Activity },
   { name: 'Reports', href: '/dashboard/reports', icon: FileText },
+  { name: 'Promo Codes', href: '/dashboard/promos', icon: Tag },
 ]
 
 export function Sidebar() {
@@ -33,7 +35,7 @@ export function Sidebar() {
       {/* Logo */}
       <div className="flex h-16 items-center justify-center border-b border-gray-800 px-4">
         <div className="text-center">
-          <h1 className="text-lg font-bold">StudyAI Admin</h1>
+          <h1 className="text-lg font-bold">ChatGPA Admin</h1>
           <p className="text-xs text-gray-400">Dashboard</p>
         </div>
       </div>

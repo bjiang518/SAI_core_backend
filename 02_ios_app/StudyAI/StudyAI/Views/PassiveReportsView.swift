@@ -12,7 +12,6 @@ import UIKit
 struct PassiveReportsView: View {
     @StateObject private var viewModel = PassiveReportsViewModel()
     @State private var selectedPeriod: ReportPeriod = .weekly
-    @State private var showTestingAlert = false
     @State private var batchToDelete: PassiveReportBatch?
     @State private var showDeleteConfirmation = false
     @State private var isEditMode = false
@@ -34,7 +33,7 @@ struct PassiveReportsView: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 VStack(spacing: 0) {
                     // Header section with subtitle
@@ -51,6 +50,24 @@ struct PassiveReportsView: View {
                     // Period Picker (Weekly/Monthly) - moved into scroll view
                     periodPicker
 
+                    // Generation-in-progress banner (shown while polling)
+                    if viewModel.isGenerating {
+                        HStack(spacing: 10) {
+                            ProgressView()
+                                .scaleEffect(0.9)
+                            Text(NSLocalizedString("reports.passive.generating", value: "Generating report… this takes about 1–2 minutes", comment: ""))
+                                .font(.footnote)
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                        .background(Color(.secondarySystemBackground))
+                        .cornerRadius(10)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 12)
+                    }
+
                     // Content based on loading state
                     if viewModel.isLoadingBatches {
                         loadingView
@@ -61,7 +78,7 @@ struct PassiveReportsView: View {
                     }
                 }
             }
-            .navigationTitle(NSLocalizedString("reports.passive.title", value: "Parent Reports", comment: ""))
+            .navigationTitle(NSLocalizedString("reports.passive.title", value: "Study Reports", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 // Info button
@@ -75,28 +92,18 @@ struct PassiveReportsView: View {
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    HStack(spacing: 16) {
-                        // Generate button
+                    // Three-dot dropdown menu
+                    Menu {
                         Button {
-                            showTestingAlert = true
+                            debugPrint("🔧 [EditMode] Entering edit mode")
+                            isEditMode = true
+                            debugPrint("🔧 [EditMode] isEditMode = \(isEditMode)")
                         } label: {
-                            Image(systemName: "plus.circle.fill")
-                                .foregroundColor(.blue)
+                            Label(NSLocalizedString("reports.passive.editReports", value: "Edit Reports", comment: ""), systemImage: "checkmark.circle")
                         }
-
-                        // Three-dot dropdown menu
-                        Menu {
-                            Button {
-                                debugPrint("🔧 [EditMode] Entering edit mode")
-                                isEditMode = true
-                                debugPrint("🔧 [EditMode] isEditMode = \(isEditMode)")
-                            } label: {
-                                Label(NSLocalizedString("reports.passive.editReports", value: "Edit Reports", comment: ""), systemImage: "checkmark.circle")
-                            }
-                        } label: {
-                            Image(systemName: "ellipsis.circle")
-                                .foregroundColor(.blue)
-                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .foregroundColor(.blue)
                     }
                 }
 
@@ -114,21 +121,6 @@ struct PassiveReportsView: View {
                 Button(NSLocalizedString("common.ok", comment: "")) { }
             } message: {
                 Text(NSLocalizedString("passiveReports.info.message", comment: ""))
-            }
-            .alert(NSLocalizedString("reports.passive.generateReport", value: "Generate Report", comment: ""), isPresented: $showTestingAlert) {
-                Button(NSLocalizedString("reports.passive.generateWeekly", value: "Generate Weekly Report", comment: "")) {
-                    Task {
-                        await viewModel.triggerManualGeneration(period: "weekly")
-                    }
-                }
-                Button(NSLocalizedString("reports.passive.generateMonthly", value: "Generate Monthly Report", comment: "")) {
-                    Task {
-                        await viewModel.triggerManualGeneration(period: "monthly")
-                    }
-                }
-                Button(NSLocalizedString("common.cancel", value: "Cancel", comment: ""), role: .cancel) {}
-            } message: {
-                Text(NSLocalizedString("reports.passive.generateReport.message", value: "Manually generate a report for the selected period.", comment: ""))
             }
             .alert(NSLocalizedString("common.error", value: "Error", comment: ""), isPresented: $viewModel.showError) {
                 Button(NSLocalizedString("common.ok", value: "OK", comment: "")) {

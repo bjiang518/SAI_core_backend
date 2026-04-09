@@ -511,8 +511,8 @@ async def parse_homework_questions_multi(request: ParseHomeworkQuestionsMultiReq
     """
     start_time = _time.time()
 
-    if len(request.base64_images) < 2:
-        raise HTTPException(status_code=400, detail="At least 2 images required for multi-parse")
+    if len(request.base64_images) < 1:
+        raise HTTPException(status_code=400, detail="At least 1 image required for multi-parse")
     if len(request.base64_images) > 10:
         raise HTTPException(status_code=400, detail="Maximum 10 images per multi-parse call")
 

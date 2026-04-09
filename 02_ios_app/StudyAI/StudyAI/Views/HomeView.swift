@@ -155,7 +155,7 @@ struct HomeView: View {
                 debugPrint("🏠 [HomeView.nav] showingProfile → \(v) | selectedTab=\(appState.selectedTab)")
             }
             .sheet(isPresented: $showingParentReports) {
-                NavigationView {
+                NavigationStack {
                     ParentReportsContainerView()
                 }
             }
@@ -195,7 +195,7 @@ struct HomeView: View {
             .sheet(isPresented: $showingParentAuthForReports) {
                 ParentAuthenticationView(
                     title: "Parent Verification",
-                    message: "Parent Reports require parent permission",
+                    message: "Study Reports require parent permission",
                     onSuccess: { showingParentReports = true }
                 )
             }
@@ -221,10 +221,16 @@ struct HomeView: View {
                     .foregroundColor(themeManager.primaryText)
                     .fontWeight(.bold)
                     .lineLimit(1)
-                if let tier = AuthenticationService.shared.currentUser?.tier, tier.isPaid {
-                    Image(systemName: "crown.fill")
-                        .font(.system(size: 16))
-                        .foregroundColor(Color(hex: "D97706"))
+                if let tier = AuthenticationService.shared.currentUser?.tier {
+                    if tier == .premiumPlus {
+                        Image(systemName: "crown.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(Color(hex: "D97706"))  // gold
+                    } else if tier == .premium {
+                        Image(systemName: "crown.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(Color(hex: "A8A9AD"))  // silver
+                    }
                 }
             }
                 .minimumScaleFactor(0.7)
@@ -562,7 +568,7 @@ extension HomeView {
                     )
                     Text(NSLocalizedString("home.quickAction.chat", value: "问AI", comment: ""))
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(themeManager.secondaryText)
+                        .foregroundColor(colorScheme == .dark ? .white : themeManager.secondaryText)
                 }
 
                 // Card 2: Homework Grader
@@ -585,7 +591,7 @@ extension HomeView {
                     )
                     Text(NSLocalizedString("home.quickAction.homework", value: "作业批改", comment: ""))
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(themeManager.secondaryText)
+                        .foregroundColor(colorScheme == .dark ? .white : themeManager.secondaryText)
                 }
 
                 // Card 3: Practice
@@ -602,7 +608,7 @@ extension HomeView {
                     )
                     Text(NSLocalizedString("home.quickAction.practice", value: "练习本", comment: ""))
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(themeManager.secondaryText)
+                        .foregroundColor(colorScheme == .dark ? .white : themeManager.secondaryText)
                 }
             }
             .padding(.horizontal, DesignTokens.Spacing.xl)
@@ -794,24 +800,27 @@ struct QuickActionCard_New: View {
                 isPressed = true
             }
 
-            // Reset after delay
+            // Fire action immediately so navigation state is set in the current SwiftUI
+            // render cycle — avoids conflicts with any ongoing sheet-dismissal animations.
+            action()
+
+            // Reset press animation after short delay
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                 withAnimationIfNotPowerSaving(.spring(response: 0.3, dampingFraction: 0.6)) {
                     isPressed = false
                 }
-                action()
             }
         }) {
             ZStack {
                 // Full-card rounded rectangle background
                 RoundedRectangle(cornerRadius: 22)
                     .fill(
-                        themeManager.currentTheme == .cute
+                        themeManager.currentTheme == .colorful
                             ? cuteCircleColor.opacity(isPressed ? 0.45 : 0.55)
-                            : (colorScheme == .dark ? Color(white: 0.18) : Color.white)
+                            : (colorScheme == .dark ? Color(white: 0.93) : Color.white)
                     )
                     .overlay(
-                        themeManager.currentTheme == .cute
+                        themeManager.currentTheme == .colorful
                             ? nil
                             : RoundedRectangle(cornerRadius: 22)
                                 .stroke(color.opacity(isPressed ? 0.60 : 0.40), lineWidth: 1.5)
@@ -838,7 +847,7 @@ struct QuickActionCard_New: View {
                 } else {
                     Circle()
                         .fill(
-                            themeManager.currentTheme == .cute
+                            themeManager.currentTheme == .colorful
                                 ? Color.white.opacity(0.3)
                                 : color.opacity(isPressed ? 0.3 : 0.15)
                         )
@@ -848,7 +857,7 @@ struct QuickActionCard_New: View {
                     Image(systemName: icon)
                         .font(.system(size: 22))
                         .foregroundColor(
-                            themeManager.currentTheme == .cute
+                            themeManager.currentTheme == .colorful
                                 ? DesignTokens.Colors.Cute.textPrimary
                                 : (isPressed ? color.opacity(0.7) : color)
                         )
@@ -932,12 +941,15 @@ struct HorizontalActionButton: View {
                 isPressed = true
             }
 
-            // Reset after delay
+            // Fire action immediately so navigation state is set in the current SwiftUI
+            // render cycle — avoids conflicts with any ongoing sheet-dismissal animations.
+            action()
+
+            // Reset press animation after short delay
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                 withAnimationIfNotPowerSaving(.spring(response: 0.3, dampingFraction: 0.6)) {
                     isPressed = false
                 }
-                action()
             }
         }) {
             HStack(spacing: 16) {
@@ -946,7 +958,7 @@ struct HorizontalActionButton: View {
                     if lottieAnimation == nil {
                         Circle()
                             .fill(
-                                themeManager.currentTheme == .cute ?
+                                themeManager.currentTheme == .colorful ?
                                     Color.white.opacity(0.5) :  // White circle in Cute mode
                                     color.opacity(isPressed ? 0.3 : 0.15)
                             )
@@ -968,7 +980,7 @@ struct HorizontalActionButton: View {
                         Image(systemName: icon)
                             .font(.system(size: 22))
                             .foregroundColor(
-                                themeManager.currentTheme == .cute ?
+                                themeManager.currentTheme == .colorful ?
                                     DesignTokens.Colors.Cute.textPrimary :  // Soft black in Cute mode
                                     (isPressed ? color.opacity(0.7) : color)
                             )
@@ -1001,7 +1013,7 @@ struct HorizontalActionButton: View {
                     Text(title)
                         .font(DesignTokens.Typography.title3)
                         .foregroundColor(
-                            themeManager.currentTheme == .cute ?
+                            themeManager.currentTheme == .colorful ?
                                 DesignTokens.Colors.Cute.textPrimary :  // Soft black in Cute mode
                                 .primary
                         )
@@ -1010,7 +1022,7 @@ struct HorizontalActionButton: View {
                     Text(subtitle)
                         .font(DesignTokens.Typography.caption1)
                         .foregroundColor(
-                            themeManager.currentTheme == .cute ?
+                            themeManager.currentTheme == .colorful ?
                                 DesignTokens.Colors.Cute.textSecondary :  // Grey in Cute mode
                                 .secondary
                         )
@@ -1023,7 +1035,7 @@ struct HorizontalActionButton: View {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(
-                        themeManager.currentTheme == .cute ?
+                        themeManager.currentTheme == .colorful ?
                             DesignTokens.Colors.Cute.textSecondary :  // Grey in Cute mode
                             .secondary
                     )
@@ -1033,7 +1045,7 @@ struct HorizontalActionButton: View {
             .background(
                 // Cute Mode: LIGHTER solid color (much lighter than Quick Actions)
                 // Day/Night Mode: White/card background with border
-                themeManager.currentTheme == .cute ?
+                themeManager.currentTheme == .colorful ?
                     color.opacity(0.25) :  // Lighter version (25% opacity) in Cute mode
                     (isPressed ?
                         color.opacity(colorScheme == .dark ? 0.05 : 0.1) :
@@ -1042,7 +1054,7 @@ struct HorizontalActionButton: View {
             .cornerRadius(16)
             .overlay(
                 Group {
-                    if themeManager.currentTheme != .cute {
+                    if themeManager.currentTheme != .colorful {
                         RoundedRectangle(cornerRadius: 16)
                             .stroke(
                                 isPressed ? color.opacity(colorScheme == .dark ? 0.6 : 0.7) : color.opacity(colorScheme == .dark ? 0.3 : 0.4),

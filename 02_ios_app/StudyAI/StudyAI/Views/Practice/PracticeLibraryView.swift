@@ -55,6 +55,9 @@ struct PracticeLibraryView: View {
     @State private var sessionToDelete: PracticeSession? = nil
     @State private var showingDeleteConfirm: Bool = false
 
+    // Info alert
+    @State private var showingPracticeInfo: Bool = false
+
     @Namespace private var subjectAnimation
 
     enum SortOrder: String, CaseIterable {
@@ -139,6 +142,12 @@ struct PracticeLibraryView: View {
             }
         }
         .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button(action: { showingPracticeInfo = true }) {
+                    Image(systemName: "info.circle")
+                        .foregroundColor(.blue)
+                }
+            }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: { showingNewPractice = true }) {
                     HStack(spacing: 4) {
@@ -173,6 +182,11 @@ struct PracticeLibraryView: View {
         }
         .navigationDestination(item: $selectedSession) { session in
             QuestionSheetView(session: session)
+        }
+        .alert(NSLocalizedString("practiceLibrary.info.title", comment: ""), isPresented: $showingPracticeInfo) {
+            Button(NSLocalizedString("common.ok", comment: "")) { }
+        } message: {
+            Text(NSLocalizedString("practiceLibrary.info.message", comment: ""))
         }
         .alert(NSLocalizedString("practiceLibrary.deleteTitle", comment: ""), isPresented: $showingDeleteConfirm) {
             Button(NSLocalizedString("common.delete", comment: ""), role: .destructive) {

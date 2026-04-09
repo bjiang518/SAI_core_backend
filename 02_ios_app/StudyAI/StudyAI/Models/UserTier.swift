@@ -19,7 +19,7 @@ enum UserTier: String, Codable {
         switch self {
         case .free:        return "Free"
         case .premium:     return "Premium"
-        case .premiumPlus: return "Premium Plus"
+        case .premiumPlus: return "Ultra"
         }
     }
 
@@ -30,7 +30,6 @@ enum UserTier: String, Codable {
 
 enum GatedFeature {
     case homeworkAnalysis
-    case batchHomework
     case chatMessage
     case voiceChat
     case questionGeneration(mode: Int)   // mode 3 = premium only

@@ -1053,6 +1053,28 @@ module.exports = async function (fastify, opts) {
     }
   });
 
+  /**
+   * PATCH /api/admin/promo-codes/:codeId/activate
+   * Re-enables a previously disabled promo code.
+   */
+  fastify.patch('/api/admin/promo-codes/:codeId/activate', { preHandler: verifyAdmin }, async (request, reply) => {
+    const { codeId } = request.params;
+    try {
+      const result = await db.query(
+        `UPDATE promo_codes SET is_active = true WHERE id = $1 RETURNING code`,
+        [codeId]
+      );
+      if (result.rows.length === 0) {
+        return reply.code(404).send({ success: false, error: 'Promo code not found' });
+      }
+      fastify.log.info(`[Admin] promo-code activated: ${result.rows[0].code} by ${request.adminUser?.email}`);
+      return reply.send({ success: true });
+    } catch (error) {
+      fastify.log.error({ err: error }, 'Error activating promo code');
+      return reply.code(500).send({ success: false, error: 'Failed to activate promo code' });
+    }
+  });
+
   // ============================================================================
   // UTILITY ROUTES
   // ============================================================================

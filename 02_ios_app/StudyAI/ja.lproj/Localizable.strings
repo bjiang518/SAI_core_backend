@@ -4,7 +4,7 @@
 */
 
 // Loading Screen
-"loading.appTagline" = "あなたの StudyMate";
+"loading.appTagline" = "あなたの Study Agent";
 
 // Biometric Authentication (NEW - no existing alternatives)
 "login.enableBiometric" = "有効にする %@?";
@@ -28,9 +28,9 @@
 "settings.signOut" = "ログアウト";
 "settings.biometricLogin" = "%@ Login";
 "settings.parentControls.message" = "Verify parental access to manage settings";
-"settings.appVersion" = "StudyMates v1.0";
+"settings.appVersion" = "StudyAgent v1.0";
 "settings.appTagline" = "Enhanced with Modern Authentication";
-"settings.appPoweredBy" = "Powered by OpenAI GPT-4";
+"settings.appPoweredBy" = "Powered by advanced AI models";
 "settings.security" = "Security & Privacy";
 "settings.passwordManager" = "Password Manager";
 "settings.privacySettings" = "Privacy 設定";
@@ -50,7 +50,8 @@
 "settings.help" = "ヘルプ & FAQ";
 "settings.contact" = "Contact サポート";
 "settings.rateApp" = "Rate App";
-"settings.shareApp" = "Share App";
+"settings.shareApp" = "アプリをシェア";
+"settings.visitWebsite" = "ウェブサイトを見る";
 
 // Profile
 "profile.complete" = "Profile %d%% complete";
@@ -136,13 +137,13 @@
 "home.practiceDescription" = "Generate & test";
 "home.mistakeReview" = "Mistake Review";
 "home.mistakeReviewDescription" = "Target your weakness";
-"home.parentReports" = "Parent Reports";
+"home.parentReports" = "Study Reports";
 "home.parentReportsDescription" = "Study progress & insights";
 "home.homeworkAlbum" = "ホームwork Album";
 "home.homeworkAlbumDescription" = "View all submitted homework";
 
-// Parent Reports
-"parentReport.title" = "Parent Reports";
+// Study Reports
+"parentReport.title" = "Study Reports";
 "parentReport.studyReports" = "Study Reports";
 "parentReport.trackProgress" = "Track your child's academic progress";
 "parentReport.quickActions" = "Quick Actions";
@@ -182,6 +183,8 @@
 "aiHomework.grading" = "Grading answers...";
 "aiHomework.preparingResults" = "Preparing results...";
 "aiHomework.analysisComplete" = "Analysis complete!";
+"ai.disclaimer" = "AIは間違いを犯すことがあります — 慎重にご確認ください";
+"onboarding.consent.aiServices.disclaimer" = "AIは間違いを犯すことがあります — 慎重にご確認ください";
 "aiHomework.processingError" = "Processing Error";
 "aiHomework.homeworkAnalysisComplete" = "ホームwork Analysis Complete";
 "aiHomework.gradingCompleteMessage" = "Your homework has been graded. Found %d question(s).";
@@ -386,7 +389,7 @@
 "parentPasswordRemove.incorrectPin" = "❌ Incorrect PIN. Please try again.";
 
 
-"app.name" = "StudyAI";
+"app.name" = "StudyAgent";
 "app.tagline" = "Your AI-Powered Learning Companion";
 "auth.login.welcome" = "Welcome Back!";
 "auth.login.subtitle" = "Sign in to continue your learning journey.";
@@ -423,7 +426,7 @@
 "faceIDReauth.error.failed" = "%@ 認証に失敗しました。再試行してください。";
 "faceIDReauth.error.generic" = "認証に失敗しました：%@";
 "auth.signup.title" = "Create Your アカウント";
-"auth.signup.subtitle" = "Join StudyAI to start your learning adventure!";
+"auth.signup.subtitle" = "Join StudyAgent to start your learning adventure!";
 "auth.fullName" = "Full Name";
 "auth.enterFullName" = "Enter your full name";
 "auth.createPassword" = "Create a password";
@@ -536,18 +539,18 @@
 "questionGeneration.aiQuestionGenerator" = "AI Question Generator";
 "questionGeneration.subtitle" = "Generate personalized practice questions powered by AI";
 "questionGeneration.chooseTemplate" = "Choose Template";
-"questionGeneration.template.randomPractice" = "Random Practice";
-"questionGeneration.template.fromMistakes" = "From Mistakes";
-"questionGeneration.template.fromArchives" = "From Archives";
+"questionGeneration.template.randomPractice" = "ランダム練習";
+"questionGeneration.template.fromMistakes" = "間違いから";
+"questionGeneration.template.fromArchives" = "アーカイブから";
 "questionGeneration.resume.title" = "Resume Practice";
 "questionGeneration.resume.subtitle" = "%@ • %d questions left";
 "questionGeneration.resume.button" = "Continue";
 "questionGeneration.type.random" = "Random Practice";
 "questionGeneration.type.conversationBased" = "Conversation-Based Practice";
 "questionGeneration.type.mistakeBased" = "Mistake-Based Practice";
-"questionGeneration.description.randomPractice" = "Generate fresh practice questions";
-"questionGeneration.description.fromMistakes" = "Target your weak areas";
-"questionGeneration.description.fromArchives" = "Build on archived sessions";
+"questionGeneration.description.randomPractice" = "新しい練習問題を生成";
+"questionGeneration.description.fromMistakes" = "弱点を集中的に練習";
+"questionGeneration.description.fromArchives" = "アーカイブ済みセッションから作成";
 "questionGeneration.configuration" = "Configuration";
 "questionGeneration.generalSettings" = "General 設定";
 "questionGeneration.difficultyLevel" = "Difficulty Level";
@@ -701,7 +704,7 @@
 "generatedQuestions.points" = "%d pts";
 "generatedQuestions.emailGreeting" = "Hi!";
 "generatedQuestions.emailBody" = "I'm sharing %d practice questions for %@.";
-"generatedQuestions.emailGeneratedBy" = "This PDF was generated using Study Mates, an AI-powered learning companion.";
+"generatedQuestions.emailGeneratedBy" = "This PDF was generated using StudyAgent, an AI-powered learning companion.";
 "generatedQuestions.emailClosing" = "Happy studying!";
 
 
@@ -717,26 +720,13 @@
 "progress.unableToLoadData" = "Unable to Load Data";
 "progress.tryAgain" = "Try Again";
 "progress.info.title" = "How to Use Learning 進捗";
-"progress.info.message" = "📊 Understanding Your 進捗:\n\n• Timeframe Filter: Tap the three-dot menu to switch between Current Week, Current Month, or All Time\n• Subject Breakdown: View your performance across different subjects with accuracy percentages\n• Color-Coded Cards: Each subject shows questions answered, accuracy rate, and trend indicators (↑ improving, → stable, ↓ needs work)\n• Tap any subject card to see detailed analytics and personalized insights\n\n🎯 Tips:\n• Pull down to refresh your latest progress\n• Check your daily streak to stay motivated\n• Focus on subjects with lower accuracy for improvement";
-
-"tomatoGarden.info.title" = "About Tomato Garden";
-"tomatoGarden.info.message" = "🍅 Your Tomato Collection:\n\n• Each completed focus session earns you a tomato\n• Filter by time (Today, This Week) or by tomato type\n• Three tomato varieties:\n  - Classic Tomato: Standard 25-minute sessions\n  - Curly Vine Tomato: Deep focus sessions\n  - Cute Tomato: Short focus sessions\n\n✨ Physics Mode:\nTap the physics mode button to see your tomatoes with physics-based animations and interactions!\n\n🏆 Milestones:\nCollect more tomatoes to unlock achievement milestones and track your focus journey.";
-
-"passiveReports.info.title" = "About Parent Reports";
-"passiveReports.info.message" = "📊 Automated Learning Insights:\n\n• Weekly/Monthly Reports: Switch between report periods using the tabs\n• Tap '+' to manually generate a new report batch\n• Each batch contains 8 specialized reports:\n  1. Executive Summary - Overall performance overview\n  2. Academic Performance - Subject-wise analysis\n  3. Learning Behavior - Study habits and patterns\n  4. Motivation & Emotional - Engagement indicators\n  5. 進捗 Trajectory - Improvement trends\n  6. Social Learning - Collaboration insights\n  7. Risk & Opportunity - Areas needing attention\n  8. Action Plan - Personalized recommendations\n\n💡 Tips:\n• Reports analyze your study sessions, archived conversations, and practice results\n• Tap any report card to view detailed insights\n• Use Edit mode to manage or delete old report batches";
-
-"library.info.title" = "How to Use ライブラリ";
-"library.info.message" = "📚 Your Learning Archive:\n\n• Content Types: Switch between All Sessions, Questions Only, or Conversations Only using the tabs\n• Search: Use the search bar to find specific content\n• Quick Filters: Filter by subject, date range, or content with images\n• Advanced Search: Tap the three-dot menu for detailed filtering options\n• Subject Filter: Filter content by specific subjects from the menu\n\n💡 Tips:\n• Pull down to refresh your library content\n• Tap any item to view full details, answers, and explanations\n• Use 'Clear Filters' from the menu to reset all active filters\n• Statistics at the top show your total questions and conversations";
-"library.select" = "選択";
+"progress.info.message" = "学習進捗は、採点済みの宿題と完了した練習セッションに基づいて、全科目のパフォーマンスを追跡します。\n\n表示内容：\n  • 正確さのパーセンテージと合計回答数を示す科目カード\n  • パフォーマンスが改善・安定・低下しているかを示すトレンド矢印\n  • 毎日の連続日数 — 学習活動が記録された連続日数\n\nフィルター方法：\n  • 右上のメニューで今週・今月・全期間を切り替える\n  • 科目カードをタップして詳細なチャートとAIインサイトを開く\n\n正確さの計算方法：\n  • 正解数を採点試行の総数で割った割合\n\nヒント：\n  • 下に引っ張って最新の結果に更新する\n  • 正確さが低い科目に集中するのが最も効率的";"tomatoGarden.info.title" = "About Tomato Garden";
+"tomatoGarden.info.message" = "トマトガーデンは、ポモドーロ集中セッションに連動した報酬・コレクションシステムです。\n\nトマトの獲得方法：\n  • 25分の集中セッションを完了するとトマトが1個もらえます\n  • 13種類のコレクタブルからランダムに選ばれます\n\n希少度ランク：\n  • ランク1 — コモン：クラシック、カーリー、キュート\n  • ランク2 — アンコモン\n  • ランク3 — レア\n  • ランク4 — レジェンダリー：ゴールデン、プラチナ、ダイヤモンド\n\nコレクションのアップグレード：\n  • 同じランクのトマタを5個集めると、次のランクのトマトと交換できます\n\nあなたのガーデン：\n  • 最大25個のトマタを同時に表示\n  • 物理ボタンで物理ガーデンモードを有効にできます";"passiveReports.info.title" = "About Study Reports";
+"passiveReports.info.message" = "学習レポートは、あなたの学習活動に基づいてAIが自動生成する分析で、毎週・毎月自動的に作成されます。\n\n各レポートバッチの内容：\n  • エグゼクティブサマリー — 期間全体のパフォーマンス概要\n  • 学業成績 — 科目別の正確さと問題数\n  • 学習行動 — セッションパターンと習慣\n  • モチベーションと取り組み — 集中時間と努力の指標\n  • 進捗の軌跡 — 改善または低下のトレンド\n  • リスクと機会 — 最も注意が必要な科目\n  • アクションプラン — 次の期間への具体的な個別推奨事項\n\nこの画面の使い方：\n  • 上部で週次・月次タブを切り替える\n  • + をタップして新しいレポートバッチを手動生成する\n  • レポートカードをタップして完全な分析を読む\n  • 編集をタップして古いバッチを削除する\n\nデータソース：\n  • レポートは宿題セッション、アーカイブされたAIチャット、練習結果から生成されます";"library.info.title" = "How to Use ライブラリ";
+"library.info.message" = "ライブラリは、保存されたすべての問題とアーカイブされた会話を一か所で検索できる場所に保存します。\n\n保存されるもの：\n  • 問題 — 宿題セッション後にアーカイブした個別の問題\n  • 会話 — チャット画面から保存した完全なAIチャットセッション\n\nナビゲーション：\n  • 上部のタブで全て・問題・会話にフィルター\n  • 検索バーで科目・タイトル・キーワードで検索\n  • アイテムをタップして全内容を表示\n\nアクション：\n  • 左にスワイプして削除\n  • 右上のメニューで選択モードに入り、PDFエクスポートや一括削除が可能";"library.select" = "選択";
 
 "homeworkResults.info.title" = "Understanding Your Results";
-"homeworkResults.info.message" = "📝 ホームwork Analysis Results:\n\n• Question Cards: Tap any card to expand and see full details, answers, and explanations\n• Checkboxes: Select questions you want to archive for later review\n• Color Indicators:\n  - Green: Correct answer\n  - Orange: Partially correct\n  - Red: Incorrect answer\n• Archive Button: Tap the book icon to save selected questions to your library\n\n💡 Tips:\n• Review incorrect answers carefully to understand mistakes\n• Use archived questions for focused practice later\n• Each question can be expanded to see step-by-step solutions\n• 進捗 is automatically tracked for learning analytics";
-
-
-
-
-
-"progress.yourLearningJourney" = "Your Learning Journey";
+"homeworkResults.info.message" = "宿題結果は、提出した各問題をAI生成の完全な分析と採点とともに表示します。\n\n結果の読み方：\n  • 各カードには元の問題、正解、ステップごとの解説が表示されます\n  • カードをタップして完全な分析を展開\n\nカラーコーディング：\n  • 緑 — 正解\n  • オレンジ — 部分的に正解\n  • 赤 — 不正解\n\n採点モード：\n  • 標準モード — ほとんどの宿題に適した高速分析\n  • 深層モード — 複雑な問題への拡張推論\n\n問題のアーカイブ：\n  • 問題カードのチェックボックスをタップして選択\n  • アーカイブボタンをタップしてライブラリに保存";"progress.yourLearningJourney" = "Your Learning Journey";
 "progress.pointsToday" = "Points Today";
 "progress.streak" = "Streak";
 "progress.days" = "days";
@@ -925,7 +915,7 @@
 "helpCenter.faq1.question" = "How do I use the ホームwork Grader?";
 "helpCenter.faq1.answer" = "Take a photo of your homework or upload an image. Our AI will analyze it, detect questions, and provide detailed feedback with corrections and explanations.";
 "helpCenter.faq2.question" = "What subjects are supported?";
-"helpCenter.faq2.answer" = "StudyAI supports Mathematics, Physics, Chemistry, Biology, English, History, Geography, and Computer Science. We're constantly adding more subjects\!";
+"helpCenter.faq2.answer" = "StudyAgent supports Mathematics, Physics, Chemistry, Biology, English, History, Geography, and Computer Science. We're constantly adding more subjects\!";
 "helpCenter.faq3.question" = "How do I change the AI voice?";
 "helpCenter.faq3.answer" = "Go to 設定 > Study Mates > Select your study mate. You can choose between Adam (boy voice) and Eva (girl voice), and customize speed and volume.";
 "helpCenter.faq4.question" = "Can I review my past mistakes?";
@@ -946,7 +936,7 @@
 // Share App
 "shareApp.subtitle" = "ヘルプ your friends excel in their studies\!";
 "shareApp.messageTitle" = "Share Message";
-"shareApp.messagePreview" = "\"Check out StudyAI - the best AI-powered homework helper\!\"";
+"shareApp.messagePreview" = "\"Check out StudyAgent - the best AI-powered homework helper\!\"";
 "shareApp.feature1" = "✓ AI-powered homework grading";
 "shareApp.feature2" = "✓ Interactive AI tutor";
 "shareApp.feature3" = "✓ Mistake review & practice";
@@ -960,7 +950,7 @@
 "shareApp.qrCode" = "QR Code";
 "shareApp.showQRCode" = "Show this QR code to friends";
 "shareApp.comingSoonReferral" = "Coming Soon: Referral Rewards\!";
-"shareApp.earnPoints" = "Earn points for every friend who joins StudyAI";
+"shareApp.earnPoints" = "Earn points for every friend who joins StudyAgent";
 "shareApp.downloadNow" = "Download now:";
 
 // Chat View
@@ -1046,8 +1036,7 @@
 "chat.archive.buttonTitle" = "Archive Session";
 "chat.archive.archiving" = "Archiving...";
 "chat.archive.infoTitle" = "Archive Information";
-"chat.archive.infoMessage" = "Save this conversation for future reference. You can add a custom title and notes to help you remember what you learned.";
-"chat.archive.analyzingWithAI" = "Analyzing with AI...";
+"chat.archive.infoMessage" = "アーカイブすると、この会話がライブラリに保存され、いつでも確認できます。\n\n保存されるもの：\n  • 全会話履歴（すべての質問・AI解説・生成された図を含む）\n  • セッションのコンテキスト\n\n詳細の追加：\n  • タイトル — 後から見つけやすいように説明的な名前を付ける\n  • メモ — 個人的なリマインダーや振り返りポイントを追加\n\nアーカイブした会話の検索：\n  • ライブラリ画面の会話タブで確認できます";"chat.archive.analyzingWithAI" = "Analyzing with AI...";
 "chat.archive.generatingSummary" = "Generating summary and key topics";
 "chat.archive.complete" = "Archive Complete!";
 "chat.archive.summaryGenerated" = "Summary generated successfully";
@@ -1068,7 +1057,7 @@
 
 // Alerts
 "chat.alert.cameraPermission.title" = "Camera Permission";
-"chat.alert.cameraPermission.message" = "StudyAI needs camera access to scan homework questions. Please enable camera permission in 設定.";
+"chat.alert.cameraPermission.message" = "StudyAgent needs camera access to scan homework questions. Please enable camera permission in 設定.";
 "chat.alert.currentChatExists.title" = "Current チャット Exists";
 "chat.alert.currentChatExists.message" = "You have an active chat session. Would you like to archive it first, or discard it and start a new session with this homework question?";
 "chat.alert.currentChatExists.archiveCurrent" = "Archive Current チャット";
@@ -1433,8 +1422,7 @@
 "mistakeReview.correctAnswerLabel" = "Correct Answer:";
 "mistakeReview.showExplanation" = "Show Explanation";
 "mistakeReview.instructions.title" = "How to Use Mistake Review";
-"mistakeReview.instructions.message" = "1. Select a time range (This Week, This Month, or All Time) to filter your mistakes\n\n2. Choose a subject to review incorrect answers\n\n3. Tap 'Start Review' to see your mistakes\n\n4. Use 'Let's do them again' to select questions and generate a PDF for practice\n\n5. Review the correct answers and explanations to improve your understanding";
-"mistakeReview.startReview" = "Start Review (%d Mistakes)";
+"mistakeReview.instructions.message" = "ミスレビューは、過去の誤��た回答を分析して、科目をまたぐパターンと弱点を特定します。\n\n使い方：\n  1. 時間範囲を選択 — 今週・今月・全期間\n  2. 科目を選んでその領域のミスを確認\n  3. ミスグループをタップして間違えた問題を見る\n  4. レビュー開始をタップして再挑戦\n\n結果の理解：\n  • 各グループにはエラー数、関連する概念、弱点の説明が表示されます\n  • 弱点の強さは低から高で評���\n\nヒント：\n  • 高強度の弱点を優先して取り組むのが最も効果的です";"mistakeReview.startReview" = "Start Review (%d Mistakes)";
 "mistakeReview.letsPractise" = "練習を始める";
 "mistakeReview.resumePractice" = "Resume Practice";
 "mistakeReview.showFullQuestion" = "全問題と分析を表示";
@@ -1537,7 +1525,7 @@
 "parentMode.opticIDForParentMode" = "Optic ID for Parent Mode";
 "parentMode.enabled" = "有効にするd";
 "parentMode.disabled" = "Disabled";
-"parentMode.faceIDUsageDescription" = "StudyMates uses Face ID to securely authenticate parents for accessing protected features and parental controls.";
+"parentMode.faceIDUsageDescription" = "StudyAgent uses Face ID to securely authenticate parents for accessing protected features and parental controls.";
 
 // Voice Input Preview
 "voicePreview.liveTranscription" = "Live Transcription";
@@ -1648,7 +1636,7 @@
 "privacy.coppa.title" = "COPPA Compliance";
 "privacy.gdpr.content" = "If you are in the European Economic Area, you have rights under GDPR including access to your data, correction, deletion, and data portability. Contact us to exercise these rights.";
 "privacy.gdpr.title" = "GDPR Rights";
-"privacy.intro.content" = "StudyAI is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our educational application.";
+"privacy.intro.content" = "StudyAgent is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our educational application.";
 "privacy.intro.title" = "Introduction";
 "privacy.lastUpdated" = "Last Updated: March 2026";
 "privacy.retention.content" = "We retain your personal information for as long as necessary to provide our services and comply with legal obligations. You may request deletion of your data at any time.";
@@ -1659,7 +1647,7 @@
 "privacy.security.title" = "Data Security";
 "privacy.thirdParty.content" = "当社は以下のサードパーティサービスを使用して機能を提供しています：
 
-• OpenAI（openai.com）— 宿題の写真、生徒のテキスト、音声テキストをAI個別指導および採点のために処理
+• 高度なAI技術 — 宿題の写真、生徒のテキスト、音声テキストをAI個別指導および採点のために処理
 • Google Gemini（deepmind.google）— リアルタイム音声チャットと高度なAI応答を実現
 • ElevenLabs（elevenlabs.io）— AIのテキスト応答を音声に変換
 • Googleログイン（google.com）— 任意のアカウントログイン
@@ -1675,7 +1663,7 @@
 // Terms of Service
 "terms.acceptable.content" = "You agree not to use the service for any unlawful purpose, to harm others, to upload malicious content, or to interfere with the operation of the service.";
 "terms.acceptable.title" = "Acceptable Use";
-"terms.acceptance.content" = "By accessing or using StudyAI, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use our application.";
+"terms.acceptance.content" = "By accessing or using StudyAgent, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use our application.";
 "terms.acceptance.title" = "Acceptance of Terms";
 "terms.accounts.content" = "You are responsible for maintaining the security of your account and password. You must provide accurate information and keep it up to date.";
 "terms.accounts.title" = "User アカウントs";
@@ -1683,19 +1671,19 @@
 "terms.changes.title" = "Changes to Terms";
 "terms.contact.content" = "For questions about these Terms of Service, please contact us at service@study-mates.net";
 "terms.contact.title" = "Contact Information";
-"terms.disclaimer.content" = "StudyAI is provided \"as is\" without warranties of any kind. While we strive for accuracy, we do not guarantee that our AI-generated content is error-free or complete.";
+"terms.disclaimer.content" = "StudyAgent is provided \"as is\" without warranties of any kind. While we strive for accuracy, we do not guarantee that our AI-generated content is error-free or complete.";
 "terms.disclaimer.title" = "Disclaimer";
-"terms.intellectual.content" = "All content and materials in StudyAI are owned by us or our licensors and protected by intellectual property laws. You may not copy, modify, or distribute our content without permission.";
+"terms.intellectual.content" = "All content and materials in StudyAgent are owned by us or our licensors and protected by intellectual property laws. You may not copy, modify, or distribute our content without permission.";
 "terms.intellectual.title" = "Intellectual Property";
 "terms.lastUpdated" = "Last Updated: January 2025";
 "terms.law.content" = "These terms are governed by the laws of the jurisdiction in which we operate, without regard to conflict of law principles.";
 "terms.law.title" = "Governing Law";
-"terms.liability.content" = "To the maximum extent permitted by law, StudyAI shall not be liable for any indirect, incidental, special, or consequential damages arising from your use of the service.";
+"terms.liability.content" = "To the maximum extent permitted by law, StudyAgent shall not be liable for any indirect, incidental, special, or consequential damages arising from your use of the service.";
 "terms.liability.title" = "Limitation of Liability";
 "terms.termination.content" = "We may suspend or terminate your access to the service if you violate these terms. You may also terminate your account at any time.";
 "terms.termination.title" = "Termination";
 "terms.title" = "Terms of Service";
-"terms.use.content" = "StudyAI provides an educational platform powered by AI. You may use our service for personal, non-commercial educational purposes only.";
+"terms.use.content" = "StudyAgent provides an educational platform powered by AI. You may use our service for personal, non-commercial educational purposes only.";
 "terms.use.title" = "Use of Service";
 "terms.userContent.content" = "You retain ownership of content you submit. By using our service, you grant us a license to use, store, and process your content to provide our services.";
 "terms.userContent.title" = "User Content";
@@ -1730,10 +1718,10 @@
 "privacy.settings.termsOfService" = "Terms of Service";
 "privacy.settings.title" = "Privacy 設定";
 
-// Parent Reports section
-"privacy.parentReports.sectionHeader" = "Parent Reports";
+// Study Reports section
+"privacy.parentReports.sectionHeader" = "Study Reports";
 "privacy.parentReports.automatedReports" = "Automated Weekly Reports";
-"privacy.parentReports.automatedReportsDesc" = "Generate parent reports every Sunday at 9 PM";
+"privacy.parentReports.automatedReportsDesc" = "Generate study reports every Sunday at 9 PM";
 "privacy.parentReports.backgroundSync" = "Background ホームwork Sync";
 "privacy.parentReports.backgroundSyncDesc" = "Automatically sync homework data for reports";
 "privacy.parentReports.lastSync" = "Last Sync";
@@ -1741,7 +1729,7 @@
 "privacy.parentReports.syncNow" = "Sync Now";
 "privacy.parentReports.nextReport" = "Next Report";
 "privacy.parentReports.footerEnabled" = "Reports are generated every Sunday at 9 PM using homework data synced throughout the week.";
-"privacy.parentReports.footerDisabled" = "有効にする automated weekly parent reports to track learning progress.";
+"privacy.parentReports.footerDisabled" = "有効にする automated weekly study reports to track learning progress.";
 
 // Clear Server Data
 "privacy.clearData.title" = "Clear Server Data";
@@ -1972,13 +1960,14 @@
 "pdfPreview.share" = "Share";
 
 // Theme Settings
-"theme.title" = "Appearance";
-"theme.day" = "Day Mode";
-"theme.night" = "Night Mode";
-"theme.cute" = "Cute Mode";
-"theme.description.day" = "Classic light theme for daytime use";
-"theme.description.night" = "Dark theme for low-light environments";
-"theme.description.cute" = "Soft pastel colors for a playful experience";
+"theme.title" = "外観";
+"theme.default" = "デフォルトモード";
+"theme.colorful" = "カラフルライフ";
+"theme.description.default" = "システム設定に合わせてライト/ダークモードを自動切替";
+"theme.description.colorful" = "ソフトなパステルカラーで楽しい体験";
+"theme.override.auto" = "自動";
+"theme.override.light" = "ライト";
+"theme.override.dark" = "ダーク";
 
 // Tomato Garden Strings
 "tomato.garden.title" = "My Tomato Garden";
@@ -2328,11 +2317,15 @@
 "onboarding.consent.privacy.activity" = "あなたの活動が学習のパーソナライズに役立ちます";
 "onboarding.consent.privacy.profile" = "プロフィールは共有されません";
 "onboarding.consent.privacyPolicy" = "プライバシーポリシー";
-"onboarding.consent.agree" = "プライバシーポリシーに同意します";
+"onboarding.consent.agree" = "上記のAIサービスとのデータ共有に同意します";
 "onboarding.consent.required" = "続けるには同意する必要があります";
+"onboarding.consent.aiServices.title" = "AIサービスと共有されるデータ：";
+"onboarding.consent.aiServices.openai" = "OpenAI — 宿題の画像、チャット、回答";
+"onboarding.consent.aiServices.gemini" = "Google Gemini — 深層分析、ライブ音声";
+"onboarding.consent.aiServices.elevenlabs" = "ElevenLabs — テキスト読み上げ音声";
 "onboarding.getStarted" = "始める";
 
-// Parent Reports — List View
+// Study Reports — List View
 "reports.passive.title" = "保護者レポート";
 "reports.passive.subtitle" = "週次・月次の学習インサイト";
 "reports.passive.editReports" = "レポートを編集";
@@ -2359,7 +2352,7 @@
 "reports.passive.trend.accuracy" = "正確さ";
 "reports.passive.trend.activity" = "活動";
 
-// Parent Reports — Detail View
+// Study Reports — Detail View
 "reports.passive.weekly" = "週次";
 "reports.passive.monthly" = "月次";
 "reports.passive.weeklyReport" = "週次レポート";
@@ -2382,7 +2375,7 @@
 "reports.passive.areas_of_improvement" = "改善すべき分野";
 "reports.passive.summary" = "週次/月次サマリー";
 
-// Parent Reports — Onboarding
+// Study Reports — Onboarding
 "reports.passive.onboarding.title" = "週次学習インサイトを受け取ろう";
 "reports.passive.onboarding.subtitle" = "保護者向けAI生成レポート、毎週配信";
 "reports.passive.onboarding.feature.progress.title" = "進捗管理";
@@ -2403,6 +2396,11 @@
 "newPractice.error.sessionNotFound" = "Session not found after generation.";
 "newPractice.error.noSelection" = "Please select at least one conversation or question.";
 "newPractice.error.multipleSubjects" = "選択されたアイテムが複数の科目にまたがっています。同じ科目のみ選択してください。";
+"newPractice.archiveSelected" = "%d 件選択中";
+"practiceLibrary.typeRandom" = "ランダム練習";
+"practiceLibrary.typeConversation" = "会話復習";
+"practiceLibrary.typeMistake" = "間違い練習";
+"practiceLibrary.typeLibrary" = "ライブラリ練習";
 
 // Practice Library
 "practiceLibrary.title" = "Practice";
@@ -2422,6 +2420,9 @@
 "practiceLibrary.card.inProgress" = "In Progress";
 "practiceLibrary.statusOngoing" = "進行中";
 "practiceLibrary.statusCompleted" = "完了";
+
+"practiceLibrary.info.title" = "練習の作り方";
+"practiceLibrary.info.message" = "問題用紙を作成する5つの方法\n\n1. ランダム練習\n「+ 新規」をタップしてランダム練習を選択。AIが弱点データと選択した科目に基づいて適応的な問題を生成します。\n\n2. アーカイブから\n「+ 新規」をタップしてアーカイブからを選択。過去の会話や保存した問題を選んでください。AIがその内容をもとに新しい復習問題を作成します。\n\n3. 弱点ベースの練習\n「学習進捗」に移動し、弱点項目をタップ。AIがその特定の弱点に向けた問題を生成します。\n\n4. 間違いの再挑戦\n「間違いレビュー」に移動し、間違いを選択して再挑戦をタップ。AIなしで元の問題をそのまま繰り返します。\n\n5. セッションのやり直し\nリストの完了済みセッションを開いて「やり直し」をタップ。同じ問題セットを最初からやり直します。";
 
 // Practice Sheet
 "practiceSheet.questionCounter" = "Q %d/%d";
@@ -2552,6 +2553,9 @@
 "report.priority.medium" = "普通";
 "report.priority.low" = "低";
 
+// Grade result
+"grade.notGraded" = "未採点";
+
 // MARK: - Account Usage & Plan
 "account.usage.title" = "プランと使用状況";
 "account.usage.tierGuest" = "ゲストアカウント";
@@ -2593,7 +2597,7 @@
 "library.pdf.generating" = "PDF生成中…";
 "library.pdf.error" = "PDFの生成に失敗しました";
 "library.pdf.email.subject" = "ライブラリ問題 — %@";
-"library.pdf.emailBody" = "こんにちは！\n\nStudyMatesから%@の%d問のライブラリ問題を添付しました。\n\nStudyMatesが作成 — あなたのAI学習パートナー\n\nよろしくお願いします";
+"library.pdf.emailBody" = "こんにちは！\n\nStudyAgentから%@の%d問のライブラリ問題を添付しました。\n\nStudyAgentが作成 — あなたのAI学習パートナー\n\nよろしくお願いします";
 
 // MARK: - Live Mode Leave Confirmation
 "live.leave.title" = "ライブチャットを終了しますか？";
@@ -2634,7 +2638,7 @@
 "savedDigitalHomework.redo" = "やり直す";
 
 // MARK: - Upgrade Comparison View
-"upgrade.comparison.headerTitle" = "AI StudyMateをアップグレード";
+"upgrade.comparison.headerTitle" = "StudyAgentをアップグレード";
 "upgrade.comparison.headerSubtitle" = "インタラクティブなAI家庭教師で無制限のサポートを受けましょう。";
 "upgrade.comparison.planFree" = "無料";
 "upgrade.comparison.planPremium" = "プレミアム";
@@ -2643,7 +2647,7 @@
 "upgrade.comparison.badgeMostPopular" = "最も人気";
 "upgrade.comparison.badgeBestValue" = "最もお得";
 "upgrade.comparison.pricePeriod" = "/月";
-"upgrade.comparison.featureHomework" = "宿題\nアップロード";
+"upgrade.comparison.featureHomework" = "宿題\nページ数";
 "upgrade.comparison.featureAiChat" = "AI\nチャット";
 "upgrade.comparison.featurePractice" = "的を絞った\n練習";
 "upgrade.comparison.featureWeakness" = "弱点\n分析";
@@ -2652,6 +2656,8 @@
 "upgrade.comparison.featureMultipleKids" = "複数の\n子供";
 "upgrade.comparison.valueLiveTutor" = "300分";
 "upgrade.comparison.valueMultipleKids" = "ファミリー共有";
+"upgrade.comparison.termsLink" = "利用規約";
+"upgrade.comparison.privacyLink" = "プライバシーポリシー";
 "upgrade.comparison.yourCurrentUsage" = "現在の使用状況";
 "upgrade.comparison.usageHomework" = "宿題";
 "upgrade.comparison.usageChat" = "チャット";
@@ -2662,3 +2668,14 @@
 "upgrade.comparison.continueFree" = "無料で続ける";
 "upgrade.comparison.restorePurchases" = "購入を復元";
 "upgrade.comparison.terms" = "サブスクリプションは現在の期間終了の少なくとも24時間前にキャンセルしない限り自動更新されます。設定 > Apple ID > サブスクリプションでいつでも管理またはキャンセルできます。";
+
+// Promo code redemption
+"promo.link" = "プロモコードをお持ちですか？";
+"promo.placeholder" = "コードを入力";
+"promo.button.apply" = "適用する";
+"promo.success" = "プレミアムが有効になりました！有効期限: %@。";
+"promo.error.invalid" = "このコードは無効または期限切れです。";
+"promo.error.alreadyRedeemed" = "このコードはすでに使用済みです。";
+"promo.error.expired" = "このプロモコードは期限切れです。";
+"promo.error.maxUses" = "このプロモコードは上限に達しました。";
+"promo.guestHint" = "プロモコードを使用するには無料アカウントを作成してください。";

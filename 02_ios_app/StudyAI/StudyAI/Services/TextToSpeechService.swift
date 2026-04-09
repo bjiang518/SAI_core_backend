@@ -13,7 +13,6 @@ import Combine
 // Disable debug print statements in production builds to prevent AI response exposure
 #if !DEBUG
 private func debugPrint(_ items: Any...) { }
-private func debugPrint(_ items: Any...) { }
 #endif
 
 class TextToSpeechService: NSObject, ObservableObject {

@@ -516,30 +516,6 @@ class PassiveReportsViewModel: ObservableObject {
         }
         debugPrint("✅ [PassiveReports] Token validation passed")
 
-        // CRITICAL: Sync local data to server BEFORE generating report
-        // This ensures all locally-stored questions and conversations are uploaded
-        // User has agreed to this sync requirement during onboarding
-        debugPrint("🔄 [PassiveReports] ===== SYNCING LOCAL DATA TO SERVER =====")
-        debugPrint("   Syncing questions, conversations, and progress data...")
-        do {
-            let syncResult = try await StorageSyncService.shared.syncAllToServer()
-            debugPrint("✅ [PassiveReports] Sync completed successfully")
-            debugPrint("   Questions: \(syncResult.questionsSynced) synced, \(syncResult.questionsDuplicates) duplicates")
-            debugPrint("   Conversations: \(syncResult.conversationsSynced) synced, \(syncResult.conversationsDuplicates) duplicates")
-            debugPrint("   Progress: \(syncResult.progressSynced ? "synced" : "skipped")")
-            debugPrint("   Total synced: \(syncResult.totalSynced) items")
-
-            if !syncResult.isSuccess {
-                debugPrint("⚠️ [PassiveReports] Sync completed with errors:")
-                syncResult.errors.forEach { debugPrint("   - \($0)") }
-            }
-        } catch {
-            debugPrint("❌ [PassiveReports] Sync failed: \(error.localizedDescription)")
-            debugPrint("   Proceeding with report generation using existing server data")
-            // Don't block report generation - user might have already synced manually
-        }
-        debugPrint("🔄 [PassiveReports] ===== SYNC COMPLETE ======")
-
         // IMPORTANT: Ensure token is fresh before long operation (can take 100+ seconds)
         await AuthenticationService.shared.ensureTokenFreshForLongOperation(
             operationName: "report generation (\(period))",
@@ -570,125 +546,114 @@ class PassiveReportsViewModel: ObservableObject {
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-            // Add authentication (token should now be fresh)
             let token = AuthenticationService.shared.getAuthToken()
             if let authToken = token {
                 request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
             }
 
-            let requestBody: [String: Any] = [
-                "period": period,
-                "language": appLanguage
-            ]
+            let requestBody: [String: Any] = ["period": period, "language": appLanguage]
             request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
 
-            // Extended timeout for report generation (can take 100+ seconds)
-            request.timeoutInterval = 180.0  // 3 minutes
+            // Short timeout — backend responds in <1s with batch_id
+            request.timeoutInterval = 30.0
 
-            debugPrint("🧪 [PassiveReports] Triggering report generation for period: \(period)")
-            debugPrint("🧪 [PassiveReports] Endpoint: \(endpoint)")
-            debugPrint("🧪 [PassiveReports] Auth token: \(token != nil ? "✅ Present (refreshed if needed)" : "❌ Missing")")
-            debugPrint("🧪 [PassiveReports] Timeout: 180 seconds")
-
-            // CRITICAL: Ensure refresh happens even if there are errors
-            var shouldRefresh = false
-            defer {
-                if shouldRefresh {
-                    debugPrint("🔄 [PassiveReports] DEFER: Triggering refresh after generation attempt")
-                    Task {
-                        debugPrint("🔄 [PassiveReports] DEFER: Forcing refresh coordinator to bypass debounce...")
-                        refreshCoordinator.forceRefresh()
-                        debugPrint("🔄 [PassiveReports] DEFER: Loading all batches...")
-                        await loadAllBatches()
-                        debugPrint("✅ [PassiveReports] DEFER: Post-generation refresh complete")
-                        debugPrint("   Weekly batches: \(weeklyBatches.count)")
-                        debugPrint("   Monthly batches: \(monthlyBatches.count)")
-                    }
-                }
-            }
+            debugPrint("🧪 [PassiveReports] Triggering async generation for period: \(period)")
 
             let (data, response) = try await URLSession.shared.data(for: request)
 
-            debugPrint("📥 [PassiveReports] Response received from server")
-            debugPrint("   Response time: ~\((Date().timeIntervalSince1970 * 1000).rounded())ms since request")
-
-            // CRITICAL: Set flag to trigger refresh in defer block
-            // This ensures refresh happens even if JSON parsing fails
-            shouldRefresh = true
-            debugPrint("✅ [PassiveReports] Refresh flag set - defer block will execute refresh")
-
-            guard let httpResponse = response as? HTTPURLResponse else {
-                debugPrint("❌ [PassiveReports] Invalid response type")
-                throw NSError(domain: "PassiveReportsViewModel", code: -1,
-                             userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+                throw NSError(domain: "PassiveReportsViewModel", code: statusCode,
+                             userInfo: [NSLocalizedDescriptionKey: "Server returned status \(statusCode)"])
             }
 
-            debugPrint("🧪 [PassiveReports] Response status: \(httpResponse.statusCode)")
-
-            // Print full response for debugging
-            if let responseString = String(data: data, encoding: .utf8) {
-                debugPrint("🧪 [PassiveReports] Response body: \(responseString.prefix(500))...")
-            }
-
-            guard httpResponse.statusCode == 200 else {
-                debugPrint("❌ [PassiveReports] Generation failed with status \(httpResponse.statusCode)")
-                if let responseString = String(data: data, encoding: .utf8) {
-                    debugPrint("❌ [PassiveReports] Error details: \(responseString)")
+            struct AsyncGenResponse: Codable {
+                let success: Bool
+                let batchId: String
+                let status: String
+                enum CodingKeys: String, CodingKey {
+                    case success
+                    case batchId = "batch_id"
+                    case status
                 }
-                throw NSError(domain: "PassiveReportsViewModel", code: httpResponse.statusCode,
-                             userInfo: [NSLocalizedDescriptionKey: "Server returned status \(httpResponse.statusCode)"])
             }
 
-            debugPrint("🔍 [PassiveReports] Parsing JSON response...")
-            let result = try JSONDecoder().decode(GenerationResponse.self, from: data)
-            debugPrint("✅ [PassiveReports] JSON decoded successfully")
-            debugPrint("   Batch ID: \(result.batchId)")
-            debugPrint("   Report count: \(result.reportCount)")
-            debugPrint("   Generation time: \(result.generationTimeMs)ms")
+            let asyncResult = try JSONDecoder().decode(AsyncGenResponse.self, from: data)
+            debugPrint("🧪 [PassiveReports] Generation started — batch: \(asyncResult.batchId)")
 
-            isGenerating = false
-
-            debugPrint("✅ [PassiveReports] Manual generation complete: \(result.reportCount) reports in \(result.generationTimeMs)ms")
-            debugPrint("✅ [PassiveReports] Batch ID: \(result.batchId)")
-            debugPrint("🔄 [PassiveReports] EXPLICIT refresh (defer will be skipped)...")
-
-            // Disable defer refresh since we're doing explicit refresh
-            shouldRefresh = false
-
-            // CRITICAL FIX: Force refresh BEFORE sending notification
-            // The notification will trigger another loadAllBatches() call from the View
-            // We need to ensure the debounce timer is reset so both calls succeed
-            debugPrint("🔄 [PassiveReports] Forcing refresh coordinator to bypass debounce...")
-            refreshCoordinator.forceRefresh() // Reset lastRefreshTime and isRefreshing flag
-
-            // Send notification for new report (this may trigger view to call loadAllBatches)
-            notificationService.sendParentReportAvailableNotification(
-                period: period,
-                reportCount: result.reportCount,
-                overallGrade: nil
-            )
-
-            // Reload batches to show new report
-            debugPrint("🔄 [PassiveReports] Loading all batches...")
-            await loadAllBatches()
-
-            debugPrint("✅ [PassiveReports] Explicit refresh complete")
-            debugPrint("   Weekly batches: \(weeklyBatches.count)")
-            debugPrint("   Monthly batches: \(monthlyBatches.count)")
-
-            if weeklyBatches.isEmpty && monthlyBatches.isEmpty {
-                debugPrint("⚠️ [PassiveReports] WARNING: No batches loaded after generation!")
-                debugPrint("   Expected at least 1 batch for period: \(period)")
-                debugPrint("   This might indicate a backend issue or query cache problem")
-            }
+            // Poll until complete (max 3 minutes, 3s intervals)
+            await pollForCompletion(batchId: asyncResult.batchId, period: period)
 
         } catch {
             isGenerating = false
             errorMessage = error.localizedDescription
             showError = true
-            debugPrint("❌ [PassiveReports] Manual generation failed: \(error)")
-            debugPrint("❌ [PassiveReports] Error details: \(error.localizedDescription)")
+            debugPrint("❌ [PassiveReports] Generation request failed: \(error)")
         }
+    }
+
+    /// Poll `/api/reports/passive/status/:batchId` every 3s until done or timed out.
+    private func pollForCompletion(batchId: String, period: String) async {
+        let endpoint = "/api/reports/passive/status/\(batchId)"
+        guard let url = URL(string: "\(networkService.apiBaseURL)\(endpoint)") else {
+            isGenerating = false
+            return
+        }
+
+        struct StatusResponse: Codable {
+            let isComplete: Bool
+            let isFailed: Bool?
+            let reportCount: Int?
+            enum CodingKeys: String, CodingKey {
+                case isComplete = "is_complete"
+                case isFailed   = "is_failed"
+                case reportCount = "report_count"
+            }
+        }
+
+        let maxAttempts = 60 // 60 × 3s = 3 minutes
+        for _ in 0..<maxAttempts {
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+
+            var statusRequest = URLRequest(url: url)
+            if let authToken = AuthenticationService.shared.getAuthToken() {
+                statusRequest.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
+            }
+            statusRequest.timeoutInterval = 10.0
+
+            guard let (data, _) = try? await URLSession.shared.data(for: statusRequest),
+                  let status = try? JSONDecoder().decode(StatusResponse.self, from: data) else {
+                continue
+            }
+
+            if status.isFailed == true {
+                isGenerating = false
+                errorMessage = "Report generation failed. Please try again."
+                showError = true
+                return
+            }
+
+            if status.isComplete {
+                isGenerating = false
+                notificationService.sendParentReportAvailableNotification(
+                    period: period,
+                    reportCount: status.reportCount ?? 4,
+                    overallGrade: nil
+                )
+                refreshCoordinator.forceRefresh()
+                await loadAllBatches()
+                debugPrint("✅ [PassiveReports] Generation complete — list reloaded")
+                return
+            }
+        }
+
+        // Timed out after 3 minutes
+        isGenerating = false
+        errorMessage = "Report generation is taking longer than expected. Check back in a moment."
+        showError = true
+        // Still reload — report may have finished just after our last poll
+        refreshCoordinator.forceRefresh()
+        await loadAllBatches()
     }
 
     /// Delete a report batch with optimistic updates and rollback on failure

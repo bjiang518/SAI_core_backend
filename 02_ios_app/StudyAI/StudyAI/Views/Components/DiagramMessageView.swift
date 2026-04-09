@@ -164,7 +164,7 @@ struct DiagramFullscreenView: View {
     @State private var currentScale: CGFloat = 1.0
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 Color.black.ignoresSafeArea()
 

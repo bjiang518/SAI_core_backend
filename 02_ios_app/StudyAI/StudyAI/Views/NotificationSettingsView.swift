@@ -20,7 +20,7 @@ struct NotificationSettingsView: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             List {
                 // Permission Section
                 permissionSection
@@ -244,12 +244,9 @@ struct NotificationSettingsView: View {
     // MARK: - Helper Methods
 
     private func saveSettings() {
-        notificationService.updateStudyReminders(config: tempConfig)
-
-        // Update master enabled state
+        // Set master enabled flag BEFORE scheduling so scheduleStudyReminders() sees the correct state
         notificationService.settings.isEnabled = notificationService.isAuthorized && tempConfig.isEnabled
-        notificationService.saveSettings()
-
+        notificationService.updateStudyReminders(config: tempConfig)
         dismiss()
     }
 

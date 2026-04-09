@@ -93,7 +93,7 @@ struct ReportDetailSheet: View {
     @State private var htmlContentHeight: CGFloat = 600
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             GeometryReader { geometry in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
@@ -232,36 +232,13 @@ struct HTMLView: UIViewRepresentable {
         self._contentHeight = contentHeight
     }
 
-    func makeUIView(context: Context) -> WKWebView {
-        let config = WKWebViewConfiguration()
-        let webView = WKWebView(frame: .zero, configuration: config)
-        webView.navigationDelegate = context.coordinator
-        webView.scrollView.isScrollEnabled = false // Disable internal scrolling
-        webView.scrollView.bounces = false
-        webView.isOpaque = false
-        webView.backgroundColor = .clear
-
-        // Add message handler ONCE in makeUIView
-        config.userContentController.add(context.coordinator, name: "heightChanged")
-
-        // Store reference
-        context.coordinator.webView = webView
-
-        // Load HTML with proper viewport settings for mobile
-        let htmlString = """
+    private func buildHTML() -> String {
+        """
         <!DOCTYPE html>
         <html>
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-            <script>
-                window.MathJax = {
-                    tex: { inlineMath: [['$','$'], ['\\\\(','\\\\)']], displayMath: [['$$','$$'], ['\\\\[','\\\\]']] },
-                    options: { skipHtmlTags: ['script','noscript','style','textarea','pre'] },
-                    startup: { ready() { MathJax.startup.defaultReady(); setTimeout(updateHeight, 800); } }
-                };
-            </script>
-            <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" async></script>
             <style>
                 body {
                     margin: 0;
@@ -271,131 +248,61 @@ struct HTMLView: UIViewRepresentable {
                     width: 100%;
                     overflow-x: hidden;
                 }
-                * {
-                    box-sizing: border-box;
-                    max-width: 100%;
-                }
-                /* Override any container max-widths from backend HTML */
+                * { box-sizing: border-box; max-width: 100%; }
                 .container, div[style*="max-width"] {
                     max-width: 100% !important;
                     width: 100% !important;
                     margin-left: 0 !important;
                     margin-right: 0 !important;
                 }
-                /* Ensure all content scales properly */
-                img, table, pre, code {
-                    max-width: 100%;
-                    width: auto;
-                    height: auto;
-                }
+                img, table, pre, code { max-width: 100%; width: auto; height: auto; }
             </style>
         </head>
         <body>
             \(htmlContent)
             <script>
-                // Send content height to Swift
+                var lastReportedHeight = 0;
                 function updateHeight() {
-                    const height = document.body.scrollHeight;
-                    window.webkit.messageHandlers.heightChanged.postMessage(height);
+                    var h = document.body.scrollHeight;
+                    if (Math.abs(h - lastReportedHeight) > 5) {
+                        lastReportedHeight = h;
+                        window.webkit.messageHandlers.heightChanged.postMessage(h);
+                    }
                 }
-
-                // Update height when content loads and when images load
-                window.addEventListener('load', updateHeight);
-                document.addEventListener('DOMContentLoaded', updateHeight);
-
-                // Observe image loading
-                const images = document.querySelectorAll('img');
-                images.forEach(img => {
+                document.addEventListener('DOMContentLoaded', function() { setTimeout(updateHeight, 100); });
+                window.addEventListener('load', function() { setTimeout(updateHeight, 200); });
+                document.querySelectorAll('img').forEach(function(img) {
                     img.addEventListener('load', updateHeight);
                 });
-
-                // Initial update
-                setTimeout(updateHeight, 100);
-                setTimeout(updateHeight, 500);
-                setTimeout(updateHeight, 1000);
             </script>
         </body>
         </html>
         """
+    }
 
-        webView.loadHTMLString(htmlString, baseURL: nil)
+    func makeUIView(context: Context) -> WKWebView {
+        let config = WKWebViewConfiguration()
+        config.userContentController.add(context.coordinator, name: "heightChanged")
+        let webView = WKWebView(frame: .zero, configuration: config)
+        webView.navigationDelegate = context.coordinator
+        webView.scrollView.isScrollEnabled = false
+        webView.scrollView.bounces = false
+        webView.isOpaque = false
+        webView.backgroundColor = .clear
+        context.coordinator.webView = webView
 
+        let html = buildHTML()
+        context.coordinator.loadedHTML = html
+        webView.loadHTMLString(html, baseURL: nil)
         return webView
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
-        // Only reload if content actually changed
-        let htmlString = """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-            <script>
-                window.MathJax = {
-                    tex: { inlineMath: [['$','$'], ['\\\\(','\\\\)']], displayMath: [['$$','$$'], ['\\\\[','\\\\]']] },
-                    options: { skipHtmlTags: ['script','noscript','style','textarea','pre'] },
-                    startup: { ready() { MathJax.startup.defaultReady(); setTimeout(updateHeight, 800); } }
-                };
-            </script>
-            <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" async></script>
-            <style>
-                body {
-                    margin: 0;
-                    padding: 0;
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-                    background-color: transparent;
-                    width: 100%;
-                    overflow-x: hidden;
-                }
-                * {
-                    box-sizing: border-box;
-                    max-width: 100%;
-                }
-                /* Override any container max-widths from backend HTML */
-                .container, div[style*="max-width"] {
-                    max-width: 100% !important;
-                    width: 100% !important;
-                    margin-left: 0 !important;
-                    margin-right: 0 !important;
-                }
-                /* Ensure all content scales properly */
-                img, table, pre, code {
-                    max-width: 100%;
-                    width: auto;
-                    height: auto;
-                }
-            </style>
-        </head>
-        <body>
-            \(htmlContent)
-            <script>
-                // Send content height to Swift
-                function updateHeight() {
-                    const height = document.body.scrollHeight;
-                    window.webkit.messageHandlers.heightChanged.postMessage(height);
-                }
-
-                // Update height when content loads and when images load
-                window.addEventListener('load', updateHeight);
-                document.addEventListener('DOMContentLoaded', updateHeight);
-
-                // Observe image loading
-                const images = document.querySelectorAll('img');
-                images.forEach(img => {
-                    img.addEventListener('load', updateHeight);
-                });
-
-                // Initial update
-                setTimeout(updateHeight, 100);
-                setTimeout(updateHeight, 500);
-                setTimeout(updateHeight, 1000);
-            </script>
-        </body>
-        </html>
-        """
-
-        webView.loadHTMLString(htmlString, baseURL: nil)
+        // Only reload if content actually changed — prevents the height-update → reload loop
+        let html = buildHTML()
+        guard html != context.coordinator.loadedHTML else { return }
+        context.coordinator.loadedHTML = html
+        webView.loadHTMLString(html, baseURL: nil)
     }
 
     func makeCoordinator() -> Coordinator {
@@ -405,6 +312,9 @@ struct HTMLView: UIViewRepresentable {
     class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         var contentHeight: Binding<CGFloat>
         weak var webView: WKWebView?
+        var loadedHTML: String = ""
+        private var debounceTimer: Timer?
+        private var pendingHeight: CGFloat = 0
 
         init(contentHeight: Binding<CGFloat>) {
             self.contentHeight = contentHeight
@@ -412,23 +322,33 @@ struct HTMLView: UIViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            // Message handler is already registered in makeUIView - just measure height
-            webView.evaluateJavaScript("document.body.scrollHeight") { [weak self] result, error in
-                if let height = result as? CGFloat {
-                    DispatchQueue.main.async {
-                        self?.contentHeight.wrappedValue = height
-                        debugPrint("🌐 [WKWebView] Content height updated: \(height)")
+            webView.evaluateJavaScript("document.body.scrollHeight") { [weak self] result, _ in
+                DispatchQueue.main.async {
+                    if let n = result as? NSNumber {
+                        self?.applyHeight(CGFloat(n.doubleValue))
                     }
                 }
             }
         }
 
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-            if message.name == "heightChanged", let height = message.body as? CGFloat {
-                DispatchQueue.main.async {
-                    self.contentHeight.wrappedValue = height
-                    debugPrint("🌐 [WKWebView] Content height from JS: \(height)")
-                }
+            guard message.name == "heightChanged", let n = message.body as? NSNumber else { return }
+            let h = CGFloat(n.doubleValue)
+            DispatchQueue.main.async { [weak self] in
+                self?.applyHeight(h)
+            }
+        }
+
+        /// Debounce + threshold: only commit height if stable for 400ms and changed by >10pt.
+        private func applyHeight(_ h: CGFloat) {
+            guard h > 0 else { return }
+            pendingHeight = h
+            debounceTimer?.invalidate()
+            debounceTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: false) { [weak self] _ in
+                guard let self else { return }
+                guard abs(self.pendingHeight - self.contentHeight.wrappedValue) > 10 else { return }
+                debugPrint("🌐 [WKWebView] Content height updated: \(self.pendingHeight)")
+                self.contentHeight.wrappedValue = self.pendingHeight
             }
         }
     }

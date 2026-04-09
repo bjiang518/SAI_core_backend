@@ -92,7 +92,7 @@ struct HomeworkResultsView: View {
     }
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
                     // Results Summary

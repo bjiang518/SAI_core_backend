@@ -18,8 +18,20 @@ struct CuteTabBar: View {
         let title: String
     }
 
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     @State private var bubbleOffset: CGFloat = 0
     @State private var bubbleScale: CGFloat = 1.0
+
+    // Landscape (compact height) uses a slimmer bar
+    private var isLandscape: Bool { verticalSizeClass == .compact }
+    private var barHeight: CGFloat { isLandscape ? 54 : 120 }
+    private var shapeHeight: CGFloat { isLandscape ? 70 : 130 }
+    private var shapeYOffset: CGFloat { isLandscape ? 35 : 65 }
+    private var bubbleSize: CGFloat { isLandscape ? 42 : 70 }
+    private var iconFontSize: CGFloat { isLandscape ? 18 : 30 }
+    private var unselectedIconSize: CGFloat { isLandscape ? 18 : 22 }
+    private var buttonHeight: CGFloat { isLandscape ? 44 : 60 }
+    private var bubbleYOffset: CGFloat { isLandscape ? 0 : -5 }
 
     var body: some View {
         GeometryReader { geometry in
@@ -28,9 +40,9 @@ struct CuteTabBar: View {
             ZStack(alignment: .bottom) {
                 // Solid black wavy background with rounded corners
                 WavyTabBarShape(selectedIndex: selectedTab, tabCount: tabs.count)
-                    .fill(Color(red: 0.08, green: 0.08, blue: 0.08))  // Much darker, more solid black
-                    .frame(height: 130)  // Increased height to fully cover iOS tab bar
-                    .offset(y: 65)  // Move down to cover bottom and any visible iOS tab bar
+                    .fill(Color(red: 0.08, green: 0.08, blue: 0.08))
+                    .frame(height: shapeHeight)
+                    .offset(y: shapeYOffset)
                     .shadow(color: Color.black.opacity(0.3), radius: 15, x: 0, y: -8)
 
                 // Orange bubble for selected item (smooth spring animation)
@@ -42,16 +54,16 @@ struct CuteTabBar: View {
                             endPoint: .bottom
                         )
                     )
-                    .frame(width: 70, height: 70)
+                    .frame(width: bubbleSize, height: bubbleSize)
                     .overlay(
                         Image(systemName: tabs[selectedTab].icon)
-                            .font(.system(size: 30, weight: .semibold))
+                            .font(.system(size: iconFontSize, weight: .semibold))
                             .foregroundColor(.white)
                             .animation(nil, value: selectedTab)  // ✅ FIX: No animation on icon change - instant update
                     )
                     .shadow(color: Color.orange.opacity(0.5), radius: 12, x: 0, y: 5)
-                    .scaleEffect(bubbleScale)  // Animated scale
-                    .offset(x: bubbleOffset, y: -5)  // Lower position, closer to bar
+                    .scaleEffect(bubbleScale)
+                    .offset(x: bubbleOffset, y: bubbleYOffset)
                     .animation(.spring(response: 0.35, dampingFraction: 0.8), value: bubbleOffset)  // ✅ FIX: Only animate offset
                     .animation(.spring(response: 0.35, dampingFraction: 0.8), value: bubbleScale)
 
@@ -62,32 +74,39 @@ struct CuteTabBar: View {
                             if selectedTab == tabs[index].tag {
                                 onSameTabTapped?(tabs[index].tag)
                             }
-                            // Simple smooth spring animation
                             withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                                 selectedTab = tabs[index].tag
                             }
                         }) {
-                            VStack(spacing: 4) {
+                            VStack(spacing: isLandscape ? 0 : 4) {
                                 Image(systemName: tabs[index].icon)
-                                    .font(.system(size: 22))
+                                    .font(.system(size: unselectedIconSize))
                                     .foregroundColor(selectedTab == tabs[index].tag ? .clear : Color.white.opacity(0.7))
-                                    .frame(height: 24)
+                                    .frame(height: isLandscape ? 20 : 24)
 
-                                // Tab label text
-                                Text(tabs[index].title)
-                                    .font(.system(size: 10, weight: .medium))
-                                    .foregroundColor(selectedTab == tabs[index].tag ? .clear : Color.white.opacity(0.8))
+                                // Hide labels in landscape to save vertical space
+                                if !isLandscape {
+                                    Text(tabs[index].title)
+                                        .font(.system(size: 10, weight: .medium))
+                                        .foregroundColor(selectedTab == tabs[index].tag ? .clear : Color.white.opacity(0.8))
+                                }
                             }
                             .frame(maxWidth: .infinity)
-                            .frame(height: 60)
+                            .frame(height: buttonHeight)
                             .contentShape(Rectangle())
                         }
                     }
                 }
-                .padding(.bottom, -5)  // Negative padding to move buttons up relative to bar
+                .padding(.bottom, isLandscape ? 0 : -5)
             }
             .onChange(of: selectedTab) { _, newValue in
                 let index = tabs.firstIndex(where: { $0.tag == newValue }) ?? 0
+                let centerX = tabWidth * CGFloat(index) + tabWidth / 2 - geometry.size.width / 2
+                bubbleOffset = centerX
+            }
+            .onChange(of: verticalSizeClass) { _, _ in
+                // Recalculate bubble position on orientation change
+                let index = tabs.firstIndex(where: { $0.tag == selectedTab }) ?? 0
                 let centerX = tabWidth * CGFloat(index) + tabWidth / 2 - geometry.size.width / 2
                 bubbleOffset = centerX
             }
@@ -97,8 +116,8 @@ struct CuteTabBar: View {
                 bubbleOffset = centerX
             }
         }
-        .frame(height: 120)  // Increased to ensure full coverage of iOS tab bar
-        .ignoresSafeArea(.all, edges: .bottom)  // Force ignore safe area
+        .frame(height: barHeight)
+        .ignoresSafeArea(.all, edges: .bottom)
     }
 }
 

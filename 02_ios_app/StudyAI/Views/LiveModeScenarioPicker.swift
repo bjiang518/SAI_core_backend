@@ -17,7 +17,7 @@ struct LiveModeScenarioPicker: View {
     private let columns = [GridItem(.flexible()), GridItem(.flexible())]
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: DesignTokens.Spacing.md) {
                     // Header

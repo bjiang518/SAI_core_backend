@@ -206,7 +206,7 @@ class PassiveReportGenerator {
                 logger.info(`🗑️ Deleting old reports for batch ${batchId} to regenerate...`);
                 await db.query(`DELETE FROM passive_reports WHERE batch_id = $1`, [batchId]);
             } else {
-                // Create new batch
+                // Create new batch (guard against concurrent INSERT with ON CONFLICT DO NOTHING)
                 batchId = uuidv4();
                 logger.info(`📝 Creating new batch: ${batchId}`);
 
@@ -215,10 +215,11 @@ class PassiveReportGenerator {
                         id, user_id, period, start_date, end_date, status,
                         student_age, grade_level, learning_style
                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-                    RETURNING *
+                    ON CONFLICT (user_id, period, start_date) DO NOTHING
+                    RETURNING id
                 `;
 
-                await db.query(batchQuery, [
+                const batchInsertResult = await db.query(batchQuery, [
                     batchId,
                     userId,
                     period,
@@ -229,6 +230,18 @@ class PassiveReportGenerator {
                     studentProfile.grade_level || null,
                     studentProfile.learning_style || null
                 ]);
+
+                // DO NOTHING fired — another concurrent call won the race; use its batch
+                if (batchInsertResult.rows.length === 0) {
+                    const existingResult = await db.query(
+                        `SELECT id FROM parent_report_batches WHERE user_id = $1 AND period = $2 AND start_date = $3`,
+                        [userId, period, dateRange.startDate]
+                    );
+                    batchId = existingResult.rows[0]?.id || batchId;
+                    logger.warn(`⚠️ Batch INSERT race resolved — using existing batch ${batchId}`);
+                    // Also clean up any stale reports so we regenerate cleanly
+                    await db.query(`DELETE FROM passive_reports WHERE batch_id = $1`, [batchId]);
+                }
             }
 
             // Step 3: Generate 4 reports using new generators
@@ -454,6 +467,10 @@ class PassiveReportGenerator {
                 id, batch_id, report_type,
                 narrative_content, word_count, ai_model_used
             ) VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT (batch_id, report_type) DO UPDATE SET
+                narrative_content = EXCLUDED.narrative_content,
+                word_count        = EXCLUDED.word_count,
+                ai_model_used     = EXCLUDED.ai_model_used
             RETURNING *
         `;
 

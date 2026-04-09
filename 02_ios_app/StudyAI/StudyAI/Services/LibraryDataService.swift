@@ -28,7 +28,6 @@ func currentUserConversationStorage() -> ConversationLocalStorage {
 // Disable debug print statements in production builds to prevent user study history exposure
 #if !DEBUG
 private func debugPrint(_ items: Any...) { }
-private func debugPrint(_ items: Any...) { }
 #endif
 
 // MARK: - Advanced Search Models

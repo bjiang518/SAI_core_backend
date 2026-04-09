@@ -17,10 +17,10 @@ enum GradeResult: String, Codable, CaseIterable {
     
     var displayName: String {
         switch self {
-        case .correct: return "Correct"
-        case .incorrect: return "Incorrect"
-        case .empty: return "Empty"
-        case .partialCredit: return "Partial Credit"
+        case .correct: return NSLocalizedString("homeworkResults.correct", comment: "")
+        case .incorrect: return NSLocalizedString("homeworkResults.incorrect", comment: "")
+        case .empty: return NSLocalizedString("homeworkResults.empty", comment: "")
+        case .partialCredit: return NSLocalizedString("homeworkResults.partialCredit", comment: "")
         }
     }
     
@@ -319,7 +319,7 @@ struct QuestionSummary: Codable, Identifiable {
     }
 
     var gradeDisplayText: String {
-        guard isGraded, let grade = grade else { return "Not Graded" }
+        guard isGraded, let grade = grade else { return NSLocalizedString("grade.notGraded", comment: "") }
         if let points = points, let maxPoints = maxPoints {
             return "\(grade.displayName) (\(String(format: "%.1f", points))/\(String(format: "%.1f", maxPoints)))"
         }

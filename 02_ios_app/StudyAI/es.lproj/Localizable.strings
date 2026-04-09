@@ -4,7 +4,7 @@
 */
 
 // Loading Screen
-"loading.appTagline" = "Tu StudyMate";
+"loading.appTagline" = "Tu Study Agent";
 
 // Biometric Authentication (NEW - no existing alternatives)
 "login.enableBiometric" = "Activar %@?";
@@ -28,9 +28,9 @@
 "settings.signOut" = "Cerrar sesión";
 "settings.biometricLogin" = "Inicio de sesión con %@";
 "settings.parentControls.message" = "Verifica el acceso parental para gestionar la configuración";
-"settings.appVersion" = "StudyMates v1.0";
+"settings.appVersion" = "StudyAgent v1.0";
 "settings.appTagline" = "Con autenticación moderna";
-"settings.appPoweredBy" = "Impulsado por OpenAI GPT-4";
+"settings.appPoweredBy" = "Impulsado por modelos de IA avanzados";
 "settings.security" = "Seguridad y privacidad";
 "settings.passwordManager" = "Gestor de contraseñas";
 "settings.privacySettings" = "Configuración de privacidad";
@@ -51,6 +51,7 @@
 "settings.contact" = "Contactar soporte";
 "settings.rateApp" = "Calificar aplicación";
 "settings.shareApp" = "Compartir aplicación";
+"settings.visitWebsite" = "Visitar sitio web";
 
 // Profile
 "profile.complete" = "Perfil %d%% completo";
@@ -141,7 +142,7 @@
 "home.homeworkAlbum" = "Álbum de tareas";
 "home.homeworkAlbumDescription" = "Ver toda la tarea enviada";
 
-// Parent Reports
+// Study Reports
 "parentReport.title" = "Informes para padres";
 "parentReport.studyReports" = "Informes de estudio";
 "parentReport.trackProgress" = "Sigue el progreso académico de tu hijo";
@@ -182,6 +183,8 @@
 "aiHomework.grading" = "Calificando respuestas...";
 "aiHomework.preparingResults" = "Preparando resultados...";
 "aiHomework.analysisComplete" = "¡Análisis completo!";
+"ai.disclaimer" = "La IA puede cometer errores — por favor verifica con cuidado";
+"onboarding.consent.aiServices.disclaimer" = "La IA puede cometer errores — por favor verifica con cuidado";
 "aiHomework.processingError" = "Error de procesamiento";
 "aiHomework.homeworkAnalysisComplete" = "Análisis de tarea completo";
 "aiHomework.gradingCompleteMessage" = "Tu tarea ha sido calificada. Se encontraron %d pregunta(s).";
@@ -386,7 +389,7 @@
 "parentPasswordRemove.incorrectPin" = "❌ PIN incorrecto. Por favor, inténtalo de nuevo.";
 
 
-"app.name" = "StudyAI";
+"app.name" = "StudyAgent";
 "app.tagline" = "Tu compañero de aprendizaje con IA";
 "auth.login.welcome" = "¡Bienvenido de nuevo!";
 "auth.login.subtitle" = "Inicia sesión para continuar tu viaje de aprendizaje.";
@@ -423,7 +426,7 @@
 "faceIDReauth.error.failed" = "La autenticación con %@ falló. Inténtalo de nuevo.";
 "faceIDReauth.error.generic" = "Autenticación fallida: %@";
 "auth.signup.title" = "Crea tu cuenta";
-"auth.signup.subtitle" = "¡Únete a StudyAI para comenzar tu aventura de aprendizaje!";
+"auth.signup.subtitle" = "¡Únete a StudyAgent para comenzar tu aventura de aprendizaje!";
 "auth.fullName" = "Nombre completo";
 "auth.enterFullName" = "Introduce tu nombre completo";
 "auth.createPassword" = "Crea una contraseña";
@@ -701,7 +704,7 @@
 "generatedQuestions.points" = "%d pts";
 "generatedQuestions.emailGreeting" = "¡Hola!";
 "generatedQuestions.emailBody" = "Te comparto %d preguntas de práctica de %@.";
-"generatedQuestions.emailGeneratedBy" = "Este PDF fue generado con Study Mates, tu compañero de estudio con IA.";
+"generatedQuestions.emailGeneratedBy" = "Este PDF fue generado con StudyAgent, tu compañero de estudio con IA.";
 "generatedQuestions.emailClosing" = "¡Que disfrutes estudiando!";
 
 
@@ -717,26 +720,13 @@
 "progress.unableToLoadData" = "No se pueden cargar los datos";
 "progress.tryAgain" = "Intentar de nuevo";
 "progress.info.title" = "Cómo usar el Progreso de aprendizaje";
-"progress.info.message" = "📊 Comprende tu progreso:\n\n• Filtro de tiempo: Toca el menú de tres puntos para cambiar entre Semana actual, Mes actual o Todo el tiempo\n• Desglose por materia: Ve tu rendimiento en diferentes materias con porcentajes de precisión\n• Tarjetas con código de color: Cada materia muestra preguntas respondidas, tasa de precisión e indicadores de tendencia (↑ mejorando, → estable, ↓ necesita trabajo)\n• Toca cualquier tarjeta de materia para ver análisis detallados e información personalizada\n\n🎯 Consejos:\n• Desliza hacia abajo para actualizar tu progreso más reciente\n• Revisa tu racha diaria para mantenerte motivado\n• Enfócate en las materias con menor precisión para mejorar";
-
-"tomatoGarden.info.title" = "Acerca del jardín de tomates";
-"tomatoGarden.info.message" = "🍅 Tu colección de tomates:\n\n• Cada sesión de enfoque completada te gana un tomate\n• Filtra por tiempo (Hoy, Esta semana) o por tipo de tomate\n• Tres variedades de tomates:\n  - Tomate clásico: Sesiones estándar de 25 minutos\n  - Tomate rizado: Sesiones de enfoque profundo\n  - Tomate lindo: Sesiones de enfoque cortas\n\n✨ Modo física:\n¡Toca el botón de modo física para ver tus tomates con animaciones e interacciones basadas en física!\n\n🏆 Hitos:\nColecciona más tomates para desbloquear hitos de logros y registrar tu recorrido de enfoque.";
-
-"passiveReports.info.title" = "Acerca de los informes para padres";
-"passiveReports.info.message" = "📊 Información de aprendizaje automatizada:\n\n• Informes semanales/mensuales: Cambia entre períodos de informes usando las pestañas\n• Toca '+' para generar manualmente un nuevo lote de informes\n• Cada lote contiene 8 informes especializados:\n  1. Resumen ejecutivo — Descripción general del rendimiento\n  2. Rendimiento académico — Análisis por materia\n  3. Comportamiento de aprendizaje — Hábitos y patrones de estudio\n  4. Motivación y emociones — Indicadores de participación\n  5. Trayectoria de progreso — Tendencias de mejora\n  6. Aprendizaje social — Información sobre colaboración\n  7. Riesgos y oportunidades — Áreas que necesitan atención\n  8. Plan de acción — Recomendaciones personalizadas\n\n💡 Consejos:\n• Los informes analizan tus sesiones de estudio, conversaciones archivadas y resultados de práctica\n• Toca cualquier tarjeta de informe para ver información detallada\n• Usa el modo Editar para gestionar o eliminar lotes de informes antiguos";
-
-"library.info.title" = "Cómo usar la Biblioteca";
-"library.info.message" = "📚 Tu archivo de aprendizaje:\n\n• Tipos de contenido: Cambia entre Todas las sesiones, Solo preguntas o Solo conversaciones con las pestañas\n• Búsqueda: Usa la barra de búsqueda para encontrar contenido específico\n• Filtros rápidos: Filtra por materia, rango de fechas o contenido con imágenes\n• Búsqueda avanzada: Toca el menú de tres puntos para opciones de filtrado detalladas\n• Filtro por materia: Filtra el contenido por materias específicas desde el menú\n\n💡 Consejos:\n• Desliza hacia abajo para actualizar el contenido de tu biblioteca\n• Toca cualquier elemento para ver todos los detalles, respuestas y explicaciones\n• Usa 'Limpiar filtros' desde el menú para restablecer todos los filtros activos\n• Las estadísticas en la parte superior muestran tu total de preguntas y conversaciones";
-"library.select" = "Seleccionar";
+"progress.info.message" = "El progreso de aprendizaje rastrea tu rendimiento en todas las materias basándose en tareas calificadas y sesiones de práctica.\n\nQué ves:\n  • Tarjetas de materias con porcentaje de precisión y total de preguntas respondidas\n  • Flechas de tendencia indicando si el rendimiento mejora, es estable o declina\n  • Racha diaria — días consecutivos con actividad de estudio registrada\n\nCómo filtrar:\n  • Toca el menú (arriba a la derecha) para cambiar entre Esta semana, Este mes y Todo el tiempo\n  • Toca cualquier tarjeta de materia para ver un desglose detallado\n\nCálculo de precisión:\n  • Respuestas correctas divididas por el total de intentos calificados, en porcentaje\n\nConsejos:\n  • Desliza hacia abajo para actualizar\n  • Concéntrate en materias con menor precisión";"tomatoGarden.info.title" = "Acerca del jardín de tomates";
+"tomatoGarden.info.message" = "El jardín de tomates es un sistema de recompensas vinculado a tus sesiones de enfoque Pomodoro.\n\nCómo ganar tomates:\n  • Completa una sesión de 25 minutos para ganar un tomate\n  • Cada sesión otorga un tomate aleatorio de 13 tipos coleccionables\n\nNiveles de rareza:\n  • Nivel 1 — Común: Clásico, Rizado, Bonito\n  • Nivel 2 — Poco común\n  • Nivel 3 — Raro\n  • Nivel 4 — Legendario: Dorado, Platino, Diamante\n\nMejora tu colección:\n  • Reúne 5 tomates del mismo nivel para intercambiarlos por 1 del nivel superior\n\nTu jardín:\n  • Muestra hasta 25 tomates a la vez\n  • Activa el modo Física para animaciones realistas";"passiveReports.info.title" = "Acerca de los informes para padres";
+"passiveReports.info.message" = "Los informes de estudio son análisis generados por IA de tu actividad de aprendizaje, producidos automáticamente de forma semanal y mensual.\n\nContenido de cada lote de informes:\n  • Resumen ejecutivo — visión general del rendimiento del período\n  • Rendimiento académico — precisión y preguntas por materia\n  • Comportamiento de aprendizaje — patrones de sesiones y hábitos\n  • Motivación y compromiso — indicadores de enfoque y esfuerzo\n  • Trayectoria de progreso — tendencias de mejora o retroceso\n  • Riesgos y oportunidades — materias que necesitan más atención\n  • Plan de acción — recomendaciones personalizadas para el siguiente período\n\nCómo usar esta pantalla:\n  • Cambia entre las pestañas Semanal y Mensual\n  • Toca + para generar manualmente un nuevo lote de informes\n  • Toca cualquier tarjeta para leer el análisis completo\n  • Toca Editar para eliminar lotes antiguos\n\nFuentes de datos:\n  • Generado a partir de tus sesiones de tareas, chats archivados y resultados de práctica";"library.info.title" = "Cómo usar la Biblioteca";
+"library.info.message" = "Tu biblioteca almacena todas las preguntas guardadas y conversaciones archivadas en un lugar único y buscable.\n\nQué se almacena:\n  • Preguntas — preguntas archivadas después de una sesión de tareas\n  • Conversaciones — sesiones completas de chat IA guardadas\n\nNavegación:\n  • Usa las pestañas para filtrar por Todo, Preguntas o Conversaciones\n  • Usa la barra de búsqueda para encontrar elementos\n  • Toca cualquier elemento para ver su contenido completo\n\nAcciones:\n  • Desliza a la izquierda para eliminar\n  • Toca el menú para entrar en modo Selección y exportar PDF o eliminar en masa";"library.select" = "Seleccionar";
 
 "homeworkResults.info.title" = "Comprende tus resultados";
-"homeworkResults.info.message" = "📝 Resultados del análisis de tarea:\n\n• Tarjetas de preguntas: Toca cualquier tarjeta para expandirla y ver detalles, respuestas y explicaciones\n• Casillas: Selecciona las preguntas que deseas archivar para revisión futura\n• Indicadores de color:\n  - Verde: Respuesta correcta\n  - Naranja: Parcialmente correcto\n  - Rojo: Respuesta incorrecta\n• Botón Archivar: Toca el ícono de libro para guardar las preguntas seleccionadas en tu biblioteca\n\n💡 Consejos:\n• Revisa detenidamente las respuestas incorrectas para entender los errores\n• Usa las preguntas archivadas para práctica enfocada más adelante\n• Cada pregunta se puede expandir para ver soluciones paso a paso\n• El progreso se registra automáticamente para análisis de aprendizaje";
-
-
-
-
-
-"progress.yourLearningJourney" = "Tu recorrido de aprendizaje";
+"homeworkResults.info.message" = "Los resultados de tareas muestran cada pregunta con un análisis y calificación generados por IA.\n\nLectura de resultados:\n  • Cada tarjeta muestra la pregunta, la respuesta correcta y una explicación paso a paso\n  • Toca una tarjeta para expandirla\n\nCódigo de colores:\n  • Verde — respuesta correcta\n  • Naranja — parcialmente correcta\n  • Rojo — respuesta incorrecta\n\nModos de calificación:\n  • Estándar — análisis rápido\n  • Profundo — razonamiento extendido para preguntas complejas\n\nArchivar preguntas:\n  • Marca una tarjeta y toca Archivar para guardarla en tu biblioteca";"progress.yourLearningJourney" = "Tu recorrido de aprendizaje";
 "progress.pointsToday" = "Puntos hoy";
 "progress.streak" = "Racha";
 "progress.days" = "días";
@@ -926,7 +916,7 @@
 "helpCenter.faq1.question" = "¿Cómo uso el calificador de tareas?";
 "helpCenter.faq1.answer" = "Toma una foto de tu tarea o sube una imagen. Nuestra IA la analizará, detectará las preguntas y proporcionará retroalimentación detallada con correcciones y explicaciones.";
 "helpCenter.faq2.question" = "¿Qué materias son compatibles?";
-"helpCenter.faq2.answer" = "StudyAI es compatible con Matemáticas, Física, Química, Biología, Inglés, Historia, Geografía e Informática. ¡Constantemente añadimos más materias\!";
+"helpCenter.faq2.answer" = "StudyAgent es compatible con Matemáticas, Física, Química, Biología, Inglés, Historia, Geografía e Informática. ¡Constantemente añadimos más materias\!";
 "helpCenter.faq3.question" = "¿Cómo cambio la voz de la IA?";
 "helpCenter.faq3.answer" = "Ve a Configuración > Compañeros de estudio > Selecciona tu compañero. Puedes elegir entre Adam (voz masculina) y Eva (voz femenina), y personalizar la velocidad y el volumen.";
 "helpCenter.faq4.question" = "¿Puedo revisar mis errores pasados?";
@@ -934,7 +924,7 @@
 "helpCenter.faq5.question" = "¿Cómo funciona el sistema de rachas?";
 "helpCenter.faq5.answer" = "Tu racha aumenta cada día que completas al menos una sesión de estudio. ¡Mantén tu racha para desbloquear logros y recompensas\!";
 "helpCenter.faq6.question" = "¿Mis datos están seguros?";
-"helpCenter.faq6.answer" = "¡Sí\! Tus datos son procesados por proveedores de IA de confianza (OpenAI, Google Gemini) únicamente para ofrecer las funciones de tutoría, y nunca se venden ni se usan para publicidad.";
+"helpCenter.faq6.answer" = "¡Sí\! Tus datos son procesados por proveedores de IA de confianza proveedores de IA de confianza únicamente para ofrecer las funciones de tutoría, y nunca se venden ni se usan para publicidad.";
 "helpCenter.faq7.question" = "¿Cómo hago seguimiento de mi progreso?";
 "helpCenter.faq7.answer" = "Visita la pestaña Progreso para ver estadísticas detalladas, tendencias de precisión, rendimiento por materia y patrones de aprendizaje semanal.";
 "helpCenter.faq8.question" = "¿Cuál es la diferencia entre el análisis Detallado y el Rápido?";
@@ -947,7 +937,7 @@
 // Share App
 "shareApp.subtitle" = "¡Ayuda a tus amigos a destacar en sus estudios!";
 "shareApp.messageTitle" = "Mensaje para compartir";
-"shareApp.messagePreview" = "\"¡Prueba StudyAI - el mejor asistente de tareas con IA\!\"";
+"shareApp.messagePreview" = "\"¡Prueba StudyAgent - el mejor asistente de tareas con IA\!\"";
 "shareApp.feature1" = "✓ Calificación de tareas con IA";
 "shareApp.feature2" = "✓ Tutor IA interactivo";
 "shareApp.feature3" = "✓ Revisión de errores y práctica";
@@ -961,7 +951,7 @@
 "shareApp.qrCode" = "Código QR";
 "shareApp.showQRCode" = "Muestra este código QR a tus amigos";
 "shareApp.comingSoonReferral" = "Próximamente: ¡Recompensas por referidos\!";
-"shareApp.earnPoints" = "Gana puntos por cada amigo que se una a StudyAI";
+"shareApp.earnPoints" = "Gana puntos por cada amigo que se una a StudyAgent";
 "shareApp.downloadNow" = "Descarga ahora:";
 
 // Chat View
@@ -1047,8 +1037,7 @@
 "chat.archive.buttonTitle" = "Archivar sesión";
 "chat.archive.archiving" = "Archivando...";
 "chat.archive.infoTitle" = "Información del archivo";
-"chat.archive.infoMessage" = "Guarda esta conversación para referencia futura. Puedes agregar un título personalizado y notas para recordar lo que aprendiste.";
-"chat.archive.analyzingWithAI" = "Analizando con IA...";
+"chat.archive.infoMessage" = "Archivar guarda esta conversación en tu biblioteca para revisarla en cualquier momento.\n\nQué se guarda:\n  • El historial completo con preguntas, explicaciones y diagramas\n  • El contexto de la sesión\n\nAgregar detalles:\n  • Título — asigna un nombre descriptivo\n  • Notas — agrega recordatorios personales\n\nEncontrar archivos:\n  • Pestaña Conversaciones en la pantalla Biblioteca";"chat.archive.analyzingWithAI" = "Analizando con IA...";
 "chat.archive.generatingSummary" = "Generando resumen y temas clave";
 "chat.archive.complete" = "¡Archivo completo!";
 "chat.archive.summaryGenerated" = "Resumen generado correctamente";
@@ -1069,7 +1058,7 @@
 
 // Alerts
 "chat.alert.cameraPermission.title" = "Permiso de cámara";
-"chat.alert.cameraPermission.message" = "StudyAI necesita acceso a la cámara para escanear preguntas de tarea. Por favor, activa el permiso de cámara en Configuración.";
+"chat.alert.cameraPermission.message" = "StudyAgent necesita acceso a la cámara para escanear preguntas de tarea. Por favor, activa el permiso de cámara en Configuración.";
 "chat.alert.currentChatExists.title" = "Hay un chat activo";
 "chat.alert.currentChatExists.message" = "Tienes una sesión de chat activa. ¿Quieres archivarla primero, o descartarla e iniciar una nueva sesión con esta pregunta?";
 "chat.alert.currentChatExists.archiveCurrent" = "Archivar chat actual";
@@ -1433,8 +1422,7 @@
 "mistakeReview.correctAnswerLabel" = "Respuesta correcta:";
 "mistakeReview.showExplanation" = "Mostrar explicación";
 "mistakeReview.instructions.title" = "Cómo usar la revisión de errores";
-"mistakeReview.instructions.message" = "1. Selecciona un período de tiempo (Esta semana, Este mes o Todo el tiempo) para filtrar tus errores\n\n2. Elige una materia para revisar respuestas incorrectas\n\n3. Pulsa 'Iniciar revisión' para ver tus errores\n\n4. Usa 'Intentémoslas de nuevo' para seleccionar preguntas y generar un PDF para practicar\n\n5. Revisa las respuestas correctas y las explicaciones para mejorar tu comprensión";
-"mistakeReview.startReview" = "Iniciar revisión (%d errores)";
+"mistakeReview.instructions.message" = "La revisión de errores analiza tus respuestas incorrectas pasadas para identificar patrones y áreas débiles.\n\nCómo usar:\n  1. Selecciona un rango de tiempo — Esta semana, Este mes o Todo el tiempo\n  2. Elige una materia\n  3. Toca un grupo de errores para ver las preguntas\n  4. Toca Iniciar revisión para reintentar\n\nEntender los resultados:\n  • Cada grupo muestra el número de errores y una descripción de debilidad\n  • Intensidad de debilidad: de Baja a Alta\n\nConsejos:\n  • Aborda primero las debilidades altas para mayor impacto";"mistakeReview.startReview" = "Iniciar revisión (%d errores)";
 "mistakeReview.letsPractise" = "Comenzar práctica";
 "mistakeReview.resumePractice" = "Retomar práctica";
 "mistakeReview.showFullQuestion" = "Mostrar pregunta completa y análisis";
@@ -1536,7 +1524,7 @@
 "parentMode.opticIDForParentMode" = "Optic ID para el modo padres";
 "parentMode.enabled" = "Activado";
 "parentMode.disabled" = "Desactivado";
-"parentMode.faceIDUsageDescription" = "StudyMates usa Face ID para autenticar a los padres de forma segura y acceder a las funciones protegidas y al control parental.";
+"parentMode.faceIDUsageDescription" = "StudyAgent usa Face ID para autenticar a los padres de forma segura y acceder a las funciones protegidas y al control parental.";
 
 // Voice Input Preview
 "voicePreview.liveTranscription" = "Transcripción en vivo";
@@ -1647,7 +1635,7 @@
 "privacy.coppa.title" = "Cumplimiento de COPPA";
 "privacy.gdpr.content" = "Si te encuentras en el Espacio Económico Europeo, tienes derechos bajo el RGPD, incluido el acceso a tus datos, corrección, eliminación y portabilidad de datos. Contáctanos para ejercer estos derechos.";
 "privacy.gdpr.title" = "Derechos del RGPD";
-"privacy.intro.content" = "StudyAI se compromete a proteger tu privacidad. Esta Política de privacidad explica cómo recopilamos, usamos, divulgamos y protegemos tu información cuando usas nuestra aplicación educativa.";
+"privacy.intro.content" = "StudyAgent se compromete a proteger tu privacidad. Esta Política de privacidad explica cómo recopilamos, usamos, divulgamos y protegemos tu información cuando usas nuestra aplicación educativa.";
 "privacy.intro.title" = "Introducción";
 "privacy.lastUpdated" = "Última actualización: marzo de 2026";
 "privacy.retention.content" = "Conservamos tu información personal durante el tiempo necesario para proporcionar nuestros servicios y cumplir con las obligaciones legales. Puedes solicitar la eliminación de tus datos en cualquier momento.";
@@ -1658,7 +1646,7 @@
 "privacy.security.title" = "Seguridad de los datos";
 "privacy.thirdParty.content" = "Trabajamos con los siguientes servicios de terceros para ofrecer nuestras funciones:
 
-• OpenAI (openai.com) — procesa fotos de tareas, texto de estudiantes y transcripciones de voz para tutoría y calificación con IA
+• Tecnología IA avanzada — procesa fotos de tareas, texto de estudiantes y transcripciones de voz para tutoría y calificación con IA
 • Google Gemini (deepmind.google) — impulsa el chat de voz en tiempo real y respuestas avanzadas de IA
 • ElevenLabs (elevenlabs.io) — convierte las respuestas de texto de IA en audio de voz
 • Inicio de sesión con Google (google.com) — inicio de sesión opcional
@@ -1674,7 +1662,7 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 // Terms of Service
 "terms.acceptable.content" = "Aceptas no utilizar el servicio para fines ilegales, para dañar a otros, para cargar contenido malicioso o para interferir con el funcionamiento del servicio.";
 "terms.acceptable.title" = "Uso aceptable";
-"terms.acceptance.content" = "Al acceder o utilizar StudyAI, aceptas estar sujeto a estos Términos de servicio. Si no estás de acuerdo con estos términos, por favor no uses nuestra aplicación.";
+"terms.acceptance.content" = "Al acceder o utilizar StudyAgent, aceptas estar sujeto a estos Términos de servicio. Si no estás de acuerdo con estos términos, por favor no uses nuestra aplicación.";
 "terms.acceptance.title" = "Aceptación de términos";
 "terms.accounts.content" = "Eres responsable de mantener la seguridad de tu cuenta y contraseña. Debes proporcionar información precisa y mantenerla actualizada.";
 "terms.accounts.title" = "Cuentas de usuario";
@@ -1682,19 +1670,19 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "terms.changes.title" = "Cambios en los términos";
 "terms.contact.content" = "Para preguntas sobre estos Términos de servicio, contáctanos en service@study-mates.net";
 "terms.contact.title" = "Información de contacto";
-"terms.disclaimer.content" = "StudyAI se proporciona \"tal como está\" sin garantías de ningún tipo. Aunque nos esforzamos por ser precisos, no garantizamos que el contenido generado por IA esté libre de errores o sea completo.";
+"terms.disclaimer.content" = "StudyAgent se proporciona \"tal como está\" sin garantías de ningún tipo. Aunque nos esforzamos por ser precisos, no garantizamos que el contenido generado por IA esté libre de errores o sea completo.";
 "terms.disclaimer.title" = "Descargo de responsabilidad";
-"terms.intellectual.content" = "Todo el contenido y materiales de StudyAI son de nuestra propiedad o de nuestros licenciantes y están protegidos por las leyes de propiedad intelectual. No puedes copiar, modificar ni distribuir nuestro contenido sin permiso.";
+"terms.intellectual.content" = "Todo el contenido y materiales de StudyAgent son de nuestra propiedad o de nuestros licenciantes y están protegidos por las leyes de propiedad intelectual. No puedes copiar, modificar ni distribuir nuestro contenido sin permiso.";
 "terms.intellectual.title" = "Propiedad intelectual";
 "terms.lastUpdated" = "Última actualización: enero de 2025";
 "terms.law.content" = "Estos términos se rigen por las leyes de la jurisdicción en la que operamos, sin tener en cuenta los principios de conflicto de leyes.";
 "terms.law.title" = "Ley aplicable";
-"terms.liability.content" = "En la máxima medida permitida por la ley, StudyAI no será responsable de ningún daño indirecto, incidental, especial o consecuente que surja de tu uso del servicio.";
+"terms.liability.content" = "En la máxima medida permitida por la ley, StudyAgent no será responsable de ningún daño indirecto, incidental, especial o consecuente que surja de tu uso del servicio.";
 "terms.liability.title" = "Limitación de responsabilidad";
 "terms.termination.content" = "Podemos suspender o cancelar tu acceso al servicio si incumples estos términos. También puedes cancelar tu cuenta en cualquier momento.";
 "terms.termination.title" = "Cancelación";
 "terms.title" = "Términos de servicio";
-"terms.use.content" = "StudyAI proporciona una plataforma educativa impulsada por IA. Solo puedes usar nuestro servicio para fines educativos personales y no comerciales.";
+"terms.use.content" = "StudyAgent proporciona una plataforma educativa impulsada por IA. Solo puedes usar nuestro servicio para fines educativos personales y no comerciales.";
 "terms.use.title" = "Uso del servicio";
 "terms.userContent.content" = "Conservas la propiedad del contenido que envías. Al usar nuestro servicio, nos otorgas una licencia para usar, almacenar y procesar tu contenido para prestar nuestros servicios.";
 "terms.userContent.title" = "Contenido del usuario";
@@ -1729,7 +1717,7 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "privacy.settings.termsOfService" = "Términos de servicio";
 "privacy.settings.title" = "Configuración de privacidad";
 
-// Parent Reports section
+// Study Reports section
 "privacy.parentReports.sectionHeader" = "Informes para padres";
 "privacy.parentReports.automatedReports" = "Informes semanales automáticos";
 "privacy.parentReports.automatedReportsDesc" = "Generar informes para padres cada domingo a las 9 PM";
@@ -1953,12 +1941,13 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 
 // Theme Settings
 "theme.title" = "Apariencia";
-"theme.day" = "Modo día";
-"theme.night" = "Modo noche";
-"theme.cute" = "Modo adorable";
-"theme.description.day" = "Tema claro clásico para uso diurno";
-"theme.description.night" = "Tema oscuro para entornos con poca luz";
-"theme.description.cute" = "Colores pastel suaves para una experiencia divertida";
+"theme.default" = "Modo predeterminado";
+"theme.colorful" = "Vida colorida";
+"theme.description.default" = "Se adapta automáticamente al modo claro u oscuro según tu configuración";
+"theme.description.colorful" = "Colores pastel suaves para una experiencia divertida";
+"theme.override.auto" = "Auto";
+"theme.override.light" = "Claro";
+"theme.override.dark" = "Oscuro";
 
 // Tomato Garden Strings
 "tomato.garden.title" = "Mi jardín de tomates";
@@ -2292,11 +2281,15 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "onboarding.consent.privacy.activity" = "Tu actividad ayuda a personalizar el aprendizaje";
 "onboarding.consent.privacy.profile" = "Tu perfil nunca se comparte";
 "onboarding.consent.privacyPolicy" = "Política de privacidad";
-"onboarding.consent.agree" = "Acepto la Política de privacidad";
+"onboarding.consent.agree" = "Acepto compartir datos con los servicios de IA listados";
 "onboarding.consent.required" = "Debes aceptar para continuar";
+"onboarding.consent.aiServices.title" = "Datos compartidos con servicios de IA:";
+"onboarding.consent.aiServices.openai" = "OpenAI — imágenes de tareas, chat, respuestas";
+"onboarding.consent.aiServices.gemini" = "Google Gemini — análisis profundo, voz en vivo";
+"onboarding.consent.aiServices.elevenlabs" = "ElevenLabs — audio de voz sintetizada";
 "onboarding.getStarted" = "Comenzar";
 
-// Parent Reports — List View
+// Study Reports — List View
 "reports.passive.title" = "Informes para Padres";
 "reports.passive.subtitle" = "Resúmenes semanales y mensuales del aprendizaje";
 "reports.passive.editReports" = "Editar informes";
@@ -2323,7 +2316,7 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "reports.passive.trend.accuracy" = "Precisión";
 "reports.passive.trend.activity" = "Actividad";
 
-// Parent Reports — Detail View
+// Study Reports — Detail View
 "reports.passive.weekly" = "Semanal";
 "reports.passive.monthly" = "Mensual";
 "reports.passive.weeklyReport" = "Informe semanal";
@@ -2346,7 +2339,7 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "reports.passive.areas_of_improvement" = "Áreas de Mejora";
 "reports.passive.summary" = "Resumen Semanal/Mensual";
 
-// Parent Reports — Onboarding
+// Study Reports — Onboarding
 "reports.passive.onboarding.title" = "Obtén Resúmenes Semanales de Aprendizaje";
 "reports.passive.onboarding.subtitle" = "Informes generados por IA para padres, cada semana";
 "reports.passive.onboarding.feature.progress.title" = "Seguimiento del progreso";
@@ -2367,6 +2360,11 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "newPractice.error.sessionNotFound" = "Sesión no encontrada después de generar.";
 "newPractice.error.noSelection" = "Por favor, selecciona al menos una conversación o pregunta.";
 "newPractice.error.multipleSubjects" = "Los elementos seleccionados pertenecen a varios temas. Selecciona solo elementos de un tema.";
+"newPractice.archiveSelected" = "%d elemento(s) seleccionado(s)";
+"practiceLibrary.typeRandom" = "Práctica aleatoria";
+"practiceLibrary.typeConversation" = "Repaso de conversación";
+"practiceLibrary.typeMistake" = "Práctica de errores";
+"practiceLibrary.typeLibrary" = "Práctica de biblioteca";
 
 // Practice Library
 "practiceLibrary.title" = "Práctica";
@@ -2386,6 +2384,9 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "practiceLibrary.card.inProgress" = "En curso";
 "practiceLibrary.statusOngoing" = "En curso";
 "practiceLibrary.statusCompleted" = "Completado";
+
+"practiceLibrary.info.title" = "Cómo generar práctica";
+"practiceLibrary.info.message" = "5 formas de crear una hoja de preguntas\n\n1. Práctica aleatoria\nToca + Nuevo y elige Práctica aleatoria. La IA genera preguntas adaptativas basadas en tus debilidades y la materia seleccionada.\n\n2. Desde archivos\nToca + Nuevo y elige Desde archivos. Selecciona conversaciones pasadas o preguntas guardadas. La IA crea preguntas de repaso a partir de ese material.\n\n3. Práctica basada en debilidades\nVe a Progreso de aprendizaje y toca cualquier debilidad. La IA genera preguntas enfocadas en esa área específica.\n\n4. Reintentar errores\nVe a Revisión de errores, selecciona errores y toca Reintentar. Repite tus preguntas originales exactas sin generación de IA.\n\n5. Rehacer una sesión\nAbre cualquier sesión completada y toca Rehacer. Repite el mismo conjunto de preguntas desde cero.";
 
 // Practice Sheet
 "practiceSheet.questionCounter" = "P %d/%d";
@@ -2516,6 +2517,9 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "report.priority.medium" = "Medio";
 "report.priority.low" = "Bajo";
 
+// Grade result
+"grade.notGraded" = "Sin calificar";
+
 // Heatmap
 "heatmap.title" = "Mapa de calor de puntos débiles";
 "heatmap.subTopics" = "· Subtemas";
@@ -2532,7 +2536,7 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "settings.subscription" = "Suscripción";
 
 // Upgrade Comparison View
-"upgrade.comparison.headerTitle" = "Mejora tu StudyMate IA";
+"upgrade.comparison.headerTitle" = "Mejora tu StudyAgent";
 "upgrade.comparison.headerSubtitle" = "Obtén ayuda ilimitada con un tutor IA interactivo.";
 "upgrade.comparison.badgeFreeToTry" = "Prueba gratis";
 "upgrade.comparison.badgeMostPopular" = "Más popular";
@@ -2541,7 +2545,7 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "upgrade.comparison.planPremium" = "Premium";
 "upgrade.comparison.planUltra" = "Ultra";
 "upgrade.comparison.pricePeriod" = "/mes";
-"upgrade.comparison.featureHomework" = "Subir\ntarea";
+"upgrade.comparison.featureHomework" = "Páginas\nde tarea";
 "upgrade.comparison.featureAiChat" = "Chat\ncon IA";
 "upgrade.comparison.featureLiveTutor" = "Tutor\nen vivo";
 "upgrade.comparison.featurePractice" = "Práctica\nenfocada";
@@ -2555,6 +2559,8 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "upgrade.comparison.continueFree" = "Continuar con Gratis";
 "upgrade.comparison.restorePurchases" = "Restaurar compras";
 "upgrade.comparison.terms" = "Las suscripciones se renuevan automáticamente a menos que se cancelen al menos 24 horas antes del final del período actual. Administra o cancela en cualquier momento en Configuración > ID de Apple > Suscripciones.";
+"upgrade.comparison.termsLink" = "Términos de uso";
+"upgrade.comparison.privacyLink" = "Política de privacidad";
 "upgrade.comparison.yourCurrentUsage" = "Tu uso actual";
 "upgrade.comparison.usageHomework" = "Tarea";
 "upgrade.comparison.usageChat" = "Chat";
@@ -2627,7 +2633,7 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "library.pdf.generating" = "Generando PDF…";
 "library.pdf.error" = "Error al generar el PDF";
 "library.pdf.email.subject" = "Preguntas de la biblioteca — %@";
-"library.pdf.emailBody" = "¡Hola!\n\nAdjunto %d pregunta(s) de la biblioteca para %@ de StudyMates.\n\nGenerado por StudyMates — Tu compañero de estudio IA\n\nSaludos";
+"library.pdf.emailBody" = "¡Hola!\n\nAdjunto %d pregunta(s) de la biblioteca para %@ de StudyAgent.\n\nGenerado por StudyAgent — Tu compañero de estudio IA\n\nSaludos";
 "library.selection.selectAll" = "Seleccionar todo";
 "library.selection.deselectAll" = "Deseleccionar todo";
 "library.selection.noneSelected" = "Ninguno seleccionado";
@@ -2651,3 +2657,14 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "tomato.garden.desc.golden" = "Un brillante tomate dorado, símbolo de riqueza y gloria";
 "tomato.garden.desc.platinum" = "Tan precioso como el platino, irradiando brillo noble";
 "tomato.garden.desc.diamond" = "El legendario tomate de diamante: extraordinariamente raro y precioso";
+
+// Promo code redemption
+"promo.link" = "¿Tienes un código promocional?";
+"promo.placeholder" = "INGRESA CÓDIGO";
+"promo.button.apply" = "Aplicar código";
+"promo.success" = "¡Premium activado\! Válido hasta %@.";
+"promo.error.invalid" = "Este código no es válido o ha expirado.";
+"promo.error.alreadyRedeemed" = "Ya has canjeado este código.";
+"promo.error.expired" = "Este código promocional ha expirado.";
+"promo.error.maxUses" = "Este código ha alcanzado su límite de usos.";
+"promo.guestHint" = "Crea una cuenta gratuita para canjear un código promocional.";

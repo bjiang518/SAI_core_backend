@@ -153,4 +153,32 @@ export const insightsAPI = {
   },
 }
 
+// Promo Codes API
+export const promoCodesAPI = {
+  getAll: async () => {
+    const response = await apiClient.get('/api/admin/promo-codes')
+    return response.data
+  },
+
+  create: async (payload: {
+    code: string
+    duration_days: number
+    max_uses?: number | null
+    expires_at?: string | null
+  }) => {
+    const response = await apiClient.post('/api/admin/promo-codes', { tier: 'premium', ...payload })
+    return response.data
+  },
+
+  activate: async (codeId: number | string) => {
+    const response = await apiClient.patch(`/api/admin/promo-codes/${codeId}/activate`)
+    return response.data
+  },
+
+  deactivate: async (codeId: number | string) => {
+    const response = await apiClient.patch(`/api/admin/promo-codes/${codeId}/deactivate`)
+    return response.data
+  },
+}
+
 export default apiClient

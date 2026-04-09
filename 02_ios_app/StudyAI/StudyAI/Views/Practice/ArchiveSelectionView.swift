@@ -137,7 +137,7 @@ struct ArchiveSelectionView: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack {
                 if conversations.isEmpty && questions.isEmpty {
                     VStack(spacing: 16) {

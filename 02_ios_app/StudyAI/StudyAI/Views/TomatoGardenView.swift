@@ -46,7 +46,7 @@ struct TomatoGardenView: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 themeManager.backgroundColor
                     .ignoresSafeArea()

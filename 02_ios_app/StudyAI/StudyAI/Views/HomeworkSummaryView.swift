@@ -52,7 +52,7 @@ struct HomeworkSummaryView: View {
         .navigationDestination(isPresented: $showDigitalHomework) {
             DigitalHomeworkView(
                 parseResults: parseResults,
-                originalImages: originalImages  // ✅ Pass array of images
+                originalImages: originalImages
             )
             .environmentObject(appState)
         }

@@ -33,7 +33,7 @@ struct HomeworkQuestionsPDFPreviewView: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack {
                 if isGenerating {
                     VStack(spacing: 20) {

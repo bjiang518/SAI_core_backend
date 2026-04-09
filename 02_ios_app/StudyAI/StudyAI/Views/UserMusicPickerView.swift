@@ -18,7 +18,7 @@ struct UserMusicPickerView: View {
     @State private var showingAuthAlert = false
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 // Background
                 (colorScheme == .dark ?
@@ -138,7 +138,7 @@ struct UserMusicPickerView: View {
                     .font(.title2.bold())
                     .foregroundColor(colorScheme == .dark ? .white : .primary)
 
-                Text("StudyAI needs permission to access your music library to play your own songs during focus sessions.")
+                Text("StudyAgent needs permission to access your music library to play your own songs during focus sessions.")
                     .font(.body)
                     .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .secondary)
                     .multilineTextAlignment(.center)

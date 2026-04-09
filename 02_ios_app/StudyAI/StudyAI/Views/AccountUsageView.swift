@@ -23,10 +23,11 @@ struct AccountUsageView: View {
     private let yellow = Color(hex: "FFE066")
     private let peach  = Color(hex: "FFB6A3")
     private let teal   = DesignTokens.Colors.libraryTeal
-    private let gold   = Color(hex: "D97706")
+    private let silver = Color(hex: "8C95A6")
+    private let gold   = Color(hex: "D4AF37")
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Group {
                 if isLoading {
                     ProgressView()
@@ -65,7 +66,23 @@ struct AccountUsageView: View {
         }
         .task { await loadData() }
         .refreshable { await loadData() }
-        .sheet(isPresented: $showingUpgrade) {
+        .onChange(of: authService.currentUser?.tier) { _ in
+            // ① Instantly rewrite limits from local tier — no network, no spinner.
+            if let current = usageData {
+                usageData = applyLocalTier(to: current)
+            }
+            // ② Silently refresh usage counts in background (no loading indicator).
+            Task {
+                await silentRefresh()
+                // Deferred refresh after 3 s — by then the backend DB write has settled.
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                await silentRefresh()
+            }
+        }
+        .sheet(isPresented: $showingUpgrade, onDismiss: {
+            // Reload when the upgrade sheet closes in case tier was updated during the session.
+            Task { await loadData() }
+        }) {
             UpgradeComparisonView(
                 blockedFeature: "",
                 reason: .featureBlocked,
@@ -266,8 +283,69 @@ struct AccountUsageView: View {
 
     private func loadData() async {
         isLoading = true
-        usageData = await NetworkService.shared.fetchAccountUsage()
+        if let raw = await NetworkService.shared.fetchAccountUsage() {
+            usageData = applyLocalTier(to: raw)
+        } else {
+            usageData = nil
+        }
         isLoading = false
+    }
+
+    /// Fetch updated usage counts without showing the loading spinner.
+    private func silentRefresh() async {
+        if let raw = await NetworkService.shared.fetchAccountUsage() {
+            usageData = applyLocalTier(to: raw)
+        }
+    }
+
+    /// Override `data.tier` and feature limits with the locally-known tier when they differ.
+    /// Usage counts (`used`) always come from the backend.
+    private func applyLocalTier(to data: AccountUsageData) -> AccountUsageData {
+        guard let user = authService.currentUser else { return data }
+        let localTier = user.isAnonymous ? "guest" : user.tier.rawValue
+        guard localTier != data.tier else { return data }
+
+        let features = data.features.map { f in
+            FeatureUsage(key: f.key, label: f.label, used: f.used,
+                         limit: localLimit(key: f.key, tier: localTier),
+                         unit: f.unit)
+        }
+        return AccountUsageData(tier: localTier, isAnonymous: data.isAnonymous,
+                                resetsAt: data.resetsAt, features: features)
+    }
+
+    /// Local mirror of backend TIER_LIMITS — keeps limits display instant on tier change.
+    private func localLimit(key: String, tier: String) -> Int? {
+        switch tier {
+        case "premium_plus":
+            return nil  // unlimited
+        case "premium":
+            switch key {
+            case "homework_pages": return 50
+            case "chat_messages":  return 500
+            case "questions":      return 200
+            case "voice_minutes":  return 300
+            default:               return nil  // unlimited (error_analysis, reports, tts_calls)
+            }
+        case "free":
+            switch key {
+            case "homework_pages": return 10
+            case "chat_messages":  return 50
+            case "questions":      return 30
+            case "error_analysis": return 5
+            case "tts_calls":      return 50
+            default:               return 0   // blocked (reports, voice_minutes)
+            }
+        case "guest":
+            switch key {
+            case "homework_pages": return 3
+            case "chat_messages":  return 10
+            case "tts_calls":      return 20
+            default:               return 0
+            }
+        default:
+            return nil
+        }
     }
 
     private func isUnlimitedTier(_ tier: String) -> Bool {
@@ -289,7 +367,7 @@ struct AccountUsageView: View {
     private func tierColor(_ tier: String, isAnonymous: Bool) -> Color {
         if isAnonymous { return .secondary }
         switch tier {
-        case "premium":      return teal
+        case "premium":      return silver
         case "premium_plus": return gold
         default:             return .secondary
         }

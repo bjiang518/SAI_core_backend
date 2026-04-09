@@ -87,7 +87,7 @@ struct EditProfileView: View {
     @State private var showingSaveSuccess = false
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
                 // Avatar Selection Section
                 avatarSelectionSection
@@ -516,7 +516,7 @@ struct EditProfileView: View {
 
                 // Section header
                 HStack(spacing: 10) {
-                    Image(systemName: "person.crop.rectangle.badge.checkmark")
+                    Image(systemName: "person.crop.circle.badge.checkmark")
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(DesignTokens.Colors.Cute.blue)
                     Text(NSLocalizedString("editProfile.studentInformation", comment: ""))
@@ -1257,7 +1257,7 @@ struct ImageCropperView: View {
     private let cropSize: CGFloat = 300
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 Color.black.ignoresSafeArea()
 

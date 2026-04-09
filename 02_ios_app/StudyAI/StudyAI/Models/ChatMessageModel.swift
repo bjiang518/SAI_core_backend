@@ -309,7 +309,7 @@ class ChatMessageManager: ObservableObject {
     func exportToText(sessionId: String) -> String {
         let messages = loadMessages(for: sessionId)
 
-        var text = "StudyAI Chat Export\n"
+        var text = "StudyAgent Chat Export\n"
         text += "Session ID: \(sessionId)\n"
         text += "Exported: \(Date().formatted())\n"
         text += String(repeating: "=", count: 50) + "\n\n"
@@ -327,7 +327,7 @@ class ChatMessageManager: ObservableObject {
     func exportToMarkdown(sessionId: String) -> String {
         let messages = loadMessages(for: sessionId)
 
-        var markdown = "# StudyAI Chat Export\n\n"
+        var markdown = "# StudyAgent Chat Export\n\n"
         markdown += "**Session ID:** `\(sessionId)`\n\n"
         markdown += "**Exported:** \(Date().formatted())\n\n"
         markdown += "---\n\n"

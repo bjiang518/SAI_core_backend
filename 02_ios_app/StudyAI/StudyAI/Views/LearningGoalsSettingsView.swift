@@ -15,7 +15,7 @@ struct LearningGoalsSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 24) {
                 // Current Points Section
                 currentPointsSection

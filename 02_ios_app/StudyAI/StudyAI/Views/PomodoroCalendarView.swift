@@ -22,7 +22,7 @@ struct PomodoroCalendarView: View {
     @State private var isLoading = false
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 themeManager.backgroundColor
                     .ignoresSafeArea()
@@ -426,7 +426,7 @@ struct AddPomodoroEventSheet: View {
     @State private var withReminder = true
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
                 Section(NSLocalizedString("pomodoroCalendar.eventInfo", comment: "")) {
                     TextField(NSLocalizedString("pomodoroCalendar.eventTitlePlaceholder", comment: ""), text: $eventTitle)

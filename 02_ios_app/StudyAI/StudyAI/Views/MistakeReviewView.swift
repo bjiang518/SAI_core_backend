@@ -477,7 +477,7 @@ struct MistakeQuestionListView: View {
     var body: some View {
         ZStack {
             // Main content
-            NavigationView {
+            NavigationStack {
                 VStack {
                     // Selection Mode Buttons
                     // Resume button — shown when an incomplete session exists for this subject (top)
@@ -1407,7 +1407,7 @@ struct PracticeQuestionsView: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             mainContent
                 .navigationTitle(subject)
                 .navigationBarTitleDisplayMode(.inline)
@@ -1420,7 +1420,7 @@ struct PracticeQuestionsView: View {
                 }
                 .fullScreenCover(isPresented: $showingPDFPreview) {
                     if let document = pdfDocument {
-                        NavigationView {
+                        NavigationStack {
                             PDFKitView(document: document)
                                 .ignoresSafeArea()
                                 .navigationTitle(subject)
@@ -2959,7 +2959,7 @@ struct PracticeConfigurationSheet: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     headerSection

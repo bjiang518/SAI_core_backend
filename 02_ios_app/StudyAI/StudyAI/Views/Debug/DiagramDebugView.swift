@@ -65,7 +65,7 @@ struct DiagramDebugView: View {
     ]
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 20) {
                 // Test Selection
                 Picker("Test Case", selection: $selectedTest) {

@@ -98,7 +98,7 @@ class HomeworkProcessingRoutes {
           }
         }
       },
-      preHandler: [tierCheck({ feature: 'homework_single' })]
+      preHandler: [tierCheck({ feature: 'homework_pages' })]
     }, this.processHomeworkImageJSON.bind(this));
 
     // Process multiple homework images in batch
@@ -147,7 +147,7 @@ class HomeworkProcessingRoutes {
           }
         }
       },
-      preHandler: [tierCheck({ feature: 'homework_batch' })]
+      preHandler: [tierCheck({ feature: 'homework_pages', getCount: req => req.body.base64_images?.length ?? 1 })]
     }, this.processHomeworkImagesBatch.bind(this));
 
     // Progressive grading - Phase 1: Parse questions with coordinates
@@ -192,7 +192,7 @@ class HomeworkProcessingRoutes {
           }
         }
       },
-      preHandler: [tierCheck({ feature: 'homework_single' })]
+      preHandler: [tierCheck({ feature: 'homework_pages' })]
     }, this.parseHomeworkQuestions.bind(this));
 
     // Progressive grading - Phase 1 BATCH: Parse multiple homework pages (2+ images)
@@ -240,7 +240,7 @@ class HomeworkProcessingRoutes {
           }
         }
       },
-      preHandler: [tierCheck({ feature: 'homework_batch' })]
+      preHandler: [tierCheck({ feature: 'homework_pages', getCount: req => req.body.base64_images?.length ?? 1 })]
     }, this.parseHomeworkQuestionsBatch.bind(this));
 
     // NOTE: POST /api/ai/evaluate-handwriting moved to homework-processing.REDACTED.js

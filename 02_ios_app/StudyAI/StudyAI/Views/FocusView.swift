@@ -729,12 +729,12 @@ struct FocusView: View {
 struct FocusView_Previews: PreviewProvider {
     static var previews: some View {
         Group {
-            NavigationView {
+            NavigationStack {
                 FocusView()
             }
             .preferredColorScheme(.light)
 
-            NavigationView {
+            NavigationStack {
                 FocusView()
             }
             .preferredColorScheme(.dark)

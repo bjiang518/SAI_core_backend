@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'StudyAI Admin Dashboard',
-  description: 'Admin dashboard for managing StudyAI platform',
+  title: 'ChatGPA Admin Dashboard',
+  description: 'Admin dashboard for managing ChatGPA platform',
 }
 
 export default function RootLayout({

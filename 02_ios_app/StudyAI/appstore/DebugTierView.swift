@@ -18,7 +18,7 @@ struct DebugTierView: View {
     @State private var isError = false
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
                 Section(header: Text("Override Tier")) {
                     Picker("Tier", selection: $selectedTier) {

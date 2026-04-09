@@ -110,8 +110,8 @@ class DataRetentionService {
 
       const stats = {};
       result.rows.forEach(row => {
-        stats[row.table_name] = parseInt(row.deleted_count);
-        this.stats.totalSoftDeleted += parseInt(row.deleted_count);
+        stats[row.tbl_name] = parseInt(row.del_count);
+        this.stats.totalSoftDeleted += parseInt(row.del_count);
       });
 
       logger.debug(`✅ Soft delete completed: ${JSON.stringify(stats)}`);

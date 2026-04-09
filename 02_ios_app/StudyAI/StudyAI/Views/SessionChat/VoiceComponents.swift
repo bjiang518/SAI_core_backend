@@ -121,7 +121,7 @@ struct VoicePreviewSheet: View {
     ]
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 0) {
                 // Header
                 HStack {

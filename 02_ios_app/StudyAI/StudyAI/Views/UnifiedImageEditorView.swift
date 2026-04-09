@@ -80,7 +80,7 @@ struct UnifiedImageEditorView: View {
     @State private var selectedTab: EditorTab = .brightness
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 0) {
                 // Image Preview - with crop overlay when crop tab is selected
                 if let image = currentImage {

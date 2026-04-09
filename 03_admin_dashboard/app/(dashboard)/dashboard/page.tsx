@@ -95,7 +95,7 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard Overview</h1>
           <p className="text-muted-foreground mt-2">
-            Monitor your StudyAI platform performance and key metrics
+            Monitor your ChatGPA platform performance and key metrics
           </p>
         </div>
         <div className="rounded-lg border border-red-200 bg-red-50 p-4">

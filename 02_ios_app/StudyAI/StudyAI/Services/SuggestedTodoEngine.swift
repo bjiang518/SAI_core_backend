@@ -185,8 +185,7 @@ final class SuggestedTodoEngine: ObservableObject {
         let lang    = UserDefaults.standard.string(forKey: "appLanguage") ?? "en"
         let grade   = ProfileService.shared.currentProfile?.gradeLevel ?? "6"
         let date    = NetworkService.shared.todayUTCDateString()
-        let slot    = NetworkService.shared.currentUTCSlot()
-        let dateKey = "daily_question_\(date)_s\(slot)_\(lang)_\(grade)"
+        let dateKey = "daily_question_\(date)_\(lang)_\(grade)"
 
         // Already cached today → just refresh without a network call
         if UserDefaults.standard.string(forKey: dateKey) != nil {
@@ -586,8 +585,7 @@ private struct DailyQuestionProvider: SuggestedTodoItemProvider {
         let lang    = UserDefaults.standard.string(forKey: "appLanguage") ?? "en"
         let grade   = ProfileService.shared.currentProfile?.gradeLevel ?? "6"
         let date    = NetworkService.shared.todayUTCDateString()
-        let slot    = NetworkService.shared.currentUTCSlot()
-        let dateKey = "daily_question_\(date)_s\(slot)_\(lang)_\(grade)"
+        let dateKey = "daily_question_\(date)_\(lang)_\(grade)"
 
         if let q = UserDefaults.standard.string(forKey: dateKey) {
             return SuggestedTodo(

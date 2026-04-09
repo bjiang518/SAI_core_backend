@@ -691,6 +691,7 @@ class RailwayArchiveService: ObservableObject {
             archivedDate: archivedDate,
             createdAt: archivedDate,
             diagrams: nil,
+            messageImages: data["messageImages"] as? [String],
             summary: summary,
             keyTopics: keyTopics,
             learningOutcomes: learningOutcomes,

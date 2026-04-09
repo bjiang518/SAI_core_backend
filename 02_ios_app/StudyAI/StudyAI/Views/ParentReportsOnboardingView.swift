@@ -94,7 +94,7 @@ struct ParentReportsOnboardingView: View {
                         onEnable()
                         dismiss()
                     }) {
-                        Text(NSLocalizedString("reports.passive.onboarding.enable", value: "Enable Parent Reports", comment: ""))
+                        Text(NSLocalizedString("reports.passive.onboarding.enable", value: "Enable Study Reports", comment: ""))
                             .fontWeight(.semibold)
                             .frame(maxWidth: .infinity)
                             .padding()

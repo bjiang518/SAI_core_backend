@@ -10,8 +10,33 @@ import GoogleSignIn
 import BackgroundTasks
 import UIKit
 
+// MARK: - AppDelegate (APNs token registration)
+
+class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(
+        _ application: UIApplication,
+        didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+    ) {
+        let hexToken = deviceToken.map { String(format: "%02x", $0) }.joined()
+        debugPrint("📱 [APNs] Device token registered: \(hexToken.prefix(16))...")
+        Task {
+            await NetworkService.shared.registerPushToken(hexToken)
+        }
+    }
+
+    func application(
+        _ application: UIApplication,
+        didFailToRegisterForRemoteNotificationsWithError error: Error
+    ) {
+        debugPrint("📱 [APNs] Failed to register: \(error.localizedDescription)")
+    }
+}
+
+// MARK: - App Entry Point
+
 @main
 struct StudyAIApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @AppStorage("appLanguage") private var appLanguage: String = LanguageManager.detectedSystemLanguage()
     @StateObject private var deepLinkHandler = PomodoroDeepLinkHandler.shared
     @StateObject private var themeManager = ThemeManager.shared
@@ -33,7 +58,7 @@ struct StudyAIApp: App {
             ContentView()
                 .environment(\.locale, Locale(identifier: appLanguage))
                 .environmentObject(deepLinkHandler)
-                .preferredColorScheme(themeManager.currentTheme.colorScheme)
+                .preferredColorScheme(themeManager.effectiveColorScheme)
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                     NotificationService.shared.clearBadge()
                 }

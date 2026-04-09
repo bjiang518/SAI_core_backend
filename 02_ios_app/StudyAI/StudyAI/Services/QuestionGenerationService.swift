@@ -14,7 +14,6 @@ import os.log
 // Disable debug print statements in production builds to prevent practice question exposure
 #if !DEBUG
 private func debugPrint(_ items: Any...) { }
-private func debugPrint(_ items: Any...) { }
 #endif
 
 /// Backend service for generating practice questions using AI

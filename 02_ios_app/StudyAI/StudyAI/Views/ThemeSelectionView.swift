@@ -5,7 +5,7 @@ struct ThemeSelectionView: View {
     @Environment(\.dismiss) var dismiss
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
                     // Header
@@ -109,32 +109,35 @@ struct ThemeCard: View {
             )
         }
         .buttonStyle(PlainButtonStyle())
+
+        // Appearance override picker — shown below the card when Default Mode is selected
+        if mode == .default && isSelected {
+            AppearanceOverridePicker()
+                .padding(.horizontal, 16)
+                .padding(.top, -8)
+        }
     }
 
     private var iconBackgroundColor: Color {
         switch mode {
-        case .day:
-            return Color.yellow.opacity(0.2)
-        case .night:
-            return Color.indigo.opacity(0.2)
-        case .cute:
+        case .default:
+            return Color.blue.opacity(0.15)
+        case .colorful:
             return DesignTokens.Colors.Cute.pink.opacity(0.2)
         }
     }
 
     private var iconColor: Color {
         switch mode {
-        case .day:
-            return Color.orange
-        case .night:
-            return Color.indigo
-        case .cute:
+        case .default:
+            return Color.blue
+        case .colorful:
             return DesignTokens.Colors.Cute.pink
         }
     }
 
     private var cardBackground: Color {
-        if mode == .cute && isSelected {
+        if mode == .colorful && isSelected {
             return DesignTokens.Colors.Cute.backgroundSoftPink
         }
         return themeManager.cardBackground
@@ -142,13 +145,63 @@ struct ThemeCard: View {
 
     private var descriptionKey: String {
         switch mode {
-        case .day:
-            return NSLocalizedString("theme.description.day", comment: "")
-        case .night:
-            return NSLocalizedString("theme.description.night", comment: "")
-        case .cute:
-            return NSLocalizedString("theme.description.cute", comment: "")
+        case .default:
+            return NSLocalizedString("theme.description.default", comment: "")
+        case .colorful:
+            return NSLocalizedString("theme.description.colorful", comment: "")
         }
+    }
+}
+
+// MARK: - Appearance Override Picker
+
+struct AppearanceOverridePicker: View {
+    @StateObject private var themeManager = ThemeManager.shared
+
+    private let options: [(label: String, value: String, icon: String)] = [
+        (NSLocalizedString("theme.override.auto",  comment: ""), "auto",  "circle.lefthalf.filled"),
+        (NSLocalizedString("theme.override.light", comment: ""), "light", "sun.max.fill"),
+        (NSLocalizedString("theme.override.dark",  comment: ""), "dark",  "moon.stars.fill"),
+    ]
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(options, id: \.value) { option in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        themeManager.defaultModeOverride = option.value
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: option.icon)
+                            .font(.system(size: 13, weight: .medium))
+                        Text(option.label)
+                            .font(.system(size: 13, weight: .medium))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(themeManager.defaultModeOverride == option.value
+                                  ? themeManager.accentColor.opacity(0.15)
+                                  : Color.clear)
+                    )
+                    .foregroundColor(themeManager.defaultModeOverride == option.value
+                                     ? themeManager.accentColor
+                                     : themeManager.secondaryText)
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+        }
+        .padding(4)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(themeManager.cardBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .strokeBorder(themeManager.accentColor.opacity(0.3), lineWidth: 1)
+                )
+        )
     }
 }
 

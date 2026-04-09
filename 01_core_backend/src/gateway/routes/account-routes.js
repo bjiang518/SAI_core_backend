@@ -53,6 +53,102 @@ module.exports = async function (fastify) {
     return reply.send({ success: true });
   });
 
+  // ============================================================================
+  // PROMO CODE SELF-REDEMPTION (authenticated — standard Bearer JWT)
+  // ============================================================================
+
+  /**
+   * POST /api/account/redeem-promo-self
+   * Headers: Authorization: Bearer <jwt>
+   * Body: { code: string }
+   * Validates the code, checks for duplicates, and upgrades the user to premium.
+   */
+  fastify.post('/api/account/redeem-promo-self', { preHandler: authenticateUser }, async (request, reply) => {
+    const userId = request.user?.id;
+    if (!userId) return reply.code(401).send({ success: false, error: 'Unauthorized' });
+
+    const { code } = request.body || {};
+    if (!code || typeof code !== 'string' || code.trim().length === 0) {
+      return reply.code(400).send({ success: false, error: 'code is required' });
+    }
+
+    const normalizedCode = code.trim().toUpperCase();
+
+    try {
+      // Fetch the promo code (must be active)
+      const codeResult = await db.query(
+        `SELECT * FROM promo_codes WHERE code = $1 AND is_active = true`,
+        [normalizedCode]
+      );
+
+      if (codeResult.rows.length === 0) {
+        return reply.send({ success: false, error: 'INVALID_CODE' });
+      }
+
+      const promo = codeResult.rows[0];
+
+      if (promo.expires_at && new Date(promo.expires_at) < new Date()) {
+        return reply.send({ success: false, error: 'EXPIRED' });
+      }
+
+      if (promo.max_uses !== null && promo.uses_count >= promo.max_uses) {
+        return reply.send({ success: false, error: 'MAX_USES_REACHED' });
+      }
+
+      // Check for duplicate redemption
+      const dupCheck = await db.query(
+        `SELECT id FROM promo_redemptions WHERE code_id = $1 AND user_id = $2`,
+        [promo.id, userId]
+      );
+      if (dupCheck.rows.length > 0) {
+        return reply.send({ success: false, error: 'ALREADY_REDEEMED' });
+      }
+
+      // Always grant premium (regardless of what tier is on the promo code)
+      const grantedTier = 'premium';
+
+      // Extend from current expiry if user is already premium, otherwise from now
+      const userResult = await db.query(`SELECT tier, tier_expires_at FROM users WHERE id = $1`, [userId]);
+      const user = userResult.rows[0];
+      const baseDate = (user?.tier === grantedTier && user?.tier_expires_at && new Date(user.tier_expires_at) > new Date())
+        ? new Date(user.tier_expires_at)
+        : new Date();
+      const tierExpiresAt = new Date(baseDate.getTime() + promo.duration_days * 86400_000);
+
+      // Atomically record redemption + increment counter + upgrade tier
+      await db.query('BEGIN');
+      try {
+        await db.query(
+          `INSERT INTO promo_redemptions (code_id, user_id, tier_expires_at) VALUES ($1, $2, $3)`,
+          [promo.id, userId, tierExpiresAt]
+        );
+        await db.query(
+          `UPDATE promo_codes SET uses_count = uses_count + 1 WHERE id = $1`,
+          [promo.id]
+        );
+        await db.setUserTier(userId, grantedTier, tierExpiresAt);
+        await db.query('COMMIT');
+      } catch (innerErr) {
+        await db.query('ROLLBACK');
+        throw innerErr;
+      }
+
+      fastify.log.info(`[redeem-promo-self] user=${userId} code=${normalizedCode} expires=${tierExpiresAt.toISOString()}`);
+
+      return reply.send({
+        success: true,
+        data: {
+          tier: grantedTier,
+          tier_expires_at: tierExpiresAt.toISOString(),
+          message: `🎉 Premium activated for ${promo.duration_days} days!`,
+        },
+      });
+    } catch (error) {
+      fastify.log.error({ err: error }, '[redeem-promo-self] Error');
+      return reply.code(500).send({ success: false, error: 'Redemption failed. Please try again.' });
+    }
+  });
+
   fastify.log.info('✅ Account routes registered (/api/account/*)');
 
   // ============================================================================

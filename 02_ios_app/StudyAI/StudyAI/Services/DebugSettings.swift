@@ -223,7 +223,7 @@ struct DebugSettingsView: View {
 }
 
 #Preview {
-    NavigationView {
+    NavigationStack {
         DebugSettingsView()
     }
 }

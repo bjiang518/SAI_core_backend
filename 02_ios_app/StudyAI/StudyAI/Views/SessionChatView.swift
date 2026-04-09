@@ -567,6 +567,21 @@ struct SessionChatView: View {
                             viewModel.pendingLiveModeActivation = true
                             viewModel.startNewSession()
                         }
+                    case .continuationSession(let sessionId, let history, let subject):
+                        // Session was already created (with prior messages seeded in DB) by SessionDetailView.
+                        // Setting currentSessionId may clear conversationHistory (willSet fires if value changes).
+                        networkService.currentSessionId = sessionId
+                        // Re-populate history so AI context matches what the user sees.
+                        for msg in history {
+                            networkService.conversationHistory.append(msg)
+                        }
+                        // Build allMessages from restored history.
+                        allMessages = networkService.conversationHistory.enumerated().map { offset, dict in
+                            .text(index: offset, dict: dict)
+                        }
+                        textMessageIndex = networkService.conversationHistory.count
+                        if !allMessages.isEmpty { hasConversationStarted = true }
+                        viewModel.pendingHomeworkSubject = subject
                     }
                 } else if let message = appState.pendingChatMessage {
                     let subject = appState.pendingChatSubject ?? "General"
@@ -596,17 +611,7 @@ struct SessionChatView: View {
                         }
                     }
                 }
-            }
-            .onDisappear {
-                ttsQueueService.stopAllTTS()
-                // Cancel any pending Live Mode activation so a background async task
-                // (300 ms after session creation) cannot enter live mode while the user
-                // has already navigated away from the chat tab.
-                viewModel.pendingLiveModeActivation = false
-                // Do NOT disconnect an already-active Live session on tab switch — only
-                // disconnect when the app backgrounds (scenePhase) or user taps End Live.
-            }
-            .onAppear {
+
                 // If Live mode is flagged but the VM was lost (e.g. after an app restart
                 // or unexpected nil), clean up state so the UI is consistent.
                 if isLiveMode && liveVMHolder.vm == nil {
@@ -617,6 +622,15 @@ struct SessionChatView: View {
                         }
                     }
                 }
+            }
+            .onDisappear {
+                ttsQueueService.stopAllTTS()
+                // Cancel any pending Live Mode activation so a background async task
+                // (300 ms after session creation) cannot enter live mode while the user
+                // has already navigated away from the chat tab.
+                viewModel.pendingLiveModeActivation = false
+                // Do NOT disconnect an already-active Live session on tab switch — only
+                // disconnect when the app backgrounds (scenePhase) or user taps End Live.
             }
             .onChange(of: viewModel.shouldActivateLiveMode) { _, newValue in
                 guard newValue else { return }
@@ -832,13 +846,13 @@ struct SessionChatView: View {
             // Padding to lift input box above custom tab bar in cute mode
             // Animates to 0 when keyboard opens (iOS handles keyboard avoidance)
             // Standard tab bar is already handled by iOS safe area in day/night mode
-            Color.clear.frame(height: themeManager.currentTheme == .cute && !isKeyboardVisible ? 30 : 0)
+            Color.clear.frame(height: themeManager.currentTheme == .colorful && !isKeyboardVisible ? 30 : 0)
         }
-        .onAppear {
-            setupKeyboardObservers()
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+            withAnimation(.easeOut(duration: 0.25)) { isKeyboardVisible = true }
         }
-        .onDisappear {
-            removeKeyboardObservers()
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            withAnimation(.easeOut(duration: 0.25)) { isKeyboardVisible = false }
         }
     }
 
@@ -861,7 +875,7 @@ struct SessionChatView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
                                 Image(systemName: "book.fill")
-                                    .foregroundColor(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender : .blue)
+                                    .foregroundColor(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.lavender : .blue)
                                 Text(NSLocalizedString("sessionChat.homeworkHelpMode", comment: ""))
                                     .font(.system(size: 14, weight: .semibold))
                                     .foregroundColor(.primary)
@@ -874,11 +888,11 @@ struct SessionChatView: View {
                                     .resizable()
                                     .aspectRatio(contentMode: .fit)
                                     .frame(maxHeight: 150)
-                                    .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundCream : Color.gray.opacity(0.1))
+                                    .background(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.backgroundCream : Color.gray.opacity(0.1))
                                     .cornerRadius(8)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 8)
-                                            .stroke(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender.opacity(0.3) : Color.blue.opacity(0.3), lineWidth: 1)
+                                            .stroke(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.lavender.opacity(0.3) : Color.blue.opacity(0.3), lineWidth: 1)
                                     )
                             }
 
@@ -910,7 +924,7 @@ struct SessionChatView: View {
                             }
                         }
                         .padding(12)
-                        .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue.opacity(0.15) : Color.blue.opacity(0.08))
+                        .background(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.blue.opacity(0.15) : Color.blue.opacity(0.08))
                         .cornerRadius(12)
                         .padding(.horizontal)
                         .padding(.top, 8)
@@ -1315,10 +1329,10 @@ struct SessionChatView: View {
                     }
                     .background(
                         RoundedRectangle(cornerRadius: 25)
-                            .fill(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundSoftPink.opacity(0.5) : Color.primary.opacity(0.08))
+                            .fill(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.backgroundSoftPink.opacity(0.5) : Color.primary.opacity(0.08))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 25)
-                                    .stroke(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender.opacity(0.3) : Color.primary.opacity(0.15), lineWidth: 1)
+                                    .stroke(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.lavender.opacity(0.3) : Color.primary.opacity(0.15), lineWidth: 1)
                             )
                     )
                     .overlay(alignment: .trailing) {
@@ -2076,7 +2090,7 @@ struct SessionChatView: View {
     // Subject-specific background color
     private func subjectBackgroundColor(for subject: String) -> Color {
         // In cute mode, use cute mode colors
-        if themeManager.currentTheme == .cute {
+        if themeManager.currentTheme == .colorful {
             switch subject {
             case "Mathematics": return DesignTokens.Colors.Cute.blue.opacity(0.15)
             case "Physics": return DesignTokens.Colors.Cute.lavender.opacity(0.15)
@@ -2225,7 +2239,7 @@ struct SessionChatView: View {
     
     
     private var sessionInfoView: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 20) {
                 if let info = viewModel.sessionInfo {
                     VStack(spacing: 16) {
@@ -2290,7 +2304,7 @@ struct SessionChatView: View {
                                 }
                             }
                             .padding()
-                            .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundSoftPink : Color.gray.opacity(0.1))
+                            .background(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.backgroundSoftPink : Color.gray.opacity(0.1))
                             .cornerRadius(12)
                         }
                     }
@@ -2327,7 +2341,7 @@ struct SessionChatView: View {
     }
     
     private var archiveSessionView: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 20) {
                 VStack(alignment: .leading, spacing: 16) {
                     // Archive Session title with info button
@@ -2393,7 +2407,7 @@ struct SessionChatView: View {
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundCream : Color.gray.opacity(0.1))
+                    .background(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.backgroundCream : Color.gray.opacity(0.1))
                     .cornerRadius(10)
 
                     Button(NSLocalizedString("chat.archive.buttonTitle", comment: "")) {
@@ -2402,7 +2416,7 @@ struct SessionChatView: View {
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(viewModel.isArchiving ? (themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.buttonBlack.opacity(0.5) : Color.gray) : (themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender : Color.blue))
+                    .background(viewModel.isArchiving ? (themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.buttonBlack.opacity(0.5) : Color.gray) : (themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.lavender : Color.blue))
                     .cornerRadius(10)
                     .disabled(viewModel.isArchiving)
                     .overlay(
@@ -2451,35 +2465,6 @@ struct SessionChatView: View {
 
         // Alternative method using UIKit if focus state doesn't work
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-    }
-
-    // MARK: - Keyboard Observers
-
-    private func setupKeyboardObservers() {
-        NotificationCenter.default.addObserver(
-            forName: UIResponder.keyboardWillShowNotification,
-            object: nil,
-            queue: .main
-        ) { _ in
-            withAnimation(.easeOut(duration: 0.25)) {
-                isKeyboardVisible = true
-            }
-        }
-
-        NotificationCenter.default.addObserver(
-            forName: UIResponder.keyboardWillHideNotification,
-            object: nil,
-            queue: .main
-        ) { _ in
-            withAnimation(.easeOut(duration: 0.25)) {
-                isKeyboardVisible = false
-            }
-        }
-    }
-
-    private func removeKeyboardObservers() {
-        NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillShowNotification, object: nil)
-        NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillHideNotification, object: nil)
     }
 
     // MARK: - Audio Management
@@ -3189,7 +3174,7 @@ private struct ModernButtonStyleModifier: ViewModifier {
             .padding(.vertical, 8)
             .background(
                 LinearGradient(
-                    colors: themeManager.currentTheme == .cute ?
+                    colors: themeManager.currentTheme == .colorful ?
                         [DesignTokens.Colors.Cute.lavender.opacity(0.8), DesignTokens.Colors.Cute.lavender.opacity(0.6)] :
                         [Color.blue.opacity(0.8), Color.blue.opacity(0.6)],
                     startPoint: .leading,
@@ -3197,14 +3182,14 @@ private struct ModernButtonStyleModifier: ViewModifier {
                 )
             )
             .cornerRadius(20)
-            .shadow(color: themeManager.currentTheme == .cute ?
+            .shadow(color: themeManager.currentTheme == .colorful ?
                 DesignTokens.Colors.Cute.lavender.opacity(0.3) :
                 Color.blue.opacity(0.3), radius: 4, x: 0, y: 2)
     }
 }
 
 #Preview {
-    NavigationView {
+    NavigationStack {
         SessionChatView()
     }
 }
@@ -3263,7 +3248,7 @@ struct WeChatStyleVoiceInput: View {
                         .lineLimit(3)
                 }
                 .padding(.vertical, 16)
-                .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender.opacity(0.7) : Color.blue.opacity(0.8))
+                .background(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.lavender.opacity(0.7) : Color.blue.opacity(0.8))
                 .cornerRadius(12)
                 .padding(.horizontal, 20)
                 .padding(.bottom, 8)

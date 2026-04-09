@@ -35,7 +35,7 @@ struct PlaylistEditorView: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 // Background
                 (colorScheme == .dark ?

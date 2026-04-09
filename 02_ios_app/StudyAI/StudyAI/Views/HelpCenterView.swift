@@ -39,16 +39,12 @@ struct HelpCenterView: View {
             (
                 question: NSLocalizedString("helpCenter.faq7.question", comment: ""),
                 answer: NSLocalizedString("helpCenter.faq7.answer", comment: "")
-            ),
-            (
-                question: NSLocalizedString("helpCenter.faq8.question", comment: ""),
-                answer: NSLocalizedString("helpCenter.faq8.answer", comment: "")
             )
         ]
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
                     // Header
@@ -73,38 +69,6 @@ struct HelpCenterView: View {
                             FAQCard(question: item.question, answer: item.answer)
                         }
                     }
-
-                    // Quick Links
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text(NSLocalizedString("helpCenter.quickLinks", comment: ""))
-                            .font(.headline)
-                            .padding(.horizontal)
-
-                        Link(destination: URL(string: "https://studyai.com/getting-started")!) {
-                            QuickLinkCard(
-                                icon: "play.circle.fill",
-                                title: NSLocalizedString("helpCenter.gettingStarted", comment: ""),
-                                color: .blue
-                            )
-                        }
-
-                        Link(destination: URL(string: "https://studyai.com/video-tutorials")!) {
-                            QuickLinkCard(
-                                icon: "video.fill",
-                                title: NSLocalizedString("helpCenter.videoTutorials", comment: ""),
-                                color: .purple
-                            )
-                        }
-
-                        Link(destination: URL(string: "https://studyai.com/tips")!) {
-                            QuickLinkCard(
-                                icon: "lightbulb.fill",
-                                title: NSLocalizedString("helpCenter.studyTips", comment: ""),
-                                color: .orange
-                            )
-                        }
-                    }
-                    .padding(.top)
 
                     Spacer(minLength: 40)
                 }
@@ -156,35 +120,6 @@ struct FAQCard: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
-        }
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
-    }
-}
-
-struct QuickLinkCard: View {
-    let icon: String
-    let title: String
-    let color: Color
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundColor(color)
-                .frame(width: 40)
-
-            Text(title)
-                .font(.body)
-                .foregroundColor(.primary)
-
-            Spacer()
-
-            Image(systemName: "arrow.right")
-                .font(.caption)
-                .foregroundColor(.secondary)
         }
         .padding()
         .background(Color(.systemBackground))

@@ -12,7 +12,7 @@ struct LanguageSettingsView: View {
     @AppStorage("appLanguage") private var selectedLanguage: String = "en"
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             List {
                 Section {
                     ForEach(Language.allLanguages) { language in

@@ -20,7 +20,7 @@ struct ImageInputSheet: View {
     @FocusState private var isTextFieldFocused: Bool
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 0) {
                 // Image preview area
                 if let image = selectedImage {

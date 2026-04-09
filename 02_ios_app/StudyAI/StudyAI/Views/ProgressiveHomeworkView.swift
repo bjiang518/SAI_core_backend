@@ -1122,7 +1122,7 @@ struct AccuracyBadge: View {
 
 struct ProgressiveHomeworkView_Previews: PreviewProvider {
     static var previews: some View {
-        NavigationView {
+        NavigationStack {
             ProgressiveHomeworkView(
                 originalImage: UIImage(systemName: "photo")!,
                 base64Image: ""

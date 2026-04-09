@@ -21,6 +21,10 @@ struct ParentReportSettings: Codable {
     /// Whether user has seen the onboarding flow
     var hasSeenOnboarding: Bool = false
 
+    /// Whether the backend has confirmed parent_reports_enabled = true in the DB.
+    /// Stays false if the first sync failed so the next app open retries.
+    var backendConfirmed: Bool = false
+
     /// Day of week for reports (0 = Sunday, 6 = Saturday)
     var reportDayOfWeek: Int = 0
 

@@ -2698,8 +2698,16 @@ const db = {
   }
 };
 
-// Initialize database tables on startup
+// Module-level promise so concurrent callers share one initialization run
+let _initPromise = null;
+
 async function initializeDatabase() {
+  if (_initPromise) return _initPromise;
+  _initPromise = _doInitializeDatabase();
+  return _initPromise;
+}
+
+async function _doInitializeDatabase() {
   try {
     logger.debug('🔄 Initializing Railway PostgreSQL database...');
     
@@ -5569,7 +5577,7 @@ async function runDatabaseMigrations() {
           CREATE TABLE IF NOT EXISTS promo_redemptions (
             id              SERIAL PRIMARY KEY,
             code_id         INTEGER NOT NULL REFERENCES promo_codes(id),
-            user_id         INTEGER NOT NULL REFERENCES users(id),
+            user_id         UUID NOT NULL REFERENCES users(id),
             redeemed_at     TIMESTAMP NOT NULL DEFAULT NOW(),
             tier_expires_at TIMESTAMP NOT NULL,
             UNIQUE (code_id, user_id)
@@ -5588,6 +5596,81 @@ async function runDatabaseMigrations() {
       }
     } else {
       logger.debug('✅ Migration 029: promo_codes tables already exist');
+    }
+
+    // Migration 030: Fix soft_delete_expired_data() ambiguous column + slow-query indexes
+    const migration030Check = await db.query(`
+      SELECT migration_name FROM migration_history WHERE migration_name = '030_fix_retention_and_indexes'
+    `);
+    if (migration030Check.rows.length === 0) {
+      try {
+        // Recreate soft_delete_expired_data() with non-conflicting output column names.
+        // The old function used "table_name" as both a RETURNS TABLE column and a local
+        // assignment target inside information_schema queries — PostgreSQL raised 42702
+        // "column reference is ambiguous". Renamed to tbl_name / del_count.
+        // Also switched from SELECT COUNT(*) to GET DIAGNOSTICS ROW_COUNT for accuracy.
+        await db.query(`
+          DROP FUNCTION IF EXISTS soft_delete_expired_data();
+          CREATE OR REPLACE FUNCTION soft_delete_expired_data()
+          RETURNS TABLE(tbl_name TEXT, del_count BIGINT) AS $$
+          BEGIN
+            UPDATE archived_conversations_new
+            SET deleted_at = CURRENT_TIMESTAMP
+            WHERE retention_expires_at < CURRENT_TIMESTAMP
+              AND deleted_at IS NULL;
+            tbl_name := 'archived_conversations_new';
+            GET DIAGNOSTICS del_count = ROW_COUNT;
+            RETURN NEXT;
+
+            IF EXISTS (
+              SELECT 1 FROM information_schema.tables
+              WHERE table_schema = 'public' AND table_name = 'question_sessions'
+            ) THEN
+              UPDATE question_sessions
+              SET deleted_at = CURRENT_TIMESTAMP
+              WHERE retention_expires_at < CURRENT_TIMESTAMP
+                AND deleted_at IS NULL;
+              tbl_name := 'question_sessions';
+              GET DIAGNOSTICS del_count = ROW_COUNT;
+              RETURN NEXT;
+            END IF;
+
+            UPDATE sessions
+            SET deleted_at = CURRENT_TIMESTAMP
+            WHERE retention_expires_at < CURRENT_TIMESTAMP
+              AND deleted_at IS NULL;
+            tbl_name := 'sessions';
+            GET DIAGNOSTICS del_count = ROW_COUNT;
+            RETURN NEXT;
+          END;
+          $$ LANGUAGE plpgsql;
+        `);
+
+        // Partial index: report-scheduler only reads opted-in users (parent_reports_enabled = true)
+        await db.query(`
+          CREATE INDEX IF NOT EXISTS idx_profiles_parent_reports_enabled
+          ON profiles(user_id)
+          WHERE parent_reports_enabled = true;
+        `);
+
+        // Partial index: payments cron only touches rows with a non-NULL expiry date
+        await db.query(`
+          CREATE INDEX IF NOT EXISTS idx_users_tier_expires_at
+          ON users(tier_expires_at)
+          WHERE tier_expires_at IS NOT NULL;
+        `);
+
+        await db.query(`
+          INSERT INTO migration_history (migration_name)
+          VALUES ('030_fix_retention_and_indexes')
+          ON CONFLICT (migration_name) DO NOTHING
+        `);
+        logger.debug('✅ Migration 030: fixed soft_delete_expired_data() + added report/tier indexes');
+      } catch (migrationError) {
+        logger.error({ err: migrationError }, '❌ Migration 030 failed');
+      }
+    } else {
+      logger.debug('✅ Migration 030: retention fix and indexes already applied');
     }
 
   } catch (error) {

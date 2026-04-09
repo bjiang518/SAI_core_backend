@@ -20,7 +20,7 @@ struct TomatoExchangeView: View {
     @State private var isExchanging = false
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 // Background
                 themeManager.backgroundColor

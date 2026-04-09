@@ -18,7 +18,7 @@ struct ImageCropView: View {
     @State private var containerSize: CGSize = .zero
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 Color.black.ignoresSafeArea()
                 

@@ -129,7 +129,7 @@ struct QuestionView: View {
                 }
                 Button("Cancel", role: .cancel) { }
             } message: {
-                Text("StudyMates needs camera access to scan homework questions. Please enable camera permission in Settings.")
+                Text("StudyAgent needs camera access to scan homework questions. Please enable camera permission in Settings.")
             }
             .sheet(isPresented: $showingSessionOptions) {
                 sessionOptionsView
@@ -716,7 +716,7 @@ struct QuestionView: View {
     }
     
     private var sessionOptionsView: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 20) {
                 VStack(spacing: 12) {
                     Image(systemName: "message.fill")
@@ -1116,7 +1116,7 @@ struct AIResponseView: View {
     @State private var shareText = ""
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     // Question Summary
@@ -1369,7 +1369,7 @@ struct EditQuestionView: View {
     @FocusState private var isTextEditorFocused: Bool
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(alignment: .leading, spacing: 16) {
                 Text("Edit Question Content")
                     .font(.headline)
@@ -1472,7 +1472,7 @@ struct EditQuestionView: View {
 }
 
 #Preview {
-    NavigationView {
+    NavigationStack {
         QuestionView()
     }
 }

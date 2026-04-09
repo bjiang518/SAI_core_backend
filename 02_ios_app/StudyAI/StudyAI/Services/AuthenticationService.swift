@@ -19,7 +19,6 @@ import os.log
 // Disable debug print statements in production builds to prevent auth token/password exposure
 #if !DEBUG
 private func debugPrint(_ items: Any...) { }
-private func debugPrint(_ items: Any...) { }
 #endif
 
 // MARK: - Authentication Models
@@ -772,7 +771,7 @@ final class AuthenticationService: ObservableObject {
             throw AuthError.providerError("No stored credentials found. Please sign in with email first.")
         }
 
-        let success = try await biometricAuth.authenticateWithBiometrics(reason: "Authenticate to access StudyMates")
+        let success = try await biometricAuth.authenticateWithBiometrics(reason: "Authenticate to access StudyAgent")
 
         if success {
             // Load stored user data

@@ -4,42 +4,35 @@ import Combine
 // MARK: - Theme Mode Enum
 
 enum ThemeMode: String, CaseIterable, Identifiable {
-    case day = "day"
-    case night = "night"
-    case cute = "cute"
+    case `default` = "default"
+    case colorful = "colorful"
 
     var id: String { self.rawValue }
 
     var displayName: String {
         switch self {
-        case .day:
-            return NSLocalizedString("theme.day", comment: "Day mode theme")
-        case .night:
-            return NSLocalizedString("theme.night", comment: "Night mode theme")
-        case .cute:
-            return NSLocalizedString("theme.cute", comment: "Cute mode theme")
+        case .default:
+            return NSLocalizedString("theme.default", comment: "Default mode theme")
+        case .colorful:
+            return NSLocalizedString("theme.colorful", comment: "Colorful Life theme")
         }
     }
 
     var icon: String {
         switch self {
-        case .day:
-            return "sun.max.fill"
-        case .night:
-            return "moon.stars.fill"
-        case .cute:
+        case .default:
+            return "circle.lefthalf.filled"
+        case .colorful:
             return "heart.fill"
         }
     }
 
     var colorScheme: ColorScheme? {
         switch self {
-        case .day:
-            return .light
-        case .night:
-            return .dark
-        case .cute:
-            return .light // Cute mode uses light scheme with pastel colors
+        case .default:
+            return nil  // Follows system appearance (auto light/dark)
+        case .colorful:
+            return .light // Colorful Life uses light scheme with pastel colors
         }
     }
 }
@@ -55,14 +48,46 @@ class ThemeManager: ObservableObject {
         }
     }
 
-    private init() {
-        // Load saved theme or default to cute mode
-        if let savedTheme = UserDefaults.standard.string(forKey: "selectedTheme"),
-           let theme = ThemeMode(rawValue: savedTheme) {
-            self.currentTheme = theme
-        } else {
-            self.currentTheme = .cute
+    /// Override for Default Mode: "auto" | "light" | "dark"
+    @Published var defaultModeOverride: String {
+        didSet {
+            UserDefaults.standard.set(defaultModeOverride, forKey: "defaultModeOverride")
         }
+    }
+
+    /// The color scheme actually applied to the app window.
+    var effectiveColorScheme: ColorScheme? {
+        switch currentTheme {
+        case .colorful:
+            return .light
+        case .default:
+            switch defaultModeOverride {
+            case "light": return .light
+            case "dark":  return .dark
+            default:      return nil  // follows system
+            }
+        }
+    }
+
+    private init() {
+        // Load saved theme; migrate old "day"/"night" values to "default"
+        if let savedTheme = UserDefaults.standard.string(forKey: "selectedTheme") {
+            if let theme = ThemeMode(rawValue: savedTheme) {
+                self.currentTheme = theme
+            } else if savedTheme == "day" || savedTheme == "night" {
+                self.currentTheme = .default
+                UserDefaults.standard.set(ThemeMode.default.rawValue, forKey: "selectedTheme")
+            } else if savedTheme == "cute" {
+                self.currentTheme = .colorful
+                UserDefaults.standard.set(ThemeMode.colorful.rawValue, forKey: "selectedTheme")
+            } else {
+                self.currentTheme = .colorful
+            }
+        } else {
+            self.currentTheme = .colorful
+        }
+
+        self.defaultModeOverride = UserDefaults.standard.string(forKey: "defaultModeOverride") ?? "auto"
     }
 
     func setTheme(_ theme: ThemeMode) {
@@ -75,65 +100,61 @@ class ThemeManager: ObservableObject {
 
     var backgroundColor: Color {
         switch currentTheme {
-        case .day:
+        case .default:
             return Color(.systemBackground)
-        case .night:
-            return Color(.systemBackground)
-        case .cute:
+        case .colorful:
             return DesignTokens.Colors.Cute.backgroundCream
         }
     }
 
     var cardBackground: Color {
         switch currentTheme {
-        case .day, .night:
+        case .default:
             return Color(.secondarySystemBackground)
-        case .cute:
+        case .colorful:
             return DesignTokens.Colors.Cute.mintLight.opacity(0.4)
         }
     }
 
     var primaryText: Color {
         switch currentTheme {
-        case .day, .night:
+        case .default:
             return Color.primary
-        case .cute:
+        case .colorful:
             return DesignTokens.Colors.Cute.textPrimary
         }
     }
 
     var secondaryText: Color {
         switch currentTheme {
-        case .day, .night:
+        case .default:
             return Color.secondary
-        case .cute:
+        case .colorful:
             return DesignTokens.Colors.Cute.textSecondary
         }
     }
 
     var accentColor: Color {
         switch currentTheme {
-        case .day, .night:
+        case .default:
             return DesignTokens.Colors.primary
-        case .cute:
+        case .colorful:
             return DesignTokens.Colors.Cute.mint
         }
     }
 
     var buttonBackground: Color {
         switch currentTheme {
-        case .day:
+        case .default:
             return DesignTokens.Colors.primary
-        case .night:
-            return DesignTokens.Colors.primary
-        case .cute:
+        case .colorful:
             return DesignTokens.Colors.Cute.buttonBlack
         }
     }
 
     var buttonText: Color {
         switch currentTheme {
-        case .day, .night, .cute:
+        case .default, .colorful:
             return .white
         }
     }
@@ -142,10 +163,10 @@ class ThemeManager: ObservableObject {
 
     var greetingCardBackground: Color {
         switch currentTheme {
-        case .day, .night:
-            return .clear  // Use gradient in Day/Night mode
-        case .cute:
-            return DesignTokens.Colors.Cute.blue  // Solid blue in Cute mode
+        case .default:
+            return .clear  // Use gradient in Default mode
+        case .colorful:
+            return DesignTokens.Colors.Cute.blue  // Solid blue in Colorful Life
         }
     }
 
@@ -153,37 +174,37 @@ class ThemeManager: ObservableObject {
 
     var tabBarBackground: Color {
         switch currentTheme {
-        case .day, .night:
+        case .default:
             return .clear  // Use system default
-        case .cute:
-            return DesignTokens.Colors.Cute.tabBarBackground  // Black in Cute mode
+        case .colorful:
+            return DesignTokens.Colors.Cute.tabBarBackground  // Black in Colorful Life
         }
     }
 
     var tabBarItemColor: Color {
         switch currentTheme {
-        case .day, .night:
+        case .default:
             return DesignTokens.Colors.primary
-        case .cute:
+        case .colorful:
             return .white  // White icons on black tab bar
         }
     }
 
     var tabBarSelectedItemColor: Color {
         switch currentTheme {
-        case .day, .night:
+        case .default:
             return DesignTokens.Colors.primary
-        case .cute:
+        case .colorful:
             return .black  // Black icon when selected (on white selection box)
         }
     }
 
     var tabBarSelectionBoxColor: Color {
         switch currentTheme {
-        case .day, .night:
+        case .default:
             return .clear
-        case .cute:
-            return .white  // White selection box in Cute mode
+        case .colorful:
+            return .white  // White selection box in Colorful Life
         }
     }
 
@@ -191,7 +212,7 @@ class ThemeManager: ObservableObject {
 
     func featureCardColor(_ featureName: String) -> Color {
         switch currentTheme {
-        case .day, .night:
+        case .default:
             // Use existing feature colors
             switch featureName {
             case "homework":
@@ -205,8 +226,8 @@ class ThemeManager: ObservableObject {
             default:
                 return DesignTokens.Colors.primary
             }
-        case .cute:
-            // Use cute mode pastel colors
+        case .colorful:
+            // Use colorful pastel colors
             switch featureName {
             case "homework":
                 return DesignTokens.Colors.Cute.peach

@@ -19,6 +19,8 @@ enum PendingChatAction: Equatable {
     case prefillMessage(text: String, subject: String?)
     /// Open chat and immediately launch Live Mode, optionally with a starter prompt.
     case startLiveMode(starterPrompt: String?)
+    /// Resume an archived conversation: session already created in DB, pre-populate chat history.
+    case continuationSession(sessionId: String, history: [[String: String]], subject: String)
 }
 
 /// Homework question context for follow-up AI chat

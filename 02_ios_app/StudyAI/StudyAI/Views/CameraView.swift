@@ -24,7 +24,7 @@ struct ImageSourceSelectionView: View {
     @State private var cameraPermissionDenied = false
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 24) {
                 Text("Select Image Source")
                     .font(.title2)

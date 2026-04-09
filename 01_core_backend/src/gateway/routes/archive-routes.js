@@ -845,9 +845,32 @@ class ArchiveRoutes {
 
       const conversation = result.rows[0];
 
+      // Fetch user-uploaded images from conversations table when session_id is available
+      let messageImages = [];
+      if (conversation.session_id) {
+        try {
+          const imagesResult = await db.query(
+            `SELECT message_data
+             FROM conversations
+             WHERE session_id = $1
+               AND message_type = 'user'
+               AND message_data IS NOT NULL
+               AND message_data->>'image_data' IS NOT NULL
+             ORDER BY created_at ASC`,
+            [conversation.session_id]
+          );
+          messageImages = imagesResult.rows
+            .map(row => row.message_data?.image_data)
+            .filter(Boolean);
+          this.fastify.log.info(`🖼️ Found ${messageImages.length} user images for conversation ${id}`);
+        } catch (imgErr) {
+          this.fastify.log.warn(`⚠️ Could not fetch message images for conversation ${id}: ${imgErr.message}`);
+        }
+      }
+
       return reply.status(200).send({
         success: true,
-        data: conversation
+        data: { ...conversation, messageImages }
       });
 
     } catch (error) {
@@ -975,9 +998,10 @@ class ArchiveRoutes {
 
       this.fastify.log.info(`📝 [Sync] Archiving single question for user: ${PIIMasking.maskUserId(userId)}, subject: ${subject}, grade: ${grade}`);
 
-      // ✅ FIX: Use simple INSERT for sync
-      // The unique constraint will be added via migration later to prevent duplicates
-      // For now, duplicate questions are allowed (student can answer same question multiple times)
+      // Deduplicate by (user_id, question_text, student_answer, grade):
+      //   same question + different student answer  → different row (allowed)
+      //   same question + same answer + different grade → different row (allowed)
+      //   same question + same answer + same grade  → duplicate (update metadata only)
       const query = `
         INSERT INTO questions (
           user_id, subject, question_text, raw_question_text, answer_text, confidence, has_visual_elements,
@@ -985,6 +1009,12 @@ class ArchiveRoutes {
           ai_answer,
           error_type, error_evidence, error_confidence, learning_suggestion, error_analysis_status, error_analyzed_at
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+        ON CONFLICT (user_id, question_text, student_answer, grade) DO UPDATE
+          SET feedback              = EXCLUDED.feedback,
+              error_analysis_status = EXCLUDED.error_analysis_status,
+              error_type            = EXCLUDED.error_type,
+              error_evidence        = EXCLUDED.error_evidence,
+              learning_suggestion   = EXCLUDED.learning_suggestion
         RETURNING id, subject, question_text, grade, is_correct, archived_at
       `;
 

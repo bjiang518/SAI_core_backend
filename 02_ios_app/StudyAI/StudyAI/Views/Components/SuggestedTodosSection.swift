@@ -194,7 +194,7 @@ struct SuggestedTodosSection: View {
     // MARK: Theme colours
 
     private var paperColor: Color {
-        if themeManager.currentTheme == .cute {
+        if themeManager.currentTheme == .colorful {
             return Color(hex: "FFFFFF")
         }
         return colorScheme == .dark ? Color(hex: "27251F") : Color(hex: "FAF6EE")

@@ -20,7 +20,7 @@ enum ProtectedFeature: String, CaseIterable, Codable, Hashable {
         switch self {
         case .chatFunction: return "Chat Function"
         case .homeworkGrader: return "Homework Grader"
-        case .parentReports: return "Parent Report"
+        case .parentReports: return "Study Report"
         }
     }
 

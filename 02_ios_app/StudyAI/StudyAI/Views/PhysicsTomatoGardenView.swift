@@ -128,6 +128,7 @@ class TomatoPhysicsScene: SKScene {
 
     var tomatoes: [Tomato] = []
     private let motionManager = CMMotionManager()
+    private var lifecycleObservers: [NSObjectProtocol] = []
 
     override func didMove(to view: SKView) {
         super.didMove(to: view)
@@ -149,28 +150,30 @@ class TomatoPhysicsScene: SKScene {
     }
 
     private func setupLifecycleObservers() {
+        // Guard against duplicate registration if didMove(to:) fires more than once
+        guard lifecycleObservers.isEmpty else { return }
+
         // Stop accelerometer when app enters background (BATTERY OPTIMIZATION)
-        NotificationCenter.default.addObserver(
+        lifecycleObservers.append(NotificationCenter.default.addObserver(
             forName: UIApplication.didEnterBackgroundNotification,
             object: nil,
             queue: .main
         ) { [weak self] _ in
             self?.motionManager.stopAccelerometerUpdates()
-        }
+        })
 
         // Restart accelerometer when app returns to foreground
-        NotificationCenter.default.addObserver(
+        lifecycleObservers.append(NotificationCenter.default.addObserver(
             forName: UIApplication.willEnterForegroundNotification,
             object: nil,
             queue: .main
         ) { [weak self] _ in
             self?.startMotionDetection()
-        }
+        })
     }
 
     deinit {
-        // Remove observers when scene is deallocated
-        NotificationCenter.default.removeObserver(self)
+        lifecycleObservers.forEach { NotificationCenter.default.removeObserver($0) }
     }
 
     private func setupPhysicsWorld() {

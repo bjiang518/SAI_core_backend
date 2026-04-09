@@ -273,9 +273,9 @@ class AuthRoutes {
             displayName: { type: 'string' },
             gradeLevel: { type: 'string' },
             dateOfBirth: { type: 'string', format: 'date' },
-            kidsAges: { 
+            kidsAges: {
               type: 'array',
-              items: { type: 'integer', minimum: 0, maximum: 18 }
+              items: { type: 'integer', minimum: 0 }
             },
             gender: { type: 'string' },
             city: { type: 'string' },

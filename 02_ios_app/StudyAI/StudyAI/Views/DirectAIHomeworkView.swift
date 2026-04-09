@@ -838,7 +838,7 @@ struct DirectAIHomeworkView: View {
                 .foregroundColor(.orange)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
-                .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.peach.opacity(0.15) : Color.orange.opacity(0.08))
+                .background(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.peach.opacity(0.15) : Color.orange.opacity(0.08))
                 .cornerRadius(12)
             }
 
@@ -875,7 +875,7 @@ struct DirectAIHomeworkView: View {
             ZStack(alignment: .leading) {
                 // Background track
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundCream : Color(UIColor.secondarySystemGroupedBackground))
+                    .fill(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.backgroundCream : Color(UIColor.secondarySystemGroupedBackground))
                     .frame(height: 40)
 
                 // Animated liquid glass indicator
@@ -884,9 +884,9 @@ struct DirectAIHomeworkView: View {
                     let segmentWidth = geometry.size.width / CGFloat(AIModel.allCases.count)
 
                     RoundedRectangle(cornerRadius: 6)
-                        .fill(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundSoftPink : Color(UIColor.systemBackground))
+                        .fill(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.backgroundSoftPink : Color(UIColor.systemBackground))
                         .frame(width: segmentWidth - 8, height: 32)
-                        .shadow(color: themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender.opacity(0.2) : Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                        .shadow(color: themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.lavender.opacity(0.2) : Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
                         .offset(x: CGFloat(selectedIndex) * segmentWidth + 4, y: 4)
                         .animation(.spring(response: 0.35, dampingFraction: 0.75), value: selectedAIModel)
                         .matchedGeometryEffect(id: "aiModelSelector", in: animationNamespace)
@@ -904,9 +904,9 @@ struct DirectAIHomeworkView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundSoftPink.opacity(0.5) : Color(UIColor.systemGroupedBackground))
+        .background(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.backgroundSoftPink.opacity(0.5) : Color(UIColor.systemGroupedBackground))
         .cornerRadius(12)
-        .shadow(color: themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender.opacity(0.15) : Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+        .shadow(color: themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.lavender.opacity(0.15) : Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
         .padding(.horizontal)
     }
 
@@ -975,7 +975,7 @@ struct DirectAIHomeworkView: View {
                 ZStack(alignment: .leading) {
                     // Background track
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundCream : Color(UIColor.secondarySystemGroupedBackground))
+                        .fill(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.backgroundCream : Color(UIColor.secondarySystemGroupedBackground))
                         .frame(height: 40)
 
                     // Animated liquid glass indicator
@@ -984,9 +984,9 @@ struct DirectAIHomeworkView: View {
                         let segmentWidth = geometry.size.width / CGFloat(ParsingMode.availableModes.count)
 
                         RoundedRectangle(cornerRadius: 6)
-                            .fill(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundSoftPink : Color(UIColor.systemBackground))
+                            .fill(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.backgroundSoftPink : Color(UIColor.systemBackground))
                             .frame(width: segmentWidth - 8, height: 32)
-                            .shadow(color: themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender.opacity(0.2) : Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                            .shadow(color: themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.lavender.opacity(0.2) : Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
                             .offset(x: CGFloat(selectedIndex) * segmentWidth + 4, y: 4)
                             .animation(.spring(response: 0.35, dampingFraction: 0.75), value: parsingMode)
                             .matchedGeometryEffect(id: "parsingModeSelector", in: animationNamespace)
@@ -1011,9 +1011,9 @@ struct DirectAIHomeworkView: View {
                     .padding(.bottom, 12)
             }
         }
-        .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.backgroundSoftPink.opacity(0.5) : Color(UIColor.systemGroupedBackground))
+        .background(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.backgroundSoftPink.opacity(0.5) : Color(UIColor.systemGroupedBackground))
         .cornerRadius(12)
-        .shadow(color: themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender.opacity(0.15) : Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+        .shadow(color: themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.lavender.opacity(0.15) : Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
         .padding(.horizontal)
     }
 
@@ -1088,14 +1088,14 @@ struct DirectAIHomeworkView: View {
 
         if effectiveMode == .progressive {
             buttonTitle = NSLocalizedString("aiHomework.digitalHomework", comment: "")
-            buttonColor = themeManager.currentTheme == .cute ?
+            buttonColor = themeManager.currentTheme == .colorful ?
                 DesignTokens.Colors.Cute.blue :
                 Color(red: 0.4, green: 0.6, blue: 1.0)
         } else {
             buttonTitle = stateManager.selectedImageIndices.count > 1 ?
                 String(format: NSLocalizedString("aiHomework.analyzeMultipleImages", comment: ""), stateManager.selectedImageIndices.count) :
                 NSLocalizedString("aiHomework.analyzeWithAI", comment: "")
-            buttonColor = themeManager.currentTheme == .cute ?
+            buttonColor = themeManager.currentTheme == .colorful ?
                 DesignTokens.Colors.Cute.pink.opacity(0.7) :
                 Color(red: 0.96, green: 0.51, blue: 0.59)
         }
@@ -1528,7 +1528,7 @@ struct DirectAIHomeworkView: View {
                     .fontWeight(.semibold)
                     .foregroundColor(.white)
                     .frame(minWidth: 24, minHeight: 24)
-                    .background(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary)
+                    .background(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary)
                     .clipShape(Circle())
             }
             .padding(.horizontal)
@@ -1608,7 +1608,7 @@ struct DirectAIHomeworkView: View {
                         icon: "book.fill",
                         value: enhanced.detectedSubject,
                         label: NSLocalizedString("aiHomework.results.subject", comment: ""),
-                        color: themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary,
+                        color: themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary,
                         hasCheckmark: false,
                         confidence: nil
                     )
@@ -1619,7 +1619,7 @@ struct DirectAIHomeworkView: View {
                     icon: "questionmark.circle.fill",
                     value: "\(result.questionCount)",
                     label: NSLocalizedString("aiHomework.results.questions", comment: ""),
-                    color: themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.mint : DesignTokens.Colors.success
+                    color: themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.mint : DesignTokens.Colors.success
                 )
 
                 // Accuracy Badge
@@ -1631,11 +1631,22 @@ struct DirectAIHomeworkView: View {
                 )
             }
 
+            // AI accuracy disclaimer
+            HStack(spacing: 6) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundColor(.orange)
+                Text(NSLocalizedString("ai.disclaimer", value: "AI may make mistakes — please verify carefully", comment: ""))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
         }
         .padding(20)
         .background(
             LinearGradient(
-                colors: themeManager.currentTheme == .cute ? [
+                colors: themeManager.currentTheme == .colorful ? [
                     DesignTokens.Colors.Cute.backgroundSoftPink,
                     DesignTokens.Colors.Cute.backgroundCream
                 ] : [
@@ -1647,7 +1658,7 @@ struct DirectAIHomeworkView: View {
             )
         )
         .cornerRadius(20)
-        .shadow(color: themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender.opacity(0.1) : Color.black.opacity(0.05), radius: 8, x: 0, y: 4)
+        .shadow(color: themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.lavender.opacity(0.1) : Color.black.opacity(0.05), radius: 8, x: 0, y: 4)
     }
     
     // MARK: - Controls Section
@@ -1673,13 +1684,13 @@ struct DirectAIHomeworkView: View {
                 .padding()
                 .background(
                     LinearGradient(
-                        colors: themeManager.currentTheme == .cute ? [DesignTokens.Colors.Cute.lavender, DesignTokens.Colors.Cute.lavender.opacity(0.8)] : [DesignTokens.Colors.analyticsPlum, DesignTokens.Colors.analyticsPlum.opacity(0.8)],
+                        colors: themeManager.currentTheme == .colorful ? [DesignTokens.Colors.Cute.lavender, DesignTokens.Colors.Cute.lavender.opacity(0.8)] : [DesignTokens.Colors.analyticsPlum, DesignTokens.Colors.analyticsPlum.opacity(0.8)],
                         startPoint: .leading,
                         endPoint: .trailing
                     )
                 )
                 .cornerRadius(16)
-                .shadow(color: (themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender : DesignTokens.Colors.analyticsPlum).opacity(0.3), radius: 8, x: 0, y: 4)
+                .shadow(color: (themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.lavender : DesignTokens.Colors.analyticsPlum).opacity(0.3), radius: 8, x: 0, y: 4)
                 .opacity(0.8)  // Added opacity to New button
             }
 
@@ -1703,13 +1714,13 @@ struct DirectAIHomeworkView: View {
                 .padding()
                 .background(
                     LinearGradient(
-                        colors: themeManager.currentTheme == .cute ? [DesignTokens.Colors.Cute.peach, DesignTokens.Colors.Cute.peach.opacity(0.8)] : [DesignTokens.Colors.error, DesignTokens.Colors.error.opacity(0.8)],
+                        colors: themeManager.currentTheme == .colorful ? [DesignTokens.Colors.Cute.peach, DesignTokens.Colors.Cute.peach.opacity(0.8)] : [DesignTokens.Colors.error, DesignTokens.Colors.error.opacity(0.8)],
                         startPoint: .leading,
                         endPoint: .trailing
                     )
                 )
                 .cornerRadius(16)
-                .shadow(color: (themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.peach : DesignTokens.Colors.error).opacity(0.3), radius: 8, x: 0, y: 4)
+                .shadow(color: (themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.peach : DesignTokens.Colors.error).opacity(0.3), radius: 8, x: 0, y: 4)
                 .opacity(0.8)  // Added opacity to Clear button
             }
         }
@@ -1732,11 +1743,11 @@ struct DirectAIHomeworkView: View {
 
     private func accuracyColor(_ accuracy: Float) -> Color {
         if accuracy >= 0.9 {
-            return themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.mint : DesignTokens.Colors.success
+            return themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.mint : DesignTokens.Colors.success
         } else if accuracy >= 0.7 {
-            return themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.yellow : DesignTokens.Colors.warning
+            return themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.yellow : DesignTokens.Colors.warning
         } else {
-            return themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.peach : DesignTokens.Colors.error
+            return themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.peach : DesignTokens.Colors.error
         }
     }
 
@@ -2536,7 +2547,7 @@ struct ImageSourceOption: View {
             HStack(spacing: 10) {
                 Image(systemName: icon)
                     .font(.title3)
-                    .foregroundColor(isProminent ? .white : (themeManager.currentTheme == .cute ? cuteIconColor : color))
+                    .foregroundColor(isProminent ? .white : (themeManager.currentTheme == .colorful ? cuteIconColor : color))
                     .frame(width: 32)
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -2562,8 +2573,8 @@ struct ImageSourceOption: View {
                     if isProminent {
                         // Prominent style with shadow
                         RoundedRectangle(cornerRadius: 12)
-                            .fill(themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender : Color(red: 0, green: 0.478, blue: 1.0)) // Lavender in cute mode, blue otherwise
-                            .shadow(color: themeManager.currentTheme == .cute ? DesignTokens.Colors.Cute.lavender.opacity(0.3) : Color.blue.opacity(0.3), radius: 6, x: 0, y: 3)
+                            .fill(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.lavender : Color(red: 0, green: 0.478, blue: 1.0)) // Lavender in cute mode, blue otherwise
+                            .shadow(color: themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.lavender.opacity(0.3) : Color.blue.opacity(0.3), radius: 6, x: 0, y: 3)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
                                     .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
@@ -2571,7 +2582,7 @@ struct ImageSourceOption: View {
                     } else {
                         // Standard style
                         RoundedRectangle(cornerRadius: 12)
-                            .fill(themeManager.currentTheme == .cute ? cuteBackgroundColor : color.opacity(0.1))
+                            .fill(themeManager.currentTheme == .colorful ? cuteBackgroundColor : color.opacity(0.1))
                     }
                 }
             )

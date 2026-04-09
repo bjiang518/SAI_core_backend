@@ -91,7 +91,17 @@ class StoreKitService: ObservableObject {
                 #if DEBUG
                 print("✅ [StoreKit] Transaction verified: id=\(transaction.id)")
                 #endif
-                await handlePurchasedTransaction(transaction, productId: product.id)
+
+                // ① Optimistically update tier NOW — StoreKit cryptographic verification
+                //    is the source of truth. No need to wait for the backend DB write.
+                if let tier = tierForProductId(product.id) {
+                    updateLocalUserTier(tier)
+                }
+
+                // ② Persist to backend in background — does NOT block the UI.
+                Task.detached { [weak self] in
+                    await self?.handlePurchasedTransaction(transaction, productId: product.id)
+                }
                 await transaction.finish()
                 #if DEBUG
                 print("✅ [StoreKit] Transaction finished")
@@ -194,6 +204,13 @@ class StoreKitService: ObservableObject {
     }
 
     // MARK: - Update local user tier after purchase
+
+    /// Maps a StoreKit product ID to a tier string. Returns nil for unknown products.
+    private func tierForProductId(_ productId: String) -> String? {
+        if productId.contains("ultra") { return "premium_plus" }
+        if productId.contains("premium") { return "premium" }
+        return nil
+    }
 
     private func updateLocalUserTier(_ tierString: String) {
         let currentUser = AuthenticationService.shared.currentUser

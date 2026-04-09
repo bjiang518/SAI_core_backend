@@ -21,7 +21,6 @@ import Combine
 // Disable debug print statements in production builds to prevent homework data exposure
 #if !DEBUG
 private func debugPrint(_ items: Any...) { }
-private func debugPrint(_ items: Any...) { }
 #endif
 
 @MainActor

@@ -51,7 +51,7 @@ struct HomeworkImageDetailView: View {
     // MARK: - Body
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 // Black background
                 Color.black

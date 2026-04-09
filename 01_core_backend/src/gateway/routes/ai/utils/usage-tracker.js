@@ -16,9 +16,8 @@ const { db } = require('../../../../utils/railway-database');
 
 const TIER_LIMITS = {
   guest: {
-    homework_single: 3,   // lifetime
+    homework_pages:  3,   // lifetime pages (single or batch, each page = 1)
     chat_messages:   10,  // lifetime
-    homework_batch:  0,
     questions:       0,
     error_analysis:  0,
     reports:         0,
@@ -26,8 +25,7 @@ const TIER_LIMITS = {
     tts_calls:       20,  // lifetime — AI avatar reads responses
   },
   free: {
-    homework_single: 10,
-    homework_batch:  0,
+    homework_pages:  10,  // monthly pages
     chat_messages:   50,
     questions:       30,
     error_analysis:  5,
@@ -36,12 +34,11 @@ const TIER_LIMITS = {
     tts_calls:       50, // monthly
   },
   premium: {
-    homework_single: 50,
-    homework_batch:  20,
+    homework_pages:  50,  // monthly pages (single or batch, each page = 1)
     chat_messages:   500,
     questions:       200,
     error_analysis:  Infinity,
-    reports:         2,
+    reports:         Infinity,  // unlimited for premium
     voice_minutes:   300,
     tts_calls:       Infinity,
   },
@@ -128,9 +125,10 @@ function nextMonthStart() {
 const usageTracker = {
   /**
    * Check whether a user is allowed to use a feature.
+   * @param {number} [amount=1]  — pages (or units) to consume; allowed only if remaining >= amount.
    * Returns: { allowed: bool, remaining: int, limit: int, resets_at: Date|null }
    */
-  async check(userId, featureKey, tier, isAnonymous) {
+  async check(userId, featureKey, tier, isAnonymous, amount = 1) {
     const effectiveTier = isAnonymous ? 'guest' : tier;
     const limits = TIER_LIMITS[effectiveTier] ?? {};
 
@@ -186,7 +184,7 @@ const usageTracker = {
 
     const remaining = Math.max(0, limit - current);
     const resets_at = isAnonymous ? null : nextMonthStart();
-    return { allowed: remaining > 0, remaining, limit, resets_at };
+    return { allowed: remaining >= amount, remaining, limit, resets_at };
   },
 
   /**
@@ -233,14 +231,13 @@ const usageTracker = {
     const limits = TIER_LIMITS[effectiveTier] ?? {};
 
     const FEATURE_META = [
-      { key: 'homework_single', label: 'Homework Upload',    unit: null },
+      { key: 'homework_pages',  label: 'Homework Pages',     unit: null },
       { key: 'chat_messages',   label: 'AI Chat',            unit: null },
       { key: 'voice_minutes',   label: 'Live Tutor',         unit: 'min' },
       { key: 'tts_calls',       label: 'AI Voice (TTS)',     unit: null },
       { key: 'questions',       label: 'Practice Questions', unit: null },
       { key: 'error_analysis',  label: 'Weakness Analysis',  unit: null },
       { key: 'reports',         label: 'Parent Reports',     unit: null },
-      { key: 'homework_batch',  label: 'Batch Upload',       unit: null },
     ];
 
     const results = [];

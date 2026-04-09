@@ -49,7 +49,7 @@ struct PasswordManagementView: View {
     @State private var showingParentPasswordAuth = false
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             List {
                 // Account Password Section
                 Section {
@@ -318,7 +318,7 @@ struct ChangeAccountPasswordView: View {
     @State private var alertMessage = ""
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
                 Section {
                     SecureField(NSLocalizedString("accountPassword.current", comment: ""), text: $currentPassword)
@@ -378,7 +378,7 @@ struct SetParentPasswordView: View {
     @State private var alertMessage = ""
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
                 Section {
                     VStack(spacing: 16) {
@@ -487,7 +487,7 @@ struct ChangeParentPasswordView: View {
     @State private var alertMessage = ""
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
                 Section {
                     SecurePINField(placeholder: NSLocalizedString("parentPasswordChange.currentPlaceholder", comment: ""), text: $currentPassword)
@@ -584,7 +584,7 @@ struct RemoveParentPasswordView: View {
     @State private var alertMessage = ""
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
                 Section {
                     VStack(spacing: 16) {

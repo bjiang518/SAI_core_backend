@@ -318,7 +318,9 @@ struct MainTabView: View {
     var body: some View {
         Group {
             // iPad: 侧边栏导航（NavigationSplitView）
-            if sizeClass == .regular {
+            // Use device idiom — NOT horizontalSizeClass alone, which is .regular on
+            // large iPhones (Pro Max/Plus) in landscape and would wrongly show iPadSplitView.
+            if UIDevice.current.userInterfaceIdiom == .pad {
                 iPadSplitView(onLogout: onLogout)
             } else {
                 // iPhone: 现有底部 TabBar（代码完全不变）
@@ -501,7 +503,7 @@ struct ModernProfileView: View {
     @State private var selectedGradeLevel: GradeLevel? = nil
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             List {
                 // PROFILE HEADER SECTION (Tappable to Edit Profile)
                 Section {

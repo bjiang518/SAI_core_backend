@@ -27,7 +27,7 @@ struct QuestionArchiveView: View {
     @Environment(\.presentationMode) var presentationMode
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
                 // Subject Detection Section
                 subjectDetectionSection

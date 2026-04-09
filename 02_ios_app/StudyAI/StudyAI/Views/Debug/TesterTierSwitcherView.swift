@@ -25,7 +25,7 @@ struct TesterTierSwitcherView: View {
     private let gold = Color(hex: "D97706")
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
                 Section(header: Text("Tester Access")) {
                     SecureField("Tester Code", text: $testerCode)

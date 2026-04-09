@@ -162,7 +162,7 @@ class PomodoroCalendarService: ObservableObject {
         event.title = title
         event.startDate = startDate
         event.endDate = startDate.addingTimeInterval(duration)
-        event.notes = notes ?? "由StudyAI创建的番茄专注时间段"
+        event.notes = notes ?? "由StudyAgent创建的番茄专注时间段"
         event.calendar = eventStore.defaultCalendarForNewEvents
 
         // 添加提醒（提前5分钟）

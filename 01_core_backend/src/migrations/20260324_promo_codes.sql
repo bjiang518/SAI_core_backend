@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS promo_codes (
 CREATE TABLE IF NOT EXISTS promo_redemptions (
   id              SERIAL PRIMARY KEY,
   code_id         INTEGER NOT NULL REFERENCES promo_codes(id),
-  user_id         INTEGER NOT NULL REFERENCES users(id),
+  user_id         UUID NOT NULL REFERENCES users(id),
   redeemed_at     TIMESTAMP NOT NULL DEFAULT NOW(),
   tier_expires_at TIMESTAMP NOT NULL,
   UNIQUE (code_id, user_id)                          -- one redemption per user per code

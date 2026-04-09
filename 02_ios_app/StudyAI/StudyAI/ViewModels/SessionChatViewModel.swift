@@ -14,7 +14,6 @@ import Combine
 // Disable debug print statements in production builds to prevent chat message exposure
 #if !DEBUG
 private func debugPrint(_ items: Any...) { }
-private func debugPrint(_ items: Any...) { }
 #endif
 
 // MARK: - Failed Message Model (Phase 2.2)

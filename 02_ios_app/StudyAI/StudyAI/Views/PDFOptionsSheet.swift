@@ -29,7 +29,7 @@ struct PDFOptionsSheet: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
                 Section {
                     LabeledSlider(

@@ -59,6 +59,8 @@ class NotificationService: NSObject, ObservableObject {
 
             if granted {
                 debugPrint("📱 NotificationService: Authorization granted")
+                // Register for remote (APNs) notifications so server can push reports
+                UIApplication.shared.registerForRemoteNotifications()
             } else {
                 debugPrint("📱 NotificationService: Authorization denied")
             }
@@ -75,6 +77,12 @@ class NotificationService: NSObject, ObservableObject {
         let settings = await notificationCenter.notificationSettings()
         authorizationStatus = settings.authorizationStatus
         isAuthorized = (settings.authorizationStatus == .authorized)
+
+        // Register for remote (APNs) notifications whenever permission is granted,
+        // even if it was granted in a previous session (no dialog shown then).
+        if settings.authorizationStatus == .authorized {
+            UIApplication.shared.registerForRemoteNotifications()
+        }
 
         debugPrint("📱 NotificationService: Authorization status: \(authorizationStatus.rawValue)")
     }

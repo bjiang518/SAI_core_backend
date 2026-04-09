@@ -42,7 +42,7 @@ struct HomeworkAlbumView: View {
     ]
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 if filteredImages.isEmpty {
                     emptyStateView
@@ -414,7 +414,7 @@ struct FilterMenuView: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
                 Section(header: Text(NSLocalizedString("homeworkAlbum.timeRange", value: "Time Range", comment: ""))) {
                     ForEach(HomeworkTimeFilter.allCases) { filter in
@@ -523,7 +523,7 @@ struct HomeworkAlbumSelectionView: View {
     ]
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 if filteredImages.isEmpty {
                     emptyStateView

@@ -96,7 +96,7 @@ struct SessionHistoryView: View {
     }
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 0) {
                 // View Mode Picker
                 Picker("View Mode", selection: $selectedViewMode) {

@@ -16,7 +16,8 @@
 const cron = require('node-cron');
 const { db } = require('../utils/railway-database');
 const logger = require('../utils/logger');
-const PassiveReportGenerator = require('./passive-report-generator');
+const { PassiveReportGenerator } = require('./passive-report-generator');
+const ApnsService = require('./apns-service');
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -168,7 +169,7 @@ class ReportSchedulerService {
 
     async _getEligibleUsers() {
         const { rows } = await db.query(
-            `SELECT user_id, timezone, report_day_of_week, report_time_hour, language_preference
+            `SELECT user_id, timezone, report_day_of_week, report_time_hour, language_preference, apns_token
              FROM profiles
              WHERE parent_reports_enabled = true`
         );
@@ -181,7 +182,7 @@ class ReportSchedulerService {
             `SELECT 1 FROM parent_report_batches
              WHERE user_id = $1
                AND period   = $2
-               AND created_at > NOW() - ($3 || ' days')::INTERVAL
+               AND generated_at > NOW() - ($3 || ' days')::INTERVAL
              LIMIT 1`,
             [userId, period, cooldownDays]
         );
@@ -198,8 +199,18 @@ class ReportSchedulerService {
         const result = await generator.generateAllReports(user.user_id, period, dateRange, language);
         if (result) {
             logger.info(`[ReportScheduler] ${period} report generated — user: ${user.user_id}`);
+            // Send APNs push if device token is registered
+            this._sendPush(user.user_id, user.apns_token, period, result.report_count);
         }
         return result;
+    }
+
+    _sendPush(userId, apnsToken, period, reportCount) {
+        if (!apnsToken) return;
+        const title = period === 'weekly' ? '📊 Weekly Report Ready!' : '📊 Monthly Report Ready!';
+        const body  = `Your ${period} learning report is ready — tap to view.`;
+        ApnsService.sendNotification(apnsToken, title, body, { reportType: 'parent_report', period })
+            .catch(err => logger.warn(`[ReportScheduler] APNs push failed (non-fatal): ${err.message}`));
     }
 }
 

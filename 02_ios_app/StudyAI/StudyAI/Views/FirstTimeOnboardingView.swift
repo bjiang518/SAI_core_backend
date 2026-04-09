@@ -14,6 +14,7 @@ private enum UserRole {
 struct FirstTimeOnboardingView: View {
     @StateObject private var networkService  = NetworkService.shared
     @StateObject private var authService     = AuthenticationService.shared
+    @Environment(\.colorScheme) private var colorScheme
 
     let onComplete: () -> Void
     let onNeedsParentalConsent: (_ dob: String) -> Void
@@ -428,7 +429,7 @@ struct FirstTimeOnboardingView: View {
                                 .background(DesignTokens.Colors.Cute.blue.opacity(0.3))
                                 .padding(.leading, 44)
                             controlToggleRow(
-                                NSLocalizedString("onboarding.parentSetup.protectReports", value: "Protect parent reports", comment: ""),
+                                NSLocalizedString("onboarding.parentSetup.protectReports", value: "Protect study reports", comment: ""),
                                 icon: "figure.2.and.child.holdinghands",
                                 color: DesignTokens.Colors.Cute.lavender,
                                 isOn: $controlReports
@@ -828,6 +829,30 @@ struct FirstTimeOnboardingView: View {
                     .background(DesignTokens.Colors.Cute.backgroundSoftPink)
                     .cornerRadius(16)
 
+                    // AI services disclosure card
+                    Spacer().frame(height: 12)
+
+                    Text(NSLocalizedString("onboarding.consent.aiServices.title", value: "Data shared with AI services:", comment: ""))
+                        .font(.footnote).fontWeight(.semibold)
+                        .foregroundColor(DesignTokens.Colors.Cute.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    VStack(spacing: 0) {
+                        privacyRowAsset(NSLocalizedString("onboarding.consent.aiServices.openai", value: "OpenAI — homework images, chat, answers", comment: ""),
+                                        assetName: colorScheme == .dark ? "openai-dark" : "openai-light")
+                        Divider().padding(.leading, 44)
+                        privacyRowAsset(NSLocalizedString("onboarding.consent.aiServices.gemini", value: "Google Gemini — deep analysis, live voice", comment: ""),
+                                        assetName: "gemini-icon")
+                        Divider().padding(.leading, 44)
+                        privacyRowAsset(NSLocalizedString("onboarding.consent.aiServices.elevenlabs", value: "ElevenLabs — text-to-speech voice audio", comment: ""),
+                                        assetName: "elevenlabs-symbol")
+                        Divider().padding(.leading, 44)
+                        privacyRow(NSLocalizedString("onboarding.consent.aiServices.disclaimer", value: "AI may make mistakes — please verify carefully", comment: ""),
+                                   icon: "exclamationmark.triangle.fill", color: .yellow)
+                    }
+                    .background(DesignTokens.Colors.Cute.backgroundSoftPink)
+                    .cornerRadius(16)
+
                     Button { showingPrivacyPolicy = true } label: {
                         Text(NSLocalizedString("onboarding.consent.privacyPolicy", value: "Privacy Policy", comment: ""))
                             .font(.subheadline)
@@ -839,10 +864,10 @@ struct FirstTimeOnboardingView: View {
                     // Consent toggle — always visible, required to proceed
                     Toggle(isOn: $agreedToConsent) {
                         VStack(alignment: .leading, spacing: 3) {
-                            Text(NSLocalizedString("onboarding.consent.agree", value: "I agree to data collection for learning", comment: ""))
+                            Text(NSLocalizedString("onboarding.consent.agree", value: "I agree to share data with the AI services listed above", comment: ""))
                                 .font(.subheadline)
                                 .foregroundColor(DesignTokens.Colors.Cute.textPrimary)
-                            Text(NSLocalizedString("onboarding.consent.required", value: "Required to use StudyAI", comment: ""))
+                            Text(NSLocalizedString("onboarding.consent.required", value: "Required to use StudyAgent", comment: ""))
                                 .font(.caption)
                                 .foregroundColor(agreedToConsent ? DesignTokens.Colors.Cute.textSecondary : .red)
                         }
@@ -906,6 +931,21 @@ struct FirstTimeOnboardingView: View {
     private func privacyRow(_ text: String, icon: String, color: Color) -> some View {
         HStack(spacing: 12) {
             Image(systemName: icon).foregroundColor(color).frame(width: 22)
+            Text(text)
+                .font(.subheadline)
+                .foregroundColor(DesignTokens.Colors.Cute.textPrimary)
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 13)
+    }
+
+    private func privacyRowAsset(_ text: String, assetName: String) -> some View {
+        HStack(spacing: 12) {
+            Image(assetName)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 22, height: 22)
             Text(text)
                 .font(.subheadline)
                 .foregroundColor(DesignTokens.Colors.Cute.textPrimary)

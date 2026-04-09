@@ -295,6 +295,7 @@ struct ArchivedConversation: Codable, Identifiable {
     let diagrams: [[String: Any]]?
     let voiceAudioFiles: [String: String]?
     let recommendedVideos: [[String: String]]?  // videoId, title, channelTitle, thumbnail, url
+    let messageImages: [String]?  // base64 JPEG strings of user-uploaded images (fetched from DB)
 
     // AI-generated summary and analysis fields
     let summary: String?
@@ -305,11 +306,11 @@ struct ArchivedConversation: Codable, Identifiable {
 
     enum CodingKeys: String, CodingKey {
         case id, userId, subject, topic, conversationContent, archivedDate, createdAt, diagrams
-        case voiceAudioFiles, recommendedVideos
+        case voiceAudioFiles, recommendedVideos, messageImages
         case summary, keyTopics, learningOutcomes, estimatedDuration, behaviorSummary
     }
 
-    init(id: String, userId: String, subject: String, topic: String?, conversationContent: String, archivedDate: Date, createdAt: Date, diagrams: [[String: Any]]? = nil, voiceAudioFiles: [String: String]? = nil, recommendedVideos: [[String: String]]? = nil, summary: String? = nil, keyTopics: [String]? = nil, learningOutcomes: [String]? = nil, estimatedDuration: Int? = nil, behaviorSummary: BehaviorSummary? = nil) {
+    init(id: String, userId: String, subject: String, topic: String?, conversationContent: String, archivedDate: Date, createdAt: Date, diagrams: [[String: Any]]? = nil, voiceAudioFiles: [String: String]? = nil, recommendedVideos: [[String: String]]? = nil, messageImages: [String]? = nil, summary: String? = nil, keyTopics: [String]? = nil, learningOutcomes: [String]? = nil, estimatedDuration: Int? = nil, behaviorSummary: BehaviorSummary? = nil) {
         self.id = id
         self.userId = userId
         self.subject = subject
@@ -320,6 +321,7 @@ struct ArchivedConversation: Codable, Identifiable {
         self.diagrams = diagrams
         self.voiceAudioFiles = voiceAudioFiles
         self.recommendedVideos = recommendedVideos
+        self.messageImages = messageImages
         self.summary = summary
         self.keyTopics = keyTopics
         self.learningOutcomes = learningOutcomes
@@ -345,6 +347,7 @@ struct ArchivedConversation: Codable, Identifiable {
 
         voiceAudioFiles = try container.decodeIfPresent([String: String].self, forKey: .voiceAudioFiles)
         recommendedVideos = try container.decodeIfPresent([[String: String]].self, forKey: .recommendedVideos)
+        messageImages = try container.decodeIfPresent([String].self, forKey: .messageImages)
 
         summary = try container.decodeIfPresent(String.self, forKey: .summary)
         keyTopics = try container.decodeIfPresent([String].self, forKey: .keyTopics)
@@ -370,6 +373,7 @@ struct ArchivedConversation: Codable, Identifiable {
 
         try container.encodeIfPresent(voiceAudioFiles, forKey: .voiceAudioFiles)
         try container.encodeIfPresent(recommendedVideos, forKey: .recommendedVideos)
+        try container.encodeIfPresent(messageImages, forKey: .messageImages)
 
         try container.encodeIfPresent(summary, forKey: .summary)
         try container.encodeIfPresent(keyTopics, forKey: .keyTopics)

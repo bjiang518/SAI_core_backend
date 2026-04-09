@@ -16,6 +16,7 @@ struct SessionDetailView: View {
     @State private var conversation: ArchivedConversation?
     @State private var isLoading = true
     @State private var errorMessage = ""
+    @State private var isContinuing = false
     @Environment(\.dismiss) private var dismiss
     
     init(sessionId: String, isConversation: Bool = false) {
@@ -24,7 +25,7 @@ struct SessionDetailView: View {
     }
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Group {
                 if isLoading {
                     VStack {
@@ -62,6 +63,21 @@ struct SessionDetailView: View {
                         dismiss()
                     }
                 }
+                if isConversation, conversation != nil {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button {
+                            Task { await continueConversation() }
+                        } label: {
+                            if isContinuing {
+                                ProgressView()
+                                    .controlSize(.small)
+                            } else {
+                                Label(NSLocalizedString("sessionDetail.continueConversation", value: "Continue", comment: ""), systemImage: "arrow.uturn.right.circle")
+                            }
+                        }
+                        .disabled(isContinuing)
+                    }
+                }
             }
         }
         .onAppear {
@@ -71,6 +87,94 @@ struct SessionDetailView: View {
         }
     }
     
+    private func continueConversation() async {
+        guard let conv = conversation else { return }
+        isContinuing = true
+        defer { isContinuing = false }
+
+        let subject = conv.subject.isEmpty ? "General" : conv.subject
+        let parsedMessages = parseConversationToMessages(conv.conversationContent)
+
+        let result = await NetworkService.shared.createSession(
+            subject: subject,
+            initialMessages: parsedMessages
+        )
+
+        guard result.success, let newSessionId = result.sessionId else {
+            debugPrint("❌ [Continue] Failed to create continuation session: \(result.message)")
+            return
+        }
+
+        debugPrint("✅ [Continue] Continuation session created: \(newSessionId.prefix(8))…")
+        AppState.shared.pendingChatAction = .continuationSession(
+            sessionId: newSessionId,
+            history: parsedMessages,
+            subject: subject
+        )
+        AppState.shared.selectedTab = .chat
+    }
+
+    /// Parse archived conversation text into `[["role": ..., "content": ...]]` for seeding a new session.
+    private func parseConversationToMessages(_ content: String) -> [[String: String]] {
+        let lines = content.components(separatedBy: .newlines)
+        var messages: [[String: String]] = []
+        var currentRole = ""
+        var currentContent = ""
+
+        func flush() {
+            guard !currentRole.isEmpty && !currentContent.isEmpty else { return }
+            messages.append(["role": currentRole, "content": currentContent.trimmingCharacters(in: .whitespacesAndNewlines)])
+            currentRole = ""
+            currentContent = ""
+        }
+
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            var speakerDetected = false
+
+            // Timestamped format: "[date] User:" or "[date] AI Assistant:"
+            if trimmed.contains("] User:") || trimmed.contains("] AI Assistant:") || trimmed.contains("] Assistant:") {
+                flush()
+                if let closingBracket = trimmed.firstIndex(of: "]") {
+                    let afterBracket = String(trimmed[trimmed.index(after: closingBracket)...])
+                    let parts = afterBracket.components(separatedBy: ":")
+                    if parts.count >= 2 {
+                        let speaker = parts[0].trimmingCharacters(in: .whitespaces).uppercased()
+                        currentRole = speaker.contains("USER") ? "user" : "assistant"
+                        currentContent = parts.dropFirst().joined(separator: ":").trimmingCharacters(in: .whitespaces)
+                        speakerDetected = true
+                    }
+                }
+            }
+
+            // Simple prefix format: "User:", "AI:", "Assistant:"
+            if !speakerDetected && trimmed.contains(":") {
+                let upperLine = trimmed.uppercased()
+                let speakerPrefixes = ["USER:", "AI:", "A:", "ASSISTANT:"]
+                for prefix in speakerPrefixes {
+                    if upperLine.hasPrefix(prefix) {
+                        flush()
+                        let parts = trimmed.components(separatedBy: ":")
+                        if parts.count >= 2 {
+                            let speaker = parts[0].trimmingCharacters(in: .whitespaces).uppercased()
+                            currentRole = speaker == "USER" ? "user" : "assistant"
+                            currentContent = parts.dropFirst().joined(separator: ":").trimmingCharacters(in: .whitespaces)
+                        }
+                        speakerDetected = true
+                        break
+                    }
+                }
+            }
+
+            if !speakerDetected && !trimmed.isEmpty && !currentRole.isEmpty {
+                if !currentContent.isEmpty { currentContent += "\n" }
+                currentContent += trimmed
+            }
+        }
+        flush()
+        return messages
+    }
+
     private func loadDetails() async {
         isLoading = true
         errorMessage = ""
@@ -411,6 +515,33 @@ struct ConversationDetailContent: View {
                         }
                     }
                     .padding(.horizontal, 4)
+                }
+
+                // Shared Images Section (user-uploaded photos from this conversation)
+                if let images = conversation.messageImages, !images.isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "photo.stack.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(.blue.opacity(0.8))
+                            Text(NSLocalizedString("sessionDetail.sharedImages", value: "Shared Images", comment: ""))
+                                .font(.headline)
+                        }
+
+                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                            ForEach(Array(images.enumerated()), id: \.offset) { _, base64 in
+                                if let data = Data(base64Encoded: base64),
+                                   let uiImage = UIImage(data: data) {
+                                    Image(uiImage: uiImage)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(height: 140)
+                                        .clipped()
+                                        .cornerRadius(10)
+                                }
+                            }
+                        }
+                    }
                 }
 
                 // Metadata Section

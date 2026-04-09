@@ -51,6 +51,14 @@ final class LanguageManager {
             return "zh-Hant"
         } else if lang.hasPrefix("zh") {
             return "zh-Hans"
+        } else if lang.hasPrefix("de") {
+            return "de"
+        } else if lang.hasPrefix("es") {
+            return "es"
+        } else if lang.hasPrefix("fr") {
+            return "fr"
+        } else if lang.hasPrefix("ja") {
+            return "ja"
         }
         return "en"
     }

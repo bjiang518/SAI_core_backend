@@ -18,7 +18,7 @@ struct SubjectBreakdownView: View {
     @State private var showingSubjectDetail = false
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 LazyVStack(spacing: 20) {
                     if isLoading {

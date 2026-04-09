@@ -6,8 +6,11 @@
  *
  *   fastify.post('/api/ai/...', {
  *     config: { rateLimit: { ... } },
- *     preHandler: [tierCheck({ feature: 'homework_single' })]
+ *     preHandler: [tierCheck({ feature: 'homework_pages' })]
  *   }, handler);
+ *
+ *   // For batch routes: deduct one unit per page
+ *   preHandler: [tierCheck({ feature: 'homework_pages', getCount: req => req.body.base64_images?.length ?? 1 })]
  *
  * Responses:
  *   403 UPGRADE_REQUIRED        — feature blocked for this tier
@@ -22,9 +25,11 @@ const { usageTracker } = require('../routes/ai/utils/usage-tracker');
 /**
  * Factory: returns a Fastify preHandler async function for the given feature.
  * @param {object} opts
- * @param {string} opts.feature  — key from TIER_LIMITS (e.g. 'homework_single')
+ * @param {string}   opts.feature    — key from TIER_LIMITS (e.g. 'homework_pages')
+ * @param {function} [opts.getCount] — optional fn(request) → int. Reads page/unit count
+ *                                     from the request body. Defaults to 1.
  */
-function tierCheck({ feature }) {
+function tierCheck({ feature, getCount }) {
   return async function tierCheckHandler(request, reply) {
     let userId;
     try {
@@ -37,7 +42,8 @@ function tierCheck({ feature }) {
 
     const { tier, is_anonymous } = await db.getUserTier(userId);
 
-    const result = await usageTracker.check(userId, feature, tier, is_anonymous);
+    const count = getCount ? Math.max(1, getCount(request) || 1) : 1;
+    const result = await usageTracker.check(userId, feature, tier, is_anonymous, count);
 
     if (!result.allowed) {
       if (result.limit === 0) {
@@ -58,11 +64,11 @@ function tierCheck({ feature }) {
       });
     }
 
-    // Allowed — increment counter and expose remaining count to caller
-    await usageTracker.increment(userId, feature, is_anonymous);
-    const newRemaining = isFinite(result.remaining) ? result.remaining - 1 : null;
+    // Allowed — increment by count and expose remaining to caller
+    await usageTracker.incrementBy(userId, feature, count, is_anonymous);
+    const newRemaining = isFinite(result.remaining) ? result.remaining - count : null;
     if (newRemaining !== null) {
-      reply.header('X-Usage-Remaining', String(newRemaining));
+      reply.header('X-Usage-Remaining', String(Math.max(0, newRemaining)));
     }
     // Continue to handler
   };

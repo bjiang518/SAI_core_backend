@@ -29,7 +29,7 @@ struct EmailVerificationView: View {
     private let codeLength = 6
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 VStack(spacing: 32) {
                     // Header section

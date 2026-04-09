@@ -10,8 +10,10 @@ import SwiftUI
 
 struct ParentReportsContainerView: View {
     @StateObject private var networkService = NetworkService.shared
+    @StateObject private var authService = AuthenticationService.shared
     @State private var showingOnboarding = false
     @State private var hasCheckedOnboarding = false
+    @State private var showingUpgrade = false
 
     var body: some View {
         PassiveReportsView()
@@ -29,8 +31,20 @@ struct ParentReportsContainerView: View {
                     }
                 )
             }
+            .sheet(isPresented: $showingUpgrade) {
+                UpgradeComparisonView(
+                    blockedFeature: NSLocalizedString("upgrade.comparison.featureReports", comment: ""),
+                    reason: .featureBlocked,
+                    onDismiss: { showingUpgrade = false }
+                )
+            }
             .onAppear {
-                checkOnboarding()
+                let user = authService.currentUser
+                if user?.tier.isPaid != true {
+                    showingUpgrade = true
+                } else {
+                    checkOnboarding()
+                }
             }
     }
 
@@ -45,6 +59,11 @@ struct ParentReportsContainerView: View {
         // Skip if user has already enabled reports
         if settings.parentReportsEnabled {
             debugPrint("✅ [ParentReportsContainer] Reports already enabled, skipping onboarding")
+            // Re-sync if the backend never confirmed receipt (e.g. first sync failed)
+            if !settings.backendConfirmed {
+                debugPrint("⚠️ [ParentReportsContainer] Backend not yet confirmed — re-syncing...")
+                syncEnableToBackend()
+            }
             return
         }
 
@@ -72,6 +91,10 @@ struct ParentReportsContainerView: View {
             )
             if result.success {
                 debugPrint("✅ [ParentReportsContainer] Reports enabled on backend. Next: \(result.nextReportTime ?? "N/A")")
+                // Mark confirmed so we stop retrying on future opens
+                var confirmed = ParentReportSettings.load()
+                confirmed.backendConfirmed = true
+                confirmed.save()
             } else {
                 debugPrint("⚠️ [ParentReportsContainer] Backend sync failed: \(result.message). Will retry on next app launch.")
             }
@@ -94,7 +117,7 @@ struct ParentReportsContainerView: View {
 // MARK: - Preview
 
 #Preview {
-    NavigationView {
+    NavigationStack {
         ParentReportsContainerView()
     }
 }

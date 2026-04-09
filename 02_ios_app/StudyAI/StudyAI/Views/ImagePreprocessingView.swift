@@ -21,7 +21,7 @@ struct ImagePreprocessingView: View {
     private let imageProcessor = ImageProcessingService.shared
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 24) {
                 // Title
                 Text("Enhancing Your Image")

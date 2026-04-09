@@ -125,30 +125,18 @@ struct ModernLoginView: View {
                     }
                 }
             }
-
-            // Monitor keyboard notifications
-            NotificationCenter.default.addObserver(
-                forName: UIResponder.keyboardWillShowNotification,
-                object: nil,
-                queue: .main
-            ) { notification in
-                if let keyboardFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect {
-                    keyboardHeight = keyboardFrame.height
-                }
-            }
-
-            NotificationCenter.default.addObserver(
-                forName: UIResponder.keyboardWillHideNotification,
-                object: nil,
-                queue: .main
-            ) { _ in
-                keyboardHeight = 0
-            }
         }
         .onDisappear {
-            // Clean up keyboard observers
-            NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillShowNotification, object: nil)
-            NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillHideNotification, object: nil)
+            // Clear keyboard height when view disappears
+            keyboardHeight = 0
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { notification in
+            if let frame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect {
+                keyboardHeight = frame.height
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            keyboardHeight = 0
         }
     }
     
@@ -164,7 +152,7 @@ struct ModernLoginView: View {
                 
                 // App icon and title
                 VStack(spacing: 12) {
-                    Text("StudyMates")
+                    Text("StudyAgent")
                         .font(.largeTitle)
                         .fontWeight(.bold)
                         .foregroundColor(.white)
@@ -623,7 +611,7 @@ struct ModernSignUpView: View {
     }
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
                     // Header
@@ -632,7 +620,7 @@ struct ModernSignUpView: View {
                             .font(.title)
                             .foregroundColor(.primary)  // ✅ Adaptive for dark mode
 
-                        Text("Join Study Mates to start your learning adventure!")
+                        Text("Join StudyAgent to start your learning adventure!")
                             .font(.body)
                             .foregroundColor(.secondary)  // ✅ Adaptive for dark mode
                             .multilineTextAlignment(.center)
