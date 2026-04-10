@@ -1902,6 +1902,7 @@
 "proMode.questionPreview" = "題目預覽";
 "proMode.tapToAnnotate" = "點擊圖片創建標註框";
 "proMode.done" = "完成";
+"proMode.back" = "返回";
 "proMode.selectQuestionNumber" = "選擇題號";
 "proMode.questionPrefix" = "題";
 "proMode.pageCounter" = "第 %d/%d 頁";
@@ -1911,6 +1912,8 @@
 "proMode.deepGradingMode" = "深度批改模式";
 "proMode.deepMode" = "深度模式";
 "proMode.fastMode" = "快速模式";  // ✅ Production: Fast Mode (GPT Deep)
+"proMode.fastModeShort" = "快";
+"proMode.deepModeShort" = "深度";
 "proMode.deepGradingDescription" = "AI將深度推理分析 (較慢但更準確)";
 "proMode.deepModeDescription" = "深度分析與高級推理";  // ✅ Production: Deep Mode description
 "proMode.fastModeDescription" = "快速批改與邏輯檢查";  // ✅ Production: Fast Mode description
@@ -1934,6 +1937,7 @@
 "proMode.subquestionAnswer" = "答: %@";
 "proMode.addAnnotation" = "添加標註";
 "proMode.editAnnotations" = "編輯標註 (%d)";
+"proMode.editImage" = "編輯圖片";
 "proMode.annotationImageHint" = "部分題目需要配圖 — 點擊裁剪照片";
 "proMode.aiAnalyzeDiagrams" = "使用AI自動定位圖表區域";
 "proMode.selectAIModel" = "選擇AI模型";
@@ -1999,7 +2003,9 @@
 "proMode.smartCrop" = "智慧裁切";
 "proMode.retryCrop" = "重試";
 "proMode.croppedDone" = "已裁切";
+"proMode.addingImagesToQuestions" = "正在為題目新增圖片…";
 "proMode.addPictureHint" = "請在此處新增圖片";
+"proMode.croppingImageHint" = "正在裁剪圖表…";
 "proMode.selectQuestionFor" = "請為此題選擇題號";
 
 // PDF Preview

@@ -1832,6 +1832,7 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "proMode.questionPreview" = "Vista previa de pregunta";
 "proMode.tapToAnnotate" = "Toca para crear una anotación";
 "proMode.done" = "Listo";
+"proMode.back" = "Volver";
 "proMode.selectQuestionNumber" = "Seleccionar número de pregunta";
 "proMode.questionPrefix" = "P";
 "proMode.pageCounter" = "Página %d/%d";
@@ -1841,6 +1842,8 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "proMode.deepGradingMode" = "Modo de calificación profunda";
 "proMode.deepMode" = "Modo profundo";
 "proMode.fastMode" = "Modo rápido";
+"proMode.fastModeShort" = "Rápido";
+"proMode.deepModeShort" = "Profundo";
 "proMode.deepGradingDescription" = "La IA analizará en profundidad (más lento pero más preciso)";
 "proMode.deepModeDescription" = "Análisis profundo con razonamiento avanzado";
 "proMode.fastModeDescription" = "Calificación rápida con verificación lógica";
@@ -1864,6 +1867,7 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "proMode.subquestionAnswer" = "Respuesta: %@";
 "proMode.addAnnotation" = "Agregar anotación";
 "proMode.editAnnotations" = "Editar anotaciones (%d)";
+"proMode.editImage" = "Editar imagen";
 "proMode.annotationImageHint" = "Algunas preguntas necesitan imágenes — toca para recortar de la foto";
 "proMode.aiAnalyzeDiagrams" = "Localizar automáticamente regiones de diagramas con IA";
 "proMode.selectAIModel" = "Seleccionar modelo de IA";
@@ -1930,7 +1934,9 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "proMode.smartCrop" = "Recorte inteligente";
 "proMode.retryCrop" = "Reintentar";
 "proMode.croppedDone" = "Recortado";
+"proMode.addingImagesToQuestions" = "Añadiendo imágenes a preguntas…";
 "proMode.addPictureHint" = "Agrega una imagen aquí";
+"proMode.croppingImageHint" = "Recortando diagrama…";
 "proMode.selectQuestionFor" = "Selecciona el número de pregunta para";
 
 // PDF Preview

@@ -1974,6 +1974,7 @@
 "proMode.questionPreview" = "Question Preview";
 "proMode.tapToAnnotate" = "Tap to create annotation box";
 "proMode.done" = "Done";
+"proMode.back" = "Back";
 "proMode.selectQuestionNumber" = "Select Question Number";
 "proMode.questionPrefix" = "Q";
 "proMode.pageCounter" = "Page %d/%d";
@@ -1983,6 +1984,8 @@
 "proMode.deepGradingMode" = "Deep Grading Mode";
 "proMode.deepMode" = "Deep Mode";
 "proMode.fastMode" = "Fast Mode";  // ✅ Production: Fast Mode (GPT Deep)
+"proMode.fastModeShort" = "Fast";
+"proMode.deepModeShort" = "Deep";
 "proMode.deepGradingDescription" = "AI will analyze deeply (slower but more accurate)";
 "proMode.deepModeDescription" = "Deep analysis with advanced reasoning";  // ✅ Production: Deep Mode description
 "proMode.fastModeDescription" = "Quick grading with logic check";  // ✅ Production: Fast Mode description
@@ -2006,6 +2009,7 @@
 "proMode.subquestionAnswer" = "Answer: %@";
 "proMode.addAnnotation" = "Add Annotation";
 "proMode.editAnnotations" = "Edit Annotations (%d)";
+"proMode.editImage" = "Edit Image";
 "proMode.annotationImageHint" = "Some questions need images — tap to crop from photo";
 "proMode.aiAnalyzeDiagrams" = "Auto-locate diagram regions with AI";
 "proMode.selectAIModel" = "Select AI Model";
@@ -2069,7 +2073,9 @@
 "proMode.smartCrop" = "Smart Crop";
 "proMode.retryCrop" = "Retry";
 "proMode.croppedDone" = "Cropped";
+"proMode.addingImagesToQuestions" = "Adding images to questions…";
 "proMode.addPictureHint" = "Add a picture here";
+"proMode.croppingImageHint" = "Cropping diagram…";
 "proMode.selectQuestionFor" = "Please select a question number for";
 
 // PDF Preview

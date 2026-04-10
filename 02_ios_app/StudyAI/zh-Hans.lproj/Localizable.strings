@@ -1923,6 +1923,7 @@
 "proMode.questionPreview" = "题目预览";
 "proMode.tapToAnnotate" = "点击图片创建标注框";
 "proMode.done" = "完成";
+"proMode.back" = "返回";
 "proMode.selectQuestionNumber" = "选择题号";
 "proMode.questionPrefix" = "题";
 "proMode.pageCounter" = "第 %d/%d 页";
@@ -1932,6 +1933,8 @@
 "proMode.deepGradingMode" = "深度批改模式";
 "proMode.deepMode" = "深度模式";
 "proMode.fastMode" = "快速模式";
+"proMode.fastModeShort" = "快";
+"proMode.deepModeShort" = "深度";
 "proMode.deepGradingDescription" = "AI将深度推理分析 (较慢但更准确)";
 "proMode.deepModeDescription" = "深度分析与高级推理";
 "proMode.fastModeDescription" = "快速批改与逻辑检查";
@@ -1955,6 +1958,7 @@
 "proMode.subquestionAnswer" = "答: %@";
 "proMode.addAnnotation" = "添加标注";
 "proMode.editAnnotations" = "编辑标注 (%d)";
+"proMode.editImage" = "编辑图片";
 "proMode.annotationImageHint" = "部分题目需要配图 — 点击裁剪照片";
 "proMode.aiAnalyzeDiagrams" = "使用AI自动定位图表区域";
 "proMode.selectAIModel" = "选择AI模型";
@@ -2002,7 +2006,9 @@
 "proMode.smartCrop" = "智能裁剪";
 "proMode.retryCrop" = "重试";
 "proMode.croppedDone" = "已裁剪";
+"proMode.addingImagesToQuestions" = "正在为题目添加图片…";
 "proMode.addPictureHint" = "请在此处添加图片";
+"proMode.croppingImageHint" = "正在裁剪图表…";
 "proMode.selectQuestionFor" = "请为此题选择题号";
 
 // PDF Preview

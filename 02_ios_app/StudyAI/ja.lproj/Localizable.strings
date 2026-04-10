@@ -1850,6 +1850,7 @@
 "proMode.questionPreview" = "Question Preview";
 "proMode.tapToAnnotate" = "Tap to create annotation box";
 "proMode.done" = "Done";
+"proMode.back" = "戻る";
 "proMode.selectQuestionNumber" = "Select Question Number";
 "proMode.questionPrefix" = "Q";
 "proMode.pageCounter" = "Page %d/%d";
@@ -1859,6 +1860,8 @@
 "proMode.deepGradingMode" = "Deep Grading Mode";
 "proMode.deepMode" = "Deep Mode";
 "proMode.fastMode" = "Fast Mode";  // ✅ Production: Fast Mode (GPT Deep)
+"proMode.fastModeShort" = "Fast";
+"proMode.deepModeShort" = "Deep";
 "proMode.deepGradingDescription" = "AI will analyze deeply (slower but more accurate)";
 "proMode.deepModeDescription" = "Deep analysis with advanced reasoning";  // ✅ Production: Deep Mode description
 "proMode.fastModeDescription" = "Quick grading with logic check";  // ✅ Production: Fast Mode description
@@ -1882,6 +1885,7 @@
 "proMode.subquestionAnswer" = "Answer: %@";
 "proMode.addAnnotation" = "Add Annotation";
 "proMode.editAnnotations" = "Edit Annotations (%d)";
+"proMode.editImage" = "画像を編集";
 "proMode.annotationImageHint" = "Some questions need images — tap to crop from photo";
 "proMode.aiAnalyzeDiagrams" = "AIで図の領域を自動検出";
 "proMode.selectAIModel" = "Select AI Model";
@@ -1950,7 +1954,9 @@
 "proMode.smartCrop" = "スマート切り取り";
 "proMode.retryCrop" = "再試行";
 "proMode.croppedDone" = "切り取り済み";
+"proMode.addingImagesToQuestions" = "問題に画像を追加中…";
 "proMode.addPictureHint" = "ここに画像を追加してください";
+"proMode.croppingImageHint" = "図を切り取り中…";
 "proMode.selectQuestionFor" = "この問題の番号を選択してください";
 
 // PDF Preview

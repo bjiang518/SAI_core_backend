@@ -1793,6 +1793,7 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "proMode.questionPreview" = "Question Preview";
 "proMode.tapToAnnotate" = "Tap to create annotation box";
 "proMode.done" = "Done";
+"proMode.back" = "Zurück";
 "proMode.selectQuestionNumber" = "Select Question Number";
 "proMode.questionPrefix" = "Q";
 "proMode.pageCounter" = "Page %d/%d";
@@ -1802,6 +1803,8 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "proMode.deepGradingMode" = "Deep Grading Mode";
 "proMode.deepMode" = "Deep Mode";
 "proMode.fastMode" = "Fast Mode";  // ✅ Production: Fast Mode (GPT Deep)
+"proMode.fastModeShort" = "Schnell";
+"proMode.deepModeShort" = "Tief";
 "proMode.deepGradingDescription" = "AI will analyze deeply (slower but more accurate)";
 "proMode.deepModeDescription" = "Deep analysis with advanced reasoning";  // ✅ Production: Deep Mode description
 "proMode.fastModeDescription" = "Quick grading with logic check";  // ✅ Production: Fast Mode description
@@ -1825,6 +1828,7 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "proMode.subquestionAnswer" = "Answer: %@";
 "proMode.addAnnotation" = "Add Annotation";
 "proMode.editAnnotations" = "Edit Annotations (%d)";
+"proMode.editImage" = "Bild bearbeiten";
 "proMode.annotationImageHint" = "Some questions need images — tap to crop from photo";
 "proMode.aiAnalyzeDiagrams" = "Diagrammbereiche automatisch per KI erkennen";
 "proMode.selectAIModel" = "Select AI Model";
@@ -1873,7 +1877,9 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "proMode.smartCrop" = "Smart-Zuschnitt";
 "proMode.retryCrop" = "Wiederholen";
 "proMode.croppedDone" = "Zugeschnitten";
+"proMode.addingImagesToQuestions" = "Bilder werden zu Aufgaben hinzugefügt…";
 "proMode.addPictureHint" = "Bild hier hinzufügen";
+"proMode.croppingImageHint" = "Diagramm wird zugeschnitten…";
 "proMode.selectQuestionFor" = "Bitte Aufgabennummer auswählen für";
 
 // PDF Preview

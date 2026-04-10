@@ -19,6 +19,8 @@ struct AnnotatableImageView: View {
     var annotationsBinding: Binding<[QuestionAnnotation]>?
     var availableQuestionNumbers: [String]?
     var pageIndex: Int = 0  // ✅ NEW: Track which page this image is on
+    var startColorIndex: Int = 0  // Starting color index for non-overlapping colors across pages
+    var onNewAnnotation: ((UUID) -> Void)? = nil  // Called when a new annotation is added
 
     @State private var scale: CGFloat = 1.0
     @State private var lastScale: CGFloat = 1.0
@@ -118,7 +120,9 @@ struct AnnotatableImageView: View {
                 fittedImageSize: fittedSize,
                 scale: scale,
                 availableNumbers: available,
-                pageIndex: pageIndex  // ✅ Pass page index
+                pageIndex: pageIndex,
+                startColorIndex: startColorIndex,
+                onNewAnnotation: onNewAnnotation
             )
         } else {
             readOnlyAnnotationsOverlay(fittedSize: fittedSize)
@@ -192,8 +196,27 @@ struct AnnotationOverlay: View {
     let scale: CGFloat
     let availableNumbers: [String]
     let pageIndex: Int  // ✅ NEW: Track which page we're annotating
+    var onNewAnnotation: ((UUID) -> Void)? = nil
 
     @State private var newColorIndex = 0
+
+    init(annotations: Binding<[QuestionAnnotation]>,
+         selectedAnnotationId: Binding<UUID?>,
+         fittedImageSize: CGSize,
+         scale: CGFloat,
+         availableNumbers: [String],
+         pageIndex: Int,
+         startColorIndex: Int = 0,
+         onNewAnnotation: ((UUID) -> Void)? = nil) {
+        self._annotations = annotations
+        self._selectedAnnotationId = selectedAnnotationId
+        self.fittedImageSize = fittedImageSize
+        self.scale = scale
+        self.availableNumbers = availableNumbers
+        self.pageIndex = pageIndex
+        self._newColorIndex = State(initialValue: startColorIndex)
+        self.onNewAnnotation = onNewAnnotation
+    }
 
     var body: some View {
         ZStack {
@@ -243,6 +266,7 @@ struct AnnotationOverlay: View {
 
         annotations.append(ann)
         selectedAnnotationId = ann.id
+        onNewAnnotation?(ann.id)
 
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
     }
@@ -278,7 +302,7 @@ struct InteractiveAnnotationBox: View {
                     annotation.color,
                     style: StrokeStyle(
                         lineWidth: isSelected ? 4 : 2,
-                        dash: annotation.questionNumber == nil ? [8, 4] : []  // ✅ Dashed if unmapped
+                        dash: isSelected ? [] : [6, 4]  // Dotted when unselected, solid when selected
                     )
                 )
                 .background(Rectangle().fill(annotation.color.opacity(isSelected ? 0.15 : 0.05)))

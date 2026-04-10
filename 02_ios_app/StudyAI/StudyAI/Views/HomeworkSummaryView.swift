@@ -85,6 +85,16 @@ struct HomeworkSummaryView: View {
                     debugPrint("   Reason: User parsed a different image from camera")
                     debugPrint("   Calling parseHomework() to reset and parse new homework")
                     stateManager.parseHomework(parseResults: parseResults, images: originalImages)  // ✅ UPDATED: Pass array
+
+                    // Auto-trigger background diagram analysis for new homework
+                    if stateManager.currentHomework?.questions.contains(where: {
+                        $0.question.needImage == true ||
+                        $0.question.subquestions?.contains { $0.needImage == true } == true
+                    }) == true {
+                        Task {
+                            await stateManager.startBackgroundDiagramAnalysis(images: originalImages)
+                        }
+                    }
                     return
                 }
             }
@@ -94,6 +104,16 @@ struct HomeworkSummaryView: View {
             debugPrint("   Calling parseHomework() for initial homework")
             stateManager.parseHomework(parseResults: parseResults, images: originalImages)  // ✅ UPDATED: Pass array
             debugPrint("   ✅ State initialized: \(stateManager.currentState)")
+
+            // Auto-trigger background diagram analysis if any question needs an image
+            if stateManager.currentHomework?.questions.contains(where: {
+                $0.question.needImage == true ||
+                $0.question.subquestions?.contains { $0.needImage == true } == true
+            }) == true {
+                Task {
+                    await stateManager.startBackgroundDiagramAnalysis(images: originalImages)
+                }
+            }
         }
         // ✅ NEW: Resume prompt alert
         .alert(NSLocalizedString("homeworkSummary.resumePrompt.title", comment: "Resume Homework?"), isPresented: $showResumePrompt) {

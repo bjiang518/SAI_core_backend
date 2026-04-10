@@ -165,7 +165,18 @@ class DigitalHomeworkViewModel: ObservableObject {
 
     /// Grade button is enabled only when diagram analysis is complete and not already grading
     var isGradingEnabled: Bool {
-        !isDiagramAnalysisPending && !isGrading && !questions.isEmpty
+        !isDiagramAnalysisPending &&
+        !stateManager.isBackgroundDiagramAnalysisPending &&
+        !isGrading &&
+        !questions.isEmpty
+    }
+
+    var gradeButtonLabel: String {
+        stateManager.isBackgroundDiagramAnalysisPending
+            ? NSLocalizedString("proMode.addingImagesToQuestions", comment: "Adding images to questions…")
+            : (useDeepReasoning
+               ? NSLocalizedString("proMode.deepGrade", comment: "Deep Grade")
+               : NSLocalizedString("proMode.quickGrade", comment: "Quick Grade"))
     }
 
     var hasValidAnnotations: Bool {
@@ -724,6 +735,17 @@ class DigitalHomeworkViewModel: ObservableObject {
     func runDiagramAnalysisIfNeeded() async {
         // Skip if already running
         guard !isDiagramAnalysisPending else { return }
+
+        // If background analysis already ran successfully, just sync the results
+        if stateManager.backgroundDiagramAttemptCount > 0 && !stateManager.backgroundDiagramAnalysisFailed {
+            await MainActor.run {
+                diagramAnalysisAttemptCount = stateManager.backgroundDiagramAttemptCount
+                diagramAnalysisFoundRegions = !(stateManager.currentHomework?.croppedImages.isEmpty ?? true)
+                questionsUnderDiagramAnalysis = []
+            }
+            logger.info("Background diagram analysis already succeeded — skipping duplicate API call")
+            return
+        }
 
         let needImageQuestions = questions.filter {
             $0.question.needImage == true ||

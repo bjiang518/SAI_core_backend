@@ -24,6 +24,7 @@ struct DigitalHomeworkView: View {
     @EnvironmentObject private var appState: AppState
     @StateObject private var viewModel = DigitalHomeworkViewModel()
     @StateObject private var themeManager = ThemeManager.shared  // ✅ Add theme manager for cute mode colors
+    @ObservedObject private var stateManager = DigitalHomeworkStateManager.shared  // ✅ Makes view reactive to background analysis state changes
     @Namespace private var animationNamespace
 
     // ✅ NEW: Track selected image for annotation (card stack)
@@ -40,11 +41,19 @@ struct DigitalHomeworkView: View {
     // Annotation button glow pulse animation
     @State private var annotationGlowPulse = false
 
+    // Shaking icon for collapsed annotation header when crops exist
+    @State private var annotationIconShaking = false
+
     // Annotation question picker sheet
     @State private var showAnnotationPicker = false
 
     // Annotation unassigned warning banner
     @State private var annotationWarning: QuestionAnnotation? = nil
+
+    // When non-nil, annotation mode shows only the annotation for this question (focused edit)
+    @State private var focusedAnnotationQuestionId: String? = nil
+    // When non-nil, the next annotation drawn auto-assigns this question number
+    @State private var pendingAnnotationQuestionId: String? = nil
 
     // ✅ Archive / Smart Organize result toast
     @State private var showResultToast = false
@@ -197,9 +206,10 @@ struct DigitalHomeworkView: View {
         .toolbar(.hidden, for: .tabBar)  // 隐藏 tab bar
         .animation(.easeInOut(duration: 0.3), value: viewModel.showAnnotationMode)
         .onChange(of: viewModel.showAnnotationMode) { oldValue, newValue in
-            // When exiting annotation mode, sync cropped images
+            // When exiting annotation mode, sync cropped images and clear any focused state
             if oldValue == true && newValue == false {
                 viewModel.syncCroppedImages()
+                focusedAnnotationQuestionId = nil
             }
         }
         .onChange(of: viewModel.archiveResultSummary) { _, summary in
@@ -265,6 +275,19 @@ struct DigitalHomeworkView: View {
                 // Annotation section: always visible, collapsible
                 annotationCollapsibleSection(geometry: geometry)
                     .background(Color(.systemGroupedBackground))
+
+                // Compact one-line bar (hidden once graded or in special modes)
+                if !viewModel.allQuestionsGraded && !viewModel.isArchiveMode && !isDeletionMode {
+                    if viewModel.isGrading {
+                        compactGradingBar
+                            .transition(.opacity)
+                            .animation(.easeInOut(duration: 0.25), value: viewModel.isGrading)
+                    } else {
+                        compactGradeBar
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                            .animation(.easeInOut(duration: 0.25), value: viewModel.isGrading)
+                    }
+                }
 
                 // Floating action bar: shown below annotation section, above scroll content
                 if viewModel.isArchiveMode {
@@ -363,9 +386,28 @@ struct DigitalHomeworkView: View {
                                                 }
                                             }
                                         },
+                                        onEditCroppedImage: { questionId in
+                                            // Find annotation, navigate to its page, pre-select it, enter focused mode
+                                            if let annotation = viewModel.annotations.first(where: { $0.questionNumber == questionId }) {
+                                                selectedImageIndex = annotation.pageIndex
+                                                viewModel.selectedAnnotationId = annotation.id
+                                                focusedAnnotationQuestionId = questionId
+                                                viewModel.showAnnotationMode = true
+                                            }
+                                        },
+                                        onAddPicture: { questionId, pageIndex in
+                                            pendingAnnotationQuestionId = questionId
+                                            selectedImageIndex = pageIndex
+                                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                                viewModel.isAnnotationSectionExpanded = true
+                                            }
+                                            viewModel.showAnnotationMode = true
+                                        },
                                         isUnderDiagramAnalysis: viewModel.questionsUnderDiagramAnalysis
+                                            .union(stateManager.questionsUnderBackgroundAnalysis)
                                             .contains(questionWithGrade.question.id),
-                                        subquestionsUnderAnalysis: viewModel.questionsUnderDiagramAnalysis,
+                                        subquestionsUnderAnalysis: viewModel.questionsUnderDiagramAnalysis
+                                            .union(stateManager.questionsUnderBackgroundAnalysis),
                                         missingDiagramImageIds: viewModel.questionsMissingDiagramImage
                                     )
                                     .id(questionWithGrade.question.id)
@@ -404,12 +446,15 @@ struct DigitalHomeworkView: View {
                         }
                     }
                 }
-                .frame(height: geometry.size.height - (viewModel.isAnnotationSectionExpanded ? geometry.size.height * 0.33 : 44) - 1)
+                .frame(height: geometry.size.height
+                    - (viewModel.isAnnotationSectionExpanded ? geometry.size.height * 0.33 : 44)
+                    - ((!viewModel.allQuestionsGraded && !viewModel.isArchiveMode && !isDeletionMode) ? 52 : 0)
+                    - 1)
             }
             .onAppear {
-                // Default: expanded if any question needs an image, collapsed otherwise
+                // Default: always collapsed — user expands if needed
                 if !viewModel.isGrading && !viewModel.allQuestionsGraded {
-                    viewModel.isAnnotationSectionExpanded = viewModel.anyQuestionNeedsImage
+                    viewModel.isAnnotationSectionExpanded = false
                 }
             }
         }
@@ -596,18 +641,22 @@ struct DigitalHomeworkView: View {
             // Top section: Merged accuracy stats in one line
             VStack(spacing: 12) {
                 // ✅ MERGED: Accuracy, Correct, and Incorrect in one horizontal line
-                HStack(spacing: 32) {
+                HStack(spacing: 0) {
                     // Accuracy percentage
                     VStack(spacing: 4) {
                         Text(String(format: "%.0f%%", accuracy))
-                            .font(.system(size: 36, weight: .bold))
+                            .font(.system(size: 32, weight: .bold))
                             .foregroundColor(.green)
                             .lineLimit(1)
-                            .fixedSize(horizontal: true, vertical: false)
+                            .minimumScaleFactor(0.6)
                         Text(NSLocalizedString("proMode.accuracy", comment: "Accuracy"))
                             .font(.caption)
                             .foregroundColor(.secondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
                     }
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity)
 
                     // Vertical divider
                     Rectangle()
@@ -616,50 +665,68 @@ struct DigitalHomeworkView: View {
 
                     // Correct count
                     VStack(spacing: 6) {
-                        HStack(spacing: 6) {
+                        HStack(spacing: 4) {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.title2)
                                 .foregroundColor(.green)
                             Text("\(correctCount)")
                                 .font(.title2)
                                 .fontWeight(.bold)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.6)
                         }
+                        .fixedSize(horizontal: true, vertical: false)
                         Text(NSLocalizedString("proMode.correct", comment: "Correct"))
                             .font(.caption)
                             .foregroundColor(.secondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
                     }
+                    .frame(maxWidth: .infinity)
 
                     // Partial count (only show if > 0)
                     if partialCount > 0 {
                         VStack(spacing: 6) {
-                            HStack(spacing: 6) {
+                            HStack(spacing: 4) {
                                 Image(systemName: "circle.lefthalf.filled")
                                     .font(.title2)
                                     .foregroundColor(.orange)
                                 Text("\(partialCount)")
                                     .font(.title2)
                                     .fontWeight(.bold)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.6)
                             }
+                            .fixedSize(horizontal: true, vertical: false)
                             Text(NSLocalizedString("proMode.partial", comment: "Partial"))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
                         }
+                        .frame(maxWidth: .infinity)
                     }
 
                     // Incorrect count
                     VStack(spacing: 6) {
-                        HStack(spacing: 6) {
+                        HStack(spacing: 4) {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.title2)
                                 .foregroundColor(.red)
                             Text("\(incorrectCount)")
                                 .font(.title2)
                                 .fontWeight(.bold)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.6)
                         }
+                        .fixedSize(horizontal: true, vertical: false)
                         Text(NSLocalizedString("proMode.incorrect", comment: "Incorrect"))
                             .font(.caption)
                             .foregroundColor(.secondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
                     }
+                    .frame(maxWidth: .infinity)
                 }
                 .padding(.vertical, 8)
             }
@@ -937,36 +1004,67 @@ struct DigitalHomeworkView: View {
                     }
                 }) {
                     HStack(spacing: 10) {
-                        Image(systemName: "photo.on.rectangle.angled")
-                            .font(.system(size: 15))
-                            .foregroundColor(.blue)
+                        if viewModel.isAnnotationSectionExpanded {
+                            // Expanded: show only a large upward chevron to fold
+                            Image(systemName: "chevron.up")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.secondary)
+                        } else {
+                            // Collapsed: show icon + label
+                            Image(systemName: "photo.on.rectangle.angled")
+                                .font(.system(size: 15))
+                                .foregroundColor(.blue)
+                                .rotationEffect(.degrees(
+                                    !viewModel.isAnnotationSectionExpanded && !viewModel.croppedImages.isEmpty
+                                        ? (annotationIconShaking ? 4 : -4) : 0
+                                ))
+                                .animation(
+                                    !viewModel.isAnnotationSectionExpanded && !viewModel.croppedImages.isEmpty
+                                        ? .easeInOut(duration: 1.5).repeatForever(autoreverses: true)
+                                        : .default,
+                                    value: annotationIconShaking
+                                )
+                                .onAppear {
+                                    annotationIconShaking = !viewModel.isAnnotationSectionExpanded && !viewModel.croppedImages.isEmpty
+                                }
+                                .onChange(of: viewModel.isAnnotationSectionExpanded) { _, expanded in
+                                    annotationIconShaking = !expanded && !viewModel.croppedImages.isEmpty
+                                }
+                                .onChange(of: viewModel.croppedImages.isEmpty) { _, isEmpty in
+                                    annotationIconShaking = !viewModel.isAnnotationSectionExpanded && !isEmpty
+                                }
 
-                        Text(viewModel.annotations.isEmpty
-                            ? NSLocalizedString("proMode.addAnnotation", comment: "Add Annotation")
-                            : String(format: NSLocalizedString("proMode.editAnnotations", comment: ""), viewModel.annotations.count))
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundColor(.primary)
+                            Text(NSLocalizedString("proMode.editImage", comment: "Edit Image"))
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(.primary)
+
+                            // Badge / warning icon — right next to the label, no gap
+                            if !viewModel.annotations.isEmpty {
+                                Text("\(viewModel.annotations.count)")
+                                    .font(.caption2)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 7)
+                                    .padding(.vertical, 3)
+                                    .background(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary)
+                                    .cornerRadius(8)
+                            } else if viewModel.anyQuestionNeedsImage {
+                                Image(systemName: "exclamationmark.circle.fill")
+                                    .font(.caption)
+                                    .foregroundColor(.orange)
+                            }
+                        }
 
                         Spacer()
 
-                        if !viewModel.annotations.isEmpty {
-                            Text("\(viewModel.annotations.count)")
-                                .font(.caption2)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 7)
-                                .padding(.vertical, 3)
-                                .background(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary)
-                                .cornerRadius(8)
-                        } else if viewModel.anyQuestionNeedsImage {
-                            Image(systemName: "exclamationmark.circle.fill")
-                                .font(.caption)
-                                .foregroundColor(.orange)
-                        }
-
-                        // Reserve space for the trailing overlay (Smart Crop pill + chevron)
-                        Color.clear.frame(width: viewModel.anyQuestionNeedsImage ? 124 : 28, height: 1)
+                        // Reserve space for the trailing overlay (crop status pill + chevron)
+                        // Pill is shown when running, done, or retry — not when idle pre-analysis
+                        let pillVisible = viewModel.isDiagramAnalysisPending
+                            || stateManager.isBackgroundDiagramAnalysisPending
+                            || stateManager.backgroundDiagramAttemptCount > 0
+                            || viewModel.diagramAnalysisAttemptCount > 0
+                        Color.clear.frame(width: (viewModel.anyQuestionNeedsImage && pillVisible) ? 124 : (viewModel.isAnnotationSectionExpanded ? 0 : 28), height: 1)
                     }
                     .frame(height: collapsedHeight)
                     .padding(.horizontal, 16)
@@ -976,70 +1074,70 @@ struct DigitalHomeworkView: View {
                 // Trailing overlay: Smart Crop pill (when needed) + chevron
                 HStack(spacing: 8) {
                     if viewModel.anyQuestionNeedsImage {
-                        // Smart Crop button state machine:
-                        //   .running  — spinner, disabled
-                        //   .available — "✨ Smart Crop", tappable
-                        //   .retry    — "↺ Retry", tappable (first attempt found nothing)
-                        //   .inactive — label only, no action (found regions, or already retried)
-                        let attemptDone = viewModel.diagramAnalysisAttemptCount
-                        let isRetryState = attemptDone == 1 && !viewModel.diagramAnalysisFoundRegions
-                        let isInactive   = attemptDone >= 1 && (viewModel.diagramAnalysisFoundRegions || attemptDone >= 2)
+                        // Passive background analysis state machine:
+                        //   .running  — spinner (background or foreground), disabled
+                        //   .done     — "✓ Done" pill (inactive)
+                        //   .retry    — "↺ Retry" pill (tappable, shown on failure)
+                        let isRunning = viewModel.isDiagramAnalysisPending || stateManager.isBackgroundDiagramAnalysisPending
+                        let isDone = (stateManager.backgroundDiagramAttemptCount > 0 && !stateManager.backgroundDiagramAnalysisFailed)
+                            || (viewModel.diagramAnalysisAttemptCount > 0 && viewModel.diagramAnalysisFoundRegions)
+                        let isRetry = !isRunning && !isDone &&
+                            (stateManager.backgroundDiagramAnalysisFailed || viewModel.diagramAnalysisFailed ||
+                             (viewModel.diagramAnalysisAttemptCount > 0 && !viewModel.diagramAnalysisFoundRegions))
 
-                        Button(action: {
-                            if !isInactive {
-                                Task { await viewModel.runDiagramAnalysisIfNeeded() }
-                            }
-                        }) {
-                            HStack(spacing: 5) {
-                                if viewModel.isDiagramAnalysisPending {
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                        .scaleEffect(0.7)
-                                        .frame(width: 14, height: 14)
-                                } else if isInactive {
-                                    Image(systemName: "checkmark")
-                                        .font(.system(size: 11, weight: .semibold))
-                                        .foregroundColor(.white.opacity(0.7))
-                                    Text(NSLocalizedString("proMode.croppedDone", comment: "Smart Crop button: already cropped state"))
-                                        .font(.system(size: 12, weight: .semibold))
-                                        .foregroundColor(.white.opacity(0.7))
-                                } else if isRetryState {
-                                    Image(systemName: "arrow.clockwise")
-                                        .font(.system(size: 12, weight: .semibold))
-                                        .foregroundColor(.white)
-                                    Text(NSLocalizedString("proMode.retryCrop", comment: "Smart Crop button: retry state"))
-                                        .font(.system(size: 12, weight: .semibold))
-                                        .foregroundColor(.white)
-                                } else {
-                                    Image(systemName: "sparkles")
-                                        .font(.system(size: 12, weight: .semibold))
-                                        .foregroundColor(.white)
-                                    Text(NSLocalizedString("proMode.smartCrop", comment: "Smart Crop button: initial state"))
-                                        .font(.system(size: 12, weight: .semibold))
-                                        .foregroundColor(.white)
+                        if isRunning || isDone || isRetry {
+                            Button(action: {
+                                if isRetry {
+                                    Task { await viewModel.runDiagramAnalysisIfNeeded() }
                                 }
-                            }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(
-                                Capsule().fill(
-                                    isInactive
-                                        ? LinearGradient(colors: [Color.gray.opacity(0.5), Color.gray.opacity(0.4)],
-                                                         startPoint: .leading, endPoint: .trailing)
-                                        : LinearGradient(colors: [.orange, Color(red: 1.0, green: 0.45, blue: 0.35)],
-                                                         startPoint: .leading, endPoint: .trailing)
+                            }) {
+                                HStack(spacing: 5) {
+                                    if isRunning {
+                                        ProgressView()
+                                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                            .scaleEffect(0.7)
+                                            .frame(width: 14, height: 14)
+                                    } else if isDone {
+                                        Image(systemName: "checkmark")
+                                            .font(.system(size: 11, weight: .semibold))
+                                            .foregroundColor(.white.opacity(0.7))
+                                        Text(viewModel.isAnnotationSectionExpanded
+                                             ? NSLocalizedString("proMode.done", comment: "Done")
+                                             : NSLocalizedString("proMode.croppedDone", comment: "Smart Crop button: already cropped state"))
+                                            .font(.system(size: 12, weight: .semibold))
+                                            .foregroundColor(.white.opacity(0.7))
+                                    } else {
+                                        Image(systemName: "arrow.clockwise")
+                                            .font(.system(size: 12, weight: .semibold))
+                                            .foregroundColor(.white)
+                                        Text(NSLocalizedString("proMode.retryCrop", comment: "Smart Crop button: retry state"))
+                                            .font(.system(size: 12, weight: .semibold))
+                                            .foregroundColor(.white)
+                                    }
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(
+                                    Capsule().fill(
+                                        isDone || isRunning
+                                            ? LinearGradient(colors: [Color.gray.opacity(0.5), Color.gray.opacity(0.4)],
+                                                             startPoint: .leading, endPoint: .trailing)
+                                            : LinearGradient(colors: [.orange, Color(red: 1.0, green: 0.45, blue: 0.35)],
+                                                             startPoint: .leading, endPoint: .trailing)
+                                    )
                                 )
-                            )
-                            .shadow(color: isInactive ? .clear : .orange.opacity(0.35), radius: 4, x: 0, y: 2)
+                                .shadow(color: (isDone || isRunning) ? .clear : .orange.opacity(0.35), radius: 4, x: 0, y: 2)
+                            }
+                            .disabled(isRunning || isDone)
+                            .accessibilityLabel(NSLocalizedString("proMode.aiAnalyzeDiagrams",
+                                                 comment: "Auto-locate diagram regions with AI"))
                         }
-                        .disabled(viewModel.isDiagramAnalysisPending || isInactive)
-                        .accessibilityLabel(NSLocalizedString("proMode.aiAnalyzeDiagrams",
-                                             comment: "Auto-locate diagram regions with AI"))
                     }
 
                     Image(systemName: viewModel.isAnnotationSectionExpanded ? "chevron.up" : "chevron.down")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(.secondary)
+                        .opacity(viewModel.isAnnotationSectionExpanded ? 0 : 1)
                 }
                 .padding(.trailing, 16)
             }
@@ -1126,6 +1224,12 @@ struct DigitalHomeworkView: View {
             .onAppear {
                 if viewModel.anyQuestionNeedsImage && viewModel.annotations.isEmpty {
                     annotationGlowPulse = true
+                }
+            }
+            .onChange(of: stateManager.backgroundDiagramAttemptCount) { count in
+                // Background analysis just completed — if it failed, trigger foreground as fallback
+                if count > 0 && stateManager.backgroundDiagramAnalysisFailed {
+                    Task { await viewModel.runDiagramAnalysisIfNeeded() }
                 }
             }
             .onChange(of: viewModel.anyQuestionNeedsImage) { needsImage in
@@ -1259,12 +1363,22 @@ struct DigitalHomeworkView: View {
                     // with unified coordinate system (scale/offset applied to both)
                     AnnotatableImageView(
                         image: originalImages[safe: selectedImageIndex] ?? originalImages[0],  // ✅ Use selected image
-                        annotations: viewModel.annotations.filter { $0.pageIndex == selectedImageIndex },  // ✅ Filter by page
+                        annotations: viewModel.annotations.filter {
+                            $0.pageIndex == selectedImageIndex &&
+                            (focusedAnnotationQuestionId == nil || $0.questionNumber == focusedAnnotationQuestionId)
+                        },
                         selectedAnnotationId: $viewModel.selectedAnnotationId,
                         isInteractive: true,  // ✅ Enable interactive mode
                         annotationsBinding: viewModel.annotationsBinding,  // ✅ Pass binding for editing
                         availableQuestionNumbers: viewModel.availableQuestionNumbers,  // ✅ Pass question numbers
-                        pageIndex: selectedImageIndex  // ✅ Pass current page index
+                        pageIndex: selectedImageIndex,  // ✅ Pass current page index
+                        startColorIndex: viewModel.annotations.count,  // Non-overlapping colors across pages
+                        onNewAnnotation: { annotationId in
+                            if let pending = pendingAnnotationQuestionId {
+                                viewModel.updateAnnotationQuestionNumber(annotationId: annotationId, questionNumber: pending)
+                                pendingAnnotationQuestionId = nil
+                            }
+                        }
                     )
                     .matchedGeometryEffect(id: "homeworkImage", in: animationNamespace)
                     .background(Color.black)
@@ -1405,7 +1519,13 @@ struct DigitalHomeworkView: View {
 
             // 完成按钮 (右侧)
             Button {
-                if let unassigned = viewModel.annotations.first(where: { $0.questionNumber == nil }) {
+                if focusedAnnotationQuestionId != nil {
+                    // Focused mode: exit back to question list
+                    let vm = self.viewModel
+                    vm.showAnnotationMode = false
+                    vm.selectedAnnotationId = nil
+                    focusedAnnotationQuestionId = nil
+                } else if let unassigned = viewModel.annotations.first(where: { $0.questionNumber == nil }) {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                         annotationWarning = unassigned
                     }
@@ -1420,8 +1540,10 @@ struct DigitalHomeworkView: View {
                 }
             } label: {
                 HStack(spacing: 6) {
-                    Image(systemName: "checkmark.circle.fill")
-                    Text(NSLocalizedString("proMode.done", comment: "Done"))
+                    Image(systemName: focusedAnnotationQuestionId != nil ? "chevron.left.circle.fill" : "checkmark.circle.fill")
+                    Text(focusedAnnotationQuestionId != nil
+                         ? NSLocalizedString("proMode.back", comment: "Back")
+                         : NSLocalizedString("proMode.done", comment: "Done"))
                 }
                 .font(.subheadline)
                 .fontWeight(.semibold)
@@ -1630,31 +1752,13 @@ struct DigitalHomeworkView: View {
     }
 
     // MARK: - Grade Button Section
+    // Note: mode toggle and grade button moved to compactGradeBar (fixed above scroll).
+    // This section shows progress/status content only.
 
     private var gradeButtonSection: some View {
         VStack(spacing: 12) {
-            // ✅ NEW: Enhanced animated progress card (if grading)
-            if viewModel.isGrading {
-                gradingProgressCard
-                    .transition(.scale.combined(with: .opacity))
-            }
-
-            // PRODUCTION MODE: Unified Fast/Deep Mode toggle
-            // PROTOTYPE MODE: Separate AI model selector + Deep reasoning toggle
-            if !viewModel.isGrading {
-                if FeatureFlags.manualModelSelection {
-                    // ✅ PROTOTYPE MODE: Show both AI model selector and deep reasoning toggle
-                    aiModelSelectorCard
-
-                    deepReasoningToggleCard
-                } else {
-                    // ✅ PRODUCTION MODE: Single Fast/Deep mode toggle
-                    unifiedModeToggleCard
-                }
-            }
-
-            // Diagram analysis banner (shown while Phase 1.5 is running)
-            if viewModel.isDiagramAnalysisPending {
+            // Diagram analysis banner (shown while Phase 1.5 is running — foreground or background)
+            if viewModel.isDiagramAnalysisPending || stateManager.isBackgroundDiagramAnalysisPending {
                 HStack(spacing: 10) {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle(tint: .orange))
@@ -1669,7 +1773,7 @@ struct DigitalHomeworkView: View {
                 .background(Color.orange.opacity(0.1))
                 .cornerRadius(12)
                 .transition(.opacity.combined(with: .move(edge: .top)))
-            } else if viewModel.diagramAnalysisFailed {
+            } else if viewModel.diagramAnalysisFailed || stateManager.backgroundDiagramAnalysisFailed {
                 HStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundColor(.secondary)
@@ -1685,36 +1789,6 @@ struct DigitalHomeworkView: View {
                 .cornerRadius(10)
                 .transition(.opacity)
             }
-
-            // Grade button (✅ Production: Fast Mode = Quick Grade (blue), Deep Mode = Deep Grade (purple))
-            Button(action: {
-                Task {
-                    await viewModel.startGrading()
-                }
-            }) {
-                Text(!viewModel.useDeepReasoning ?
-                    NSLocalizedString("proMode.quickGrade", comment: "Quick Grade") :
-                    NSLocalizedString("proMode.deepGrade", comment: "Deep Grade"))
-                    .font(.headline)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(
-                        LinearGradient(
-                            colors: !viewModel.useDeepReasoning ?
-                                [themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary,
-                                 (themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary).opacity(0.8)] :
-                                [DesignTokens.Colors.Cute.lavender, DesignTokens.Colors.Cute.lavender.opacity(0.8)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .cornerRadius(16)
-                    .shadow(color: (!viewModel.useDeepReasoning ? (themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.blue : DesignTokens.Colors.primary) : DesignTokens.Colors.Cute.lavender).opacity(0.3), radius: 8, x: 0, y: 4)
-            }
-            .disabled(!viewModel.isGradingEnabled)
-            .opacity(!viewModel.isGradingEnabled ? 0.5 : 1.0)
 
             // Info message about annotations (optional feature - hide while auto-analysis is running)
             if viewModel.annotations.isEmpty && !viewModel.isDiagramAnalysisPending {
@@ -2032,7 +2106,131 @@ struct DigitalHomeworkView: View {
         )
     }
 
-    // ✅ Helper function for fitted image size (unified calculation)
+    // MARK: - Compact Grade Bar (always-visible one-line bar above scroll)
+
+    private var compactGradeBar: some View {
+        let isDeep = viewModel.useDeepReasoning
+        let fastColor = Color(red: 0.18, green: 0.72, blue: 0.38)   // green
+        let deepColor = Color(red: 0.55, green: 0.27, blue: 0.80)   // purple (matches unifiedModeToggleCard)
+        let activeColor = isDeep ? deepColor : fastColor
+
+        return HStack(spacing: 10) {
+            // ── Slide-capsule mode selector ──────────────────────────────
+            ZStack {
+                // Track
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color(.secondarySystemGroupedBackground))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color(.separator), lineWidth: 0.5)
+                    )
+
+                // Sliding thumb (GeometryReader reads the ZStack's fixed frame)
+                GeometryReader { geo in
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(activeColor)
+                        .frame(width: geo.size.width / 2 - 4, height: geo.size.height - 6)
+                        .offset(x: isDeep ? geo.size.width / 2 + 2 : 2, y: 3)
+                        .animation(.spring(response: 0.3, dampingFraction: 0.72), value: isDeep)
+                }
+
+                // Labels row (must be on top of thumb so text is always visible)
+                HStack(spacing: 0) {
+                    Button { viewModel.useDeepReasoning = false } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "bolt.fill").font(.system(size: 11, weight: .semibold))
+                            Text(NSLocalizedString("proMode.fastModeShort", comment: "Fast"))
+                                .font(.caption).fontWeight(.semibold)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .foregroundColor(!isDeep ? .white : .secondary)
+                    }
+                    .buttonStyle(.plain)
+
+                    Button { viewModel.useDeepReasoning = true } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "brain.head.profile.fill").font(.system(size: 11, weight: .semibold))
+                            Text(NSLocalizedString("proMode.deepModeShort", comment: "Deep"))
+                                .font(.caption).fontWeight(.semibold)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .foregroundColor(isDeep ? .white : .secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .frame(width: 162, height: 36)
+
+            // ── Grade button ─────────────────────────────────────────────
+            let isCropping = stateManager.isBackgroundDiagramAnalysisPending || viewModel.isDiagramAnalysisPending
+            GradeButtonView(
+                label: viewModel.isGrading ? viewModel.gradeButtonLabel
+                    : (viewModel.useDeepReasoning
+                        ? NSLocalizedString("proMode.deepGrade", comment: "Deep Grade")
+                        : NSLocalizedString("proMode.quickGrade", comment: "Quick Grade")),
+                isGrading: viewModel.isGrading,
+                isEnabled: viewModel.isGradingEnabled,
+                isCropping: isCropping,
+                activeColor: activeColor
+            ) {
+                Task { await viewModel.startGrading() }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(Color(.systemGroupedBackground))
+    }
+
+    // Slim inline progress bar shown during grading — replaces compactGradeBar
+    private var compactGradingBar: some View {
+        let progress = viewModel.totalQuestions > 0
+            ? CGFloat(viewModel.gradedCount) / CGFloat(viewModel.totalQuestions)
+            : 0
+        let barColor = viewModel.useDeepReasoning ? Color.purple : Color(red: 0.18, green: 0.72, blue: 0.38)
+
+        return VStack(spacing: 5) {
+            HStack(spacing: 8) {
+                // Pulsing model icon
+                Image(viewModel.useDeepReasoning ? "gemini-icon" : "openai-light")
+                    .resizable()
+                    .renderingMode(.template)
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 16, height: 16)
+                    .foregroundColor(barColor)
+                    .scaleEffect(1.0)
+                    .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: viewModel.gradedCount)
+
+                Text(viewModel.currentGradingStatus)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+
+                Spacer()
+
+                Text("\(viewModel.gradedCount) / \(viewModel.totalQuestions)")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(barColor)
+            }
+
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color(.systemGray5)).frame(height: 5)
+                    Capsule()
+                        .fill(LinearGradient(
+                            colors: viewModel.useDeepReasoning ? [.purple, .blue] : [barColor, .blue],
+                            startPoint: .leading, endPoint: .trailing))
+                        .frame(width: geo.size.width * progress, height: 5)
+                        .animation(.spring(response: 0.5, dampingFraction: 0.7), value: viewModel.gradedCount)
+                }
+            }
+            .frame(height: 5)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(Color(.systemGroupedBackground))
+    }
     private func fittedImageSize(_ imageSize: CGSize, _ containerSize: CGSize) -> CGSize {
         let imageAspect = imageSize.width / imageSize.height
         let containerAspect = containerSize.width / containerSize.height
@@ -2117,6 +2315,8 @@ struct QuestionCard: View {
     let onToggleDeletionSelection: () -> Void  // ✅ NEW: Toggle deletion selection
     let onLongPress: () -> Void  // ✅ NEW: Long press gesture callback
     let onRemoveImage: () -> Void  // NEW: callback to remove image
+    let onEditCroppedImage: ((String) -> Void)?  // Tap cropped image → focused annotation edit
+    let onAddPicture: ((String, Int) -> Void)?  // Tap "add picture here" → open annotation for this question
     let isUnderDiagramAnalysis: Bool
     let subquestionsUnderAnalysis: Set<String>  // subquestion ids currently being analyzed
     let missingDiagramImageIds: Set<String>
@@ -2213,6 +2413,10 @@ struct QuestionCard: View {
                     .frame(maxHeight: 120)
                     .background(Color.gray.opacity(0.1))
                     .cornerRadius(8)
+                    .onTapGesture {
+                        let qNum = questionWithGrade.question.questionNumber ?? questionWithGrade.question.id
+                        onEditCroppedImage?(qNum)
+                    }
 
                 // X button to remove image
                 Button(action: onRemoveImage) {
@@ -2228,36 +2432,47 @@ struct QuestionCard: View {
                 .offset(x: 8, y: -8)
             }
         } else if isUnderDiagramAnalysis {
-            // Pulsing icon while AI is locating the diagram
+            // Breathing glow while AI crops this question's diagram
             HStack(spacing: 6) {
-                Image(systemName: "photo.badge.exclamationmark.fill")
+                Image(systemName: "sparkles")
                     .font(.title3)
                     .foregroundColor(.orange)
-                    .opacity(isPulsing ? 1.0 : 0.25)
-                    .animation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true),
-                               value: isPulsing)
+                    .scaleEffect(isPulsing ? 1.15 : 0.9)
+                    .opacity(isPulsing ? 1.0 : 0.5)
+                    .animation(
+                        .easeInOut(duration: 1.0).repeatForever(autoreverses: true),
+                        value: isPulsing
+                    )
                     .onAppear { isPulsing = true }
                     .onDisappear { isPulsing = false }
-                Text(NSLocalizedString("proMode.annotationImageHint", comment: ""))
+                Text(NSLocalizedString("proMode.croppingImageHint", comment: "Breathing icon label while cropping diagram"))
                     .font(.caption2)
                     .foregroundColor(.orange)
             }
-        } else if missingDiagramImageIds.contains(questionWithGrade.question.id)
-                    || questionWithGrade.question.needImage == true {
-            // Shaking icon: initial state (needImage before any analysis) or AI failed to locate
-            HStack(spacing: 6) {
-                Image(systemName: "photo.badge.exclamationmark.fill")
-                    .font(.title3)
-                    .foregroundColor(.orange)
-                    .offset(x: isShaking ? 4 : -4)
-                    .animation(.easeInOut(duration: 0.1).repeatForever(autoreverses: true),
-                               value: isShaking)
-                    .onAppear { isShaking = true }
-                    .onDisappear { isShaking = false }
-                Text(NSLocalizedString("proMode.addPictureHint", comment: "Shaking icon label asking user to add a picture"))
-                    .font(.caption2)
-                    .foregroundColor(.orange)
+        } else if (missingDiagramImageIds.contains(questionWithGrade.question.id)
+                    || questionWithGrade.question.needImage == true)
+                   && subquestionCroppedImages.isEmpty {
+            // Tappable shaking icon: leads user to annotation editor for this question
+            let pageIndex = max((questionWithGrade.question.pageNumber ?? 1) - 1, 0)
+            let questionNum = questionWithGrade.question.questionNumber ?? questionWithGrade.question.id
+            Button {
+                onAddPicture?(questionNum, pageIndex)
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "photo.badge.exclamationmark.fill")
+                        .font(.title3)
+                        .foregroundColor(.orange)
+                        .offset(x: isShaking ? 4 : -4)
+                        .animation(.easeInOut(duration: 0.1).repeatForever(autoreverses: true),
+                                   value: isShaking)
+                        .onAppear { isShaking = true }
+                        .onDisappear { isShaking = false }
+                    Text(NSLocalizedString("proMode.addPictureHint", comment: "Shaking icon label asking user to add a picture"))
+                        .font(.caption2)
+                        .foregroundColor(.orange)
+                }
             }
+            .buttonStyle(.plain)
         }
     }
 
@@ -2282,6 +2497,7 @@ struct QuestionCard: View {
                                 modelType: modelType,
                                 isArchived: questionWithGrade.archivedSubquestions.contains(subquestion.id),  // ✅ NEW: Check if archived
                                 croppedImage: subquestionCroppedImages[subquestion.id],
+                                parentCroppedImage: croppedImage,
                                 isUnderDiagramAnalysis: subquestionsUnderAnalysis.contains(subquestion.id),
                                 missingDiagramImageIds: missingDiagramImageIds,
                                 onAskAI: {
@@ -2303,6 +2519,11 @@ struct QuestionCard: View {
                                     // ✅ NEW: Regrade only this subquestion
                                     debugPrint("🔄 Regrade subquestion \(subquestion.id)")
                                     onRegradeSubquestion?(subquestion.id)
+                                },
+                                onEditCroppedImage: onEditCroppedImage,
+                                onAddPicture: {
+                                    let pageIndex = max((questionWithGrade.question.pageNumber ?? 1) - 1, 0)
+                                    onAddPicture?(subquestion.id, pageIndex)
                                 }
                             )
                         }
@@ -2387,9 +2608,7 @@ struct QuestionCard: View {
             Group {
                 if isUnderDiagramAnalysis {
                     RoundedRectangle(cornerRadius: 16)
-                        .fill(Color.black.opacity(0.45))
-                    ProgressView()
-                        .scaleEffect(0.9)
+                        .fill(Color.orange.opacity(0.06))
                 }
             }
         )
@@ -2867,12 +3086,15 @@ struct SubquestionRow: View {
     let modelType: String  // ✅ NEW: Track AI model for loading indicator
     let isArchived: Bool  // ✅ NEW: Track if this subquestion is archived
     let croppedImage: UIImage?  // Image cropped for this specific subquestion
+    let parentCroppedImage: UIImage?  // Parent question's crop — if set, this sub's image requirement is satisfied
     let isUnderDiagramAnalysis: Bool  // true while AI is locating this subquestion's diagram
     let missingDiagramImageIds: Set<String>  // IDs where AI couldn't locate diagram
     let onAskAI: () -> Void
     let onArchive: () -> Void  // This archives the parent question
     let onArchiveSubquestion: () -> Void  // ✅ NEW: Archive this subquestion only
     let onRegrade: () -> Void  // ✅ NEW: Regrade this subquestion
+    let onEditCroppedImage: ((String) -> Void)?  // Tap subquestion's cropped image → focused edit
+    let onAddPicture: (() -> Void)?  // Tap "add picture here" → open annotation editor
 
     @State private var showFeedback = false  // ✅ CHANGED: Collapsed by default
     @State private var showArchiveOptions = false  // ✅ NEW: Show action sheet for archive options
@@ -2951,38 +3173,50 @@ struct SubquestionRow: View {
                     .background(Color.gray.opacity(0.1))
                     .cornerRadius(6)
                     .padding(.leading, 24)
+                    .onTapGesture {
+                        onEditCroppedImage?(subquestion.id)
+                    }
             } else if isUnderDiagramAnalysis {
-                // Pulsing icon while AI is locating this subquestion's diagram
+                // Breathing glow while AI crops this subquestion's diagram
                 HStack(spacing: 6) {
-                    Image(systemName: "photo.badge.exclamationmark.fill")
+                    Image(systemName: "sparkles")
                         .font(.title3)
                         .foregroundColor(.orange)
-                        .opacity(isSubShaking ? 1.0 : 0.25)
-                        .animation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true),
-                                   value: isSubShaking)
+                        .scaleEffect(isSubShaking ? 1.15 : 0.9)
+                        .opacity(isSubShaking ? 1.0 : 0.5)
+                        .animation(
+                            .easeInOut(duration: 1.0).repeatForever(autoreverses: true),
+                            value: isSubShaking
+                        )
                         .onAppear { isSubShaking = true }
                         .onDisappear { isSubShaking = false }
-                    Text(NSLocalizedString("proMode.annotationImageHint", comment: ""))
+                    Text(NSLocalizedString("proMode.croppingImageHint", comment: "Breathing icon label while cropping diagram"))
                         .font(.caption2)
                         .foregroundColor(.orange)
                 }
                 .padding(.leading, 24)
-            } else if missingDiagramImageIds.contains(subquestion.id)
-                        || subquestion.needImage == true {
-                // Shaking icon: initial state (needImage before any analysis) or AI failed to locate
-                HStack(spacing: 6) {
-                    Image(systemName: "photo.badge.exclamationmark.fill")
-                        .font(.title3)
-                        .foregroundColor(.orange)
-                        .offset(x: isSubShaking ? 4 : -4)
-                        .animation(.easeInOut(duration: 0.1).repeatForever(autoreverses: true),
-                                   value: isSubShaking)
-                        .onAppear { isSubShaking = true }
-                        .onDisappear { isSubShaking = false }
-                    Text(NSLocalizedString("proMode.addPictureHint", comment: "Shaking icon label asking user to add a picture"))
-                        .font(.caption2)
-                        .foregroundColor(.orange)
+            } else if (missingDiagramImageIds.contains(subquestion.id)
+                        || subquestion.needImage == true)
+                       && parentCroppedImage == nil {
+                // Tappable shaking icon: leads user to annotation editor for this subquestion
+                Button {
+                    onAddPicture?()
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "photo.badge.exclamationmark.fill")
+                            .font(.title3)
+                            .foregroundColor(.orange)
+                            .offset(x: isSubShaking ? 4 : -4)
+                            .animation(.easeInOut(duration: 0.1).repeatForever(autoreverses: true),
+                                       value: isSubShaking)
+                            .onAppear { isSubShaking = true }
+                            .onDisappear { isSubShaking = false }
+                        Text(NSLocalizedString("proMode.addPictureHint", comment: "Shaking icon label asking user to add a picture"))
+                            .font(.caption2)
+                            .foregroundColor(.orange)
+                    }
                 }
+                .buttonStyle(.plain)
                 .padding(.leading, 24)
             }
 
@@ -3631,5 +3865,77 @@ struct GradingLoadingIndicator: View {
             ),
             originalImages: [UIImage(systemName: "photo")!, UIImage(systemName: "photo.fill")!]  // ✅ Changed to array with 2 images to test card stack
         )
+    }
+}
+
+// MARK: - Grade Button (isolated view so repeatForever animation has stable identity)
+
+private struct GradeButtonView: View {
+    let label: String
+    let isGrading: Bool
+    let isEnabled: Bool
+    let isCropping: Bool
+    let activeColor: Color
+    let action: () -> Void
+
+    @State private var glowing = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                if isGrading {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .scaleEffect(0.72)
+                }
+                Text(label)
+                    .font(.subheadline).fontWeight(.bold).foregroundColor(.white)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 9)
+            .background(
+                Group {
+                    if isCropping {
+                        Color(.systemGray3)
+                    } else {
+                        LinearGradient(
+                            colors: [activeColor, activeColor.opacity(0.82)],
+                            startPoint: .leading, endPoint: .trailing
+                        )
+                    }
+                }
+            )
+            .cornerRadius(10)
+            .shadow(
+                color: (isEnabled && !isCropping) ? activeColor.opacity(glowing ? 0.6 : 0.2) : .clear,
+                radius: glowing ? 9 : 4, x: 0, y: 0
+            )
+        }
+        .disabled(!isEnabled)
+        .opacity(!isEnabled ? 0.6 : 1.0)
+        .onAppear {
+            guard isEnabled && !isCropping && !isGrading else { return }
+            withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
+                glowing = true
+            }
+        }
+        .onChange(of: isCropping) { _, cropping in
+            if cropping {
+                glowing = false
+            } else if isEnabled && !isGrading {
+                withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
+                    glowing = true
+                }
+            }
+        }
+        .onChange(of: isEnabled) { _, enabled in
+            if !enabled {
+                glowing = false
+            } else if !isCropping && !isGrading {
+                withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
+                    glowing = true
+                }
+            }
+        }
     }
 }

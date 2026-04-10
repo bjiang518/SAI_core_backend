@@ -1839,6 +1839,7 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "proMode.questionPreview" = "Question Preview";
 "proMode.tapToAnnotate" = "Tap to create annotation box";
 "proMode.done" = "Done";
+"proMode.back" = "Retour";
 "proMode.selectQuestionNumber" = "Select Question Number";
 "proMode.questionPrefix" = "Q";
 "proMode.pageCounter" = "Page %d/%d";
@@ -1848,6 +1849,8 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "proMode.deepGradingMode" = "Deep Grading Mode";
 "proMode.deepMode" = "Deep Mode";
 "proMode.fastMode" = "Fast Mode";  // ✅ Production: Fast Mode (GPT Deep)
+"proMode.fastModeShort" = "Rapide";
+"proMode.deepModeShort" = "Profond";
 "proMode.deepGradingDescription" = "AI will analyze deeply (slower but more accurate)";
 "proMode.deepModeDescription" = "Deep analysis with advanced reasoning";  // ✅ Production: Deep Mode description
 "proMode.fastModeDescription" = "Quick grading with logic check";  // ✅ Production: Fast Mode description
@@ -1871,6 +1874,7 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "proMode.subquestionAnswer" = "Answer: %@";
 "proMode.addAnnotation" = "Add Annotation";
 "proMode.editAnnotations" = "Edit Annotations (%d)";
+"proMode.editImage" = "Modifier l'image";
 "proMode.annotationImageHint" = "Some questions need images — tap to crop from photo";
 "proMode.aiAnalyzeDiagrams" = "Localiser automatiquement les zones de diagramme avec l'IA";
 "proMode.selectAIModel" = "Select AI Model";
@@ -1937,7 +1941,9 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "proMode.smartCrop" = "Recadrage intelligent";
 "proMode.retryCrop" = "Réessayer";
 "proMode.croppedDone" = "Recadré";
+"proMode.addingImagesToQuestions" = "Ajout d'images aux questions…";
 "proMode.addPictureHint" = "Ajouter une image ici";
+"proMode.croppingImageHint" = "Recadrage du diagramme…";
 "proMode.selectQuestionFor" = "Sélectionner le numéro de question pour";
 
 // PDF Preview
