@@ -92,6 +92,7 @@ class ProgressiveSubquestion(BaseModel):
 class ParsedQuestion(BaseModel):
     id: Union[int, str]
     question_number: Optional[str] = None
+    pageNumber: Optional[int] = None  # FIX: must be declared so Pydantic preserves it for multi-page batch parsing
     is_parent: Optional[bool] = None
     has_subquestions: Optional[bool] = None
     parent_content: Optional[str] = None
