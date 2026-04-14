@@ -2685,3 +2685,7 @@
 "promo.error.expired" = "このプロモコードは期限切れです。";
 "promo.error.maxUses" = "このプロモコードは上限に達しました。";
 "promo.guestHint" = "プロモコードを使用するには無料アカウントを作成してください。";
+
+// Saved Digital Homework view modes
+"savedHomework.viewMode.parsed" = "問題モード";
+"savedHomework.viewMode.graded" = "採点モード";

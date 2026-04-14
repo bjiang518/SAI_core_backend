@@ -2671,3 +2671,7 @@
 "promo.error.expired" = "此優惠碼已過期。";
 "promo.error.maxUses" = "此優惠碼已達到使用上限。";
 "promo.guestHint" = "註冊免費帳號以兌換優惠碼。";
+
+// Saved Digital Homework view modes
+"savedHomework.viewMode.parsed" = "題目模式";
+"savedHomework.viewMode.graded" = "批改模式";

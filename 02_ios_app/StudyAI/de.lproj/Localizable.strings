@@ -2705,3 +2705,7 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "promo.error.expired" = "Dieser Promo-Code ist abgelaufen.";
 "promo.error.maxUses" = "Dieser Promo-Code hat sein Limit erreicht.";
 "promo.guestHint" = "Erstelle ein kostenloses Konto, um einen Promo-Code einzulösen.";
+
+// Saved Digital Homework view modes
+"savedHomework.viewMode.parsed" = "Fragenmodus";
+"savedHomework.viewMode.graded" = "Bewertungsmodus";

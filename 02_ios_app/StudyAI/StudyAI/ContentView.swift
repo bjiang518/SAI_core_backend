@@ -472,6 +472,12 @@ struct MainTabView: View {
     }
 
     private func selectTab(_ tab: MainTab) {
+        // Update both the TabView binding and AppState simultaneously.
+        // Relying solely on onChange(of: appState.selectedTab) to update selectedTabIndex
+        // can miss the very first state change on fresh launch (before SwiftUI's onChange
+        // chain has processed its first cycle), causing home-screen cards to silently fail.
+        // Direct assignment here guarantees the TabView switches tabs immediately.
+        selectedTabIndex = tab.rawValue
         appState.selectedTab = tab
     }
 

@@ -188,9 +188,41 @@ class DigitalHomeworkStateManager: ObservableObject {
     // MARK: - Private Properties
 
     private var currentHomeworkHash: String?
+    private var autosaveWorkItem: DispatchWorkItem?
 
     private init() {
         // In-memory only (no UserDefaults persistence)
+    }
+
+    // MARK: - Pipeline State
+
+    /// Derives the current pipeline state from in-memory homework data.
+    var pipelineState: HomeworkPipelineState {
+        guard let hw = currentHomework else { return .parsed }
+        let gradedCount = hw.questions.filter { $0.grade != nil }.count
+        let total = hw.questions.count
+        let hasCrops = !hw.croppedImages.isEmpty || !hw.annotations.isEmpty
+        if gradedCount == total && total > 0 { return .graded }
+        if gradedCount > 0 { return .partiallyGraded }
+        if hasCrops { return .cropped }
+        return .parsed
+    }
+
+    // MARK: - Autosave Helpers
+
+    private func saveNow() {
+        guard let hw = currentHomework else { return }
+        HomeworkSessionPersistenceService.shared.save(data: hw, state: pipelineState)
+    }
+
+    private func scheduleDebouncedSave() {
+        autosaveWorkItem?.cancel()
+        let item = DispatchWorkItem { [weak self] in
+            guard let self, let hw = self.currentHomework else { return }
+            HomeworkSessionPersistenceService.shared.save(data: hw, state: self.pipelineState)
+        }
+        autosaveWorkItem = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0, execute: item)
     }
 
     // MARK: - State Management Methods
@@ -260,6 +292,9 @@ class DigitalHomeworkStateManager: ObservableObject {
         backgroundDiagramAnalysisFailed = false
         backgroundDiagramAttemptCount = 0
         questionsUnderBackgroundAnalysis = []
+
+        // Persist new session immediately
+        saveNow()
     }
 
     /// Complete grading - State transition: Parsed → Graded
@@ -272,6 +307,9 @@ class DigitalHomeworkStateManager: ObservableObject {
         homework.lastModified = Date()
         currentHomework = homework
         currentState = .graded
+
+        // Persist graded state immediately
+        saveNow()
     }
 
     /// Update homework data (during grading, annotation, etc.)
@@ -306,6 +344,9 @@ class DigitalHomeworkStateManager: ObservableObject {
         // ✅ FIX: Explicitly notify SwiftUI of changes before updating
         objectWillChange.send()
         currentHomework = homework
+
+        // Debounced save (2s) — covers partial grading, annotation, crop changes
+        scheduleDebouncedSave()
     }
 
     /// Patch handwriting evaluation into the current homework's parseResults.
@@ -456,8 +497,9 @@ class DigitalHomeworkStateManager: ObservableObject {
     }
 
     private func cropRegionFromImage(_ region: ImageRegion, from image: UIImage) -> UIImage? {
-        let w = image.size.width
-        let h = image.size.height
+        guard let cgImg = image.cgImage else { return nil }
+        let w = CGFloat(cgImg.width)
+        let h = CGFloat(cgImg.height)
         let rect = CGRect(
             x: CGFloat(region.topLeft[0]) * w,
             y: CGFloat(region.topLeft[1]) * h,
@@ -465,7 +507,7 @@ class DigitalHomeworkStateManager: ObservableObject {
             height: CGFloat(region.bottomRight[1] - region.topLeft[1]) * h
         )
         guard rect.width > 10, rect.height > 10,
-              let cgImage = image.cgImage?.cropping(to: rect) else { return nil }
+              let cgImage = cgImg.cropping(to: rect) else { return nil }
         return UIImage(cgImage: cgImage)
     }
 
@@ -505,6 +547,11 @@ class DigitalHomeworkStateManager: ObservableObject {
 
     /// Clear all state - State transition: Any → Nothing
     func clearAll() {
+        // Delete from persistence before clearing
+        if let hash = currentHomeworkHash {
+            HomeworkSessionPersistenceService.shared.delete(hash: hash)
+        }
+        autosaveWorkItem?.cancel()
         currentState = .nothing
         currentHomework = nil
         currentHomeworkHash = nil
@@ -513,6 +560,23 @@ class DigitalHomeworkStateManager: ObservableObject {
         backgroundDiagramAnalysisFailed = false
         backgroundDiagramAttemptCount = 0
         questionsUnderBackgroundAnalysis = []
+    }
+
+    /// Restore a persisted session. Called by HomeworkSessionPersistenceService.restore().
+    func restoreSession(from data: DigitalHomeworkData) {
+        currentHomeworkHash = data.homeworkHash
+        currentHomework = data
+        let gradedCount = data.questions.filter { $0.grade != nil }.count
+        currentState = (gradedCount == data.questions.count && !data.questions.isEmpty) ? .graded : .parsed
+
+        // Reset background analysis state for restored session
+        isBackgroundDiagramAnalysisPending = false
+        backgroundDiagramAnalysisFailed = false
+        backgroundDiagramAttemptCount = 0
+        questionsUnderBackgroundAnalysis = []
+
+        // Ensure this session is in the persistence store (covers album-recovered sessions)
+        HomeworkSessionPersistenceService.shared.save(data: data, state: pipelineState)
     }
 
     /// Check if user should see resume prompt

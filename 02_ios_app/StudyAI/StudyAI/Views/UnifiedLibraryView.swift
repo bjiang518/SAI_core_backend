@@ -7,34 +7,10 @@
 
 import SwiftUI
 
-// MARK: - Content Type Filter Enum
-enum ContentTypeFilter: CaseIterable {
-    case all
-    case questions
-    case conversations
-
-    var displayName: String {
-        switch self {
-        case .all: return NSLocalizedString("library.contentType.allSessions", comment: "")
-        case .questions: return NSLocalizedString("library.contentType.questionsOnly", comment: "")
-        case .conversations: return NSLocalizedString("library.contentType.conversationsOnly", comment: "")
-        }
-    }
-
-    var icon: String {
-        switch self {
-        case .all: return "books.vertical.fill"
-        case .questions: return "questionmark.circle.fill"
-        case .conversations: return "bubble.left.and.bubble.right.fill"
-        }
-    }
-
-    var color: Color {
-        switch self {
-        case .all: return DesignTokens.Colors.analyticsPlum
-        case .questions: return DesignTokens.Colors.primary
-        case .conversations: return DesignTokens.Colors.success
-        }
+// MARK: - Double clamped helper
+extension Double {
+    func clamped(to range: ClosedRange<Double>) -> Double {
+        Swift.min(Swift.max(self, range.lowerBound), range.upperBound)
     }
 }
 
@@ -52,10 +28,14 @@ struct UnifiedLibraryView: View {
     @State private var isUsingAdvancedSearch = false
     @State private var advancedFilteredQuestions: [QuestionSummary] = []
 
-    // New state for content type filtering
-    @State private var selectedContentType: ContentTypeFilter = .all
-    @State private var showFilterIndicator = false
+    // Section visibility toggles (independent)
+    @State private var showQuestionsSection: Bool = true
+    @State private var showConversationsSection: Bool = true
+    @State private var showRawHomeworksSection: Bool = false
     @State private var showingLibraryInfo = false
+
+    // Homework image data
+    @StateObject private var homeworkStorageService = HomeworkImageStorageService.shared
 
     // Quick filter states
     @State private var activeQuickDateFilter: DateRange?
@@ -139,18 +119,24 @@ struct UnifiedLibraryView: View {
         return conversations.count
     }
 
-    // Total count reflecting all filters
-    private var filteredTotalCount: Int {
-        return filteredQuestionCount + filteredConversationCount
+    // Homework images filtered by the same top-bar date/subject filters
+    private var filteredHomeworkImages: [HomeworkImageRecord] {
+        var images = homeworkStorageService.homeworkImages.sorted { $0.submittedDate > $1.submittedDate }
+        if let dateFilter = activeQuickDateFilter {
+            let range = dateFilter.dateComponents
+            images = images.filter { $0.submittedDate >= range.startDate && $0.submittedDate <= range.endDate }
+        }
+        if let subject = selectedSubject {
+            images = images.filter { $0.subject.lowercased() == subject.lowercased() }
+        }
+        return images
     }
     
     var filteredItems: [LibraryItem] {
         var allItems: [LibraryItem] = []
 
-        // Use advanced search results if available, otherwise use regular library content
         let questionsToUse = isUsingAdvancedSearch ? advancedFilteredQuestions : libraryContent.questions
 
-        // Filter conversations by date if there's an active quick date filter
         let conversationsToUse: [[String: Any]]
         if let dateFilter = activeQuickDateFilter {
             let dateComponents = dateFilter.dateComponents
@@ -163,45 +149,32 @@ struct UnifiedLibraryView: View {
             conversationsToUse = libraryContent.conversations
         }
 
-        // Apply content type filter FIRST
-        switch selectedContentType {
-        case .questions:
-            // Only include questions/homework sessions
+        if showQuestionsSection {
             allItems.append(contentsOf: questionsToUse)
-
-        case .conversations:
-            // Only include pure conversation sessions
-            let conversationItems = conversationsToUse.map { ConversationLibraryItem(data: $0) }
-            allItems.append(contentsOf: conversationItems.filter { $0.itemType == .conversation })
-
-        case .all:
-            // Include everything
-            allItems.append(contentsOf: questionsToUse)
-            allItems.append(contentsOf: conversationsToUse.map { ConversationLibraryItem(data: $0) })
         }
 
-        // Then apply existing filters (subject, search text)
+        if showConversationsSection {
+            let conversationItems = conversationsToUse.map { ConversationLibraryItem(data: $0) }
+            allItems.append(contentsOf: conversationItems.filter { $0.itemType == .conversation })
+        }
+
         var filtered = allItems
 
-        // Subject filter
         if let selectedSubject = selectedSubject {
             filtered = filtered.filter { $0.subject.lowercased() == selectedSubject.lowercased() }
         }
 
-        // Question type filter
         if let selectedQuestionType = selectedQuestionType {
             filtered = filtered.filter { item in
-                // Only filter questions, not conversations
                 if let questionItem = item as? QuestionSummary,
                    let questionType = questionItem.questionType,
                    let type = QuestionType(rawValue: questionType) {
                     return type == selectedQuestionType
                 }
-                return false // Exclude if not a question or doesn't match
+                return false
             }
         }
 
-        // Search filter
         if !searchText.isEmpty {
             filtered = filtered.filter { item in
                 item.title.localizedCaseInsensitiveContains(searchText) ||
@@ -210,7 +183,6 @@ struct UnifiedLibraryView: View {
             }
         }
 
-        // Sort by date (newest first)
         return filtered.sorted { $0.date > $1.date }
     }
     
@@ -436,26 +408,52 @@ struct UnifiedLibraryView: View {
                 // ── Stats / content-type header ───────────────────────────
                 if !libraryContent.isEmpty {
                     QuickStatsHeader(
-                        content: libraryContent,
-                        selectedSubject: selectedSubject,
-                        selectedContentType: selectedContentType,
-                        onContentTypeSelected: { contentType in
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                selectedContentType = contentType
-                            }
-                        },
                         questionCount: filteredQuestionCount,
                         conversationCount: filteredConversationCount,
-                        totalCount: filteredTotalCount
+                        rawHomeworkCount: filteredHomeworkImages.count,
+                        showQuestions: showQuestionsSection,
+                        showConversations: showConversationsSection,
+                        showRawHomeworks: showRawHomeworksSection,
+                        selectedSubject: selectedSubject,
+                        onToggleQuestions: {
+                            withAnimation(.easeInOut(duration: 0.25)) { showQuestionsSection.toggle() }
+                        },
+                        onToggleConversations: {
+                            withAnimation(.easeInOut(duration: 0.25)) { showConversationsSection.toggle() }
+                        },
+                        onToggleRawHomeworks: {
+                            withAnimation(.easeInOut(duration: 0.25)) { showRawHomeworksSection.toggle() }
+                        }
                     )
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color(.systemBackground))
                     .listRowSeparator(.hidden)
                 }
 
+                // ── Raw Homework Cover Flow (shown when Raw pill is active) ────
+                if showRawHomeworksSection {
+                    if filteredHomeworkImages.isEmpty {
+                        HStack(spacing: 8) {
+                            Image(systemName: "photo.on.rectangle")
+                                .foregroundColor(.orange)
+                            Text("No homework images match the current filters")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding()
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                    } else {
+                        RawHomeworkCoverFlowRow(records: filteredHomeworkImages)
+                            .listRowInsets(EdgeInsets())
+                            .listRowBackground(Color(.systemBackground))
+                            .listRowSeparator(.hidden)
+                    }
+                }
+
                 // ── Content items ─────────────────────────────────────────
                 if filteredItems.isEmpty {
-                    NoResultsView(hasFilters: !searchText.isEmpty || selectedSubject != nil || selectedContentType != .all || selectedQuestionType != nil) {
+                    NoResultsView(hasFilters: !searchText.isEmpty || selectedSubject != nil || !showQuestionsSection || !showConversationsSection || selectedQuestionType != nil) {
                         clearFilters()
                     }
                     .listRowBackground(Color.clear)
@@ -874,7 +872,9 @@ struct UnifiedLibraryView: View {
     private func clearFilters() {
         searchText = ""
         selectedSubject = nil
-        selectedContentType = .all
+        showQuestionsSection = true
+        showConversationsSection = true
+        showRawHomeworksSection = false
         activeQuickDateFilter = nil
         hasActiveImageFilter = false
         selectedQuestionType = nil
@@ -896,77 +896,58 @@ struct UnifiedLibraryView: View {
 // MARK: - Quick Stats Header
 
 struct QuickStatsHeader: View {
-    let content: LibraryContent
-    let selectedSubject: String?
-    let selectedContentType: ContentTypeFilter
-    let onContentTypeSelected: (ContentTypeFilter) -> Void
     let questionCount: Int
     let conversationCount: Int
-    let totalCount: Int
+    let rawHomeworkCount: Int
+    let showQuestions: Bool
+    let showConversations: Bool
+    let showRawHomeworks: Bool
+    let selectedSubject: String?
+    let onToggleQuestions: () -> Void
+    let onToggleConversations: () -> Void
+    let onToggleRawHomeworks: () -> Void
 
     var body: some View {
         VStack(spacing: 12) {
-            HStack(spacing: 20) {
+            HStack(spacing: 12) {
                 InteractiveStatPill(
                     icon: "questionmark.circle.fill",
                     title: NSLocalizedString("library.stats.questions", comment: ""),
                     count: questionCount,
-                    color: .yellow,  // ✅ Questions in yellow
-                    isSelected: selectedContentType == .questions,
-                    action: { onContentTypeSelected(.questions) }
+                    color: .yellow,
+                    isSelected: showQuestions,
+                    action: onToggleQuestions
                 )
 
                 InteractiveStatPill(
                     icon: "bubble.left.and.bubble.right.fill",
                     title: NSLocalizedString("library.stats.conversations", comment: ""),
                     count: conversationCount,
-                    color: .blue,  // ✅ Conversations in blue
-                    isSelected: selectedContentType == .conversations,
-                    action: { onContentTypeSelected(.conversations) }
+                    color: .blue,
+                    isSelected: showConversations,
+                    action: onToggleConversations
                 )
 
                 InteractiveStatPill(
-                    icon: "books.vertical.fill",
-                    title: NSLocalizedString("library.stats.totalSessions", comment: ""),
-                    count: totalCount,
-                    color: .green,  // ✅ Total sessions in green
-                    isSelected: selectedContentType == .all,
-                    action: { onContentTypeSelected(.all) }
+                    icon: "doc.text.image.fill",
+                    title: "Raw Homeworks",
+                    count: rawHomeworkCount,
+                    color: .orange,
+                    isSelected: showRawHomeworks,
+                    action: onToggleRawHomeworks
                 )
             }
 
-            // Enhanced filter indicators
-            VStack(spacing: 8) {
-                if selectedContentType != .all {
-                    HStack {
-                        Image(systemName: "line.3.horizontal.decrease.circle.fill")
-                            .foregroundColor(selectedContentType.color)
-                        Text(String.localizedStringWithFormat(NSLocalizedString("library.stats.showing", comment: ""), selectedContentType.displayName))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-
-                        Spacer()
-
-                        Button(NSLocalizedString("library.stats.showAll", comment: "")) {
-                            onContentTypeSelected(.all)
-                        }
+            if let selectedSubject = selectedSubject {
+                HStack {
+                    Image(systemName: "tag.fill")
+                        .foregroundColor(.orange)
+                    Text(String.localizedStringWithFormat(NSLocalizedString("library.stats.subject", comment: ""), selectedSubject))
                         .font(.caption)
-                        .foregroundColor(DesignTokens.Colors.primary)
-                    }
-                    .padding(.horizontal)
+                        .foregroundColor(.secondary)
+                    Spacer()
                 }
-
-                if let selectedSubject = selectedSubject {
-                    HStack {
-                        Image(systemName: "tag.fill")
-                            .foregroundColor(.orange)
-                        Text(String.localizedStringWithFormat(NSLocalizedString("library.stats.subject", comment: ""), selectedSubject))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Spacer()
-                    }
-                    .padding(.horizontal)
-                }
+                .padding(.horizontal)
             }
         }
         .padding()
@@ -1010,7 +991,165 @@ struct InteractiveStatPill: View {
     }
 }
 
-// MARK: - Library Item Row
+// MARK: - Raw Homework Cover Flow
+
+struct RawHomeworkCoverFlowRow: View {
+    let records: [HomeworkImageRecord]
+    @State private var selectedRecord: HomeworkImageRecord?
+
+    private let cardWidth: CGFloat = 155
+    private let cardHeight: CGFloat = 215
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            // Section header
+            HStack {
+                Image(systemName: "doc.text.image.fill")
+                    .foregroundColor(.orange)
+                    .font(.subheadline)
+                Text("Raw Homeworks")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                Spacer()
+                Text("\(records.count) image\(records.count == 1 ? "" : "s")")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.horizontal, 16)
+
+            // Cover Flow
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 14) {
+                    ForEach(records) { record in
+                        GeometryReader { geo in
+                            let screenMidX = UIScreen.main.bounds.width / 2
+                            let cardMidX = geo.frame(in: .global).midX
+                            let offset = Double(cardMidX - screenMidX)
+                            let angle = (offset / 8.0).clamped(to: -50...50)
+                            let scale = Swift.max(0.72, 1.0 - abs(offset) / 380.0)
+
+                            HomeworkCoverCard(record: record)
+                                .rotation3DEffect(
+                                    .degrees(-angle),
+                                    axis: (x: 0, y: 1, z: 0),
+                                    anchor: angle > 0 ? .leading : .trailing,
+                                    perspective: 0.45
+                                )
+                                .scaleEffect(scale)
+                                .zIndex(1.0 - abs(offset) / 1000.0)
+                                .shadow(
+                                    color: .black.opacity(0.2 + abs(offset) / 2000.0),
+                                    radius: 8,
+                                    x: offset > 0 ? -4 : 4,
+                                    y: 4
+                                )
+                                .onTapGesture {
+                                    selectedRecord = record
+                                }
+                        }
+                        .frame(width: cardWidth, height: cardHeight)
+                    }
+                }
+                .padding(.horizontal, (UIScreen.main.bounds.width - cardWidth) / 2)
+                .scrollTargetLayout()
+            }
+            .scrollTargetBehavior(.viewAligned)
+            .frame(height: cardHeight + 8)
+        }
+        .padding(.vertical, 10)
+        .sheet(item: $selectedRecord) { record in
+            let idx = records.firstIndex(where: { $0.id == record.id }) ?? 0
+            HomeworkImageDetailView(records: records, initialIndex: idx)
+        }
+    }
+}
+
+// MARK: - Homework Cover Card
+
+struct HomeworkCoverCard: View {
+    let record: HomeworkImageRecord
+    @State private var thumbnail: UIImage?
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Thumbnail image
+            ZStack(alignment: .topTrailing) {
+                Group {
+                    if let image = thumbnail {
+                        Image(uiImage: image)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } else {
+                        Rectangle()
+                            .fill(Color(.systemGray5))
+                            .overlay(
+                                ProgressView()
+                                    .tint(.orange)
+                            )
+                    }
+                }
+                .frame(height: 148)
+                .clipped()
+
+                // Multi-page badge
+                if record.isMultiPage {
+                    HStack(spacing: 2) {
+                        Image(systemName: "doc.on.doc.fill")
+                            .font(.system(size: 9))
+                        Text("\(record.pageCount)")
+                            .font(.system(size: 10, weight: .semibold))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(Color.blue.opacity(0.85))
+                    .clipShape(Capsule())
+                    .padding(6)
+                }
+            }
+
+            // Metadata strip
+            VStack(alignment: .leading, spacing: 3) {
+                HStack {
+                    Text(record.subject)
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.blue)
+                        .lineLimit(1)
+                    Spacer()
+                    // Accuracy badge
+                    let pct = Int(record.accuracy * 100)
+                    let accentColor: Color = record.accuracy >= 0.8 ? .green : record.accuracy >= 0.6 ? .orange : .red
+                    Text("\(pct)%")
+                        .font(.caption2)
+                        .fontWeight(.bold)
+                        .foregroundColor(accentColor)
+                }
+
+                HStack {
+                    Text(record.submittedDate, style: .date)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text("\(record.questionCount)q")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(Color(.systemBackground))
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color(.systemGray4), lineWidth: 1)
+        )
+        .onAppear {
+            thumbnail = HomeworkImageStorageService.shared.loadThumbnail(record: record)
+        }
+    }
+}
 
 struct LibraryItemRow: View {
     let item: LibraryItem

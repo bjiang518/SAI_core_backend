@@ -166,7 +166,7 @@ struct DirectAIHomeworkView: View {
 
     // Image source selection states
     @State private var showingCameraPicker = false
-    @State private var showingDocumentScanner = false
+    @State private var showCameraEntry = false          // fullScreenCover: camera-first entry
     @State private var showingPhotoPicker = false
     @State private var showingFilePicker = false
     @State private var showingHomeworkAlbumPicker = false  // NEW: Homework Album picker
@@ -211,6 +211,10 @@ struct DirectAIHomeworkView: View {
     @State private var showProModeSummary = false   // Show summary view after parsing
     @State private var proModeParsedQuestions: ParseHomeworkQuestionsResponse? = nil  // Parsed questions
 
+    // Persistence & recovery
+    @State private var pendingAlbumRecord: HomeworkImageRecord? = nil  // Album pick awaiting user choice
+    @State private var matchedSession: PersistedHomeworkSession? = nil  // Hash-match for "Recover Analysis"
+    @State private var showResumedHomework = false
     enum ParsingMode: String, CaseIterable {
         case progressive = "Pro"
         case hierarchical = "Fast"  // ✅ Production: Fast Mode (was Detail)
@@ -375,8 +379,15 @@ struct DirectAIHomeworkView: View {
                 // Show image preview with Ask AI button
                 imagePreviewView
             } else {
-                // Show image source selection directly
-                imageSourceSelectionView
+                // No images yet — camera entry (fullScreenCover) handles this
+                // This minimal view shows only if user explicitly dismisses camera with no images
+                cameraEntryFallbackView
+            }
+        }
+        // Custom album recovery dialog overlay
+        .overlay {
+            if let record = pendingAlbumRecord, record.proModeData != nil {
+                albumRecoverDialog(for: record)
             }
         }
         .background(themeManager.backgroundColor) // Apply cute mode background color
@@ -396,12 +407,22 @@ struct DirectAIHomeworkView: View {
             }
         }
         .navigationDestination(isPresented: $showProModeSummary) {
-            // Pro Mode: Show summary view after AI parsing (NEW FLOW)
-            // Pushed onto navigation stack (NOT sheet) for full navigation bar
-            if let parseResults = proModeParsedQuestions {
-                HomeworkSummaryView(
+            // Navigate directly to DigitalHomeworkView, bypassing HomeworkSummaryView
+            if let parseResults = proModeParsedQuestions,
+               let hw = DigitalHomeworkStateManager.shared.currentHomework {
+                DigitalHomeworkView(
                     parseResults: parseResults,
-                    originalImages: stateManager.capturedImages  // ✅ Pass ALL images
+                    originalImages: hw.originalImages
+                )
+                .environmentObject(appState)
+            }
+        }
+        .navigationDestination(isPresented: $showResumedHomework) {
+            // Resume: navigate directly to DigitalHomeworkView, bypassing HomeworkSummaryView
+            if let hw = DigitalHomeworkStateManager.shared.currentHomework {
+                DigitalHomeworkView(
+                    parseResults: hw.parseResults,
+                    originalImages: hw.originalImages
                 )
                 .environmentObject(appState)
             }
@@ -425,23 +446,19 @@ struct DirectAIHomeworkView: View {
                 }
             ), isPresented: $showingCameraPicker)
         }
-        .sheet(isPresented: $showingDocumentScanner) {
-            EnhancedCameraView(isPresented: $showingDocumentScanner)
-                .onDisappear {
-                    // Transfer ALL captured images from CameraViewModel to stateManager
-                    let capturedImages = CameraViewModel.shared.capturedImages
-
-                    if !capturedImages.isEmpty {
-                        // Add each image to stateManager
-                        for image in capturedImages {
-                            let added = stateManager.addImage(image)
-                            if !added {
-                                showingImageLimitAlert = true
-                                break
-                            }
-                        }
-                    }
+        .fullScreenCover(isPresented: $showCameraEntry) {
+            CameraEntrySheetView(
+                isPresented: $showCameraEntry,
+                onAlbumRecord: { record in
+                    pendingAlbumRecord = record
                 }
+            )
+        }
+        .onChange(of: stateManager.capturedImages.count) { _, count in
+            if count > 0 && showCameraEntry { showCameraEntry = false }
+        }
+        .onChange(of: pendingAlbumRecord != nil) { _, hasRecord in
+            if hasRecord { showCameraEntry = false }
         }
         .sheet(isPresented: $showingFilePicker) {
             DocumentPicker(selectedImage: Binding(
@@ -479,12 +496,18 @@ struct DirectAIHomeworkView: View {
         .sheet(isPresented: $showingHomeworkAlbumPicker) {
             HomeworkAlbumSelectionView { selectedRecord in
                 // Load all pages from the selected homework record
-                for fileName in selectedRecord.imageFileNames {
-                    if let image = HomeworkImageStorageService.shared.loadImageByFileName(fileName) {
-                        let added = stateManager.addImage(image)
-                        if !added {
-                            showingImageLimitAlert = true
-                            break
+                // If record has saved Pro Mode data, let user choose recover vs re-analyze
+                if selectedRecord.proModeData != nil {
+                    pendingAlbumRecord = selectedRecord
+                } else {
+                    // No saved session — load images directly for re-analysis
+                    for fileName in selectedRecord.imageFileNames {
+                        if let image = HomeworkImageStorageService.shared.loadImageByFileName(fileName) {
+                            let added = stateManager.addImage(image)
+                            if !added {
+                                showingImageLimitAlert = true
+                                break
+                            }
                         }
                     }
                 }
@@ -588,7 +611,22 @@ struct DirectAIHomeworkView: View {
                 AppLogger.ui.info("🔄 Auto-selected AI model: \(selectedAIModel) for mode: \(newValue.displayName)")
             }
         }
+        // Detect if loaded images match a persisted session ("Recover Analysis")
+        .onChange(of: stateManager.capturedImages) { _, images in
+            matchedSession = images.first.flatMap {
+                HomeworkSessionPersistenceService.shared.findSession(for: $0)
+            }
+        }
+        // Album pick confirmation: recover vs re-analyze — replaced by custom overlay below
         .onAppear {
+            // Show camera entry immediately when no images loaded
+            if stateManager.capturedImages.isEmpty && !showResumedHomework && !showProModeSummary {
+                showCameraEntry = true
+            }
+            // Re-check match on every appear (covers navigate-back case)
+            matchedSession = stateManager.capturedImages.first.flatMap {
+                HomeworkSessionPersistenceService.shared.findSession(for: $0)
+            }
             // ✅ Set initial model on appear in production mode
             if !FeatureFlags.manualModelSelection {
                 // Production mode: ALWAYS compute model from parsing mode
@@ -650,10 +688,28 @@ struct DirectAIHomeworkView: View {
             Spacer()
         }
     }
-    
-    // MARK: - Image Source Selection View
+
+    // MARK: - Camera Entry Fallback (shown only if user cancels camera with no images)
+    private var cameraEntryFallbackView: some View {
+        Color.clear
+            .onAppear {
+                // Only redirect when camera entry is NOT currently being presented.
+                // If showCameraEntry is true the fullScreenCover is still animating in —
+                // capturedImages is legitimately empty at that moment, so skip the redirect.
+                guard !showCameraEntry else { return }
+                if stateManager.capturedImages.isEmpty {
+                    AppState.shared.selectedTab = .home
+                } else {
+                    showCameraEntry = true
+                }
+            }
+    }
+
+    // MARK: - Image Source Selection View (COMMENTED OUT — camera now auto-launches on tab entry)
+    /*
     private var imageSourceSelectionView: some View {
         VStack(spacing: 0) {
+
             // Lottie Animation - positioned below title with extra spacing
             LottieView(
                 animationName: "Education edit",
@@ -717,9 +773,9 @@ struct DirectAIHomeworkView: View {
                     showingFilePicker = true
                 }
 
-                // Homework Album Option
+                // Homework Album Option (icon changed to doc.text to distinguish from Photos)
                 ImageSourceOption(
-                    icon: "photo.on.rectangle.angled",
+                    icon: "doc.text.image.fill",
                     title: NSLocalizedString("aiHomework.imageSource.chooseHomework", comment: ""),
                     subtitle: NSLocalizedString("aiHomework.imageSource.chooseHomeworkSubtitle", comment: ""),
                     color: .purple,
@@ -744,7 +800,8 @@ struct DirectAIHomeworkView: View {
             }
         }
     }
-    
+    */
+
     // MARK: - Image Preview View
     private var imagePreviewView: some View {
         ScrollView {
@@ -784,8 +841,12 @@ struct DirectAIHomeworkView: View {
                 }
             }
 
-            // Primary Action Button
-            analyzeButton
+            // Action buttons — side-by-side when a matching session exists
+            if let session = matchedSession {
+                sideBySideActionButtons(session: session)
+            } else {
+                analyzeButton
+            }
 
             // Clear Session - Text link style
             clearButton
@@ -1087,7 +1148,7 @@ struct DirectAIHomeworkView: View {
         let buttonColor: Color
 
         if effectiveMode == .progressive {
-            buttonTitle = NSLocalizedString("aiHomework.digitalHomework", comment: "")
+            buttonTitle = "Analyze Homework"
             buttonColor = themeManager.currentTheme == .colorful ?
                 DesignTokens.Colors.Cute.blue :
                 Color(red: 0.4, green: 0.6, blue: 1.0)
@@ -1116,6 +1177,138 @@ struct DirectAIHomeworkView: View {
             }
         }
         .disabled(isProcessing || stateManager.selectedImageIndices.isEmpty)
+        .padding(.horizontal)
+        .padding(.top, 8)
+        .transition(.scale.combined(with: .opacity))
+    }
+
+    // MARK: - Album Recover Dialog
+    private func albumRecoverDialog(for record: HomeworkImageRecord) -> some View {
+        let dateStr = record.submittedDate.formatted(date: .abbreviated, time: .shortened)
+        let accuracyStr = String(format: "%.0f%%", record.accuracy * 100)
+
+        return ZStack {
+            Color.black.opacity(0.45)
+                .ignoresSafeArea()
+                .onTapGesture { pendingAlbumRecord = nil }
+
+            VStack(spacing: 0) {
+                // Title
+                VStack(spacing: 4) {
+                    Text(record.subject)
+                        .font(.headline)
+                        .fontWeight(.bold)
+                    Text("\(accuracyStr)  ·  \(dateStr)")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.vertical, 20)
+                .padding(.horizontal, 20)
+
+                Divider()
+
+                // Two options side by side
+                HStack(spacing: 0) {
+                    Button {
+                        if let data = record.proModeData,
+                           let hw = try? JSONDecoder().decode(DigitalHomeworkData.self, from: data) {
+                            DigitalHomeworkStateManager.shared.restoreSession(from: hw)
+                            showResumedHomework = true
+                        }
+                        pendingAlbumRecord = nil
+                    } label: {
+                        Text("Recover")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 18)
+                    }
+
+                    Divider().frame(height: 54)
+
+                    Button {
+                        for fileName in record.imageFileNames {
+                            if let image = HomeworkImageStorageService.shared.loadImageByFileName(fileName) {
+                                if !stateManager.addImage(image) { break }
+                            }
+                        }
+                        pendingAlbumRecord = nil
+                    } label: {
+                        Text("Re-analyze")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 18)
+                    }
+                }
+
+                Divider()
+
+                Button {
+                    pendingAlbumRecord = nil
+                } label: {
+                    Text("Cancel")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                }
+            }
+            .background(.regularMaterial)
+            .cornerRadius(20)
+            .shadow(color: .black.opacity(0.2), radius: 20, x: 0, y: 10)
+            .padding(.horizontal, 40)
+        }
+        .transition(.opacity.combined(with: .scale(scale: 0.95)))
+        .animation(.spring(response: 0.3, dampingFraction: 0.85), value: pendingAlbumRecord != nil)
+    }
+
+    // MARK: - Recover Analysis Button
+    private func sideBySideActionButtons(session: PersistedHomeworkSession) -> some View {
+        let effectiveMode: ParsingMode = FeatureFlags.showParsingModeSelector ? parsingMode : .progressive
+        let analyzeTitle: String = "Re-analysis"
+
+        return HStack(spacing: 10) {
+            // Left: AI Digital Homework (blue)
+            Button {
+                if !stateManager.selectedImageIndices.isEmpty {
+                    if effectiveMode == .progressive {
+                        Task { await processWithProMode() }
+                    } else {
+                        let selectedImages = stateManager.selectedImageIndices.sorted()
+                            .map { stateManager.capturedImages[$0] }
+                        processMultipleImages(selectedImages)
+                    }
+                }
+            } label: {
+                Text(analyzeTitle)
+                    .fontWeight(.semibold)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .font(.subheadline)
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 54)
+                    .background(DesignTokens.Colors.Cute.blue)
+                    .cornerRadius(14)
+            }
+            .disabled(isProcessing || stateManager.selectedImageIndices.isEmpty)
+
+            // Right: Recover (green/mint)
+            Button {
+                DigitalHomeworkStateManager.shared.restoreSession(from: session.fullData)
+                showResumedHomework = true
+            } label: {
+                Text("Recover")
+                    .fontWeight(.semibold)
+                    .font(.subheadline)
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 54)
+                    .background(DesignTokens.Colors.Cute.mint)
+                    .cornerRadius(14)
+            }
+        }
         .padding(.horizontal)
         .padding(.top, 8)
         .transition(.scale.combined(with: .opacity))
@@ -1769,7 +1962,7 @@ struct DirectAIHomeworkView: View {
             let hasPermission = await CameraPermissionManager.requestCameraPermission()
             await MainActor.run {
                 if hasPermission {
-                    showingDocumentScanner = true
+                    showCameraEntry = true
                 } else {
                     cameraPermissionDenied = true
                 }
@@ -2078,17 +2271,31 @@ struct DirectAIHomeworkView: View {
 
                 debugPrint("📚 Subject: \(parseResponse.subject)")
 
-                // Navigate to Summary View
+                // Navigate directly to DigitalHomeworkView, bypassing summary
+                var needsDiagramAnalysis = false
                 await MainActor.run {
                     self.stateManager.processingStatus = NSLocalizedString("aiHomework.analysisComplete", comment: "Analysis complete")
                     self.isProcessing = false
 
-                    // Store parse results for Summary View
+                    // Initialize state manager directly (was done in HomeworkSummaryView.onAppear before)
+                    DigitalHomeworkStateManager.shared.parseHomework(parseResults: parseResponse, images: imagesToParse)
+
+                    needsDiagramAnalysis = DigitalHomeworkStateManager.shared.currentHomework?.questions.contains(where: {
+                        $0.question.needImage == true ||
+                        $0.question.subquestions?.contains { $0.needImage == true } == true
+                    }) == true
+
                     self.proModeParsedQuestions = parseResponse
-                    self.showProModeSummary = true  // NEW: Show summary instead of direct grading
+                    self.showProModeSummary = true
                 }
 
-                debugPrint("✅ Pro Mode parsing complete, showing summary view")
+                if needsDiagramAnalysis {
+                    Task {
+                        await DigitalHomeworkStateManager.shared.startBackgroundDiagramAnalysis(images: imagesToParse)
+                    }
+                }
+
+                debugPrint("✅ Pro Mode parsing complete, navigating directly to DigitalHomeworkView")
                 return  // ✅ Success - exit retry loop
 
             } catch {
@@ -2505,15 +2712,17 @@ struct DirectAIHomeworkView: View {
     
     private func resizeImage(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
         let size = image.size
-        
+
         if size.width <= maxDimension && size.height <= maxDimension {
             return image
         }
-        
+
         let ratio = maxDimension / max(size.width, size.height)
         let newSize = CGSize(width: size.width * ratio, height: size.height * ratio)
-        
-        let renderer = UIGraphicsImageRenderer(size: newSize)
+
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1.0
+        let renderer = UIGraphicsImageRenderer(size: newSize, format: format)
         return renderer.image { _ in
             image.draw(in: CGRect(origin: .zero, size: newSize))
         }
@@ -3257,6 +3466,139 @@ struct AnimatedGradientButton: View {
         .scaleEffect(buttonScale)
         .disabled(isProcessing)
         .opacity(isProcessing ? 0.5 : 1.0)
+    }
+}
+
+// MARK: - Camera Entry Sheet View
+// Standalone entry point: camera fills screen, bottom-left button for other sources.
+// Presented as fullScreenCover so no background view is visible behind it.
+
+struct CameraEntrySheetView: View {
+    @Binding var isPresented: Bool
+    let onAlbumRecord: (HomeworkImageRecord) -> Void  // called when album record with proModeData is selected
+
+    @ObservedObject private var stateManager = AIHomeworkStateManager.shared
+    @State private var showDocScanner = false
+    @State private var showPhotoPicker = false
+    @State private var showFilePicker = false
+    @State private var showAlbumPicker = false
+    @State private var showSourceOptions = false
+    @State private var showImageLimitAlert = false
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            if showDocScanner {
+                ZStack(alignment: .bottomLeading) {
+                    EnhancedCameraView(isPresented: $showDocScanner)
+                        .ignoresSafeArea()
+
+                    // Bottom-left button to access other import sources
+                    Button { showSourceOptions = true } label: {
+                        Image(systemName: "photo.on.rectangle.angled")
+                            .font(.title2)
+                            .foregroundColor(.white)
+                            .padding(14)
+                            .background(Color.black.opacity(0.55))
+                            .clipShape(Circle())
+                    }
+                    .padding(.leading, 24)
+                    .padding(.bottom, 90)
+                }
+            } else {
+                // Camera was cancelled — show minimal retry / exit view
+                VStack(spacing: 24) {
+                    Spacer()
+                    Button { showDocScanner = true } label: {
+                        VStack(spacing: 10) {
+                            Image(systemName: "camera.circle.fill")
+                                .font(.system(size: 72))
+                                .foregroundColor(DesignTokens.Colors.Cute.blue)
+                            Text("Open Camera")
+                                .font(.title3).fontWeight(.semibold)
+                                .foregroundColor(.white)
+                        }
+                    }
+                    Button {
+                        isPresented = false
+                        // If no images were captured, leave the grader tab entirely
+                        if stateManager.capturedImages.isEmpty {
+                            AppState.shared.selectedTab = .home
+                        }
+                    } label: {
+                        Text("Cancel")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                    }
+                    Spacer()
+                }
+            }
+        }
+        .onAppear { showDocScanner = true }
+        .onChange(of: showDocScanner) { _, isActive in
+            // Camera closed — transfer captured images and dismiss
+            if !isActive {
+                let captured = CameraViewModel.shared.capturedImages
+                if !captured.isEmpty {
+                    for img in captured {
+                        _ = stateManager.addImage(img)
+                    }
+                    isPresented = false
+                }
+            }
+        }
+        .confirmationDialog("", isPresented: $showSourceOptions) {
+            Button("From Photos") { showPhotoPicker = true }
+            Button("From Files")  { showFilePicker  = true }
+            Button("From Recent Homework") { showAlbumPicker = true }
+            Button("Cancel", role: .cancel) {}
+        }
+        .sheet(isPresented: $showPhotoPicker) {
+            PhotosPickerView(
+                selectedImage: Binding(
+                    get: { stateManager.originalImage },
+                    set: { img in if let img { _ = stateManager.addImage(img) } }
+                ),
+                isPresented: $showPhotoPicker
+            )
+        }
+        .sheet(isPresented: $showFilePicker) {
+            DocumentPicker(
+                selectedImage: Binding(
+                    get: { stateManager.originalImage },
+                    set: { img in
+                        if let img {
+                            let ok = stateManager.addImage(img)
+                            if !ok { showImageLimitAlert = true }
+                        }
+                    }
+                ),
+                isPresented: $showFilePicker
+            )
+        }
+        .sheet(isPresented: $showAlbumPicker) {
+            HomeworkAlbumSelectionView { record in
+                if record.proModeData != nil {
+                    // Hand off to parent: dismiss camera entry, show recovery dialog
+                    showAlbumPicker = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        onAlbumRecord(record)
+                    }
+                } else {
+                    // No saved session — load images for fresh analysis
+                    for fileName in record.imageFileNames {
+                        if let image = HomeworkImageStorageService.shared.loadImageByFileName(fileName) {
+                            if !stateManager.addImage(image) { showImageLimitAlert = true; break }
+                        }
+                    }
+                    showAlbumPicker = false
+                }
+            }
+        }
+        .alert("Image Limit Reached", isPresented: $showImageLimitAlert) {
+            Button("OK", role: .cancel) {}
+        }
     }
 }
 

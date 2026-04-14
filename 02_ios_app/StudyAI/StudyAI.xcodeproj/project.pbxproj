@@ -674,6 +674,9 @@
 		7B8E9E9D2EAB518100E83DA8 /* HomeworkImageStorageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8E9E9C2EAB518100E83DA8 /* HomeworkImageStorageService.swift */; };
 		7B8E9E9E2EAB518100E83DA8 /* HomeworkImageStorageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8E9E9C2EAB518100E83DA8 /* HomeworkImageStorageService.swift */; };
 		7B8E9E9F2EAB518100E83DA8 /* HomeworkImageStorageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8E9E9C2EAB518100E83DA8 /* HomeworkImageStorageService.swift */; };
+		FD54F6029AA841A1958A5C34 /* HomeworkSessionPersistenceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDA2D8E1930E4A4D9422AA5A /* HomeworkSessionPersistenceService.swift */; };
+		A7A2882F9B7E42C08544A02A /* HomeworkSessionPersistenceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDA2D8E1930E4A4D9422AA5A /* HomeworkSessionPersistenceService.swift */; };
+		795EFD1553304745B1FBBF7E /* HomeworkSessionPersistenceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDA2D8E1930E4A4D9422AA5A /* HomeworkSessionPersistenceService.swift */; };
 		7B8E9EA12EAC163B00E83DA8 /* HomeworkQuestionsPDFPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8E9EA02EAC163B00E83DA8 /* HomeworkQuestionsPDFPreviewView.swift */; };
 		7B8E9EA22EAC163B00E83DA8 /* HomeworkQuestionsPDFPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8E9EA02EAC163B00E83DA8 /* HomeworkQuestionsPDFPreviewView.swift */; };
 		7B8E9EA32EAC163B00E83DA8 /* HomeworkQuestionsPDFPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8E9EA02EAC163B00E83DA8 /* HomeworkQuestionsPDFPreviewView.swift */; };
@@ -1269,6 +1272,7 @@
 		7B8E9E912EAB50F400E83DA8 /* HomeworkImageDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HomeworkImageDetailView.swift; path = StudyAI/Views/HomeworkImageDetailView.swift; sourceTree = SOURCE_ROOT; };
 		7B8E9E982EAB516C00E83DA8 /* HomeworkImageModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeworkImageModels.swift; sourceTree = "<group>"; };
 		7B8E9E9C2EAB518100E83DA8 /* HomeworkImageStorageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HomeworkImageStorageService.swift; path = StudyAI/Services/HomeworkImageStorageService.swift; sourceTree = SOURCE_ROOT; };
+		FDA2D8E1930E4A4D9422AA5A /* HomeworkSessionPersistenceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HomeworkSessionPersistenceService.swift; path = StudyAI/Services/HomeworkSessionPersistenceService.swift; sourceTree = SOURCE_ROOT; };
 		7B8E9EA02EAC163B00E83DA8 /* HomeworkQuestionsPDFPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HomeworkQuestionsPDFPreviewView.swift; path = StudyAI/Views/HomeworkQuestionsPDFPreviewView.swift; sourceTree = SOURCE_ROOT; };
 		7B8E9EB02EAF38D000E83DA8 /* SessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SessionManager.swift; path = StudyAI/Services/SessionManager.swift; sourceTree = SOURCE_ROOT; };
 		7B8E9EB42EAF395200E83DA8 /* FaceIDReauthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FaceIDReauthView.swift; path = StudyAI/Views/FaceIDReauthView.swift; sourceTree = SOURCE_ROOT; };
@@ -1868,6 +1872,7 @@
 				7BDE565D2EC1C5C3004A8629 /* MathJaxRenderer.swift */,
 				7B8E9EB02EAF38D000E83DA8 /* SessionManager.swift */,
 				7B8E9E9C2EAB518100E83DA8 /* HomeworkImageStorageService.swift */,
+				FDA2D8E1930E4A4D9422AA5A /* HomeworkSessionPersistenceService.swift */,
 				7B8353472EA7509000199AC3 /* QuestionTypeRenderers.swift */,
 				7B1961EF2E94E31A0024317A /* ParentModeManager.swift */,
 				7B1961AF2E949DD10024317A /* NotificationService.swift */,
@@ -2501,6 +2506,7 @@
 				50A2A95A7C83265E127F4731 /* ChatOnboardingOverlay.swift in Sources */,
 				7B2248712F26BE4C006ADD93 /* ErrorAnalysisQueueService.swift in Sources */,
 				7B8E9E9F2EAB518100E83DA8 /* HomeworkImageStorageService.swift in Sources */,
+				795EFD1553304745B1FBBF7E /* HomeworkSessionPersistenceService.swift in Sources */,
 				LGLS901234567890GHIJ2345 /* LearningGoalsSettingsView.swift in Sources */,
 				51E8895014244637989DCA32 /* HomeView.swift in Sources */,
 				7BD664DB2ECAB9D200E09E55 /* ProgressiveSubquestionModel.swift in Sources */,
@@ -2769,6 +2775,7 @@
 				7B2249252F39BEF2006ADD93 /* ReportAvailabilityChecker.swift in Sources */,
 				7BDE56F02EC31AD7004A8629 /* EssayResultsView.swift in Sources */,
 				7B8E9E9D2EAB518100E83DA8 /* HomeworkImageStorageService.swift in Sources */,
+				FD54F6029AA841A1958A5C34 /* HomeworkSessionPersistenceService.swift in Sources */,
 				7B1961EC2E94E2740024317A /* ParentAuthenticationView.swift in Sources */,
 				7B22485B2F202156006ADD93 /* PassiveReportsViewModel.swift in Sources */,
 				7B2248BE2F331667006ADD93 /* InteractiveModeSettings.swift in Sources */,
@@ -3084,6 +3091,7 @@
 				7B2248D12F340790006ADD93 /* VerticalPagesViewer.swift in Sources */,
 				7BEC07DC2F465EDE00B6E573 /* VoiceChatViewModel.swift in Sources */,
 				7B8E9E9E2EAB518100E83DA8 /* HomeworkImageStorageService.swift in Sources */,
+				A7A2882F9B7E42C08544A02A /* HomeworkSessionPersistenceService.swift in Sources */,
 				7BDE56E62EC31A8B004A8629 /* LaTeXToHTMLConverter.swift in Sources */,
 				7BD6687D2ED05FD400E09E55 /* ZoomableImageView.swift in Sources */,
 				7B22485C2F202156006ADD93 /* PassiveReportsViewModel.swift in Sources */,

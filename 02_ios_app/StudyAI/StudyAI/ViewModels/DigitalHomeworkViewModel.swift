@@ -964,21 +964,22 @@ class DigitalHomeworkViewModel: ObservableObject {
     }
 
     private func cropRegion(_ region: ImageRegion, from image: UIImage) -> UIImage? {
-        let w = image.size.width
-        let h = image.size.height
+        guard let cgImg = image.cgImage else { return nil }
+        let w = CGFloat(cgImg.width)
+        let h = CGFloat(cgImg.height)
         let rect = CGRect(
             x: CGFloat(region.topLeft[0]) * w,
             y: CGFloat(region.topLeft[1]) * h,
             width: CGFloat(region.bottomRight[0] - region.topLeft[0]) * w,
             height: CGFloat(region.bottomRight[1] - region.topLeft[1]) * h
         )
-        debugPrint("🔍 [DiagramAnalysis] cropRegion: imageSize=(\(w)x\(h)) rect=\(rect) cgImage=\(image.cgImage != nil)")
+        debugPrint("🔍 [DiagramAnalysis] cropRegion: cgImageSize=(\(w)x\(h)) rect=\(rect)")
         guard rect.width > 10, rect.height > 10 else {
             debugPrint("🔍 [DiagramAnalysis] cropRegion FAIL: rect too small \(rect)")
             return nil
         }
-        guard let cgCropped = image.cgImage?.cropping(to: rect) else {
-            debugPrint("🔍 [DiagramAnalysis] cropRegion FAIL: cgImage?.cropping returned nil")
+        guard let cgCropped = cgImg.cropping(to: rect) else {
+            debugPrint("🔍 [DiagramAnalysis] cropRegion FAIL: cgImage.cropping returned nil")
             return nil
         }
         return UIImage(cgImage: cgCropped)
@@ -2340,6 +2341,10 @@ class DigitalHomeworkViewModel: ObservableObject {
                 selectedQuestionIds.removeAll()
                 isArchiveMode = false
             }
+            // Persist organized state
+            if let hw = stateManager.currentHomework {
+                HomeworkSessionPersistenceService.shared.save(data: hw, state: .organized)
+            }
             archiveResultSummary = ArchiveResultSummary(
                 added: result.added,
                 skipped: result.skipped,
@@ -2485,13 +2490,17 @@ extension UIImage {
     }
 
     /// Resize to fit within maxDimension (preserving aspect ratio) for API uploads.
+    /// Uses scale=1.0 so the output JPEG pixel dimensions match the requested logical size
+    /// (avoids 3x screen-scale inflation that wastes bandwidth and can shift AI coordinates).
     /// Returns self unchanged if already within bounds.
     func resizedForUpload(maxDimension: CGFloat) -> UIImage {
         let maxSide = max(size.width, size.height)
         guard maxSide > maxDimension else { return self }
         let ratio = maxDimension / maxSide
         let newSize = CGSize(width: size.width * ratio, height: size.height * ratio)
-        let renderer = UIGraphicsImageRenderer(size: newSize)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1.0
+        let renderer = UIGraphicsImageRenderer(size: newSize, format: format)
         return renderer.image { _ in
             draw(in: CGRect(origin: .zero, size: newSize))
         }

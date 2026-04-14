@@ -2673,3 +2673,7 @@
 "promo.error.expired" = "This promo code has expired.";
 "promo.error.maxUses" = "This promo code has reached its limit.";
 "promo.guestHint" = "Create a free account to redeem a promo code.";
+
+// Saved Digital Homework view modes
+"savedHomework.viewMode.parsed" = "Question Mode";
+"savedHomework.viewMode.graded" = "Grading Mode";

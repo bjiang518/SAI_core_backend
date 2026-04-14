@@ -21,8 +21,15 @@ struct SavedDigitalHomeworkView: View {
     // MARK: - View Mode Enum
 
     enum ViewMode: String, CaseIterable {
-        case parsed = "题目模式"   // Questions only (hide student answers)
-        case graded = "批改模式"   // Full info (questions + answers + grades + feedback)
+        case parsed = "parsed"
+        case graded = "graded"
+
+        var displayName: String {
+            switch self {
+            case .parsed: return NSLocalizedString("savedHomework.viewMode.parsed", comment: "")
+            case .graded: return NSLocalizedString("savedHomework.viewMode.graded", comment: "")
+            }
+        }
 
         var icon: String {
             switch self {
@@ -152,7 +159,7 @@ struct SavedDigitalHomeworkView: View {
                 Image(systemName: mode.icon)
                     .font(.caption)
 
-                Text(mode.rawValue)
+                Text(mode.displayName)
                     .font(.subheadline)
                     .fontWeight(.medium)
             }

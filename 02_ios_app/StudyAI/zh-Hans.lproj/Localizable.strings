@@ -2664,3 +2664,7 @@
 "promo.error.expired" = "此优惠码已过期。";
 "promo.error.maxUses" = "此优惠码已达到使用上限。";
 "promo.guestHint" = "注册免费账户以兑换优惠码。";
+
+// Saved Digital Homework view modes
+"savedHomework.viewMode.parsed" = "题目模式";
+"savedHomework.viewMode.graded" = "批改模式";

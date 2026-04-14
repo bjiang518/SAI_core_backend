@@ -774,6 +774,35 @@ struct QuestionDetailView: View {
     @ViewBuilder
     private func followUpButton(for q: ArchivedQuestion) -> some View {
         Button {
+            // Build a rich message with full question content so AI has complete context
+            var parts: [String] = []
+            parts.append("I need help understanding this \(q.subject) question from my study archive.\n")
+
+            // Use rawQuestionText (full original from image) when available, else clean text
+            let raw = q.rawQuestionText?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let questionContent = raw.isEmpty ? q.questionText : raw
+            parts.append("**Question:**\n\(questionContent)")
+
+            if let options = q.options, !options.isEmpty {
+                parts.append("\n**Options:**\n" + options.joined(separator: "\n"))
+            }
+            if let studentAnswer = q.studentAnswer, !studentAnswer.isEmpty {
+                parts.append("\n**My answer:** \(studentAnswer)")
+            }
+            if !q.answerText.isEmpty {
+                parts.append("**Correct answer:** \(q.answerText)")
+            }
+            if let grade = q.grade {
+                parts.append("**Grade:** \(grade.rawValue)")
+            }
+            if let feedback = q.feedback, !feedback.isEmpty,
+               feedback != "No feedback provided" {
+                parts.append("\n**Feedback I received:**\n\(feedback)")
+            }
+            parts.append("\nPlease explain the solution step by step and help me understand where I went wrong.")
+
+            let msg = parts.joined(separator: "\n")
+
             let context = HomeworkQuestionContext(
                 questionText: q.questionText,
                 rawQuestionText: q.rawQuestionText,
@@ -787,7 +816,6 @@ struct QuestionDetailView: View {
                 subject: q.subject,
                 questionImage: nil
             )
-            let msg = "I need help understanding this \(q.subject) question from my study archive. Can you explain the solution step by step?"
             appState.navigateToChatWithHomeworkQuestion(message: msg, context: context)
         } label: {
             HStack(spacing: 8) {

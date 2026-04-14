@@ -2674,3 +2674,7 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "promo.error.expired" = "Este código promocional ha expirado.";
 "promo.error.maxUses" = "Este código ha alcanzado su límite de usos.";
 "promo.guestHint" = "Crea una cuenta gratuita para canjear un código promocional.";
+
+// Saved Digital Homework view modes
+"savedHomework.viewMode.parsed" = "Modo preguntas";
+"savedHomework.viewMode.graded" = "Modo calificación";

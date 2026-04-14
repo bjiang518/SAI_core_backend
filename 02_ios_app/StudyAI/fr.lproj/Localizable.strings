@@ -2701,3 +2701,7 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "promo.error.expired" = "Ce code promo a expiré.";
 "promo.error.maxUses" = "Ce code promo a atteint sa limite d'utilisation.";
 "promo.guestHint" = "Créez un compte gratuit pour utiliser un code promo.";
+
+// Saved Digital Homework view modes
+"savedHomework.viewMode.parsed" = "Mode questions";
+"savedHomework.viewMode.graded" = "Mode notation";
