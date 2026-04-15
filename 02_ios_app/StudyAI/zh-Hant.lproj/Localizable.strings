@@ -206,6 +206,18 @@
 "aiHomework.preview.selectedCount" = "已選";
 "aiHomework.editImage" = "編輯圖片";
 "aiHomework.analyzeWithAI" = "使用AI分析";
+"aiHomework.analyzeHomework" = "分析作業";
+"aiHomework.yourHomework" = "你的作業：";
+"aiHomework.imageEditingTips.body" = "📸 最佳效果提示：\n\n✓ 增強亮度和理想裁剪可提高AI準確性\n✓ 清晰明亮的圖片有助於文字識別\n✓ 拉直圖片以獲得更好的OCR效果\n\n⚡ 智能處理：\n\n• 如果你編輯/調整圖片大小，將直接傳送你的版本給AI\n• 如果跳過編輯，將自動套用iOS增強：\n  - 增強亮度校正\n  - 智能對比度調整\n  - 二值化處理以提高文字識別\n• 壓縮可在保持品質的同時減小檔案大小";
+
+// Image Editor
+"imageEditor.resolution" = "解析度";
+"imageEditor.reset" = "重置";
+"imageEditor.done" = "完成";
+"imageEditor.size.raw" = "原始";
+"imageEditor.size.large" = "大";
+"imageEditor.size.medium" = "中";
+"imageEditor.size.small" = "小";
 "aiHomework.analyzeMultipleImages" = "分析%d張圖片";
 "aiHomework.imageCounter" = "%d / %d";
 "aiHomework.continueInBackground" = "是否在後台繼續分析？完成後將發送通知。";
@@ -466,6 +478,7 @@
 "account.usage.tierFree" = "免費版";
 "account.usage.badgeGuest" = "訪客";
 "account.usage.feature.homework_single" = "作業上傳";
+"account.usage.feature.homework_pages" = "作業頁數";
 "account.usage.feature.homework_batch" = "批量上傳";
 "account.usage.feature.chat_messages" = "AI 對話";
 "account.usage.feature.questions" = "練習題";
@@ -806,6 +819,10 @@
 "library.stats.showing" = "顯示：%@";
 "library.stats.showAll" = "顯示全部";
 "library.stats.subject" = "科目：%@";
+"library.stats.rawHomeworks" = "作業原圖";
+"library.rawHomeworks.imageCount" = "%d 張圖片";
+"library.rawHomeworks.questionCount" = "%d題";
+"common.search" = "搜尋";
 
 // Library Item
 "library.item.tapToReview" = "點擊查看";
@@ -914,7 +931,7 @@
 "shareApp.feature2" = "✓ 互動式AI導師";
 "shareApp.feature3" = "✓ 錯題復習和練習";
 "shareApp.feature4" = "✓ 進度追蹤";
-"shareApp.downloadLink" = "立即下載：https://studyai.app";
+"shareApp.downloadLink" = "立即下載：https://apps.apple.com/us/app/studyagent/id6754365864";
 "shareApp.shareViaTitle" = "分享方式...";
 "shareApp.shareViaSubtitle" = "訊息、電子郵件、社群媒體等";
 "shareApp.copyLinkTitle" = "複製應用程式連結";
@@ -980,6 +997,17 @@
 "onboarding.chat.releaseToSend" = "放開傳送";
 "onboarding.chat.holdToTalk" = "按住說話";
 "onboarding.chat.micDemoText" = "請更詳細地解釋一下";
+
+// Homework Onboarding Tutorial
+"hwOnboarding.editImage.title" = "編輯圖片";
+"hwOnboarding.editImage.desc" = "1. 點擊選擇題目圖片\n2. 點擊 🖼 或圖片來編輯已選圖片";
+"hwOnboarding.gradingMode.title" = "批改模式";
+"hwOnboarding.gradingMode.desc" = "快速模式使用 GPT 快速批改。深度模式使用 Gemini 深度推理——更適合複雜題目。";
+"hwOnboarding.reparse.title" = "重新解析";
+"hwOnboarding.reparse.desc" = "如果 AI 識別錯誤，點擊重新解析該題目。";
+"hwOnboarding.moreOptions.title" = "更多選項";
+"hwOnboarding.moreOptions.desc" = "查看原圖、重置標註、刪除題目，或重新查看本教學。";
+"proMode.viewTutorial" = "查看教學";
 
 // Voice Chat (Gemini Live)
 "voice_chat.title" = "即時對話";
@@ -2675,3 +2703,33 @@
 // Saved Digital Homework view modes
 "savedHomework.viewMode.parsed" = "題目模式";
 "savedHomework.viewMode.graded" = "批改模式";
+
+"aiHomework.imageEditingTips.title" = "圖片編輯提示";
+"aiHomework.recover" = "恢復";
+"aiHomework.reanalyze" = "重新分析";
+"aiHomework.reanalysis" = "重新分析";
+"aiHomework.openCamera" = "開啟相機";
+"aiHomework.sourceOptions.photos" = "從相簿選取";
+"aiHomework.sourceOptions.files" = "從檔案選取";
+"aiHomework.sourceOptions.recentHomework" = "從最近作業選取";
+"aiHomework.imageLimitReached.title" = "已達圖片上限";
+"savedHomework.loading" = "載入作業中...";
+"savedHomework.questionLabel" = "第%@題";
+"savedHomework.askAI" = "問AI";
+"savedHomework.viewMode.parsed" = "題目模式";
+"savedHomework.viewMode.graded" = "批改模式";
+"progressiveHomework.title" = "作業批改";
+"progressiveHomework.loading.subtitle" = "這可能需要一點時間...";
+"progressiveHomework.modelSelection.title" = "選擇AI模型";
+"progressiveHomework.modelSelection.subtitle" = "選擇用於批改的AI模型";
+"progressiveHomework.modelSelection.label" = "AI模型";
+"progressiveHomework.startGrading" = "開始批改";
+"progressiveHomework.saveToWrongAnswerBook" = "儲存到錯題本";
+"homework.pdf.generating" = "正在產生PDF...";
+"homework.pdf.error.title" = "無法產生PDF";
+"homework.pdf.error.noQuestions" = "此作業記錄中未找到題目。";
+"homework.pdf.questions.title" = "作業題目";
+"homework.pdf.email.subject" = "作業題目";
+"homework.pdf.email.body" = "請查收附件中的作業題目。";
+"homework.pdf.error.generation" = "PDF產生失敗";
+"imageEditor.gestureHint" = "雙指捏合縮放 · 雙指旋轉";

@@ -83,7 +83,7 @@ struct SavedDigitalHomeworkView: View {
                     // Loading or error state
                     VStack(spacing: 16) {
                         ProgressView()
-                        Text("加载数字作业中...")
+                        Text(NSLocalizedString("savedHomework.loading", comment: ""))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
@@ -289,7 +289,7 @@ struct SavedQuestionCard: View {
         VStack(alignment: .leading, spacing: 12) {
             // Question header
             HStack {
-                Text("题 \(questionWithGrade.question.questionNumber ?? "?")")
+                Text(String(format: NSLocalizedString("savedHomework.questionLabel", comment: ""), questionWithGrade.question.questionNumber ?? "?"))
                     .font(.headline)
                     .foregroundColor(.primary)
 
@@ -366,7 +366,7 @@ struct SavedQuestionCard: View {
             if viewMode == .graded, questionWithGrade.grade != nil {
                 HStack(spacing: 12) {
                     Button(action: { onAskAI(nil) }) {
-                        Label("问AI", systemImage: "questionmark.bubble")
+                        Label(NSLocalizedString("savedHomework.askAI", comment: ""), systemImage: "questionmark.bubble")
                             .font(.caption)
                     }
                     .buttonStyle(.bordered)
@@ -731,7 +731,7 @@ struct SavedSubquestionRow: View {
                                 .transition(.opacity.combined(with: .move(edge: .top)))
 
                             Button(action: onAskAI) {
-                                Label("问AI", systemImage: "questionmark.bubble")
+                                Label(NSLocalizedString("savedHomework.askAI", comment: ""), systemImage: "questionmark.bubble")
                                     .font(.caption)
                             }
                             .buttonStyle(.bordered)

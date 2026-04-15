@@ -206,6 +206,18 @@
 "aiHomework.preview.selectedCount" = "selected";
 "aiHomework.editImage" = "Edit Image";
 "aiHomework.analyzeWithAI" = "Analyze with AI";
+"aiHomework.analyzeHomework" = "Analyze Homework";
+"aiHomework.yourHomework" = "Your homework:";
+"aiHomework.imageEditingTips.body" = "📸 For Best Results:\n\n✓ Enhanced lighting and ideal cropping improve AI accuracy\n✓ Clear, well-lit images help text recognition\n✓ Straighten the image for better OCR\n\n⚡ Smart Processing:\n\n• If you edit/resize an image, your version is sent directly to AI\n• If you skip editing, automatic iOS enhancement is applied:\n  - Enhanced lighting correction\n  - Smart contrast adjustment\n  - Binary conversion for better text recognition\n• Compression reduces file size while maintaining quality";
+
+// Image Editor
+"imageEditor.resolution" = "Resolution";
+"imageEditor.reset" = "Reset";
+"imageEditor.done" = "Done";
+"imageEditor.size.raw" = "Raw";
+"imageEditor.size.large" = "Large";
+"imageEditor.size.medium" = "Medium";
+"imageEditor.size.small" = "Small";
 "aiHomework.analyzeMultipleImages" = "Analyze %d Images with AI";
 "aiHomework.imageCounter" = "%d of %d";
 "aiHomework.continueInBackground" = "Continue analyzing in background? You'll get a notification when it's done.";
@@ -466,6 +478,7 @@
 "account.usage.tierFree" = "Free";
 "account.usage.badgeGuest" = "Guest";
 "account.usage.feature.homework_single" = "Homework Upload";
+"account.usage.feature.homework_pages" = "Homework Pages";
 "account.usage.feature.homework_batch" = "Batch Upload";
 "account.usage.feature.chat_messages" = "AI Chat";
 "account.usage.feature.questions" = "Practice Questions";
@@ -963,6 +976,10 @@
 "library.stats.showing" = "Showing: %@";
 "library.stats.showAll" = "Show All";
 "library.stats.subject" = "Subject: %@";
+"library.stats.rawHomeworks" = "Raw Homeworks";
+"library.rawHomeworks.imageCount" = "%d images";
+"library.rawHomeworks.questionCount" = "%dq";
+"common.search" = "Search";
 
 // Library Item
 "library.item.tapToReview" = "Tap to review";
@@ -1071,7 +1088,7 @@
 "shareApp.feature2" = "✓ Interactive AI tutor";
 "shareApp.feature3" = "✓ Mistake review & practice";
 "shareApp.feature4" = "✓ Progress tracking";
-"shareApp.downloadLink" = "Download now: https://studyai.app";
+"shareApp.downloadLink" = "Download now: https://apps.apple.com/us/app/studyagent/id6754365864";
 "shareApp.shareViaTitle" = "Share via...";
 "shareApp.shareViaSubtitle" = "Messages, Email, Social Media & More";
 "shareApp.copyLinkTitle" = "Copy App Link";
@@ -1137,6 +1154,17 @@
 "onboarding.chat.releaseToSend" = "Release to Send";
 "onboarding.chat.holdToTalk" = "Hold to Talk";
 "onboarding.chat.micDemoText" = "explain it in more detail";
+
+// Homework Onboarding Tutorial
+"hwOnboarding.editImage.title" = "Edit Image";
+"hwOnboarding.editImage.desc" = "1. Tap to select a question's image\n2. Tap 🖼 or the image to edit the selected crop";
+"hwOnboarding.gradingMode.title" = "Grading Mode";
+"hwOnboarding.gradingMode.desc" = "Fast uses GPT for quick grading. Deep uses Gemini with extended thinking — better for complex problems.";
+"hwOnboarding.reparse.title" = "Re-analyze";
+"hwOnboarding.reparse.desc" = "Tap to re-parse this question from the image if the AI misread something.";
+"hwOnboarding.moreOptions.title" = "More Options";
+"hwOnboarding.moreOptions.desc" = "View the original image, reset annotations, delete questions, or replay this tutorial.";
+"proMode.viewTutorial" = "View Tutorial";
 
 // Voice Chat (Gemini Live)
 "voice_chat.title" = "Live Talk";
@@ -2677,3 +2705,38 @@
 // Saved Digital Homework view modes
 "savedHomework.viewMode.parsed" = "Question Mode";
 "savedHomework.viewMode.graded" = "Grading Mode";
+
+// Homework flow – DirectAIHomeworkView
+"aiHomework.imageEditingTips.title" = "Image Editing Tips";
+"aiHomework.recover" = "Recover";
+"aiHomework.reanalyze" = "Re-analyze";
+"aiHomework.reanalysis" = "Re-analysis";
+"aiHomework.openCamera" = "Open Camera";
+"aiHomework.sourceOptions.photos" = "From Photos";
+"aiHomework.sourceOptions.files" = "From Files";
+"aiHomework.sourceOptions.recentHomework" = "From Recent Homework";
+"aiHomework.imageLimitReached.title" = "Image Limit Reached";
+
+// Homework flow – SavedDigitalHomeworkView
+"savedHomework.loading" = "Loading Homework...";
+"savedHomework.questionLabel" = "Q %@";
+"savedHomework.askAI" = "Ask AI";
+
+// Homework flow – ProgressiveHomeworkView
+"progressiveHomework.title" = "Homework Grading";
+"progressiveHomework.loading.subtitle" = "This may take a moment...";
+"progressiveHomework.modelSelection.title" = "Select AI Model";
+"progressiveHomework.modelSelection.subtitle" = "Choose the AI model for grading";
+"progressiveHomework.modelSelection.label" = "AI Model";
+"progressiveHomework.startGrading" = "Start Grading";
+"progressiveHomework.saveToWrongAnswerBook" = "Save to Wrong Answer Book";
+
+// Homework flow – PDF views
+"homework.pdf.generating" = "Generating PDF...";
+"homework.pdf.error.title" = "Unable to Generate PDF";
+"homework.pdf.error.noQuestions" = "No questions found in this homework record.";
+"homework.pdf.questions.title" = "Homework Questions";
+"homework.pdf.email.subject" = "Homework Questions";
+"homework.pdf.email.body" = "Please find attached the homework questions.";
+"homework.pdf.error.generation" = "Failed to generate PDF";
+"imageEditor.gestureHint" = "Pinch to zoom · Two fingers to rotate";

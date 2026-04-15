@@ -69,7 +69,7 @@ struct ArchivedQuestionsView: View {
                     Image(systemName: "magnifyingglass")
                         .font(.caption)
                         .foregroundColor(.gray)
-                    TextField("Search", text: $searchText)
+                    TextField(NSLocalizedString("common.search", value: "Search", comment: ""), text: $searchText)
                         .font(.caption)
                 }
                 .padding(.horizontal, 8)
@@ -80,8 +80,10 @@ struct ArchivedQuestionsView: View {
                 
                 // Subject Pills
                 ForEach(subjects, id: \.self) { subject in
-                    Button(subject) {
+                    Button(action: {
                         selectedSubject = selectedSubject == subject ? nil : subject
+                    }) {
+                        Text(NSLocalizedString("subject.\(subject.lowercased())", value: subject, comment: ""))
                     }
                     .font(.caption)
                     .padding(.horizontal, 8)

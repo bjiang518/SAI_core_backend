@@ -101,7 +101,8 @@ struct HomeView: View {
                 .padding(.bottom, DesignTokens.Spacing.md)
             }
             .background(themeManager.backgroundColor.ignoresSafeArea())
-            .navigationBarHidden(true)
+            .navigationBarHidden(UIDevice.current.userInterfaceIdiom != .pad)
+            .navigationBarTitleDisplayMode(.inline)
             .onAppear {
                 lottieRefreshID += 1
                 todoEngine.fetchAndRefresh()
@@ -700,17 +701,6 @@ extension HomeView {
             lottieAnimation: "loadingtomato",
             lottieScale: 0.21,
             action: { showingFocusMode = true }
-        )
-
-        // Card 7: Homework Album
-        HorizontalActionButton(
-            icon: "photo.on.rectangle.angled",
-            title: NSLocalizedString("home.homeworkAlbum", comment: ""),
-            subtitle: NSLocalizedString("home.homeworkAlbumDescription", comment: ""),
-            color: colorScheme == .dark ? DesignTokens.Colors.rainbowPink.dark : DesignTokens.Colors.rainbowPink.light,
-            lottieAnimation: "Imageicontadah",
-            lottieScale: 0.16,
-            action: { showingHomeworkAlbum = true }
         )
 
         // Card 8: Parent Reports

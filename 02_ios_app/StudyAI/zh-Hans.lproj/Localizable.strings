@@ -34,7 +34,7 @@
 "settings.security" = "安全与隐私";
 "settings.passwordManager" = "密码管理器";
 "settings.privacySettings" = "隐私设定";
-"settings.appSettings" = "应用程式设定";
+"settings.appSettings" = "应用程序设置";
 "settings.studyReminders" = "学习提醒";
 "settings.language" = "语言";
 "languageSettings.sectionHeader" = "选择语言";
@@ -51,8 +51,8 @@
 "settings.support" = "支持";
 "settings.help" = "协助与常见问题";
 "settings.contact" = "联系支持";
-"settings.rateApp" = "评价应用程式";
-"settings.shareApp" = "分享应用程式";
+"settings.rateApp" = "评价应用程序";
+"settings.shareApp" = "分享应用程序";
 "settings.visitWebsite" = "访问官网";
 
 // Profile
@@ -206,6 +206,18 @@
 "aiHomework.preview.selectedCount" = "已选";
 "aiHomework.editImage" = "编辑图片";
 "aiHomework.analyzeWithAI" = "使用AI分析";
+"aiHomework.analyzeHomework" = "分析作业";
+"aiHomework.yourHomework" = "你的作业：";
+"aiHomework.imageEditingTips.body" = "📸 最佳效果提示：\n\n✓ 增强亮度和理想裁剪可提高AI准确性\n✓ 清晰明亮的图片有助于文字识别\n✓ 拉直图片以获得更好的OCR效果\n\n⚡ 智能处理：\n\n• 如果你编辑/调整图片大小，将直接发送你的版本给AI\n• 如果跳过编辑，将自动应用iOS增强：\n  - 增强亮度校正\n  - 智能对比度调整\n  - 二值化处理以提高文字识别\n• 压缩可在保持质量的同时减小文件大小";
+
+// Image Editor
+"imageEditor.resolution" = "分辨率";
+"imageEditor.reset" = "重置";
+"imageEditor.done" = "完成";
+"imageEditor.size.raw" = "原始";
+"imageEditor.size.large" = "大";
+"imageEditor.size.medium" = "中";
+"imageEditor.size.small" = "小";
 "aiHomework.analyzeMultipleImages" = "分析%d张图片";
 "aiHomework.imageCounter" = "%d / %d";
 "aiHomework.continueInBackground" = "是否在后台继续分析？完成后将发送通知。";
@@ -466,6 +478,7 @@
 "account.usage.tierFree" = "免费版";
 "account.usage.badgeGuest" = "访客";
 "account.usage.feature.homework_single" = "作业上传";
+"account.usage.feature.homework_pages" = "作业页数";
 "account.usage.feature.homework_batch" = "批量上传";
 "account.usage.feature.chat_messages" = "AI 对话";
 "account.usage.feature.questions" = "练习题";
@@ -806,6 +819,10 @@
 "library.stats.showing" = "显示：%@";
 "library.stats.showAll" = "显示全部";
 "library.stats.subject" = "科目：%@";
+"library.stats.rawHomeworks" = "作业原图";
+"library.rawHomeworks.imageCount" = "%d 张图片";
+"library.rawHomeworks.questionCount" = "%d题";
+"common.search" = "搜索";
 
 // Library Item
 "library.item.tapToReview" = "点击查看";
@@ -914,11 +931,11 @@
 "shareApp.feature2" = "✓ 互动式AI导师";
 "shareApp.feature3" = "✓ 错题复习和练习";
 "shareApp.feature4" = "✓ 进度追踪";
-"shareApp.downloadLink" = "立即下载：https://studyai.app";
+"shareApp.downloadLink" = "立即下载：https://apps.apple.com/us/app/studyagent/id6754365864";
 "shareApp.shareViaTitle" = "分享方式...";
 "shareApp.shareViaSubtitle" = "信息、电子邮件、社交媒体等";
-"shareApp.copyLinkTitle" = "复制应用程式连结";
-"shareApp.copyLinkSubtitle" = "在任何地方分享下载连结";
+"shareApp.copyLinkTitle" = "复制应用程序链接";
+"shareApp.copyLinkSubtitle" = "在任何地方分享下载链接";
 "shareApp.scanToDownload" = "扫描下载";
 "shareApp.qrCode" = "QR码";
 "shareApp.showQRCode" = "向朋友展示此QR码";
@@ -1140,7 +1157,7 @@
 // Example Prompts - Computer Science
 "chat.example.computerScience.1" = "什麼是演算法？";
 "chat.example.computerScience.2" = "解释二进位数字";
-"chat.example.computerScience.3" = "程式设计中的迴圈如何运作？";
+"chat.example.computerScience.3" = "程序设计中的循环如何运作？";
 "chat.example.computerScience.4" = "什么是对象导向程序设计？";
 
 // Example Prompts - Economics
@@ -2426,6 +2443,17 @@
 "onboarding.next" = "下一步";
 "onboarding.skip" = "跳过";
 
+// Homework Onboarding Tutorial
+"hwOnboarding.editImage.title" = "编辑图片";
+"hwOnboarding.editImage.desc" = "1. 点击选择题目图片\n2. 点击 🖼 或图片来编辑已选图片";
+"hwOnboarding.gradingMode.title" = "批改模式";
+"hwOnboarding.gradingMode.desc" = "快速模式使用 GPT 快速批改。深度模式使用 Gemini 深度推理——更适合复杂题目。";
+"hwOnboarding.reparse.title" = "重新解析";
+"hwOnboarding.reparse.desc" = "如果 AI 识别错误，点击重新解析该题目。";
+"hwOnboarding.moreOptions.title" = "更多选项";
+"hwOnboarding.moreOptions.desc" = "查看原图、重置标注、删除题目，或重新查看本教程。";
+"proMode.viewTutorial" = "查看教程";
+
 // Subject Names (missing)
 "subject.chinese" = "语文";
 "subject.computer_science" = "计算机科学";
@@ -2668,3 +2696,33 @@
 // Saved Digital Homework view modes
 "savedHomework.viewMode.parsed" = "题目模式";
 "savedHomework.viewMode.graded" = "批改模式";
+
+"aiHomework.imageEditingTips.title" = "图片编辑提示";
+"aiHomework.recover" = "恢复";
+"aiHomework.reanalyze" = "重新分析";
+"aiHomework.reanalysis" = "重新分析";
+"aiHomework.openCamera" = "打开相机";
+"aiHomework.sourceOptions.photos" = "从相册选取";
+"aiHomework.sourceOptions.files" = "从文件选取";
+"aiHomework.sourceOptions.recentHomework" = "从最近作业选取";
+"aiHomework.imageLimitReached.title" = "已达图片上限";
+"savedHomework.loading" = "加载作业中...";
+"savedHomework.questionLabel" = "第%@题";
+"savedHomework.askAI" = "问AI";
+"savedHomework.viewMode.parsed" = "题目模式";
+"savedHomework.viewMode.graded" = "批改模式";
+"progressiveHomework.title" = "作业批改";
+"progressiveHomework.loading.subtitle" = "这可能需要一点时间...";
+"progressiveHomework.modelSelection.title" = "选择AI模型";
+"progressiveHomework.modelSelection.subtitle" = "选择用于批改的AI模型";
+"progressiveHomework.modelSelection.label" = "AI模型";
+"progressiveHomework.startGrading" = "开始批改";
+"progressiveHomework.saveToWrongAnswerBook" = "保存到错题本";
+"homework.pdf.generating" = "正在生成PDF...";
+"homework.pdf.error.title" = "无法生成PDF";
+"homework.pdf.error.noQuestions" = "此作业记录中未找到题目。";
+"homework.pdf.questions.title" = "作业题目";
+"homework.pdf.email.subject" = "作业题目";
+"homework.pdf.email.body" = "请查收附件中的作业题目。";
+"homework.pdf.error.generation" = "PDF生成失败";
+"imageEditor.gestureHint" = "双指捏合缩放 · 双指旋转";

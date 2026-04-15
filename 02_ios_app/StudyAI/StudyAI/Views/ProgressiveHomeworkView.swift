@@ -83,7 +83,7 @@ struct ProgressiveHomeworkView: View {
                 errorOverlay
             }
         }
-        .navigationTitle("Homework Grading")
+        .navigationTitle(NSLocalizedString("progressiveHomework.title", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -107,7 +107,7 @@ struct ProgressiveHomeworkView: View {
                 .font(.headline)
                 .foregroundColor(.secondary)
 
-            Text("This may take a moment...")
+            Text(NSLocalizedString("progressiveHomework.loading.subtitle", comment: ""))
                 .font(.subheadline)
                 .foregroundColor(.secondary)
         }
@@ -126,18 +126,18 @@ struct ProgressiveHomeworkView: View {
                     .font(.system(size: 50))
                     .foregroundColor(.blue)
 
-                Text("Select AI Model")
+                Text(NSLocalizedString("progressiveHomework.modelSelection.title", comment: ""))
                     .font(.title2)
                     .fontWeight(.bold)
 
-                Text("Choose the AI model for grading")
+                Text(NSLocalizedString("progressiveHomework.modelSelection.subtitle", comment: ""))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
 
             // Model selection card
             VStack(alignment: .leading, spacing: 16) {
-                Text("AI Model")
+                Text(NSLocalizedString("progressiveHomework.modelSelection.label", comment: ""))
                     .font(.headline)
                     .foregroundColor(.secondary)
 
@@ -187,7 +187,7 @@ struct ProgressiveHomeworkView: View {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.headline)
 
-                    Text("Start Grading")
+                    Text(NSLocalizedString("progressiveHomework.startGrading", comment: ""))
                         .font(.headline)
                         .fontWeight(.semibold)
                 }
@@ -358,7 +358,7 @@ struct ProgressiveHomeworkView: View {
                 Image(systemName: "star.fill")
                     .font(.headline)
 
-                Text("Save to Wrong Answer Book")
+                Text(NSLocalizedString("progressiveHomework.saveToWrongAnswerBook", comment: ""))
                     .font(.headline)
                     .fontWeight(.semibold)
             }

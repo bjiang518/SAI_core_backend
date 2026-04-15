@@ -203,6 +203,18 @@
 "aiHomework.preview.selectedCount" = "selected";
 "aiHomework.editImage" = "Edit Image";
 "aiHomework.analyzeWithAI" = "Analyze with AI";
+"aiHomework.analyzeHomework" = "宿題を分析";
+"aiHomework.yourHomework" = "あなたの宿題：";
+"aiHomework.imageEditingTips.body" = "📸 最良の結果のために：\n\n✓ 明るさの向上と適切なトリミングでAIの精度が上がります\n✓ 鮮明で明るい画像はテキスト認識に役立ちます\n✓ 画像をまっすぐにするとOCR精度が向上します\n\n⚡ スマート処理：\n\n• 画像を編集/リサイズした場合、その版がAIに直接送信されます\n• 編集をスキップした場合、iOS自動補正が適用されます：\n  - 明るさの補正\n  - スマートコントラスト調整\n  - テキスト認識向上のための二値化\n• 圧縮により品質を維持しつつファイルサイズを削減";
+
+// Image Editor
+"imageEditor.resolution" = "解像度";
+"imageEditor.reset" = "リセット";
+"imageEditor.done" = "完了";
+"imageEditor.size.raw" = "オリジナル";
+"imageEditor.size.large" = "大";
+"imageEditor.size.medium" = "中";
+"imageEditor.size.small" = "小";
 "aiHomework.analyzeMultipleImages" = "Analyze %d Images with AI";
 "aiHomework.imageCounter" = "%d of %d";
 "aiHomework.continueInBackground" = "Continue analyzing in background? You'll get a notification when it's done.";
@@ -833,6 +845,10 @@
 "library.stats.showing" = "表示中: %@";
 "library.stats.showAll" = "すべて表示";
 "library.stats.subject" = "科目: %@";
+"library.stats.rawHomeworks" = "元の宿題";
+"library.rawHomeworks.imageCount" = "%d枚の画像";
+"library.rawHomeworks.questionCount" = "%d問";
+"common.search" = "検索";
 
 // Library Item
 "library.item.tapToReview" = "タップして確認";
@@ -941,7 +957,7 @@
 "shareApp.feature2" = "✓ Interactive AI tutor";
 "shareApp.feature3" = "✓ Mistake review & practice";
 "shareApp.feature4" = "✓ 進捗 tracking";
-"shareApp.downloadLink" = "Download now: https://studyai.app";
+"shareApp.downloadLink" = "今すぐダウンロード: https://apps.apple.com/us/app/studyagent/id6754365864";
 "shareApp.shareViaTitle" = "Share via...";
 "shareApp.shareViaSubtitle" = "Messages, Email, Social Media & More";
 "shareApp.copyLinkTitle" = "Copy App Link";
@@ -1007,6 +1023,17 @@
 "onboarding.chat.releaseToSend" = "離して送信";
 "onboarding.chat.holdToTalk" = "押して話す";
 "onboarding.chat.micDemoText" = "もっと詳しく説明してください";
+
+// Homework Onboarding Tutorial
+"hwOnboarding.editImage.title" = "画像を編集";
+"hwOnboarding.editImage.desc" = "1. タップして問題の画像を選択\n2. 🖼 または画像をタップして選択した切り抜きを編集";
+"hwOnboarding.gradingMode.title" = "採点モード";
+"hwOnboarding.gradingMode.desc" = "高速モードはGPTで素早く採点。深層モードはGeminiの拡張思考を使用し、複雑な問題に最適です。";
+"hwOnboarding.reparse.title" = "再解析";
+"hwOnboarding.reparse.desc" = "AIが誤って読み取った場合、タップしてこの問題を再解析します。";
+"hwOnboarding.moreOptions.title" = "その他のオプション";
+"hwOnboarding.moreOptions.desc" = "元の画像を表示、注釈をリセット、問題を削除、またはこのチュートリアルを再表示できます。";
+"proMode.viewTutorial" = "チュートリアルを見る";
 
 // Voice Chat (Gemini Live)
 "voice_chat.title" = "Live Talk";
@@ -2578,6 +2605,7 @@
 "account.usage.lifetimeLimits" = "生涯制限が適用されます";
 "account.usage.loadError" = "使用状況を読み込めませんでした";
 "account.usage.feature.homework_single" = "宿題アップロード";
+"account.usage.feature.homework_pages" = "宿題ページ数";
 "account.usage.feature.homework_batch" = "一括アップロード";
 "account.usage.feature.chat_messages" = "AIチャット";
 "account.usage.feature.questions" = "練習問題";
@@ -2689,3 +2717,33 @@
 // Saved Digital Homework view modes
 "savedHomework.viewMode.parsed" = "問題モード";
 "savedHomework.viewMode.graded" = "採点モード";
+
+"aiHomework.imageEditingTips.title" = "画像編集のヒント";
+"aiHomework.recover" = "復元";
+"aiHomework.reanalyze" = "再分析";
+"aiHomework.reanalysis" = "再分析";
+"aiHomework.openCamera" = "カメラを開く";
+"aiHomework.sourceOptions.photos" = "写真から選ぶ";
+"aiHomework.sourceOptions.files" = "ファイルから選ぶ";
+"aiHomework.sourceOptions.recentHomework" = "最近の宿題から選ぶ";
+"aiHomework.imageLimitReached.title" = "画像上限に達しました";
+"savedHomework.loading" = "宿題を読み込み中...";
+"savedHomework.questionLabel" = "問 %@";
+"savedHomework.askAI" = "AIに質問";
+"savedHomework.viewMode.parsed" = "問題モード";
+"savedHomework.viewMode.graded" = "採点モード";
+"progressiveHomework.title" = "宿題の採点";
+"progressiveHomework.loading.subtitle" = "少し時間がかかる場合があります...";
+"progressiveHomework.modelSelection.title" = "AIモデルを選択";
+"progressiveHomework.modelSelection.subtitle" = "採点に使用するAIモデルを選択してください";
+"progressiveHomework.modelSelection.label" = "AIモデル";
+"progressiveHomework.startGrading" = "採点を開始";
+"progressiveHomework.saveToWrongAnswerBook" = "間違いノートに保存";
+"homework.pdf.generating" = "PDF生成中...";
+"homework.pdf.error.title" = "PDFを生成できません";
+"homework.pdf.error.noQuestions" = "この宿題記録に問題が見つかりませんでした。";
+"homework.pdf.questions.title" = "宿題の問題";
+"homework.pdf.email.subject" = "宿題の問題";
+"homework.pdf.email.body" = "添付の宿題問題をご確認ください。";
+"homework.pdf.error.generation" = "PDF生成に失敗しました";
+"imageEditor.gestureHint" = "ピンチでズーム · 2本指で回転";

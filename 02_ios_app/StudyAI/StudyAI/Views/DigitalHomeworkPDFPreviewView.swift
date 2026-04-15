@@ -93,7 +93,7 @@ struct DigitalHomeworkPDFPreviewView: View {
             ProgressView(value: pdfGenerator.generationProgress)
                 .progressViewStyle(LinearProgressViewStyle(tint: .blue))
                 .frame(width: 200)
-            Text("Generating PDF…")
+            Text(NSLocalizedString("homework.pdf.generating", comment: ""))
                 .font(.headline)
                 .foregroundColor(.secondary)
             Text("\(Int(pdfGenerator.generationProgress * 100))%")
@@ -108,7 +108,7 @@ struct DigitalHomeworkPDFPreviewView: View {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 48))
                 .foregroundColor(.red)
-            Text("Failed to generate PDF")
+            Text(NSLocalizedString("homework.pdf.error.generation", comment: ""))
                 .font(.headline)
                 .foregroundColor(.secondary)
             Button("Retry") { Task { await generatePDF() } }

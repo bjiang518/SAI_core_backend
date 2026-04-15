@@ -40,7 +40,7 @@ struct HomeworkQuestionsPDFPreviewView: View {
                         ProgressView(value: pdfGenerator.generationProgress)
                             .progressViewStyle(LinearProgressViewStyle())
                             .padding()
-                        Text("Generating PDF...")
+                        Text(NSLocalizedString("homework.pdf.generating", comment: ""))
                             .font(.headline)
                         Text(String(format: "%.0f%%", pdfGenerator.generationProgress * 100))
                             .font(.subheadline)
@@ -55,9 +55,9 @@ struct HomeworkQuestionsPDFPreviewView: View {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.system(size: 50))
                             .foregroundColor(.orange)
-                        Text("Unable to Generate PDF")
+                        Text(NSLocalizedString("homework.pdf.error.title", comment: ""))
                             .font(.headline)
-                        Text("No questions found in this homework record.")
+                        Text(NSLocalizedString("homework.pdf.error.noQuestions", comment: ""))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -70,7 +70,7 @@ struct HomeworkQuestionsPDFPreviewView: View {
                     .padding()
                 }
             }
-            .navigationTitle("Homework Questions")
+            .navigationTitle(NSLocalizedString("homework.pdf.questions.title", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -111,8 +111,8 @@ struct HomeworkQuestionsPDFPreviewView: View {
         .sheet(isPresented: $showingEmailSheet) {
             if let url = pdfURL {
                 PDFMailComposeView(
-                    subject: "Homework Questions",
-                    messageBody: "Please find attached the homework questions.",
+                    subject: NSLocalizedString("homework.pdf.email.subject", comment: ""),
+                    messageBody: NSLocalizedString("homework.pdf.email.body", comment: ""),
                     attachmentURL: url,
                     attachmentName: "Homework_Questions_\(homeworkRecord.subject).pdf"
                 )
@@ -151,7 +151,7 @@ struct HomeworkQuestionsPDFPreviewView: View {
         }
 
         guard let rawQuestions = homeworkRecord.rawQuestions, !rawQuestions.isEmpty else {
-            errorMessage = "No questions found in this homework record."
+            errorMessage = NSLocalizedString("homework.pdf.error.noQuestions", comment: "")
             isGenerating = false
             return
         }

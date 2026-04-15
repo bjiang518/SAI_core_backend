@@ -50,6 +50,14 @@ struct DigitalHomeworkView: View {
     // Annotation unassigned warning banner
     @State private var annotationWarning: QuestionAnnotation? = nil
 
+    // Fly-in animation for question cards
+    @State private var questionsAppeared = false
+
+    // Homework onboarding tutorial
+    @AppStorage("homework_onboarding_v1_done") private var homeworkOnboardingDone = false
+    @State private var homeworkOnboardingStep: HomeworkOnboardingStep? = nil
+    @State private var hwOnboardingAnchors: [String: CGRect] = [:]
+
     // When non-nil, annotation mode shows only the annotation for this question (focused edit)
     @State private var focusedAnnotationQuestionId: String? = nil
     // When non-nil, the next annotation drawn auto-assigns this question number
@@ -124,6 +132,14 @@ struct DigitalHomeworkView: View {
                             } else {
                                 // Before grading: show menu
                                 Menu {
+                                    Button(action: {
+                                        homeworkOnboardingStep = .editImage
+                                    }) {
+                                        Label(NSLocalizedString("proMode.viewTutorial", comment: "View Tutorial"), systemImage: "questionmark.circle")
+                                    }
+
+                                    Divider()
+
                                     // ✅ NEW: Select to Delete option
                                     Button(action: {
                                         isDeletionMode = true
@@ -146,6 +162,7 @@ struct DigitalHomeworkView: View {
                                     }
                                 } label: {
                                     Image(systemName: "ellipsis.circle")
+                                        .hwOnboardingAnchor("hw_onboarding_moreOptions")
                                 }
                             }
                         }
@@ -203,6 +220,17 @@ struct DigitalHomeworkView: View {
                 .allowsHitTesting(false)
             }
         }
+        .overlay {
+            if let step = homeworkOnboardingStep {
+                HomeworkOnboardingOverlayView(
+                    step: step,
+                    anchors: hwOnboardingAnchors,
+                    onNext: { advanceHomeworkOnboardingStep() },
+                    onSkip: { dismissHomeworkOnboarding() }
+                )
+            }
+        }
+        .onPreferenceChange(HomeworkOnboardingAnchorKey.self) { hwOnboardingAnchors = $0 }
         .toolbar(.hidden, for: .tabBar)  // 隐藏 tab bar
         .animation(.easeInOut(duration: 0.3), value: viewModel.showAnnotationMode)
         .onChange(of: viewModel.showAnnotationMode) { oldValue, newValue in
@@ -314,7 +342,7 @@ struct DigitalHomeworkView: View {
                         VStack(spacing: 0) {
                             // Question list
                             LazyVStack(spacing: 12) {
-                                ForEach(viewModel.questions) { questionWithGrade in
+                                ForEach(Array(viewModel.questions.enumerated()), id: \.element.id) { index, questionWithGrade in
                                     QuestionCard(
                                         questionWithGrade: questionWithGrade,
                                         croppedImage: viewModel.getCroppedImage(for: questionWithGrade.question.id),
@@ -408,9 +436,17 @@ struct DigitalHomeworkView: View {
                                             .contains(questionWithGrade.question.id),
                                         subquestionsUnderAnalysis: viewModel.questionsUnderDiagramAnalysis
                                             .union(stateManager.questionsUnderBackgroundAnalysis),
-                                        missingDiagramImageIds: viewModel.questionsMissingDiagramImage
+                                        missingDiagramImageIds: viewModel.questionsMissingDiagramImage,
+                                        isFirstQuestion: index == 0
                                     )
                                     .id(questionWithGrade.question.id)
+                                    .offset(y: questionsAppeared ? 0 : 60)
+                                    .opacity(questionsAppeared ? 1 : 0)
+                                    .animation(
+                                        .spring(response: 0.5, dampingFraction: 0.8)
+                                            .delay(Double(index) * 0.08),
+                                        value: questionsAppeared
+                                    )
                                 }
                             }
                             .padding(.horizontal)
@@ -455,6 +491,25 @@ struct DigitalHomeworkView: View {
                 // Default: always collapsed — user expands if needed
                 if !viewModel.isGrading && !viewModel.allQuestionsGraded {
                     viewModel.isAnnotationSectionExpanded = false
+                }
+                // Fly-in animation trigger
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    questionsAppeared = true
+                }
+                // Auto-show onboarding for first-time users
+                if !homeworkOnboardingDone && viewModel.questions.count > 0 {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                        if homeworkOnboardingStep == nil {
+                            homeworkOnboardingStep = .editImage
+                        }
+                    }
+                }
+            }
+            .onChange(of: viewModel.questions.count) { _, _ in
+                // Re-trigger fly-in on re-parse
+                questionsAppeared = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    questionsAppeared = true
                 }
             }
         }
@@ -1070,6 +1125,7 @@ struct DigitalHomeworkView: View {
                     .padding(.horizontal, 16)
                 }
                 .buttonStyle(.plain)
+                .hwOnboardingAnchor("hw_onboarding_editImage")
 
                 // Trailing overlay: Smart Crop pill (when needed) + chevron
                 HStack(spacing: 8) {
@@ -2160,6 +2216,7 @@ struct DigitalHomeworkView: View {
                 }
             }
             .frame(width: 162, height: 36)
+            .hwOnboardingAnchor("hw_onboarding_gradingMode")
 
             // ── Grade button ─────────────────────────────────────────────
             let isCropping = stateManager.isBackgroundDiagramAnalysisPending || viewModel.isDiagramAnalysisPending
@@ -2276,6 +2333,25 @@ struct DigitalHomeworkView: View {
 
     /// Archive and analyze detected mistakes
 
+    // MARK: - Homework Onboarding Helpers
+
+    private func advanceHomeworkOnboardingStep() {
+        guard let current = homeworkOnboardingStep else { return }
+        if current.isLast {
+            dismissHomeworkOnboarding()
+        } else {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                homeworkOnboardingStep = HomeworkOnboardingStep(rawValue: current.rawValue + 1)
+            }
+        }
+    }
+
+    private func dismissHomeworkOnboarding() {
+        SpotlightWindow.hide()
+        homeworkOnboardingStep = nil
+        homeworkOnboardingDone = true
+    }
+
     // MARK: - Toast Helper
 
     private func buildToastLines(from summary: DigitalHomeworkViewModel.ArchiveResultSummary) -> [String] {
@@ -2320,6 +2396,7 @@ struct QuestionCard: View {
     let isUnderDiagramAnalysis: Bool
     let subquestionsUnderAnalysis: Set<String>  // subquestion ids currently being analyzed
     let missingDiagramImageIds: Set<String>
+    var isFirstQuestion: Bool = false  // When true, reparse button gets onboarding anchor
 
     @State private var isShaking = false
     @State private var isPulsing = false
@@ -2388,6 +2465,7 @@ struct QuestionCard: View {
                         .clipShape(Circle())
                 }
                 .buttonStyle(.plain)
+                .hwOnboardingAnchor(isFirstQuestion ? "hw_onboarding_reparse" : "")
             }
 
             // Grade badge (if graded) or loading indicator (if grading)

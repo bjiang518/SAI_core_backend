@@ -199,7 +199,7 @@ class DigitalHomeworkStateManager: ObservableObject {
     /// Derives the current pipeline state from in-memory homework data.
     var pipelineState: HomeworkPipelineState {
         guard let hw = currentHomework else { return .parsed }
-        let gradedCount = hw.questions.filter { $0.grade != nil }.count
+        let gradedCount = hw.questions.filter { $0.allSubquestionsGraded }.count
         let total = hw.questions.count
         let hasCrops = !hw.croppedImages.isEmpty || !hw.annotations.isEmpty
         if gradedCount == total && total > 0 { return .graded }
@@ -566,7 +566,7 @@ class DigitalHomeworkStateManager: ObservableObject {
     func restoreSession(from data: DigitalHomeworkData) {
         currentHomeworkHash = data.homeworkHash
         currentHomework = data
-        let gradedCount = data.questions.filter { $0.grade != nil }.count
+        let gradedCount = data.questions.filter { $0.allSubquestionsGraded }.count
         currentState = (gradedCount == data.questions.count && !data.questions.isEmpty) ? .graded : .parsed
 
         // Reset background analysis state for restored session

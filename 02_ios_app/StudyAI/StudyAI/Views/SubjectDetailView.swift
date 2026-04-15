@@ -176,7 +176,7 @@ struct SubjectOverviewCard: View {
             
             HStack {
                 OverviewMetric(
-                    title: "Questions",
+                    title: NSLocalizedString("library.stats.questions", comment: "Questions"),
                     value: "\(data.questionsAnswered)",
                     icon: "questionmark.circle.fill",
                     color: .blue

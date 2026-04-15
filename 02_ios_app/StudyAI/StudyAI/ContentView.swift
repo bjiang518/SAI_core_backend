@@ -465,7 +465,14 @@ struct MainTabView: View {
     private func configureTabBarAppearance() {
         DispatchQueue.main.async {
             let appearance = UITabBarAppearance()
-            appearance.configureWithDefaultBackground()
+            if themeManager.currentTheme == .colorful {
+                appearance.configureWithTransparentBackground()
+                appearance.backgroundEffect = nil
+                appearance.backgroundColor = .clear
+                appearance.shadowColor = .clear
+            } else {
+                appearance.configureWithDefaultBackground()
+            }
             UITabBar.appearance().standardAppearance = appearance
             UITabBar.appearance().scrollEdgeAppearance = appearance
         }

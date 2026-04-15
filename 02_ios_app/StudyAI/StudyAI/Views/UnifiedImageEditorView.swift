@@ -24,6 +24,7 @@ struct UnifiedImageEditorView: View {
     @State private var rotationScale: CGFloat = 1.0
     @GestureState private var gestureRotation: Angle = .zero
     @GestureState private var gestureScale: CGFloat = 1.0
+    @State private var showGestureHint = true
 
     private let imageEnhancer = ImageEnhancer.shared
 
@@ -34,6 +35,15 @@ struct UnifiedImageEditorView: View {
         case small = "Small"
 
         var id: String { self.rawValue }
+
+        var localizedName: String {
+            switch self {
+            case .raw:    return NSLocalizedString("imageEditor.size.raw", value: "Raw", comment: "")
+            case .large:  return NSLocalizedString("imageEditor.size.large", value: "Large", comment: "")
+            case .medium: return NSLocalizedString("imageEditor.size.medium", value: "Medium", comment: "")
+            case .small:  return NSLocalizedString("imageEditor.size.small", value: "Small", comment: "")
+            }
+        }
 
         var scale: CGFloat {
             switch self {
@@ -62,6 +72,27 @@ struct UnifiedImageEditorView: View {
                                 .id(imageUpdateTrigger)
 
                             buildCropOverlay(image: image, geometry: geometry)
+
+                            // Gesture hint — fades out after 2.5s
+                            if showGestureHint {
+                                VStack(spacing: 6) {
+                                    Image(systemName: "hand.pinch.fill")
+                                        .font(.system(size: 22))
+                                        .foregroundColor(.white)
+                                    Text(NSLocalizedString("imageEditor.gestureHint", comment: ""))
+                                        .font(.caption)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.white)
+                                        .multilineTextAlignment(.center)
+                                        .padding(.horizontal, 14)
+                                }
+                                .padding(.vertical, 10)
+                                .padding(.horizontal, 16)
+                                .background(Color.black.opacity(0.55))
+                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                .transition(.opacity)
+                                .allowsHitTesting(false)
+                            }
                         }
                         .contentShape(Rectangle())
                         .simultaneousGesture(rotateAndScaleGesture)
@@ -70,6 +101,11 @@ struct UnifiedImageEditorView: View {
                     .clipped()
                     .background(colorScheme == .dark ? Color(.systemGray6) : Color.white)
                     .padding(.top, 20)
+                    .onAppear {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                            withAnimation(.easeOut(duration: 0.6)) { showGestureHint = false }
+                        }
+                    }
                 }
 
                 // Brightness slider
@@ -91,7 +127,7 @@ struct UnifiedImageEditorView: View {
                 // Resize picker
                 VStack(spacing: 10) {
                     HStack {
-                        Text("Resolution")
+                        Text(NSLocalizedString("imageEditor.resolution", comment: "Resolution"))
                             .font(.subheadline)
                             .fontWeight(.medium)
                         Spacer()
@@ -105,7 +141,7 @@ struct UnifiedImageEditorView: View {
                     }
                     Picker("", selection: $selectedSizeReduction) {
                         ForEach(SizeReductionOption.allCases) { option in
-                            Text(option.rawValue).tag(option)
+                            Text(option.localizedName).tag(option)
                         }
                     }
                     .pickerStyle(.segmented)
@@ -117,7 +153,7 @@ struct UnifiedImageEditorView: View {
 
                 // Done / Reset buttons
                 HStack(spacing: 16) {
-                    Button("Reset") {
+                    Button(NSLocalizedString("imageEditor.reset", comment: "Reset")) {
                         setupInitialImage()
                     }
                     .font(.headline)
@@ -128,7 +164,7 @@ struct UnifiedImageEditorView: View {
                     .background(Color(.systemGray5))
                     .cornerRadius(12)
 
-                    Button("Done") {
+                    Button(NSLocalizedString("imageEditor.done", comment: "Done")) {
                         applyEditsAndFinish()
                     }
                     .font(.headline)

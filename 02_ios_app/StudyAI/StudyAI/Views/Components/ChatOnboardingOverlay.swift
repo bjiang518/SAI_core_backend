@@ -128,7 +128,7 @@ extension View {
 // out to onPreferenceChange, which then updates the UIKit overlay.
 // This guarantees the overlay is ALWAYS in sync with the current step.
 
-fileprivate struct UIKitSyncData: Equatable {
+struct UIKitSyncData: Equatable {
     var spotlightRect: CGRect
     var cardRect: CGRect
     var spotlightRadius: CGFloat
@@ -147,7 +147,7 @@ fileprivate struct UIKitSyncKey: PreferenceKey {
 // MARK: - UIKit Window-Level Scrim
 
 /// Drawn directly on UIWindow so it renders above the UIKit navigation bar.
-private final class SpotlightWindowOverlay: UIView {
+final class SpotlightWindowOverlay: UIView {
     /// Transparent hole for the target UI element.
     var spotlightRect: CGRect = .zero  { didSet { setNeedsDisplay() } }
     var spotlightRadius: CGFloat = 18  { didSet { setNeedsDisplay() } }
@@ -186,7 +186,7 @@ enum SpotlightWindow {
     private static var overlay: SpotlightWindowOverlay?
     static var isShowing: Bool { overlay != nil }
 
-    fileprivate static func show(data: UIKitSyncData) {
+    static func show(data: UIKitSyncData) {
         overlay?.removeFromSuperview()
         guard let window = keyWindow() else { return }
         let v = SpotlightWindowOverlay(frame: window.bounds)
@@ -195,7 +195,7 @@ enum SpotlightWindow {
         overlay = v
     }
 
-    fileprivate static func update(data: UIKitSyncData) {
+    static func update(data: UIKitSyncData) {
         guard let v = overlay else { show(data: data); return }
         apply(data, to: v)
     }
@@ -224,7 +224,7 @@ enum SpotlightWindow {
         v.cardRadius      = data.cardRadius
     }
 
-    fileprivate static func keyWindow() -> UIWindow? {
+    static func keyWindow() -> UIWindow? {
         UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
             .first(where: { $0.activationState == .foregroundActive })?.keyWindow

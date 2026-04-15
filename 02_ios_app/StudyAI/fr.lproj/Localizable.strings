@@ -203,6 +203,18 @@
 "aiHomework.preview.selectedCount" = "selected";
 "aiHomework.editImage" = "Edit Image";
 "aiHomework.analyzeWithAI" = "Analyze with AI";
+"aiHomework.analyzeHomework" = "Analyser le devoir";
+"aiHomework.yourHomework" = "Ton devoir :";
+"aiHomework.imageEditingTips.body" = "📸 Pour de meilleurs résultats :\n\n✓ Un éclairage amélioré et un recadrage idéal améliorent la précision de l'IA\n✓ Des images claires et bien éclairées aident la reconnaissance de texte\n✓ Redressez l'image pour une meilleure OCR\n\n⚡ Traitement intelligent :\n\n• Si vous éditez/redimensionnez une image, votre version est envoyée directement à l'IA\n• Si vous ignorez l'édition, l'amélioration automatique iOS est appliquée :\n  - Correction d'éclairage améliorée\n  - Ajustement intelligent du contraste\n  - Conversion binaire pour une meilleure reconnaissance de texte\n• La compression réduit la taille du fichier tout en maintenant la qualité";
+
+// Image Editor
+"imageEditor.resolution" = "Résolution";
+"imageEditor.reset" = "Réinitialiser";
+"imageEditor.done" = "Terminé";
+"imageEditor.size.raw" = "Original";
+"imageEditor.size.large" = "Grand";
+"imageEditor.size.medium" = "Moyen";
+"imageEditor.size.small" = "Petit";
 "aiHomework.analyzeMultipleImages" = "Analyze %d Images with AI";
 "aiHomework.imageCounter" = "%d of %d";
 "aiHomework.continueInBackground" = "Continue analyzing in background? You'll get a notification when it's done.";
@@ -834,6 +846,10 @@
 "library.stats.showing" = "Affichage : %@";
 "library.stats.showAll" = "Tout afficher";
 "library.stats.subject" = "Matière : %@";
+"library.stats.rawHomeworks" = "Devoirs originaux";
+"library.rawHomeworks.imageCount" = "%d images";
+"library.rawHomeworks.questionCount" = "%d quest.";
+"common.search" = "Rechercher";
 
 // Library Item
 "library.item.tapToReview" = "Appuyer pour réviser";
@@ -942,7 +958,7 @@
 "shareApp.feature2" = "✓ Interactive AI tutor";
 "shareApp.feature3" = "✓ Mistake review & practice";
 "shareApp.feature4" = "✓ Progrès tracking";
-"shareApp.downloadLink" = "Download now: https://studyai.app";
+"shareApp.downloadLink" = "Télécharger maintenant : https://apps.apple.com/us/app/studyagent/id6754365864";
 "shareApp.shareViaTitle" = "Share via...";
 "shareApp.shareViaSubtitle" = "Messages, Email, Social Media & More";
 "shareApp.copyLinkTitle" = "Copy App Link";
@@ -1008,6 +1024,17 @@
 "onboarding.chat.releaseToSend" = "Relâcher pour envoyer";
 "onboarding.chat.holdToTalk" = "Maintenir pour parler";
 "onboarding.chat.micDemoText" = "explique-le plus en détail";
+
+// Homework Onboarding Tutorial
+"hwOnboarding.editImage.title" = "Modifier l'image";
+"hwOnboarding.editImage.desc" = "1. Appuyez pour sélectionner l'image d'une question\n2. Appuyez sur 🖼 ou l'image pour modifier le recadrage";
+"hwOnboarding.gradingMode.title" = "Mode de correction";
+"hwOnboarding.gradingMode.desc" = "Rapide utilise GPT pour une correction rapide. Approfondi utilise Gemini avec une réflexion étendue — idéal pour les problèmes complexes.";
+"hwOnboarding.reparse.title" = "Réanalyser";
+"hwOnboarding.reparse.desc" = "Appuyez pour réanalyser cette question à partir de l'image si l'IA a mal lu quelque chose.";
+"hwOnboarding.moreOptions.title" = "Plus d'options";
+"hwOnboarding.moreOptions.desc" = "Voir l'image originale, réinitialiser les annotations, supprimer des questions ou revoir ce tutoriel.";
+"proMode.viewTutorial" = "Voir le tutoriel";
 
 // Voice Chat (Gemini Live)
 "voice_chat.title" = "Live Talk";
@@ -2531,6 +2558,7 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "account.usage.tierFree" = "Gratuit";
 "account.usage.badgeGuest" = "Invité";
 "account.usage.feature.homework_single" = "Téléchargement de devoirs";
+"account.usage.feature.homework_pages" = "Pages de devoirs";
 "account.usage.feature.homework_batch" = "Téléchargement en lot";
 "account.usage.feature.chat_messages" = "Chat IA";
 "account.usage.feature.questions" = "Questions pratiques";
@@ -2705,3 +2733,33 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 // Saved Digital Homework view modes
 "savedHomework.viewMode.parsed" = "Mode questions";
 "savedHomework.viewMode.graded" = "Mode notation";
+
+"aiHomework.imageEditingTips.title" = "Conseils de retouche d'image";
+"aiHomework.recover" = "Récupérer";
+"aiHomework.reanalyze" = "Réanalyser";
+"aiHomework.reanalysis" = "Réanalyse";
+"aiHomework.openCamera" = "Ouvrir la caméra";
+"aiHomework.sourceOptions.photos" = "Depuis Photos";
+"aiHomework.sourceOptions.files" = "Depuis Fichiers";
+"aiHomework.sourceOptions.recentHomework" = "Depuis les devoirs récents";
+"aiHomework.imageLimitReached.title" = "Limite d'images atteinte";
+"savedHomework.loading" = "Chargement des devoirs...";
+"savedHomework.questionLabel" = "Q %@";
+"savedHomework.askAI" = "Demander à l'IA";
+"savedHomework.viewMode.parsed" = "Mode questions";
+"savedHomework.viewMode.graded" = "Mode notation";
+"progressiveHomework.title" = "Correction des devoirs";
+"progressiveHomework.loading.subtitle" = "Cela peut prendre un moment...";
+"progressiveHomework.modelSelection.title" = "Sélectionner le modèle IA";
+"progressiveHomework.modelSelection.subtitle" = "Choisissez le modèle IA pour la correction";
+"progressiveHomework.modelSelection.label" = "Modèle IA";
+"progressiveHomework.startGrading" = "Commencer la correction";
+"progressiveHomework.saveToWrongAnswerBook" = "Sauvegarder dans le cahier d'erreurs";
+"homework.pdf.generating" = "Génération du PDF...";
+"homework.pdf.error.title" = "Impossible de générer le PDF";
+"homework.pdf.error.noQuestions" = "Aucune question trouvée dans ce devoir.";
+"homework.pdf.questions.title" = "Questions de devoirs";
+"homework.pdf.email.subject" = "Questions de devoirs";
+"homework.pdf.email.body" = "Veuillez trouver ci-joint les questions de devoirs.";
+"homework.pdf.error.generation" = "Échec de la génération PDF";
+"imageEditor.gestureHint" = "Pincer pour zoomer · Deux doigts pour pivoter";

@@ -31,7 +31,7 @@ struct UnifiedLibraryView: View {
     // Section visibility toggles (independent)
     @State private var showQuestionsSection: Bool = true
     @State private var showConversationsSection: Bool = true
-    @State private var showRawHomeworksSection: Bool = false
+    @State private var showRawHomeworksSection: Bool = true
     @State private var showingLibraryInfo = false
 
     // Homework image data
@@ -594,12 +594,12 @@ struct UnifiedLibraryView: View {
                     Button {
                         selectedSubject = subject
                     } label: {
-                        Label(NSLocalizedString("subject.\(subject.lowercased().replacingOccurrences(of: " ", with: ""))", value: subject, comment: ""), systemImage: "book.fill")
+                        Label(NSLocalizedString("subject.\(subject.lowercased().replacingOccurrences(of: " ", with: ""))", value: subject, comment: ""), systemImage: Subject.normalize(subject)?.icon ?? "book.fill")
                     }
                 }
             } label: {
                 filterChip(
-                    icon: "book.fill",
+                    icon: selectedSubject.flatMap { Subject.normalize($0) }?.icon ?? "books.vertical",
                     label: selectedSubject.map { NSLocalizedString("subject.\($0.lowercased().replacingOccurrences(of: " ", with: ""))", value: $0, comment: "") } ?? NSLocalizedString("library.filter.allSubjects", comment: "")
                 )
             }
@@ -643,16 +643,16 @@ struct UnifiedLibraryView: View {
         .frame(maxWidth: .infinity, minHeight: 44)
         .background(
             themeManager.currentTheme == .colorful
-                ? DesignTokens.Colors.Cute.backgroundSoftPink
-                : Color(.systemBackground)
+                ? DesignTokens.Colors.Cute.blueLight.opacity(0.35)
+                : themeManager.cardBackground
         )
         .cornerRadius(10)
         .overlay(
             RoundedRectangle(cornerRadius: 10)
                 .stroke(
                     themeManager.currentTheme == .colorful
-                        ? DesignTokens.Colors.Cute.lavender.opacity(0.3)
-                        : Color.gray.opacity(0.3),
+                        ? DesignTokens.Colors.Cute.blue.opacity(0.3)
+                        : themeManager.secondaryText.opacity(0.3),
                     lineWidth: 1
                 )
         )
@@ -930,7 +930,7 @@ struct QuickStatsHeader: View {
 
                 InteractiveStatPill(
                     icon: "doc.text.image.fill",
-                    title: "Raw Homeworks",
+                    title: NSLocalizedString("library.stats.rawHomeworks", comment: "Raw Homeworks"),
                     count: rawHomeworkCount,
                     color: .orange,
                     isSelected: showRawHomeworks,
@@ -1007,11 +1007,11 @@ struct RawHomeworkCoverFlowRow: View {
                 Image(systemName: "doc.text.image.fill")
                     .foregroundColor(.orange)
                     .font(.subheadline)
-                Text("Raw Homeworks")
+                Text(NSLocalizedString("library.stats.rawHomeworks", comment: "Raw Homeworks"))
                     .font(.subheadline)
                     .fontWeight(.semibold)
                 Spacer()
-                Text("\(records.count) image\(records.count == 1 ? "" : "s")")
+                Text(String.localizedStringWithFormat(NSLocalizedString("library.rawHomeworks.imageCount", comment: "%d image(s)"), records.count))
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -1111,7 +1111,7 @@ struct HomeworkCoverCard: View {
             // Metadata strip
             VStack(alignment: .leading, spacing: 3) {
                 HStack {
-                    Text(record.subject)
+                    Text(NSLocalizedString("subject.\(record.subject.lowercased().replacingOccurrences(of: " ", with: ""))", value: record.subject, comment: ""))
                         .font(.caption)
                         .fontWeight(.semibold)
                         .foregroundColor(.blue)
@@ -1131,7 +1131,7 @@ struct HomeworkCoverCard: View {
                         .font(.caption2)
                         .foregroundColor(.secondary)
                     Spacer()
-                    Text("\(record.questionCount)q")
+                    Text(String.localizedStringWithFormat(NSLocalizedString("library.rawHomeworks.questionCount", comment: "%d questions short"), record.questionCount))
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }

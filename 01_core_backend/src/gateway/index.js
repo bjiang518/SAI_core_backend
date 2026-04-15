@@ -15,7 +15,7 @@ const fastify = require('fastify')({
   logger: process.env.NODE_ENV === 'production' ? true : {
     level: process.env.LOG_LEVEL || 'info'
   },
-  bodyLimit: 5 * 1024 * 1024, // 5MB body limit - reasonable for base64 encoded images (~3.7MB original)
+  bodyLimit: 20 * 1024 * 1024, // 20MB — supports multi-page homework (up to ~5 pages at high resolution)
   connectionTimeout: 240000, // 4 minutes - must be longer than AI engine timeout (Fastify v5 change)
   requestIdLogLabel: 'reqId' // Fastify v5: explicit request ID label
 });
@@ -48,10 +48,10 @@ const DailyQuestionRoutes = require('./routes/daily-question-routes');  // GET /
 // Register multipart support for file uploads
 fastify.register(require('@fastify/multipart'), {
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit - matches bodyLimit for security
+    fileSize: 20 * 1024 * 1024, // 20MB — matches bodyLimit
     files: 1, // Only allow 1 file at a time
     fieldNameSize: 100,
-    fieldSize: 5 * 1024 * 1024, // Allow large base64 fields (matches bodyLimit)
+    fieldSize: 20 * 1024 * 1024, // Allow large base64 fields (matches bodyLimit)
     fields: 10
   }
 });
@@ -395,6 +395,13 @@ if (features.useGateway) {
 
   // Health and monitoring routes
   new HealthRoutes(fastify);
+
+  // Root and favicon — silence browser/bot 404 noise
+  fastify.get('/', async (request, reply) => {
+    return reply.send({ service: 'StudyAI API', status: 'ok' });
+  });
+  fastify.get('/favicon.ico', async (request, reply) => reply.code(204).send());
+  fastify.get('/favicon.png', async (request, reply) => reply.code(204).send());
 
   // PHASE 1 OPTIMIZATION: Database pool monitoring endpoint
   const { getPoolHealth } = require('../utils/railway-database');

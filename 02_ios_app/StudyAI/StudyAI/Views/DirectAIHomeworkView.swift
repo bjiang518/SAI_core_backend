@@ -574,10 +574,10 @@ struct DirectAIHomeworkView: View {
         } message: {
             Text(NSLocalizedString("aiHomework.selectOneImageMessage", comment: ""))
         }
-        .alert("Image Editing Tips", isPresented: $showingEditImageInfo) {
-            Button("OK", role: .cancel) { }
+        .alert(NSLocalizedString("aiHomework.imageEditingTips.title", comment: ""), isPresented: $showingEditImageInfo) {
+            Button(NSLocalizedString("common.ok", comment: ""), role: .cancel) { }
         } message: {
-            Text("""
+            Text(NSLocalizedString("aiHomework.imageEditingTips.body", value: """
             📸 For Best Results:
 
             ✓ Enhanced lighting and ideal cropping improve AI accuracy
@@ -592,7 +592,7 @@ struct DirectAIHomeworkView: View {
               - Smart contrast adjustment
               - Binary conversion for better text recognition
             • Compression reduces file size while maintaining quality
-            """)
+            """, comment: ""))
         }
         .fullScreenCover(isPresented: $showingFullScreenImage) {
             if let image = fullScreenImage {
@@ -1148,7 +1148,7 @@ struct DirectAIHomeworkView: View {
         let buttonColor: Color
 
         if effectiveMode == .progressive {
-            buttonTitle = "Analyze Homework"
+            buttonTitle = NSLocalizedString("aiHomework.analyzeHomework", comment: "Analyze Homework")
             buttonColor = themeManager.currentTheme == .colorful ?
                 DesignTokens.Colors.Cute.blue :
                 Color(red: 0.4, green: 0.6, blue: 1.0)
@@ -1217,7 +1217,7 @@ struct DirectAIHomeworkView: View {
                         }
                         pendingAlbumRecord = nil
                     } label: {
-                        Text("Recover")
+                        Text(NSLocalizedString("aiHomework.recover", comment: ""))
                             .font(.subheadline)
                             .fontWeight(.semibold)
                             .frame(maxWidth: .infinity)
@@ -1234,7 +1234,7 @@ struct DirectAIHomeworkView: View {
                         }
                         pendingAlbumRecord = nil
                     } label: {
-                        Text("Re-analyze")
+                        Text(NSLocalizedString("aiHomework.reanalyze", comment: ""))
                             .font(.subheadline)
                             .fontWeight(.semibold)
                             .frame(maxWidth: .infinity)
@@ -1247,7 +1247,7 @@ struct DirectAIHomeworkView: View {
                 Button {
                     pendingAlbumRecord = nil
                 } label: {
-                    Text("Cancel")
+                    Text(NSLocalizedString("common.cancel", comment: "Cancel"))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                         .frame(maxWidth: .infinity)
@@ -1266,7 +1266,7 @@ struct DirectAIHomeworkView: View {
     // MARK: - Recover Analysis Button
     private func sideBySideActionButtons(session: PersistedHomeworkSession) -> some View {
         let effectiveMode: ParsingMode = FeatureFlags.showParsingModeSelector ? parsingMode : .progressive
-        let analyzeTitle: String = "Re-analysis"
+        let analyzeTitle: String = NSLocalizedString("aiHomework.reanalysis", comment: "Re-analysis")
 
         return HStack(spacing: 10) {
             // Left: AI Digital Homework (blue)
@@ -1299,7 +1299,7 @@ struct DirectAIHomeworkView: View {
                 DigitalHomeworkStateManager.shared.restoreSession(from: session.fullData)
                 showResumedHomework = true
             } label: {
-                Text("Recover")
+                Text(NSLocalizedString("aiHomework.recover", comment: ""))
                     .fontWeight(.semibold)
                     .font(.subheadline)
                     .foregroundColor(.white)
@@ -1550,12 +1550,12 @@ struct DirectAIHomeworkView: View {
                 // Image Section - Show all captured images in deck style (Status section removed)
                 if !stateManager.capturedImages.isEmpty {
                     imageDeckSection(
-                        title: stateManager.capturedImages.count == 1 ? "Your homework:" : "Your homework:",
+                        title: NSLocalizedString("aiHomework.yourHomework", comment: "Your homework:"),
                         images: stateManager.capturedImages
                     )
                 } else if let image = stateManager.originalImage {
                     // Fallback for backward compatibility
-                    imageSection(title: "Your homework:", image: image)
+                    imageSection(title: NSLocalizedString("aiHomework.yourHomework", comment: "Your homework:"), image: image)
                 }
 
                 // Results Section
@@ -3484,12 +3484,14 @@ struct CameraEntrySheetView: View {
     @State private var showAlbumPicker = false
     @State private var showSourceOptions = false
     @State private var showImageLimitAlert = false
+    @State private var isDismissing = false
 
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
 
             if showDocScanner {
+
                 ZStack(alignment: .bottomLeading) {
                     EnhancedCameraView(isPresented: $showDocScanner)
                         .ignoresSafeArea()
@@ -3506,7 +3508,7 @@ struct CameraEntrySheetView: View {
                     .padding(.leading, 24)
                     .padding(.bottom, 90)
                 }
-            } else {
+            } else if !isDismissing {
                 // Camera was cancelled — show minimal retry / exit view
                 VStack(spacing: 24) {
                     Spacer()
@@ -3515,7 +3517,7 @@ struct CameraEntrySheetView: View {
                             Image(systemName: "camera.circle.fill")
                                 .font(.system(size: 72))
                                 .foregroundColor(DesignTokens.Colors.Cute.blue)
-                            Text("Open Camera")
+                            Text(NSLocalizedString("aiHomework.openCamera", comment: ""))
                                 .font(.title3).fontWeight(.semibold)
                                 .foregroundColor(.white)
                         }
@@ -3527,7 +3529,7 @@ struct CameraEntrySheetView: View {
                             AppState.shared.selectedTab = .home
                         }
                     } label: {
-                        Text("Cancel")
+                        Text(NSLocalizedString("common.cancel", comment: "Cancel"))
                             .font(.subheadline)
                             .foregroundColor(.gray)
                     }
@@ -3544,15 +3546,29 @@ struct CameraEntrySheetView: View {
                     for img in captured {
                         _ = stateManager.addImage(img)
                     }
+                    isDismissing = true
                     isPresented = false
+                } else if stateManager.capturedImages.isEmpty {
+                    // Camera cancelled with no images — dismiss without showing fallback
+                    isDismissing = true
+                    DispatchQueue.main.async {
+                        isPresented = false
+                        AppState.shared.selectedTab = .home
+                    }
                 }
             }
         }
-        .confirmationDialog("", isPresented: $showSourceOptions) {
-            Button("From Photos") { showPhotoPicker = true }
-            Button("From Files")  { showFilePicker  = true }
-            Button("From Recent Homework") { showAlbumPicker = true }
-            Button("Cancel", role: .cancel) {}
+        .overlay {
+            if showSourceOptions {
+                SourceOptionsOverlay(
+                    onPhotos: { showSourceOptions = false; showPhotoPicker = true },
+                    onFiles:  { showSourceOptions = false; showFilePicker  = true },
+                    onRecent: { showSourceOptions = false; showAlbumPicker = true },
+                    onDismiss: { showSourceOptions = false }
+                )
+                .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showSourceOptions)
+            }
         }
         .sheet(isPresented: $showPhotoPicker) {
             PhotosPickerView(
@@ -3596,8 +3612,97 @@ struct CameraEntrySheetView: View {
                 }
             }
         }
-        .alert("Image Limit Reached", isPresented: $showImageLimitAlert) {
-            Button("OK", role: .cancel) {}
+        .alert(NSLocalizedString("aiHomework.imageLimitReached.title", comment: ""), isPresented: $showImageLimitAlert) {
+            Button(NSLocalizedString("common.ok", comment: ""), role: .cancel) {}
+        }
+    }
+}
+
+// MARK: - Source Options Overlay
+
+private struct SourceOptionsOverlay: View {
+    let onPhotos: () -> Void
+    let onFiles: () -> Void
+    let onRecent: () -> Void
+    let onDismiss: () -> Void
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.55)
+                .ignoresSafeArea()
+                .onTapGesture { onDismiss() }
+
+            VStack(spacing: 12) {
+                SourceOptionButton(
+                    icon: "photo.on.rectangle",
+                    label: NSLocalizedString("aiHomework.sourceOptions.photos", comment: ""),
+                    color: DesignTokens.Colors.Cute.blue,
+                    action: onPhotos
+                )
+                SourceOptionButton(
+                    icon: "doc.fill",
+                    label: NSLocalizedString("aiHomework.sourceOptions.files", comment: ""),
+                    color: DesignTokens.Colors.Cute.lavender,
+                    action: onFiles
+                )
+                SourceOptionButton(
+                    icon: "list.bullet.rectangle.portrait.fill",
+                    label: NSLocalizedString("aiHomework.sourceOptions.recentHomework", comment: ""),
+                    color: DesignTokens.Colors.Cute.mint,
+                    action: onRecent
+                )
+
+                Button(action: onDismiss) {
+                    Text(NSLocalizedString("common.cancel", comment: ""))
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.6))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                }
+            }
+            .padding(.horizontal, 28)
+            .padding(.bottom, 130)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+        }
+    }
+}
+
+private struct SourceOptionButton: View {
+    let icon: String
+    let label: String
+    let color: Color
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(color.opacity(0.25))
+                        .frame(width: 42, height: 42)
+                    Image(systemName: icon)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(color)
+                }
+                Text(label)
+                    .font(.body)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.4))
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 14)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color.black.opacity(0.65))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(color.opacity(0.35), lineWidth: 1)
+                    )
+            )
         }
     }
 }

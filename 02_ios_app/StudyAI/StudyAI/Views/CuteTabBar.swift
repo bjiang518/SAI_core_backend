@@ -24,9 +24,9 @@ struct CuteTabBar: View {
 
     // Landscape (compact height) uses a slimmer bar
     private var isLandscape: Bool { verticalSizeClass == .compact }
-    private var barHeight: CGFloat { isLandscape ? 54 : 120 }
-    private var shapeHeight: CGFloat { isLandscape ? 70 : 130 }
-    private var shapeYOffset: CGFloat { isLandscape ? 35 : 65 }
+    private var barHeight: CGFloat { isLandscape ? 64 : 120 }
+    private var shapeHeight: CGFloat { isLandscape ? 80 : 130 }
+    private var shapeYOffset: CGFloat { isLandscape ? 40 : 65 }
     private var bubbleSize: CGFloat { isLandscape ? 42 : 70 }
     private var iconFontSize: CGFloat { isLandscape ? 18 : 30 }
     private var unselectedIconSize: CGFloat { isLandscape ? 18 : 22 }
