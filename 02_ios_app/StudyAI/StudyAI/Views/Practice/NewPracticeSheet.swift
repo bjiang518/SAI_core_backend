@@ -48,6 +48,12 @@ struct NewPracticeSheet: View {
 
     // Difficulty bar animation
 
+    // Onboarding tutorial (step 4 — difficulty bar)
+    @AppStorage("practice_lib_onboarding_done") private var libOnboardingDone: Bool = false
+    @AppStorage("practice_sheet_onboarding_done") private var sheetOnboardingDone = false
+    @State private var sheetOnboardingStep: PracticeLibOnboardingStep? = nil
+    @State private var sheetOnboardingAnchors: [String: CGRect] = [:]
+
     private let dataAdapter = QuestionGenerationDataAdapter.shared
     private let logger = Logger(subsystem: "com.studyai", category: "NewPracticeSheet")
 
@@ -156,7 +162,29 @@ struct NewPracticeSheet: View {
                 selectedQuestions: $selectedQuestions
             )
         }
-        .onAppear { loadArchivesIfNeeded() }
+        .onAppear {
+            loadArchivesIfNeeded()
+            if libOnboardingDone && !sheetOnboardingDone {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                    if sheetOnboardingStep == nil {
+                        sheetOnboardingStep = .difficultyBar
+                    }
+                }
+            }
+        }
+        .overlay {
+            if let step = sheetOnboardingStep {
+                PracticeLibOnboardingOverlayView(
+                    step: step,
+                    anchors: sheetOnboardingAnchors,
+                    totalSteps: 1,
+                    onNext: { dismissSheetOnboarding() },
+                    onSkip: { dismissSheetOnboarding() },
+                    useSwiftUIScrim: true
+                )
+            }
+        }
+        .onPreferenceChange(PracticeLibOnboardingAnchorKey.self) { sheetOnboardingAnchors = $0 }
         // Auto-select conversation once archives load (concept-review shortcut)
         .onChange(of: availableConversations.count) { _, _ in
             guard let convId = initialConversationId,
@@ -412,6 +440,7 @@ struct NewPracticeSheet: View {
             }
             .frame(height: 36)
         }
+        .practiceLibOnboardingAnchor("practice_lib_onboarding_difficultyBar")
     }
 
     private var isIntermediateSegActive: Bool {
@@ -652,6 +681,14 @@ struct NewPracticeSheet: View {
                 self.isLoadingArchives = false
             }
         }
+    }
+
+    // MARK: - Onboarding
+
+    private func dismissSheetOnboarding() {
+        SpotlightWindow.hide()
+        sheetOnboardingStep = nil
+        sheetOnboardingDone = true
     }
 }
 

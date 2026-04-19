@@ -150,6 +150,81 @@ struct DesignTokens {
             static let textPrimary = Color(hex: "2D2D2D")          // Soft black for readability
             static let textSecondary = Color(hex: "666666")        // Gray for secondary text
         }
+
+        // MARK: - Ocean Night Colors (Deep Blue Dark Theme)
+        struct OceanNight {
+            static let background = Color(hex: "0B1426")           // Deep navy
+            static let card = Color(hex: "132040")                 // Slightly lighter navy
+            static let textPrimary = Color(hex: "E8EDF5")          // Soft white-blue
+            static let textSecondary = Color(hex: "7B8FA8")        // Muted steel blue
+            static let accent = Color(hex: "00D4AA")               // Fluorescent teal
+            static let greetingCard = Color(hex: "1A3A5C")         // Medium ocean blue
+            static let tabBar = Color(hex: "070D1A")               // Near-black navy
+            // Feature card colors
+            static let homework = Color(hex: "FF6B8A")             // Coral pink
+            static let chat = Color(hex: "FFD166")                 // Warm gold
+            static let library = Color(hex: "A78BFA")              // Soft purple
+            static let progress = Color(hex: "00D4AA")             // Fluorescent teal
+            static let practice = Color(hex: "5BC0EB")             // Sky blue
+            static let reports = Color(hex: "FF9A76")              // Soft coral
+        }
+
+        // MARK: - Forest Green Colors (Natural Earthy Theme)
+        struct Forest {
+            static let background = Color(hex: "F5F9F2")           // Soft sage white
+            static let card = Color(hex: "E8F0E2")                 // Light sage
+            static let textPrimary = Color(hex: "2D3B2D")          // Forest dark
+            static let textSecondary = Color(hex: "6B7E6B")        // Moss gray
+            static let accent = Color(hex: "4CAF50")               // Vivid green
+            static let buttonBg = Color(hex: "2E7D32")             // Deep forest green
+            static let greetingCard = Color(hex: "81C784")         // Medium green
+            static let tabBar = Color(hex: "2E7D32")               // Deep forest green
+            static let tabItemLight = Color(hex: "A5D6A7")         // Light green
+            // Feature card colors
+            static let homework = Color(hex: "E8A87C")             // Warm terracotta
+            static let chat = Color(hex: "F0C75E")                 // Golden honey
+            static let library = Color(hex: "A78BCC")              // Dusty lavender
+            static let progress = Color(hex: "66BB6A")             // Fresh green
+            static let practice = Color(hex: "64B5F6")             // Sky blue
+            static let reports = Color(hex: "E8A87C")              // Warm terracotta
+        }
+
+        // MARK: - Sakura Colors (Cherry Blossom Pink Theme)
+        struct Sakura {
+            static let background = Color(hex: "FFF5F8")           // Barely-there pink
+            static let card = Color(hex: "FFE4EC")                 // Soft blush
+            static let textPrimary = Color(hex: "4A2C3D")          // Deep plum
+            static let textSecondary = Color(hex: "9B7A8C")        // Muted rose
+            static let accent = Color(hex: "E91E8C")               // Vibrant magenta-pink
+            static let greetingCard = Color(hex: "FFB7D0")         // Cherry blossom pink
+            static let tabBar = Color(hex: "4A2C3D")               // Deep plum
+            static let tabItemDustyRose = Color(hex: "D4A0B5")     // Dusty rose
+            static let cherryBlossom = Color(hex: "FFB7D0")        // Cherry blossom
+            // Feature card colors
+            static let homework = Color(hex: "FFB7D0")             // Cherry blossom
+            static let chat = Color(hex: "FFE0A0")                 // Soft gold
+            static let library = Color(hex: "D0B4F1")              // Soft lavender
+            static let progress = Color(hex: "A8E6CF")             // Soft mint
+            static let practice = Color(hex: "A8D8EA")             // Soft sky
+            static let reports = Color(hex: "FFCBA4")              // Soft peach
+        }
+
+        // MARK: - Pure Dark Colors (OLED-Friendly High-Contrast Theme)
+        struct PureDark {
+            static let background = Color(hex: "000000")           // Pure black
+            static let card = Color(hex: "1C1C1E")                 // System dark gray
+            static let textPrimary = Color(hex: "FFFFFF")          // Pure white
+            static let textSecondary = Color(hex: "8E8E93")        // System gray
+            static let accent = Color(hex: "BF5AF2")               // Apple purple
+            static let greetingCard = Color(hex: "2C2C2E")         // Elevated dark
+            // Feature card colors
+            static let homework = Color(hex: "FF6961")             // Soft red
+            static let chat = Color(hex: "FFD700")                 // Gold
+            static let library = Color(hex: "BF5AF2")              // Purple
+            static let progress = Color(hex: "30D158")             // Apple green
+            static let practice = Color(hex: "64D2FF")             // Cyan
+            static let reports = Color(hex: "FF9F0A")              // Orange
+        }
     }
 
     // MARK: - Adaptive Colors for Dark Mode Support

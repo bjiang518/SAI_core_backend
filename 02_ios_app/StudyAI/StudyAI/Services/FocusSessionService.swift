@@ -276,12 +276,9 @@ class FocusSessionService: ObservableObject {
     /// 处理番茄钟完成
     private func handlePomodoroCompletion() {
         debugPrint("🍅 Pomodoro completed! 25 minutes focused.")
-        // 触发震动反馈
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(.success)
-
-        // 这里可以触发声音提示或其他反馈
-        // AudioServicesPlaySystemSound(SystemSoundID(1016))  // 可选
+        AppReviewService.shared.recordFocusCompleted()
     }
 
     private func stopTimer() {

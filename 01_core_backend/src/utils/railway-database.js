@@ -192,7 +192,7 @@ const db = {
           (queryMetrics.averageQueryTime * (queryMetrics.totalQueries - 1) + duration) / queryMetrics.totalQueries;
 
         // OPTIMIZED: Track slow queries with more detail
-        if (duration > 500) {  // Changed from 1000ms to 500ms for earlier detection
+        if (duration > 2000) {  // 2s threshold — avoids noise from cold-connection startup queries
           const slowQuery = {
             query: text.substring(0, 150),
             params: params?.length > 0 ? JSON.stringify(params).substring(0, 100) : 'none',
@@ -4782,20 +4782,18 @@ async function runDatabaseMigrations() {
         await db.query(`
           CREATE OR REPLACE FUNCTION hard_delete_old_soft_deleted()
           RETURNS TABLE(
-            table_name TEXT,
+            tbl_name TEXT,
             purged_count BIGINT
           ) AS $$
           DECLARE
-            v_table_name TEXT;
             v_purged_count BIGINT;
           BEGIN
             -- Hard delete conversations deleted > 30 days ago
             DELETE FROM archived_conversations_new
             WHERE deleted_at < (CURRENT_TIMESTAMP - INTERVAL '30 days');
 
-            v_table_name := 'archived_conversations_new';
             GET DIAGNOSTICS v_purged_count = ROW_COUNT;
-            table_name := v_table_name;
+            tbl_name := 'archived_conversations_new';
             purged_count := v_purged_count;
             RETURN NEXT;
 
@@ -4803,9 +4801,8 @@ async function runDatabaseMigrations() {
             DELETE FROM sessions
             WHERE deleted_at < (CURRENT_TIMESTAMP - INTERVAL '30 days');
 
-            v_table_name := 'sessions';
             GET DIAGNOSTICS v_purged_count = ROW_COUNT;
-            table_name := v_table_name;
+            tbl_name := 'sessions';
             purged_count := v_purged_count;
             RETURN NEXT;
           END;
@@ -5623,8 +5620,8 @@ async function runDatabaseMigrations() {
             RETURN NEXT;
 
             IF EXISTS (
-              SELECT 1 FROM information_schema.tables
-              WHERE table_schema = 'public' AND table_name = 'question_sessions'
+              SELECT 1 FROM information_schema.tables t
+              WHERE t.table_schema = 'public' AND t.table_name = 'question_sessions'
             ) THEN
               UPDATE question_sessions
               SET deleted_at = CURRENT_TIMESTAMP
@@ -5671,6 +5668,59 @@ async function runDatabaseMigrations() {
       }
     } else {
       logger.debug('✅ Migration 030: retention fix and indexes already applied');
+    }
+
+    // Migration 031: Fix hard_delete_old_soft_deleted() ambiguous "table_name" column
+    const migration031Check = await db.query(`
+      SELECT migration_name FROM migration_history WHERE migration_name = '031_fix_hard_delete_function'
+    `);
+    if (migration031Check.rows.length === 0) {
+      try {
+        // The production version of hard_delete_old_soft_deleted() uses "table_name" as a
+        // RETURNS TABLE column, which conflicts with information_schema/pg_catalog references.
+        // Recreate with unambiguous names matching the JS consumer (row.tbl_name, row.purged_count).
+        await db.query(`
+          DROP FUNCTION IF EXISTS hard_delete_old_soft_deleted();
+          CREATE OR REPLACE FUNCTION hard_delete_old_soft_deleted()
+          RETURNS TABLE(tbl_name TEXT, purged_count BIGINT) AS $$
+          BEGIN
+            DELETE FROM archived_conversations_new
+            WHERE deleted_at < (CURRENT_TIMESTAMP - INTERVAL '30 days');
+            tbl_name := 'archived_conversations_new';
+            GET DIAGNOSTICS purged_count = ROW_COUNT;
+            RETURN NEXT;
+
+            IF EXISTS (
+              SELECT 1 FROM information_schema.tables t
+              WHERE t.table_schema = 'public' AND t.table_name = 'question_sessions'
+            ) THEN
+              DELETE FROM question_sessions
+              WHERE deleted_at < (CURRENT_TIMESTAMP - INTERVAL '30 days');
+              tbl_name := 'question_sessions';
+              GET DIAGNOSTICS purged_count = ROW_COUNT;
+              RETURN NEXT;
+            END IF;
+
+            DELETE FROM sessions
+            WHERE deleted_at < (CURRENT_TIMESTAMP - INTERVAL '30 days');
+            tbl_name := 'sessions';
+            GET DIAGNOSTICS purged_count = ROW_COUNT;
+            RETURN NEXT;
+          END;
+          $$ LANGUAGE plpgsql;
+        `);
+
+        await db.query(`
+          INSERT INTO migration_history (migration_name)
+          VALUES ('031_fix_hard_delete_function')
+          ON CONFLICT (migration_name) DO NOTHING
+        `);
+        logger.debug('✅ Migration 031: fixed hard_delete_old_soft_deleted() ambiguous column');
+      } catch (migrationError) {
+        logger.error({ err: migrationError }, '❌ Migration 031 failed');
+      }
+    } else {
+      logger.debug('✅ Migration 031: hard_delete fix already applied');
     }
 
   } catch (error) {

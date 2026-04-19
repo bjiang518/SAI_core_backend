@@ -9,137 +9,54 @@ import SwiftUI
 
 struct NotificationSettingsView: View {
     @StateObject private var notificationService = NotificationService.shared
+    @StateObject private var themeManager = ThemeManager.shared
     @Environment(\.dismiss) private var dismiss
 
-    @State private var showingPermissionAlert = false
     @State private var tempConfig: StudyReminderConfig
+    @State private var tempStreakReminders: Bool
+    @State private var tempHomeworkNotifications: Bool
+    @State private var tempReportNotifications: Bool
 
     init() {
-        let config = NotificationService.shared.settings.studyReminders
-        _tempConfig = State(initialValue: config)
+        let settings = NotificationService.shared.settings
+        _tempConfig = State(initialValue: settings.studyReminders)
+        _tempStreakReminders = State(initialValue: settings.streakReminders)
+        _tempHomeworkNotifications = State(initialValue: settings.homeworkNotifications)
+        _tempReportNotifications = State(initialValue: settings.reportNotifications)
     }
 
     var body: some View {
         NavigationStack {
             List {
-                // Permission Section
-                permissionSection
+                // Study Reminders — time & day configuration
+                studyRemindersSection
+                studyTimeSection
+                studyDaysSection
 
-                // Study Reminders Section
-                if notificationService.isAuthorized {
-                    studyRemindersSection
-                    studyTimeSection
-                    studyDaysSection
-                }
+                // Other notification types
+                otherNotificationsSection
             }
-            .navigationTitle(NSLocalizedString("studyReminders.title", comment: ""))
+            .navigationTitle(NSLocalizedString("notifications.title", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button(NSLocalizedString("studyReminders.cancel", comment: "")) {
+                    Button(NSLocalizedString("common.cancel", comment: "")) {
                         dismiss()
                     }
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(NSLocalizedString("studyReminders.save", comment: "")) {
+                    Button(NSLocalizedString("common.save", comment: "")) {
                         saveSettings()
                     }
                     .fontWeight(.semibold)
-                    .disabled(!notificationService.isAuthorized)
                 }
             }
-            .alert(NSLocalizedString("studyReminders.enable", comment: ""), isPresented: $showingPermissionAlert) {
-                Button("Open Settings", role: .none) {
-                    notificationService.openSystemSettings()
+            .task {
+                // Ensure we have notification permission
+                if notificationService.authorizationStatus != .authorized {
+                    await notificationService.requestAuthorization()
                 }
-                Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {}
-            } message: {
-                Text(NSLocalizedString("studyReminders.description", comment: ""))
-            }
-        }
-    }
-
-    // MARK: - Permission Section
-
-    private var permissionSection: some View {
-        Section {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Image(systemName: "bell.badge.fill")
-                        .foregroundColor(.orange)
-                        .font(.title2)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(NSLocalizedString("studyReminders.notificationPermission", comment: ""))
-                            .font(.headline)
-
-                        Text(permissionStatusText)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-
-                    Spacer()
-
-                    permissionStatusIcon
-                }
-
-                if !notificationService.isAuthorized {
-                    Button(action: {
-                        Task {
-                            let granted = await notificationService.requestAuthorization()
-                            if !granted {
-                                showingPermissionAlert = true
-                            }
-                        }
-                    }) {
-                        Text(NSLocalizedString("studyReminders.enable", comment: ""))
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 10)
-                            .background(Color.orange)
-                            .foregroundColor(.white)
-                            .cornerRadius(10)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.vertical, 8)
-        } header: {
-            Text(NSLocalizedString("studyReminders.permissions", comment: ""))
-        } footer: {
-            Text(NSLocalizedString("studyReminders.description", comment: ""))
-        }
-    }
-
-    private var permissionStatusText: String {
-        switch notificationService.authorizationStatus {
-        case .authorized:
-            return NSLocalizedString("studyReminders.enabled", comment: "")
-        case .denied:
-            return NSLocalizedString("studyReminders.denied", comment: "")
-        case .notDetermined:
-            return NSLocalizedString("studyReminders.notConfigured", comment: "")
-        case .provisional:
-            return NSLocalizedString("studyReminders.enabled", comment: "")
-        case .ephemeral:
-            return NSLocalizedString("studyReminders.enabled", comment: "")
-        @unknown default:
-            return NSLocalizedString("studyReminders.notConfigured", comment: "")
-        }
-    }
-
-    private var permissionStatusIcon: some View {
-        Group {
-            if notificationService.isAuthorized {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundColor(.green)
-                    .font(.title3)
-            } else {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundColor(.orange)
-                    .font(.title3)
             }
         }
     }
@@ -149,18 +66,23 @@ struct NotificationSettingsView: View {
     private var studyRemindersSection: some View {
         Section {
             Toggle(isOn: $tempConfig.isEnabled) {
-                HStack {
+                HStack(spacing: 12) {
                     Image(systemName: "clock.fill")
                         .foregroundColor(.blue)
-                        .frame(width: 20)
+                        .frame(width: 24)
 
-                    Text(NSLocalizedString("studyReminders.daily", comment: ""))
-                        .font(.body)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(NSLocalizedString("notifications.studyReminder", comment: ""))
+                            .font(.body)
+                        Text(NSLocalizedString("notifications.studyReminder.description", comment: ""))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
             .tint(.blue)
-        } footer: {
-            Text(NSLocalizedString("studyReminders.dailyDescription", comment: ""))
+        } header: {
+            Text(NSLocalizedString("notifications.studySchedule", comment: ""))
         }
     }
 
@@ -169,17 +91,17 @@ struct NotificationSettingsView: View {
     private var studyTimeSection: some View {
         Section {
             DatePicker(
-                NSLocalizedString("studyReminders.studyTime", comment: ""),
+                NSLocalizedString("notifications.studyTime", comment: ""),
                 selection: $tempConfig.time,
                 displayedComponents: .hourAndMinute
             )
             .disabled(!tempConfig.isEnabled)
             .opacity(tempConfig.isEnabled ? 1.0 : 0.5)
         } header: {
-            Text(NSLocalizedString("studyReminders.schedule", comment: ""))
+            Text(NSLocalizedString("notifications.time", comment: ""))
         } footer: {
             if tempConfig.isEnabled {
-                Text(String(format: NSLocalizedString("studyReminders.timeDescription", comment: ""), formattedTime(tempConfig.time)))
+                Text(String(format: NSLocalizedString("notifications.timeFooter", comment: ""), formattedTime(tempConfig.time)))
             }
         }
     }
@@ -190,9 +112,9 @@ struct NotificationSettingsView: View {
         Section {
             // Quick selection buttons
             HStack(spacing: 12) {
-                quickSelectButton(title: NSLocalizedString("studyReminders.weekdays", comment: ""), days: Weekday.weekdays)
-                quickSelectButton(title: NSLocalizedString("studyReminders.everyDay", comment: ""), days: Weekday.allDays)
-                quickSelectButton(title: NSLocalizedString("studyReminders.clear", comment: ""), days: [])
+                quickSelectButton(title: NSLocalizedString("notifications.weekdays", comment: ""), days: Weekday.weekdays)
+                quickSelectButton(title: NSLocalizedString("notifications.everyDay", comment: ""), days: Weekday.allDays)
+                quickSelectButton(title: NSLocalizedString("notifications.none", comment: ""), days: [])
             }
             .disabled(!tempConfig.isEnabled)
             .opacity(tempConfig.isEnabled ? 1.0 : 0.5)
@@ -215,11 +137,75 @@ struct NotificationSettingsView: View {
                 .opacity(tempConfig.isEnabled ? 1.0 : 0.5)
             }
         } header: {
-            Text(NSLocalizedString("studyReminders.studyDays", comment: ""))
+            Text(NSLocalizedString("notifications.days", comment: ""))
         } footer: {
             if tempConfig.isEnabled && !tempConfig.days.isEmpty {
-                Text(String(format: NSLocalizedString("studyReminders.daysDescription", comment: ""), selectedDaysText))
+                Text(String(format: NSLocalizedString("notifications.daysFooter", comment: ""), selectedDaysText))
             }
+        }
+    }
+
+    // MARK: - Other Notifications Section
+
+    private var otherNotificationsSection: some View {
+        Section {
+            // Streak protection reminder
+            Toggle(isOn: $tempStreakReminders) {
+                HStack(spacing: 12) {
+                    Image(systemName: "flame.fill")
+                        .foregroundColor(.orange)
+                        .frame(width: 24)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(NSLocalizedString("notifications.streakReminder", comment: ""))
+                            .font(.body)
+                        Text(NSLocalizedString("notifications.streakReminder.description", comment: ""))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            .tint(.orange)
+
+            // Homework grading complete
+            Toggle(isOn: $tempHomeworkNotifications) {
+                HStack(spacing: 12) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                        .frame(width: 24)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(NSLocalizedString("notifications.homeworkComplete", comment: ""))
+                            .font(.body)
+                        Text(NSLocalizedString("notifications.homeworkComplete.description", comment: ""))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            .tint(.green)
+
+            // Learning report ready
+            Toggle(isOn: $tempReportNotifications) {
+                HStack(spacing: 12) {
+                    Image(systemName: "chart.bar.fill")
+                        .foregroundColor(.purple)
+                        .frame(width: 24)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(NSLocalizedString("notifications.reportReady", comment: ""))
+                            .font(.body)
+                        Text(NSLocalizedString("notifications.reportReady.description", comment: ""))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            .tint(.purple)
+        } header: {
+            Text(NSLocalizedString("notifications.otherAlerts", comment: ""))
+        } footer: {
+            Text(NSLocalizedString("notifications.otherAlerts.footer", comment: ""))
         }
     }
 
@@ -244,8 +230,10 @@ struct NotificationSettingsView: View {
     // MARK: - Helper Methods
 
     private func saveSettings() {
-        // Set master enabled flag BEFORE scheduling so scheduleStudyReminders() sees the correct state
-        notificationService.settings.isEnabled = notificationService.isAuthorized && tempConfig.isEnabled
+        notificationService.settings.isEnabled = tempConfig.isEnabled || tempStreakReminders || tempHomeworkNotifications || tempReportNotifications
+        notificationService.settings.streakReminders = tempStreakReminders
+        notificationService.settings.homeworkNotifications = tempHomeworkNotifications
+        notificationService.settings.reportNotifications = tempReportNotifications
         notificationService.updateStudyReminders(config: tempConfig)
         dismiss()
     }
@@ -262,13 +250,11 @@ struct NotificationSettingsView: View {
         }
 
         if sortedDays.count == 7 {
-            return "every day"
-        } else if sortedDays.count == 5 && sortedDays == Array(Weekday.weekdays.sorted { day1, day2 in
-            Weekday.allCases.firstIndex(of: day1)! < Weekday.allCases.firstIndex(of: day2)!
-        }) {
-            return "weekdays"
+            return NSLocalizedString("notifications.everyDay", comment: "")
+        } else if sortedDays.count == 5 && Set(sortedDays) == Weekday.weekdays {
+            return NSLocalizedString("notifications.weekdays", comment: "")
         } else if sortedDays.isEmpty {
-            return "no days selected"
+            return NSLocalizedString("notifications.noDays", comment: "")
         } else {
             return sortedDays.map { $0.displayName }.joined(separator: ", ")
         }

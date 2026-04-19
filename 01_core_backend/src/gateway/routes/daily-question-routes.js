@@ -18,6 +18,7 @@ class DailyQuestionRoutes {
 
     registerRoutes() {
         this.fastify.get('/api/daily/question', this._getQuestion.bind(this));
+        this.fastify.get('/api/daily/question/personalized', this._getPersonalizedQuestion.bind(this));
         this.fastify.post('/admin/daily-question/generate', this._adminGenerate.bind(this));
         this.fastify.get('/admin/daily-question/status', this._adminStatus.bind(this));
     }
@@ -81,6 +82,85 @@ class DailyQuestionRoutes {
         } catch (error) {
             this.fastify.log.error(`❌ [DailyQuestion] Error for user=${shortId}...:`, error);
             return reply.status(500).send({ success: false, message: 'Failed to fetch daily question' });
+        }
+    }
+
+    async _getPersonalizedQuestion(request, reply) {
+        const userId = await this.authHelper.requireAuth(request, reply);
+        if (!userId) return;
+
+        const shortId = String(userId).substring(0, 8);
+
+        try {
+            const langParam = request.query?.lang;
+            const language = langParam
+                ? detectLanguage(langParam)
+                : detectLanguage(request.headers['accept-language']);
+
+            // Look up user's grade level
+            const profileResult = await db.query(
+                'SELECT grade_level, display_name FROM profiles WHERE user_id = $1',
+                [userId]
+            );
+            const profile     = profileResult.rows[0];
+            const gradeLevel  = profile?.grade_level  ?? 6;
+            const displayName = profile?.display_name ?? 'unknown';
+
+            // Gather recent subjects from sessions (last 14 days)
+            const convResult = await db.query(
+                `SELECT DISTINCT subject FROM sessions
+                 WHERE user_id = $1 AND start_time > NOW() - INTERVAL '14 days' AND subject IS NOT NULL AND subject != 'general'
+                 LIMIT 5`,
+                [userId]
+            );
+            const convSubjects = convResult.rows.map(r => r.subject);
+
+            // Also extract subjects from short_term_status weaknesses (format: "Subject/concept/type")
+            const stsResult = await db.query(
+                `SELECT active_weaknesses FROM short_term_status WHERE user_id = $1`,
+                [userId]
+            );
+            const weaknessSubjects = [];
+            if (stsResult.rows.length > 0 && stsResult.rows[0].active_weaknesses) {
+                const weaknesses = stsResult.rows[0].active_weaknesses;
+                for (const key of Object.keys(weaknesses)) {
+                    const subject = key.split('/')[0];
+                    if (subject) weaknessSubjects.push(subject);
+                }
+            }
+
+            // Merge + deduplicate
+            const recentSubjects = [...new Set([...convSubjects, ...weaknessSubjects])].slice(0, 8);
+
+            this.fastify.log.info(
+                `📬 [DailyQuestion] Personalized — user=${shortId}... (${displayName}), grade=${gradeLevel}, lang=${language}, subjects=[${recentSubjects.join(', ')}]`
+            );
+
+            const question = await dailyQuestionService.generatePersonalized(gradeLevel, language, recentSubjects);
+
+            if (!question) {
+                return reply.status(500).send({ success: false, message: 'Failed to generate personalized question' });
+            }
+
+            this.fastify.log.info(
+                `✅ [DailyQuestion] Personalized served — user=${shortId}..., subject=${question.subject}`
+            );
+
+            return reply.send({
+                success: true,
+                data: {
+                    question:    question.question_text,
+                    fun_fact:    question.fun_fact,
+                    subject:     question.subject,
+                    grade_level: gradeLevel,
+                    language,
+                    date:        new Date().toISOString().split('T')[0],
+                    time_slot:   Math.floor(new Date().getUTCHours() / 6),
+                },
+            });
+        } catch (error) {
+            this.fastify.log.error(`❌ [DailyQuestion] Personalized error for user=${shortId}...:`, error);
+            return reply.status(500).send({ success: false, message: 'Failed to generate personalized question' });
         }
     }
 

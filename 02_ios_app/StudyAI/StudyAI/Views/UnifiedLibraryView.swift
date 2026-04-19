@@ -914,7 +914,7 @@ struct QuickStatsHeader: View {
                     icon: "questionmark.circle.fill",
                     title: NSLocalizedString("library.stats.questions", comment: ""),
                     count: questionCount,
-                    color: .yellow,
+                    color: Color(red: 0.90, green: 0.58, blue: 0.15),
                     isSelected: showQuestions,
                     action: onToggleQuestions
                 )
@@ -923,7 +923,7 @@ struct QuickStatsHeader: View {
                     icon: "bubble.left.and.bubble.right.fill",
                     title: NSLocalizedString("library.stats.conversations", comment: ""),
                     count: conversationCount,
-                    color: .blue,
+                    color: Color(red: 0.60, green: 0.42, blue: 0.28),
                     isSelected: showConversations,
                     action: onToggleConversations
                 )
@@ -932,7 +932,7 @@ struct QuickStatsHeader: View {
                     icon: "doc.text.image.fill",
                     title: NSLocalizedString("library.stats.rawHomeworks", comment: "Raw Homeworks"),
                     count: rawHomeworkCount,
-                    color: .orange,
+                    color: Color(red: 0.45, green: 0.55, blue: 0.48),
                     isSelected: showRawHomeworks,
                     action: onToggleRawHomeworks
                 )

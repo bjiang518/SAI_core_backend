@@ -271,6 +271,13 @@ Respond ONLY with valid JSON (no markdown, no code block):
     }
 
     async _ensureTable() {
+        // Skip heavy DDL if already applied
+        const migCheck = await db.query(
+            `SELECT 1 FROM migration_history WHERE migration_name = 'daily_questions_v2'`
+        ).catch(() => ({ rows: [] }));  // table may not exist yet on fresh DB
+
+        if (migCheck.rows.length > 0) return;
+
         // Create table (new deployments)
         await db.query(`
             CREATE TABLE IF NOT EXISTS daily_questions (
@@ -334,6 +341,69 @@ Respond ONLY with valid JSON (no markdown, no code block):
             CREATE INDEX IF NOT EXISTS idx_daily_questions_date_slot_grade_lang
                 ON daily_questions(question_date, time_slot, grade_level, language)
         `);
+
+        // Mark migration so subsequent boots skip all the DDL above
+        await db.query(`
+            INSERT INTO migration_history (migration_name)
+            VALUES ('daily_questions_v2')
+            ON CONFLICT (migration_name) DO NOTHING
+        `);
+    }
+
+    /**
+     * Generate a personalized "Did you know?" fact based on the student's recent subjects.
+     * NOT stored in DB — ephemeral, one per iOS app session.
+     */
+    async generatePersonalized(gradeLevel, language = 'en', recentSubjects = []) {
+        const gradeLabel = GRADE_LABELS[gradeLevel] || `Grade ${gradeLevel}`;
+        const langLabel  = LANGUAGE_LABELS[language] || language;
+
+        const subjectContext = recentSubjects.length > 0
+            ? `The student has recently been studying: ${recentSubjects.join(', ')}.\nGenerate a surprising fact RELATED to one of these subjects.`
+            : 'Pick any engaging topic: science, history, nature, technology, art, culture, sports, math.';
+
+        const prompt = `You are generating a fun "Did you know?" question IN ${langLabel} for students in ${gradeLabel}.
+
+${subjectContext}
+
+The question should:
+- Be written entirely in ${langLabel}
+- Be genuinely surprising or counterintuitive
+- Be age-appropriate and engaging
+- Be phrased naturally in ${langLabel} (e.g. "你知道吗..." for Chinese, "Wusstest du..." for German)
+
+Respond ONLY with valid JSON (no markdown, no code block):
+{
+  "question": "<question in ${langLabel}>",
+  "fun_fact": "<one sentence explanation in ${langLabel}>",
+  "subject": "<one of the student's recent subjects, or Science|History|Nature|Technology|Art|Sports|Math|Other>"
+}`;
+
+        logger.debug(`🤖 [DailyQuestion] Personalized OpenAI call — grade=${gradeLevel}, lang=${language}, subjects=[${recentSubjects.join(', ')}]`);
+
+        const response = await this.openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [{ role: 'user', content: prompt }],
+            max_tokens: 250,
+            temperature: 1.0,
+        });
+
+        const raw = response.choices[0].message.content.trim();
+        logger.debug(`📨 [DailyQuestion] Personalized response: ${raw}`);
+
+        let parsed;
+        try {
+            parsed = JSON.parse(raw);
+        } catch {
+            logger.warn('⚠️ [DailyQuestion] Personalized JSON parse failed — using raw text');
+            parsed = { question: raw, fun_fact: null, subject: 'Other' };
+        }
+
+        return {
+            question_text: parsed.question,
+            fun_fact: parsed.fun_fact || null,
+            subject: parsed.subject || 'Other',
+        };
     }
 
     /** Returns the current 6-hour time slot (0=00:00–05:59, 1=06:00–11:59, 2=12:00–17:59, 3=18:00–23:59 UTC). */

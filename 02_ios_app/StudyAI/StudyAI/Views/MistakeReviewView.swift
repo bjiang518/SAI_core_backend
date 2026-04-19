@@ -2067,6 +2067,8 @@ struct PracticeQuestionsView: View {
                 numberOfQuestions: totalCount,
                 numberOfCorrectQuestions: correctCount
             )
+            // Bonus for reviewing mistakes (2 pts per reviewed question)
+            PointsEarningManager.shared.awardMistakeReviewPoints(reviewedCount: totalCount)
         }
 
         debugPrint("✅ [MarkProgress] Progress marked successfully (LOCAL ONLY)")

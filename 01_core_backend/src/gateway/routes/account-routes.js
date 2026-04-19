@@ -9,6 +9,7 @@ const { authenticateUser } = require('../middleware/railway-auth');
 const { db } = require('../../utils/railway-database');
 const { usageTracker } = require('./ai/utils/usage-tracker');
 const jwt = require('jsonwebtoken');
+const redis = require('redis');
 
 module.exports = async function (fastify) {
   fastify.get('/api/account/usage', { preHandler: authenticateUser }, async (request, reply) => {
@@ -149,8 +150,161 @@ module.exports = async function (fastify) {
     }
   });
 
+  // ============================================================================
+  // PREMIUM TRIAL CODE GENERATION (Points Shop)
+  // ============================================================================
+
+  /**
+   * POST /api/account/generate-trial-code
+   * Headers: Authorization: Bearer <jwt>
+   * Body: { points_spent: 300 }
+   *
+   * Generates a unique 8-char promo code for a 7-day premium trial.
+   * Max 3 trial codes per account (enforced server-side via created_by field).
+   * Code expires in 7 days if not redeemed.
+   */
+  const TRIAL_POINTS_COST = 300;
+  const TRIAL_MAX_PER_USER = 3;
+  const TRIAL_DURATION_DAYS = 7;
+
+  fastify.post('/api/account/generate-trial-code', { preHandler: authenticateUser }, async (request, reply) => {
+    const userId = request.user?.id;
+    if (!userId) return reply.code(401).send({ success: false, error: 'Unauthorized' });
+
+    const { points_spent } = request.body || {};
+    if (points_spent !== TRIAL_POINTS_COST) {
+      return reply.code(400).send({ success: false, error: 'Invalid points amount' });
+    }
+
+    try {
+      // Check how many trial codes this user has generated (max 3)
+      const countResult = await db.query(
+        `SELECT COUNT(*) as cnt FROM promo_codes WHERE created_by = $1`,
+        [`points_shop:${userId}`]
+      );
+      const trialCount = parseInt(countResult.rows[0]?.cnt || 0, 10);
+
+      if (trialCount >= TRIAL_MAX_PER_USER) {
+        return reply.code(400).send({ success: false, error: 'TRIAL_LIMIT_REACHED' });
+      }
+
+      // Generate unique 8-char alphanumeric code
+      let code;
+      let attempts = 0;
+      do {
+        code = generateRandomCode(8);
+        const exists = await db.query('SELECT id FROM promo_codes WHERE code = $1', [code]);
+        if (exists.rows.length === 0) break;
+        attempts++;
+      } while (attempts < 10);
+
+      if (attempts >= 10) {
+        return reply.code(500).send({ success: false, error: 'Failed to generate unique code' });
+      }
+
+      // Insert promo code
+      const expiresAt = new Date(Date.now() + TRIAL_DURATION_DAYS * 86400_000);
+      await db.query(
+        `INSERT INTO promo_codes (code, tier, duration_days, max_uses, created_by, expires_at, is_active)
+         VALUES ($1, 'premium', $2, 1, $3, $4, true)`,
+        [code, TRIAL_DURATION_DAYS, `points_shop:${userId}`, expiresAt]
+      );
+
+      fastify.log.info(`[generate-trial-code] user=${userId} code=${code} expires=${expiresAt.toISOString()} trial#${trialCount + 1}`);
+
+      return reply.send({
+        success: true,
+        data: {
+          code,
+          expires_at: expiresAt.toISOString(),
+          trials_remaining: TRIAL_MAX_PER_USER - trialCount - 1,
+        },
+      });
+    } catch (error) {
+      fastify.log.error({ err: error }, '[generate-trial-code] Error');
+      return reply.code(500).send({ success: false, error: 'Failed to generate trial code' });
+    }
+  });
+
   fastify.log.info('✅ Account routes registered (/api/account/*)');
 
+  // ============================================================================
+  // POINTS SHOP — REDEEM POINTS FOR BONUS AI USAGE
+  // ============================================================================
+
+  /**
+   * POST /api/account/redeem-points
+   * Headers: Authorization: Bearer <jwt>
+   * Body: { feature: "chat_messages"|"homework_pages", amount: number, points_spent: number }
+   *
+   * Validates against server-side price table, then stores bonus quota in Redis
+   * (with DB fallback) so tier-check.js includes it in remaining calculation.
+   */
+  const POINTS_PRICE_TABLE = {
+    chat_messages:   { 10: 20 },
+    homework_pages:  { 5: 40 },
+    voice_minutes:   { 30: 60 },
+    error_analysis:  { 5: 30 },
+    questions:       { 20: 15 },
+  };
+
+  fastify.post('/api/account/redeem-points', { preHandler: authenticateUser }, async (request, reply) => {
+    const userId = request.user?.id;
+    if (!userId) return reply.code(401).send({ success: false, error: 'Unauthorized' });
+
+    const { feature, amount, points_spent } = request.body || {};
+
+    // Validate against server-side price table (prevents client-side manipulation)
+    const featurePrices = POINTS_PRICE_TABLE[feature];
+    if (!featurePrices || featurePrices[amount] === undefined || featurePrices[amount] !== points_spent) {
+      return reply.code(400).send({ success: false, error: 'Invalid redemption parameters' });
+    }
+
+    try {
+      // Store bonus in Redis (monthly key, auto-expires)
+      const now = new Date();
+      const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const bonusKey = `bonus:${userId}:${feature}:${yearMonth}`;
+
+      let stored = false;
+      try {
+        if (process.env.REDIS_URL) {
+          const rc = redis.createClient({ url: process.env.REDIS_URL });
+          await rc.connect();
+          await rc.incrBy(bonusKey, amount);
+          // TTL = seconds until end of month
+          const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+          const ttlSeconds = Math.ceil((nextMonth - now) / 1000);
+          await rc.expire(bonusKey, ttlSeconds);
+          await rc.disconnect();
+          stored = true;
+        }
+      } catch (redisErr) {
+        fastify.log.warn({ err: redisErr }, '[redeem-points] Redis write failed, falling back to DB');
+      }
+
+      // DB fallback — always write as authoritative backup
+      const bonusDbKey = `bonus_${feature}`;
+      await db.query(
+        `UPDATE users SET monthly_usage = jsonb_set(
+           COALESCE(monthly_usage, '{}'),
+           $1::text[],
+           (COALESCE((monthly_usage->>$2)::int, 0) + $3)::text::jsonb
+         ) WHERE id = $4`,
+        [[bonusDbKey], bonusDbKey, amount, userId]
+      );
+
+      fastify.log.info(`[redeem-points] user=${userId} feature=${feature} bonus=+${amount} points=${points_spent} redis=${stored}`);
+
+      return reply.send({
+        success: true,
+        data: { feature, bonus_added: amount },
+      });
+    } catch (error) {
+      fastify.log.error({ err: error }, '[redeem-points] Error');
+      return reply.code(500).send({ success: false, error: 'Redemption failed. Please try again.' });
+    }
+  });
   // ============================================================================
   // PROMO CODE REDEMPTION (public — no auth required)
   // ============================================================================
@@ -359,6 +513,18 @@ module.exports = async function (fastify) {
 // ============================================================================
 // Helpers
 // ============================================================================
+
+/**
+ * Generate a random alphanumeric code of given length (uppercase).
+ */
+function generateRandomCode(length = 8) {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Exclude confusing chars: I,O,0,1
+  let code = '';
+  for (let i = 0; i < length; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return code;
+}
 
 /**
  * Mask an email for display: "bo.jiang@gmail.com" → "b***@gmail.com"

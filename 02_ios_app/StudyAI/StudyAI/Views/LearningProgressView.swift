@@ -22,6 +22,7 @@ struct LearningProgressView: View {
     @State private var selectedSubjectFilter: SubjectCategory? = nil
     @State private var loadingTask: Task<Void, Never>? = nil
     @State private var showingProgressInfo = false
+    @State private var showingShareForPoints = false
     // iPad vs iPhone layout
     @Environment(\.horizontalSizeClass) private var sizeClass
 
@@ -196,15 +197,322 @@ struct LearningProgressView: View {
         // Subject Breakdown Section (Main Feature)
         SubjectBreakdownSection()
 
-        // Learning Goals Progress
-        LearningGoalsSection()
+        // Earn Credits Checklist (replaces old Learning Goals + Checkouts)
+        EarnCreditsSection()
+    }
 
-        // Recent Checkouts
-        if !pointsManager.dailyCheckoutHistory.isEmpty {
-            RecentCheckoutsSection()
+    // MARK: - Earn Credits Section (embedded in Progress view)
+
+    @ViewBuilder
+    private func EarnCreditsSection() -> some View {
+        let themeColor = themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.textPrimary : Color.primary
+        let bgColor = themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.mintLight.opacity(0.4) : Color(.systemGroupedBackground)
+
+        VStack(alignment: .leading, spacing: 12) {
+            // Header with balance
+            HStack {
+                Text(NSLocalizedString("progress.earnCredits", comment: ""))
+                    .font(.headline)
+                    .fontWeight(.bold)
+                    .foregroundColor(themeColor)
+                Spacer()
+                HStack(spacing: 4) {
+                    Image(systemName: "star.fill")
+                        .font(.system(size: 12))
+                        .foregroundColor(.yellow)
+                    Text("\(pointsManager.pointsBalance)")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundColor(themeColor)
+                }
+            }
+
+            // Streak freeze cards
+            if pointsManager.streakFreezeCards > 0 {
+                HStack(spacing: 4) {
+                    Image(systemName: "snowflake")
+                        .font(.system(size: 11))
+                        .foregroundColor(.cyan)
+                    Text(String(format: NSLocalizedString("streak.freeze.cards.remaining", comment: ""),
+                                pointsManager.streakFreezeCards))
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Divider()
+
+            // 1. Daily Streak Bonus (claimable)
+            earnCreditRow(
+                icon: "flame.fill", iconColor: .orange,
+                title: NSLocalizedString("points.earn.streak.title", comment: ""),
+                detail: String(format: NSLocalizedString("points.earn.streak.desc", comment: ""), min(max(pointsManager.currentStreak, 1), PointsEarningManager.maxDailyPointsPerItem)),
+                pointsText: "+\(min(max(pointsManager.currentStreak, 1), PointsEarningManager.maxDailyPointsPerItem))",
+                status: pointsManager.hasClaimedStreakBonusToday ? .checkedOut : .claimable,
+                onClaim: { let _ = pointsManager.claimDailyStreakBonus() },
+                goAction: nil
+            )
+
+            // 2. Correct Answers
+            manualClaimCreditRow(
+                icon: "checkmark.circle.fill", iconColor: .green,
+                title: NSLocalizedString("points.earn.correct.title", comment: ""),
+                type: .correctAnswers,
+                goAction: { AppState.shared.selectedTab = .grader }
+            )
+
+            // 3. Homework Scanning
+            manualClaimCreditRow(
+                icon: "camera.viewfinder", iconColor: .indigo,
+                title: NSLocalizedString("points.earn.scan.title", comment: ""),
+                type: .homeworkScan,
+                goAction: { AppState.shared.selectedTab = .grader }
+            )
+
+            // 4. Practice Completion
+            manualClaimCreditRow(
+                icon: "text.badge.checkmark", iconColor: .purple,
+                title: NSLocalizedString("points.earn.practice.title", comment: ""),
+                type: .practiceCompletion,
+                goAction: { AppState.shared.selectedTab = .home }
+            )
+
+            // 5. Mistake Review
+            manualClaimCreditRow(
+                icon: "arrow.counterclockwise.circle.fill", iconColor: .blue,
+                title: NSLocalizedString("points.earn.review.title", comment: ""),
+                type: .mistakeReview,
+                goAction: { AppState.shared.selectedTab = .library }
+            )
+
+            // 6. Focus Session
+            manualClaimCreditRow(
+                icon: "timer", iconColor: .red,
+                title: NSLocalizedString("points.earn.focus.title", comment: ""),
+                type: .focusSession,
+                goAction: { AppState.shared.selectedTab = .home }
+            )
+
+            // 7. Chat Session
+            manualClaimCreditRow(
+                icon: "bubble.left.and.bubble.right.fill", iconColor: .teal,
+                title: NSLocalizedString("points.earn.chat.title", comment: ""),
+                type: .chatSession,
+                goAction: { AppState.shared.selectedTab = .chat }
+            )
+
+            // 8. Rate App — one-time bonus
+            if !AppReviewService.shared.hasEarnedRatingPoints {
+                earnCreditRow(
+                    icon: "star.bubble.fill", iconColor: .yellow,
+                    title: NSLocalizedString("points.earn.rate.title", comment: ""),
+                    detail: NSLocalizedString("points.earn.rate.desc", comment: ""),
+                    pointsText: "+\(AppReviewService.ratingPointsReward)",
+                    status: .claimable,
+                    onClaim: { let _ = AppReviewService.shared.rateAppForPoints() },
+                    goAction: nil
+                )
+            }
+
+            // 9. Share App — one-time bonus
+            if !AppReviewService.shared.hasEarnedSharePoints {
+                earnCreditRow(
+                    icon: "square.and.arrow.up.fill", iconColor: .cyan,
+                    title: NSLocalizedString("points.earn.share.title", comment: ""),
+                    detail: NSLocalizedString("points.earn.share.desc", comment: ""),
+                    pointsText: "+\(AppReviewService.sharePointsReward)",
+                    status: .claimable,
+                    onClaim: {
+                        showingShareForPoints = true
+                    },
+                    goAction: nil
+                )
+            }
+        }
+        .padding()
+        .background(bgColor)
+        .cornerRadius(12)
+        .sheet(isPresented: $showingShareForPoints) {
+            ShareAppView()
         }
     }
-    
+
+    // MARK: - Manual Claim Credit Row (wraps earnCreditRow with claim logic)
+
+    private func manualClaimCreditRow(
+        icon: String, iconColor: Color,
+        title: String,
+        type: PointsEarningManager.EarningType,
+        goAction: (() -> Void)?
+    ) -> some View {
+        let pending = pointsManager.pendingPoints(for: type)
+        let claimed = pointsManager.claimedPoints(for: type)
+        let activity = pointsManager.activityCount(for: type)
+        let claimedU = pointsManager.claimedUnits(for: type)
+        let cap = type.dailyUnitCap
+
+        let status: EarnStatus = {
+            if pending > 0 { return .claimable }
+            if claimedU > 0 { return .checkedOut }
+            return .notAvailable
+        }()
+
+        let pointsText = status == .checkedOut ? "+\(claimed)" : "+\(pending)"
+
+        let detail: String = {
+            if pending > 0 {
+                return "\(pointsManager.pendingUnits(for: type)) unclaimed \u{2014} tap \u{2B50} to collect"
+            } else if claimedU > 0 {
+                return "\(claimedU)/\(cap) claimed today (max \(PointsEarningManager.maxDailyPointsPerItem) pts)"
+            } else {
+                return "\(activity)/\(cap) today (max \(PointsEarningManager.maxDailyPointsPerItem) pts)"
+            }
+        }()
+
+        return earnCreditRow(
+            icon: icon, iconColor: iconColor,
+            title: title,
+            detail: detail,
+            pointsText: pointsText,
+            status: status,
+            onClaim: { let _ = pointsManager.claimEarning(type: type) },
+            goAction: goAction
+        )
+    }
+
+    // MARK: - Earn Row Status
+
+    private enum EarnStatus {
+        case claimable    // Shaking yellow star — tap to claim
+        case notAvailable // Grey stable star — not yet earned
+        case checkedOut   // Green checkmark — already earned
+    }
+
+    private func earnCreditRow(
+        icon: String, iconColor: Color,
+        title: String, detail: String,
+        pointsText: String,
+        status: EarnStatus,
+        onClaim: (() -> Void)?,
+        goAction: (() -> Void)?
+    ) -> some View {
+        HStack(spacing: 10) {
+            // Left icon
+            Image(systemName: icon)
+                .font(.system(size: 16))
+                .foregroundColor(iconColor)
+                .frame(width: 28)
+
+            // Title + detail
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundColor(themeManager.primaryText)
+                Text(detail)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            // Points text — fixed width column
+            Text(pointsText)
+                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .foregroundColor(status == .checkedOut ? .green : (status == .claimable ? .yellow : .gray))
+                .frame(width: 40, alignment: .trailing)
+
+            // Star / Checkmark — fixed width column
+            Group {
+                switch status {
+                case .claimable:
+                    Button(action: {
+                        let generator = UINotificationFeedbackGenerator()
+                        generator.notificationOccurred(.success)
+                        onClaim?()
+                    }) {
+                        ShakingStarIcon()
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                case .notAvailable:
+                    Image(systemName: "star.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(Color.gray.opacity(0.3))
+                case .checkedOut:
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(.green)
+                }
+            }
+            .frame(width: 28, alignment: .center)
+
+            // Go arrow — always present, fixed width
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(.secondary)
+                .opacity(goAction != nil ? (status == .checkedOut ? 0.3 : 1.0) : 0)
+                .frame(width: 20, alignment: .center)
+                .modifier(BlinkModifier(active: goAction != nil && status == .notAvailable))
+        }
+        .padding(.vertical, 3)
+        .contentShape(Rectangle()) // Make entire row tappable
+        .onTapGesture {
+            if let action = goAction {
+                action()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func countCircle(_ count: Int) -> some View {
+        if count > 0 {
+            Text("\(count)")
+                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .foregroundColor(.white)
+                .frame(width: 26, height: 26)
+                .background(Circle().fill(Color.green))
+        } else {
+            Image(systemName: "circle")
+                .font(.system(size: 22))
+                .foregroundColor(Color.gray.opacity(0.3))
+        }
+    }
+
+    // MARK: - Shaking Star (self-contained animation)
+
+    private struct ShakingStarIcon: View {
+        @State private var angle: Double = 0
+
+        var body: some View {
+            Image(systemName: "star.fill")
+                .font(.system(size: 20))
+                .foregroundColor(.yellow)
+                .rotationEffect(.degrees(angle))
+                .onAppear {
+                    withAnimation(.easeInOut(duration: 0.15).repeatForever(autoreverses: true)) {
+                        angle = 15
+                    }
+                }
+        }
+    }
+
+    // MARK: - Blink Modifier (for go arrow)
+
+    private struct BlinkModifier: ViewModifier {
+        let active: Bool
+        @State private var opacity: Double = 1.0
+
+        func body(content: Content) -> some View {
+            content
+                .opacity(active ? opacity : 1.0)
+                .onAppear {
+                    guard active else { return }
+                    withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
+                        opacity = 0.2
+                    }
+                }
+        }
+    }
+
     // MARK: - Overview Metrics Card
     
     @ViewBuilder

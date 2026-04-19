@@ -928,6 +928,9 @@ final class AuthenticationService: ObservableObject {
         sessionManager.endSession()
         authLogger.info("🔐 Session ended on sign out")
 
+        // Clear personalized daily question so next login gets a fresh one
+        NetworkService.clearSessionDailyQuestion()
+
         // ✅ Phase 2.5: Cancel token refresh timer on sign out
         tokenRefreshTimer?.invalidate()
         tokenRefreshTimer = nil

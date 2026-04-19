@@ -40,9 +40,19 @@ struct ContactSupportView: View {
                             if MFMailComposeViewController.canSendMail() {
                                 showingMailComposer = true
                             } else {
-                                // Fallback to mailto URL
-                                if let url = URL(string: "mailto:\(AppURLs.supportEmail)?subject=StudyAgent Support Request") {
-                                    UIApplication.shared.open(url)
+                                // Fallback to mailto URL — percent-encode the query parameters
+                                var components = URLComponents()
+                                components.scheme = "mailto"
+                                components.path = AppURLs.supportEmail
+                                components.queryItems = [URLQueryItem(name: "subject", value: "StudyAgent Support Request")]
+                                if let url = components.url {
+                                    UIApplication.shared.open(url) { success in
+                                        if !success {
+                                            showingMailError = true
+                                        }
+                                    }
+                                } else {
+                                    showingMailError = true
                                 }
                             }
                         }) {

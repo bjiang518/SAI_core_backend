@@ -1,8 +1,9 @@
 //
-//  HomeworkOnboardingOverlay.swift
+//  PracticeLibraryOnboardingOverlay.swift
 //  StudyAI
 //
-//  4-step spotlight tutorial overlay for DigitalHomeworkView.
+//  5-step spotlight tutorial for PracticeLibraryView + NewPracticeSheet.
+//  Steps 0-3 run on the library; step 4 runs inside the sheet.
 //  Reuses SpotlightWindowOverlay + SpotlightWindow from ChatOnboardingOverlay.
 //
 
@@ -11,82 +12,86 @@ import UIKit
 
 // MARK: - Onboarding Steps
 
-enum HomeworkOnboardingStep: Int, CaseIterable {
-    case editImage    = 0
-    case gradingMode  = 1
-    case reparse      = 2
-    case moreOptions  = 3
-
-    var isLast: Bool { rawValue == HomeworkOnboardingStep.allCases.count - 1 }
+enum PracticeLibOnboardingStep: Int, CaseIterable {
+    case newButton     = 0
+    case subjectFilter = 1
+    case sortAndStatus = 2
+    case swipeToDelete = 3
+    case difficultyBar = 4
 
     var anchorID: String {
         switch self {
-        case .editImage:    return "hw_onboarding_editImage"
-        case .gradingMode:  return "hw_onboarding_gradingMode"
-        case .reparse:      return "hw_onboarding_reparse"
-        case .moreOptions:  return "hw_onboarding_moreOptions"
+        case .newButton:     return "practice_lib_onboarding_newBtn"
+        case .subjectFilter: return "practice_lib_onboarding_subjectFilter"
+        case .sortAndStatus: return "practice_lib_onboarding_statusFilter"
+        case .swipeToDelete: return "practice_lib_onboarding_sessionCard"
+        case .difficultyBar: return "practice_lib_onboarding_difficultyBar"
         }
     }
 
     var title: String {
         switch self {
-        case .editImage:
-            return NSLocalizedString("hwOnboarding.editImage.title",
-                value: "Edit Image", comment: "")
-        case .gradingMode:
-            return NSLocalizedString("hwOnboarding.gradingMode.title",
-                value: "Grading Mode", comment: "")
-        case .reparse:
-            return NSLocalizedString("hwOnboarding.reparse.title",
-                value: "Re-analyze", comment: "")
-        case .moreOptions:
-            return NSLocalizedString("hwOnboarding.moreOptions.title",
-                value: "More Options", comment: "")
+        case .newButton:
+            return NSLocalizedString("practiceLibOnboarding.newBtn.title",
+                value: "Create Your First Practice", comment: "")
+        case .subjectFilter:
+            return NSLocalizedString("practiceLibOnboarding.subjectFilter.title",
+                value: "Filter by Subject", comment: "")
+        case .sortAndStatus:
+            return NSLocalizedString("practiceLibOnboarding.sortStatus.title",
+                value: "Sort & Filter", comment: "")
+        case .swipeToDelete:
+            return NSLocalizedString("practiceLibOnboarding.swipeDelete.title",
+                value: "Delete a Session", comment: "")
+        case .difficultyBar:
+            return NSLocalizedString("practiceLibOnboarding.difficulty.title",
+                value: "Choose Your Difficulty", comment: "")
         }
     }
 
     var description: String {
         switch self {
-        case .editImage:
-            return NSLocalizedString("hwOnboarding.editImage.desc",
-                value: "Tap to view and annotate the original homework image. You can crop diagram regions for each question.",
+        case .newButton:
+            return NSLocalizedString("practiceLibOnboarding.newBtn.desc",
+                value: "Tap + New to generate a custom practice set. Choose your subject, difficulty, and question type.",
                 comment: "")
-        case .gradingMode:
-            return NSLocalizedString("hwOnboarding.gradingMode.desc",
-                value: "Fast uses GPT for quick grading. Deep uses Gemini with extended thinking \u{2014} better for complex problems.",
+        case .subjectFilter:
+            return NSLocalizedString("practiceLibOnboarding.subjectFilter.desc",
+                value: "Tap a subject to filter your sessions. Subjects appear here automatically as you practice.",
                 comment: "")
-        case .reparse:
-            return NSLocalizedString("hwOnboarding.reparse.desc",
-                value: "Tap to re-parse this question from the image if the AI misread something.",
+        case .sortAndStatus:
+            return NSLocalizedString("practiceLibOnboarding.sortStatus.desc",
+                value: "Switch between All, Ongoing, and Completed. Use the sort menu on the right to reorder.",
                 comment: "")
-        case .moreOptions:
-            return NSLocalizedString("hwOnboarding.moreOptions.desc",
-                value: "View the original image, reset annotations, delete questions, or replay this tutorial.",
+        case .swipeToDelete:
+            return NSLocalizedString("practiceLibOnboarding.swipeDelete.desc",
+                value: "Swipe any session card to the left to delete it.",
+                comment: "")
+        case .difficultyBar:
+            return NSLocalizedString("practiceLibOnboarding.difficulty.desc",
+                value: "Drag anywhere on the bar. Drag past the end for Adaptive mode \u{2014} the AI picks the right level for you.",
                 comment: "")
         }
     }
 
     var spotlightCornerRadius: CGFloat {
         switch self {
-        case .editImage:    return 12
-        case .gradingMode:  return 12
-        case .reparse:      return 14
-        case .moreOptions:  return 20
+        case .newButton:     return 12
+        case .subjectFilter: return 14
+        case .sortAndStatus: return 12
+        case .swipeToDelete: return 16
+        case .difficultyBar: return 12
         }
     }
 
-    /// Whether this step targets a toolbar item (above safe area).
     var isToolbarStep: Bool {
-        switch self {
-        case .moreOptions: return true
-        default: return false
-        }
+        self == .newButton
     }
 }
 
 // MARK: - PreferenceKey (anchor capture)
 
-struct HomeworkOnboardingAnchorKey: PreferenceKey {
+struct PracticeLibOnboardingAnchorKey: PreferenceKey {
     static var defaultValue: [String: CGRect] = [:]
     static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
         value.merge(nextValue()) { $1 }
@@ -94,11 +99,11 @@ struct HomeworkOnboardingAnchorKey: PreferenceKey {
 }
 
 extension View {
-    func hwOnboardingAnchor(_ id: String) -> some View {
+    func practiceLibOnboardingAnchor(_ id: String) -> some View {
         background(
             GeometryReader { geo in
                 Color.clear
-                    .preference(key: HomeworkOnboardingAnchorKey.self,
+                    .preference(key: PracticeLibOnboardingAnchorKey.self,
                                 value: [id: geo.frame(in: .global)])
             }
         )
@@ -107,7 +112,7 @@ extension View {
 
 // MARK: - UIKit sync (local to this overlay)
 
-private struct HWUIKitSyncKey: PreferenceKey {
+private struct PLOnboardingUIKitSyncKey: PreferenceKey {
     static var defaultValue = UIKitSyncData(
         spotlightRect: .zero, cardRect: .zero, spotlightRadius: 18
     )
@@ -118,18 +123,35 @@ private struct HWUIKitSyncKey: PreferenceKey {
 
 // MARK: - Main Overlay View
 
-struct HomeworkOnboardingOverlayView: View {
-    let step: HomeworkOnboardingStep
+struct PracticeLibOnboardingOverlayView: View {
+    let step: PracticeLibOnboardingStep
     let anchors: [String: CGRect]
+    let totalSteps: Int
     let onNext: () -> Void
     let onSkip: () -> Void
+    /// When true, renders a SwiftUI-only dark overlay instead of using
+    /// the UIKit SpotlightWindow. Required inside .sheet() presentations
+    /// where UIKit window coordinates don't align with SwiftUI positions.
+    var useSwiftUIScrim: Bool = false
 
-    @StateObject private var themeManager = ThemeManager.shared
     @State private var pulseScale: CGFloat = 1.0
     @State private var pulseOpacity: Double = 0.85
     @State private var cachedSyncData: UIKitSyncData = UIKitSyncData(
         spotlightRect: .zero, cardRect: .zero, spotlightRadius: 18
     )
+
+    /// For library steps (0-3), the dot index is the rawValue.
+    /// For the sheet step (4), there is only 1 dot (index 0).
+    private var dotIndex: Int {
+        if totalSteps == 1 { return 0 }
+        return step.rawValue
+    }
+
+    /// Whether this is the last step in the current context.
+    private var isLastInContext: Bool {
+        if totalSteps == 1 { return true }
+        return dotIndex >= totalSteps - 1
+    }
 
     var body: some View {
         GeometryReader { geo in
@@ -141,11 +163,16 @@ struct HomeworkOnboardingOverlayView: View {
                                width: cW, height: cH)
 
             ZStack {
-                // Tap-through layer
-                Color.black.opacity(0.001)
-                    .ignoresSafeArea()
-                    .contentShape(Rectangle())
-                    .onTapGesture { onNext() }
+                if useSwiftUIScrim {
+                    // SwiftUI-only dark scrim with cutouts (for sheet context)
+                    swiftUIScrim(spotlight: sRect, card: cRect, in: geo)
+                } else {
+                    // Invisible tap layer — UIKit SpotlightWindow handles the dark overlay
+                    Color.black.opacity(0.001)
+                        .ignoresSafeArea()
+                        .contentShape(Rectangle())
+                        .onTapGesture { onNext() }
+                }
 
                 // Pulsing ring around spotlight target
                 if !sRect.isEmpty {
@@ -165,15 +192,16 @@ struct HomeworkOnboardingOverlayView: View {
                     .frame(width: cW)
                     .position(cPos)
             }
-            .preference(key: HWUIKitSyncKey.self, value: UIKitSyncData(
+            .preference(key: PLOnboardingUIKitSyncKey.self, value: UIKitSyncData(
                 spotlightRect: sRect,
                 cardRect: cRect,
                 spotlightRadius: step.spotlightCornerRadius
             ))
         }
         .ignoresSafeArea()
-        .onPreferenceChange(HWUIKitSyncKey.self) { data in
+        .onPreferenceChange(PLOnboardingUIKitSyncKey.self) { data in
             cachedSyncData = data
+            guard !useSwiftUIScrim else { return }
             if SpotlightWindow.isShowing {
                 SpotlightWindow.update(data: data)
             } else {
@@ -181,10 +209,10 @@ struct HomeworkOnboardingOverlayView: View {
             }
         }
         .onDisappear {
-            SpotlightWindow.hide()
+            if !useSwiftUIScrim { SpotlightWindow.hide() }
         }
         .onAppear {
-            if !SpotlightWindow.isShowing, !cachedSyncData.spotlightRect.isEmpty {
+            if !useSwiftUIScrim, !SpotlightWindow.isShowing, !cachedSyncData.spotlightRect.isEmpty {
                 SpotlightWindow.show(data: cachedSyncData)
             }
             withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
@@ -193,7 +221,6 @@ struct HomeworkOnboardingOverlayView: View {
             }
         }
         .onChange(of: step) { _ in
-            // Reset pulse for new step
             pulseScale   = 1.0
             pulseOpacity = 0.85
             withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
@@ -201,6 +228,34 @@ struct HomeworkOnboardingOverlayView: View {
                 pulseOpacity = 0.30
             }
         }
+    }
+
+    // MARK: - SwiftUI-only scrim (for sheet context)
+
+    @ViewBuilder
+    private func swiftUIScrim(spotlight sRect: CGRect, card cRect: CGRect, in geo: GeometryProxy) -> some View {
+        Canvas { ctx, size in
+            // Dark fill
+            ctx.fill(Path(CGRect(origin: .zero, size: size)),
+                     with: .color(.black.opacity(0.65)))
+            // Punch spotlight hole
+            if !sRect.isEmpty {
+                ctx.blendMode = .clear
+                let spotPath = Path(roundedRect: sRect,
+                                    cornerRadius: step.spotlightCornerRadius)
+                ctx.fill(spotPath, with: .color(.white))
+            }
+            // Punch card hole
+            if !cRect.isEmpty {
+                ctx.blendMode = .clear
+                let cardPath = Path(roundedRect: cRect, cornerRadius: 18)
+                ctx.fill(cardPath, with: .color(.white))
+            }
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(true)
+        .contentShape(Rectangle())
+        .onTapGesture { onNext() }
     }
 
     // MARK: - Spotlight rect
@@ -211,15 +266,27 @@ struct HomeworkOnboardingOverlayView: View {
         guard !raw.isEmpty else {
             return toolbarFallback(for: step, screenWidth: geo.size.width)
         }
+        if useSwiftUIScrim {
+            // Convert global coords to local GeometryReader coords
+            let origin = geo.frame(in: .global).origin
+            let local = CGRect(
+                x: raw.minX - origin.x,
+                y: raw.minY - origin.y,
+                width: raw.width,
+                height: raw.height
+            )
+            return local.insetBy(dx: -pad, dy: -pad)
+        }
         return raw.insetBy(dx: -pad, dy: -pad)
     }
 
-    private func toolbarFallback(for step: HomeworkOnboardingStep, screenWidth w: CGFloat) -> CGRect {
-        guard step == .moreOptions else { return .zero }
+    private func toolbarFallback(for step: PracticeLibOnboardingStep, screenWidth w: CGFloat) -> CGRect {
+        guard step == .newButton else { return .zero }
         let safeTop = SpotlightWindow.safeAreaTop()
         let navY: CGFloat = safeTop + 2
         let btnH: CGFloat = 40
-        return CGRect(x: w - 65, y: navY, width: 44, height: btnH)
+        // "+ New" button is trailing, roughly 80pt from right edge
+        return CGRect(x: w - 90, y: navY, width: 72, height: btnH)
     }
 
     // MARK: - Card position
@@ -230,38 +297,45 @@ struct HomeworkOnboardingOverlayView: View {
         let margin: CGFloat = 16
         let gap: CGFloat = 14
 
-        let safeTop    = SpotlightWindow.safeAreaTop()
-        let safeBottom = SpotlightWindow.safeAreaBottom()
-        let screenW    = geo.size.width
-        let screenH    = geo.size.height
-        let navBottom  = safeTop + 44.0
+        let screenW = geo.size.width
+        let screenH = geo.size.height
+
+        let safeTop: CGFloat
+        let safeBottom: CGFloat
+        let navBottom: CGFloat
+
+        if useSwiftUIScrim {
+            // In sheet context, use local coordinates (0-based)
+            safeTop    = geo.safeAreaInsets.top
+            safeBottom = geo.safeAreaInsets.bottom
+            navBottom  = safeTop + 44.0
+        } else {
+            safeTop    = SpotlightWindow.safeAreaTop()
+            safeBottom = SpotlightWindow.safeAreaBottom()
+            navBottom  = safeTop + 44.0
+        }
 
         if rect.isEmpty {
             return CGPoint(x: screenW / 2, y: screenH / 2)
         }
 
-        // Decide: place card below or above the spotlight
         let spaceBelow = screenH - safeBottom - rect.maxY
         let spaceAbove = rect.minY - navBottom
 
         var y: CGFloat
         if step.isToolbarStep {
-            // Below toolbar
             y = navBottom + gap + cardH / 2
         } else if spaceBelow >= cardH + gap + margin {
-            // Below spotlight
             y = rect.maxY + gap + cardH / 2
         } else if spaceAbove >= cardH + gap + margin {
-            // Above spotlight
             y = rect.minY - gap - cardH / 2
         } else {
-            // Center on screen
             y = screenH / 2
         }
 
         var x = rect.midX
         x = max(cardW / 2 + margin, min(x, screenW - cardW / 2 - margin))
-        y = max(safeTop + cardH / 2 + margin, min(y, screenH - safeBottom - cardH / 2 - margin))
+        y = max(cardH / 2 + margin, min(y, screenH - safeBottom - cardH / 2 - margin))
 
         return CGPoint(x: x, y: y)
     }
@@ -300,18 +374,18 @@ struct HomeworkOnboardingOverlayView: View {
                 Button(action: onSkip) {
                     Text(NSLocalizedString("onboarding.skip", value: "Skip", comment: ""))
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color(red: 0.3, green: 0.3, blue: 0.3))
                         .padding(.vertical, 8)
                 }
 
                 Spacer()
 
                 HStack(spacing: 5) {
-                    ForEach(0..<HomeworkOnboardingStep.allCases.count, id: \.self) { i in
+                    ForEach(0..<totalSteps, id: \.self) { i in
                         Circle()
-                            .fill(i == step.rawValue
+                            .fill(i == dotIndex
                                   ? DesignTokens.Colors.Cute.peach
-                                  : Color.secondary.opacity(0.3))
+                                  : Color(red: 0.4, green: 0.4, blue: 0.4))
                             .frame(width: 6, height: 6)
                     }
                 }
@@ -319,7 +393,7 @@ struct HomeworkOnboardingOverlayView: View {
                 Spacer()
 
                 Button(action: onNext) {
-                    Text(step.isLast
+                    Text(isLastInContext
                          ? NSLocalizedString("onboarding.done", value: "Done", comment: "")
                          : NSLocalizedString("onboarding.next", value: "Next", comment: ""))
                         .font(.system(size: 14, weight: .semibold))

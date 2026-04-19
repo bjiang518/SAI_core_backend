@@ -11,8 +11,7 @@ struct ShareAppView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showShareSheet = false
 
-    private let appURL = "https://apps.apple.com/us/app/studyagent/id6754365864"
-    private let websiteURL = "https://www.study-mates.net"
+    private let appStoreURL = URL(string: "https://apps.apple.com/us/app/studyagent/id6754365864")!
     private var shareText: String {
         """
         \(NSLocalizedString("shareApp.messagePreview", comment: ""))
@@ -21,9 +20,6 @@ struct ShareAppView: View {
         \(NSLocalizedString("shareApp.feature2", comment: ""))
         \(NSLocalizedString("shareApp.feature3", comment: ""))
         \(NSLocalizedString("shareApp.feature4", comment: ""))
-
-        🌐 \(websiteURL)
-        \(NSLocalizedString("shareApp.downloadNow", comment: "")) \(appURL)
         """
     }
 
@@ -130,17 +126,18 @@ struct ShareAppView: View {
             }
         }
         .sheet(isPresented: $showShareSheet) {
-            ActivityViewController(activityItems: [shareText])
+            ActivityViewController(activityItems: [shareText, appStoreURL])
         }
     }
 
     private func shareApp() {
         showShareSheet = true
+        // Award one-time share points
+        let _ = AppReviewService.shared.shareAppForPoints()
     }
 
     private func copyLink() {
-        let appURL = "https://apps.apple.com/us/app/studyagent/id6754365864"
-        UIPasteboard.general.string = appURL
+        UIPasteboard.general.string = appStoreURL.absoluteString
 
         // Show feedback (you could add a toast notification here)
         let generator = UINotificationFeedbackGenerator()

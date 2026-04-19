@@ -35,7 +35,7 @@
 "settings.passwordManager" = "Password Manager";
 "settings.privacySettings" = "Privacy Einstellungen";
 "settings.appSettings" = "App Einstellungen";
-"settings.studyReminders" = "Study Reminders";
+"settings.studyReminders" = "Benachrichtigungen";
 "settings.textSize" = "Text Size";
 "settings.language" = "Sprache";
 "languageSettings.sectionHeader" = "Select Sprache";
@@ -57,27 +57,28 @@
 "profile.complete" = "Profile %d%% complete";
 "profile.biometricLogin" = "%@ Login";
 
-// Study Reminders
-"studyReminders.title" = "Study Reminders";
-"studyReminders.permissions" = "Permissions";
-"studyReminders.notificationPermission" = "Notification Permission";
-"studyReminders.enabled" = "Notifications enabled";
-"studyReminders.denied" = "Notifications denied";
-"studyReminders.notConfigured" = "Not configured";
-"studyReminders.enable" = "Aktivieren Notifications";
-"studyReminders.description" = "Aktivieren notifications to receive study reminders and stay on track with your learning goals.";
-"studyReminders.daily" = "Daily Study Reminders";
-"studyReminders.dailyDescription" = "Get reminded to study at your scheduled time each day.";
-"studyReminders.schedule" = "Schedule";
-"studyReminders.studyTime" = "Study Time";
-"studyReminders.timeDescription" = "You'll be reminded to study at %@";
-"studyReminders.studyDays" = "Study Days";
-"studyReminders.daysDescription" = "Reminders will be sent on %@";
-"studyReminders.weekdays" = "Weekdays";
-"studyReminders.everyDay" = "Every Day";
-"studyReminders.clear" = "Clear";
-"studyReminders.save" = "Save";
-"studyReminders.cancel" = "Cancel";
+// Notifications
+"notifications.title" = "Benachrichtigungen";
+"notifications.studySchedule" = "Lernplan";
+"notifications.studyReminder" = "Tägliche Lernerinnerung";
+"notifications.studyReminder.description" = "Eine freundliche Erinnerung zum Lernen zur gewählten Zeit.";
+"notifications.time" = "Erinnerungszeit";
+"notifications.studyTime" = "Lernzeit";
+"notifications.timeFooter" = "Du erhältst eine Erinnerung um %@ an den gewählten Tagen.";
+"notifications.days" = "Erinnerungstage";
+"notifications.daysFooter" = "Aktiv am %@.";
+"notifications.weekdays" = "Werktage";
+"notifications.everyDay" = "Jeden Tag";
+"notifications.none" = "Keine";
+"notifications.noDays" = "keine Tage ausgewählt";
+"notifications.otherAlerts" = "Weitere Hinweise";
+"notifications.otherAlerts.footer" = "Diese Benachrichtigungen halten dich über deine Lernaktivitäten auf dem Laufenden.";
+"notifications.streakReminder" = "Streak-Schutz";
+"notifications.streakReminder.description" = "Erinnert dich um 20 Uhr, wenn dein Lernstreak in Gefahr ist.";
+"notifications.homeworkComplete" = "Hausaufgaben-Ergebnisse bereit";
+"notifications.homeworkComplete.description" = "Benachrichtigt dich, wenn deine Hausaufgaben bewertet wurden.";
+"notifications.reportReady" = "Lernbericht verfügbar";
+"notifications.reportReady.description" = "Benachrichtigt dich, wenn ein neuer Wochen- oder Monatsbericht bereit ist.";
 
 // Days of Week
 "day.monday" = "Monday";
@@ -252,6 +253,10 @@
 "aiHomework.results.viewDetails" = "View Detailed Results";
 "aiHomework.processing.message" = "AI is carefully examining your homework!";
 "aiHomework.processing.waitMessage" = "This may take a moment, please wait...";
+
+// Camera Scanner
+"camera.hint.pressCheckWhenDone" = "Drücke ✓ wenn fertig";
+
 "imageViewer.instructions" = "Pinch to zoom • Drag to pan • Double tap to reset • Use Close button to exit";
 
 // Homework Results
@@ -1910,6 +1915,14 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "theme.colorful" = "Buntes Leben";
 "theme.description.default" = "Wechselt automatisch zwischen hellem und dunklem Modus gemäß Systemeinstellung";
 "theme.description.colorful" = "Weiche Pastellfarben für ein verspieltes Erlebnis";
+"theme.oceanNight" = "Ozeannacht";
+"theme.description.oceanNight" = "Tiefe Blautöne für ruhiges Lernen bei Nacht";
+"theme.forest" = "Waldgrün";
+"theme.description.forest" = "Natürliche Grüntöne, angenehm für die Augen";
+"theme.sakura" = "Sakura";
+"theme.description.sakura" = "Sanftes Kirschblütenrosa für ein verträumtes Gefühl";
+"theme.pureDark" = "Reines Dunkel";
+"theme.description.pureDark" = "Kontrastreiches OLED-freundliches Dunkelthema";
 "theme.override.auto" = "Auto";
 "theme.override.light" = "Hell";
 "theme.override.dark" = "Dunkel";
@@ -2347,6 +2360,18 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "practiceLibrary.info.title" = "Übungen generieren";
 "practiceLibrary.info.message" = "5 Wege zur Erstellung eines Fragebogens\n\n1. Zufällige Übung\nTippe auf + Neu und wähle Zufällige Übung. Die KI erstellt adaptive Fragen basierend auf deinen Schwächen und dem gewählten Fach.\n\n2. Aus dem Archiv\nTippe auf + Neu und wähle Aus Archiv. Wähle vergangene Gespräche oder gespeicherte Fragen aus. Die KI erstellt neue Übungsfragen aus diesem Material.\n\n3. Schwächen-basierte Übung\nGehe zu Lernfortschritt und tippe auf einen Schwachpunkt. Die KI generiert gezielte Fragen für diesen Bereich.\n\n4. Fehler wiederholen\nGehe zu Fehlerüberprüfung, wähle Fehler aus und tippe auf Nochmal versuchen. Wiederholt deine genauen Originalfragen ohne KI-Generierung.\n\n5. Sitzung wiederholen\nÖffne eine abgeschlossene Sitzung und tippe auf Wiederholen. Wiederholt denselben Fragensatz von Anfang an.";
 
+// Practice Library Onboarding
+"practiceLibOnboarding.newBtn.title" = "Erste Übung erstellen";
+"practiceLibOnboarding.newBtn.desc" = "Tippe auf + Neu, um ein Übungsset zu erstellen. Wähle Fach, Schwierigkeit und Fragetyp.";
+"practiceLibOnboarding.subjectFilter.title" = "Nach Fach filtern";
+"practiceLibOnboarding.subjectFilter.desc" = "Tippe auf ein Fach, um deine Sitzungen zu filtern. Fächer erscheinen automatisch beim Üben.";
+"practiceLibOnboarding.sortStatus.title" = "Sortieren & Filtern";
+"practiceLibOnboarding.sortStatus.desc" = "Wechsle zwischen Alle, Laufend und Abgeschlossen. Nutze das Sortiermenü rechts zum Umsortieren.";
+"practiceLibOnboarding.swipeDelete.title" = "Sitzung löschen";
+"practiceLibOnboarding.swipeDelete.desc" = "Wische eine Sitzungskarte nach links, um sie zu löschen.";
+"practiceLibOnboarding.difficulty.title" = "Schwierigkeit wählen";
+"practiceLibOnboarding.difficulty.desc" = "Ziehe auf der Leiste. Ziehe über das Ende für den Adaptiv-Modus — die KI wählt das richtige Level.";
+
 // Practice Sheet
 "practiceSheet.questionCounter" = "Q %d/%d";
 "practiceSheet.typeAnswerPlaceholder" = "Type your answer here…";
@@ -2758,12 +2783,127 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 
 // Homework Onboarding Tutorial
 "hwOnboarding.editImage.title" = "Bild bearbeiten";
-"hwOnboarding.editImage.desc" = "1. Tippe, um das Bild einer Frage auszuwählen\n2. Tippe auf 🖼 oder das Bild, um den Ausschnitt zu bearbeiten";
+"hwOnboarding.editImage.desc" = "1. Tippe auf das wackelnde Foto-Symbol, um das Bild einer Frage auszuwahlen\n2. Tippe auf den Bereich 'Bild bearbeiten' oder das Bild, um den Ausschnitt zu bearbeiten";
 "hwOnboarding.gradingMode.title" = "Bewertungsmodus";
-"hwOnboarding.gradingMode.desc" = "Schnell nutzt GPT für zügige Bewertung. Tief nutzt Gemini mit erweitertem Denken – besser für komplexe Aufgaben.";
+"hwOnboarding.gradingMode.desc" = "Schnellmodus für zügige Bewertung. Tiefenmodus nutzt erweitertes Denken – genauer bei komplexen Aufgaben.";
 "hwOnboarding.reparse.title" = "Neu analysieren";
 "hwOnboarding.reparse.desc" = "Tippe, um diese Frage erneut aus dem Bild zu analysieren, falls die KI etwas falsch erkannt hat.";
 "hwOnboarding.moreOptions.title" = "Weitere Optionen";
 "hwOnboarding.moreOptions.desc" = "Originalbild anzeigen, Markierungen zurücksetzen, Fragen löschen oder dieses Tutorial erneut ansehen.";
 "proMode.viewTutorial" = "Tutorial ansehen";
 "imageEditor.gestureHint" = "Kneifen zum Zoomen · Zwei Finger zum Drehen";
+
+// Punkte-Shop & Streak-System
+"points.shop.title" = "Punkte-Shop";
+"points.shop.balance" = "Punktestand";
+"points.shop.today" = "Heute";
+"points.shop.buy" = "Kaufen";
+"points.shop.cancel" = "Abbrechen";
+"points.shop.confirm.title" = "Kauf bestätigen";
+"points.shop.confirm.message" = "%@ für %d Punkte kaufen?";
+"points.shop.unlocked" = "Freigeschaltet";
+"points.shop.error.insufficient" = "Nicht genug Punkte!";
+"points.shop.error.network" = "Netzwerkfehler. Punkte erstattet.";
+"points.shop.purchased.freeze" = "Streak-Schutz gekauft!";
+"points.shop.purchased.chat" = "+%d Chat-Nachrichten hinzugefügt!";
+"points.shop.purchased.homework" = "+%d Hausaufgaben-Seiten hinzugefügt!";
+"points.shop.purchased.tomato" = "%@ zu deinem Garten hinzugefügt!";
+"points.shop.purchased.music" = "Musiktitel freigeschaltet!";
+"points.shop.category.streak" = "Streak";
+"points.shop.category.ai_usage" = "AI Boost";
+"points.shop.category.tomatoes" = "Tomaten";
+"points.shop.category.music" = "Musik";
+"points.shop.item.streakFreeze" = "Streak-Schutz";
+"points.shop.item.streakFreeze.desc" = "Schütze deinen Streak für 1 Tag";
+"points.shop.item.chat10" = "+10 Chats";
+"points.shop.item.chat10.desc" = "10 extra AI-Nachrichten";
+"points.shop.item.chat50" = "+50 Chats";
+"points.shop.item.chat50.desc" = "50 extra AI-Nachrichten";
+"points.shop.item.hw5" = "+5 Seiten";
+"points.shop.item.hw5.desc" = "5 extra Hausaufgaben-Seiten";
+"points.shop.item.hw20" = "+20 Seiten";
+"points.shop.item.hw20.desc" = "20 extra Hausaufgaben-Seiten";
+"points.shop.item.music.meditation" = "Meditation & Fokus";
+"points.shop.item.music.meditation.desc" = "Premium-Fokusmusik freischalten";
+"points.shop.item.music.magic" = "Magische Heilung";
+"points.shop.item.music.magic.desc" = "Premium-Fokusmusik freischalten";
+"streak.reminder.title" = "Dein Streak ist in Gefahr!";
+"streak.reminder.body" = "Dein %d-Tage-Streak bricht morgen ab! Beantworte 1 Frage.";
+"streak.freeze.used.banner" = "Streak geschützt! Schutzkarte verwendet. %d Karten übrig.";
+"streak.freeze.cards.remaining" = "Streak-Schutzkarten: %d";
+"points.earned.streak" = "+%d Punkte! Tag %d Streak-Bonus";
+"points.earned.correct" = "+%d Punkte für richtige Antworten";
+"points.earned.practice" = "+5 Punkte Übungsbonus";
+"points.earned.review" = "+%d Punkte für Fehlerüberprüfung";
+
+// Punkte-Hub — Verdienen-Tab
+"points.hub.title" = "Punkte";
+"points.hub.tab.earn" = "Verdienen";
+"points.hub.tab.shop" = "Shop";
+"points.hub.streak" = "Streak";
+"points.earn.streak.title" = "Täglicher Login-Bonus";
+"points.earn.streak.desc" = "%d Punkte verdienen (= Streak-Tage)";
+"points.earn.correct.title" = "Richtig beantworten";
+"points.earn.correct.desc" = "1 Punkt pro richtige Antwort";
+"points.earn.practice.title" = "Übung abschließen";
+"points.earn.practice.desc" = "+5 Punkte pro Übungsset";
+"points.earn.review.title" = "Fehler überprüfen";
+"points.earn.review.desc" = "2 Punkte pro überprüfte Frage";
+"points.earn.focus.title" = "Fokus-Sitzung";
+"points.earn.focus.desc" = "1 Punkt pro 5 Minuten";
+"points.earn.claim" = "Einlösen";
+
+// Punkte-Shop — Bereiche & Artikel
+"points.shop.section.study_boost" = "Lernhilfe";
+"points.shop.section.tomato_blind_box" = "Tomaten-Überraschungsbox";
+"points.shop.section.focus_music" = "Fokus-Musik";
+"shop.item.freeze" = "Streak-Schutz";
+"shop.item.freeze.desc" = "Schütze deinen Streak für 1 Tag";
+"shop.item.chat10" = "+10 AI Chats";
+"shop.item.chat10.desc" = "10 extra AI-Nachrichten";
+"shop.item.hw5" = "+5 Hausaufgaben";
+"shop.item.hw5.desc" = "5 extra Seiten Korrektur";
+"shop.item.voice30" = "Sprachmodus 30 Min";
+"shop.item.voice30.desc" = "30 Minuten Sprach-Nachhilfe";
+"shop.item.error5" = "+5 Fehleranalysen";
+"shop.item.error5.desc" = "5 detaillierte Fehleranalysen";
+"shop.item.questions20" = "+20 Übungsfragen";
+"shop.item.questions20.desc" = "20 extra Übungsfragen";
+"shop.item.premiumTrial" = "7-Tage Premium-Test";
+"shop.item.premiumTrial.desc" = "Alle Premium-Funktionen für 1 Woche";
+"shop.item.blindbox.rare" = "Seltene Tomaten-Box";
+"shop.item.blindbox.rare.desc" = "Zufällige seltene Charakter-Tomate";
+"shop.item.blindbox.super" = "Super Seltene Tomaten-Box";
+"shop.item.blindbox.super.desc" = "Zufällige Gold- oder Platin-Tomate";
+"shop.item.music.meditation" = "Meditation & Fokus";
+"shop.item.music.meditation.desc" = "Premium-Fokusmusik freischalten";
+"shop.item.music.magic" = "Magische Heilung";
+"shop.item.music.magic.desc" = "Premium-Fokusmusik freischalten";
+"shop.purchased.freeze" = "Streak-Schutz gekauft!";
+"shop.purchased.chat" = "+%d Chat-Nachrichten hinzugefügt!";
+"shop.purchased.homework" = "+%d Hausaufgaben-Seiten hinzugefügt!";
+"shop.purchased.voice" = "+%d Minuten Sprachmodus hinzugefügt!";
+"shop.purchased.error" = "+%d Fehleranalysen hinzugefügt!";
+"shop.purchased.questions" = "+%d Übungsfragen hinzugefügt!";
+"shop.purchased.premium" = "7-Tage Premium aktiviert!";
+"shop.purchased.blindbox" = "Du hast erhalten: %@!";
+"shop.purchased.music" = "Musiktitel freigeschaltet!";
+"shop.error.network" = "Netzwerkfehler. Punkte erstattet.";
+"shop.error.trialLimit" = "Premium-Testlimit erreicht.";
+"shop.purchased.premiumCode" = "Premium-Code: %@. In Einstellungen einlösen.";
+
+// Credits verdienen — Fortschritt
+"progress.earnCredits" = "Credits verdienen";
+"points.earn.scan.title" = "Hausaufgaben scannen";
+"points.earn.scan.desc" = "2 Punkte pro Scan";
+"points.earn.chat.title" = "AI Chat";
+"points.earn.chat.desc" = "1 Punkt pro Chat-Austausch";
+
+// Bewertung für Punkte
+"points.earn.rate.title" = "StudyAgent bewerten";
+"points.earn.rate.desc" = "Einmaliger Bewertungsbonus";
+"points.earn.rate.action" = "Bewerten";
+
+// Teilen für Punkte
+"points.earn.share.title" = "Mit Freunden teilen";
+"points.earn.share.desc" = "Einmaliger Teilungsbonus";

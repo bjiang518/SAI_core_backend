@@ -33,6 +33,15 @@ class NotificationService: NSObject, ObservableObject {
         loadSettings()
         Task {
             await checkAuthorizationStatus()
+            // Auto-request permission and schedule reminders on first launch
+            if authorizationStatus == .notDetermined {
+                let granted = await requestAuthorization()
+                if granted {
+                    scheduleStudyReminders()
+                }
+            } else if isAuthorized {
+                scheduleStudyReminders()
+            }
         }
     }
 
@@ -113,41 +122,120 @@ class NotificationService: NSObject, ObservableObject {
             return
         }
 
-        // Schedule for each selected day
-        for day in config.days {
-            let identifier = "\(studyReminderIdentifierPrefix).\(day.rawValue)"
+        // Collect signals and schedule non-repeating personalized notifications for next 7 days
+        Task {
+            let signals = await collectStudySignals()
 
-            // Create date components for the reminder
-            var dateComponents = DateComponents()
-            dateComponents.hour = hour
-            dateComponents.minute = minute
-            dateComponents.weekday = day.calendarWeekday
+            let now = Date()
+            var scheduledCount = 0
 
-            // Create notification content
-            let content = UNMutableNotificationContent()
-            content.title = "Study Time 📚"
-            content.body = StudyReminderMessage.allMessages.randomElement() ?? "Time to study!"
-            content.sound = .default
-            content.badge = 1
-            content.categoryIdentifier = "STUDY_REMINDER"
+            for dayOffset in 0..<7 {
+                guard let targetDate = calendar.date(byAdding: .day, value: dayOffset, to: now) else { continue }
 
-            // Create trigger
-            let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
+                // Determine weekday and check if it's in the user's selected days
+                let weekdayIndex = calendar.component(.weekday, from: targetDate)
+                guard let weekday = Weekday.allCases.first(where: { $0.calendarWeekday == weekdayIndex }),
+                      config.days.contains(weekday) else { continue }
 
-            // Create request
-            let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+                // Build exact fire date components
+                var dateComponents = calendar.dateComponents([.year, .month, .day], from: targetDate)
+                dateComponents.hour = hour
+                dateComponents.minute = minute
 
-            // Add notification
-            notificationCenter.add(request) { error in
-                if let error = error {
-                    debugPrint("📱 NotificationService: Failed to schedule \(day.displayName) reminder: \(error)")
-                } else {
-                    debugPrint("📱 NotificationService: Scheduled reminder for \(day.displayName) at \(hour):\(String(format: "%02d", minute))")
+                // Skip if fire time is already past today
+                if let fireDate = calendar.date(from: dateComponents), fireDate <= now {
+                    continue
                 }
-            }
-        }
 
-        debugPrint("📱 NotificationService: Scheduled \(config.days.count) study reminders")
+                // Date-based identifier (compatible with cancelStudyReminders prefix filter)
+                let dateFormatter = DateFormatter()
+                dateFormatter.dateFormat = "yyyyMMdd"
+                let dateString = dateFormatter.string(from: targetDate)
+                let identifier = "\(studyReminderIdentifierPrefix).\(dateString)"
+
+                // Select personalized message
+                let dayOfYear = calendar.ordinality(of: .day, in: .year, for: targetDate) ?? dayOffset
+                let message = PersonalizedMessageEngine.selectMessage(for: signals, dayOfYear: dayOfYear)
+
+                let content = UNMutableNotificationContent()
+                content.title = message.title
+                content.body = message.body
+                content.sound = .default
+                content.badge = 1
+                content.categoryIdentifier = "STUDY_REMINDER"
+
+                let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: false)
+                let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+
+                notificationCenter.add(request) { error in
+                    if let error = error {
+                        debugPrint("📱 NotificationService: Failed to schedule \(dateString) reminder: \(error)")
+                    }
+                }
+                scheduledCount += 1
+            }
+
+            debugPrint("📱 NotificationService: Scheduled \(scheduledCount) personalized study reminders")
+        }
+    }
+
+    /// Refresh study reminders with fresh personalized content, at most once per calendar day.
+    func refreshStudyRemindersIfNeeded() {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let today = formatter.string(from: Date())
+
+        guard settings.lastReminderRefreshDate != today else { return }
+
+        settings.lastReminderRefreshDate = today
+        saveSettings()
+        scheduleStudyReminders()
+        debugPrint("📱 NotificationService: Daily reminder refresh triggered")
+    }
+
+    // MARK: - Personalized Signal Collection
+
+    private func collectStudySignals() async -> StudySignals {
+        return await MainActor.run {
+            let profile = ProfileService.shared.currentProfile
+            let userName = AuthenticationService.shared.currentUser?.name
+            let points = PointsEarningManager.shared
+
+            // Display name: prefer profile firstName, fall back to first word of user name
+            let displayName = profile?.firstName ?? userName?.components(separatedBy: " ").first
+
+            // Top weakness: highest value > 0, parse key "Subject/baseBranch/detailedBranch"
+            let topWeakness: (subject: String, concept: String)? = {
+                let weaknesses = ShortTermStatusService.shared.status.activeWeaknesses
+                    .filter { $0.value.value > 0 }
+                    .sorted { $0.value.value > $1.value.value }
+                guard let top = weaknesses.first else { return nil }
+                let parts = top.key.components(separatedBy: "/")
+                let subject = parts.first ?? top.key
+                let concept = (parts.count >= 3 ? parts[2] : parts.count >= 2 ? parts[1] : subject)
+                    .replacingOccurrences(of: "_", with: " ")
+                return (subject: subject, concept: concept)
+            }()
+
+            // Incomplete practice session subject
+            let incompleteSubject = PracticeSessionManager.shared.incompleteSessions.first?.subject
+
+            // Daily goal progress (first incomplete daily goal)
+            let goalProgress: Double? = {
+                guard let goal = points.learningGoals.first(where: { $0.isDaily && !$0.isCompleted && $0.targetValue > 0 }) else { return nil }
+                return Double(goal.currentProgress) / Double(goal.targetValue)
+            }()
+
+            return StudySignals(
+                displayName: displayName,
+                currentStreak: points.currentStreak,
+                hasActivityToday: (points.todayProgress?.totalQuestions ?? 0) > 0,
+                topWeakness: topWeakness,
+                favoriteSubject: profile?.favoriteSubjects.first,
+                incompleteSessionSubject: incompleteSubject,
+                goalProgressPercent: goalProgress
+            )
+        }
     }
 
     func cancelStudyReminders() {
@@ -181,11 +269,52 @@ class NotificationService: NSObject, ObservableObject {
         debugPrint("📱 NotificationService: Removed all pending notifications")
     }
 
+    // MARK: - Streak Protection Notification
+
+    /// Schedule a notification at 8 PM if the user hasn't done any activity today and has a streak > 2.
+    /// Called from HomeView.onAppear.
+    func scheduleStreakProtectionReminder(currentStreak: Int) {
+        guard settings.isEnabled && settings.streakReminders else { return }
+        guard currentStreak > 2 else { return }
+
+        let identifier = "com.studyai.streakProtection"
+
+        // Cancel any existing streak reminder first
+        notificationCenter.removePendingNotificationRequests(withIdentifiers: [identifier])
+
+        let content = UNMutableNotificationContent()
+        content.title = NSLocalizedString("streak.reminder.title", comment: "Streak at risk notification title")
+        content.body = String(format: NSLocalizedString("streak.reminder.body", comment: "Streak at risk body"), currentStreak)
+        content.sound = .default
+        content.categoryIdentifier = "STREAK_REMINDER"
+
+        // Fire at 8 PM today
+        var dateComponents = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+        dateComponents.hour = 20
+        dateComponents.minute = 0
+        let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: false)
+
+        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+        notificationCenter.add(request) { error in
+            if let error = error {
+                debugPrint("📱 NotificationService: Failed to schedule streak reminder: \(error)")
+            } else {
+                debugPrint("📱 NotificationService: Scheduled streak protection reminder for streak=\(currentStreak)")
+            }
+        }
+    }
+
+    /// Cancel the streak protection reminder (called when user completes first activity today).
+    func cancelStreakProtectionReminder() {
+        notificationCenter.removePendingNotificationRequests(withIdentifiers: ["com.studyai.streakProtection"])
+        debugPrint("📱 NotificationService: Cancelled streak protection reminder")
+    }
+
     // MARK: - Homework Completion Notification
 
     func sendHomeworkCompletionNotification(questionCount: Int) {
-        guard settings.isEnabled else {
-            debugPrint("📱 NotificationService: Notifications disabled, skipping homework completion notification")
+        guard settings.isEnabled && settings.homeworkNotifications else {
+            debugPrint("📱 NotificationService: Homework notifications disabled, skipping")
             return
         }
 
@@ -193,8 +322,8 @@ class NotificationService: NSObject, ObservableObject {
 
         // Create notification content
         let content = UNMutableNotificationContent()
-        content.title = "Homework Graded! 🎉"
-        content.body = "Your homework has been analyzed. \(questionCount) question\(questionCount == 1 ? "" : "s") graded. Tap to view results!"
+        content.title = "Homework Results Ready"
+        content.body = "\(questionCount) question\(questionCount == 1 ? "" : "s") graded — tap to see how you did!"
         content.sound = .default
         content.badge = 1
         content.categoryIdentifier = "HOMEWORK_COMPLETE"
@@ -223,8 +352,8 @@ class NotificationService: NSObject, ObservableObject {
     ///   - reportCount: Number of reports in the batch (usually 8)
     ///   - overallGrade: Optional overall grade (A/B/C)
     func sendParentReportAvailableNotification(period: String, reportCount: Int, overallGrade: String? = nil) {
-        guard settings.isEnabled else {
-            debugPrint("📱 NotificationService: Notifications disabled, skipping parent report notification")
+        guard settings.isEnabled && settings.reportNotifications else {
+            debugPrint("📱 NotificationService: Report notifications disabled, skipping")
             return
         }
 
@@ -235,16 +364,16 @@ class NotificationService: NSObject, ObservableObject {
 
         // Title based on period
         if period.lowercased() == "weekly" {
-            content.title = "📊 Weekly Report Ready!"
+            content.title = "Weekly Learning Report Ready"
         } else {
-            content.title = "📊 Monthly Report Ready!"
+            content.title = "Monthly Learning Report Ready"
         }
 
         // Body with grade if available
         if let grade = overallGrade {
-            content.body = "Your \(period) learning report is ready! Overall grade: \(grade). Tap to view \(reportCount) detailed insights."
+            content.body = "Your \(period) report is in — overall grade: \(grade). Tap to see \(reportCount) insights."
         } else {
-            content.body = "Your \(period) learning report is ready! Tap to view \(reportCount) detailed insights about progress and areas of improvement."
+            content.body = "Your \(period) learning report is ready with \(reportCount) insights. Tap to check it out."
         }
 
         content.sound = .default
@@ -277,8 +406,8 @@ class NotificationService: NSObject, ObservableObject {
     /// Schedule a reminder to check parent reports
     /// - Parameter delay: Delay in seconds (default: 1 hour = 3600 seconds)
     func scheduleParentReportCheckReminder(delay: TimeInterval = 3600) {
-        guard settings.isEnabled else {
-            debugPrint("📱 NotificationService: Notifications disabled, skipping report check reminder")
+        guard settings.isEnabled && settings.reportNotifications else {
+            debugPrint("📱 NotificationService: Report notifications disabled, skipping report check reminder")
             return
         }
 
@@ -289,8 +418,8 @@ class NotificationService: NSObject, ObservableObject {
 
         // Create notification content
         let content = UNMutableNotificationContent()
-        content.title = "📊 Check Your Learning Reports"
-        content.body = "New weekly or monthly reports may be available. Tap to view your progress!"
+        content.title = "Check Your Learning Reports"
+        content.body = "New reports may be available — tap to see your latest progress."
         content.sound = .default
         content.badge = 1
         content.categoryIdentifier = "PARENT_REPORT_REMINDER"

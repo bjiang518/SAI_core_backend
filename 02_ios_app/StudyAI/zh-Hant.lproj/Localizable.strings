@@ -35,7 +35,7 @@
 "settings.passwordManager" = "密碼管理器";
 "settings.privacySettings" = "隱私設定";
 "settings.appSettings" = "應用程式設定";
-"settings.studyReminders" = "學習提醒";
+"settings.studyReminders" = "通知";
 "settings.language" = "語言";
 "languageSettings.sectionHeader" = "選擇語言";
 "languageSettings.sectionFooter" = "選擇你偏好的應用介面語言，這將影響應用中的所有文字。";
@@ -59,27 +59,28 @@
 "profile.complete" = "資料完成度 %d%%";
 "profile.biometricLogin" = "%@ 登入";
 
-// Study Reminders
-"studyReminders.title" = "學習提醒";
-"studyReminders.permissions" = "權限";
-"studyReminders.notificationPermission" = "通知權限";
-"studyReminders.enabled" = "通知已啟用";
-"studyReminders.denied" = "通知已拒絕";
-"studyReminders.notConfigured" = "未設定";
-"studyReminders.enable" = "啟用通知";
-"studyReminders.description" = "啟用通知以接收學習提醒，並保持學習進度。";
-"studyReminders.daily" = "每日學習提醒";
-"studyReminders.dailyDescription" = "在您預定的時間收到學習提醒。";
-"studyReminders.schedule" = "時間安排";
-"studyReminders.studyTime" = "學習時間";
-"studyReminders.timeDescription" = "您將在 %@ 收到學習提醒";
-"studyReminders.studyDays" = "學習日期";
-"studyReminders.daysDescription" = "提醒將在 %@ 發送";
-"studyReminders.weekdays" = "工作日";
-"studyReminders.everyDay" = "每天";
-"studyReminders.clear" = "清除";
-"studyReminders.save" = "儲存";
-"studyReminders.cancel" = "取消";
+// Notifications
+"notifications.title" = "通知";
+"notifications.studySchedule" = "學習計劃";
+"notifications.studyReminder" = "每日學習提醒";
+"notifications.studyReminder.description" = "在你選擇的時間溫馨提醒你學習。";
+"notifications.time" = "提醒時間";
+"notifications.studyTime" = "學習時間";
+"notifications.timeFooter" = "你將在選定日期的 %@ 收到提醒。";
+"notifications.days" = "提醒日期";
+"notifications.daysFooter" = "提醒日期：%@。";
+"notifications.weekdays" = "工作日";
+"notifications.everyDay" = "每天";
+"notifications.none" = "無";
+"notifications.noDays" = "未選擇日期";
+"notifications.otherAlerts" = "其他提醒";
+"notifications.otherAlerts.footer" = "這些通知幫助你了解學習動態。";
+"notifications.streakReminder" = "連續學習保護";
+"notifications.streakReminder.description" = "當你的連續學習記錄即將中斷時，晚上8點提醒你。";
+"notifications.homeworkComplete" = "作業批改完成";
+"notifications.homeworkComplete.description" = "作業批改完成時通知你查看結果。";
+"notifications.reportReady" = "學習報告已生成";
+"notifications.reportReady.description" = "每週或每月學習報告生成後通知你。";
 
 // Days of Week
 "day.monday" = "星期一";
@@ -1000,9 +1001,9 @@
 
 // Homework Onboarding Tutorial
 "hwOnboarding.editImage.title" = "編輯圖片";
-"hwOnboarding.editImage.desc" = "1. 點擊選擇題目圖片\n2. 點擊 🖼 或圖片來編輯已選圖片";
+"hwOnboarding.editImage.desc" = "1. 點擊題目旁抖動的圖片圖標選擇圖片\n2. 點擊「編輯圖片」區域或圖片來編輯已選圖片";
 "hwOnboarding.gradingMode.title" = "批改模式";
-"hwOnboarding.gradingMode.desc" = "快速模式使用 GPT 快速批改。深度模式使用 Gemini 深度推理——更適合複雜題目。";
+"hwOnboarding.gradingMode.desc" = "快速模式用於快速批改。深度模式使用深度推理——更適合複雜題目。";
 "hwOnboarding.reparse.title" = "重新解析";
 "hwOnboarding.reparse.desc" = "如果 AI 識別錯誤，點擊重新解析該題目。";
 "hwOnboarding.moreOptions.title" = "更多選項";
@@ -2094,6 +2095,14 @@
 "theme.colorful" = "多彩生活";
 "theme.description.default" = "根據系統設定自動切換亮色/暗色模式";
 "theme.description.colorful" = "柔和的馬卡龍色調，活潑可愛";
+"theme.oceanNight" = "深海夜色";
+"theme.description.oceanNight" = "深藍色調，適合夜間安靜學習";
+"theme.forest" = "森林綠";
+"theme.description.forest" = "自然清新的綠色系，護眼舒適";
+"theme.sakura" = "櫻花粉";
+"theme.description.sakura" = "柔美櫻花色調，如夢似幻";
+"theme.pureDark" = "純淨暗色";
+"theme.description.pureDark" = "高對比度純黑主題，OLED友好";
 "theme.override.auto" = "自動";
 "theme.override.light" = "淺色";
 "theme.override.dark" = "深色";
@@ -2733,3 +2742,118 @@
 "homework.pdf.email.body" = "請查收附件中的作業題目。";
 "homework.pdf.error.generation" = "PDF產生失敗";
 "imageEditor.gestureHint" = "雙指捏合縮放 · 雙指旋轉";
+
+// 積分商店 & 連續學習系統
+"points.shop.title" = "積分商店";
+"points.shop.balance" = "積分餘額";
+"points.shop.today" = "今日";
+"points.shop.buy" = "購買";
+"points.shop.cancel" = "取消";
+"points.shop.confirm.title" = "確認購買";
+"points.shop.confirm.message" = "花費 %2$d 積分購買 %1$@？";
+"points.shop.unlocked" = "已解鎖";
+"points.shop.error.insufficient" = "積分不足！";
+"points.shop.error.network" = "網路錯誤，積分已退回。";
+"points.shop.purchased.freeze" = "已購買連續學習保護卡！";
+"points.shop.purchased.chat" = "已增加 %d 次 AI 對話！";
+"points.shop.purchased.homework" = "已增加 %d 頁作業批改！";
+"points.shop.purchased.tomato" = "%@ 已加入你的番茄花園！";
+"points.shop.purchased.music" = "音樂曲目已解鎖！";
+"points.shop.category.streak" = "連續學習";
+"points.shop.category.ai_usage" = "AI 加量";
+"points.shop.category.tomatoes" = "番茄";
+"points.shop.category.music" = "音樂";
+"points.shop.item.streakFreeze" = "連續保護卡";
+"points.shop.item.streakFreeze.desc" = "保護你的連續學習記錄1天";
+"points.shop.item.chat10" = "+10次對話";
+"points.shop.item.chat10.desc" = "額外10次AI對話";
+"points.shop.item.chat50" = "+50次對話";
+"points.shop.item.chat50.desc" = "額外50次AI對話";
+"points.shop.item.hw5" = "+5頁批改";
+"points.shop.item.hw5.desc" = "額外5頁作業批改";
+"points.shop.item.hw20" = "+20頁批改";
+"points.shop.item.hw20.desc" = "額外20頁作業批改";
+"points.shop.item.music.meditation" = "冥想專注";
+"points.shop.item.music.meditation.desc" = "解鎖高級專注音樂";
+"points.shop.item.music.magic" = "魔法治癒";
+"points.shop.item.music.magic.desc" = "解鎖高級專注音樂";
+"streak.reminder.title" = "你的連續學習記錄有風險！";
+"streak.reminder.body" = "你的 %d 天連續學習記錄明天就要斷了！做1道題就能保持。";
+"streak.freeze.used.banner" = "連續記錄已保護！使用了保護卡。剩餘 %d 張。";
+"streak.freeze.cards.remaining" = "連續保護卡: %d 張";
+"points.earned.streak" = "+%d 積分！第 %d 天連續學習獎勵";
+"points.earned.correct" = "+%d 積分（答對獎勵）";
+"points.earned.practice" = "+5 積分練習獎勵";
+"points.earned.review" = "+%d 積分（複習錯題獎勵）";
+
+// 積分中心 — 賺取標籤
+"points.hub.title" = "積分";
+"points.hub.tab.earn" = "賺積分";
+"points.hub.tab.shop" = "商店";
+"points.hub.streak" = "連續";
+"points.earn.streak.title" = "每日登入獎勵";
+"points.earn.streak.desc" = "獲得 %d 積分（= 連續天數）";
+"points.earn.correct.title" = "答對題目";
+"points.earn.correct.desc" = "每答對1題獲得1積分";
+"points.earn.practice.title" = "完成練習";
+"points.earn.practice.desc" = "每組練習+5積分";
+"points.earn.review.title" = "複習錯題";
+"points.earn.review.desc" = "每複習1題獲得2積分";
+"points.earn.focus.title" = "專注時間";
+"points.earn.focus.desc" = "每5分鐘1積分";
+"points.earn.claim" = "領取";
+
+// 積分商店 — 分區 & 商品
+"points.shop.section.study_boost" = "學習輔助";
+"points.shop.section.tomato_blind_box" = "番茄盲盒";
+"points.shop.section.focus_music" = "專注音樂";
+"shop.item.freeze" = "連續保護卡";
+"shop.item.freeze.desc" = "缺勤1天不中斷連續記錄";
+"shop.item.chat10" = "對話加量 +10";
+"shop.item.chat10.desc" = "額外10次AI對話";
+"shop.item.hw5" = "批改加量 +5";
+"shop.item.hw5.desc" = "額外5頁作業批改";
+"shop.item.voice30" = "即時模式體驗卡";
+"shop.item.voice30.desc" = "30分鐘語音輔導";
+"shop.item.error5" = "錯題分析卡 +5";
+"shop.item.error5.desc" = "5次深度錯題分析";
+"shop.item.questions20" = "練習加量卡 +20";
+"shop.item.questions20.desc" = "額外20道練習題";
+"shop.item.premiumTrial" = "一週會員體驗卡";
+"shop.item.premiumTrial.desc" = "解鎖全部高級功能7天";
+"shop.item.blindbox.rare" = "稀有番茄盲盒";
+"shop.item.blindbox.rare.desc" = "隨機獲得一個稀有角色番茄";
+"shop.item.blindbox.super" = "超稀有番茄盲盒";
+"shop.item.blindbox.super.desc" = "隨機獲得金色或鉑金番茄";
+"shop.item.music.meditation" = "冥想專注";
+"shop.item.music.meditation.desc" = "解鎖高級專注音樂";
+"shop.item.music.magic" = "魔法治癒";
+"shop.item.music.magic.desc" = "解鎖高級專注音樂";
+"shop.purchased.freeze" = "已購買連續保護卡！";
+"shop.purchased.chat" = "已增加 %d 次對話！";
+"shop.purchased.homework" = "已增加 %d 頁批改！";
+"shop.purchased.voice" = "已增加 %d 分鐘語音模式！";
+"shop.purchased.error" = "已增加 %d 次錯題分析！";
+"shop.purchased.questions" = "已增加 %d 道練習題！";
+"shop.purchased.premium" = "7天會員已啟動！";
+"shop.purchased.blindbox" = "恭喜獲得：%@！";
+"shop.purchased.music" = "音樂已解鎖！";
+"shop.error.network" = "網路錯誤，積分已退回。";
+"shop.error.trialLimit" = "會員體驗次數已達上限。";
+"shop.purchased.premiumCode" = "體驗碼：%@。請在設定中兌換。";
+
+// 賺積分 — 進度頁
+"progress.earnCredits" = "賺積分";
+"points.earn.scan.title" = "掃描作業";
+"points.earn.scan.desc" = "每次掃描獲得2積分";
+"points.earn.chat.title" = "AI 對話";
+"points.earn.chat.desc" = "每次對話獲得1積分";
+
+// 評分獲積分
+"points.earn.rate.title" = "給 StudyAgent 評分";
+"points.earn.rate.desc" = "一次性評分獎勵";
+"points.earn.rate.action" = "評分";
+
+// 分享獲積分
+"points.earn.share.title" = "分享給朋友";
+"points.earn.share.desc" = "一次性分享獎勵";

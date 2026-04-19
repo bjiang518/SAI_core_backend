@@ -49,11 +49,11 @@ enum HomeworkOnboardingStep: Int, CaseIterable {
         switch self {
         case .editImage:
             return NSLocalizedString("hwOnboarding.editImage.desc",
-                value: "1. Tap to select a question's image\n2. Tap 🖼 or the image to edit the selected crop",
+                value: "1. Tap the shaking photo icon to select a question's image\n2. Tap the Edit Image section or the image to edit the selected crop",
                 comment: "")
         case .gradingMode:
             return NSLocalizedString("hwOnboarding.gradingMode.desc",
-                value: "Fast uses GPT for quick grading. Deep uses Gemini with extended thinking \u{2014} better for complex problems.",
+                value: "Fast mode for quick grading. Deep mode uses extended thinking \u{2014} more accurate for complex problems.",
                 comment: "")
         case .reparse:
             return NSLocalizedString("hwOnboarding.reparse.desc",
@@ -107,6 +107,13 @@ extension View {
 
 // MARK: - UIKit sync (local to this overlay)
 
+private struct CardSizeKey: PreferenceKey {
+    static var defaultValue: CGSize = .zero
+    static func reduce(value: inout CGSize, nextValue: () -> CGSize) {
+        value = nextValue()
+    }
+}
+
 private struct HWUIKitSyncKey: PreferenceKey {
     static var defaultValue = UIKitSyncData(
         spotlightRect: .zero, cardRect: .zero, spotlightRadius: 18
@@ -127,6 +134,7 @@ struct HomeworkOnboardingOverlayView: View {
     @StateObject private var themeManager = ThemeManager.shared
     @State private var pulseScale: CGFloat = 1.0
     @State private var pulseOpacity: Double = 0.85
+    @State private var measuredCardSize: CGSize = CGSize(width: 290, height: 170)
     @State private var cachedSyncData: UIKitSyncData = UIKitSyncData(
         spotlightRect: .zero, cardRect: .zero, spotlightRadius: 18
     )
@@ -136,7 +144,7 @@ struct HomeworkOnboardingOverlayView: View {
             let sRect = spotlightRect(in: geo)
             let cPos  = cardPosition(in: geo, spotlightRect: sRect)
             let cW: CGFloat = 290
-            let cH: CGFloat = 170
+            let cH: CGFloat = measuredCardSize.height
             let cRect = CGRect(x: cPos.x - cW / 2, y: cPos.y - cH / 2,
                                width: cW, height: cH)
 
@@ -172,6 +180,9 @@ struct HomeworkOnboardingOverlayView: View {
             ))
         }
         .ignoresSafeArea()
+        .onPreferenceChange(CardSizeKey.self) { size in
+            if size != .zero { measuredCardSize = size }
+        }
         .onPreferenceChange(HWUIKitSyncKey.self) { data in
             cachedSyncData = data
             if SpotlightWindow.isShowing {
@@ -266,6 +277,22 @@ struct HomeworkOnboardingOverlayView: View {
         return CGPoint(x: x, y: y)
     }
 
+    // MARK: - Step description with inline SF Symbols
+
+    @ViewBuilder
+    private var stepDescriptionView: some View {
+        if step == .editImage {
+            VStack(alignment: .leading, spacing: 3) {
+                (Text("1. Tap the shaking ")
+                 + Text(Image(systemName: "photo.on.rectangle.angled"))
+                 + Text(" icon to select a question's image"))
+                (Text("2. Tap the Edit Image section or the image to edit the selected crop"))
+            }
+        } else {
+            Text(step.description)
+        }
+    }
+
     // MARK: - Callout card
 
     @ViewBuilder
@@ -282,10 +309,10 @@ struct HomeworkOnboardingOverlayView: View {
                 VStack(alignment: .leading, spacing: 5) {
                     Text(step.title)
                         .font(.system(size: 15, weight: .bold))
-                        .foregroundColor(.primary)
-                    Text(step.description)
-                        .font(.system(size: 13))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color(red: 0, green: 0, blue: 0))
+                    stepDescriptionView
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.black)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -300,7 +327,7 @@ struct HomeworkOnboardingOverlayView: View {
                 Button(action: onSkip) {
                     Text(NSLocalizedString("onboarding.skip", value: "Skip", comment: ""))
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color(red: 0.3, green: 0.3, blue: 0.3))
                         .padding(.vertical, 8)
                 }
 
@@ -311,7 +338,7 @@ struct HomeworkOnboardingOverlayView: View {
                         Circle()
                             .fill(i == step.rawValue
                                   ? DesignTokens.Colors.Cute.peach
-                                  : Color.secondary.opacity(0.3))
+                                  : Color(red: 0.4, green: 0.4, blue: 0.4))
                             .frame(width: 6, height: 6)
                     }
                 }
@@ -333,10 +360,15 @@ struct HomeworkOnboardingOverlayView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
         }
-        .background(
-            RoundedRectangle(cornerRadius: 18)
-                .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.2), radius: 14, x: 0, y: 5)
+        .background(Color.white)
+        .compositingGroup()
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .shadow(color: .black.opacity(0.2), radius: 14, x: 0, y: 5)
+        .overlay(
+            GeometryReader { cardGeo in
+                Color.clear
+                    .preference(key: CardSizeKey.self, value: cardGeo.size)
+            }
         )
     }
 }

@@ -178,17 +178,12 @@ final class SuggestedTodoEngine: ObservableObject {
         refresh()
     }
 
-    /// Fetch the daily question from the backend (if not cached yet today), then refresh.
+    /// Fetch the daily question from the backend (if not cached in this session), then refresh.
     /// Call this from the view layer on appear — safe to call multiple times, the network
-    /// request is skipped when today's question is already in UserDefaults.
+    /// request is skipped when a question is already cached in memory.
     func fetchAndRefresh() {
-        let lang    = UserDefaults.standard.string(forKey: "appLanguage") ?? "en"
-        let grade   = ProfileService.shared.currentProfile?.gradeLevel ?? "6"
-        let date    = NetworkService.shared.todayUTCDateString()
-        let dateKey = "daily_question_\(date)_\(lang)_\(grade)"
-
-        // Already cached today → just refresh without a network call
-        if UserDefaults.standard.string(forKey: dateKey) != nil {
+        // Already cached this session → just refresh without a network call
+        if NetworkService.cachedSessionQuestion != nil {
             refresh()
             return
         }
@@ -582,19 +577,14 @@ private struct DailyQuestionProvider: SuggestedTodoItemProvider {
     let priority = 0
 
     func evaluate() -> SuggestedTodo? {
-        let lang    = UserDefaults.standard.string(forKey: "appLanguage") ?? "en"
-        let grade   = ProfileService.shared.currentProfile?.gradeLevel ?? "6"
-        let date    = NetworkService.shared.todayUTCDateString()
-        let dateKey = "daily_question_\(date)_\(lang)_\(grade)"
-
-        if let q = UserDefaults.standard.string(forKey: dateKey) {
+        if let cached = NetworkService.cachedSessionQuestion {
             return SuggestedTodo(
                 id:       todoId,
                 icon:     "lightbulb.fill",
                 title:    NSLocalizedString("todo.dailyQuestion.title",    value: "你知道吗？", comment: ""),
-                subtitle: q,
+                subtitle: cached.question,
                 color:    Color(hex: "FFD700"),
-                action:   .showDailyQuestion(question: q)
+                action:   .showDailyQuestion(question: cached.question)
             )
         }
 

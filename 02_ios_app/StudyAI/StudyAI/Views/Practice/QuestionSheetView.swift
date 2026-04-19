@@ -1296,6 +1296,8 @@ struct QuestionSheetView: View {
                 numberOfQuestions: questions.count,
                 numberOfCorrectQuestions: correctCount
             )
+            // Bonus for completing the practice set
+            PointsEarningManager.shared.awardPracticeCompletionBonus()
 
             // Archive wrong answers
             let current = sessionManager.getSession(id: session.id)

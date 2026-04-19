@@ -275,16 +275,77 @@ class PointsEarningManager: ObservableObject {
 
     @Published var currentPoints: Int = 0
     @Published var totalPointsEarned: Int = 0
+    @Published var pointsBalance: Int = 0 // Spendable wallet — never auto-resets, decremented by shop purchases
     @Published var learningGoals: [LearningGoal] = []
-    @Published var dailyCheckoutHistory: [DailyCheckout] = []
+    @Published var dailyCheckoutHistory: [DailyCheckout] = [] // Legacy — kept for migration compat
     @Published var currentStreak: Int = 0
     private var lastStreakUpdateDate: String? // Track last date streak was updated (yyyy-MM-dd format)
     @Published var todayProgress: DailyProgress? // TODAY's counters (reset at midnight)
     @Published var thisWeekProgress: [DailyProgress] = [] // This week's daily progress (7 days max)
     @Published var thisMonthProgress: [DailyProgress] = [] // This month's daily progress (31 days max)
-    @Published var dailyPointsEarned: Int = 0 // Track daily points to enforce 100 point maximum
+    @Published var dailyPointsEarned: Int = 0 // Track daily points earned (display stat, no cap)
     private var updatedToday: Bool = false // Track if today's progress has been calculated from local storage
     private var lastLoginDate: String? // Track last login date to reset updatedToday flag
+
+    // MARK: - Points Shop & Streak Freeze
+    @Published var hasClaimedStreakBonusToday: Bool = false
+    @Published var streakFreezeCards: Int = 0
+    @Published var streakFreezeUsedToday: Bool = false
+
+    // MARK: - Daily Earn Tab Counters (reset at midnight, display-only)
+    @Published var todayPracticeCompletions: Int = 0
+    @Published var todayMistakeReviews: Int = 0
+    @Published var todayFocusPoints: Int = 0
+    @Published var todayHomeworkScans: Int = 0
+    @Published var todayChatSessions: Int = 0
+
+    // MARK: - Claimed counters (how many units user has manually collected today)
+    @Published var todayCorrectAnswersClaimed: Int = 0
+    @Published var todayHomeworkScansClaimed: Int = 0
+    @Published var todayPracticeCompletionsClaimed: Int = 0
+    @Published var todayMistakeReviewsClaimed: Int = 0
+    @Published var todayFocusPointsClaimed: Int = 0
+    @Published var todayChatSessionsClaimed: Int = 0
+
+    // MARK: - Earning Types (all cap at 10 pts/day)
+
+    static let maxDailyPointsPerItem = 10
+
+    enum EarningType: CaseIterable, CustomStringConvertible {
+        case correctAnswers
+        case homeworkScan
+        case practiceCompletion
+        case mistakeReview
+        case focusSession
+        case chatSession
+
+        var description: String {
+            switch self {
+            case .correctAnswers:      return "correctAnswers"
+            case .homeworkScan:        return "homeworkScan"
+            case .practiceCompletion:  return "practiceCompletion"
+            case .mistakeReview:       return "mistakeReview"
+            case .focusSession:        return "focusSession"
+            case .chatSession:         return "chatSession"
+            }
+        }
+
+        var pointsPerUnit: Int {
+            switch self {
+            case .correctAnswers:      return 1
+            case .homeworkScan:        return 2
+            case .practiceCompletion:  return 5
+            case .mistakeReview:       return 2
+            case .focusSession:        return 1
+            case .chatSession:         return 1
+            }
+        }
+
+        /// Max claimable units per day (all capped so max points = 10)
+        var dailyUnitCap: Int {
+            PointsEarningManager.maxDailyPointsPerItem / pointsPerUnit
+        }
+    }
 
     // MARK: - Weekly Progress Properties (Legacy - for grid display)
     @Published var currentWeeklyProgress: WeeklyProgress?
@@ -317,6 +378,21 @@ class PointsEarningManager: ObservableObject {
     private var lastStreakUpdateDateKey: String { userKeyPrefix + "last_streak_update_date" }
     private var updatedTodayKey: String { userKeyPrefix + "updated_today" }
     private var lastLoginDateKey: String { userKeyPrefix + "last_login_date" }
+    private var pointsBalanceKey: String { userKeyPrefix + "points_balance" }
+    private var streakBonusClaimedKey: String { userKeyPrefix + "streak_bonus_claimed_today" }
+    private var streakFreezeCardsKey: String { userKeyPrefix + "streak_freeze_cards" }
+    private var pointsV2MigratedKey: String { userKeyPrefix + "points_v2_migrated" }
+    private var todayPracticeCompletionsKey: String { userKeyPrefix + "today_practice_completions" }
+    private var todayMistakeReviewsKey: String { userKeyPrefix + "today_mistake_reviews" }
+    private var todayFocusPointsKey: String { userKeyPrefix + "today_focus_points" }
+    private var todayHomeworkScansKey: String { userKeyPrefix + "today_homework_scans" }
+    private var todayChatSessionsKey: String { userKeyPrefix + "today_chat_sessions" }
+    private var todayCorrectAnswersClaimedKey: String { userKeyPrefix + "today_correct_answers_claimed" }
+    private var todayHomeworkScansClaimedKey: String { userKeyPrefix + "today_homework_scans_claimed" }
+    private var todayPracticeCompletionsClaimedKey: String { userKeyPrefix + "today_practice_completions_claimed" }
+    private var todayMistakeReviewsClaimedKey: String { userKeyPrefix + "today_mistake_reviews_claimed" }
+    private var todayFocusPointsClaimedKey: String { userKeyPrefix + "today_focus_points_claimed" }
+    private var todayChatSessionsClaimedKey: String { userKeyPrefix + "today_chat_sessions_claimed" }
 
     deinit {
         // Clean up timer and observers
@@ -536,6 +612,31 @@ class PointsEarningManager: ObservableObject {
         updatedToday = userDefaults.bool(forKey: updatedTodayKey)
         lastLoginDate = userDefaults.string(forKey: lastLoginDateKey)
 
+        // Points Shop properties
+        pointsBalance = max(0, userDefaults.integer(forKey: pointsBalanceKey))
+        hasClaimedStreakBonusToday = userDefaults.bool(forKey: streakBonusClaimedKey)
+        streakFreezeCards = max(0, userDefaults.integer(forKey: streakFreezeCardsKey))
+        todayPracticeCompletions = max(0, userDefaults.integer(forKey: todayPracticeCompletionsKey))
+        todayMistakeReviews = max(0, userDefaults.integer(forKey: todayMistakeReviewsKey))
+        todayFocusPoints = max(0, userDefaults.integer(forKey: todayFocusPointsKey))
+        todayHomeworkScans = max(0, userDefaults.integer(forKey: todayHomeworkScansKey))
+        todayChatSessions = max(0, userDefaults.integer(forKey: todayChatSessionsKey))
+        todayCorrectAnswersClaimed = max(0, userDefaults.integer(forKey: todayCorrectAnswersClaimedKey))
+        todayHomeworkScansClaimed = max(0, userDefaults.integer(forKey: todayHomeworkScansClaimedKey))
+        todayPracticeCompletionsClaimed = max(0, userDefaults.integer(forKey: todayPracticeCompletionsClaimedKey))
+        todayMistakeReviewsClaimed = max(0, userDefaults.integer(forKey: todayMistakeReviewsClaimedKey))
+        todayFocusPointsClaimed = max(0, userDefaults.integer(forKey: todayFocusPointsClaimedKey))
+        todayChatSessionsClaimed = max(0, userDefaults.integer(forKey: todayChatSessionsClaimedKey))
+
+        // Migration: seed pointsBalance from totalPointsEarned for existing users
+        if !userDefaults.bool(forKey: pointsV2MigratedKey) {
+            if pointsBalance == 0 && totalPointsEarned > 0 {
+                pointsBalance = totalPointsEarned
+                logger.info("💰 [MIGRATION] Seeded pointsBalance = \(self.totalPointsEarned) from totalPointsEarned")
+            }
+            userDefaults.set(true, forKey: pointsV2MigratedKey)
+        }
+
         // Load goals with validation
         if let goalsData = userDefaults.data(forKey: goalsKey),
            let decodedGoals = try? JSONDecoder().decode([LearningGoal].self, from: goalsData) {
@@ -623,11 +724,25 @@ class PointsEarningManager: ObservableObject {
         let updates: [String: Any?] = [
             pointsKey: currentPoints,
             totalPointsKey: totalPointsEarned,
+            pointsBalanceKey: pointsBalance,
             streakKey: currentStreak,
             dailyPointsEarnedKey: dailyPointsEarned,
             lastStreakUpdateDateKey: lastStreakUpdateDate,
             updatedTodayKey: updatedToday,
             lastLoginDateKey: lastLoginDate,
+            streakBonusClaimedKey: hasClaimedStreakBonusToday,
+            streakFreezeCardsKey: streakFreezeCards,
+            todayPracticeCompletionsKey: todayPracticeCompletions,
+            todayMistakeReviewsKey: todayMistakeReviews,
+            todayFocusPointsKey: todayFocusPoints,
+            todayHomeworkScansKey: todayHomeworkScans,
+            todayChatSessionsKey: todayChatSessions,
+            todayCorrectAnswersClaimedKey: todayCorrectAnswersClaimed,
+            todayHomeworkScansClaimedKey: todayHomeworkScansClaimed,
+            todayPracticeCompletionsClaimedKey: todayPracticeCompletionsClaimed,
+            todayMistakeReviewsClaimedKey: todayMistakeReviewsClaimed,
+            todayFocusPointsClaimedKey: todayFocusPointsClaimed,
+            todayChatSessionsClaimedKey: todayChatSessionsClaimed,
             goalsKey: try? JSONEncoder().encode(learningGoals),
             checkoutHistoryKey: try? JSONEncoder().encode(dailyCheckoutHistory),
             weeklyProgressKey: currentWeeklyProgress.flatMap { try? JSONEncoder().encode($0) },
@@ -795,6 +910,7 @@ class PointsEarningManager: ObservableObject {
         debugPrint("📊 [RESET] Created new daily progress for \(todayString)")
 
         // CRITICAL: Reset daily-reset points to 0 for new day
+        // NOTE: pointsBalance is NOT reset — it's the persistent spendable wallet
         currentPoints = 0
         debugPrint("📊 [RESET] Reset currentPoints (daily-reset points) to 0")
 
@@ -804,6 +920,23 @@ class PointsEarningManager: ObservableObject {
 
         // NOTE: totalPointsEarned is NEVER reset - it's the lifetime total
         debugPrint("📊 [RESET] totalPointsEarned unchanged: \(totalPointsEarned) (lifetime total)")
+        debugPrint("📊 [RESET] pointsBalance unchanged: \(pointsBalance) (spendable wallet)")
+
+        // Reset streak bonus and freeze flags for new day
+        hasClaimedStreakBonusToday = false
+        streakFreezeUsedToday = false
+        todayPracticeCompletions = 0
+        todayMistakeReviews = 0
+        todayFocusPoints = 0
+        todayHomeworkScans = 0
+        todayChatSessions = 0
+        todayCorrectAnswersClaimed = 0
+        todayHomeworkScansClaimed = 0
+        todayPracticeCompletionsClaimed = 0
+        todayMistakeReviewsClaimed = 0
+        todayFocusPointsClaimed = 0
+        todayChatSessionsClaimed = 0
+        debugPrint("📊 [RESET] Reset streak bonus claim, freeze flags, earn tab counters, and claimed counters")
 
         // Reset updatedToday flag so streak can be updated when user marks progress
         updatedToday = false
@@ -845,10 +978,17 @@ class PointsEarningManager: ObservableObject {
             currentStreak += 1
             logger.info("🔥 [STREAK] User was active yesterday (\(yesterdayString)), incrementing streak to \(self.currentStreak)")
         } else {
-            // User was not active yesterday, reset streak to 0
-            // Streak will be set to 1 when user becomes active today
-            currentStreak = 0
-            logger.info("🔥 [STREAK] User was NOT active yesterday (\(yesterdayString)), resetting streak to 0")
+            // User was not active yesterday — try to use a streak freeze card
+            if streakFreezeCards > 0 {
+                streakFreezeCards -= 1
+                streakFreezeUsedToday = true
+                logger.info("🔥 [STREAK] Freeze card used! Streak preserved at \(self.currentStreak). Cards remaining: \(self.streakFreezeCards)")
+            } else {
+                // No freeze cards, reset streak to 0
+                // Streak will be set to 1 when user becomes active today
+                currentStreak = 0
+                logger.info("🔥 [STREAK] User was NOT active yesterday (\(yesterdayString)), resetting streak to 0")
+            }
         }
 
         // Mark that we've updated the streak for today's transition
@@ -1028,10 +1168,17 @@ class PointsEarningManager: ObservableObject {
             updateStreakForToday(todayString: todayString)
             updatedToday = true
             userDefaults.set(true, forKey: updatedTodayKey)
+            // Cancel streak-at-risk notification since user is now active
+            NotificationService.shared.cancelStreakProtectionReminder()
         }
 
         // Update learning goals
         updateLearningGoalsFromProgress()
+
+        // Correct answers are tracked but NOT auto-awarded — user must claim from Earn tab
+        if numberOfCorrectQuestions > 0 {
+            debugPrint("💰 [POINTS] \(numberOfCorrectQuestions) correct answers tracked (pending manual claim). Balance unchanged: \(pointsBalance)")
+        }
 
         // Save data locally
         saveData()
@@ -1149,6 +1296,158 @@ class PointsEarningManager: ObservableObject {
         return formatter.date(from: dateString)
     }
 
+    // MARK: - Points Shop Earning & Spending Methods
+
+    /// Claim daily streak bonus. Returns bonus amount = current streak day count.
+    /// Can only be claimed once per day. Returns 0 if already claimed.
+    /// First login of the day counts as streak = 1 minimum.
+    func claimDailyStreakBonus() -> Int {
+        guard !hasClaimedStreakBonusToday else { return 0 }
+
+        // Ensure streak is at least 1 on login day (first day = 1, not 0)
+        if currentStreak == 0 {
+            currentStreak = 1
+            logger.info("🔥 [STREAK] First login bonus — set streak to 1")
+        }
+
+        let bonus = min(currentStreak, Self.maxDailyPointsPerItem)
+        pointsBalance += bonus
+        totalPointsEarned += bonus
+        dailyPointsEarned += bonus
+        hasClaimedStreakBonusToday = true
+        logger.info("💰 [STREAK BONUS] Claimed \(bonus) points (streak day \(self.currentStreak), capped at \(Self.maxDailyPointsPerItem)). Balance: \(self.pointsBalance)")
+        forceSave() // Persist immediately — don't rely on batched save
+
+        // Check review milestones
+        AppReviewService.shared.checkStreakMilestone(currentStreak)
+        AppReviewService.shared.checkPointsMilestone(totalPointsEarned)
+
+        return bonus
+    }
+
+    // MARK: - Manual Claim System
+
+    /// Returns the activity counter for a given earning type.
+    func activityCount(for type: EarningType) -> Int {
+        switch type {
+        case .correctAnswers:      return todayProgress?.correctAnswers ?? 0
+        case .homeworkScan:        return todayHomeworkScans
+        case .practiceCompletion:  return todayPracticeCompletions
+        case .mistakeReview:       return todayMistakeReviews
+        case .focusSession:        return todayFocusPoints
+        case .chatSession:         return todayChatSessions
+        }
+    }
+
+    /// Returns how many units the user has already claimed today.
+    func claimedUnits(for type: EarningType) -> Int {
+        switch type {
+        case .correctAnswers:      return todayCorrectAnswersClaimed
+        case .homeworkScan:        return todayHomeworkScansClaimed
+        case .practiceCompletion:  return todayPracticeCompletionsClaimed
+        case .mistakeReview:       return todayMistakeReviewsClaimed
+        case .focusSession:        return todayFocusPointsClaimed
+        case .chatSession:         return todayChatSessionsClaimed
+        }
+    }
+
+    /// Returns the number of unclaimed units available (capped).
+    func pendingUnits(for type: EarningType) -> Int {
+        let capped = min(activityCount(for: type), type.dailyUnitCap)
+        return max(0, capped - claimedUnits(for: type))
+    }
+
+    /// Returns the unclaimed points available.
+    func pendingPoints(for type: EarningType) -> Int {
+        return pendingUnits(for: type) * type.pointsPerUnit
+    }
+
+    /// Returns the points already claimed today for this type.
+    func claimedPoints(for type: EarningType) -> Int {
+        return claimedUnits(for: type) * type.pointsPerUnit
+    }
+
+    /// Whether there are ANY unclaimed points across all earning types.
+    var hasUnclaimedEarnings: Bool {
+        !hasClaimedStreakBonusToday ||
+        EarningType.allCases.contains { pendingPoints(for: $0) > 0 }
+    }
+
+    /// Claim all pending points for a given earning type. Returns points awarded.
+    @discardableResult
+    func claimEarning(type: EarningType) -> Int {
+        let units = pendingUnits(for: type)
+        guard units > 0 else { return 0 }
+
+        let points = units * type.pointsPerUnit
+        pointsBalance += points
+        totalPointsEarned += points
+        dailyPointsEarned += points
+
+        // Update claimed counter
+        switch type {
+        case .correctAnswers:      todayCorrectAnswersClaimed += units
+        case .homeworkScan:        todayHomeworkScansClaimed += units
+        case .practiceCompletion:  todayPracticeCompletionsClaimed += units
+        case .mistakeReview:       todayMistakeReviewsClaimed += units
+        case .focusSession:        todayFocusPointsClaimed += units
+        case .chatSession:         todayChatSessionsClaimed += units
+        }
+
+        logger.info("💰 [CLAIM] \(type): claimed \(units) units = \(points) pts. Balance: \(self.pointsBalance)")
+        forceSave() // Persist immediately — don't rely on batched save
+        return points
+    }
+
+    /// Award points for reviewing mistakes. 2 points per reviewed question.
+    func awardMistakeReviewPoints(reviewedCount: Int) {
+        guard reviewedCount > 0 else { return }
+        todayMistakeReviews += reviewedCount
+        logger.info("💰 [MISTAKE REVIEW] Tracked \(reviewedCount) reviews (pending manual claim). Balance unchanged: \(self.pointsBalance)")
+        saveData()
+    }
+
+    /// Award bonus for completing a practice set. Fixed 5 points.
+    func awardPracticeCompletionBonus() {
+        todayPracticeCompletions += 1
+        logger.info("💰 [PRACTICE] Tracked practice completion (pending manual claim). Balance unchanged: \(self.pointsBalance)")
+        saveData()
+    }
+
+    /// Award points for scanning/uploading homework. 2 points per scan regardless of results.
+    func awardHomeworkScanPoints() {
+        todayHomeworkScans += 1
+        logger.info("💰 [SCAN] Tracked homework scan (pending manual claim). Balance unchanged: \(self.pointsBalance)")
+        saveData()
+    }
+
+    /// Award point for completing a chat session. 1 point per session.
+    func awardChatSessionPoint() {
+        todayChatSessions += 1
+        logger.info("💰 [CHAT] Tracked chat session (pending manual claim). Balance unchanged: \(self.pointsBalance)")
+        saveData()
+    }
+
+    /// Spend points from the wallet. Returns false if insufficient balance.
+    func spendPoints(_ amount: Int) -> Bool {
+        guard amount > 0, pointsBalance >= amount else { return false }
+        pointsBalance -= amount
+        logger.info("💰 [SPEND] Spent \(amount) points. Balance: \(self.pointsBalance)")
+        saveData()
+        return true
+    }
+
+    /// Purchase a streak freeze card for 15 points.
+    func purchaseStreakFreezeCard() -> Bool {
+        guard spendPoints(15) else { return false }
+        streakFreezeCards += 1
+        logger.info("❄️ [FREEZE] Purchased streak freeze card. Cards: \(self.streakFreezeCards)")
+        saveData()
+        return true
+    }
+
+    // MARK: - Deprecated Methods
+
     func trackQuestionAnswered(subject: String, isCorrect: Bool) {
         // ⚠️ DEPRECATED: Progress is now counter-based via markHomeworkProgress()
         // This method is kept for compatibility but does nothing
@@ -1169,14 +1468,13 @@ class PointsEarningManager: ObservableObject {
         debugPrint("🧘 [FOCUS SESSION] Tracking completed session")
         debugPrint("🧘 ========================================")
         debugPrint("🧘 Duration: \(durationMinutes) minutes")
-        debugPrint("🧘 Points Earned: \(pointsEarned)")
+        debugPrint("🧘 Points Tracked: \(pointsEarned)")
 
-        // Award points immediately
-        currentPoints += pointsEarned
-        totalPointsEarned += pointsEarned
+        // Track activity but do NOT auto-award — user must claim from Earn tab
+        todayFocusPoints += pointsEarned
 
-        debugPrint("🧘 [FOCUS SESSION] ✅ Awarded \(pointsEarned) points")
-        debugPrint("🧘 [FOCUS SESSION] Current Total: \(currentPoints) points")
+        debugPrint("🧘 [FOCUS SESSION] ✅ Tracked \(pointsEarned) focus points (pending manual claim)")
+        debugPrint("🧘 [FOCUS SESSION] Balance unchanged: \(pointsBalance)")
 
         saveData()
     }

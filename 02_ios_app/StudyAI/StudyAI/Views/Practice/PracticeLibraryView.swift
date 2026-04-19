@@ -58,6 +58,11 @@ struct PracticeLibraryView: View {
     // Info alert
     @State private var showingPracticeInfo: Bool = false
 
+    // Onboarding tutorial
+    @AppStorage("practice_lib_onboarding_done") private var libOnboardingDone = false
+    @State private var practiceOnboardingStep: PracticeLibOnboardingStep? = nil
+    @State private var practiceOnboardingAnchors: [String: CGRect] = [:]
+
     @Namespace private var subjectAnimation
 
     enum SortOrder: String, CaseIterable {
@@ -140,6 +145,14 @@ struct PracticeLibraryView: View {
                     showingNewPractice = true
                 }
             }
+            // Auto-show onboarding for first-time users
+            if !libOnboardingDone && shortcutConfig == nil {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                    if practiceOnboardingStep == nil {
+                        practiceOnboardingStep = .newButton
+                    }
+                }
+            }
         }
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
@@ -196,6 +209,18 @@ struct PracticeLibraryView: View {
         } message: {
             Text(NSLocalizedString("practiceLibrary.deleteMessage", comment: ""))
         }
+        .overlay {
+            if let step = practiceOnboardingStep {
+                PracticeLibOnboardingOverlayView(
+                    step: step,
+                    anchors: practiceOnboardingAnchors,
+                    totalSteps: 4,
+                    onNext: { advancePracticeLibOnboarding() },
+                    onSkip: { dismissPracticeLibOnboarding() }
+                )
+            }
+        }
+        .onPreferenceChange(PracticeLibOnboardingAnchorKey.self) { practiceOnboardingAnchors = $0 }
     }
 
     // MARK: - Subject Selector (CompactSubjectSelector style)
@@ -250,6 +275,7 @@ struct PracticeLibraryView: View {
             }
         }
         .padding(.top, 4)
+        .practiceLibOnboardingAnchor("practice_lib_onboarding_subjectFilter")
     }
 
     // MARK: - Status Filter Bar
@@ -282,9 +308,8 @@ struct PracticeLibraryView: View {
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.secondary.opacity(0.15), lineWidth: 1))
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
+        .practiceLibOnboardingAnchor("practice_lib_onboarding_statusFilter")
     }
-
-    // MARK: - Sort Bar
 
     private var sortBar: some View {
         HStack {
@@ -320,6 +345,10 @@ struct PracticeLibraryView: View {
                 List {
                     ForEach(filteredSorted) { session in
                         PracticeSessionCard(session: session)
+                            .practiceLibOnboardingAnchor(
+                                session.id == filteredSorted.first?.id
+                                    ? "practice_lib_onboarding_sessionCard" : ""
+                            )
                             .contentShape(Rectangle())
                             .onTapGesture { selectedSession = session }
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
@@ -420,5 +449,37 @@ struct PracticeLibraryView: View {
         let total = session.completedQuestionIds.count
         guard total > 0 else { return 0 }
         return Double(correct) / Double(total)
+    }
+
+    // MARK: - Onboarding
+
+    private func advancePracticeLibOnboarding() {
+        guard let current = practiceOnboardingStep else { return }
+        let librarySteps: [PracticeLibOnboardingStep] = [
+            .newButton, .subjectFilter, .sortAndStatus, .swipeToDelete
+        ]
+        guard let idx = librarySteps.firstIndex(of: current) else {
+            dismissPracticeLibOnboarding(); return
+        }
+        let nextIdx = idx + 1
+        if nextIdx >= librarySteps.count {
+            dismissPracticeLibOnboarding()
+        } else {
+            let nextStep = librarySteps[nextIdx]
+            // Skip swipeToDelete if list is empty
+            if nextStep == .swipeToDelete && filteredSorted.isEmpty {
+                dismissPracticeLibOnboarding()
+            } else {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    practiceOnboardingStep = nextStep
+                }
+            }
+        }
+    }
+
+    private func dismissPracticeLibOnboarding() {
+        SpotlightWindow.hide()
+        practiceOnboardingStep = nil
+        libOnboardingDone = true
     }
 }

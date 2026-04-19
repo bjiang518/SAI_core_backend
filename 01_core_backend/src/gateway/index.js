@@ -232,6 +232,11 @@ fastify.setErrorHandler((error, request, reply) => {
   });
 });
 
+// Serve robots.txt to prevent crawler noise in logs
+fastify.get('/robots.txt', (request, reply) => {
+  reply.type('text/plain').send('User-agent: *\nDisallow: /\n');
+});
+
 // Not found handler
 fastify.setNotFoundHandler((request, reply) => {
   fastify.log.warn(`⚠️ Route not found: ${request.method} ${request.url}`);

@@ -35,7 +35,7 @@
 "settings.passwordManager" = "密码管理器";
 "settings.privacySettings" = "隐私设定";
 "settings.appSettings" = "应用程序设置";
-"settings.studyReminders" = "学习提醒";
+"settings.studyReminders" = "通知";
 "settings.language" = "语言";
 "languageSettings.sectionHeader" = "选择语言";
 "languageSettings.sectionFooter" = "选择你偏好的应用界面语言，这将影响应用中的所有文字。";
@@ -59,27 +59,28 @@
 "profile.complete" = "资料完成度 %d%%";
 "profile.biometricLogin" = "%@ 登入";
 
-// Study Reminders
-"studyReminders.title" = "学习提醒";
-"studyReminders.permissions" = "权限";
-"studyReminders.notificationPermission" = "通知权限";
-"studyReminders.enabled" = "通知已启用";
-"studyReminders.denied" = "通知已拒绝";
-"studyReminders.notConfigured" = "未设定";
-"studyReminders.enable" = "启用通知";
-"studyReminders.description" = "启用通知以接收学习提醒，并保持学习进度。";
-"studyReminders.daily" = "每日学习提醒";
-"studyReminders.dailyDescription" = "在您预定的时间收到学习提醒。";
-"studyReminders.schedule" = "时间安排";
-"studyReminders.studyTime" = "学习时间";
-"studyReminders.timeDescription" = "您将在 %@ 收到学习提醒";
-"studyReminders.studyDays" = "学习日期";
-"studyReminders.daysDescription" = "提醒将在 %@ 发送";
-"studyReminders.weekdays" = "工作日";
-"studyReminders.everyDay" = "每天";
-"studyReminders.clear" = "清除";
-"studyReminders.save" = "储存";
-"studyReminders.cancel" = "取消";
+// Notifications
+"notifications.title" = "通知";
+"notifications.studySchedule" = "学习计划";
+"notifications.studyReminder" = "每日学习提醒";
+"notifications.studyReminder.description" = "在你选择的时间温馨提醒你学习。";
+"notifications.time" = "提醒时间";
+"notifications.studyTime" = "学习时间";
+"notifications.timeFooter" = "你将在选定日期的 %@ 收到提醒。";
+"notifications.days" = "提醒日期";
+"notifications.daysFooter" = "提醒日期：%@。";
+"notifications.weekdays" = "工作日";
+"notifications.everyDay" = "每天";
+"notifications.none" = "无";
+"notifications.noDays" = "未选择日期";
+"notifications.otherAlerts" = "其他提醒";
+"notifications.otherAlerts.footer" = "这些通知帮助你了解学习动态。";
+"notifications.streakReminder" = "连续学习保护";
+"notifications.streakReminder.description" = "当你的连续学习记录即将中断时，晚上8点提醒你。";
+"notifications.homeworkComplete" = "作业批改完成";
+"notifications.homeworkComplete.description" = "作业批改完成时通知你查看结果。";
+"notifications.reportReady" = "学习报告已生成";
+"notifications.reportReady.description" = "每周或每月学习报告生成后通知你。";
 
 // Days of Week
 "day.monday" = "星期一";
@@ -255,6 +256,10 @@
 "aiHomework.results.viewDetails" = "查看详细结果";
 "aiHomework.processing.message" = "AI正在仔细检查您的作业！";
 "aiHomework.processing.waitMessage" = "这可能需要一点时间，请稍候...";
+
+// Camera Scanner
+"camera.hint.pressCheckWhenDone" = "扫描完成后点击 ✓";
+
 "imageViewer.instructions" = "双指缩放 • 拖动平移 • 双击重置 • 使用关闭按钮退出";
 
 // Homework Results
@@ -2086,6 +2091,14 @@
 "theme.colorful" = "多彩生活";
 "theme.description.default" = "根据系统设置自动切换亮色/暗色模式";
 "theme.description.colorful" = "柔和的马卡龙色调，活泼可爱";
+"theme.oceanNight" = "深海夜色";
+"theme.description.oceanNight" = "深蓝色调，适合夜间安静学习";
+"theme.forest" = "森林绿";
+"theme.description.forest" = "自然清新的绿色系，护眼舒适";
+"theme.sakura" = "樱花粉";
+"theme.description.sakura" = "柔美樱花色调，如梦似幻";
+"theme.pureDark" = "纯净暗色";
+"theme.description.pureDark" = "高对比度纯黑主题，OLED友好";
 "theme.override.auto" = "自动";
 "theme.override.light" = "浅色";
 "theme.override.dark" = "深色";
@@ -2445,9 +2458,9 @@
 
 // Homework Onboarding Tutorial
 "hwOnboarding.editImage.title" = "编辑图片";
-"hwOnboarding.editImage.desc" = "1. 点击选择题目图片\n2. 点击 🖼 或图片来编辑已选图片";
+"hwOnboarding.editImage.desc" = "1. 点击题目旁抖动的图片图标选择图片\n2. 点击「编辑图片」区域或图片来编辑已选图片";
 "hwOnboarding.gradingMode.title" = "批改模式";
-"hwOnboarding.gradingMode.desc" = "快速模式使用 GPT 快速批改。深度模式使用 Gemini 深度推理——更适合复杂题目。";
+"hwOnboarding.gradingMode.desc" = "快速模式用于快速批改。深度模式使用深度推理——更适合复杂题目。";
 "hwOnboarding.reparse.title" = "重新解析";
 "hwOnboarding.reparse.desc" = "如果 AI 识别错误，点击重新解析该题目。";
 "hwOnboarding.moreOptions.title" = "更多选项";
@@ -2726,3 +2739,118 @@
 "homework.pdf.email.body" = "请查收附件中的作业题目。";
 "homework.pdf.error.generation" = "PDF生成失败";
 "imageEditor.gestureHint" = "双指捏合缩放 · 双指旋转";
+
+// 积分商店 & 连续学习系统
+"points.shop.title" = "积分商店";
+"points.shop.balance" = "积分余额";
+"points.shop.today" = "今日";
+"points.shop.buy" = "购买";
+"points.shop.cancel" = "取消";
+"points.shop.confirm.title" = "确认购买";
+"points.shop.confirm.message" = "花费 %2$d 积分购买 %1$@？";
+"points.shop.unlocked" = "已解锁";
+"points.shop.error.insufficient" = "积分不足！";
+"points.shop.error.network" = "网络错误，积分已退回。";
+"points.shop.purchased.freeze" = "已购买连续学习保护卡！";
+"points.shop.purchased.chat" = "已增加 %d 次 AI 对话！";
+"points.shop.purchased.homework" = "已增加 %d 页作业批改！";
+"points.shop.purchased.tomato" = "%@ 已加入你的番茄花园！";
+"points.shop.purchased.music" = "音乐曲目已解锁！";
+"points.shop.category.streak" = "连续学习";
+"points.shop.category.ai_usage" = "AI 加量";
+"points.shop.category.tomatoes" = "番茄";
+"points.shop.category.music" = "音乐";
+"points.shop.item.streakFreeze" = "连续保护卡";
+"points.shop.item.streakFreeze.desc" = "保护你的连续学习记录1天";
+"points.shop.item.chat10" = "+10次对话";
+"points.shop.item.chat10.desc" = "额外10次AI对话";
+"points.shop.item.chat50" = "+50次对话";
+"points.shop.item.chat50.desc" = "额外50次AI对话";
+"points.shop.item.hw5" = "+5页批改";
+"points.shop.item.hw5.desc" = "额外5页作业批改";
+"points.shop.item.hw20" = "+20页批改";
+"points.shop.item.hw20.desc" = "额外20页作业批改";
+"points.shop.item.music.meditation" = "冥想专注";
+"points.shop.item.music.meditation.desc" = "解锁高级专注音乐";
+"points.shop.item.music.magic" = "魔法治愈";
+"points.shop.item.music.magic.desc" = "解锁高级专注音乐";
+"streak.reminder.title" = "你的连续学习记录有风险！";
+"streak.reminder.body" = "你的 %d 天连续学习记录明天就要断了！做1道题就能保持。";
+"streak.freeze.used.banner" = "连续记录已保护！使用了保护卡。剩余 %d 张。";
+"streak.freeze.cards.remaining" = "连续保护卡: %d 张";
+"points.earned.streak" = "+%d 积分！第 %d 天连续学习奖励";
+"points.earned.correct" = "+%d 积分（答对奖励）";
+"points.earned.practice" = "+5 积分练习奖励";
+"points.earned.review" = "+%d 积分（复习错题奖励）";
+
+// 积分中心 — 赚取标签
+"points.hub.title" = "积分";
+"points.hub.tab.earn" = "赚积分";
+"points.hub.tab.shop" = "商店";
+"points.hub.streak" = "连续";
+"points.earn.streak.title" = "每日登录奖励";
+"points.earn.streak.desc" = "获得 %d 积分（= 连续天数）";
+"points.earn.correct.title" = "答对题目";
+"points.earn.correct.desc" = "每答对1题获得1积分";
+"points.earn.practice.title" = "完成练习";
+"points.earn.practice.desc" = "每组练习+5积分";
+"points.earn.review.title" = "复习错题";
+"points.earn.review.desc" = "每复习1题获得2积分";
+"points.earn.focus.title" = "专注时间";
+"points.earn.focus.desc" = "每5分钟1积分";
+"points.earn.claim" = "领取";
+
+// 积分商店 — 分区 & 商品
+"points.shop.section.study_boost" = "学习辅助";
+"points.shop.section.tomato_blind_box" = "番茄盲盒";
+"points.shop.section.focus_music" = "专注音乐";
+"shop.item.freeze" = "连续保护卡";
+"shop.item.freeze.desc" = "缺勤1天不断连续记录";
+"shop.item.chat10" = "对话加量 +10";
+"shop.item.chat10.desc" = "额外10次AI对话";
+"shop.item.hw5" = "批改加量 +5";
+"shop.item.hw5.desc" = "额外5页作业批改";
+"shop.item.voice30" = "实时模式体验卡";
+"shop.item.voice30.desc" = "30分钟语音辅导";
+"shop.item.error5" = "错题分析卡 +5";
+"shop.item.error5.desc" = "5次深度错题分析";
+"shop.item.questions20" = "练习加量卡 +20";
+"shop.item.questions20.desc" = "额外20道练习题";
+"shop.item.premiumTrial" = "一周会员体验卡";
+"shop.item.premiumTrial.desc" = "解锁全部高级功能7天";
+"shop.item.blindbox.rare" = "稀有番茄盲盒";
+"shop.item.blindbox.rare.desc" = "随机获得一个稀有角色番茄";
+"shop.item.blindbox.super" = "超稀有番茄盲盒";
+"shop.item.blindbox.super.desc" = "随机获得金色或铂金番茄";
+"shop.item.music.meditation" = "冥想专注";
+"shop.item.music.meditation.desc" = "解锁高级专注音乐";
+"shop.item.music.magic" = "魔法治愈";
+"shop.item.music.magic.desc" = "解锁高级专注音乐";
+"shop.purchased.freeze" = "已购买连续保护卡！";
+"shop.purchased.chat" = "已增加 %d 次对话！";
+"shop.purchased.homework" = "已增加 %d 页批改！";
+"shop.purchased.voice" = "已增加 %d 分钟语音模式！";
+"shop.purchased.error" = "已增加 %d 次错题分析！";
+"shop.purchased.questions" = "已增加 %d 道练习题！";
+"shop.purchased.premium" = "7天会员已激活！";
+"shop.purchased.blindbox" = "恭喜获得：%@！";
+"shop.purchased.music" = "音乐已解锁！";
+"shop.error.network" = "网络错误，积分已退回。";
+"shop.error.trialLimit" = "会员体验次数已达上限。";
+"shop.purchased.premiumCode" = "体验码：%@。请在设置中兑换。";
+
+// 赚积分 — 进度页
+"progress.earnCredits" = "赚积分";
+"points.earn.scan.title" = "扫描作业";
+"points.earn.scan.desc" = "每次扫描获得2积分";
+"points.earn.chat.title" = "AI 对话";
+"points.earn.chat.desc" = "每次对话获得1积分";
+
+// 评分获积分
+"points.earn.rate.title" = "给 StudyAgent 评分";
+"points.earn.rate.desc" = "一次性评分奖励";
+"points.earn.rate.action" = "评分";
+
+// 分享获积分
+"points.earn.share.title" = "分享给朋友";
+"points.earn.share.desc" = "一次性分享奖励";

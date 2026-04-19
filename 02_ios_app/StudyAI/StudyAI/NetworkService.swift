@@ -5841,14 +5841,26 @@ class NetworkService: ObservableObject {
 
     // MARK: - Daily Question
 
-    /// Fetches today's fun question from the backend and caches it in UserDefaults.
-    /// Returns `(question, funFact, subject)` on success, or nil if the request fails.
+    /// In-memory session cache — stable within one app launch, cleared on logout or app restart.
+    static var cachedSessionQuestion: (question: String, funFact: String?, subject: String?)?
+
+    /// Clear the cached question so the next fetch generates a fresh one (call on logout).
+    static func clearSessionDailyQuestion() {
+        cachedSessionQuestion = nil
+    }
+
+    /// Fetches a personalized "Did you know?" question from the backend.
+    /// Returns the in-memory cached version if available (stable within one app session).
     func fetchDailyQuestion() async -> (question: String, funFact: String?, subject: String?)? {
+        // Return cached question if we already have one this session
+        if let cached = NetworkService.cachedSessionQuestion {
+            return cached
+        }
+
         guard AuthenticationService.shared.getAuthToken() != nil else { return nil }
 
-        // Use the app's user-selected language so the question matches the UI language.
         let lang = UserDefaults.standard.string(forKey: "appLanguage") ?? "en"
-        guard let url = URL(string: "\(baseURL)/api/daily/question?lang=\(lang)") else { return nil }
+        guard let url = URL(string: "\(baseURL)/api/daily/question/personalized?lang=\(lang)") else { return nil }
 
         var request = URLRequest(url: url)
         addAuthHeader(to: &request)
@@ -5861,20 +5873,14 @@ class NetworkService: ObservableObject {
                   let payload = json["data"] as? [String: Any],
                   let question = payload["question"] as? String else { return nil }
 
-            let funFact  = payload["fun_fact"] as? String
-            let subject  = payload["subject"]  as? String
-            let grade    = payload["grade_level"].flatMap { ($0 as? Int).map(String.init) ?? ($0 as? String) } ?? "6"
-            // Use the backend's UTC date — NOT local device values.
-            let date = (payload["date"] as? String) ?? todayUTCDateString()
+            let funFact = payload["fun_fact"] as? String
+            let subject = payload["subject"]  as? String
 
-            // Cache with date+language+grade key — one question per day per user profile.
-            // Dropping the slot component means the question refreshes daily (at UTC midnight),
-            // matching user expectations: one fresh question each day.
-            let cacheKey = "daily_question_\(date)_\(lang)_\(grade)"
-            UserDefaults.standard.set(question, forKey: cacheKey)
-            if let ff = funFact { UserDefaults.standard.set(ff, forKey: "daily_question_fun_fact_\(date)_\(lang)_\(grade)") }
+            // Cache in-memory only (not UserDefaults) — fresh on every app launch
+            let result = (question: question, funFact: funFact, subject: subject)
+            NetworkService.cachedSessionQuestion = result
 
-            return (question, funFact, subject)
+            return result
         } catch {
             return nil
         }
@@ -6060,6 +6066,79 @@ class NetworkService: ObservableObject {
             }
         } catch {
             return PromoRedemptionResult(success: false, errorCode: "INVALID_CODE", tierExpiresAt: nil, message: nil)
+        }
+    }
+
+    // MARK: - Points Shop Redemption
+
+    /// Redeem earned points for bonus AI usage quota. Server validates the price table.
+    /// Returns true on success, false on failure.
+    func redeemPointsForUsage(feature: String, amount: Int, pointsSpent: Int) async -> Bool {
+        guard let url = URL(string: "\(baseURL)/api/account/redeem-points"),
+              let token = AuthenticationService.shared.getAuthToken() else {
+            return false
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: [
+            "feature": feature,
+            "amount": amount,
+            "points_spent": pointsSpent
+        ])
+        request.timeoutInterval = 15
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               json["success"] as? Bool == true {
+                debugPrint("💰 [NetworkService] Points redeemed: feature=\(feature) amount=+\(amount)")
+                return true
+            }
+            debugPrint("⚠️ [NetworkService] Points redemption failed: feature=\(feature)")
+            return false
+        } catch {
+            debugPrint("⚠️ [NetworkService] Points redemption error: \(error.localizedDescription)")
+            return false
+        }
+    }
+
+    /// Generate a unique premium trial promo code via backend.
+    /// Returns (success, code, expiresAt). On error, code may contain error code string.
+    func generateTrialCode(pointsSpent: Int) async -> (success: Bool, code: String?, expiresAt: String?) {
+        guard let url = URL(string: "\(baseURL)/api/account/generate-trial-code"),
+              let token = AuthenticationService.shared.getAuthToken() else {
+            return (false, nil, nil)
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["points_spent": pointsSpent])
+        request.timeoutInterval = 15
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                return (false, nil, nil)
+            }
+            let success = json["success"] as? Bool ?? false
+            if success {
+                let payload = json["data"] as? [String: Any]
+                let code = payload?["code"] as? String
+                let expiresAt = payload?["expires_at"] as? String
+                debugPrint("🎫 [NetworkService] Trial code generated: \(code ?? "nil")")
+                return (true, code, expiresAt)
+            } else {
+                let errorCode = json["error"] as? String
+                debugPrint("⚠️ [NetworkService] Trial code generation failed: \(errorCode ?? "unknown")")
+                return (false, errorCode, nil)
+            }
+        } catch {
+            debugPrint("⚠️ [NetworkService] Trial code generation error: \(error.localizedDescription)")
+            return (false, nil, nil)
         }
     }
 

@@ -19,18 +19,19 @@ struct CuteTabBar: View {
     }
 
     @Environment(\.verticalSizeClass) private var verticalSizeClass
+    @StateObject private var themeManager = ThemeManager.shared
     @State private var bubbleOffset: CGFloat = 0
     @State private var bubbleScale: CGFloat = 1.0
 
     // Landscape (compact height) uses a slimmer bar
     private var isLandscape: Bool { verticalSizeClass == .compact }
-    private var barHeight: CGFloat { isLandscape ? 64 : 120 }
-    private var shapeHeight: CGFloat { isLandscape ? 80 : 130 }
-    private var shapeYOffset: CGFloat { isLandscape ? 40 : 65 }
-    private var bubbleSize: CGFloat { isLandscape ? 42 : 70 }
-    private var iconFontSize: CGFloat { isLandscape ? 18 : 30 }
-    private var unselectedIconSize: CGFloat { isLandscape ? 18 : 22 }
-    private var buttonHeight: CGFloat { isLandscape ? 44 : 60 }
+    private var barHeight: CGFloat { isLandscape ? 96 : 120 }
+    private var shapeHeight: CGFloat { isLandscape ? 120 : 130 }
+    private var shapeYOffset: CGFloat { isLandscape ? 60 : 65 }
+    private var bubbleSize: CGFloat { isLandscape ? 52 : 70 }
+    private var iconFontSize: CGFloat { isLandscape ? 24 : 30 }
+    private var unselectedIconSize: CGFloat { isLandscape ? 22 : 22 }
+    private var buttonHeight: CGFloat { isLandscape ? 50 : 60 }
     private var bubbleYOffset: CGFloat { isLandscape ? 0 : -5 }
 
     var body: some View {
@@ -38,18 +39,18 @@ struct CuteTabBar: View {
             let tabWidth = geometry.size.width / CGFloat(tabs.count)
 
             ZStack(alignment: .bottom) {
-                // Solid black wavy background with rounded corners
+                // Solid wavy background with rounded corners
                 WavyTabBarShape(selectedIndex: selectedTab, tabCount: tabs.count)
-                    .fill(Color(red: 0.08, green: 0.08, blue: 0.08))
+                    .fill(themeManager.tabBarShapeColor)
                     .frame(height: shapeHeight)
                     .offset(y: shapeYOffset)
                     .shadow(color: Color.black.opacity(0.3), radius: 15, x: 0, y: -8)
 
-                // Orange bubble for selected item (smooth spring animation)
+                // Bubble for selected item (smooth spring animation)
                 Circle()
                     .fill(
                         LinearGradient(
-                            colors: [Color.orange, Color.orange.opacity(0.9)],
+                            colors: themeManager.tabBarBubbleGradient,
                             startPoint: .top,
                             endPoint: .bottom
                         )
@@ -59,9 +60,9 @@ struct CuteTabBar: View {
                         Image(systemName: tabs[selectedTab].icon)
                             .font(.system(size: iconFontSize, weight: .semibold))
                             .foregroundColor(.white)
-                            .animation(nil, value: selectedTab)  // ✅ FIX: No animation on icon change - instant update
+                            .animation(nil, value: selectedTab)
                     )
-                    .shadow(color: Color.orange.opacity(0.5), radius: 12, x: 0, y: 5)
+                    .shadow(color: themeManager.tabBarBubbleShadowColor, radius: 12, x: 0, y: 5)
                     .scaleEffect(bubbleScale)
                     .offset(x: bubbleOffset, y: bubbleYOffset)
                     .animation(.spring(response: 0.35, dampingFraction: 0.8), value: bubbleOffset)  // ✅ FIX: Only animate offset

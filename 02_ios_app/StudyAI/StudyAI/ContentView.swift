@@ -292,6 +292,9 @@ struct ContentView: View {
             // ✅ Check if should show loading animation on return
             appSessionManager.appDidBecomeActive()
 
+            // Refresh study reminders with personalized content (at most once per day)
+            NotificationService.shared.refreshStudyRemindersIfNeeded()
+
         case .inactive:
             // App is temporarily inactive (e.g., during transition)
             debugPrint("🔐 [ContentView] App inactive (transition state)")
@@ -409,11 +412,11 @@ struct MainTabView: View {
                 }
                 .tag(MainTab.library.rawValue)
             }
-            // ✅ Hide iOS TabBar in Colorful Life mode
-            .toolbar(themeManager.currentTheme == .colorful ? .hidden : .visible, for: .tabBar)
+            // ✅ Hide iOS TabBar when using custom tab bar
+            .toolbar(themeManager.usesCustomTabBar ? .hidden : .visible, for: .tabBar)
             // ✅ Reserve space so content isn't hidden under the custom CuteTabBar
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                if themeManager.currentTheme == .colorful {
+                if themeManager.usesCustomTabBar {
                     Color.clear.frame(height: cuteBarHeight)
                 }
             }
@@ -437,8 +440,8 @@ struct MainTabView: View {
                 sessionManager.updateActivity()
             }
 
-            // Custom Colorful Life Tab Bar (only shown in Colorful Life mode)
-            if themeManager.currentTheme == .colorful {
+            // Custom Tab Bar (shown for themes that use it)
+            if themeManager.usesCustomTabBar {
                 CuteTabBar(
                     selectedTab: $selectedTabIndex,
                     tabs: [
@@ -465,13 +468,17 @@ struct MainTabView: View {
     private func configureTabBarAppearance() {
         DispatchQueue.main.async {
             let appearance = UITabBarAppearance()
-            if themeManager.currentTheme == .colorful {
+            if themeManager.usesCustomTabBar {
                 appearance.configureWithTransparentBackground()
                 appearance.backgroundEffect = nil
                 appearance.backgroundColor = .clear
                 appearance.shadowColor = .clear
             } else {
                 appearance.configureWithDefaultBackground()
+                // Apply theme-specific tab bar tint for non-custom themes
+                let tintColor = UIColor(themeManager.tabBarSelectedItemColor)
+                appearance.stackedLayoutAppearance.selected.iconColor = tintColor
+                appearance.stackedLayoutAppearance.selected.titleTextAttributes = [.foregroundColor: tintColor]
             }
             UITabBar.appearance().standardAppearance = appearance
             UITabBar.appearance().scrollEdgeAppearance = appearance

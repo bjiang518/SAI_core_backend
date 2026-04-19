@@ -135,7 +135,7 @@ class DataRetentionService {
 
       const stats = {};
       result.rows.forEach(row => {
-        stats[row.table_name] = parseInt(row.purged_count);
+        stats[row.tbl_name] = parseInt(row.purged_count);
         this.stats.totalHardDeleted += parseInt(row.purged_count);
       });
 

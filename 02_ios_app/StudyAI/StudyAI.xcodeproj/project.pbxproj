@@ -98,6 +98,12 @@
 		7B20D45D2F8E0783007E35B0 /* HomeworkOnboardingOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B20D45C2F8E0783007E35B0 /* HomeworkOnboardingOverlay.swift */; };
 		7B20D45E2F8E0783007E35B0 /* HomeworkOnboardingOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B20D45C2F8E0783007E35B0 /* HomeworkOnboardingOverlay.swift */; };
 		7B20D45F2F8E0783007E35B0 /* HomeworkOnboardingOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B20D45C2F8E0783007E35B0 /* HomeworkOnboardingOverlay.swift */; };
+		7B20D4612F901495007E35B0 /* PointsShopView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B20D4602F901495007E35B0 /* PointsShopView.swift */; };
+		7B20D4622F901495007E35B0 /* PointsShopView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B20D4602F901495007E35B0 /* PointsShopView.swift */; };
+		7B20D4632F901495007E35B0 /* PointsShopView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B20D4602F901495007E35B0 /* PointsShopView.swift */; };
+		7B20D4652F9014A9007E35B0 /* PointsShopService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B20D4642F9014A9007E35B0 /* PointsShopService.swift */; };
+		7B20D4662F9014A9007E35B0 /* PointsShopService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B20D4642F9014A9007E35B0 /* PointsShopService.swift */; };
+		7B20D4672F9014A9007E35B0 /* PointsShopService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B20D4642F9014A9007E35B0 /* PointsShopService.swift */; };
 		7B2248152F1970BE006ADD93 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7B2248142F1970BE006ADD93 /* PrivacyInfo.xcprivacy */; };
 		7B2248162F1970BE006ADD93 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7B2248142F1970BE006ADD93 /* PrivacyInfo.xcprivacy */; };
 		7B2248172F1970BE006ADD93 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7B2248142F1970BE006ADD93 /* PrivacyInfo.xcprivacy */; };
@@ -912,6 +918,9 @@
 		8659331C2BF143DBB36C245F /* EnhancedHomeworkParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = C87EE23BC3FC415E8AFB5C0A /* EnhancedHomeworkParser.swift */; };
 		8F1EBFF4298743058E934595 /* SessionHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3318992F2294A6DA7A14EB3 /* SessionHistoryView.swift */; };
 		9435f120dda645beb1b73507 /* NotificationModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89e4fd7ed63a45c7a7e466e2 /* NotificationModels.swift */; };
+		9933A0022F9F0001007E35B0 /* Practice/PracticeLibraryOnboardingOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9933A0012F9F0001007E35B0 /* Practice/PracticeLibraryOnboardingOverlay.swift */; };
+		9933A0032F9F0001007E35B0 /* Practice/PracticeLibraryOnboardingOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9933A0012F9F0001007E35B0 /* Practice/PracticeLibraryOnboardingOverlay.swift */; };
+		9933A0042F9F0001007E35B0 /* Practice/PracticeLibraryOnboardingOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9933A0012F9F0001007E35B0 /* Practice/PracticeLibraryOnboardingOverlay.swift */; };
 		99A9AEB85CBC4129878F84F8 /* AMBRoom-Soft_rain_tapping_on-Elevenlabs.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = A21B919EA56142DFAC1020BF /* AMBRoom-Soft_rain_tapping_on-Elevenlabs.mp3 */; };
 		9EBBD9AA039F40A48A615366 /* peaceful-piano-instrumental-for-studying.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = D39A3CCCA20040A08626204B /* peaceful-piano-instrumental-for-studying.mp3 */; };
 		9F1B2C579AB0463A90EF1624 /* StudyAI/Services/MusicDownloadService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C4CE372A8C4C62B1A19704 /* StudyAI/Services/MusicDownloadService.swift */; };
@@ -946,11 +955,13 @@
 		D107F714CBFF40BB9C000436 /* SynchronizedTextRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 144BF1CD8B2345EFBFB9415E /* SynchronizedTextRenderer.swift */; };
 		D10DEB4AEF7548A0BC7A194F /* PerspectiveCorrector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D2C1B0980334724B73CC227 /* PerspectiveCorrector.swift */; };
 		D3FB6347F13948AB873BE1F8 /* SpeechRecognitionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8405427D871C4C278BB1D075 /* SpeechRecognitionService.swift */; };
+		D75669EAA9F34CCEA3A94CFC /* AppReviewService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36EA34712468482EB2AD1328 /* AppReviewService.swift */; };
 		D87DBC4B66CF4F958C156B26 /* QuestionArchiveModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E2AD38EF0CF492393C1C87D /* QuestionArchiveModels.swift */; };
 		DB5A2A9F79A748FF64791D01 /* TesterTierSwitcherView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4ABE1220ED59128FA0628FFC /* TesterTierSwitcherView.swift */; };
 		DB5CF3C197754361B71BF918 /* QuestionSegmenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8357641D6957415C8C814D59 /* QuestionSegmenter.swift */; };
 		DCHK890123456789FGHI1234 /* DailyCheckoutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCHK567890123456FGHI1234 /* DailyCheckoutView.swift */; };
 		DEEP98765432109876FEDCBA /* StudyAI/Views/DeepThinkingGestureHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEEP12345678901234ABCDEF /* StudyAI/Views/DeepThinkingGestureHandler.swift */; };
+		E281120714074138B5745B65 /* AppReviewService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36EA34712468482EB2AD1328 /* AppReviewService.swift */; };
 		E4B6564CD270402684D59645 /* Focus_Flow_2025-10-30T054503.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FF8D738B30F14BBAA20BE7A0 /* Focus_Flow_2025-10-30T054503.mp3 */; };
 		E50F5FB6D0B84192B07AC6D4 /* SessionChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C25B8960EFF470BBE31F73A /* SessionChatView.swift */; };
 		E6429D03DD164AFCA282DB92 /* SynchronizedTextRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 144BF1CD8B2345EFBFB9415E /* SynchronizedTextRenderer.swift */; };
@@ -963,6 +974,7 @@
 		EF7FC57F2FF9428F9F262123 /* SessionModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B496CCDDC9B5477581971035 /* SessionModels.swift */; };
 		EIB7AB25DA9B4CE3E97F6F9 /* EnhancedImageProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = EIR3E31E87F78722E1F7AE5 /* EnhancedImageProcessor.swift */; };
 		EMAILVER901234567890ABCD /* EmailVerificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EMAILVERF1234567890ABCD /* EmailVerificationView.swift */; };
+		F2A61C5C9FD64B84A1E7F53D /* AppReviewService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36EA34712468482EB2AD1328 /* AppReviewService.swift */; };
 		F68688D62E2B4A519AABD553 /* ParentReportSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07AC021F2F1545748D684CA9 /* ParentReportSettings.swift */; };
 		F81F4114C8EC4635ABEA492A /* FocusSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D01893A51CB492897B94156 /* FocusSession.swift */; };
 		FD54F6029AA841A1958A5C34 /* HomeworkSessionPersistenceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDA2D8E1930E4A4D9422AA5A /* HomeworkSessionPersistenceService.swift */; };
@@ -1044,6 +1056,7 @@
 		2E243B7E04D54B17B4CB185E /* AppError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppError.swift; path = StudyAI/Models/AppError.swift; sourceTree = SOURCE_ROOT; };
 		3007D1E356704A0C864FBEED /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HomeView.swift; path = StudyAI/Views/HomeView.swift; sourceTree = SOURCE_ROOT; };
 		32BB536B35E943F1A8FB9571 /* ImageProcessingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ImageProcessingService.swift; path = StudyAI/Services/ImageProcessingService.swift; sourceTree = SOURCE_ROOT; };
+		36EA34712468482EB2AD1328 /* AppReviewService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppReviewService.swift; path = StudyAI/Services/AppReviewService.swift; sourceTree = SOURCE_ROOT; };
 		377AB348C798453AB804B3A9 /* ModernLoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ModernLoginView.swift; path = StudyAI/Views/ModernLoginView.swift; sourceTree = SOURCE_ROOT; };
 		39653A2DCFE745B5BE54613C /* BackgroundMusicTrack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BackgroundMusicTrack.swift; path = StudyAI/Models/BackgroundMusicTrack.swift; sourceTree = SOURCE_ROOT; };
 		3D465FE8FD2541B4959A3F2A /* TomatoType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TomatoType.swift; path = Models/TomatoType.swift; sourceTree = SOURCE_ROOT; };
@@ -1078,6 +1091,8 @@
 		7B1DFAC92D2A46AD80344C49 /* LocationData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LocationData.swift; path = StudyAI/Services/LocationData.swift; sourceTree = SOURCE_ROOT; };
 		7B1ED8402E829B3700E5E57D /* ParentReportModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentReportModels.swift; sourceTree = "<group>"; };
 		7B20D45C2F8E0783007E35B0 /* HomeworkOnboardingOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeworkOnboardingOverlay.swift; sourceTree = "<group>"; };
+		7B20D4602F901495007E35B0 /* PointsShopView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointsShopView.swift; sourceTree = "<group>"; };
+		7B20D4642F9014A9007E35B0 /* PointsShopService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PointsShopService.swift; path = StudyAI/Services/PointsShopService.swift; sourceTree = SOURCE_ROOT; };
 		7B2248142F1970BE006ADD93 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		7B2248202F1CCEDB006ADD93 /* DigitalHomeworkPDFPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DigitalHomeworkPDFPreviewView.swift; path = StudyAI/Views/DigitalHomeworkPDFPreviewView.swift; sourceTree = SOURCE_ROOT; };
 		7B22484E2F20212C006ADD93 /* ParentReportsContainerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ParentReportsContainerView.swift; path = StudyAI/Views/ParentReportsContainerView.swift; sourceTree = SOURCE_ROOT; };
@@ -1366,6 +1381,7 @@
 		8D01893A51CB492897B94156 /* FocusSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FocusSession.swift; path = StudyAI/Models/FocusSession.swift; sourceTree = SOURCE_ROOT; };
 		8F07F411EFCB4DC396642B00 /* MusicPlaylist.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MusicPlaylist.swift; path = StudyAI/Models/MusicPlaylist.swift; sourceTree = SOURCE_ROOT; };
 		95AC5A9701B74DBEAC7BE112 /* MusicSelectionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MusicSelectionSheet.swift; path = StudyAI/Views/MusicSelectionSheet.swift; sourceTree = SOURCE_ROOT; };
+		9933A0012F9F0001007E35B0 /* Practice/PracticeLibraryOnboardingOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Practice/PracticeLibraryOnboardingOverlay.swift; sourceTree = "<group>"; };
 		9969A366189C4E3AA0A188D8 /* SubjectDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SubjectDetailView.swift; path = StudyAI/Views/SubjectDetailView.swift; sourceTree = SOURCE_ROOT; };
 		9D2C1B0980334724B73CC227 /* PerspectiveCorrector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PerspectiveCorrector.swift; path = StudyAI/Services/PerspectiveCorrector.swift; sourceTree = SOURCE_ROOT; };
 		A12AEFD609E645B2806E4811 /* TomatoExchangeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TomatoExchangeView.swift; path = StudyAI/Views/TomatoExchangeView.swift; sourceTree = SOURCE_ROOT; };
@@ -1840,6 +1856,8 @@
 		7BEDA5F82E7EB90500D57B15 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				7B20D4642F9014A9007E35B0 /* PointsShopService.swift */,
+				36EA34712468482EB2AD1328 /* AppReviewService.swift */,
 				7B278CE22F64DC8E00DA84B0 /* UserTier.swift */,
 				2E243B7E04D54B17B4CB185E /* AppError.swift */,
 				7B278B852F64DC7500DA84B0 /* Views */,
@@ -1915,7 +1933,9 @@
 		7BEDA5F92E7EB94000D57B15 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				7B20D4602F901495007E35B0 /* PointsShopView.swift */,
 				7B20D45C2F8E0783007E35B0 /* HomeworkOnboardingOverlay.swift */,
+				9933A0012F9F0001007E35B0 /* Practice/PracticeLibraryOnboardingOverlay.swift */,
 				7BEC08332F4E780300B6E573 /* ActivityViewController.swift */,
 				27D08428900147788147829E /* ArchivedQuestionsView.swift */,
 				7BEC07992F42F75100B6E573 /* ArchiveProgressView.swift */,
@@ -2418,6 +2438,7 @@
 				9435f120dda645beb1b73507 /* NotificationModels.swift in Sources */,
 				7BEEB6212E8E419600957748 /* LottieView.swift in Sources */,
 				7B20D45D2F8E0783007E35B0 /* HomeworkOnboardingOverlay.swift in Sources */,
+				9933A0022F9F0001007E35B0 /* Practice/PracticeLibraryOnboardingOverlay.swift in Sources */,
 				7B1961F12E94E31A0024317A /* ParentModeManager.swift in Sources */,
 				D87DBC4B66CF4F958C156B26 /* QuestionArchiveModels.swift in Sources */,
 				EF7FC57F2FF9428F9F262123 /* SessionModels.swift in Sources */,
@@ -2490,6 +2511,8 @@
 				9FF8A1F6F34E4BF786B5EAC3 /* VoiceInteractionService.swift in Sources */,
 				7B2249212F39BE97006ADD93 /* ThemeSelectionView.swift in Sources */,
 				ttPDFOPT001BUILD0000000001 /* PDFOptionsSheet.swift in Sources */,
+				7B20D4652F9014A9007E35B0 /* PointsShopService.swift in Sources */,
+				D75669EAA9F34CCEA3A94CFC /* AppReviewService.swift in Sources */,
 				7B2248212F1CCEDB006ADD93 /* DigitalHomeworkPDFPreviewView.swift in Sources */,
 				12345678901234567890ABCD /* UserSessionManager.swift in Sources */,
 				7BEC07DB2F465EDE00B6E573 /* VoiceChatViewModel.swift in Sources */,
@@ -2588,6 +2611,7 @@
 				7B8E9E972EAB50F400E83DA8 /* HomeworkImageDetailView.swift in Sources */,
 				45678901234567890123DDEF /* CameraViewModel.swift in Sources */,
 				3B0419DAC7D9493DB3C35B7F /* SubjectBreakdownView.swift in Sources */,
+				7B20D4632F901495007E35B0 /* PointsShopView.swift in Sources */,
 				7B2248D32F340790006ADD93 /* VerticalPagesViewer.swift in Sources */,
 				7BD664D32ECA908300E09E55 /* ProgressiveHomeworkModels.swift in Sources */,
 				3703A418AA10464CA1AC3132 /* SubjectDetailView.swift in Sources */,
@@ -2796,12 +2820,14 @@
 				7B8E9E9A2EAB516C00E83DA8 /* HomeworkImageModels.swift in Sources */,
 				7B2248A22F2DCDAC006ADD93 /* LoadingAnimationView.swift in Sources */,
 				7B20D45E2F8E0783007E35B0 /* HomeworkOnboardingOverlay.swift in Sources */,
+				9933A0032F9F0001007E35B0 /* Practice/PracticeLibraryOnboardingOverlay.swift in Sources */,
 				7B2789F62F5AA1BC00DA84B0 /* LanguageManager.swift in Sources */,
 				AA00010B2F68A00100000001 /* BranchLocalizer.swift in Sources */,
 				7BDE56952EC1CA4D004A8629 /* UIComponents.swift in Sources */,
 				7BDE56962EC1CA4D004A8629 /* MessageBubbles.swift in Sources */,
 				7BDE56972EC1CA4D004A8629 /* VoiceComponents.swift in Sources */,
 				7BDE56982EC1CA4D004A8629 /* ImageComponents.swift in Sources */,
+				7B20D4622F901495007E35B0 /* PointsShopView.swift in Sources */,
 				7BEC07ED2F4AF58600B6E573 /* ForgotPasswordView.swift in Sources */,
 				7B2248762F26BE6C006ADD93 /* MistakeGroupDetailView.swift in Sources */,
 				7B2248772F26BE6C006ADD93 /* MistakeNotebookView.swift in Sources */,
@@ -2985,6 +3011,8 @@
 				7B278AAB2F5F813400DA84B0 /* LiveModeScenarioPicker.swift in Sources */,
 				7BD668772ED05FAE00E09E55 /* DigitalHomeworkView.swift in Sources */,
 				7BD668782ED05FAE00E09E55 /* HomeworkSummaryView.swift in Sources */,
+				7B20D4662F9014A9007E35B0 /* PointsShopService.swift in Sources */,
+				E281120714074138B5745B65 /* AppReviewService.swift in Sources */,
 				7BEC07DF2F478BFA00B6E573 /* UnifiedChatMessage.swift in Sources */,
 				7BEC07E32F47900000B6E573 /* AudioStreamManager.swift in Sources */,
 				7B8E9EB22EAF38D000E83DA8 /* SessionManager.swift in Sources */,
@@ -3046,10 +3074,13 @@
 				7BDE56EA2EC31AC7004A8629 /* HTMLRendererView.swift in Sources */,
 				7BD664D42ECA908300E09E55 /* ProgressiveHomeworkModels.swift in Sources */,
 				7BD664D02ECA8B2E00E09E55 /* ProgressiveHomeworkView.swift in Sources */,
+				7B20D4672F9014A9007E35B0 /* PointsShopService.swift in Sources */,
+				F2A61C5C9FD64B84A1E7F53D /* AppReviewService.swift in Sources */,
 				7B22491F2F39BE4E006ADD93 /* ThemeManager.swift in Sources */,
 				7B278A372F5D488D00DA84B0 /* SuggestedTodosSection.swift in Sources */,
 				7B4F9C032F9A100200AB12C3 /* DailyQuestionCard.swift in Sources */,
 				7B20D45F2F8E0783007E35B0 /* HomeworkOnboardingOverlay.swift in Sources */,
+				9933A0042F9F0001007E35B0 /* Practice/PracticeLibraryOnboardingOverlay.swift in Sources */,
 				7B2248B72F309BEC006ADD93 /* AnswerMatchingService.swift in Sources */,
 				7BDE56E02EC31A7A004A8629 /* EssayGradingModels.swift in Sources */,
 				7B1961F22E94E31A0024317A /* ParentModeManager.swift in Sources */,
@@ -3096,6 +3127,7 @@
 				7B83533D2EA6F11400199AC3 /* ErrorBoundary.swift in Sources */,
 				7B2248A52F2DCDE4006ADD93 /* AppSessionManager.swift in Sources */,
 				7B2248AF2F2F4A8D006ADD93 /* DebugSettings.swift in Sources */,
+				7B20D4612F901495007E35B0 /* PointsShopView.swift in Sources */,
 				7B2248D12F340790006ADD93 /* VerticalPagesViewer.swift in Sources */,
 				7BEC07DC2F465EDE00B6E573 /* VoiceChatViewModel.swift in Sources */,
 				7B8E9E9E2EAB518100E83DA8 /* HomeworkImageStorageService.swift in Sources */,
@@ -3462,7 +3494,7 @@
 				CODE_SIGN_ENTITLEMENTS = StudyAI/StudyAI.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 48;
+				CURRENT_PROJECT_VERSION = 49;
 				DEVELOPMENT_TEAM = 2ZZ99T96B8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -3479,7 +3511,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.5;
+				MARKETING_VERSION = 1.0.6;
 				PRODUCT_BUNDLE_IDENTIFIER = com.OliOli.StudyMatesAI;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -3501,7 +3533,7 @@
 				CODE_SIGN_ENTITLEMENTS = StudyAI/StudyAI.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 48;
+				CURRENT_PROJECT_VERSION = 49;
 				DEVELOPMENT_TEAM = 2ZZ99T96B8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -3518,7 +3550,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.5;
+				MARKETING_VERSION = 1.0.6;
 				PRODUCT_BUNDLE_IDENTIFIER = com.OliOli.StudyMatesAI;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";

@@ -679,6 +679,9 @@ class SessionChatViewModel: ObservableObject {
                                 self.showTypingIndicator = false
                                 self.isStreamingComplete = true
                             }
+                            // Award 1 point for completing a chat exchange
+                            PointsEarningManager.shared.awardChatSessionPoint()
+                            AppReviewService.shared.recordChatCompleted()
                         } else {
                             self.isActivelyStreaming = false
                             self.activeStreamingMessage = ""

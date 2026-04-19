@@ -35,7 +35,7 @@
 "settings.passwordManager" = "Password Manager";
 "settings.privacySettings" = "Privacy 設定";
 "settings.appSettings" = "App 設定";
-"settings.studyReminders" = "Study Reminders";
+"settings.studyReminders" = "通知";
 "settings.textSize" = "Text Size";
 "settings.language" = "言語";
 "languageSettings.sectionHeader" = "Select 言語";
@@ -57,27 +57,28 @@
 "profile.complete" = "Profile %d%% complete";
 "profile.biometricLogin" = "%@ Login";
 
-// Study Reminders
-"studyReminders.title" = "Study Reminders";
-"studyReminders.permissions" = "Permissions";
-"studyReminders.notificationPermission" = "Notification Permission";
-"studyReminders.enabled" = "Notifications enabled";
-"studyReminders.denied" = "Notifications denied";
-"studyReminders.notConfigured" = "Not configured";
-"studyReminders.enable" = "有効にする Notifications";
-"studyReminders.description" = "有効にする notifications to receive study reminders and stay on track with your learning goals.";
-"studyReminders.daily" = "Daily Study Reminders";
-"studyReminders.dailyDescription" = "Get reminded to study at your scheduled time each day.";
-"studyReminders.schedule" = "Schedule";
-"studyReminders.studyTime" = "Study Time";
-"studyReminders.timeDescription" = "You'll be reminded to study at %@";
-"studyReminders.studyDays" = "Study Days";
-"studyReminders.daysDescription" = "Reminders will be sent on %@";
-"studyReminders.weekdays" = "Weekdays";
-"studyReminders.everyDay" = "Every Day";
-"studyReminders.clear" = "Clear";
-"studyReminders.save" = "Save";
-"studyReminders.cancel" = "Cancel";
+// Notifications
+"notifications.title" = "通知";
+"notifications.studySchedule" = "学習スケジュール";
+"notifications.studyReminder" = "毎日の学習リマインダー";
+"notifications.studyReminder.description" = "選んだ時間にやさしくお知らせします。";
+"notifications.time" = "リマインダー時間";
+"notifications.studyTime" = "学習時間";
+"notifications.timeFooter" = "選択した曜日の %@ にお知らせします。";
+"notifications.days" = "リマインダー曜日";
+"notifications.daysFooter" = "%@ に通知します。";
+"notifications.weekdays" = "平日";
+"notifications.everyDay" = "毎日";
+"notifications.none" = "なし";
+"notifications.noDays" = "曜日が選択されていません";
+"notifications.otherAlerts" = "その他の通知";
+"notifications.otherAlerts.footer" = "学習状況をお知らせする通知です。";
+"notifications.streakReminder" = "連続記録の保護";
+"notifications.streakReminder.description" = "学習の連続記録が途切れそうな時、午後8時にお知らせします。";
+"notifications.homeworkComplete" = "宿題の採点完了";
+"notifications.homeworkComplete.description" = "宿題の採点が完了したらお知らせします。";
+"notifications.reportReady" = "学習レポート完成";
+"notifications.reportReady.description" = "週間または月間レポートが完成したらお知らせします。";
 
 // Days of Week
 "day.monday" = "Monday";
@@ -1026,9 +1027,9 @@
 
 // Homework Onboarding Tutorial
 "hwOnboarding.editImage.title" = "画像を編集";
-"hwOnboarding.editImage.desc" = "1. タップして問題の画像を選択\n2. 🖼 または画像をタップして選択した切り抜きを編集";
+"hwOnboarding.editImage.desc" = "1. 問題横の揺れる写真アイコンをタップして画像を選択\n2.「画像を編集」セクションまたは画像をタップして切り抜きを編集";
 "hwOnboarding.gradingMode.title" = "採点モード";
-"hwOnboarding.gradingMode.desc" = "高速モードはGPTで素早く採点。深層モードはGeminiの拡張思考を使用し、複雑な問題に最適です。";
+"hwOnboarding.gradingMode.desc" = "高速モードで素早く採点。深層モードは拡張思考を使用し、複雑な問題により正確です。";
 "hwOnboarding.reparse.title" = "再解析";
 "hwOnboarding.reparse.desc" = "AIが誤って読み取った場合、タップしてこの問題を再解析します。";
 "hwOnboarding.moreOptions.title" = "その他のオプション";
@@ -1998,6 +1999,14 @@
 "theme.colorful" = "カラフルライフ";
 "theme.description.default" = "システム設定に合わせてライト/ダークモードを自動切替";
 "theme.description.colorful" = "ソフトなパステルカラーで楽しい体験";
+"theme.oceanNight" = "オーシャンナイト";
+"theme.description.oceanNight" = "深い青で落ち着いた夜の学習に";
+"theme.forest" = "フォレストグリーン";
+"theme.description.forest" = "自然なグリーン系で目に優しい";
+"theme.sakura" = "さくら";
+"theme.description.sakura" = "優しい桜色で夢のような雰囲気";
+"theme.pureDark" = "ピュアダーク";
+"theme.description.pureDark" = "高コントラストのOLED対応ダークテーマ";
 "theme.override.auto" = "自動";
 "theme.override.light" = "ライト";
 "theme.override.dark" = "ダーク";
@@ -2747,3 +2756,118 @@
 "homework.pdf.email.body" = "添付の宿題問題をご確認ください。";
 "homework.pdf.error.generation" = "PDF生成に失敗しました";
 "imageEditor.gestureHint" = "ピンチでズーム · 2本指で回転";
+
+// ポイントショップ & ストリークシステム
+"points.shop.title" = "ポイントショップ";
+"points.shop.balance" = "ポイント残高";
+"points.shop.today" = "今日";
+"points.shop.buy" = "購入";
+"points.shop.cancel" = "キャンセル";
+"points.shop.confirm.title" = "購入確認";
+"points.shop.confirm.message" = "%@を%dポイントで購入しますか？";
+"points.shop.unlocked" = "解放済み";
+"points.shop.error.insufficient" = "ポイントが足りません！";
+"points.shop.error.network" = "ネットワークエラー。ポイントを返還しました。";
+"points.shop.purchased.freeze" = "ストリーク保護カードを購入しました！";
+"points.shop.purchased.chat" = "+%d チャットメッセージを追加しました！";
+"points.shop.purchased.homework" = "+%d ページの宿題添削を追加しました！";
+"points.shop.purchased.tomato" = "%@が庭に追加されました！";
+"points.shop.purchased.music" = "音楽トラックを解放しました！";
+"points.shop.category.streak" = "ストリーク";
+"points.shop.category.ai_usage" = "AIブースト";
+"points.shop.category.tomatoes" = "トマト";
+"points.shop.category.music" = "音楽";
+"points.shop.item.streakFreeze" = "ストリーク保護";
+"points.shop.item.streakFreeze.desc" = "1日分のストリークを保護";
+"points.shop.item.chat10" = "+10チャット";
+"points.shop.item.chat10.desc" = "AI追加チャット10回";
+"points.shop.item.chat50" = "+50チャット";
+"points.shop.item.chat50.desc" = "AI追加チャット50回";
+"points.shop.item.hw5" = "+5ページ";
+"points.shop.item.hw5.desc" = "追加宿題添削5ページ";
+"points.shop.item.hw20" = "+20ページ";
+"points.shop.item.hw20.desc" = "追加宿題添削20ページ";
+"points.shop.item.music.meditation" = "瞑想＆フォーカス";
+"points.shop.item.music.meditation.desc" = "プレミアム集中音楽を解放";
+"points.shop.item.music.magic" = "マジックヒーリング";
+"points.shop.item.music.magic.desc" = "プレミアム集中音楽を解放";
+"streak.reminder.title" = "ストリークが危険です！";
+"streak.reminder.body" = "%d日間のストリークが明日途切れます！1問解いて維持しましょう。";
+"streak.freeze.used.banner" = "ストリーク保護済み！保護カードを使用しました。残り%d枚。";
+"streak.freeze.cards.remaining" = "ストリーク保護カード: %d枚";
+"points.earned.streak" = "+%dポイント！%d日目ストリークボーナス";
+"points.earned.correct" = "+%dポイント（正解ボーナス）";
+"points.earned.practice" = "+5ポイント練習ボーナス";
+"points.earned.review" = "+%dポイント（復習ボーナス）";
+
+// ポイントハブ — 獲得タブ
+"points.hub.title" = "ポイント";
+"points.hub.tab.earn" = "獲得";
+"points.hub.tab.shop" = "ショップ";
+"points.hub.streak" = "ストリーク";
+"points.earn.streak.title" = "デイリーログインボーナス";
+"points.earn.streak.desc" = "%dポイント獲得（= ストリーク日数）";
+"points.earn.correct.title" = "正解する";
+"points.earn.correct.desc" = "正解1問につき1ポイント";
+"points.earn.practice.title" = "練習を完了";
+"points.earn.practice.desc" = "練習セット完了で+5ポイント";
+"points.earn.review.title" = "間違いを復習";
+"points.earn.review.desc" = "復習1問につき2ポイント";
+"points.earn.focus.title" = "集中セッション";
+"points.earn.focus.desc" = "5分ごとに1ポイント";
+"points.earn.claim" = "受け取る";
+
+// ポイントショップ — セクション & アイテム
+"points.shop.section.study_boost" = "学習サポート";
+"points.shop.section.tomato_blind_box" = "トマトガチャ";
+"points.shop.section.focus_music" = "集中音楽";
+"shop.item.freeze" = "ストリーク保護";
+"shop.item.freeze.desc" = "1日分のストリークを保護";
+"shop.item.chat10" = "AI チャット+10";
+"shop.item.chat10.desc" = "AI会話10回追加";
+"shop.item.hw5" = "宿題添削+5";
+"shop.item.hw5.desc" = "宿題添削5ページ追加";
+"shop.item.voice30" = "音声モード30分";
+"shop.item.voice30.desc" = "30分間の音声チュータリング";
+"shop.item.error5" = "エラー分析+5";
+"shop.item.error5.desc" = "5回の詳細エラー分析";
+"shop.item.questions20" = "練習問題+20";
+"shop.item.questions20.desc" = "練習問題20問追加";
+"shop.item.premiumTrial" = "7日間プレミアム体験";
+"shop.item.premiumTrial.desc" = "全プレミアム機能を1週間解放";
+"shop.item.blindbox.rare" = "レアトマトガチャ";
+"shop.item.blindbox.rare.desc" = "ランダムなレアキャラクタートマト";
+"shop.item.blindbox.super" = "超レアトマトガチャ";
+"shop.item.blindbox.super.desc" = "ランダムなゴールドまたはプラチナトマト";
+"shop.item.music.meditation" = "瞑想＆フォーカス";
+"shop.item.music.meditation.desc" = "プレミアム集中音楽を解放";
+"shop.item.music.magic" = "マジックヒーリング";
+"shop.item.music.magic.desc" = "プレミアム集中音楽を解放";
+"shop.purchased.freeze" = "ストリーク保護カードを購入しました！";
+"shop.purchased.chat" = "+%d チャットメッセージを追加！";
+"shop.purchased.homework" = "+%d ページの宿題添削を追加！";
+"shop.purchased.voice" = "+%d 分の音声モードを追加！";
+"shop.purchased.error" = "+%d 回のエラー分析を追加！";
+"shop.purchased.questions" = "+%d 問の練習問題を追加！";
+"shop.purchased.premium" = "7日間プレミアムを有効化！";
+"shop.purchased.blindbox" = "獲得：%@！";
+"shop.purchased.music" = "音楽トラックを解放しました！";
+"shop.error.network" = "ネットワークエラー。ポイントを返還しました。";
+"shop.error.trialLimit" = "プレミアム体験の上限に達しました。";
+"shop.purchased.premiumCode" = "プレミアムコード：%@。設定から引き換えてください。";
+
+// クレジット獲得 — 進捗
+"progress.earnCredits" = "クレジットを獲得";
+"points.earn.scan.title" = "宿題をスキャン";
+"points.earn.scan.desc" = "スキャン1回につき2ポイント";
+"points.earn.chat.title" = "AIチャット";
+"points.earn.chat.desc" = "チャット1回につき1ポイント";
+
+// 評価でポイント
+"points.earn.rate.title" = "StudyAgentを評価";
+"points.earn.rate.desc" = "評価で1回限りのボーナス";
+"points.earn.rate.action" = "評価";
+
+// 共有でポイント
+"points.earn.share.title" = "友達にシェア";
+"points.earn.share.desc" = "シェアで1回限りのボーナス";

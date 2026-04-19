@@ -182,9 +182,36 @@ const usageTracker = {
       }
     }
 
-    const remaining = Math.max(0, limit - current);
+    // Read bonus quota from Points Shop redemptions
+    let bonus = 0;
+    if (!isAnonymous) {
+      const now = new Date();
+      const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const bonusKey = `bonus:${userId}:${featureKey}:${yearMonth}`;
+      try {
+        const rc = getRedis();
+        if (redisReady && rc) {
+          const bVal = await rc.get(bonusKey);
+          bonus = bVal ? parseInt(bVal, 10) : 0;
+        } else {
+          throw new Error('redis not ready');
+        }
+      } catch (_) {
+        // DB fallback
+        try {
+          const bResult = await db.query(
+            `SELECT monthly_usage->>$1 as bonus FROM users WHERE id = $2`,
+            [`bonus_${featureKey}`, userId]
+          );
+          bonus = parseInt(bResult.rows[0]?.bonus || 0, 10);
+        } catch (_) { bonus = 0; }
+      }
+    }
+
+    const effectiveLimit = limit + bonus;
+    const remaining = Math.max(0, effectiveLimit - current);
     const resets_at = isAnonymous ? null : nextMonthStart();
-    return { allowed: remaining >= amount, remaining, limit, resets_at };
+    return { allowed: remaining >= amount, remaining, limit: effectiveLimit, resets_at };
   },
 
   /**
@@ -244,7 +271,31 @@ const usageTracker = {
     for (const { key, label, unit } of FEATURE_META) {
       const rawLimit = limits[key];
       // undefined = premium_plus unlimited; Infinity = unlimited; 0 = blocked; N = quota
-      const limit = (rawLimit === undefined || !isFinite(rawLimit)) ? null : rawLimit;
+      let limit = (rawLimit === undefined || !isFinite(rawLimit)) ? null : rawLimit;
+
+      // Add bonus quota from points shop redemptions
+      if (limit !== null && limit > 0 && !isAnonymous) {
+        const now = new Date();
+        const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        const bonusKey = `bonus:${userId}:${key}:${yearMonth}`;
+        let bonus = 0;
+        try {
+          const rc = getRedis();
+          if (redisReady && rc) {
+            const bVal = await rc.get(bonusKey);
+            bonus = bVal ? parseInt(bVal, 10) : 0;
+          }
+        } catch (_) {
+          try {
+            const bResult = await db.query(
+              `SELECT monthly_usage->>$1 as bonus FROM users WHERE id = $2`,
+              [`bonus_${key}`, userId]
+            );
+            bonus = parseInt(bResult.rows[0]?.bonus || 0, 10);
+          } catch (_) {}
+        }
+        if (bonus > 0) limit += bonus;
+      }
 
       let used = 0;
       if (limit !== null && limit > 0) {

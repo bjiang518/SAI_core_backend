@@ -35,7 +35,7 @@
 "settings.passwordManager" = "Password Manager";
 "settings.privacySettings" = "Privacy Paramètres";
 "settings.appSettings" = "App Paramètres";
-"settings.studyReminders" = "Study Reminders";
+"settings.studyReminders" = "Notifications";
 "settings.textSize" = "Text Size";
 "settings.language" = "Langue";
 "languageSettings.sectionHeader" = "Select Langue";
@@ -57,27 +57,28 @@
 "profile.complete" = "Profile %d%% complete";
 "profile.biometricLogin" = "%@ Login";
 
-// Study Reminders
-"studyReminders.title" = "Study Reminders";
-"studyReminders.permissions" = "Permissions";
-"studyReminders.notificationPermission" = "Notification Permission";
-"studyReminders.enabled" = "Notifications enabled";
-"studyReminders.denied" = "Notifications denied";
-"studyReminders.notConfigured" = "Not configured";
-"studyReminders.enable" = "Activer Notifications";
-"studyReminders.description" = "Activer notifications to receive study reminders and stay on track with your learning goals.";
-"studyReminders.daily" = "Daily Study Reminders";
-"studyReminders.dailyDescription" = "Get reminded to study at your scheduled time each day.";
-"studyReminders.schedule" = "Schedule";
-"studyReminders.studyTime" = "Study Time";
-"studyReminders.timeDescription" = "You'll be reminded to study at %@";
-"studyReminders.studyDays" = "Study Days";
-"studyReminders.daysDescription" = "Reminders will be sent on %@";
-"studyReminders.weekdays" = "Weekdays";
-"studyReminders.everyDay" = "Every Day";
-"studyReminders.clear" = "Clear";
-"studyReminders.save" = "Save";
-"studyReminders.cancel" = "Cancel";
+// Notifications
+"notifications.title" = "Notifications";
+"notifications.studySchedule" = "Planning d'étude";
+"notifications.studyReminder" = "Rappel d'étude quotidien";
+"notifications.studyReminder.description" = "Un rappel amical pour étudier à l'heure choisie.";
+"notifications.time" = "Heure du rappel";
+"notifications.studyTime" = "Heure d'étude";
+"notifications.timeFooter" = "Vous recevrez un rappel à %@ les jours sélectionnés.";
+"notifications.days" = "Jours de rappel";
+"notifications.daysFooter" = "Actif le %@.";
+"notifications.weekdays" = "Jours ouvrables";
+"notifications.everyDay" = "Tous les jours";
+"notifications.none" = "Aucun";
+"notifications.noDays" = "aucun jour sélectionné";
+"notifications.otherAlerts" = "Autres alertes";
+"notifications.otherAlerts.footer" = "Ces notifications vous tiennent informé de votre activité d'apprentissage.";
+"notifications.streakReminder" = "Protection de série";
+"notifications.streakReminder.description" = "Vous rappelle à 20h si votre série d'étude risque de s'interrompre.";
+"notifications.homeworkComplete" = "Résultats des devoirs prêts";
+"notifications.homeworkComplete.description" = "Vous prévient quand vos devoirs ont été corrigés.";
+"notifications.reportReady" = "Rapport d'apprentissage disponible";
+"notifications.reportReady.description" = "Vous notifie quand un nouveau rapport hebdomadaire ou mensuel est prêt.";
 
 // Days of Week
 "day.monday" = "Monday";
@@ -1027,9 +1028,9 @@
 
 // Homework Onboarding Tutorial
 "hwOnboarding.editImage.title" = "Modifier l'image";
-"hwOnboarding.editImage.desc" = "1. Appuyez pour sélectionner l'image d'une question\n2. Appuyez sur 🖼 ou l'image pour modifier le recadrage";
+"hwOnboarding.editImage.desc" = "1. Appuyez sur l'icone photo qui tremble pour selectionner l'image d'une question\n2. Appuyez sur la section 'Modifier l'image' ou l'image pour modifier le recadrage";
 "hwOnboarding.gradingMode.title" = "Mode de correction";
-"hwOnboarding.gradingMode.desc" = "Rapide utilise GPT pour une correction rapide. Approfondi utilise Gemini avec une réflexion étendue — idéal pour les problèmes complexes.";
+"hwOnboarding.gradingMode.desc" = "Mode rapide pour une correction rapide. Mode approfondi avec réflexion étendue — plus précis pour les problèmes complexes.";
 "hwOnboarding.reparse.title" = "Réanalyser";
 "hwOnboarding.reparse.desc" = "Appuyez pour réanalyser cette question à partir de l'image si l'IA a mal lu quelque chose.";
 "hwOnboarding.moreOptions.title" = "Plus d'options";
@@ -1985,6 +1986,14 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "theme.colorful" = "Vie colorée";
 "theme.description.default" = "S'adapte automatiquement au mode clair ou sombre selon vos réglages";
 "theme.description.colorful" = "Couleurs pastel douces pour une expérience ludique";
+"theme.oceanNight" = "Nuit océane";
+"theme.description.oceanNight" = "Tons bleu profond pour étudier calmement la nuit";
+"theme.forest" = "Vert forêt";
+"theme.description.forest" = "Verts naturels et terreux, doux pour les yeux";
+"theme.sakura" = "Sakura";
+"theme.description.sakura" = "Roses tendres de fleurs de cerisier pour une ambiance rêveuse";
+"theme.pureDark" = "Noir pur";
+"theme.description.pureDark" = "Thème sombre à fort contraste, adapté aux écrans OLED";
 "theme.override.auto" = "Auto";
 "theme.override.light" = "Clair";
 "theme.override.dark" = "Sombre";
@@ -2763,3 +2772,118 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "homework.pdf.email.body" = "Veuillez trouver ci-joint les questions de devoirs.";
 "homework.pdf.error.generation" = "Échec de la génération PDF";
 "imageEditor.gestureHint" = "Pincer pour zoomer · Deux doigts pour pivoter";
+
+// Boutique de Points & Système de Série
+"points.shop.title" = "Boutique de Points";
+"points.shop.balance" = "Solde de Points";
+"points.shop.today" = "Aujourd'hui";
+"points.shop.buy" = "Acheter";
+"points.shop.cancel" = "Annuler";
+"points.shop.confirm.title" = "Confirmer l'achat";
+"points.shop.confirm.message" = "Acheter %@ pour %d points ?";
+"points.shop.unlocked" = "Débloqué";
+"points.shop.error.insufficient" = "Points insuffisants !";
+"points.shop.error.network" = "Erreur réseau. Points remboursés.";
+"points.shop.purchased.freeze" = "Protection de série achetée !";
+"points.shop.purchased.chat" = "+%d messages chat ajoutés !";
+"points.shop.purchased.homework" = "+%d pages de devoirs ajoutées !";
+"points.shop.purchased.tomato" = "%@ ajoutée à votre jardin !";
+"points.shop.purchased.music" = "Piste musicale débloquée !";
+"points.shop.category.streak" = "Série";
+"points.shop.category.ai_usage" = "AI Boost";
+"points.shop.category.tomatoes" = "Tomates";
+"points.shop.category.music" = "Musique";
+"points.shop.item.streakFreeze" = "Protection de Série";
+"points.shop.item.streakFreeze.desc" = "Protégez votre série pendant 1 jour";
+"points.shop.item.chat10" = "+10 Chats";
+"points.shop.item.chat10.desc" = "10 messages AI supplémentaires";
+"points.shop.item.chat50" = "+50 Chats";
+"points.shop.item.chat50.desc" = "50 messages AI supplémentaires";
+"points.shop.item.hw5" = "+5 Pages";
+"points.shop.item.hw5.desc" = "5 pages de devoirs supplémentaires";
+"points.shop.item.hw20" = "+20 Pages";
+"points.shop.item.hw20.desc" = "20 pages de devoirs supplémentaires";
+"points.shop.item.music.meditation" = "Méditation & Focus";
+"points.shop.item.music.meditation.desc" = "Débloquer piste premium";
+"points.shop.item.music.magic" = "Guérison Magique";
+"points.shop.item.music.magic.desc" = "Débloquer piste premium";
+"streak.reminder.title" = "Votre série est en danger !";
+"streak.reminder.body" = "Votre série de %d jours sera rompue demain ! Répondez à 1 question.";
+"streak.freeze.used.banner" = "Série protégée ! Carte utilisée. %d cartes restantes.";
+"streak.freeze.cards.remaining" = "Cartes de Protection : %d";
+"points.earned.streak" = "+%d points ! Bonus du jour %d de série";
+"points.earned.correct" = "+%d points pour réponses correctes";
+"points.earned.practice" = "+5 points bonus de pratique";
+"points.earned.review" = "+%d points pour révision d'erreurs";
+
+// Centre de Points — Onglet Gagner
+"points.hub.title" = "Points";
+"points.hub.tab.earn" = "Gagner";
+"points.hub.tab.shop" = "Boutique";
+"points.hub.streak" = "Série";
+"points.earn.streak.title" = "Bonus Quotidien";
+"points.earn.streak.desc" = "Gagnez %d pts (= jours de série)";
+"points.earn.correct.title" = "Répondre Correctement";
+"points.earn.correct.desc" = "1 point par bonne réponse";
+"points.earn.practice.title" = "Terminer un Exercice";
+"points.earn.practice.desc" = "+5 points par exercice terminé";
+"points.earn.review.title" = "Réviser les Erreurs";
+"points.earn.review.desc" = "2 points par question révisée";
+"points.earn.focus.title" = "Session de Focus";
+"points.earn.focus.desc" = "1 point par 5 minutes";
+"points.earn.claim" = "Réclamer";
+
+// Boutique de Points — Sections & Articles
+"points.shop.section.study_boost" = "Aide à l'Étude";
+"points.shop.section.tomato_blind_box" = "Boîte Surprise de Tomates";
+"points.shop.section.focus_music" = "Musique de Focus";
+"shop.item.freeze" = "Protection de Série";
+"shop.item.freeze.desc" = "Protège ta série pour 1 jour";
+"shop.item.chat10" = "+10 Chats AI";
+"shop.item.chat10.desc" = "10 messages AI supplémentaires";
+"shop.item.hw5" = "+5 Pages de Devoirs";
+"shop.item.hw5.desc" = "5 pages de correction supplémentaires";
+"shop.item.voice30" = "Mode Vocal 30min";
+"shop.item.voice30.desc" = "30 minutes de tutorat vocal";
+"shop.item.error5" = "+5 Analyses d'Erreurs";
+"shop.item.error5.desc" = "5 analyses détaillées d'erreurs";
+"shop.item.questions20" = "+20 Questions de Pratique";
+"shop.item.questions20.desc" = "20 questions de pratique supplémentaires";
+"shop.item.premiumTrial" = "Essai Premium 7 Jours";
+"shop.item.premiumTrial.desc" = "Débloquer toutes les fonctions Premium pour 1 semaine";
+"shop.item.blindbox.rare" = "Boîte Tomate Rare";
+"shop.item.blindbox.rare.desc" = "Tomate de personnage rare aléatoire";
+"shop.item.blindbox.super" = "Boîte Tomate Super Rare";
+"shop.item.blindbox.super.desc" = "Tomate dorée ou platine aléatoire";
+"shop.item.music.meditation" = "Méditation & Focus";
+"shop.item.music.meditation.desc" = "Débloquer piste premium";
+"shop.item.music.magic" = "Guérison Magique";
+"shop.item.music.magic.desc" = "Débloquer piste premium";
+"shop.purchased.freeze" = "Protection de série achetée !";
+"shop.purchased.chat" = "+%d messages chat ajoutés !";
+"shop.purchased.homework" = "+%d pages de devoirs ajoutées !";
+"shop.purchased.voice" = "+%d minutes de mode vocal ajoutées !";
+"shop.purchased.error" = "+%d analyses d'erreurs ajoutées !";
+"shop.purchased.questions" = "+%d questions de pratique ajoutées !";
+"shop.purchased.premium" = "Premium 7 jours activé !";
+"shop.purchased.blindbox" = "Vous avez obtenu : %@ !";
+"shop.purchased.music" = "Piste musicale débloquée !";
+"shop.error.network" = "Erreur réseau. Points remboursés.";
+"shop.error.trialLimit" = "Limite d'essai Premium atteinte.";
+"shop.purchased.premiumCode" = "Code premium : %@. À échanger dans Réglages.";
+
+// Gagner des crédits — Progrès
+"progress.earnCredits" = "Gagner des Crédits";
+"points.earn.scan.title" = "Scanner les Devoirs";
+"points.earn.scan.desc" = "2 points par scan";
+"points.earn.chat.title" = "Chat AI";
+"points.earn.chat.desc" = "1 point par échange de chat";
+
+// Noter pour des points
+"points.earn.rate.title" = "Noter StudyAgent";
+"points.earn.rate.desc" = "Bonus unique pour la notation";
+"points.earn.rate.action" = "Noter";
+
+// Partager pour des points
+"points.earn.share.title" = "Partager avec des amis";
+"points.earn.share.desc" = "Bonus unique pour le partage";

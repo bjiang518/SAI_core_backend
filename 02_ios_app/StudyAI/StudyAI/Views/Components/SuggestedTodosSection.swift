@@ -194,29 +194,32 @@ struct SuggestedTodosSection: View {
     // MARK: Theme colours
 
     private var paperColor: Color {
-        if themeManager.currentTheme == .colorful {
-            return Color(hex: "FFFFFF")
+        if currentTheme == .default {
+            return colorScheme == .dark ? themeManager.notebookPaperColorDark : themeManager.notebookPaperColor
         }
-        return colorScheme == .dark ? Color(hex: "27251F") : Color(hex: "FAF6EE")
+        return themeManager.notebookPaperColor
     }
     private var lineColor: Color {
-        colorScheme == .dark
-            ? Color(hex: "4A4640").opacity(0.55)
-            : Color(hex: "B8C4C0").opacity(0.55)
+        themeManager.notebookGridLineColor
+    }
+    private var showGridLines: Bool {
+        themeManager.showsNotebookGridLines
     }
     private var primaryText: Color {
-        colorScheme == .dark ? Color(hex: "E8E8E8") : Color(hex: "2A2A2A")
+        themeManager.cardTextPrimary
     }
     private var secondaryText: Color {
-        colorScheme == .dark ? Color(hex: "909098") : Color(hex: "888888")
+        themeManager.cardTextSecondary
     }
     private var chevronColor: Color {
-        colorScheme == .dark ? Color(hex: "505058") : Color(hex: "C0C0C0")
+        themeManager.cardTextSecondary.opacity(0.6)
     }
     private var dividerColor: Color {
-        colorScheme == .dark
-            ? Color(hex: "3A3A42").opacity(0.8)
-            : Color(hex: "E0E0EC").opacity(0.9)
+        themeManager.cardTextSecondary.opacity(0.2)
+    }
+
+    private var currentTheme: ThemeMode {
+        themeManager.currentTheme
     }
 
     // MARK: Fonts
@@ -382,29 +385,31 @@ struct SuggestedTodosSection: View {
                 // 1. Warm graph-paper fill
                 paperColor
 
-                // 2. Grid lines — equal horizontal + vertical spacing
-                Canvas { ctx, size in
-                    let spacing: CGFloat = 24
-                    let style = StrokeStyle(lineWidth: 0.5, lineCap: .round)
+                // 2. Grid lines — equal horizontal + vertical spacing (theme-controlled)
+                if showGridLines {
+                    Canvas { ctx, size in
+                        let spacing: CGFloat = 24
+                        let style = StrokeStyle(lineWidth: 0.5, lineCap: .round)
 
-                    // Horizontal lines
-                    var y: CGFloat = spacing
-                    while y < size.height {
-                        var p = Path()
-                        p.move(to: CGPoint(x: 0, y: y))
-                        p.addLine(to: CGPoint(x: size.width, y: y))
-                        ctx.stroke(p, with: .color(lineColor), style: style)
-                        y += spacing
-                    }
+                        // Horizontal lines
+                        var y: CGFloat = spacing
+                        while y < size.height {
+                            var p = Path()
+                            p.move(to: CGPoint(x: 0, y: y))
+                            p.addLine(to: CGPoint(x: size.width, y: y))
+                            ctx.stroke(p, with: .color(lineColor), style: style)
+                            y += spacing
+                        }
 
-                    // Vertical lines
-                    var x: CGFloat = spacing
-                    while x < size.width {
-                        var p = Path()
-                        p.move(to: CGPoint(x: x, y: 0))
-                        p.addLine(to: CGPoint(x: x, y: size.height))
-                        ctx.stroke(p, with: .color(lineColor), style: style)
-                        x += spacing
+                        // Vertical lines
+                        var x: CGFloat = spacing
+                        while x < size.width {
+                            var p = Path()
+                            p.move(to: CGPoint(x: x, y: 0))
+                            p.addLine(to: CGPoint(x: x, y: size.height))
+                            ctx.stroke(p, with: .color(lineColor), style: style)
+                            x += spacing
+                        }
                     }
                 }
 
@@ -607,7 +612,8 @@ private struct TodoRowView: View {
                     Text(todo.subtitle)
                         .font(fontProvider(16, todo.subtitle))
                         .foregroundColor(secondaryText)
-                        .lineLimit(1)
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
                         .frame(minHeight: 22, alignment: .center)
                 }
                 .contentShape(Rectangle())

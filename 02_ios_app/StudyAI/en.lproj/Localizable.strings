@@ -35,7 +35,7 @@
 "settings.passwordManager" = "Password Manager";
 "settings.privacySettings" = "Privacy Settings";
 "settings.appSettings" = "App Settings";
-"settings.studyReminders" = "Study Reminders";
+"settings.studyReminders" = "Notifications";
 "settings.textSize" = "Text Size";
 "settings.language" = "Language";
 "languageSettings.sectionHeader" = "Select Language";
@@ -60,27 +60,28 @@
 "profile.complete" = "Profile %d%% complete";
 "profile.biometricLogin" = "%@ Login";
 
-// Study Reminders
-"studyReminders.title" = "Study Reminders";
-"studyReminders.permissions" = "Permissions";
-"studyReminders.notificationPermission" = "Notification Permission";
-"studyReminders.enabled" = "Notifications enabled";
-"studyReminders.denied" = "Notifications denied";
-"studyReminders.notConfigured" = "Not configured";
-"studyReminders.enable" = "Enable Notifications";
-"studyReminders.description" = "Enable notifications to receive study reminders and stay on track with your learning goals.";
-"studyReminders.daily" = "Daily Study Reminders";
-"studyReminders.dailyDescription" = "Get reminded to study at your scheduled time each day.";
-"studyReminders.schedule" = "Schedule";
-"studyReminders.studyTime" = "Study Time";
-"studyReminders.timeDescription" = "You'll be reminded to study at %@";
-"studyReminders.studyDays" = "Study Days";
-"studyReminders.daysDescription" = "Reminders will be sent on %@";
-"studyReminders.weekdays" = "Weekdays";
-"studyReminders.everyDay" = "Every Day";
-"studyReminders.clear" = "Clear";
-"studyReminders.save" = "Save";
-"studyReminders.cancel" = "Cancel";
+// Notifications
+"notifications.title" = "Notifications";
+"notifications.studySchedule" = "Study Schedule";
+"notifications.studyReminder" = "Daily Study Reminder";
+"notifications.studyReminder.description" = "A friendly nudge to study at your chosen time.";
+"notifications.time" = "Reminder Time";
+"notifications.studyTime" = "Study Time";
+"notifications.timeFooter" = "You'll get a reminder at %@ on your selected days.";
+"notifications.days" = "Reminder Days";
+"notifications.daysFooter" = "Active on %@.";
+"notifications.weekdays" = "Weekdays";
+"notifications.everyDay" = "Every Day";
+"notifications.none" = "None";
+"notifications.noDays" = "no days selected";
+"notifications.otherAlerts" = "Other Alerts";
+"notifications.otherAlerts.footer" = "These notifications keep you informed about your learning activity.";
+"notifications.streakReminder" = "Streak Protection";
+"notifications.streakReminder.description" = "Reminds you at 8 PM if your study streak is about to break.";
+"notifications.homeworkComplete" = "Homework Results Ready";
+"notifications.homeworkComplete.description" = "Lets you know when your homework has finished grading.";
+"notifications.reportReady" = "Learning Report Available";
+"notifications.reportReady.description" = "Notifies you when a new weekly or monthly report is ready.";
 
 // Days of Week
 "day.monday" = "Monday";
@@ -255,6 +256,10 @@
 "aiHomework.results.viewDetails" = "View Detailed Results";
 "aiHomework.processing.message" = "AI is carefully examining your homework!";
 "aiHomework.processing.waitMessage" = "This may take a moment, please wait...";
+
+// Camera Scanner
+"camera.hint.pressCheckWhenDone" = "Press ✓ when done scanning";
+
 "imageViewer.instructions" = "Pinch to zoom • Drag to pan • Double tap to reset • Use Close button to exit";
 
 // Homework Results
@@ -748,6 +753,18 @@
 "practiceLibrary.info.title" = "How to Generate Practice";
 "practiceLibrary.info.message" = "5 Ways to Create a Question Sheet\n\n1. Random Practice\nTap + New and choose Random Practice. AI generates adaptive questions based on your weakness data and selected subject. Adjust difficulty and question type.\n\n2. From Archives\nTap + New and choose From Archives. Select past conversations or saved questions. AI creates new review questions from that material. Items must be from a single subject.\n\n3. Weakness-Based Practice\nGo to Learning Progress, then tap any weakness item. AI generates targeted questions for that specific weak area.\n\n4. Mistake Retry\nGo to Mistake Review, select specific mistakes, and tap Re-attempt. Re-practices your exact original questions — no AI generation required.\n\n5. Redo a Session\nOpen any completed session from this list and tap Redo. Repeats the same question set from scratch.";
 
+// Practice Library Onboarding
+"practiceLibOnboarding.newBtn.title" = "Create Your First Practice";
+"practiceLibOnboarding.newBtn.desc" = "Tap + New to generate a custom practice set. Choose your subject, difficulty, and question type.";
+"practiceLibOnboarding.subjectFilter.title" = "Filter by Subject";
+"practiceLibOnboarding.subjectFilter.desc" = "Tap a subject to filter your sessions. Subjects appear here automatically as you practice.";
+"practiceLibOnboarding.sortStatus.title" = "Sort & Filter";
+"practiceLibOnboarding.sortStatus.desc" = "Switch between All, Ongoing, and Completed. Use the sort menu on the right to reorder.";
+"practiceLibOnboarding.swipeDelete.title" = "Delete a Session";
+"practiceLibOnboarding.swipeDelete.desc" = "Swipe any session card to the left to delete it.";
+"practiceLibOnboarding.difficulty.title" = "Choose Your Difficulty";
+"practiceLibOnboarding.difficulty.desc" = "Drag anywhere on the bar. Drag past the end for Adaptive mode — the AI picks the right level for you.";
+
 // Practice Sheet
 "practiceSheet.questionCounter" = "Q %d/%d";
 "practiceSheet.typeAnswerPlaceholder" = "Type your answer here…";
@@ -1157,9 +1174,9 @@
 
 // Homework Onboarding Tutorial
 "hwOnboarding.editImage.title" = "Edit Image";
-"hwOnboarding.editImage.desc" = "1. Tap to select a question's image\n2. Tap 🖼 or the image to edit the selected crop";
+"hwOnboarding.editImage.desc" = "1. Tap the shaking photo icon to select a question's image\n2. Tap the Edit Image section or the image to edit the selected crop";
 "hwOnboarding.gradingMode.title" = "Grading Mode";
-"hwOnboarding.gradingMode.desc" = "Fast uses GPT for quick grading. Deep uses Gemini with extended thinking — better for complex problems.";
+"hwOnboarding.gradingMode.desc" = "Fast mode for quick grading. Deep mode uses extended thinking — more accurate for complex problems.";
 "hwOnboarding.reparse.title" = "Re-analyze";
 "hwOnboarding.reparse.desc" = "Tap to re-parse this question from the image if the AI misread something.";
 "hwOnboarding.moreOptions.title" = "More Options";
@@ -2164,6 +2181,14 @@
 "theme.colorful" = "Colorful Life";
 "theme.description.default" = "Automatically adapts to light or dark based on your system settings";
 "theme.description.colorful" = "Soft pastel colors for a playful experience";
+"theme.oceanNight" = "Ocean Night";
+"theme.description.oceanNight" = "Deep blue tones for calm night-time study";
+"theme.forest" = "Forest Green";
+"theme.description.forest" = "Natural earthy greens, easy on the eyes";
+"theme.sakura" = "Sakura";
+"theme.description.sakura" = "Gentle cherry blossom pinks for a dreamy feel";
+"theme.pureDark" = "Pure Dark";
+"theme.description.pureDark" = "High-contrast OLED-friendly dark theme";
 "theme.override.auto" = "Auto";
 "theme.override.light" = "Light";
 "theme.override.dark" = "Dark";
@@ -2740,3 +2765,118 @@
 "homework.pdf.email.body" = "Please find attached the homework questions.";
 "homework.pdf.error.generation" = "Failed to generate PDF";
 "imageEditor.gestureHint" = "Pinch to zoom · Two fingers to rotate";
+
+// Points Shop & Streak System
+"points.shop.title" = "Points Shop";
+"points.shop.balance" = "Points Balance";
+"points.shop.today" = "Today";
+"points.shop.buy" = "Buy";
+"points.shop.cancel" = "Cancel";
+"points.shop.confirm.title" = "Confirm Purchase";
+"points.shop.confirm.message" = "Buy %@ for %d points?";
+"points.shop.unlocked" = "Unlocked";
+"points.shop.error.insufficient" = "Not enough points!";
+"points.shop.error.network" = "Network error. Points refunded.";
+"points.shop.purchased.freeze" = "Streak Freeze card purchased!";
+"points.shop.purchased.chat" = "+%d chat messages added!";
+"points.shop.purchased.homework" = "+%d homework pages added!";
+"points.shop.purchased.tomato" = "%@ added to your garden!";
+"points.shop.purchased.music" = "Music track unlocked!";
+"points.shop.category.streak" = "Streak";
+"points.shop.category.ai_usage" = "AI Boost";
+"points.shop.category.tomatoes" = "Tomatoes";
+"points.shop.category.music" = "Music";
+"points.shop.item.streakFreeze" = "Streak Freeze";
+"points.shop.item.streakFreeze.desc" = "Protect your streak for 1 day";
+"points.shop.item.chat10" = "+10 Chats";
+"points.shop.item.chat10.desc" = "10 extra AI chat messages";
+"points.shop.item.chat50" = "+50 Chats";
+"points.shop.item.chat50.desc" = "50 extra AI chat messages";
+"points.shop.item.hw5" = "+5 Pages";
+"points.shop.item.hw5.desc" = "5 extra homework pages";
+"points.shop.item.hw20" = "+20 Pages";
+"points.shop.item.hw20.desc" = "20 extra homework pages";
+"points.shop.item.music.meditation" = "Meditation & Focus";
+"points.shop.item.music.meditation.desc" = "Unlock premium focus track";
+"points.shop.item.music.magic" = "Magic Healing";
+"points.shop.item.music.magic.desc" = "Unlock premium focus track";
+"streak.reminder.title" = "Your streak is at risk!";
+"streak.reminder.body" = "Your %d-day streak will break tomorrow! Do 1 question to keep it.";
+"streak.freeze.used.banner" = "Streak protected! Freeze card used. %d cards remaining.";
+"streak.freeze.cards.remaining" = "Streak Freeze Cards: %d";
+"points.earned.streak" = "+%d points! Day %d streak bonus";
+"points.earned.correct" = "+%d points for correct answers";
+"points.earned.practice" = "+5 points practice bonus";
+"points.earned.review" = "+%d points for reviewing mistakes";
+
+// Points Hub — Earn Tab
+"points.hub.title" = "Points";
+"points.hub.tab.earn" = "Earn";
+"points.hub.tab.shop" = "Shop";
+"points.hub.streak" = "Streak";
+"points.earn.streak.title" = "Daily Login Bonus";
+"points.earn.streak.desc" = "Earn %d pts (= your streak days)";
+"points.earn.correct.title" = "Answer Correctly";
+"points.earn.correct.desc" = "1 point per correct answer";
+"points.earn.practice.title" = "Complete Practice";
+"points.earn.practice.desc" = "+5 points per practice set";
+"points.earn.review.title" = "Review Mistakes";
+"points.earn.review.desc" = "2 points per reviewed question";
+"points.earn.focus.title" = "Focus Session";
+"points.earn.focus.desc" = "1 point per 5 minutes";
+"points.earn.claim" = "Claim";
+
+// Points Shop — Sections & Items
+"points.shop.section.study_boost" = "Study Boost";
+"points.shop.section.tomato_blind_box" = "Tomato Blind Box";
+"points.shop.section.focus_music" = "Focus Music";
+"shop.item.freeze" = "Streak Freeze";
+"shop.item.freeze.desc" = "Protect your streak for 1 missed day";
+"shop.item.chat10" = "+10 AI Chats";
+"shop.item.chat10.desc" = "10 extra AI conversation messages";
+"shop.item.hw5" = "+5 Homework Pages";
+"shop.item.hw5.desc" = "5 extra homework grading pages";
+"shop.item.voice30" = "Voice Mode 30min";
+"shop.item.voice30.desc" = "30 minutes of live voice tutoring";
+"shop.item.error5" = "+5 Error Analysis";
+"shop.item.error5.desc" = "5 deep error analysis reports";
+"shop.item.questions20" = "+20 Practice Questions";
+"shop.item.questions20.desc" = "20 extra practice questions";
+"shop.item.premiumTrial" = "7-Day Premium Trial";
+"shop.item.premiumTrial.desc" = "Unlock all premium features for 1 week";
+"shop.item.blindbox.rare" = "Rare Tomato Box";
+"shop.item.blindbox.rare.desc" = "Random rare character tomato";
+"shop.item.blindbox.super" = "Super Rare Tomato Box";
+"shop.item.blindbox.super.desc" = "Random golden or platinum tomato";
+"shop.item.music.meditation" = "Meditation & Focus";
+"shop.item.music.meditation.desc" = "Unlock premium focus track";
+"shop.item.music.magic" = "Magic Healing";
+"shop.item.music.magic.desc" = "Unlock premium focus track";
+"shop.purchased.freeze" = "Streak Freeze card purchased!";
+"shop.purchased.chat" = "+%d chat messages added!";
+"shop.purchased.homework" = "+%d homework pages added!";
+"shop.purchased.voice" = "+%d minutes of voice mode added!";
+"shop.purchased.error" = "+%d error analyses added!";
+"shop.purchased.questions" = "+%d practice questions added!";
+"shop.purchased.premium" = "7-day Premium activated!";
+"shop.purchased.blindbox" = "You got: %@!";
+"shop.purchased.music" = "Music track unlocked!";
+"shop.error.network" = "Network error. Points refunded.";
+"shop.error.trialLimit" = "Premium trial limit reached.";
+"shop.purchased.premiumCode" = "Premium code: %@. Redeem in Settings > Promo Code.";
+
+// Earn Credits — Progress View
+"progress.earnCredits" = "Earn Credits";
+"points.earn.scan.title" = "Scan Homework";
+"points.earn.scan.desc" = "2 points per homework scan";
+"points.earn.chat.title" = "AI Chat";
+"points.earn.chat.desc" = "1 point per chat exchange";
+
+// Rate App for Points
+"points.earn.rate.title" = "Rate StudyAgent";
+"points.earn.rate.desc" = "One-time bonus for rating us";
+"points.earn.rate.action" = "Rate";
+
+// Share App for Points
+"points.earn.share.title" = "Share with Friends";
+"points.earn.share.desc" = "One-time bonus for sharing the app";

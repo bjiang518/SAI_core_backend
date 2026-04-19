@@ -166,7 +166,7 @@ final class SpotlightWindowOverlay: UIView {
     override func draw(_ rect: CGRect) {
         guard let ctx = UIGraphicsGetCurrentContext() else { return }
         // Solid dark fill
-        ctx.setFillColor(UIColor.black.withAlphaComponent(0.60).cgColor)
+        ctx.setFillColor(UIColor.black.withAlphaComponent(0.75).cgColor)
         ctx.fill(bounds)
         // Hole 1: target button spotlight
         if !spotlightRect.isEmpty {
@@ -184,15 +184,20 @@ final class SpotlightWindowOverlay: UIView {
 /// Manages the singleton UIKit scrim on the key window.
 enum SpotlightWindow {
     private static var overlay: SpotlightWindowOverlay?
+    /// Opaque white backing placed ABOVE the scrim, below the SwiftUI card content.
+    private static var cardBacking: UIView?
     static var isShowing: Bool { overlay != nil }
 
     static func show(data: UIKitSyncData) {
         overlay?.removeFromSuperview()
+        cardBacking?.removeFromSuperview()
         guard let window = keyWindow() else { return }
+        // 1. Scrim overlay
         let v = SpotlightWindowOverlay(frame: window.bounds)
         apply(data, to: v)
         window.addSubview(v)
         overlay = v
+        cardBacking = nil
     }
 
     static func update(data: UIKitSyncData) {
@@ -203,6 +208,8 @@ enum SpotlightWindow {
     static func hide() {
         overlay?.removeFromSuperview()
         overlay = nil
+        cardBacking?.removeFromSuperview()
+        cardBacking = nil
     }
 
     static func safeAreaTop() -> CGFloat {

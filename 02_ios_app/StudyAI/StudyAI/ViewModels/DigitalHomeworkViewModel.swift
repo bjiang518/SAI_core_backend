@@ -2174,14 +2174,14 @@ class DigitalHomeworkViewModel: ObservableObject {
             saveToHomeworkAlbum()
             log.info("🗂️ [SMART ORGANIZE]   📸 Homework album saved")
 
-            // Archive all wrong/ungraded questions
+            // Archive only questions that were graded as incorrect (skip ungraded & correct)
             let wrongQuestionIds = questions.compactMap { qwg -> String? in
                 if qwg.isParentQuestion {
                     let hasWrong = qwg.subquestionGrades.values.contains { !$0.isCorrect }
                     return hasWrong ? qwg.question.id : nil
                 } else {
-                    let isWrong = qwg.grade.map { !$0.isCorrect } ?? true
-                    return isWrong ? qwg.question.id : nil
+                    guard let grade = qwg.grade else { return nil }  // ungraded → skip
+                    return grade.isCorrect ? nil : qwg.question.id
                 }
             }
 

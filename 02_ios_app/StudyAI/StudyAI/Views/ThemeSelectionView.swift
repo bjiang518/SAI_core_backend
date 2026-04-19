@@ -124,6 +124,14 @@ struct ThemeCard: View {
             return Color.blue.opacity(0.15)
         case .colorful:
             return DesignTokens.Colors.Cute.pink.opacity(0.2)
+        case .oceanNight:
+            return DesignTokens.Colors.OceanNight.accent.opacity(0.2)
+        case .forest:
+            return DesignTokens.Colors.Forest.accent.opacity(0.2)
+        case .sakura:
+            return DesignTokens.Colors.Sakura.accent.opacity(0.2)
+        case .pureDark:
+            return DesignTokens.Colors.PureDark.accent.opacity(0.2)
         }
     }
 
@@ -133,12 +141,33 @@ struct ThemeCard: View {
             return Color.blue
         case .colorful:
             return DesignTokens.Colors.Cute.pink
+        case .oceanNight:
+            return DesignTokens.Colors.OceanNight.accent
+        case .forest:
+            return DesignTokens.Colors.Forest.accent
+        case .sakura:
+            return DesignTokens.Colors.Sakura.accent
+        case .pureDark:
+            return DesignTokens.Colors.PureDark.accent
         }
     }
 
     private var cardBackground: Color {
-        if mode == .colorful && isSelected {
-            return DesignTokens.Colors.Cute.backgroundSoftPink
+        if isSelected {
+            switch mode {
+            case .colorful:
+                return DesignTokens.Colors.Cute.backgroundSoftPink
+            case .oceanNight:
+                return DesignTokens.Colors.OceanNight.card
+            case .forest:
+                return DesignTokens.Colors.Forest.card
+            case .sakura:
+                return DesignTokens.Colors.Sakura.card
+            case .pureDark:
+                return DesignTokens.Colors.PureDark.card
+            case .default:
+                return themeManager.cardBackground
+            }
         }
         return themeManager.cardBackground
     }
@@ -149,6 +178,14 @@ struct ThemeCard: View {
             return NSLocalizedString("theme.description.default", comment: "")
         case .colorful:
             return NSLocalizedString("theme.description.colorful", comment: "")
+        case .oceanNight:
+            return NSLocalizedString("theme.description.oceanNight", comment: "")
+        case .forest:
+            return NSLocalizedString("theme.description.forest", comment: "")
+        case .sakura:
+            return NSLocalizedString("theme.description.sakura", comment: "")
+        case .pureDark:
+            return NSLocalizedString("theme.description.pureDark", comment: "")
         }
     }
 }

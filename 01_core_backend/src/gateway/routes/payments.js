@@ -17,27 +17,37 @@ const PRODUCT_TIER_MAP = {
 module.exports = async function (fastify, opts) {
   const { db } = require('../../utils/railway-database');
 
-  // Add missing columns to subscriptions table (idempotent)
+  // Add missing columns to subscriptions table — skip if already applied
   try {
-    await db.query(`
-      ALTER TABLE subscriptions
-        ADD COLUMN IF NOT EXISTS original_transaction_id VARCHAR(255),
-        ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW();
-      CREATE INDEX IF NOT EXISTS idx_subscriptions_original_tx
-        ON subscriptions(original_transaction_id) WHERE original_transaction_id IS NOT NULL;
-    `);
-    // Add UNIQUE constraint only if it doesn't already exist (avoids 42P07 on every boot)
-    await db.query(`
-      DO $$
-      BEGIN
-        IF NOT EXISTS (
-          SELECT 1 FROM pg_constraint WHERE conname = 'subscriptions_transaction_id_unique'
-        ) THEN
-          ALTER TABLE subscriptions
-            ADD CONSTRAINT subscriptions_transaction_id_unique UNIQUE (transaction_id);
-        END IF;
-      END $$;
-    `);
+    const migCheck = await db.query(
+      `SELECT 1 FROM migration_history WHERE migration_name = 'payments_subscriptions_cols'`
+    );
+    if (migCheck.rows.length === 0) {
+      await db.query(`
+        ALTER TABLE subscriptions
+          ADD COLUMN IF NOT EXISTS original_transaction_id VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW();
+        CREATE INDEX IF NOT EXISTS idx_subscriptions_original_tx
+          ON subscriptions(original_transaction_id) WHERE original_transaction_id IS NOT NULL;
+      `);
+      // Add UNIQUE constraint only if it doesn't already exist (avoids 42P07 on every boot)
+      await db.query(`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint WHERE conname = 'subscriptions_transaction_id_unique'
+          ) THEN
+            ALTER TABLE subscriptions
+              ADD CONSTRAINT subscriptions_transaction_id_unique UNIQUE (transaction_id);
+          END IF;
+        END $$;
+      `);
+      await db.query(`
+        INSERT INTO migration_history (migration_name)
+        VALUES ('payments_subscriptions_cols')
+        ON CONFLICT (migration_name) DO NOTHING
+      `);
+    }
   } catch (e) {
     fastify.log.warn('[Payments] subscriptions migration warning:', e.message);
   }

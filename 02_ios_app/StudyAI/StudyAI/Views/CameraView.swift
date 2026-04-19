@@ -726,7 +726,66 @@ struct EnhancedCameraView: UIViewControllerRepresentable {
 
         context.coordinator.scanner = scanner
         logger.info("📸 Document scanner created - user must tap thumbnail after capture to access review screen")
+
+        // Add floating hint banner on top of the scanner
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            Self.addHintBanner(to: scanner)
+        }
+
         return scanner
+    }
+
+    /// Adds a localized floating hint banner to the document scanner.
+    private static func addHintBanner(to controller: UIViewController) {
+        let label = UILabel()
+        label.text = NSLocalizedString(
+            "camera.hint.pressCheckWhenDone",
+            value: "Press ✓ when done scanning",
+            comment: "Hint shown on document scanner"
+        )
+        label.font = .systemFont(ofSize: 14, weight: .medium)
+        label.textColor = .white
+        label.textAlignment = .center
+        label.backgroundColor = UIColor.black.withAlphaComponent(0.55)
+        label.layer.cornerRadius = 16
+        label.clipsToBounds = true
+        label.translatesAutoresizingMaskIntoConstraints = false
+
+        controller.view.addSubview(label)
+        NSLayoutConstraint.activate([
+            label.centerXAnchor.constraint(equalTo: controller.view.centerXAnchor),
+            label.topAnchor.constraint(equalTo: controller.view.safeAreaLayoutGuide.topAnchor, constant: 52),
+            label.widthAnchor.constraint(greaterThanOrEqualToConstant: 100),
+            label.heightAnchor.constraint(equalToConstant: 32)
+        ])
+        // Padding via content insets
+        label.layoutMargins = UIEdgeInsets(top: 6, left: 16, bottom: 6, right: 16)
+        // Use a wrapper to get padding since UILabel doesn't support content insets natively
+        let padded = UIView()
+        padded.backgroundColor = UIColor.black.withAlphaComponent(0.55)
+        padded.layer.cornerRadius = 16
+        padded.clipsToBounds = true
+        padded.translatesAutoresizingMaskIntoConstraints = false
+        // Replace label with padded container
+        label.removeFromSuperview()
+        padded.addSubview(label)
+        label.backgroundColor = .clear
+        controller.view.addSubview(padded)
+        NSLayoutConstraint.activate([
+            label.topAnchor.constraint(equalTo: padded.topAnchor, constant: 6),
+            label.bottomAnchor.constraint(equalTo: padded.bottomAnchor, constant: -6),
+            label.leadingAnchor.constraint(equalTo: padded.leadingAnchor, constant: 16),
+            label.trailingAnchor.constraint(equalTo: padded.trailingAnchor, constant: -16),
+            padded.centerXAnchor.constraint(equalTo: controller.view.centerXAnchor),
+            padded.topAnchor.constraint(equalTo: controller.view.safeAreaLayoutGuide.topAnchor, constant: 52)
+        ])
+
+        // Auto-dismiss after 5 seconds
+        UIView.animate(withDuration: 0.3, delay: 5.0, options: [], animations: {
+            padded.alpha = 0
+        }) { _ in
+            padded.removeFromSuperview()
+        }
     }
     
     func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}

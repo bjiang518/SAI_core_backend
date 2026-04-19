@@ -58,6 +58,10 @@ struct HomeView: View {
     @State private var feynmanSheetItem: FeynmanSheetItem? = nil
     @State private var lottieRefreshID: Int = 0
     @State private var isMoreFeaturesExpanded: Bool = true
+    @State private var showingPointsShop: Bool = false
+    @State private var streakBonusClaimed: Int = 0
+    @State private var showStreakBonusToast: Bool = false
+    @State private var starShakeAngle: Double = 0
 
     // ✅ Dark Mode Support: Detect current color scheme
     @Environment(\.colorScheme) var colorScheme
@@ -77,6 +81,28 @@ struct HomeView: View {
                     // Engaging Hero Header with Animation, Avatar, Greeting & Stats
                     engagingHeroHeader
                         .padding(.bottom, DesignTokens.Spacing.xxl)
+
+                    // Streak freeze used banner
+                    if pointsManager.streakFreezeUsedToday {
+                        HStack(spacing: 8) {
+                            Image(systemName: "snowflake")
+                                .foregroundColor(.cyan)
+                            Text(String(format: NSLocalizedString("streak.freeze.used.banner", comment: ""),
+                                        pointsManager.streakFreezeCards))
+                                .font(.subheadline)
+                                .foregroundColor(themeManager.primaryText)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.cyan.opacity(0.1))
+                        )
+                        .padding(.horizontal, DesignTokens.Spacing.xl)
+                        .padding(.bottom, 8)
+                    }
+
 
                     // Quick Actions
                     quickActionsSection
@@ -107,6 +133,11 @@ struct HomeView: View {
                 lottieRefreshID += 1
                 todoEngine.fetchAndRefresh()
                 updateUserName(from: profileService.currentProfile ?? profileService.loadCachedProfile())
+
+                // Schedule streak protection notification if no activity today
+                if pointsManager.todayProgress?.totalQuestions == 0 && pointsManager.currentStreak > 2 {
+                    NotificationService.shared.scheduleStreakProtectionReminder(currentStreak: pointsManager.currentStreak)
+                }
             }
             .onReceive(profileService.$currentProfile) { profile in
                 updateUserName(from: profile)
@@ -119,6 +150,9 @@ struct HomeView: View {
                     AuthenticationService.shared.signOut()
                     showingSettings = false
                 })
+            }
+            .sheet(isPresented: $showingPointsShop) {
+                PointsShopView()
             }
             .navigationDestination(isPresented: $showingMistakeReview) {
                 MistakeReviewView(initialSubject: mistakeReviewInitialSubject)
@@ -238,8 +272,39 @@ struct HomeView: View {
 
             Spacer()
 
-            // Right: Animation toggle + Settings
+            // Right: Points star + Animation toggle + Settings
             HStack(spacing: 6) {
+                // Points balance — tap to open points hub
+                Button(action: { showingPointsShop = true }) {
+                    ZStack {
+                        Circle()
+                            .fill(Color(red: 1.0, green: 0.84, blue: 0.0).opacity(0.12))
+                            .frame(width: 36, height: 36)
+
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 17, weight: .medium))
+                            .foregroundColor(Color(red: 1.0, green: 0.84, blue: 0.0))
+                            .rotationEffect(.degrees(starShakeAngle))
+                            .animation(
+                                pointsManager.hasUnclaimedEarnings
+                                    ? .easeInOut(duration: 0.12).repeatForever(autoreverses: true)
+                                    : .default,
+                                value: starShakeAngle
+                            )
+                    }
+                    .frame(width: 36, height: 36)
+                    .clipShape(Circle())
+                }
+                .buttonStyle(PlainButtonStyle())
+                .onAppear {
+                    if pointsManager.hasUnclaimedEarnings {
+                        starShakeAngle = 12
+                    }
+                }
+                .onChange(of: pointsManager.hasUnclaimedEarnings) { _, hasUnclaimed in
+                    starShakeAngle = hasUnclaimed ? 12 : 0
+                }
+
                 Button(action: {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
                         appState.isPowerSavingMode.toggle()
@@ -805,21 +870,22 @@ struct QuickActionCard_New: View {
                 // Full-card rounded rectangle background
                 RoundedRectangle(cornerRadius: 22)
                     .fill(
-                        themeManager.currentTheme == .colorful
-                            ? cuteCircleColor.opacity(isPressed ? 0.45 : 0.55)
-                            : (colorScheme == .dark ? Color(white: 0.93) : Color.white)
+                        themeManager.quickActionCardFill(
+                            color: color, cuteCircleColor: cuteCircleColor,
+                            isPressed: isPressed, colorScheme: colorScheme)
                     )
                     .overlay(
-                        themeManager.currentTheme == .colorful
-                            ? nil
-                            : RoundedRectangle(cornerRadius: 22)
-                                .stroke(color.opacity(isPressed ? 0.60 : 0.40), lineWidth: 1.5)
+                        Group {
+                            if let border = themeManager.quickActionCardBorder(color: color, isPressed: isPressed) {
+                                RoundedRectangle(cornerRadius: 22)
+                                    .stroke(border.color, lineWidth: border.width)
+                            }
+                        }
                     )
                     .shadow(
-                        color: colorScheme == .dark
-                            ? Color.clear
-                            : color.opacity(isPressed ? 0.18 : 0.10),
-                        radius: isPressed ? 4 : 6, x: 0, y: 2
+                        color: themeManager.quickActionCardShadow(color: color, isPressed: isPressed, colorScheme: colorScheme).color,
+                        radius: themeManager.quickActionCardShadow(color: color, isPressed: isPressed, colorScheme: colorScheme).radius,
+                        x: 0, y: 2
                     )
 
                 // Lottie or SF Symbol
@@ -836,21 +902,13 @@ struct QuickActionCard_New: View {
                     .offset(x: lottieOffset.x, y: lottieOffset.y)
                 } else {
                     Circle()
-                        .fill(
-                            themeManager.currentTheme == .colorful
-                                ? Color.white.opacity(0.3)
-                                : color.opacity(isPressed ? 0.3 : 0.15)
-                        )
+                        .fill(themeManager.iconCircleFill(color: color, isPressed: isPressed))
                         .frame(width: 50, height: 50)
                         .scaleEffect(isPressed ? 0.9 : 1.0)
 
                     Image(systemName: icon)
                         .font(.system(size: 22))
-                        .foregroundColor(
-                            themeManager.currentTheme == .colorful
-                                ? DesignTokens.Colors.Cute.textPrimary
-                                : (isPressed ? color.opacity(0.7) : color)
-                        )
+                        .foregroundColor(themeManager.iconSymbolColor(color: color, isPressed: isPressed))
                         .rotationEffect(.degrees(rotationAngle))
                         .scaleEffect(scale)
                         .onAppear {
@@ -947,11 +1005,7 @@ struct HorizontalActionButton: View {
                 ZStack {
                     if lottieAnimation == nil {
                         Circle()
-                            .fill(
-                                themeManager.currentTheme == .colorful ?
-                                    Color.white.opacity(0.5) :  // White circle in Cute mode
-                                    color.opacity(isPressed ? 0.3 : 0.15)
-                            )
+                            .fill(themeManager.iconCircleFill(color: color, isPressed: isPressed))
                             .frame(width: 42, height: 42)
                             .scaleEffect(isPressed ? 0.9 : 1.0)
                     }
@@ -969,11 +1023,7 @@ struct HorizontalActionButton: View {
                     } else {
                         Image(systemName: icon)
                             .font(.system(size: 22))
-                            .foregroundColor(
-                                themeManager.currentTheme == .colorful ?
-                                    DesignTokens.Colors.Cute.textPrimary :  // Soft black in Cute mode
-                                    (isPressed ? color.opacity(0.7) : color)
-                            )
+                            .foregroundColor(themeManager.iconSymbolColor(color: color, isPressed: isPressed))
                             .scaleEffect(iconScale)
                             .rotationEffect(.degrees(iconRotation))
                     }
@@ -1002,20 +1052,12 @@ struct HorizontalActionButton: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
                         .font(DesignTokens.Typography.title3)
-                        .foregroundColor(
-                            themeManager.currentTheme == .colorful ?
-                                DesignTokens.Colors.Cute.textPrimary :  // Soft black in Cute mode
-                                .primary
-                        )
+                        .foregroundColor(themeManager.cardTextPrimary)
                         .fontWeight(.medium)
 
                     Text(subtitle)
                         .font(DesignTokens.Typography.caption1)
-                        .foregroundColor(
-                            themeManager.currentTheme == .colorful ?
-                                DesignTokens.Colors.Cute.textSecondary :  // Grey in Cute mode
-                                .secondary
-                        )
+                        .foregroundColor(themeManager.cardTextSecondary)
                 }
                 .padding(.leading, 20)
 
@@ -1024,40 +1066,25 @@ struct HorizontalActionButton: View {
                 // Chevron
                 Image(systemName: "chevron.right")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(
-                        themeManager.currentTheme == .colorful ?
-                            DesignTokens.Colors.Cute.textSecondary :  // Grey in Cute mode
-                            .secondary
-                    )
+                    .foregroundColor(themeManager.cardTextSecondary)
                     .offset(x: isPressed ? 3 : 0)
             }
             .padding(12)
             .background(
-                // Cute Mode: LIGHTER solid color (much lighter than Quick Actions)
-                // Day/Night Mode: White/card background with border
-                themeManager.currentTheme == .colorful ?
-                    color.opacity(0.25) :  // Lighter version (25% opacity) in Cute mode
-                    (isPressed ?
-                        color.opacity(colorScheme == .dark ? 0.05 : 0.1) :
-                        (colorScheme == .dark ? DesignTokens.Colors.cardBackground : Color.white))
+                themeManager.horizontalCardFill(color: color, isPressed: isPressed, colorScheme: colorScheme)
             )
             .cornerRadius(16)
             .overlay(
                 Group {
-                    if themeManager.currentTheme != .colorful {
+                    if let border = themeManager.horizontalCardBorder(color: color, isPressed: isPressed, colorScheme: colorScheme) {
                         RoundedRectangle(cornerRadius: 16)
-                            .stroke(
-                                isPressed ? color.opacity(colorScheme == .dark ? 0.6 : 0.7) : color.opacity(colorScheme == .dark ? 0.3 : 0.4),
-                                lineWidth: isPressed ? 2.0 : 1.5
-                            )
+                            .stroke(border.color, lineWidth: border.width)
                     }
                 }
             )
             .shadow(
-                color: colorScheme == .dark ?
-                    Color.white.opacity(isPressed ? 0.1 : 0.05) :  // Light shadow in dark mode
-                    (isPressed ? color.opacity(0.2) : Color.black.opacity(0.03)),  // Colored/black shadow in light mode
-                radius: isPressed ? 6 : 2,
+                color: themeManager.horizontalCardShadow(color: color, isPressed: isPressed, colorScheme: colorScheme).color,
+                radius: themeManager.horizontalCardShadow(color: color, isPressed: isPressed, colorScheme: colorScheme).radius,
                 x: 0,
                 y: isPressed ? 3 : 1
             )

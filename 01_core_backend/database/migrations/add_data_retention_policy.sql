@@ -37,8 +37,8 @@ WHERE deleted_at IS NULL;
 -- Step 5: Create function to soft delete expired data
 CREATE OR REPLACE FUNCTION soft_delete_expired_data()
 RETURNS TABLE(
-  table_name TEXT,
-  deleted_count BIGINT
+  tbl_name TEXT,
+  del_count BIGINT
 ) AS $$
 BEGIN
   -- Soft delete expired conversations
@@ -47,8 +47,8 @@ BEGIN
   WHERE retention_expires_at < CURRENT_TIMESTAMP
     AND deleted_at IS NULL;
 
-  table_name := 'archived_conversations_new';
-  deleted_count := (SELECT COUNT(*) FROM archived_conversations_new WHERE deleted_at = CURRENT_TIMESTAMP);
+  tbl_name := 'archived_conversations_new';
+  GET DIAGNOSTICS del_count = ROW_COUNT;
   RETURN NEXT;
 
   -- Soft delete expired question sessions
@@ -57,8 +57,8 @@ BEGIN
   WHERE retention_expires_at < CURRENT_TIMESTAMP
     AND deleted_at IS NULL;
 
-  table_name := 'question_sessions';
-  deleted_count := (SELECT COUNT(*) FROM question_sessions WHERE deleted_at = CURRENT_TIMESTAMP);
+  tbl_name := 'question_sessions';
+  GET DIAGNOSTICS del_count = ROW_COUNT;
   RETURN NEXT;
 
   -- Soft delete expired sessions
@@ -67,8 +67,8 @@ BEGIN
   WHERE retention_expires_at < CURRENT_TIMESTAMP
     AND deleted_at IS NULL;
 
-  table_name := 'sessions';
-  deleted_count := (SELECT COUNT(*) FROM sessions WHERE deleted_at = CURRENT_TIMESTAMP);
+  tbl_name := 'sessions';
+  GET DIAGNOSTICS del_count = ROW_COUNT;
   RETURN NEXT;
 END;
 $$ LANGUAGE plpgsql;
@@ -76,7 +76,7 @@ $$ LANGUAGE plpgsql;
 -- Step 6: Create function to hard delete soft-deleted data after 30 days
 CREATE OR REPLACE FUNCTION hard_delete_old_soft_deleted()
 RETURNS TABLE(
-  table_name TEXT,
+  tbl_name TEXT,
   purged_count BIGINT
 ) AS $$
 BEGIN
@@ -84,7 +84,7 @@ BEGIN
   DELETE FROM archived_conversations_new
   WHERE deleted_at < (CURRENT_TIMESTAMP - INTERVAL '30 days');
 
-  table_name := 'archived_conversations_new';
+  tbl_name := 'archived_conversations_new';
   GET DIAGNOSTICS purged_count = ROW_COUNT;
   RETURN NEXT;
 
@@ -92,7 +92,7 @@ BEGIN
   DELETE FROM question_sessions
   WHERE deleted_at < (CURRENT_TIMESTAMP - INTERVAL '30 days');
 
-  table_name := 'question_sessions';
+  tbl_name := 'question_sessions';
   GET DIAGNOSTICS purged_count = ROW_COUNT;
   RETURN NEXT;
 
@@ -100,7 +100,7 @@ BEGIN
   DELETE FROM sessions
   WHERE deleted_at < (CURRENT_TIMESTAMP - INTERVAL '30 days');
 
-  table_name := 'sessions';
+  tbl_name := 'sessions';
   GET DIAGNOSTICS purged_count = ROW_COUNT;
   RETURN NEXT;
 END;

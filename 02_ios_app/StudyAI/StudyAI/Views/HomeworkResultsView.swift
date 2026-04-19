@@ -1481,6 +1481,9 @@ extension HomeworkResultsView {
             numberOfQuestions: totalQuestions,
             numberOfCorrectQuestions: correctCount
         )
+        // Award points for scanning homework (2pts per scan)
+        pointsManager.awardHomeworkScanPoints()
+        AppReviewService.shared.recordHomeworkCompleted()
 
         debugPrint("📊 [trackHomeworkUsage] ✅ Marked progress: \(totalQuestions) total questions, \(correctCount) correct, \(incorrectCount) incorrect")
     }
