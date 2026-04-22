@@ -177,6 +177,13 @@ module.exports = async function (fastify) {
     }
 
     try {
+      // Validate server-side balance
+      const balanceResult = await db.query('SELECT points_balance FROM users WHERE id = $1', [userId]);
+      const serverBalance = balanceResult.rows[0]?.points_balance ?? 0;
+      if (serverBalance < TRIAL_POINTS_COST) {
+        return reply.code(400).send({ success: false, error: 'Insufficient points balance' });
+      }
+
       // Check how many trial codes this user has generated (max 3)
       const countResult = await db.query(
         `SELECT COUNT(*) as cnt FROM promo_codes WHERE created_by = $1`,
@@ -212,6 +219,18 @@ module.exports = async function (fastify) {
 
       fastify.log.info(`[generate-trial-code] user=${userId} code=${code} expires=${expiresAt.toISOString()} trial#${trialCount + 1}`);
 
+      // Deduct points from server balance
+      await db.query('UPDATE users SET points_balance = points_balance - $1 WHERE id = $2', [TRIAL_POINTS_COST, userId]);
+
+      // Log transaction
+      const newBalanceResult = await db.query('SELECT points_balance FROM users WHERE id = $1', [userId]);
+      const newBalance = newBalanceResult.rows[0]?.points_balance ?? 0;
+      await db.query(
+        `INSERT INTO point_transactions (user_id, type, amount, balance_after, description, feature)
+         VALUES ($1, 'spend', $2, $3, $4, $5)`,
+        [userId, TRIAL_POINTS_COST, newBalance, '7-day premium trial code', 'premium_trial']
+      );
+
       return reply.send({
         success: true,
         data: {
@@ -227,6 +246,85 @@ module.exports = async function (fastify) {
   });
 
   fastify.log.info('✅ Account routes registered (/api/account/*)');
+
+  // ============================================================================
+  // POINTS BALANCE SYNC (iOS → Server)
+  // ============================================================================
+
+  /**
+   * POST /api/account/sync-points-balance
+   * Headers: Authorization: Bearer <jwt>
+   * Body: { points_balance: number }
+   *
+   * Reconciles client balance with server using GREATEST (never loses points).
+   * Returns the authoritative server balance after reconciliation.
+   */
+  fastify.post('/api/account/sync-points-balance', { preHandler: authenticateUser }, async (request, reply) => {
+    const userId = request.user?.id;
+    if (!userId) return reply.code(401).send({ success: false, error: 'Unauthorized' });
+
+    const { points_balance } = request.body || {};
+    if (typeof points_balance !== 'number' || points_balance < 0) {
+      return reply.code(400).send({ success: false, error: 'Invalid points_balance' });
+    }
+
+    try {
+      const result = await db.query(
+        `UPDATE users SET points_balance = GREATEST(points_balance, $1)
+         WHERE id = $2
+         RETURNING points_balance`,
+        [points_balance, userId]
+      );
+
+      const serverBalance = result.rows[0]?.points_balance ?? points_balance;
+
+      return reply.send({
+        success: true,
+        data: { points_balance: serverBalance },
+      });
+    } catch (error) {
+      fastify.log.error({ err: error }, '[sync-points-balance] Error');
+      return reply.code(500).send({ success: false, error: 'Sync failed' });
+    }
+  });
+
+  // ============================================================================
+  // POINT TRANSACTION HISTORY
+  // ============================================================================
+
+  /**
+   * GET /api/account/point-transactions
+   * Headers: Authorization: Bearer <jwt>
+   * Query: ?limit=50&offset=0
+   *
+   * Returns recent point earning and spending history.
+   */
+  fastify.get('/api/account/point-transactions', { preHandler: authenticateUser }, async (request, reply) => {
+    const userId = request.user?.id;
+    if (!userId) return reply.code(401).send({ success: false, error: 'Unauthorized' });
+
+    const limit = Math.min(parseInt(request.query.limit) || 50, 200);
+    const offset = parseInt(request.query.offset) || 0;
+
+    try {
+      const result = await db.query(
+        `SELECT id, type, amount, balance_after, description, feature, created_at
+         FROM point_transactions
+         WHERE user_id = $1
+         ORDER BY created_at DESC
+         LIMIT $2 OFFSET $3`,
+        [userId, limit, offset]
+      );
+
+      return reply.send({
+        success: true,
+        data: { transactions: result.rows },
+      });
+    } catch (error) {
+      fastify.log.error({ err: error }, '[point-transactions] Error');
+      return reply.code(500).send({ success: false, error: 'Failed to fetch transactions' });
+    }
+  });
 
   // ============================================================================
   // POINTS SHOP — REDEEM POINTS FOR BONUS AI USAGE
@@ -261,6 +359,16 @@ module.exports = async function (fastify) {
     }
 
     try {
+      // Validate server-side balance before granting bonus
+      const balanceResult = await db.query('SELECT points_balance FROM users WHERE id = $1', [userId]);
+      const serverBalance = balanceResult.rows[0]?.points_balance ?? 0;
+      if (serverBalance < points_spent) {
+        return reply.code(400).send({ success: false, error: 'Insufficient points balance' });
+      }
+
+      // Deduct points from server balance
+      await db.query('UPDATE users SET points_balance = points_balance - $1 WHERE id = $2', [points_spent, userId]);
+
       // Store bonus in Redis (monthly key, auto-expires)
       const now = new Date();
       const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -283,28 +391,90 @@ module.exports = async function (fastify) {
         fastify.log.warn({ err: redisErr }, '[redeem-points] Redis write failed, falling back to DB');
       }
 
-      // DB fallback — always write as authoritative backup
+      // DB fallback — always write as authoritative backup (with month-rollover logic)
       const bonusDbKey = `bonus_${feature}`;
       await db.query(
-        `UPDATE users SET monthly_usage = jsonb_set(
-           COALESCE(monthly_usage, '{}'),
-           $1::text[],
-           (COALESCE((monthly_usage->>$2)::int, 0) + $3)::text::jsonb
-         ) WHERE id = $4`,
+        `UPDATE users SET
+           monthly_usage = CASE
+             WHEN usage_reset_date < DATE_TRUNC('month', NOW())
+             THEN jsonb_build_object($2::text, $3::int)
+             ELSE jsonb_set(
+               COALESCE(monthly_usage, '{}'),
+               $1::text[],
+               (COALESCE((monthly_usage->>$2)::int, 0) + $3)::text::jsonb
+             )
+           END,
+           usage_reset_date = GREATEST(usage_reset_date, DATE_TRUNC('month', NOW())::date)
+         WHERE id = $4`,
         [[bonusDbKey], bonusDbKey, amount, userId]
       );
 
-      fastify.log.info(`[redeem-points] user=${userId} feature=${feature} bonus=+${amount} points=${points_spent} redis=${stored}`);
+      // Log transaction
+      const newBalanceResult = await db.query('SELECT points_balance FROM users WHERE id = $1', [userId]);
+      const newBalance = newBalanceResult.rows[0]?.points_balance ?? 0;
+      await db.query(
+        `INSERT INTO point_transactions (user_id, type, amount, balance_after, description, feature)
+         VALUES ($1, 'spend', $2, $3, $4, $5)`,
+        [userId, points_spent, newBalance, `Redeemed ${amount} ${feature.replace(/_/g, ' ')}`, feature]
+      );
+
+      fastify.log.info(`[redeem-points] user=${userId} feature=${feature} bonus=+${amount} points=${points_spent} balance=${newBalance} redis=${stored}`);
 
       return reply.send({
         success: true,
-        data: { feature, bonus_added: amount },
+        data: { feature, bonus_added: amount, points_balance: newBalance },
       });
     } catch (error) {
       fastify.log.error({ err: error }, '[redeem-points] Error');
       return reply.code(500).send({ success: false, error: 'Redemption failed. Please try again.' });
     }
   });
+  // ============================================================================
+  // SPEND POINTS (local-only purchases: tomato blind box, streak freeze, music)
+  // ============================================================================
+
+  const LOCAL_ITEM_PRICES = {
+    tomato_blind_box_r1: 5,
+    tomato_blind_box_r2: 30,
+    tomato_blind_box_r3: 100,
+    streak_freeze:       15,
+    music_track:         50,
+  };
+
+  fastify.post('/api/account/spend-points', { preHandler: authenticateUser }, async (request, reply) => {
+    const userId = request.user?.id;
+    if (!userId) return reply.code(401).send({ success: false, error: 'Unauthorized' });
+
+    const { feature, points_spent } = request.body || {};
+    const expectedPrice = LOCAL_ITEM_PRICES[feature];
+    if (!expectedPrice || expectedPrice !== points_spent) {
+      return reply.code(400).send({ success: false, error: 'Invalid spend parameters' });
+    }
+
+    try {
+      const balanceResult = await db.query('SELECT points_balance FROM users WHERE id = $1', [userId]);
+      const serverBalance = balanceResult.rows[0]?.points_balance ?? 0;
+      if (serverBalance < points_spent) {
+        return reply.code(400).send({ success: false, error: 'Insufficient points balance' });
+      }
+
+      await db.query('UPDATE users SET points_balance = points_balance - $1 WHERE id = $2', [points_spent, userId]);
+      const newBalance = serverBalance - points_spent;
+
+      await db.query(
+        `INSERT INTO point_transactions (user_id, type, amount, balance_after, description, feature)
+         VALUES ($1, 'spend', $2, $3, $4, $5)`,
+        [userId, points_spent, newBalance, feature.replace(/_/g, ' '), feature]
+      );
+
+      fastify.log.info(`[spend-points] user=${userId} feature=${feature} points=${points_spent} balance=${newBalance}`);
+      return reply.send({ success: true, data: { feature, points_balance: newBalance } });
+    } catch (error) {
+      fastify.log.error({ err: error }, '[spend-points] Error');
+      return reply.code(500).send({ success: false, error: 'Spend failed. Please try again.' });
+    }
+  });
+
   // ============================================================================
   // PROMO CODE REDEMPTION (public — no auth required)
   // ============================================================================

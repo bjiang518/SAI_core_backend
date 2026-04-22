@@ -78,6 +78,7 @@ enum ShopAction {
 
 enum PurchaseResult {
     case success(String)
+    case tomatoRevealed(type: TomatoType, message: String)
     case insufficientPoints
     case networkError(String)
     case limitReached(String)
@@ -149,6 +150,8 @@ class PointsShopService: ObservableObject {
 
     private var tomatoBlindBoxItems: [ShopItem] {
         [
+            ShopItem(id: "blindbox_normal", nameKey: "shop.item.blindbox.normal", descriptionKey: "shop.item.blindbox.normal.desc",
+                     price: 5, icon: "gift.fill", action: .tomatoBlindBox(rarity: 1), section: .tomatoBlindBox),
             ShopItem(id: "blindbox_rare", nameKey: "shop.item.blindbox.rare", descriptionKey: "shop.item.blindbox.rare.desc",
                      price: 30, icon: "gift.fill", action: .tomatoBlindBox(rarity: 2), section: .tomatoBlindBox),
             ShopItem(id: "blindbox_super", nameKey: "shop.item.blindbox.super", descriptionKey: "shop.item.blindbox.super.desc",
@@ -199,13 +202,22 @@ class PointsShopService: ObservableObject {
     // MARK: - Tomato Blind Box
 
     private func randomTomato(rarity: Int) -> TomatoType {
-        let pool: [TomatoType]
         switch rarity {
-        case 2: pool = [.darkKnight, .ironSuit, .superTomatorio, .flashingTomato]
-        case 3: pool = [.golden, .platinum]
-        default: pool = [.classic, .curly, .cute, .tmt4, .tmt5, .tmt6]
+        case 1:
+            // Normal blind box: weighted random from full pool (70% common, 24% rare, 5% super rare, 1% legendary)
+            return TomatoType.random()
+        case 2:
+            // Rare blind box: guaranteed rare or higher
+            let pool: [TomatoType] = [.darkKnight, .ironSuit, .superTomatorio, .flashingTomato,
+                                       .golden, .platinum, .diamond]
+            return pool.randomElement() ?? .darkKnight
+        case 3:
+            // Super rare blind box: guaranteed super rare or higher
+            let pool: [TomatoType] = [.golden, .platinum, .diamond]
+            return pool.randomElement() ?? .golden
+        default:
+            return TomatoType.random()
         }
-        return pool.randomElement() ?? pool[0]
     }
 
     // MARK: - Purchase
@@ -221,6 +233,14 @@ class PointsShopService: ObservableObject {
         case .buyStreakFreeze:
             if pointsManager.purchaseStreakFreezeCard() {
                 logger.info("🛒 Purchased streak freeze card")
+                let success = await NetworkService.shared.spendPointsForLocalItem(
+                    feature: "streak_freeze", pointsSpent: item.price)
+                if !success {
+                    pointsManager.streakFreezeCards -= 1
+                    pointsManager.pointsBalance += item.price
+                    pointsManager.forceSave()
+                    return .networkError(NSLocalizedString("shop.error.network", comment: ""))
+                }
                 return .success(NSLocalizedString("shop.purchased.freeze", comment: ""))
             }
             return .insufficientPoints
@@ -321,16 +341,31 @@ class PointsShopService: ObservableObject {
 
         case .tomatoBlindBox(let rarity):
             guard pointsManager.spendPoints(item.price) else { return .insufficientPoints }
+            let tomatoFeature = "tomato_blind_box_r\(rarity)"
+            let success = await NetworkService.shared.spendPointsForLocalItem(
+                feature: tomatoFeature, pointsSpent: item.price)
+            if !success {
+                pointsManager.pointsBalance += item.price
+                pointsManager.forceSave()
+                return .networkError(NSLocalizedString("shop.error.network", comment: ""))
+            }
             let tomatoType = randomTomato(rarity: rarity)
             let tomato = Tomato(type: tomatoType, earnedDate: Date(), focusDuration: 0)
             TomatoGardenService.shared.tomatoes.append(tomato)
             TomatoGardenService.shared.saveTomatoes()
             TomatoGardenService.shared.updateStats()
             logger.info("🎁 Blind box opened: \(tomatoType.rawValue) (rarity \(rarity))")
-            return .success(String(format: NSLocalizedString("shop.purchased.blindbox", comment: ""), tomatoType.displayName))
+            return .tomatoRevealed(type: tomatoType, message: String(format: NSLocalizedString("shop.purchased.blindbox", comment: ""), tomatoType.displayName))
 
         case .unlockMusic(let trackId):
             guard pointsManager.spendPoints(item.price) else { return .insufficientPoints }
+            let musicSuccess = await NetworkService.shared.spendPointsForLocalItem(
+                feature: "music_track", pointsSpent: item.price)
+            if !musicSuccess {
+                pointsManager.pointsBalance += item.price
+                pointsManager.forceSave()
+                return .networkError(NSLocalizedString("shop.error.network", comment: ""))
+            }
             unlockedMusicTracks.insert(trackId)
             saveUnlockedMusic()
             return .success(NSLocalizedString("shop.purchased.music", comment: ""))
@@ -349,5 +384,10 @@ class PointsShopService: ObservableObject {
             }
         }
         logger.info("🔄 [SHOP] Refreshed usage limits after purchase")
+    }
+
+    /// Sync points balance with server after any purchase.
+    private func syncBalanceAfterPurchase() async {
+        await PointsEarningManager.shared.syncBalanceWithServer()
     }
 }

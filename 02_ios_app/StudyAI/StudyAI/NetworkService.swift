@@ -167,8 +167,23 @@ class NetworkService: ObservableObject {
     // MARK: - Tier Error Handling
 
     /// Decodes 403/429 tier-related errors and flags UsageService for global UI handling.
+    /// Also intercepts 426 (App Update Required) to trigger the force update screen.
     /// Call after any HTTP response from a gated endpoint.
     private func handleTierError(statusCode: Int, data: Data?, feature: String) {
+        // 426 Upgrade Required — trigger force update globally
+        if statusCode == 426 {
+            var storeUrl: String?
+            if let data,
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                storeUrl = json["storeUrl"] as? String
+            }
+            DispatchQueue.main.async {
+                AuthenticationService.shared.appUpdateStoreUrl = storeUrl
+                AuthenticationService.shared.requiresAppUpdate = true
+            }
+            return
+        }
+
         guard statusCode == 403 || statusCode == 429 else { return }
         let code: String
         if let data,
@@ -181,6 +196,25 @@ class NetworkService: ObservableObject {
         let tierCodes: Set<String> = ["UPGRADE_REQUIRED", "MONTHLY_LIMIT_REACHED", "LIFETIME_LIMIT_REACHED"]
         guard tierCodes.contains(code) else { return }
         UsageService.shared.flagLimitReached(feature: feature, errorCode: code)
+    }
+
+    // MARK: - Soft Version Warning
+
+    /// Checks the `X-Version-Warning` response header and triggers a dismissable
+    /// update prompt once per app launch. Safe to call on every response — the flag
+    /// is only set once so the user sees at most one alert per session.
+    private func checkVersionWarning(_ httpResponse: HTTPURLResponse) {
+        guard !AuthenticationService.shared.showUpdateRecommendation else { return }
+        guard let headerValue = httpResponse.value(forHTTPHeaderField: "X-Version-Warning"),
+              let data = headerValue.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return
+        }
+        let storeUrl = json["storeUrl"] as? String
+        DispatchQueue.main.async {
+            AuthenticationService.shared.updateRecommendationStoreUrl = storeUrl
+            AuthenticationService.shared.showUpdateRecommendation = true
+        }
     }
     
     // MARK: - Enhanced Cache Management
@@ -278,11 +312,20 @@ class NetworkService: ObservableObject {
     }
     
     // MARK: - Optimized Request Helper
+
+    /// Sets User-Agent on any request (does not require auth token).
+    /// Called by both authenticated and unauthenticated requests (login, register, etc.)
+    /// so the backend can detect the iOS client version on every endpoint.
+    private func setUserAgent(on request: inout URLRequest) {
+        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+        request.setValue("StudyAI-iOS/\(appVersion)", forHTTPHeaderField: "User-Agent")
+    }
+
     private func addAuthHeader(to request: inout URLRequest) {
         if let token = AuthenticationService.shared.getAuthToken() {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.setValue("StudyAI-iOS/1.0", forHTTPHeaderField: "User-Agent")
+            setUserAgent(on: &request)
             request.setValue("gzip, deflate", forHTTPHeaderField: "Accept-Encoding")
         }
     }
@@ -549,6 +592,7 @@ class NetworkService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        setUserAgent(on: &request)
 
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: loginData)
@@ -557,6 +601,7 @@ class NetworkService: ObservableObject {
 
             if let httpResponse = response as? HTTPURLResponse {
                 let statusCode = httpResponse.statusCode
+                checkVersionWarning(httpResponse)
 
                 if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
                     if statusCode == 200 {
@@ -584,6 +629,7 @@ class NetworkService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        setUserAgent(on: &request)
         request.httpBody = try JSONSerialization.data(withJSONObject: [:])
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse,
@@ -3178,7 +3224,7 @@ class NetworkService: ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
         let modelProvider = useDeepReasoning ? "gemini" : "openai"
-        request.timeoutInterval = 180.0
+        request.timeoutInterval = useDeepReasoning ? 150.0 : 60.0
 
         // Add auth token if available
         if let token = AuthenticationService.shared.getAuthToken() {
@@ -3643,7 +3689,8 @@ class NetworkService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
+        setUserAgent(on: &request)
+
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: googleData)
             
@@ -3651,7 +3698,8 @@ class NetworkService: ObservableObject {
             
             if let httpResponse = response as? HTTPURLResponse {
                 debugPrint("✅ Google Auth Status: \(httpResponse.statusCode)")
-                
+                checkVersionWarning(httpResponse)
+
                 do {
                     if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
                         debugPrint("✅ Google Auth Response: \(json)")
@@ -3707,6 +3755,7 @@ class NetworkService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        setUserAgent(on: &request)
 
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: appleData)
@@ -3716,6 +3765,7 @@ class NetworkService: ObservableObject {
 
             if let httpResponse = response as? HTTPURLResponse {
                 debugPrint("🍏 Backend Response Status: \(httpResponse.statusCode)")
+                checkVersionWarning(httpResponse)
 
                 // Log raw response for debugging
                 if let rawResponse = String(data: data, encoding: .utf8) {
@@ -5168,6 +5218,90 @@ class NetworkService: ObservableObject {
         }
     }
 
+    // MARK: - Points Balance Sync
+
+    /// Sync local points balance with server. Server uses GREATEST (never loses points).
+    /// Returns the authoritative server balance after reconciliation.
+    func syncPointsBalance(balance: Int) async -> Int? {
+        let syncURL = "\(baseURL)/api/account/sync-points-balance"
+
+        guard let url = URL(string: syncURL) else { return nil }
+
+        let requestBody: [String: Any] = ["points_balance": balance]
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: requestBody) else { return nil }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let authToken = AuthenticationService.shared.getAuthToken() {
+            request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
+        }
+        request.httpBody = jsonData
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else { return nil }
+            if let responseDict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let dataDict = responseDict["data"] as? [String: Any],
+               let serverBalance = dataDict["points_balance"] as? Int {
+                return serverBalance
+            }
+            return nil
+        } catch {
+            return nil
+        }
+    }
+
+    // MARK: - Point Transaction History
+
+    struct PointTransaction: Decodable, Identifiable {
+        let id: Int
+        let type: String
+        let amount: Int
+        let balanceAfter: Int
+        let description: String
+        let feature: String?
+        let createdAt: String
+
+        enum CodingKeys: String, CodingKey {
+            case id, type, amount
+            case balanceAfter = "balance_after"
+            case description, feature
+            case createdAt = "created_at"
+        }
+    }
+
+    /// Fetch point transaction history from backend.
+    func fetchPointTransactions(limit: Int = 50) async -> [PointTransaction]? {
+        let txURL = "\(baseURL)/api/account/point-transactions?limit=\(limit)"
+
+        guard let url = URL(string: txURL) else { return nil }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        if let authToken = AuthenticationService.shared.getAuthToken() {
+            request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
+        }
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else { return nil }
+
+            struct TransactionsResponse: Decodable {
+                let success: Bool
+                let data: TransactionsData
+            }
+            struct TransactionsData: Decodable {
+                let transactions: [PointTransaction]
+            }
+
+            let decoded = try JSONDecoder().decode(TransactionsResponse.self, from: data)
+            return decoded.success ? decoded.data.transactions : nil
+        } catch {
+            return nil
+        }
+    }
+
     /// Get user level information from backend
     func getUserLevel(userId: String) async -> (success: Bool, levelData: [String: Any]?, message: String?) {
                 
@@ -6101,6 +6235,40 @@ class NetworkService: ObservableObject {
             return false
         } catch {
             debugPrint("⚠️ [NetworkService] Points redemption error: \(error.localizedDescription)")
+            return false
+        }
+    }
+
+    /// Spend points for local-only items (tomato blind box, streak freeze, music).
+    /// Records the deduction server-side without granting usage quota.
+    /// Returns true if server confirmed the deduction.
+    func spendPointsForLocalItem(feature: String, pointsSpent: Int) async -> Bool {
+        guard let url = URL(string: "\(baseURL)/api/account/spend-points"),
+              let token = AuthenticationService.shared.getAuthToken() else {
+            return false
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: [
+            "feature": feature,
+            "points_spent": pointsSpent
+        ])
+        request.timeoutInterval = 15
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               json["success"] as? Bool == true {
+                debugPrint("💰 [NetworkService] Local item spent: feature=\(feature) points=\(pointsSpent)")
+                return true
+            }
+            debugPrint("⚠️ [NetworkService] Local item spend failed: feature=\(feature)")
+            return false
+        } catch {
+            debugPrint("⚠️ [NetworkService] Local item spend error: \(error.localizedDescription)")
             return false
         }
     }
