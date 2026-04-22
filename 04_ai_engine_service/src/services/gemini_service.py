@@ -502,12 +502,12 @@ class GeminiEducationalAIService:
             # GEMINI 3 DEEP REASONING MODE — async API + ThinkingConfig
             generation_config = genai_types.GenerateContentConfig(
                 thinking_config=genai_types.ThinkingConfig(thinking_budget=8192),
-                max_output_tokens=4096,
+                max_output_tokens=8192,  # Increased from 4096 — complex proofs/essays need more room
                 candidate_count=1,
                 response_mime_type="application/json"
                 # No temperature — Gemini thinking mode requires default 1.0
             )
-            timeout = 180  # Extended timeout for deep reasoning
+            timeout = 120  # Reduced from 180 — fail fast so iOS can show error rather than hang
 
             # Call Gemini API (async)
             response = None
@@ -562,25 +562,31 @@ class GeminiEducationalAIService:
                 # Possible values: STOP, MAX_TOKENS, SAFETY, RECITATION, OTHER
                 # FinishReason enum: FINISH_REASON_UNSPECIFIED=0, STOP=1, MAX_TOKENS=2, SAFETY=3, RECITATION=4, OTHER=5
                 if "MAX_TOKENS" in finish_reason_str or finish_reason == 2:  # ⚠️ FIXED: MAX_TOKENS = 2, not 3
-                    logger.debug(f"⚠️ WARNING: Grading response hit MAX_TOKENS limit!")
-                    logger.debug(f"   Current max_output_tokens: {_log_max_tokens}")
-                    logger.debug(f"   Question text length: {len(question_text)} chars")
-                    logger.debug(f"   Student answer length: {len(student_answer)} chars")
-                    logger.debug(f"   Finish reason: {finish_reason} / {finish_reason_str}")
-                    logger.debug(f"   Consider: 1) Increase max_output_tokens (currently {_log_max_tokens})")
-                    logger.debug(f"            2) Simplify grading prompt")
+                    logger.warning(f"⚠️ Deep grading hit MAX_TOKENS — retrying with gemini-2.5-flash (simpler response)")
+                    logger.debug(f"   max_output_tokens={_log_max_tokens}, question_len={len(question_text)}, answer_len={len(student_answer)}")
 
-                    # Try to extract partial response for debugging
+                    # Fallback: retry with flash model + higher token limit (no thinking budget)
+                    fallback_config = genai_types.GenerateContentConfig(
+                        max_output_tokens=8192,
+                        candidate_count=1,
+                        response_mime_type="application/json"
+                    )
                     try:
-                        partial_response = self._extract_response_text(response)
-                        logger.debug(f"   📄 Partial response (first 200 chars): {partial_response[:200]}")
-                    except Exception as e:
-                        logger.debug(f"   ⚠️ Could not extract partial response: {e}")
-
-                    return {
-                        "success": False,
-                        "error": f"Token limit (finish_reason={finish_reason}/{finish_reason_str}, max_tokens={_log_max_tokens}). Model: {model_name}"
-                    }
+                        response = await asyncio.wait_for(
+                            self.client.aio.models.generate_content(
+                                model="gemini-2.5-flash",
+                                contents=content,
+                                config=fallback_config
+                            ),
+                            timeout=60
+                        )
+                        logger.debug("✅ MAX_TOKENS fallback to gemini-2.5-flash succeeded")
+                    except Exception as fe:
+                        logger.warning(f"⚠️ MAX_TOKENS fallback also failed: {fe}")
+                        return {
+                            "success": False,
+                            "error": f"Token limit and fallback failed: {str(fe)}"
+                        }
                 elif finish_reason == 3:  # SAFETY
                     logger.debug(f"⚠️ Response blocked by SAFETY filter")
                     return {
