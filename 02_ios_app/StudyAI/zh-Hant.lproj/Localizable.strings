@@ -42,7 +42,7 @@
 "languageSettings.restartRequired" = "需要重啟";
 "languageSettings.restartMessage" = "應用即將關閉，請重新開啟以查看語言更改。";
 "settings.voiceAudio" = "學習夥伴";
-"settings.voiceSettings" = "選擇你的學習夥伴";
+"settings.voiceSettings" = "音訊設定";
 "settings.learning" = "學習";
 "settings.learningGoals" = "學習目標與進度";
 "settings.grade" = "年級";
@@ -406,7 +406,18 @@
 
 
 "app.name" = "StudyAgent";
-"app.tagline" = "您的AI驅動學習夥伴";
+"app.tagline" = "您的AI學習夥伴";
+
+// 強制更新
+"forceUpdate.title" = "需要更新";
+"forceUpdate.message" = "StudyAgent 有新版本可用，請更新後繼續使用。";
+"forceUpdate.button" = "立即更新";
+
+"softUpdate.title" = "有新版本可用";
+"softUpdate.message" = "新版本包含功能改進和問題修復，方便時請前往更新。";
+"softUpdate.updateNow" = "立即更新";
+"softUpdate.later" = "稍後再說";
+
 "auth.login.welcome" = "歡迎回來！";
 "auth.login.subtitle" = "登入以繼續您的學習之旅。";
 "auth.login.orContinueWithEmail" = "或使用電子郵件繼續";
@@ -884,8 +895,8 @@
 
 // Contact Support
 "contactSupport.subtitle" = "我們隨時為您提供幫助！";
-"contactSupport.emailTitle" = "電子郵件支援";
-"contactSupport.emailDescription" = "透過電子郵件獲取詳細幫助";
+"contactSupport.emailTitle" = "反饋與諮詢";
+"contactSupport.emailDescription" = "透過郵件向我們反饋問題或提出建議";
 "contactSupport.chatTitle" = "線上聊天";
 "contactSupport.chatSubtitle" = "工作日9am-5pm EST可用";
 "contactSupport.chatDescription" = "與我們的支援團隊聊天";
@@ -908,7 +919,7 @@
 "helpCenter.faq2.question" = "支援哪些科目？";
 "helpCenter.faq2.answer" = "StudyAgent支援數學、物理、化學、生物、英語、歷史、地理和電腦科學。我們正在不斷新增更多科目！";
 "helpCenter.faq3.question" = "如何更改AI語音？";
-"helpCenter.faq3.answer" = "前往設定>學習夥伴>選擇你的學習夥伴。您可以在Adam（男聲）和Eva（女聲）之間進行選擇，並自訂速度和音量。";
+"helpCenter.faq3.answer" = "前往設定 > 音頻設定，可在 Adam（男聲）、Eva（女聲）、Max、Mia 四種聲音中選擇，並自訂語速和音量。";
 "helpCenter.faq4.question" = "可以查看過去的錯誤嗎？";
 "helpCenter.faq4.answer" = "可以！使用主畫面上的錯題復習功能重新造訪您答錯的問題並練習類似的問題。";
 "helpCenter.faq5.question" = "連續天數系統如何運作？";
@@ -917,8 +928,8 @@
 "helpCenter.faq6.answer" = "是的！我們使用業界標準加密和安全驗證。您的作業和學習資料安全儲存，絕不會與第三方共享。";
 "helpCenter.faq7.question" = "如何追蹤我的進度？";
 "helpCenter.faq7.answer" = "造訪進度分頁檢視詳細統計資訊、準確率趨勢、科目表現和每週學習模式。";
-"helpCenter.faq8.question" = "詳細模式和快速模式有什麼區別？";
-"helpCenter.faq8.answer" = "詳細模式提供更準確的解析，具有層次結構和父子關係。快速模式更快但更簡單。對於複雜的作業使用詳細模式。";
+"helpCenter.faq8.question" = "深度批改和快速批改有什麼區別？";
+"helpCenter.faq8.answer" = "快速批改使用 AI 快速評分，適合日常作業。深度批改啟用更強的推理模型，對複雜題目（多步驟推導、證明題、作文）給出更詳細的分析，但速度較慢。可在批改介面右上角切換。";
 "helpCenter.quickLinks" = "快速連結";
 "helpCenter.gettingStarted" = "入門指南";
 "helpCenter.videoTutorials" = "影片教學";
@@ -939,6 +950,7 @@
 "shareApp.copyLinkSubtitle" = "在任何地方分享下載連結";
 "shareApp.scanToDownload" = "掃描下載";
 "shareApp.qrCode" = "QR碼";
+"shareApp.qrHint" = "讓朋友用手機相機掃描即可下載";
 "shareApp.showQRCode" = "向朋友展示此QR碼";
 "shareApp.comingSoonReferral" = "即將推出：推薦獎勵！";
 "shareApp.earnPoints" = "為每位加入StudyAgent的朋友賺取積分";
@@ -968,6 +980,7 @@
 "chat.menu.liveTalk" = "即時對話";
 "chat.menu.archiveSession" = "封存會話";
 "chat.menu.viewTutorial" = "查看引導教程";
+"chat.menu.replayTutorial" = "重播教學";
 "chat.menu.endLive" = "結束即時";
 "chat.menu.liveScenario" = "即時場景";
 "chat.menu.audioConfig" = "音頻設定";
@@ -1506,7 +1519,20 @@
 "mistakeReview.categorizeMistakes" = "分類錯題";
 "mistakeReview.uncategorized" = "未分類";
 "mistakeReview.categorizing" = "分類中…";
+"mistakeReview.replayTutorial" = "重播教學";
 "mistakeReview.letsPractise" = "開始練習";
+
+// 錯題回顧引導
+"mistakeReviewOnboarding.subject.title" = "選擇科目";
+"mistakeReviewOnboarding.subject.desc" = "選擇一個科目查看你的錯題。徽章上的數字表示需要關注的薄弱點。";
+"mistakeReviewOnboarding.activeFilter.title" = "追蹤你的進步";
+"mistakeReviewOnboarding.activeFilter.desc" = "活躍顯示目前的薄弱點。擅長顯示你已掌握的知識點——從薄弱變成強項！";
+"mistakeReviewOnboarding.heatmap.title" = "薄弱點熱力圖";
+"mistakeReviewOnboarding.heatmap.desc" = "內圈弧線代表最薄弱的知識點。隨著練習和提高，它們會向外移動並變成綠色。";
+"mistakeReviewOnboarding.taxonomy.title" = "深入知識點";
+"mistakeReviewOnboarding.taxonomy.desc" = "點擊知識點展開詳情。選擇具體概念，精準聚焦你需要複習的內容。";
+"mistakeReviewOnboarding.startReview.title" = "開始針對性練習";
+"mistakeReviewOnboarding.startReview.desc" = "點擊查看錯題並生成練習題。把薄弱點變成你的強項！";
 "mistakeReview.resumePractice" = "繼續練習";
 "mistakeReview.showFullQuestion" = "展開題目與分析";
 "mistakeReview.hideDetails" = "收起詳情";
@@ -2051,6 +2077,8 @@
 "pdf.options.section.text" = "文字";
 "pdf.options.section.spacing" = "間距";
 "pdf.options.section.images" = "圖片";
+"pdf.options.section.layout" = "版面";
+"pdf.options.columns" = "分欄";
 "pdf.options.fontSize" = "字型大小";
 "pdf.options.gap" = "題目間距";
 "pdf.options.maxImageSize" = "最大圖片尺寸";
@@ -2123,10 +2151,10 @@
 "tomato.garden.type.classic" = "經典番茄";
 "tomato.garden.type.curly" = "捲藤番茄";
 "tomato.garden.type.cute" = "萌萌番茄";
-"tomato.garden.type.batman" = "蝙蝠俠番茄";
-"tomato.garden.type.ironman" = "鋼鐵人番茄";
-"tomato.garden.type.mario" = "瑪利歐番茄";
-"tomato.garden.type.pokemon" = "寶可夢番茄";
+"tomato.garden.type.darkKnight" = "暗夜騎士番茄";
+"tomato.garden.type.ironSuit" = "鐵甲番茄";
+"tomato.garden.type.superTomatorio" = "超級番茄里奧";
+"tomato.garden.type.flashingTomato" = "閃光番茄";
 "tomato.garden.type.golden" = "黃金番茄";
 "tomato.garden.type.platinum" = "白金番茄";
 "tomato.garden.type.diamond" = "鑽石番茄";
@@ -2139,13 +2167,15 @@
 "tomato.garden.desc.tmt4" = "普通番茄，樸實無華";
 "tomato.garden.desc.tmt5" = "普通番茄，簡單快樂";
 "tomato.garden.desc.tmt6" = "普通番茄，勤奮可愛";
-"tomato.garden.desc.batman" = "黑暗騎士守護者，正義的化身";
-"tomato.garden.desc.ironman" = "科技與力量的完美結合";
-"tomato.garden.desc.mario" = "勇敢的水管工冒險家";
-"tomato.garden.desc.pokemon" = "神奇的寶可夢夥伴";
+"tomato.garden.desc.darkKnight" = "黑暗騎士守護者，正義的化身";
+"tomato.garden.desc.ironSuit" = "科技與力量的完美結合";
+"tomato.garden.desc.superTomatorio" = "勇敢的水管工冒險家";
+"tomato.garden.desc.flashingTomato" = "閃閃發光的神奇夥伴";
 "tomato.garden.desc.golden" = "金光閃閃的番茄，象徵財富與榮耀";
 "tomato.garden.desc.platinum" = "鉑金般珍貴，閃耀著高貴光芒";
 "tomato.garden.desc.diamond" = "傳說中的鑽石番茄，極其珍貴稀有";
+"tomato.duration.minutes" = "%d分鐘";
+"tomato.duration.hoursMinutes" = "%d小時%d分鐘";
 "tomato.garden.exchange" = "兌換";
 "tomato.garden.exchange.title" = "番茄兌換";
 "tomato.garden.exchange.5to1" = "5個普通 → 1個稀有";
@@ -2379,6 +2409,7 @@
 "live.leave.message" = "離開此頁面將結束即時語音會話，對話內容將被清除。";
 "live.leave.confirm" = "離開並清除";
 "live.leave.cancel" = "留下繼續";
+"live.ended_by_background" = "即時對話已斷開 — 從選單重新開啟";
 
 // MARK: - Voice Settings
 "voiceSettings.title" = "你的AI學習夥伴";
@@ -2471,6 +2502,8 @@
 
 // Study Reports — List View
 "reports.passive.title" = "家長報告";
+"reports.title.parent" = "家長報告";
+"reports.title.student" = "學習報告";
 "reports.passive.subtitle" = "每週、每月學習洞察";
 "reports.passive.editReports" = "編輯報告";
 "reports.passive.testingMode" = "測試模式";
@@ -2548,6 +2581,7 @@
 
 // Practice Library
 "practiceLibrary.title" = "練習本";
+"practiceLibrary.replayTutorial" = "重播教學";
 "practiceLibrary.filterAll" = "全部";
 "practiceLibrary.deleteTitle" = "刪除練習?";
 "practiceLibrary.deleteMessage" = "此練習記錄將被永久刪除。";
@@ -2821,6 +2855,8 @@
 "shop.item.questions20.desc" = "額外20道練習題";
 "shop.item.premiumTrial" = "一週會員體驗卡";
 "shop.item.premiumTrial.desc" = "解鎖全部高級功能7天";
+"shop.item.blindbox.normal" = "番茄盲盒";
+"shop.item.blindbox.normal.desc" = "從全部番茄中隨機抽取一個";
 "shop.item.blindbox.rare" = "稀有番茄盲盒";
 "shop.item.blindbox.rare.desc" = "隨機獲得一個稀有角色番茄";
 "shop.item.blindbox.super" = "超稀有番茄盲盒";
@@ -2837,6 +2873,7 @@
 "shop.purchased.questions" = "已增加 %d 道練習題！";
 "shop.purchased.premium" = "7天會員已啟動！";
 "shop.purchased.blindbox" = "恭喜獲得：%@！";
+"shop.blindbox.collect" = "收下";
 "shop.purchased.music" = "音樂已解鎖！";
 "shop.error.network" = "網路錯誤，積分已退回。";
 "shop.error.trialLimit" = "會員體驗次數已達上限。";
@@ -2849,6 +2886,19 @@
 "points.earn.chat.title" = "AI 對話";
 "points.earn.chat.desc" = "每次對話獲得1積分";
 
+// 如何獲得積分
+"points.howTo.correctAnswers" = "批改作業 → 滑動標記進度";
+"points.howTo.homeworkScan" = "在評分頁掃描作業";
+"points.howTo.practiceCompletion" = "在練習本完成一套練習題";
+"points.howTo.mistakeReview" = "複習錯題 → 滑動標記進度";
+"points.howTo.focusSession" = "完成專注計時（每5分鐘1分）";
+"points.howTo.chatSession" = "與 AI 進行一次對話";
+"points.howTo.weaknessConversion" = "通過練習攻克一個學習弱點";
+
+// 攻克弱點
+"points.earn.weakness.title" = "攻克弱點";
+"points.earn.weakness.desc" = "每攻克一個弱點獲得10積分";
+
 // 評分獲積分
 "points.earn.rate.title" = "給 StudyAgent 評分";
 "points.earn.rate.desc" = "一次性評分獎勵";
@@ -2857,3 +2907,13 @@
 // 分享獲積分
 "points.earn.share.title" = "分享給朋友";
 "points.earn.share.desc" = "一次性分享獎勵";
+
+// 積分 — 最近動態
+"points.shop.history" = "最近動態";
+"points.tx.premiumTrial" = "7天進階體驗";
+"points.tx.chatMessages" = "兌換 %d 次 AI 對話";
+"points.tx.homeworkPages" = "兌換 %d 頁作業批改";
+"points.tx.voiceMinutes" = "兌換 %d 分鐘語音";
+"points.tx.errorAnalysis" = "兌換 %d 次錯誤分析";
+"points.tx.questions" = "兌換 %d 道練習題";
+"points.tx.streakFreeze" = "連續學習保護卡";

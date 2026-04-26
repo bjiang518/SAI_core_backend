@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoreImage.CIFilterBuiltins
 
 struct ShareAppView: View {
     @Environment(\.dismiss) private var dismiss
@@ -43,6 +44,29 @@ struct ShareAppView: View {
                             .multilineTextAlignment(.center)
                     }
                     .padding(.top)
+
+                    // QR Code Section
+                    VStack(spacing: 12) {
+                        Text(NSLocalizedString("shareApp.scanToDownload", value: "Scan to Download", comment: ""))
+                            .font(.headline)
+
+                        if let qrImage = generateQRCode(from: appStoreURL.absoluteString) {
+                            Image(uiImage: qrImage)
+                                .interpolation(.none)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 180, height: 180)
+                                .padding(16)
+                                .background(Color.white)
+                                .cornerRadius(16)
+                                .shadow(color: .black.opacity(0.08), radius: 8, y: 4)
+                        }
+
+                        Text(NSLocalizedString("shareApp.qrHint", value: "Let friends scan this with their camera", comment: ""))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.vertical, 8)
 
                     // Share Message Preview
                     VStack(alignment: .leading, spacing: 12) {
@@ -130,6 +154,24 @@ struct ShareAppView: View {
         }
     }
 
+    // MARK: - QR Code Generation
+
+    private func generateQRCode(from string: String) -> UIImage? {
+        let context = CIContext()
+        let filter = CIFilter.qrCodeGenerator()
+        filter.message = Data(string.utf8)
+        filter.correctionLevel = "M"
+
+        guard let outputImage = filter.outputImage else { return nil }
+
+        // Scale up for crisp rendering
+        let scale = 10.0
+        let scaledImage = outputImage.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+
+        guard let cgImage = context.createCGImage(scaledImage, from: scaledImage.extent) else { return nil }
+        return UIImage(cgImage: cgImage)
+    }
+
     private func shareApp() {
         showShareSheet = true
         // Award one-time share points
@@ -139,7 +181,7 @@ struct ShareAppView: View {
     private func copyLink() {
         UIPasteboard.general.string = appStoreURL.absoluteString
 
-        // Show feedback (you could add a toast notification here)
+        // Show feedback
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(.success)
     }

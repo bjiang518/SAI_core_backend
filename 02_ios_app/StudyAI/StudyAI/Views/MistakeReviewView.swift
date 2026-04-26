@@ -97,6 +97,11 @@ struct MistakeReviewView: View {
     @State private var unclassifiedCount: Int = 0
     @Environment(\.dismiss) private var dismiss
 
+    // Onboarding tutorial state
+    @AppStorage("mistake_review_onboarding_done") private var onboardingDone = false
+    @State private var onboardingStep: MistakeReviewOnboardingStep? = nil
+    @State private var onboardingAnchors: [String: CGRect] = [:]
+
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
@@ -126,6 +131,7 @@ struct MistakeReviewView: View {
                             subjects: mistakeService.subjectsWithMistakes,
                             selectedSubject: $selectedSubject
                         )
+                        .mistakeReviewOnboardingAnchor("mistake_review_onboarding_subjectSelector")
                         .onChange(of: selectedSubject) { _, _ in
                             // Clear filters when subject changes
                             selectedDetailedBranches.removeAll()
@@ -139,6 +145,7 @@ struct MistakeReviewView: View {
                         }
                     }
                     .pickerStyle(.segmented)
+                    .mistakeReviewOnboardingAnchor("mistake_review_onboarding_activeFilter")
                     .padding(.horizontal)
                     .onChange(of: activeFilter) { _, newFilter in
                         if newFilter == .goodAt {
@@ -162,6 +169,7 @@ struct MistakeReviewView: View {
                     // SECTION 2.5: Weak Point Heatmap
                     if let subject = selectedSubject, activeFilter != .goodAt {
                         WeakPointHeatmapView(subject: subject, mistakeService: mistakeService)
+                            .mistakeReviewOnboardingAnchor("mistake_review_onboarding_heatmap")
                             .padding(.horizontal)
                     }
 
@@ -186,6 +194,7 @@ struct MistakeReviewView: View {
                                 taxonomyData: taxonomyData,
                                 selectedDetailedBranches: $selectedDetailedBranches
                             )
+                            .mistakeReviewOnboardingAnchor("mistake_review_onboarding_taxonomy")
                             .padding(.horizontal)
                         }
                     }
@@ -266,6 +275,7 @@ struct MistakeReviewView: View {
                                 .animation(.easeInOut(duration: 0.2), value: isCategorizingMistakes)
                             }
                         }
+                        .mistakeReviewOnboardingAnchor("mistake_review_onboarding_startReview")
                         .padding(.horizontal)
                     }
 
@@ -286,6 +296,10 @@ struct MistakeReviewView: View {
                 }
             }
             .alert(NSLocalizedString("mistakeReview.instructions.title", comment: ""), isPresented: $showingInstructions) {
+                Button(NSLocalizedString("mistakeReview.replayTutorial", comment: "Replay Tutorial")) {
+                    onboardingDone = false
+                    startMistakeReviewOnboarding()
+                }
                 Button(NSLocalizedString("common.ok", comment: ""), role: .cancel) { }
             } message: {
                 Text(NSLocalizedString("mistakeReview.instructions.message", comment: ""))
@@ -298,6 +312,9 @@ struct MistakeReviewView: View {
                     selectedSubject = firstSubject.subject
                 }
                 refreshUnclassifiedCount()
+
+                // Trigger onboarding on first visit
+                startMistakeReviewOnboarding()
             }
             .onChange(of: selectedTimeRange) { _, newRange in
                 Task {
@@ -332,6 +349,55 @@ struct MistakeReviewView: View {
                     refreshUnclassifiedCount()
                 }
             }
+            .overlay {
+                if let step = onboardingStep {
+                    MistakeReviewOnboardingOverlayView(
+                        step: step,
+                        anchors: onboardingAnchors,
+                        totalSteps: 5,
+                        onNext: { advanceMistakeReviewOnboarding() },
+                        onSkip: { dismissMistakeReviewOnboarding() }
+                    )
+                    .transition(.opacity)
+                }
+            }
+            .onPreferenceChange(MistakeReviewOnboardingAnchorKey.self) { onboardingAnchors = $0 }
+    }
+
+    // MARK: - Onboarding
+
+    private func startMistakeReviewOnboarding() {
+        guard !onboardingDone, !mistakeService.subjectsWithMistakes.isEmpty else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            if onboardingStep == nil {
+                onboardingStep = .subjectSelector
+            }
+        }
+    }
+
+    private func advanceMistakeReviewOnboarding() {
+        guard let current = onboardingStep else { return }
+        let next = current.rawValue + 1
+        guard let nextStep = MistakeReviewOnboardingStep(rawValue: next) else {
+            dismissMistakeReviewOnboarding()
+            return
+        }
+        // Skip steps that require a subject if none is selected
+        if nextStep.requiresSubject && selectedSubject == nil {
+            dismissMistakeReviewOnboarding()
+            return
+        }
+        withAnimation(.easeInOut(duration: 0.25)) {
+            onboardingStep = nextStep
+        }
+    }
+
+    private func dismissMistakeReviewOnboarding() {
+        onboardingDone = true
+        withAnimation(.easeInOut(duration: 0.2)) {
+            onboardingStep = nil
+        }
+        SpotlightWindow.hide()
     }
 
     // MARK: - Helper Methods

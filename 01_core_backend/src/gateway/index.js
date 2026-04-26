@@ -157,6 +157,12 @@ if (features.enableCaching !== false) {
 
 // Response standardization middleware
 fastify.register(responseMiddleware.getFastifyPlugin());
+
+// Version gate — soft warning for outdated iOS clients (controlled by IOS_RECOMMENDED_VERSION env var)
+const { versionGate, versionWarningHook } = require('./middleware/version-gate');
+fastify.addHook('preHandler', versionGate);
+fastify.addHook('onSend', versionWarningHook);
+
 if (features.enableValidation) {
   fastify.addHook('onSend', responseMiddleware.getTransformHook());
   fastify.log.info('✅ Response standardization enabled');

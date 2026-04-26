@@ -116,37 +116,37 @@ enum TomatoType: String, Codable, CaseIterable {
 
     /// 随机获取一个番茄类型（基于稀有度加权）
     static func random() -> TomatoType {
-        let weights: [TomatoType: Int] = [
+        let weightedPool: [(type: TomatoType, weight: Int)] = [
             // 普通番茄 - 70% 总概率 (6种番茄)
-            .classic: 12,   // 12%
-            .curly: 12,     // 12%
-            .cute: 12,      // 12%
-            .tmt4: 11,      // 11%
-            .tmt5: 11,      // 11%
-            .tmt6: 12,      // 12%
+            (.classic, 12),   // 12%
+            (.curly, 12),     // 12%
+            (.cute, 12),      // 12%
+            (.tmt4, 11),      // 11%
+            (.tmt5, 11),      // 11%
+            (.tmt6, 12),      // 12%
 
             // 稀有番茄 - 24% 总概率
-            .darkKnight: 6,  // 6%
-            .ironSuit: 6,    // 6%
-            .superTomatorio: 6,  // 6%
-            .flashingTomato: 6,  // 6%
+            (.darkKnight, 6),       // 6%
+            (.ironSuit, 6),         // 6%
+            (.superTomatorio, 6),   // 6%
+            (.flashingTomato, 6),   // 6%
 
             // 超稀有番茄 - 5% 总概率
-            .golden: 2,     // 2%
-            .platinum: 3,   // 3%
+            (.golden, 2),     // 2%
+            (.platinum, 3),   // 3%
 
             // 传说番茄 - 1% 总概率
-            .diamond: 1     // 1%
+            (.diamond, 1),    // 1%
         ]
 
-        let totalWeight = weights.values.reduce(0, +)
+        let totalWeight = weightedPool.reduce(0) { $0 + $1.weight }
         let randomValue = Int.random(in: 1...totalWeight)
 
         var currentWeight = 0
-        for (type, weight) in weights {
-            currentWeight += weight
+        for entry in weightedPool {
+            currentWeight += entry.weight
             if randomValue <= currentWeight {
-                return type
+                return entry.type
             }
         }
 
@@ -204,18 +204,19 @@ struct Tomato: Identifiable, Codable {
     var formattedDuration: String {
         let minutes = Int(focusDuration / 60)
         if minutes < 60 {
-            return "\(minutes)分钟"
+            return String(format: NSLocalizedString("tomato.duration.minutes", value: "%d min", comment: ""), minutes)
         } else {
             let hours = minutes / 60
             let remainingMinutes = minutes % 60
-            return "\(hours)小时\(remainingMinutes)分钟"
+            return String(format: NSLocalizedString("tomato.duration.hoursMinutes", value: "%dh %dm", comment: ""), hours, remainingMinutes)
         }
     }
 
     /// 格式化日期
     var formattedDate: String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "MM月dd日 HH:mm"
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
         return formatter.string(from: earnedDate)
     }
 }
@@ -255,9 +256,9 @@ struct TomatoGardenStats {
         let minutes = Int((totalFocusTime.truncatingRemainder(dividingBy: 3600)) / 60)
 
         if hours > 0 {
-            return "\(hours)小时\(minutes)分钟"
+            return String(format: NSLocalizedString("tomato.duration.hoursMinutes", value: "%dh %dm", comment: ""), hours, minutes)
         } else {
-            return "\(minutes)分钟"
+            return String(format: NSLocalizedString("tomato.duration.minutes", value: "%d min", comment: ""), minutes)
         }
     }
 

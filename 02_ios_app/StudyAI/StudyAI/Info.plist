@@ -104,5 +104,9 @@
 		<string>IndieFlower-Regular.ttf</string>
 		<string>ZCOOLKuaiLe-Regular.ttf</string>
 	</array>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>itms-apps</string>
+	</array>
 </dict>
 </plist>

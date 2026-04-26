@@ -94,7 +94,8 @@ enum AuthError: LocalizedError {
     case weakPassword
     case tooManyAttempts
     case accountDisabled
-    
+    case appUpdateRequired(storeUrl: String?)
+
     var errorDescription: String? {
         switch self {
         case .userCancelled:
@@ -131,6 +132,8 @@ enum AuthError: LocalizedError {
             return "Too many failed attempts. Please try again in a few minutes."
         case .accountDisabled:
             return "This account has been disabled. Please contact support."
+        case .appUpdateRequired:
+            return "Your app is outdated. Please update to the latest version from the App Store."
         }
     }
 }
@@ -146,6 +149,10 @@ final class AuthenticationService: ObservableObject {
     @Published var errorMessage: String?
     @Published var lastRegisteredEmail: String? // For pre-filling login after registration
     @Published var requiresFaceIDReauth = false // Session expired, needs Face ID re-auth
+    @Published var requiresAppUpdate = false    // 426 received — show ForceUpdateView
+    var appUpdateStoreUrl: String?
+    @Published var showUpdateRecommendation = false  // Soft warning — dismissable alert
+    var updateRecommendationStoreUrl: String?
 
     private let keychainService = KeychainService.shared
     private let biometricAuth = BiometricAuthService.shared
@@ -1186,6 +1193,10 @@ final class AuthenticationService: ObservableObject {
             }
             return .accountNotFound
             
+        case 426:
+            // Extract storeUrl from backend response if available
+            return .appUpdateRequired(storeUrl: nil)
+
         case 429:
             return .tooManyAttempts
             

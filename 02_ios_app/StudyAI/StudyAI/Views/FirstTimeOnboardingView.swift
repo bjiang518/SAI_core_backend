@@ -1037,6 +1037,7 @@ struct FirstTimeOnboardingView: View {
                 "onboardingCompleted": true,
                 "dataSharingConsent":  true,
                 "languagePreference":  languagePreference,
+                "account_role": selectedRole == .student ? "student" : "parent",
             ]
 
             if !learningStyle.isEmpty {

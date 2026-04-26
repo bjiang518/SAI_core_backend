@@ -2152,6 +2152,8 @@ class DigitalHomeworkViewModel: ObservableObject {
                     numberOfQuestions: totalCount,
                     numberOfCorrectQuestions: correctCount
                 )
+                // Award points for scanning homework (2pts per scan)
+                PointsEarningManager.shared.awardHomeworkScanPoints()
                 stateManager.currentHomework?.hasMarkedProgress = true
             }
             log.info("🗂️ [SMART ORGANIZE]   📊 PointsEarningManager updated")

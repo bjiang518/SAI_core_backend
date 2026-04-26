@@ -55,6 +55,29 @@ struct PDFOptionsSheet: View {
                     Text(NSLocalizedString("pdf.options.section.spacing", comment: ""))
                 }
 
+                Section {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text(NSLocalizedString("pdf.options.columns", value: "Columns", comment: ""))
+                                .font(.subheadline)
+                            Spacer()
+                            Text("\(draft.columnCount)")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                                .monospacedDigit()
+                        }
+                        Picker("", selection: $draft.columnCount) {
+                            Text("1").tag(1)
+                            Text("2").tag(2)
+                            Text("3").tag(3)
+                        }
+                        .pickerStyle(.segmented)
+                    }
+                    .padding(.vertical, 4)
+                } header: {
+                    Text(NSLocalizedString("pdf.options.section.layout", value: "Layout", comment: ""))
+                }
+
                 if hasImages {
                     Section {
                         LabeledSlider(

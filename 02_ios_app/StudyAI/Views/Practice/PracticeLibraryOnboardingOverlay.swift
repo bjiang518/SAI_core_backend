@@ -13,19 +13,27 @@ import UIKit
 // MARK: - Onboarding Steps
 
 enum PracticeLibOnboardingStep: Int, CaseIterable {
-    case newButton     = 0
-    case subjectFilter = 1
-    case sortAndStatus = 2
-    case swipeToDelete = 3
-    case difficultyBar = 4
+    // Library steps (0-3)
+    case newButton       = 0
+    case subjectFilter   = 1
+    case sortAndStatus   = 2
+    case swipeToDelete   = 3
+    // Sheet steps (4-7)
+    case randomPractice  = 4
+    case archivePractice = 5
+    case questionConfig  = 6
+    case difficultyBar   = 7
 
     var anchorID: String {
         switch self {
-        case .newButton:     return "practice_lib_onboarding_newBtn"
-        case .subjectFilter: return "practice_lib_onboarding_subjectFilter"
-        case .sortAndStatus: return "practice_lib_onboarding_statusFilter"
-        case .swipeToDelete: return "practice_lib_onboarding_sessionCard"
-        case .difficultyBar: return "practice_lib_onboarding_difficultyBar"
+        case .newButton:       return "practice_lib_onboarding_newBtn"
+        case .subjectFilter:   return "practice_lib_onboarding_subjectFilter"
+        case .sortAndStatus:   return "practice_lib_onboarding_statusFilter"
+        case .swipeToDelete:   return "practice_lib_onboarding_sessionCard"
+        case .randomPractice:  return "practice_sheet_onboarding_randomPractice"
+        case .archivePractice: return "practice_sheet_onboarding_archivePractice"
+        case .questionConfig:  return "practice_sheet_onboarding_questionConfig"
+        case .difficultyBar:   return "practice_sheet_onboarding_difficultyBar"
         }
     }
 
@@ -43,8 +51,17 @@ enum PracticeLibOnboardingStep: Int, CaseIterable {
         case .swipeToDelete:
             return NSLocalizedString("practiceLibOnboarding.swipeDelete.title",
                 value: "Delete a Session", comment: "")
+        case .randomPractice:
+            return NSLocalizedString("practiceSheetOnboarding.random.title",
+                value: "Random Practice", comment: "")
+        case .archivePractice:
+            return NSLocalizedString("practiceSheetOnboarding.archive.title",
+                value: "From Archives", comment: "")
+        case .questionConfig:
+            return NSLocalizedString("practiceSheetOnboarding.config.title",
+                value: "Customize Questions", comment: "")
         case .difficultyBar:
-            return NSLocalizedString("practiceLibOnboarding.difficulty.title",
+            return NSLocalizedString("practiceSheetOnboarding.difficulty.title",
                 value: "Choose Your Difficulty", comment: "")
         }
     }
@@ -67,8 +84,20 @@ enum PracticeLibOnboardingStep: Int, CaseIterable {
             return NSLocalizedString("practiceLibOnboarding.swipeDelete.desc",
                 value: "Swipe any session card to the left to delete it.",
                 comment: "")
+        case .randomPractice:
+            return NSLocalizedString("practiceSheetOnboarding.random.desc",
+                value: "Generate random questions based on your learning progress and weaknesses. The AI adapts to your level.",
+                comment: "")
+        case .archivePractice:
+            return NSLocalizedString("practiceSheetOnboarding.archive.desc",
+                value: "Generate questions from your archived conversations or saved questions. Great for targeted review.",
+                comment: "")
+        case .questionConfig:
+            return NSLocalizedString("practiceSheetOnboarding.config.desc",
+                value: "Choose how many questions to generate (1\u{2013}10) and pick a question type: multiple choice, true/false, short answer, or any.",
+                comment: "")
         case .difficultyBar:
-            return NSLocalizedString("practiceLibOnboarding.difficulty.desc",
+            return NSLocalizedString("practiceSheetOnboarding.difficulty.desc",
                 value: "Drag anywhere on the bar. Drag past the end for Adaptive mode \u{2014} the AI picks the right level for you.",
                 comment: "")
         }
@@ -76,16 +105,29 @@ enum PracticeLibOnboardingStep: Int, CaseIterable {
 
     var spotlightCornerRadius: CGFloat {
         switch self {
-        case .newButton:     return 12
-        case .subjectFilter: return 14
-        case .sortAndStatus: return 12
-        case .swipeToDelete: return 16
-        case .difficultyBar: return 12
+        case .newButton:       return 12
+        case .subjectFilter:   return 14
+        case .sortAndStatus:   return 12
+        case .swipeToDelete:   return 16
+        case .randomPractice:  return 16
+        case .archivePractice: return 16
+        case .questionConfig:  return 16
+        case .difficultyBar:   return 12
         }
     }
 
     var isToolbarStep: Bool {
         self == .newButton
+    }
+
+    /// Whether this step belongs to the NewPracticeSheet (not the library).
+    var isSheetStep: Bool {
+        rawValue >= 4
+    }
+
+    /// Steps shown inside the NewPracticeSheet.
+    static var sheetSteps: [PracticeLibOnboardingStep] {
+        [.randomPractice, .archivePractice, .questionConfig, .difficultyBar]
     }
 }
 
@@ -141,15 +183,14 @@ struct PracticeLibOnboardingOverlayView: View {
     )
 
     /// For library steps (0-3), the dot index is the rawValue.
-    /// For the sheet step (4), there is only 1 dot (index 0).
+    /// For sheet steps (4-7), offset by 4 so dots start at 0.
     private var dotIndex: Int {
-        if totalSteps == 1 { return 0 }
+        if step.isSheetStep { return step.rawValue - 4 }
         return step.rawValue
     }
 
     /// Whether this is the last step in the current context.
     private var isLastInContext: Bool {
-        if totalSteps == 1 { return true }
         return dotIndex >= totalSteps - 1
     }
 
@@ -261,7 +302,6 @@ struct PracticeLibOnboardingOverlayView: View {
     // MARK: - Spotlight rect
 
     private func spotlightRect(in geo: GeometryProxy) -> CGRect {
-        let pad: CGFloat = 8
         let raw = anchors[step.anchorID] ?? .zero
         guard !raw.isEmpty else {
             return toolbarFallback(for: step, screenWidth: geo.size.width)
@@ -275,9 +315,9 @@ struct PracticeLibOnboardingOverlayView: View {
                 width: raw.width,
                 height: raw.height
             )
-            return local.insetBy(dx: -pad, dy: -pad)
+            return local
         }
-        return raw.insetBy(dx: -pad, dy: -pad)
+        return raw
     }
 
     private func toolbarFallback(for step: PracticeLibOnboardingStep, screenWidth w: CGFloat) -> CGRect {
@@ -355,10 +395,10 @@ struct PracticeLibOnboardingOverlayView: View {
 
                 VStack(alignment: .leading, spacing: 5) {
                     Text(step.title)
-                        .font(.system(size: 15, weight: .bold))
+                        .font(.system(size: 16, weight: .bold))
                         .foregroundColor(.black)
                     Text(step.description)
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.black)
                         .fixedSize(horizontal: false, vertical: true)
                 }

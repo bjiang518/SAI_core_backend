@@ -1125,6 +1125,8 @@ class SessionChatViewModel: ObservableObject {
                                 self.isActivelyStreaming = false
                                 self.activeStreamingMessage = ""
                                 self.loadSessionInfo()
+                                // Award 1 point for completing a chat exchange
+                                PointsEarningManager.shared.awardChatSessionPoint()
                             }
                         }
 
@@ -1329,6 +1331,9 @@ class SessionChatViewModel: ObservableObject {
                                     self.showTypingIndicator = false
                                     self.isStreamingComplete = true
                                 }
+
+                                // Award 1 point for completing a chat exchange
+                                PointsEarningManager.shared.awardChatSessionPoint()
 
                                 // Clear homework context
                                 if homeworkContext != nil {
@@ -1536,6 +1541,9 @@ class SessionChatViewModel: ObservableObject {
                                         self.isSubmitting = false
                                         self.showTypingIndicator = false
                                     }
+
+                                    // Award 1 point for completing a chat exchange
+                                    PointsEarningManager.shared.awardChatSessionPoint()
 
                                     if homeworkContext != nil {
                                         self.appState.clearPendingChatMessage()

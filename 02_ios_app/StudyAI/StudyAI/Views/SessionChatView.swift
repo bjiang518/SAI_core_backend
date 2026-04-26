@@ -131,6 +131,9 @@ struct SessionChatView: View {
     // Live mode leave confirmation
     @State private var showingLiveLeaveAlert = false
     @State private var pendingTab: MainTab? = nil
+    /// True when Live Mode was disconnected because the app went to background.
+    /// Used to show a brief banner when the user returns to foreground.
+    @State private var liveEndedByBackground = false
     /// Single unified message list — both text and voice messages live here.
     /// Populated via callbacks from NetworkService and VoiceChatViewModel.
     @State private var allMessages: [UnifiedChatMessage] = []
@@ -261,6 +264,12 @@ struct SessionChatView: View {
                 Menu {
                     // 1. New Session
                     Button(NSLocalizedString("chat.menu.newSession", comment: "")) {
+                        // If Live Mode is active, disconnect the WebSocket and clean up
+                        // audio state before creating a new session. Otherwise the old
+                        // VoiceChatViewModel keeps streaming to the stale sessionId.
+                        if isLiveMode {
+                            exitLiveMode()
+                        }
                         withAnimation(.easeInOut(duration: 0.3)) {
                             hasConversationStarted = false
                         }
@@ -359,7 +368,7 @@ struct SessionChatView: View {
                             chatOnboardingStep = .cameraButton
                         }
                     }) {
-                        Label(NSLocalizedString("chat.menu.viewTutorial", comment: ""), systemImage: "sparkles")
+                        Label(NSLocalizedString("chat.menu.replayTutorial", comment: ""), systemImage: "sparkles")
                     }
 
                 } label: {
@@ -655,14 +664,26 @@ struct SessionChatView: View {
                 case .background:
                     // Full background: disconnect Live session to free resources
                     ttsQueueService.stopAllTTS()
-                    if isLiveMode { exitLiveMode() }
+                    if isLiveMode {
+                        liveEndedByBackground = true
+                        exitLiveMode()
+                    }
                 case .inactive:
                     // Inactive fires on tab switches and control centre swipes — do NOT disconnect.
                     // The WebSocket survives briefly inactive periods; the user gets a
                     // "Tap to Reactivate" overlay when they return if the connection dropped.
                     ttsQueueService.stopAllTTS()
                 case .active:
-                    break
+                    // If Live Mode was disconnected by backgrounding, show a brief
+                    // banner so the user knows they can restart it from the menu.
+                    if liveEndedByBackground {
+                        liveEndedByBackground = false
+                        viewModel.errorMessage = NSLocalizedString(
+                            "live.ended_by_background",
+                            value: "Live session ended — reopen from the menu to continue",
+                            comment: "Banner shown after Live Mode was disconnected by app backgrounding"
+                        )
+                    }
                 @unknown default:
                     break
                 }
@@ -686,8 +707,7 @@ struct SessionChatView: View {
             .onChange(of: appState.selectedTab) { oldTab, newTab in
                 guard oldTab == .chat,
                       newTab != .chat,
-                      isLiveMode,
-                      !(liveVMHolder.vm?.messages.isEmpty ?? true) else { return }
+                      isLiveMode else { return }
                 // Revert the tab switch and ask user to confirm leaving
                 appState.selectedTab = .chat
                 pendingTab = newTab
@@ -1112,59 +1132,19 @@ struct SessionChatView: View {
                         hasConversationStarted = true
                     }
                 }
-                // AUTO-SCROLL to bottom on new message
-                if let lastMsg = allMessages.last {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        withAnimation(.easeOut(duration: 0.3)) {
-                            proxy.scrollTo(lastMsg.id, anchor: .bottom)
-                        }
-                    }
-                }
+                // No auto-scroll on new messages — user controls scroll position
             }
             .onChange(of: viewModel.isActivelyStreaming) { _, isStreaming in
-                // ✅ AUTO-SCROLL: When streaming starts, scroll to show the streaming message
-                if isStreaming {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        withAnimation(.easeOut(duration: 0.3)) {
-                            proxy.scrollTo("streaming-message", anchor: .bottom)
-                        }
-                    }
-                }
+                // No auto-scroll on streaming start — stay at current position
             }
             .onChange(of: viewModel.activeStreamingMessage) { _, newContent in
-                // ✅ AUTO-SCROLL: As streaming content grows, keep scrolling to show new content
-                // Only scroll if we're actively streaming and content is not empty
-                if viewModel.isActivelyStreaming && !newContent.isEmpty {
-                    // Throttle scroll updates during streaming to avoid too many animations
-                    // Only scroll every 100ms to balance smoothness and performance
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                        withAnimation(.easeOut(duration: 0.2)) {
-                            proxy.scrollTo("streaming-message", anchor: .bottom)
-                        }
-                    }
-                }
+                // No auto-scroll during streaming — user reads at their own pace
             }
             .onChange(of: viewModel.pendingUserMessage) { _, newMessage in
-                // ✅ AUTO-SCROLL: When user sends a message, immediately scroll to show it
-                // This makes the interaction feel instant and responsive
-                if !newMessage.isEmpty {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                        withAnimation(.easeOut(duration: 0.3)) {
-                            proxy.scrollTo("pending-user", anchor: .bottom)
-                        }
-                    }
-                }
+                // No auto-scroll on user message — stay at current position
             }
             .onChange(of: viewModel.isGeneratingDiagram) { _, isGenerating in
-                // ✅ AUTO-SCROLL: When diagram generation starts, scroll to show the indicator
-                // Only scroll for initial generation (not regeneration which shows inline)
-                if isGenerating && viewModel.regeneratingDiagramKey == nil {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        withAnimation(.easeOut(duration: 0.3)) {
-                            proxy.scrollTo("diagram-generation", anchor: .bottom)
-                        }
-                    }
-                }
+                // No auto-scroll on diagram generation
             }
             // Live mode: scroll to latest voice message
             .onChange(of: liveVMHolder.vm?.messages.count) { _, _ in

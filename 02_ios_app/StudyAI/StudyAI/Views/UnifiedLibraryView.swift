@@ -914,7 +914,7 @@ struct QuickStatsHeader: View {
                     icon: "questionmark.circle.fill",
                     title: NSLocalizedString("library.stats.questions", comment: ""),
                     count: questionCount,
-                    color: Color(red: 0.90, green: 0.58, blue: 0.15),
+                    color: Color(red: 0.85, green: 0.65, blue: 0.13),
                     isSelected: showQuestions,
                     action: onToggleQuestions
                 )
@@ -923,7 +923,7 @@ struct QuickStatsHeader: View {
                     icon: "bubble.left.and.bubble.right.fill",
                     title: NSLocalizedString("library.stats.conversations", comment: ""),
                     count: conversationCount,
-                    color: Color(red: 0.60, green: 0.42, blue: 0.28),
+                    color: Color(red: 0.25, green: 0.52, blue: 0.85),
                     isSelected: showConversations,
                     action: onToggleConversations
                 )
@@ -932,7 +932,7 @@ struct QuickStatsHeader: View {
                     icon: "doc.text.image.fill",
                     title: NSLocalizedString("library.stats.rawHomeworks", comment: "Raw Homeworks"),
                     count: rawHomeworkCount,
-                    color: Color(red: 0.45, green: 0.55, blue: 0.48),
+                    color: Color(red: 0.20, green: 0.70, blue: 0.45),
                     isSelected: showRawHomeworks,
                     action: onToggleRawHomeworks
                 )
@@ -962,8 +962,10 @@ struct InteractiveStatPill: View {
     let color: Color
     let isSelected: Bool
     let action: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
+        let bgOpacity: Double = colorScheme == .dark ? 0.25 : 0.1
         Button(action: action) {
             VStack(spacing: 4) {
                 Text("\(count)")
@@ -977,7 +979,7 @@ struct InteractiveStatPill: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
-            .background(isSelected ? color : color.opacity(0.1))
+            .background(isSelected ? color : color.opacity(bgOpacity))
             .cornerRadius(12)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)

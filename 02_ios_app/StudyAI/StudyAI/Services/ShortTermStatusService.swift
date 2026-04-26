@@ -326,6 +326,8 @@ class ShortTermStatusService: ObservableObject {
             weakness.masteryQuestions = questionId.map { [$0] } ?? []
             weaknessLogger.info("🎉 MASTERED key='\(resolvedKey)' finalValue=\(String(format:"%.2f",weakness.value))")
             recentMasteries.append((key: resolvedKey, timestamp: Date()))
+            // Award 10 points for overcoming a weakness
+            PointsEarningManager.shared.awardWeaknessConversion()
         } else if isNowNegative {
             if let qId = questionId, !weakness.masteryQuestions.contains(qId) {
                 weakness.masteryQuestions.append(qId)

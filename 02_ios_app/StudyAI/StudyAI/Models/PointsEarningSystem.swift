@@ -298,6 +298,7 @@ class PointsEarningManager: ObservableObject {
     @Published var todayFocusPoints: Int = 0
     @Published var todayHomeworkScans: Int = 0
     @Published var todayChatSessions: Int = 0
+    @Published var todayWeaknessConversions: Int = 0
 
     // MARK: - Claimed counters (how many units user has manually collected today)
     @Published var todayCorrectAnswersClaimed: Int = 0
@@ -306,6 +307,7 @@ class PointsEarningManager: ObservableObject {
     @Published var todayMistakeReviewsClaimed: Int = 0
     @Published var todayFocusPointsClaimed: Int = 0
     @Published var todayChatSessionsClaimed: Int = 0
+    @Published var todayWeaknessConversionsClaimed: Int = 0
 
     // MARK: - Earning Types (all cap at 10 pts/day)
 
@@ -318,6 +320,7 @@ class PointsEarningManager: ObservableObject {
         case mistakeReview
         case focusSession
         case chatSession
+        case weaknessConversion
 
         var description: String {
             switch self {
@@ -327,6 +330,7 @@ class PointsEarningManager: ObservableObject {
             case .mistakeReview:       return "mistakeReview"
             case .focusSession:        return "focusSession"
             case .chatSession:         return "chatSession"
+            case .weaknessConversion:  return "weaknessConversion"
             }
         }
 
@@ -338,12 +342,47 @@ class PointsEarningManager: ObservableObject {
             case .mistakeReview:       return 2
             case .focusSession:        return 1
             case .chatSession:         return 1
+            case .weaknessConversion:  return 10
             }
         }
 
         /// Max claimable units per day (all capped so max points = 10)
         var dailyUnitCap: Int {
             PointsEarningManager.maxDailyPointsPerItem / pointsPerUnit
+        }
+
+        /// Instruction text shown when user has 0 activity — explains how to earn.
+        var howToEarn: String {
+            switch self {
+            case .correctAnswers:
+                return NSLocalizedString("points.howTo.correctAnswers",
+                    value: "Grade homework → slide to mark progress",
+                    comment: "")
+            case .homeworkScan:
+                return NSLocalizedString("points.howTo.homeworkScan",
+                    value: "Scan homework from the Grader tab",
+                    comment: "")
+            case .practiceCompletion:
+                return NSLocalizedString("points.howTo.practiceCompletion",
+                    value: "Complete a practice set from Practice",
+                    comment: "")
+            case .mistakeReview:
+                return NSLocalizedString("points.howTo.mistakeReview",
+                    value: "Review mistakes → slide to mark progress",
+                    comment: "")
+            case .focusSession:
+                return NSLocalizedString("points.howTo.focusSession",
+                    value: "Complete a focus session (1 pt per 5 min)",
+                    comment: "")
+            case .chatSession:
+                return NSLocalizedString("points.howTo.chatSession",
+                    value: "Have a chat conversation with AI",
+                    comment: "")
+            case .weaknessConversion:
+                return NSLocalizedString("points.howTo.weaknessConversion",
+                    value: "Overcome a weakness through practice",
+                    comment: "")
+            }
         }
     }
 
@@ -387,12 +426,14 @@ class PointsEarningManager: ObservableObject {
     private var todayFocusPointsKey: String { userKeyPrefix + "today_focus_points" }
     private var todayHomeworkScansKey: String { userKeyPrefix + "today_homework_scans" }
     private var todayChatSessionsKey: String { userKeyPrefix + "today_chat_sessions" }
+    private var todayWeaknessConversionsKey: String { userKeyPrefix + "today_weakness_conversions" }
     private var todayCorrectAnswersClaimedKey: String { userKeyPrefix + "today_correct_answers_claimed" }
     private var todayHomeworkScansClaimedKey: String { userKeyPrefix + "today_homework_scans_claimed" }
     private var todayPracticeCompletionsClaimedKey: String { userKeyPrefix + "today_practice_completions_claimed" }
     private var todayMistakeReviewsClaimedKey: String { userKeyPrefix + "today_mistake_reviews_claimed" }
     private var todayFocusPointsClaimedKey: String { userKeyPrefix + "today_focus_points_claimed" }
     private var todayChatSessionsClaimedKey: String { userKeyPrefix + "today_chat_sessions_claimed" }
+    private var todayWeaknessConversionsClaimedKey: String { userKeyPrefix + "today_weakness_conversions_claimed" }
 
     deinit {
         // Clean up timer and observers
@@ -443,6 +484,9 @@ class PointsEarningManager: ObservableObject {
         setupDefaultGoals()
         checkDailyReset()
         checkWeeklyReset()
+
+        // Sync balance with server (reconcile local vs server)
+        Task { await syncBalanceWithServer() }
     }
 
     /// Setup app termination handling to ensure data is saved
@@ -621,12 +665,14 @@ class PointsEarningManager: ObservableObject {
         todayFocusPoints = max(0, userDefaults.integer(forKey: todayFocusPointsKey))
         todayHomeworkScans = max(0, userDefaults.integer(forKey: todayHomeworkScansKey))
         todayChatSessions = max(0, userDefaults.integer(forKey: todayChatSessionsKey))
+        todayWeaknessConversions = max(0, userDefaults.integer(forKey: todayWeaknessConversionsKey))
         todayCorrectAnswersClaimed = max(0, userDefaults.integer(forKey: todayCorrectAnswersClaimedKey))
         todayHomeworkScansClaimed = max(0, userDefaults.integer(forKey: todayHomeworkScansClaimedKey))
         todayPracticeCompletionsClaimed = max(0, userDefaults.integer(forKey: todayPracticeCompletionsClaimedKey))
         todayMistakeReviewsClaimed = max(0, userDefaults.integer(forKey: todayMistakeReviewsClaimedKey))
         todayFocusPointsClaimed = max(0, userDefaults.integer(forKey: todayFocusPointsClaimedKey))
         todayChatSessionsClaimed = max(0, userDefaults.integer(forKey: todayChatSessionsClaimedKey))
+        todayWeaknessConversionsClaimed = max(0, userDefaults.integer(forKey: todayWeaknessConversionsClaimedKey))
 
         // Migration: seed pointsBalance from totalPointsEarned for existing users
         if !userDefaults.bool(forKey: pointsV2MigratedKey) {
@@ -737,12 +783,14 @@ class PointsEarningManager: ObservableObject {
             todayFocusPointsKey: todayFocusPoints,
             todayHomeworkScansKey: todayHomeworkScans,
             todayChatSessionsKey: todayChatSessions,
+            todayWeaknessConversionsKey: todayWeaknessConversions,
             todayCorrectAnswersClaimedKey: todayCorrectAnswersClaimed,
             todayHomeworkScansClaimedKey: todayHomeworkScansClaimed,
             todayPracticeCompletionsClaimedKey: todayPracticeCompletionsClaimed,
             todayMistakeReviewsClaimedKey: todayMistakeReviewsClaimed,
             todayFocusPointsClaimedKey: todayFocusPointsClaimed,
             todayChatSessionsClaimedKey: todayChatSessionsClaimed,
+            todayWeaknessConversionsClaimedKey: todayWeaknessConversionsClaimed,
             goalsKey: try? JSONEncoder().encode(learningGoals),
             checkoutHistoryKey: try? JSONEncoder().encode(dailyCheckoutHistory),
             weeklyProgressKey: currentWeeklyProgress.flatMap { try? JSONEncoder().encode($0) },
@@ -930,12 +978,14 @@ class PointsEarningManager: ObservableObject {
         todayFocusPoints = 0
         todayHomeworkScans = 0
         todayChatSessions = 0
+        todayWeaknessConversions = 0
         todayCorrectAnswersClaimed = 0
         todayHomeworkScansClaimed = 0
         todayPracticeCompletionsClaimed = 0
         todayMistakeReviewsClaimed = 0
         todayFocusPointsClaimed = 0
         todayChatSessionsClaimed = 0
+        todayWeaknessConversionsClaimed = 0
         debugPrint("📊 [RESET] Reset streak bonus claim, freeze flags, earn tab counters, and claimed counters")
 
         // Reset updatedToday flag so streak can be updated when user marks progress
@@ -1318,6 +1368,9 @@ class PointsEarningManager: ObservableObject {
         logger.info("💰 [STREAK BONUS] Claimed \(bonus) points (streak day \(self.currentStreak), capped at \(Self.maxDailyPointsPerItem)). Balance: \(self.pointsBalance)")
         forceSave() // Persist immediately — don't rely on batched save
 
+        // Sync balance with server
+        Task { await syncBalanceWithServer() }
+
         // Check review milestones
         AppReviewService.shared.checkStreakMilestone(currentStreak)
         AppReviewService.shared.checkPointsMilestone(totalPointsEarned)
@@ -1336,6 +1389,7 @@ class PointsEarningManager: ObservableObject {
         case .mistakeReview:       return todayMistakeReviews
         case .focusSession:        return todayFocusPoints
         case .chatSession:         return todayChatSessions
+        case .weaknessConversion:  return todayWeaknessConversions
         }
     }
 
@@ -1348,6 +1402,7 @@ class PointsEarningManager: ObservableObject {
         case .mistakeReview:       return todayMistakeReviewsClaimed
         case .focusSession:        return todayFocusPointsClaimed
         case .chatSession:         return todayChatSessionsClaimed
+        case .weaknessConversion:  return todayWeaknessConversionsClaimed
         }
     }
 
@@ -1392,10 +1447,15 @@ class PointsEarningManager: ObservableObject {
         case .mistakeReview:       todayMistakeReviewsClaimed += units
         case .focusSession:        todayFocusPointsClaimed += units
         case .chatSession:         todayChatSessionsClaimed += units
+        case .weaknessConversion:  todayWeaknessConversionsClaimed += units
         }
 
         logger.info("💰 [CLAIM] \(type): claimed \(units) units = \(points) pts. Balance: \(self.pointsBalance)")
         forceSave() // Persist immediately — don't rely on batched save
+
+        // Sync balance with server
+        Task { await syncBalanceWithServer() }
+
         return points
     }
 
@@ -1425,6 +1485,13 @@ class PointsEarningManager: ObservableObject {
     func awardChatSessionPoint() {
         todayChatSessions += 1
         logger.info("💰 [CHAT] Tracked chat session (pending manual claim). Balance unchanged: \(self.pointsBalance)")
+        saveData()
+    }
+
+    /// Award points for overcoming a weakness. 10 points per weakness mastered.
+    func awardWeaknessConversion() {
+        todayWeaknessConversions += 1
+        logger.info("💰 [WEAKNESS] Tracked weakness conversion (pending manual claim). Balance unchanged: \(self.pointsBalance)")
         saveData()
     }
 
@@ -1499,20 +1566,27 @@ class PointsEarningManager: ObservableObject {
             streak: currentStreak,
             isWeekend: Calendar.current.isDateInWeekend(Date())
         )
-        
+
         // Apply weekend bonus if applicable
         let finalPoints = checkout.isWeekend ? checkout.pointsEarned * 2 : checkout.pointsEarned
-        
+
         currentPoints += finalPoints
         totalPointsEarned += finalPoints
+        pointsBalance += finalPoints
         dailyCheckoutHistory.append(checkout)
-        
+
         // Keep only last 30 days of checkout history
         if dailyCheckoutHistory.count > 30 {
             dailyCheckoutHistory.removeFirst(dailyCheckoutHistory.count - 30)
         }
-        
+
         saveData()
+
+        // Sync with backend
+        Task {
+            await syncBalanceWithServer()
+        }
+
         return checkout
     }
     
@@ -1652,26 +1726,24 @@ class PointsEarningManager: ObservableObject {
         let oldTotalPoints = totalPointsEarned
         currentPoints = max(0, currentPoints + actualPointsToAdd)
         totalPointsEarned = max(0, totalPointsEarned + actualPointsToAdd)
+        pointsBalance = max(0, pointsBalance + actualPointsToAdd)
         dailyPointsEarned = max(0, dailyPointsEarned + actualPointsToAdd)
 
-        logger.info("[CHECKOUT] Points updated: current \(oldCurrentPoints) → \(self.currentPoints), total \(oldTotalPoints) → \(self.totalPointsEarned)")
-
-        // Apply weekend bonus if applicable
-        let finalPoints = Calendar.current.isDateInWeekend(Date()) ? actualPointsToAdd * 2 : actualPointsToAdd
-        logger.info("[CHECKOUT] Final points (with weekend bonus if applicable): \(finalPoints)")
+        logger.info("[CHECKOUT] Points updated: current \(oldCurrentPoints) → \(self.currentPoints), total \(oldTotalPoints) → \(self.totalPointsEarned), balance \(self.pointsBalance)")
 
         // Save changes
         saveData()
 
-        // Sync total points with backend asynchronously
+        // Sync with backend asynchronously
         Task {
+            await syncBalanceWithServer()
             await syncTotalPointsWithBackend()
         }
 
         logger.info("[CHECKOUT] ✅ Checkout complete")
         logger.info("[CHECKOUT] === END CHECKOUT ===")
 
-        return finalPoints
+        return actualPointsToAdd
     }
 
     /// Reset daily checkout states
@@ -2169,6 +2241,29 @@ class PointsEarningManager: ObservableObject {
     }
 
     // MARK: - Total Points Backend Sync
+
+    /// Sync points balance with backend using GREATEST reconciliation.
+    /// Called after earning or spending points to keep server in sync.
+    func syncBalanceWithServer() async {
+        guard let networkService = await getNetworkService() else { return }
+
+        let authService = await MainActor.run { AuthenticationService.shared }
+        let isAuthenticated = await MainActor.run { authService.isAuthenticated }
+        guard isAuthenticated else { return }
+
+        let currentBalance = await MainActor.run { self.pointsBalance }
+
+        if let serverBalance = await networkService.syncPointsBalance(balance: currentBalance) {
+            await MainActor.run {
+                // Server uses GREATEST, so server balance >= what we sent.
+                // Adopt server balance if higher (e.g., from another device).
+                if serverBalance > self.pointsBalance {
+                    self.pointsBalance = serverBalance
+                    self.forceSave()
+                }
+            }
+        }
+    }
 
     /// Sync total points with backend after checkout
     private func syncTotalPointsWithBackend() async {

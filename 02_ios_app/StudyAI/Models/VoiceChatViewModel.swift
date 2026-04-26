@@ -262,7 +262,7 @@ class VoiceChatViewModel: ObservableObject {
         isCapturing = false
         stopAudioEngine()
         if let manager = audioStreamManager {
-            Task.detached { await manager.tearDown() }
+            manager.tearDownSync()
             audioStreamManager = nil
         }
 
@@ -287,7 +287,7 @@ class VoiceChatViewModel: ObservableObject {
         webSocket?.cancel(with: .goingAway, reason: nil)
         webSocket = nil
         if let manager = audioStreamManager {
-            Task.detached { await manager.tearDown() }
+            manager.tearDownSync()
             audioStreamManager = nil
         }
 

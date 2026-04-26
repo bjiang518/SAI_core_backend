@@ -144,6 +144,24 @@ struct ContentView: View {
                 authService.signOut()  // Sign out if user cancels Face ID
             })
         }
+        .fullScreenCover(isPresented: $authService.requiresAppUpdate) {
+            ForceUpdateView(storeUrl: authService.appUpdateStoreUrl)
+                .interactiveDismissDisabled()
+        }
+        .alert(
+            NSLocalizedString("softUpdate.title", value: "Update Available", comment: ""),
+            isPresented: $authService.showUpdateRecommendation
+        ) {
+            Button(NSLocalizedString("softUpdate.updateNow", value: "Update Now", comment: "")) {
+                let urlString = authService.updateRecommendationStoreUrl ?? "https://apps.apple.com/app/id6743428452"
+                if let url = URL(string: urlString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button(NSLocalizedString("softUpdate.later", value: "Later", comment: ""), role: .cancel) { }
+        } message: {
+            Text(NSLocalizedString("softUpdate.message", value: "A newer version is available with improvements and bug fixes. Update when you're ready.", comment: ""))
+        }
         .sheet(isPresented: $showingTierSheet) {
             let feature = usageService.limitReachedFeature ?? ""
             let code = usageService.limitReachedCode ?? ""
@@ -732,29 +750,19 @@ struct ModernProfileView: View {
                     .buttonStyle(.plain)
                 }
 
-                // STUDY SETTINGS SECTION (Voice + Learning Goals combined)
-                Section(NSLocalizedString("settings.studySettings", comment: "Study Settings")) {
-                    Button(action: {
-                        showingVoiceSettings = true
-                    }) {
-                        SettingsRow(icon: "waveform", title: NSLocalizedString("settings.voiceSettings", comment: ""), color: .indigo)
-                    }
-                    .buttonStyle(.plain)
-
-                    Button(action: {
-                        showingLearningGoals = true
-                    }) {
-                        SettingsRow(icon: "target", title: NSLocalizedString("settings.learningGoals", comment: ""), color: .red)
-                    }
-                    .buttonStyle(.plain)
-                }
-
                 // APP SETTINGS SECTION
                 Section(NSLocalizedString("settings.appSettings", comment: "")) {
                     Button(action: {
                         showingNotificationSettings = true
                     }) {
                         SettingsRow(icon: "bell.fill", title: NSLocalizedString("settings.studyReminders", comment: ""), color: .orange)
+                    }
+                    .buttonStyle(.plain)
+
+                    Button(action: {
+                        showingVoiceSettings = true
+                    }) {
+                        SettingsRow(icon: "waveform", title: NSLocalizedString("settings.voiceSettings", comment: ""), color: .indigo)
                     }
                     .buttonStyle(.plain)
 
@@ -1023,16 +1031,14 @@ extension ModernProfileView {
     }
 
     private func rateApp() {
-        // Primary: in-app native review prompt (no redirect)
-        if let scene = UIApplication.shared.connectedScenes
-            .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene {
-            SKStoreReviewController.requestReview(in: scene)
-        } else {
-            // Fallback: open App Store review page directly
-            if let url = URL(string: "itms-apps://itunes.apple.com/app/id6754365864?action=write-review") {
-                UIApplication.shared.open(url)
-            }
-        }
+        #if targetEnvironment(simulator)
+        return // App Store not available in Simulator
+        #else
+        let appStoreURL = URL(string: "itms-apps://itunes.apple.com/app/id6754365864?action=write-review")!
+        let webURL = URL(string: "https://apps.apple.com/app/id6754365864?action=write-review")!
+        let target = UIApplication.shared.canOpenURL(appStoreURL) ? appStoreURL : webURL
+        UIApplication.shared.open(target)
+        #endif
     }
 
     private func authProviderIcon(_ provider: AuthProvider) -> String {

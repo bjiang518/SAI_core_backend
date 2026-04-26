@@ -197,7 +197,13 @@ struct PracticeLibraryView: View {
             QuestionSheetView(session: session)
         }
         .alert(NSLocalizedString("practiceLibrary.info.title", comment: ""), isPresented: $showingPracticeInfo) {
-            Button(NSLocalizedString("common.ok", comment: "")) { }
+            Button(NSLocalizedString("practiceLibrary.replayTutorial", value: "Replay Tutorial", comment: "")) {
+                libOnboardingDone = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    practiceOnboardingStep = .newButton
+                }
+            }
+            Button(NSLocalizedString("common.ok", comment: ""), role: .cancel) { }
         } message: {
             Text(NSLocalizedString("practiceLibrary.info.message", comment: ""))
         }
@@ -273,9 +279,9 @@ struct PracticeLibraryView: View {
             .onAppear {
                 proxy.scrollTo(selectedSubject, anchor: .center)
             }
+            .practiceLibOnboardingAnchor("practice_lib_onboarding_subjectFilter")
         }
         .padding(.top, 4)
-        .practiceLibOnboardingAnchor("practice_lib_onboarding_subjectFilter")
     }
 
     // MARK: - Status Filter Bar
@@ -306,9 +312,9 @@ struct PracticeLibraryView: View {
         .background(themeManager.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.secondary.opacity(0.15), lineWidth: 1))
+        .practiceLibOnboardingAnchor("practice_lib_onboarding_statusFilter")
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
-        .practiceLibOnboardingAnchor("practice_lib_onboarding_statusFilter")
     }
 
     private var sortBar: some View {

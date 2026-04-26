@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -14,6 +14,8 @@ import {
   BarChart2,
   Lightbulb,
   Tag,
+  Menu,
+  X,
 } from 'lucide-react'
 
 const navigation = [
@@ -29,15 +31,28 @@ const navigation = [
 export function Sidebar() {
   const pathname = usePathname()
   const { logout } = useAuth()
+  const [mobileOpen, setMobileOpen] = useState(false)
 
-  return (
-    <div className="flex h-screen w-64 flex-col bg-gray-900 text-white shrink-0">
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [pathname])
+
+  const sidebarContent = (
+    <>
       {/* Logo */}
-      <div className="flex h-16 items-center justify-center border-b border-gray-800 px-4">
-        <div className="text-center">
-          <h1 className="text-lg font-bold">ChatGPA Admin</h1>
+      <div className="flex h-16 items-center justify-between border-b border-gray-800 px-4">
+        <div className="text-center flex-1">
+          <h1 className="text-lg font-bold">StudyAgent Admin</h1>
           <p className="text-xs text-gray-400">Dashboard</p>
         </div>
+        {/* Close button — mobile only */}
+        <button
+          className="lg:hidden text-gray-400 hover:text-white p-1"
+          onClick={() => setMobileOpen(false)}
+        >
+          <X className="h-5 w-5" />
+        </button>
       </div>
 
       {/* Navigation */}
@@ -72,6 +87,41 @@ export function Sidebar() {
           Logout
         </button>
       </div>
-    </div>
+    </>
+  )
+
+  return (
+    <>
+      {/* Mobile hamburger button — fixed top-left, visible only on small screens */}
+      <button
+        className="lg:hidden fixed top-3 left-3 z-50 rounded-lg bg-gray-900 p-2 text-white shadow-lg"
+        onClick={() => setMobileOpen(true)}
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="lg:hidden fixed inset-0 z-40 bg-black/50"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Mobile slide-in sidebar */}
+      <div
+        className={cn(
+          'lg:hidden fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-gray-900 text-white transition-transform duration-200 ease-in-out',
+          mobileOpen ? 'translate-x-0' : '-translate-x-full'
+        )}
+      >
+        {sidebarContent}
+      </div>
+
+      {/* Desktop sidebar — always visible */}
+      <div className="hidden lg:flex h-screen w-64 flex-col bg-gray-900 text-white shrink-0">
+        {sidebarContent}
+      </div>
+    </>
   )
 }

@@ -147,6 +147,39 @@ a {
     font-size: 0.9rem;
 }
 
+/* QR Code */
+.hero-qr, .cta-qr {
+    margin-top: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.qr-code {
+    width: 120px;
+    height: 120px;
+    padding: 8px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+
+.qr-code-light {
+    background: white;
+    box-shadow: 0 2px 12px rgba(255,255,255,0.15);
+}
+
+.qr-label {
+    font-size: 0.78rem;
+    opacity: 0.55;
+    font-weight: 500;
+}
+
+.qr-label-light {
+    color: rgba(255,255,255,0.7);
+}
+
 /* ===== Buttons ===== */
 .btn {
     padding: 0.9rem 2rem;

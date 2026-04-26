@@ -273,7 +273,7 @@ struct LearningProgressView: View {
                 icon: "text.badge.checkmark", iconColor: .purple,
                 title: NSLocalizedString("points.earn.practice.title", comment: ""),
                 type: .practiceCompletion,
-                goAction: { AppState.shared.selectedTab = .home }
+                goAction: { AppState.shared.selectedTab = .home; AppState.shared.shouldOpenPracticeLibrary = true }
             )
 
             // 5. Mistake Review
@@ -281,7 +281,7 @@ struct LearningProgressView: View {
                 icon: "arrow.counterclockwise.circle.fill", iconColor: .blue,
                 title: NSLocalizedString("points.earn.review.title", comment: ""),
                 type: .mistakeReview,
-                goAction: { AppState.shared.selectedTab = .library }
+                goAction: { AppState.shared.selectedTab = .home; AppState.shared.shouldOpenMistakeReview = true }
             )
 
             // 6. Focus Session
@@ -289,7 +289,7 @@ struct LearningProgressView: View {
                 icon: "timer", iconColor: .red,
                 title: NSLocalizedString("points.earn.focus.title", comment: ""),
                 type: .focusSession,
-                goAction: { AppState.shared.selectedTab = .home }
+                goAction: { AppState.shared.selectedTab = .home; AppState.shared.shouldOpenFocusMode = true }
             )
 
             // 7. Chat Session
@@ -300,29 +300,48 @@ struct LearningProgressView: View {
                 goAction: { AppState.shared.selectedTab = .chat }
             )
 
-            // 8. Rate App — one-time bonus
+            // 8. Rate App — two-phase: prompt first, then claim
             if !AppReviewService.shared.hasEarnedRatingPoints {
+                let prompted = AppReviewService.shared.hasPromptedRating
                 earnCreditRow(
                     icon: "star.bubble.fill", iconColor: .yellow,
                     title: NSLocalizedString("points.earn.rate.title", comment: ""),
-                    detail: NSLocalizedString("points.earn.rate.desc", comment: ""),
+                    detail: prompted
+                        ? NSLocalizedString("points.earn.rate.claimNow",
+                            value: "Rating submitted — tap ⭐ to claim reward", comment: "")
+                        : NSLocalizedString("points.earn.rate.desc", comment: ""),
                     pointsText: "+\(AppReviewService.ratingPointsReward)",
                     status: .claimable,
-                    onClaim: { let _ = AppReviewService.shared.rateAppForPoints() },
+                    onClaim: {
+                        if prompted {
+                            let _ = AppReviewService.shared.claimRatingPoints()
+                        } else {
+                            AppReviewService.shared.promptRatingForPoints()
+                        }
+                    },
                     goAction: nil
                 )
             }
 
-            // 9. Share App — one-time bonus
+            // 9. Share App — two-phase: share first, then claim
             if !AppReviewService.shared.hasEarnedSharePoints {
+                let sharePrompted = AppReviewService.shared.hasPromptedShare
                 earnCreditRow(
                     icon: "square.and.arrow.up.fill", iconColor: .cyan,
                     title: NSLocalizedString("points.earn.share.title", comment: ""),
-                    detail: NSLocalizedString("points.earn.share.desc", comment: ""),
+                    detail: sharePrompted
+                        ? NSLocalizedString("points.earn.share.claimNow",
+                            value: "Shared — tap ⭐ to claim reward", comment: "")
+                        : NSLocalizedString("points.earn.share.desc", comment: ""),
                     pointsText: "+\(AppReviewService.sharePointsReward)",
                     status: .claimable,
                     onClaim: {
-                        showingShareForPoints = true
+                        if sharePrompted {
+                            let _ = AppReviewService.shared.claimSharePoints()
+                        } else {
+                            AppReviewService.shared.markSharePrompted()
+                            showingShareForPoints = true
+                        }
                     },
                     goAction: nil
                 )
@@ -360,11 +379,15 @@ struct LearningProgressView: View {
 
         let detail: String = {
             if pending > 0 {
-                return "\(pointsManager.pendingUnits(for: type)) unclaimed \u{2014} tap \u{2B50} to collect"
+                return String(format: NSLocalizedString("points.earn.unclaimed",
+                    value: "%d unclaimed — tap ⭐ to collect", comment: ""),
+                    pointsManager.pendingUnits(for: type))
             } else if claimedU > 0 {
-                return "\(claimedU)/\(cap) claimed today (max \(PointsEarningManager.maxDailyPointsPerItem) pts)"
+                return String(format: NSLocalizedString("points.earn.claimedToday",
+                    value: "%d/%d claimed today (max %d pts)", comment: ""),
+                    claimedU, cap, PointsEarningManager.maxDailyPointsPerItem)
             } else {
-                return "\(activity)/\(cap) today (max \(PointsEarningManager.maxDailyPointsPerItem) pts)"
+                return type.howToEarn
             }
         }()
 
@@ -488,8 +511,8 @@ struct LearningProgressView: View {
                 .foregroundColor(.yellow)
                 .rotationEffect(.degrees(angle))
                 .onAppear {
-                    withAnimation(.easeInOut(duration: 0.15).repeatForever(autoreverses: true)) {
-                        angle = 15
+                    withAnimation(.easeInOut(duration: 0.4).repeatForever(autoreverses: true)) {
+                        angle = 8
                     }
                 }
         }

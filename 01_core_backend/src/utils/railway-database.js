@@ -5723,6 +5723,44 @@ async function runDatabaseMigrations() {
       logger.debug('✅ Migration 031: hard_delete fix already applied');
     }
 
+    // ============================================
+    // MIGRATION 032: Points balance + transaction history (2026-04-20)
+    // ============================================
+    const migration032Check = await db.query(`
+      SELECT 1 FROM migration_history WHERE migration_name = '032_points_balance_and_transactions'
+    `);
+    if (migration032Check.rows.length === 0) {
+      try {
+        // Server-authoritative points balance on users table
+        await db.query(`
+          ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS points_balance INTEGER NOT NULL DEFAULT 0;
+        `);
+
+        // Transaction log for all point earning and spending
+        await db.query(`
+          CREATE TABLE IF NOT EXISTS point_transactions (
+            id SERIAL PRIMARY KEY,
+            user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            type VARCHAR(10) NOT NULL CHECK (type IN ('earn', 'spend')),
+            amount INTEGER NOT NULL,
+            balance_after INTEGER NOT NULL DEFAULT 0,
+            description VARCHAR(255) NOT NULL,
+            feature VARCHAR(50),
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+          );
+          CREATE INDEX IF NOT EXISTS idx_point_txns_user ON point_transactions(user_id, created_at DESC);
+        `);
+
+        await db.query(`INSERT INTO migration_history (migration_name) VALUES ('032_points_balance_and_transactions') ON CONFLICT DO NOTHING`);
+        logger.debug('✅ Migration 032: points_balance column + point_transactions table');
+      } catch (migrationError) {
+        logger.error({ err: migrationError }, '❌ Migration 032 failed');
+      }
+    } else {
+      logger.debug('✅ Migration 032: points_balance and transactions already applied');
+    }
+
   } catch (error) {
     logger.error('❌ Database migration failed:', error);
     // Don't throw - let the app continue with what it has

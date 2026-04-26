@@ -16,6 +16,7 @@ interface FeatureAdoption {
   ever_reported: number
   ever_archived_convo: number
   has_active_streak: number
+  ever_redeemed_points: number
 }
 
 interface SubjectRow {
@@ -98,6 +99,7 @@ export default function AnalyticsPage() {
                     { label: 'Conversation Archive', key: 'ever_archived_convo' as keyof FeatureAdoption },
                     { label: 'Parent Reports', key: 'ever_reported' as keyof FeatureAdoption },
                     { label: 'Active Study Streak', key: 'has_active_streak' as keyof FeatureAdoption },
+                    { label: 'Points Shop Redemption', key: 'ever_redeemed_points' as keyof FeatureAdoption },
                   ].map(({ label, key }) => {
                     const count = Number(data.featureAdoption[key] || 0)
                     const total = Number(data.featureAdoption.total_users || 1)

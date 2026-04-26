@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { MetricCard } from '@/components/dashboard/MetricCard'
-import { Users, MessageSquare, Zap, AlertCircle, Database, TrendingUp } from 'lucide-react'
+import { Users, MessageSquare, Zap, AlertCircle, Database, TrendingUp, Coins, Smartphone } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { statsAPI } from '@/lib/api'
 
@@ -27,6 +27,12 @@ interface OverviewStats {
     premiumPlus: number
     guest: number
   }
+  pointsEconomy?: {
+    totalEarned: number
+    totalSpent: number
+    usersWhoSpent: number
+  }
+  iosVersions?: Record<string, number>
 }
 
 function isTokenExpired(token: string | null): boolean {
@@ -95,7 +101,7 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard Overview</h1>
           <p className="text-muted-foreground mt-2">
-            Monitor your ChatGPA platform performance and key metrics
+            Monitor your StudyAgent platform performance and key metrics
           </p>
         </div>
         <div className="rounded-lg border border-red-200 bg-red-50 p-4">
@@ -116,7 +122,7 @@ export default function DashboardPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Dashboard Overview</h1>
         <p className="text-muted-foreground mt-2">
-          Monitor your StudyAI platform performance and key metrics
+          Monitor your StudyAgent platform performance and key metrics
         </p>
       </div>
 
@@ -211,6 +217,60 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Points Economy + iOS Versions */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Points Economy */}
+        {stats.pointsEconomy && (
+          <div className="rounded-lg border bg-card p-6">
+            <h2 className="text-base font-semibold mb-4 flex items-center gap-2">
+              <Coins className="h-4 w-4" /> Points Economy
+            </h2>
+            <div className="grid grid-cols-3 gap-4">
+              {[
+                { label: 'Total Earned', value: stats.pointsEconomy.totalEarned },
+                { label: 'Total Spent', value: stats.pointsEconomy.totalSpent },
+                { label: 'Users Redeemed', value: stats.pointsEconomy.usersWhoSpent },
+              ].map(({ label, value }) => (
+                <div key={label} className="text-center">
+                  <div className="text-2xl font-bold">{value.toLocaleString()}</div>
+                  <div className="text-xs text-muted-foreground mt-1">{label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* iOS Version Distribution */}
+        {stats.iosVersions && Object.keys(stats.iosVersions).length > 0 && (
+          <div className="rounded-lg border bg-card p-6">
+            <h2 className="text-base font-semibold mb-4 flex items-center gap-2">
+              <Smartphone className="h-4 w-4" /> iOS App Versions (7d)
+            </h2>
+            <div className="space-y-2">
+              {(() => {
+                const entries = Object.entries(stats.iosVersions).sort((a, b) => b[1] - a[1])
+                const max = Math.max(...entries.map(e => e[1]), 1)
+                const total = entries.reduce((s, e) => s + e[1], 0)
+                return entries.map(([ver, count]) => {
+                  const pct = total > 0 ? Math.round((count / total) * 100) : 0
+                  return (
+                    <div key={ver}>
+                      <div className="flex justify-between text-sm mb-0.5">
+                        <span className="font-mono">v{ver}</span>
+                        <span className="text-muted-foreground">{count} <span className="text-xs">({pct}%)</span></span>
+                      </div>
+                      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-blue-400 rounded-full" style={{ width: `${Math.round((count / max) * 100)}%` }} />
+                      </div>
+                    </div>
+                  )
+                })
+              })()}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* System Health Row */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

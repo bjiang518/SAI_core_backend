@@ -441,11 +441,11 @@ class ThemeManager: ObservableObject {
         case .colorful:
             return cuteCircleColor.opacity(isPressed ? 0.70 : 0.80)
         case .sakura:
-            return color.opacity(isPressed ? 0.25 : 0.35)
+            return Color.white.opacity(isPressed ? 0.85 : 1.0)
         case .oceanNight:
-            return DesignTokens.Colors.OceanNight.card.opacity(isPressed ? 0.7 : 0.8)
+            return Color.white.opacity(isPressed ? 0.85 : 1.0)
         case .pureDark:
-            return DesignTokens.Colors.PureDark.card
+            return Color.white.opacity(isPressed ? 0.85 : 1.0)
         case .forest:
             return Color(hex: "FAFAF5")
         case .default:

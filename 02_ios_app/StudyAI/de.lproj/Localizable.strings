@@ -43,7 +43,7 @@
 "languageSettings.restartRequired" = "Restart Required";
 "languageSettings.restartMessage" = "The app will close now. Please reopen it to see the language change.";
 "settings.voiceAudio" = "Study Mates";
-"settings.voiceSettings" = "Select your study mate";
+"settings.voiceSettings" = "Audioeinstellungen";
 "settings.learning" = "Learning";
 "settings.learningGoals" = "Learning Goals & Fortschritt";
 "settings.support" = "Support";
@@ -408,6 +408,12 @@
 
 "app.name" = "StudyAgent";
 "app.tagline" = "Your AI-Powered Learning Companion";
+
+"softUpdate.title" = "Update verfügbar";
+"softUpdate.message" = "Eine neuere Version mit Verbesserungen und Fehlerbehebungen ist verfügbar. Aktualisieren Sie, wenn Sie bereit sind.";
+"softUpdate.updateNow" = "Jetzt aktualisieren";
+"softUpdate.later" = "Später";
+
 "auth.login.welcome" = "Welcome Back!";
 "auth.login.subtitle" = "Sign in to continue your learning journey.";
 "auth.login.orContinueWithEmail" = "or continue with email";
@@ -968,9 +974,10 @@
 "shareApp.shareViaSubtitle" = "Messages, Email, Social Media & More";
 "shareApp.copyLinkTitle" = "Copy App Link";
 "shareApp.copyLinkSubtitle" = "Share the download link anywhere";
-"shareApp.scanToDownload" = "Scan to Download";
-"shareApp.qrCode" = "QR Code";
-"shareApp.showQRCode" = "Show this QR code to friends";
+"shareApp.scanToDownload" = "Zum Herunterladen scannen";
+"shareApp.qrCode" = "QR-Code";
+"shareApp.qrHint" = "Freunde können diesen Code mit ihrer Kamera scannen";
+"shareApp.showQRCode" = "Zeig diesen QR-Code deinen Freunden";
 "shareApp.comingSoonReferral" = "Coming Soon: Referral Rewards\!";
 "shareApp.earnPoints" = "Earn points for every friend who joins StudyAgent";
 "shareApp.downloadNow" = "Download now:";
@@ -2269,6 +2276,8 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 
 // Study Reports — List View
 "reports.passive.title" = "Elternberichte";
+"reports.title.parent" = "Elternbericht";
+"reports.title.student" = "Lernbericht";
 "reports.passive.subtitle" = "Wöchentliche und monatliche Lerneinblicke";
 "reports.passive.editReports" = "Berichte bearbeiten";
 "reports.passive.testingMode" = "Testmodus";
@@ -2340,6 +2349,7 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 
 // Practice Library
 "practiceLibrary.title" = "Practice";
+"practiceLibrary.replayTutorial" = "Tutorial wiederholen";
 "practiceLibrary.filterAll" = "All";
 "practiceLibrary.deleteTitle" = "Delete Session?";
 "practiceLibrary.deleteMessage" = "This practice session will be permanently removed.";
@@ -2369,8 +2379,16 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "practiceLibOnboarding.sortStatus.desc" = "Wechsle zwischen Alle, Laufend und Abgeschlossen. Nutze das Sortiermenü rechts zum Umsortieren.";
 "practiceLibOnboarding.swipeDelete.title" = "Sitzung löschen";
 "practiceLibOnboarding.swipeDelete.desc" = "Wische eine Sitzungskarte nach links, um sie zu löschen.";
-"practiceLibOnboarding.difficulty.title" = "Schwierigkeit wählen";
-"practiceLibOnboarding.difficulty.desc" = "Ziehe auf der Leiste. Ziehe über das Ende für den Adaptiv-Modus — die KI wählt das richtige Level.";
+
+// Practice Sheet Onboarding
+"practiceSheetOnboarding.random.title" = "Zufällige Übung";
+"practiceSheetOnboarding.random.desc" = "Erstelle zufällige Fragen basierend auf deinem Lernfortschritt und Schwächen. Die KI passt sich deinem Niveau an.";
+"practiceSheetOnboarding.archive.title" = "Aus dem Archiv";
+"practiceSheetOnboarding.archive.desc" = "Erstelle Fragen aus deinen archivierten Gesprächen oder gespeicherten Fragen. Ideal für gezieltes Wiederholen.";
+"practiceSheetOnboarding.config.title" = "Fragen anpassen";
+"practiceSheetOnboarding.config.desc" = "Wähle die Anzahl (1–10) und den Fragetyp: Multiple Choice, Wahr/Falsch, Kurzantwort oder beliebig.";
+"practiceSheetOnboarding.difficulty.title" = "Schwierigkeit wählen";
+"practiceSheetOnboarding.difficulty.desc" = "Ziehe auf der Leiste. Ziehe über das Ende für den Adaptiv-Modus — die KI wählt das richtige Level.";
 
 // Practice Sheet
 "practiceSheet.questionCounter" = "Q %d/%d";
@@ -2527,6 +2545,7 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 
 // MARK: - Chat
 "chat.menu.viewTutorial" = "Tutorial ansehen";
+"chat.menu.replayTutorial" = "Tutorial wiederholen";
 
 // MARK: - Common
 "common.apply" = "Anwenden";
@@ -2575,6 +2594,7 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 
 // MARK: - Live Chat
 "live.leave.cancel" = "Bleiben";
+"live.ended_by_background" = "Live-Sitzung beendet — im Menü erneut starten";
 "live.leave.confirm" = "Verlassen & löschen";
 "live.leave.message" = "Wenn du diese Seite verlässt, wird deine Live-Sitzung beendet und das Gespräch gelöscht.";
 "live.leave.title" = "Live-Chat verlassen?";
@@ -2634,6 +2654,8 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "pdf.options.reset" = "Auf Standardwerte zurücksetzen";
 "pdf.options.section.images" = "Bilder";
 "pdf.options.section.spacing" = "Abstände";
+"pdf.options.section.layout" = "Layout";
+"pdf.options.columns" = "Spalten";
 "pdf.options.section.text" = "Text";
 "pdf.options.title" = "Exportoptionen";
 "pdf.practice.title" = "Übungsfragen";
@@ -2899,11 +2921,40 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "points.earn.chat.title" = "AI Chat";
 "points.earn.chat.desc" = "1 Punkt pro Chat-Austausch";
 
+// Punkte verdienen — dynamische Untertitel
+"points.earn.unclaimed" = "%d nicht abgeholt — tippe ⭐ zum Einsammeln";
+"points.earn.claimedToday" = "%d/%d Pkt heute verdient";
+
+// Punkte verdienen — Anleitungen
+"points.howTo.correctAnswers" = "Hausaufgaben korrigieren → schieben zum Speichern";
+"points.howTo.homeworkScan" = "Hausaufgaben im Bewertungs-Tab scannen";
+"points.howTo.practiceCompletion" = "Ein Übungsset unter Übungen abschließen";
+"points.howTo.mistakeReview" = "Fehler wiederholen → schieben zum Speichern";
+"points.howTo.focusSession" = "Fokus-Sitzung abschließen (1 Pkt pro 5 Min)";
+"points.howTo.chatSession" = "Ein Gespräch mit der KI führen";
+"points.howTo.weaknessConversion" = "Eine Schwäche durch Übung überwinden";
+
+// Schwäche überwinden
+"points.earn.weakness.title" = "Schwäche überwinden";
+"points.earn.weakness.desc" = "10 Punkte pro überwundener Schwäche";
+
 // Bewertung für Punkte
 "points.earn.rate.title" = "StudyAgent bewerten";
 "points.earn.rate.desc" = "Einmaliger Bewertungsbonus";
+"points.earn.rate.claimNow" = "Bewertung abgegeben — tippe ⭐ für Belohnung";
 "points.earn.rate.action" = "Bewerten";
 
 // Teilen für Punkte
 "points.earn.share.title" = "Mit Freunden teilen";
 "points.earn.share.desc" = "Einmaliger Teilungsbonus";
+"points.earn.share.claimNow" = "Geteilt — tippe ⭐ für Belohnung";
+
+// Punkte — Letzte Aktivität
+"points.shop.history" = "Letzte Aktivität";
+"points.tx.premiumTrial" = "7-Tage-Premium-Testversion";
+"points.tx.chatMessages" = "%d AI-Chatnachrichten eingelöst";
+"points.tx.homeworkPages" = "%d Hausaufgabenseiten eingelöst";
+"points.tx.voiceMinutes" = "%d Sprachminuten eingelöst";
+"points.tx.errorAnalysis" = "%d Fehleranalysen eingelöst";
+"points.tx.questions" = "%d Übungsfragen eingelöst";
+"points.tx.streakFreeze" = "Streak-Schutzkarte";

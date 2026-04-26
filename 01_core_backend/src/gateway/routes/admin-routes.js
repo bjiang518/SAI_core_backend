@@ -120,7 +120,7 @@ module.exports = async function (fastify, opts) {
   fastify.get('/api/admin/stats/overview', { preHandler: verifyAdmin }, async (request, reply) => {
     try {
       // Real DB queries in parallel
-      const [usersResult, weekAgoResult, sessionsResult, dauResult, wauResult, mauResult, churnResult, newUsersLastWeekResult, tierDistResult] = await Promise.all([
+      const [usersResult, weekAgoResult, sessionsResult, dauResult, wauResult, mauResult, churnResult, newUsersLastWeekResult, tierDistResult, pointsResult, iosVersionResult] = await Promise.all([
         db.query('SELECT COUNT(*) as total FROM users'),
         db.query("SELECT COUNT(*) as total FROM users WHERE created_at <= NOW() - INTERVAL '7 days'"),
         db.query("SELECT COUNT(*) as total FROM sessions WHERE DATE(created_at) = CURRENT_DATE"),
@@ -137,6 +137,23 @@ module.exports = async function (fastify, opts) {
             COUNT(*) FILTER (WHERE is_anonymous = true)::int         AS guest_count
           FROM users
         `),
+        // Points economy summary
+        db.query(`
+          SELECT
+            COALESCE(SUM(amount) FILTER (WHERE type = 'earn'), 0)::int  AS total_earned,
+            COALESCE(SUM(amount) FILTER (WHERE type = 'spend'), 0)::int AS total_spent,
+            COUNT(DISTINCT user_id) FILTER (WHERE type = 'spend')::int  AS users_who_spent
+          FROM point_transactions
+        `).catch(() => ({ rows: [{ total_earned: 0, total_spent: 0, users_who_spent: 0 }] })),
+        // iOS version distribution (last 7 days of logins)
+        db.query(`
+          SELECT device_info->>'userAgent' AS user_agent, COUNT(*)::int AS count
+          FROM user_sessions
+          WHERE created_at >= NOW() - INTERVAL '7 days'
+            AND device_info->>'userAgent' LIKE 'StudyAI-iOS/%'
+          GROUP BY device_info->>'userAgent'
+          ORDER BY count DESC
+        `).catch(() => ({ rows: [] })),
       ]);
 
       const totalUsers = parseInt(usersResult.rows[0].total);
@@ -170,6 +187,14 @@ module.exports = async function (fastify, opts) {
         cacheHitRate = parseFloat(hitRateStr);
       }
 
+      // Parse iOS versions from user-agent strings
+      const iosVersions = {};
+      for (const row of iosVersionResult.rows) {
+        const match = (row.user_agent || '').match(/StudyAI-iOS\/(.+)/);
+        const ver = match ? match[1] : 'unknown';
+        iosVersions[ver] = (iosVersions[ver] || 0) + row.count;
+      }
+
       return reply.send({
         success: true,
         data: {
@@ -193,6 +218,12 @@ module.exports = async function (fastify, opts) {
             premiumPlus:  tierDistResult.rows[0].premium_plus_count,
             guest:        tierDistResult.rows[0].guest_count,
           },
+          pointsEconomy: {
+            totalEarned:   pointsResult.rows[0].total_earned,
+            totalSpent:    pointsResult.rows[0].total_spent,
+            usersWhoSpent: pointsResult.rows[0].users_who_spent,
+          },
+          iosVersions,
         }
       });
     } catch (error) {
@@ -227,6 +258,10 @@ module.exports = async function (fastify, opts) {
           u.last_login_at as last_active,
           EXTRACT(day FROM NOW() - u.last_login_at)::int as days_inactive,
           (SELECT COUNT(*) FROM sessions s WHERE s.user_id = u.id) as total_sessions,
+          (SELECT device_info->>'userAgent'
+           FROM user_sessions us
+           WHERE us.user_id = u.id
+           ORDER BY us.created_at DESC LIMIT 1) as last_user_agent,
           CASE
             WHEN u.is_anonymous = true THEN 'guest'
             WHEN u.tier = 'premium_plus' THEN 'ultra'
@@ -517,7 +552,8 @@ module.exports = async function (fastify, opts) {
             (SELECT COUNT(DISTINCT user_id) FROM practice_sheets)::int as ever_practiced,
             (SELECT COUNT(DISTINCT user_id) FROM parent_report_batches)::int as ever_reported,
             (SELECT COUNT(DISTINCT user_id) FROM archived_conversations_new)::int as ever_archived_convo,
-            (SELECT COUNT(DISTINCT user_id) FROM study_streaks WHERE current_streak > 0)::int as has_active_streak
+            (SELECT COUNT(DISTINCT user_id) FROM study_streaks WHERE current_streak > 0)::int as has_active_streak,
+            (SELECT COUNT(DISTINCT user_id) FROM point_transactions WHERE type = 'spend')::int as ever_redeemed_points
         `),
 
         // Homework parse volume — last 30 days from archived_questions

@@ -44,6 +44,7 @@ struct UserProfile: Codable {
     let customAvatarUrl: String? // Custom uploaded avatar URL
     let onboardingCompleted: Bool
     let accountRestricted: Bool  // COPPA: restricted account flag
+    let accountRole: String?     // "student" | "parent" | nil
 
     // Computed properties for display
     var fullName: String {
@@ -85,6 +86,7 @@ struct UserProfile: Codable {
         case country, favoriteSubjects, learningStyle, timezone, languagePreference
         case profileCompletionPercentage, lastUpdated, avatarId, customAvatarUrl, onboardingCompleted
         case accountRestricted = "account_restricted"
+        case accountRole = "account_role"
     }
     
     // Custom date handling for JSON
@@ -122,6 +124,7 @@ struct UserProfile: Codable {
         customAvatarUrl = try container.decodeIfPresent(String.self, forKey: .customAvatarUrl)
         onboardingCompleted = try container.decodeIfPresent(Bool.self, forKey: .onboardingCompleted) ?? false
         accountRestricted = (try? container.decodeIfPresent(Bool.self, forKey: .accountRestricted)) ?? false
+        accountRole = try container.decodeIfPresent(String.self, forKey: .accountRole)
 
         // Handle lastUpdated date
         if let lastUpdatedString = try container.decodeIfPresent(String.self, forKey: .lastUpdated) {
@@ -163,6 +166,7 @@ struct UserProfile: Codable {
         try container.encodeIfPresent(customAvatarUrl, forKey: .customAvatarUrl)
         try container.encode(onboardingCompleted, forKey: .onboardingCompleted)
         try container.encode(accountRestricted, forKey: .accountRestricted)
+        try container.encodeIfPresent(accountRole, forKey: .accountRole)
 
         // Handle lastUpdated encoding
         if let lastUpdated = lastUpdated {
@@ -726,7 +730,8 @@ extension UserProfile {
         avatarId: Int? = nil,
         customAvatarUrl: String? = nil,
         onboardingCompleted: Bool = false,
-        accountRestricted: Bool = false
+        accountRestricted: Bool = false,
+        accountRole: String? = nil
     ) {
         self.id = id
         self.email = email
@@ -753,6 +758,7 @@ extension UserProfile {
         self.customAvatarUrl = customAvatarUrl
         self.onboardingCompleted = onboardingCompleted
         self.accountRestricted = accountRestricted
+        self.accountRole = accountRole
     }
 }
 

@@ -250,7 +250,6 @@ struct ChatOnboardingOverlayView: View {
     /// Use this to pre-fill or clear the input field for the deepMode step.
     var onStepChange: ((ChatOnboardingStep) -> Void)? = nil
 
-    @StateObject private var themeManager = ThemeManager.shared
     @State private var pulseScale: CGFloat = 1.0
     @State private var pulseOpacity: Double = 0.85
     // Deep-mode swipe hint animation
@@ -668,10 +667,10 @@ struct ChatOnboardingOverlayView: View {
                 VStack(alignment: .leading, spacing: 5) {
                     Text(step.title)
                         .font(.system(size: 15, weight: .bold))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.black)
                     Text(step.description)
                         .font(.system(size: 13))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.black)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -693,7 +692,7 @@ struct ChatOnboardingOverlayView: View {
                 Button(action: onSkip) {
                     Text(NSLocalizedString("onboarding.skip", value: "Skip", comment: ""))
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color(red: 0.3, green: 0.3, blue: 0.3))
                         .padding(.vertical, 8)
                 }
 
@@ -704,7 +703,7 @@ struct ChatOnboardingOverlayView: View {
                         Circle()
                             .fill(i == step.rawValue
                                   ? DesignTokens.Colors.Cute.peach
-                                  : Color.secondary.opacity(0.3))
+                                  : Color(red: 0.4, green: 0.4, blue: 0.4))
                             .frame(width: 6, height: 6)
                     }
                 }
@@ -728,7 +727,7 @@ struct ChatOnboardingOverlayView: View {
         }
         .background(
             RoundedRectangle(cornerRadius: 18)
-                .fill(themeManager.cardBackground)
+                .fill(Color.white)
                 .shadow(color: .black.opacity(0.2), radius: 14, x: 0, y: 5)
         )
     }

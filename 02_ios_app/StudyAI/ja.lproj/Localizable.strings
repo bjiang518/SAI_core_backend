@@ -2369,6 +2369,8 @@
 
 // Study Reports — List View
 "reports.passive.title" = "保護者レポート";
+"reports.title.parent" = "保護者レポート";
+"reports.title.student" = "学習レポート";
 "reports.passive.subtitle" = "週次・月次の学習インサイト";
 "reports.passive.editReports" = "レポートを編集";
 "reports.passive.testingMode" = "テストモード";
@@ -2871,3 +2873,13 @@
 // 共有でポイント
 "points.earn.share.title" = "友達にシェア";
 "points.earn.share.desc" = "シェアで1回限りのボーナス";
+
+// ポイント — 最近のアクティビティ
+"points.shop.history" = "最近のアクティビティ";
+"points.tx.premiumTrial" = "7日間プレミアム体験";
+"points.tx.chatMessages" = "%d 回のAIチャットを交換";
+"points.tx.homeworkPages" = "%d ページの宿題添削を交換";
+"points.tx.voiceMinutes" = "%d 分の音声を交換";
+"points.tx.errorAnalysis" = "%d 回のエラー分析を交換";
+"points.tx.questions" = "%d 問の練習問題を交換";
+"points.tx.streakFreeze" = "連続記録保護カード";

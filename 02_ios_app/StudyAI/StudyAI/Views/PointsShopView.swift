@@ -61,7 +61,7 @@ struct PointsShopView: View {
         HStack(spacing: 12) {
             Image(systemName: "star.fill")
                 .font(.system(size: 30))
-                .foregroundColor(.yellow)
+                .foregroundColor(Color(red: 1.0, green: 0.84, blue: 0.0))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(NSLocalizedString("points.shop.balance", comment: ""))
@@ -182,7 +182,7 @@ private struct EarnTabView: View {
                     pointsText: "+\(pointsManager.todayPracticeCompletions * 5)",
                     status: pointsManager.todayPracticeCompletions > 0 ? .checkedOut : .notAvailable,
                     onClaim: nil,
-                    goAction: { AppState.shared.selectedTab = .home }
+                    goAction: { AppState.shared.selectedTab = .home; AppState.shared.shouldOpenPracticeLibrary = true }
                 )
 
                 // 5. Mistake Review
@@ -193,7 +193,7 @@ private struct EarnTabView: View {
                     pointsText: "+\(pointsManager.todayMistakeReviews * 2)",
                     status: pointsManager.todayMistakeReviews > 0 ? .checkedOut : .notAvailable,
                     onClaim: nil,
-                    goAction: { AppState.shared.selectedTab = .library }
+                    goAction: { AppState.shared.selectedTab = .home; AppState.shared.shouldOpenMistakeReview = true }
                 )
 
                 // 6. Focus Session
@@ -204,7 +204,7 @@ private struct EarnTabView: View {
                     pointsText: "+\(pointsManager.todayFocusPoints)",
                     status: pointsManager.todayFocusPoints > 0 ? .checkedOut : .notAvailable,
                     onClaim: nil,
-                    goAction: { AppState.shared.selectedTab = .home }
+                    goAction: { AppState.shared.selectedTab = .home; AppState.shared.shouldOpenFocusMode = true }
                 )
 
                 // 7. Chat Session
@@ -221,7 +221,7 @@ private struct EarnTabView: View {
                 // 8. Rate App — one-time
                 if !AppReviewService.shared.hasEarnedRatingPoints {
                     earnRow(
-                        icon: "star.bubble.fill", iconColor: .yellow,
+                        icon: "star.bubble.fill", iconColor: Color(red: 1.0, green: 0.84, blue: 0.0),
                         title: NSLocalizedString("points.earn.rate.title", comment: ""),
                         subtitle: NSLocalizedString("points.earn.rate.desc", comment: ""),
                         pointsText: "+\(AppReviewService.ratingPointsReward)",
@@ -288,7 +288,7 @@ private struct EarnTabView: View {
             // Points — fixed width
             Text(pointsText)
                 .font(.system(size: 14, weight: .bold, design: .rounded))
-                .foregroundColor(status == .checkedOut ? .green : (status == .claimable ? .yellow : .gray))
+                .foregroundColor(status == .checkedOut ? .green : (status == .claimable ? Color(red: 1.0, green: 0.84, blue: 0.0) : .gray))
                 .frame(width: 40, alignment: .trailing)
 
             // Star / checkmark — fixed width
@@ -344,7 +344,7 @@ private struct ShakingStarView: View {
     var body: some View {
         Image(systemName: "star.fill")
             .font(.system(size: 20))
-            .foregroundColor(.yellow)
+            .foregroundColor(Color(red: 1.0, green: 0.84, blue: 0.0))
             .rotationEffect(.degrees(angle))
             .onAppear {
                 withAnimation(.easeInOut(duration: 0.15).repeatForever(autoreverses: true)) {
@@ -383,8 +383,13 @@ private struct ShopTabView: View {
     @State private var showingPurchaseResult = false
     @State private var isPurchasing = false
     // Blind box reveal
-    @State private var revealedTomato: String?
+    @State private var revealedTomatoType: TomatoType?
     @State private var showingReveal = false
+    @State private var revealPhase: RevealPhase = .card
+
+    private enum RevealPhase {
+        case card, flip, reveal
+    }
 
     var body: some View {
         ScrollView {
@@ -410,6 +415,145 @@ private struct ShopTabView: View {
         }
         .alert(purchaseMessage ?? "", isPresented: $showingPurchaseResult) {
             Button("OK") {}
+        }
+        .overlay {
+            if showingReveal, let tomatoType = revealedTomatoType {
+                tomatoRevealOverlay(tomatoType)
+            }
+        }
+    }
+
+    // MARK: - Tomato Reveal Animation
+
+    @ViewBuilder
+    private func tomatoRevealOverlay(_ tomatoType: TomatoType) -> some View {
+        ZStack {
+            Color.black.opacity(0.85)
+                .ignoresSafeArea()
+                .onTapGesture {} // Block taps through
+
+            VStack(spacing: 24) {
+                Spacer()
+
+                // Card / Tomato reveal
+                ZStack {
+                    // Mystery card (back side)
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(
+                            LinearGradient(
+                                colors: [rarityGradientColor(tomatoType.rarity), rarityGradientColor(tomatoType.rarity).opacity(0.6)],
+                                startPoint: .topLeading, endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 200, height: 260)
+                        .overlay(
+                            VStack(spacing: 8) {
+                                Text("?")
+                                    .font(.system(size: 80, weight: .black, design: .rounded))
+                                    .foregroundColor(.white.opacity(0.9))
+                                Text(tomatoType.rarityLabel)
+                                    .font(.caption.bold())
+                                    .foregroundColor(.white.opacity(0.7))
+                            }
+                        )
+                        .shadow(color: rarityGradientColor(tomatoType.rarity).opacity(0.5), radius: 20)
+                        .opacity(revealPhase == .card ? 1 : 0)
+                        .scaleEffect(revealPhase == .card ? 1 : 0.8)
+                        .rotation3DEffect(.degrees(revealPhase == .flip ? 90 : 0), axis: (x: 0, y: 1, z: 0))
+
+                    // Revealed tomato (front side)
+                    VStack(spacing: 16) {
+                        Image(tomatoType.imageName)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 140, height: 140)
+                            .shadow(color: rarityGradientColor(tomatoType.rarity).opacity(0.6), radius: 16)
+
+                        Text(tomatoType.displayName)
+                            .font(.title2.bold())
+                            .foregroundColor(.white)
+
+                        Text(tomatoType.rarityLabel)
+                            .font(.subheadline.bold())
+                            .foregroundColor(rarityGradientColor(tomatoType.rarity))
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 6)
+                            .background(rarityGradientColor(tomatoType.rarity).opacity(0.2))
+                            .clipShape(Capsule())
+
+                        Text(tomatoType.description)
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.7))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 40)
+                    }
+                    .opacity(revealPhase == .reveal ? 1 : 0)
+                    .scaleEffect(revealPhase == .reveal ? 1 : 0.5)
+                }
+
+                Spacer()
+
+                // Collect button
+                Button(action: dismissReveal) {
+                    Text(NSLocalizedString("shop.blindbox.collect", value: "Collect", comment: ""))
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(rarityGradientColor(tomatoType.rarity))
+                        .cornerRadius(14)
+                        .padding(.horizontal, 40)
+                }
+                .opacity(revealPhase == .reveal ? 1 : 0)
+                .padding(.bottom, 40)
+            }
+        }
+        .transition(.opacity)
+        .onAppear { runRevealAnimation() }
+    }
+
+    private func runRevealAnimation() {
+        revealPhase = .card
+
+        // Card appears and holds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            // Card flips away
+            withAnimation(.easeIn(duration: 0.3)) {
+                revealPhase = .flip
+            }
+
+            // Tomato bounces in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                let impact = UIImpactFeedbackGenerator(style: .medium)
+                impact.impactOccurred()
+
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.6)) {
+                    revealPhase = .reveal
+                }
+
+                // Success haptic after reveal
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    let success = UINotificationFeedbackGenerator()
+                    success.notificationOccurred(.success)
+                }
+            }
+        }
+    }
+
+    private func dismissReveal() {
+        withAnimation(.easeOut(duration: 0.2)) {
+            showingReveal = false
+            revealedTomatoType = nil
+            revealPhase = .card
+        }
+    }
+
+    private func rarityGradientColor(_ rarity: Int) -> Color {
+        switch rarity {
+        case 2: return DesignTokens.Colors.Cute.blue
+        case 3: return DesignTokens.Colors.Cute.lavender
+        case 4: return DesignTokens.Colors.Cute.peach
+        default: return DesignTokens.Colors.Cute.mint
         }
     }
 
@@ -529,6 +673,12 @@ private struct ShopTabView: View {
             showingPurchaseResult = true
             let generator = UINotificationFeedbackGenerator()
             generator.notificationOccurred(.success)
+        case .tomatoRevealed(let type, _):
+            revealedTomatoType = type
+            revealPhase = .card
+            withAnimation(.easeIn(duration: 0.3)) {
+                showingReveal = true
+            }
         case .insufficientPoints:
             purchaseMessage = NSLocalizedString("points.shop.error.insufficient", comment: "")
             showingPurchaseResult = true

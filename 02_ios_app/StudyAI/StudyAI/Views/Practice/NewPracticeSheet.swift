@@ -147,6 +147,12 @@ struct NewPracticeSheet: View {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(NSLocalizedString("common.cancel", comment: "")) { dismiss() }
                 }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { startSheetTutorial() }) {
+                        Image(systemName: "info.circle")
+                            .foregroundColor(.blue)
+                    }
+                }
             }
         }
         .alert(NSLocalizedString("newPractice.error.title", comment: ""), isPresented: $showingError) {
@@ -167,7 +173,7 @@ struct NewPracticeSheet: View {
             if libOnboardingDone && !sheetOnboardingDone {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
                     if sheetOnboardingStep == nil {
-                        sheetOnboardingStep = .difficultyBar
+                        startSheetTutorial()
                     }
                 }
             }
@@ -177,8 +183,8 @@ struct NewPracticeSheet: View {
                 PracticeLibOnboardingOverlayView(
                     step: step,
                     anchors: sheetOnboardingAnchors,
-                    totalSteps: 1,
-                    onNext: { dismissSheetOnboarding() },
+                    totalSteps: PracticeLibOnboardingStep.sheetSteps.count,
+                    onNext: { advanceSheetOnboarding() },
                     onSkip: { dismissSheetOnboarding() },
                     useSwiftUIScrim: true
                 )
@@ -264,6 +270,11 @@ struct NewPracticeSheet: View {
                         }
                     }
                 )
+                .practiceLibOnboardingAnchor(
+                    tab == .random
+                        ? "practice_sheet_onboarding_randomPractice"
+                        : "practice_sheet_onboarding_archivePractice"
+                )
             }
         }
     }
@@ -275,7 +286,8 @@ struct NewPracticeSheet: View {
             VStack(spacing: 16) {
                 difficultyColorBar
 
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text(NSLocalizedString("questionGeneration.numberOfQuestions", comment: ""))
                             .font(.body)
@@ -343,11 +355,13 @@ struct NewPracticeSheet: View {
                         }
                     }
                 }
+                }
             }
         }
         .padding()
         .background(Color.gray.opacity(0.05))
         .cornerRadius(16)
+        .practiceLibOnboardingAnchor("practice_sheet_onboarding_questionConfig")
     }
 
     // MARK: - Difficulty Color Bar
@@ -440,7 +454,7 @@ struct NewPracticeSheet: View {
             }
             .frame(height: 36)
         }
-        .practiceLibOnboardingAnchor("practice_lib_onboarding_difficultyBar")
+        .practiceLibOnboardingAnchor("practice_sheet_onboarding_difficultyBar")
     }
 
     private var isIntermediateSegActive: Bool {
@@ -685,6 +699,26 @@ struct NewPracticeSheet: View {
 
     // MARK: - Onboarding
 
+    private func startSheetTutorial() {
+        sheetOnboardingStep = .randomPractice
+    }
+
+    private func advanceSheetOnboarding() {
+        guard let current = sheetOnboardingStep else { return }
+        let steps = PracticeLibOnboardingStep.sheetSteps
+        guard let idx = steps.firstIndex(of: current) else {
+            dismissSheetOnboarding(); return
+        }
+        let nextIdx = idx + 1
+        if nextIdx >= steps.count {
+            dismissSheetOnboarding()
+        } else {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                sheetOnboardingStep = steps[nextIdx]
+            }
+        }
+    }
+
     private func dismissSheetOnboarding() {
         SpotlightWindow.hide()
         sheetOnboardingStep = nil
@@ -718,11 +752,11 @@ private struct NewPracticeTypeCard: View {
                         .foregroundColor(.primary)
                     if tab == .archive && archiveSelectionCount > 0 {
                         Text(String(format: NSLocalizedString("newPractice.archiveSelected", comment: "Archive items selected count"), archiveSelectionCount))
-                            .font(.footnote)
+                            .font(.subheadline)
                             .foregroundColor(tab.color)
                     } else {
                         Text(tab.description)
-                            .font(.footnote)
+                            .font(.subheadline)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.leading)
                     }

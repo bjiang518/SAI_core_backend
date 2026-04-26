@@ -26,8 +26,11 @@ actor AudioStreamManager {
 
     // MARK: - Private Properties
 
-    private let engine: AVAudioEngine
-    private let playerNode: AVAudioPlayerNode
+    /// AVAudioEngine and AVAudioPlayerNode are thread-safe for stop() calls.
+    /// Marked nonisolated(unsafe) so tearDownSync() can stop them synchronously
+    /// from any isolation context without awaiting the actor's executor.
+    private nonisolated(unsafe) let engine: AVAudioEngine
+    private nonisolated(unsafe) let playerNode: AVAudioPlayerNode
     private let playbackFormat: AVAudioFormat
 
     /// Number of AVAudioPCMBuffers that have been scheduled but whose completion
@@ -132,6 +135,14 @@ actor AudioStreamManager {
     }
 
     func tearDown() {
+        playerNode.stop()
+        engine.stop()
+    }
+
+    /// Synchronous teardown callable from any isolation context.
+    /// AVAudioEngine.stop() and AVAudioPlayerNode.stop() are thread-safe
+    /// and safe to call from outside the actor's executor.
+    nonisolated func tearDownSync() {
         playerNode.stop()
         engine.stop()
     }

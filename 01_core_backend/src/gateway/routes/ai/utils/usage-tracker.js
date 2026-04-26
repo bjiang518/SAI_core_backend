@@ -197,13 +197,20 @@ const usageTracker = {
           throw new Error('redis not ready');
         }
       } catch (_) {
-        // DB fallback
+        // DB fallback — verify bonus is from current month before using it
         try {
           const bResult = await db.query(
-            `SELECT monthly_usage->>$1 as bonus FROM users WHERE id = $2`,
+            `SELECT monthly_usage->>$1 as bonus, usage_reset_date FROM users WHERE id = $2`,
             [`bonus_${featureKey}`, userId]
           );
-          bonus = parseInt(bResult.rows[0]?.bonus || 0, 10);
+          const bRow = bResult.rows[0];
+          if (bRow?.bonus) {
+            const resetDate = bRow.usage_reset_date ? new Date(bRow.usage_reset_date) : null;
+            const isCurrentMonth = resetDate &&
+              resetDate.getFullYear() === now.getFullYear() &&
+              resetDate.getMonth() === now.getMonth();
+            bonus = isCurrentMonth ? parseInt(bRow.bonus, 10) : 0;
+          }
         } catch (_) { bonus = 0; }
       }
     }
@@ -286,12 +293,20 @@ const usageTracker = {
             bonus = bVal ? parseInt(bVal, 10) : 0;
           }
         } catch (_) {
+          // DB fallback — verify bonus is from current month
           try {
             const bResult = await db.query(
-              `SELECT monthly_usage->>$1 as bonus FROM users WHERE id = $2`,
+              `SELECT monthly_usage->>$1 as bonus, usage_reset_date FROM users WHERE id = $2`,
               [`bonus_${key}`, userId]
             );
-            bonus = parseInt(bResult.rows[0]?.bonus || 0, 10);
+            const bRow = bResult.rows[0];
+            if (bRow?.bonus) {
+              const resetDate = bRow.usage_reset_date ? new Date(bRow.usage_reset_date) : null;
+              const isCurrentMonth = resetDate &&
+                resetDate.getFullYear() === now.getFullYear() &&
+                resetDate.getMonth() === now.getMonth();
+              bonus = isCurrentMonth ? parseInt(bRow.bonus, 10) : 0;
+            }
           } catch (_) {}
         }
         if (bonus > 0) limit += bonus;

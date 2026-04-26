@@ -112,6 +112,17 @@ class AppState: ObservableObject {
     /// Consumed once by SessionChatView.onAppear and then cleared.
     @Published var pendingChatAction: PendingChatAction? = nil
 
+    /// Set to true from PointsShopView's Earn tab to open Focus Mode after sheet dismissal.
+    /// HomeView observes this and presents FocusView, then clears the flag.
+    @Published var shouldOpenFocusMode = false
+
+    /// Set to true from PointsShopView's Earn tab to open Mistake Review after sheet dismissal.
+    /// HomeView observes this and pushes MistakeReviewView, then clears the flag.
+    @Published var shouldOpenMistakeReview = false
+
+    /// Set to true from PointsShopView to open PracticeLibraryView after sheet dismissal.
+    @Published var shouldOpenPracticeLibrary = false
+
     /// Power Saving Mode - disables all animations when enabled
     @Published var isPowerSavingMode: Bool {        didSet {
             UserDefaults.standard.set(isPowerSavingMode, forKey: "isPowerSavingMode")

@@ -2333,6 +2333,8 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 
 // Study Reports — List View
 "reports.passive.title" = "Informes para Padres";
+"reports.title.parent" = "Informe para Padres";
+"reports.title.student" = "Informe de Aprendizaje";
 "reports.passive.subtitle" = "Resúmenes semanales y mensuales del aprendizaje";
 "reports.passive.editReports" = "Editar informes";
 "reports.passive.testingMode" = "Modo de prueba";
@@ -2860,3 +2862,13 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 // Compartir para puntos
 "points.earn.share.title" = "Compartir con amigos";
 "points.earn.share.desc" = "Bonus único por compartir";
+
+// Puntos — Actividad reciente
+"points.shop.history" = "Actividad reciente";
+"points.tx.premiumTrial" = "Prueba premium de 7 días";
+"points.tx.chatMessages" = "%d mensajes de IA canjeados";
+"points.tx.homeworkPages" = "%d páginas de tarea canjeadas";
+"points.tx.voiceMinutes" = "%d minutos de voz canjeados";
+"points.tx.errorAnalysis" = "%d análisis de errores canjeados";
+"points.tx.questions" = "%d preguntas canjeadas";
+"points.tx.streakFreeze" = "Tarjeta de protección de racha";

@@ -16,6 +16,7 @@ interface User {
   days_inactive: number | null
   subscriptionStatus: string
   total_sessions: number
+  last_user_agent: string | null
 }
 
 interface Pagination {
@@ -146,6 +147,12 @@ export default function UsersPage() {
     }
   }
 
+  const parseAppVersion = (ua: string | null): string => {
+    if (!ua) return '—'
+    const match = ua.match(/StudyAI-iOS\/(.+)/)
+    return match ? `v${match[1]}` : '—'
+  }
+
   const getStatusBadge = (status: string | undefined) => {
     switch ((status || '').toLowerCase()) {
       case 'ultra':    return <Badge variant="success">Ultra</Badge>
@@ -254,6 +261,7 @@ export default function UsersPage() {
                       <th className="pb-2 pr-4">Status</th>
                       <th className="pb-2 pr-4">Joined</th>
                       <th className="pb-2 pr-4">Last Active</th>
+                      <th className="pb-2 pr-4">Version</th>
                       <th className="pb-2">Sessions</th>
                     </tr>
                   </thead>
@@ -285,13 +293,14 @@ export default function UsersPage() {
                               </span>
                             )}
                           </td>
+                          <td className="py-3 pr-4 font-mono text-xs text-muted-foreground">{parseAppVersion(user.last_user_agent)}</td>
                           <td className="py-3">{Number(user.total_sessions).toLocaleString()}</td>
                         </tr>
 
                         {/* Expanded analysis panel */}
                         {expandedUserId === user.id && (
                           <tr className="border-b bg-gray-50">
-                            <td colSpan={7} className="py-4 px-4">
+                            <td colSpan={8} className="py-4 px-4">
                               {analysisLoading === user.id && (
                                 <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
                                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />

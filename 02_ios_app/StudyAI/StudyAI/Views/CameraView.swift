@@ -777,7 +777,7 @@ struct EnhancedCameraView: UIViewControllerRepresentable {
             label.leadingAnchor.constraint(equalTo: padded.leadingAnchor, constant: 16),
             label.trailingAnchor.constraint(equalTo: padded.trailingAnchor, constant: -16),
             padded.centerXAnchor.constraint(equalTo: controller.view.centerXAnchor),
-            padded.topAnchor.constraint(equalTo: controller.view.safeAreaLayoutGuide.topAnchor, constant: 52)
+            padded.topAnchor.constraint(equalTo: controller.view.safeAreaLayoutGuide.topAnchor, constant: 100)
         ])
 
         // Auto-dismiss after 5 seconds

@@ -31,11 +31,23 @@ class AppReviewService {
     private var chatCountKey: String { keyPrefix + "chat_count" }
     private var focusCountKey: String { keyPrefix + "focus_count" }
     private var ratedForPointsKey: String { keyPrefix + "rated_for_points" }
+    private var ratingPromptedKey: String { keyPrefix + "rating_prompted" }
     private var sharedForPointsKey: String { keyPrefix + "shared_for_points" }
+    private var sharePromptedKey: String { keyPrefix + "share_prompted" }
 
     /// Whether the user has already earned points for rating (one-time)
     var hasEarnedRatingPoints: Bool {
         userDefaults.bool(forKey: ratedForPointsKey)
+    }
+
+    /// Whether the review dialog has been shown but points not yet claimed
+    var hasPromptedRating: Bool {
+        userDefaults.bool(forKey: ratingPromptedKey)
+    }
+
+    /// Whether the share sheet has been shown but points not yet claimed
+    var hasPromptedShare: Bool {
+        userDefaults.bool(forKey: sharePromptedKey)
     }
 
     /// Whether the user has already earned points for sharing (one-time)
@@ -154,12 +166,12 @@ class AppReviewService {
         userDefaults.set(true, forKey: dismissedForeverKey)
     }
 
-    // MARK: - Rate for Points (One-Time Earn Action)
+    // MARK: - Rate for Points (Two-Phase: prompt first, claim after)
 
-    /// Called from the Earn Credits section. Opens the review prompt and awards points once.
-    /// Returns the points earned (50 first time, 0 if already claimed).
-    func rateAppForPoints() -> Int {
-        guard !hasEarnedRatingPoints else { return 0 }
+    /// Phase 1: Opens the review dialog. Does NOT award points yet.
+    /// Call this on the first star tap.
+    func promptRatingForPoints() {
+        guard !hasEarnedRatingPoints, !hasPromptedRating else { return }
 
         // Present the review dialog
         if let scene = UIApplication.shared.connectedScenes
@@ -172,7 +184,16 @@ class AppReviewService {
             }
         }
 
-        // Award points (we trust the user — Apple doesn't tell us if they actually rated)
+        // Mark as prompted — points become claimable on next tap
+        userDefaults.set(true, forKey: ratingPromptedKey)
+    }
+
+    /// Phase 2: Claims the rating reward after the user has been prompted.
+    /// Call this on the second star tap (after promptRatingForPoints was called).
+    /// Returns the points earned (50 if eligible, 0 if already claimed).
+    func claimRatingPoints() -> Int {
+        guard hasPromptedRating, !hasEarnedRatingPoints else { return 0 }
+
         let reward = Self.ratingPointsReward
         PointsEarningManager.shared.pointsBalance += reward
         PointsEarningManager.shared.totalPointsEarned += reward
@@ -183,10 +204,25 @@ class AppReviewService {
         return reward
     }
 
-    /// Called when user shares the app via the share sheet. Awards points once.
-    /// Returns the points earned (30 first time, 0 if already claimed).
-    func shareAppForPoints() -> Int {
-        guard !hasEarnedSharePoints else { return 0 }
+    /// Legacy: kept for backward compat but now does both phases at once.
+    @available(*, deprecated, message: "Use promptRatingForPoints() then claimRatingPoints()")
+    func rateAppForPoints() -> Int {
+        promptRatingForPoints()
+        return claimRatingPoints()
+    }
+
+    // MARK: - Share for Points (Two-Phase: share first, claim after)
+
+    /// Phase 1: Marks that the share sheet was presented. Does NOT award points yet.
+    func markSharePrompted() {
+        guard !hasEarnedSharePoints, !hasPromptedShare else { return }
+        userDefaults.set(true, forKey: sharePromptedKey)
+    }
+
+    /// Phase 2: Claims the share reward after the user has shared.
+    /// Returns the points earned (30 if eligible, 0 if already claimed).
+    func claimSharePoints() -> Int {
+        guard hasPromptedShare, !hasEarnedSharePoints else { return 0 }
 
         let reward = Self.sharePointsReward
         PointsEarningManager.shared.pointsBalance += reward
@@ -196,6 +232,13 @@ class AppReviewService {
 
         userDefaults.set(true, forKey: sharedForPointsKey)
         return reward
+    }
+
+    /// Legacy: kept for backward compat.
+    @available(*, deprecated, message: "Use markSharePrompted() then claimSharePoints()")
+    func shareAppForPoints() -> Int {
+        markSharePrompted()
+        return claimSharePoints()
     }
 
     private init() {}

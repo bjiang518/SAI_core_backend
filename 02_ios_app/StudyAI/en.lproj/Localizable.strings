@@ -43,7 +43,7 @@
 "languageSettings.restartRequired" = "Restart Required";
 "languageSettings.restartMessage" = "The app will close now. Please reopen it to see the language change.";
 "settings.voiceAudio" = "Study Mates";
-"settings.voiceSettings" = "Select your study mate";
+"settings.voiceSettings" = "Audio Settings";
 "settings.learning" = "Learning";
 "settings.learningGoals" = "Learning Goals & Progress";
 "settings.grade" = "Grade";
@@ -411,6 +411,17 @@
 
 "app.name" = "StudyAgent";
 "app.tagline" = "Your AI-Powered Learning Companion";
+
+// Force Update
+"forceUpdate.title" = "Update Required";
+"forceUpdate.message" = "A new version of StudyAgent is available. Please update to continue using the app.";
+"forceUpdate.button" = "Update Now";
+
+"softUpdate.title" = "Update Available";
+"softUpdate.message" = "A newer version is available with improvements and bug fixes. Update when you're ready.";
+"softUpdate.updateNow" = "Update Now";
+"softUpdate.later" = "Later";
+
 "auth.login.welcome" = "Welcome Back!";
 "auth.login.subtitle" = "Sign in to continue your learning journey.";
 "auth.login.orContinueWithEmail" = "or continue with email";
@@ -733,6 +744,7 @@
 
 // Practice Library
 "practiceLibrary.title" = "Practice";
+"practiceLibrary.replayTutorial" = "Replay Tutorial";
 "practiceLibrary.filterAll" = "All";
 "practiceLibrary.deleteTitle" = "Delete Session?";
 "practiceLibrary.deleteMessage" = "This practice session will be permanently removed.";
@@ -762,8 +774,16 @@
 "practiceLibOnboarding.sortStatus.desc" = "Switch between All, Ongoing, and Completed. Use the sort menu on the right to reorder.";
 "practiceLibOnboarding.swipeDelete.title" = "Delete a Session";
 "practiceLibOnboarding.swipeDelete.desc" = "Swipe any session card to the left to delete it.";
-"practiceLibOnboarding.difficulty.title" = "Choose Your Difficulty";
-"practiceLibOnboarding.difficulty.desc" = "Drag anywhere on the bar. Drag past the end for Adaptive mode — the AI picks the right level for you.";
+
+// Practice Sheet Onboarding (NewPracticeSheet tutorial)
+"practiceSheetOnboarding.random.title" = "Random Practice";
+"practiceSheetOnboarding.random.desc" = "Generate random questions based on your learning progress and weaknesses. The AI adapts to your level.";
+"practiceSheetOnboarding.archive.title" = "From Archives";
+"practiceSheetOnboarding.archive.desc" = "Generate questions from your archived conversations or saved questions. Great for targeted review.";
+"practiceSheetOnboarding.config.title" = "Customize Questions";
+"practiceSheetOnboarding.config.desc" = "Choose how many questions to generate (1–10) and pick a question type: multiple choice, true/false, short answer, or any.";
+"practiceSheetOnboarding.difficulty.title" = "Choose Your Difficulty";
+"practiceSheetOnboarding.difficulty.desc" = "Drag anywhere on the bar. Drag past the end for Adaptive mode — the AI picks the right level for you.";
 
 // Practice Sheet
 "practiceSheet.questionCounter" = "Q %d/%d";
@@ -1057,8 +1077,8 @@
 
 // Contact Support
 "contactSupport.subtitle" = "We're here to help\!";
-"contactSupport.emailTitle" = "Email Support";
-"contactSupport.emailDescription" = "Get detailed help via email";
+"contactSupport.emailTitle" = "Feedback & Inquiries";
+"contactSupport.emailDescription" = "Send us feedback or questions via email";
 "contactSupport.chatTitle" = "Live Chat";
 "contactSupport.chatSubtitle" = "Available Mon-Fri 9am-5pm EST";
 "contactSupport.chatDescription" = "Chat with our support team";
@@ -1090,8 +1110,8 @@
 "helpCenter.faq6.answer" = "Yes. All communication is encrypted over HTTPS and your login credentials are stored securely in the device Keychain. Your data is processed by trusted AI providers solely to deliver tutoring features, and is never sold or used for advertising.";
 "helpCenter.faq7.question" = "What subscription plans are available?";
 "helpCenter.faq7.answer" = "StudyAgent offers four tiers: Guest (no sign-up, limited to 3 homework scans and 10 chat messages lifetime), Free (monthly limits on homework, chat, and practice), Premium (higher limits plus Live Mode and parent reports), and Premium Plus (unlimited everything). View your current usage in Settings > Account Usage.";
-"helpCenter.faq8.question" = "What is the difference between Detail and Fast parsing?";
-"helpCenter.faq8.answer" = "Detail mode provides more accurate parsing with hierarchical structure and parent-child relationships. Fast mode is quicker but simpler. Use Detail for complex homework.";
+"helpCenter.faq8.question" = "What is the difference between Deep and Fast grading?";
+"helpCenter.faq8.answer" = "Fast grading uses AI for quick scoring — great for everyday homework. Deep grading enables a more powerful reasoning model for complex problems (multi-step proofs, essays, derivations) with more detailed analysis, but takes longer. Toggle it in the top-right of the grading screen.";
 "helpCenter.quickLinks" = "Quick Links";
 "helpCenter.gettingStarted" = "Getting Started Guide";
 "helpCenter.videoTutorials" = "Video Tutorials";
@@ -1112,6 +1132,7 @@
 "shareApp.copyLinkSubtitle" = "Share the download link anywhere";
 "shareApp.scanToDownload" = "Scan to Download";
 "shareApp.qrCode" = "QR Code";
+"shareApp.qrHint" = "Let friends scan this with their camera";
 "shareApp.showQRCode" = "Show this QR code to friends";
 "shareApp.comingSoonReferral" = "Coming Soon: Referral Rewards\!";
 "shareApp.earnPoints" = "Earn points for every friend who joins StudyAgent";
@@ -1141,6 +1162,7 @@
 "chat.menu.liveTalk" = "Live Talk";
 "chat.menu.archiveSession" = "Archive Session";
 "chat.menu.viewTutorial" = "View Tutorial";
+"chat.menu.replayTutorial" = "Replay Tutorial";
 "chat.menu.endLive" = "End Live";
 "chat.menu.liveScenario" = "Live Scenario";
 "chat.menu.audioConfig" = "Audio Config";
@@ -1600,7 +1622,20 @@
 "mistakeReview.instructions.message" = "Mistake Review analyzes your past incorrect answers to identify patterns and weak areas across subjects.\n\nHow to Use:\n  1. Select a time range — This Week, This Month, or All Time\n  2. Choose a subject to view your errors in that area\n  3. Tap any mistake group to see the specific questions you got wrong\n  4. Tap Start Review to re-attempt those questions\n\nUnderstanding the Results:\n  • Each group shows the number of errors, the concept involved, and a weakness description\n  • Weakness strength is rated Low to High based on how often you made similar errors\n  • High-strength weaknesses indicate consistent, recurring errors\n\nRe-Attempting Mistakes:\n  • Tap Let's Do Them Again to generate a new set of similar questions\n  • New attempts are tracked separately so you can measure improvement\n\nTips:\n  • Address high-strength weaknesses first for the greatest accuracy gains\n  • Weekly reviews are more effective than infrequent large sessions";"mistakeReview.startReview" = "Start Review (%d Mistakes)";
 "mistakeReview.categorizeMistakes" = "Categorize";
 "mistakeReview.uncategorized" = "unclassified";
-"mistakeReview.categorizing" = "Categorizing…";
+"mistakeReview.categorizing" = "Categorizing\u{2026}";
+"mistakeReview.replayTutorial" = "Replay Tutorial";
+
+// Mistake Review Onboarding
+"mistakeReviewOnboarding.subject.title" = "Choose a Subject";
+"mistakeReviewOnboarding.subject.desc" = "Select a subject to see your mistakes. The badge shows how many weak points need attention.";
+"mistakeReviewOnboarding.activeFilter.title" = "Track Your Progress";
+"mistakeReviewOnboarding.activeFilter.desc" = "Active shows current weaknesses. Good At shows topics you\u{2019}ve mastered \u{2014} weaknesses you\u{2019}ve turned into strengths!";
+"mistakeReviewOnboarding.heatmap.title" = "Weakness Heatmap";
+"mistakeReviewOnboarding.heatmap.desc" = "Inner arcs show your weakest topics. As you practice and improve, they move outward and turn green.";
+"mistakeReviewOnboarding.taxonomy.title" = "Drill Into Topics";
+"mistakeReviewOnboarding.taxonomy.desc" = "Tap a topic to expand it. Select specific concepts to focus your review on exactly what you need.";
+"mistakeReviewOnboarding.startReview.title" = "Start Targeted Practice";
+"mistakeReviewOnboarding.startReview.desc" = "Tap to review your mistakes and generate practice questions. Turn your weaknesses into strengths!";
 "mistakeReview.letsPractise" = "Start Practice";
 "mistakeReview.resumePractice" = "Resume Practice";
 "mistakeReview.showFullQuestion" = "Show Full Question & Analysis";
@@ -2137,6 +2172,8 @@
 "pdf.options.section.text" = "Text";
 "pdf.options.section.spacing" = "Spacing";
 "pdf.options.section.images" = "Images";
+"pdf.options.section.layout" = "Layout";
+"pdf.options.columns" = "Columns";
 "pdf.options.fontSize" = "Font Size";
 "pdf.options.gap" = "Gap Between Questions";
 "pdf.options.maxImageSize" = "Max Image Size";
@@ -2209,10 +2246,10 @@
 "tomato.garden.type.classic" = "Classic Tomato";
 "tomato.garden.type.curly" = "Curly Vine Tomato";
 "tomato.garden.type.cute" = "Cute Tomato";
-"tomato.garden.type.batman" = "Batman Tomato";
-"tomato.garden.type.ironman" = "Iron Man Tomato";
-"tomato.garden.type.mario" = "Mario Tomato";
-"tomato.garden.type.pokemon" = "Pokémon Tomato";
+"tomato.garden.type.darkKnight" = "Dark Knight Tomato";
+"tomato.garden.type.ironSuit" = "Iron Suit Tomato";
+"tomato.garden.type.superTomatorio" = "Super Tomatorio";
+"tomato.garden.type.flashingTomato" = "Flashing Tomato";
 "tomato.garden.type.golden" = "Golden Tomato";
 "tomato.garden.type.platinum" = "Platinum Tomato";
 "tomato.garden.type.diamond" = "Diamond Tomato";
@@ -2225,13 +2262,15 @@
 "tomato.garden.desc.tmt4" = "An ordinary tomato, humble and sincere";
 "tomato.garden.desc.tmt5" = "An ordinary tomato, simple and cheerful";
 "tomato.garden.desc.tmt6" = "An ordinary tomato, hardworking and cute";
-"tomato.garden.desc.batman" = "The Dark Knight guardian, embodiment of justice";
-"tomato.garden.desc.ironman" = "The perfect fusion of technology and power";
-"tomato.garden.desc.mario" = "A brave plumber adventurer";
-"tomato.garden.desc.pokemon" = "A wonderful Pokémon companion";
+"tomato.garden.desc.darkKnight" = "The Dark Knight guardian, embodiment of justice";
+"tomato.garden.desc.ironSuit" = "The perfect fusion of technology and power";
+"tomato.garden.desc.superTomatorio" = "A brave plumber adventurer";
+"tomato.garden.desc.flashingTomato" = "A wonderful companion with electric charm";
 "tomato.garden.desc.golden" = "A gleaming golden tomato, symbol of wealth and glory";
 "tomato.garden.desc.platinum" = "As precious as platinum, radiating noble brilliance";
 "tomato.garden.desc.diamond" = "The legendary diamond tomato — extraordinarily rare and precious";
+"tomato.duration.minutes" = "%d min";
+"tomato.duration.hoursMinutes" = "%dh %dm";
 "tomato.garden.exchange" = "Exchange";
 "tomato.garden.exchange.title" = "Tomato Exchange";
 "tomato.garden.exchange.5to1" = "5 Ordinary → 1 Rare";
@@ -2376,6 +2415,7 @@
 "live.leave.message" = "Leaving this page will end your Live session and clear the conversation.";
 "live.leave.confirm" = "Leave & Clear";
 "live.leave.cancel" = "Stay";
+"live.ended_by_background" = "Live session ended — reopen from the menu to continue";
 
 // MARK: - Homework Results View
 "homeworkResults.subquestions" = "%d subquestions";
@@ -2555,6 +2595,8 @@
 
 // Study Reports — List View
 "reports.passive.title" = "Study Reports";
+"reports.title.parent" = "Parent Report";
+"reports.title.student" = "Learning Report";
 "reports.passive.subtitle" = "Weekly and monthly learning insights";
 "reports.passive.editReports" = "Edit Reports";
 "reports.passive.testingMode" = "Testing Mode";
@@ -2844,6 +2886,8 @@
 "shop.item.questions20.desc" = "20 extra practice questions";
 "shop.item.premiumTrial" = "7-Day Premium Trial";
 "shop.item.premiumTrial.desc" = "Unlock all premium features for 1 week";
+"shop.item.blindbox.normal" = "Tomato Blind Box";
+"shop.item.blindbox.normal.desc" = "Random tomato from the full collection";
 "shop.item.blindbox.rare" = "Rare Tomato Box";
 "shop.item.blindbox.rare.desc" = "Random rare character tomato";
 "shop.item.blindbox.super" = "Super Rare Tomato Box";
@@ -2860,6 +2904,7 @@
 "shop.purchased.questions" = "+%d practice questions added!";
 "shop.purchased.premium" = "7-day Premium activated!";
 "shop.purchased.blindbox" = "You got: %@!";
+"shop.blindbox.collect" = "Collect";
 "shop.purchased.music" = "Music track unlocked!";
 "shop.error.network" = "Network error. Points refunded.";
 "shop.error.trialLimit" = "Premium trial limit reached.";
@@ -2872,11 +2917,40 @@
 "points.earn.chat.title" = "AI Chat";
 "points.earn.chat.desc" = "1 point per chat exchange";
 
+// Points Earn — dynamic subtitles
+"points.earn.unclaimed" = "%d unclaimed — tap ⭐ to collect";
+"points.earn.claimedToday" = "%d/%d pts earned today";
+
+// Points Earn — how-to instructions (shown when no activity yet)
+"points.howTo.correctAnswers" = "Grade homework → slide to mark progress";
+"points.howTo.homeworkScan" = "Scan homework from the Grader tab";
+"points.howTo.practiceCompletion" = "Complete a practice set from Practice";
+"points.howTo.mistakeReview" = "Review mistakes → slide to mark progress";
+"points.howTo.focusSession" = "Complete a focus session (1 pt per 5 min)";
+"points.howTo.chatSession" = "Have a chat conversation with AI";
+"points.howTo.weaknessConversion" = "Overcome a weakness through practice";
+
+// Weakness Conversion
+"points.earn.weakness.title" = "Overcome Weakness";
+"points.earn.weakness.desc" = "10 points per weakness mastered";
+
 // Rate App for Points
 "points.earn.rate.title" = "Rate StudyAgent";
 "points.earn.rate.desc" = "One-time bonus for rating us";
+"points.earn.rate.claimNow" = "Rating submitted — tap ⭐ to claim reward";
 "points.earn.rate.action" = "Rate";
 
 // Share App for Points
 "points.earn.share.title" = "Share with Friends";
 "points.earn.share.desc" = "One-time bonus for sharing the app";
+"points.earn.share.claimNow" = "Shared — tap ⭐ to claim reward";
+
+// Points — Recent Activity
+"points.shop.history" = "Recent Activity";
+"points.tx.premiumTrial" = "7-day premium trial";
+"points.tx.chatMessages" = "Redeemed %d chat messages";
+"points.tx.homeworkPages" = "Redeemed %d homework pages";
+"points.tx.voiceMinutes" = "Redeemed %d voice minutes";
+"points.tx.errorAnalysis" = "Redeemed %d error analyses";
+"points.tx.questions" = "Redeemed %d questions";
+"points.tx.streakFreeze" = "Streak freeze card";

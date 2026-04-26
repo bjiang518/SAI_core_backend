@@ -39,6 +39,10 @@ struct HelpCenterView: View {
             (
                 question: NSLocalizedString("helpCenter.faq7.question", comment: ""),
                 answer: NSLocalizedString("helpCenter.faq7.answer", comment: "")
+            ),
+            (
+                question: NSLocalizedString("helpCenter.faq8.question", comment: ""),
+                answer: NSLocalizedString("helpCenter.faq8.answer", comment: "")
             )
         ]
     }

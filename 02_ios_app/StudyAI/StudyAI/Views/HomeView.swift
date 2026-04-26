@@ -61,7 +61,6 @@ struct HomeView: View {
     @State private var showingPointsShop: Bool = false
     @State private var streakBonusClaimed: Int = 0
     @State private var showStreakBonusToast: Bool = false
-    @State private var starShakeAngle: Double = 0
 
     // ✅ Dark Mode Support: Detect current color scheme
     @Environment(\.colorScheme) var colorScheme
@@ -183,6 +182,25 @@ struct HomeView: View {
             .onChange(of: showingFocusMode) { _, v in
                 debugPrint("🏠 [HomeView.nav] showingFocusMode → \(v) | selectedTab=\(appState.selectedTab)")
             }
+            .onChange(of: appState.shouldOpenFocusMode) { _, shouldOpen in
+                if shouldOpen {
+                    appState.shouldOpenFocusMode = false
+                    showingFocusMode = true
+                }
+            }
+            .onChange(of: appState.shouldOpenMistakeReview) { _, shouldOpen in
+                if shouldOpen {
+                    appState.shouldOpenMistakeReview = false
+                    showingMistakeReview = true
+                }
+            }
+            .onChange(of: appState.shouldOpenPracticeLibrary) { _, shouldOpen in
+                if shouldOpen {
+                    appState.shouldOpenPracticeLibrary = false
+                    practiceLibraryShortcutConfig = nil
+                    showingQuestionGeneration = true
+                }
+            }
             .onChange(of: showingHomeworkAlbum) { _, v in
                 debugPrint("🏠 [HomeView.nav] showingHomeworkAlbum → \(v) | selectedTab=\(appState.selectedTab)")
             }
@@ -276,34 +294,9 @@ struct HomeView: View {
             HStack(spacing: 6) {
                 // Points balance — tap to open points hub
                 Button(action: { showingPointsShop = true }) {
-                    ZStack {
-                        Circle()
-                            .fill(Color(red: 1.0, green: 0.84, blue: 0.0).opacity(0.12))
-                            .frame(width: 36, height: 36)
-
-                        Image(systemName: "star.fill")
-                            .font(.system(size: 17, weight: .medium))
-                            .foregroundColor(Color(red: 1.0, green: 0.84, blue: 0.0))
-                            .rotationEffect(.degrees(starShakeAngle))
-                            .animation(
-                                pointsManager.hasUnclaimedEarnings
-                                    ? .easeInOut(duration: 0.12).repeatForever(autoreverses: true)
-                                    : .default,
-                                value: starShakeAngle
-                            )
-                    }
-                    .frame(width: 36, height: 36)
-                    .clipShape(Circle())
+                    HomePulsingStar(isActive: pointsManager.hasUnclaimedEarnings)
                 }
                 .buttonStyle(PlainButtonStyle())
-                .onAppear {
-                    if pointsManager.hasUnclaimedEarnings {
-                        starShakeAngle = 12
-                    }
-                }
-                .onChange(of: pointsManager.hasUnclaimedEarnings) { _, hasUnclaimed in
-                    starShakeAngle = hasUnclaimed ? 12 : 0
-                }
 
                 Button(action: {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
@@ -927,6 +920,46 @@ struct QuickActionCard_New: View {
             .scaleEffect(isPressed ? 0.95 : 1.0)
         }
         .buttonStyle(PlainButtonStyle())
+    }
+}
+
+// MARK: - Home Pulsing Star (Points icon on home screen)
+
+/// Self-contained pulsing star that gently scales up/down when active.
+/// Completely isolated — animation state is internal, cannot leak to other views.
+private struct HomePulsingStar: View {
+    let isActive: Bool
+    @State private var isPulsing = false
+
+    private let goldColor = Color(red: 1.0, green: 0.84, blue: 0.0)
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(goldColor.opacity(0.12))
+                .frame(width: 36, height: 36)
+
+            Image(systemName: "star.fill")
+                .font(.system(size: 17, weight: .medium))
+                .foregroundColor(goldColor)
+                .scaleEffect(isPulsing ? 1.2 : 0.8)
+        }
+        .frame(width: 36, height: 36)
+        .onAppear { startPulseIfNeeded() }
+        .onChange(of: isActive) { _, active in
+            if active {
+                startPulseIfNeeded()
+            } else {
+                withAnimation(.easeOut(duration: 0.3)) { isPulsing = false }
+            }
+        }
+    }
+
+    private func startPulseIfNeeded() {
+        guard isActive else { return }
+        withAnimation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true)) {
+            isPulsing = true
+        }
     }
 }
 

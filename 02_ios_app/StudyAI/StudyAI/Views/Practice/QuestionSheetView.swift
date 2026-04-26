@@ -1299,6 +1299,11 @@ struct QuestionSheetView: View {
             // Bonus for completing the practice set
             PointsEarningManager.shared.awardPracticeCompletionBonus()
 
+            // Bonus for reviewing mistakes (when this practice originated from mistake review)
+            if session.generationType.contains("Mistake") {
+                PointsEarningManager.shared.awardMistakeReviewPoints(reviewedCount: questions.count)
+            }
+
             // Archive wrong answers
             let current = sessionManager.getSession(id: session.id)
             let wrongQuestions = questions.filter { q in

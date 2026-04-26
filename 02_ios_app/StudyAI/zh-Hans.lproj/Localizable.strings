@@ -42,7 +42,7 @@
 "languageSettings.restartRequired" = "需要重启";
 "languageSettings.restartMessage" = "应用即将关闭，请重新打开以查看语言更改。";
 "settings.voiceAudio" = "学习伙伴";
-"settings.voiceSettings" = "选择你的学习伙伴";
+"settings.voiceSettings" = "音频设置";
 "settings.learning" = "学习";
 "settings.learningGoals" = "学习目标与进度";
 "settings.grade" = "年级";
@@ -410,7 +410,18 @@
 
 
 "app.name" = "StudyAgent";
-"app.tagline" = "您的AI驱动学习伙伴";
+"app.tagline" = "您的AI学习伙伴";
+
+// 强制更新
+"forceUpdate.title" = "需要更新";
+"forceUpdate.message" = "StudyAgent 有新版本可用，请更新后继续使用。";
+"forceUpdate.button" = "立即更新";
+
+"softUpdate.title" = "有新版本可用";
+"softUpdate.message" = "新版本包含功能改进和问题修复，方便时请前往更新。";
+"softUpdate.updateNow" = "立即更新";
+"softUpdate.later" = "稍后再说";
+
 "auth.login.welcome" = "欢迎回来！";
 "auth.login.subtitle" = "登录以继续您的学习之旅。";
 "auth.login.orContinueWithEmail" = "或使用电子邮件继续";
@@ -888,8 +899,8 @@
 
 // Contact Support
 "contactSupport.subtitle" = "我们随时为您提供帮助！";
-"contactSupport.emailTitle" = "电子邮件支援";
-"contactSupport.emailDescription" = "透过电子邮件获取详细帮助";
+"contactSupport.emailTitle" = "反馈与咨询";
+"contactSupport.emailDescription" = "通过邮件向我们反馈问题或提出建议";
 "contactSupport.chatTitle" = "线上聊天";
 "contactSupport.chatSubtitle" = "工作日9am-5pm EST可用";
 "contactSupport.chatDescription" = "与我们的支持团队聊天";
@@ -912,7 +923,7 @@
 "helpCenter.faq2.question" = "支持哪些科目？";
 "helpCenter.faq2.answer" = "StudyAgent支持数学、物理、化学、生物、英语、历史、地理和电脑科学。我们正在不断新增更多科目！";
 "helpCenter.faq3.question" = "如何更改AI语音？";
-"helpCenter.faq3.answer" = "前往设置>学习伙伴>选择你的学习伙伴。您可以在Adam（男声）和Eva（女声）之间进行选择，并自定义速度和音量。";
+"helpCenter.faq3.answer" = "前往设置 > 音频设置，可在 Adam（男声）、Eva（女声）、Max、Mia 四种声音中选择，并自定义语速和音量。";
 "helpCenter.faq4.question" = "可以查看过去的错误嗎？";
 "helpCenter.faq4.answer" = "可以！使用主画面上的错题复习功能重新造访您答错的问题并练习类似的问题。";
 "helpCenter.faq5.question" = "连续天数系统如何运作？";
@@ -921,8 +932,8 @@
 "helpCenter.faq6.answer" = "是的！我们使用业界标准加密和安全验证。您的作业和学习资料安全储存，絕不会与第三方共享。";
 "helpCenter.faq7.question" = "如何追蹤我的进度？";
 "helpCenter.faq7.answer" = "造访进度分页检视详细统计资讯、准确率趋势、科目表现和每周学习模式。";
-"helpCenter.faq8.question" = "详细模式和快速模式有什麼区别？";
-"helpCenter.faq8.answer" = "详细模式提供更准确的解析，具有层次结构和父子关系。快速模式更快但更简单。对于复杂的作业使用详细模式。";
+"helpCenter.faq8.question" = "深度批改和快速批改有什么区别？";
+"helpCenter.faq8.answer" = "快速批改使用 AI 快速评分，适合日常作业。深度批改启用更强的推理模型，对复杂题目（多步骤推导、证明题、作文）给出更详细的分析，但速度较慢。可在批改界面右上角切换。";
 "helpCenter.quickLinks" = "快速连结";
 "helpCenter.gettingStarted" = "入门指南";
 "helpCenter.videoTutorials" = "影片教学";
@@ -943,6 +954,7 @@
 "shareApp.copyLinkSubtitle" = "在任何地方分享下载链接";
 "shareApp.scanToDownload" = "扫描下载";
 "shareApp.qrCode" = "QR码";
+"shareApp.qrHint" = "让朋友用手机相机扫描即可下载";
 "shareApp.showQRCode" = "向朋友展示此QR码";
 "shareApp.comingSoonReferral" = "即将推出：推荐奖励！";
 "shareApp.earnPoints" = "为每位加入StudyAgent的朋友赚取积分";
@@ -1366,6 +1378,7 @@
 
 // Practice Library
 "practiceLibrary.title" = "练习本";
+"practiceLibrary.replayTutorial" = "重播教程";
 "practiceLibrary.filterAll" = "全部";
 "practiceLibrary.deleteTitle" = "删除练习?";
 "practiceLibrary.deleteMessage" = "此练习记录将被永久删除。";
@@ -1385,6 +1398,26 @@
 
 "practiceLibrary.info.title" = "如何生成练习";
 "practiceLibrary.info.message" = "5种创建题目的方式\n\n1. 随机练习\n点击 + 新建，选择随机练习。AI 根据您的薄弱知识点和所选科目自适应生成题目。\n\n2. 从档案生成\n点击 + 新建，选择从档案。选择过去的对话或已保存的题目，AI 根据这些内容生成新的复习题。\n\n3. 基于弱点练习\n进入学习进度，点击任意弱点项目。AI 针对该具体薄弱点生成专项练习题。\n\n4. 重做错误题\n进入错误回顾，选择错误题目，点击重试。直接重做原始题目，无需 AI 重新生成。\n\n5. 重做已完成的练习\n打开列表中任意已完成的练习，点击重做。从头重复相同的题目组合。";
+
+// Practice Library Onboarding
+"practiceLibOnboarding.newBtn.title" = "创建你的第一次练习";
+"practiceLibOnboarding.newBtn.desc" = "点击 + 新建 来生成自定义练习集。选择科目、难度和题型。";
+"practiceLibOnboarding.subjectFilter.title" = "按科目筛选";
+"practiceLibOnboarding.subjectFilter.desc" = "点击科目以筛选练习记录。随着练习增多，科目会自动出现。";
+"practiceLibOnboarding.sortStatus.title" = "排序与筛选";
+"practiceLibOnboarding.sortStatus.desc" = "切换全部、进行中或已完成。使用右侧排序菜单重新排列。";
+"practiceLibOnboarding.swipeDelete.title" = "删除练习记录";
+"practiceLibOnboarding.swipeDelete.desc" = "向左滑动练习卡片即可删除。";
+
+// Practice Sheet Onboarding
+"practiceSheetOnboarding.random.title" = "随机练习";
+"practiceSheetOnboarding.random.desc" = "根据你的学习进度和薄弱项生成随机题目。AI 会自动调整难度。";
+"practiceSheetOnboarding.archive.title" = "基于归档";
+"practiceSheetOnboarding.archive.desc" = "从你归档的对话或保存的题目中生成练习题。非常适合针对性复习。";
+"practiceSheetOnboarding.config.title" = "自定义题目";
+"practiceSheetOnboarding.config.desc" = "选择生成题目数量（1-10）和题型：选择题、判断题、简答题或不限。";
+"practiceSheetOnboarding.difficulty.title" = "选择难度";
+"practiceSheetOnboarding.difficulty.desc" = "在进度条上拖动选择难度。拖过末端进入自适应模式 — AI 为你选择合适的难度。";
 
 // Practice Sheet
 "practiceSheet.questionCounter" = "第 %d/%d 题";
@@ -1520,7 +1553,20 @@
 "mistakeReview.categorizeMistakes" = "分类错题";
 "mistakeReview.uncategorized" = "未分类";
 "mistakeReview.categorizing" = "分类中…";
+"mistakeReview.replayTutorial" = "重播教程";
 "mistakeReview.letsPractise" = "开始练习";
+
+// 错题回顾引导
+"mistakeReviewOnboarding.subject.title" = "选择科目";
+"mistakeReviewOnboarding.subject.desc" = "选择一个科目查看你的错题。徽章上的数字表示需要关注的薄弱点。";
+"mistakeReviewOnboarding.activeFilter.title" = "追踪你的进步";
+"mistakeReviewOnboarding.activeFilter.desc" = "活跃显示当前薄弱点。擅长显示你已掌握的知识点——从薄弱变成强项！";
+"mistakeReviewOnboarding.heatmap.title" = "薄弱点热力图";
+"mistakeReviewOnboarding.heatmap.desc" = "内圈弧线代表最薄弱的知识点。随着练习和提高，它们会向外移动并变成绿色。";
+"mistakeReviewOnboarding.taxonomy.title" = "深入知识点";
+"mistakeReviewOnboarding.taxonomy.desc" = "点击知识点展开详情。选择具体概念，精准聚焦你需要复习的内容。";
+"mistakeReviewOnboarding.startReview.title" = "开始针对性练习";
+"mistakeReviewOnboarding.startReview.desc" = "点击查看错题并生成练习题。把薄弱点变成你的强项！";
 "mistakeReview.resumePractice" = "继续练习";
 "mistakeReview.showFullQuestion" = "展开题目与分析";
 "mistakeReview.hideDetails" = "收起详情";
@@ -2047,6 +2093,8 @@
 "pdf.options.section.text" = "文字";
 "pdf.options.section.spacing" = "间距";
 "pdf.options.section.images" = "图片";
+"pdf.options.section.layout" = "版面";
+"pdf.options.columns" = "分栏";
 "pdf.options.fontSize" = "字号";
 "pdf.options.gap" = "题目间距";
 "pdf.options.maxImageSize" = "最大图片尺寸";
@@ -2119,10 +2167,10 @@
 "tomato.garden.type.classic" = "经典番茄";
 "tomato.garden.type.curly" = "卷藤番茄";
 "tomato.garden.type.cute" = "萌萌番茄";
-"tomato.garden.type.batman" = "蝙蝠侠番茄";
-"tomato.garden.type.ironman" = "钢铁侠番茄";
-"tomato.garden.type.mario" = "马里奥番茄";
-"tomato.garden.type.pokemon" = "宝可梦番茄";
+"tomato.garden.type.darkKnight" = "暗夜骑士番茄";
+"tomato.garden.type.ironSuit" = "铁甲番茄";
+"tomato.garden.type.superTomatorio" = "超级番茄里奥";
+"tomato.garden.type.flashingTomato" = "闪光番茄";
 "tomato.garden.type.golden" = "黄金番茄";
 "tomato.garden.type.platinum" = "白金番茄";
 "tomato.garden.type.diamond" = "钻石番茄";
@@ -2135,13 +2183,15 @@
 "tomato.garden.desc.tmt4" = "普通番茄，朴实无华";
 "tomato.garden.desc.tmt5" = "普通番茄，简单快乐";
 "tomato.garden.desc.tmt6" = "普通番茄，勤奋可爱";
-"tomato.garden.desc.batman" = "黑暗骑士守护者，正义的化身";
-"tomato.garden.desc.ironman" = "科技与力量的完美结合";
-"tomato.garden.desc.mario" = "勇敢的水管工冒险家";
-"tomato.garden.desc.pokemon" = "神奇的宝可梦伙伴";
+"tomato.garden.desc.darkKnight" = "黑暗骑士守护者，正义的化身";
+"tomato.garden.desc.ironSuit" = "科技与力量的完美结合";
+"tomato.garden.desc.superTomatorio" = "勇敢的水管工冒险家";
+"tomato.garden.desc.flashingTomato" = "闪闪发光的神奇伙伴";
 "tomato.garden.desc.golden" = "金光闪闪的番茄，象征财富与荣耀";
 "tomato.garden.desc.platinum" = "铂金般珍贵，闪耀着高贵光芒";
 "tomato.garden.desc.diamond" = "传说中的钻石番茄，极其珍贵稀有";
+"tomato.duration.minutes" = "%d分钟";
+"tomato.duration.hoursMinutes" = "%d小时%d分钟";
 "tomato.garden.exchange" = "兑换";
 "tomato.garden.exchange.title" = "番茄兑换";
 "tomato.garden.exchange.5to1" = "5个普通 → 1个稀有";
@@ -2375,6 +2425,7 @@
 "live.leave.message" = "离开此页面将结束实时语音会话，对话内容将被清除。";
 "live.leave.confirm" = "离开并清除";
 "live.leave.cancel" = "留下继续";
+"live.ended_by_background" = "实时对话已断开 — 从菜单重新开启";
 
 // MARK: - Voice Settings
 "voiceSettings.title" = "你的AI学习伙伴";
@@ -2409,6 +2460,7 @@
 
 // Chat Menu (missing)
 "chat.menu.viewTutorial" = "查看引导教程";
+"chat.menu.replayTutorial" = "重播教程";
 
 // Edit Profile (missing)
 "editProfile.adjustAvatar" = "调整头像";
@@ -2534,6 +2586,8 @@
 
 // Study Reports — List View
 "reports.passive.title" = "家长报告";
+"reports.title.parent" = "家长报告";
+"reports.title.student" = "学习报告";
 "reports.passive.subtitle" = "每周、每月学习洞察";
 "reports.passive.editReports" = "编辑报告";
 "reports.passive.testingMode" = "测试模式";
@@ -2818,6 +2872,8 @@
 "shop.item.questions20.desc" = "额外20道练习题";
 "shop.item.premiumTrial" = "一周会员体验卡";
 "shop.item.premiumTrial.desc" = "解锁全部高级功能7天";
+"shop.item.blindbox.normal" = "番茄盲盒";
+"shop.item.blindbox.normal.desc" = "从全部番茄中随机抽取一个";
 "shop.item.blindbox.rare" = "稀有番茄盲盒";
 "shop.item.blindbox.rare.desc" = "随机获得一个稀有角色番茄";
 "shop.item.blindbox.super" = "超稀有番茄盲盒";
@@ -2834,6 +2890,7 @@
 "shop.purchased.questions" = "已增加 %d 道练习题！";
 "shop.purchased.premium" = "7天会员已激活！";
 "shop.purchased.blindbox" = "恭喜获得：%@！";
+"shop.blindbox.collect" = "收下";
 "shop.purchased.music" = "音乐已解锁！";
 "shop.error.network" = "网络错误，积分已退回。";
 "shop.error.trialLimit" = "会员体验次数已达上限。";
@@ -2846,11 +2903,40 @@
 "points.earn.chat.title" = "AI 对话";
 "points.earn.chat.desc" = "每次对话获得1积分";
 
+// 积分获取 — 动态字幕
+"points.earn.unclaimed" = "%d 个未领取 — 点击 ⭐ 收集";
+"points.earn.claimedToday" = "今日已赚 %d/%d 分";
+
+// 积分获取 — 操作说明
+"points.howTo.correctAnswers" = "批改作业 → 滑动标记进度";
+"points.howTo.homeworkScan" = "在评分页扫描作业";
+"points.howTo.practiceCompletion" = "在练习本完成一套练习题";
+"points.howTo.mistakeReview" = "复习错题 → 滑动标记进度";
+"points.howTo.focusSession" = "完成专注计时（每5分钟1分）";
+"points.howTo.chatSession" = "与 AI 进行一次对话";
+"points.howTo.weaknessConversion" = "通过练习攻克一个学习弱点";
+
+// 攻克弱点
+"points.earn.weakness.title" = "攻克弱点";
+"points.earn.weakness.desc" = "每攻克一个弱点获得10积分";
+
 // 评分获积分
 "points.earn.rate.title" = "给 StudyAgent 评分";
 "points.earn.rate.desc" = "一次性评分奖励";
+"points.earn.rate.claimNow" = "已评分 — 点击 ⭐ 领取奖励";
 "points.earn.rate.action" = "评分";
 
 // 分享获积分
 "points.earn.share.title" = "分享给朋友";
 "points.earn.share.desc" = "一次性分享奖励";
+"points.earn.share.claimNow" = "已分享 — 点击 ⭐ 领取奖励";
+
+// 积分 — 最近动态
+"points.shop.history" = "最近动态";
+"points.tx.premiumTrial" = "7天高级体验";
+"points.tx.chatMessages" = "兑换 %d 次 AI 对话";
+"points.tx.homeworkPages" = "兑换 %d 页作业批改";
+"points.tx.voiceMinutes" = "兑换 %d 分钟语音";
+"points.tx.errorAnalysis" = "兑换 %d 次错误分析";
+"points.tx.questions" = "兑换 %d 道练习题";
+"points.tx.streakFreeze" = "连续学习保护卡";

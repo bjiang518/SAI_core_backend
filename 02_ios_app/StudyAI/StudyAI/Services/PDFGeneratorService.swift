@@ -37,6 +37,9 @@ struct PDFExportOptions {
     // Images (Pro Mode / homework paths only)
     var maxImageSize: CGFloat    = 300  // Max width AND height for main question image (proportional)
     var maxSubImageSize: CGFloat = 200  // Max width AND height for sub-question image (proportional)
+
+    // Layout
+    var columnCount: Int           = 1   // 1–3 columns per page
 }
 
 // MARK: - Service
@@ -129,23 +132,33 @@ class PDFGeneratorService: ObservableObject {
                 options: options, startY: y)
             y += options.questionGap
 
+            let cols = self.makeColumnLayout(options: options, startY: y, addPage: addPage)
+            let effectiveWidth = cols?.columnWidth ?? renderWidth
+
             for (index, question) in questions.enumerated() {
                 let rendered = renderedContent[index]
                 let contentH: CGFloat
                 if let r = rendered {
-                    contentH = scaledImageHeight(r, maxWidth: renderWidth, maxHeight: 4000)
+                    contentH = scaledImageHeight(r, maxWidth: effectiveWidth, maxHeight: 4000)
                 } else {
-                    let textH = multilineHeight(plainText(question.question), width: renderWidth, fontSize: options.questionFontSize)
+                    let textH = multilineHeight(plainText(question.question), width: effectiveWidth, fontSize: options.questionFontSize)
                     let optH = question.options.map { CGFloat($0.count) * (options.questionFontSize + 11) + 16 } ?? 0
                     contentH = textH + optH
                 }
                 let blockH = contentH + 60
 
-                if y + blockH > pageSize.height - margin { addPage(); y = margin }
-
-                y = drawPracticeQuestion(ctx: ctx, pageRect: pageRect, question: question,
-                    renderedContent: rendered, number: index + 1, startY: y, options: options)
-                y += options.questionGap
+                if let cols = cols {
+                    let (drawX, drawY) = cols.fitBlock(height: blockH)
+                    let _ = self.drawPracticeQuestion(ctx: ctx, pageRect: pageRect, question: question,
+                        renderedContent: rendered, number: index + 1, startY: drawY, options: options,
+                        overrideX: drawX, overrideWidth: effectiveWidth)
+                    cols.advance(blockH + options.questionGap)
+                } else {
+                    if y + blockH > pageSize.height - margin { addPage(); y = margin }
+                    y = drawPracticeQuestion(ctx: ctx, pageRect: pageRect, question: question,
+                        renderedContent: rendered, number: index + 1, startY: y, options: options)
+                    y += options.questionGap
+                }
                 generationProgress = 0.6 + Double(index + 1) / Double(questions.count) * 0.4
             }
         }
@@ -503,7 +516,7 @@ class PDFGeneratorService: ObservableObject {
                 let blockHeight = proModeQuestionHeight(q: q, image: img, renderedContent: rendered, croppedImages: croppedImages, options: options)
                 if y + blockHeight > pageSize.height - margin { addPage(); y = margin }
                 y = drawProModeQuestion(ctx: ctx, pageRect: pageRect, q: q, image: img,
-                                        renderedContent: rendered, croppedImages: croppedImages, startY: y, options: options)
+                                        renderedContent: rendered, croppedImages: croppedImages, startY: y, options: options, addPage: addPage)
                 y += options.questionGap
                 generationProgress = 0.6 + Double(index + 1) / Double(toExport.count) * 0.4
             }
@@ -534,6 +547,89 @@ class PDFGeneratorService: ObservableObject {
         )
     }
 
+    // MARK: - Column Layout Helper
+
+    /// Tracks multi-column state within a single PDF page.
+    /// Used by generation functions when `options.columnCount > 1`.
+    class ColumnLayout {
+        let columnCount: Int
+        let pageWidth: CGFloat
+        let pageHeight: CGFloat
+        let margin: CGFloat
+        let gutter: CGFloat = 16
+
+        var currentColumn: Int = 0
+        var columnY: [CGFloat]   // y position per column
+        var addPage: () -> Void
+
+        /// Width of a single column
+        var columnWidth: CGFloat {
+            let totalGutter = gutter * CGFloat(columnCount - 1)
+            return (pageWidth - margin * 2 - totalGutter) / CGFloat(columnCount)
+        }
+
+        /// X offset for the current column
+        var currentX: CGFloat {
+            margin + CGFloat(currentColumn) * (columnWidth + gutter)
+        }
+
+        /// Y position for the current column
+        var currentY: CGFloat {
+            get { columnY[currentColumn] }
+            set { columnY[currentColumn] = newValue }
+        }
+
+        init(columnCount: Int, pageWidth: CGFloat, pageHeight: CGFloat, margin: CGFloat, startY: CGFloat, addPage: @escaping () -> Void) {
+            self.columnCount = max(1, min(columnCount, 3))
+            self.pageWidth = pageWidth
+            self.pageHeight = pageHeight
+            self.margin = margin
+            self.columnY = Array(repeating: startY, count: max(1, min(columnCount, 3)))
+            self.addPage = addPage
+        }
+
+        /// Check if a block of given height fits in the current column.
+        /// If not, advance to next column or new page. Returns (x, y) to draw at.
+        func fitBlock(height: CGFloat) -> (x: CGFloat, y: CGFloat) {
+            // Try current column
+            if currentY + height <= pageHeight - margin {
+                return (currentX, currentY)
+            }
+
+            // Try next columns on same page
+            for col in (currentColumn + 1)..<columnCount {
+                if columnY[col] + height <= pageHeight - margin {
+                    currentColumn = col
+                    return (currentX, currentY)
+                }
+            }
+
+            // All columns full — new page
+            addPage()
+            currentColumn = 0
+            for i in 0..<columnCount { columnY[i] = margin }
+            return (currentX, currentY)
+        }
+
+        /// Advance current column's Y by given amount
+        func advance(_ dy: CGFloat) {
+            columnY[currentColumn] += dy
+        }
+    }
+
+    /// Convenience: create a column layout if columnCount > 1, otherwise nil (use normal flow)
+    func makeColumnLayout(options: PDFExportOptions, startY: CGFloat, addPage: @escaping () -> Void) -> ColumnLayout? {
+        guard options.columnCount > 1 else { return nil }
+        return ColumnLayout(
+            columnCount: options.columnCount,
+            pageWidth: pageSize.width,
+            pageHeight: pageSize.height,
+            margin: margin,
+            startY: startY,
+            addPage: addPage
+        )
+    }
+
     // MARK: - Core Vector PDF Builder
 
     /// Creates a CGContext-backed PDF and calls `body` to fill its pages.
@@ -542,7 +638,7 @@ class PDFGeneratorService: ObservableObject {
     private func buildVectorPDF(
         options: PDFExportOptions,
         totalItems: Int,
-        body: (_ ctx: CGContext, _ pageRect: CGRect, _ addPage: () -> Void) -> Void
+        body: (_ ctx: CGContext, _ pageRect: CGRect, _ addPage: @escaping () -> Void) -> Void
     ) -> PDFDocument? {
         let log = AppLogger.forFeature("PDFGen")
         log.info("  buildVectorPDF: pageSize=\(pageSize) totalItems=\(totalItems)")
@@ -575,7 +671,7 @@ class PDFGeneratorService: ObservableObject {
             log.info("  addPage() called — ending page \(pageCount), starting page \(pageCount + 1)")
             ctx.endPDFPage()
             ctx.beginPDFPage(nil)
-            fillWhite(ctx: ctx)
+            self.fillWhite(ctx: ctx)
             pageCount += 1
         }
 
@@ -719,22 +815,25 @@ class PDFGeneratorService: ObservableObject {
         renderedContent: UIImage?,
         number: Int,
         startY: CGFloat,
-        options: PDFExportOptions
+        options: PDFExportOptions,
+        overrideX: CGFloat? = nil,
+        overrideWidth: CGFloat? = nil
     ) -> CGFloat {
         var y = startY
         withUIKitContext(ctx: ctx, pageRect: pageRect) {
-            let w = contentWidth
+            let x = overrideX ?? margin
+            let w = overrideWidth ?? contentWidth
 
             if let img = renderedContent {
                 // MathJax-rendered image: contains question number + text + MCQ options
                 let sz = scaledImageSize(img, maxWidth: w, maxHeight: 4000)
-                img.draw(in: CGRect(x: margin, y: y, width: sz.width, height: sz.height))
+                img.draw(in: CGRect(x: x, y: y, width: sz.width, height: sz.height))
                 y += sz.height + 6
             } else {
                 let bodyFont = UIFont.systemFont(ofSize: options.questionFontSize, weight: .regular)
 
                 // Index + question body on one line: "1. Question text…"
-                y += drawMultiline("\(number). \(plainText(question.question))", font: bodyFont, x: margin, y: y, width: w) + 10
+                y += drawMultiline("\(number). \(plainText(question.question))", font: bodyFont, x: x, y: y, width: w) + 10
 
                 // Options
                 if let opts = question.options, !opts.isEmpty {
@@ -742,7 +841,7 @@ class PDFGeneratorService: ObservableObject {
                     for (i, opt) in opts.enumerated() {
                         let cleanOpt = stripOptionPrefix(plainText(opt))
                         let label = "\(String(UnicodeScalar(65 + i)!))) \(cleanOpt)"
-                        y += drawMultiline(label, font: bodyFont, x: margin + 30, y: y, width: w - 30) + 5
+                        y += drawMultiline(label, font: bodyFont, x: x + 30, y: y, width: w - 30) + 5
                     }
                     y += 6
                 }
@@ -868,7 +967,8 @@ class PDFGeneratorService: ObservableObject {
         renderedContent: UIImage?,
         croppedImages: [String: UIImage],
         startY: CGFloat,
-        options: PDFExportOptions
+        options: PDFExportOptions,
+        addPage: (() -> Void)? = nil
     ) -> CGFloat {
         var y = startY
         withUIKitContext(ctx: ctx, pageRect: pageRect) {
@@ -883,10 +983,54 @@ class PDFGeneratorService: ObservableObject {
             }
 
             if let rendered = renderedContent {
-                // MathJax-rendered image: contains "Question N", question text, and subquestions
+                // MathJax-rendered image: may be taller than one page for questions with many subquestions.
+                // Slice the image across multiple pages if it overflows.
                 let sz = scaledImageSize(rendered, maxWidth: w - 20, maxHeight: 4000)
-                rendered.draw(in: CGRect(x: margin, y: y, width: sz.width, height: sz.height))
-                y += sz.height + 6
+                let availableH = pageSize.height - margin - y
+
+                if sz.height <= availableH {
+                    // Fits on current page — draw as-is
+                    rendered.draw(in: CGRect(x: margin, y: y, width: sz.width, height: sz.height))
+                    y += sz.height + 6
+                } else if let addPage = addPage {
+                    // Image overflows — draw in slices using clip rects
+                    let pageContentH = pageSize.height - margin * 2
+                    var sourceOffset: CGFloat = 0
+
+                    while sourceOffset < sz.height {
+                        let currentAvailH = (sourceOffset == 0) ? availableH : pageContentH
+                        let sliceH = min(currentAvailH, sz.height - sourceOffset)
+
+                        // Clip to the available area, then draw the full image offset
+                        ctx.saveGState()
+                        UIBezierPath(rect: CGRect(x: margin, y: y, width: sz.width, height: sliceH)).addClip()
+                        rendered.draw(in: CGRect(x: margin, y: y - sourceOffset, width: sz.width, height: sz.height))
+                        ctx.restoreGState()
+
+                        sourceOffset += sliceH
+                        y += sliceH
+
+                        if sourceOffset < sz.height {
+                            // End the UIKit context before page break
+                            UIGraphicsPopContext()
+                            ctx.restoreGState()
+
+                            addPage()
+
+                            // Re-apply UIKit flipped context for the new page
+                            ctx.saveGState()
+                            UIGraphicsPushContext(ctx)
+                            ctx.translateBy(x: 0, y: pageRect.height)
+                            ctx.scaleBy(x: 1, y: -1)
+
+                            y = margin
+                        }
+                    }
+                    y += 6
+                } else {
+                    rendered.draw(in: CGRect(x: margin, y: y, width: sz.width, height: sz.height))
+                    y += sz.height + 6
+                }
             } else {
                 let headerFont = UIFont.systemFont(ofSize: options.labelFontSize + 4, weight: .bold)
                 let bodyFont   = UIFont.systemFont(ofSize: options.questionFontSize, weight: .regular)
@@ -907,16 +1051,31 @@ class PDFGeneratorService: ObservableObject {
                                     x: margin, y: y, width: w) + 12
                 }
 
-                // Subquestions
+                // Subquestions — with page-break support
                 if let subs = q.question.subquestions, !subs.isEmpty {
                     let indent: CGFloat = 20
                     let subW = w - indent - 20
                     for sub in subs {
+                        // Estimate this subquestion's height
+                        var subH: CGFloat = 8 + options.labelFontSize + 4 + 6
+                        let subImg = croppedImages[sub.id] ?? image
+                        if let img = subImg {
+                            subH += scaledImageHeight(img, maxWidth: subW, maxHeight: options.maxSubImageSize) + 8
+                        }
+                        if !sub.questionText.isEmpty {
+                            subH += multilineHeight(sub.questionText, width: subW, fontSize: options.questionFontSize) + 8
+                        }
+
+                        // Page break if this subquestion won't fit
+                        if y + subH > pageSize.height - margin, let addPage = addPage {
+                            addPage()
+                            y = margin
+                        }
+
                         y += 8
                         y += drawString("  (\(sub.id))", font: subFont, color: blue, alignment: .left,
                                         x: margin + indent, y: y, width: subW) + 6
 
-                        let subImg = croppedImages[sub.id] ?? image
                         if let img = subImg {
                             let sz = scaledImageSize(img, maxWidth: subW, maxHeight: options.maxSubImageSize)
                             img.draw(in: CGRect(x: margin + indent + 20, y: y, width: sz.width, height: sz.height))

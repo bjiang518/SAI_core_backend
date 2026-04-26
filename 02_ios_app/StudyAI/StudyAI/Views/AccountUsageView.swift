@@ -13,6 +13,7 @@ struct AccountUsageView: View {
 
     @StateObject private var themeManager = ThemeManager.shared
     @ObservedObject private var authService = AuthenticationService.shared
+    @Environment(\.dismiss) private var dismiss
 
     @State private var usageData: AccountUsageData?
     @State private var isLoading = true
@@ -63,6 +64,14 @@ struct AccountUsageView: View {
             }
             .navigationTitle(NSLocalizedString("account.usage.title", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
         }
         .task { await loadData() }
         .refreshable { await loadData() }

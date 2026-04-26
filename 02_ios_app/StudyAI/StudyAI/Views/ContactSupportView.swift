@@ -35,7 +35,7 @@ struct ContactSupportView: View {
 
                     // Contact Methods
                     VStack(spacing: 16) {
-                        // Email Support
+                        // Email — Feedback & Inquiries
                         Button(action: {
                             if MFMailComposeViewController.canSendMail() {
                                 showingMailComposer = true
@@ -62,18 +62,6 @@ struct ContactSupportView: View {
                                 subtitle: AppURLs.supportEmail,
                                 description: NSLocalizedString("contactSupport.emailDescription", comment: ""),
                                 color: .blue
-                            )
-                        }
-                        .buttonStyle(.plain)
-
-                        // Website
-                        Link(destination: AppURLs.website) {
-                            ContactMethodCard(
-                                icon: "person.3.fill",
-                                title: NSLocalizedString("contactSupport.forumTitle", comment: ""),
-                                subtitle: NSLocalizedString("contactSupport.forumSubtitle", comment: ""),
-                                description: NSLocalizedString("contactSupport.forumDescription", comment: ""),
-                                color: .purple
                             )
                         }
                         .buttonStyle(.plain)

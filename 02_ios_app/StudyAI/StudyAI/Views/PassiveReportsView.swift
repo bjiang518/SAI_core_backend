@@ -11,12 +11,21 @@ import UIKit
 
 struct PassiveReportsView: View {
     @StateObject private var viewModel = PassiveReportsViewModel()
+    @StateObject private var profileService = ProfileService.shared
+    @Environment(\.dismiss) private var dismiss
     @State private var selectedPeriod: ReportPeriod = .weekly
     @State private var batchToDelete: PassiveReportBatch?
     @State private var showDeleteConfirmation = false
     @State private var isEditMode = false
     @State private var selectedBatches: Set<String> = []
     @State private var showingReportsInfo = false
+
+    private var reportTitle: String {
+        switch profileService.currentProfile?.accountRole {
+        case "student": return NSLocalizedString("reports.title.student", value: "Learning Report", comment: "")
+        default:        return NSLocalizedString("reports.title.parent", value: "Parent Report", comment: "")
+        }
+    }
 
     enum ReportPeriod: String, CaseIterable {
         case weekly = "Weekly"
@@ -78,15 +87,16 @@ struct PassiveReportsView: View {
                     }
                 }
             }
-            .navigationTitle(NSLocalizedString("reports.passive.title", value: "Study Reports", comment: ""))
+            .navigationTitle(reportTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                // Info button
+                // X close button (leading, hidden in edit mode)
                 ToolbarItem(placement: .navigationBarLeading) {
                     if !isEditMode {
-                        Button(action: { showingReportsInfo = true }) {
-                            Image(systemName: "info.circle")
-                                .foregroundColor(.blue)
+                        Button(action: { dismiss() }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
+                                .font(.system(size: 22))
                         }
                     }
                 }
@@ -100,6 +110,10 @@ struct PassiveReportsView: View {
                             debugPrint("🔧 [EditMode] isEditMode = \(isEditMode)")
                         } label: {
                             Label(NSLocalizedString("reports.passive.editReports", value: "Edit Reports", comment: ""), systemImage: "checkmark.circle")
+                        }
+
+                        Button { showingReportsInfo = true } label: {
+                            Label(NSLocalizedString("passiveReports.info.title", comment: ""), systemImage: "info.circle")
                         }
                     } label: {
                         Image(systemName: "ellipsis.circle")

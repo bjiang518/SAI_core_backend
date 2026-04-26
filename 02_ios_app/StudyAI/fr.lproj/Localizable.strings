@@ -2340,6 +2340,8 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 
 // Study Reports — List View
 "reports.passive.title" = "Rapports Parents";
+"reports.title.parent" = "Rapport Parents";
+"reports.title.student" = "Rapport d'apprentissage";
 "reports.passive.subtitle" = "Bilans d'apprentissage hebdomadaires et mensuels";
 "reports.passive.editReports" = "Modifier les rapports";
 "reports.passive.testingMode" = "Mode test";
@@ -2887,3 +2889,13 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 // Partager pour des points
 "points.earn.share.title" = "Partager avec des amis";
 "points.earn.share.desc" = "Bonus unique pour le partage";
+
+// Points — Activité récente
+"points.shop.history" = "Activité récente";
+"points.tx.premiumTrial" = "Essai premium 7 jours";
+"points.tx.chatMessages" = "%d messages IA échangés";
+"points.tx.homeworkPages" = "%d pages de devoirs échangées";
+"points.tx.voiceMinutes" = "%d minutes vocales échangées";
+"points.tx.errorAnalysis" = "%d analyses d'erreurs échangées";
+"points.tx.questions" = "%d questions échangées";
+"points.tx.streakFreeze" = "Carte de protection de série";
