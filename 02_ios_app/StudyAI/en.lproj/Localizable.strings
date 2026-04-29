@@ -28,7 +28,7 @@
 "settings.signOut" = "Sign Out";
 "settings.biometricLogin" = "%@ Login";
 "settings.parentControls.message" = "Verify parental access to manage settings";
-"settings.appVersion" = "StudyAgent v1.0";
+"settings.appVersion" = "StudyAgent v1.1";
 "settings.appTagline" = "Enhanced with Modern Authentication";
 "settings.appPoweredBy" = "Powered by advanced AI models";
 "settings.security" = "Security & Privacy";
@@ -2954,3 +2954,29 @@
 "points.tx.errorAnalysis" = "Redeemed %d error analyses";
 "points.tx.questions" = "Redeemed %d questions";
 "points.tx.streakFreeze" = "Streak freeze card";
+
+// MARK: - Daily Challenge
+"dailyChallenge.title" = "Daily 3 Questions";
+"dailyChallenge.subtitle" = "3 personalized questions based on your weak spots";
+"dailyChallenge.generating" = "Generating today's questions…";
+"dailyChallenge.doneReview" = "Done today · Tap to review";
+"dailyChallenge.start" = "Start";
+"dailyChallenge.review" = "Review";
+"dailyChallenge.history" = "History";
+"dailyChallenge.totalCorrect" = "Total correct: %d";
+"dailyChallenge.correct" = "Excellent!";
+"dailyChallenge.wrong" = "Keep it up!";
+"dailyChallenge.correctAnswerPrefix" = "Correct answer: ";
+"dailyChallenge.finish" = "Finish";
+"dailyChallenge.score" = "%d / %d correct";
+"dailyChallenge.points" = "pts";
+"dailyChallenge.analyzing" = "Analyzing…";
+"dailyChallenge.collectReward" = "Collect Reward";
+"dailyChallenge.perfect" = "Perfect! All correct! 🎉";
+"dailyChallenge.good" = "Well done! 👍";
+"dailyChallenge.keep" = "Keep going! 💪";
+"points.earn.dailyChallenge.title" = "Daily 3 Questions";
+"points.earn.dailyChallenge.desc" = "Complete today's 3 practice questions";
+"points.earn.dailyChallenge.result" = "%d correct";
+"notification.dailyChallenge.title" = "📚 Daily 3 Questions Ready!";
+"notification.dailyChallenge.body" = "Today's practice questions are ready. Knock out 3 quick questions!";

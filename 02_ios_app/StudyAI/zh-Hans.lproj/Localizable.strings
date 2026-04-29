@@ -28,7 +28,7 @@
 "settings.signOut" = "退出";
 "settings.biometricLogin" = "%@ 登录";
 "settings.parentControls.message" = "验证家长身份以管理设置";
-"settings.appVersion" = "StudyAgent v1.0";
+"settings.appVersion" = "StudyAgent v1.1";
 "settings.appTagline" = "搭载现代身份验证";
 "settings.appPoweredBy" = "由先进AI模型驱动";
 "settings.security" = "安全与隐私";
@@ -2940,3 +2940,29 @@
 "points.tx.errorAnalysis" = "兑换 %d 次错误分析";
 "points.tx.questions" = "兑换 %d 道练习题";
 "points.tx.streakFreeze" = "连续学习保护卡";
+
+// MARK: - Daily Challenge
+"dailyChallenge.title" = "每日3题";
+"dailyChallenge.subtitle" = "基于你的薄弱点，每天3道精选题";
+"dailyChallenge.generating" = "正在生成今日3题…";
+"dailyChallenge.doneReview" = "今日已完成 · 点击回顾";
+"dailyChallenge.start" = "开始";
+"dailyChallenge.review" = "回顾";
+"dailyChallenge.history" = "历史记录";
+"dailyChallenge.totalCorrect" = "累计答对 %d 题";
+"dailyChallenge.correct" = "太棒了！";
+"dailyChallenge.wrong" = "再接再厉";
+"dailyChallenge.correctAnswerPrefix" = "正确答案：";
+"dailyChallenge.finish" = "完成";
+"dailyChallenge.score" = "%d / %d 题答对";
+"dailyChallenge.points" = "积分";
+"dailyChallenge.analyzing" = "分析中…";
+"dailyChallenge.collectReward" = "领取奖励";
+"dailyChallenge.perfect" = "完美！全对！🎉";
+"dailyChallenge.good" = "做得很好！👍";
+"dailyChallenge.keep" = "继续加油！💪";
+"points.earn.dailyChallenge.title" = "每日3题";
+"points.earn.dailyChallenge.desc" = "完成每日3道练习题";
+"points.earn.dailyChallenge.result" = "答对 %d 题";
+"notification.dailyChallenge.title" = "📚 每日3题来啦！";
+"notification.dailyChallenge.body" = "今天的练习题已经准备好，3题快速搞定！";

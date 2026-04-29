@@ -49,7 +49,29 @@ struct PracticeLibraryView: View {
 
     // Navigation
     @State private var selectedSession: PracticeSession? = nil
+    @State private var dailyChallengeSession: PracticeSession? = nil
     @State private var showingNewPractice: Bool = false
+
+    // Daily Challenge
+    @ObservedObject private var dailyChallengeService = QuestionGenerationService.shared
+    @State private var isDailyChallengeLoading = false
+    @AppStorage("daily_challenge_last_completed") private var dailyChallengeLastCompleted = ""
+    @AppStorage("daily_challenge_session_id") private var dailyChallengeSessionId = ""
+    @AppStorage("daily_challenge_session_date") private var dailyChallengeSessionDate = ""
+    @State private var isDailyHistoryExpanded = false
+    @State private var selectedHistoryDate: String? = nil
+    @State private var historyEntries: [DailyChallengeHistory.Entry] = []
+    @State private var dailyCardGlow = false
+    @State private var dailyButtonShake: CGFloat = 0
+
+    private var todayString: String {
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
+        return f.string(from: Date())
+    }
+
+    private var isDailyChallengeCompletedToday: Bool {
+        dailyChallengeLastCompleted == todayString
+    }
 
     // Delete confirmation
     @State private var sessionToDelete: PracticeSession? = nil
@@ -139,10 +161,26 @@ struct PracticeLibraryView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             sessionManager.updatePublishedState()
+            historyEntries = DailyChallengeHistory.load()
+            // Mark daily challenge completed if user has graded at least 1 question
+            if dailyChallengeSessionDate == todayString && !dailyChallengeSessionId.isEmpty
+                && dailyChallengeLastCompleted != todayString {
+                if let s = PracticeSessionManager.shared.getSession(id: dailyChallengeSessionId),
+                   !s.completedQuestionIds.isEmpty {
+                    dailyChallengeLastCompleted = todayString
+                }
+            }
             // Open NewPracticeSheet immediately if a shortcut config was provided
             if shortcutConfig != nil {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     showingNewPractice = true
+                }
+            }
+            // Auto-start daily challenge if opened from notification
+            if AppState.shared.shouldOpenDailyChallenge {
+                AppState.shared.shouldOpenDailyChallenge = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    startDailyChallenge()
                 }
             }
             // Auto-show onboarding for first-time users
@@ -196,6 +234,19 @@ struct PracticeLibraryView: View {
         .navigationDestination(item: $selectedSession) { session in
             QuestionSheetView(session: session)
         }
+        .navigationDestination(item: $dailyChallengeSession) { session in
+            DailyChallengeView(session: session)
+        }
+        .navigationDestination(isPresented: Binding(
+            get: { selectedHistoryDate != nil },
+            set: { if !$0 { selectedHistoryDate = nil } }
+        )) {
+            if let dateStr = selectedHistoryDate,
+               let entry = historyEntries.first(where: { $0.date == dateStr }),
+               let session = PracticeSessionManager.shared.getSession(id: entry.sessionId) {
+                DailyChallengeView(session: session)
+            }
+        }
         .alert(NSLocalizedString("practiceLibrary.info.title", comment: ""), isPresented: $showingPracticeInfo) {
             Button(NSLocalizedString("practiceLibrary.replayTutorial", value: "Replay Tutorial", comment: "")) {
                 libOnboardingDone = false
@@ -227,6 +278,300 @@ struct PracticeLibraryView: View {
             }
         }
         .onPreferenceChange(PracticeLibOnboardingAnchorKey.self) { practiceOnboardingAnchors = $0 }
+    }
+
+    // MARK: - Daily Challenge Card
+
+    private var dailyChallengeCard: some View {
+        Button(action: startDailyChallenge) {
+            HStack(spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill(isDailyChallengeCompletedToday
+                              ? Color.gray.opacity(0.15)
+                              : DesignTokens.Colors.Cute.mint.opacity(0.2))
+                        .frame(width: 44, height: 44)
+                    if isDailyChallengeLoading {
+                        ProgressView()
+                            .scaleEffect(0.9)
+                    } else if isDailyChallengeCompletedToday {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(DesignTokens.Colors.Cute.mint)
+                    } else {
+                        Image(systemName: "star.fill")
+                            .font(.title3)
+                            .foregroundColor(DesignTokens.Colors.Cute.mint)
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(NSLocalizedString("dailyChallenge.title", value: "每日3题", comment: ""))
+                        .font(.subheadline.bold())
+                        .foregroundColor(themeManager.primaryText)
+                    Text(isDailyChallengeLoading
+                         ? NSLocalizedString("dailyChallenge.generating", value: "正在生成今日3题…", comment: "")
+                         : isDailyChallengeCompletedToday
+                             ? NSLocalizedString("dailyChallenge.doneReview", value: "今日已完成 · 点击回顾", comment: "")
+                             : NSLocalizedString("dailyChallenge.subtitle", value: "基于你的薄弱点，每天3道精选题", comment: ""))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                if !isDailyChallengeLoading {
+                    Text(isDailyChallengeCompletedToday
+                         ? NSLocalizedString("dailyChallenge.review", value: "回顾", comment: "")
+                         : NSLocalizedString("dailyChallenge.start", value: "开始", comment: ""))
+                        .font(.caption.bold())
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(isDailyChallengeCompletedToday ? Color.secondary : DesignTokens.Colors.Cute.mint)
+                        .clipShape(Capsule())
+                        .offset(x: isDailyChallengeCompletedToday ? 0 : dailyButtonShake)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(colorScheme == .dark ? Color(hex: "2C2A26") : Color.white)
+                    .shadow(
+                        color: isDailyChallengeCompletedToday
+                            ? .black.opacity(0.06)
+                            : DesignTokens.Colors.Cute.mint.opacity(dailyCardGlow ? 0.6 : 0.15),
+                        radius: isDailyChallengeCompletedToday ? 6 : (dailyCardGlow ? 12 : 4),
+                        x: 0, y: 2
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(
+                                isDailyChallengeCompletedToday
+                                    ? Color.clear
+                                    : DesignTokens.Colors.Cute.mint.opacity(dailyCardGlow ? 0.7 : 0.2),
+                                lineWidth: 1.5
+                            )
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(isDailyChallengeLoading)
+        .onAppear {
+            guard !isDailyChallengeCompletedToday else { return }
+            withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
+                dailyCardGlow = true
+            }
+            startShake()
+        }
+    }
+
+    private func startShake() {
+        let shakeSequence: [CGFloat] = [0, 3, -3, 2, -2, 1, -1, 0]
+        var delay = 0.0
+        for offset in shakeSequence {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                withAnimation(.easeInOut(duration: 0.07)) { dailyButtonShake = offset }
+            }
+            delay += 0.07
+        }
+        // Repeat every 4 seconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
+            guard !isDailyChallengeCompletedToday else { return }
+            startShake()
+        }
+    }
+
+    private func startDailyChallenge() {
+        // If we already generated a session today, just reopen it
+        if dailyChallengeSessionDate == todayString && !dailyChallengeSessionId.isEmpty,
+           let existing = PracticeSessionManager.shared.getSession(id: dailyChallengeSessionId) {
+            dailyChallengeSession = existing
+            return
+        }
+
+        guard !isDailyChallengeLoading else { return }
+        isDailyChallengeLoading = true
+        Task {
+            let adapter = QuestionGenerationDataAdapter.shared
+            let primary = adapter.getMostCommonSubjects().first ?? "Mathematics"
+            let weaknessTopics = adapter.getWeaknessTopics(for: primary)
+            let mixedTopics = adapter.getMixedTopicsWithMastery(for: primary, weaknessTopics: weaknessTopics)
+            let config = QuestionGenerationService.RandomQuestionsConfig(
+                topics: mixedTopics.isEmpty ? [primary] : mixedTopics,
+                focusNotes: adapter.getPersonalizedFocusNotes(for: primary),
+                difficulty: .adaptive,
+                questionCount: 3,
+                questionType: .any
+            )
+            let result = await dailyChallengeService.generateQuestionsV2(
+                subject: primary,
+                mode: 1,
+                config: config,
+                userProfile: adapter.createUserProfile(),
+                shortTermContext: dailyChallengeService.buildShortTermContext(subject: primary)
+            )
+            await MainActor.run {
+                isDailyChallengeLoading = false
+                if case .success = result,
+                   let sid = dailyChallengeService.currentSessionId,
+                   let session = PracticeSessionManager.shared.getSession(id: sid) {
+                    dailyChallengeSessionId = sid
+                    dailyChallengeSessionDate = todayString
+                    dailyChallengeSession = session
+                }
+            }
+        }
+    }
+
+    // MARK: - Daily Challenge Expandable History
+
+    private var dailyChallengeHistorySection: some View {
+        VStack(spacing: 0) {
+            // Expand/collapse toggle row
+            Button(action: {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                    isDailyHistoryExpanded.toggle()
+                }
+            }) {
+                HStack(spacing: 10) {
+                    Image(systemName: "calendar")
+                        .font(.caption.bold())
+                        .foregroundColor(DesignTokens.Colors.Cute.mint)
+                    Text(NSLocalizedString("dailyChallenge.history", value: "历史记录", comment: ""))
+                        .font(.caption.bold())
+                        .foregroundColor(themeManager.primaryText)
+                    Spacer()
+                    Text(String(format: NSLocalizedString("dailyChallenge.totalCorrect", value: "累计答对 %d 题", comment: ""), historyTotalCorrect))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Image(systemName: "chevron.right")
+                        .font(.caption.bold())
+                        .foregroundColor(.secondary)
+                        .rotationEffect(.degrees(isDailyHistoryExpanded ? 90 : 0))
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+            }
+            .buttonStyle(.plain)
+
+            if isDailyHistoryExpanded {
+                VStack(spacing: 12) {
+                    // Mini accuracy bar chart (last 7 entries)
+                    if historyEntries.count >= 2 {
+                        accuracyBarChart
+                            .padding(.horizontal, 16)
+                    }
+                    // Horizontal date scroll (last 30 calendar days)
+                    dateScrollView
+                        .padding(.bottom, 8)
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(colorScheme == .dark ? Color(hex: "2C2A26") : Color.white)
+                .shadow(color: .black.opacity(0.04), radius: 4, x: 0, y: 2)
+        )
+    }
+
+    private var accuracyBarChart: some View {
+        let recent = historyEntries.prefix(7).reversed() as ReversedCollection
+        let maxH: CGFloat = 36
+        return HStack(alignment: .bottom, spacing: 6) {
+            ForEach(Array(recent), id: \.date) { entry in
+                VStack(spacing: 2) {
+                    let ratio = entry.total > 0 ? CGFloat(entry.correct) / CGFloat(entry.total) : 0
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(entry.scoreColor)
+                        .frame(width: 14, height: max(4, ratio * maxH))
+                    Text(shortDate(entry.date))
+                        .font(.system(size: 9))
+                        .foregroundColor(.secondary)
+                }
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 2) {
+                Text("3/3")
+                    .font(.system(size: 9)).foregroundColor(.secondary)
+                Spacer()
+                Text("0/3")
+                    .font(.system(size: 9)).foregroundColor(.secondary)
+            }
+            .frame(height: maxH + 14)
+        }
+        .frame(height: maxH + 20)
+    }
+
+    private var dateScrollView: some View {
+        let calendar = Calendar.current
+        let today = Date()
+        let days: [Date] = (0..<30).compactMap { calendar.date(byAdding: .day, value: -$0, to: today) }.reversed()
+
+        return ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(days, id: \.self) { day in
+                        let dateStr = formatDate(day)
+                        let entry = historyEntries.first(where: { $0.date == dateStr })
+                        let isToday = dateStr == todayString
+                        Button(action: {
+                            guard let e = entry,
+                                  PracticeSessionManager.shared.getSession(id: e.sessionId) != nil else { return }
+                            selectedHistoryDate = dateStr
+                        }) {
+                            VStack(spacing: 3) {
+                                Text(dayLabel(day))
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundColor(isToday ? .white : entry != nil ? .white : .secondary)
+                                if let e = entry {
+                                    Text("\(e.correct)/\(e.total)")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundColor(.white)
+                                } else {
+                                    Text("·")
+                                        .font(.system(size: 10))
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .frame(width: 38, height: 46)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(isToday ? DesignTokens.Colors.Cute.mint
+                                          : entry != nil ? entry!.scoreColor
+                                          : Color.secondary.opacity(0.1))
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(entry == nil)
+                        .id(dateStr)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 4)
+            }
+            .onAppear {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    proxy.scrollTo(todayString, anchor: .trailing)
+                }
+            }
+        }
+    }
+
+    private var historyTotalCorrect: Int { historyEntries.reduce(0) { $0 + $1.correct } }
+
+    private func formatDate(_ date: Date) -> String {
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f.string(from: date)
+    }
+    private func shortDate(_ str: String) -> String {
+        let parts = str.split(separator: "-")
+        guard parts.count == 3 else { return str }
+        return "\(parts[1])/\(parts[2])"
+    }
+    private func dayLabel(_ date: Date) -> String {
+        let f = DateFormatter(); f.dateFormat = "d"; return f.string(from: date)
     }
 
     // MARK: - Subject Selector (CompactSubjectSelector style)
@@ -346,9 +691,35 @@ struct PracticeLibraryView: View {
     private var sessionList: some View {
         Group {
             if filteredSorted.isEmpty {
-                emptyState
+                VStack(spacing: 0) {
+                    List {
+                        dailyChallengeCard
+                            .listRowSeparator(.hidden)
+                            .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 4, trailing: 16))
+                            .listRowBackground(Color.clear)
+                        dailyChallengeHistorySection
+                            .listRowSeparator(.hidden)
+                            .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 8, trailing: 16))
+                            .listRowBackground(Color.clear)
+                    }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                    .background(Color.clear)
+                    .frame(height: 180)
+
+                    emptyState
+                }
             } else {
                 List {
+                    dailyChallengeCard
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 4, trailing: 16))
+                        .listRowBackground(Color.clear)
+                    dailyChallengeHistorySection
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 8, trailing: 16))
+                        .listRowBackground(Color.clear)
+
                     ForEach(filteredSorted) { session in
                         PracticeSessionCard(session: session)
                             .practiceLibOnboardingAnchor(

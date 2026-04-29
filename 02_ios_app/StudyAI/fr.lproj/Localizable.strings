@@ -28,7 +28,7 @@
 "settings.signOut" = "Se déconnecter";
 "settings.biometricLogin" = "%@ Login";
 "settings.parentControls.message" = "Verify parental access to manage settings";
-"settings.appVersion" = "StudyAgent v1.0";
+"settings.appVersion" = "StudyAgent v1.1";
 "settings.appTagline" = "Enhanced with Modern Authentication";
 "settings.appPoweredBy" = "Powered by advanced AI models";
 "settings.security" = "Security & Privacy";
@@ -2899,3 +2899,29 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "points.tx.errorAnalysis" = "%d analyses d'erreurs échangées";
 "points.tx.questions" = "%d questions échangées";
 "points.tx.streakFreeze" = "Carte de protection de série";
+
+// MARK: - Daily Challenge
+"dailyChallenge.title" = "3 Questions Quotidiennes";
+"dailyChallenge.subtitle" = "3 questions personnalisées selon vos points faibles";
+"dailyChallenge.generating" = "Génération des questions du jour…";
+"dailyChallenge.doneReview" = "Terminé aujourd'hui · Appuyer pour revoir";
+"dailyChallenge.start" = "Commencer";
+"dailyChallenge.review" = "Revoir";
+"dailyChallenge.history" = "Historique";
+"dailyChallenge.totalCorrect" = "Total correct: %d";
+"dailyChallenge.correct" = "Excellent !";
+"dailyChallenge.wrong" = "Continuez !";
+"dailyChallenge.correctAnswerPrefix" = "Bonne réponse: ";
+"dailyChallenge.finish" = "Terminer";
+"dailyChallenge.score" = "%d / %d correct";
+"dailyChallenge.points" = "pts";
+"dailyChallenge.analyzing" = "Analyse en cours…";
+"dailyChallenge.collectReward" = "Collecter la récompense";
+"dailyChallenge.perfect" = "Parfait ! Tout bon ! 🎉";
+"dailyChallenge.good" = "Bien joué ! 👍";
+"dailyChallenge.keep" = "Continuez ! 💪";
+"points.earn.dailyChallenge.title" = "3 Questions Quotidiennes";
+"points.earn.dailyChallenge.desc" = "Complétez les 3 questions du jour";
+"points.earn.dailyChallenge.result" = "%d correctes";
+"notification.dailyChallenge.title" = "📚 3 Questions du jour prêtes !";
+"notification.dailyChallenge.body" = "Les questions du jour sont prêtes. Répondez à 3 questions rapidement !";

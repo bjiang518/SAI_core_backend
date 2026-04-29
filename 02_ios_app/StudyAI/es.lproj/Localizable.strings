@@ -28,7 +28,7 @@
 "settings.signOut" = "Cerrar sesión";
 "settings.biometricLogin" = "Inicio de sesión con %@";
 "settings.parentControls.message" = "Verifica el acceso parental para gestionar la configuración";
-"settings.appVersion" = "StudyAgent v1.0";
+"settings.appVersion" = "StudyAgent v1.1";
 "settings.appTagline" = "Con autenticación moderna";
 "settings.appPoweredBy" = "Impulsado por modelos de IA avanzados";
 "settings.security" = "Seguridad y privacidad";
@@ -2872,3 +2872,29 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "points.tx.errorAnalysis" = "%d análisis de errores canjeados";
 "points.tx.questions" = "%d preguntas canjeadas";
 "points.tx.streakFreeze" = "Tarjeta de protección de racha";
+
+// MARK: - Daily Challenge
+"dailyChallenge.title" = "3 Preguntas Diarias";
+"dailyChallenge.subtitle" = "3 preguntas personalizadas según tus puntos débiles";
+"dailyChallenge.generating" = "Generando las preguntas de hoy…";
+"dailyChallenge.doneReview" = "Completado hoy · Toca para revisar";
+"dailyChallenge.start" = "Comenzar";
+"dailyChallenge.review" = "Revisar";
+"dailyChallenge.history" = "Historial";
+"dailyChallenge.totalCorrect" = "Total correcto: %d";
+"dailyChallenge.correct" = "¡Excelente!";
+"dailyChallenge.wrong" = "¡Sigue intentando!";
+"dailyChallenge.correctAnswerPrefix" = "Respuesta correcta: ";
+"dailyChallenge.finish" = "Finalizar";
+"dailyChallenge.score" = "%d / %d correctas";
+"dailyChallenge.points" = "pts";
+"dailyChallenge.analyzing" = "Analizando…";
+"dailyChallenge.collectReward" = "Reclamar recompensa";
+"dailyChallenge.perfect" = "¡Perfecto! ¡Todo correcto! 🎉";
+"dailyChallenge.good" = "¡Bien hecho! 👍";
+"dailyChallenge.keep" = "¡Sigue adelante! 💪";
+"points.earn.dailyChallenge.title" = "3 Preguntas Diarias";
+"points.earn.dailyChallenge.desc" = "Completa las 3 preguntas de práctica de hoy";
+"points.earn.dailyChallenge.result" = "%d correctas";
+"notification.dailyChallenge.title" = "📚 ¡3 Preguntas diarias listas!";
+"notification.dailyChallenge.body" = "Las preguntas de práctica de hoy están listas. ¡Responde 3 preguntas rápidas!";

@@ -123,6 +123,12 @@ class AppState: ObservableObject {
     /// Set to true from PointsShopView to open PracticeLibraryView after sheet dismissal.
     @Published var shouldOpenPracticeLibrary = false
 
+    /// Set to true from notification tap to open PracticeLibraryView and auto-start the daily challenge.
+    @Published var shouldOpenDailyChallenge = false
+
+    /// Set to true to open PointsShopView (Earn tab) after sheet/view dismissal.
+    @Published var shouldOpenPointsShop = false
+
     /// Power Saving Mode - disables all animations when enabled
     @Published var isPowerSavingMode: Bool {        didSet {
             UserDefaults.standard.set(isPowerSavingMode, forKey: "isPowerSavingMode")

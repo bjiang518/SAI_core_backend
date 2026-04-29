@@ -114,7 +114,52 @@ struct PointsShopView: View {
 private struct EarnTabView: View {
     @ObservedObject var pointsManager: PointsEarningManager
     @StateObject private var themeManager = ThemeManager.shared
+    @Environment(\.dismiss) private var dismiss
     @State private var showingShareSheet = false
+
+    @AppStorage("daily_challenge_last_completed") private var dailyChallengeLastCompleted = ""
+    @AppStorage("daily_challenge_points_claimed_date") private var dailyChallengePointsClaimedDate = ""
+    @AppStorage("daily_challenge_correct_count") private var dailyChallengeCorrectCount = 0
+
+    private var todayString: String {
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f.string(from: Date())
+    }
+
+    private var dailyChallengeEarnPoints: Int {
+        if dailyChallengeCorrectCount >= 3 { return 10 }
+        if dailyChallengeCorrectCount == 2 { return 8 }
+        if dailyChallengeCorrectCount == 1 { return 7 }
+        return 5
+    }
+
+    private var dailyChallengeStatus: EarnStatus {
+        if dailyChallengePointsClaimedDate == todayString { return .checkedOut }
+        if dailyChallengeLastCompleted == todayString { return .claimable }
+        return .notAvailable
+    }
+
+    private var dailyChallengeRow: some View {
+        earnRow(
+            icon: "star.fill",
+            iconColor: DesignTokens.Colors.Cute.mint,
+            title: NSLocalizedString("points.earn.dailyChallenge.title", value: "每日3题", comment: ""),
+            subtitle: dailyChallengeLastCompleted == todayString
+                ? String(format: NSLocalizedString("points.earn.dailyChallenge.result", value: "答对 %d 题", comment: ""), dailyChallengeCorrectCount)
+                : NSLocalizedString("points.earn.dailyChallenge.desc", value: "完成每日3道练习题", comment: ""),
+            pointsText: dailyChallengeLastCompleted == todayString ? "+\(dailyChallengeEarnPoints)" : "+0",
+            status: dailyChallengeStatus,
+            onClaim: {
+                dailyChallengePointsClaimedDate = todayString
+                pointsManager.awardDailyChallengePoints(correctCount: dailyChallengeCorrectCount)
+            },
+            goAction: {
+                dismiss()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    AppState.shared.shouldOpenDailyChallenge = true
+                }
+            }
+        )
+    }
 
     private enum EarnStatus {
         case claimable, notAvailable, checkedOut
@@ -184,6 +229,8 @@ private struct EarnTabView: View {
                     onClaim: nil,
                     goAction: { AppState.shared.selectedTab = .home; AppState.shared.shouldOpenPracticeLibrary = true }
                 )
+
+                dailyChallengeRow
 
                 // 5. Mistake Review
                 earnRow(

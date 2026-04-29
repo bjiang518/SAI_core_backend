@@ -22,7 +22,7 @@ class SessionManager: ObservableObject {
     @Published var requiresFaceIDReauth = false
 
     // MARK: - Configuration
-    private let sessionTimeoutMinutes: Double = 15 // Session expires after 15 minutes of inactivity (while app is open)
+    private let sessionTimeoutMinutes: Double = 1440 // Session expires after 1 day of inactivity
     private let userDefaults = UserDefaults.standard
 
     // MARK: - Keys

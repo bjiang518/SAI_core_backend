@@ -28,7 +28,7 @@
 "settings.signOut" = "Abmelden";
 "settings.biometricLogin" = "%@ Login";
 "settings.parentControls.message" = "Verify parental access to manage settings";
-"settings.appVersion" = "StudyAgent v1.0";
+"settings.appVersion" = "StudyAgent v1.1";
 "settings.appTagline" = "Enhanced with Modern Authentication";
 "settings.appPoweredBy" = "Powered by advanced AI models";
 "settings.security" = "Security & Privacy";
@@ -2958,3 +2958,29 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "points.tx.errorAnalysis" = "%d Fehleranalysen eingelöst";
 "points.tx.questions" = "%d Übungsfragen eingelöst";
 "points.tx.streakFreeze" = "Streak-Schutzkarte";
+
+// MARK: - Daily Challenge
+"dailyChallenge.title" = "Tägliche 3 Fragen";
+"dailyChallenge.subtitle" = "3 personalisierte Fragen basierend auf deinen Schwachstellen";
+"dailyChallenge.generating" = "Heutige Fragen werden generiert…";
+"dailyChallenge.doneReview" = "Heute erledigt · Tippen zum Überprüfen";
+"dailyChallenge.start" = "Starten";
+"dailyChallenge.review" = "Überprüfen";
+"dailyChallenge.history" = "Verlauf";
+"dailyChallenge.totalCorrect" = "Gesamt richtig: %d";
+"dailyChallenge.correct" = "Ausgezeichnet!";
+"dailyChallenge.wrong" = "Weiter so!";
+"dailyChallenge.correctAnswerPrefix" = "Richtige Antwort: ";
+"dailyChallenge.finish" = "Fertig";
+"dailyChallenge.score" = "%d / %d richtig";
+"dailyChallenge.points" = "Punkte";
+"dailyChallenge.analyzing" = "Analysiere…";
+"dailyChallenge.collectReward" = "Belohnung abholen";
+"dailyChallenge.perfect" = "Perfekt! Alles richtig! 🎉";
+"dailyChallenge.good" = "Gut gemacht! 👍";
+"dailyChallenge.keep" = "Weitermachen! 💪";
+"points.earn.dailyChallenge.title" = "Tägliche 3 Fragen";
+"points.earn.dailyChallenge.desc" = "Heutige 3 Übungsfragen abschließen";
+"points.earn.dailyChallenge.result" = "%d richtig";
+"notification.dailyChallenge.title" = "📚 Tägliche 3 Fragen bereit!";
+"notification.dailyChallenge.body" = "Die heutigen Übungsfragen sind bereit. Beantworte schnell 3 Fragen!";

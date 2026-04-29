@@ -1378,6 +1378,22 @@ class PointsEarningManager: ObservableObject {
         return bonus
     }
 
+    @discardableResult
+    func awardDailyChallengePoints(correctCount: Int, totalCount: Int = 3) -> Int {
+        let points: Int
+        if correctCount >= totalCount   { points = 10 }
+        else if correctCount == 2       { points = 8 }
+        else if correctCount == 1       { points = 7 }
+        else                            { points = 5 }
+        pointsBalance += points
+        totalPointsEarned += points
+        dailyPointsEarned += points
+        logger.info("💰 [DAILY CHALLENGE] \(correctCount)/\(totalCount) correct → \(points) pts. Balance: \(self.pointsBalance)")
+        forceSave()
+        Task { await syncBalanceWithServer() }
+        return points
+    }
+
     // MARK: - Manual Claim System
 
     /// Returns the activity counter for a given earning type.

@@ -38,6 +38,8 @@ struct HomeView: View {
     @ObservedObject private var pointsManager = PointsEarningManager.shared
     @ObservedObject private var profileService = ProfileService.shared
     @ObservedObject private var appState = AppState.shared
+    @AppStorage("daily_challenge_last_completed") private var dailyChallengeLastCompleted = ""
+    @AppStorage("daily_challenge_points_claimed_date") private var dailyChallengePointsClaimedDate = ""
     @State private var userName = ""
     @State private var navigateToSession = false
     @State private var showingProfile = false
@@ -73,6 +75,13 @@ struct HomeView: View {
     @State private var showingParentAuthForReports = false
 
     private let logger = Logger(subsystem: "com.studyai", category: "HomeView")
+
+    private var unclaimedEarningsCount: Int {
+        let today = { let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f.string(from: Date()) }()
+        let streakBonus = pointsManager.hasClaimedStreakBonusToday ? 0 : 1
+        let dailyChallenge = (dailyChallengeLastCompleted == today && dailyChallengePointsClaimedDate != today) ? 1 : 0
+        return streakBonus + dailyChallenge
+    }
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -201,6 +210,20 @@ struct HomeView: View {
                     showingQuestionGeneration = true
                 }
             }
+            .onChange(of: appState.shouldOpenDailyChallenge) { _, shouldOpen in
+                if shouldOpen {
+                    practiceLibraryShortcutConfig = nil
+                    showingQuestionGeneration = true
+                }
+            }
+            .onChange(of: appState.shouldOpenPointsShop) { _, shouldOpen in
+                if shouldOpen {
+                    appState.shouldOpenPointsShop = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                        showingPointsShop = true
+                    }
+                }
+            }
             .onChange(of: showingHomeworkAlbum) { _, v in
                 debugPrint("🏠 [HomeView.nav] showingHomeworkAlbum → \(v) | selectedTab=\(appState.selectedTab)")
             }
@@ -295,6 +318,19 @@ struct HomeView: View {
                 // Points balance — tap to open points hub
                 Button(action: { showingPointsShop = true }) {
                     HomePulsingStar(isActive: pointsManager.hasUnclaimedEarnings)
+                        .overlay(alignment: .topTrailing) {
+                            let count = unclaimedEarningsCount
+                            if count > 0 {
+                                Text("\(min(count, 99))")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .frame(minWidth: 16, minHeight: 16)
+                                    .padding(.horizontal, 3)
+                                    .background(Color.red)
+                                    .clipShape(Capsule())
+                                    .offset(x: 6, y: -4)
+                            }
+                        }
                 }
                 .buttonStyle(PlainButtonStyle())
 

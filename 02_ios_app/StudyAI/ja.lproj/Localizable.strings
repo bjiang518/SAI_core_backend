@@ -28,7 +28,7 @@
 "settings.signOut" = "ログアウト";
 "settings.biometricLogin" = "%@ Login";
 "settings.parentControls.message" = "Verify parental access to manage settings";
-"settings.appVersion" = "StudyAgent v1.0";
+"settings.appVersion" = "StudyAgent v1.1";
 "settings.appTagline" = "Enhanced with Modern Authentication";
 "settings.appPoweredBy" = "Powered by advanced AI models";
 "settings.security" = "Security & Privacy";
@@ -2883,3 +2883,29 @@
 "points.tx.errorAnalysis" = "%d 回のエラー分析を交換";
 "points.tx.questions" = "%d 問の練習問題を交換";
 "points.tx.streakFreeze" = "連続記録保護カード";
+
+// MARK: - Daily Challenge
+"dailyChallenge.title" = "毎日3問";
+"dailyChallenge.subtitle" = "苦手分野から毎日3問厳選";
+"dailyChallenge.generating" = "今日の問題を生成中…";
+"dailyChallenge.doneReview" = "今日完了 · タップして復習";
+"dailyChallenge.start" = "開始";
+"dailyChallenge.review" = "復習";
+"dailyChallenge.history" = "履歴";
+"dailyChallenge.totalCorrect" = "累計正解: %d問";
+"dailyChallenge.correct" = "素晴らしい！";
+"dailyChallenge.wrong" = "頑張って！";
+"dailyChallenge.correctAnswerPrefix" = "正解: ";
+"dailyChallenge.finish" = "完了";
+"dailyChallenge.score" = "%d / %d 正解";
+"dailyChallenge.points" = "ポイント";
+"dailyChallenge.analyzing" = "分析中…";
+"dailyChallenge.collectReward" = "報酬を受け取る";
+"dailyChallenge.perfect" = "完璧！全問正解！🎉";
+"dailyChallenge.good" = "よくできました！👍";
+"dailyChallenge.keep" = "頑張れ！💪";
+"points.earn.dailyChallenge.title" = "毎日3問";
+"points.earn.dailyChallenge.desc" = "今日の3問の練習問題を完了する";
+"points.earn.dailyChallenge.result" = "%d問正解";
+"notification.dailyChallenge.title" = "📚 毎日3問が来ました！";
+"notification.dailyChallenge.body" = "今日の練習問題が準備できました。3問さっと解こう！";

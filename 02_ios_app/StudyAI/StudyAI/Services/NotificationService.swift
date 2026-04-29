@@ -24,6 +24,7 @@ class NotificationService: NSObject, ObservableObject {
 
     private let notificationCenter = UNUserNotificationCenter.current()
     private let studyReminderIdentifierPrefix = "com.studyai.studyReminder"
+    private let dailyChallengeIdentifierPrefix = "com.studyai.dailyChallenge"
 
     // MARK: - Initialization
 
@@ -38,9 +39,11 @@ class NotificationService: NSObject, ObservableObject {
                 let granted = await requestAuthorization()
                 if granted {
                     scheduleStudyReminders()
+                    scheduleDailyChallengeReminder()
                 }
             } else if isAuthorized {
                 scheduleStudyReminders()
+                scheduleDailyChallengeReminder()
             }
         }
     }
@@ -190,6 +193,7 @@ class NotificationService: NSObject, ObservableObject {
         settings.lastReminderRefreshDate = today
         saveSettings()
         scheduleStudyReminders()
+        scheduleDailyChallengeReminder()
         debugPrint("📱 NotificationService: Daily reminder refresh triggered")
     }
 
@@ -238,8 +242,65 @@ class NotificationService: NSObject, ObservableObject {
         }
     }
 
+    // MARK: - Daily Challenge Reminder (4pm, every day)
+
+    func scheduleDailyChallengeReminder() {
+        guard settings.isEnabled else { return }
+
+        cancelDailyChallengeReminders()
+
+        let calendar = Calendar.current
+        let now = Date()
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyyMMdd"
+        let todayKey = { () -> String in
+            var f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f.string(from: now)
+        }()
+        let alreadyDoneToday = UserDefaults.standard.string(forKey: "daily_challenge_last_completed") == todayKey
+
+        for dayOffset in 0..<7 {
+            guard let targetDate = calendar.date(byAdding: .day, value: dayOffset, to: now) else { continue }
+
+            if dayOffset == 0 && alreadyDoneToday { continue }
+
+            var dateComponents = calendar.dateComponents([.year, .month, .day], from: targetDate)
+            dateComponents.hour = 16
+            dateComponents.minute = 0
+
+            if let fireDate = calendar.date(from: dateComponents), fireDate <= now { continue }
+
+            let dateString = dateFormatter.string(from: targetDate)
+            let identifier = "\(dailyChallengeIdentifierPrefix).\(dateString)"
+
+            let content = UNMutableNotificationContent()
+            content.title = NSLocalizedString("notification.dailyChallenge.title", value: "📚 每日3题来啦！", comment: "")
+            content.body = NSLocalizedString("notification.dailyChallenge.body", value: "今天的练习题已经准备好，3题快速搞定！", comment: "")
+            content.sound = .default
+            content.badge = 1
+            content.categoryIdentifier = "DAILY_CHALLENGE"
+
+            let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: false)
+            let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+
+            notificationCenter.add(request) { error in
+                if let error = error {
+                    debugPrint("📱 NotificationService: Failed to schedule daily challenge \(dateString): \(error)")
+                }
+            }
+        }
+        debugPrint("📱 NotificationService: Scheduled daily challenge reminders (4pm)")
+    }
+
+    func cancelDailyChallengeReminders() {
+        notificationCenter.getPendingNotificationRequests { requests in
+            let ids = requests.map { $0.identifier }.filter { $0.hasPrefix(self.dailyChallengeIdentifierPrefix) }
+            if !ids.isEmpty {
+                self.notificationCenter.removePendingNotificationRequests(withIdentifiers: ids)
+            }
+        }
+    }
+
     func cancelStudyReminders() {
-        // Get all pending notifications with our prefix
         notificationCenter.getPendingNotificationRequests { requests in
             let studyReminderIds = requests
                 .map { $0.identifier }
@@ -493,6 +554,11 @@ extension NotificationService: UNUserNotificationCenterDelegate {
         if identifier.hasPrefix(studyReminderIdentifierPrefix) {
             // User tapped study reminder - could open app to specific view
             debugPrint("📱 NotificationService: Study reminder tapped")
+        } else if identifier.hasPrefix(dailyChallengeIdentifierPrefix) {
+            debugPrint("📱 NotificationService: Daily challenge notification tapped")
+            DispatchQueue.main.async {
+                AppState.shared.shouldOpenDailyChallenge = true
+            }
         } else if identifier.hasPrefix("com.studyai.parentReport") {
             // User tapped parent report notification
             debugPrint("📱 NotificationService: Parent report notification tapped")

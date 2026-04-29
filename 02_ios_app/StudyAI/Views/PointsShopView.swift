@@ -120,6 +120,47 @@ private struct EarnTabView: View {
     @State private var showingShareSheet = false
     let dismissSheet: () -> Void
 
+    @AppStorage("daily_challenge_last_completed") private var dailyChallengeLastCompleted = ""
+    @AppStorage("daily_challenge_points_claimed_date") private var dailyChallengePointsClaimedDate = ""
+    @AppStorage("daily_challenge_correct_count") private var dailyChallengeCorrectCount = 0
+
+    private var todayString: String {
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f.string(from: Date())
+    }
+    private var dailyChallengeEarnPoints: Int {
+        if dailyChallengeCorrectCount >= 3 { return 10 }
+        if dailyChallengeCorrectCount == 2 { return 8 }
+        if dailyChallengeCorrectCount == 1 { return 7 }
+        return 5
+    }
+    private var dailyChallengeStatus: EarnStatus {
+        if dailyChallengePointsClaimedDate == todayString { return .checkedOut }
+        if dailyChallengeLastCompleted == todayString { return .claimable }
+        return .notAvailable
+    }
+    private var dailyChallengeRow: some View {
+        earnRow(
+            icon: "star.fill",
+            iconColor: Color(red: 0.50, green: 0.86, blue: 0.79),
+            title: NSLocalizedString("points.earn.dailyChallenge.title", value: "每日3题", comment: ""),
+            subtitle: dailyChallengeLastCompleted == todayString
+                ? String(format: NSLocalizedString("points.earn.dailyChallenge.result", value: "答对 %d 题", comment: ""), dailyChallengeCorrectCount)
+                : NSLocalizedString("points.earn.dailyChallenge.desc", value: "完成每日3道练习题", comment: ""),
+            pointsText: dailyChallengeLastCompleted == todayString ? "+\(dailyChallengeEarnPoints)" : "+0",
+            status: dailyChallengeStatus,
+            onClaim: {
+                dailyChallengePointsClaimedDate = todayString
+                pointsManager.awardDailyChallengePoints(correctCount: dailyChallengeCorrectCount)
+            },
+            goAction: {
+                dismissSheet()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    AppState.shared.shouldOpenDailyChallenge = true
+                }
+            }
+        )
+    }
+
     /// Gold color matching HomeView's star badge
     private let starGold = Color(red: 1.0, green: 0.84, blue: 0.0)
 
@@ -158,6 +199,9 @@ private struct EarnTabView: View {
                     onClaim: { let _ = pointsManager.claimDailyStreakBonus() },
                     goAction: nil
                 )
+
+                // 2. Daily Challenge
+                dailyChallengeRow
 
                 // 2. Correct Answers
                 manualClaimRow(
