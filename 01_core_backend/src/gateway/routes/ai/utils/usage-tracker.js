@@ -25,10 +25,10 @@ const TIER_LIMITS = {
     tts_calls:       20,  // lifetime — AI avatar reads responses
   },
   free: {
-    homework_pages:  10,  // monthly pages
-    chat_messages:   50,
-    questions:       30,
-    error_analysis:  5,
+    homework_pages:  5,   // monthly pages
+    chat_messages:   20,
+    questions:       10,
+    error_analysis:  3,
     reports:         0,
     voice_minutes:   0,
     tts_calls:       50, // monthly

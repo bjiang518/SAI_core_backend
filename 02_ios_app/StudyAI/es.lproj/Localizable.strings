@@ -401,6 +401,31 @@
 "parentPasswordRemove.success" = "✅ El modo parental ha sido eliminado";
 "parentPasswordRemove.incorrectPin" = "❌ PIN incorrecto. Por favor, inténtalo de nuevo.";
 
+// Olvidé el PIN de control parental / Flujo de restablecimiento
+"parentPINReset.forgotPIN" = "¿Olvidaste el PIN?";
+"parentPINReset.title" = "Restablecer PIN parental";
+"parentPINReset.step1Title" = "¿Olvidaste tu PIN?";
+"parentPINReset.step1Description" = "Enviaremos un código de verificación de 6 dígitos a tu correo electrónico registrado.";
+"parentPINReset.sendCodeButton" = "Enviar código de verificación";
+"parentPINReset.step2Description" = "Se envió un código de 6 dígitos a %@. Ingrésalo a continuación.";
+"parentPINReset.codeHeader" = "Código de verificación";
+"parentPINReset.codePlaceholder" = "Ingresa el código de 6 dígitos";
+"parentPINReset.verifyButton" = "Verificar código";
+"parentPINReset.resendCode" = "Reenviar código";
+"parentPINReset.step3Title" = "Establecer nuevo PIN";
+"parentPINReset.newPINHeader" = "Nuevo PIN parental";
+"parentPINReset.newPINPlaceholder" = "Ingresa el nuevo PIN (6 dígitos)";
+"parentPINReset.confirmPINPlaceholder" = "Confirma el nuevo PIN";
+"parentPINReset.setPINButton" = "Establecer nuevo PIN";
+"parentPINReset.setPINFailed" = "❌ No se pudo establecer el PIN. Por favor, inténtalo de nuevo.";
+"parentPINReset.mismatch" = "Los PINs no coinciden. Por favor, inténtalo de nuevo.";
+"parentPINReset.invalidPIN" = "El PIN debe tener exactamente 6 dígitos";
+"parentPINReset.invalidCode" = "❌ Código inválido o expirado. Por favor, inténtalo de nuevo.";
+"parentPINReset.sendFailed" = "❌ No se pudo enviar el código. Por favor, inténtalo de nuevo.";
+"parentPINReset.noEmail" = "No hay correo electrónico asociado a tu cuenta. Contacta a support@study-mates.net";
+"parentPINReset.appleEmailNote" = "El código se enviará al correo asociado con tu Apple ID.";
+"parentPINReset.googleEmailNote" = "El código se enviará a tu correo de cuenta de Google.";
+
 
 "app.name" = "StudyAgent";
 "app.tagline" = "Tu compañero de aprendizaje con IA";
@@ -2308,6 +2333,7 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "onboarding.age.title" = "¿Cuántos años tienes?";
 "onboarding.age.subtitle" = "Nos ayuda a personalizar la experiencia";
 "onboarding.age.placeholder" = "Ingresa tu edad";
+"onboarding.age.gradeLabel" = "Grado";
 
 // Onboarding — Learning Style
 "onboarding.learningStyle.title" = "¿Cómo quieres que te ayude la IA?";
@@ -2455,6 +2481,9 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "practiceSheet.reviewButton" = "Revisar respuestas";
 "practiceSheet.redoButton" = "Rehacer";
 "practiceSheet.aiAnalyzing" = "La IA está analizando tu respuesta…";
+"practiceSheet.askAI" = "Preguntar a IA";
+"practiceSheet.regrade" = "Reevaluar";
+"practiceSheet.archive" = "Archivar";
 "practiceSheet.toastTitle" = "Organización automática completa";
 "practiceSheet.toastProgress" = "Progreso marcado para %@";
 "practiceSheet.toastMistakes" = "%d error(es) archivado(s) en la biblioteca";
@@ -2600,6 +2629,10 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "upgrade.comparison.valueMultipleKids" = "Compartir en familia";
 "upgrade.comparison.ctaUltra" = "Empezar Ultra  %@";
 "upgrade.comparison.ctaPremium" = "Empezar Premium  %@";
+"upgrade.comparison.ctaUltraTrial" = "Probar Ultra gratis — 7 días";
+"upgrade.comparison.ctaPremiumTrial" = "Probar Premium gratis — 7 días";
+"upgrade.comparison.trialSubtext" = "luego %@ · Cancela cuando quieras";
+"upgrade.comparison.termsTrial" = "Prueba gratuita de 7 días, luego se renueva automáticamente al precio indicado. Cancela antes de que termine la prueba en Ajustes > ID de Apple > Suscripciones.";
 "upgrade.comparison.continueFree" = "Continuar con Gratis";
 "upgrade.comparison.restorePurchases" = "Restaurar compras";
 "upgrade.comparison.terms" = "Las suscripciones se renuevan automáticamente a menos que se cancelen al menos 24 horas antes del final del período actual. Administra o cancela en cualquier momento en Configuración > ID de Apple > Suscripciones.";
@@ -2616,6 +2649,8 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "account.usage.loadError" = "No se pudo cargar el uso";
 "account.usage.lifetimeLimits" = "Se aplican límites de por vida";
 "account.usage.resetsOn" = "Restablece el %@";
+"account.usage.resetsOnFull" = "La cuota se restablece el %@";
+"account.usage.resetsMonthly" = "La cuota se actualiza el 1 de cada mes";
 "account.usage.unlimited" = "Ilimitado";
 "account.usage.upgradeLabel" = "Mejorar";
 "account.usage.upgradePlan" = "Mejorar plan";
@@ -2893,6 +2928,31 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "dailyChallenge.perfect" = "¡Perfecto! ¡Todo correcto! 🎉";
 "dailyChallenge.good" = "¡Bien hecho! 👍";
 "dailyChallenge.keep" = "¡Sigue adelante! 💪";
+"dailyChallenge.reviewAnswers" = "Revisar respuestas";
+"dailyChallenge.close" = "Cerrar";
+"dailyChallenge.prevQuestion" = "Anterior";
+"guestConversion.title" = "Crear cuenta gratuita";
+"guestConversion.subtitle" = "Guarda tu progreso y desbloquea más funciones";
+"guestConversion.createAccount" = "Crear cuenta gratis";
+"guestConversion.signIn" = "¿Ya tienes cuenta? Iniciar sesión";
+"guestConversion.continueGuest" = "Continuar como invitado";
+"guestConversion.guestCol" = "Ahora";
+"guestConversion.freeCol" = "Cuenta gratuita";
+"guestConversion.homework" = "Tareas";
+"guestConversion.chat" = "Chat IA";
+"guestConversion.practice" = "Preguntas de práctica";
+"guestConversion.analysis" = "Análisis de errores";
+"guestConversion.save" = "Guardar progreso";
+"guestConversion.weakness" = "Análisis de debilidades";
+"guestConversion.library" = "Biblioteca de ejercicios";
+"guestConversion.history" = "Historial de aprendizaje";
+"guestConversion.streak" = "Racha y puntos";
+"guestConversion.lifetime" = "total";
+"guestConversion.perMonth" = "/mes";
+"guestConversion.signUpTitle" = "Guarda tu progreso";
+"guestConversion.signUpSubtitle" = "Crea una cuenta gratuita para guardar todo lo que has hecho.";
+"guestConversion.homeworkNudge" = "Crea una cuenta gratis para guardar este resultado";
+"guestConversion.dailyChallengeNudge" = "Crea una cuenta para guardar tu racha";
 "points.earn.dailyChallenge.title" = "3 Preguntas Diarias";
 "points.earn.dailyChallenge.desc" = "Completa las 3 preguntas de práctica de hoy";
 "points.earn.dailyChallenge.result" = "%d correctas";

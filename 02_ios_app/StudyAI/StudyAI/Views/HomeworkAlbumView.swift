@@ -201,6 +201,7 @@ struct HomeworkThumbnailCard: View {
     let onTap: () -> Void
 
     @State private var thumbnail: UIImage?
+    @State private var loadFailed: Bool = false
 
     // Calculate image aspect ratio category
     private var imageAspectInfo: (ratio: CGFloat, isExtreme: Bool, category: String) {
@@ -262,8 +263,18 @@ struct HomeworkThumbnailCard: View {
                             Rectangle()
                                 .fill(Color.gray.opacity(0.2))
                                 .frame(height: 180)
-
-                            ProgressView()
+                            if loadFailed {
+                                VStack(spacing: 6) {
+                                    Image(systemName: "photo.slash")
+                                        .font(.system(size: 28))
+                                        .foregroundColor(.secondary)
+                                    Text(NSLocalizedString("homeworkAlbum.imageUnavailable", value: "Image unavailable", comment: ""))
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            } else {
+                                ProgressView()
+                            }
                         }
                     }
                     .frame(maxWidth: .infinity)  // Ensure full width
@@ -397,9 +408,9 @@ struct HomeworkThumbnailCard: View {
     private func loadThumbnail() {
         DispatchQueue.global(qos: .userInitiated).async {
             if let image = HomeworkImageStorageService.shared.loadThumbnail(record: record) {
-                DispatchQueue.main.async {
-                    self.thumbnail = image
-                }
+                DispatchQueue.main.async { self.thumbnail = image }
+            } else {
+                DispatchQueue.main.async { self.loadFailed = true }
             }
         }
     }

@@ -24,6 +24,9 @@ struct UpgradeComparisonView: View {
     @State private var purchasingUltra = false
     @State private var purchasingPremium = false
 
+    private var premiumTrialEligible: Bool { storeKit.trialEligibility["com.studyai.premium.monthly"] == true }
+    private var ultraTrialEligible: Bool   { storeKit.trialEligibility["com.studyai.ultra.monthly"]   == true }
+
     // MARK: - Promo code state
 
     private enum PromoState {
@@ -54,11 +57,11 @@ struct UpgradeComparisonView: View {
     }
 
     private var planRows: [PlanRow] {[
-        PlanRow(feature: NSLocalizedString("upgrade.comparison.featureHomework", comment: ""),    free: "10/mo",  premium: "50/mo",   family: "✓"),
-        PlanRow(feature: NSLocalizedString("upgrade.comparison.featureAiChat", comment: ""),      free: "50/mo",  premium: "500/mo",  family: "✓"),
+        PlanRow(feature: NSLocalizedString("upgrade.comparison.featureHomework", comment: ""),    free: "5/mo",   premium: "50/mo",   family: "✓"),
+        PlanRow(feature: NSLocalizedString("upgrade.comparison.featureAiChat", comment: ""),      free: "20/mo",  premium: "500/mo",  family: "✓"),
         PlanRow(feature: NSLocalizedString("upgrade.comparison.featureLiveTutor", comment: ""),   free: "—",      premium: NSLocalizedString("upgrade.comparison.valueLiveTutor", comment: ""), family: "✓"),
-        PlanRow(feature: NSLocalizedString("upgrade.comparison.featurePractice", comment: ""),    free: "30 qs",  premium: "200 qs",  family: "✓"),
-        PlanRow(feature: NSLocalizedString("upgrade.comparison.featureWeakness", comment: ""),    free: "5/mo",   premium: "✓",       family: "✓"),
+        PlanRow(feature: NSLocalizedString("upgrade.comparison.featurePractice", comment: ""),    free: "10 qs",  premium: "200 qs",  family: "✓"),
+        PlanRow(feature: NSLocalizedString("upgrade.comparison.featureWeakness", comment: ""),    free: "3/mo",   premium: "✓",       family: "✓"),
         PlanRow(feature: NSLocalizedString("upgrade.comparison.featureReports", comment: ""),     free: "—",      premium: "✓",       family: "✓"),
         PlanRow(feature: NSLocalizedString("upgrade.comparison.featureMultipleKids", comment: ""), free: "—",     premium: "—",       family: NSLocalizedString("upgrade.comparison.valueMultipleKids", comment: "")),
     ]}
@@ -268,80 +271,113 @@ struct UpgradeComparisonView: View {
 
     private var bottomCTAs: some View {
         VStack(spacing: 10) {
-            Button {
-                #if DEBUG
-                print("🛒 [UpgradeView] Start Ultra tapped — products: \(storeKit.products.count)")
-                #endif
-                Task {
-                    if let product = storeKit.products.first(where: { $0.id.contains("ultra") }) {
-                        #if DEBUG
-                        print("🛒 [UpgradeView] Purchasing: \(product.id) price=\(product.displayPrice)")
-                        #endif
-                        purchasingUltra = true
-                        await storeKit.purchase(product)
-                        purchasingUltra = false
-                        if storeKit.purchaseError == nil { onDismiss() }
-                    } else {
-                        #if DEBUG
-                        print("⚠️ [UpgradeView] No ultra product. Available: \(storeKit.products.map { "\($0.id) \($0.displayPrice)" })")
-                        #endif
+            // Ultra CTA
+            VStack(spacing: 4) {
+                Button {
+                    #if DEBUG
+                    print("🛒 [UpgradeView] Start Ultra tapped — products: \(storeKit.products.count)")
+                    #endif
+                    Task {
+                        if let product = storeKit.products.first(where: { $0.id.contains("ultra") }) {
+                            #if DEBUG
+                            print("🛒 [UpgradeView] Purchasing: \(product.id) price=\(product.displayPrice)")
+                            #endif
+                            purchasingUltra = true
+                            await storeKit.purchase(product)
+                            purchasingUltra = false
+                            if storeKit.purchaseError == nil { onDismiss() }
+                        } else {
+                            #if DEBUG
+                            print("⚠️ [UpgradeView] No ultra product. Available: \(storeKit.products.map { "\($0.id) \($0.displayPrice)" })")
+                            #endif
+                        }
                     }
-                }
-            } label: {
-                Group {
-                    if purchasingUltra {
-                        ProgressView().tint(.white).frame(maxWidth: .infinity).padding(.vertical, 16)
-                    } else {
-                        let ultraPrice = storeKit.products.first(where: { $0.id.contains("ultra") })?.displayPrice ?? "$19.99"
-                        Text(String(format: NSLocalizedString("upgrade.comparison.ctaUltra", comment: ""), ultraPrice + NSLocalizedString("upgrade.comparison.pricePeriod", comment: "")))
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
+                } label: {
+                    Group {
+                        if purchasingUltra {
+                            ProgressView().tint(.white).frame(maxWidth: .infinity).padding(.vertical, 16)
+                        } else if ultraTrialEligible {
+                            Text(NSLocalizedString("upgrade.comparison.ctaUltraTrial", comment: ""))
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                        } else {
+                            let ultraPrice = storeKit.products.first(where: { $0.id.contains("ultra") })?.displayPrice ?? "$19.99"
+                            Text(String(format: NSLocalizedString("upgrade.comparison.ctaUltra", comment: ""), ultraPrice + NSLocalizedString("upgrade.comparison.pricePeriod", comment: "")))
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                        }
                     }
+                    .background(badgeGold)
+                    .cornerRadius(14)
                 }
-                .background(badgeGold)
-                .cornerRadius(14)
-            }
-            .disabled(purchasingUltra || purchasingPremium)
+                .disabled(purchasingUltra || purchasingPremium)
 
-            Button {
-                #if DEBUG
-                print("🛒 [UpgradeView] Start Premium tapped — products: \(storeKit.products.count)")
-                #endif
-                Task {
-                    if let product = storeKit.products.first(where: { $0.id.contains("premium") && !$0.id.contains("ultra") }) {
-                        #if DEBUG
-                        print("🛒 [UpgradeView] Purchasing: \(product.id) price=\(product.displayPrice)")
-                        #endif
-                        purchasingPremium = true
-                        await storeKit.purchase(product)
-                        purchasingPremium = false
-                        if storeKit.purchaseError == nil { onDismiss() }
-                    } else {
-                        #if DEBUG
-                        print("⚠️ [UpgradeView] No premium product. Available: \(storeKit.products.map { "\($0.id) \($0.displayPrice)" })")
-                        #endif
-                    }
+                if ultraTrialEligible, !purchasingUltra {
+                    let ultraPrice = storeKit.products.first(where: { $0.id.contains("ultra") })?.displayPrice ?? "$19.99"
+                    Text(String(format: NSLocalizedString("upgrade.comparison.trialSubtext", comment: ""), ultraPrice + NSLocalizedString("upgrade.comparison.pricePeriod", comment: "")))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
-            } label: {
-                Group {
-                    if purchasingPremium {
-                        ProgressView().tint(.white).frame(maxWidth: .infinity).padding(.vertical, 14)
-                    } else {
-                        let premiumPrice = storeKit.products.first(where: { $0.id.contains("premium") && !$0.id.contains("ultra") })?.displayPrice ?? "$9.99"
-                        Text(String(format: NSLocalizedString("upgrade.comparison.ctaPremium", comment: ""), premiumPrice + NSLocalizedString("upgrade.comparison.pricePeriod", comment: "")))
-                            .fontWeight(.semibold)
-                            .font(.subheadline)
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                    }
-                }
-                .background(silver)
-                .cornerRadius(14)
             }
-            .disabled(purchasingUltra || purchasingPremium)
+
+            // Premium CTA
+            VStack(spacing: 4) {
+                Button {
+                    #if DEBUG
+                    print("🛒 [UpgradeView] Start Premium tapped — products: \(storeKit.products.count)")
+                    #endif
+                    Task {
+                        if let product = storeKit.products.first(where: { $0.id.contains("premium") && !$0.id.contains("ultra") }) {
+                            #if DEBUG
+                            print("🛒 [UpgradeView] Purchasing: \(product.id) price=\(product.displayPrice)")
+                            #endif
+                            purchasingPremium = true
+                            await storeKit.purchase(product)
+                            purchasingPremium = false
+                            if storeKit.purchaseError == nil { onDismiss() }
+                        } else {
+                            #if DEBUG
+                            print("⚠️ [UpgradeView] No premium product. Available: \(storeKit.products.map { "\($0.id) \($0.displayPrice)" })")
+                            #endif
+                        }
+                    }
+                } label: {
+                    Group {
+                        if purchasingPremium {
+                            ProgressView().tint(.white).frame(maxWidth: .infinity).padding(.vertical, 14)
+                        } else if premiumTrialEligible {
+                            Text(NSLocalizedString("upgrade.comparison.ctaPremiumTrial", comment: ""))
+                                .fontWeight(.semibold)
+                                .font(.subheadline)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                        } else {
+                            let premiumPrice = storeKit.products.first(where: { $0.id.contains("premium") && !$0.id.contains("ultra") })?.displayPrice ?? "$9.99"
+                            Text(String(format: NSLocalizedString("upgrade.comparison.ctaPremium", comment: ""), premiumPrice + NSLocalizedString("upgrade.comparison.pricePeriod", comment: "")))
+                                .fontWeight(.semibold)
+                                .font(.subheadline)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                        }
+                    }
+                    .background(silver)
+                    .cornerRadius(14)
+                }
+                .disabled(purchasingUltra || purchasingPremium)
+
+                if premiumTrialEligible, !purchasingPremium {
+                    let premiumPrice = storeKit.products.first(where: { $0.id.contains("premium") && !$0.id.contains("ultra") })?.displayPrice ?? "$9.99"
+                    Text(String(format: NSLocalizedString("upgrade.comparison.trialSubtext", comment: ""), premiumPrice + NSLocalizedString("upgrade.comparison.pricePeriod", comment: "")))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
 
             if let error = storeKit.purchaseError {
                 Text(error)
@@ -496,8 +532,11 @@ struct UpgradeComparisonView: View {
 
     // Subscription renewal disclosure + functional Terms/Privacy links (Guideline 3.1.2c)
     private var termsText: some View {
-        VStack(spacing: 6) {
-            Text(NSLocalizedString("upgrade.comparison.terms", comment: ""))
+        let termsKey = (premiumTrialEligible || ultraTrialEligible)
+            ? "upgrade.comparison.termsTrial"
+            : "upgrade.comparison.terms"
+        return VStack(spacing: 6) {
+            Text(NSLocalizedString(termsKey, comment: ""))
                 .font(.caption2)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -527,9 +566,9 @@ struct UpgradeComparisonView: View {
 
     private var usageSummaryBanner: some View {
         let freeLimits: [(key: String, icon: String, label: String, limit: Int)] = [
-            ("homework_pages",  "📚", NSLocalizedString("upgrade.comparison.usageHomework", comment: ""), 10),
-            ("chat_messages",   "💬", NSLocalizedString("upgrade.comparison.usageChat", comment: ""),      50),
-            ("questions",       "❓", NSLocalizedString("upgrade.comparison.usagePractice", comment: ""),  30),
+            ("homework_pages",  "📚", NSLocalizedString("upgrade.comparison.usageHomework", comment: ""), 5),
+            ("chat_messages",   "💬", NSLocalizedString("upgrade.comparison.usageChat", comment: ""),      20),
+            ("questions",       "❓", NSLocalizedString("upgrade.comparison.usagePractice", comment: ""),  10),
         ]
 
         let items: [UsageItem] = freeLimits.compactMap { entry in

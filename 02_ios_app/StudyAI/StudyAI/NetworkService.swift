@@ -3443,6 +3443,40 @@ class NetworkService: ObservableObject {
 
     // MARK: - Email Verification
 
+    /// Convert an anonymous guest account to a registered account (in-place, same user_id).
+    func convertGuestToAccount(name: String, email: String, password: String) async -> (success: Bool, message: String, error: String?, token: String?, userData: [String: Any]?, statusCode: Int?) {
+        guard let url = URL(string: "\(baseURL)/api/auth/convert-guest"),
+              let token = AuthenticationService.shared.getAuthToken() else {
+            return (false, "Not authenticated", nil, nil, nil, nil)
+        }
+        let body: [String: Any] = [
+            "name": name,
+            "email": email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+            "password": password
+        ]
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let (data, response) = try await URLSession.shared.data(for: request)
+            let statusCode = (response as? HTTPURLResponse)?.statusCode
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                if statusCode == 200 {
+                    return (true, "Account created", nil, json["token"] as? String, json["user"] as? [String: Any], statusCode)
+                }
+                let msg = json["message"] as? String ?? json["error"] as? String ?? "Conversion failed"
+                let errCode = json["error"] as? String
+                return (false, msg, errCode, nil, nil, statusCode)
+            }
+            return (false, "Invalid response", nil, nil, nil, statusCode)
+        } catch {
+            return (false, error.localizedDescription, nil, nil, nil, nil)
+        }
+    }
+
+
     /// Send verification code to user's email during registration
     func sendVerificationCode(email: String, name: String) async -> (success: Bool, message: String, expiresIn: Int?, statusCode: Int?) {
         debugPrint("📧 Sending verification code to: \(email)")
@@ -6443,6 +6477,65 @@ class NetworkService: ObservableObject {
     func currentUTCSlot() -> Int {
         let hour = Calendar.current.dateComponents(in: TimeZone(identifier: "UTC")!, from: Date()).hour ?? 0
         return hour / 6
+    }
+
+    // MARK: - Parent PIN Reset
+
+    func sendParentPINResetCode() async -> (success: Bool, maskedEmail: String?, error: String?) {
+        guard let url = URL(string: "\(baseURL)/api/auth/send-parent-pin-reset-code") else {
+            return (false, nil, "Invalid URL")
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let token = AuthenticationService.shared.getAuthToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        request.httpBody = try? JSONSerialization.data(withJSONObject: [:])
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse,
+                  let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                return (false, nil, "Invalid response")
+            }
+            if httpResponse.statusCode == 200 {
+                return (true, dict["maskedEmail"] as? String, nil)
+            }
+            let errorCode = dict["errorCode"] as? String
+            let message = dict["message"] as? String ?? "Failed to send code"
+            return (false, nil, errorCode == "NO_EMAIL" ? "NO_EMAIL" : message)
+        } catch {
+            return (false, nil, error.localizedDescription)
+        }
+    }
+
+    func verifyParentPINResetCode(_ code: String) async -> (success: Bool, error: String?) {
+        guard let url = URL(string: "\(baseURL)/api/auth/verify-parent-pin-reset-code") else {
+            return (false, "Invalid URL")
+        }
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: ["code": code]) else {
+            return (false, "Failed to serialize request")
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let token = AuthenticationService.shared.getAuthToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        request.httpBody = jsonData
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse,
+                  let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                return (false, "Invalid response")
+            }
+            if httpResponse.statusCode == 200 {
+                return (true, nil)
+            }
+            return (false, dict["message"] as? String ?? "Invalid or expired code")
+        } catch {
+            return (false, error.localizedDescription)
+        }
     }
 }
 

@@ -405,6 +405,31 @@
 "parentPasswordRemove.success" = "✅ Parent mode has been removed";
 "parentPasswordRemove.incorrectPin" = "❌ Incorrect PIN. Please try again.";
 
+// Forgot Parent PIN / Reset Flow
+"parentPINReset.forgotPIN" = "PIN vergessen?";
+"parentPINReset.title" = "Eltern-PIN zurücksetzen";
+"parentPINReset.step1Title" = "PIN vergessen?";
+"parentPINReset.step1Description" = "Wir senden einen 6-stelligen Bestätigungscode an Ihre registrierte E-Mail-Adresse.";
+"parentPINReset.sendCodeButton" = "Bestätigungscode senden";
+"parentPINReset.step2Description" = "Ein 6-stelliger Code wurde an %@ gesendet. Geben Sie ihn unten ein.";
+"parentPINReset.codeHeader" = "Bestätigungscode";
+"parentPINReset.codePlaceholder" = "6-stelligen Code eingeben";
+"parentPINReset.verifyButton" = "Code bestätigen";
+"parentPINReset.resendCode" = "Code erneut senden";
+"parentPINReset.step3Title" = "Neuen PIN festlegen";
+"parentPINReset.newPINHeader" = "Neuer Eltern-PIN";
+"parentPINReset.newPINPlaceholder" = "Neuen PIN eingeben (6 Ziffern)";
+"parentPINReset.confirmPINPlaceholder" = "Neuen PIN bestätigen";
+"parentPINReset.setPINButton" = "Neuen PIN festlegen";
+"parentPINReset.setPINFailed" = "❌ PIN konnte nicht gesetzt werden. Bitte erneut versuchen.";
+"parentPINReset.mismatch" = "PINs stimmen nicht überein. Bitte erneut versuchen.";
+"parentPINReset.invalidPIN" = "PIN muss genau 6 Ziffern haben";
+"parentPINReset.invalidCode" = "❌ Ungültiger oder abgelaufener Code. Bitte erneut versuchen.";
+"parentPINReset.sendFailed" = "❌ Code konnte nicht gesendet werden. Bitte erneut versuchen.";
+"parentPINReset.noEmail" = "Kein E-Mail-Konto mit Ihrem Konto verknüpft. Kontaktieren Sie support@study-mates.net";
+"parentPINReset.appleEmailNote" = "Der Code wird an die mit Ihrer Apple-ID verknüpfte E-Mail gesendet.";
+"parentPINReset.googleEmailNote" = "Der Code wird an Ihre Google-Konto-E-Mail gesendet.";
+
 
 "app.name" = "StudyAgent";
 "app.tagline" = "Your AI-Powered Learning Companion";
@@ -2251,6 +2276,7 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "onboarding.age.title" = "Wie alt bist du?";
 "onboarding.age.subtitle" = "Hilft uns, das Erlebnis zu personalisieren";
 "onboarding.age.placeholder" = "Gib dein Alter ein";
+"onboarding.age.gradeLabel" = "Klasse";
 
 // Onboarding — Learning Style
 "onboarding.learningStyle.title" = "Wie soll dir die KI helfen?";
@@ -2413,6 +2439,9 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "practiceSheet.reviewButton" = "Antworten überprüfen";
 "practiceSheet.redoButton" = "Wiederholen";
 "practiceSheet.aiAnalyzing" = "AI is analyzing your answer…";
+"practiceSheet.askAI" = "AI fragen";
+"practiceSheet.regrade" = "Neu bewerten";
+"practiceSheet.archive" = "Archivieren";
 "practiceSheet.toastTitle" = "Smart Organize Complete";
 "practiceSheet.toastProgress" = "Progress marked for %@";
 "practiceSheet.toastMistakes" = "%d mistake(s) archived to library";
@@ -2515,6 +2544,8 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "account.usage.loadError" = "Nutzung konnte nicht geladen werden";
 "account.usage.lifetimeLimits" = "Es gelten lebenslange Limits";
 "account.usage.resetsOn" = "Zurückgesetzt am %@";
+"account.usage.resetsOnFull" = "Kontingent wird am %@ zurückgesetzt";
+"account.usage.resetsMonthly" = "Kontingent wird monatlich am 1. aktualisiert";
 "account.usage.unlimited" = "Unbegrenzt";
 "account.usage.upgradeLabel" = "Upgrade";
 "account.usage.upgradePlan" = "Tarif upgraden";
@@ -2734,6 +2765,10 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "upgrade.comparison.continueFree" = "Kostenlos weitermachen";
 "upgrade.comparison.ctaPremium" = "Premium starten  %@";
 "upgrade.comparison.ctaUltra" = "Ultra starten  %@";
+"upgrade.comparison.ctaUltraTrial" = "Ultra kostenlos testen — 7 Tage";
+"upgrade.comparison.ctaPremiumTrial" = "Premium kostenlos testen — 7 Tage";
+"upgrade.comparison.trialSubtext" = "danach %@ · Jederzeit kündbar";
+"upgrade.comparison.termsTrial" = "7-tägige kostenlose Testversion, danach automatische Verlängerung zum angegebenen Preis. Vor Ablauf der Testversion in Einstellungen > Apple-ID > Abonnements kündigen.";
 "upgrade.comparison.featureAiChat" = "KI-\nChat";
 "upgrade.comparison.featureHomework" = "Hausaufgaben-\nSeiten";
 "upgrade.comparison.featureLiveTutor" = "Live-\nNachhilfe";
@@ -2979,6 +3014,31 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "dailyChallenge.perfect" = "Perfekt! Alles richtig! 🎉";
 "dailyChallenge.good" = "Gut gemacht! 👍";
 "dailyChallenge.keep" = "Weitermachen! 💪";
+"dailyChallenge.reviewAnswers" = "Antworten prüfen";
+"dailyChallenge.close" = "Schließen";
+"dailyChallenge.prevQuestion" = "Zurück";
+"guestConversion.title" = "Kostenloses Konto erstellen";
+"guestConversion.subtitle" = "Fortschritt sichern & mehr freischalten";
+"guestConversion.createAccount" = "Gratis Konto erstellen";
+"guestConversion.signIn" = "Bereits Konto? Anmelden";
+"guestConversion.continueGuest" = "Als Gast weiter";
+"guestConversion.guestCol" = "Jetzt";
+"guestConversion.freeCol" = "Gratis-Konto";
+"guestConversion.homework" = "Hausaufgaben";
+"guestConversion.chat" = "KI-Chat";
+"guestConversion.practice" = "Übungsaufgaben";
+"guestConversion.analysis" = "Fehleranalyse";
+"guestConversion.save" = "Fortschritt sichern";
+"guestConversion.weakness" = "Schwächen-Analyse";
+"guestConversion.library" = "Aufgaben-Archiv";
+"guestConversion.history" = "Lernverlauf";
+"guestConversion.streak" = "Serie & Punkte";
+"guestConversion.lifetime" = "Gesamt";
+"guestConversion.perMonth" = "/Mo";
+"guestConversion.signUpTitle" = "Fortschritt sichern";
+"guestConversion.signUpSubtitle" = "Erstelle ein Gratis-Konto, um alles zu behalten.";
+"guestConversion.homeworkNudge" = "Konto erstellen, um dieses Ergebnis zu speichern";
+"guestConversion.dailyChallengeNudge" = "Konto erstellen, um deine Serie zu speichern";
 "points.earn.dailyChallenge.title" = "Tägliche 3 Fragen";
 "points.earn.dailyChallenge.desc" = "Heutige 3 Übungsfragen abschließen";
 "points.earn.dailyChallenge.result" = "%d richtig";

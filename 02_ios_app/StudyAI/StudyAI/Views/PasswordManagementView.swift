@@ -485,6 +485,7 @@ struct ChangeParentPasswordView: View {
     @State private var confirmPassword = ""
     @State private var showingAlert = false
     @State private var alertMessage = ""
+    @State private var showingForgotPIN = false
 
     var body: some View {
         NavigationStack {
@@ -498,6 +499,12 @@ struct ChangeParentPasswordView: View {
                         }
                 } header: {
                     Text(NSLocalizedString("parentPasswordChange.currentHeader", comment: ""))
+                } footer: {
+                    Button(NSLocalizedString("parentPINReset.forgotPIN", comment: "")) {
+                        showingForgotPIN = true
+                    }
+                    .font(.footnote)
+                    .foregroundColor(.purple)
                 }
 
                 Section {
@@ -550,6 +557,9 @@ struct ChangeParentPasswordView: View {
             } message: {
                 Text(alertMessage)
             }
+            .sheet(isPresented: $showingForgotPIN) {
+                ForgotParentPINView()
+            }
         }
     }
 
@@ -582,6 +592,7 @@ struct RemoveParentPasswordView: View {
     @State private var password = ""
     @State private var showingAlert = false
     @State private var alertMessage = ""
+    @State private var showingForgotPIN = false
 
     var body: some View {
         NavigationStack {
@@ -616,7 +627,11 @@ struct RemoveParentPasswordView: View {
                 } header: {
                     Text(NSLocalizedString("parentPasswordRemove.header", comment: ""))
                 } footer: {
-                    Text(NSLocalizedString("parentPasswordRemove.footer", comment: ""))
+                    Button(NSLocalizedString("parentPINReset.forgotPIN", comment: "")) {
+                        showingForgotPIN = true
+                    }
+                    .font(.footnote)
+                    .foregroundColor(.purple)
                 }
 
                 Section {
@@ -649,6 +664,9 @@ struct RemoveParentPasswordView: View {
             } message: {
                 Text(alertMessage)
             }
+            .sheet(isPresented: $showingForgotPIN) {
+                ForgotParentPINView()
+            }
         }
     }
 
@@ -659,6 +677,280 @@ struct RemoveParentPasswordView: View {
         } else {
             alertMessage = NSLocalizedString("parentPasswordRemove.incorrectPin", comment: "")
             showingAlert = true
+        }
+    }
+}
+
+// MARK: - Forgot Parent PIN View
+struct ForgotParentPINView: View {
+    @Environment(\.dismiss) var dismiss
+    @StateObject private var parentModeManager = ParentModeManager.shared
+
+    private enum ResetStep {
+        case sendCode
+        case verifyCode(maskedEmail: String)
+        case setNewPIN
+    }
+
+    @State private var step: ResetStep = .sendCode
+    @State private var verificationCode = ""
+    @State private var newPIN = ""
+    @State private var confirmPIN = ""
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+    @State private var successMessage: String?
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                switch step {
+                case .sendCode:
+                    sendCodeSection
+                case .verifyCode(let maskedEmail):
+                    verifyCodeSection(maskedEmail: maskedEmail)
+                case .setNewPIN:
+                    setNewPINSection
+                }
+            }
+            .navigationTitle(NSLocalizedString("parentPINReset.title", comment: ""))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(NSLocalizedString("common.cancel", comment: "")) {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+
+    // Step 1: send code
+    @ViewBuilder
+    private var sendCodeSection: some View {
+        Section {
+            VStack(spacing: 16) {
+                Image(systemName: "lock.open.rotation")
+                    .font(.system(size: 60))
+                    .foregroundColor(.purple)
+
+                Text(NSLocalizedString("parentPINReset.step1Title", comment: ""))
+                    .font(.title2)
+                    .fontWeight(.bold)
+
+                Text(NSLocalizedString("parentPINReset.step1Description", comment: ""))
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+
+                appleProviderNote
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 20)
+        }
+        .listRowBackground(Color.clear)
+
+        if let error = errorMessage {
+            Section {
+                Text(error)
+                    .foregroundColor(.red)
+                    .font(.footnote)
+            }
+            .listRowBackground(Color.clear)
+        }
+
+        Section {
+            Button(action: { Task { await sendCode() } }) {
+                HStack {
+                    Spacer()
+                    if isLoading {
+                        ProgressView()
+                            .tint(.white)
+                    } else {
+                        Text(NSLocalizedString("parentPINReset.sendCodeButton", comment: ""))
+                            .foregroundColor(.white)
+                    }
+                    Spacer()
+                }
+            }
+            .listRowBackground(Color.purple)
+            .disabled(isLoading)
+        }
+    }
+
+    // Step 2: enter code
+    @ViewBuilder
+    private func verifyCodeSection(maskedEmail: String) -> some View {
+        Section {
+            VStack(spacing: 12) {
+                Image(systemName: "envelope.badge.fill")
+                    .font(.system(size: 50))
+                    .foregroundColor(.purple)
+
+                Text(String(format: NSLocalizedString("parentPINReset.step2Description", comment: ""), maskedEmail))
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+        }
+        .listRowBackground(Color.clear)
+
+        Section {
+            SecurePINField(placeholder: NSLocalizedString("parentPINReset.codePlaceholder", comment: ""), text: $verificationCode)
+                .onChange(of: verificationCode) { _, newValue in
+                    if newValue.count > 6 { verificationCode = String(newValue.prefix(6)) }
+                }
+        } header: {
+            Text(NSLocalizedString("parentPINReset.codeHeader", comment: ""))
+        }
+
+        if let error = errorMessage {
+            Section {
+                Text(error)
+                    .foregroundColor(.red)
+                    .font(.footnote)
+            }
+            .listRowBackground(Color.clear)
+        }
+
+        Section {
+            Button(action: { Task { await verifyCode() } }) {
+                HStack {
+                    Spacer()
+                    if isLoading {
+                        ProgressView().tint(.white)
+                    } else {
+                        Text(NSLocalizedString("parentPINReset.verifyButton", comment: ""))
+                            .foregroundColor(.white)
+                    }
+                    Spacer()
+                }
+            }
+            .listRowBackground(Color.purple)
+            .disabled(verificationCode.count != 6 || isLoading)
+        }
+
+        Section {
+            Button(NSLocalizedString("parentPINReset.resendCode", comment: "")) {
+                Task { await sendCode() }
+            }
+            .foregroundColor(.secondary)
+            .disabled(isLoading)
+        }
+    }
+
+    // Step 3: set new PIN
+    @ViewBuilder
+    private var setNewPINSection: some View {
+        Section {
+            VStack(spacing: 12) {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 50))
+                    .foregroundColor(.purple)
+
+                Text(NSLocalizedString("parentPINReset.step3Title", comment: ""))
+                    .font(.title2)
+                    .fontWeight(.bold)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+        }
+        .listRowBackground(Color.clear)
+
+        Section {
+            SecurePINField(placeholder: NSLocalizedString("parentPINReset.newPINPlaceholder", comment: ""), text: $newPIN)
+                .onChange(of: newPIN) { _, newValue in
+                    if newValue.count > 6 { newPIN = String(newValue.prefix(6)) }
+                }
+
+            SecurePINField(placeholder: NSLocalizedString("parentPINReset.confirmPINPlaceholder", comment: ""), text: $confirmPIN)
+                .onChange(of: confirmPIN) { _, newValue in
+                    if newValue.count > 6 { confirmPIN = String(newValue.prefix(6)) }
+                }
+        } header: {
+            Text(NSLocalizedString("parentPINReset.newPINHeader", comment: ""))
+        }
+
+        if let error = errorMessage {
+            Section {
+                Text(error)
+                    .foregroundColor(.red)
+                    .font(.footnote)
+            }
+            .listRowBackground(Color.clear)
+        }
+
+        Section {
+            Button(action: { setNewPIN() }) {
+                Text(NSLocalizedString("parentPINReset.setPINButton", comment: ""))
+                    .frame(maxWidth: .infinity)
+                    .foregroundColor(.white)
+            }
+            .listRowBackground(Color.purple)
+            .disabled(newPIN.count != 6 || confirmPIN.count != 6)
+        }
+    }
+
+    @ViewBuilder
+    private var appleProviderNote: some View {
+        let provider = AuthenticationService.shared.currentUser?.authProvider
+        if provider == .apple {
+            Text(NSLocalizedString("parentPINReset.appleEmailNote", comment: ""))
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        } else if provider == .google {
+            Text(NSLocalizedString("parentPINReset.googleEmailNote", comment: ""))
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+    }
+
+    private func sendCode() async {
+        isLoading = true
+        errorMessage = nil
+        let (success, maskedEmail, error) = await NetworkService.shared.sendParentPINResetCode()
+        await MainActor.run {
+            isLoading = false
+            if success, let email = maskedEmail {
+                step = .verifyCode(maskedEmail: email)
+            } else if error == "NO_EMAIL" {
+                errorMessage = NSLocalizedString("parentPINReset.noEmail", comment: "")
+            } else {
+                errorMessage = error ?? NSLocalizedString("parentPINReset.sendFailed", comment: "")
+            }
+        }
+    }
+
+    private func verifyCode() async {
+        isLoading = true
+        errorMessage = nil
+        let (success, error) = await NetworkService.shared.verifyParentPINResetCode(verificationCode)
+        await MainActor.run {
+            isLoading = false
+            if success {
+                step = .setNewPIN
+            } else {
+                errorMessage = error ?? NSLocalizedString("parentPINReset.invalidCode", comment: "")
+            }
+        }
+    }
+
+    private func setNewPIN() {
+        guard newPIN == confirmPIN else {
+            errorMessage = NSLocalizedString("parentPINReset.mismatch", comment: "")
+            return
+        }
+        guard newPIN.count == 6, newPIN.allSatisfy({ $0.isNumber }) else {
+            errorMessage = NSLocalizedString("parentPINReset.invalidPIN", comment: "")
+            return
+        }
+        if parentModeManager.forceResetParentPassword(newPIN) {
+            dismiss()
+        } else {
+            errorMessage = NSLocalizedString("parentPINReset.setPINFailed", comment: "")
         }
     }
 }

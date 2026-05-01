@@ -11,12 +11,14 @@ interface DayPoint { date: string; value: number }
 interface FeatureAdoption {
   total_users: number
   ever_chatted: number
-  ever_archived_homework: number
+  ever_graded: number
+  ever_attempted_questions: number
   ever_practiced: number
   ever_reported: number
-  ever_archived_convo: number
   has_active_streak: number
   ever_redeemed_points: number
+  total_gradings: number
+  total_questions_attempted: number
 }
 
 interface SubjectRow {
@@ -94,9 +96,9 @@ export default function AnalyticsPage() {
                 <div className="space-y-3">
                   {[
                     { label: 'AI Chat Sessions', key: 'ever_chatted' as keyof FeatureAdoption },
-                    { label: 'Homework Q&A (Archived)', key: 'ever_archived_homework' as keyof FeatureAdoption },
-                    { label: 'Practice Questions', key: 'ever_practiced' as keyof FeatureAdoption },
-                    { label: 'Conversation Archive', key: 'ever_archived_convo' as keyof FeatureAdoption },
+                    { label: 'Homework Grading (server-side)', key: 'ever_graded' as keyof FeatureAdoption },
+                    { label: 'Questions Attempted (study activity)', key: 'ever_attempted_questions' as keyof FeatureAdoption },
+                    { label: 'Practice Sheets Generated', key: 'ever_practiced' as keyof FeatureAdoption },
                     { label: 'Parent Reports', key: 'ever_reported' as keyof FeatureAdoption },
                     { label: 'Active Study Streak', key: 'has_active_streak' as keyof FeatureAdoption },
                     { label: 'Points Shop Redemption', key: 'ever_redeemed_points' as keyof FeatureAdoption },
@@ -116,6 +118,17 @@ export default function AnalyticsPage() {
                       </div>
                     )
                   })}
+                </div>
+                {/* Totals row */}
+                <div className="mt-4 pt-4 border-t grid grid-cols-2 gap-3">
+                  <div className="bg-muted/40 rounded-lg p-3">
+                    <div className="text-lg font-bold">{(data.featureAdoption.total_gradings || 0).toLocaleString()}</div>
+                    <div className="text-xs text-muted-foreground">Total grading events</div>
+                  </div>
+                  <div className="bg-muted/40 rounded-lg p-3">
+                    <div className="text-lg font-bold">{(data.featureAdoption.total_questions_attempted || 0).toLocaleString()}</div>
+                    <div className="text-xs text-muted-foreground">Total questions attempted</div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -138,8 +151,8 @@ export default function AnalyticsPage() {
           </div>
 
           <MiniChart
-            title="Homework Questions Archived (30d)"
-            description="Questions processed and archived from homework sessions"
+            title="Homework Grading Events (30d)"
+            description="Questions graded server-side per day (from questions table)"
             data={data.homeworkVolume.map(d => ({ date: d.date, value: d.questions }))}
             color="bg-orange-400"
           />
@@ -239,6 +252,7 @@ function MiniChart({ title, description, data, color }: {
 
   const total = allDays.reduce((s, d) => s + d.value, 0)
   const avg = Math.round(total / 30)
+  const mid = Math.round(max / 2)
 
   return (
     <Card>
@@ -249,15 +263,24 @@ function MiniChart({ title, description, data, color }: {
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="flex items-end gap-0.5 h-20">
-          {allDays.map((d) => (
-            <div
-              key={d.date}
-              title={`${d.date}: ${d.value}`}
-              className={`flex-1 rounded-t-sm ${d.value > 0 ? color : 'bg-gray-100'}`}
-              style={{ height: `${Math.max(4, Math.round((d.value / max) * 80))}px` }}
-            />
-          ))}
+        <div className="flex gap-1">
+          {/* Y-axis labels */}
+          <div className="flex flex-col justify-between text-right pr-1 shrink-0" style={{ height: '80px' }}>
+            <span className="text-xs text-muted-foreground leading-none">{max}</span>
+            <span className="text-xs text-muted-foreground leading-none">{mid}</span>
+            <span className="text-xs text-muted-foreground leading-none">0</span>
+          </div>
+          {/* Bars */}
+          <div className="flex items-end gap-0.5 flex-1" style={{ height: '80px' }}>
+            {allDays.map((d) => (
+              <div
+                key={d.date}
+                title={`${d.date}: ${d.value}`}
+                className={`flex-1 rounded-t-sm ${d.value > 0 ? color : 'bg-gray-100'}`}
+                style={{ height: `${Math.max(2, Math.round((d.value / max) * 80))}px` }}
+              />
+            ))}
+          </div>
         </div>
         <div className="flex justify-between text-xs text-muted-foreground mt-2">
           <span>{allDays[0]?.date ? formatDate(allDays[0].date) : ''}</span>

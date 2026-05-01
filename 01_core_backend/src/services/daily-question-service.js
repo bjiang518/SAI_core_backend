@@ -5,6 +5,7 @@
  * 15 grades × 7 languages × 4 slots = 420 questions/day (gpt-4o-mini, ~$0.04/day total).
  */
 
+const crypto = require('crypto');
 const cron = require('node-cron');
 const OpenAI = require('openai');
 const { db } = require('../utils/railway-database');
@@ -75,6 +76,7 @@ class DailyQuestionService {
         try {
             logger.debug('📅 [DailyQuestion] Initializing service...');
             await this._ensureTable();
+            await this._ensureSeenTable();
             logger.debug('✅ [DailyQuestion] Table ready');
 
             this.cronJob = cron.schedule('0 0,6,12,18 * * *', async () => {
@@ -352,9 +354,10 @@ Respond ONLY with valid JSON (no markdown, no code block):
 
     /**
      * Generate a personalized "Did you know?" fact based on the student's recent subjects.
-     * NOT stored in DB — ephemeral, one per iOS app session.
+     * seenPreviews: array of previously shown question strings (exclusion list for the AI).
+     * NOT stored in DB here — caller is responsible for persisting.
      */
-    async generatePersonalized(gradeLevel, language = 'en', recentSubjects = []) {
+    async generatePersonalized(gradeLevel, language = 'en', recentSubjects = [], seenPreviews = []) {
         const gradeLabel = GRADE_LABELS[gradeLevel] || `Grade ${gradeLevel}`;
         const langLabel  = LANGUAGE_LABELS[language] || language;
 
@@ -362,9 +365,13 @@ Respond ONLY with valid JSON (no markdown, no code block):
             ? `The student has recently been studying: ${recentSubjects.join(', ')}.\nGenerate a surprising fact RELATED to one of these subjects.`
             : 'Pick any engaging topic: science, history, nature, technology, art, culture, sports, math.';
 
+        const seenContext = seenPreviews.length > 0
+            ? `\nIMPORTANT: The student has ALREADY SEEN the following questions. You MUST generate a question about a COMPLETELY DIFFERENT topic — do NOT repeat or rephrase any of these:\n${seenPreviews.map((q, i) => `${i + 1}. ${q}`).join('\n')}`
+            : '';
+
         const prompt = `You are generating a fun "Did you know?" question IN ${langLabel} for students in ${gradeLabel}.
 
-${subjectContext}
+${subjectContext}${seenContext}
 
 The question should:
 - Be written entirely in ${langLabel}
@@ -379,7 +386,7 @@ Respond ONLY with valid JSON (no markdown, no code block):
   "subject": "<one of the student's recent subjects, or Science|History|Nature|Technology|Art|Sports|Math|Other>"
 }`;
 
-        logger.debug(`🤖 [DailyQuestion] Personalized OpenAI call — grade=${gradeLevel}, lang=${language}, subjects=[${recentSubjects.join(', ')}]`);
+        logger.debug(`🤖 [DailyQuestion] Personalized OpenAI call — grade=${gradeLevel}, lang=${language}, subjects=[${recentSubjects.join(', ')}], excludes=${seenPreviews.length}`);
 
         const response = await this.openai.chat.completions.create({
             model: 'gpt-4o-mini',
@@ -404,6 +411,97 @@ Respond ONLY with valid JSON (no markdown, no code block):
             fun_fact: parsed.fun_fact || null,
             subject: parsed.subject || 'Other',
         };
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // Seen-question history helpers (per-user dedup across sessions)
+    // ──────────────────────────────────────────────────────────────
+
+    /** Ensure the user_seen_daily_questions table exists (idempotent). */
+    async _ensureSeenTable() {
+        const migCheck = await db.query(
+            `SELECT 1 FROM migration_history WHERE migration_name = 'user_seen_daily_questions_v1'`
+        ).catch(() => ({ rows: [] }));
+
+        if (migCheck.rows.length > 0) return;
+
+        await db.query(`
+            CREATE TABLE IF NOT EXISTS user_seen_daily_questions (
+                id SERIAL PRIMARY KEY,
+                user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                question_hash VARCHAR(32) NOT NULL,
+                question_preview TEXT NOT NULL,
+                shown_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                UNIQUE(user_id, question_hash)
+            )
+        `);
+
+        await db.query(`
+            CREATE INDEX IF NOT EXISTS idx_user_seen_daily_q_user_time
+                ON user_seen_daily_questions(user_id, shown_at DESC)
+        `);
+
+        await db.query(`
+            INSERT INTO migration_history (migration_name)
+            VALUES ('user_seen_daily_questions_v1')
+            ON CONFLICT (migration_name) DO NOTHING
+        `);
+
+        logger.info('✅ [DailyQuestion] user_seen_daily_questions table ready');
+    }
+
+    /** Return the last `limit` question previews + hashes for a user. */
+    async getSeenQuestions(userId, limit = 50) {
+        try {
+            const result = await db.query(
+                `SELECT question_hash, question_preview
+                 FROM user_seen_daily_questions
+                 WHERE user_id = $1
+                 ORDER BY shown_at DESC
+                 LIMIT $2`,
+                [userId, limit]
+            );
+            return result.rows;
+        } catch {
+            return [];
+        }
+    }
+
+    /**
+     * Record that a question was shown to a user.
+     * Silently no-ops if the table doesn't exist yet (prevents startup errors).
+     * Trims history to most recent 50 entries.
+     */
+    async recordSeenQuestion(userId, questionText) {
+        try {
+            const hash = crypto.createHash('md5').update(questionText).digest('hex');
+            const preview = questionText.substring(0, 150);
+
+            await db.query(
+                `INSERT INTO user_seen_daily_questions (user_id, question_hash, question_preview, shown_at)
+                 VALUES ($1, $2, $3, NOW())
+                 ON CONFLICT (user_id, question_hash) DO UPDATE SET shown_at = NOW()`,
+                [userId, hash, preview]
+            );
+
+            // Trim to most recent 50 per user
+            await db.query(
+                `DELETE FROM user_seen_daily_questions
+                 WHERE user_id = $1
+                   AND id NOT IN (
+                       SELECT id FROM user_seen_daily_questions
+                       WHERE user_id = $1
+                       ORDER BY shown_at DESC
+                       LIMIT 50
+                   )`,
+                [userId]
+            );
+
+            return hash;
+        } catch (err) {
+            logger.warn(`⚠️ [DailyQuestion] recordSeenQuestion failed (non-fatal): ${err.message}`);
+            return null;
+        }
     }
 
     /** Returns the current 6-hour time slot (0=00:00–05:59, 1=06:00–11:59, 2=12:00–17:59, 3=18:00–23:59 UTC). */

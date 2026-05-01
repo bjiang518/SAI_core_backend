@@ -167,10 +167,13 @@ struct ContentView: View {
             let code = usageService.limitReachedCode ?? ""
             let isGuest = authService.currentUser?.isAnonymous == true
             if isGuest {
-                ModernSignUpView(onSignUpSuccess: {
-                    showingTierSheet = false
-                    usageService.clearLimitReached()
-                })
+                GuestConversionView(
+                    blockedFeature: usageService.limitReachedFeature,
+                    onDismiss: {
+                        showingTierSheet = false
+                        usageService.clearLimitReached()
+                    }
+                )
             } else {
                 UpgradeComparisonView(
                     blockedFeature: feature,
@@ -312,6 +315,20 @@ struct ContentView: View {
 
             // Refresh study reminders with personalized content (at most once per day)
             NotificationService.shared.refreshStudyRemindersIfNeeded()
+
+            // Silent background sync so passive reports always have fresh data.
+            // Throttled: at most once per hour to avoid redundant uploads.
+            if authService.isAuthenticated {
+                let lastSyncKey = "lastBackgroundSyncTimestamp"
+                let now = Date().timeIntervalSince1970
+                let lastSync = UserDefaults.standard.double(forKey: lastSyncKey)
+                if now - lastSync > 3600 {
+                    UserDefaults.standard.set(now, forKey: lastSyncKey)
+                    Task.detached(priority: .background) {
+                        try? await StorageSyncService.shared.syncAllToServer()
+                    }
+                }
+            }
 
         case .inactive:
             // App is temporarily inactive (e.g., during transition)

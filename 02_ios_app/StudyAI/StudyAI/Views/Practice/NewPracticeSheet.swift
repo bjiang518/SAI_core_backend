@@ -45,6 +45,7 @@ struct NewPracticeSheet: View {
     // Generation state
     @State private var showingError: Bool = false
     @State private var errorMessage: String = ""
+    @State private var showingGuestConversion: Bool = false
 
     // Difficulty bar animation
 
@@ -166,6 +167,12 @@ struct NewPracticeSheet: View {
                 questions: availableQuestions,
                 selectedConversations: $selectedConversations,
                 selectedQuestions: $selectedQuestions
+            )
+        }
+        .sheet(isPresented: $showingGuestConversion) {
+            GuestConversionView(
+                blockedFeature: "questions",
+                onDismiss: { showingGuestConversion = false }
             )
         }
         .onAppear {
@@ -542,6 +549,11 @@ struct NewPracticeSheet: View {
     // MARK: - Generation Logic
 
     private func generate() {
+        // Guests have 0 question quota — show conversion prompt immediately
+        if authService.currentUser?.isAnonymous == true {
+            showingGuestConversion = true
+            return
+        }
         Task {
             do {
                 try await performGeneration()

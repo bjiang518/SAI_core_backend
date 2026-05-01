@@ -404,6 +404,31 @@
 "parentPasswordRemove.success" = "✅ 家長模式已移除";
 "parentPasswordRemove.incorrectPin" = "❌ PIN錯誤。請重試。";
 
+// 忘記家長密碼 / 重置流程
+"parentPINReset.forgotPIN" = "忘記密碼？";
+"parentPINReset.title" = "重置家長密碼";
+"parentPINReset.step1Title" = "忘記了密碼？";
+"parentPINReset.step1Description" = "我們將向您的註冊電子郵件發送一個6位驗證碼。";
+"parentPINReset.sendCodeButton" = "發送驗證碼";
+"parentPINReset.step2Description" = "6位驗證碼已發送至 %@，請在下方輸入。";
+"parentPINReset.codeHeader" = "驗證碼";
+"parentPINReset.codePlaceholder" = "輸入6位驗證碼";
+"parentPINReset.verifyButton" = "驗證";
+"parentPINReset.resendCode" = "重新發送驗證碼";
+"parentPINReset.step3Title" = "設置新密碼";
+"parentPINReset.newPINHeader" = "新家長密碼";
+"parentPINReset.newPINPlaceholder" = "輸入新密碼（6位數字）";
+"parentPINReset.confirmPINPlaceholder" = "確認新密碼";
+"parentPINReset.setPINButton" = "設置新密碼";
+"parentPINReset.setPINFailed" = "❌ 設置密碼失敗，請重試。";
+"parentPINReset.mismatch" = "密碼不匹配，請重試。";
+"parentPINReset.invalidPIN" = "密碼必須為6位數字";
+"parentPINReset.invalidCode" = "❌ 驗證碼無效或已過期，請重試。";
+"parentPINReset.sendFailed" = "❌ 發送失敗，請重試。";
+"parentPINReset.noEmail" = "您的帳戶沒有關聯的電子郵件，請聯繫客服：support@study-mates.net";
+"parentPINReset.appleEmailNote" = "驗證碼將發送至您的 Apple ID 關聯郵箱。";
+"parentPINReset.googleEmailNote" = "驗證碼將發送至您的 Google 帳號郵箱。";
+
 
 "app.name" = "StudyAgent";
 "app.tagline" = "您的AI學習夥伴";
@@ -463,6 +488,10 @@
 "upgrade.comparison.valueMultipleKids" = "家人共享";
 "upgrade.comparison.ctaUltra" = "開通旗艦版  %@";
 "upgrade.comparison.ctaPremium" = "開通高級版  %@";
+"upgrade.comparison.ctaUltraTrial" = "免費試用旗艦版 — 7天";
+"upgrade.comparison.ctaPremiumTrial" = "免費試用高級版 — 7天";
+"upgrade.comparison.trialSubtext" = "之後 %@ · 隨時取消";
+"upgrade.comparison.termsTrial" = "7天免費試用，之後按標價自動續訂。請在試用結束前在「設定 > Apple ID > 訂閱」中取消，以免產生費用。";
 "upgrade.comparison.continueFree" = "繼續免費使用";
 "upgrade.comparison.restorePurchases" = "恢復購買";
 "upgrade.comparison.terms" = "訂閱將在當前週期結束前至少 24 小時自動續訂，除非取消。可隨時在設定 > Apple ID > 訂閱中管理或取消。";
@@ -479,6 +508,8 @@
 "account.usage.loadError" = "無法載入用量資訊";
 "account.usage.lifetimeLimits" = "適用終身限額";
 "account.usage.resetsOn" = "重置於 %@";
+"account.usage.resetsOnFull" = "配額將於 %@ 重置";
+"account.usage.resetsMonthly" = "配額每月1日更新";
 "account.usage.unlimited" = "無限制";
 "account.usage.upgradeLabel" = "升級";
 "account.usage.upgradePlan" = "升級方案";
@@ -2477,6 +2508,7 @@
 "onboarding.age.title" = "你幾歲？";
 "onboarding.age.subtitle" = "幫助我們個人化你的體驗";
 "onboarding.age.placeholder" = "輸入你的年齡";
+"onboarding.age.gradeLabel" = "年級";
 
 // Onboarding — Learning Style
 "onboarding.learningStyle.title" = "你希望AI怎樣幫助你？";
@@ -2625,6 +2657,9 @@
 "practiceSheet.reviewButton" = "回顧答題";
 "practiceSheet.redoButton" = "重新答題";
 "practiceSheet.aiAnalyzing" = "AI 正在分析你的答案…";
+"practiceSheet.askAI" = "問 AI";
+"practiceSheet.regrade" = "重批";
+"practiceSheet.archive" = "存檔";
 "practiceSheet.toastTitle" = "智能整理完成";
 "practiceSheet.toastProgress" = "已更新 %@ 的學習進度";
 "practiceSheet.toastMistakes" = "%d 道錯題已歸檔至題庫";
@@ -2938,6 +2973,31 @@
 "dailyChallenge.perfect" = "完美！全對！🎉";
 "dailyChallenge.good" = "做得很好！👍";
 "dailyChallenge.keep" = "繼續加油！💪";
+"dailyChallenge.reviewAnswers" = "回顧答題";
+"dailyChallenge.close" = "關閉";
+"dailyChallenge.prevQuestion" = "上一題";
+"guestConversion.title" = "建立免費帳戶";
+"guestConversion.subtitle" = "儲存進度，解鎖更多功能";
+"guestConversion.createAccount" = "建立免費帳戶";
+"guestConversion.signIn" = "已有帳戶？登入";
+"guestConversion.continueGuest" = "繼續以訪客身分使用";
+"guestConversion.guestCol" = "現在";
+"guestConversion.freeCol" = "免費帳戶";
+"guestConversion.homework" = "作業掃描";
+"guestConversion.chat" = "AI 對話";
+"guestConversion.practice" = "練習題";
+"guestConversion.analysis" = "錯誤分析";
+"guestConversion.save" = "儲存進度";
+"guestConversion.weakness" = "弱點追蹤";
+"guestConversion.library" = "題目檔案庫";
+"guestConversion.history" = "學習歷史";
+"guestConversion.streak" = "連續記錄 & 積分";
+"guestConversion.lifetime" = "終身";
+"guestConversion.perMonth" = "/月";
+"guestConversion.signUpTitle" = "儲存你的學習進度";
+"guestConversion.signUpSubtitle" = "建立免費帳戶，儲存所有學習紀錄。";
+"guestConversion.homeworkNudge" = "建立免費帳戶，儲存這份批改記錄";
+"guestConversion.dailyChallengeNudge" = "建立帳戶，儲存你的連續打卡記錄";
 "points.earn.dailyChallenge.title" = "每日3題";
 "points.earn.dailyChallenge.desc" = "完成每日3道練習題";
 "points.earn.dailyChallenge.result" = "答對 %d 題";

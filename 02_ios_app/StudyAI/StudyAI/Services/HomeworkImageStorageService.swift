@@ -42,12 +42,21 @@ final class HomeworkImageStorageService: ObservableObject {
     private init() {
         createDirectoriesIfNeeded()
         loadMetadata()
-        authCancellable = AuthenticationService.shared.$isAuthenticated
+        // Observe the actual user object, not just isAuthenticated.
+        // This correctly handles app relaunch, account switching, and logout.
+        authCancellable = AuthenticationService.shared.$currentUser
             .dropFirst()
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.createDirectoriesIfNeeded()
-                self?.loadMetadata()
+            .sink { [weak self] user in
+                guard let self else { return }
+                if user == nil {
+                    // Logged out — immediately clear so no previous user's data is visible
+                    self.homeworkImages = []
+                } else {
+                    // Logged in or switched account — load this user's data
+                    self.createDirectoriesIfNeeded()
+                    self.loadMetadata()
+                }
             }
     }
 

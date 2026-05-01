@@ -400,6 +400,40 @@ final class AuthenticationService: ObservableObject {
 
     // MARK: - Email Verification
 
+    /// Convert the current guest session to a registered free account (in-place).
+    /// The user_id is preserved — all existing homework, chat, and progress data remain intact.
+    func convertGuestToAccount(name: String, email: String, password: String) async throws {
+        await MainActor.run { isLoading = true; errorMessage = nil }
+        defer { Task { @MainActor in isLoading = false } }
+
+        let result = await networkService.convertGuestToAccount(name: name, email: email, password: password)
+        guard result.success, let token = result.token, let userData = result.userData else {
+            // 409 = email already taken — surface as a recognizable error
+            if result.statusCode == 409 {
+                throw AuthError.accountAlreadyExists
+            }
+            throw mapBackendError(statusCode: result.statusCode ?? 0, message: result.message)
+        }
+
+        let updatedUser = User(
+            id: userData["id"] as? String ?? currentUser?.id ?? "",
+            email: userData["email"] as? String ?? email,
+            name: userData["name"] as? String ?? name,
+            profileImageURL: nil,
+            authProvider: .email,
+            createdAt: currentUser?.createdAt ?? Date(),
+            lastLoginAt: Date(),
+            tier: .free,
+            isAnonymous: false
+        )
+        await MainActor.run {
+            try? keychainService.saveAuthToken(token)
+            try? keychainService.saveUser(updatedUser)
+            currentUser = updatedUser
+            // isAuthenticated stays true — user was already logged in as guest
+        }
+    }
+
     /// Send verification code to user's email
     func sendVerificationCode(email: String, name: String) async throws {
         await MainActor.run {
@@ -903,6 +937,9 @@ final class AuthenticationService: ObservableObject {
     // MARK: - Sign Out
 
     func signOut() {
+        // Flush points data to the CORRECT user key BEFORE currentUser is cleared
+        PointsEarningManager.shared.forceSave()
+
         // Clear per-user data BEFORE currentUser is nilled out
         if let uid = currentUser?.id {
             UserDefaults.standard.removeObject(forKey: "faceIDEnabled_\(uid)")

@@ -104,7 +104,8 @@ struct PracticeLibraryView: View {
     }
 
     private var allSessions: [PracticeSession] {
-        sessionManager.allSessionsPublished
+        // Exclude daily challenge sessions — those are only viewable in daily challenge history
+        sessionManager.allSessionsPublished.filter { $0.generationType != "daily_challenge" }
     }
 
     private var subjectList: [String] {
@@ -417,9 +418,11 @@ struct PracticeLibraryView: View {
                 if case .success = result,
                    let sid = dailyChallengeService.currentSessionId,
                    let session = PracticeSessionManager.shared.getSession(id: sid) {
+                    // Mark as daily_challenge so it's excluded from the regular sessions list
+                    PracticeSessionManager.shared.updateGenerationType(sessionId: sid, generationType: "daily_challenge")
                     dailyChallengeSessionId = sid
                     dailyChallengeSessionDate = todayString
-                    dailyChallengeSession = session
+                    dailyChallengeSession = PracticeSessionManager.shared.getSession(id: sid) ?? session
                 }
             }
         }

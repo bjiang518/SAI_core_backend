@@ -463,12 +463,24 @@ class PointsEarningManager: ObservableObject {
         // Setup day change notifications
         setupDayChangeNotifications()
 
-        // Reload data when user logs in so progress is scoped per account
-        authCancellable = AuthenticationService.shared.$isAuthenticated
+        // Reload data when user changes — observe $currentUser so uid is correct at both logout and login
+        authCancellable = AuthenticationService.shared.$currentUser
             .dropFirst()
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.reloadForCurrentUser()
+            .sink { [weak self] user in
+                guard let self else { return }
+                if user == nil {
+                    // Logout — reset in-memory state immediately without saving
+                    // (correct user data was already saved by signOut before currentUser was cleared)
+                    self.resetInMemory()
+                } else {
+                    // Login / account switch — load this user's data
+                    self.loadStoredData()
+                    self.setupDefaultGoals()
+                    self.checkDailyReset()
+                    self.checkWeeklyReset()
+                    Task { await self.syncBalanceWithServer() }
+                }
             }
 
         // ✅ LOCAL-ONLY: Removed server loads from init
@@ -477,16 +489,45 @@ class PointsEarningManager: ObservableObject {
     }
 
     /// Reload all progress data for the currently authenticated user.
-    /// Called automatically when the user logs in or switches accounts.
+    /// Called after login or account switch — never on logout.
     func reloadForCurrentUser() {
-        forceSave() // flush any pending writes for the previous user first
         loadStoredData()
         setupDefaultGoals()
         checkDailyReset()
         checkWeeklyReset()
-
-        // Sync balance with server (reconcile local vs server)
         Task { await syncBalanceWithServer() }
+    }
+
+    /// Clear all in-memory progress state on logout without touching UserDefaults.
+    /// Prevents contaminating the anonymous / next-user key via forceSave.
+    private func resetInMemory() {
+        currentPoints = 0
+        totalPointsEarned = 0
+        pointsBalance = 0
+        currentStreak = 0
+        dailyPointsEarned = 0
+        learningGoals = []
+        dailyCheckoutHistory = []
+        todayProgress = nil
+        thisWeekProgress = []
+        thisMonthProgress = []
+        currentWeeklyProgress = nil
+        streakFreezeCards = 0
+        streakFreezeUsedToday = false
+        hasClaimedStreakBonusToday = false
+        todayPracticeCompletions = 0
+        todayMistakeReviews = 0
+        todayFocusPoints = 0
+        todayHomeworkScans = 0
+        todayChatSessions = 0
+        todayWeaknessConversions = 0
+        todayCorrectAnswersClaimed = 0
+        todayHomeworkScansClaimed = 0
+        todayPracticeCompletionsClaimed = 0
+        todayMistakeReviewsClaimed = 0
+        todayFocusPointsClaimed = 0
+        todayChatSessionsClaimed = 0
+        todayWeaknessConversionsClaimed = 0
     }
 
     /// Setup app termination handling to ensure data is saved

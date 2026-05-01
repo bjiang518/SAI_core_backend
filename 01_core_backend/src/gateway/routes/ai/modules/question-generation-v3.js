@@ -235,7 +235,7 @@ module.exports = async function (fastify, opts) {
         }
       }
     },
-    preHandler: [tierCheck({ feature: 'questions' })]
+    preHandler: [tierCheck({ feature: 'questions', getCount: req => req.body.count ?? 1 })]
   }, async (request, reply) => {
     const startTime = Date.now();
     const userId = await getUserId(request);

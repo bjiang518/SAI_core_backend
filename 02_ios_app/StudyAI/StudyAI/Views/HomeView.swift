@@ -35,6 +35,7 @@ struct HomeView: View {
     @StateObject private var parentModeManager = ParentModeManager.shared
     @StateObject private var themeManager = ThemeManager.shared
     @StateObject private var todoEngine = SuggestedTodoEngine.shared
+    @StateObject private var usageService = UsageService.shared
     @ObservedObject private var pointsManager = PointsEarningManager.shared
     @ObservedObject private var profileService = ProfileService.shared
     @ObservedObject private var appState = AppState.shared
@@ -45,6 +46,7 @@ struct HomeView: View {
     @State private var showingProfile = false
     @State private var showingSettings = false
     @State private var showingUpgrade = false
+    @State private var showingGuestConversion = false
     @State private var showingMistakeReview = false
     @State private var showingQuestionGeneration = false
     // ── Practice todo shortcut configuration ──────────────────────────────
@@ -150,6 +152,11 @@ struct HomeView: View {
             .onReceive(profileService.$currentProfile) { profile in
                 updateUserName(from: profile)
             }
+            .onReceive(usageService.$nudgeFeature) { feature in
+                guard feature != nil else { return }
+                usageService.nudgeFeature = nil
+                showingUpgrade = true
+            }
             .sheet(isPresented: $showingProfile) {
                 EditProfileView()
             }
@@ -240,6 +247,12 @@ struct HomeView: View {
                     blockedFeature: "Live Tutor",
                     reason: .featureBlocked,
                     onDismiss: { showingUpgrade = false }
+                )
+            }
+            .sheet(isPresented: $showingGuestConversion) {
+                GuestConversionView(
+                    blockedFeature: "voice_minutes",
+                    onDismiss: { showingGuestConversion = false }
                 )
             }
             .sheet(isPresented: $showingHomeworkAlbum) {
@@ -556,14 +569,22 @@ struct HomeView: View {
         // ── Category 4: Deep Extension ────────────────────────────────────────
         case .startOralPractice:
             guard case .allowed = FeatureGate.check(.voiceChat, user: AuthenticationService.shared.currentUser) else {
-                showingUpgrade = true
+                if AuthenticationService.shared.currentUser?.isAnonymous == true {
+                    showingGuestConversion = true
+                } else {
+                    showingUpgrade = true
+                }
                 return
             }
             AppState.shared.pendingChatAction = .startLiveMode(starterPrompt: NSLocalizedString("chat.liveMode.oralPractice.starterPrompt", comment: ""))
             onSelectTab(.chat)
         case .startLiveScenario(let scenario):
             guard case .allowed = FeatureGate.check(.voiceChat, user: AuthenticationService.shared.currentUser) else {
-                showingUpgrade = true
+                if AuthenticationService.shared.currentUser?.isAnonymous == true {
+                    showingGuestConversion = true
+                } else {
+                    showingUpgrade = true
+                }
                 return
             }
             let profile = ProfileService.shared.currentProfile

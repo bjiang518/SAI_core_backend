@@ -27,10 +27,20 @@ class PracticeSessionManager: ObservableObject {
 
     private init() {
         loadSessions()
-        authCancellable = AuthenticationService.shared.$isAuthenticated
+        authCancellable = AuthenticationService.shared.$currentUser
             .dropFirst()
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in self?.loadSessions() }
+            .sink { [weak self] user in
+                guard let self else { return }
+                if user == nil {
+                    // Logged out — clear immediately so no previous user's sessions are visible
+                    self.allSessionsPublished = []
+                    self.incompleteSessions = []
+                    self.hasIncompleteSessions = false
+                } else {
+                    self.loadSessions()
+                }
+            }
     }
 
     // MARK: - Session Management
@@ -430,6 +440,27 @@ class PracticeSessionManager: ObservableObject {
         var sessions = loadAllSessions()
         guard let index = sessions.firstIndex(where: { $0.id == sessionId }) else { return }
         sessions[index].isOrganized = true
+        saveSessions(sessions)
+        updatePublishedState()
+    }
+
+    func updateGenerationType(sessionId: String, generationType: String) {
+        var sessions = loadAllSessions()
+        guard let index = sessions.firstIndex(where: { $0.id == sessionId }) else { return }
+        let current = sessions[index]
+        sessions[index] = PracticeSession(
+            id: current.id,
+            questions: current.questions,
+            generationType: generationType,
+            subject: current.subject,
+            difficulty: current.difficulty,
+            questionType: current.questionType,
+            createdDate: current.createdDate,
+            lastAccessedDate: current.lastAccessedDate,
+            completedQuestionIds: current.completedQuestionIds,
+            answers: current.answers,
+            isOrganized: current.isOrganized
+        )
         saveSessions(sessions)
         updatePublishedState()
     }

@@ -608,8 +608,11 @@
 		7B278CE42F64DC8E00DA84B0 /* UserTier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278CE22F64DC8E00DA84B0 /* UserTier.swift */; };
 		7B278CE52F64DC8E00DA84B0 /* UserTier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278CE22F64DC8E00DA84B0 /* UserTier.swift */; };
 		7B278D0B2F64F57000DA84B0 /* UpgradeComparisonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278D0A2F64F57000DA84B0 /* UpgradeComparisonView.swift */; };
+		DC2A1B0D2F64F57000DA84C0 /* GuestConversionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC2A1B0C2F64F57000DA84C0 /* GuestConversionView.swift */; };
 		7B278D0C2F64F57000DA84B0 /* UpgradeComparisonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278D0A2F64F57000DA84B0 /* UpgradeComparisonView.swift */; };
+		DC2A1B0E2F64F57000DA84C0 /* GuestConversionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC2A1B0C2F64F57000DA84C0 /* GuestConversionView.swift */; };
 		7B278D0D2F64F57000DA84B0 /* UpgradeComparisonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B278D0A2F64F57000DA84B0 /* UpgradeComparisonView.swift */; };
+		DC2A1B0F2F64F57000DA84C0 /* GuestConversionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC2A1B0C2F64F57000DA84C0 /* GuestConversionView.swift */; };
 		7B278D132F65319500DA84B0 /* Upgrade.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B278D122F65319500DA84B0 /* Upgrade.json */; };
 		7B278D142F65319500DA84B0 /* Upgrade.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B278D122F65319500DA84B0 /* Upgrade.json */; };
 		7B278D152F65319500DA84B0 /* Upgrade.json in Resources */ = {isa = PBXBuildFile; fileRef = 7B278D122F65319500DA84B0 /* Upgrade.json */; };
@@ -1270,6 +1273,7 @@
 		7B278B842F64DC7500DA84B0 /* ZoomedRegionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoomedRegionView.swift; sourceTree = "<group>"; };
 		7B278CE22F64DC8E00DA84B0 /* UserTier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UserTier.swift; path = StudyAI/Models/UserTier.swift; sourceTree = SOURCE_ROOT; };
 		7B278D0A2F64F57000DA84B0 /* UpgradeComparisonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpgradeComparisonView.swift; sourceTree = "<group>"; };
+		DC2A1B0C2F64F57000DA84C0 /* GuestConversionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuestConversionView.swift; sourceTree = "<group>"; };
 		7B278D122F65319500DA84B0 /* Upgrade.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Upgrade.json; sourceTree = "<group>"; };
 		7B278D172F653B9300DA84B0 /* StoreKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreKitService.swift; sourceTree = "<group>"; };
 		7B278D1B2F653BA900DA84B0 /* DebugTierView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugTierView.swift; sourceTree = "<group>"; };
@@ -2052,6 +2056,7 @@
 				A495A22D3B7A4F948336AFBA /* UnifiedImageEditorView.swift */,
 				CDEF345678901234GHIJ5678 /* UnifiedLibraryView.swift */,
 				7B278D0A2F64F57000DA84B0 /* UpgradeComparisonView.swift */,
+				DC2A1B0C2F64F57000DA84C0 /* GuestConversionView.swift */,
 				7B2248D02F340790006ADD93 /* VerticalPagesViewer.swift */,
 				7BDE56902EC1CA4D004A8629 /* VoiceComponents.swift */,
 				03DB96F217C9458693CF5BDA /* VoiceSettingsView.swift */,
@@ -2464,6 +2469,7 @@
 				PNTS789012345678EFGH0123 /* PointsEarningSystem.swift in Sources */,
 				7BEDA62D2E80B91100D57B15 /* QuestionDetailView.swift in Sources */,
 				7B278D0C2F64F57000DA84B0 /* UpgradeComparisonView.swift in Sources */,
+				DC2A1B0E2F64F57000DA84C0 /* GuestConversionView.swift in Sources */,
 				7BDE56782EC1C6A3004A8629 /* PomodoroNotificationService.swift in Sources */,
 				21C64949788648B5AB0D6515 /* SubjectBreakdownModels.swift in Sources */,
 				7BDE566F2EC1C667004A8629 /* SessionChatViewModel.swift in Sources */,
@@ -2978,6 +2984,7 @@
 				7B278CB52F64DC7500DA84B0 /* UserMusicPickerView.swift in Sources */,
 				7B278CB62F64DC7500DA84B0 /* DailyCheckoutView.swift in Sources */,
 				7B278D0D2F64F57000DA84B0 /* UpgradeComparisonView.swift in Sources */,
+				DC2A1B0F2F64F57000DA84C0 /* GuestConversionView.swift in Sources */,
 				7B278CB72F64DC7500DA84B0 /* ParentReportsContainerView.swift in Sources */,
 				7B278CB82F64DC7500DA84B0 /* ImagePreprocessingView.swift in Sources */,
 				7B278CB92F64DC7500DA84B0 /* PhysicsTomatoGardenView.swift in Sources */,
@@ -3143,6 +3150,7 @@
 				7B22489A2F2D8DFE006ADD93 /* DualSliderFilters.swift in Sources */,
 				7B22489B2F2D8DFE006ADD93 /* TaxonomyFilter.swift in Sources */,
 				7B278D0B2F64F57000DA84B0 /* UpgradeComparisonView.swift in Sources */,
+				DC2A1B0D2F64F57000DA84C0 /* GuestConversionView.swift in Sources */,
 				7BEC07E02F478BFA00B6E573 /* UnifiedChatMessage.swift in Sources */,
 				7BEC07E42F47900000B6E573 /* AudioStreamManager.swift in Sources */,
 				7B83533D2EA6F11400199AC3 /* ErrorBoundary.swift in Sources */,
@@ -3518,7 +3526,7 @@
 				CODE_SIGN_ENTITLEMENTS = StudyAI/StudyAI.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 55;
+				CURRENT_PROJECT_VERSION = 56;
 				DEVELOPMENT_TEAM = 2ZZ99T96B8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -3535,7 +3543,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1.3;
+				MARKETING_VERSION = 1.1.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.OliOli.StudyMatesAI;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -3557,7 +3565,7 @@
 				CODE_SIGN_ENTITLEMENTS = StudyAI/StudyAI.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 55;
+				CURRENT_PROJECT_VERSION = 56;
 				DEVELOPMENT_TEAM = 2ZZ99T96B8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -3574,7 +3582,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1.3;
+				MARKETING_VERSION = 1.1.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.OliOli.StudyMatesAI;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";

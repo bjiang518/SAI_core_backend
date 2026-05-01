@@ -408,6 +408,31 @@
 "parentPasswordRemove.success" = "✅ Parent mode has been removed";
 "parentPasswordRemove.incorrectPin" = "❌ Incorrect PIN. Please try again.";
 
+// Forgot Parent PIN / Reset Flow
+"parentPINReset.forgotPIN" = "Forgot PIN?";
+"parentPINReset.title" = "Reset Parent PIN";
+"parentPINReset.step1Title" = "Forgot Your PIN?";
+"parentPINReset.step1Description" = "We'll send a 6-digit verification code to your registered email address.";
+"parentPINReset.sendCodeButton" = "Send Verification Code";
+"parentPINReset.step2Description" = "A 6-digit code was sent to %@. Enter it below.";
+"parentPINReset.codeHeader" = "Verification Code";
+"parentPINReset.codePlaceholder" = "Enter 6-digit code";
+"parentPINReset.verifyButton" = "Verify Code";
+"parentPINReset.resendCode" = "Resend Code";
+"parentPINReset.step3Title" = "Set New PIN";
+"parentPINReset.newPINHeader" = "New Parent PIN";
+"parentPINReset.newPINPlaceholder" = "Enter new PIN (6 digits)";
+"parentPINReset.confirmPINPlaceholder" = "Confirm new PIN";
+"parentPINReset.setPINButton" = "Set New PIN";
+"parentPINReset.setPINFailed" = "❌ Failed to set PIN. Please try again.";
+"parentPINReset.mismatch" = "PINs do not match. Please try again.";
+"parentPINReset.invalidPIN" = "PIN must be exactly 6 digits";
+"parentPINReset.invalidCode" = "❌ Invalid or expired code. Please try again.";
+"parentPINReset.sendFailed" = "❌ Failed to send code. Please try again.";
+"parentPINReset.noEmail" = "No email address is associated with your account. Please contact support at support@study-mates.net";
+"parentPINReset.appleEmailNote" = "The code will be sent to the email associated with your Apple ID.";
+"parentPINReset.googleEmailNote" = "The code will be sent to your Google account email.";
+
 
 "app.name" = "StudyAgent";
 "app.tagline" = "Your AI-Powered Learning Companion";
@@ -467,6 +492,10 @@
 "upgrade.comparison.valueMultipleKids" = "Family Sharing";
 "upgrade.comparison.ctaUltra" = "Start Ultra  %@";
 "upgrade.comparison.ctaPremium" = "Start Premium  %@";
+"upgrade.comparison.ctaUltraTrial" = "Try Ultra Free — 7 Days";
+"upgrade.comparison.ctaPremiumTrial" = "Try Premium Free — 7 Days";
+"upgrade.comparison.trialSubtext" = "then %@ · Cancel anytime";
+"upgrade.comparison.termsTrial" = "7-day free trial, then auto-renews at the listed price. Cancel anytime in Settings > Apple ID > Subscriptions before the trial ends to avoid being charged.";
 "upgrade.comparison.continueFree" = "Continue with Free";
 "upgrade.comparison.restorePurchases" = "Restore Purchases";
 "upgrade.comparison.terms" = "Subscriptions auto-renew unless cancelled at least 24 hours before the end of the current period. Manage or cancel anytime in Settings > Apple ID > Subscriptions.";
@@ -483,6 +512,8 @@
 "account.usage.loadError" = "Could not load usage";
 "account.usage.lifetimeLimits" = "Lifetime limits apply";
 "account.usage.resetsOn" = "Resets %@";
+"account.usage.resetsOnFull" = "Quota resets on %@";
+"account.usage.resetsMonthly" = "Quota updates on the 1st of each month";
 "account.usage.unlimited" = "Unlimited";
 "account.usage.upgradeLabel" = "Upgrade";
 "account.usage.upgradePlan" = "Upgrade Plan";
@@ -810,6 +841,9 @@
 "practiceSheet.reviewButton" = "Review Answers";
 "practiceSheet.redoButton" = "Redo";
 "practiceSheet.aiAnalyzing" = "AI is analyzing your answer…";
+"practiceSheet.askAI" = "Ask AI";
+"practiceSheet.regrade" = "Regrade";
+"practiceSheet.archive" = "Archive";
 "practiceSheet.toastTitle" = "Smart Organize Complete";
 "practiceSheet.toastProgress" = "Progress marked for %@";
 "practiceSheet.toastMistakes" = "%d mistake(s) archived to library";
@@ -2569,7 +2603,8 @@
 // Onboarding — Age
 "onboarding.age.title" = "How old are you?";
 "onboarding.age.subtitle" = "Helps us personalise the experience";
-"onboarding.age.placeholder" = "Enter your age";
+"onboarding.age.placeholder" = "Enter your age";\
+"onboarding.age.gradeLabel" = "Grade";
 
 // Onboarding — Learning Style
 "onboarding.learningStyle.title" = "How do you want AI to help you?";
@@ -2975,6 +3010,31 @@
 "dailyChallenge.perfect" = "Perfect! All correct! 🎉";
 "dailyChallenge.good" = "Well done! 👍";
 "dailyChallenge.keep" = "Keep going! 💪";
+"dailyChallenge.reviewAnswers" = "Review Answers";
+"dailyChallenge.close" = "Close";
+"dailyChallenge.prevQuestion" = "Previous";
+"guestConversion.title" = "Create Your Free Account";
+"guestConversion.subtitle" = "Save progress and unlock more features";
+"guestConversion.createAccount" = "Create Free Account";
+"guestConversion.signIn" = "Already have an account? Sign In";
+"guestConversion.continueGuest" = "Continue as Guest";
+"guestConversion.guestCol" = "Now";
+"guestConversion.freeCol" = "Free Account";
+"guestConversion.homework" = "Homework Scans";
+"guestConversion.chat" = "AI Chat";
+"guestConversion.practice" = "Practice Questions";
+"guestConversion.analysis" = "Error Analysis";
+"guestConversion.save" = "Save Progress";
+"guestConversion.weakness" = "Weakness Tracking";
+"guestConversion.library" = "Archive Library";
+"guestConversion.history" = "Learning History";
+"guestConversion.streak" = "Streak & Points";
+"guestConversion.lifetime" = "lifetime";
+"guestConversion.perMonth" = "/mo";
+"guestConversion.signUpTitle" = "Save Your Progress";
+"guestConversion.signUpSubtitle" = "Create a free account to save everything you've done.";
+"guestConversion.homeworkNudge" = "Create a free account to save this result";
+"guestConversion.dailyChallengeNudge" = "Create account to save your streak";
 "points.earn.dailyChallenge.title" = "Daily 3 Questions";
 "points.earn.dailyChallenge.desc" = "Complete today's 3 practice questions";
 "points.earn.dailyChallenge.result" = "%d correct";

@@ -605,6 +605,7 @@ struct ModernSignUpView: View {
     @Environment(\.dismiss) private var dismiss
 
     var onSignUpSuccess: () -> Void
+    var conversionMode: Bool = false
 
     enum Field {
         case name, email, password, confirmPassword
@@ -616,11 +617,15 @@ struct ModernSignUpView: View {
                 VStack(spacing: 24) {
                     // Header
                     VStack(spacing: 8) {
-                        Text("Create Your Account")
+                        Text(conversionMode
+                             ? NSLocalizedString("guestConversion.signUpTitle", value: "Save Your Progress", comment: "")
+                             : "Create Your Account")
                             .font(.title)
-                            .foregroundColor(.primary)  // ✅ Adaptive for dark mode
+                            .foregroundColor(.primary)
 
-                        Text("Join StudyAgent to start your learning adventure!")
+                        Text(conversionMode
+                             ? NSLocalizedString("guestConversion.signUpSubtitle", value: "Create a free account to save everything you've done.", comment: "")
+                             : "Join StudyAgent to start your learning adventure!")
                             .font(.body)
                             .foregroundColor(.secondary)  // ✅ Adaptive for dark mode
                             .multilineTextAlignment(.center)
@@ -929,34 +934,31 @@ struct ModernSignUpView: View {
 
     private func signUp() {
         guard isFormValid else { return }
-
         focusedField = nil
-
-        // Clear any previous error messages
         authService.errorMessage = nil
 
         Task {
             do {
-                // Send verification code to email
-                try await authService.sendVerificationCode(email: email, name: name)
-
-                // Show verification screen
-                await MainActor.run {
-                    showingVerification = true
-
-                    // Haptic feedback
-                    let generator = UINotificationFeedbackGenerator()
-                    generator.notificationOccurred(.success)
+                if conversionMode {
+                    // In-place conversion: same user_id, all guest data preserved
+                    try await authService.convertGuestToAccount(name: name, email: email, password: password)
+                    await MainActor.run {
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                        onSignUpSuccess()
+                    }
+                } else {
+                    // Normal registration: send verification code first
+                    try await authService.sendVerificationCode(email: email, name: name)
+                    await MainActor.run {
+                        showingVerification = true
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    }
                 }
-
             } catch {
                 await MainActor.run {
                     authService.errorMessage = error.localizedDescription
                     showingError = true
-
-                    // Haptic feedback for error
-                    let generator = UINotificationFeedbackGenerator()
-                    generator.notificationOccurred(.error)
+                    UINotificationFeedbackGenerator().notificationOccurred(.error)
                 }
             }
         }

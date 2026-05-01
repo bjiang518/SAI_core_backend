@@ -120,14 +120,23 @@ module.exports = async function (fastify, opts) {
   fastify.get('/api/admin/stats/overview', { preHandler: verifyAdmin }, async (request, reply) => {
     try {
       // Real DB queries in parallel
-      const [usersResult, weekAgoResult, sessionsResult, dauResult, wauResult, mauResult, churnResult, newUsersLastWeekResult, tierDistResult, pointsResult, iosVersionResult] = await Promise.all([
+      const [usersResult, weekAgoResult, sessionsResult, dauResult, wauResult, mauResult, churnResult, newUsersLastWeekResult, tierDistResult, pointsResult, xpResult, spendResult, iosVersionResult] = await Promise.all([
         db.query('SELECT COUNT(*) as total FROM users'),
         db.query("SELECT COUNT(*) as total FROM users WHERE created_at <= NOW() - INTERVAL '7 days'"),
         db.query("SELECT COUNT(*) as total FROM sessions WHERE DATE(created_at) = CURRENT_DATE"),
         db.query("SELECT COUNT(DISTINCT user_id) as total FROM sessions WHERE DATE(created_at) = CURRENT_DATE"),
         db.query("SELECT COUNT(DISTINCT user_id) as total FROM sessions WHERE created_at >= NOW() - INTERVAL '7 days'"),
         db.query("SELECT COUNT(DISTINCT user_id) as total FROM sessions WHERE created_at >= NOW() - INTERVAL '30 days'"),
-        db.query("SELECT COUNT(*) as total FROM users WHERE last_login_at < NOW() - INTERVAL '7 days' AND last_login_at IS NOT NULL"),
+        db.query(`
+          SELECT COUNT(*) as total FROM users u
+          WHERE GREATEST(
+            u.last_login_at,
+            (SELECT MAX(s.created_at)  FROM sessions s   WHERE s.user_id = u.id),
+            (SELECT MAX(us.created_at) FROM user_sessions us WHERE us.user_id = u.id),
+            (SELECT MAX(dsa.activity_date) FROM daily_subject_activities dsa WHERE dsa.user_id = u.id)
+          ) < NOW() - INTERVAL '7 days'
+          AND u.is_anonymous = false
+        `),
         db.query("SELECT COUNT(*) as total FROM users WHERE created_at >= NOW() - INTERVAL '7 days'"),
         db.query(`
           SELECT
@@ -137,14 +146,40 @@ module.exports = async function (fastify, opts) {
             COUNT(*) FILTER (WHERE is_anonymous = true)::int         AS guest_count
           FROM users
         `),
-        // Points economy summary
+        // Points economy — earn events are never written to point_transactions,
+        // so we derive "earned" from users.points_balance (current holdings)
+        // and daily_subject_activities.points_earned (study XP).
         db.query(`
           SELECT
-            COALESCE(SUM(amount) FILTER (WHERE type = 'earn'), 0)::int  AS total_earned,
-            COALESCE(SUM(amount) FILTER (WHERE type = 'spend'), 0)::int AS total_spent,
-            COUNT(DISTINCT user_id) FILTER (WHERE type = 'spend')::int  AS users_who_spent
+            -- Points currently held across all users (proxy for total earned - spent)
+            COALESCE(SUM(points_balance), 0)::int            AS points_in_circulation,
+            COUNT(*) FILTER (WHERE points_balance > 0)::int  AS users_with_points,
+            COALESCE(MAX(points_balance), 0)::int            AS max_balance,
+            COALESCE(AVG(points_balance) FILTER (WHERE points_balance > 0), 0)::numeric(10,1) AS avg_balance_earners,
+            -- Distribution buckets
+            COUNT(*) FILTER (WHERE points_balance = 0)::int                    AS bucket_zero,
+            COUNT(*) FILTER (WHERE points_balance BETWEEN 1 AND 50)::int       AS bucket_1_50,
+            COUNT(*) FILTER (WHERE points_balance BETWEEN 51 AND 200)::int     AS bucket_51_200,
+            COUNT(*) FILTER (WHERE points_balance BETWEEN 201 AND 500)::int    AS bucket_201_500,
+            COUNT(*) FILTER (WHERE points_balance > 500)::int                  AS bucket_500_plus
+          FROM users
+          WHERE is_anonymous = false
+        `).catch(() => ({ rows: [{}] })),
+        // Total study XP earned across all activities
+        db.query(`
+          SELECT
+            COALESCE(SUM(points_earned), 0)::int             AS total_xp_earned,
+            COUNT(DISTINCT user_id)::int                     AS users_who_earned_xp
+          FROM daily_subject_activities
+        `).catch(() => ({ rows: [{ total_xp_earned: 0, users_who_earned_xp: 0 }] })),
+        // Spend-side (unchanged — point_transactions has all spend events)
+        db.query(`
+          SELECT
+            COALESCE(SUM(amount), 0)::int                    AS total_spent,
+            COUNT(DISTINCT user_id)::int                     AS users_who_spent
           FROM point_transactions
-        `).catch(() => ({ rows: [{ total_earned: 0, total_spent: 0, users_who_spent: 0 }] })),
+          WHERE type = 'spend'
+        `).catch(() => ({ rows: [{ total_spent: 0, users_who_spent: 0 }] })),
         // iOS version distribution (last 7 days of logins)
         db.query(`
           SELECT device_info->>'userAgent' AS user_agent, COUNT(*)::int AS count
@@ -219,9 +254,21 @@ module.exports = async function (fastify, opts) {
             guest:        tierDistResult.rows[0].guest_count,
           },
           pointsEconomy: {
-            totalEarned:   pointsResult.rows[0].total_earned,
-            totalSpent:    pointsResult.rows[0].total_spent,
-            usersWhoSpent: pointsResult.rows[0].users_who_spent,
+            pointsInCirculation: pointsResult.rows[0]?.points_in_circulation ?? 0,
+            usersWithPoints:     pointsResult.rows[0]?.users_with_points     ?? 0,
+            maxBalance:          pointsResult.rows[0]?.max_balance            ?? 0,
+            avgBalanceEarners:   parseFloat(pointsResult.rows[0]?.avg_balance_earners ?? 0),
+            totalXpEarned:       xpResult.rows[0]?.total_xp_earned           ?? 0,
+            usersWhoEarnedXp:    xpResult.rows[0]?.users_who_earned_xp       ?? 0,
+            totalSpent:          spendResult.rows[0]?.total_spent             ?? 0,
+            usersWhoSpent:       spendResult.rows[0]?.users_who_spent         ?? 0,
+            distribution: {
+              zero:       pointsResult.rows[0]?.bucket_zero     ?? 0,
+              low:        pointsResult.rows[0]?.bucket_1_50     ?? 0,
+              mid:        pointsResult.rows[0]?.bucket_51_200   ?? 0,
+              high:       pointsResult.rows[0]?.bucket_201_500  ?? 0,
+              power:      pointsResult.rows[0]?.bucket_500_plus ?? 0,
+            },
           },
           iosVersions,
         }
@@ -255,8 +302,18 @@ module.exports = async function (fastify, opts) {
           u.is_anonymous,
           u.tier_expires_at,
           u.created_at as join_date,
-          u.last_login_at as last_active,
-          EXTRACT(day FROM NOW() - u.last_login_at)::int as days_inactive,
+          GREATEST(
+            u.last_login_at,
+            (SELECT MAX(s.created_at)  FROM sessions s                  WHERE s.user_id = u.id),
+            (SELECT MAX(us.created_at) FROM user_sessions us             WHERE us.user_id = u.id),
+            (SELECT MAX(dsa.activity_date) FROM daily_subject_activities dsa WHERE dsa.user_id = u.id)
+          ) as last_active,
+          EXTRACT(day FROM NOW() - GREATEST(
+            u.last_login_at,
+            (SELECT MAX(s.created_at)  FROM sessions s                  WHERE s.user_id = u.id),
+            (SELECT MAX(us.created_at) FROM user_sessions us             WHERE us.user_id = u.id),
+            (SELECT MAX(dsa.activity_date) FROM daily_subject_activities dsa WHERE dsa.user_id = u.id)
+          ))::int as days_inactive,
           (SELECT COUNT(*) FROM sessions s WHERE s.user_id = u.id) as total_sessions,
           (SELECT device_info->>'userAgent'
            FROM user_sessions us
@@ -266,7 +323,17 @@ module.exports = async function (fastify, opts) {
             WHEN u.is_anonymous = true THEN 'guest'
             WHEN u.tier = 'premium_plus' THEN 'ultra'
             WHEN u.tier = 'premium' THEN 'premium'
-            WHEN u.last_login_at IS NULL OR u.last_login_at < NOW() - INTERVAL '30 days' THEN 'inactive'
+            WHEN GREATEST(
+              u.last_login_at,
+              (SELECT MAX(s.created_at)  FROM sessions s                  WHERE s.user_id = u.id),
+              (SELECT MAX(us.created_at) FROM user_sessions us             WHERE us.user_id = u.id),
+              (SELECT MAX(dsa.activity_date) FROM daily_subject_activities dsa WHERE dsa.user_id = u.id)
+            ) IS NULL OR GREATEST(
+              u.last_login_at,
+              (SELECT MAX(s.created_at)  FROM sessions s                  WHERE s.user_id = u.id),
+              (SELECT MAX(us.created_at) FROM user_sessions us             WHERE us.user_id = u.id),
+              (SELECT MAX(dsa.activity_date) FROM daily_subject_activities dsa WHERE dsa.user_id = u.id)
+            ) < NOW() - INTERVAL '30 days' THEN 'inactive'
             ELSE 'free'
           END as "subscriptionStatus"
         FROM users u
@@ -512,10 +579,10 @@ module.exports = async function (fastify, opts) {
           ORDER BY date
         `),
 
-        // DAU chart — distinct users with at least one session, last 30 days
+        // DAU chart — any login (user_sessions) is a better proxy than chat-only (sessions)
         db.query(`
           SELECT DATE(created_at) as date, COUNT(DISTINCT user_id)::int as active_users
-          FROM sessions
+          FROM user_sessions
           WHERE created_at >= NOW() - INTERVAL '30 days'
           GROUP BY DATE(created_at)
           ORDER BY date
@@ -544,23 +611,28 @@ module.exports = async function (fastify, opts) {
         `),
 
         // Feature adoption — % of total users who have ever used each feature
+        // Note: homework parsing/grading only tracked in Redis; using server-side
+        // proxies: questions table (graded Q&A) + daily_subject_activities (study XP).
         db.query(`
           SELECT
             (SELECT COUNT(*) FROM users)::int as total_users,
             (SELECT COUNT(DISTINCT user_id) FROM sessions)::int as ever_chatted,
-            (SELECT COUNT(DISTINCT user_id::text) FROM archived_questions)::int as ever_archived_homework,
+            (SELECT COUNT(DISTINCT user_id) FROM questions WHERE student_answer IS NOT NULL)::int as ever_graded,
+            (SELECT COUNT(DISTINCT user_id) FROM daily_subject_activities WHERE questions_attempted > 0)::int as ever_attempted_questions,
             (SELECT COUNT(DISTINCT user_id) FROM practice_sheets)::int as ever_practiced,
             (SELECT COUNT(DISTINCT user_id) FROM parent_report_batches)::int as ever_reported,
-            (SELECT COUNT(DISTINCT user_id) FROM archived_conversations_new)::int as ever_archived_convo,
             (SELECT COUNT(DISTINCT user_id) FROM study_streaks WHERE current_streak > 0)::int as has_active_streak,
-            (SELECT COUNT(DISTINCT user_id) FROM point_transactions WHERE type = 'spend')::int as ever_redeemed_points
+            (SELECT COUNT(DISTINCT user_id) FROM point_transactions WHERE type = 'spend')::int as ever_redeemed_points,
+            (SELECT COUNT(*) FROM questions WHERE student_answer IS NOT NULL)::int as total_gradings,
+            (SELECT COALESCE(SUM(questions_attempted), 0) FROM daily_subject_activities)::int as total_questions_attempted
         `),
 
-        // Homework parse volume — last 30 days from archived_questions
+        // Grading activity — last 30 days (from questions table, server-side)
         db.query(`
           SELECT DATE(created_at) as date, COUNT(*)::int as questions
-          FROM archived_questions
+          FROM questions
           WHERE created_at >= NOW() - INTERVAL '30 days'
+            AND student_answer IS NOT NULL
           GROUP BY DATE(created_at)
           ORDER BY date
         `),

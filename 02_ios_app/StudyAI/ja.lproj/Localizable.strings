@@ -401,6 +401,31 @@
 "parentPasswordRemove.success" = "✅ Parent mode has been removed";
 "parentPasswordRemove.incorrectPin" = "❌ Incorrect PIN. Please try again.";
 
+// 保護者PINを忘れた場合 / リセットフロー
+"parentPINReset.forgotPIN" = "PINを忘れた場合";
+"parentPINReset.title" = "保護者PINのリセット";
+"parentPINReset.step1Title" = "PINをお忘れですか？";
+"parentPINReset.step1Description" = "登録済みのメールアドレスに6桁の確認コードを送信します。";
+"parentPINReset.sendCodeButton" = "確認コードを送信";
+"parentPINReset.step2Description" = "6桁のコードが %@ に送信されました。以下に入力してください。";
+"parentPINReset.codeHeader" = "確認コード";
+"parentPINReset.codePlaceholder" = "6桁のコードを入力";
+"parentPINReset.verifyButton" = "コードを確認";
+"parentPINReset.resendCode" = "コードを再送信";
+"parentPINReset.step3Title" = "新しいPINを設定";
+"parentPINReset.newPINHeader" = "新しい保護者PIN";
+"parentPINReset.newPINPlaceholder" = "新しいPINを入力（6桁）";
+"parentPINReset.confirmPINPlaceholder" = "新しいPINを確認";
+"parentPINReset.setPINButton" = "新しいPINを設定";
+"parentPINReset.setPINFailed" = "❌ PINの設定に失敗しました。もう一度お試しください。";
+"parentPINReset.mismatch" = "PINが一致しません。もう一度お試しください。";
+"parentPINReset.invalidPIN" = "PINは正確に6桁の数字である必要があります";
+"parentPINReset.invalidCode" = "❌ 無効または期限切れのコードです。もう一度お試しください。";
+"parentPINReset.sendFailed" = "❌ コードの送信に失敗しました。もう一度お試しください。";
+"parentPINReset.noEmail" = "アカウントに関連付けられたメールアドレスがありません。support@study-mates.net にお問い合わせください。";
+"parentPINReset.appleEmailNote" = "コードはApple IDに関連付けられたメールアドレスに送信されます。";
+"parentPINReset.googleEmailNote" = "コードはGoogleアカウントのメールアドレスに送信されます。";
+
 
 "app.name" = "StudyAgent";
 "app.tagline" = "Your AI-Powered Learning Companion";
@@ -2344,6 +2369,7 @@
 "onboarding.age.title" = "何歳ですか？";
 "onboarding.age.subtitle" = "体験をパーソナライズするのに役立ちます";
 "onboarding.age.placeholder" = "年齢を入力";
+"onboarding.age.gradeLabel" = "学年";
 
 // Onboarding — Learning Style
 "onboarding.learningStyle.title" = "AIにどんなサポートをしてほしいですか？";
@@ -2491,6 +2517,9 @@
 "practiceSheet.reviewButton" = "回答を見直す";
 "practiceSheet.redoButton" = "やり直す";
 "practiceSheet.aiAnalyzing" = "AI is analyzing your answer…";
+"practiceSheet.askAI" = "AIに質問";
+"practiceSheet.regrade" = "再採点";
+"practiceSheet.archive" = "アーカイブ";
 "practiceSheet.toastTitle" = "Smart Organize Complete";
 "practiceSheet.toastProgress" = "Progress marked for %@";
 "practiceSheet.toastMistakes" = "%d mistake(s) archived to library";
@@ -2613,6 +2642,8 @@
 "account.usage.manageSubscription" = "サブスクリプション管理";
 "account.usage.restorePurchases" = "購入を復元";
 "account.usage.resetsOn" = "%@にリセット";
+"account.usage.resetsOnFull" = "クォータは%@にリセットされます";
+"account.usage.resetsMonthly" = "クォータは毎月1日に更新されます";
 "account.usage.lifetimeLimits" = "生涯制限が適用されます";
 "account.usage.loadError" = "使用状況を読み込めませんでした";
 "account.usage.feature.homework_single" = "宿題アップロード";
@@ -2710,6 +2741,10 @@
 "upgrade.comparison.usageUsed" = "%1$d / %2$d 使用";
 "upgrade.comparison.ctaPremium" = "プレミアムを始める  %@";
 "upgrade.comparison.ctaUltra" = "ウルトラを始める  %@";
+"upgrade.comparison.ctaUltraTrial" = "ウルトラを無料で試す — 7日間";
+"upgrade.comparison.ctaPremiumTrial" = "プレミアムを無料で試す — 7日間";
+"upgrade.comparison.trialSubtext" = "その後 %@ · いつでもキャンセル可";
+"upgrade.comparison.termsTrial" = "7日間の無料トライアル後、表示価格で自動更新されます。請求を避けるには、トライアル終了前に設定 > Apple ID > サブスクリプションでキャンセルしてください。";
 "upgrade.comparison.continueFree" = "無料で続ける";
 "upgrade.comparison.restorePurchases" = "購入を復元";
 "upgrade.comparison.terms" = "サブスクリプションは現在の期間終了の少なくとも24時間前にキャンセルしない限り自動更新されます。設定 > Apple ID > サブスクリプションでいつでも管理またはキャンセルできます。";
@@ -2904,6 +2939,31 @@
 "dailyChallenge.perfect" = "完璧！全問正解！🎉";
 "dailyChallenge.good" = "よくできました！👍";
 "dailyChallenge.keep" = "頑張れ！💪";
+"dailyChallenge.reviewAnswers" = "解答を確認";
+"dailyChallenge.close" = "閉じる";
+"dailyChallenge.prevQuestion" = "前の問題";
+"guestConversion.title" = "無料アカウントを作成";
+"guestConversion.subtitle" = "進捗を保存してさらに機能を解放";
+"guestConversion.createAccount" = "無料アカウント作成";
+"guestConversion.signIn" = "アカウントをお持ちの方はサインイン";
+"guestConversion.continueGuest" = "ゲストとして続ける";
+"guestConversion.guestCol" = "現在";
+"guestConversion.freeCol" = "無料アカウント";
+"guestConversion.homework" = "宿題スキャン";
+"guestConversion.chat" = "AIチャット";
+"guestConversion.practice" = "練習問題";
+"guestConversion.analysis" = "エラー分析";
+"guestConversion.save" = "進捗を保存";
+"guestConversion.weakness" = "弱点トラッキング";
+"guestConversion.library" = "問題アーカイブ";
+"guestConversion.history" = "学習履歴";
+"guestConversion.streak" = "連続記録 & ポイント";
+"guestConversion.lifetime" = "合計";
+"guestConversion.perMonth" = "/月";
+"guestConversion.signUpTitle" = "学習進捗を保存";
+"guestConversion.signUpSubtitle" = "無料アカウントを作成して、これまでの学習をすべて保存しましょう。";
+"guestConversion.homeworkNudge" = "無料アカウントを作成してこの結果を保存";
+"guestConversion.dailyChallengeNudge" = "アカウントを作成して連続記録を保存";
 "points.earn.dailyChallenge.title" = "毎日3問";
 "points.earn.dailyChallenge.desc" = "今日の3問の練習問題を完了する";
 "points.earn.dailyChallenge.result" = "%d問正解";

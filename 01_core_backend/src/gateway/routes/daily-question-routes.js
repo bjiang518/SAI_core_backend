@@ -132,15 +132,33 @@ class DailyQuestionRoutes {
             // Merge + deduplicate
             const recentSubjects = [...new Set([...convSubjects, ...weaknessSubjects])].slice(0, 8);
 
+            // Fetch user's seen-question history (last 30) for dedup
+            const seenRows = await dailyQuestionService.getSeenQuestions(userId, 30);
+            const seenPreviews = seenRows.map(r => r.question_preview);
+            const seenHashes   = new Set(seenRows.map(r => r.question_hash));
+
             this.fastify.log.info(
-                `📬 [DailyQuestion] Personalized — user=${shortId}... (${displayName}), grade=${gradeLevel}, lang=${language}, subjects=[${recentSubjects.join(', ')}]`
+                `📬 [DailyQuestion] Personalized — user=${shortId}... (${displayName}), grade=${gradeLevel}, lang=${language}, subjects=[${recentSubjects.join(', ')}], seen=${seenPreviews.length}`
             );
 
-            const question = await dailyQuestionService.generatePersonalized(gradeLevel, language, recentSubjects);
+            let question = await dailyQuestionService.generatePersonalized(gradeLevel, language, recentSubjects, seenPreviews);
+
+            // Hash-based safety net: if AI still produced an exact duplicate, retry once
+            if (question) {
+                const crypto = require('crypto');
+                const newHash = crypto.createHash('md5').update(question.question_text).digest('hex');
+                if (seenHashes.has(newHash)) {
+                    this.fastify.log.warn(`⚠️ [DailyQuestion] Exact duplicate detected for user=${shortId}..., retrying with stronger exclusion`);
+                    question = await dailyQuestionService.generatePersonalized(gradeLevel, language, recentSubjects, seenPreviews);
+                }
+            }
 
             if (!question) {
                 return reply.status(500).send({ success: false, message: 'Failed to generate personalized question' });
             }
+
+            // Persist to seen history (non-blocking — failure is non-fatal)
+            dailyQuestionService.recordSeenQuestion(userId, question.question_text).catch(() => {});
 
             this.fastify.log.info(
                 `✅ [DailyQuestion] Personalized served — user=${shortId}..., subject=${question.subject}`

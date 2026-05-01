@@ -20,6 +20,8 @@ class StoreKitService: ObservableObject {
     @Published var products: [Product] = []
     @Published var purchaseInProgress = false
     @Published var purchaseError: String?
+    /// productID -> true if user has never subscribed (eligible for free trial)
+    @Published var trialEligibility: [String: Bool] = [:]
 
     /// DEBUG only — when true, StoreKit renewals won't overwrite the manually set tier.
     #if DEBUG
@@ -54,6 +56,7 @@ class StoreKitService: ObservableObject {
                 print("⚠️ [StoreKit] No products returned — check App Store Connect product IDs and In-App Purchase capability")
             }
             #endif
+            await checkTrialEligibility()
         } catch {
             #if DEBUG
             print("❌ [StoreKit] Failed to load products: \(error)")
@@ -140,6 +143,18 @@ class StoreKitService: ObservableObject {
             print("❌ [StoreKit] Restore error: \(error)")
             #endif
         }
+    }
+
+    // MARK: - Trial eligibility
+
+    func checkTrialEligibility() async {
+        var result: [String: Bool] = [:]
+        for product in products {
+            if let subscription = product.subscription {
+                result[product.id] = await subscription.isEligibleForIntroOffer
+            }
+        }
+        trialEligibility = result
     }
 
     // MARK: - Transaction Listener (handles renewals, deferred purchases)

@@ -131,6 +131,7 @@ struct SessionChatView: View {
     // Live mode leave confirmation
     @State private var showingLiveLeaveAlert = false
     @State private var pendingTab: MainTab? = nil
+    @State private var showingGuestConversion = false
     /// True when Live Mode was disconnected because the app went to background.
     /// Used to show a brief banner when the user returns to foreground.
     @State private var liveEndedByBackground = false
@@ -285,10 +286,14 @@ struct SessionChatView: View {
                         }
                     } else {
                         Button(action: {
-                        // Tier gate: voice chat requires Premium
+                        // Tier gate: voice chat requires Premium; guests need to register first
                         let gateResult = FeatureGate.check(.voiceChat, user: AuthenticationService.shared.currentUser)
                         if case .blocked = gateResult {
-                            UsageService.shared.flagLimitReached(feature: "voice_minutes", errorCode: "UPGRADE_REQUIRED")
+                            if AuthenticationService.shared.currentUser?.isAnonymous == true {
+                                showingGuestConversion = true
+                            } else {
+                                UsageService.shared.flagLimitReached(feature: "voice_minutes", errorCode: "UPGRADE_REQUIRED")
+                            }
                             return
                         }
                         Task { @MainActor in
@@ -351,7 +356,11 @@ struct SessionChatView: View {
                         Button(action: {
                             let gateResult = FeatureGate.check(.voiceChat, user: AuthenticationService.shared.currentUser)
                             if case .blocked = gateResult {
-                                UsageService.shared.flagLimitReached(feature: "voice_minutes", errorCode: "UPGRADE_REQUIRED")
+                                if AuthenticationService.shared.currentUser?.isAnonymous == true {
+                                    showingGuestConversion = true
+                                } else {
+                                    UsageService.shared.flagLimitReached(feature: "voice_minutes", errorCode: "UPGRADE_REQUIRED")
+                                }
                                 return
                             }
                             showingScenarioPicker = true
@@ -423,6 +432,12 @@ struct SessionChatView: View {
                         viewModel.processImageWithPrompt(image: image, prompt: prompt, deepMode: deepMode)
                     }
                 }
+            }
+            .sheet(isPresented: $showingGuestConversion) {
+                GuestConversionView(
+                    blockedFeature: "voice_minutes",
+                    onDismiss: { showingGuestConversion = false }
+                )
             }
             // ✅ Archive progress animation overlay
             .archiveProgressOverlay(isPresented: $showingArchiveProgress, archiveTask: {

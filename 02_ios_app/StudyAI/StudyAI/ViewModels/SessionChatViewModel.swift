@@ -731,21 +731,16 @@ class SessionChatViewModel: ObservableObject {
     /// Get the user's preferred language for diagram explanations
     /// Maps system locale to backend's allowed values: "en", "zh-Hans", "zh-Hant"
     private func getUserLanguage() -> String {
-        // Get the user's preferred language from system settings
-        let preferredLanguage = Locale.preferredLanguages.first ?? "en"
+        // Use the app-level language preference set during onboarding (stored in UserDefaults).
+        // Fall back to device locale only when no app preference exists.
+        let appLanguage = UserDefaults.standard.string(forKey: "appLanguage")
+        let preferredLanguage = appLanguage ?? Locale.preferredLanguages.first ?? "en"
 
-        // Map to backend's allowed language values
-        let mappedLanguage: String
-        if preferredLanguage.hasPrefix("zh-Hans") {
-            mappedLanguage = "zh-Hans"
-        } else if preferredLanguage.hasPrefix("zh-Hant") {
-            mappedLanguage = "zh-Hant"
-        } else {
-            mappedLanguage = "en"  // Default to English for all other languages
-        }
-
-        debugPrint("🌐 User's preferred language: \(preferredLanguage) -> \(mappedLanguage)")
-        return mappedLanguage
+        // AI engine diagram generation only supports en / zh-Hans / zh-Hant.
+        // All other app languages (de, es, fr, ja, ...) map to English.
+        if preferredLanguage.hasPrefix("zh-Hans") { return "zh-Hans" }
+        if preferredLanguage.hasPrefix("zh-Hant") || preferredLanguage.hasPrefix("zh-TW") || preferredLanguage.hasPrefix("zh-HK") { return "zh-Hant" }
+        return "en"
     }
 
     /// Generate a diagram based on current conversation context

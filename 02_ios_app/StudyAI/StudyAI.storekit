@@ -21,7 +21,13 @@
           "familyShareable" : false,
           "groupNumber" : 1,
           "internalID" : "10001",
-          "introductoryOffer" : null,
+          "introductoryOffer" : {
+            "displayPrice" : "0.00",
+            "duration" : "P1W",
+            "identifier" : "premium_7day_trial",
+            "paymentMode" : "freeTrial",
+            "subscriptionPeriod" : "P1W"
+          },
           "localizations" : [
             {
               "description" : "Unlimited AI tutoring with 500 chats, 50 homework uploads, 200 practice questions, voice tutor, and parent reports per month.",
@@ -46,7 +52,13 @@
           "familyShareable" : false,
           "groupNumber" : 2,
           "internalID" : "10002",
-          "introductoryOffer" : null,
+          "introductoryOffer" : {
+            "displayPrice" : "0.00",
+            "duration" : "P1W",
+            "identifier" : "ultra_7day_trial",
+            "paymentMode" : "freeTrial",
+            "subscriptionPeriod" : "P1W"
+          },
           "localizations" : [
             {
               "description" : "Unlimited everything — homework, chats, practice, voice tutor, and parent reports with no monthly caps.",

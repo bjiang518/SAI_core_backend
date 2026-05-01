@@ -52,6 +52,7 @@ class ParentModeManager: ObservableObject {
     private let logger = Logger(subsystem: "com.studyai", category: "ParentModeManager")
     private let biometricAuth = BiometricAuthService.shared
     private let keychainService = KeychainService.shared
+    private var userCancellable: AnyCancellable?
 
     // Per-user identifiers
     private var uid: String { AuthenticationService.shared.currentUser?.id ?? "anonymous" }
@@ -67,6 +68,19 @@ class ParentModeManager: ObservableObject {
     private init() {
         loadParentModeStatus()
         loadProtectedFeatures()
+
+        // Reload whenever the logged-in user changes (login / logout / account switch)
+        userCancellable = AuthenticationService.shared.$currentUser
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] user in
+                guard let self else { return }
+                if user == nil {
+                    self.resetForLogout()
+                } else {
+                    self.reloadForCurrentUser()
+                }
+            }
     }
 
     // MARK: - Parent Mode Status
@@ -125,6 +139,25 @@ class ParentModeManager: ObservableObject {
         return isValid
     }
 
+    /// Force-reset parent password after email verification — bypasses current PIN check
+    func forceResetParentPassword(_ password: String) -> Bool {
+        guard password.count == 6, password.allSatisfy({ $0.isNumber }) else {
+            logger.warning("⚠️ Invalid parent password format (must be 6 digits)")
+            return false
+        }
+        guard let data = password.data(using: .utf8) else { return false }
+        do {
+            try keychainService.save(data, for: parentPasswordKeychainKey)
+        } catch {
+            logger.error("❌ Failed to force reset parent password: \(error.localizedDescription)")
+            return false
+        }
+        UserDefaults.standard.set(true, forKey: parentModeEnabledKey)
+        isParentModeEnabled = true
+        logger.info("✅ Parent password force-reset after email verification")
+        return true
+    }
+
     /// Change existing parent password (requires current password)
     func changeParentPassword(currentPassword: String, newPassword: String) -> (success: Bool, error: String?) {
         // Verify current password
@@ -165,6 +198,21 @@ class ParentModeManager: ObservableObject {
 
         logger.info("✅ Parent password removed")
         return true
+    }
+
+    /// Call on logout — clears in-memory state so the next account starts clean.
+    func resetForLogout() {
+        isParentModeEnabled = false
+        isParentAuthenticated = false
+        protectedFeatures = []
+        logger.info("🔐 ParentModeManager reset for logout")
+    }
+
+    /// Call after login — reloads settings from the now-current user's UserDefaults keys.
+    func reloadForCurrentUser() {
+        loadParentModeStatus()
+        loadProtectedFeatures()
+        logger.info("🔐 ParentModeManager reloaded for user: \(self.uid)")
     }
 
     // MARK: - Authentication Session

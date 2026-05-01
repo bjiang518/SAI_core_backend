@@ -98,107 +98,23 @@ class StorageSyncService {
 
         var syncedToServerCount = 0
         var duplicateCount = 0
-        var downloadedFromServerCount = 0
 
-        // STEP 3: Build Sets for efficient comparison
-        debugPrint("🔍 [Sync] Step 3: Building ID sets for comparison...")
+        // STEP 3: Build server ID set for dedup check
+        debugPrint("🔍 [Sync] Step 3: Building server ID set for dedup check...")
         var serverQuestionIds = Set<String>()
         for serverQ in serverQuestions {
             if let id = serverQ["id"] as? String {
                 serverQuestionIds.insert(id)
             }
         }
+        debugPrint("   📊 [Sync] Server IDs: \(serverQuestionIds.count), Local IDs: \(localQuestions.count)")
 
-        var localQuestionIds = Set<String>()
-        for localQ in localQuestions {
-            if let id = localQ["id"] as? String, id.count > 10 {
-                localQuestionIds.insert(id)
-            }
-        }
-        debugPrint("   📊 [Sync] Server IDs: \(serverQuestionIds.count), Local IDs: \(localQuestionIds.count)")
-
-        // STEP 4: Download server questions that don't exist locally
-        debugPrint("\n📥 [Sync] Step 4: Downloading server questions to local storage...")
-        for (index, serverQuestion) in serverQuestions.enumerated() {
-            guard let id = serverQuestion["id"] as? String else {
-                debugPrint("   ⚠️ [Sync] Server question \(index + 1) has no ID - skipping")
-                continue
-            }
-
-            // Check if this server question exists locally
-            if localQuestionIds.contains(id) {
-                debugPrint("   ⏭️ [Sync] Question \(index + 1) already exists locally (ID: \(id)) - skipping")
-                continue
-            }
-
-            // Download this question to local storage
-            debugPrint("   📥 [Sync] Downloading question \(index + 1)/\(serverQuestions.count) (ID: \(id))...")
-
-            // Convert server question to local format
-            // Backend returns camelCase keys (questionText, answerText, etc.)
-            let questionText = serverQuestion["questionText"] as? String ?? ""
-            let answerText = serverQuestion["answerText"] as? String ?? ""
-
-            debugPrint("   📝 [Sync] Question text: '\(questionText.prefix(100))...'")
-            debugPrint("   📝 [Sync] Answer text: '\(answerText.prefix(100))...'")
-
-            if questionText.isEmpty {
-                debugPrint("   ⚠️ [Sync] WARNING: Question text is EMPTY!")
-            }
-
-            // ✅ NORMALIZE: Ensure grade is in uppercase format for enum compatibility
-            let rawGrade = serverQuestion["grade"] as? String ?? "EMPTY"
-            let normalizedGrade: String = {
-                let uppercased = rawGrade.uppercased()
-                switch uppercased {
-                case "CORRECT": return "CORRECT"
-                case "INCORRECT": return "INCORRECT"
-                case "EMPTY": return "EMPTY"
-                case "PARTIAL_CREDIT", "PARTIAL CREDIT", "PARTIALCREDIT": return "PARTIAL_CREDIT"
-                default: return uppercased
-                }
-            }()
-
-            let localQuestion: [String: Any] = [
-                "id": id,
-                "subject": serverQuestion["subject"] as? String ?? "Unknown",
-                "questionText": questionText,
-                "rawQuestionText": serverQuestion["rawQuestionText"] as? String ?? questionText,  // Include raw question
-                "answerText": answerText,
-                "confidence": serverQuestion["confidence"] as? Float ?? 0.0,
-                "hasVisualElements": serverQuestion["hasVisualElements"] as? Bool ?? false,
-                "tags": serverQuestion["tags"] as? [String] ?? [],
-                "notes": serverQuestion["notes"] as? String ?? "",
-                "studentAnswer": serverQuestion["studentAnswer"] as? String ?? "",
-                "grade": normalizedGrade,  // ✅ Store normalized grade
-                "points": serverQuestion["points"] as? Float ?? 0.0,
-                "maxPoints": serverQuestion["maxPoints"] as? Float ?? 1.0,
-                "feedback": serverQuestion["feedback"] as? String ?? "",
-                "isCorrect": ((serverQuestion["isCorrect"] as? Bool) ?? (serverQuestion["is_correct"] as? Bool)) as Any,  // ✅ Include for mistake tracking
-                "archivedAt": serverQuestion["archivedAt"] as? String ?? ISO8601DateFormatter().string(from: Date())
-            ]
-
-            debugPrint("   📊 [Sync] Grade: \(rawGrade) → \(normalizedGrade), isCorrect: \(localQuestion["isCorrect"] ?? "nil")")
-
-            // Save to local storage
-            _ = localStorage.saveQuestions([localQuestion])
-            downloadedFromServerCount += 1
-            debugPrint("   ✅ [Sync] Downloaded question to local storage")
-        }
-
-        if downloadedFromServerCount > 0 {
-            debugPrint("\n📥 [Sync] Downloaded \(downloadedFromServerCount) questions from server to local storage")
-        } else {
-            debugPrint("\n📥 [Sync] No new questions to download from server")
-        }
-
-        // STEP 5: Upload local questions that don't exist on server
+        // STEP 4: Upload local questions that don't exist on server
         debugPrint("\n📤 [Sync] Step 5: Uploading local questions to server...")
 
         guard !localQuestions.isEmpty else {
             debugPrint("   ℹ️ [Sync] No local questions to upload")
-            debugPrint("\n📊 [Sync] Questions summary: \(downloadedFromServerCount) downloaded, 0 uploaded, 0 duplicates")
-            return (downloadedFromServerCount, 0)
+            return (0, 0)
         }
 
         for (index, questionData) in localQuestions.enumerated() {
@@ -250,9 +166,8 @@ class StorageSyncService {
             }
         }
 
-        let totalSynced = downloadedFromServerCount + syncedToServerCount
-        debugPrint("\n📊 [Sync] Questions summary: \(downloadedFromServerCount) downloaded, \(syncedToServerCount) uploaded, \(duplicateCount) duplicates")
-        return (totalSynced, duplicateCount)
+        debugPrint("\n📊 [Sync] Questions summary: \(syncedToServerCount) uploaded, \(duplicateCount) duplicates")
+        return (syncedToServerCount, duplicateCount)
     }
 
     // MARK: - Fetch Questions from Server
@@ -340,79 +255,23 @@ class StorageSyncService {
 
         var syncedToServerCount = 0
         var duplicateCount = 0
-        var downloadedFromServerCount = 0
 
-        // STEP 3: Build Sets for efficient comparison
-        debugPrint("🔍 [Sync] Step 3: Building ID sets for comparison...")
+        // STEP 3: Build server ID set for dedup check
+        debugPrint("🔍 [Sync] Step 3: Building server ID set for dedup check...")
         var serverConversationIds = Set<String>()
         for serverConv in serverConversations {
             if let id = serverConv["id"] as? String {
                 serverConversationIds.insert(id)
             }
         }
+        debugPrint("   📊 [Sync] Server IDs: \(serverConversationIds.count), Local IDs: \(localConversations.count)")
 
-        var localConversationIds = Set<String>()
-        for localConv in localConversations {
-            if let id = localConv["id"] as? String, id.count > 10 {
-                localConversationIds.insert(id)
-            }
-        }
-        debugPrint("   📊 [Sync] Server IDs: \(serverConversationIds.count), Local IDs: \(localConversationIds.count)")
-
-        // STEP 4: Download server conversations that don't exist locally
-        debugPrint("\n📥 [Sync] Step 4: Downloading server conversations to local storage...")
-        for (index, serverConversation) in serverConversations.enumerated() {
-            guard let id = serverConversation["id"] as? String else {
-                debugPrint("   ⚠️ [Sync] Server conversation \(index + 1) has no ID - skipping")
-                continue
-            }
-
-            // Check if this server conversation exists locally
-            if localConversationIds.contains(id) {
-                debugPrint("   ⏭️ [Sync] Conversation \(index + 1) already exists locally (ID: \(id)) - skipping")
-                continue
-            }
-
-            // Download this conversation to local storage
-            debugPrint("   📥 [Sync] Downloading conversation \(index + 1)/\(serverConversations.count) (ID: \(id))...")
-
-            // Convert server conversation to local format
-            // Backend returns conversationContent (camelCase)
-            let conversationContent = serverConversation["conversationContent"] as? String ?? ""
-            debugPrint("   📝 [Sync] Conversation content length: \(conversationContent.count) chars")
-            if conversationContent.isEmpty {
-                debugPrint("   ⚠️ [Sync] WARNING: Conversation content is EMPTY!")
-            } else {
-                debugPrint("   ✅ [Sync] Conversation has content: \(conversationContent.prefix(100))...")
-            }
-
-            let localConversation: [String: Any] = [
-                "id": id,
-                "subject": serverConversation["subject"] as? String ?? "General",
-                "topic": serverConversation["topic"] as? String ?? "Chat Session",
-                "conversationContent": conversationContent,
-                "archivedDate": serverConversation["archivedDate"] as? String ?? ISO8601DateFormatter().string(from: Date())
-            ]
-
-            // Save to local storage
-            localStorage.saveConversation(localConversation)
-            downloadedFromServerCount += 1
-            debugPrint("   ✅ [Sync] Downloaded conversation to local storage")
-        }
-
-        if downloadedFromServerCount > 0 {
-            debugPrint("\n📥 [Sync] Downloaded \(downloadedFromServerCount) conversations from server to local storage")
-        } else {
-            debugPrint("\n📥 [Sync] No new conversations to download from server")
-        }
-
-        // STEP 5: Upload local conversations that don't exist on server
+        // STEP 4: Upload local conversations that don't exist on server
         debugPrint("\n📤 [Sync] Step 5: Uploading local conversations to server...")
 
         guard !localConversations.isEmpty else {
             debugPrint("   ℹ️ [Sync] No local conversations to upload")
-            debugPrint("\n📊 [Sync] Conversations summary: \(downloadedFromServerCount) downloaded, 0 uploaded, 0 duplicates")
-            return (downloadedFromServerCount, 0)
+            return (0, 0)
         }
 
         for (index, conversationData) in localConversations.enumerated() {
@@ -486,9 +345,8 @@ class StorageSyncService {
             }
         }
 
-        let totalSynced = downloadedFromServerCount + syncedToServerCount
-        debugPrint("\n📊 [Sync] Conversations summary: \(downloadedFromServerCount) downloaded, \(syncedToServerCount) uploaded, \(duplicateCount) duplicates")
-        return (totalSynced, duplicateCount)
+        debugPrint("\n📊 [Sync] Conversations summary: \(syncedToServerCount) uploaded, \(duplicateCount) duplicates")
+        return (syncedToServerCount, duplicateCount)
     }
 
     // MARK: - Sync Progress Data

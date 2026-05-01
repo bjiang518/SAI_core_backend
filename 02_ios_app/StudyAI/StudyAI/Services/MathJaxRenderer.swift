@@ -428,22 +428,41 @@ public struct MarkdownLaTeXText: View {
         self.isStreaming = isStreaming
     }
 
+    /// If the string contains LaTeX commands but no delimiters, the AI omitted the \(...\) wrappers.
+    /// Wrap the math portion so MathJax can find and render it.
+    private var processedContent: String {
+        let bareLatexCommands = ["\\frac", "\\sqrt", "\\sum", "\\int", "\\lim", "\\prod", "\\alpha", "\\beta", "\\theta", "\\pi", "\\infty"]
+        let hasDelimiters = content.contains("\\(") || content.contains("\\[") || content.contains("$")
+        let hasBareLatex = !hasDelimiters && bareLatexCommands.contains(where: { content.contains($0) })
+        guard hasBareLatex else { return content }
+
+        // Preserve a leading answer label like "A. " or "B. " outside the math block
+        let labelPattern = "^([A-Da-d][.)][[:space:]]*)"
+        if let range = content.range(of: labelPattern, options: [.regularExpression]),
+           range.lowerBound == content.startIndex {
+            let label = String(content[range])
+            let math = String(content[range.upperBound...])
+            return "\(label)\\(\(math)\\)"
+        }
+        return "\\(\(content)\\)"
+    }
+
     private var containsLatexOrMarkdown: Bool {
-        content.contains("$") ||
-        content.contains("\\[") ||
-        content.contains("\\(") ||
-        content.contains("\\frac") ||
-        content.contains("\\sqrt") ||
-        content.contains("**") ||
-        content.contains("##") ||
-        content.contains("- ")
+        processedContent.contains("$") ||
+        processedContent.contains("\\[") ||
+        processedContent.contains("\\(") ||
+        processedContent.contains("\\frac") ||
+        processedContent.contains("\\sqrt") ||
+        processedContent.contains("**") ||
+        processedContent.contains("##") ||
+        processedContent.contains("- ")
     }
 
     public var body: some View {
         if containsLatexOrMarkdown {
-            MathContentView(content: content, fontSize: fontSize, isStreaming: isStreaming)
+            MathContentView(content: processedContent, fontSize: fontSize, isStreaming: isStreaming)
         } else {
-            Text(content)
+            Text(processedContent)
                 .font(.system(size: fontSize))
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)

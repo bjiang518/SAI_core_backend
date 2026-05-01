@@ -34,7 +34,9 @@ struct HomeworkResultsView: View {
     @State private var hasTriggeredMarkProgress = false
 
     @ObservedObject private var pointsManager = PointsEarningManager.shared
-    @StateObject private var homeworkImageStorage = HomeworkImageStorageService.shared  // NEW: Storage service
+    @StateObject private var homeworkImageStorage = HomeworkImageStorageService.shared
+    @StateObject private var authService = AuthenticationService.shared
+    @State private var showingGuestConversion = false
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
 
@@ -183,6 +185,12 @@ struct HomeworkResultsView: View {
                             await archiveSelectedQuestions(archiveRequest)
                         }
                     }
+                )
+            }
+            .sheet(isPresented: $showingGuestConversion) {
+                GuestConversionView(
+                    blockedFeature: "homework_single",
+                    onDismiss: { showingGuestConversion = false }
                 )
             }
             .alert(NSLocalizedString("homeworkResults.noQuestionsSelected", comment: "No Questions Selected"), isPresented: $showingNoQuestionsAlert) {
@@ -573,6 +581,27 @@ struct HomeworkResultsView: View {
                         .font(.subheadline)
                         .foregroundColor(.green)
                         .multilineTextAlignment(.center)
+
+                    // Guest save-progress nudge — shown after first successful scan
+                    if authService.currentUser?.isAnonymous == true {
+                        Button(action: { showingGuestConversion = true }) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "icloud.and.arrow.up")
+                                    .font(.system(size: 14))
+                                Text(NSLocalizedString("guestConversion.homeworkNudge", value: "Create a free account to save this result", comment: ""))
+                                    .font(.system(size: 14, weight: .medium))
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 12))
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                            .background(Color(hex: "7EC8E3"))
+                            .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.top, 4)
+                    }
                 } else {
                     Text(String(format: NSLocalizedString("homeworkResults.tapToAddQuestions", comment: ""), parsingResult.allQuestions.count))
                         .font(.subheadline)

@@ -28,9 +28,21 @@ interface OverviewStats {
     guest: number
   }
   pointsEconomy?: {
-    totalEarned: number
+    pointsInCirculation: number
+    usersWithPoints: number
+    maxBalance: number
+    avgBalanceEarners: number
+    totalXpEarned: number
+    usersWhoEarnedXp: number
     totalSpent: number
     usersWhoSpent: number
+    distribution: {
+      zero: number
+      low: number
+      mid: number
+      high: number
+      power: number
+    }
   }
   iosVersions?: Record<string, number>
 }
@@ -226,17 +238,53 @@ export default function DashboardPage() {
             <h2 className="text-base font-semibold mb-4 flex items-center gap-2">
               <Coins className="h-4 w-4" /> Points Economy
             </h2>
-            <div className="grid grid-cols-3 gap-4">
+
+            {/* Top metrics row */}
+            <div className="grid grid-cols-2 gap-3 mb-5">
               {[
-                { label: 'Total Earned', value: stats.pointsEconomy.totalEarned },
-                { label: 'Total Spent', value: stats.pointsEconomy.totalSpent },
-                { label: 'Users Redeemed', value: stats.pointsEconomy.usersWhoSpent },
-              ].map(({ label, value }) => (
-                <div key={label} className="text-center">
-                  <div className="text-2xl font-bold">{value.toLocaleString()}</div>
-                  <div className="text-xs text-muted-foreground mt-1">{label}</div>
+                { label: 'Points in Circulation', value: stats.pointsEconomy.pointsInCirculation.toLocaleString(), sub: 'current balance across all users' },
+                { label: 'Users Holding Points', value: stats.pointsEconomy.usersWithPoints.toLocaleString(), sub: `avg ${stats.pointsEconomy.avgBalanceEarners.toFixed(0)} pts among earners` },
+                { label: 'Study XP Earned', value: stats.pointsEconomy.totalXpEarned.toLocaleString(), sub: `${stats.pointsEconomy.usersWhoEarnedXp} users earned XP` },
+                { label: 'Points Spent', value: stats.pointsEconomy.totalSpent.toLocaleString(), sub: `${stats.pointsEconomy.usersWhoSpent} users redeemed` },
+              ].map(({ label, value, sub }) => (
+                <div key={label} className="bg-muted/40 rounded-lg p-3">
+                  <div className="text-xl font-bold">{value}</div>
+                  <div className="text-xs font-medium text-foreground mt-0.5">{label}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">{sub}</div>
                 </div>
               ))}
+            </div>
+
+            {/* Balance distribution */}
+            <div>
+              <div className="text-xs font-semibold text-muted-foreground mb-2">Balance Distribution (registered users)</div>
+              {(() => {
+                const d = stats.pointsEconomy!.distribution
+                const buckets = [
+                  { label: '0 pts', value: d.zero, color: 'bg-gray-300' },
+                  { label: '1–50', value: d.low,  color: 'bg-blue-300' },
+                  { label: '51–200', value: d.mid, color: 'bg-green-400' },
+                  { label: '201–500', value: d.high, color: 'bg-yellow-400' },
+                  { label: '500+', value: d.power, color: 'bg-orange-400' },
+                ]
+                const total = buckets.reduce((s, b) => s + b.value, 1)
+                return (
+                  <div className="space-y-1.5">
+                    {buckets.map(({ label, value, color }) => (
+                      <div key={label} className="flex items-center gap-2">
+                        <div className="w-14 text-xs text-muted-foreground text-right shrink-0">{label}</div>
+                        <div className="flex-1 bg-muted rounded-full h-2 overflow-hidden">
+                          <div
+                            className={`h-2 rounded-full ${color} transition-all`}
+                            style={{ width: `${Math.round((value / total) * 100)}%` }}
+                          />
+                        </div>
+                        <div className="w-8 text-xs text-muted-foreground text-right shrink-0">{value}</div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
             </div>
           </div>
         )}

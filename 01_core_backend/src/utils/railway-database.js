@@ -809,10 +809,12 @@ const db = {
       onboardingCompleted = false
     } = profileData;
 
-    // Calculate profile completion percentage
+    // Profile completion: only fields that directly improve AI personalization
     const completionFields = [
-      firstName, lastName, gradeLevel, school, dateOfBirth, 
-      learningStyle, favoriteSubjects?.length > 0
+      languagePreference,                  // AI response language
+      learningStyle,                       // AI teaching style
+      displayName,                         // AI uses name in responses
+      gradeLevel,                          // content difficulty level
     ];
     const completedFields = completionFields.filter(field => field).length;
     const profileCompletionPercentage = Math.round((completedFields / completionFields.length) * 100);
@@ -2293,44 +2295,19 @@ const db = {
   calculateProfileCompletionPercentage(profile) {
     if (!profile) return 0;
 
-    let filledFields = 0;
-    const totalFields = 14;
-
-    // Required/Important fields (weight: 1 point each)
-    const fieldsToCheck = [
-      profile.first_name,           // 1
-      profile.last_name,            // 2
-      profile.grade_level,          // 3
-      profile.date_of_birth,        // 4
-      profile.gender,               // 5
-      profile.city,                 // 6
-      profile.state_province,       // 7
-      profile.country,              // 8
-      profile.learning_style,       // 9
-      profile.timezone,             // 10
-      profile.language_preference,  // 11
-      profile.display_name,         // 12
+    // Only count fields that directly improve the AI learning experience.
+    // Personal info (name, DOB, gender, location) is excluded — not needed.
+    let filledCount = 0;
+    const checks = [
+      profile.language_preference,                                              // AI response language
+      profile.learning_style,                                                   // AI teaching style
+      profile.kids_ages && Array.isArray(profile.kids_ages) && profile.kids_ages.length > 0, // student age
+      profile.display_name,                                                     // AI uses name in responses
+      profile.grade_level,                                                      // content difficulty level
     ];
 
-    // Count filled fields
-    fieldsToCheck.forEach(field => {
-      if (field !== null && field !== undefined && field !== '') {
-        filledFields++;
-      }
-    });
-
-    // Check array fields (kids_ages and favorite_subjects)
-    if (profile.kids_ages && Array.isArray(profile.kids_ages) && profile.kids_ages.length > 0) {
-      filledFields++; // 13
-    }
-
-    if (profile.favorite_subjects && Array.isArray(profile.favorite_subjects) && profile.favorite_subjects.length > 0) {
-      filledFields++; // 14
-    }
-
-    // Calculate percentage
-    const percentage = Math.round((filledFields / totalFields) * 100);
-    return percentage;
+    checks.forEach(v => { if (v) filledCount++; });
+    return Math.round((filledCount / checks.length) * 100);
   },
 
   /**
@@ -5761,6 +5738,38 @@ async function runDatabaseMigrations() {
       logger.debug('✅ Migration 032: points_balance and transactions already applied');
     }
 
+    // ── Migration 033: user_seen_daily_questions ──────────────────────────────
+    const m033 = await db.query(
+      `SELECT 1 FROM migration_history WHERE migration_name = '033_user_seen_daily_questions'`
+    ).catch(() => ({ rows: [] }));
+
+    if (m033.rows.length === 0) {
+      try {
+        await db.query(`
+          CREATE TABLE IF NOT EXISTS user_seen_daily_questions (
+            id SERIAL PRIMARY KEY,
+            user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            question_hash VARCHAR(32) NOT NULL,
+            question_preview TEXT NOT NULL,
+            shown_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            UNIQUE(user_id, question_hash)
+          )
+        `);
+        await db.query(`
+          CREATE INDEX IF NOT EXISTS idx_user_seen_daily_q_user_time
+            ON user_seen_daily_questions(user_id, shown_at DESC)
+        `);
+        await db.query(
+          `INSERT INTO migration_history (migration_name) VALUES ('033_user_seen_daily_questions') ON CONFLICT (migration_name) DO NOTHING`
+        );
+        logger.debug('✅ Migration 033: user_seen_daily_questions table created');
+      } catch (migrationError) {
+        logger.error({ err: migrationError }, '❌ Migration 033 failed');
+      }
+    } else {
+      logger.debug('✅ Migration 033: user_seen_daily_questions already applied');
+    }
+
   } catch (error) {
     logger.error('❌ Database migration failed:', error);
     // Don't throw - let the app continue with what it has
@@ -6109,6 +6118,18 @@ async function createInlineSchema() {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
+
+    -- Per-user seen daily questions (prevents repeating "Did you know?" facts across sessions)
+    CREATE TABLE IF NOT EXISTS user_seen_daily_questions (
+        id SERIAL PRIMARY KEY,
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        question_hash VARCHAR(32) NOT NULL,
+        question_preview TEXT NOT NULL,
+        shown_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        UNIQUE(user_id, question_hash)
+    );
+    CREATE INDEX IF NOT EXISTS idx_user_seen_daily_q_user_time
+        ON user_seen_daily_questions(user_id, shown_at DESC);
   `;
 
   await db.query(schema);

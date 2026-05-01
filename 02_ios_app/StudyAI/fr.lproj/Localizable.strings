@@ -401,6 +401,31 @@
 "parentPasswordRemove.success" = "✅ Parent mode has been removed";
 "parentPasswordRemove.incorrectPin" = "❌ Incorrect PIN. Please try again.";
 
+// Mot de passe parental oublié / Flux de réinitialisation
+"parentPINReset.forgotPIN" = "PIN oublié ?";
+"parentPINReset.title" = "Réinitialiser le PIN parental";
+"parentPINReset.step1Title" = "Vous avez oublié votre PIN ?";
+"parentPINReset.step1Description" = "Nous enverrons un code de vérification à 6 chiffres à votre adresse e-mail enregistrée.";
+"parentPINReset.sendCodeButton" = "Envoyer le code de vérification";
+"parentPINReset.step2Description" = "Un code à 6 chiffres a été envoyé à %@. Saisissez-le ci-dessous.";
+"parentPINReset.codeHeader" = "Code de vérification";
+"parentPINReset.codePlaceholder" = "Entrez le code à 6 chiffres";
+"parentPINReset.verifyButton" = "Vérifier le code";
+"parentPINReset.resendCode" = "Renvoyer le code";
+"parentPINReset.step3Title" = "Définir un nouveau PIN";
+"parentPINReset.newPINHeader" = "Nouveau PIN parental";
+"parentPINReset.newPINPlaceholder" = "Entrez le nouveau PIN (6 chiffres)";
+"parentPINReset.confirmPINPlaceholder" = "Confirmez le nouveau PIN";
+"parentPINReset.setPINButton" = "Définir le nouveau PIN";
+"parentPINReset.setPINFailed" = "❌ Impossible de définir le PIN. Veuillez réessayer.";
+"parentPINReset.mismatch" = "Les PINs ne correspondent pas. Veuillez réessayer.";
+"parentPINReset.invalidPIN" = "Le PIN doit contenir exactement 6 chiffres";
+"parentPINReset.invalidCode" = "❌ Code invalide ou expiré. Veuillez réessayer.";
+"parentPINReset.sendFailed" = "❌ Impossible d'envoyer le code. Veuillez réessayer.";
+"parentPINReset.noEmail" = "Aucune adresse e-mail associée à votre compte. Contactez support@study-mates.net";
+"parentPINReset.appleEmailNote" = "Le code sera envoyé à l'e-mail associé à votre identifiant Apple.";
+"parentPINReset.googleEmailNote" = "Le code sera envoyé à votre adresse e-mail Google.";
+
 
 "app.name" = "StudyAgent";
 "app.tagline" = "Your AI-Powered Learning Companion";
@@ -2315,6 +2340,7 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "onboarding.age.title" = "Quel âge as-tu ?";
 "onboarding.age.subtitle" = "Nous aide à personnaliser l'expérience";
 "onboarding.age.placeholder" = "Entrez votre âge";
+"onboarding.age.gradeLabel" = "Niveau scolaire";
 
 // Onboarding — Learning Style
 "onboarding.learningStyle.title" = "Comment veux-tu que l'IA t'aide ?";
@@ -2456,6 +2482,9 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "practiceSheet.reviewButton" = "Revoir les réponses";
 "practiceSheet.redoButton" = "Refaire";
 "practiceSheet.aiAnalyzing" = "AI is analyzing your answer…";
+"practiceSheet.askAI" = "Demander à l'IA";
+"practiceSheet.regrade" = "Réévaluer";
+"practiceSheet.archive" = "Archiver";
 "practiceSheet.toastTitle" = "Smart Organize Complete";
 "practiceSheet.toastProgress" = "Progress marked for %@";
 "practiceSheet.toastMistakes" = "%d mistake(s) archived to library";
@@ -2558,6 +2587,8 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "account.usage.loadError" = "Impossible de charger l'utilisation";
 "account.usage.lifetimeLimits" = "Limites à vie applicables";
 "account.usage.resetsOn" = "Réinitialisation le %@";
+"account.usage.resetsOnFull" = "Le quota se réinitialise le %@";
+"account.usage.resetsMonthly" = "Le quota est mis à jour le 1er de chaque mois";
 "account.usage.unlimited" = "Illimité";
 "account.usage.upgradeLabel" = "Passer à la version supérieure";
 "account.usage.upgradePlan" = "Changer de forfait";
@@ -2705,6 +2736,10 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "upgrade.comparison.continueFree" = "Continuer avec l'offre gratuite";
 "upgrade.comparison.ctaPremium" = "Commencer Premium  %@";
 "upgrade.comparison.ctaUltra" = "Commencer Ultra  %@";
+"upgrade.comparison.ctaUltraTrial" = "Essayer Ultra gratuitement — 7 jours";
+"upgrade.comparison.ctaPremiumTrial" = "Essayer Premium gratuitement — 7 jours";
+"upgrade.comparison.trialSubtext" = "puis %@ · Annuler à tout moment";
+"upgrade.comparison.termsTrial" = "Essai gratuit de 7 jours, puis renouvellement automatique au prix indiqué. Annulez avant la fin de l'essai dans Réglages > Identifiant Apple > Abonnements.";
 "upgrade.comparison.featureAiChat" = "Chat\nIA";
 "upgrade.comparison.featureHomework" = "Pages\ndevoirs";
 "upgrade.comparison.featureLiveTutor" = "Tuteur\nen direct";
@@ -2920,6 +2955,31 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "dailyChallenge.perfect" = "Parfait ! Tout bon ! 🎉";
 "dailyChallenge.good" = "Bien joué ! 👍";
 "dailyChallenge.keep" = "Continuez ! 💪";
+"dailyChallenge.reviewAnswers" = "Revoir les réponses";
+"dailyChallenge.close" = "Fermer";
+"dailyChallenge.prevQuestion" = "Précédent";
+"guestConversion.title" = "Créer un compte gratuit";
+"guestConversion.subtitle" = "Sauvegarde ta progression et débloque plus de fonctionnalités";
+"guestConversion.createAccount" = "Créer un compte gratuit";
+"guestConversion.signIn" = "Déjà un compte ? Se connecter";
+"guestConversion.continueGuest" = "Continuer en tant qu'invité";
+"guestConversion.guestCol" = "Maintenant";
+"guestConversion.freeCol" = "Compte gratuit";
+"guestConversion.homework" = "Devoirs";
+"guestConversion.chat" = "Chat IA";
+"guestConversion.practice" = "Questions d'entraînement";
+"guestConversion.analysis" = "Analyse d'erreurs";
+"guestConversion.save" = "Sauvegarder la progression";
+"guestConversion.weakness" = "Analyse des faiblesses";
+"guestConversion.library" = "Bibliothèque d'exercices";
+"guestConversion.history" = "Historique d'apprentissage";
+"guestConversion.streak" = "Série et points";
+"guestConversion.lifetime" = "total";
+"guestConversion.perMonth" = "/mois";
+"guestConversion.signUpTitle" = "Sauvegarde ta progression";
+"guestConversion.signUpSubtitle" = "Crée un compte gratuit pour conserver tout ce que tu as fait.";
+"guestConversion.homeworkNudge" = "Crée un compte gratuit pour sauvegarder ce résultat";
+"guestConversion.dailyChallengeNudge" = "Crée un compte pour sauvegarder ta série";
 "points.earn.dailyChallenge.title" = "3 Questions Quotidiennes";
 "points.earn.dailyChallenge.desc" = "Complétez les 3 questions du jour";
 "points.earn.dailyChallenge.result" = "%d correctes";

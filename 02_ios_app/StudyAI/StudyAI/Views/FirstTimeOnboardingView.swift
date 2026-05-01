@@ -27,9 +27,12 @@ struct FirstTimeOnboardingView: View {
     // 4: subjects      (common)
     // 5: learning style(common)
     // 6: consent       (common, mandatory)
-    private let maxStep = 6
+    // 7: trial pitch   (common, after save)
+    private let maxStep = 7
 
     @State private var currentStep = 0
+    @State private var showingUpgradeFromOnboarding = false
+    @State private var showingGuestConversion = false
 
     // Step 0 — Role
     @State private var selectedRole: UserRole? = nil
@@ -48,6 +51,7 @@ struct FirstTimeOnboardingView: View {
 
     // Step 2 — Student age (common)
     @State private var studentAge: String = ""
+    @State private var selectedGradeLevel: GradeLevel? = nil
 
     // Step 3 — Language (common)
     @State private var languagePreference: String = ""
@@ -85,6 +89,7 @@ struct FirstTimeOnboardingView: View {
 
     /// Visible progress index (student skips step 2; both roles skip step 4)
     private var visibleStepIndex: Int {
+        if currentStep == 7 { return totalVisibleSteps - 1 }
         if selectedRole == .student {
             switch currentStep {
             case 0: return 0
@@ -111,7 +116,7 @@ struct FirstTimeOnboardingView: View {
         selectedRole == .student ? 5 : 6
     }
 
-    private var canGoBack: Bool { currentStep > 0 }
+    private var canGoBack: Bool { currentStep > 0 && currentStep < 7 }
 
     // MARK: - Body
 
@@ -168,6 +173,7 @@ struct FirstTimeOnboardingView: View {
                 subjectsStep     .opacity(currentStep == 4 ? 1 : 0).allowsHitTesting(currentStep == 4)
                 learningStyleStep.opacity(currentStep == 5 ? 1 : 0).allowsHitTesting(currentStep == 5)
                 consentStep      .opacity(currentStep == 6 ? 1 : 0).allowsHitTesting(currentStep == 6)
+                trialStep        .opacity(currentStep == 7 ? 1 : 0).allowsHitTesting(currentStep == 7)
             }
             .animation(.easeInOut(duration: 0.2), value: currentStep)
         }
@@ -176,6 +182,30 @@ struct FirstTimeOnboardingView: View {
         }
         .background(DesignTokens.Colors.Cute.backgroundCream.ignoresSafeArea())
         .sheet(isPresented: $showingPrivacyPolicy) { PrivacyPolicyView() }
+        .sheet(isPresented: $showingGuestConversion) {
+            GuestConversionView(
+                blockedFeature: nil,
+                onDismiss: {
+                    showingGuestConversion = false
+                    // If conversion succeeded (user is now a real account), show the trial upgrade
+                    let user = AuthenticationService.shared.currentUser
+                    if user?.isAnonymous == false, AuthenticationService.shared.isAuthenticated {
+                        showingUpgradeFromOnboarding = true
+                    }
+                    // If they dismissed without converting, go straight to home
+                    else {
+                        onComplete()
+                    }
+                }
+            )
+        }
+        .sheet(isPresented: $showingUpgradeFromOnboarding, onDismiss: onComplete) {
+            UpgradeComparisonView(
+                blockedFeature: "",
+                reason: .featureBlocked,
+                onDismiss: { showingUpgradeFromOnboarding = false }
+            )
+        }
         .alert("Error", isPresented: $showingError) { Button("OK") {} } message: { Text(errorMessage) }
         .onAppear {
             let saved = UserDefaults.standard.string(forKey: "appLanguage")
@@ -525,6 +555,32 @@ struct FirstTimeOnboardingView: View {
                             .frame(maxWidth: 160)
                             .background(DesignTokens.Colors.Cute.backgroundSoftPink)
                             .cornerRadius(14)
+
+                        // Grade level picker
+                        HStack {
+                            Image(systemName: "graduationcap.fill")
+                                .font(.system(size: 15))
+                                .foregroundColor(DesignTokens.Colors.Cute.blue)
+                            Text(NSLocalizedString("onboarding.age.gradeLabel", value: "Grade", comment: ""))
+                                .font(.subheadline)
+                                .foregroundColor(DesignTokens.Colors.Cute.textPrimary)
+                            Spacer()
+                            Picker("", selection: $selectedGradeLevel) {
+                                Text(NSLocalizedString("editProfile.noneOption", comment: ""))
+                                    .tag(Optional<GradeLevel>(nil))
+                                ForEach(GradeLevel.allCases, id: \.rawValue) { grade in
+                                    Text(grade.displayName).tag(Optional(grade))
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .font(.subheadline)
+                            .accentColor(DesignTokens.Colors.Cute.blue)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 14)
+                        .background(DesignTokens.Colors.Cute.backgroundSoftPink)
+                        .cornerRadius(14)
+                        .frame(maxWidth: 300)
                     }
                     .frame(maxWidth: .infinity)
                 }
@@ -890,7 +946,7 @@ struct FirstTimeOnboardingView: View {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .foregroundColor(.orange)
                                 .font(.system(size: 13))
-                            Text(NSLocalizedString("onboarding.consent.mustAgree", value: "You must agree to continue", comment: ""))
+                            Text(NSLocalizedString("onboarding.consent.required", comment: ""))
                                 .font(.caption)
                                 .foregroundColor(.orange)
                         }
@@ -1028,6 +1084,98 @@ struct FirstTimeOnboardingView: View {
         }
     }
 
+    // MARK: - Step 7: Trial Pitch
+
+    private var trialStep: some View {
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(spacing: 28) {
+                    // Crown icon
+                    ZStack {
+                        Circle()
+                            .fill(Color(hex: "D97706").opacity(0.12))
+                            .frame(width: 100, height: 100)
+                        Image(systemName: "crown.fill")
+                            .font(.system(size: 46))
+                            .foregroundColor(Color(hex: "D97706"))
+                    }
+                    .padding(.top, 8)
+
+                    VStack(spacing: 10) {
+                        Text(NSLocalizedString("onboarding.trial.title", value: "Your first week is free", comment: ""))
+                            .font(.title2).fontWeight(.bold)
+                            .foregroundColor(DesignTokens.Colors.Cute.textPrimary)
+                            .multilineTextAlignment(.center)
+                        Text(NSLocalizedString("onboarding.trial.subtitle", value: "Try Premium for 7 days — no charge until next week, cancel anytime.", comment: ""))
+                            .font(.subheadline)
+                            .foregroundColor(DesignTokens.Colors.Cute.textSecondary)
+                            .multilineTextAlignment(.center)
+                    }
+
+                    VStack(spacing: 0) {
+                        trialFeatureRow(
+                            NSLocalizedString("onboarding.trial.feature1", value: "Unlimited homework scans", comment: ""),
+                            icon: "doc.text.fill", color: DesignTokens.Colors.Cute.peach)
+                        Divider().padding(.leading, 50)
+                        trialFeatureRow(
+                            NSLocalizedString("onboarding.trial.feature2", value: "500 AI chat messages / month", comment: ""),
+                            icon: "message.fill", color: DesignTokens.Colors.Cute.blue)
+                        Divider().padding(.leading, 50)
+                        trialFeatureRow(
+                            NSLocalizedString("onboarding.trial.feature3", value: "Live voice tutor sessions", comment: ""),
+                            icon: "waveform", color: DesignTokens.Colors.Cute.mint)
+                    }
+                    .background(DesignTokens.Colors.Cute.backgroundSoftPink)
+                    .cornerRadius(16)
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
+            }
+
+            bottomBar {
+                Button {
+                    if authService.currentUser?.isAnonymous == true {
+                        // Guest account — must create a free account first
+                        showingGuestConversion = true
+                    } else {
+                        showingUpgradeFromOnboarding = true
+                    }
+                } label: {
+                    Text(NSLocalizedString("onboarding.trial.cta", value: "Start 7-Day Free Trial", comment: ""))
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity).frame(height: 52)
+                        .background(Color(hex: "D97706"))
+                        .cornerRadius(14)
+                }
+
+                Button(action: onComplete) {
+                    Text(NSLocalizedString("onboarding.trial.skip", value: "Maybe Later", comment: ""))
+                        .font(.subheadline)
+                        .foregroundColor(DesignTokens.Colors.Cute.blue)
+                }
+            }
+        }
+    }
+
+    private func trialFeatureRow(_ text: String, icon: String, color: Color) -> some View {
+        HStack(spacing: 14) {
+            ZStack {
+                Circle().fill(color.opacity(0.15)).frame(width: 36, height: 36)
+                Image(systemName: icon).font(.system(size: 16)).foregroundColor(color)
+            }
+            Text(text)
+                .font(.subheadline)
+                .foregroundColor(DesignTokens.Colors.Cute.textPrimary)
+            Spacer()
+            Image(systemName: "checkmark")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(color)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+    }
+
     // MARK: - Save
 
     private func saveAndComplete() {
@@ -1045,6 +1193,9 @@ struct FirstTimeOnboardingView: View {
             }
             if !studentAge.isEmpty, let age = Int(studentAge), age >= 1 && age <= 99 {
                 data["kidsAges"] = [age]
+            }
+            if let grade = selectedGradeLevel {
+                data["gradeLevel"] = String(grade.integerValue)
             }
 
             // Parent-specific: set PIN and protected features via ParentModeManager
@@ -1084,7 +1235,9 @@ struct FirstTimeOnboardingView: View {
                 }
                 await MainActor.run {
                     isSaving = false
-                    onComplete()
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        currentStep = 7
+                    }
                 }
             } else {
                 await MainActor.run {

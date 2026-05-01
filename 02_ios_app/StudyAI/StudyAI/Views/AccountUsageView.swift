@@ -38,6 +38,9 @@ struct AccountUsageView: View {
                         VStack(spacing: 16) {
                             tierCard(data)
                             featuresSection(data)
+                            if !data.isAnonymous && !isUnlimitedTier(data.tier) {
+                                quotaResetNote(data)
+                            }
                             if !isUnlimitedTier(data.tier) {
                                 upgradeButton
                             }
@@ -230,6 +233,25 @@ struct AccountUsageView: View {
         .frame(height: 6)
     }
 
+    // MARK: - Quota reset note
+
+    private func quotaResetNote(_ data: AccountUsageData) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "arrow.clockwise.circle")
+                .font(.caption)
+            if let resetsAt = data.resetsAt, let date = isoDate(resetsAt) {
+                Text(String(format: NSLocalizedString("account.usage.resetsOnFull", value: "Quota resets on %@", comment: ""), date.formatted(.dateTime.month(.abbreviated).day())))
+            } else {
+                Text(NSLocalizedString("account.usage.resetsMonthly", value: "Quota updates on the 1st of each month", comment: ""))
+            }
+        }
+        .font(.caption)
+        .foregroundColor(themeManager.secondaryText)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 4)
+        .padding(.top, -4)
+    }
+
     // MARK: - Upgrade button
 
     private var upgradeButton: some View {
@@ -338,10 +360,10 @@ struct AccountUsageView: View {
             }
         case "free":
             switch key {
-            case "homework_pages": return 10
-            case "chat_messages":  return 50
-            case "questions":      return 30
-            case "error_analysis": return 5
+            case "homework_pages": return 5
+            case "chat_messages":  return 20
+            case "questions":      return 10
+            case "error_analysis": return 3
             case "tts_calls":      return 50
             default:               return 0   // blocked (reports, voice_minutes)
             }

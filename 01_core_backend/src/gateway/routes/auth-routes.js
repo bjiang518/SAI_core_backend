@@ -8,6 +8,7 @@ const { db } = require('../../utils/railway-database');
 const PIIMasking = require('../../utils/pii-masking');
 const { OAuth2Client } = require('google-auth-library');
 const appleSignin = require('apple-signin-auth');
+const { authenticateUser } = require('../middleware/railway-auth');
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const APPLE_BUNDLE_ID = 'com.OliOli.StudyMatesAI';
@@ -434,6 +435,23 @@ class AuthRoutes {
       }
     }, this.anonymousLogin.bind(this));
 
+    this.fastify.post('/api/auth/convert-guest', {
+      schema: {
+        description: 'Convert an anonymous guest account to a registered account in-place, preserving all user data',
+        body: {
+          type: 'object',
+          required: ['name', 'email', 'password'],
+          properties: {
+            name:     { type: 'string' },
+            email:    { type: 'string', format: 'email' },
+            password: { type: 'string', minLength: 6 }
+          }
+        }
+      },
+      config: { rateLimit: { max: 5, timeWindow: '15 minutes' } },
+      preHandler: [authenticateUser]
+    }, this.convertGuestToAccount.bind(this));
+
     // ==============================
     // COPPA Consent Management Endpoints
     // ==============================
@@ -532,14 +550,39 @@ class AuthRoutes {
       }
     }, this.revokeParentalConsent.bind(this));
 
+    // Parent PIN reset endpoints (authenticated — no body email needed, uses JWT)
+    this.fastify.post('/api/auth/send-parent-pin-reset-code', {
+      schema: {
+        description: 'Send parent PIN reset code to the registered email of the authenticated user',
+        tags: ['Authentication', 'Parent Mode'],
+        headers: {
+          type: 'object',
+          properties: { authorization: { type: 'string' } }
+        }
+      },
+      config: { rateLimit: { max: 3, timeWindow: '1 hour' } }
+    }, this.sendParentPINResetCode.bind(this));
+
+    this.fastify.post('/api/auth/verify-parent-pin-reset-code', {
+      schema: {
+        description: 'Verify parent PIN reset code for authenticated user',
+        tags: ['Authentication', 'Parent Mode'],
+        body: {
+          type: 'object',
+          required: ['code'],
+          properties: {
+            code: { type: 'string', minLength: 6, maxLength: 6 }
+          }
+        }
+      }
+    }, this.verifyParentPINResetCode.bind(this));
+
     this.fastify.log.info('✅ === ALL AUTH ROUTES REGISTERED ===');
     this.fastify.log.info('✅ Total COPPA routes: 5 (request, verify, consent-status x2, revoke)');
 
     // ==============================
     // TestFlight Tester Tier Switcher
     // ==============================
-
-    const { authenticateUser } = require('../middleware/railway-auth');
 
     this.fastify.post('/api/tester/set-tier', {
       preHandler: [authenticateUser],
@@ -1564,6 +1607,83 @@ class AuthRoutes {
   // ============================================
   // ANONYMOUS / GUEST LOGIN
   // ============================================
+
+  async convertGuestToAccount(request, reply) {
+    const { name, email, password } = request.body;
+    const userId = request.user?.userId || request.user?.id;
+
+    if (!userId) {
+      return reply.status(401).send({ success: false, error: 'UNAUTHORIZED' });
+    }
+
+    try {
+      // 1. Verify the caller is actually a guest
+      const userRow = await db.query(
+        'SELECT id, is_anonymous FROM users WHERE id = $1',
+        [userId], { cache: false }
+      );
+      if (!userRow.rows[0]) {
+        return reply.status(404).send({ success: false, error: 'USER_NOT_FOUND' });
+      }
+      if (!userRow.rows[0].is_anonymous) {
+        return reply.status(400).send({ success: false, error: 'NOT_A_GUEST' });
+      }
+
+      // 2. Check email not already taken
+      const existing = await db.query(
+        'SELECT id FROM users WHERE email = $1',
+        [email.toLowerCase()], { cache: false }
+      );
+      if (existing.rows.length > 0) {
+        return reply.status(409).send({ success: false, error: 'EMAIL_TAKEN', message: 'This email is already in use.' });
+      }
+
+      // 3. Hash password and update user row in-place (user_id unchanged — all data preserved)
+      const bcrypt = require('bcryptjs');
+      const passwordHash = await bcrypt.hash(password, 12);
+      await db.query(
+        `UPDATE users
+         SET email = $1, password_hash = $2, name = $3,
+             is_anonymous = false, auth_provider = 'email',
+             email_verified = false, is_active = true
+         WHERE id = $4`,
+        [email.toLowerCase(), passwordHash, name, userId],
+        { cache: false }
+      );
+
+      // 4. Invalidate all old sessions and create a fresh one
+      await db.query('DELETE FROM user_sessions WHERE user_id = $1', [userId], { cache: false });
+      const deviceInfo = { userAgent: request.headers['user-agent'] || 'unknown' };
+      const clientIP = request.ip || request.headers['x-forwarded-for'] || 'unknown';
+      const session = await db.createUserSession(userId, deviceInfo, clientIP);
+
+      // 5. Fire verification email in background (non-blocking)
+      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      db.storeVerificationCode(email, verificationCode, name, expiresAt)
+        .then(() => this.sendVerificationEmail(email, name, verificationCode))
+        .catch(err => this.fastify.log.warn('convert-guest: verification email failed:', err.message));
+
+      this.fastify.log.info(`👤 Guest ${userId} converted to registered account (${email})`);
+
+      return reply.send({
+        success: true,
+        message: 'Account created successfully. Please verify your email.',
+        token: session.token,
+        user: {
+          id: userId,
+          email: email.toLowerCase(),
+          name,
+          is_anonymous: false,
+          tier: 'free',
+          email_verified: false
+        }
+      });
+    } catch (error) {
+      this.fastify.log.error('convert-guest error:', error);
+      return reply.status(500).send({ success: false, error: 'CONVERSION_FAILED' });
+    }
+  }
 
   async anonymousLogin(request, reply) {
     try {
@@ -2634,6 +2754,147 @@ The Study Mates Team
       this.fastify.log.error('Token verification error:', error);
       return null;
     }
+  }
+
+  // ==============================
+  // Parent PIN Reset
+  // ==============================
+
+  async sendParentPINResetCode(request, reply) {
+    try {
+      this.fastify.log.info('🔐 === SEND PARENT PIN RESET CODE ===');
+
+      const userId = await this.getUserIdFromToken(request);
+      if (!userId) {
+        return reply.status(401).send({ success: false, message: 'Authentication required.' });
+      }
+
+      const user = await db.getUserById(userId);
+      if (!user) {
+        return reply.status(404).send({ success: false, message: 'User not found.' });
+      }
+
+      if (!user.email) {
+        return reply.status(400).send({
+          success: false,
+          message: 'No email address is associated with your account.',
+          errorCode: 'NO_EMAIL'
+        });
+      }
+
+      const verificationCode = crypto.randomInt(100000, 999999).toString();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+      await db.storeVerificationCode(user.email, verificationCode, user.name || 'User', expiresAt);
+      await this.sendParentPINResetEmail(user.email, user.name || 'User', verificationCode, user.auth_provider);
+
+      const maskedEmail = this.maskEmailAddress(user.email);
+
+      this.fastify.log.info(`✅ Parent PIN reset code sent to: ${PIIMasking.maskEmail(user.email)}`);
+      return reply.send({ success: true, message: 'Verification code sent.', maskedEmail, expiresIn: 600 });
+    } catch (error) {
+      this.fastify.log.error('❌ sendParentPINResetCode error:', error);
+      return reply.status(500).send({ success: false, message: 'Failed to send verification code.' });
+    }
+  }
+
+  async verifyParentPINResetCode(request, reply) {
+    try {
+      const { code } = request.body;
+      this.fastify.log.info('🔐 === VERIFY PARENT PIN RESET CODE ===');
+
+      const userId = await this.getUserIdFromToken(request);
+      if (!userId) {
+        return reply.status(401).send({ success: false, message: 'Authentication required.' });
+      }
+
+      const user = await db.getUserById(userId);
+      if (!user || !user.email) {
+        return reply.status(404).send({ success: false, message: 'User not found.' });
+      }
+
+      const isValid = await db.verifyCode(user.email, code);
+      if (!isValid) {
+        return reply.status(400).send({ success: false, message: 'Invalid or expired code. Please try again.' });
+      }
+
+      await db.deleteVerificationCode(user.email);
+
+      this.fastify.log.info(`✅ Parent PIN reset verified for: ${PIIMasking.maskEmail(user.email)}`);
+      return reply.send({ success: true, message: 'Code verified successfully.' });
+    } catch (error) {
+      this.fastify.log.error('❌ verifyParentPINResetCode error:', error);
+      return reply.status(500).send({ success: false, message: 'Verification failed. Please try again.' });
+    }
+  }
+
+  async sendParentPINResetEmail(email, name, code, authProvider) {
+    const resendApiKey = process.env.RESEND_API_KEY;
+    const fromEmail = process.env.EMAIL_FROM || 'StudyAI <noreply@study-mates.net>';
+
+    const providerNote = authProvider === 'apple'
+      ? '<p style="color: #6b7280; font-size: 13px;">This code is sent to the email associated with your Apple ID.</p>'
+      : authProvider === 'google'
+      ? '<p style="color: #6b7280; font-size: 13px;">This code is sent to your Google account email.</p>'
+      : '';
+
+    if (!resendApiKey) {
+      this.fastify.log.info(`
+📧 ===== PARENT PIN RESET CODE =====
+To: ${email}
+Hi ${name},
+Your parent PIN reset code is: ${code}
+This code will expire in 10 minutes.
+=====================================
+      `);
+      return;
+    }
+
+    try {
+      const { Resend } = require('resend');
+      const resend = new Resend(resendApiKey);
+
+      const { data, error } = await resend.emails.send({
+        from: fromEmail,
+        to: [email],
+        subject: 'Reset your Study Mates Parent PIN',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #7c3aed;">Reset Your Parent PIN</h2>
+            <p>Hi ${name},</p>
+            <p>We received a request to reset your Study Mates parental control PIN.</p>
+            ${providerNote}
+            <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; text-align: center; margin: 30px 0;">
+              <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px;">Your PIN reset code is:</p>
+              <p style="font-size: 32px; font-weight: bold; color: #7c3aed; letter-spacing: 8px; margin: 10px 0;">${code}</p>
+              <p style="margin: 10px 0 0 0; color: #6b7280; font-size: 14px;">This code will expire in 10 minutes</p>
+            </div>
+            <p style="color: #6b7280; font-size: 14px;">If you didn't request a PIN reset, please ignore this email. Your parent PIN will remain unchanged.</p>
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+            <p style="color: #9ca3af; font-size: 12px; text-align: center;">Best regards,<br>The Study Mates Team</p>
+          </div>
+        `,
+        text: `Hi ${name},\n\nYour Study Mates parent PIN reset code is: ${code}\n\nThis code will expire in 10 minutes.\n\nIf you didn't request a PIN reset, please ignore this email.\n\nBest regards,\nThe Study Mates Team`
+      });
+
+      if (error) {
+        throw new Error(`Resend API error: ${error.message}`);
+      }
+
+      this.fastify.log.info(`✅ Parent PIN reset email sent, Resend ID: ${data?.id}`);
+    } catch (error) {
+      this.fastify.log.error('❌ Failed to send parent PIN reset email:', error);
+      throw new Error('Failed to send parent PIN reset email.');
+    }
+  }
+
+  maskEmailAddress(email) {
+    const [local, domain] = email.split('@');
+    if (!domain) return email;
+    const maskedLocal = local.length <= 2
+      ? local[0] + '*'.repeat(Math.max(local.length - 1, 1))
+      : local[0] + '*'.repeat(local.length - 2) + local[local.length - 1];
+    return `${maskedLocal}@${domain}`;
   }
 }
 

@@ -16,6 +16,7 @@ struct DailyChallengeView: View {
     @Environment(\.colorScheme) private var colorScheme
     @StateObject private var themeManager = ThemeManager.shared
     @StateObject private var sessionManager = PracticeSessionManager.shared
+    @StateObject private var appState = AppState.shared
 
     // Question flow
     @State private var localQuestions: [QuestionGenerationService.GeneratedQuestion] = []
@@ -31,6 +32,12 @@ struct DailyChallengeView: View {
     @State private var aiFeedback: String? = nil
     @State private var isOrganizing = false
     @State private var hasOrganized = false
+    // Action buttons state
+    @State private var archivedQuestionIds: Set<String> = []
+    @State private var isArchivingCurrentQuestion = false
+    @State private var isRegradingCurrentQuestion = false
+    // Stores each answered question's result for backward review navigation
+    @State private var answeredResults: [String: (answer: String, isCorrect: Bool)] = [:]
 
     @AppStorage("daily_challenge_correct_count") private var savedCorrectCount = 0
 
@@ -38,10 +45,16 @@ struct DailyChallengeView: View {
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f.string(from: Date())
     }
 
+    // True if the user already collected today's reward (persisted via DailyChallengeHistory)
+    private var hasCollectedTodayReward: Bool {
+        DailyChallengeHistory.load().contains { $0.date == todayDateString }
+    }
+
     // Completion
     @State private var showingCompletion = false
     @State private var completionScale: CGFloat = 0.5
     @State private var starsShown = 0
+    @State private var showingGuestConversion = false
 
     // Animations
     @State private var questionOffset: CGFloat = 0
@@ -99,6 +112,12 @@ struct DailyChallengeView: View {
         }
         .navigationBarHidden(true)
         .onAppear { loadQuestions() }
+        .sheet(isPresented: $showingGuestConversion) {
+            GuestConversionView(
+                blockedFeature: "questions",
+                onDismiss: { showingGuestConversion = false }
+            )
+        }
     }
 
     // MARK: - Background
@@ -234,9 +253,20 @@ struct DailyChallengeView: View {
         let opts = (q.options ?? []).prefix(4)
         return LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
             ForEach(Array(opts.enumerated()), id: \.offset) { idx, option in
-                optionCard(label: letters[dailySafe: idx] ?? "\(idx+1)", text: option, q: q)
+                optionCard(label: letters[dailySafe: idx] ?? "\(idx+1)", text: option, displayText: strippedOptionPrefix(option), q: q)
             }
         }
+    }
+
+    // Strip leading "A. " / "A) " that the backend sometimes includes in option text.
+    private func strippedOptionPrefix(_ text: String) -> String {
+        let t = text.trimmingCharacters(in: .whitespaces)
+        guard t.count >= 3,
+              let first = t.unicodeScalars.first,
+              CharacterSet.letters.contains(first),
+              t.unicodeScalars.dropFirst().first.map({ $0 == "." || $0 == ")" }) == true
+        else { return text }
+        return String(t.dropFirst(2)).trimmingCharacters(in: .whitespaces)
     }
 
     private func tfOptions(_ q: QuestionGenerationService.GeneratedQuestion) -> some View {
@@ -246,7 +276,7 @@ struct DailyChallengeView: View {
         }
     }
 
-    private func optionCard(label: String, text: String, q: QuestionGenerationService.GeneratedQuestion) -> some View {
+    private func optionCard(label: String, text: String, displayText: String? = nil, q: QuestionGenerationService.GeneratedQuestion) -> some View {
         let isSelected = selectedOption == text
         let state = optionState(text, q: q)
 
@@ -262,11 +292,9 @@ struct DailyChallengeView: View {
                                       : isSelected ? themeManager.accentColor
                                       : themeManager.accentColor.opacity(0.12))
                     )
-                Text(text)
-                    .font(.system(size: 14, weight: .medium))
+                MarkdownLaTeXText(displayText ?? text, fontSize: 14, isStreaming: false)
                     .foregroundColor(state == .neutral ? themeManager.primaryText : state == .correct ? correctGreen : wrongRed)
                     .multilineTextAlignment(.leading)
-                    .lineLimit(3)
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 14)
@@ -338,7 +366,10 @@ struct DailyChallengeView: View {
 
     // MARK: - Feedback Panel
 
-    private var feedbackPanelHeight: CGFloat { aiFeedback != nil ? 200 : 160 }
+    private var feedbackPanelHeight: CGFloat {
+        let base: CGFloat = aiFeedback != nil ? 240 : 200
+        return currentIndex > 0 ? base + 28 : base
+    }
 
     private var feedbackPanel: some View {
         VStack(spacing: 0) {
@@ -363,7 +394,8 @@ struct DailyChallengeView: View {
 
     @ViewBuilder
     private var feedbackContent: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
+            // Row 1: result icon + text + continue/prev buttons
             HStack(alignment: .top, spacing: 14) {
                 Image(systemName: isCorrect ? "checkmark.circle.fill" : "xmark.circle.fill")
                     .font(.system(size: 32))
@@ -385,30 +417,115 @@ struct DailyChallengeView: View {
                         }
                     }
                     if let feedback = aiFeedback {
-                        Text(feedback)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .lineLimit(3)
+                        // Use MarkdownLaTeXText so LaTeX in AI explanations renders correctly
+                        MarkdownLaTeXText(feedback, fontSize: 13, isStreaming: false)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
 
                 Spacer(minLength: 8)
 
-                Button(action: advanceToNext) {
-                    Text(currentIndex < questions.count - 1
-                         ? NSLocalizedString("common.continue", value: "继续", comment: "")
-                         : NSLocalizedString("dailyChallenge.finish", value: "完成", comment: ""))
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 13)
-                        .background(isGradingWithAI
-                                    ? Color.gray
-                                    : (isCorrect ? correctGreen : wrongRed))
-                        .clipShape(Capsule())
+                VStack(spacing: 6) {
+                    Button(action: advanceToNext) {
+                        Text(currentIndex < questions.count - 1
+                             ? NSLocalizedString("common.continue", value: "继续", comment: "")
+                             : NSLocalizedString("dailyChallenge.finish", value: "完成", comment: ""))
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 13)
+                            .background(isGradingWithAI
+                                        ? Color.gray
+                                        : (isCorrect ? correctGreen : wrongRed))
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isGradingWithAI)
+
+                    if currentIndex > 0 {
+                        Button(action: goToPrevious) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 11, weight: .semibold))
+                                Text(NSLocalizedString("dailyChallenge.prevQuestion", comment: ""))
+                                    .font(.system(size: 13, weight: .medium))
+                            }
+                            .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
+            // Row 2: Ask AI / Regrade / Archive action buttons
+            HStack(spacing: 10) {
+                // Ask AI
+                Button(action: openFollowUpChat) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "message")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text(NSLocalizedString("practiceSheet.askAI", comment: ""))
+                            .font(.system(size: 13, weight: .semibold))
+                    }
+                    .foregroundColor(themeManager.accentColor)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(themeManager.accentColor.opacity(0.12))
+                    .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
-                .disabled(isGradingWithAI)
+
+                // Regrade (only meaningful for short-answer questions)
+                if let q = currentQuestion, q.type != .multipleChoice && q.type != .trueFalse {
+                    Button(action: { Task { await regradeCurrentQuestion() } }) {
+                        if isRegradingCurrentQuestion {
+                            ProgressView().progressViewStyle(.circular).tint(.purple).scaleEffect(0.8)
+                                .frame(width: 36, height: 36)
+                        } else {
+                            HStack(spacing: 6) {
+                                Image(systemName: "arrow.triangle.2.circlepath")
+                                    .font(.system(size: 14, weight: .semibold))
+                                Text(NSLocalizedString("practiceSheet.regrade", comment: ""))
+                                    .font(.system(size: 13, weight: .semibold))
+                            }
+                            .foregroundColor(.purple)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(Color.purple.opacity(0.12))
+                            .clipShape(Capsule())
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isRegradingCurrentQuestion)
+                }
+
+                // Archive
+                Button(action: { Task { await archiveCurrentQuestion() } }) {
+                    let qId = currentQuestion?.id.uuidString ?? ""
+                    let isArchived = archivedQuestionIds.contains(qId)
+                    if isArchivingCurrentQuestion {
+                        ProgressView().progressViewStyle(.circular)
+                            .tint(isArchived ? .white : themeManager.accentColor)
+                            .scaleEffect(0.8)
+                            .frame(width: 36, height: 36)
+                    } else {
+                        HStack(spacing: 6) {
+                            Image(systemName: isArchived ? "books.vertical.fill" : "books.vertical")
+                                .font(.system(size: 14, weight: .semibold))
+                            Text(NSLocalizedString("practiceSheet.archive", comment: ""))
+                                .font(.system(size: 13, weight: .semibold))
+                        }
+                        .foregroundColor(isArchived ? .white : themeManager.accentColor)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(isArchived ? themeManager.accentColor : themeManager.accentColor.opacity(0.12))
+                        .clipShape(Capsule())
+                    }
+                }
+                .buttonStyle(.plain)
+                .disabled(isArchivingCurrentQuestion)
+
+                Spacer()
             }
         }
     }
@@ -418,7 +535,31 @@ struct DailyChallengeView: View {
     private var completionScreen: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 32) {
-                Spacer(minLength: 40)
+                // Back button to review answered questions
+                HStack {
+                    Button(action: {
+                        withAnimation(.spring()) { showingCompletion = false }
+                        restoreQuestionState(at: currentIndex)
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 13, weight: .semibold))
+                            Text(NSLocalizedString("dailyChallenge.reviewAnswers", comment: ""))
+                                .font(.system(size: 14, weight: .semibold))
+                        }
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(Color.secondary.opacity(0.1))
+                        .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    Spacer()
+                }
+                .padding(.horizontal, 32)
+                .padding(.top, 16)
+
+                Spacer(minLength: 8)
 
                 // Stars
                 HStack(spacing: 8) {
@@ -472,7 +613,9 @@ struct DailyChallengeView: View {
                         }
                         Text(isOrganizing
                              ? NSLocalizedString("dailyChallenge.analyzing", value: "分析中…", comment: "")
-                             : NSLocalizedString("dailyChallenge.collectReward", value: "领取奖励", comment: ""))
+                             : hasCollectedTodayReward
+                               ? NSLocalizedString("dailyChallenge.close", comment: "")
+                               : NSLocalizedString("dailyChallenge.collectReward", value: "领取奖励", comment: ""))
                             .font(.headline)
                             .foregroundColor(.white)
                     }
@@ -487,6 +630,23 @@ struct DailyChallengeView: View {
                 .padding(.horizontal, 32)
                 .scaleEffect(completionScale)
                 .animation(.spring(response: 0.5, dampingFraction: 0.6).delay(0.35), value: completionScale)
+
+                // Guest nudge: save progress by creating a free account
+                if AuthenticationService.shared.currentUser?.isAnonymous == true {
+                    Button(action: { showingGuestConversion = true }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "person.badge.plus")
+                                .font(.system(size: 14))
+                            Text(NSLocalizedString("guestConversion.dailyChallengeNudge", value: "Create account to save your streak", comment: ""))
+                                .font(.system(size: 14, weight: .medium))
+                        }
+                        .foregroundColor(Color(hex: "7EC8E3"))
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 4)
+                    .scaleEffect(completionScale)
+                    .animation(.spring(response: 0.5, dampingFraction: 0.6).delay(0.45), value: completionScale)
+                }
 
                 Spacer(minLength: 40)
             }
@@ -520,7 +680,17 @@ struct DailyChallengeView: View {
         answeredIds = completed
         correctCount = session.answers.values.filter { ($0["is_correct"] as? Bool) == true }.count
         currentIndex = min(qs.firstIndex(where: { !completed.contains($0.id.uuidString) }) ?? 0, qs.count - 1)
-        if completed.count == qs.count { showingCompletion = true }
+        // Seed per-question results from persisted session so back-navigation works on resume
+        for (qId, ansDict) in session.answers {
+            if let answer = ansDict["answer"] as? String,
+               let correct = ansDict["is_correct"] as? Bool {
+                answeredResults[qId] = (answer: answer, isCorrect: correct)
+            }
+        }
+        if completed.count == qs.count {
+            restoreQuestionState(at: currentIndex)
+            showingCompletion = true
+        }
     }
 
     private func tapOption(_ option: String, q: QuestionGenerationService.GeneratedQuestion) {
@@ -575,6 +745,7 @@ struct DailyChallengeView: View {
                 aiFeedback = nil
             }
             let qId = q.id.uuidString
+            answeredResults[qId] = (answer: answer, isCorrect: isCorrect)
             if !answeredIds.contains(qId) {
                 answeredIds.insert(qId)
                 if isCorrect { correctCount += 1 }
@@ -593,6 +764,7 @@ struct DailyChallengeView: View {
         hasAnswered = true
 
         let qId = q.id.uuidString
+        answeredResults[qId] = (answer: answer, isCorrect: correct)
         if !answeredIds.contains(qId) {
             answeredIds.insert(qId)
             if correct { correctCount += 1 }
@@ -644,7 +816,142 @@ struct DailyChallengeView: View {
         }
     }
 
+    private func goToPrevious() {
+        let prev = currentIndex - 1
+        guard prev >= 0 else { return }
+        withAnimation(.easeInOut(duration: 0.18)) {
+            questionOffset = 30; questionOpacity = 0
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+            currentIndex = prev
+            restoreQuestionState(at: prev)
+            questionOffset = -30
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                questionOffset = 0; questionOpacity = 1
+            }
+        }
+    }
+
+    // Restores hasAnswered / selectedOption / isCorrect for a previously answered question.
+    private func restoreQuestionState(at index: Int) {
+        guard index < questions.count else { return }
+        let q = questions[index]
+        if let result = answeredResults[q.id.uuidString] {
+            selectedOption = result.answer
+            isCorrect = result.isCorrect
+            hasAnswered = true
+            aiFeedback = nil
+        }
+    }
+
+    // MARK: - Action Buttons
+
+    private func openFollowUpChat() {
+        guard let q = currentQuestion else { return }
+        let savedAnswer = answeredResults[q.id.uuidString]?.answer ?? ""
+        let explanation = aiFeedback ?? q.explanation
+        let message = """
+        \(NSLocalizedString("proMode.askAIPrompt", comment: ""))
+
+        \(q.question)
+
+        \(NSLocalizedString("proMode.myAnswer", comment: "")): \(savedAnswer)
+
+        \(NSLocalizedString("proMode.teacherFeedback", comment: "")): \(explanation)
+        """
+        appState.navigateToChatWithMessage(message, subject: session.subject, useDeepMode: false)
+        dismiss()
+    }
+
+    private func regradeCurrentQuestion() async {
+        guard let q = currentQuestion, hasAnswered else { return }
+        let savedAnswer = answeredResults[q.id.uuidString]?.answer ?? ""
+        guard !savedAnswer.isEmpty else { return }
+        isRegradingCurrentQuestion = true
+        defer { isRegradingCurrentQuestion = false }
+        do {
+            let response = try await NetworkService.shared.gradeSingleQuestion(
+                questionText: q.question,
+                studentAnswer: savedAnswer,
+                subject: q.topic.isEmpty ? session.subject : q.topic,
+                questionType: q.type.rawValue,
+                contextImageBase64: nil,
+                parentQuestionContent: nil,
+                useDeepReasoning: true
+            )
+            guard let grade = response.grade else { return }
+            let wasCorrect = isCorrect
+            isCorrect = grade.isCorrect
+            aiFeedback = grade.feedback
+            answeredResults[q.id.uuidString] = (answer: savedAnswer, isCorrect: grade.isCorrect)
+            if wasCorrect && !grade.isCorrect { correctCount = max(0, correctCount - 1) }
+            else if !wasCorrect && grade.isCorrect { correctCount += 1 }
+            sessionManager.updateProgress(sessionId: session.id, completedQuestionId: q.id.uuidString,
+                                          answer: savedAnswer, isCorrect: grade.isCorrect)
+        } catch {}
+        let gen = UINotificationFeedbackGenerator()
+        gen.notificationOccurred(isCorrect ? .success : .error)
+    }
+
+    private func archiveCurrentQuestion() async {
+        guard let q = currentQuestion else { return }
+        let qId = q.id.uuidString
+        guard !archivedQuestionIds.contains(qId) else { return }
+        isArchivingCurrentQuestion = true
+        defer { isArchivingCurrentQuestion = false }
+        let savedAnswer = answeredResults[qId]?.answer ?? ""
+        let correct = answeredResults[qId]?.isCorrect ?? false
+        let parsedQ = ParsedQuestion(
+            questionText: q.question,
+            answerText: q.correctAnswer,
+            studentAnswer: savedAnswer.isEmpty ? nil : savedAnswer,
+            correctAnswer: q.correctAnswer,
+            grade: correct ? "CORRECT" : "INCORRECT",
+            pointsEarned: correct ? Float(q.points ?? 1) : 0,
+            pointsPossible: Float(q.points ?? 1),
+            feedback: q.explanation.isEmpty ? nil : q.explanation,
+            questionType: q.type.rawValue,
+            options: q.options
+        )
+        let request = QuestionArchiveRequest(
+            questions: [parsedQ],
+            selectedQuestionIndices: [0],
+            detectedSubject: session.subject,
+            subjectConfidence: 1.0,
+            originalImageUrl: nil,
+            processingTime: 0,
+            userNotes: [""],
+            userTags: [[]],
+            source: "daily_challenge"
+        )
+        do {
+            let archived = try await QuestionArchiveService.shared.archiveQuestions(request)
+            if let archivedQ = archived.first, !correct {
+                let topic = q.topic.isEmpty ? session.subject : q.topic
+                ErrorAnalysisQueueService.shared.queueErrorAnalysisAfterGrading(
+                    sessionId: session.id,
+                    wrongQuestions: [[
+                        "id": archivedQ.id, "questionText": q.question,
+                        "answerText": q.correctAnswer, "studentAnswer": savedAnswer,
+                        "subject": session.subject, "baseBranch": topic,
+                        "weaknessKey": "\(session.subject)/\(topic)/\(q.type.rawValue)"
+                    ]]
+                )
+            }
+            archivedQuestionIds.insert(qId)
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+        } catch {
+            UINotificationFeedbackGenerator().notificationOccurred(.error)
+        }
+    }
+
     private func organizeAndFinish() {
+        guard !isOrganizing else { return }
+        // Already collected — just close without awarding points again
+        if hasCollectedTodayReward {
+            dismiss()
+            return
+        }
         guard !hasOrganized else { dismiss(); return }
         hasOrganized = true
         isOrganizing = true
