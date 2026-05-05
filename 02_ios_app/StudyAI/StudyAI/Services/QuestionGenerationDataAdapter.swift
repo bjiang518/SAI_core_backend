@@ -17,19 +17,26 @@ class QuestionGenerationDataAdapter {
 
     /// Create a user profile from available app data
     func createUserProfile() -> QuestionGenerationService.UserProfile {
-        // Get user profile data from ProfileService if available
         let profileService = ProfileService.shared
 
         let grade = profileService.currentProfile?.gradeLevel ?? "High School"
         let location = profileService.currentProfile?.displayLocation ?? "US"
 
-        // Create preferences based on user's activity
         var preferences: [String: Any] = [:]
-
-        // Add learning preferences if we can determine them
         preferences["preferred_question_types"] = ["multiple_choice", "short_answer"]
         preferences["difficulty_preference"] = "adaptive"
-        preferences["subject_interests"] = profileService.currentProfile?.favoriteSubjects ?? ["Mathematics"]
+
+        // In a child session, use the child's locally stored subjects and learning style
+        // instead of the parent's server profile data.
+        if UserDefaults.standard.bool(forKey: "isChildSessionActive"),
+           let childId = AuthenticationService.shared.currentUser?.id {
+            let childData = UserDefaults.standard.data(forKey: "child_local_\(childId)")
+            let childLocal = childData.flatMap { try? JSONDecoder().decode(ChildLocalProfile.self, from: $0) }
+            let childSubjects = childLocal?.subjects.isEmpty == false ? childLocal!.subjects : nil
+            preferences["subject_interests"] = childSubjects ?? profileService.currentProfile?.favoriteSubjects ?? ["Mathematics"]
+        } else {
+            preferences["subject_interests"] = profileService.currentProfile?.favoriteSubjects ?? ["Mathematics"]
+        }
 
         return QuestionGenerationService.UserProfile(
             grade: grade,

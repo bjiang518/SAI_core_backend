@@ -105,16 +105,28 @@ module.exports = async function (fastify) {
         return reply.send({ success: false, error: 'ALREADY_REDEEMED' });
       }
 
-      // Always grant premium (regardless of what tier is on the promo code)
-      const grantedTier = 'premium';
+      // Use the tier specified on the promo code; fall back to 'premium' for legacy codes
+      const TIER_RANK = { free: 0, premium: 1, premium_plus: 2 };
+      const codeTier = promo.tier || 'premium';
+      const isDowngrade = codeTier === 'free';
 
-      // Extend from current expiry if user is already premium, otherwise from now
+      // Anti-downgrade guard: only bypass when the code is explicitly a downgrade code
       const userResult = await db.query(`SELECT tier, tier_expires_at FROM users WHERE id = $1`, [userId]);
       const user = userResult.rows[0];
-      const baseDate = (user?.tier === grantedTier && user?.tier_expires_at && new Date(user.tier_expires_at) > new Date())
-        ? new Date(user.tier_expires_at)
-        : new Date();
-      const tierExpiresAt = new Date(baseDate.getTime() + promo.duration_days * 86400_000);
+      const userTierActive = user?.tier_expires_at && new Date(user.tier_expires_at) > new Date();
+      const userRank = TIER_RANK[user?.tier] ?? 0;
+      const codeRank = TIER_RANK[codeTier] ?? 1;
+      const grantedTier = (!isDowngrade && userTierActive && userRank > codeRank) ? user.tier : codeTier;
+
+      let tierExpiresAt;
+      if (isDowngrade) {
+        tierExpiresAt = null; // Free tier has no expiry
+      } else {
+        // Extend from current expiry only when granting the same tier; otherwise start from now
+        const sameAsCurrent = userTierActive && user.tier === grantedTier;
+        const baseDate = sameAsCurrent ? new Date(user.tier_expires_at) : new Date();
+        tierExpiresAt = new Date(baseDate.getTime() + promo.duration_days * 86400_000);
+      }
 
       // Atomically record redemption + increment counter + upgrade tier
       await db.query('BEGIN');
@@ -134,14 +146,19 @@ module.exports = async function (fastify) {
         throw innerErr;
       }
 
-      fastify.log.info(`[redeem-promo-self] user=${userId} code=${normalizedCode} expires=${tierExpiresAt.toISOString()}`);
+      fastify.log.info(`[redeem-promo-self] user=${userId} code=${normalizedCode} tier=${grantedTier} expires=${tierExpiresAt?.toISOString() ?? 'none'}`);
+
+      const tierLabel = grantedTier === 'premium_plus' ? 'Ultra' : grantedTier === 'free' ? 'Free' : 'Premium';
+      const successMessage = isDowngrade
+        ? '✅ Your subscription has been cancelled. You are now on the Free plan.'
+        : `🎉 ${tierLabel} activated for ${promo.duration_days} days!`;
 
       return reply.send({
         success: true,
         data: {
           tier: grantedTier,
-          tier_expires_at: tierExpiresAt.toISOString(),
-          message: `🎉 Premium activated for ${promo.duration_days} days!`,
+          tier_expires_at: tierExpiresAt?.toISOString() ?? null,
+          message: successMessage,
         },
       });
     } catch (error) {

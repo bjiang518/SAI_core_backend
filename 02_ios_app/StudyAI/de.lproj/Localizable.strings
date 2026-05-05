@@ -166,6 +166,7 @@
 
 // Common
 "common.error" = "Error";
+"common.or" = "oder";
 
 // AI Homework
 "aiHomework.title" = "AI Startseitework";
@@ -482,8 +483,15 @@
 "auth.confirmYourPassword" = "Confirm your password";
 "auth.createAccount" = "Create Konto";
 "auth.signup.error" = "Sign Up Error";
-"auth.passwordRequirement.minLength" = "At least 6 characters";
+"auth.passwordRequirement.minLength" = "Mindestens 8 Zeichen";
 "auth.passwordRequirement.match" = "Passwords match";
+"auth.passwordMustInclude" = "Muss A-z, 0-9, !@#$ enthalten";
+"auth.signup.createButton" = "Konto erstellen";
+"auth.passwordRequirements" = "Passwortanforderungen:";
+"auth.passwordRequirement.uppercase" = "Enthält Großbuchstaben (A-Z)";
+"auth.passwordRequirement.lowercase" = "Enthält Kleinbuchstaben (a-z)";
+"auth.passwordRequirement.number" = "Enthält Zahl (0-9)";
+"auth.passwordRequirement.symbol" = "Enthält Symbol (!@#$%^&*)";
 
 // Error Messages
 "error.offline" = "No internet connection";
@@ -1076,6 +1084,9 @@
 "chat.diagram.regenerating" = "Regenerating diagram...";
 "chat.diagram.generating" = "Generating diagram...";
 "chat.video.searching" = "Lernvideo suchen...";
+"chat.sessionInfo.title" = "Sitzungsinfo";
+"video.inAppBlocked" = "Dieses Video kann nicht in der App abgespielt werden.";
+"video.openInYouTube" = "In YouTube öffnen";
 "chat.stopGenerating" = "Generierung stoppen";
 
 // Input
@@ -2799,6 +2810,8 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "promo.placeholder" = "CODE EINGEBEN";
 "promo.button.apply" = "Code einlösen";
 "promo.success" = "Premium aktiviert\! Gültig bis %@.";
+"promo.success.ultra" = "Ultra aktiviert\! Gültig bis %@.";
+"promo.success.downgrade" = "Abonnement gekündigt. Sie sind jetzt im Free-Plan.";
 "promo.error.invalid" = "Dieser Code ist ungültig oder abgelaufen.";
 "promo.error.alreadyRedeemed" = "Du hast diesen Code bereits eingelöst.";
 "promo.error.expired" = "Dieser Promo-Code ist abgelaufen.";
@@ -3044,3 +3057,57 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "points.earn.dailyChallenge.result" = "%d richtig";
 "notification.dailyChallenge.title" = "📚 Tägliche 3 Fragen bereit!";
 "notification.dailyChallenge.body" = "Die heutigen Übungsfragen sind bereit. Beantworte schnell 3 Fragen!";
+
+// MARK: - Family & Kids Accounts
+"family.title" = "Kinder-Konten";
+"family.headerTitle" = "Familienkonten";
+"family.headerSub" = "%d / 3 Kinder-Konten";
+"family.removeTitle" = "Kinder-Konto entfernen?";
+"family.removeMessage" = "Das Konto wird getrennt. Die Daten des Kindes bleiben erhalten.";
+"family.remove" = "Entfernen";
+"family.switch" = "Wechseln";
+"family.restricted" = "Unter 13 Jahren";
+"family.empty" = "Noch keine Kinder-Konten";
+"family.addChild" = "Kinder-Konto hinzufügen";
+"family.pinTitle" = "Zu %@ wechseln";
+"family.pinSubtitle" = "Gib deine Eltern-PIN ein, um fortzufahren";
+"family.pinPlaceholder" = "6-stellige PIN";
+"family.confirm" = "Bestätigen";
+"family.pinError" = "Falsche PIN";
+"family.childSessionBanner" = "%@s Konto wird angezeigt";
+"family.switchBack" = "Zurück zu meinem Konto";
+"addChild.title" = "Neues Kinder-Konto";
+"addChild.nameLabel" = "Name des Kindes";
+"addChild.namePlaceholder" = "z.B. Emma";
+"addChild.ageLabel" = "Alter (optional)";
+"addChild.agePlaceholder" = "z.B. 10";
+"addChild.coppaNote" = "COPPA: Konten unter 13 Jahren werden eingeschränkt";
+"addChild.gradeLabel" = "Klassenstufe (optional)";
+"addChild.gradeNone" = "Nicht angegeben";
+"addChild.save" = "Konto erstellen";
+"family.edit" = "Bearbeiten";
+"family.switchTo" = "Zu %@ wechseln";
+"editChild.title" = "Kind bearbeiten";
+"editChild.tapAvatar" = "Tippen um Avatar zu ändern";
+"editChild.chooseAvatar" = "Avatar auswählen";
+"editChild.section.basic" = "Grundinfo";
+"editChild.name" = "Name";
+"editChild.age" = "Alter";
+"editChild.optional" = "Optional";
+"editChild.grade" = "Klasse";
+"editChild.notSpecified" = "Nicht angegeben";
+"editChild.section.personal" = "Pers. Info";
+"editChild.gender" = "Geschlecht";
+"editChild.male" = "Männlich";
+"editChild.female" = "Weiblich";
+"editChild.genderOther" = "Andere";
+"editChild.language" = "Sprache";
+"editChild.section.learning" = "Lernen";
+"editChild.learningStyle" = "Lernstil";
+"editChild.subjects" = "Fächer";
+"editChild.saveError" = "Serveraktualisierung fehlgeschlagen. Bitte Verbindung prüfen und erneut versuchen.";
+"editChild.ageFormat" = "%d J.";
+"settings.kidsAccounts" = "Kinder-Konten";
+"settings.ultraBadge" = "Ultra";
+"common.remove" = "Entfernen";
+"guestConversion.loginSuccess" = "Erfolgreich angemeldet!";

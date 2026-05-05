@@ -2323,7 +2323,7 @@ struct SessionChatView: View {
                 Spacer()
             }
             .padding()
-            .navigationTitle("Session Info")
+            .navigationTitle(NSLocalizedString("chat.sessionInfo.title", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -2944,10 +2944,10 @@ struct VideoRowView: View {
                         Image(systemName: "exclamationmark.circle")
                             .font(.system(size: 36))
                             .foregroundColor(.secondary)
-                        Text("This video can't be played in-app.")
+                        Text(NSLocalizedString("video.inAppBlocked", comment: ""))
                             .font(.system(size: 13))
                             .foregroundColor(.secondary)
-                        Button("Open in YouTube") {
+                        Button(NSLocalizedString("video.openInYouTube", comment: "")) {
                             let appURL = URL(string: "youtube://\(video.videoId)")!
                             let webURL = URL(string: video.url)!
                             if UIApplication.shared.canOpenURL(appURL) {

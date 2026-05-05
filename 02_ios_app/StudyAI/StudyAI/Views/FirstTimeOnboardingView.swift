@@ -206,7 +206,7 @@ struct FirstTimeOnboardingView: View {
                 onDismiss: { showingUpgradeFromOnboarding = false }
             )
         }
-        .alert("Error", isPresented: $showingError) { Button("OK") {} } message: { Text(errorMessage) }
+        .alert(NSLocalizedString("common.error", comment: ""), isPresented: $showingError) { Button(NSLocalizedString("common.ok", comment: "")) {} } message: { Text(errorMessage) }
         .onAppear {
             let saved = UserDefaults.standard.string(forKey: "appLanguage")
             languagePreference = saved ?? deviceLanguageCode

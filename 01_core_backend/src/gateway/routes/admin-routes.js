@@ -121,30 +121,33 @@ module.exports = async function (fastify, opts) {
     try {
       // Real DB queries in parallel
       const [usersResult, weekAgoResult, sessionsResult, dauResult, wauResult, mauResult, churnResult, newUsersLastWeekResult, tierDistResult, pointsResult, xpResult, spendResult, iosVersionResult] = await Promise.all([
-        db.query('SELECT COUNT(*) as total FROM users'),
-        db.query("SELECT COUNT(*) as total FROM users WHERE created_at <= NOW() - INTERVAL '7 days'"),
+        db.query(`SELECT COUNT(*) as total FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE p.parent_id IS NULL`),
+        db.query(`SELECT COUNT(*) as total FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE u.created_at <= NOW() - INTERVAL '7 days' AND p.parent_id IS NULL`),
         db.query("SELECT COUNT(*) as total FROM sessions WHERE DATE(created_at) = CURRENT_DATE"),
         db.query("SELECT COUNT(DISTINCT user_id) as total FROM sessions WHERE DATE(created_at) = CURRENT_DATE"),
         db.query("SELECT COUNT(DISTINCT user_id) as total FROM sessions WHERE created_at >= NOW() - INTERVAL '7 days'"),
         db.query("SELECT COUNT(DISTINCT user_id) as total FROM sessions WHERE created_at >= NOW() - INTERVAL '30 days'"),
         db.query(`
           SELECT COUNT(*) as total FROM users u
-          WHERE GREATEST(
+          LEFT JOIN profiles p ON p.user_id = u.id
+          WHERE p.parent_id IS NULL
+          AND u.is_anonymous = false
+          AND GREATEST(
             u.last_login_at,
             (SELECT MAX(s.created_at)  FROM sessions s   WHERE s.user_id = u.id),
             (SELECT MAX(us.created_at) FROM user_sessions us WHERE us.user_id = u.id),
             (SELECT MAX(dsa.activity_date) FROM daily_subject_activities dsa WHERE dsa.user_id = u.id)
           ) < NOW() - INTERVAL '7 days'
-          AND u.is_anonymous = false
         `),
-        db.query("SELECT COUNT(*) as total FROM users WHERE created_at >= NOW() - INTERVAL '7 days'"),
+        db.query(`SELECT COUNT(*) as total FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE u.created_at >= NOW() - INTERVAL '7 days' AND p.parent_id IS NULL`),
         db.query(`
           SELECT
-            COUNT(*) FILTER (WHERE tier = 'premium')::int            AS premium_count,
-            COUNT(*) FILTER (WHERE tier = 'premium_plus')::int       AS premium_plus_count,
-            COUNT(*) FILTER (WHERE (tier = 'free' OR tier IS NULL) AND is_anonymous = false)::int AS free_count,
-            COUNT(*) FILTER (WHERE is_anonymous = true)::int         AS guest_count
-          FROM users
+            COUNT(*) FILTER (WHERE u.tier = 'premium'      AND p.parent_id IS NULL)::int AS premium_count,
+            COUNT(*) FILTER (WHERE u.tier = 'premium_plus' AND p.parent_id IS NULL)::int AS premium_plus_count,
+            COUNT(*) FILTER (WHERE (u.tier = 'free' OR u.tier IS NULL) AND u.is_anonymous = false AND p.parent_id IS NULL)::int AS free_count,
+            COUNT(*) FILTER (WHERE u.is_anonymous = true   AND p.parent_id IS NULL)::int AS guest_count
+          FROM users u
+          LEFT JOIN profiles p ON p.user_id = u.id
         `),
         // Points economy — earn events are never written to point_transactions,
         // so we derive "earned" from users.points_balance (current holdings)
@@ -337,12 +340,15 @@ module.exports = async function (fastify, opts) {
             ELSE 'free'
           END as "subscriptionStatus"
         FROM users u
+        LEFT JOIN profiles p ON p.user_id = u.id
       `;
       const params = [];
 
       if (search) {
-        query += ` WHERE u.email ILIKE $1 OR u.name ILIKE $1`;
+        query += ` WHERE (u.email ILIKE $1 OR u.name ILIKE $1) AND (p.parent_id IS NULL)`;
         params.push(`%${search}%`);
+      } else {
+        query += ` WHERE p.parent_id IS NULL`;
       }
 
       query += ` ORDER BY u.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
@@ -350,10 +356,10 @@ module.exports = async function (fastify, opts) {
 
       const result = await db.query(query, params);
 
-      let countQuery = 'SELECT COUNT(*) as total FROM users';
+      let countQuery = `SELECT COUNT(*) as total FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE p.parent_id IS NULL`;
       const countParams = [];
       if (search) {
-        countQuery += ' WHERE email ILIKE $1 OR name ILIKE $1';
+        countQuery += ' AND (u.email ILIKE $1 OR u.name ILIKE $1)';
         countParams.push(`%${search}%`);
       }
       const countResult = await db.query(countQuery, countParams);
@@ -1081,12 +1087,13 @@ module.exports = async function (fastify, opts) {
     if (!/^[A-Z0-9_-]{3,50}$/.test(normalizedCode)) {
       return reply.code(400).send({ success: false, error: 'code must be 3–50 alphanumeric characters (A-Z, 0-9, _, -)' });
     }
-    const validTiers = ['premium', 'premium_plus'];
+    const validTiers = ['premium', 'premium_plus', 'free'];
     if (!validTiers.includes(tier)) {
       return reply.code(400).send({ success: false, error: `tier must be one of: ${validTiers.join(', ')}` });
     }
-    const days = parseInt(duration_days);
-    if (isNaN(days) || days < 1 || days > 3650) {
+    // Downgrade-to-free codes don't need a meaningful duration, but the column is NOT NULL so default to 0
+    const days = tier === 'free' ? 0 : parseInt(duration_days);
+    if (tier !== 'free' && (isNaN(days) || days < 1 || days > 3650)) {
       return reply.code(400).send({ success: false, error: 'duration_days must be between 1 and 3650' });
     }
 

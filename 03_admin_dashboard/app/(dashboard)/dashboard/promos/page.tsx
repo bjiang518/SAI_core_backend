@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge'
 import { Copy, RefreshCw, AlertCircle, Tag } from 'lucide-react'
 import { promoCodesAPI } from '@/lib/api'
 
+type TierOption = 'premium' | 'premium_plus' | 'free'
+
 interface PromoCode {
   id: number
   code: string
@@ -24,6 +26,18 @@ interface PromoCode {
   }>
 }
 
+const TIER_CONFIG: Record<TierOption, { label: string; badge: string; color: string; description: string }> = {
+  premium:      { label: 'Premium',          badge: 'bg-blue-100 text-blue-800',   color: 'border-blue-200',  description: 'Upgrade user to Premium' },
+  premium_plus: { label: 'Ultra',            badge: 'bg-yellow-100 text-yellow-800', color: 'border-yellow-200', description: 'Upgrade user to Ultra (premium_plus)' },
+  free:         { label: 'Downgrade → Free', badge: 'bg-orange-100 text-orange-800', color: 'border-orange-200', description: 'Cancel subscription, revert to Free' },
+}
+
+function TierBadge({ tier }: { tier: string }) {
+  const cfg = TIER_CONFIG[tier as TierOption]
+  if (!cfg) return <span className="capitalize text-muted-foreground">{tier}</span>
+  return <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${cfg.badge}`}>{cfg.label}</span>
+}
+
 export default function PromosPage() {
   const [codes, setCodes] = useState<PromoCode[]>([])
   const [loading, setLoading] = useState(true)
@@ -33,6 +47,7 @@ export default function PromosPage() {
 
   // Create form state
   const [newCode, setNewCode] = useState('')
+  const [tier, setTier] = useState<TierOption>('premium')
   const [durationDays, setDurationDays] = useState(30)
   const [maxUses, setMaxUses] = useState<number | ''>('')
   const [unlimited, setUnlimited] = useState(false)
@@ -40,6 +55,8 @@ export default function PromosPage() {
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const [createSuccess, setCreateSuccess] = useState(false)
+
+  const isDowngrade = tier === 'free'
 
   const fetchCodes = async () => {
     setLoading(true)
@@ -93,7 +110,8 @@ export default function PromosPage() {
     try {
       const payload = {
         code: newCode.trim().toUpperCase(),
-        duration_days: durationDays,
+        tier,
+        duration_days: isDowngrade ? 0 : durationDays,
         max_uses: unlimited ? null : (maxUses === '' ? null : Number(maxUses)),
         expires_at: expiresAt || null,
       }
@@ -101,6 +119,7 @@ export default function PromosPage() {
       if (res.success) {
         setCreateSuccess(true)
         setNewCode('')
+        setTier('premium')
         setDurationDays(30)
         setMaxUses('')
         setUnlimited(false)
@@ -133,7 +152,7 @@ export default function PromosPage() {
             <Tag className="h-7 w-7" />
             Promo Codes
           </h1>
-          <p className="text-muted-foreground mt-1">Create and manage promotional codes for Premium access</p>
+          <p className="text-muted-foreground mt-1">Create and manage promotional codes for Premium, Ultra, or Free tier</p>
         </div>
         <button
           onClick={fetchCodes}
@@ -175,6 +194,7 @@ export default function PromosPage() {
                   <tr className="border-b text-left">
                     <th className="pb-3 pr-4 font-medium text-muted-foreground">Code</th>
                     <th className="pb-3 pr-4 font-medium text-muted-foreground">Tier</th>
+                    <th className="pb-3 pr-4 font-medium text-muted-foreground">Duration</th>
                     <th className="pb-3 pr-4 font-medium text-muted-foreground">Uses</th>
                     <th className="pb-3 pr-4 font-medium text-muted-foreground">Expires</th>
                     <th className="pb-3 pr-4 font-medium text-muted-foreground">Status</th>
@@ -185,7 +205,10 @@ export default function PromosPage() {
                   {codes.map((code) => (
                     <tr key={code.id} className="py-3">
                       <td className="py-3 pr-4 font-mono font-semibold">{code.code}</td>
-                      <td className="py-3 pr-4 capitalize">{code.tier}</td>
+                      <td className="py-3 pr-4"><TierBadge tier={code.tier} /></td>
+                      <td className="py-3 pr-4 text-muted-foreground">
+                        {code.tier === 'free' ? '—' : `${code.duration_days}d`}
+                      </td>
                       <td className="py-3 pr-4">
                         {code.uses_count} / {code.max_uses ?? '∞'}
                       </td>
@@ -245,19 +268,46 @@ export default function PromosPage() {
               />
             </div>
 
-            {/* Duration */}
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Duration (days) *</label>
-              <input
-                type="number"
-                value={durationDays}
-                onChange={(e) => setDurationDays(Math.max(1, parseInt(e.target.value) || 1))}
-                min={1}
-                max={3650}
-                required
-                className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+            {/* Tier selector */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Tier *</label>
+              <div className="grid grid-cols-3 gap-2">
+                {(Object.entries(TIER_CONFIG) as [TierOption, typeof TIER_CONFIG[TierOption]][]).map(([value, cfg]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setTier(value)}
+                    className={`px-3 py-2 text-xs font-medium rounded-lg border-2 transition-colors text-left ${
+                      tier === value ? `${cfg.color} bg-white shadow-sm` : 'border-gray-200 text-muted-foreground hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="font-semibold">{cfg.label}</div>
+                    <div className="text-[11px] mt-0.5 font-normal opacity-70">{cfg.description}</div>
+                  </button>
+                ))}
+              </div>
+              {isDowngrade && (
+                <p className="text-xs text-orange-700 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2">
+                  ⚠️ This code will immediately cancel the user&apos;s paid subscription and revert them to the Free plan. Duration is not applicable.
+                </p>
+              )}
             </div>
+
+            {/* Duration — hidden for downgrade */}
+            {!isDowngrade && (
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Duration (days) *</label>
+                <input
+                  type="number"
+                  value={durationDays}
+                  onChange={(e) => setDurationDays(Math.max(1, parseInt(e.target.value) || 1))}
+                  min={1}
+                  max={3650}
+                  required
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            )}
 
             {/* Max uses */}
             <div className="space-y-1">
@@ -295,11 +345,6 @@ export default function PromosPage() {
               />
             </div>
 
-            {/* Tier — locked to Premium */}
-            <div className="px-3 py-2 bg-gray-50 rounded-lg text-sm text-muted-foreground">
-              Tier: <span className="font-medium text-foreground">Premium</span> (fixed)
-            </div>
-
             {createError && (
               <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
                 <AlertCircle className="h-4 w-4 shrink-0" />
@@ -326,3 +371,5 @@ export default function PromosPage() {
     </div>
   )
 }
+
+

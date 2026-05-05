@@ -168,6 +168,7 @@
 "common.done" = "完成";
 "common.ok" = "确定";
 "common.error" = "错误";
+"common.or" = "或";
 
 // AI Homework
 "aiHomework.title" = "AI作业";
@@ -554,8 +555,15 @@
 "auth.confirmYourPassword" = "确认您的密码";
 "auth.createAccount" = "建立帐户";
 "auth.signup.error" = "注册错误";
-"auth.passwordRequirement.minLength" = "至少6个字元";
+"auth.passwordRequirement.minLength" = "至少8个字符";
 "auth.passwordRequirement.match" = "密码相符";
+"auth.passwordMustInclude" = "需包含 A-z、0-9、!@#$";
+"auth.signup.createButton" = "创建账户";
+"auth.passwordRequirements" = "密码要求：";
+"auth.passwordRequirement.uppercase" = "包含大写字母（A-Z）";
+"auth.passwordRequirement.lowercase" = "包含小写字母（a-z）";
+"auth.passwordRequirement.number" = "包含数字（0-9）";
+"auth.passwordRequirement.symbol" = "包含符号（!@#$%^&*）";
 
 // Error Messages
 "error.offline" = "无网路连线";
@@ -1059,6 +1067,9 @@
 "chat.diagram.regenerating" = "正在重新生成示意图...";
 "chat.diagram.generating" = "正在生成示意图...";
 "chat.video.searching" = "正在查找教育视频...";
+"chat.sessionInfo.title" = "会话信息";
+"video.inAppBlocked" = "此视频无法在应用内播放。";
+"video.openInYouTube" = "在 YouTube 中打开";
 "chat.stopGenerating" = "停止生成";
 
 // Input
@@ -2789,6 +2800,8 @@
 "promo.placeholder" = "输入优惠码";
 "promo.button.apply" = "兑换";
 "promo.success" = "高级版已激活！有效期至 %@。";
+"promo.success.ultra" = "Ultra 超级版已激活！有效期至 %@。";
+"promo.success.downgrade" = "订阅已取消，您现在是免费版用户。";
 "promo.error.invalid" = "此优惠码无效或已过期。";
 "promo.error.alreadyRedeemed" = "您已兑换过此优惠码。";
 "promo.error.expired" = "此优惠码已过期。";
@@ -3026,3 +3039,57 @@
 "points.earn.dailyChallenge.result" = "答对 %d 题";
 "notification.dailyChallenge.title" = "📚 每日3题来啦！";
 "notification.dailyChallenge.body" = "今天的练习题已经准备好，3题快速搞定！";
+
+// MARK: - Family & Kids Accounts
+"family.title" = "孩子账户";
+"family.headerTitle" = "家庭账户";
+"family.headerSub" = "%d / 3 个孩子账户";
+"family.removeTitle" = "删除孩子账户？";
+"family.removeMessage" = "这将解除账户关联，孩子的数据会保留。";
+"family.remove" = "删除";
+"family.switch" = "切换";
+"family.restricted" = "未满13岁";
+"family.empty" = "还没有孩子账户";
+"family.addChild" = "添加孩子账户";
+"family.pinTitle" = "切换到 %@";
+"family.pinSubtitle" = "请输入家长 PIN 码继续";
+"family.pinPlaceholder" = "6位PIN码";
+"family.confirm" = "确认";
+"family.pinError" = "PIN码错误";
+"family.childSessionBanner" = "正在查看 %@ 的账户";
+"family.switchBack" = "返回我的账户";
+"addChild.title" = "新建孩子账户";
+"addChild.nameLabel" = "孩子姓名";
+"addChild.namePlaceholder" = "例：小明";
+"addChild.ageLabel" = "年龄（选填）";
+"addChild.agePlaceholder" = "例：10";
+"addChild.coppaNote" = "COPPA：未满13岁的账户将受到限制";
+"addChild.gradeLabel" = "年级（选填）";
+"addChild.gradeNone" = "不指定";
+"addChild.save" = "创建账户";
+"family.edit" = "编辑";
+"family.switchTo" = "切换到 %@";
+"editChild.title" = "编辑孩子信息";
+"editChild.tapAvatar" = "点击更换头像";
+"editChild.chooseAvatar" = "选择头像";
+"editChild.section.basic" = "基本信息";
+"editChild.name" = "姓名";
+"editChild.age" = "年龄";
+"editChild.optional" = "选填";
+"editChild.grade" = "年级";
+"editChild.notSpecified" = "不指定";
+"editChild.section.personal" = "个人信息";
+"editChild.gender" = "性别";
+"editChild.male" = "男";
+"editChild.female" = "女";
+"editChild.genderOther" = "其他";
+"editChild.language" = "语言";
+"editChild.section.learning" = "学习偏好";
+"editChild.learningStyle" = "学习风格";
+"editChild.subjects" = "科目";
+"editChild.saveError" = "服务器更新失败，请检查网络后重试。";
+"editChild.ageFormat" = "%d 岁";
+"settings.kidsAccounts" = "孩子账户";
+"settings.ultraBadge" = "旗舰版";
+"common.remove" = "删除";
+"guestConversion.loginSuccess" = "登录成功！";

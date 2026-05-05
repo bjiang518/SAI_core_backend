@@ -24,6 +24,10 @@ class QuestionGenerationService: ObservableObject {
     private let baseURL: String
     @AppStorage("appLanguage") private var appLanguage: String = "en"
 
+    private var effectiveLanguage: String {
+        UserDefaults.standard.string(forKey: "childSessionLanguage") ?? appLanguage
+    }
+
     // MARK: - Published State
     @Published var isGenerating = false
     @Published var lastError: String?
@@ -392,7 +396,7 @@ class QuestionGenerationService: ObservableObject {
             "count": config.questionCount,
             "difficulty": mapDifficultyToNumber(config.difficulty) as Any, // Convert to 1-5
             "question_type": config.questionType.rawValue, // Send question type filter
-            "language": appLanguage
+            "language": effectiveLanguage
         ]
 
         // ✅ FIX 1: Include personalized focus notes if available
@@ -526,7 +530,7 @@ class QuestionGenerationService: ObservableObject {
                 "difficulty": config.difficulty.rawValue,
                 "topics": config.topics,
                 "focus_notes": config.focusNotes ?? "",
-                "language": appLanguage
+                "language": effectiveLanguage
             ] as [String: Any],
             "user_profile": userProfile.dictionary
         ]
@@ -680,7 +684,7 @@ class QuestionGenerationService: ObservableObject {
             "question_data": questions,
             "count": config.questionCount,
             "question_type": config.questionType.rawValue,
-            "language": appLanguage
+            "language": effectiveLanguage
         ]
 
         var request = URLRequest(url: url)
@@ -1186,7 +1190,7 @@ class QuestionGenerationService: ObservableObject {
             "mode": mode,
             "count": config.questionCount,
             "question_type": config.questionType.rawValue,
-            "language": appLanguage,
+            "language": effectiveLanguage,
             "topic": config.topics.joined(separator: ", ")
         ]
 

@@ -162,11 +162,12 @@ export const promoCodesAPI = {
 
   create: async (payload: {
     code: string
+    tier: 'premium' | 'premium_plus' | 'free'
     duration_days: number
     max_uses?: number | null
     expires_at?: string | null
   }) => {
-    const response = await apiClient.post('/api/admin/promo-codes', { tier: 'premium', ...payload })
+    const response = await apiClient.post('/api/admin/promo-codes', payload)
     return response.data
   },
 

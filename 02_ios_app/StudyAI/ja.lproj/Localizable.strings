@@ -166,6 +166,7 @@
 
 // Common
 "common.error" = "Error";
+"common.or" = "または";
 
 // AI Homework
 "aiHomework.title" = "AI ホームwork";
@@ -472,8 +473,15 @@
 "auth.confirmYourPassword" = "Confirm your password";
 "auth.createAccount" = "Create アカウント";
 "auth.signup.error" = "Sign Up Error";
-"auth.passwordRequirement.minLength" = "At least 6 characters";
+"auth.passwordRequirement.minLength" = "8文字以上";
 "auth.passwordRequirement.match" = "Passwords match";
+"auth.passwordMustInclude" = "A-z、0-9、!@#$を含む必要あり";
+"auth.signup.createButton" = "アカウント作成";
+"auth.passwordRequirements" = "パスワード要件：";
+"auth.passwordRequirement.uppercase" = "大文字を含む（A-Z）";
+"auth.passwordRequirement.lowercase" = "小文字を含む（a-z）";
+"auth.passwordRequirement.number" = "数字を含む（0-9）";
+"auth.passwordRequirement.symbol" = "記号を含む（!@#$%^&*）";
 
 // Error Messages
 "error.offline" = "No internet connection";
@@ -1099,6 +1107,9 @@
 "chat.diagram.regenerating" = "Regenerating diagram...";
 "chat.diagram.generating" = "Generating diagram...";
 "chat.video.searching" = "教育動画を検索中...";
+"chat.sessionInfo.title" = "セッション情報";
+"video.inAppBlocked" = "このビデオはアプリ内で再生できません。";
+"video.openInYouTube" = "YouTubeで開く";
 "chat.stopGenerating" = "生成を停止";
 
 // Input
@@ -2754,6 +2765,8 @@
 "promo.placeholder" = "コードを入力";
 "promo.button.apply" = "適用する";
 "promo.success" = "プレミアムが有効になりました！有効期限: %@。";
+"promo.success.ultra" = "Ultraが有効になりました！有効期限: %@。";
+"promo.success.downgrade" = "サブスクリプションがキャンセルされました。現在、無料プランです。";
 "promo.error.invalid" = "このコードは無効または期限切れです。";
 "promo.error.alreadyRedeemed" = "このコードはすでに使用済みです。";
 "promo.error.expired" = "このプロモコードは期限切れです。";
@@ -2969,3 +2982,57 @@
 "points.earn.dailyChallenge.result" = "%d問正解";
 "notification.dailyChallenge.title" = "📚 毎日3問が来ました！";
 "notification.dailyChallenge.body" = "今日の練習問題が準備できました。3問さっと解こう！";
+
+// MARK: - Family & Kids Accounts
+"family.title" = "お子様のアカウント";
+"family.headerTitle" = "ファミリーアカウント";
+"family.headerSub" = "%d / 3 件の子アカウント";
+"family.removeTitle" = "子アカウントを削除しますか？";
+"family.removeMessage" = "アカウントの連携が解除されます。データは保持されます。";
+"family.remove" = "削除";
+"family.switch" = "切り替え";
+"family.restricted" = "13歳未満";
+"family.empty" = "子アカウントはまだありません";
+"family.addChild" = "子アカウントを追加";
+"family.pinTitle" = "%@に切り替え";
+"family.pinSubtitle" = "続けるには保護者のPINを入力してください";
+"family.pinPlaceholder" = "6桁のPIN";
+"family.confirm" = "確認";
+"family.pinError" = "PINが正しくありません";
+"family.childSessionBanner" = "%@のアカウントを表示中";
+"family.switchBack" = "自分のアカウントに戻る";
+"addChild.title" = "新しい子アカウント";
+"addChild.nameLabel" = "お子様の名前";
+"addChild.namePlaceholder" = "例：太郎";
+"addChild.ageLabel" = "年齢（任意）";
+"addChild.agePlaceholder" = "例：10";
+"addChild.coppaNote" = "COPPA：13歳未満のアカウントは制限されます";
+"addChild.gradeLabel" = "学年（任意）";
+"addChild.gradeNone" = "指定なし";
+"addChild.save" = "アカウントを作成";
+"family.edit" = "編集";
+"family.switchTo" = "%@に切り替え";
+"editChild.title" = "子どもを編集";
+"editChild.tapAvatar" = "タップしてアバターを変更";
+"editChild.chooseAvatar" = "アバターを選択";
+"editChild.section.basic" = "基本情報";
+"editChild.name" = "名前";
+"editChild.age" = "年齢";
+"editChild.optional" = "任意";
+"editChild.grade" = "学年";
+"editChild.notSpecified" = "指定なし";
+"editChild.section.personal" = "個人情報";
+"editChild.gender" = "性別";
+"editChild.male" = "男性";
+"editChild.female" = "女性";
+"editChild.genderOther" = "その他";
+"editChild.language" = "言語";
+"editChild.section.learning" = "学習";
+"editChild.learningStyle" = "学習スタイル";
+"editChild.subjects" = "教科";
+"editChild.saveError" = "サーバーの更新に失敗しました。接続を確認してもう一度お試しください。";
+"editChild.ageFormat" = "%d歳";
+"settings.kidsAccounts" = "子アカウント";
+"settings.ultraBadge" = "ウルトラ";
+"common.remove" = "削除";
+"guestConversion.loginSuccess" = "ログインに成功しました！";

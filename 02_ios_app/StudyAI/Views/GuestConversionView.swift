@@ -9,8 +9,9 @@ struct GuestConversionView: View {
     let blockedFeature: String?
     let onDismiss: () -> Void
 
-    @State private var showingSignUp = false
-    @State private var showingLogin  = false
+    @State private var showingSignUp   = false
+    @State private var showingLogin    = false
+    @State private var loginSucceeded  = false
     @StateObject private var themeManager = ThemeManager.shared
     @Environment(\.colorScheme) private var colorScheme
 
@@ -81,7 +82,39 @@ struct GuestConversionView: View {
             )
         }
         .sheet(isPresented: $showingLogin) {
-            ModernLoginView(onLoginSuccess: { showingLogin = false; onDismiss() })
+            ModernLoginView(onLoginSuccess: {
+                // 1. Close the login sheet
+                showingLogin = false
+                // 2. After the sheet dismiss animation completes, show success banner
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                        loginSucceeded = true
+                    }
+                    // 3. Auto-dismiss GuestConversionView after user sees the success state
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
+                        onDismiss()
+                    }
+                }
+            })
+        }
+        .overlay(alignment: .top) {
+            if loginSucceeded {
+                HStack(spacing: 10) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(.white)
+                    Text(NSLocalizedString("guestConversion.loginSuccess", value: "Signed in successfully!", comment: ""))
+                        .font(.subheadline.bold())
+                        .foregroundColor(.white)
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 14)
+                .background(Color.green)
+                .cornerRadius(14)
+                .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
+                .padding(.top, 60)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
         }
     }
 

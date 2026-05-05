@@ -32,7 +32,7 @@ struct UpgradeComparisonView: View {
     private enum PromoState {
         case idle
         case loading
-        case success(Date?)
+        case success(Date?, UserTier)
         case error(String)
     }
 
@@ -410,24 +410,28 @@ struct UpgradeComparisonView: View {
                     .font(.footnote)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
-            } else if case .success(let expiresAt) = promoState {
+            } else if case .success(let expiresAt, let tier) = promoState {
                 // Success banner
+                let isDowngrade = tier == .free
                 HStack(spacing: 8) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
+                    Image(systemName: isDowngrade ? "arrow.down.circle.fill" : tier == .premiumPlus ? "crown.fill" : "checkmark.circle.fill")
+                        .foregroundColor(isDowngrade ? .orange : tier == .premiumPlus ? Color(hex: "D4AF37") : .green)
                     let dateStr: String = {
                         if let d = expiresAt {
                             return DateFormatter.localizedString(from: d, dateStyle: .medium, timeStyle: .none)
                         }
                         return ""
                     }()
-                    Text(String(format: NSLocalizedString("promo.success", comment: ""), dateStr))
+                    let successKey = isDowngrade ? "promo.success.downgrade" : tier == .premiumPlus ? "promo.success.ultra" : "promo.success"
+                    Text(isDowngrade
+                         ? NSLocalizedString(successKey, comment: "")
+                         : String(format: NSLocalizedString(successKey, comment: ""), dateStr))
                         .font(.footnote.bold())
-                        .foregroundColor(.green)
+                        .foregroundColor(isDowngrade ? .orange : tier == .premiumPlus ? Color(hex: "D4AF37") : .green)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
-                .background(Color.green.opacity(0.1))
+                .background((isDowngrade ? Color.orange : tier == .premiumPlus ? Color(hex: "D4AF37") : Color.green).opacity(0.1))
                 .cornerRadius(10)
             } else if promoExpanded {
                 // Expanded: text field + apply button
@@ -497,7 +501,7 @@ struct UpgradeComparisonView: View {
         let result = await NetworkService.shared.redeemPromoCode(trimmed)
         await MainActor.run {
             if result.success {
-                promoState = .success(result.tierExpiresAt)
+                promoState = .success(result.tierExpiresAt, result.grantedTier ?? .premium)
                 Task {
                     try? await Task.sleep(nanoseconds: 1_500_000_000)
                     onDismiss()

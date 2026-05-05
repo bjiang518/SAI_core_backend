@@ -619,13 +619,13 @@ struct ModernSignUpView: View {
                     VStack(spacing: 8) {
                         Text(conversionMode
                              ? NSLocalizedString("guestConversion.signUpTitle", value: "Save Your Progress", comment: "")
-                             : "Create Your Account")
+                             : NSLocalizedString("auth.signup.title", comment: ""))
                             .font(.title)
                             .foregroundColor(.primary)
 
                         Text(conversionMode
                              ? NSLocalizedString("guestConversion.signUpSubtitle", value: "Create a free account to save everything you've done.", comment: "")
-                             : "Join StudyAgent to start your learning adventure!")
+                             : NSLocalizedString("auth.signup.subtitle", comment: ""))
                             .font(.body)
                             .foregroundColor(.secondary)  // ✅ Adaptive for dark mode
                             .multilineTextAlignment(.center)
@@ -636,11 +636,11 @@ struct ModernSignUpView: View {
                     VStack(spacing: 16) {
                         // Name field
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Full Name")
+                            Text(NSLocalizedString("auth.fullName", comment: ""))
                                 .font(.caption)
-                                .foregroundColor(.secondary)  // ✅ Adaptive
+                                .foregroundColor(.secondary)
 
-                            TextField("Enter your full name", text: $name)
+                            TextField(NSLocalizedString("auth.enterFullName", comment: ""), text: $name)
                                 .textFieldStyle(PlayfulTextFieldStyle())
                                 .textContentType(.name)
                                 .focused($focusedField, equals: .name)
@@ -649,11 +649,11 @@ struct ModernSignUpView: View {
 
                         // Email field
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Email Address")
+                            Text(NSLocalizedString("auth.emailAddress", comment: ""))
                                 .font(.caption)
-                                .foregroundColor(.secondary)  // ✅ Adaptive
+                                .foregroundColor(.secondary)
 
-                            TextField("Enter your email", text: $email)
+                            TextField(NSLocalizedString("auth.enterEmail", comment: ""), text: $email)
                                 .textFieldStyle(PlayfulTextFieldStyle())
                                 .textContentType(.emailAddress)
                                 .keyboardType(.emailAddress)
@@ -664,18 +664,18 @@ struct ModernSignUpView: View {
 
                         // Password field
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Password")
+                            Text(NSLocalizedString("auth.password", comment: ""))
                                 .font(.caption)
-                                .foregroundColor(.secondary)  // ✅ Adaptive
+                                .foregroundColor(.secondary)
 
                             HStack {
                                 if isPasswordVisible {
-                                    TextField("Must include A-z, 0-9, !@#$", text: $password)
+                                    TextField(NSLocalizedString("auth.passwordMustInclude", comment: ""), text: $password)
                                         .textContentType(.newPassword)
                                         .focused($focusedField, equals: .password)
                                         .onSubmit { focusedField = .confirmPassword }
                                 } else {
-                                    SecureField("Must include A-z, 0-9, !@#$", text: $password)
+                                    SecureField(NSLocalizedString("auth.passwordMustInclude", comment: ""), text: $password)
                                         .textContentType(.newPassword)
                                         .focused($focusedField, equals: .password)
                                         .onSubmit { focusedField = .confirmPassword }
@@ -696,18 +696,18 @@ struct ModernSignUpView: View {
 
                         // Confirm password field
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Confirm Password")
+                            Text(NSLocalizedString("auth.confirmPassword", comment: ""))
                                 .font(.caption)
-                                .foregroundColor(.secondary)  // ✅ Adaptive
+                                .foregroundColor(.secondary)
 
                             HStack {
                                 if isConfirmPasswordVisible {
-                                    TextField("Confirm your password", text: $confirmPassword)
+                                    TextField(NSLocalizedString("auth.confirmYourPassword", comment: ""), text: $confirmPassword)
                                         .textContentType(.newPassword)
                                         .focused($focusedField, equals: .confirmPassword)
                                         .onSubmit { signUp() }
                                 } else {
-                                    SecureField("Confirm your password", text: $confirmPassword)
+                                    SecureField(NSLocalizedString("auth.confirmYourPassword", comment: ""), text: $confirmPassword)
                                         .textContentType(.newPassword)
                                         .focused($focusedField, equals: .confirmPassword)
                                         .onSubmit { signUp() }
@@ -748,7 +748,7 @@ struct ModernSignUpView: View {
                                     .scaleEffect(0.8)
                             }
 
-                            Text("Create Account")
+                            Text(NSLocalizedString("auth.signup.createButton", comment: ""))
                                 .font(.headline)
                         }
                         .frame(maxWidth: .infinity)
@@ -765,7 +765,7 @@ struct ModernSignUpView: View {
                     // Divider
                     HStack {
                         Rectangle().frame(height: 0.5).foregroundColor(.secondary.opacity(0.4))
-                        Text("or").font(.caption).foregroundColor(.secondary)
+                        Text(NSLocalizedString("common.or", comment: "")).font(.caption).foregroundColor(.secondary)
                         Rectangle().frame(height: 0.5).foregroundColor(.secondary.opacity(0.4))
                     }
                     .padding(.vertical, 4)
@@ -867,34 +867,34 @@ struct ModernSignUpView: View {
 
     private var passwordValidationView: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Password Requirements:")
+            Text(NSLocalizedString("auth.passwordRequirements", comment: ""))
                 .font(.caption)
                 .fontWeight(.semibold)
                 .foregroundColor(.secondary)
                 .padding(.bottom, 4)
 
             PasswordRequirement(
-                text: "At least 8 characters",
+                text: NSLocalizedString("auth.passwordRequirement.minLength", comment: ""),
                 isMet: password.count >= 8
             )
 
             PasswordRequirement(
-                text: "Contains uppercase letter (A-Z)",
+                text: NSLocalizedString("auth.passwordRequirement.uppercase", comment: ""),
                 isMet: password.range(of: "[A-Z]", options: .regularExpression) != nil
             )
 
             PasswordRequirement(
-                text: "Contains lowercase letter (a-z)",
+                text: NSLocalizedString("auth.passwordRequirement.lowercase", comment: ""),
                 isMet: password.range(of: "[a-z]", options: .regularExpression) != nil
             )
 
             PasswordRequirement(
-                text: "Contains number (0-9)",
+                text: NSLocalizedString("auth.passwordRequirement.number", comment: ""),
                 isMet: password.range(of: "[0-9]", options: .regularExpression) != nil
             )
 
             PasswordRequirement(
-                text: "Contains symbol (!@#$%^&*)",
+                text: NSLocalizedString("auth.passwordRequirement.symbol", comment: ""),
                 isMet: password.range(of: "[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]", options: .regularExpression) != nil
             )
 

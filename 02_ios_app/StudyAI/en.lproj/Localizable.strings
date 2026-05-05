@@ -169,6 +169,7 @@
 
 // Common
 "common.error" = "Error";
+"common.or" = "or";
 
 // AI Homework
 "aiHomework.title" = "AI Homework";
@@ -554,8 +555,15 @@
 "auth.confirmYourPassword" = "Confirm your password";
 "auth.createAccount" = "Create Account";
 "auth.signup.error" = "Sign Up Error";
-"auth.passwordRequirement.minLength" = "At least 6 characters";
+"auth.passwordRequirement.minLength" = "At least 8 characters";
 "auth.passwordRequirement.match" = "Passwords match";
+"auth.passwordMustInclude" = "Must include A-z, 0-9, !@#$";
+"auth.signup.createButton" = "Create Account";
+"auth.passwordRequirements" = "Password Requirements:";
+"auth.passwordRequirement.uppercase" = "Contains uppercase letter (A-Z)";
+"auth.passwordRequirement.lowercase" = "Contains lowercase letter (a-z)";
+"auth.passwordRequirement.number" = "Contains number (0-9)";
+"auth.passwordRequirement.symbol" = "Contains symbol (!@#$%^&*)";
 
 // Error Messages
 "error.offline" = "No internet connection";
@@ -1277,6 +1285,9 @@
 "chat.diagram.regenerating" = "Regenerating diagram...";
 "chat.diagram.generating" = "Generating diagram...";
 "chat.video.searching" = "Finding educational video...";
+"chat.sessionInfo.title" = "Session Info";
+"video.inAppBlocked" = "This video can't be played in-app.";
+"video.openInYouTube" = "Open in YouTube";
 "chat.stopGenerating" = "Stop Generating";
 
 // Input
@@ -2798,6 +2809,8 @@
 "promo.placeholder" = "ENTER CODE";
 "promo.button.apply" = "Apply Code";
 "promo.success" = "Premium activated\! Valid until %@.";
+"promo.success.ultra" = "Ultra activated\! Valid until %@.";
+"promo.success.downgrade" = "Subscription cancelled. You are now on the Free plan.";
 "promo.error.invalid" = "This code is invalid or has expired.";
 "promo.error.alreadyRedeemed" = "You've already redeemed this code.";
 "promo.error.expired" = "This promo code has expired.";
@@ -3040,3 +3053,57 @@
 "points.earn.dailyChallenge.result" = "%d correct";
 "notification.dailyChallenge.title" = "📚 Daily 3 Questions Ready!";
 "notification.dailyChallenge.body" = "Today's practice questions are ready. Knock out 3 quick questions!";
+
+// MARK: - Family & Kids Accounts
+"family.title" = "Kids Accounts";
+"family.headerTitle" = "Family Accounts";
+"family.headerSub" = "%d / 3 child accounts";
+"family.removeTitle" = "Remove Child Account?";
+"family.removeMessage" = "This will unlink the account. Their data is preserved.";
+"family.remove" = "Remove";
+"family.switch" = "Switch";
+"family.restricted" = "Under 13";
+"family.empty" = "No child accounts yet";
+"family.addChild" = "Add Child Account";
+"family.pinTitle" = "Switch to %@";
+"family.pinSubtitle" = "Enter your parent PIN to continue";
+"family.pinPlaceholder" = "6-digit PIN";
+"family.confirm" = "Confirm";
+"family.pinError" = "Incorrect PIN";
+"family.childSessionBanner" = "Viewing %@'s account";
+"family.switchBack" = "Back to my account";
+"addChild.title" = "New Child Account";
+"addChild.nameLabel" = "Child's Name";
+"addChild.namePlaceholder" = "e.g. Emma";
+"addChild.ageLabel" = "Age (optional)";
+"addChild.agePlaceholder" = "e.g. 10";
+"addChild.coppaNote" = "COPPA: account will be restricted for users under 13";
+"addChild.gradeLabel" = "Grade Level (optional)";
+"addChild.gradeNone" = "Not specified";
+"addChild.save" = "Create Account";
+"family.edit" = "Edit";
+"family.switchTo" = "Switch to %@";
+"editChild.title" = "Edit Child";
+"editChild.tapAvatar" = "Tap to change avatar";
+"editChild.chooseAvatar" = "Choose Avatar";
+"editChild.section.basic" = "Basic Info";
+"editChild.name" = "Name";
+"editChild.age" = "Age";
+"editChild.optional" = "Optional";
+"editChild.grade" = "Grade";
+"editChild.notSpecified" = "Not specified";
+"editChild.section.personal" = "Personal Info";
+"editChild.gender" = "Gender";
+"editChild.male" = "Male";
+"editChild.female" = "Female";
+"editChild.genderOther" = "Other";
+"editChild.language" = "Language";
+"editChild.section.learning" = "Learning";
+"editChild.learningStyle" = "Learning Style";
+"editChild.subjects" = "Subjects";
+"editChild.saveError" = "Could not update the server. Please check your connection and try again.";
+"editChild.ageFormat" = "Age %d";
+"settings.kidsAccounts" = "Kids Accounts";
+"settings.ultraBadge" = "Ultra";
+"common.remove" = "Remove";
+"guestConversion.loginSuccess" = "Signed in successfully!";

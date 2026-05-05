@@ -36,6 +36,7 @@ struct HomeView: View {
     @StateObject private var themeManager = ThemeManager.shared
     @StateObject private var todoEngine = SuggestedTodoEngine.shared
     @StateObject private var usageService = UsageService.shared
+    @StateObject private var familyService = FamilyService.shared
     @ObservedObject private var pointsManager = PointsEarningManager.shared
     @ObservedObject private var profileService = ProfileService.shared
     @ObservedObject private var appState = AppState.shared
@@ -88,6 +89,33 @@ struct HomeView: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
+                    // Child session banner — shown when parent has switched to a child account
+                    if familyService.isChildSession,
+                       let childName = AuthenticationService.shared.currentUser?.name {
+                        HStack(spacing: 10) {
+                            Image(systemName: "person.2.fill")
+                                .foregroundColor(DesignTokens.Colors.Cute.blue)
+                            Text(String(format: NSLocalizedString("family.childSessionBanner",
+                                        value: "Viewing %@'s account", comment: ""), childName))
+                                .font(.subheadline.bold())
+                                .foregroundColor(themeManager.primaryText)
+                            Spacer()
+                            Button {
+                                Task { await familyService.switchBackToParent() }
+                            } label: {
+                                Text(NSLocalizedString("family.switchBack", value: "Back to my account", comment: ""))
+                                    .font(.caption.bold())
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 10).padding(.vertical, 5)
+                                    .background(DesignTokens.Colors.Cute.blue)
+                                    .cornerRadius(8)
+                            }
+                        }
+                        .padding(.horizontal, 16).padding(.vertical, 10)
+                        .background(DesignTokens.Colors.Cute.blue.opacity(0.1))
+                        .padding(.bottom, 4)
+                    }
+
                     // Engaging Hero Header with Animation, Avatar, Greeting & Stats
                     engagingHeroHeader
                         .padding(.bottom, DesignTokens.Spacing.xxl)

@@ -26,6 +26,11 @@ const pool = new Pool({
   idleTimeoutMillis: 30000, // Close idle connections after 30s (was 60s)
   connectionTimeoutMillis: 2000, // Fail fast if no connection (was 5s)
 
+  // Keep TCP connections alive so Railway's server-side idle timeout
+  // doesn't silently drop pool connections and trigger pool error events
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 10000,
+
   // OPTIMIZED: Query timeouts
   statement_timeout: 10000,  // 10s statement timeout (was 30s)
   query_timeout: 10000,      // 10s query timeout (was 30s)
@@ -86,7 +91,7 @@ pool.on('acquire', (client) => {
 });
 
 pool.on('error', (err, client) => {
-  logger.error('❌ Unexpected PostgreSQL error:', err.message);
+  logger.error('❌ Unexpected PostgreSQL error: code=%s msg=%s', err.code, err.message, err.stack);
   // Log connection timeouts separately
   if (err.message && err.message.includes('timeout')) {
     queryMetrics.connectionTimeouts++;
@@ -5768,6 +5773,102 @@ async function runDatabaseMigrations() {
       }
     } else {
       logger.debug('✅ Migration 033: user_seen_daily_questions already applied');
+    }
+
+    // ── Migration 034: family_multi_child ────────────────────────────────────
+    const m034 = await db.query(
+      `SELECT 1 FROM migration_history WHERE migration_name = '034_family_multi_child'`
+    );
+    if (m034.rows.length === 0) {
+      try {
+        await db.query(`
+          ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS parent_pin_hash VARCHAR(255),
+            ADD COLUMN IF NOT EXISTS is_child_account BOOLEAN DEFAULT FALSE;
+        `);
+        await db.query(
+          `INSERT INTO migration_history (migration_name) VALUES ('034_family_multi_child') ON CONFLICT DO NOTHING`
+        );
+        logger.debug('✅ Migration 034: family multi-child columns added');
+      } catch (migrationError) {
+        logger.error({ err: migrationError }, '❌ Migration 034 failed');
+      }
+    } else {
+      logger.debug('✅ Migration 034: family_multi_child already applied');
+    }
+
+    // ── Migration 035: profiles_is_active ────────────────────────────────────
+    const m035 = await db.query(
+      `SELECT 1 FROM migration_history WHERE migration_name = '035_profiles_is_active'`
+    );
+    if (m035.rows.length === 0) {
+      try {
+        await db.query(`
+          ALTER TABLE profiles
+            ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
+        `);
+        await db.query(
+          `INSERT INTO migration_history (migration_name) VALUES ('035_profiles_is_active') ON CONFLICT DO NOTHING`
+        );
+        logger.debug('✅ Migration 035: profiles.is_active column added');
+      } catch (migrationError) {
+        logger.error({ err: migrationError }, '❌ Migration 035 failed');
+      }
+    } else {
+      logger.debug('✅ Migration 035: profiles_is_active already applied');
+    }
+
+    // ── Migration 036: fix profiles.parent_id FK to reference users(id) ────────
+    const m036 = await db.query(
+      `SELECT 1 FROM migration_history WHERE migration_name = '036_profiles_parent_id_fk_fix'`
+    );
+    if (m036.rows.length === 0) {
+      try {
+        // The FK was incorrectly created as profiles(id) self-reference; fix to users(id)
+        await db.query(`
+          ALTER TABLE profiles
+            DROP CONSTRAINT IF EXISTS profiles_parent_id_fkey;
+        `);
+        await db.query(`
+          ALTER TABLE profiles
+            ADD CONSTRAINT profiles_parent_id_fkey
+              FOREIGN KEY (parent_id) REFERENCES users(id) ON DELETE SET NULL;
+        `);
+        await db.query(
+          `INSERT INTO migration_history (migration_name) VALUES ('036_profiles_parent_id_fk_fix') ON CONFLICT DO NOTHING`
+        );
+        logger.debug('✅ Migration 036: profiles.parent_id FK now references users(id)');
+      } catch (migrationError) {
+        logger.error({ err: migrationError }, '❌ Migration 036 failed');
+      }
+    } else {
+      logger.debug('✅ Migration 036: profiles_parent_id_fk_fix already applied');
+    }
+
+    // ── Migration 037: child accounts inherit Ultra tier ─────────────────────
+    const m037 = await db.query(
+      `SELECT 1 FROM migration_history WHERE migration_name = '037_child_accounts_ultra_tier'`
+    );
+    if (m037.rows.length === 0) {
+      try {
+        // Upgrade all existing child accounts (linked via profiles.parent_id) to premium_plus
+        await db.query(`
+          UPDATE users u
+          SET tier = 'premium_plus'
+          WHERE u.is_child_account = TRUE
+             OR EXISTS (
+               SELECT 1 FROM profiles p WHERE p.user_id = u.id AND p.parent_id IS NOT NULL
+             )
+        `);
+        await db.query(
+          `INSERT INTO migration_history (migration_name) VALUES ('037_child_accounts_ultra_tier') ON CONFLICT DO NOTHING`
+        );
+        logger.debug('✅ Migration 037: child accounts upgraded to premium_plus');
+      } catch (migrationError) {
+        logger.error({ err: migrationError }, '❌ Migration 037 failed');
+      }
+    } else {
+      logger.debug('✅ Migration 037: child_accounts_ultra_tier already applied');
     }
 
   } catch (error) {

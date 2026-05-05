@@ -540,6 +540,7 @@ struct ModernProfileView: View {
     @ObservedObject private var authService = AuthenticationService.shared
     @ObservedObject private var profileService = ProfileService.shared
     @ObservedObject private var appState = AppState.shared
+    @ObservedObject private var familyService = FamilyService.shared
     @State private var showingBiometricSetup = false
     @State private var showingEditProfile = false
     @State private var showingLearningGoals = false
@@ -554,6 +555,7 @@ struct ModernProfileView: View {
     @State private var showingPrivacySettings = false
     @State private var showingThemeSelection = false
     @State private var showingUsage = false
+    @State private var showingFamilyManagement = false
     @State private var refreshID = UUID()  // Force refresh when profile updates
     @State private var selectedGradeLevel: GradeLevel? = nil
 
@@ -765,6 +767,29 @@ struct ModernProfileView: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+
+                    // Kids Accounts — Ultra only, hidden when viewing a child session
+                    if authService.currentUser?.tier == .premiumPlus && !familyService.isChildSession {
+                        Button(action: { showingFamilyManagement = true }) {
+                            HStack(spacing: 12) {
+                                Image(systemName: "person.3.fill")
+                                    .foregroundColor(Color(hex: "D4AF37"))
+                                    .frame(width: 20)
+                                Text(NSLocalizedString("settings.kidsAccounts", value: "Kids Accounts", comment: ""))
+                                    .font(.body).foregroundColor(.primary)
+                                Spacer()
+                                Text(NSLocalizedString("settings.ultraBadge", value: "Ultra", comment: ""))
+                                    .font(.caption.bold())
+                                    .padding(.horizontal, 8).padding(.vertical, 3)
+                                    .background(Color(hex: "D4AF37").opacity(0.15))
+                                    .foregroundColor(Color(hex: "D4AF37"))
+                                    .cornerRadius(6)
+                                Image(systemName: "chevron.right").font(.caption).foregroundColor(.secondary)
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
 
                 // APP SETTINGS SECTION
@@ -982,6 +1007,9 @@ struct ModernProfileView: View {
         }
         .sheet(isPresented: $showingUsage) {
             AccountUsageView()
+        }
+        .sheet(isPresented: $showingFamilyManagement) {
+            FamilyManagementView()
         }
     }
 }

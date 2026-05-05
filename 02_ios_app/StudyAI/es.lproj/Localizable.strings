@@ -166,6 +166,7 @@
 
 // Common
 "common.error" = "Error";
+"common.or" = "o";
 
 // AI Homework
 "aiHomework.title" = "Tarea con IA";
@@ -472,8 +473,15 @@
 "auth.confirmYourPassword" = "Confirma tu contraseña";
 "auth.createAccount" = "Crear cuenta";
 "auth.signup.error" = "Error de registro";
-"auth.passwordRequirement.minLength" = "Al menos 6 caracteres";
+"auth.passwordRequirement.minLength" = "Al menos 8 caracteres";
 "auth.passwordRequirement.match" = "Las contraseñas coinciden";
+"auth.passwordMustInclude" = "Debe incluir A-z, 0-9, !@#$";
+"auth.signup.createButton" = "Crear cuenta";
+"auth.passwordRequirements" = "Requisitos de contraseña:";
+"auth.passwordRequirement.uppercase" = "Contiene mayúscula (A-Z)";
+"auth.passwordRequirement.lowercase" = "Contiene minúscula (a-z)";
+"auth.passwordRequirement.number" = "Contiene número (0-9)";
+"auth.passwordRequirement.symbol" = "Contiene símbolo (!@#$%^&*)";
 
 // Error Messages
 "error.offline" = "Sin conexión a internet";
@@ -1100,6 +1108,9 @@
 "chat.diagram.regenerating" = "Regenerando diagrama...";
 "chat.diagram.generating" = "Generando diagrama...";
 "chat.video.searching" = "Buscando video educativo...";
+"chat.sessionInfo.title" = "Info de sesión";
+"video.inAppBlocked" = "Este video no se puede reproducir en la app.";
+"video.openInYouTube" = "Abrir en YouTube";
 "chat.stopGenerating" = "Detener generación";
 
 // Input
@@ -2743,6 +2754,8 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "promo.placeholder" = "INGRESA CÓDIGO";
 "promo.button.apply" = "Aplicar código";
 "promo.success" = "¡Premium activado\! Válido hasta %@.";
+"promo.success.ultra" = "¡Ultra activado\! Válido hasta %@.";
+"promo.success.downgrade" = "Suscripción cancelada. Ahora estás en el plan gratuito.";
 "promo.error.invalid" = "Este código no es válido o ha expirado.";
 "promo.error.alreadyRedeemed" = "Ya has canjeado este código.";
 "promo.error.expired" = "Este código promocional ha expirado.";
@@ -2958,3 +2971,57 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "points.earn.dailyChallenge.result" = "%d correctas";
 "notification.dailyChallenge.title" = "📚 ¡3 Preguntas diarias listas!";
 "notification.dailyChallenge.body" = "Las preguntas de práctica de hoy están listas. ¡Responde 3 preguntas rápidas!";
+
+// MARK: - Family & Kids Accounts
+"family.title" = "Cuentas infantiles";
+"family.headerTitle" = "Cuentas familiares";
+"family.headerSub" = "%d / 3 cuentas infantiles";
+"family.removeTitle" = "¿Eliminar cuenta infantil?";
+"family.removeMessage" = "Esto desvinculará la cuenta. Los datos del niño se conservan.";
+"family.remove" = "Eliminar";
+"family.switch" = "Cambiar";
+"family.restricted" = "Menor de 13";
+"family.empty" = "Aún no hay cuentas infantiles";
+"family.addChild" = "Añadir cuenta infantil";
+"family.pinTitle" = "Cambiar a %@";
+"family.pinSubtitle" = "Ingresa tu PIN de padres para continuar";
+"family.pinPlaceholder" = "PIN de 6 dígitos";
+"family.confirm" = "Confirmar";
+"family.pinError" = "PIN incorrecto";
+"family.childSessionBanner" = "Viendo la cuenta de %@";
+"family.switchBack" = "Volver a mi cuenta";
+"addChild.title" = "Nueva cuenta infantil";
+"addChild.nameLabel" = "Nombre del niño";
+"addChild.namePlaceholder" = "p. ej. Emma";
+"addChild.ageLabel" = "Edad (opcional)";
+"addChild.agePlaceholder" = "p. ej. 10";
+"addChild.coppaNote" = "COPPA: las cuentas menores de 13 años serán restringidas";
+"addChild.gradeLabel" = "Nivel escolar (opcional)";
+"addChild.gradeNone" = "Sin especificar";
+"addChild.save" = "Crear cuenta";
+"family.edit" = "Editar";
+"family.switchTo" = "Cambiar a %@";
+"editChild.title" = "Editar hijo";
+"editChild.tapAvatar" = "Toca para cambiar avatar";
+"editChild.chooseAvatar" = "Elegir avatar";
+"editChild.section.basic" = "Info básica";
+"editChild.name" = "Nombre";
+"editChild.age" = "Edad";
+"editChild.optional" = "Opcional";
+"editChild.grade" = "Curso";
+"editChild.notSpecified" = "No especificado";
+"editChild.section.personal" = "Info personal";
+"editChild.gender" = "Género";
+"editChild.male" = "Masculino";
+"editChild.female" = "Femenino";
+"editChild.genderOther" = "Otro";
+"editChild.language" = "Idioma";
+"editChild.section.learning" = "Aprendizaje";
+"editChild.learningStyle" = "Estilo de aprendizaje";
+"editChild.subjects" = "Materias";
+"editChild.saveError" = "No se pudo actualizar el servidor. Verifica tu conexión e intenta de nuevo.";
+"editChild.ageFormat" = "%d años";
+"settings.kidsAccounts" = "Cuentas infantiles";
+"settings.ultraBadge" = "Ultra";
+"common.remove" = "Eliminar";
+"guestConversion.loginSuccess" = "¡Sesión iniciada correctamente!";

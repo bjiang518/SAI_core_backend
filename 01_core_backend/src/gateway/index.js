@@ -502,6 +502,9 @@ if (features.useGateway) {
   // Account routes — usage summary for authenticated user
   fastify.register(require('./routes/account-routes'));
 
+  // Family routes — multi-child account management (Ultra tier)
+  fastify.register(require('./routes/family-routes'));
+
   fastify.log.info('✅ API Gateway enabled with enhanced routing and performance optimization');
 } else {
   // Fallback to simple health check only

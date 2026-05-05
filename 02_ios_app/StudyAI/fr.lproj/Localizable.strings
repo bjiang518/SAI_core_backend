@@ -166,6 +166,7 @@
 
 // Common
 "common.error" = "Error";
+"common.or" = "ou";
 
 // AI Homework
 "aiHomework.title" = "AI Accueilwork";
@@ -472,8 +473,15 @@
 "auth.confirmYourPassword" = "Confirm your password";
 "auth.createAccount" = "Create Compte";
 "auth.signup.error" = "Sign Up Error";
-"auth.passwordRequirement.minLength" = "At least 6 characters";
+"auth.passwordRequirement.minLength" = "Au moins 8 caractères";
 "auth.passwordRequirement.match" = "Passwords match";
+"auth.passwordMustInclude" = "Doit contenir A-z, 0-9, !@#$";
+"auth.signup.createButton" = "Créer un compte";
+"auth.passwordRequirements" = "Exigences du mot de passe :";
+"auth.passwordRequirement.uppercase" = "Contient une majuscule (A-Z)";
+"auth.passwordRequirement.lowercase" = "Contient une minuscule (a-z)";
+"auth.passwordRequirement.number" = "Contient un chiffre (0-9)";
+"auth.passwordRequirement.symbol" = "Contient un symbole (!@#$%^&*)";
 
 // Error Messages
 "error.offline" = "No internet connection";
@@ -1100,6 +1108,9 @@
 "chat.diagram.regenerating" = "Regenerating diagram...";
 "chat.diagram.generating" = "Generating diagram...";
 "chat.video.searching" = "Recherche de vidéo éducative...";
+"chat.sessionInfo.title" = "Infos de session";
+"video.inAppBlocked" = "Cette vidéo ne peut pas être lue dans l'app.";
+"video.openInYouTube" = "Ouvrir dans YouTube";
 "chat.stopGenerating" = "Arrêter la génération";
 
 // Input
@@ -2770,6 +2781,8 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "promo.placeholder" = "ENTRER LE CODE";
 "promo.button.apply" = "Appliquer le code";
 "promo.success" = "Premium activé \! Valable jusqu'au %@.";
+"promo.success.ultra" = "Ultra activé \! Valable jusqu'au %@.";
+"promo.success.downgrade" = "Abonnement annulé. Vous êtes maintenant sur le plan gratuit.";
 "promo.error.invalid" = "Ce code est invalide ou a expiré.";
 "promo.error.alreadyRedeemed" = "Vous avez déjà utilisé ce code.";
 "promo.error.expired" = "Ce code promo a expiré.";
@@ -2985,3 +2998,57 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "points.earn.dailyChallenge.result" = "%d correctes";
 "notification.dailyChallenge.title" = "📚 3 Questions du jour prêtes !";
 "notification.dailyChallenge.body" = "Les questions du jour sont prêtes. Répondez à 3 questions rapidement !";
+
+// MARK: - Family & Kids Accounts
+"family.title" = "Comptes enfants";
+"family.headerTitle" = "Comptes familiaux";
+"family.headerSub" = "%d / 3 comptes enfants";
+"family.removeTitle" = "Supprimer le compte enfant ?";
+"family.removeMessage" = "Le compte sera dissocié. Les données de l'enfant sont conservées.";
+"family.remove" = "Supprimer";
+"family.switch" = "Changer";
+"family.restricted" = "Moins de 13 ans";
+"family.empty" = "Aucun compte enfant pour l'instant";
+"family.addChild" = "Ajouter un compte enfant";
+"family.pinTitle" = "Passer à %@";
+"family.pinSubtitle" = "Entrez votre code PIN parental pour continuer";
+"family.pinPlaceholder" = "Code PIN à 6 chiffres";
+"family.confirm" = "Confirmer";
+"family.pinError" = "Code PIN incorrect";
+"family.childSessionBanner" = "Consultation du compte de %@";
+"family.switchBack" = "Retour à mon compte";
+"addChild.title" = "Nouveau compte enfant";
+"addChild.nameLabel" = "Nom de l'enfant";
+"addChild.namePlaceholder" = "ex. Emma";
+"addChild.ageLabel" = "Âge (facultatif)";
+"addChild.agePlaceholder" = "ex. 10";
+"addChild.coppaNote" = "COPPA : les comptes de moins de 13 ans seront restreints";
+"addChild.gradeLabel" = "Niveau scolaire (facultatif)";
+"addChild.gradeNone" = "Non spécifié";
+"addChild.save" = "Créer le compte";
+"family.edit" = "Modifier";
+"family.switchTo" = "Passer à %@";
+"editChild.title" = "Modifier l'enfant";
+"editChild.tapAvatar" = "Appuyer pour changer l'avatar";
+"editChild.chooseAvatar" = "Choisir un avatar";
+"editChild.section.basic" = "Infos de base";
+"editChild.name" = "Nom";
+"editChild.age" = "Âge";
+"editChild.optional" = "Optionnel";
+"editChild.grade" = "Niveau";
+"editChild.notSpecified" = "Non spécifié";
+"editChild.section.personal" = "Infos personnelles";
+"editChild.gender" = "Genre";
+"editChild.male" = "Masculin";
+"editChild.female" = "Féminin";
+"editChild.genderOther" = "Autre";
+"editChild.language" = "Langue";
+"editChild.section.learning" = "Apprentissage";
+"editChild.learningStyle" = "Style d'apprentissage";
+"editChild.subjects" = "Matières";
+"editChild.saveError" = "Impossible de mettre à jour le serveur. Vérifiez votre connexion et réessayez.";
+"editChild.ageFormat" = "%d ans";
+"settings.kidsAccounts" = "Comptes enfants";
+"settings.ultraBadge" = "Ultra";
+"common.remove" = "Supprimer";
+"guestConversion.loginSuccess" = "Connexion réussie !";

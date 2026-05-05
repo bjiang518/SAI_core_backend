@@ -45,6 +45,13 @@ class NetworkService: ObservableObject {
     // Language preference for AI responses
     @AppStorage("appLanguage") private var appLanguage: String = "en"
 
+    // When in a child session the child may have a different language preference.
+    // FamilyService writes "childSessionLanguage" to UserDefaults on switch so we can
+    // read it here without crossing @MainActor boundaries.
+    private var effectiveLanguage: String {
+        UserDefaults.standard.string(forKey: "childSessionLanguage") ?? appLanguage
+    }
+
     // Public getter for base URL
     var apiBaseURL: String {
         return baseURL
@@ -976,8 +983,7 @@ class NetworkService: ObservableObject {
 
         var sessionData: [String: Any] = [
             "subject": subject,
-            "language": appLanguage,  // Pass user's language preference
-            "character": currentCharacter  // ✅ NEW: Pass AI character for personality-based responses
+            "language": effectiveLanguage,  // Pass user's language preference
         ]
         if let messages = initialMessages, !messages.isEmpty {
             sessionData["initialMessages"] = messages
@@ -1156,7 +1162,7 @@ class NetworkService: ObservableObject {
 
         var messageData: [String: Any] = [
             "message": message,
-            "language": appLanguage  // Pass user's language preference
+            "language": effectiveLanguage  // Pass user's language preference
         ]
 
         // Add homework context if provided (for grade correction support)
@@ -1475,7 +1481,7 @@ class NetworkService: ObservableObject {
         var messageData: [String: Any] = [
             "message": message,
             "deep_mode": deepMode,  // ✅ NEW: Pass deep mode flag to backend
-            "language": appLanguage
+            "language": effectiveLanguage
         ]
 
         // Add question context if provided (for homework follow-up)
@@ -1754,7 +1760,7 @@ class NetworkService: ObservableObject {
             "voiceId": voiceId,
             "systemPrompt": systemPrompt ?? "You are a helpful AI tutor.",
             "deepMode": deepMode,
-            "language": appLanguage
+            "language": effectiveLanguage
         ]
 
         do {
@@ -3237,7 +3243,7 @@ class NetworkService: ObservableObject {
             "student_answer": studentAnswer,
             "model_provider": modelProvider,  // NEW: Pass AI model selection (openai/gemini)
             "use_deep_reasoning": useDeepReasoning,  // Pass deep reasoning flag
-            "language": appLanguage  // Pass user's language preference for feedback localization
+            "language": effectiveLanguage  // Pass user's language preference for feedback localization
         ]
 
         if let subject = subject {
@@ -6185,13 +6191,14 @@ class NetworkService: ObservableObject {
         let errorCode: String?   // "INVALID_CODE" | "ALREADY_REDEEMED" | "EXPIRED" | "MAX_USES_REACHED"
         let tierExpiresAt: Date?
         let message: String?
+        let grantedTier: UserTier?
     }
 
-    /// Redeem a promo code for the authenticated user. Always grants premium tier on success.
+    /// Redeem a promo code for the authenticated user. Grants the tier specified on the code (premium or ultra).
     func redeemPromoCode(_ code: String) async -> PromoRedemptionResult {
         guard let url = URL(string: "\(baseURL)/api/account/redeem-promo-self"),
               let token = AuthenticationService.shared.getAuthToken() else {
-            return PromoRedemptionResult(success: false, errorCode: "INVALID_CODE", tierExpiresAt: nil, message: nil)
+            return PromoRedemptionResult(success: false, errorCode: "INVALID_CODE", tierExpiresAt: nil, message: nil, grantedTier: nil)
         }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -6202,7 +6209,7 @@ class NetworkService: ObservableObject {
         do {
             let (data, _) = try await URLSession.shared.data(for: request)
             guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                return PromoRedemptionResult(success: false, errorCode: "INVALID_CODE", tierExpiresAt: nil, message: nil)
+                return PromoRedemptionResult(success: false, errorCode: "INVALID_CODE", tierExpiresAt: nil, message: nil, grantedTier: nil)
             }
             let success = json["success"] as? Bool ?? false
             if success {
@@ -6213,6 +6220,8 @@ class NetworkService: ObservableObject {
                     expiresAt = df.date(from: iso)
                 }
                 let msg = payload?["message"] as? String
+                let tierStr = payload?["tier"] as? String
+                let grantedTier = tierStr.flatMap { UserTier(rawValue: $0) } ?? .premium
                 // Update local user object so tier-dependent UI refreshes immediately
                 if let user = AuthenticationService.shared.currentUser {
                     let updated = User(
@@ -6220,20 +6229,20 @@ class NetworkService: ObservableObject {
                         profileImageURL: user.profileImageURL,
                         authProvider: user.authProvider,
                         createdAt: user.createdAt, lastLoginAt: user.lastLoginAt,
-                        tier: .premium, isAnonymous: user.isAnonymous
+                        tier: grantedTier, isAnonymous: user.isAnonymous
                     )
                     await MainActor.run {
                         AuthenticationService.shared.currentUser = updated
                         try? KeychainService.shared.saveUser(updated)
                     }
                 }
-                return PromoRedemptionResult(success: true, errorCode: nil, tierExpiresAt: expiresAt, message: msg)
+                return PromoRedemptionResult(success: true, errorCode: nil, tierExpiresAt: expiresAt, message: msg, grantedTier: grantedTier)
             } else {
                 let errorCode = json["error"] as? String
-                return PromoRedemptionResult(success: false, errorCode: errorCode, tierExpiresAt: nil, message: nil)
+                return PromoRedemptionResult(success: false, errorCode: errorCode, tierExpiresAt: nil, message: nil, grantedTier: nil)
             }
         } catch {
-            return PromoRedemptionResult(success: false, errorCode: "INVALID_CODE", tierExpiresAt: nil, message: nil)
+            return PromoRedemptionResult(success: false, errorCode: "INVALID_CODE", tierExpiresAt: nil, message: nil, grantedTier: nil)
         }
     }
 
