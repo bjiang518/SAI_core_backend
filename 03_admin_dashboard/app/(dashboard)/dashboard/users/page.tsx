@@ -15,6 +15,7 @@ interface User {
   last_active: string | null
   days_inactive: number | null
   subscriptionStatus: string
+  tier_expires_at: string | null
   total_sessions: number
   last_user_agent: string | null
 }
@@ -259,6 +260,7 @@ export default function UsersPage() {
                       <th className="pb-2 pr-4">Name</th>
                       <th className="pb-2 pr-4">Email</th>
                       <th className="pb-2 pr-4">Status</th>
+                      <th className="pb-2 pr-4">Expires</th>
                       <th className="pb-2 pr-4">Joined</th>
                       <th className="pb-2 pr-4">Last Active</th>
                       <th className="pb-2 pr-4">Version</th>
@@ -280,6 +282,19 @@ export default function UsersPage() {
                           <td className="py-3 pr-4 font-medium">{user.name || '—'}</td>
                           <td className="py-3 pr-4 text-muted-foreground">{user.email}</td>
                           <td className="py-3 pr-4">{getStatusBadge(user.subscriptionStatus)}</td>
+                          <td className="py-3 pr-4 text-xs">
+                            {(['premium', 'ultra'].includes(user.subscriptionStatus) && user.tier_expires_at)
+                              ? (() => {
+                                  const exp = new Date(user.tier_expires_at)
+                                  const isExpired = exp < new Date()
+                                  return (
+                                    <span className={isExpired ? 'text-red-600 font-medium' : 'text-muted-foreground'}>
+                                      {isExpired ? '⚠ ' : ''}{formatDate(user.tier_expires_at)}
+                                    </span>
+                                  )
+                                })()
+                              : <span className="text-muted-foreground">—</span>}
+                          </td>
                           <td className="py-3 pr-4">{formatDate(user.join_date)}</td>
                           <td className="py-3 pr-4">{user.last_active ? formatDate(user.last_active) : 'Never'}
                             {user.days_inactive != null && user.days_inactive >= 30 && (

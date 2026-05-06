@@ -40,7 +40,14 @@ function tierCheck({ feature, getCount }) {
     }
     if (!userId) return;
 
-    const { tier, is_anonymous } = await db.getUserTier(userId);
+    const { tier: rawTier, tier_expires_at, is_anonymous } = await db.getUserTier(userId);
+    const isExpired = tier_expires_at && new Date(tier_expires_at) < new Date();
+    const tier = isExpired ? 'free' : rawTier;
+
+    // Write-back expired tier so DB stays in sync without waiting for the midnight cron
+    if (isExpired && rawTier !== 'free') {
+      db.setUserTier(userId, 'free', null).catch(() => {});
+    }
 
     const count = getCount ? Math.max(1, getCount(request) || 1) : 1;
     const result = await usageTracker.check(userId, feature, tier, is_anonymous, count);

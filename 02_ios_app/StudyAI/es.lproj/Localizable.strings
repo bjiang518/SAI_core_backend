@@ -3025,3 +3025,4 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "settings.ultraBadge" = "Ultra";
 "common.remove" = "Eliminar";
 "guestConversion.loginSuccess" = "¡Sesión iniciada correctamente!";
+"dailyChallenge.bannerReady" = "Las 3 preguntas diarias están listas";

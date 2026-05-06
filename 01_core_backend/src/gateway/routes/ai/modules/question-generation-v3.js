@@ -15,6 +15,7 @@ const { getUserId } = require('../utils/auth-helper');
 const tierCheck = require('../../../middleware/tier-check');
 const { db } = require('../../../../utils/railway-database');
 const { formatGradeLevel } = require('../utils/prompts');
+const questionBank = require('./question-bank-service');
 
 // Maps iOS difficulty int (2/3/4) to string expected by AI engine
 const DIFFICULTY_MAP = { 1: 'beginner', 2: 'beginner', 3: 'intermediate', 4: 'advanced', 5: 'advanced' };
@@ -222,7 +223,7 @@ module.exports = async function (fastify, opts) {
         required: ['subject'],
         properties: {
           subject: { type: 'string' },
-          mode: { type: 'integer', enum: [1, 2, 3], default: 1 },
+          mode: { type: 'integer', enum: [1, 2, 3, 4], default: 1 },
           count: { type: 'integer', minimum: 1, maximum: 10, default: 5 },
           question_type: { type: 'string', default: 'any' },
           difficulty: { type: 'integer', minimum: 1, maximum: 5 },
@@ -232,6 +233,7 @@ module.exports = async function (fastify, opts) {
           mistakes_data: { type: 'array' },
           conversation_data: { type: 'array' },
           question_data: { type: 'array' },
+          bank_source: { type: 'string', enum: ['amc12', 'aime', 'sat'] },
         }
       }
     },
@@ -260,6 +262,7 @@ module.exports = async function (fastify, opts) {
       mistakes_data = [],
       conversation_data = [],
       question_data = [],
+      bank_source,
     } = request.body;
 
     // Normalize legacy type names (none needed currently; kept for future-proofing)
@@ -309,6 +312,56 @@ module.exports = async function (fastify, opts) {
       let generationMode = 'single_type';
 
       const SUPPORTED_TYPES = new Set(['multiple_choice', 'true_false', 'short_answer']);
+
+      // === MODE 4: Question Bank (curated AMC/AIME/SAT) ===
+      if (mode === 4) {
+        fastify.log.info({ msg: '📚 Question bank retrieval (mode 4)', userId, subject, count, bank_source });
+
+        const weaknessKeys = (short_term_context || [])
+          .map(c => c.weakness_key || c.weaknessKey)
+          .filter(Boolean);
+
+        const bankResult = await questionBank.retrieveQuestions(userId, {
+          topic:            topic || subject,
+          difficulty:       difficulty || 3,
+          questionType:     question_type,
+          count,
+          mistakesData:     mistakes_data,
+          conversationData: conversation_data,
+          weaknessKeys,
+          source:           bank_source || null,
+        });
+
+        allQuestions = bankResult.questions;
+        generationMode = 'question_bank';
+        typesGenerated = allQuestions.reduce((acc, q) => {
+          acc[q.question_type] = (acc[q.question_type] || 0) + 1;
+          return acc;
+        }, {});
+
+        const totalLatency = Date.now() - startTime;
+
+        fastify.log.info({ msg: '✅ Bank questions retrieved', count: allQuestions.length, latency_ms: totalLatency });
+
+        await logMetricsV3({ userId, endpoint: '/api/ai/generate-questions/practice/v2?mode=4', totalLatency, wasSuccessful: true });
+
+        return {
+          success: true,
+          questions: allQuestions,
+          metadata: {
+            total_questions:  allQuestions.length,
+            generation_type:  generationMode,
+            types_generated:  typesGenerated,
+            total_latency_ms: totalLatency,
+            primary_engine:   'question_bank',
+            bank_source:      bankResult.source,
+          },
+          _performance: {
+            latency_ms:     totalLatency,
+            implementation: 'vector_retrieval',
+          },
+        };
+      }
 
       if (question_type !== 'any' && SUPPORTED_TYPES.has(question_type)) {
         // === SINGLE TYPE — parallel per question ===
@@ -421,6 +474,57 @@ module.exports = async function (fastify, opts) {
         details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       });
     }
+  });
+
+  // ---------------------------------------------------------------------------
+  // GET /api/ai/question-bank/figure/:questionId
+  // Serves the stored base64 figure as raw image bytes.
+  // Aggressively cached — figures never change once scraped.
+  // ---------------------------------------------------------------------------
+  fastify.get('/api/ai/question-bank/figure/:questionId', async (request, reply) => {
+    const { questionId } = request.params;
+    const { rows } = await db.query(
+      `SELECT figure_data, figure_mime FROM question_bank WHERE id = $1`,
+      [questionId]
+    );
+
+    if (!rows.length || !rows[0].figure_data) {
+      return reply.status(404).send({ success: false, error: 'FIGURE_NOT_FOUND' });
+    }
+
+    const { figure_data, figure_mime } = rows[0];
+    const imageBuffer = Buffer.from(figure_data, 'base64');
+
+    reply
+      .header('Content-Type', figure_mime || 'image/png')
+      .header('Cache-Control', 'public, max-age=31536000, immutable')
+      .header('Content-Length', imageBuffer.length)
+      .send(imageBuffer);
+  });
+
+  // ---------------------------------------------------------------------------
+  // POST /api/ai/question-bank/record-result
+  // Called by iOS after a bank question is graded, to mark it seen and update
+  // the times_used counter.
+  // ---------------------------------------------------------------------------
+  fastify.post('/api/ai/question-bank/record-result', {
+    schema: {
+      body: {
+        type: 'object',
+        required: ['question_id', 'was_correct'],
+        properties: {
+          question_id: { type: 'string' },
+          was_correct: { type: 'boolean' },
+        },
+      },
+    },
+  }, async (request, reply) => {
+    const userId = await getUserId(request);
+    if (!userId) return reply.status(401).send({ success: false, error: 'AUTHENTICATION_REQUIRED' });
+
+    const { question_id, was_correct } = request.body;
+    await questionBank.recordGradingResult(userId, question_id, was_correct);
+    return { success: true };
   });
 };
 

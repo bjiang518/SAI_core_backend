@@ -183,6 +183,8 @@ class QuestionGenerationService: ObservableObject {
         let baseBranch: String?        // "Algebra - Foundations"
         let detailedBranch: String?    // "Linear Equations - One Variable"
         let weaknessKey: String?       // Combined key for status lookup
+        let bankQuestionId: String?    // UUID of the source row in question_bank
+        let figureUrl: String?         // Relative path: /api/ai/question-bank/figure/<id>
 
         // Custom initializer for JSON decoding - restores UUID if stored, generates new one otherwise
         init(from decoder: Decoder) throws {
@@ -224,6 +226,8 @@ class QuestionGenerationService: ObservableObject {
             self.baseBranch = try container.decodeIfPresent(String.self, forKey: .baseBranch)
             self.detailedBranch = try container.decodeIfPresent(String.self, forKey: .detailedBranch)
             self.weaknessKey = try container.decodeIfPresent(String.self, forKey: .weaknessKey)
+            self.bankQuestionId = try container.decodeIfPresent(String.self, forKey: .bankQuestionId)
+            self.figureUrl = try container.decodeIfPresent(String.self, forKey: .figureUrl)
         }
 
         // Helper struct for parsing backend multiple choice options
@@ -240,7 +244,7 @@ class QuestionGenerationService: ObservableObject {
         }
 
         // Regular initializer for programmatic creation
-        init(id: UUID = UUID(), question: String, type: QuestionType, correctAnswer: String, explanation: String, topic: String, difficulty: String, points: Int? = nil, timeEstimate: String? = nil, options: [String]? = nil, tags: [String]? = nil, errorType: String? = nil, baseBranch: String? = nil, detailedBranch: String? = nil, weaknessKey: String? = nil) {
+        init(id: UUID = UUID(), question: String, type: QuestionType, correctAnswer: String, explanation: String, topic: String, difficulty: String, points: Int? = nil, timeEstimate: String? = nil, options: [String]? = nil, tags: [String]? = nil, errorType: String? = nil, baseBranch: String? = nil, detailedBranch: String? = nil, weaknessKey: String? = nil, bankQuestionId: String? = nil, figureUrl: String? = nil) {
             self.id = id
             self.question = question
             self.type = type
@@ -256,6 +260,8 @@ class QuestionGenerationService: ObservableObject {
             self.baseBranch = baseBranch
             self.detailedBranch = detailedBranch
             self.weaknessKey = weaknessKey
+            self.bankQuestionId = bankQuestionId
+            self.figureUrl = figureUrl
         }
 
         // Coding keys for JSON encoding/decoding
@@ -273,10 +279,12 @@ class QuestionGenerationService: ObservableObject {
             case timeEstimate = "estimated_time_minutes"  // Backend: estimated_time_minutes
             case options = "multiple_choice_options"      // Backend: multiple_choice_options
             case tags
-            case errorType = "error_type"                 // ✅ NEW: Backend: error_type
-            case baseBranch = "base_branch"               // ✅ NEW: Backend: base_branch
-            case detailedBranch = "detailed_branch"       // ✅ NEW: Backend: detailed_branch
-            case weaknessKey = "weakness_key"             // ✅ NEW: Backend: weakness_key
+            case errorType = "error_type"
+            case baseBranch = "base_branch"
+            case detailedBranch = "detailed_branch"
+            case weaknessKey = "weakness_key"
+            case bankQuestionId = "bank_question_id"
+            case figureUrl = "figure_url"
         }
 
         enum QuestionType: String, Codable, CaseIterable {

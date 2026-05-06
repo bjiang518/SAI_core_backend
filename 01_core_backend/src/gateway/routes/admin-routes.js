@@ -324,8 +324,8 @@ module.exports = async function (fastify, opts) {
            ORDER BY us.created_at DESC LIMIT 1) as last_user_agent,
           CASE
             WHEN u.is_anonymous = true THEN 'guest'
-            WHEN u.tier = 'premium_plus' THEN 'ultra'
-            WHEN u.tier = 'premium' THEN 'premium'
+            WHEN u.tier = 'premium_plus' AND (u.tier_expires_at IS NULL OR u.tier_expires_at > NOW()) THEN 'ultra'
+            WHEN u.tier = 'premium'      AND (u.tier_expires_at IS NULL OR u.tier_expires_at > NOW()) THEN 'premium'
             WHEN GREATEST(
               u.last_login_at,
               (SELECT MAX(s.created_at)  FROM sessions s                  WHERE s.user_id = u.id),

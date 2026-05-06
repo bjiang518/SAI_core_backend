@@ -338,11 +338,16 @@ struct PracticeLibraryView: View {
             .padding(.vertical, 12)
             .background(
                 RoundedRectangle(cornerRadius: 14)
-                    .fill(colorScheme == .dark ? Color(hex: "2C2A26") : Color.white)
+                    .fill(AnyShapeStyle(isDailyChallengeCompletedToday
+                        ? AnyShapeStyle(colorScheme == .dark ? Color(hex: "2C2A26") : Color.white)
+                        : AnyShapeStyle(LinearGradient(
+                            colors: [DesignTokens.Colors.Cute.mint.opacity(0.18),
+                                     DesignTokens.Colors.Cute.blue.opacity(0.12)],
+                            startPoint: .leading, endPoint: .trailing))))
                     .shadow(
                         color: isDailyChallengeCompletedToday
                             ? .black.opacity(0.06)
-                            : DesignTokens.Colors.Cute.mint.opacity(dailyCardGlow ? 0.6 : 0.15),
+                            : DesignTokens.Colors.Cute.mint.opacity(dailyCardGlow ? 0.55 : 0.15),
                         radius: isDailyChallengeCompletedToday ? 6 : (dailyCardGlow ? 12 : 4),
                         x: 0, y: 2
                     )
@@ -351,7 +356,7 @@ struct PracticeLibraryView: View {
                             .stroke(
                                 isDailyChallengeCompletedToday
                                     ? Color.clear
-                                    : DesignTokens.Colors.Cute.mint.opacity(dailyCardGlow ? 0.7 : 0.2),
+                                    : DesignTokens.Colors.Cute.mint.opacity(dailyCardGlow ? 0.65 : 0.25),
                                 lineWidth: 1.5
                             )
                     )

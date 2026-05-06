@@ -17,6 +17,7 @@ struct DailyChallengeView: View {
     @StateObject private var themeManager = ThemeManager.shared
     @StateObject private var sessionManager = PracticeSessionManager.shared
     @StateObject private var appState = AppState.shared
+    @StateObject private var speechService = SpeechRecognitionService()
 
     // Question flow
     @State private var localQuestions: [QuestionGenerationService.GeneratedQuestion] = []
@@ -38,6 +39,7 @@ struct DailyChallengeView: View {
     @State private var isRegradingCurrentQuestion = false
     // Stores each answered question's result for backward review navigation
     @State private var answeredResults: [String: (answer: String, isCorrect: Bool)] = [:]
+    @State private var isVoiceDictating = false
 
     @AppStorage("daily_challenge_correct_count") private var savedCorrectCount = 0
 
@@ -112,6 +114,10 @@ struct DailyChallengeView: View {
         }
         .navigationBarHidden(true)
         .onAppear { loadQuestions() }
+        .onDisappear { stopVoiceDictation() }
+        .onChange(of: speechService.recognizedText) { newText in
+            if isVoiceDictating && !newText.isEmpty { userTextAnswer = newText }
+        }
         .sheet(isPresented: $showingGuestConversion) {
             GuestConversionView(
                 blockedFeature: "questions",
@@ -292,14 +298,17 @@ struct DailyChallengeView: View {
                                       : isSelected ? themeManager.accentColor
                                       : themeManager.accentColor.opacity(0.12))
                     )
+                    .allowsHitTesting(false)
                 MarkdownLaTeXText(displayText ?? text, fontSize: 14, isStreaming: false)
                     .foregroundColor(state == .neutral ? themeManager.primaryText : state == .correct ? correctGreen : wrongRed)
                     .multilineTextAlignment(.leading)
+                    .allowsHitTesting(false)
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 14)
             .frame(maxWidth: .infinity, minHeight: 66)
+            .contentShape(Rectangle())
             .background(
                 RoundedRectangle(cornerRadius: 16)
                     .fill(state == .correct ? correctBg
@@ -321,11 +330,49 @@ struct DailyChallengeView: View {
     }
 
     private enum OptionState { case neutral, correct, wrong }
+
+    // Resolves whether an option text matches the question's correct answer,
+    // handling three formats the AI may return:
+    //   "B"       — letter only
+    //   "B. 7"    — letter + dot + text (AI's intended format)
+    //   "7"       — plain text (when options have no letter prefix)
+    private func isOptionCorrect(_ option: String, q: QuestionGenerationService.GeneratedQuestion) -> Bool {
+        let strippedOption   = strippedOptionPrefix(option).trimmingCharacters(in: .whitespaces).lowercased()
+        let rawCorrect       = q.correctAnswer.trimmingCharacters(in: .whitespaces)
+        let strippedCorrect  = strippedOptionPrefix(rawCorrect).lowercased()
+
+        // 1. Direct stripped-text match ("7" == "7")
+        if strippedOption == strippedCorrect { return true }
+
+        // 2. correctAnswer is a bare letter "B" — resolve to option at that index
+        let letters = "ABCD"
+        if rawCorrect.count == 1, let letterIdx = letters.firstIndex(of: rawCorrect.uppercased().first ?? "X") {
+            let idx = letters.distance(from: letters.startIndex, to: letterIdx)
+            if let opts = q.options, idx < opts.count {
+                return strippedOptionPrefix(opts[idx]).trimmingCharacters(in: .whitespaces).lowercased() == strippedOption
+            }
+        }
+
+        // 3. correctAnswer is "B. text" — resolve letter to option index
+        let ca = rawCorrect
+        if ca.count >= 2,
+           let firstChar = ca.unicodeScalars.first, CharacterSet.letters.contains(firstChar),
+           let secondChar = ca.unicodeScalars.dropFirst().first, secondChar == "." || secondChar == ")" {
+            let letter = String(ca.prefix(1)).uppercased()
+            if let letterIdx = letters.firstIndex(of: letter.first ?? "X") {
+                let idx = letters.distance(from: letters.startIndex, to: letterIdx)
+                if let opts = q.options, idx < opts.count {
+                    return strippedOptionPrefix(opts[idx]).trimmingCharacters(in: .whitespaces).lowercased() == strippedOption
+                }
+            }
+        }
+
+        return false
+    }
+
     private func optionState(_ option: String, q: QuestionGenerationService.GeneratedQuestion) -> OptionState {
         guard hasAnswered else { return .neutral }
-        let correct = q.correctAnswer.trimmingCharacters(in: .whitespaces).lowercased()
-        let this    = option.trimmingCharacters(in: .whitespaces).lowercased()
-        if this == correct { return .correct }
+        if isOptionCorrect(option, q: q) { return .correct }
         if option == selectedOption { return .wrong }
         return .neutral
     }
@@ -345,23 +392,72 @@ struct DailyChallengeView: View {
                 .disabled(hasAnswered)
 
             if !hasAnswered {
-                Button(action: { submitTextAnswer(q) }) {
-                    Text(NSLocalizedString("questionDetail.check", value: "检查答案", comment: ""))
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(userTextAnswer.trimmingCharacters(in: .whitespaces).isEmpty
-                                      ? Color.secondary.opacity(0.3)
-                                      : themeManager.accentColor)
-                        )
+                HStack(spacing: 10) {
+                    holdToSpeakButton
+
+                    Button(action: { submitTextAnswer(q) }) {
+                        Text(NSLocalizedString("questionDetail.check", value: "检查答案", comment: ""))
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(userTextAnswer.trimmingCharacters(in: .whitespaces).isEmpty
+                                          ? Color.secondary.opacity(0.3)
+                                          : themeManager.accentColor)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(userTextAnswer.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
-                .buttonStyle(.plain)
-                .disabled(userTextAnswer.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
+    }
+
+    private var holdToSpeakButton: some View {
+        let canUseVoice = speechService.permissionStatus.canUseVoice
+        return HStack(spacing: 6) {
+            Image(systemName: isVoiceDictating ? "waveform" : "mic.fill")
+                .font(.system(size: 15, weight: .medium))
+                .foregroundColor(isVoiceDictating ? .white : (canUseVoice ? themeManager.accentColor : .secondary))
+        }
+        .frame(width: 52, height: 52)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(isVoiceDictating
+                      ? themeManager.accentColor
+                      : themeManager.accentColor.opacity(canUseVoice ? 0.1 : 0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(themeManager.accentColor.opacity(canUseVoice ? 0.35 : 0.15), lineWidth: 1)
+                )
+        )
+        .contentShape(Rectangle())
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in if !isVoiceDictating { startVoiceDictation() } }
+                .onEnded { _ in stopVoiceDictation() }
+        )
+        .onAppear { Task { await speechService.requestPermissions() } }
+    }
+
+    private func startVoiceDictation() {
+        guard speechService.permissionStatus.canUseVoice else { return }
+        isVoiceDictating = true
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        speechService.startListening { result in
+            if result.isFinal && !result.recognizedText.isEmpty {
+                userTextAnswer = result.recognizedText
+            }
+        }
+    }
+
+    private func stopVoiceDictation() {
+        guard isVoiceDictating else { return }
+        isVoiceDictating = false
+        speechService.stopListening()
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
     }
 
     // MARK: - Feedback Panel
@@ -696,8 +792,7 @@ struct DailyChallengeView: View {
     private func tapOption(_ option: String, q: QuestionGenerationService.GeneratedQuestion) {
         guard !hasAnswered else { return }
         selectedOption = option
-        let correct = option.trimmingCharacters(in: .whitespaces).lowercased()
-                   == q.correctAnswer.trimmingCharacters(in: .whitespaces).lowercased()
+        let correct = isOptionCorrect(option, q: q)
         finishAnswer(answer: option, correct: correct, q: q)
     }
 

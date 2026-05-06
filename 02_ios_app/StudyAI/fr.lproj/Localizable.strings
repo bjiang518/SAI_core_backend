@@ -3052,3 +3052,4 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "settings.ultraBadge" = "Ultra";
 "common.remove" = "Supprimer";
 "guestConversion.loginSuccess" = "Connexion réussie !";
+"dailyChallenge.bannerReady" = "Les 3 questions du jour sont prêtes";

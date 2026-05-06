@@ -170,6 +170,27 @@ struct GeneratedQuestionDetailView: View {
                 .fontWeight(.semibold)
 
             SmartLaTeXView(currentQuestion.question, fontSize: 16, colorScheme: colorScheme)
+
+            if let relativePath = currentQuestion.figureUrl,
+               let url = URL(string: NetworkService.shared.apiBaseURL + relativePath) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxWidth: .infinity)
+                            .cornerRadius(8)
+                    case .failure:
+                        EmptyView()
+                    case .empty:
+                        ProgressView()
+                            .frame(maxWidth: .infinity, minHeight: 80)
+                    @unknown default:
+                        EmptyView()
+                    }
+                }
+            }
         }
     }
 

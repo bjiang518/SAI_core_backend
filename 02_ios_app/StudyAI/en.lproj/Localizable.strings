@@ -2614,7 +2614,7 @@
 // Onboarding — Age
 "onboarding.age.title" = "How old are you?";
 "onboarding.age.subtitle" = "Helps us personalise the experience";
-"onboarding.age.placeholder" = "Enter your age";\
+"onboarding.age.placeholder" = "Enter your age";
 "onboarding.age.gradeLabel" = "Grade";
 
 // Onboarding — Learning Style
@@ -3107,3 +3107,4 @@
 "settings.ultraBadge" = "Ultra";
 "common.remove" = "Remove";
 "guestConversion.loginSuccess" = "Signed in successfully!";
+"dailyChallenge.bannerReady" = "Daily 3 questions are ready";

@@ -79,8 +79,12 @@ struct HomeView: View {
 
     private let logger = Logger(subsystem: "com.studyai", category: "HomeView")
 
+    private var todayString: String {
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f.string(from: Date())
+    }
+
     private var unclaimedEarningsCount: Int {
-        let today = { let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f.string(from: Date()) }()
+        let today = todayString
         let streakBonus = pointsManager.hasClaimedStreakBonusToday ? 0 : 1
         let dailyChallenge = (dailyChallengeLastCompleted == today && dailyChallengePointsClaimedDate != today) ? 1 : 0
         return streakBonus + dailyChallenge
@@ -739,21 +743,10 @@ extension HomeView {
                 }
 
                 // Card 3: Practice
-                VStack(spacing: 6) {
-                    QuickActionCard_New(
-                        icon: "doc.text.fill",
-                        title: NSLocalizedString("home.practice", comment: ""),
-                        subtitle: "",
-                        color: themeManager.featureCardColor("practice"),
-                        lottieAnimation: "createquiz",
-                        lottieScale: 0.117,
-                        cuteCircleColor: DesignTokens.Colors.Cute.mint,
-                        action: { showingQuestionGeneration = true }
-                    )
-                    Text(NSLocalizedString("home.quickAction.practice", value: "练习本", comment: ""))
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(colorScheme == .dark ? .white : themeManager.secondaryText)
-                }
+                PracticeQuickActionCard(
+                    isDailyCompleted: dailyChallengeLastCompleted == todayString,
+                    action: { showingQuestionGeneration = true }
+                )
             }
             .padding(.horizontal, DesignTokens.Spacing.xl)
         }
@@ -1005,6 +998,96 @@ struct QuickActionCard_New: View {
             .scaleEffect(isPressed ? 0.95 : 1.0)
         }
         .buttonStyle(PlainButtonStyle())
+    }
+}
+
+// MARK: - Practice Quick Action Card (with daily badge + sliding banner)
+
+private struct PracticeQuickActionCard: View {
+    let isDailyCompleted: Bool
+    let action: () -> Void
+
+    @State private var isPressed = false
+    @Environment(\.lottieRefreshID) private var lottieRefreshID
+    @StateObject private var themeManager = ThemeManager.shared
+    @Environment(\.colorScheme) private var colorScheme
+
+    private let mintColor = DesignTokens.Colors.Cute.mint
+
+    var body: some View {
+        VStack(spacing: 6) {
+            Button(action: {
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) { isPressed = true }
+                action()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) { isPressed = false }
+                }
+            }) {
+                ZStack(alignment: .topTrailing) {
+                    RoundedRectangle(cornerRadius: 22)
+                        .fill(themeManager.quickActionCardFill(
+                            color: themeManager.featureCardColor("practice"),
+                            cuteCircleColor: mintColor,
+                            isPressed: isPressed,
+                            colorScheme: colorScheme))
+                        .overlay(Group {
+                            if let border = themeManager.quickActionCardBorder(
+                                color: themeManager.featureCardColor("practice"),
+                                isPressed: isPressed) {
+                                RoundedRectangle(cornerRadius: 22)
+                                    .stroke(border.color, lineWidth: border.width)
+                            }
+                        })
+                        .shadow(
+                            color: themeManager.quickActionCardShadow(
+                                color: themeManager.featureCardColor("practice"),
+                                isPressed: isPressed,
+                                colorScheme: colorScheme).color,
+                            radius: themeManager.quickActionCardShadow(
+                                color: themeManager.featureCardColor("practice"),
+                                isPressed: isPressed,
+                                colorScheme: colorScheme).radius,
+                            x: 0, y: 2
+                        )
+
+                    LottieView(
+                        animationName: "createquiz",
+                        loopMode: .loop,
+                        animationSpeed: 0.5,
+                        powerSavingProgress: 0.8,
+                        refreshID: lottieRefreshID
+                    )
+                    .frame(width: 50, height: 50)
+                    .scaleEffect(isPressed ? 0.117 * 0.95 : 0.117)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                    if !isDailyCompleted {
+                        ZStack {
+                            Circle()
+                                .fill(Color.red)
+                                .frame(width: 20, height: 20)
+                                .shadow(color: Color.red.opacity(0.5), radius: 4, x: 0, y: 1)
+                            Text("3")
+                                .font(.system(size: 11, weight: .black))
+                                .foregroundColor(.white)
+                        }
+                        .padding(.top, 7)
+                        .padding(.trailing, 7)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 95)
+                .contentShape(RoundedRectangle(cornerRadius: 22))
+                .scaleEffect(isPressed ? 0.95 : 1.0)
+                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
+            }
+            .buttonStyle(.plain)
+
+            Text(NSLocalizedString("home.quickAction.practice", value: "练习本", comment: ""))
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(colorScheme == .dark ? .white : themeManager.secondaryText)
+        }
     }
 }
 

@@ -205,7 +205,8 @@ module.exports = async function (fastify, opts) {
         case 'EXPIRED':
         case 'REFUND':
         case 'REVOKE':
-        case 'DID_FAIL_TO_RENEW': {
+        case 'DID_FAIL_TO_RENEW':
+        case 'GRACE_PERIOD_EXPIRED': {
           await db.setUserTier(userId, 'free', null);
           fastify.log.info(`[AppleWebhook] ${notificationType}: user=${userId} → tier=free`);
           break;
