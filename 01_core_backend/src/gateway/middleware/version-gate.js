@@ -21,7 +21,7 @@ const logger = require('../../utils/logger');
 
 // Read once at startup — change requires restart or redeploy
 const RECOMMENDED_VERSION = process.env.IOS_RECOMMENDED_VERSION || '0.0.0';
-const STORE_URL = 'https://apps.apple.com/app/id6743428452';
+const STORE_URL = 'https://apps.apple.com/app/id6754365864';
 
 /**
  * Compare two semver-ish strings ("1.0.5" vs "1.0").

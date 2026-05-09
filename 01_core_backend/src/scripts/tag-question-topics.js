@@ -24,7 +24,7 @@ const FORCE   = process.argv.includes('--force');  // re-tag even if already tag
 const LIMIT   = (() => { const f = process.argv.find(a => a.startsWith('--limit=')); return f ? parseInt(f.split('=')[1]) : Infinity; })();
 const SOURCE  = (() => { const f = process.argv.find(a => a.startsWith('--source=')); return f ? f.split('=')[1] : null; })();
 
-const TAGGING_BATCH = 10;
+const TAGGING_BATCH = 5;  // smaller batch = fewer count mismatches for large taxonomies
 const EMBED_BATCH   = 20;
 
 const pool   = new Pool({ connectionString: process.env.DATABASE_URL, ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false, statement_timeout: 60000, query_timeout: 60000 });
@@ -70,10 +70,12 @@ async function tagBatch(questions, subjectKey) {
   const systemPrompt = buildTaggingPrompt(subjectKey);
   const numbered = questions.map((q, i) => `${i + 1}. ${q.slice(0, 400)}`).join('\n\n');
 
+  // History branch names are long (~15 tokens each) — use 120 tokens per question
+  const maxTokens = questions.length * 120;
   const res = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
     temperature: 0,
-    max_tokens: questions.length * 40,
+    max_tokens: maxTokens,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user',   content: numbered },
@@ -95,17 +97,34 @@ async function tagOne(question, subjectKey) {
   const res = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
     temperature: 0,
-    max_tokens: 60,
+    max_tokens: 200,
     messages: [
       { role: 'system', content: systemPrompt },
-      { role: 'user',   content: `1. ${question.slice(0, 400)}` },
+      // Explicitly ask for a single-item array to avoid GPT returning a plain object
+      { role: 'user', content: `Classify this 1 question. Return a JSON array with exactly 1 item:\n1. ${question.slice(0, 400)}` },
     ],
   });
   const text = res.choices[0].message.content.trim();
-  const jsonMatch = text.match(/\[[\s\S]*\]/);
-  if (!jsonMatch) throw new Error('No JSON');
-  const parsed = JSON.parse(jsonMatch[0]);
-  return Array.isArray(parsed) && parsed[0] ? parsed[0] : null;
+  // Accept both array [...] and plain object {...}
+  const arrMatch = text.match(/\[[\s\S]*?\]/);
+  const objMatch = text.match(/\{[\s\S]*?\}/);
+  if (arrMatch) {
+    try {
+      const parsed = JSON.parse(arrMatch[0]);
+      return Array.isArray(parsed) && parsed[0]?.base_branch ? parsed[0] : null;
+    } catch { /* fall through */ }
+  }
+  if (objMatch) {
+    try {
+      const parsed = JSON.parse(objMatch[0]);
+      return parsed?.base_branch ? parsed : null;
+    } catch { /* fall through */ }
+  }
+  // Last resort: GPT sometimes returns key:value lines without JSON
+  const bbMatch = text.match(/"?base_branch"?\s*:\s*"([^"]+)"/);
+  const dbMatch = text.match(/"?detailed_branch"?\s*:\s*"([^"]+)"/);
+  if (bbMatch) return { base_branch: bbMatch[1], detailed_branch: dbMatch?.[1] || null };
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -132,7 +151,23 @@ async function embedBatch(rows) {
   const client = await pool.connect();
   try {
     const sourceClause = SOURCE ? `AND source = '${SOURCE}'` : '';
-    const forceClause  = FORCE  ? '' : `AND (base_branch IS NULL OR base_branch = '')`;
+
+    // Dirty base_branch values: placeholders or subject names used as branch names
+    const DIRTY_BRANCHES = ["'...'", "'Biology'", "'Math'", "'Physics'",
+                            "'Chemistry'", "'History'", "'English'", "'Computer Science'",
+                            "'?'", "'N/A'", "'Unknown'"];
+    const dirtyList = DIRTY_BRANCHES.join(', ');
+    const forceClause = FORCE ? '' :
+      `AND (base_branch IS NULL OR base_branch = '' OR base_branch IN (${dirtyList}))`;
+
+    // Pre-clean all dirty values → NULL so they're picked up by the untagged filter
+    if (!DRY_RUN) {
+      const { rowCount } = await client.query(
+        `UPDATE question_bank SET base_branch = NULL, detailed_branch = NULL, topic = NULL
+         WHERE base_branch IN (${dirtyList}) ${sourceClause}`
+      );
+      if (rowCount > 0) console.log(`  Cleared ${rowCount} dirty base_branch rows → NULL`);
+    }
 
     const { rows } = await client.query(`
       SELECT id, source, subject, question, correct_answer, base_branch, detailed_branch
@@ -172,13 +207,16 @@ async function embedBatch(rows) {
         try {
           results = await tagBatch(batch.map(r => r.question), subjectKey);
           batch.forEach((r, j) => allTagged.push({ ...r, newTag: results[j] }));
-        } catch {
-          process.stdout.write(` [retry individually]`);
+        } catch (batchErr) {
+          process.stdout.write(` [retry individually — ${batchErr.message.slice(0, 60)}]`);
           for (const r of batch) {
             try {
               const tag = await tagOne(r.question, subjectKey);
               allTagged.push({ ...r, newTag: tag });
-            } catch {
+            } catch (oneErr) {
+              if (process.env.DEBUG_TAGGING) {
+                console.log(`\n  tagOne fail [${r.source}]: ${oneErr.message}`);
+              }
               allTagged.push({ ...r, newTag: null });
             }
           }

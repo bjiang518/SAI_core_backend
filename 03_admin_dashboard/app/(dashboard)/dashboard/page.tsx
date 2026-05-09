@@ -6,6 +6,7 @@ import { MetricCard } from '@/components/dashboard/MetricCard'
 import { Users, MessageSquare, Zap, AlertCircle, Database, TrendingUp, Coins, Smartphone } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { statsAPI } from '@/lib/api'
+import { ReportGenerator } from '@/components/dashboard/ReportGenerator'
 
 interface OverviewStats {
   totalUsers: number
@@ -131,11 +132,14 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8">
       {/* Page Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard Overview</h1>
-        <p className="text-muted-foreground mt-2">
-          Monitor your StudyAgent platform performance and key metrics
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard Overview</h1>
+          <p className="text-muted-foreground mt-2">
+            Monitor your StudyAgent platform performance and key metrics
+          </p>
+        </div>
+        <ReportGenerator />
       </div>
 
       {/* Engagement Row */}

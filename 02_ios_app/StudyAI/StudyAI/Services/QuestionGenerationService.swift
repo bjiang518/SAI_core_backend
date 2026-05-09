@@ -185,6 +185,49 @@ class QuestionGenerationService: ObservableObject {
         let weaknessKey: String?       // Combined key for status lookup
         let bankQuestionId: String?    // UUID of the source row in question_bank
         let figureUrl: String?         // Relative path: /api/ai/question-bank/figure/<id>
+        let source: String?            // "amc8" | "amc12" | "aime" | "sat" | "mmlu" | "arc" | "gsm8k"
+        let sourceId: String?          // e.g. "2023-P5", "1990-I-5"
+
+        // Human-readable label for the question source
+        var sourceLabel: String? {
+            guard let source else { return nil }
+            switch source {
+            case "amc8":
+                let parts = sourceId?.components(separatedBy: "-") ?? []
+                let year = parts.first ?? ""; let num = parts.last?.replacingOccurrences(of: "P", with: "") ?? ""
+                return "AMC 8 · \(year) #\(num)"
+            case "amc10":
+                let year = sourceId.flatMap { String($0.prefix(4)) } ?? ""
+                let part = sourceId.flatMap { s -> String? in
+                    let c = s.dropFirst(4).prefix(1); return c.isEmpty ? nil : String(c) } ?? ""
+                let num = sourceId?.components(separatedBy: "-P").last ?? ""
+                return "AMC 10\(part) · \(year) #\(num)"
+            case "amc12":
+                let year = sourceId.flatMap { String($0.prefix(4)) } ?? ""
+                let part = sourceId.flatMap { s -> String? in
+                    let c = s.dropFirst(4).prefix(1); return c.isEmpty ? nil : String(c) } ?? ""
+                let num = sourceId?.components(separatedBy: "-P").last ?? ""
+                return "AMC 12\(part) · \(year) #\(num)"
+            case "aime":
+                let parts = sourceId?.components(separatedBy: "-") ?? []
+                let year = parts.first ?? ""; let part = parts.dropFirst().first ?? ""; let num = parts.last ?? ""
+                return "AIME \(part) · \(year) #\(num)"
+            case "sat":      return "SAT Math"
+            case "mmlu":     return "MMLU · \(topic)"
+            case "arc":      return "ARC Science"
+            case "gsm8k":    return "Grade School Math"
+            case "openbookqa": return "OpenBookQA"
+            case "agieval":
+                if sourceId?.contains("sat_en") == true  { return "SAT English" }
+                if sourceId?.contains("lsat_lr") == true { return "LSAT · Logical Reasoning" }
+                if sourceId?.contains("lsat_rc") == true { return "LSAT · Reading" }
+                if sourceId?.contains("lsat_ar") == true { return "LSAT · Analytical Reasoning" }
+                return "AGIEval"
+            default: return nil
+            }
+        }
+
+        var isFromBank: Bool { bankQuestionId != nil }
 
         // Custom initializer for JSON decoding - restores UUID if stored, generates new one otherwise
         init(from decoder: Decoder) throws {
@@ -228,6 +271,8 @@ class QuestionGenerationService: ObservableObject {
             self.weaknessKey = try container.decodeIfPresent(String.self, forKey: .weaknessKey)
             self.bankQuestionId = try container.decodeIfPresent(String.self, forKey: .bankQuestionId)
             self.figureUrl = try container.decodeIfPresent(String.self, forKey: .figureUrl)
+            self.source = try container.decodeIfPresent(String.self, forKey: .source)
+            self.sourceId = try container.decodeIfPresent(String.self, forKey: .sourceId)
         }
 
         // Helper struct for parsing backend multiple choice options
@@ -244,7 +289,7 @@ class QuestionGenerationService: ObservableObject {
         }
 
         // Regular initializer for programmatic creation
-        init(id: UUID = UUID(), question: String, type: QuestionType, correctAnswer: String, explanation: String, topic: String, difficulty: String, points: Int? = nil, timeEstimate: String? = nil, options: [String]? = nil, tags: [String]? = nil, errorType: String? = nil, baseBranch: String? = nil, detailedBranch: String? = nil, weaknessKey: String? = nil, bankQuestionId: String? = nil, figureUrl: String? = nil) {
+        init(id: UUID = UUID(), question: String, type: QuestionType, correctAnswer: String, explanation: String, topic: String, difficulty: String, points: Int? = nil, timeEstimate: String? = nil, options: [String]? = nil, tags: [String]? = nil, errorType: String? = nil, baseBranch: String? = nil, detailedBranch: String? = nil, weaknessKey: String? = nil, bankQuestionId: String? = nil, figureUrl: String? = nil, source: String? = nil, sourceId: String? = nil) {
             self.id = id
             self.question = question
             self.type = type
@@ -262,6 +307,8 @@ class QuestionGenerationService: ObservableObject {
             self.weaknessKey = weaknessKey
             self.bankQuestionId = bankQuestionId
             self.figureUrl = figureUrl
+            self.source = source
+            self.sourceId = sourceId
         }
 
         // Coding keys for JSON encoding/decoding
@@ -285,6 +332,8 @@ class QuestionGenerationService: ObservableObject {
             case weaknessKey = "weakness_key"
             case bankQuestionId = "bank_question_id"
             case figureUrl = "figure_url"
+            case source = "source"
+            case sourceId = "source_id"
         }
 
         enum QuestionType: String, Codable, CaseIterable {
@@ -1063,6 +1112,8 @@ class QuestionGenerationService: ObservableObject {
         let baseBranch = dict["base_branch"] as? String
         let detailedBranch = dict["detailed_branch"] as? String
         let weaknessKey = dict["weakness_key"] as? String
+        let source = dict["source"] as? String
+        let sourceId = dict["source_id"] as? String
 
         // Debug logging
         debugPrint("  📝 Parsed Question:")
@@ -1094,7 +1145,11 @@ class QuestionGenerationService: ObservableObject {
             errorType: errorType,
             baseBranch: baseBranch,
             detailedBranch: detailedBranch,
-            weaknessKey: weaknessKey
+            weaknessKey: weaknessKey,
+            bankQuestionId: dict["bank_question_id"] as? String,
+            figureUrl: dict["figure_url"] as? String,
+            source: source,
+            sourceId: sourceId
         )
     }
 
@@ -1171,7 +1226,8 @@ class QuestionGenerationService: ObservableObject {
         shortTermContext: [[String: Any]] = [],
         mistakesData: [MistakeData] = [],
         conversationData: [ConversationData] = [],
-        questionData: [[String: Any]] = []
+        questionData: [[String: Any]] = [],
+        bankSource: String? = nil
     ) async -> Result<[GeneratedQuestion], QuestionGenerationError> {
 
         await MainActor.run {
@@ -1216,6 +1272,10 @@ class QuestionGenerationService: ObservableObject {
         case 3:
             body["conversation_data"] = conversationData.map { $0.dictionary }
             body["question_data"] = questionData
+        case 4:
+            body["short_term_context"] = shortTermContext
+            body["mistakes_data"] = mistakesData.map { $0.dictionary }
+            if let src = bankSource { body["bank_source"] = src }
         default:
             break
         }

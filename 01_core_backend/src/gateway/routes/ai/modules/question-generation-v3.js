@@ -214,6 +214,22 @@ async function logMetricsV3({ userId, endpoint, totalLatency, tokensUsed, wasSuc
 module.exports = async function (fastify, opts) {
   const aiClient = new AIServiceClient();
 
+  // Pre-warm the most-requested subject caches in the background so the first
+  // real user doesn't wait 40–50s for the cold-load.
+  const WARM_SUBJECTS = ['Math', 'Biology', 'Chemistry', 'Physics', 'English'];
+  setImmediate(() => {
+    (async () => {
+      for (const subj of WARM_SUBJECTS) {
+        try {
+          await questionBank.warmCache(subj);
+        } catch (err) {
+          fastify.log.warn({ msg: `⚠️ Cache warm-up failed for "${subj}"`, err: err.message });
+        }
+      }
+      fastify.log.info({ msg: '✅ Question bank cache pre-warmed', subjects: WARM_SUBJECTS });
+    })();
+  });
+
   fastify.post('/api/ai/generate-questions/practice/v2', {
     schema: {
       description: 'Generate practice questions — typed parallel requests (v2)',
@@ -297,9 +313,11 @@ module.exports = async function (fastify, opts) {
       language,
     });
 
-    // Fetch real user profile (grade level) from DB
+    // Fetch real user profile (grade level) from DB.
+    // Do NOT fall back to 'High School' — an unset grade should produce no constraint,
+    // letting the user-selected difficulty drive retrieval (safer for young children).
     const rawProfile = await db.getEnhancedUserProfile(userId).catch(() => null);
-    const gradeLabel = formatGradeLevel(rawProfile?.grade_level) || 'High School';
+    const gradeLabel = formatGradeLevel(rawProfile?.grade_level) || null;
     const difficultyStr = DIFFICULTY_MAP[difficulty] || 'intermediate';
 
     const userProfile = { grade: gradeLabel, location: 'US', subject_proficiency: {} };
@@ -330,6 +348,7 @@ module.exports = async function (fastify, opts) {
           conversationData: conversation_data,
           weaknessKeys,
           source:           bank_source || null,
+          gradeLevel:       gradeLabel,   // ← grade-aware difficulty capping
         });
 
         allQuestions = bankResult.questions;
@@ -525,6 +544,22 @@ module.exports = async function (fastify, opts) {
     const { question_id, was_correct } = request.body;
     await questionBank.recordGradingResult(userId, question_id, was_correct);
     return { success: true };
+  });
+
+  // ---------------------------------------------------------------------------
+  // POST /api/ai/question-bank/invalidate-cache
+  // Called after import scripts to clear stale in-memory embedding cache.
+  // Requires X-Admin-Secret header matching ADMIN_SECRET env var.
+  // ---------------------------------------------------------------------------
+  fastify.post('/api/ai/question-bank/invalidate-cache', async (request, reply) => {
+    const secret = request.headers['x-admin-secret'];
+    if (!secret || secret !== process.env.ADMIN_SECRET) {
+      return reply.status(403).send({ success: false, error: 'FORBIDDEN' });
+    }
+    const { subject } = request.body || {};
+    questionBank.invalidateCache(subject || undefined);
+    fastify.log.info({ msg: '🗑 Question bank cache invalidated', subject: subject || 'all' });
+    return { success: true, invalidated: subject || 'all' };
   });
 };
 

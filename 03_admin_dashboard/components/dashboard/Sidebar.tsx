@@ -16,16 +16,22 @@ import {
   Tag,
   Menu,
   X,
+  TrendingUp,
+  Filter,
+  AlertTriangle,
 } from 'lucide-react'
 
 const navigation = [
-  { name: 'Overview', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Users', href: '/dashboard/users', icon: Users },
-  { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart2 },
-  { name: 'Insights', href: '/dashboard/insights', icon: Lightbulb },
-  { name: 'System Health', href: '/dashboard/system', icon: Activity },
-  { name: 'Reports', href: '/dashboard/reports', icon: FileText },
-  { name: 'Promo Codes', href: '/dashboard/promos', icon: Tag },
+  { name: 'Overview',     href: '/dashboard',           icon: LayoutDashboard },
+  { name: 'Users',        href: '/dashboard/users',     icon: Users },
+  { name: 'Analytics',    href: '/dashboard/analytics', icon: BarChart2 },
+  { name: 'Retention',    href: '/dashboard/retention', icon: TrendingUp },
+  { name: 'Funnel',       href: '/dashboard/funnel',    icon: Filter },
+  { name: 'Churn Risk',   href: '/dashboard/churn',     icon: AlertTriangle },
+  { name: 'Insights',     href: '/dashboard/insights',  icon: Lightbulb },
+  { name: 'System Health',href: '/dashboard/system',    icon: Activity },
+  { name: 'Reports',      href: '/dashboard/reports',   icon: FileText },
+  { name: 'Promo Codes',  href: '/dashboard/promos',    icon: Tag },
 ]
 
 export function Sidebar() {

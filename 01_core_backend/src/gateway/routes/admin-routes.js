@@ -15,6 +15,45 @@ const { healthCheckServiceInstance } = require('../middleware/health-check');
 module.exports = async function (fastify, opts) {
   const { db, getPoolHealth } = require('../../utils/railway-database');
   const aiClient = new AIServiceClient();
+  const DASHBOARD_TZ = 'America/Los_Angeles';
+
+  // Cache whether the internal-user columns exist (added by migration 20260508)
+  let _internalColsExist = null;
+  async function internalColsExist() {
+    if (_internalColsExist !== null) return _internalColsExist;
+    try {
+      await db.query(`SELECT is_internal FROM users LIMIT 0`);
+      _internalColsExist = true;
+    } catch {
+      _internalColsExist = false;
+    }
+    return _internalColsExist;
+  }
+
+  // Cache whether the grade_events table exists (added by migration 20260508_grade_events)
+  let _gradeEventsExist = null;
+  async function gradeEventsExist() {
+    if (_gradeEventsExist !== null) return _gradeEventsExist;
+    try {
+      await db.query(`SELECT id FROM grade_events LIMIT 0`);
+      _gradeEventsExist = true;
+    } catch {
+      _gradeEventsExist = false;
+    }
+    return _gradeEventsExist;
+  }
+
+  async function getIFilter(includeInternal) {
+    if (includeInternal) return '';
+    if (!(await internalColsExist())) return '';
+    return `AND COALESCE(u.is_internal, false) = false AND COALESCE(u.is_test_user, false) = false`;
+  }
+
+  async function getIFilterNoAlias(includeInternal) {
+    if (includeInternal) return '';
+    if (!(await internalColsExist())) return '';
+    return `AND COALESCE(is_internal, false) = false AND COALESCE(is_test_user, false) = false`;
+  }
 
   const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET;
   if (!ADMIN_JWT_SECRET) {
@@ -119,35 +158,38 @@ module.exports = async function (fastify, opts) {
    */
   fastify.get('/api/admin/stats/overview', { preHandler: verifyAdmin }, async (request, reply) => {
     try {
+      const includeInternal = request.query.includeInternal === 'true'
+      const iFilter = await getIFilter(includeInternal)
       // Real DB queries in parallel
       const [usersResult, weekAgoResult, sessionsResult, dauResult, wauResult, mauResult, churnResult, newUsersLastWeekResult, tierDistResult, pointsResult, xpResult, spendResult, iosVersionResult] = await Promise.all([
-        db.query(`SELECT COUNT(*) as total FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE p.parent_id IS NULL`),
-        db.query(`SELECT COUNT(*) as total FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE u.created_at <= NOW() - INTERVAL '7 days' AND p.parent_id IS NULL`),
-        db.query("SELECT COUNT(*) as total FROM sessions WHERE DATE(created_at) = CURRENT_DATE"),
-        db.query("SELECT COUNT(DISTINCT user_id) as total FROM sessions WHERE DATE(created_at) = CURRENT_DATE"),
-        db.query("SELECT COUNT(DISTINCT user_id) as total FROM sessions WHERE created_at >= NOW() - INTERVAL '7 days'"),
-        db.query("SELECT COUNT(DISTINCT user_id) as total FROM sessions WHERE created_at >= NOW() - INTERVAL '30 days'"),
+        db.query(`SELECT COUNT(*) as total FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE p.parent_id IS NULL ${iFilter}`),
+        db.query(`SELECT COUNT(*) as total FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE u.created_at <= NOW() - INTERVAL '7 days' AND p.parent_id IS NULL ${iFilter}`),
+        db.query(`SELECT COUNT(*) as total FROM sessions WHERE (created_at AT TIME ZONE '${DASHBOARD_TZ}')::date = (NOW() AT TIME ZONE '${DASHBOARD_TZ}')::date`),
+        db.query(`SELECT COUNT(DISTINCT us.user_id) as total FROM user_sessions us JOIN users u ON u.id = us.user_id WHERE u.is_anonymous = false ${iFilter} AND (us.created_at AT TIME ZONE '${DASHBOARD_TZ}')::date = (NOW() AT TIME ZONE '${DASHBOARD_TZ}')::date`),
+        db.query(`SELECT COUNT(DISTINCT us.user_id) as total FROM user_sessions us JOIN users u ON u.id = us.user_id WHERE u.is_anonymous = false ${iFilter} AND us.created_at >= NOW() - INTERVAL '7 days'`),
+        db.query(`SELECT COUNT(DISTINCT us.user_id) as total FROM user_sessions us JOIN users u ON u.id = us.user_id WHERE u.is_anonymous = false ${iFilter} AND us.created_at >= NOW() - INTERVAL '30 days'`),
         db.query(`
           SELECT COUNT(*) as total FROM users u
           LEFT JOIN profiles p ON p.user_id = u.id
           WHERE p.parent_id IS NULL
-          AND u.is_anonymous = false
+          AND u.is_anonymous = false ${iFilter}
           AND GREATEST(
             u.last_login_at,
             (SELECT MAX(s.created_at)  FROM sessions s   WHERE s.user_id = u.id),
             (SELECT MAX(us.created_at) FROM user_sessions us WHERE us.user_id = u.id),
             (SELECT MAX(dsa.activity_date) FROM daily_subject_activities dsa WHERE dsa.user_id = u.id)
-          ) < NOW() - INTERVAL '7 days'
+          ) < NOW() - INTERVAL '30 days'
         `),
-        db.query(`SELECT COUNT(*) as total FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE u.created_at >= NOW() - INTERVAL '7 days' AND p.parent_id IS NULL`),
+        db.query(`SELECT COUNT(*) as total FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE u.created_at >= NOW() - INTERVAL '7 days' AND p.parent_id IS NULL ${iFilter}`),
         db.query(`
           SELECT
-            COUNT(*) FILTER (WHERE u.tier = 'premium'      AND p.parent_id IS NULL)::int AS premium_count,
-            COUNT(*) FILTER (WHERE u.tier = 'premium_plus' AND p.parent_id IS NULL)::int AS premium_plus_count,
-            COUNT(*) FILTER (WHERE (u.tier = 'free' OR u.tier IS NULL) AND u.is_anonymous = false AND p.parent_id IS NULL)::int AS free_count,
+            COUNT(*) FILTER (WHERE u.tier = 'premium'      AND (u.tier_expires_at IS NULL OR u.tier_expires_at > NOW()) AND p.parent_id IS NULL)::int AS premium_count,
+            COUNT(*) FILTER (WHERE u.tier = 'premium_plus' AND (u.tier_expires_at IS NULL OR u.tier_expires_at > NOW()) AND p.parent_id IS NULL)::int AS premium_plus_count,
+            COUNT(*) FILTER (WHERE ((u.tier = 'free' OR u.tier IS NULL) OR (u.tier IN ('premium', 'premium_plus') AND u.tier_expires_at IS NOT NULL AND u.tier_expires_at <= NOW())) AND u.is_anonymous = false AND p.parent_id IS NULL)::int AS free_count,
             COUNT(*) FILTER (WHERE u.is_anonymous = true   AND p.parent_id IS NULL)::int AS guest_count
           FROM users u
           LEFT JOIN profiles p ON p.user_id = u.id
+          ${(await internalColsExist()) && !includeInternal ? 'WHERE COALESCE(u.is_internal, false) = false AND COALESCE(u.is_test_user, false) = false' : ''}
         `),
         // Points economy — earn events are never written to point_transactions,
         // so we derive "earned" from users.points_balance (current holdings)
@@ -387,7 +429,7 @@ module.exports = async function (fastify, opts) {
           'SELECT id, email, name, tier, is_anonymous, tier_expires_at, created_at, last_login_at FROM users WHERE id = $1',
           [userId]
         ),
-        db.query('SELECT subject, questions_answered, accuracy FROM subject_progress WHERE user_id = $1', [userId]),
+        db.query('SELECT subject, total_questions_attempted, accuracy_rate FROM subject_progress WHERE user_id = $1', [userId]),
       ]);
 
       if (userResult.rows.length === 0) {
@@ -415,9 +457,9 @@ module.exports = async function (fastify, opts) {
     try {
       const { userId } = request.params;
       const result = await db.query(`
-        SELECT DATE(created_at) as date, COUNT(*) as sessions
+        SELECT (created_at AT TIME ZONE '${DASHBOARD_TZ}')::date as date, COUNT(*) as sessions
         FROM active_sessions WHERE user_id = $1
-        GROUP BY DATE(created_at) ORDER BY date DESC LIMIT 30
+        GROUP BY (created_at AT TIME ZONE '${DASHBOARD_TZ}')::date ORDER BY date DESC LIMIT 30
       `, [userId]);
       return reply.send({ success: true, data: result.rows });
     } catch (error) {
@@ -480,14 +522,17 @@ module.exports = async function (fastify, opts) {
         db.query(`
           SELECT activity_date, subject, questions_attempted, questions_correct, time_spent
           FROM daily_subject_activities
-          WHERE user_id = $1 AND activity_date >= CURRENT_DATE - INTERVAL '30 days'
+          WHERE user_id = $1 AND activity_date >= (NOW() AT TIME ZONE '${DASHBOARD_TZ}')::date - INTERVAL '30 days'
           ORDER BY activity_date DESC
         `, [userId]),
 
         // Study streak
         db.query(`
-          SELECT current_streak, longest_streak, last_study_date
-          FROM study_streaks WHERE user_id = $1 LIMIT 1
+          SELECT
+            MAX(streak_count) as current_streak,
+            MAX(streak_count) as longest_streak,
+            MAX(last_activity_date) as last_study_date
+          FROM subject_progress WHERE user_id = $1
         `, [userId]),
 
         // Report history summary
@@ -510,9 +555,9 @@ module.exports = async function (fastify, opts) {
           SELECT feature, count FROM (
             SELECT 'AI Chat Sessions'::text       AS feature, COUNT(*)::int AS count FROM sessions WHERE user_id = $1::uuid
             UNION ALL
-            SELECT 'Questions Archived'::text,     COUNT(*)::int FROM archived_questions WHERE user_id = $1::text
+            SELECT 'Questions Archived'::text,     COUNT(*)::int FROM archived_questions WHERE user_id::uuid = $1::uuid
             UNION ALL
-            SELECT 'Archive Reviews'::text,        COALESCE(SUM(review_count),0)::int FROM archived_questions WHERE user_id = $1::text
+            SELECT 'Archive Reviews'::text,        COALESCE(SUM(review_count),0)::int FROM archived_questions WHERE user_id::uuid = $1::uuid
             UNION ALL
             SELECT 'Conversations Archived'::text, COUNT(*)::int FROM archived_conversations_new WHERE user_id = $1::uuid
             UNION ALL
@@ -568,6 +613,14 @@ module.exports = async function (fastify, opts) {
    */
   fastify.get('/api/admin/analytics/overview', { preHandler: verifyAdmin }, async (request, reply) => {
     try {
+      const includeInternal = request.query.includeInternal === 'true'
+      const iFilter = await getIFilterNoAlias(includeInternal)
+      const hasGE = await gradeEventsExist()
+      const geEverGraded      = hasGE ? `(SELECT COUNT(DISTINCT user_id) FROM grade_events)::int` : `0::int`
+      const geTotalGradings   = hasGE ? `(SELECT COUNT(*) FROM grade_events)::int`                : `0::int`
+      const geActivityQuery   = hasGE
+        ? `SELECT (created_at AT TIME ZONE '${DASHBOARD_TZ}')::date as date, COUNT(*)::int as questions FROM grade_events WHERE created_at >= NOW() - INTERVAL '30 days' GROUP BY (created_at AT TIME ZONE '${DASHBOARD_TZ}')::date ORDER BY date`
+        : `SELECT NULL::date as date, 0::int as questions WHERE false`
       const [
         userGrowthResult,
         dauChartResult,
@@ -578,19 +631,19 @@ module.exports = async function (fastify, opts) {
       ] = await Promise.all([
         // New users per day — last 30 days
         db.query(`
-          SELECT DATE(created_at) as date, COUNT(*)::int as new_users
+          SELECT (created_at AT TIME ZONE '${DASHBOARD_TZ}')::date as date, COUNT(*)::int as new_users
           FROM users
-          WHERE created_at >= NOW() - INTERVAL '30 days'
-          GROUP BY DATE(created_at)
+          WHERE created_at >= NOW() - INTERVAL '30 days' ${iFilter}
+          GROUP BY (created_at AT TIME ZONE '${DASHBOARD_TZ}')::date
           ORDER BY date
         `),
 
         // DAU chart — any login (user_sessions) is a better proxy than chat-only (sessions)
         db.query(`
-          SELECT DATE(created_at) as date, COUNT(DISTINCT user_id)::int as active_users
+          SELECT (created_at AT TIME ZONE '${DASHBOARD_TZ}')::date as date, COUNT(DISTINCT user_id)::int as active_users
           FROM user_sessions
           WHERE created_at >= NOW() - INTERVAL '30 days'
-          GROUP BY DATE(created_at)
+          GROUP BY (created_at AT TIME ZONE '${DASHBOARD_TZ}')::date
           ORDER BY date
         `),
 
@@ -617,31 +670,22 @@ module.exports = async function (fastify, opts) {
         `),
 
         // Feature adoption — % of total users who have ever used each feature
-        // Note: homework parsing/grading only tracked in Redis; using server-side
-        // proxies: questions table (graded Q&A) + daily_subject_activities (study XP).
         db.query(`
           SELECT
             (SELECT COUNT(*) FROM users)::int as total_users,
             (SELECT COUNT(DISTINCT user_id) FROM sessions)::int as ever_chatted,
-            (SELECT COUNT(DISTINCT user_id) FROM questions WHERE student_answer IS NOT NULL)::int as ever_graded,
-            (SELECT COUNT(DISTINCT user_id) FROM daily_subject_activities WHERE questions_attempted > 0)::int as ever_attempted_questions,
+            ${geEverGraded} as ever_graded,
+            (SELECT COUNT(DISTINCT user_id) FROM archived_questions)::int as ever_attempted_questions,
             (SELECT COUNT(DISTINCT user_id) FROM practice_sheets)::int as ever_practiced,
             (SELECT COUNT(DISTINCT user_id) FROM parent_report_batches)::int as ever_reported,
-            (SELECT COUNT(DISTINCT user_id) FROM study_streaks WHERE current_streak > 0)::int as has_active_streak,
+            (SELECT COUNT(DISTINCT user_id) FROM subject_progress WHERE streak_count > 0)::int as has_active_streak,
             (SELECT COUNT(DISTINCT user_id) FROM point_transactions WHERE type = 'spend')::int as ever_redeemed_points,
-            (SELECT COUNT(*) FROM questions WHERE student_answer IS NOT NULL)::int as total_gradings,
-            (SELECT COALESCE(SUM(questions_attempted), 0) FROM daily_subject_activities)::int as total_questions_attempted
+            ${geTotalGradings} as total_gradings,
+            (SELECT COUNT(*) FROM archived_questions)::int as total_questions_attempted
         `),
 
-        // Grading activity — last 30 days (from questions table, server-side)
-        db.query(`
-          SELECT DATE(created_at) as date, COUNT(*)::int as questions
-          FROM questions
-          WHERE created_at >= NOW() - INTERVAL '30 days'
-            AND student_answer IS NOT NULL
-          GROUP BY DATE(created_at)
-          ORDER BY date
-        `),
+        // Grading activity — last 30 days
+        db.query(geActivityQuery),
       ]);
 
       return reply.send({
@@ -711,13 +755,13 @@ module.exports = async function (fastify, opts) {
         // Streak health distribution
         db.query(`
           SELECT
-            COUNT(*) FILTER (WHERE current_streak = 0)::int as streak_0,
-            COUNT(*) FILTER (WHERE current_streak BETWEEN 1 AND 7)::int as streak_1_7,
-            COUNT(*) FILTER (WHERE current_streak BETWEEN 8 AND 30)::int as streak_8_30,
-            COUNT(*) FILTER (WHERE current_streak > 30)::int as streak_30_plus,
-            ROUND(AVG(current_streak)::numeric, 1) as avg_streak,
-            MAX(longest_streak)::int as max_ever_streak
-          FROM study_streaks
+            COUNT(*) FILTER (WHERE streak_count = 0)::int as streak_0,
+            COUNT(*) FILTER (WHERE streak_count BETWEEN 1 AND 7)::int as streak_1_7,
+            COUNT(*) FILTER (WHERE streak_count BETWEEN 8 AND 30)::int as streak_8_30,
+            COUNT(*) FILTER (WHERE streak_count > 30)::int as streak_30_plus,
+            ROUND(AVG(streak_count)::numeric, 1) as avg_streak,
+            MAX(streak_count)::int as max_ever_streak
+          FROM subject_progress
         `),
 
         // Practice vs Homework ratio + totals
@@ -737,7 +781,7 @@ module.exports = async function (fastify, opts) {
             COUNT(*) FILTER (WHERE status = 'failed')::int as failed,
             COUNT(*) FILTER (WHERE status = 'generating')::int as generating,
             ROUND(AVG(generation_time_ms) FILTER (WHERE status = 'completed')::numeric / 1000, 1) as avg_gen_seconds,
-            ROUND(AVG(overall_accuracy) FILTER (WHERE status = 'completed')::numeric, 1) as avg_accuracy
+            ROUND(AVG(overall_accuracy) FILTER (WHERE status = 'completed')::numeric * 100, 1) as avg_accuracy
           FROM parent_report_batches
         `),
 
@@ -1265,6 +1309,460 @@ module.exports = async function (fastify, opts) {
     } catch (error) {
       fastify.log.error('Error creating admin user:', error);
       return reply.code(500).send({ success: false, error: 'Failed to create admin user' });
+    }
+  });
+
+  // ============================================================================
+  // INTERNAL / TEST USER MANAGEMENT
+  // ============================================================================
+
+  fastify.post('/api/admin/users/:userId/mark', { preHandler: verifyAdmin }, async (request, reply) => {
+    const { userId } = request.params;
+    const { type, value } = request.body || {};
+    if (!['internal', 'test'].includes(type) || typeof value !== 'boolean') {
+      return reply.code(400).send({ success: false, error: 'type must be "internal" or "test", value must be boolean' });
+    }
+    const col = type === 'internal' ? 'is_internal' : 'is_test_user';
+    try {
+      await db.query(`UPDATE users SET ${col} = $1 WHERE id = $2`, [value, userId]);
+      fastify.log.info(`[Admin] mark-${type}: user=${userId} value=${value} by=${request.adminUser?.email}`);
+      return reply.send({ success: true });
+    } catch (error) {
+      fastify.log.error({ err: error }, 'Error marking user');
+      return reply.code(500).send({ success: false, error: 'Failed to update user' });
+    }
+  });
+
+  // ============================================================================
+  // RETENTION DASHBOARD
+  // ============================================================================
+
+  fastify.get('/api/admin/analytics/retention', { preHandler: verifyAdmin }, async (request, reply) => {
+    try {
+      const days = Math.min(parseInt(request.query.days) || 60, 90);
+      const includeInternal = request.query.includeInternal === 'true';
+      const iFilter = await getIFilterNoAlias(includeInternal);
+
+      const [cohortResult, summaryResult] = await Promise.all([
+        db.query(`
+          WITH cohorts AS (
+            SELECT (created_at AT TIME ZONE '${DASHBOARD_TZ}')::date AS signup_date, id AS user_id
+            FROM users
+            WHERE is_anonymous = false ${iFilter}
+              AND created_at >= NOW() - INTERVAL '${days} days'
+          ),
+          returns AS (
+            SELECT DISTINCT c.signup_date, c.user_id,
+              ((us.created_at AT TIME ZONE '${DASHBOARD_TZ}')::date - c.signup_date) AS days_since_signup
+            FROM cohorts c
+            JOIN user_sessions us ON us.user_id = c.user_id
+            WHERE (us.created_at AT TIME ZONE '${DASHBOARD_TZ}')::date > c.signup_date
+          )
+          SELECT
+            c.signup_date,
+            COUNT(DISTINCT c.user_id)::int AS cohort_size,
+            COUNT(DISTINCT CASE WHEN r.days_since_signup = 1   THEN r.user_id END)::int AS d1,
+            COUNT(DISTINCT CASE WHEN r.days_since_signup <= 3  THEN r.user_id END)::int AS d3,
+            COUNT(DISTINCT CASE WHEN r.days_since_signup <= 7  THEN r.user_id END)::int AS d7,
+            COUNT(DISTINCT CASE WHEN r.days_since_signup <= 14 THEN r.user_id END)::int AS d14,
+            COUNT(DISTINCT CASE WHEN r.days_since_signup <= 30 THEN r.user_id END)::int AS d30
+          FROM cohorts c
+          LEFT JOIN returns r ON r.user_id = c.user_id AND r.signup_date = c.signup_date
+          GROUP BY c.signup_date ORDER BY c.signup_date DESC
+        `),
+        db.query(`
+          WITH cohorts AS (
+            SELECT (created_at AT TIME ZONE '${DASHBOARD_TZ}')::date AS signup_date, id AS user_id
+            FROM users WHERE is_anonymous = false ${iFilter}
+              AND created_at >= NOW() - INTERVAL '${days} days'
+              AND created_at <= NOW() - INTERVAL '30 days'
+          ),
+          returns AS (
+            SELECT DISTINCT c.user_id, c.signup_date,
+              ((us.created_at AT TIME ZONE '${DASHBOARD_TZ}')::date - c.signup_date) AS days_since_signup
+            FROM cohorts c JOIN user_sessions us ON us.user_id = c.user_id
+            WHERE (us.created_at AT TIME ZONE '${DASHBOARD_TZ}')::date > c.signup_date
+          )
+          SELECT
+            ROUND(AVG(CASE WHEN r.days_since_signup = 1 THEN 1.0 ELSE 0.0 END) * 100, 1) AS avg_d1_pct,
+            ROUND(AVG(CASE WHEN r.days_since_signup <= 7 THEN 1.0 ELSE 0.0 END) * 100, 1) AS avg_d7_pct,
+            ROUND(AVG(CASE WHEN r.days_since_signup <= 30 THEN 1.0 ELSE 0.0 END) * 100, 1) AS avg_d30_pct
+          FROM cohorts c
+          LEFT JOIN LATERAL (
+            SELECT MAX(days_since_signup) AS days_since_signup FROM returns r2
+            WHERE r2.user_id = c.user_id AND r2.signup_date = c.signup_date
+          ) r ON true
+        `),
+      ]);
+
+      return reply.send({ success: true, data: { cohorts: cohortResult.rows, summary: summaryResult.rows[0] || {} } });
+    } catch (error) {
+      fastify.log.error({ err: error }, 'Error fetching retention data');
+      return reply.code(500).send({ success: false, error: 'Failed to fetch retention', details: error?.message });
+    }
+  });
+
+  // ============================================================================
+  // FUNNEL DASHBOARD
+  // ============================================================================
+
+  fastify.get('/api/admin/analytics/funnel', { preHandler: verifyAdmin }, async (request, reply) => {
+    try {
+      const days = parseInt(request.query.days) || 30;
+      const includeInternal = request.query.includeInternal === 'true';
+      const iFilter = await getIFilter(includeInternal);
+      const hasGE = await gradeEventsExist();
+      const cutoff = `NOW() - INTERVAL '${days} days'`;
+      const firstArchiveSql = hasGE
+        ? `(SELECT COUNT(DISTINCT ge.user_id)::int FROM grade_events ge JOIN users u ON u.id = ge.user_id WHERE u.is_anonymous = false ${iFilter} AND ge.created_at >= ${cutoff})`
+        : `0::int`;
+
+      const result = await db.query(`
+        SELECT
+          (SELECT COUNT(*)::int FROM users u WHERE u.is_anonymous = false ${iFilter} AND u.created_at >= ${cutoff}) AS registered,
+          (SELECT COUNT(DISTINCT s.user_id)::int FROM sessions s JOIN users u ON u.id = s.user_id WHERE u.is_anonymous = false ${iFilter} AND s.created_at >= ${cutoff}) AS first_chat,
+          ${firstArchiveSql} AS first_archive,
+          (SELECT COUNT(DISTINCT ps.user_id)::int FROM practice_sheets ps JOIN users u ON u.id = ps.user_id WHERE u.is_anonymous = false ${iFilter} AND ps.created_at >= ${cutoff}) AS first_practice,
+          (SELECT COUNT(DISTINCT ps.user_id)::int FROM practice_sheets ps JOIN users u ON u.id = ps.user_id WHERE u.is_anonymous = false ${iFilter} AND ps.created_at >= ${cutoff} AND ps.completed_count > 0) AS practice_opened,
+          (SELECT COUNT(DISTINCT ps.user_id)::int FROM practice_sheets ps JOIN users u ON u.id = ps.user_id WHERE u.is_anonymous = false ${iFilter} AND ps.created_at >= ${cutoff} AND ps.completed_at IS NOT NULL) AS practice_done,
+          (SELECT COUNT(DISTINCT pr.user_id)::int FROM parent_report_batches pr JOIN users u ON u.id = pr.user_id WHERE u.is_anonymous = false ${iFilter} AND pr.generated_at >= ${cutoff}) AS report_generated,
+          (SELECT COUNT(DISTINCT promo.user_id)::int FROM promo_redemptions promo JOIN users u ON u.id = promo.user_id WHERE u.is_anonymous = false ${iFilter} AND promo.redeemed_at >= ${cutoff}) AS converted_paid
+      `);
+
+      const r = result.rows[0];
+      const steps = [
+        { name: 'Registered',           key: 'registered',      users: r.registered },
+        { name: 'First AI Chat',         key: 'first_chat',      users: r.first_chat },
+        { name: 'First Homework Archive',key: 'first_archive',   users: r.first_archive },
+        { name: 'Practice Generated',    key: 'first_practice',  users: r.first_practice },
+        { name: 'Practice Opened',       key: 'practice_opened', users: r.practice_opened },
+        { name: 'Practice Completed',    key: 'practice_done',   users: r.practice_done },
+        { name: 'Report Generated',      key: 'report_generated',users: r.report_generated },
+        { name: 'Converted to Paid',     key: 'converted_paid',  users: r.converted_paid },
+      ].map((step, i, arr) => {
+        const prev = i === 0 ? step.users : arr[i - 1].users;
+        return {
+          ...step,
+          conversion_from_prev: prev > 0 ? parseFloat(((step.users / prev) * 100).toFixed(1)) : 0,
+          dropoff_from_prev: prev > 0 ? parseFloat((((prev - step.users) / prev) * 100).toFixed(1)) : 0,
+        };
+      });
+
+      return reply.send({ success: true, data: { steps, days } });
+    } catch (error) {
+      fastify.log.error({ err: error }, 'Error fetching funnel data');
+      return reply.code(500).send({ success: false, error: 'Failed to fetch funnel', details: error?.message });
+    }
+  });
+
+  // ============================================================================
+  // USER JOURNEY TIMELINE
+  // ============================================================================
+
+  fastify.get('/api/admin/users/:userId/journey', { preHandler: verifyAdmin }, async (request, reply) => {
+    try {
+      const { userId } = request.params;
+
+      const [regResult, sessionsResult, gradingResult, archiveResult, practiceResult, reportResult, promoResult, loginResult] = await Promise.all([
+        db.query(`SELECT created_at, auth_provider FROM users WHERE id = $1`, [userId]),
+        db.query(`SELECT id, created_at, session_type, subject FROM sessions WHERE user_id = $1 ORDER BY created_at ASC LIMIT 200`, [userId]),
+        // grade_events — only query if table exists
+        (await gradeEventsExist())
+          ? db.query(`SELECT id, created_at, subject, grade, is_correct FROM grade_events WHERE user_id = $1 ORDER BY created_at ASC LIMIT 500`, [userId])
+          : Promise.resolve({ rows: [] }),
+        // archived_questions (TEXT user_id) — parse-only session archiving
+        db.query(`SELECT id, created_at, subject FROM archived_questions WHERE user_id = $1::text ORDER BY created_at ASC LIMIT 200`, [userId]),
+        db.query(`SELECT id, created_at, completed_at, subject, score_percentage, source_type FROM practice_sheets WHERE user_id = $1 ORDER BY created_at ASC LIMIT 100`, [userId]),
+        db.query(`SELECT id, generated_at, period, overall_grade, status FROM parent_report_batches WHERE user_id = $1 ORDER BY generated_at ASC LIMIT 50`, [userId]),
+        db.query(`SELECT redeemed_at, tier_expires_at FROM promo_redemptions WHERE user_id = $1 ORDER BY redeemed_at ASC LIMIT 10`, [userId]),
+        db.query(`SELECT created_at, device_info FROM user_sessions WHERE user_id = $1 ORDER BY created_at ASC LIMIT 200`, [userId]),
+      ]);
+
+      const events = [];
+      if (regResult.rows[0]) {
+        events.push({ type: 'registered', time: regResult.rows[0].created_at, label: `Registered via ${regResult.rows[0].auth_provider || 'email'}` });
+      }
+      for (const r of loginResult.rows) {
+        const ua = r.device_info?.userAgent || '';
+        const version = (ua.match(/StudyAI-iOS\/(.+)/) || [])[1] || '';
+        events.push({ type: 'app_session', time: r.created_at, label: `Opened App${version ? ` · v${version}` : ''}` });
+      }
+      for (const r of sessionsResult.rows) {
+        events.push({ type: 'ai_chat', time: r.created_at, label: `Started AI Chat${r.subject ? ` · ${r.subject}` : ''}` });
+      }
+      for (const r of gradingResult.rows) {
+        const result = r.grade ? ` · ${r.grade}` : (r.is_correct != null ? (r.is_correct ? ' · CORRECT' : ' · INCORRECT') : '');
+        events.push({ type: 'graded', time: r.created_at, label: `Graded · ${r.subject || 'Unknown'}${result}` });
+      }
+      for (const r of archiveResult.rows) {
+        events.push({ type: 'parsed', time: r.created_at, label: `Parsed Homework · ${r.subject || 'Unknown'}` });
+      }
+      for (const r of practiceResult.rows) {
+        events.push({ type: 'practice_gen', time: r.created_at, label: `Generated Practice · ${r.subject || 'Unknown'} (${r.source_type || 'random'})` });
+        if (r.completed_at) {
+          events.push({ type: 'practice_done', time: r.completed_at, label: `Completed Practice · ${r.score_percentage != null ? r.score_percentage + '%' : 'n/a'}` });
+        }
+      }
+      for (const r of reportResult.rows) {
+        events.push({ type: 'report', time: r.generated_at, label: `Report Generated · ${r.period} · Grade ${r.overall_grade || 'n/a'}` });
+      }
+      for (const r of promoResult.rows) {
+        events.push({ type: 'subscription', time: r.redeemed_at, label: `Upgraded to Premium (expires ${r.tier_expires_at ? new Date(r.tier_expires_at).toLocaleDateString() : 'never'})` });
+      }
+
+      events.sort((a, b) => new Date(a.time) - new Date(b.time));
+
+      const graded = gradingResult.rows.length;
+      const parsed = archiveResult.rows.length;
+
+      return reply.send({
+        success: true,
+        data: {
+          events,
+          summary: {
+            totalSessions: sessionsResult.rows.length,
+            totalParsed:   parsed,
+            totalGraded:   graded,
+            totalPractice: practiceResult.rows.length,
+            totalReports:  reportResult.rows.length,
+            totalLogins:   loginResult.rows.length,
+          },
+        },
+      });
+    } catch (error) {
+      fastify.log.error({ err: error }, 'Error fetching user journey');
+      return reply.code(500).send({ success: false, error: 'Failed to fetch journey', details: error?.message });
+    }
+  });
+
+  // ============================================================================
+  // CHURN RISK
+  // ============================================================================
+
+  fastify.get('/api/admin/analytics/churn-risk', { preHandler: verifyAdmin }, async (request, reply) => {
+    try {
+      const limit = Math.min(parseInt(request.query.limit) || 100, 500);
+      const iFilter = await getIFilter(false);
+      const result = await db.query(`
+        WITH last_seen AS (
+          SELECT
+            u.id,
+            u.email,
+            u.name,
+            u.tier,
+            u.tier_expires_at,
+            GREATEST(
+              u.last_login_at,
+              (SELECT MAX(us.created_at) FROM user_sessions us WHERE us.user_id = u.id),
+              (SELECT MAX(s.created_at)  FROM sessions s   WHERE s.user_id = u.id)
+            ) AS last_active
+          FROM users u
+          WHERE u.is_anonymous = false ${iFilter}
+        ),
+        scored AS (
+          SELECT
+            ls.*,
+            EXTRACT(day FROM NOW() - ls.last_active)::int AS days_inactive,
+            CASE
+              WHEN ls.tier IN ('premium','premium_plus')
+                AND (ls.tier_expires_at IS NULL OR ls.tier_expires_at > NOW())
+                AND EXTRACT(day FROM NOW() - ls.last_active) >= 3
+                THEN 'paid_at_risk'
+              WHEN EXTRACT(day FROM NOW() - ls.last_active) >= 7
+                THEN 'high_risk'
+              ELSE 'medium_risk'
+            END AS risk_level
+          FROM last_seen ls
+          WHERE ls.last_active IS NOT NULL
+            AND ls.last_active < NOW() - INTERVAL '3 days'
+        )
+        SELECT
+          s.id, s.email, s.name, s.tier,
+          s.last_active, s.days_inactive, s.risk_level,
+          EXISTS(SELECT 1 FROM practice_sheets ps   WHERE ps.user_id = s.id) AS has_practice,
+          EXISTS(SELECT 1 FROM practice_sheets ps   WHERE ps.user_id = s.id AND ps.completed_at IS NOT NULL) AS completed_practice,
+          EXISTS(SELECT 1 FROM archived_questions aq WHERE aq.user_id = s.id::text) AS has_archived
+        FROM scored s
+        ORDER BY
+          CASE s.risk_level WHEN 'paid_at_risk' THEN 1 WHEN 'high_risk' THEN 2 ELSE 3 END,
+          s.days_inactive DESC
+        LIMIT $1
+      `, [limit]);
+
+      const rows = result.rows;
+      const summary = {
+        paid_at_risk: rows.filter(r => r.risk_level === 'paid_at_risk').length,
+        high_risk:    rows.filter(r => r.risk_level === 'high_risk').length,
+        medium_risk:  rows.filter(r => r.risk_level === 'medium_risk').length,
+      };
+
+      return reply.send({ success: true, data: { users: rows, summary } });
+    } catch (error) {
+      fastify.log.error({ err: error }, 'Error fetching churn risk');
+      return reply.code(500).send({ success: false, error: 'Failed to fetch churn risk', details: error?.message });
+    }
+  });
+
+  // ============================================================================
+  // FEATURE-RETENTION CORRELATION
+  // ============================================================================
+
+  fastify.get('/api/admin/analytics/feature-correlation', { preHandler: verifyAdmin }, async (request, reply) => {
+    try {
+      const iFilter = await getIFilter(false);
+      const hasGE = await gradeEventsExist();
+      const usedGradingSql = hasGE
+        ? `EXISTS(SELECT 1 FROM grade_events ge WHERE ge.user_id = u.id)`
+        : `false`;
+      const result = await db.query(`
+        WITH base AS (
+          SELECT
+            u.id,
+            (u.created_at AT TIME ZONE '${DASHBOARD_TZ}')::date AS signup_date,
+            EXISTS(SELECT 1 FROM sessions s WHERE s.user_id = u.id) AS used_chat,
+            ${usedGradingSql} AS used_grading,
+            EXISTS(SELECT 1 FROM practice_sheets ps WHERE ps.user_id = u.id) AS used_practice,
+            EXISTS(SELECT 1 FROM practice_sheets ps WHERE ps.user_id = u.id AND ps.completed_at IS NOT NULL) AS completed_practice,
+            EXISTS(SELECT 1 FROM parent_report_batches r WHERE r.user_id = u.id) AS used_reports,
+            EXISTS(SELECT 1 FROM promo_redemptions pr WHERE pr.user_id = u.id) AS converted_paid
+          FROM users u
+          WHERE u.is_anonymous = false
+            ${iFilter}
+            AND u.created_at <= NOW() - INTERVAL '7 days'
+        ),
+        with_d7 AS (
+          SELECT b.*,
+            EXISTS(
+              SELECT 1 FROM user_sessions us
+              WHERE us.user_id = b.id
+                AND (us.created_at AT TIME ZONE '${DASHBOARD_TZ}')::date BETWEEN b.signup_date + 1 AND b.signup_date + 7
+            ) AS returned_d7
+          FROM base b
+        )
+        SELECT
+          feature,
+          COUNT(*)::int AS users,
+          ROUND(AVG(CASE WHEN returned_d7 THEN 100.0 ELSE 0.0 END)::numeric, 1) AS d7_pct,
+          ROUND(AVG(CASE WHEN converted_paid THEN 100.0 ELSE 0.0 END)::numeric, 1) AS paid_pct
+        FROM (
+          SELECT 'AI Chat only' AS feature, returned_d7, converted_paid FROM with_d7 WHERE used_chat AND NOT used_grading AND NOT used_practice
+          UNION ALL
+          SELECT 'Used Homework Grading', returned_d7, converted_paid FROM with_d7 WHERE used_grading
+          UNION ALL
+          SELECT 'Generated Practice', returned_d7, converted_paid FROM with_d7 WHERE used_practice
+          UNION ALL
+          SELECT 'Completed Practice', returned_d7, converted_paid FROM with_d7 WHERE completed_practice
+          UNION ALL
+          SELECT 'Viewed Reports', returned_d7, converted_paid FROM with_d7 WHERE used_reports
+        ) t
+        GROUP BY feature
+        ORDER BY d7_pct DESC
+      `);
+
+      return reply.send({ success: true, data: result.rows });
+    } catch (error) {
+      fastify.log.error({ err: error }, 'Error fetching feature correlation');
+      return reply.code(500).send({ success: false, error: 'Failed to fetch correlation', details: error?.message });
+    }
+  });
+
+  // ============================================================================
+  // PRACTICE COMPLETION DASHBOARD
+  // ============================================================================
+
+  fastify.get('/api/admin/analytics/practice-completion', { preHandler: verifyAdmin }, async (request, reply) => {
+    try {
+      const [overallResult, sourceResult, trendResult] = await Promise.all([
+        db.query(`
+          SELECT
+            COUNT(*)::int AS total_generated,
+            COUNT(*) FILTER (WHERE completed_count > 0)::int AS opened,
+            COUNT(*) FILTER (WHERE completed_at IS NOT NULL)::int AS completed,
+            ROUND(AVG(score_percentage) FILTER (WHERE completed_at IS NOT NULL)::numeric, 1) AS avg_score,
+            ROUND(AVG(time_spent_seconds / 60.0) FILTER (WHERE completed_at IS NOT NULL AND time_spent_seconds > 0)::numeric, 1) AS avg_minutes
+          FROM practice_sheets
+        `),
+        db.query(`
+          SELECT source_type, COUNT(*)::int AS count,
+            COUNT(*) FILTER (WHERE completed_at IS NOT NULL)::int AS completed
+          FROM practice_sheets
+          GROUP BY source_type ORDER BY count DESC
+        `),
+        db.query(`
+          SELECT (created_at AT TIME ZONE '${DASHBOARD_TZ}')::date AS date,
+            COUNT(*)::int AS generated,
+            COUNT(*) FILTER (WHERE completed_at IS NOT NULL)::int AS completed
+          FROM practice_sheets
+          WHERE created_at >= NOW() - INTERVAL '30 days'
+          GROUP BY (created_at AT TIME ZONE '${DASHBOARD_TZ}')::date
+          ORDER BY date
+        `),
+      ]);
+
+      return reply.send({
+        success: true,
+        data: {
+          overall: overallResult.rows[0] || {},
+          bySource: sourceResult.rows,
+          trend: trendResult.rows,
+        },
+      });
+    } catch (error) {
+      fastify.log.error({ err: error }, 'Error fetching practice completion');
+      return reply.code(500).send({ success: false, error: 'Failed to fetch practice data', details: error?.message });
+    }
+  });
+
+  // ============================================================================
+  // HOMEWORK PIPELINE DASHBOARD
+  // ============================================================================
+
+  fastify.get('/api/admin/analytics/homework-pipeline', { preHandler: verifyAdmin }, async (request, reply) => {
+    try {
+      const hasGE = await gradeEventsExist();
+      const gradeSubqueries = hasGE
+        ? `(SELECT COUNT(*)::int FROM grade_events) AS total_graded,
+            (SELECT COUNT(DISTINCT user_id)::int FROM grade_events) AS unique_graders,
+            ROUND((SELECT COUNT(*)::numeric FROM grade_events) / NULLIF(COUNT(*), 0) * 100, 1) AS grade_rate_pct`
+        : `0::int AS total_graded, 0::int AS unique_graders, NULL::numeric AS grade_rate_pct`;
+      const [overallResult, trendResult, subjectResult] = await Promise.all([
+        db.query(`
+          SELECT
+            COUNT(*)::int AS total_archived,
+            COUNT(DISTINCT user_id::text)::int AS unique_parsers,
+            ${gradeSubqueries}
+          FROM archived_questions
+        `),
+        db.query(`
+          SELECT
+            (created_at AT TIME ZONE '${DASHBOARD_TZ}')::date AS date,
+            COUNT(*)::int AS archived,
+            COUNT(*) FILTER (WHERE student_answer IS NOT NULL)::int AS graded
+          FROM archived_questions
+          WHERE created_at >= NOW() - INTERVAL '30 days'
+          GROUP BY (created_at AT TIME ZONE '${DASHBOARD_TZ}')::date
+          ORDER BY date
+        `),
+        db.query(`
+          SELECT subject, COUNT(*)::int AS count,
+            ROUND(AVG(CASE WHEN student_answer IS NOT NULL THEN 100.0 ELSE 0.0 END)::numeric, 1) AS grade_rate_pct
+          FROM archived_questions
+          WHERE subject IS NOT NULL
+          GROUP BY subject ORDER BY count DESC LIMIT 10
+        `),
+      ]);
+
+      return reply.send({
+        success: true,
+        data: {
+          overall: overallResult.rows[0] || {},
+          trend: trendResult.rows,
+          bySubject: subjectResult.rows,
+        },
+      });
+    } catch (error) {
+      fastify.log.error({ err: error }, 'Error fetching homework pipeline');
+      return reply.code(500).send({ success: false, error: 'Failed to fetch homework data', details: error?.message });
     }
   });
 

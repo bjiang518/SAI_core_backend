@@ -529,6 +529,49 @@ const start = async () => {
       // Continue anyway - schema might already exist
     }
 
+    // Run pending migrations automatically on every startup
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const { db } = require('../utils/railway-database');
+
+      // Create migrations tracking table if it doesn't exist
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS _migrations (
+          filename VARCHAR(255) PRIMARY KEY,
+          applied_at TIMESTAMPTZ DEFAULT NOW()
+        )
+      `);
+
+      const migrationsDir = path.join(__dirname, '../migrations');
+      const files = fs.readdirSync(migrationsDir)
+        .filter(f => f.endsWith('.sql') && !f.includes('rollback'))
+        .sort();
+
+      for (const file of files) {
+        const applied = await db.query('SELECT 1 FROM _migrations WHERE filename = $1', [file]);
+        if (applied.rows.length > 0) continue;
+
+        const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
+        try {
+          await db.query(sql);
+          await db.query('INSERT INTO _migrations (filename) VALUES ($1) ON CONFLICT DO NOTHING', [file]);
+          fastify.log.info(`✅ Migration applied: ${file}`);
+        } catch (err) {
+          // "already exists" errors mean the migration was already applied manually — mark as done
+          const alreadyExists = ['42P07', '42701', '42P06', '42710'].includes(err.code);
+          if (alreadyExists) {
+            await db.query('INSERT INTO _migrations (filename) VALUES ($1) ON CONFLICT DO NOTHING', [file]);
+            fastify.log.info(`✅ Migration already applied (skipping): ${file}`);
+          } else {
+            fastify.log.warn(`⚠️ Migration failed: ${file} — ${err.message}`);
+          }
+        }
+      }
+    } catch (migErr) {
+      fastify.log.error('❌ Migration runner error:', migErr);
+    }
+
     const port = process.env.PORT || 3001;
     const host = process.env.HOST || '127.0.0.1';
 

@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { AlertCircle, Search, X, ChevronDown, ChevronUp, BookOpen, TrendingUp, Flame, BarChart2 } from 'lucide-react'
+import { AlertCircle, Search, X, ChevronDown, ChevronUp, BookOpen, TrendingUp, Flame, BarChart2, Clock, FlaskConical, ShieldOff } from 'lucide-react'
 import { formatDate, formatDateTime } from '@/lib/utils'
 import { usersAPI } from '@/lib/api'
 
@@ -72,6 +72,36 @@ interface UserAnalysis {
   apiUsage: Array<{ route: string; count: number }>
 }
 
+interface JourneyEvent {
+  type: string
+  time: string
+  label: string
+}
+
+interface JourneyData {
+  events: JourneyEvent[]
+  summary: {
+    totalSessions: number
+    totalArchived: number
+    totalPractice: number
+    totalReports: number
+    totalLogins: number
+  }
+}
+
+const EVENT_ICON: Record<string, string> = {
+  registered:       '🎉',
+  app_session:      '📱',
+  ai_chat:          '💬',
+  parsed:           '📷',
+  graded:           '✏️',
+  homework_archive: '📝',
+  practice_gen:     '📚',
+  practice_done:    '✅',
+  report:           '📊',
+  subscription:     '⭐',
+}
+
 const PAGE_SIZE = 50
 
 export default function UsersPage() {
@@ -87,7 +117,10 @@ export default function UsersPage() {
   const [analysis, setAnalysis] = useState<Record<string, UserAnalysis>>({})
   const [analysisLoading, setAnalysisLoading] = useState<string | null>(null)
   const [analysisError, setAnalysisError] = useState<Record<string, string>>({})
-
+  const [journeyUserId, setJourneyUserId] = useState<string | null>(null)
+  const [journeyData, setJourneyData] = useState<Record<string, JourneyData>>({})
+  const [journeyLoading, setJourneyLoading] = useState(false)
+  const [markingUser, setMarkingUser] = useState<string | null>(null)
   const fetchUsers = useCallback(async (page = 1, searchQuery = debouncedSearch) => {
     setLoading(true)
     try {
@@ -152,6 +185,26 @@ export default function UsersPage() {
     if (!ua) return '—'
     const match = ua.match(/StudyAI-iOS\/(.+)/)
     return match ? `v${match[1]}` : '—'
+  }
+
+  const openJourney = async (userId: string) => {
+    setJourneyUserId(userId)
+    if (journeyData[userId]) return
+    setJourneyLoading(true)
+    try {
+      const res = await usersAPI.getJourney(userId)
+      if (res.success) setJourneyData(prev => ({ ...prev, [userId]: res.data }))
+    } catch {}
+    finally { setJourneyLoading(false) }
+  }
+
+  const handleMark = async (userId: string, type: 'internal' | 'test', value: boolean) => {
+    setMarkingUser(userId)
+    try {
+      await usersAPI.markUser(userId, type, value)
+      await fetchUsers(pagination.page)
+    } catch {}
+    finally { setMarkingUser(null) }
   }
 
   const getStatusBadge = (status: string | undefined) => {
@@ -264,7 +317,8 @@ export default function UsersPage() {
                       <th className="pb-2 pr-4">Joined</th>
                       <th className="pb-2 pr-4">Last Active</th>
                       <th className="pb-2 pr-4">Version</th>
-                      <th className="pb-2">Sessions</th>
+                      <th className="pb-2 pr-4">Sessions</th>
+                      <th className="pb-2">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -309,7 +363,34 @@ export default function UsersPage() {
                             )}
                           </td>
                           <td className="py-3 pr-4 font-mono text-xs text-muted-foreground">{parseAppVersion(user.last_user_agent)}</td>
-                          <td className="py-3">{Number(user.total_sessions).toLocaleString()}</td>
+                          <td className="py-3 pr-4">{Number(user.total_sessions).toLocaleString()}</td>
+                          <td className="py-3" onClick={e => e.stopPropagation()}>
+                            <div className="flex items-center gap-1">
+                              <button
+                                title="View Journey"
+                                onClick={() => openJourney(user.id)}
+                                className="p-1 rounded hover:bg-blue-50 text-blue-600"
+                              >
+                                <Clock className="h-4 w-4" />
+                              </button>
+                              <button
+                                title="Mark as Test User"
+                                onClick={() => handleMark(user.id, 'test', true)}
+                                disabled={markingUser === user.id}
+                                className="p-1 rounded hover:bg-yellow-50 text-yellow-600"
+                              >
+                                <FlaskConical className="h-4 w-4" />
+                              </button>
+                              <button
+                                title="Mark as Internal"
+                                onClick={() => handleMark(user.id, 'internal', true)}
+                                disabled={markingUser === user.id}
+                                className="p-1 rounded hover:bg-gray-100 text-gray-500"
+                              >
+                                <ShieldOff className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </td>
                         </tr>
 
                         {/* Expanded analysis panel */}
@@ -365,6 +446,69 @@ export default function UsersPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Journey slide-in panel */}
+      {journeyUserId && (
+        <>
+          <div className="fixed inset-0 bg-black/30 z-40" onClick={() => setJourneyUserId(null)} />
+          <div className="fixed right-0 top-0 h-full w-[420px] bg-white shadow-2xl z-50 flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b">
+              <h2 className="font-semibold text-lg">User Journey</h2>
+              <button onClick={() => setJourneyUserId(null)} className="text-gray-400 hover:text-gray-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            {journeyLoading ? (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+              </div>
+            ) : journeyData[journeyUserId] ? (
+              <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: 'Logins',   v: journeyData[journeyUserId].summary.totalLogins },
+                    { label: 'Chats',    v: journeyData[journeyUserId].summary.totalSessions },
+                    { label: 'Parsed',   v: (journeyData[journeyUserId].summary as Record<string, number>).totalParsed ?? journeyData[journeyUserId].summary.totalArchived },
+                    { label: 'Graded',   v: (journeyData[journeyUserId].summary as Record<string, number>).totalGraded ?? 0 },
+                    { label: 'Practice', v: journeyData[journeyUserId].summary.totalPractice },
+                    { label: 'Reports',  v: journeyData[journeyUserId].summary.totalReports },
+                  ].map(c => (
+                    <span key={c.label} className="bg-gray-100 text-gray-700 text-xs px-2.5 py-1 rounded-full">
+                      {c.label}: <strong>{c.v}</strong>
+                    </span>
+                  ))}
+                </div>
+                <div className="relative pl-6 space-y-3">
+                  <div className="absolute left-2 top-0 bottom-0 w-0.5 bg-gray-200" />
+                  {journeyData[journeyUserId].events.map((ev, i) => (
+                    <div key={i} className="relative">
+                      <div className="absolute -left-4 top-1 w-3 h-3 rounded-full bg-blue-500 border-2 border-white shadow" />
+                      <div className="bg-gray-50 rounded-lg px-3 py-2">
+                        <div className="flex items-start gap-2">
+                          <span className="text-base leading-none mt-0.5">{EVENT_ICON[ev.type] || '•'}</span>
+                          <div>
+                            <p className="text-sm font-medium text-gray-800">{ev.label}</p>
+                            <p className="text-xs text-gray-400 mt-0.5">
+                              {new Date(ev.time).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {journeyData[journeyUserId].events.length === 0 && (
+                    <p className="text-sm text-gray-400 py-4">No events recorded for this user.</p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
+                Failed to load journey data.
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   )
 }

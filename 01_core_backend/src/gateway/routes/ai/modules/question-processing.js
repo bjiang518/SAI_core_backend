@@ -7,6 +7,7 @@
 
 const AIServiceClient = require('../../../services/ai-client');
 const tierCheck = require('../../../middleware/tier-check');
+const { db } = require('../../../../utils/railway-database');
 
 class QuestionProcessingRoutes {
   constructor(fastify) {
@@ -117,7 +118,22 @@ class QuestionProcessingRoutes {
       { 'Content-Type': 'application/json' }
     );
 
-    return this.handleProxyResponse(reply, result);
+    if (result.success) {
+      // Fire-and-forget: record grade event without blocking the response
+      const userId = request.user?.id;
+      if (userId) {
+        const subject   = request.body?.subject || null;
+        const grade     = result.data?.grade || result.data?.evaluation?.grade || null;
+        const isCorrect = result.data?.isCorrect ?? result.data?.evaluation?.isCorrect ?? null;
+        db.query(
+          `INSERT INTO grade_events (user_id, subject, grade, is_correct) VALUES ($1, $2, $3, $4)`,
+          [userId, subject, grade ? String(grade).toUpperCase() : null, isCorrect]
+        ).catch(err => this.fastify.log.warn({ err }, '[grade_events] insert failed'));
+      }
+      return reply.send(result.data);
+    } else {
+      return this.handleProxyError(reply, result.error);
+    }
   }
 
   /**

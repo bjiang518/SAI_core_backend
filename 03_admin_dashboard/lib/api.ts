@@ -72,8 +72,8 @@ export const authAPI = {
 
 // Dashboard Stats API
 export const statsAPI = {
-  getOverview: async () => {
-    const response = await apiClient.get('/api/admin/stats/overview')
+  getOverview: async (params?: { includeInternal?: boolean }) => {
+    const response = await apiClient.get('/api/admin/stats/overview', { params })
     return response.data
   },
 }
@@ -97,6 +97,16 @@ export const usersAPI = {
 
   getAnalysis: async (userId: string) => {
     const response = await apiClient.get(`/api/admin/users/${userId}/analysis`)
+    return response.data
+  },
+
+  getJourney: async (userId: string) => {
+    const response = await apiClient.get(`/api/admin/users/${userId}/journey`)
+    return response.data
+  },
+
+  markUser: async (userId: string, type: 'internal' | 'test', value: boolean) => {
+    const response = await apiClient.post(`/api/admin/users/${userId}/mark`, { type, value })
     return response.data
   },
 }
@@ -139,16 +149,40 @@ export const reportsAPI = {
 
 // Analytics API
 export const analyticsAPI = {
-  getOverview: async () => {
-    const response = await apiClient.get('/api/admin/analytics/overview')
+  getOverview: async (params?: { includeInternal?: boolean }) => {
+    const response = await apiClient.get('/api/admin/analytics/overview', { params })
+    return response.data
+  },
+  getRetention: async (params?: { days?: number; includeInternal?: boolean }) => {
+    const response = await apiClient.get('/api/admin/analytics/retention', { params })
+    return response.data
+  },
+  getFunnel: async (params?: { days?: number; includeInternal?: boolean }) => {
+    const response = await apiClient.get('/api/admin/analytics/funnel', { params })
+    return response.data
+  },
+  getChurnRisk: async (params?: { limit?: number }) => {
+    const response = await apiClient.get('/api/admin/analytics/churn-risk', { params })
+    return response.data
+  },
+  getFeatureCorrelation: async () => {
+    const response = await apiClient.get('/api/admin/analytics/feature-correlation')
+    return response.data
+  },
+  getPracticeCompletion: async () => {
+    const response = await apiClient.get('/api/admin/analytics/practice-completion')
+    return response.data
+  },
+  getHomeworkPipeline: async () => {
+    const response = await apiClient.get('/api/admin/analytics/homework-pipeline')
     return response.data
   },
 }
 
 // Insights API
 export const insightsAPI = {
-  getOverview: async () => {
-    const response = await apiClient.get('/api/admin/insights/overview')
+  getOverview: async (params?: { includeInternal?: boolean }) => {
+    const response = await apiClient.get('/api/admin/insights/overview', { params })
     return response.data
   },
 }

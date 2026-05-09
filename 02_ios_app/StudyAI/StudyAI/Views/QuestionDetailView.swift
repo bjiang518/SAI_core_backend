@@ -164,7 +164,23 @@ struct GeneratedQuestionDetailView: View {
     }
 
     private var questionContent: some View {
-        VStack(alignment: .leading, spacing: 24) {
+        VStack(alignment: .leading, spacing: 16) {
+            // Source badge for bank questions
+            if let label = currentQuestion.sourceLabel {
+                HStack(spacing: 5) {
+                    Image(systemName: "graduationcap.fill")
+                        .font(.caption2)
+                    Text(label)
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 5)
+                .background(Color.blue.opacity(0.75))
+                .cornerRadius(7)
+            }
+
             Text(NSLocalizedString("questionDetail.question", comment: ""))
                 .font(.title3)
                 .fontWeight(.semibold)

@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { AlertCircle, RefreshCw, Flame, BarChart2, BookOpen, FileText } from 'lucide-react'
-import { insightsAPI } from '@/lib/api'
+import { insightsAPI, analyticsAPI } from '@/lib/api'
 
 interface AccuracyDist { below_50: number; fifty_to_69: number; seventy_to_84: number; above_85: number }
 interface StreakHealth { streak_0: number; streak_1_7: number; streak_8_30: number; streak_30_plus: number; avg_streak: number; max_ever_streak: number }
@@ -25,13 +25,21 @@ export default function InsightsPage() {
   const [data, setData] = useState<InsightsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [practiceData, setPracticeData] = useState<{ overall: Record<string, number | string>; bySource: Array<{ source_type: string; count: number; completed: number }> } | null>(null)
+  const [homeworkData, setHomeworkData] = useState<{ overall: Record<string, number | string> } | null>(null)
 
   const fetchData = async () => {
     setLoading(true)
     try {
-      const res = await insightsAPI.getOverview()
-      if (res.success) { setData(res.data); setError(null) }
-      else setError(res.error || 'Failed to load insights')
+      const [insightsRes, practiceRes, homeworkRes] = await Promise.all([
+        insightsAPI.getOverview(),
+        analyticsAPI.getPracticeCompletion().catch(() => ({ success: false })),
+        analyticsAPI.getHomeworkPipeline().catch(() => ({ success: false })),
+      ])
+      if (insightsRes.success) { setData(insightsRes.data); setError(null) }
+      else setError(insightsRes.error || 'Failed to load insights')
+      if (practiceRes.success) setPracticeData(practiceRes.data)
+      if (homeworkRes.success) setHomeworkData(homeworkRes.data)
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string }; status?: number }; message?: string }
       setError(e?.response?.data?.error || (e?.response?.status ? `HTTP ${e.response.status}` : null) || (err instanceof Error ? err.message : String(err)))
@@ -211,11 +219,75 @@ export default function InsightsPage() {
           </div>
         </>
       )}
+
+      {/* Practice Completion */}
+      {practiceData && (
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold">Practice Completion</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { label: 'Generated',  value: String(practiceData.overall.total_generated ?? '—'), sub: 'total sheets' },
+              { label: 'Opened',     value: String(practiceData.overall.opened ?? '—'),           sub: 'started' },
+              { label: 'Completed',  value: String(practiceData.overall.completed ?? '—'),        sub: 'finished' },
+              { label: 'Avg Score',  value: practiceData.overall.avg_score != null ? `${practiceData.overall.avg_score}%` : '—', sub: 'completed sheets' },
+            ].map(c => (
+              <Card key={c.label}>
+                <CardContent className="pt-4">
+                  <p className="text-xs text-gray-500">{c.label}</p>
+                  <p className="text-2xl font-bold mt-1">{c.value}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{c.sub}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          {practiceData.bySource.length > 0 && (
+            <Card>
+              <CardHeader><CardTitle>Practice Source Distribution</CardTitle></CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {practiceData.bySource.map(r => (
+                    <div key={r.source_type} className="flex items-center gap-3 text-sm">
+                      <span className="w-20 text-gray-600 capitalize">{r.source_type || 'unknown'}</span>
+                      <div className="flex-1 bg-gray-100 rounded-full h-2">
+                        <div
+                          className="bg-purple-500 h-2 rounded-full"
+                          style={{ width: `${practiceData.bySource[0]?.count ? Math.round((r.count / practiceData.bySource[0].count) * 100) : 0}%` }}
+                        />
+                      </div>
+                      <span className="text-gray-500 text-xs">{r.count} gen · {r.completed} done</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* Homework Pipeline */}
+      {homeworkData && (
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold">Homework Pipeline</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { label: 'Total Archived', value: String(homeworkData.overall.total_archived ?? '—') },
+              { label: 'Graded',         value: String(homeworkData.overall.graded ?? '—') },
+              { label: 'Grade Rate',     value: homeworkData.overall.grade_rate_pct != null ? `${homeworkData.overall.grade_rate_pct}%` : '—' },
+              { label: 'Unique Users',   value: String(homeworkData.overall.unique_users ?? '—') },
+            ].map(c => (
+              <Card key={c.label}>
+                <CardContent className="pt-4">
+                  <p className="text-xs text-gray-500">{c.label}</p>
+                  <p className="text-2xl font-bold mt-1">{c.value}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
-
-// ─── Small helpers ─────────────────────────────────────────────────────────────
 
 function StatCard({ label, value, sub, color }: { label: string; value: string; sub: string; color: string }) {
   return (

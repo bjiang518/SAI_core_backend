@@ -18,56 +18,168 @@ const EMBED_MODEL = 'text-embedding-3-small';
 const CANDIDATE_K = 30;
 
 // ---------------------------------------------------------------------------
-// In-memory embedding cache — loaded once per process, never re-fetched.
-// 2350 rows × 1536 floats × 8 bytes ≈ 28MB — fine for a server process.
-// Uses its own pool with a longer timeout since the initial load is ~3s.
+// Subject-partitioned lazy embedding cache.
+// Only loads one subject's rows on first request — avoids loading all
+// 30K+ embeddings (~365MB) at once which caused 60s timeouts.
+// Each subject cache: ~3,000–5,000 rows × 12KB ≈ 36–60MB per subject.
 // ---------------------------------------------------------------------------
 const cachePool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
   max: 5,
-  statement_timeout: 60000,
-  query_timeout:     60000,
+  statement_timeout: 120000,
+  query_timeout:     120000,
 });
 
-let _embeddingCache = null; // Map<id, number[]>
-let _metadataCache  = null; // Map<id, row without embedding>
-let _cacheLoading   = null; // Promise — prevents concurrent loads
+// subject → { embeddings: Map<id, float[]>, metadata: Map<id, row>, centroids: Map<base_branch, float[]>, loadedAt: number }
+const _subjectCaches  = new Map();
+const _subjectLoading = new Map();
+const CACHE_TTL_MS    = 2 * 60 * 60 * 1000; // 2 hours
 
-async function loadCaches() {
-  if (_embeddingCache) return;
-  if (_cacheLoading)   return _cacheLoading;
+// Compute the average embedding vector for each base_branch (centroid)
+function computeBranchCentroids(metadata, embeddings) {
+  const buckets = new Map(); // base_branch → float[][] accumulator
+  for (const [id, meta] of metadata) {
+    if (!meta.base_branch) continue;
+    const vec = embeddings.get(id);
+    if (!vec) continue;
+    if (!buckets.has(meta.base_branch)) buckets.set(meta.base_branch, []);
+    buckets.get(meta.base_branch).push(vec);
+  }
+  const centroids = new Map();
+  for (const [branch, vecs] of buckets) {
+    const dim      = vecs[0].length;
+    const centroid = new Float64Array(dim);
+    for (const v of vecs) v.forEach((x, i) => { centroid[i] += x; });
+    centroid.forEach((x, i) => { centroid[i] = x / vecs.length; });
+    centroids.set(branch, centroid);
+  }
+  return centroids;
+}
 
-  _cacheLoading = (async () => {
+async function loadSubjectCache(subject) {
+  const cached = _subjectCaches.get(subject);
+  if (cached && (Date.now() - cached.loadedAt) < CACHE_TTL_MS) {
+    console.log(`[QuestionBank] Cache hit for subject "${subject}"`);
+    return;
+  }
+  if (cached) {
+    console.log(`[QuestionBank] Cache expired for subject "${subject}", reloading…`);
+    _subjectCaches.delete(subject);
+  }
+  if (_subjectLoading.has(subject)) return _subjectLoading.get(subject);
+
+  console.log(`[QuestionBank] Loading cache for subject "${subject}"…`);
+  const t0 = Date.now();
+
+  const promise = (async () => {
     const { rows } = await cachePool.query(`
       SELECT id, source, source_id, topic, base_branch, detailed_branch,
              difficulty, question_type, question, options, correct_answer, explanation,
              (figure_data IS NOT NULL) AS has_figure, embedding
       FROM question_bank
-      WHERE embedding IS NOT NULL
-    `);
+      WHERE subject = $1 AND embedding IS NOT NULL
+    `, [subject]);
 
-    _embeddingCache = new Map(rows.map(r => [r.id, r.embedding]));
-    _metadataCache  = new Map(rows.map(({ embedding, ...meta }) => [meta.id, meta]));
+    const embeddings = new Map(rows.map(r => [r.id, r.embedding]));
+    const metadata   = new Map(rows.map(({ embedding, ...meta }) => [meta.id, meta]));
+    const centroids  = computeBranchCentroids(metadata, embeddings);
+
+    _subjectCaches.set(subject, { embeddings, metadata, centroids, loadedAt: Date.now() });
+    console.log(`[QuestionBank] Cached "${subject}" — ${metadata.size} rows, ${centroids.size} centroids (${Date.now()-t0}ms)`);
   })();
 
-  await _cacheLoading;
-  _cacheLoading = null;
+  _subjectLoading.set(subject, promise);
+  await promise;
+  _subjectLoading.delete(subject);
 }
 
-/** Call after importing new questions so the cache reflects the new rows. */
-function invalidateCache() {
-  _embeddingCache = null;
-  _metadataCache  = null;
+/** Invalidate cache for a subject (or all if no subject given). */
+function invalidateCache(subject) {
+  if (subject) _subjectCaches.delete(subject);
+  else         _subjectCaches.clear();
+}
+
+// Subjects that map to multiple DB subjects (queried as a union)
+const MULTI_SUBJECT_MAP = {
+  'science': ['Biology', 'Chemistry', 'Physics'],
+};
+
+// WeaknessKey branch names (short form) → DB branch names (full form).
+// Handles mismatches between the taxonomy used in weaknessKeys and the branch
+// labels actually stored in question_bank.base_branch.
+const BRANCH_NAME_MAP = {
+  // Physics
+  'Kinematics':          'Mechanics - Kinematics',
+  'Dynamics':            'Mechanics - Dynamics',
+  'Thermodynamics':      'Thermodynamics & Heat',
+  'Waves':               'Waves & Optics',
+  'Electricity':         'Electricity & Magnetism',
+  'Electromagnetism':    'Electricity & Magnetism',
+  'Optics':              'Waves & Optics',
+  // Chemistry
+  'Atomic Structure':    'Atomic Structure & Periodic Table',
+  'Periodic Table':      'Atomic Structure & Periodic Table',
+  'Chemical Bonding':    'Chemical Bonds & Molecular Structure',
+  'Stoichiometry':       'Stoichiometry & Chemical Reactions',
+  // Biology
+  'Cell Division':       'Cell Biology',
+  'Mitosis':             'Cell Biology',
+  'Meiosis':             'Meiosis',
+  'Genetics':            'Genetics - Molecular',
+  'Ecology':             'Ecology & Environment',
+  // Math
+  'Quadratic':           'Algebra - Foundations',
+  'Linear Equations':    'Linear Equations - One Variable',
+  'Trigonometry':        'Trigonometry - Basics',
+};
+
+// Normalize iOS subject strings AND math topic names to DB canonical values
+const SUBJECT_NORMALIZE = {
+  // iOS subject names
+  'mathematics': 'Math',
+  'math':        'Math',
+  // Math topic names that iOS sometimes sends as subject
+  'algebra':        'Math',
+  'geometry':       'Math',
+  'number theory':  'Math',
+  'statistics':     'Math',
+  'calculus':       'Math',
+  'trigonometry':   'Math',
+  'probability':    'Math',
+  'combinatorics':  'Math',
+  // Other subjects
+  'physics':     'Physics',
+  'chemistry':   'Chemistry',
+  'biology':     'Biology',
+  'english':     'English',
+  'history':     'History',
+  'geography':   'History',
+  'computer science': 'Computer Science',
+  'computerscience':  'Computer Science',
+};
+
+function normalizeSubject(subject) {
+  if (!subject) return 'Math';
+  return SUBJECT_NORMALIZE[subject.toLowerCase()] || subject;
+}
+
+// Returns array of DB subject keys for a given input subject
+function resolveSubjects(subject) {
+  if (!subject) return ['Math'];
+  const multi = MULTI_SUBJECT_MAP[subject.toLowerCase()];
+  if (multi) return multi;
+  return [normalizeSubject(subject)];
 }
 
 // ---------------------------------------------------------------------------
 // Build a short context summary string from user session/mistake data.
 // This is what we embed to query against the question bank.
 // ---------------------------------------------------------------------------
-function buildContextSummary({ topic, mistakesData = [], conversationData = [], weaknessKeys = [] }) {
+function buildContextSummary({ topic, mistakesData = [], conversationData = [], weaknessKeys = [], gradeLevel = null }) {
   const parts = [];
 
+  if (gradeLevel) parts.push(`Student grade: ${gradeLevel}`);
   if (topic) parts.push(`Subject topic: ${topic}`);
 
   if (mistakesData.length > 0) {
@@ -98,7 +210,7 @@ function buildContextSummary({ topic, mistakesData = [], conversationData = [], 
     if (parsedBranches.length) parts.push(`Weakness branches: ${parsedBranches.join(', ')}`);
   }
 
-  if (parts.length === 0) parts.push('General mathematics practice');
+  if (parts.length === 0) parts.push(`General ${topic || 'practice'}`);
   return parts.join('. ');
 }
 
@@ -111,6 +223,42 @@ async function embedContext(summary) {
     input: summary.slice(0, 2000),
   });
   return res.data[0].embedding;
+}
+
+// ---------------------------------------------------------------------------
+// Grade level → difficulty range + allowed sources
+// Overrides the user-specified difficulty for age-appropriate retrieval.
+// gradeLabel examples: "Grade 2", "5th Grade", "High School", "College"
+// ---------------------------------------------------------------------------
+function gradeConstraints(gradeLabel) {
+  const g = (gradeLabel || '').toLowerCase();
+
+  // K–2 (ages 5–8): only very basic questions
+  if (/grade [k012]|kindergarten|1st|2nd|first|second/.test(g)) {
+    return { diffMin: 1, diffMax: 1, allowedSources: new Set(['gsm8k', 'arc', 'openbookqa']) };
+  }
+  // 3–5 (ages 8–11): elementary
+  if (/grade [345]|3rd|4th|5th|third|fourth|fifth|elementary/.test(g)) {
+    return { diffMin: 1, diffMax: 2, allowedSources: new Set(['gsm8k', 'arc', 'openbookqa', 'amc8']) };
+  }
+  // 6–8 (ages 11–14): middle school
+  if (/grade [678]|6th|7th|8th|sixth|seventh|eighth|middle/.test(g)) {
+    return { diffMin: 1, diffMax: 3, allowedSources: null };  // all sources ok
+  }
+  // 9–10 (ages 14–16): early high school
+  if (/grade [9]|grade 10|9th|10th|ninth|tenth/.test(g)) {
+    return { diffMin: 2, diffMax: 4, allowedSources: null };
+  }
+  // 11–12 / High School (ages 16–18)
+  if (/grade 1[12]|11th|12th|eleventh|twelfth|high school/.test(g)) {
+    return { diffMin: 2, diffMax: 5, allowedSources: null };
+  }
+  // College / Adult
+  if (/college|university|undergraduate|graduate|adult/.test(g)) {
+    return { diffMin: 3, diffMax: 5, allowedSources: null };
+  }
+
+  return null; // no constraint — use request difficulty as-is
 }
 
 // ---------------------------------------------------------------------------
@@ -139,59 +287,144 @@ function cosineSimilarity(a, b) {
 // ---------------------------------------------------------------------------
 // pgvector query
 // ---------------------------------------------------------------------------
-async function queryBank({ userId, embedding, diffMin, diffMax, questionTypes, count, source, targetBaseBranches }) {
-  await loadCaches();
+async function queryBank({ userId, embedding, diffMin, diffMax, questionTypes, count, source, targetBaseBranches, targetDetailedBranches, subject, allowedSources }) {
+  const subjectKey = normalizeSubject(subject);
+  const log = (msg) => console.log(`[QuestionBank] ${msg}`);
+
+  log(`queryBank — subject_in="${subject}" → normalized="${subjectKey}" diff=${diffMin}-${diffMax} types=${questionTypes} source=${source||'any'} branches=[${(targetBaseBranches||[]).join(',')}] detailedBranches=[${(targetDetailedBranches||[]).join(',')}] allowedSources=${allowedSources?[...allowedSources].join(','):'any'}`);
+
+  await loadSubjectCache(subjectKey);
+  const cache = _subjectCaches.get(subjectKey);
+  if (!cache) { log(`❌ No cache for subject "${subjectKey}"`); return []; }
+  log(`✅ Cache loaded — ${cache.metadata.size} rows, ${cache.centroids.size} branch centroids`);
 
   const { rows: seenRows } = await cachePool.query(
     `SELECT question_id FROM user_seen_questions WHERE user_id = $1`,
     [userId]
   );
-  const seenIds = new Set(seenRows.map(r => r.question_id));
+  const seenIds   = new Set(seenRows.map(r => r.question_id));
+  const branchSet  = new Set(targetBaseBranches || []);
+  const detailSet  = new Set(targetDetailedBranches || []);
+  log(`Seen questions: ${seenIds.size} | Branch filter: [${[...branchSet].join(', ')||'none'}] | Detail filter: [${[...detailSet].join(', ')||'none'}]`);
 
-  // Filter metadata in memory
-  const candidates = [];
-  for (const [id, meta] of _metadataCache) {
-    if (seenIds.has(id)) continue;
-    if (meta.difficulty < diffMin || meta.difficulty > diffMax) continue;
-    if (!questionTypes.includes(meta.question_type)) continue;
-    if (source && meta.source !== source) continue;
-    candidates.push({ ...meta, embedding: _embeddingCache.get(id) });
+  function baseFilter(meta) {
+    if (seenIds.has(meta.id)) return false;
+    if (meta.difficulty < diffMin || meta.difficulty > diffMax) return false;
+    if (!questionTypes.includes(meta.question_type)) return false;
+    if (source && meta.source !== source) return false;
+    if (allowedSources && !allowedSources.has(meta.source)) return false;
+    // Drop figure-only questions whose text is too short to be meaningful without the image
+    // (e.g. scienceqa: "Select the fish below." = 22 chars, useless as text)
+    if (meta.has_figure && (meta.question || '').trim().length < 40) return false;
+    return true;
   }
 
-  // Score = cosine similarity + 0.15 boost if base_branch matches a weakness
-  const branchSet = new Set(targetBaseBranches || []);
-  return candidates
-    .map(row => {
-      const sim    = cosineSimilarity(embedding, row.embedding);
-      const boost  = branchSet.size > 0 && branchSet.has(row.base_branch) ? 0.15 : 0;
-      return { ...row, similarity: sim + boost };
-    })
-    .sort((a, b) => b.similarity - a.similarity)
-    .slice(0, CANDIDATE_K);
+  // Count how many pass the base filter (for diagnostics)
+  let basePassCount = 0;
+  for (const [, meta] of cache.metadata) { if (baseFilter(meta)) basePassCount++; }
+  log(`Base filter pass: ${basePassCount}/${cache.metadata.size} rows`);
+
+  function rankByEmbedding(rows) {
+    return rows
+      .map(row => {
+        const sim          = cosineSimilarity(embedding, cache.embeddings.get(row.id));
+        const brBoost      = branchSet.size > 0 && branchSet.has(row.base_branch)     ? 0.15 : 0;
+        const detailBoost  = detailSet.size  > 0 && detailSet.has(row.detailed_branch) ? 0.10 : 0;
+        return { ...row, similarity: sim + brBoost + detailBoost };
+      })
+      .sort((a, b) => b.similarity - a.similarity);
+  }
+
+  // ── Stage 1: Weakness-tag targeted search ────────────────────────────
+  if (branchSet.size > 0) {
+    const targeted = [];
+    for (const [, meta] of cache.metadata) {
+      if (baseFilter(meta) && branchSet.has(meta.base_branch)) targeted.push(meta);
+    }
+    log(`Stage 1 (tag-targeted): ${targeted.length} candidates in branches [${[...branchSet].join(', ')}]`);
+    const ranked = rankByEmbedding(targeted).slice(0, CANDIDATE_K);
+    if (ranked.length >= count) {
+      log(`✅ Stage 1 returned ${ranked.length} results (top sim=${ranked[0]?.similarity?.toFixed(3)})`);
+      return ranked;
+    }
+    log(`⚠️ Stage 1 only found ${ranked.length}/${count} needed — falling through`);
+  }
+
+  // ── Stage 2: Centroid-guided search ──────────────────────────────────
+  if (cache.centroids.size > 0) {
+    // Use more branches for generic queries (no context) to avoid topic bias.
+    // With context (weakness keys / mistakes), use fewer for precision.
+    const hasContext = branchSet.size > 0 || targetBaseBranches?.length > 0;
+    const TOP_BRANCHES = hasContext ? 3 : Math.min(6, Math.ceil(cache.centroids.size / 2));
+
+    const nearestBranches = [...cache.centroids.entries()]
+      .map(([branch, centroid]) => ({ branch, sim: cosineSimilarity(embedding, centroid) }))
+      .sort((a, b) => b.sim - a.sim)
+      .slice(0, TOP_BRANCHES);
+
+    log(`Stage 2 (centroid-guided): nearest branches — ${nearestBranches.map(b => `${b.branch}(${b.sim.toFixed(3)})`).join(', ')}`);
+
+    const guided = new Set(nearestBranches.map(x => x.branch));
+    const targeted = [];
+    for (const [, meta] of cache.metadata) {
+      if (baseFilter(meta) && guided.has(meta.base_branch)) targeted.push(meta);
+    }
+    log(`Stage 2 candidates: ${targeted.length}`);
+    const ranked = rankByEmbedding(targeted).slice(0, CANDIDATE_K);
+    if (ranked.length >= count) {
+      log(`✅ Stage 2 returned ${ranked.length} results (top sim=${ranked[0]?.similarity?.toFixed(3)})`);
+      return ranked;
+    }
+    log(`⚠️ Stage 2 only found ${ranked.length}/${count} needed — falling through to full search`);
+  }
+
+  // ── Stage 3: Full subject search (fallback) ───────────────────────────
+  const all = [];
+  for (const [, meta] of cache.metadata) { if (baseFilter(meta)) all.push(meta); }
+  log(`Stage 3 (full): ${all.length} candidates`);
+  const ranked = rankByEmbedding(all).slice(0, CANDIDATE_K);
+  log(`✅ Stage 3 returned ${ranked.length} results`);
+  return ranked;
 }
 
 // ---------------------------------------------------------------------------
-// Diversity filter — avoid 3+ consecutive questions on the exact same topic
+// Diversity filter — prevents two failure modes:
+// 1. 3+ questions on the exact same topic
+// 2. Questions whose text is identical in the first 60 chars (figure-dependent
+//    questions like "Select the fish below." that differ only by image)
 // ---------------------------------------------------------------------------
 function applyDiversityFilter(rows, count) {
   const result = [];
   const topicCounts = {};
+  const textPrefixes = new Set();
 
   for (const row of rows) {
     if (result.length >= count) break;
+
+    // Deduplicate by question text prefix (catches figure-dependent questions
+    // whose text is identical/near-identical regardless of which image they reference)
+    const prefix = (row.question || '').slice(0, 60).trim().toLowerCase();
+    if (textPrefixes.has(prefix)) continue;
+
     const key = row.topic || 'general';
     topicCounts[key] = (topicCounts[key] || 0) + 1;
-    if (topicCounts[key] <= 3) {
+    if (topicCounts[key] <= 2) {   // max 2 per topic (was 3)
       result.push(row);
+      textPrefixes.add(prefix);
     }
   }
 
-  // If we still don't have enough, fill from remaining rows without the diversity rule
+  // If we still don't have enough, fill from remaining rows without the topic-count rule
+  // but still deduplicate by text prefix to avoid "Select the fish below." × N
   if (result.length < count) {
     const inResult = new Set(result.map(r => r.id));
     for (const row of rows) {
       if (result.length >= count) break;
-      if (!inResult.has(row.id)) result.push(row);
+      if (inResult.has(row.id)) continue;
+      const prefix = (row.question || '').slice(0, 60).trim().toLowerCase();
+      if (textPrefixes.has(prefix)) continue;
+      result.push(row);
+      textPrefixes.add(prefix);
     }
   }
 
@@ -274,21 +507,28 @@ async function retrieveQuestions(userId, opts = {}) {
     conversationData = [],
     weaknessKeys = [],
     source = null,
+    gradeLevel = null,
   } = opts;
 
+  const log = (msg) => console.log(`[QuestionBank] ${msg}`);
+  log(`retrieveQuestions — topic="${topic}" grade="${gradeLevel}" diff=${difficulty} type=${questionType} count=${count} source=${source||'any'} weaknessKeys=[${weaknessKeys.join(',')}] mistakes=${mistakesData.length}`);
+
   // 1. Build context summary + embed
-  const summary = buildContextSummary({ topic, mistakesData, conversationData, weaknessKeys });
+  const summary = buildContextSummary({ topic, mistakesData, conversationData, weaknessKeys, gradeLevel });
   const embedding = await embedContext(summary);
 
-  // 2. Extract target base_branches from weakness keys for scoring boost
-  const targetBaseBranches = weaknessKeys
-    .map(k => parseWeaknessKey(k))
-    .filter(Boolean)
-    .map(p => p.baseBranch)
+  // 2. Extract target base_branches AND detailed_branches from weakness keys
+  const parsedWeaknesses = weaknessKeys.map(k => parseWeaknessKey(k)).filter(Boolean);
+  const targetBaseBranches = parsedWeaknesses
+    .map(p => BRANCH_NAME_MAP[p.baseBranch] || p.baseBranch)
+    .filter(Boolean);
+  const targetDetailedBranches = parsedWeaknesses
+    .map(p => p.detailedBranch)
     .filter(Boolean);
 
-  // Also extract from mistakes_data base_branch fields
-  mistakesData.forEach(m => { if (m.base_branch) targetBaseBranches.push(m.base_branch); });
+  log(`Context summary: "${summary}"`);
+  log(`targetBaseBranches: [${targetBaseBranches.join(', ')||'none'}]`);
+  log(`targetDetailedBranches: [${targetDetailedBranches.join(', ')||'none'}]`);
 
   // 3. Determine question type filter
   const SUPPORTED = ['multiple_choice', 'short_answer'];
@@ -296,23 +536,54 @@ async function retrieveQuestions(userId, opts = {}) {
     ? SUPPORTED
     : SUPPORTED.includes(questionType) ? [questionType] : SUPPORTED;
 
-  // 4. Difficulty range
-  const { min: diffMin, max: diffMax } = difficultyRange(difficulty);
+  // 4. Difficulty range — grade level overrides user-specified difficulty
+  const gc = gradeConstraints(gradeLevel);
+  let { min: diffMin, max: diffMax } = difficultyRange(difficulty);
+  if (gc) {
+    diffMin = gc.diffMin;
+    diffMax = gc.diffMax;
+    log(`Grade "${gradeLevel}" → capping difficulty to ${diffMin}–${diffMax}${gc.allowedSources ? `, sources: [${[...gc.allowedSources].join(',')}]` : ''}`);
+  }
 
-  // 5. Vector + metadata query with branch boost
-  const candidates = await queryBank({
-    userId,
-    embedding,
-    diffMin,
-    diffMax,
-    questionTypes,
-    count,
-    source,
-    targetBaseBranches,
-  });
+  // 5. Vector + metadata query — supports multi-subject (e.g. "Science" → Biology+Chemistry+Physics)
+  const subjectList = resolveSubjects(topic || '');
+  log(`Resolved subjects: [${subjectList.join(', ')}]`);
 
-  // 5. Diversity filter + trim
-  const selected = applyDiversityFilter(candidates, count);
+  // Source restrictions (gsm8k, arc, amc8…) exist only for Math & Science datasets.
+  // Applying them to English/History eliminates every question in those caches.
+  const QUANTITATIVE_SUBJECTS = new Set(['Math', 'Physics', 'Chemistry', 'Biology']);
+
+  let allCandidates = [];
+  for (const subj of subjectList) {
+    const effectiveAllowedSources = (gc?.allowedSources && QUANTITATIVE_SUBJECTS.has(subj))
+      ? gc.allowedSources
+      : null;
+
+    const subjCandidates = await queryBank({
+      userId,
+      embedding,
+      diffMin,
+      diffMax,
+      questionTypes,
+      count,
+      source,
+      targetBaseBranches,
+      targetDetailedBranches,
+      subject: subj,
+      allowedSources: effectiveAllowedSources,
+    });
+    allCandidates.push(...subjCandidates);
+  }
+
+  // Re-rank merged results and trim to CANDIDATE_K
+  allCandidates = allCandidates
+    .sort((a, b) => b.similarity - a.similarity)
+    .slice(0, CANDIDATE_K);
+
+  log(`candidates after queryBank: ${allCandidates.length} | after diversity: will trim to ${count}`);
+
+  // 6. Diversity filter + trim
+  const selected = applyDiversityFilter(allCandidates, count);
 
   // 6. Format and return
   const questions = selected.map(formatQuestion);
@@ -344,4 +615,10 @@ async function recordGradingResult(userId, questionId, wasCorrect) {
   );
 }
 
-module.exports = { retrieveQuestions, recordGradingResult, buildContextSummary, markSeen, invalidateCache };
+/** Pre-warm the in-memory cache for a subject (fire-and-forget safe). */
+async function warmCache(subject) {
+  const subjectKey = normalizeSubject(subject);
+  await loadSubjectCache(subjectKey);
+}
+
+module.exports = { retrieveQuestions, recordGradingResult, buildContextSummary, markSeen, invalidateCache, warmCache };

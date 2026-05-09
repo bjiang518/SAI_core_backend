@@ -1216,6 +1216,28 @@ class ProgressRoutes {
       const progressRecord = result.rows[0];
       const wasCreated = progressRecord.created_at.getTime() === progressRecord.updated_at.getTime();
 
+      // Also upsert daily_subject_activities so streak and XP tracking work
+      if (Array.isArray(subjectProgress) && subjectProgress.length > 0) {
+        for (const sp of subjectProgress) {
+          const subject    = sp.subject || sp.subjectName || 'Unknown';
+          const attempted  = parseInt(sp.questionsAttempted ?? sp.questions_attempted ?? 0);
+          const correct    = parseInt(sp.questionsCorrect  ?? sp.questions_correct  ?? 0);
+          const timeSpent  = parseInt(sp.timeSpent         ?? sp.time_spent         ?? 0);
+          const points     = Math.round(attempted * 10); // 10 XP per question
+          if (attempted <= 0) continue;
+          await db.query(`
+            INSERT INTO daily_subject_activities
+              (user_id, activity_date, subject, questions_attempted, questions_correct, time_spent, points_earned)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            ON CONFLICT (user_id, activity_date, subject) DO UPDATE SET
+              questions_attempted = GREATEST(EXCLUDED.questions_attempted, daily_subject_activities.questions_attempted),
+              questions_correct   = GREATEST(EXCLUDED.questions_correct,   daily_subject_activities.questions_correct),
+              time_spent          = GREATEST(EXCLUDED.time_spent,          daily_subject_activities.time_spent),
+              points_earned       = GREATEST(EXCLUDED.points_earned,       daily_subject_activities.points_earned)
+          `, [userId, date, subject, attempted, correct, timeSpent, points]);
+        }
+      }
+
       this.fastify.log.info(`✅ Daily progress ${wasCreated ? 'created' : 'updated'} for user ${PIIMasking.maskUserId(userId)} on ${date}`);
       this.fastify.log.info(`📊 Record ID: ${progressRecord.id}`);
 

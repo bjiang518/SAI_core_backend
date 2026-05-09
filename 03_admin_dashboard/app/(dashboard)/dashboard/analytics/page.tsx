@@ -41,13 +41,18 @@ export default function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [correlation, setCorrelation] = useState<Array<{ feature: string; users: number; d7_pct: number; paid_pct: number }>>([])
 
   const fetchData = async () => {
     setLoading(true)
     try {
-      const res = await analyticsAPI.getOverview()
-      if (res.success) { setData(res.data); setError(null) }
-      else setError(res.error || 'Failed to load analytics')
+      const [overviewRes, corrRes] = await Promise.all([
+        analyticsAPI.getOverview(),
+        analyticsAPI.getFeatureCorrelation().catch(() => ({ success: false, data: [] })),
+      ])
+      if (overviewRes.success) { setData(overviewRes.data); setError(null) }
+      else setError(overviewRes.error || 'Failed to load analytics')
+      if (corrRes.success) setCorrelation(corrRes.data)
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string }; status?: number }; message?: string }
       setError(e?.response?.data?.error || (e?.response?.status ? `HTTP ${e.response.status}` : null) || (err instanceof Error ? err.message : String(err)))
@@ -223,6 +228,41 @@ export default function AnalyticsPage() {
             </Card>
           )}
         </>
+      )}
+
+      {/* Feature × Retention Correlation */}
+      {correlation.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Feature × Retention Correlation</CardTitle>
+            <CardDescription>D7 retention and paid conversion by feature used — users who signed up 7+ days ago</CardDescription>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-xs text-muted-foreground">
+                  <th className="pb-2 pr-4">Feature</th>
+                  <th className="pb-2 pr-4 text-right">Users</th>
+                  <th className="pb-2 pr-4 text-right">D7 Retention</th>
+                  <th className="pb-2 text-right">Paid Conversion</th>
+                </tr>
+              </thead>
+              <tbody>
+                {correlation.map((row, i) => {
+                  const isTop = i === 0
+                  return (
+                    <tr key={row.feature} className={`border-b ${isTop ? 'bg-green-50' : 'hover:bg-gray-50'}`}>
+                      <td className="py-2 pr-4 font-medium">{row.feature}{isTop && <span className="ml-2 text-xs text-green-700 font-semibold">↑ Best</span>}</td>
+                      <td className="py-2 pr-4 text-right text-muted-foreground">{row.users.toLocaleString()}</td>
+                      <td className="py-2 pr-4 text-right font-semibold text-purple-700">{row.d7_pct}%</td>
+                      <td className="py-2 text-right font-semibold text-blue-700">{row.paid_pct}%</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
       )}
     </div>
   )

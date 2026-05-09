@@ -153,7 +153,7 @@ struct ContentView: View {
             isPresented: $authService.showUpdateRecommendation
         ) {
             Button(NSLocalizedString("softUpdate.updateNow", value: "Update Now", comment: "")) {
-                let urlString = authService.updateRecommendationStoreUrl ?? "https://apps.apple.com/app/id6743428452"
+                let urlString = authService.updateRecommendationStoreUrl ?? "https://apps.apple.com/app/id6754365864"
                 if let url = URL(string: urlString) {
                     UIApplication.shared.open(url)
                 }

@@ -26,6 +26,77 @@ struct NewPracticeSheet: View {
     // Tab selection
     @State private var selectedTab: Tab = .random
 
+    // Practice mode: AI generated vs real question bank
+    enum PracticeMode { case ai, bank }
+    @State private var practiceMode: PracticeMode = .ai
+
+    // Exact subjects in the question bank (DB canonical names, iOS display names)
+    static let bankSubjects: [(display: String, value: String)] = [
+        ("Mathematics",      "Mathematics"),
+        ("Biology",          "Biology"),
+        ("History",          "History"),
+        ("Physics",          "Physics"),
+        ("Chemistry",        "Chemistry"),
+        ("English",          "English"),
+        ("Computer Science", "Computer Science"),
+    ]
+
+    // Question bank source — each maps to DB source values
+    enum BankSource: String, CaseIterable, Identifiable {
+        case amc     = "amc"
+        case sat     = "sat"
+        case mmlu    = "mmlu"
+        case arc     = "arc"
+        case gsm8k   = "gsm8k"
+        case english = "english"
+
+        var id: String { rawValue }
+
+        var displayName: String {
+            switch self {
+            case .amc:     return "AMC Competition"
+            case .sat:     return "SAT Math"
+            case .mmlu:    return "MMLU"
+            case .arc:     return "ARC Science"
+            case .gsm8k:   return "Grade School"
+            case .english: return "SAT / LSAT"
+            }
+        }
+        var icon: String {
+            switch self {
+            case .amc:     return "trophy.fill"
+            case .sat:     return "pencil.and.list.clipboard"
+            case .mmlu:    return "globe.americas.fill"
+            case .arc:     return "atom"
+            case .gsm8k:   return "sum"
+            case .english: return "text.book.closed.fill"
+            }
+        }
+        var backendSources: [String] {
+            switch self {
+            case .amc:     return ["amc8", "amc10", "amc12", "aime"]
+            case .sat:     return ["sat"]
+            case .mmlu:    return ["mmlu"]
+            case .arc:     return ["arc", "openbookqa"]
+            case .gsm8k:   return ["gsm8k"]
+            case .english: return ["agieval"]
+            }
+        }
+
+        // Sources available per subject — only show relevant chips
+        static func available(for subject: String) -> [BankSource] {
+            switch subject.lowercased() {
+            case "mathematics": return [.amc, .sat, .mmlu, .gsm8k]
+            case "biology", "physics", "chemistry": return [.mmlu, .arc]
+            case "history":          return [.mmlu]
+            case "english":          return [.english, .mmlu]
+            case "computer science": return [.mmlu]
+            default:                 return BankSource.allCases
+            }
+        }
+    }
+    @State private var selectedBankSources: Set<BankSource> = []
+
     // Common config
     @State private var selectedDifficulty: QuestionGenerationService.RandomQuestionsConfig.QuestionDifficulty = .intermediate
     @State private var questionCount: Int = 5
@@ -214,7 +285,9 @@ struct NewPracticeSheet: View {
     // MARK: - Subject Picker
 
     private var subjectPickerSection: some View {
-        let subjects = dataAdapter.getMostCommonSubjects()
+        let subjects: [String] = practiceMode == .bank
+            ? NewPracticeSheet.bankSubjects.map(\.value)
+            : dataAdapter.getMostCommonSubjects()
         return ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
@@ -224,6 +297,8 @@ struct NewPracticeSheet: View {
                             withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
                                 selectedSubject = subject
                                 proxy.scrollTo(subject, anchor: .center)
+                                // Clear source selection — available sources change per subject
+                                if practiceMode == .bank { selectedBankSources.removeAll() }
                             }
                         }) {
                             Text(PracticeSessionManager.localizeSubject(subject))
@@ -290,8 +365,14 @@ struct NewPracticeSheet: View {
 
     private var generalConfigurationSection: some View {
         VStack(alignment: .leading, spacing: 20) {
-            VStack(spacing: 16) {
-                difficultyColorBar
+
+            // ── Practice Mode Toggle ──────────────────────────────────────
+            practiceModeToggle
+
+            if practiceMode == .ai {
+                // ── AI Practice config ───────────────────────────────────
+                VStack(spacing: 16) {
+                    difficultyColorBar
 
                 VStack(alignment: .leading, spacing: 16) {
                     VStack(alignment: .leading, spacing: 8) {
@@ -364,11 +445,125 @@ struct NewPracticeSheet: View {
                 }
                 }
             }
+        } else {
+            // ── Question Bank config ─────────────────────────────────────
+            bankSourceSection
+        }
         }
         .padding()
         .background(Color.gray.opacity(0.05))
         .cornerRadius(16)
         .practiceLibOnboardingAnchor("practice_sheet_onboarding_questionConfig")
+    }
+
+    // MARK: - Practice Mode Toggle
+
+    private var practiceModeToggle: some View {
+        HStack(spacing: 0) {
+            ForEach([PracticeMode.ai, .bank], id: \.self) { mode in
+                let isSelected = practiceMode == mode
+                Button(action: { withAnimation(.easeInOut(duration: 0.2)) {
+                    practiceMode = mode
+                    if mode == .bank { selectedBankSources.removeAll() }
+                } }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: mode == .ai ? "sparkles" : "graduationcap.fill")
+                            .font(.subheadline)
+                        Text(mode == .ai
+                             ? NSLocalizedString("practice.mode.ai", value: "AI Practice", comment: "")
+                             : NSLocalizedString("practice.mode.bank", value: "Real Questions", comment: ""))
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundColor(isSelected ? .white : .secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(isSelected ? selectedTab.color : Color.clear)
+                    .cornerRadius(10)
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+        }
+        .padding(4)
+        .background(Color.gray.opacity(0.12))
+        .cornerRadius(13)
+    }
+
+    // MARK: - Question Bank Source Selector
+
+    private var bankSourceSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+
+            // Count slider (shared — bank also needs count)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text(NSLocalizedString("questionGeneration.numberOfQuestions", comment: ""))
+                        .font(.body).fontWeight(.medium)
+                    Spacer()
+                    Text("\(questionCount)")
+                        .font(.caption).foregroundColor(.secondary)
+                        .padding(.horizontal, 8).padding(.vertical, 4)
+                        .background(selectedTab.color.opacity(0.1)).cornerRadius(6)
+                }
+                HStack {
+                    Text("1").font(.caption).foregroundColor(.secondary)
+                    Spacer()
+                    Text("10").font(.caption).foregroundColor(.secondary)
+                }
+                Slider(value: Binding(get: { Double(questionCount) }, set: { questionCount = Int($0) }),
+                       in: 1...10, step: 1)
+                    .accentColor(selectedTab.color)
+            }
+
+            // Source filter — only show sources relevant to the selected subject
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text(NSLocalizedString("practice.bank.sources", value: "Sources", comment: ""))
+                        .font(.body).fontWeight(.medium)
+                    Spacer()
+                    Text(selectedBankSources.isEmpty
+                         ? NSLocalizedString("practice.bank.allSources", value: "All", comment: "")
+                         : "\(selectedBankSources.count) selected")
+                        .font(.caption).foregroundColor(.secondary)
+                }
+
+                let availableSources = BankSource.available(for: selectedSubject)
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                    ForEach(availableSources) { src in
+                        let isOn = selectedBankSources.contains(src)
+                        Button(action: {
+                            if isOn { selectedBankSources.remove(src) }
+                            else     { selectedBankSources.insert(src) }
+                        }) {
+                            VStack(spacing: 4) {
+                                Image(systemName: src.icon)
+                                    .font(.title3)
+                                    .foregroundColor(isOn ? selectedTab.color : .secondary)
+                                Text(src.displayName)
+                                    .font(.caption2)
+                                    .foregroundColor(isOn ? selectedTab.color : .secondary)
+                                    .lineLimit(2)
+                                    .multilineTextAlignment(.center)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(isOn ? selectedTab.color.opacity(0.1) : Color.gray.opacity(0.05))
+                            .cornerRadius(8)
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(isOn ? selectedTab.color : Color.clear, lineWidth: 2))
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
+
+                if !selectedBankSources.isEmpty {
+                    Button(action: { selectedBankSources.removeAll() }) {
+                        Text(NSLocalizedString("practice.bank.clearSources", value: "Clear selection (show all)", comment: ""))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+        }
     }
 
     // MARK: - Difficulty Color Bar
@@ -491,10 +686,14 @@ struct NewPracticeSheet: View {
                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
                         .scaleEffect(0.8)
                 } else {
-                    Image(systemName: "sparkles")
+                    Image(systemName: practiceMode == .bank ? "magnifyingglass" : "sparkles")
                         .font(.headline)
                 }
-                Text(questionService.isGenerating ? NSLocalizedString("questionGeneration.generating", comment: "") : NSLocalizedString("questionGeneration.generateQuestions", comment: ""))
+                Text(questionService.isGenerating
+                     ? NSLocalizedString("questionGeneration.generating", comment: "")
+                     : practiceMode == .bank
+                       ? NSLocalizedString("practice.bank.retrieve", value: "Retrieve Questions", comment: "")
+                       : NSLocalizedString("questionGeneration.generateQuestions", comment: ""))
                     .font(.body.bold())
             }
             .foregroundColor(.white)
@@ -515,6 +714,7 @@ struct NewPracticeSheet: View {
 
     private var canGenerate: Bool {
         guard authService.isAuthenticated else { return false }
+        if practiceMode == .bank { return true }
         switch selectedTab {
         case .random: return true
         case .archive: return !selectedConversations.isEmpty || !selectedQuestions.isEmpty
@@ -582,7 +782,31 @@ struct NewPracticeSheet: View {
 
     private func performGeneration() async throws {
         let userProfile = dataAdapter.createUserProfile()
+        let subjects = dataAdapter.getMostCommonSubjects()
+        let primary = selectedSubject.isEmpty ? (subjects.first ?? "Mathematics") : selectedSubject
 
+        // ── Question Bank path ───────────────────────────────────────────
+        if practiceMode == .bank {
+            let bankSource: String? = selectedBankSources.count == 1
+                ? selectedBankSources.first?.backendSources.first
+                : nil
+            let bankConfig = QuestionGenerationService.RandomQuestionsConfig(
+                topics: [primary], focusNotes: nil,
+                difficulty: .intermediate, questionCount: questionCount, questionType: .any
+            )
+            let result = await questionService.generateQuestionsV2(
+                subject: primary,
+                mode: 4,
+                config: bankConfig,
+                userProfile: userProfile,
+                shortTermContext: questionService.buildShortTermContext(subject: primary),
+                bankSource: bankSource
+            )
+            if case .failure(let e) = result { throw e }
+            return
+        }
+
+        // ── AI Practice paths ────────────────────────────────────────────
         switch selectedTab {
         case .random:
             let subjects = dataAdapter.getMostCommonSubjects()

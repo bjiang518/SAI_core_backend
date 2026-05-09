@@ -16,7 +16,7 @@
 
 // Main Tabs
 "tab.home" = "Inicio";
-"tab.grader" = "Grader";
+"tab.grader" = "Calificador";
 "tab.chat" = "Chat";
 "tab.progress" = "Progreso";
 "tab.library" = "Biblioteca";
@@ -2434,6 +2434,14 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "reports.passive.onboarding.dataNote" = "Los datos de tareas se sincronizan automáticamente al generar un informe";
 "reports.passive.onboarding.enable" = "Activar informes para padres";
 "reports.passive.onboarding.noThanks" = "No, gracias";
+
+// Practice Mode Toggle (AI vs Question Bank)
+"practice.mode.ai" = "Práctica con IA";
+"practice.mode.bank" = "Preguntas reales";
+"practice.bank.sources" = "Fuentes";
+"practice.bank.allSources" = "Todas";
+"practice.bank.clearSources" = "Limpiar selección (mostrar todas)";
+"practice.bank.retrieve" = "Obtener preguntas";
 
 // New Practice Sheet
 "newPractice.title" = "Nueva práctica";
