@@ -20,8 +20,10 @@ struct ProgressiveHomeworkView: View {
     let base64Image: String
     let preParsedQuestions: ParseHomeworkQuestionsResponse?  // NEW: Optional pre-parsed questions
 
+    @State private var scrollProxy: ScrollViewProxy? = nil
+    @State private var expandedIds: Set<String> = []
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.colorScheme) var colorScheme  // For icon selection
+    @Environment(\.colorScheme) private var colorScheme
 
     // AI Model selection (OpenAI vs Gemini)
     @AppStorage("selectedAIModel") private var selectedAIModel: String = "openai"
@@ -52,29 +54,32 @@ struct ProgressiveHomeworkView: View {
                 loadingView
             } else {
                 // Main content
-                ScrollView {
-                    VStack(spacing: 20) {
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        VStack(spacing: 20) {
 
-                        // Header with subject and stats
-                        headerSection
+                            // Header with subject and stats
+                            headerSection
 
-                        // Progress bar (shown during grading)
-                        if !viewModel.isComplete && !viewModel.state.questions.isEmpty {
-                            progressSection
+                            // Progress dots (shown during grading and after)
+                            if !viewModel.state.questions.isEmpty {
+                                progressSection
+                            }
+
+                            // Questions list
+                            questionsListSection
+
+                            // Collection button (shown when complete)
+                            if viewModel.isComplete {
+                                collectionButtonSection
+                            }
+
+                            // Spacing at bottom
+                            Spacer(minLength: 40)
                         }
-
-                        // Questions list
-                        questionsListSection
-
-                        // Collection button (shown when complete)
-                        if viewModel.isComplete {
-                            collectionButtonSection
-                        }
-
-                        // Spacing at bottom
-                        Spacer(minLength: 40)
+                        .padding(.vertical)
                     }
-                    .padding(.vertical)
+                    .onAppear { scrollProxy = proxy }
                 }
             }
 
@@ -91,6 +96,13 @@ struct ProgressiveHomeworkView: View {
                     Button("Done") {
                         dismiss()
                     }
+                }
+            }
+        }
+        .onChange(of: viewModel.isComplete) { _, isComplete in
+            if isComplete {
+                withAnimation(.spring(response: 0.4)) {
+                    applyAutoExpand()
                 }
             }
         }
@@ -302,26 +314,53 @@ struct ProgressiveHomeworkView: View {
 
     // MARK: - Progress Section
 
-    private var progressSection: some View {
-        VStack(spacing: 8) {
-            HStack {
-                Text("Grading Progress")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-
-                Spacer()
-
-                Text("\(viewModel.gradedCount)/\(viewModel.totalQuestions)")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.blue)
-            }
-
-            ProgressView(value: Float(viewModel.gradedCount), total: Float(viewModel.totalQuestions))
-                .progressViewStyle(.linear)
-                .tint(.blue)
+    private var gradingDots: [GradingDotState] {
+        viewModel.state.questions.map { q in
+            if q.isGrading { return .grading }
+            if q.gradingError != nil { return .error }
+            guard let grade = q.grade else { return .waiting }
+            if grade.isCorrect { return .correct }
+            if grade.score >= 0.5 { return .partial }
+            return .incorrect
         }
-        .padding()
+    }
+
+    private var completionScore: Int {
+        guard !viewModel.state.questions.isEmpty else { return 0 }
+        let correct = viewModel.state.questions.filter { $0.grade?.isCorrect == true }.count
+        return Int(Double(correct) / Double(viewModel.state.questions.count) * 100)
+    }
+
+    private var completionScoreColor: Color {
+        if completionScore >= 80 { return .green }
+        if completionScore >= 60 { return .orange }
+        return .red
+    }
+
+    private var progressSection: some View {
+        HStack(spacing: 12) {
+            GradingDotsView(dots: gradingDots) { idx in
+                withAnimation { scrollProxy?.scrollTo("question_\(idx)", anchor: .center) }
+            }
+            .frame(maxWidth: .infinity)
+
+            Group {
+                if viewModel.isComplete {
+                    Text("\(completionScore)%")
+                        .font(.subheadline.bold())
+                        .foregroundColor(completionScoreColor)
+                        .transition(.opacity.combined(with: .scale))
+                } else {
+                    Text("\(viewModel.gradedCount)/\(viewModel.totalQuestions)")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .frame(minWidth: 46, alignment: .trailing)
+            .animation(.spring(response: 0.3), value: viewModel.isComplete)
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
         .background(Color(.secondarySystemGroupedBackground))
         .cornerRadius(12)
         .padding(.horizontal)
@@ -337,8 +376,16 @@ struct ProgressiveHomeworkView: View {
                     croppedImage: getCroppedImage(for: questionWithGrade.id),
                     onAskAI: {
                         viewModel.askAIForHelp(questionId: questionWithGrade.id)
-                    }
+                    },
+                    isExpanded: Binding(
+                        get: { expandedIds.contains(questionWithGrade.id) },
+                        set: { newVal in
+                            if newVal { expandedIds.insert(questionWithGrade.id) }
+                            else { expandedIds.remove(questionWithGrade.id) }
+                        }
+                    )
                 )
+                .id("question_\(index)")
                 .transition(.asymmetric(
                     insertion: .scale.combined(with: .opacity),
                     removal: .opacity
@@ -346,6 +393,17 @@ struct ProgressiveHomeworkView: View {
             }
         }
         .padding(.horizontal)
+    }
+
+    private func applyAutoExpand() {
+        expandedIds = Set(
+            viewModel.state.questions
+                .filter { q in
+                    guard let grade = q.grade else { return q.gradingError != nil }
+                    return !grade.isCorrect
+                }
+                .map { $0.id }
+        )
     }
 
     // MARK: - Collection Button
@@ -479,9 +537,24 @@ struct QuestionGradeCard: View {
     let questionWithGrade: ProgressiveQuestionWithGrade
     let croppedImage: UIImage?
     let onAskAI: () -> Void
+    var isExpanded: Binding<Bool>? = nil   // external control; falls back to local state
 
-    @State private var isExpanded = false
+    @State private var localExpanded = false
     @State private var showSubquestions = false
+
+    private var expandedValue: Bool {
+        isExpanded?.wrappedValue ?? localExpanded
+    }
+
+    private func toggleExpanded() {
+        if let binding = isExpanded {
+            binding.wrappedValue.toggle()
+        } else {
+            localExpanded.toggle()
+        }
+    }
+
+    @State private var askAIGlow = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -736,7 +809,7 @@ struct QuestionGradeCard: View {
             // Feedback toggle
             Button {
                 withAnimation(.spring()) {
-                    isExpanded.toggle()
+                    toggleExpanded()
                 }
             } label: {
                 HStack {
@@ -746,14 +819,14 @@ struct QuestionGradeCard: View {
 
                     Spacer()
 
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                    Image(systemName: expandedValue ? "chevron.up" : "chevron.down")
                         .font(.caption)
                         .foregroundColor(.blue)
                 }
             }
 
             // Expanded feedback
-            if isExpanded {
+            if expandedValue {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(grade.feedback)
                         .font(.subheadline)
@@ -776,14 +849,18 @@ struct QuestionGradeCard: View {
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
-                        .background(
-                            LinearGradient(
-                                colors: [.blue, .purple],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
+                        .background(Color(red: 1.0, green: 0.55, blue: 0.0))
                         .cornerRadius(8)
+                        .shadow(
+                            color: Color(red: 1.0, green: 0.55, blue: 0.0).opacity(askAIGlow ? 0.7 : 0.25),
+                            radius: askAIGlow ? 12 : 4,
+                            x: 0, y: 0
+                        )
+                    }
+                    .onAppear {
+                        withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
+                            askAIGlow = true
+                        }
                     }
                 }
             }

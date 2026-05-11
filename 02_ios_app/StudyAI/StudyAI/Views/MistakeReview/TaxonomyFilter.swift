@@ -2,24 +2,8 @@
 //  TaxonomyFilter.swift
 //  StudyAI
 //
-//  Taxonomy filter with two visualization modes: Chips (default) and Tree
-//
 
 import SwiftUI
-
-// MARK: - Visualization Mode
-
-enum TaxonomyVisualizationMode: String, CaseIterable {
-    case chips = "Chips"
-    case tree = "Tree"
-
-    var icon: String {
-        switch self {
-        case .chips: return "square.grid.2x2.fill"
-        case .tree: return "line.3.horizontal.decrease"
-        }
-    }
-}
 
 // MARK: - Taxonomy Filter View
 
@@ -28,11 +12,10 @@ struct TaxonomyFilterView: View {
     let taxonomyData: [BaseBranchCount]
     @Binding var selectedDetailedBranches: Set<String>
     @State private var expandedBaseBranches: Set<String> = []
-    @State private var visualizationMode: TaxonomyVisualizationMode = .chips
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Header with mode switcher
+            // Header
             HStack {
                 Text(NSLocalizedString("mistakeReview.filter.filterByTopic", comment: ""))
                     .font(.subheadline)
@@ -40,83 +23,28 @@ struct TaxonomyFilterView: View {
 
                 Spacer()
 
-                // Liquid glass visualization mode toggle
-                visualizationModeSwitcher
-
                 if !selectedDetailedBranches.isEmpty {
                     clearButton
                 }
             }
 
-            // Content based on visualization mode
+            // Content
             if taxonomyData.isEmpty {
                 Text(NSLocalizedString("mistakeReview.filter.noTaxonomyData", comment: ""))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .padding()
             } else {
-                switch visualizationMode {
-                case .chips:
-                    ChipBasedTaxonomyView(
-                        taxonomyData: taxonomyData,
-                        selectedDetailedBranches: $selectedDetailedBranches,
-                        expandedBaseBranches: $expandedBaseBranches
-                    )
-                case .tree:
-                    TreeBasedTaxonomyView(
-                        taxonomyData: taxonomyData,
-                        selectedDetailedBranches: $selectedDetailedBranches,
-                        expandedBaseBranches: $expandedBaseBranches
-                    )
-                }
+                ChipBasedTaxonomyView(
+                    taxonomyData: taxonomyData,
+                    selectedDetailedBranches: $selectedDetailedBranches,
+                    expandedBaseBranches: $expandedBaseBranches
+                )
             }
         }
         .padding()
         .background(Color(uiColor: .systemBackground))
         .cornerRadius(12)
-    }
-
-    // MARK: - Subviews
-
-    private var visualizationModeSwitcher: some View {
-        HStack(spacing: 0) {
-            ForEach(TaxonomyVisualizationMode.allCases, id: \.self) { mode in
-                modeButton(for: mode)
-            }
-        }
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                )
-        )
-        .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 2)
-    }
-
-    private func modeButton(for mode: TaxonomyVisualizationMode) -> some View {
-        Button(action: {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                visualizationMode = mode
-            }
-        }) {
-            Image(systemName: mode.icon)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(visualizationMode == mode ? .white : .secondary)
-                .frame(width: 44, height: 32)
-                .background(
-                    Group {
-                        if visualizationMode == mode {
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.blue)
-                                .shadow(color: .blue.opacity(0.3), radius: 4, x: 0, y: 2)
-                        }
-                    }
-                )
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(PlainButtonStyle())
     }
 
     private var clearButton: some View {

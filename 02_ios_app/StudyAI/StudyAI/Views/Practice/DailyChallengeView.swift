@@ -7,6 +7,7 @@
 
 import SwiftUI
 import AudioToolbox
+import Lottie
 
 @MainActor
 struct DailyChallengeView: View {
@@ -57,6 +58,17 @@ struct DailyChallengeView: View {
     @State private var completionScale: CGFloat = 0.5
     @State private var starsShown = 0
     @State private var showingGuestConversion = false
+    @State private var showCongrats = false
+    @State private var hasAnalyzed = false
+    // Slide-to-organize
+    @State private var slideOffset: CGFloat = 0
+    @State private var hasTriggeredOrganize = false
+    @State private var showOrganizeToast = false
+    @State private var organizeToastLines: [String] = []
+    @State private var visibleToastItems: [Bool] = []
+    @State private var organizeWrongCount: Int = 0
+    @State private var showMistakeReview = false
+    @State private var showReviewPrompt = false
 
     // Animations
     @State private var questionOffset: CGFloat = 0
@@ -117,6 +129,28 @@ struct DailyChallengeView: View {
         .onDisappear { stopVoiceDictation() }
         .onChange(of: speechService.recognizedText) { newText in
             if isVoiceDictating && !newText.isEmpty { userTextAnswer = newText }
+        }
+        .onChange(of: showingCompletion) { _, isShowing in
+            if isShowing && correctCount >= questions.count && !questions.isEmpty {
+                showCongrats = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
+                    withAnimation(.easeOut(duration: 0.4)) { showCongrats = false }
+                }
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if showOrganizeToast { organizeToastView }
+        }
+        .overlay(alignment: .bottom) {
+            if showReviewPrompt { reviewPromptCard }
+        }
+        .overlay {
+            if showCongrats {
+                LottieView(animationName: "congrats", loopMode: .playOnce, animationSpeed: 1.0)
+                    .frame(width: 360, height: 360)
+                    .allowsHitTesting(false)
+                    .transition(.opacity)
+            }
         }
         .sheet(isPresented: $showingGuestConversion) {
             GuestConversionView(
@@ -700,7 +734,52 @@ struct DailyChallengeView: View {
                 .scaleEffect(completionScale)
                 .animation(.spring(response: 0.5, dampingFraction: 0.6).delay(0.25), value: completionScale)
 
-                Spacer(minLength: 20)
+                Spacer(minLength: 12)
+
+                // Slide to Smart Organize
+                if !hasAnalyzed {
+                    slideToOrganizeBar
+                        .padding(.horizontal, 32)
+                        .scaleEffect(completionScale)
+                        .animation(.spring(response: 0.5, dampingFraction: 0.6).delay(0.30), value: completionScale)
+                } else {
+                    VStack(spacing: 10) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(correctGreen)
+                            Text(NSLocalizedString("practiceSheet.organizedConfirm", comment: ""))
+                                .font(.subheadline.bold())
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+
+                        if organizeWrongCount > 0 {
+                            Button(action: { showMistakeReview = true }) {
+                                Text(NSLocalizedString("dailyChallenge.reviewMistakes",
+                                                       value: "Review Mistakes & Practice",
+                                                       comment: ""))
+                                    .font(.subheadline.bold())
+                                    .foregroundColor(themeManager.accentColor)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 13)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 14)
+                                            .strokeBorder(themeManager.accentColor.opacity(0.5), lineWidth: 1.5)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 14)
+                                                    .fill(themeManager.accentColor.opacity(0.08))
+                                            )
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.horizontal, 32)
+                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                        }
+                    }
+                    .scaleEffect(completionScale)
+                    .animation(.spring(response: 0.5, dampingFraction: 0.6).delay(0.30), value: completionScale)
+                }
 
                 Button(action: organizeAndFinish) {
                     HStack(spacing: 8) {
@@ -748,6 +827,9 @@ struct DailyChallengeView: View {
             }
         }
         .onAppear { triggerCompletionAnimation() }
+        .sheet(isPresented: $showMistakeReview) {
+            MistakeReviewView(initialSubject: session.subject)
+        }
     }
 
     private var completionPoints: Int {
@@ -904,6 +986,7 @@ struct DailyChallengeView: View {
                 feedbackVisible = false
                 aiFeedback = nil
                 questionOffset = 30
+                restoreQuestionState(at: next)
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
                     questionOffset = 0; questionOpacity = 1
                 }
@@ -1040,6 +1123,119 @@ struct DailyChallengeView: View {
         }
     }
 
+    // Triggered automatically when showingCompletion becomes true — runs regardless of
+    // whether the user taps "Collect Reward" or closes via the X button from review mode.
+    private func runAnalysis() async {
+        guard !hasAnalyzed else { return }
+        hasAnalyzed = true
+
+        // Questions already handled by per-question archive button are skipped to avoid duplicates.
+        let unarchivedWrong = localQuestions.filter { q in
+            let qId = q.id.uuidString
+            guard let ans = session.answers[qId],
+                  (ans["is_correct"] as? Bool) != true else { return false }
+            return !archivedQuestionIds.contains(qId)
+        }
+        let wrongCount = unarchivedWrong.count
+        let unarchivedCorrect = localQuestions.filter { q in
+            let qId = q.id.uuidString
+            guard let ans = session.answers[qId],
+                  (ans["is_correct"] as? Bool) == true else { return false }
+            return !archivedQuestionIds.contains(qId)
+        }
+
+        // --- WRONG QUESTIONS ---
+        // Archive to get real backend IDs (archiveQuestions also saves to QuestionLocalStorage,
+        // so MistakeReviewService can find them) then queue error analysis.
+        if !unarchivedWrong.isEmpty {
+            let parsedQuestions: [ParsedQuestion] = unarchivedWrong.map { q in
+                let studentAnswer = (session.answers[q.id.uuidString]?["answer"] as? String) ?? ""
+                return ParsedQuestion(
+                    questionText: q.question,
+                    answerText: q.correctAnswer,
+                    studentAnswer: studentAnswer.isEmpty ? nil : studentAnswer,
+                    correctAnswer: q.correctAnswer,
+                    grade: "INCORRECT",
+                    pointsEarned: 0,
+                    pointsPossible: Float(q.points ?? 1),
+                    feedback: q.explanation.isEmpty ? nil : q.explanation,
+                    questionType: q.type.rawValue,
+                    options: q.options
+                )
+            }
+            let archiveRequest = QuestionArchiveRequest(
+                questions: parsedQuestions,
+                selectedQuestionIndices: Array(0..<parsedQuestions.count),
+                detectedSubject: session.subject,
+                subjectConfidence: 1.0,
+                originalImageUrl: nil,
+                processingTime: 0,
+                userNotes: Array(repeating: "", count: parsedQuestions.count),
+                userTags: Array(repeating: [], count: parsedQuestions.count),
+                source: "daily_challenge"
+            )
+            let archived = (try? await QuestionArchiveService.shared.archiveQuestions(archiveRequest)) ?? []
+
+            let errorPayload: [[String: Any]] = archived.enumerated().compactMap { idx, archivedQ in
+                guard idx < unarchivedWrong.count else { return nil }
+                let q = unarchivedWrong[idx]
+                let topic = q.topic.isEmpty ? session.subject : q.topic
+                return [
+                    "id": archivedQ.id,
+                    "questionText": q.question,
+                    "answerText": q.correctAnswer,
+                    "studentAnswer": (session.answers[q.id.uuidString]?["answer"] as? String) ?? "",
+                    "subject": session.subject,
+                    "baseBranch": topic
+                    // detailedBranch and weaknessKey left for AI to determine
+                ]
+            }
+            if !errorPayload.isEmpty {
+                ErrorAnalysisQueueService.shared.queueErrorAnalysisAfterGrading(
+                    sessionId: session.id, wrongQuestions: errorPayload)
+            }
+        }
+
+        // --- CORRECT QUESTIONS ---
+        // Save directly to QuestionLocalStorage (no backend archive needed for correct answers)
+        // then queue concept extraction so branch detection updates ShortTermStatusService.
+        if !unarchivedCorrect.isEmpty {
+            let nowISO = ISO8601DateFormatter().string(from: Date())
+            let correctPayload: [[String: Any]] = unarchivedCorrect.map { q in
+                let topic = q.topic.isEmpty ? session.subject : q.topic
+                return [
+                    "id": q.id.uuidString,
+                    "questionText": q.question,
+                    "answerText": q.correctAnswer,
+                    "studentAnswer": (session.answers[q.id.uuidString]?["answer"] as? String) ?? "",
+                    "subject": session.subject,
+                    "grade": "CORRECT",
+                    "isCorrect": true,
+                    "isGraded": true,
+                    "archivedAt": nowISO,
+                    "confidence": 0.95,
+                    "reviewCount": 0,
+                    "tags": [],
+                    "points": 1.0,
+                    "maxPoints": Double(q.points ?? 1),
+                    "source": "daily_challenge",
+                    "baseBranch": topic
+                ]
+            }
+            currentUserQuestionStorage().saveQuestions(correctPayload)
+            ErrorAnalysisQueueService.shared.queueConceptExtractionForCorrectAnswers(
+                sessionId: session.id, correctQuestions: correctPayload)
+        }
+
+        DailyChallengeHistory.save(
+            date: todayDateString, sessionId: session.id,
+            correct: correctCount, total: questions.count)
+
+        await MainActor.run {
+            triggerOrganizeToast(wrongCount: wrongCount)
+        }
+    }
+
     private func organizeAndFinish() {
         guard !isOrganizing else { return }
         // Already collected — just close without awarding points again
@@ -1058,45 +1254,8 @@ struct DailyChallengeView: View {
             )
             PointsEarningManager.shared.awardPracticeCompletionBonus()
 
-            let wrongQuestions: [[String: Any]] = localQuestions.compactMap { q in
-                let qId = q.id.uuidString
-                guard let ans = session.answers[qId],
-                      (ans["is_correct"] as? Bool) != true else { return nil }
-                let topic = q.topic.isEmpty ? session.subject : q.topic
-                return [
-                    "id": qId, "questionText": q.question,
-                    "answerText": q.correctAnswer,
-                    "studentAnswer": (ans["answer"] as? String) ?? "",
-                    "subject": session.subject, "baseBranch": topic,
-                    "detailedBranch": topic, "errorType": "execution_error",
-                    "weaknessKey": "\(session.subject)/\(topic)/\(q.type.rawValue)"
-                ]
-            }
-            let correctQuestions: [[String: Any]] = localQuestions.compactMap { q in
-                let qId = q.id.uuidString
-                guard let ans = session.answers[qId],
-                      (ans["is_correct"] as? Bool) == true else { return nil }
-                let topic = q.topic.isEmpty ? session.subject : q.topic
-                return [
-                    "id": qId, "questionText": q.question,
-                    "answerText": q.correctAnswer,
-                    "subject": session.subject,
-                    "weaknessKey": "\(session.subject)/\(topic)/\(q.type.rawValue)"
-                ]
-            }
-
-            if !wrongQuestions.isEmpty {
-                ErrorAnalysisQueueService.shared.queueErrorAnalysisAfterGrading(
-                    sessionId: session.id, wrongQuestions: wrongQuestions)
-            }
-            if !correctQuestions.isEmpty {
-                ErrorAnalysisQueueService.shared.queueConceptExtractionForCorrectAnswers(
-                    sessionId: session.id, correctQuestions: correctQuestions)
-            }
-
-            DailyChallengeHistory.save(
-                date: todayDateString, sessionId: session.id,
-                correct: correctCount, total: questions.count)
+            // Ensure analysis has run before awarding points (runAnalysis is idempotent).
+            await runAnalysis()
 
             await MainActor.run {
                 isOrganizing = false
@@ -1106,8 +1265,209 @@ struct DailyChallengeView: View {
         }
     }
 
-    private func triggerCompletionAnimation() {
-        savedCorrectCount = correctCount  // persist for PointsShopView claim
+    // MARK: - Slide to Organize
+
+    private var slideToOrganizeBar: some View {
+        GeometryReader { geo in
+            let trackWidth = geo.size.width
+            let sliderWidth: CGFloat = 60
+            let maxOffset = trackWidth - sliderWidth - 8
+
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 30)
+                    .fill(.ultraThinMaterial)
+                    .overlay(RoundedRectangle(cornerRadius: 30).stroke(Color(.separator), lineWidth: 1))
+                    .frame(height: 60)
+
+                RoundedRectangle(cornerRadius: 30)
+                    .fill(correctGreen.opacity(0.15))
+                    .frame(width: max(0, slideOffset + sliderWidth + 4), height: 60)
+                    .opacity(slideOffset > 0 ? 1 : 0)
+
+                HStack {
+                    Spacer()
+                    Text(NSLocalizedString("practiceSheet.slideToOrganize", comment: ""))
+                        .font(.subheadline.bold())
+                        .foregroundColor(.secondary)
+                        .opacity(max(0, 1.0 - (slideOffset / max(1, maxOffset))))
+                    Spacer()
+                }
+                .frame(height: 60)
+
+                ZStack {
+                    Circle()
+                        .fill(.regularMaterial)
+                        .frame(width: sliderWidth, height: sliderWidth)
+                        .overlay(Circle().stroke(Color(.separator), lineWidth: 1))
+                        .shadow(color: .black.opacity(0.1), radius: 6, x: 0, y: 3)
+                    HStack(spacing: 4) {
+                        ForEach(0..<3, id: \.self) { i in
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundColor(.primary.opacity(1.0 - Double(i) * 0.3))
+                        }
+                    }
+                }
+                .offset(x: slideOffset + 4)
+                .gesture(
+                    DragGesture()
+                        .onChanged { value in
+                            guard !hasAnalyzed else { return }
+                            let newOffset = max(0, min(value.translation.width, maxOffset))
+                            withAnimation(.interactiveSpring()) { slideOffset = newOffset }
+                            if newOffset >= maxOffset && !hasTriggeredOrganize {
+                                hasTriggeredOrganize = true
+                                AudioServicesPlaySystemSound(1100)
+                                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                                Task { await runAnalysis() }
+                                withAnimation(.spring()) { slideOffset = 0 }
+                            }
+                        }
+                        .onEnded { _ in
+                            withAnimation(.spring()) { slideOffset = 0 }
+                        }
+                )
+            }
+        }
+        .frame(height: 60)
+    }
+
+    // MARK: - Organize Toast
+
+    private var organizeToastView: some View {
+        VStack {
+            Spacer()
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(Array(organizeToastLines.enumerated()), id: \.offset) { idx, line in
+                    let visible = idx < visibleToastItems.count && visibleToastItems[idx]
+                    Group {
+                        if idx == 0 {
+                            Text(line).font(.headline).foregroundColor(.white)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                        } else {
+                            HStack(spacing: 8) {
+                                Image(systemName: "checkmark.square.fill").foregroundColor(.white)
+                                Text(line).font(.subheadline).foregroundColor(.white)
+                            }
+                        }
+                    }
+                    .opacity(visible ? 1 : 0)
+                    .offset(y: visible ? 0 : 12)
+                    .animation(.spring(response: 0.4, dampingFraction: 0.75).delay(Double(idx) * 0.12), value: visible)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color(.label).opacity(0.9))
+                    .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 6)
+            )
+            .padding(.horizontal, 20)
+            .padding(.bottom, 120)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+        .allowsHitTesting(false)
+    }
+
+    private func triggerOrganizeToast(wrongCount: Int) {
+        organizeWrongCount = wrongCount
+        var lines = [NSLocalizedString("practiceSheet.toastTitle", comment: "")]
+        lines.append(String(format: NSLocalizedString("practiceSheet.toastProgress", comment: ""), session.subject))
+        if wrongCount > 0 {
+            lines.append(String(format: NSLocalizedString("practiceSheet.toastMistakes", comment: ""), wrongCount))
+        }
+        lines.append(NSLocalizedString("practiceSheet.toastSaved", comment: ""))
+
+        organizeToastLines = lines
+        visibleToastItems = Array(repeating: false, count: lines.count)
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) { showOrganizeToast = true }
+        for i in 0..<lines.count {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1 + Double(i) * 0.12) {
+                if i < visibleToastItems.count { visibleToastItems[i] = true }
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
+            withAnimation(.easeOut(duration: 0.4)) { showOrganizeToast = false }
+            if wrongCount > 0 {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) { showReviewPrompt = true }
+                }
+            }
+        }
+    }
+
+    // MARK: - Review prompt card
+
+    private var reviewPromptCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 10) {
+                Image(systemName: "bookmark.fill")
+                    .foregroundColor(.orange)
+                Text(NSLocalizedString("practiceSheet.reviewPrompt.title",
+                                       value: "Review your mistakes?",
+                                       comment: ""))
+                    .font(.headline)
+                    .foregroundColor(themeManager.primaryText)
+                Spacer()
+                Button(action: {
+                    withAnimation(.easeOut(duration: 0.25)) { showReviewPrompt = false }
+                }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.secondary)
+                        .padding(6)
+                        .background(Color.secondary.opacity(0.12))
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+            }
+            Text(String(format: NSLocalizedString("practiceSheet.reviewPrompt.body",
+                                                  value: "%d mistakes archived. Want to review and practice them?",
+                                                  comment: ""), organizeWrongCount))
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            HStack(spacing: 10) {
+                Button(action: {
+                    withAnimation(.easeOut(duration: 0.25)) { showReviewPrompt = false }
+                }) {
+                    Text(NSLocalizedString("practiceSheet.reviewPrompt.later", value: "Later", comment: ""))
+                        .font(.subheadline.bold())
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Color.secondary.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                .buttonStyle(.plain)
+
+                Button(action: {
+                    withAnimation(.easeOut(duration: 0.25)) { showReviewPrompt = false }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { showMistakeReview = true }
+                }) {
+                    Text(NSLocalizedString("practiceSheet.reviewPrompt.reviewNow", value: "Review Now", comment: ""))
+                        .font(.subheadline.bold())
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(themeManager.accentColor)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(.regularMaterial)
+                .shadow(color: .black.opacity(0.15), radius: 16, x: 0, y: -4)
+        )
+        .padding(.horizontal, 16)
+        .padding(.bottom, 32)
+        .transition(.move(edge: .bottom).combined(with: .opacity))
+    }
+
+    private func triggerCompletionAnimation() {        savedCorrectCount = correctCount  // persist for PointsShopView claim
         completionScale = 0.5
         let stars = correctCount >= questions.count ? 3 : correctCount >= questions.count / 2 ? 2 : 1
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {

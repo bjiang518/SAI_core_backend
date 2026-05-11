@@ -163,10 +163,11 @@ struct GeneratedQuestionDetailView: View {
         .animation(.easeInOut(duration: 0.3), value: isGradingWithAI)
     }
 
+    @ViewBuilder
     private var questionContent: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Source badge for bank questions
-            if let label = currentQuestion.sourceLabel {
+            // Source badge — show for all bank questions
+            if let label = currentQuestion.sourceLabel ?? (currentQuestion.isFromBank ? "Question Bank" : nil) {
                 HStack(spacing: 5) {
                     Image(systemName: "graduationcap.fill")
                         .font(.caption2)
@@ -206,6 +207,19 @@ struct GeneratedQuestionDetailView: View {
                         EmptyView()
                     }
                 }
+            }
+
+            // Source attribution line at the bottom of the question card
+            if currentQuestion.isFromBank {
+                let label = currentQuestion.sourceLabel ?? "Question Bank"
+                HStack(spacing: 4) {
+                    Image(systemName: "books.vertical")
+                        .font(.caption2)
+                    Text(String(format: NSLocalizedString("questionDetail.questionFrom", comment: ""), label))
+                        .font(.caption)
+                }
+                .foregroundColor(.secondary)
+                .padding(.top, 4)
             }
         }
     }
@@ -729,6 +743,11 @@ struct GeneratedQuestionDetailView: View {
     private func submitAnswer() {
         hasSubmitted = true
         let currentAnswer = getCurrentAnswer()
+
+        EventTracker.shared.track("question_answered", [
+            "subject": subject,
+            "question_type": currentQuestion.type.rawValue,
+        ])
 
         debugPrint("📝 [Generation] Submitting answer for question: \(currentQuestion.question.prefix(50))...")
         debugPrint("📝 [Generation] User answer: \(currentAnswer.prefix(100))")

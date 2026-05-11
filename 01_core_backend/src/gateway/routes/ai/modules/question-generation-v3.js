@@ -116,6 +116,7 @@ function buildContextData(mode, body, grade) {
     grade,
     topics: body.topic ? [body.topic] : [],
     short_term_context: body.short_term_context || [],
+    focus_notes: body.focus_notes || undefined,
   };
 }
 
@@ -123,6 +124,28 @@ function modeToContextType(mode) {
   if (mode === 2) return 'mistake';
   if (mode === 3) return 'archive';
   return 'random';
+}
+
+// ---------------------------------------------------------------------------
+// Auto-detect subject from free-text (focus_notes / chat content)
+// Used when caller passes subject="" or omits it
+// ---------------------------------------------------------------------------
+function detectSubjectFromText(text) {
+  if (!text) return null;
+  const t = text.toLowerCase();
+  if (/\b(math|algebra|calculus|geometry|trigonometry|equation|derivative|integral|数学)\b/.test(t)) return 'Math';
+  if (/\b(physics|mechanics|thermodynamics|optics|电磁|物理|velocity|acceleration|newton)\b/.test(t)) return 'Physics';
+  if (/\b(chemistry|chemical|molecule|atom|reaction|acid|base|periodic|化学)\b/.test(t)) return 'Chemistry';
+  if (/\b(biology|cell|dna|rna|evolution|ecosystem|photosynthesis|生物)\b/.test(t)) return 'Biology';
+  if (/\b(english|grammar|essay|vocabulary|literature|writing|reading|英语)\b/.test(t)) return 'English';
+  if (/\b(语文|作文|古诗|文言文|阅读理解|chinese language)\b/.test(t)) return 'Chinese';
+  if (/\b(history|历史|dynasty|revolution|war|empire|civilization)\b/.test(t)) return 'History';
+  if (/\b(geography|地理|climate|continent|latitude|longitude|ecosystem)\b/.test(t)) return 'Geography';
+  if (/\b(computer|programming|algorithm|code|software|data structure|计算机)\b/.test(t)) return 'Computer Science';
+  if (/\b(economics|supply|demand|inflation|gdp|market|经济)\b/.test(t)) return 'Economics';
+  if (/\b(psychology|behavior|cognition|emotion|mental|心理)\b/.test(t)) return 'Psychology';
+  if (/\b(science|experiment|hypothesis|scientific)\b/.test(t)) return 'Science';
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -236,20 +259,20 @@ module.exports = async function (fastify, opts) {
       tags: ['AI', 'Questions', 'Practice'],
       body: {
         type: 'object',
-        required: ['subject'],
         properties: {
-          subject: { type: 'string' },
+          subject: { type: 'string', default: '' },
           mode: { type: 'integer', enum: [1, 2, 3, 4], default: 1 },
           count: { type: 'integer', minimum: 1, maximum: 10, default: 5 },
           question_type: { type: 'string', default: 'any' },
           difficulty: { type: 'integer', minimum: 1, maximum: 5 },
           language: { type: 'string', default: 'en' },
           topic: { type: 'string' },
+          focus_notes: { type: 'string' },
           short_term_context: { type: 'array' },
           mistakes_data: { type: 'array' },
           conversation_data: { type: 'array' },
           question_data: { type: 'array' },
-          bank_source: { type: 'string', enum: ['amc12', 'aime', 'sat'] },
+          bank_source: { type: 'string', enum: ['amc8', 'amc10', 'amc12', 'aime', 'sat', 'mmlu', 'arc', 'openbookqa', 'gsm8k', 'agieval', 'scienceqa', 'mathvista'] },
         }
       }
     },
@@ -267,19 +290,26 @@ module.exports = async function (fastify, opts) {
     }
 
     const {
-      subject,
+      subject: subjectRaw = '',
       mode = 1,
       count = 5,
       question_type: question_type_raw = 'any',
       difficulty,
       language = 'en',
       topic,
+      focus_notes,
       short_term_context = [],
       mistakes_data = [],
       conversation_data = [],
       question_data = [],
       bank_source,
     } = request.body;
+
+    // Auto-detect subject from focus_notes when caller omits it or sends "General"
+    const isAutoSubject = !subjectRaw || subjectRaw.toLowerCase() === 'general';
+    const subject = isAutoSubject
+      ? (detectSubjectFromText(focus_notes || topic || '') || 'General')
+      : subjectRaw;
 
     // Normalize legacy type names (none needed currently; kept for future-proofing)
     const TYPE_ALIASES = {};
@@ -459,12 +489,14 @@ module.exports = async function (fastify, opts) {
       return {
         success: true,
         questions: allQuestions,
+        detectedSubject: subject,  // always returned so iOS can label the session correctly
         metadata: {
           total_questions: allQuestions.length,
           generation_type: generationMode,
           types_generated: typesGenerated,
           total_latency_ms: totalLatency,
           primary_engine: 'ai_engine_v2',
+          auto_detected_subject: isAutoSubject,
         },
         _performance: {
           latency_ms: totalLatency,

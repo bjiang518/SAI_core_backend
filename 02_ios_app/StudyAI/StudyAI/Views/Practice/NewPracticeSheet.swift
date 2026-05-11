@@ -22,6 +22,7 @@ struct NewPracticeSheet: View {
     @StateObject private var archiveService = QuestionArchiveService.shared
     @StateObject private var libraryService = LibraryDataService.shared
     @StateObject private var themeManager = ThemeManager.shared
+    @StateObject private var profileService = ProfileService.shared
 
     // Tab selection
     @State private var selectedTab: Tab = .random
@@ -43,55 +44,129 @@ struct NewPracticeSheet: View {
 
     // Question bank source — each maps to DB source values
     enum BankSource: String, CaseIterable, Identifiable {
-        case amc     = "amc"
-        case sat     = "sat"
-        case mmlu    = "mmlu"
-        case arc     = "arc"
-        case gsm8k   = "gsm8k"
-        case english = "english"
+        case gsm8k      = "gsm8k"       // Grade School Math  (K–6,  diff 1)
+        case mathvista  = "mathvista"   // MathVista          (Gr3+, diff 2–5, ALL with figures)
+        case arc        = "arc"         // ARC Science        (K–8,  diff 1–2)
+        case scienceqa  = "scienceqa"   // ScienceQA          (K–8,  diff 1–3)
+        case amcJunior  = "amcJunior"   // AMC 8              (Gr4–8, diff 2)
+        case amcSenior  = "amcSenior"   // AMC 10/12          (Gr9+,  diff 3–4)
+        case aime       = "aime"        // AIME               (Gr10+, diff 4–5)
+        case sat        = "sat"         // SAT Math           (Gr9+,  diff 3)
+        case mmlu       = "mmlu"        // MMLU               (Gr7+,  diff 3–4)
+        case english    = "english"     // SAT/LSAT English   (Gr9+,  diff 4–5)
 
         var id: String { rawValue }
 
         var displayName: String {
             switch self {
-            case .amc:     return "AMC Competition"
-            case .sat:     return "SAT Math"
-            case .mmlu:    return "MMLU"
-            case .arc:     return "ARC Science"
-            case .gsm8k:   return "Grade School"
-            case .english: return "SAT / LSAT"
-            }
-        }
-        var icon: String {
-            switch self {
-            case .amc:     return "trophy.fill"
-            case .sat:     return "pencil.and.list.clipboard"
-            case .mmlu:    return "globe.americas.fill"
-            case .arc:     return "atom"
-            case .gsm8k:   return "sum"
-            case .english: return "text.book.closed.fill"
-            }
-        }
-        var backendSources: [String] {
-            switch self {
-            case .amc:     return ["amc8", "amc10", "amc12", "aime"]
-            case .sat:     return ["sat"]
-            case .mmlu:    return ["mmlu"]
-            case .arc:     return ["arc", "openbookqa"]
-            case .gsm8k:   return ["gsm8k"]
-            case .english: return ["agieval"]
+            case .gsm8k:     return "Grade School"
+            case .mathvista: return "Visual Math 🖼"
+            case .arc:       return "ARC Science"
+            case .scienceqa: return "ScienceQA"
+            case .amcJunior: return "AMC 8"
+            case .amcSenior: return "AMC 10/12"
+            case .aime:      return "AIME"
+            case .sat:       return "SAT Math"
+            case .mmlu:      return "MMLU"
+            case .english:   return "SAT/LSAT"
             }
         }
 
-        // Sources available per subject — only show relevant chips
-        static func available(for subject: String) -> [BankSource] {
+        var icon: String {
+            switch self {
+            case .gsm8k:     return "sum"
+            case .mathvista: return "photo.on.rectangle"
+            case .arc:       return "atom"
+            case .scienceqa: return "flask.fill"
+            case .amcJunior: return "trophy"
+            case .amcSenior: return "trophy.fill"
+            case .aime:      return "star.circle.fill"
+            case .sat:       return "pencil.and.list.clipboard"
+            case .mmlu:      return "globe.americas.fill"
+            case .english:   return "text.book.closed.fill"
+            }
+        }
+
+        var backendSources: [String] {
+            switch self {
+            case .gsm8k:     return ["gsm8k"]
+            case .mathvista: return ["mathvista"]
+            case .arc:       return ["arc", "openbookqa"]
+            case .scienceqa: return ["scienceqa"]
+            case .amcJunior: return ["amc8"]
+            case .amcSenior: return ["amc10", "amc12"]
+            case .aime:      return ["aime"]
+            case .sat:       return ["sat"]
+            case .mmlu:      return ["mmlu"]
+            case .english:   return ["agieval"]
+            }
+        }
+
+        // Parse gradeLevel string (e.g. "7th Grade", "10th Grade", "1", "12") → integer 0–13
+        // Returns nil if unrecognized (treated as no restriction)
+        static func gradeNumber(from gradeLevel: String?) -> Int? {
+            guard let g = gradeLevel?.lowercased() else { return nil }
+            if g.contains("pre-k") || g.contains("prek")           { return 0 }
+            if g.contains("kindergarten")                           { return 0 }
+            if g.contains("1st")  || g == "grade 1"                { return 1 }
+            if g.contains("2nd")  || g == "grade 2"                { return 2 }
+            if g.contains("3rd")  || g == "grade 3"                { return 3 }
+            if g.contains("4th")  || g == "grade 4"                { return 4 }
+            if g.contains("5th")  || g == "grade 5"                { return 5 }
+            if g.contains("6th")  || g == "grade 6"                { return 6 }
+            if g.contains("7th")  || g == "grade 7"                { return 7 }
+            if g.contains("8th")  || g == "grade 8"                { return 8 }
+            if g.contains("9th")  || g == "grade 9"                { return 9 }
+            if g.contains("10th") || g == "grade 10"               { return 10 }
+            if g.contains("11th") || g == "grade 11"               { return 11 }
+            if g.contains("12th") || g == "grade 12"               { return 12 }
+            if g.contains("college") || g.contains("university")   { return 13 }
+            // Fallback: plain integer string "1"…"12" (from dict path)
+            if let n = Int(g), n >= 0 && n <= 13                   { return n }
+            return nil
+        }
+
+        // Sources available for a given subject + grade level
+        static func available(for subject: String, gradeLevel: String?) -> [BankSource] {
+            let grade = gradeNumber(from: gradeLevel)  // nil = no restriction
+            let g = grade ?? 99                        // treat unknown as adult
+
             switch subject.lowercased() {
-            case "mathematics": return [.amc, .sat, .mmlu, .gsm8k]
-            case "biology", "physics", "chemistry": return [.mmlu, .arc]
-            case "history":          return [.mmlu]
-            case "english":          return [.english, .mmlu]
-            case "computer science": return [.mmlu]
-            default:                 return BankSource.allCases
+
+            case "mathematics":
+                var sources: [BankSource] = []
+                if g <= 8  { sources += [.gsm8k] }              // K–8: word problems
+                if g >= 3  { sources += [.mathvista] }           // Gr3+: visual math with figures (diff 2–5)
+                if g >= 4 && g <= 8 { sources += [.amcJunior] } // Gr4–8: AMC 8
+                if g >= 7  { sources += [.mmlu] }               // Gr7+: MMLU
+                if g >= 9  { sources += [.sat, .amcSenior] }    // Gr9+: SAT, AMC 10/12
+                if g >= 10 { sources += [.aime] }               // Gr10+: AIME
+                if g > 8 && sources.isEmpty { sources = [.mathvista, .mmlu] }
+                return sources
+
+            case "biology", "physics", "chemistry":
+                var sources: [BankSource] = []
+                if g <= 8  { sources += [.arc, .scienceqa] }  // K–8: basic science
+                if g >= 7  { sources += [.mmlu] }             // Gr7+: MMLU science
+                if g >= 9 && !sources.contains(.scienceqa) { sources += [.scienceqa] }
+                return sources.isEmpty ? [.arc, .mmlu] : sources
+
+            case "history":
+                if g <= 6  { return [.scienceqa] }            // social studies in ScienceQA
+                return [.mmlu]
+
+            case "english":
+                var sources: [BankSource] = []
+                if g <= 8  { sources += [.scienceqa] }        // K–8: reading/language in ScienceQA
+                if g >= 9  { sources += [.english] }          // Gr9+: SAT/LSAT
+                if g >= 7  { sources += [.mmlu] }             // Gr7+: MMLU English
+                return sources.isEmpty ? [.scienceqa, .mmlu] : sources
+
+            case "computer science":
+                return [.mmlu]
+
+            default:
+                return BankSource.allCases
             }
         }
     }
@@ -255,6 +330,7 @@ struct NewPracticeSheet: View {
                     }
                 }
             }
+            // Ensure profile is loaded so grade-based source filtering works
         }
         .overlay {
             if let step = sheetOnboardingStep {
@@ -285,8 +361,12 @@ struct NewPracticeSheet: View {
     // MARK: - Subject Picker
 
     private var subjectPickerSection: some View {
+        let gradeLevel = profileService.currentProfile?.gradeLevel
         let subjects: [String] = practiceMode == .bank
-            ? NewPracticeSheet.bankSubjects.map(\.value)
+            // Only show subjects that have at least one source for this grade
+            ? NewPracticeSheet.bankSubjects.map(\.value).filter { subject in
+                !BankSource.available(for: subject, gradeLevel: gradeLevel).isEmpty
+              }
             : dataAdapter.getMostCommonSubjects()
         return ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
@@ -515,7 +595,12 @@ struct NewPracticeSheet: View {
                     .accentColor(selectedTab.color)
             }
 
-            // Source filter — only show sources relevant to the selected subject
+            // Source filter — only show when 2+ sources available for the selected subject+grade
+            // Grade level: memory → disk cache → nil (no restriction)
+            let gradeLevel = profileService.currentProfile?.gradeLevel
+                ?? profileService.loadCachedProfile()?.gradeLevel
+            let availableSources = BankSource.available(for: selectedSubject, gradeLevel: gradeLevel)
+            if availableSources.count > 1 {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
                     Text(NSLocalizedString("practice.bank.sources", value: "Sources", comment: ""))
@@ -527,7 +612,6 @@ struct NewPracticeSheet: View {
                         .font(.caption).foregroundColor(.secondary)
                 }
 
-                let availableSources = BankSource.available(for: selectedSubject)
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                     ForEach(availableSources) { src in
                         let isOn = selectedBankSources.contains(src)
@@ -562,6 +646,7 @@ struct NewPracticeSheet: View {
                             .foregroundColor(.secondary)
                     }
                 }
+            }
             }
         }
     }
@@ -768,6 +853,11 @@ struct NewPracticeSheet: View {
                 }
 
                 await MainActor.run {
+                    EventTracker.shared.track("practice_generated", [
+                        "subject": selectedSubject,
+                        "question_count": questionService.lastGeneratedQuestions.count,
+                        "mode": practiceMode == .bank ? "bank" : "ai",
+                    ])
                     dismiss()
                     onSessionCreated(session)
                 }

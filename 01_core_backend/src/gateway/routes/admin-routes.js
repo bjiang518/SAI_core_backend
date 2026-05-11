@@ -160,27 +160,33 @@ module.exports = async function (fastify, opts) {
     try {
       const includeInternal = request.query.includeInternal === 'true'
       const iFilter = await getIFilter(includeInternal)
-      // Real DB queries in parallel
-      const [usersResult, weekAgoResult, sessionsResult, dauResult, wauResult, mauResult, churnResult, newUsersLastWeekResult, tierDistResult, pointsResult, xpResult, spendResult, iosVersionResult] = await Promise.all([
-        db.query(`SELECT COUNT(*) as total FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE p.parent_id IS NULL ${iFilter}`),
-        db.query(`SELECT COUNT(*) as total FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE u.created_at <= NOW() - INTERVAL '7 days' AND p.parent_id IS NULL ${iFilter}`),
-        db.query(`SELECT COUNT(*) as total FROM sessions WHERE (created_at AT TIME ZONE '${DASHBOARD_TZ}')::date = (NOW() AT TIME ZONE '${DASHBOARD_TZ}')::date`),
-        db.query(`SELECT COUNT(DISTINCT us.user_id) as total FROM user_sessions us JOIN users u ON u.id = us.user_id WHERE u.is_anonymous = false ${iFilter} AND (us.created_at AT TIME ZONE '${DASHBOARD_TZ}')::date = (NOW() AT TIME ZONE '${DASHBOARD_TZ}')::date`),
-        db.query(`SELECT COUNT(DISTINCT us.user_id) as total FROM user_sessions us JOIN users u ON u.id = us.user_id WHERE u.is_anonymous = false ${iFilter} AND us.created_at >= NOW() - INTERVAL '7 days'`),
-        db.query(`SELECT COUNT(DISTINCT us.user_id) as total FROM user_sessions us JOIN users u ON u.id = us.user_id WHERE u.is_anonymous = false ${iFilter} AND us.created_at >= NOW() - INTERVAL '30 days'`),
+      const tierWhereClause = (await internalColsExist()) && !includeInternal
+        ? 'WHERE COALESCE(u.is_internal, false) = false AND COALESCE(u.is_test_user, false) = false'
+        : ''
+
+      // Consolidated into 4 queries instead of 13 to reduce connection pool pressure
+      const [mainResult, tierResult, economyResult, iosVersionResult, guestConvResult] = await Promise.all([
+
+        // Query 1: All user/session counts in one round-trip
         db.query(`
-          SELECT COUNT(*) as total FROM users u
-          LEFT JOIN profiles p ON p.user_id = u.id
-          WHERE p.parent_id IS NULL
-          AND u.is_anonymous = false ${iFilter}
-          AND GREATEST(
-            u.last_login_at,
-            (SELECT MAX(s.created_at)  FROM sessions s   WHERE s.user_id = u.id),
-            (SELECT MAX(us.created_at) FROM user_sessions us WHERE us.user_id = u.id),
-            (SELECT MAX(dsa.activity_date) FROM daily_subject_activities dsa WHERE dsa.user_id = u.id)
-          ) < NOW() - INTERVAL '30 days'
+          SELECT
+            (SELECT COUNT(*) FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE p.parent_id IS NULL ${iFilter})::int AS total_users,
+            (SELECT COUNT(*) FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE u.created_at <= NOW() - INTERVAL '7 days' AND p.parent_id IS NULL ${iFilter})::int AS users_week_ago,
+            (SELECT COUNT(*) FROM sessions WHERE (created_at AT TIME ZONE '${DASHBOARD_TZ}')::date = (NOW() AT TIME ZONE '${DASHBOARD_TZ}')::date)::int AS sessions_today,
+            (SELECT COUNT(DISTINCT us.user_id) FROM user_sessions us JOIN users u ON u.id = us.user_id WHERE u.is_anonymous = false ${iFilter} AND (us.created_at AT TIME ZONE '${DASHBOARD_TZ}')::date = (NOW() AT TIME ZONE '${DASHBOARD_TZ}')::date)::int AS dau,
+            (SELECT COUNT(DISTINCT us.user_id) FROM user_sessions us JOIN users u ON u.id = us.user_id WHERE u.is_anonymous = false ${iFilter} AND us.created_at >= NOW() - INTERVAL '7 days')::int AS wau,
+            (SELECT COUNT(DISTINCT us.user_id) FROM user_sessions us JOIN users u ON u.id = us.user_id WHERE u.is_anonymous = false ${iFilter} AND us.created_at >= NOW() - INTERVAL '30 days')::int AS mau,
+            (SELECT COUNT(*) FROM users u LEFT JOIN profiles p ON p.user_id = u.id
+              WHERE p.parent_id IS NULL AND u.is_anonymous = false ${iFilter}
+              AND GREATEST(u.last_login_at,
+                (SELECT MAX(s.created_at)  FROM sessions s   WHERE s.user_id = u.id),
+                (SELECT MAX(us.created_at) FROM user_sessions us WHERE us.user_id = u.id),
+                (SELECT MAX(dsa.activity_date) FROM daily_subject_activities dsa WHERE dsa.user_id = u.id)
+              ) < NOW() - INTERVAL '30 days')::int AS churn_risk,
+            (SELECT COUNT(*) FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE u.created_at >= NOW() - INTERVAL '7 days' AND p.parent_id IS NULL ${iFilter})::int AS new_users_this_week
         `),
-        db.query(`SELECT COUNT(*) as total FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE u.created_at >= NOW() - INTERVAL '7 days' AND p.parent_id IS NULL ${iFilter}`),
+
+        // Query 2: Tier distribution
         db.query(`
           SELECT
             COUNT(*) FILTER (WHERE u.tier = 'premium'      AND (u.tier_expires_at IS NULL OR u.tier_expires_at > NOW()) AND p.parent_id IS NULL)::int AS premium_count,
@@ -189,43 +195,28 @@ module.exports = async function (fastify, opts) {
             COUNT(*) FILTER (WHERE u.is_anonymous = true   AND p.parent_id IS NULL)::int AS guest_count
           FROM users u
           LEFT JOIN profiles p ON p.user_id = u.id
-          ${(await internalColsExist()) && !includeInternal ? 'WHERE COALESCE(u.is_internal, false) = false AND COALESCE(u.is_test_user, false) = false' : ''}
+          ${tierWhereClause}
         `),
-        // Points economy — earn events are never written to point_transactions,
-        // so we derive "earned" from users.points_balance (current holdings)
-        // and daily_subject_activities.points_earned (study XP).
+
+        // Query 3: Points economy + XP + spend combined
         db.query(`
           SELECT
-            -- Points currently held across all users (proxy for total earned - spent)
-            COALESCE(SUM(points_balance), 0)::int            AS points_in_circulation,
-            COUNT(*) FILTER (WHERE points_balance > 0)::int  AS users_with_points,
-            COALESCE(MAX(points_balance), 0)::int            AS max_balance,
-            COALESCE(AVG(points_balance) FILTER (WHERE points_balance > 0), 0)::numeric(10,1) AS avg_balance_earners,
-            -- Distribution buckets
-            COUNT(*) FILTER (WHERE points_balance = 0)::int                    AS bucket_zero,
-            COUNT(*) FILTER (WHERE points_balance BETWEEN 1 AND 50)::int       AS bucket_1_50,
-            COUNT(*) FILTER (WHERE points_balance BETWEEN 51 AND 200)::int     AS bucket_51_200,
-            COUNT(*) FILTER (WHERE points_balance BETWEEN 201 AND 500)::int    AS bucket_201_500,
-            COUNT(*) FILTER (WHERE points_balance > 500)::int                  AS bucket_500_plus
-          FROM users
-          WHERE is_anonymous = false
+            COALESCE((SELECT SUM(points_balance) FROM users WHERE is_anonymous = false), 0)::int           AS points_in_circulation,
+            (SELECT COUNT(*) FROM users WHERE is_anonymous = false AND points_balance > 0)::int            AS users_with_points,
+            COALESCE((SELECT MAX(points_balance) FROM users WHERE is_anonymous = false), 0)::int           AS max_balance,
+            COALESCE((SELECT AVG(points_balance) FROM users WHERE is_anonymous = false AND points_balance > 0), 0)::numeric(10,1) AS avg_balance_earners,
+            (SELECT COUNT(*) FROM users WHERE is_anonymous = false AND points_balance = 0)::int            AS bucket_zero,
+            (SELECT COUNT(*) FROM users WHERE is_anonymous = false AND points_balance BETWEEN 1 AND 50)::int   AS bucket_1_50,
+            (SELECT COUNT(*) FROM users WHERE is_anonymous = false AND points_balance BETWEEN 51 AND 200)::int  AS bucket_51_200,
+            (SELECT COUNT(*) FROM users WHERE is_anonymous = false AND points_balance BETWEEN 201 AND 500)::int AS bucket_201_500,
+            (SELECT COUNT(*) FROM users WHERE is_anonymous = false AND points_balance > 500)::int          AS bucket_500_plus,
+            COALESCE((SELECT SUM(points_earned) FROM daily_subject_activities), 0)::int                    AS total_xp_earned,
+            (SELECT COUNT(DISTINCT user_id) FROM daily_subject_activities)::int                            AS users_who_earned_xp,
+            COALESCE((SELECT SUM(amount) FROM point_transactions WHERE type = 'spend'), 0)::int            AS total_spent,
+            (SELECT COUNT(DISTINCT user_id) FROM point_transactions WHERE type = 'spend')::int             AS users_who_spent
         `).catch(() => ({ rows: [{}] })),
-        // Total study XP earned across all activities
-        db.query(`
-          SELECT
-            COALESCE(SUM(points_earned), 0)::int             AS total_xp_earned,
-            COUNT(DISTINCT user_id)::int                     AS users_who_earned_xp
-          FROM daily_subject_activities
-        `).catch(() => ({ rows: [{ total_xp_earned: 0, users_who_earned_xp: 0 }] })),
-        // Spend-side (unchanged — point_transactions has all spend events)
-        db.query(`
-          SELECT
-            COALESCE(SUM(amount), 0)::int                    AS total_spent,
-            COUNT(DISTINCT user_id)::int                     AS users_who_spent
-          FROM point_transactions
-          WHERE type = 'spend'
-        `).catch(() => ({ rows: [{ total_spent: 0, users_who_spent: 0 }] })),
-        // iOS version distribution (last 7 days of logins)
+
+        // Query 4: iOS version distribution
         db.query(`
           SELECT device_info->>'userAgent' AS user_agent, COUNT(*)::int AS count
           FROM user_sessions
@@ -234,14 +225,27 @@ module.exports = async function (fastify, opts) {
           GROUP BY device_info->>'userAgent'
           ORDER BY count DESC
         `).catch(() => ({ rows: [] })),
+
+        // Query 5: Guest conversion funnel
+        db.query(`
+          SELECT
+            COUNT(*) FILTER (WHERE is_anonymous = true)::int                          AS current_guests,
+            COUNT(*) FILTER (WHERE converted_from_guest_at IS NOT NULL)::int          AS total_converted,
+            COUNT(*) FILTER (WHERE converted_from_guest_at >= NOW() - INTERVAL '7 days')::int  AS converted_this_week,
+            COUNT(*) FILTER (WHERE converted_from_guest_at >= NOW() - INTERVAL '30 days')::int AS converted_this_month
+          FROM users
+        `).catch(() => ({ rows: [{}] })),
       ]);
 
-      const totalUsers = parseInt(usersResult.rows[0].total);
-      const usersWeekAgo = parseInt(weekAgoResult.rows[0].total);
+      const m = mainResult.rows[0];
+      const t = tierResult.rows[0];
+      const e = economyResult.rows[0] || {};
+      const gc = guestConvResult.rows[0] || {};
+      const totalUsers    = m.total_users;
+      const usersWeekAgo  = m.users_week_ago;
       const usersGrowth7d = usersWeekAgo > 0
-        ? parseFloat(((totalUsers - usersWeekAgo) / usersWeekAgo * 100).toFixed(1))
-        : 0;
-      const sessionsToday = parseInt(sessionsResult.rows[0].total);
+        ? parseFloat(((totalUsers - usersWeekAgo) / usersWeekAgo * 100).toFixed(1)) : 0;
+      const sessionsToday = m.sessions_today;
 
       // Real performance metrics from analyzer
       const perfAnalysis = performanceAnalyzer.analyzePerformance();
@@ -281,11 +285,11 @@ module.exports = async function (fastify, opts) {
           totalUsers,
           usersGrowth7d,
           sessionsToday,
-          dau: parseInt(dauResult.rows[0].total),
-          wau: parseInt(wauResult.rows[0].total),
-          mau: parseInt(mauResult.rows[0].total),
-          churnRisk: parseInt(churnResult.rows[0].total),
-          newUsersThisWeek: parseInt(newUsersLastWeekResult.rows[0].total),
+          dau:              m.dau,
+          wau:              m.wau,
+          mau:              m.mau,
+          churnRisk:        m.churn_risk,
+          newUsersThisWeek: m.new_users_this_week,
           aiRequestsPerHour,
           avgResponseTime,
           errorRate,
@@ -293,26 +297,32 @@ module.exports = async function (fastify, opts) {
           aiEngineStatus,
           cacheHitRate,
           tierDistribution: {
-            free:         tierDistResult.rows[0].free_count,
-            premium:      tierDistResult.rows[0].premium_count,
-            premiumPlus:  tierDistResult.rows[0].premium_plus_count,
-            guest:        tierDistResult.rows[0].guest_count,
+            free:         t.free_count,
+            premium:      t.premium_count,
+            premiumPlus:  t.premium_plus_count,
+            guest:        t.guest_count,
+          },
+          guestConversion: {
+            currentGuests:       gc.current_guests       ?? 0,
+            totalConverted:      gc.total_converted      ?? 0,
+            convertedThisWeek:   gc.converted_this_week  ?? 0,
+            convertedThisMonth:  gc.converted_this_month ?? 0,
           },
           pointsEconomy: {
-            pointsInCirculation: pointsResult.rows[0]?.points_in_circulation ?? 0,
-            usersWithPoints:     pointsResult.rows[0]?.users_with_points     ?? 0,
-            maxBalance:          pointsResult.rows[0]?.max_balance            ?? 0,
-            avgBalanceEarners:   parseFloat(pointsResult.rows[0]?.avg_balance_earners ?? 0),
-            totalXpEarned:       xpResult.rows[0]?.total_xp_earned           ?? 0,
-            usersWhoEarnedXp:    xpResult.rows[0]?.users_who_earned_xp       ?? 0,
-            totalSpent:          spendResult.rows[0]?.total_spent             ?? 0,
-            usersWhoSpent:       spendResult.rows[0]?.users_who_spent         ?? 0,
+            pointsInCirculation: e.points_in_circulation ?? 0,
+            usersWithPoints:     e.users_with_points     ?? 0,
+            maxBalance:          e.max_balance            ?? 0,
+            avgBalanceEarners:   parseFloat(e.avg_balance_earners ?? 0),
+            totalXpEarned:       e.total_xp_earned        ?? 0,
+            usersWhoEarnedXp:    e.users_who_earned_xp    ?? 0,
+            totalSpent:          e.total_spent             ?? 0,
+            usersWhoSpent:       e.users_who_spent         ?? 0,
             distribution: {
-              zero:       pointsResult.rows[0]?.bucket_zero     ?? 0,
-              low:        pointsResult.rows[0]?.bucket_1_50     ?? 0,
-              mid:        pointsResult.rows[0]?.bucket_51_200   ?? 0,
-              high:       pointsResult.rows[0]?.bucket_201_500  ?? 0,
-              power:      pointsResult.rows[0]?.bucket_500_plus ?? 0,
+              zero:  e.bucket_zero     ?? 0,
+              low:   e.bucket_1_50     ?? 0,
+              mid:   e.bucket_51_200   ?? 0,
+              high:  e.bucket_201_500  ?? 0,
+              power: e.bucket_500_plus ?? 0,
             },
           },
           iosVersions,
@@ -706,8 +716,65 @@ module.exports = async function (fastify, opts) {
   });
 
   // ============================================================================
-  // LEARNING INSIGHTS ROUTES
+  // APP EVENTS ANALYTICS
   // ============================================================================
+
+  /**
+   * GET /api/admin/analytics/events
+   * Per-event counts and daily breakdown for the last 30 days.
+   */
+  fastify.get('/api/admin/analytics/events', { preHandler: verifyAdmin }, async (request, reply) => {
+    try {
+      // Check table exists first
+      let tableReady = false;
+      try { await db.query('SELECT id FROM app_events LIMIT 0'); tableReady = true; } catch { /* migration pending */ }
+
+      if (!tableReady) {
+        return reply.send({ success: true, data: { totals: [], daily: [], funnel: {} } });
+      }
+
+      const [totalsResult, dailyResult] = await Promise.all([
+        // Event name breakdown — last 30 days
+        db.query(`
+          SELECT event_name, COUNT(*)::int AS total, COUNT(DISTINCT user_id)::int AS unique_users
+          FROM app_events
+          WHERE occurred_at >= NOW() - INTERVAL '30 days'
+          GROUP BY event_name
+          ORDER BY total DESC
+        `),
+
+        // Daily event volume — last 14 days
+        db.query(`
+          SELECT (occurred_at AT TIME ZONE '${DASHBOARD_TZ}')::date AS date,
+                 event_name,
+                 COUNT(*)::int AS count
+          FROM app_events
+          WHERE occurred_at >= NOW() - INTERVAL '14 days'
+          GROUP BY (occurred_at AT TIME ZONE '${DASHBOARD_TZ}')::date, event_name
+          ORDER BY date, event_name
+        `),
+      ]);
+
+      // Practice funnel from app_events (last 30 days)
+      const funnelEvents = ['practice_generated', 'question_answered', 'practice_completed', 'practice_abandoned'];
+      const funnelRow = totalsResult.rows.reduce((acc, r) => {
+        if (funnelEvents.includes(r.event_name)) acc[r.event_name] = r.total;
+        return acc;
+      }, {});
+
+      return reply.send({
+        success: true,
+        data: {
+          totals: totalsResult.rows,
+          daily: dailyResult.rows,
+          funnel: funnelRow,
+        }
+      });
+    } catch (error) {
+      fastify.log.error({ err: error }, 'Error fetching event analytics');
+      return reply.code(500).send({ success: false, error: 'Failed to fetch event analytics', details: error?.message });
+    }
+  });
 
   /**
    * GET /api/admin/insights/overview

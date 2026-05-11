@@ -687,6 +687,7 @@
 "practice.feedbackTryAgain" = "Presque. Revois la bonne réponse et essaie des questions similaires.";
 "questionDetail.archiveQuestion" = "Archiver la question";
 "questionDetail.archiving" = "Archivage...";
+"questionDetail.questionFrom" = "Question de %@";
 "questionDetail.archived" = "Archivé";
 "questionDetail.archiveSuccess" = "Succès !";
 "questionDetail.archiveSuccessMessage" = "Cette question a été sauvegardée dans votre bibliothèque pour révision future.";
@@ -706,6 +707,7 @@
 "questionDetail.provideDetailedExplanation" = "Fournir une explication détaillée";
 "questionDetail.typeAnswerAbove" = "Tapez votre réponse ci-dessus";
 "questionDetail.submitAnswer" = "Soumettre la réponse";
+"questionDetail.check" = "Vérifier la réponse";
 "questionDetail.markProgress" = "Organiser intelligemment";
 "questionDetail.marked" = "Marqué";
 "questionDetail.followUp" = "Suite";
@@ -2657,6 +2659,24 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "mistakeReview.categorizeMistakes" = "Catégoriser";
 "mistakeReview.categorizing" = "Catégorisation…";
 "mistakeReview.filter.goodAt" = "Bon en";
+"mistakeReview.filter.tree" = "Arbre";
+"mistakeTree.legend.weakness" = "Point faible";
+"mistakeTree.legend.borderline" = "En progrès";
+"mistakeTree.legend.mastered" = "Maîtrisé";
+"mistakeTree.legend.untracked" = "Non suivi";
+"mistakeTree.empty" = "Aucune donnée de sujet";
+"mistakeTree.detail.accuracy" = "Précision";
+"mistakeTree.detail.attempts" = "Tentatives";
+"mistakeTree.detail.correct" = "Correctes";
+"mistakeTree.detail.days" = "Jours actifs";
+"mistakeTree.detail.mistakes" = "Erreurs";
+"mistakeTree.detail.errorTypes" = "Types d'erreurs courants";
+"mistakeTree.detail.practice" = "Pratiquer ce sujet";
+"mistakeTree.detail.untracked" = "Aucun enregistrement de pratique";
+"mistakeTree.detail.untrackedHint" = "La précision sera suivie après avoir terminé la pratique pertinente";
+"errorType.conceptual" = "Lacune conceptuelle";
+"errorType.execution" = "Erreur d'exécution";
+"errorType.refinement" = "Nécessite amélioration";
 "mistakeReview.filter.noLongerWeak" = "Plus une faiblesse";
 "mistakeReview.filter.noStrengthsData" = "Pas encore de données — répondez à des questions pour voir vos points forts.";
 "mistakeReview.filter.strengthsTopicCount" = "%d sujets";
@@ -3134,3 +3154,4 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 
 // Saved digital homework
 "savedDigitalHomework.title" = "Devoirs numériques";
+"practiceSheet.backToChat" = "← Retour au chat";

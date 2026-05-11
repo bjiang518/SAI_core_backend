@@ -1463,6 +1463,7 @@
 "practice.feedbackTryAgain" = "還差一點。請回顧正確答案，再做類似的題目。";
 "questionDetail.archiveQuestion" = "歸檔題目";
 "questionDetail.archiving" = "歸檔中...";
+"questionDetail.questionFrom" = "題目來源：%@";
 "questionDetail.archived" = "已歸檔";
 "questionDetail.archiveSuccess" = "成功！";
 "questionDetail.archiveSuccessMessage" = "此題目已儲存到您的題庫以供日後複習。";
@@ -1482,6 +1483,7 @@
 "questionDetail.provideDetailedExplanation" = "提供詳細解釋";
 "questionDetail.typeAnswerAbove" = "在上方輸入您的答案";
 "questionDetail.submitAnswer" = "提交答案";
+"questionDetail.check" = "確認答案";
 "questionDetail.markProgress" = "智能整理";
 "questionDetail.marked" = "已標記";
 "questionDetail.followUp" = "繼續提問";
@@ -1647,6 +1649,24 @@
 "mistakeReview.filter.allFilter" = "全部";
 "mistakeReview.filter.uncategorized" = "未分類";
 "mistakeReview.filter.goodAt" = "掌握";
+"mistakeReview.filter.tree" = "樹狀圖";
+"mistakeTree.legend.weakness" = "弱點";
+"mistakeTree.legend.borderline" = "接近掌握";
+"mistakeTree.legend.mastered" = "已掌握";
+"mistakeTree.legend.untracked" = "未追蹤";
+"mistakeTree.empty" = "暫無知識點資料";
+"mistakeTree.detail.accuracy" = "正確率";
+"mistakeTree.detail.attempts" = "練習次數";
+"mistakeTree.detail.correct" = "答對次數";
+"mistakeTree.detail.days" = "追蹤天數";
+"mistakeTree.detail.mistakes" = "錯題記錄";
+"mistakeTree.detail.errorTypes" = "常見錯誤類型";
+"mistakeTree.detail.practice" = "練習此知識點";
+"mistakeTree.detail.untracked" = "暫無練習記錄";
+"mistakeTree.detail.untrackedHint" = "完成相關練習後將自動追蹤正確率";
+"errorType.conceptual" = "概念理解";
+"errorType.execution" = "計算/步驟";
+"errorType.refinement" = "需要完善";
 "mistakeReview.filter.yourStrengths" = "你本來就很強";
 "mistakeReview.filter.noLongerWeak" = "不再是弱點";
 "mistakeReview.filter.strengthsTopicCount" = "%d 個主題";
@@ -3071,3 +3091,4 @@
 "common.remove" = "刪除";
 "guestConversion.loginSuccess" = "登入成功！";
 "dailyChallenge.bannerReady" = "今日3題已就緒";
+"practiceSheet.backToChat" = "← 返回對話";

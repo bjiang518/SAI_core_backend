@@ -8,10 +8,13 @@
 import SwiftUI
 import AudioToolbox
 import os.log
+import Lottie
 
 @MainActor
 struct QuestionSheetView: View {
     let session: PracticeSession
+    var backToChatAction: (() -> Void)? = nil      // non-nil when launched from chat
+    var onPracticeCompleted: (() -> Void)? = nil   // called when user taps Done in completion screen
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
@@ -42,6 +45,7 @@ struct QuestionSheetView: View {
     @State private var answeredIds: Set<String> = []
     @State private var correctAnsweredIds: Set<String> = []
     @State private var showingCompletion: Bool = false
+    @State private var showCongrats: Bool = false
 
     // Smart Organize (completion screen)
     @State private var slideOffset: CGFloat = 0
@@ -51,6 +55,9 @@ struct QuestionSheetView: View {
     @State private var showOrganizeToast: Bool = false
     @State private var organizeToastLines: [String] = []
     @State private var visibleToastItems: [Bool] = []
+    @State private var organizeWrongCount: Int = 0
+    @State private var showMistakeReview: Bool = false
+    @State private var showReviewPrompt: Bool = false
 
     // Mastery firework celebration
     @ObservedObject private var statusService = ShortTermStatusService.shared
@@ -80,8 +87,33 @@ struct QuestionSheetView: View {
             }
         }
         .navigationBarHidden(true)
+        .sheet(isPresented: $showMistakeReview) {
+            MistakeReviewView(initialSubject: session.subject ?? "")
+        }
         .onAppear { restoreProgress() }
-        .onDisappear { stopVoiceDictation() }
+        .onDisappear {
+            stopVoiceDictation()
+            if !showingCompletion && answeredIds.count > 0 {
+                EventTracker.shared.track("practice_abandoned", [
+                    "subject": session.subject ?? "unknown",
+                    "answered": answeredIds.count,
+                    "total": session.questions.count,
+                ])
+            }
+        }
+        .onChange(of: showingCompletion) { _, isShowing in
+            if isShowing {
+                EventTracker.shared.track("practice_completed", [
+                    "subject": session.subject ?? "unknown",
+                    "score_pct": Int(scorePercentage),
+                    "correct": correctCount,
+                    "total": answeredIds.count,
+                ])
+                if Int(scorePercentage) == 100 {
+                    showCongrats = true
+                }
+            }
+        }
         .onChange(of: speechService.recognizedText) { _, newText in
             if isVoiceDictating && !newText.isEmpty {
                 userAnswer = newText
@@ -93,6 +125,9 @@ struct QuestionSheetView: View {
         .overlay(alignment: .bottom) {
             if showOrganizeToast { organizeToastView }
         }
+        .overlay(alignment: .bottom) {
+            if showReviewPrompt { reviewPromptCard }
+        }
         .overlay {
             if showingMasteryFirework {
                 MasteryFireworkOverlay(weaknessKey: masteredWeaknessKey) {
@@ -100,6 +135,21 @@ struct QuestionSheetView: View {
                 }
                 .transition(.opacity.animation(.easeInOut(duration: 0.2)))
                 .zIndex(999)
+            }
+        }
+        .overlay {
+            if showCongrats {
+                LottieView(animationName: "congrats", loopMode: .playOnce, animationSpeed: 1.0)
+                    .frame(width: 360, height: 360)
+                    .allowsHitTesting(false)
+                    .transition(.opacity)
+            }
+        }
+        .onChange(of: showCongrats) { _, isShowing in
+            if isShowing {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
+                    withAnimation(.easeOut(duration: 0.4)) { showCongrats = false }
+                }
             }
         }
         .onChange(of: statusService.recentMasteries.count) { oldCount, newCount in
@@ -114,11 +164,27 @@ struct QuestionSheetView: View {
 
     private var headerBar: some View {
         HStack {
+            if let back = backToChatAction {
+                // Launched from chat — show "← Back to Chat"
+                Button(action: back) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left")
+                            .font(.body.bold())
+                        Text(NSLocalizedString("practiceSheet.backToChat", value: "Back to Chat", comment: ""))
+                            .font(.body.bold())
+                    }
+                    .foregroundColor(themeManager.accentColor)
+                }
+            } else {
+                Spacer()
+            }
             Spacer()
-            Button(action: { dismiss() }) {
-                Text(NSLocalizedString("common.done", comment: ""))
-                    .font(.body.bold())
-                    .foregroundColor(.primary)
+            if backToChatAction == nil {
+                Button(action: { dismiss() }) {
+                    Text(NSLocalizedString("common.done", comment: ""))
+                        .font(.body.bold())
+                        .foregroundColor(.primary)
+                }
             }
         }
         .padding(.horizontal)
@@ -227,6 +293,18 @@ struct QuestionSheetView: View {
                                 .lineLimit(1)
                         }
                         MarkdownLaTeXText(q.question, fontSize: 17, isStreaming: false)
+
+                        // Source attribution for bank questions
+                        if q.isFromBank {
+                            HStack(spacing: 4) {
+                                Image(systemName: "books.vertical")
+                                    .font(.caption2)
+                                Text(String(format: NSLocalizedString("questionDetail.questionFrom", comment: ""), q.sourceLabel ?? "Question Bank"))
+                                    .font(.caption)
+                            }
+                            .foregroundColor(.secondary)
+                            .padding(.top, 2)
+                        }
                     }
                     .padding()
                     .background(gridPaperBackground)
@@ -911,17 +989,36 @@ struct QuestionSheetView: View {
                         .background(themeManager.cardBackground)
                         .cornerRadius(30)
                     } else if hasOrganized {
-                        HStack(spacing: 8) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
-                            Text(NSLocalizedString("practiceSheet.organizedConfirm", comment: ""))
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
+                        VStack(spacing: 10) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                                Text(NSLocalizedString("practiceSheet.organizedConfirm", comment: ""))
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 60)
+                            .background(themeManager.cardBackground)
+                            .cornerRadius(30)
+
+                            if organizeWrongCount > 0 {
+                                Button(action: { showMistakeReview = true }) {
+                                    Text(NSLocalizedString("dailyChallenge.reviewMistakes", comment: ""))
+                                        .font(.subheadline.bold())
+                                        .foregroundColor(themeManager.accentColor)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 13)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 14)
+                                                .strokeBorder(themeManager.accentColor.opacity(0.5), lineWidth: 1.5)
+                                                .background(RoundedRectangle(cornerRadius: 14)
+                                                    .fill(themeManager.accentColor.opacity(0.08)))
+                                        )
+                                }
+                                .buttonStyle(.plain)
+                            }
                         }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 60)
-                        .background(themeManager.cardBackground)
-                        .cornerRadius(30)
                     } else {
                         slideToOrganizeBar
                     }
@@ -952,8 +1049,11 @@ struct QuestionSheetView: View {
                         }
                     }
 
-                    // Done at the bottom
-                    Button(action: { dismiss() }) {
+                    // Done at the bottom — if launched from chat, clears the practice session
+                    Button(action: {
+                        onPracticeCompleted?()  // notify chat to clear session
+                        dismiss()
+                    }) {
                         Text(NSLocalizedString("common.done", comment: ""))
                             .font(.body.bold())
                             .foregroundColor(.white)
@@ -1435,6 +1535,7 @@ struct QuestionSheetView: View {
     }
 
     private func showOrganizeToast(wrongCount: Int) {
+        organizeWrongCount = wrongCount
         var lines = [NSLocalizedString("practiceSheet.toastTitle", comment: "")]
         lines.append(String(format: NSLocalizedString("practiceSheet.toastProgress", comment: ""), session.subject))
         if wrongCount > 0 { lines.append(String(format: NSLocalizedString("practiceSheet.toastMistakes", comment: ""), wrongCount)) }
@@ -1450,7 +1551,84 @@ struct QuestionSheetView: View {
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
             withAnimation(.easeOut(duration: 0.4)) { showOrganizeToast = false }
+            if wrongCount > 0 {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) { showReviewPrompt = true }
+                }
+            }
         }
+    }
+
+    // MARK: - Review prompt card
+
+    private var reviewPromptCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 10) {
+                Image(systemName: "bookmark.fill")
+                    .foregroundColor(.orange)
+                Text(NSLocalizedString("practiceSheet.reviewPrompt.title",
+                                       value: "Review your mistakes?",
+                                       comment: ""))
+                    .font(.headline)
+                    .foregroundColor(themeManager.primaryText)
+                Spacer()
+                Button(action: {
+                    withAnimation(.easeOut(duration: 0.25)) { showReviewPrompt = false }
+                }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.secondary)
+                        .padding(6)
+                        .background(Color.secondary.opacity(0.12))
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+            }
+            Text(String(format: NSLocalizedString("practiceSheet.reviewPrompt.body",
+                                                  value: "%d mistakes archived. Want to review and practice them?",
+                                                  comment: ""), organizeWrongCount))
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            HStack(spacing: 10) {
+                Button(action: {
+                    withAnimation(.easeOut(duration: 0.25)) { showReviewPrompt = false }
+                }) {
+                    Text(NSLocalizedString("practiceSheet.reviewPrompt.later",
+                                           value: "Later", comment: ""))
+                        .font(.subheadline.bold())
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Color.secondary.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                .buttonStyle(.plain)
+
+                Button(action: {
+                    withAnimation(.easeOut(duration: 0.25)) { showReviewPrompt = false }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { showMistakeReview = true }
+                }) {
+                    Text(NSLocalizedString("practiceSheet.reviewPrompt.reviewNow",
+                                           value: "Review Now", comment: ""))
+                        .font(.subheadline.bold())
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(themeManager.accentColor)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(.regularMaterial)
+                .shadow(color: .black.opacity(0.15), radius: 16, x: 0, y: -4)
+        )
+        .padding(.horizontal, 16)
+        .padding(.bottom, 32)
+        .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 
     // MARK: - Navigation

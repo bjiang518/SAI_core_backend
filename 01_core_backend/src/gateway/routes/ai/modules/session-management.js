@@ -863,6 +863,12 @@ class SessionManagementRoutes {
 
       const duration = Date.now() - startTime;
 
+      // Fire-and-forget: log session_archived event for engagement analytics
+      db.query(
+        `INSERT INTO app_events (user_id, event_name, properties) VALUES ($1, 'session_archived', $2)`,
+        [authenticatedUserId, JSON.stringify({ message_count: conversationHistory.length, subject: analysis.subject || null })]
+      ).catch(() => {});
+
       return reply.send({
         success: true,
         archived_conversation_id: archiveResult.id,

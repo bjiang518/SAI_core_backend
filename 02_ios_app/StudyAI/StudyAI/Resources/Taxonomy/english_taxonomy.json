@@ -1,0 +1,71 @@
+{
+  "subject": "English",
+  "branches": [
+    {
+      "id": "phonics",
+      "name": "Phonics & Decoding",
+      "topics": [
+        { "id": "letter_sounds",    "name": "Letter Sounds & Phonemes",          "gradeMin": 0, "gradeMax": 2 },
+        { "id": "sight_words",      "name": "Sight Words",                       "gradeMin": 0, "gradeMax": 2 },
+        { "id": "word_families",    "name": "Word Families & Patterns",          "gradeMin": 1, "gradeMax": 3 },
+        { "id": "syllables",        "name": "Syllables & Word Structure",        "gradeMin": 1, "gradeMax": 3 }
+      ]
+    },
+    {
+      "id": "vocabulary",
+      "name": "Vocabulary & Word Knowledge",
+      "topics": [
+        { "id": "vocab_context",    "name": "Vocabulary in Context",             "gradeMin": 1, "gradeMax": 13 },
+        { "id": "word_roots",       "name": "Word Roots & Affixes",              "gradeMin": 4, "gradeMax": 13 },
+        { "id": "figurative_lang",  "name": "Figurative Language",               "gradeMin": 4, "gradeMax": 13 },
+        { "id": "academic_vocab",   "name": "Academic Vocabulary",               "gradeMin": 5, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "reading_comprehension",
+      "name": "Reading Comprehension",
+      "topics": [
+        { "id": "main_idea",        "name": "Main Idea & Details",               "gradeMin": 1, "gradeMax": 8 },
+        { "id": "inference",        "name": "Inference & Evidence",              "gradeMin": 3, "gradeMax": 13 },
+        { "id": "text_structure",   "name": "Text Structure & Organization",     "gradeMin": 3, "gradeMax": 13 },
+        { "id": "authors_purpose",  "name": "Author's Purpose & Perspective",   "gradeMin": 4, "gradeMax": 13 },
+        { "id": "compare_contrast", "name": "Compare & Contrast",               "gradeMin": 3, "gradeMax": 10 },
+        { "id": "summarizing",      "name": "Summarizing & Paraphrasing",        "gradeMin": 4, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "grammar_language",
+      "name": "Grammar & Language",
+      "topics": [
+        { "id": "parts_speech",     "name": "Parts of Speech",                   "gradeMin": 1, "gradeMax": 7 },
+        { "id": "sentence_struct",  "name": "Sentence Structure",                "gradeMin": 2, "gradeMax": 9 },
+        { "id": "punctuation",      "name": "Punctuation & Capitalization",      "gradeMin": 1, "gradeMax": 7 },
+        { "id": "subject_verb",     "name": "Subject-Verb Agreement",            "gradeMin": 3, "gradeMax": 8 },
+        { "id": "verb_tense",       "name": "Verb Tense & Aspect",               "gradeMin": 3, "gradeMax": 9 },
+        { "id": "complex_grammar",  "name": "Complex Grammar Structures",        "gradeMin": 7, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "writing",
+      "name": "Writing",
+      "topics": [
+        { "id": "narrative",        "name": "Narrative Writing",                 "gradeMin": 1, "gradeMax": 10 },
+        { "id": "expository",       "name": "Expository Writing",                "gradeMin": 3, "gradeMax": 13 },
+        { "id": "persuasive",       "name": "Persuasive & Argumentative Writing","gradeMin": 5, "gradeMax": 13 },
+        { "id": "research",         "name": "Research & Citation",               "gradeMin": 6, "gradeMax": 13 },
+        { "id": "writing_process",  "name": "Writing Process & Revision",        "gradeMin": 3, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "literary_analysis",
+      "name": "Literary Analysis",
+      "topics": [
+        { "id": "plot_character",   "name": "Plot, Character & Setting",         "gradeMin": 2, "gradeMax": 8 },
+        { "id": "theme",            "name": "Theme & Symbolism",                 "gradeMin": 5, "gradeMax": 13 },
+        { "id": "literary_devices", "name": "Literary Devices",                  "gradeMin": 6, "gradeMax": 13 },
+        { "id": "poetry",           "name": "Poetry Analysis",                   "gradeMin": 6, "gradeMax": 13 },
+        { "id": "rhetoric",         "name": "Rhetoric & Argumentation",          "gradeMin": 9, "gradeMax": 13 }
+      ]
+    }
+  ]
+}

@@ -120,8 +120,8 @@ struct HomeworkResultsView: View {
                     // Questions List
                     questionsListSection
 
-                    // Mark Progress Button
-                    markProgressButton
+                    // Action Group (slide to mark + PDF + undo)
+                    actionGroup
                     
                     Spacer(minLength: 100)
                 }
@@ -201,6 +201,7 @@ struct HomeworkResultsView: View {
             .onAppear {
                 initializeQuestionData()
                 loadProgressState()
+                expandedQuestions = initialExpandedQuestions()
 
                 // ❌ REMOVED: Auto-save moved to Mark Progress button
                 // saveHomeworkImageToStorage()
@@ -242,14 +243,6 @@ struct HomeworkResultsView: View {
                     value: "\(parsingResult.questionCount)",
                     icon: "questionmark.circle.fill",
                     color: .blue
-                )
-
-                StatCard(
-                    title: NSLocalizedString("homeworkResults.accuracy", comment: ""),
-                    value: String(format: "%.0f%%",
-                        (enhancedResult?.calculatedAccuracy ?? parsingResult.calculatedAccuracy) * 100),
-                    icon: "target",
-                    color: accuracyColor(enhancedResult?.calculatedAccuracy ?? parsingResult.calculatedAccuracy)
                 )
             }
         }
@@ -468,6 +461,50 @@ struct HomeworkResultsView: View {
         .cornerRadius(12)
     }
     
+    // MARK: - Action Group (slide to mark + PDF export + undo grading)
+
+    private var actionGroup: some View {
+        VStack(spacing: 10) {
+            markProgressButton
+
+            HStack(spacing: 12) {
+                Button(action: { dismiss() }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.uturn.backward")
+                        Text(NSLocalizedString("homeworkResults.undoGrading", value: "Undo Grading", comment: ""))
+                    }
+                    .font(.subheadline.weight(.medium))
+                    .foregroundColor(.red.opacity(0.8))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Color(.secondarySystemGroupedBackground))
+                    .cornerRadius(10)
+                }
+
+                Button(action: shareAsPDF) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "doc.richtext")
+                        Text(NSLocalizedString("homeworkResults.exportPDF", value: "Export PDF", comment: ""))
+                    }
+                    .font(.subheadline.weight(.medium))
+                    .foregroundColor(.primary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Color(.secondarySystemGroupedBackground))
+                    .cornerRadius(10)
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(16)
+        .shadow(color: .black.opacity(0.06), radius: 8, y: -2)
+    }
+
+    private func shareAsPDF() {
+        // generateHomeworkPDF was removed — feature pending reimplementation
+    }
+
     // MARK: - Mark Progress Button (Slide to Confirm - Pro Mode Style)
 
     private var markProgressButton: some View {
@@ -617,7 +654,24 @@ struct HomeworkResultsView: View {
     }
     
     // MARK: - Helper Methods
-    
+
+    /// Expand incorrect/partial/empty questions by default; collapse correct ones.
+    private func initialExpandedQuestions() -> Set<String> {
+        var expanded = Set<String>()
+        for q in parsingResult.allQuestions {
+            if q.isParent == true {
+                let hasWrongSub = q.subquestions?.contains { sub in
+                    sub.grade == "INCORRECT" || sub.grade == "EMPTY" || sub.grade == "PARTIAL_CREDIT" || sub.grade == nil
+                } ?? false
+                if hasWrongSub { expanded.insert(q.id) }
+            } else {
+                let isWrong = q.grade == "INCORRECT" || q.grade == "EMPTY" || q.grade == "PARTIAL_CREDIT"
+                if isWrong { expanded.insert(q.id) }
+            }
+        }
+        return expanded
+    }
+
     private func initializeQuestionData() {
         let totalQuestions = parsingResult.allQuestions.count
         questionNotes = Array(repeating: "", count: totalQuestions)
@@ -1007,7 +1061,8 @@ Question: \(question.rawQuestionText ?? question.questionText)
                                 let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
                                 impactFeedback.impactOccurred()
                             }
-                        }
+                        },
+                        isIncorrect: question.grade == "INCORRECT" || question.grade == "PARTIAL_CREDIT"
                     )
                     .padding(.horizontal)
 

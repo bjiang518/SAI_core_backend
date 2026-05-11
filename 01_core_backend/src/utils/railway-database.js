@@ -5871,6 +5871,58 @@ async function runDatabaseMigrations() {
       logger.debug('✅ Migration 037: child_accounts_ultra_tier already applied');
     }
 
+    // 038: app_events table for iOS behavioural event tracking
+    const m038 = await db.query(
+      `SELECT 1 FROM migration_history WHERE migration_name = '038_app_events'`
+    );
+    if (m038.rows.length === 0) {
+      try {
+        await db.query(`
+          CREATE TABLE IF NOT EXISTS app_events (
+            id           UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id      UUID         REFERENCES users(id) ON DELETE CASCADE,
+            event_name   VARCHAR(100) NOT NULL,
+            properties   JSONB        NOT NULL DEFAULT '{}',
+            session_id   UUID,
+            app_version  VARCHAR(20),
+            occurred_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+            received_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+          );
+          CREATE INDEX IF NOT EXISTS idx_app_events_user_id     ON app_events(user_id, occurred_at DESC);
+          CREATE INDEX IF NOT EXISTS idx_app_events_event_name  ON app_events(event_name, occurred_at DESC);
+          CREATE INDEX IF NOT EXISTS idx_app_events_occurred_at ON app_events(occurred_at DESC);
+        `);
+        await db.query(
+          `INSERT INTO migration_history (migration_name) VALUES ('038_app_events') ON CONFLICT DO NOTHING`
+        );
+        logger.debug('✅ Migration 038: app_events table created');
+      } catch (migrationError) {
+        logger.error({ err: migrationError }, '❌ Migration 038 failed');
+      }
+    } else {
+      logger.debug('✅ Migration 038: app_events already applied');
+    }
+
+    // 039: track guest → registered conversion timestamp
+    const m039 = await db.query(
+      `SELECT 1 FROM migration_history WHERE migration_name = '039_guest_conversion_tracking'`
+    );
+    if (m039.rows.length === 0) {
+      try {
+        await db.query(`
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS converted_from_guest_at TIMESTAMPTZ;
+        `);
+        await db.query(
+          `INSERT INTO migration_history (migration_name) VALUES ('039_guest_conversion_tracking') ON CONFLICT DO NOTHING`
+        );
+        logger.debug('✅ Migration 039: converted_from_guest_at column added');
+      } catch (migrationError) {
+        logger.error({ err: migrationError }, '❌ Migration 039 failed');
+      }
+    } else {
+      logger.debug('✅ Migration 039: guest_conversion_tracking already applied');
+    }
+
   } catch (error) {
     logger.error('❌ Database migration failed:', error);
     // Don't throw - let the app continue with what it has

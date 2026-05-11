@@ -1,0 +1,76 @@
+{
+  "subject": "Science",
+  "branches": [
+    {
+      "id": "life_science",
+      "name": "Life Science",
+      "topics": [
+        { "id": "living_nonliving",   "name": "Living vs Non-Living Things",         "gradeMin": 0, "gradeMax": 2 },
+        { "id": "plants_animals",     "name": "Plants & Animals",                    "gradeMin": 1, "gradeMax": 4 },
+        { "id": "ecosystems",         "name": "Ecosystems & Food Webs",              "gradeMin": 3, "gradeMax": 7 },
+        { "id": "cells",              "name": "Cells & Microorganisms",              "gradeMin": 5, "gradeMax": 8 },
+        { "id": "body_systems",       "name": "Human Body Systems",                  "gradeMin": 5, "gradeMax": 8 },
+        { "id": "genetics",           "name": "Genetics & Heredity",                 "gradeMin": 7, "gradeMax": 10 },
+        { "id": "evolution",          "name": "Evolution & Natural Selection",       "gradeMin": 7, "gradeMax": 10 }
+      ]
+    },
+    {
+      "id": "earth_space",
+      "name": "Earth & Space Science",
+      "topics": [
+        { "id": "weather",            "name": "Weather & Climate",                   "gradeMin": 1, "gradeMax": 6 },
+        { "id": "rocks_minerals",     "name": "Rocks, Minerals & Soil",              "gradeMin": 2, "gradeMax": 6 },
+        { "id": "solar_system",       "name": "Solar System & Space",                "gradeMin": 3, "gradeMax": 8 },
+        { "id": "earth_processes",    "name": "Earth Processes & Landforms",         "gradeMin": 4, "gradeMax": 8 },
+        { "id": "plate_tectonics",    "name": "Plate Tectonics",                     "gradeMin": 6, "gradeMax": 10 },
+        { "id": "atmosphere",         "name": "Atmosphere & Climate Change",         "gradeMin": 7, "gradeMax": 12 }
+      ]
+    },
+    {
+      "id": "physical_science",
+      "name": "Physical Science",
+      "topics": [
+        { "id": "matter_properties",  "name": "Matter & Its Properties",             "gradeMin": 2, "gradeMax": 7 },
+        { "id": "forces_motion",      "name": "Forces & Motion",                     "gradeMin": 3, "gradeMax": 8 },
+        { "id": "energy",             "name": "Energy & Its Forms",                  "gradeMin": 3, "gradeMax": 8 },
+        { "id": "waves_sound_light",  "name": "Waves, Sound & Light",                "gradeMin": 4, "gradeMax": 8 },
+        { "id": "chemical_reactions", "name": "Chemical Reactions & Changes",        "gradeMin": 6, "gradeMax": 10 },
+        { "id": "electricity",        "name": "Electricity & Magnetism",             "gradeMin": 4, "gradeMax": 8 }
+      ]
+    },
+    {
+      "id": "biology",
+      "name": "Biology",
+      "topics": [
+        { "id": "cell_biology",       "name": "Cell Biology & Organelles",           "gradeMin": 8, "gradeMax": 13 },
+        { "id": "molecular_bio",      "name": "Molecular Biology & DNA",             "gradeMin": 9, "gradeMax": 13 },
+        { "id": "ecology",            "name": "Ecology & Environmental Science",     "gradeMin": 9, "gradeMax": 13 },
+        { "id": "evolution_adv",      "name": "Evolution - Advanced",                "gradeMin": 9, "gradeMax": 13 },
+        { "id": "classification",     "name": "Biological Classification",           "gradeMin": 9, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "chemistry",
+      "name": "Chemistry",
+      "topics": [
+        { "id": "atomic_structure",   "name": "Atomic Structure & Periodic Table",   "gradeMin": 9, "gradeMax": 13 },
+        { "id": "bonding",            "name": "Chemical Bonding",                    "gradeMin": 9, "gradeMax": 13 },
+        { "id": "stoichiometry",      "name": "Stoichiometry",                       "gradeMin": 10,"gradeMax": 13 },
+        { "id": "acids_bases",        "name": "Acids, Bases & pH",                   "gradeMin": 10,"gradeMax": 13 },
+        { "id": "thermochemistry",    "name": "Thermochemistry & Thermodynamics",    "gradeMin": 11,"gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "physics",
+      "name": "Physics",
+      "topics": [
+        { "id": "kinematics",         "name": "Kinematics & Motion",                 "gradeMin": 9, "gradeMax": 13 },
+        { "id": "newtons_laws",       "name": "Newton's Laws & Dynamics",            "gradeMin": 9, "gradeMax": 13 },
+        { "id": "energy_work",        "name": "Energy, Work & Power",                "gradeMin": 10,"gradeMax": 13 },
+        { "id": "waves_optics",       "name": "Waves & Optics",                      "gradeMin": 10,"gradeMax": 13 },
+        { "id": "electromagnetism",   "name": "Electromagnetism",                    "gradeMin": 11,"gradeMax": 13 },
+        { "id": "modern_physics",     "name": "Modern Physics",                      "gradeMin": 11,"gradeMax": 13 }
+      ]
+    }
+  ]
+}

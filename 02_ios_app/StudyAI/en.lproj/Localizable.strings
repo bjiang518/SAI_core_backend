@@ -856,6 +856,10 @@
 "practiceSheet.toastProgress" = "Progress marked for %@";
 "practiceSheet.toastMistakes" = "%d mistake(s) archived to library";
 "practiceSheet.toastSaved" = "Session saved";
+"practiceSheet.reviewPrompt.title" = "Review your mistakes?";
+"practiceSheet.reviewPrompt.body" = "%d mistake(s) archived. Want to review and practice them?";
+"practiceSheet.reviewPrompt.later" = "Later";
+"practiceSheet.reviewPrompt.reviewNow" = "Review Now";
 "practiceSheet.scoreExcellent" = "Excellent!";
 "practiceSheet.scoreGreat" = "Great Job!";
 "practiceSheet.scoreGood" = "Keep It Up!";
@@ -863,6 +867,7 @@
 
 "questionDetail.archiveQuestion" = "Archive Question";
 "questionDetail.archiving" = "Archiving...";
+"questionDetail.questionFrom" = "Question from %@";
 "questionDetail.archived" = "Archived";
 "questionDetail.archiveSuccess" = "Success!";
 "questionDetail.archiveSuccessMessage" = "This question has been saved to your library for future review.";
@@ -882,6 +887,7 @@
 "questionDetail.provideDetailedExplanation" = "Provide a detailed explanation";
 "questionDetail.typeAnswerAbove" = "Type your answer above";
 "questionDetail.submitAnswer" = "Submit Answer";
+"questionDetail.check" = "Check Answer";
 "questionDetail.markProgress" = "Smart Organize";
 "questionDetail.marked" = "Marked";
 "questionDetail.followUp" = "Follow Up";
@@ -1635,8 +1641,10 @@
 
 "storage.success.title" = "Success";
 
-// Mistake Review
-"mistakeReview.title" = "Mistake Review";
+// Skill Graph (formerly Mistake Review)
+"mistakeReview.title" = "Skill Graph";
+"skillGraph.title" = "Skill Graph";
+"skillGraph.treeTitle" = "Knowledge Tree";
 "mistakeReview.header.title" = "Learn from your mistakes";
 "mistakeReview.header.subtitle" = "Select a subject and time range to review questions you got wrong";
 "mistakeReview.timeRangeTitle" = "Time Range";
@@ -1753,6 +1761,24 @@
 "mistakeReview.filter.active" = "Active";
 "mistakeReview.filter.allFilter" = "All";
 "mistakeReview.filter.goodAt" = "Good At";
+"mistakeReview.filter.tree" = "Tree";
+"mistakeTree.legend.weakness" = "Weakness";
+"mistakeTree.legend.borderline" = "Borderline";
+"mistakeTree.legend.mastered" = "Mastered";
+"mistakeTree.legend.untracked" = "Untracked";
+"mistakeTree.empty" = "No topic data yet";
+"mistakeTree.detail.accuracy" = "Accuracy";
+"mistakeTree.detail.attempts" = "Attempts";
+"mistakeTree.detail.correct" = "Correct";
+"mistakeTree.detail.days" = "Days Active";
+"mistakeTree.detail.mistakes" = "Mistakes";
+"mistakeTree.detail.errorTypes" = "Common Error Types";
+"mistakeTree.detail.practice" = "Practice This Topic";
+"mistakeTree.detail.untracked" = "No practice records yet";
+"mistakeTree.detail.untrackedHint" = "Accuracy will be tracked after completing relevant practice";
+"errorType.conceptual" = "Conceptual Gap";
+"errorType.execution" = "Execution Error";
+"errorType.refinement" = "Needs Refinement";
 "mistakeReview.filter.yourStrengths" = "Your Strengths";
 "mistakeReview.filter.noLongerWeak" = "No Longer a Weakness";
 "mistakeReview.filter.strengthsTopicCount" = "%d topics";
@@ -3024,6 +3050,7 @@
 "dailyChallenge.good" = "Well done! 👍";
 "dailyChallenge.keep" = "Keep going! 💪";
 "dailyChallenge.reviewAnswers" = "Review Answers";
+"dailyChallenge.reviewMistakes" = "Review Mistakes & Practice";
 "dailyChallenge.close" = "Close";
 "dailyChallenge.prevQuestion" = "Previous";
 "guestConversion.title" = "Create Your Free Account";
@@ -3108,3 +3135,4 @@
 "common.remove" = "Remove";
 "guestConversion.loginSuccess" = "Signed in successfully!";
 "dailyChallenge.bannerReady" = "Daily 3 questions are ready";
+"practiceSheet.backToChat" = "← Back to Chat";

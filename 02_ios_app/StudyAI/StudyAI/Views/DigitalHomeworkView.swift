@@ -11,6 +11,7 @@ import UIKit
 import Combine
 import AVFoundation  // ✅ For iOS system unlock sound
 import PDFKit  // ✅ For PDF export functionality
+import Lottie
 
 // MARK: - Digital Homework View
 
@@ -67,6 +68,9 @@ struct DigitalHomeworkView: View {
     @State private var showResultToast = false
     @State private var resultToastLines: [String] = []
     @State private var visibleToastItems: [Bool] = []
+    @State private var questionScrollProxy: ScrollViewProxy? = nil
+    @State private var expandedQuestionIds: Set<String> = []
+    @State private var showCongratsAnimation = false
 
     // MARK: - Body
 
@@ -230,6 +234,14 @@ struct DigitalHomeworkView: View {
                 )
             }
         }
+        .overlay {
+            if showCongratsAnimation {
+                LottieView(animationName: "congrats", loopMode: .playOnce, animationSpeed: 1.0)
+                    .frame(width: 360, height: 360)
+                    .allowsHitTesting(false)
+                    .transition(.opacity)
+            }
+        }
         .onPreferenceChange(HomeworkOnboardingAnchorKey.self) { hwOnboardingAnchors = $0 }
         .toolbar(.hidden, for: .tabBar)  // 隐藏 tab bar
         .animation(.easeInOut(duration: 0.3), value: viewModel.showAnnotationMode)
@@ -304,9 +316,12 @@ struct DigitalHomeworkView: View {
                 annotationCollapsibleSection(geometry: geometry)
                     .background(Color(.systemGroupedBackground))
 
-                // Compact one-line bar (hidden once graded or in special modes)
-                if !viewModel.allQuestionsGraded && !viewModel.isArchiveMode && !isDeletionMode {
-                    if viewModel.isGrading {
+                // Compact bar: grade button before grading, dots during + after grading
+                if !viewModel.isArchiveMode && !isDeletionMode {
+                    if viewModel.allQuestionsGraded {
+                        compactGradingBar
+                            .transition(.opacity)
+                    } else if viewModel.isGrading {
                         compactGradingBar
                             .transition(.opacity)
                             .animation(.easeInOut(duration: 0.25), value: viewModel.isGrading)
@@ -343,103 +358,8 @@ struct DigitalHomeworkView: View {
                             // Question list
                             LazyVStack(spacing: 12) {
                                 ForEach(Array(viewModel.questions.enumerated()), id: \.element.id) { index, questionWithGrade in
-                                    QuestionCard(
-                                        questionWithGrade: questionWithGrade,
-                                        croppedImage: viewModel.getCroppedImage(for: questionWithGrade.question.id),
-                                        subquestionCroppedImages: viewModel.croppedImages.filter { key, _ in
-                                            questionWithGrade.question.subquestions?.contains { $0.id == key } == true
-                                        },
-                                        isArchiveMode: viewModel.isArchiveMode,
-                                        isSelected: viewModel.selectedQuestionIds.contains(questionWithGrade.question.id),
-                                        isDeletionMode: isDeletionMode,  // ✅ NEW: Pass deletion mode state
-                                        isSelectedForDeletion: selectedQuestionsForDeletion.contains(questionWithGrade.question.id),  // ✅ NEW: Pass deletion selection state
-                                        modelType: viewModel.useDeepReasoning ? "gemini" : "openai",
-                                        onAskAI: { subquestion in  // ✅ UPDATED: Accept optional subquestion
-                                            viewModel.askAIForHelp(
-                                                questionId: questionWithGrade.question.id,
-                                                appState: appState,
-                                                subquestion: subquestion
-                                            )
-                                        },
-                                        onArchive: {
-                                            viewModel.archiveQuestion(questionId: questionWithGrade.question.id)
-                                        },
-                                        onArchiveSubquestion: { subquestionId in
-                                            // ✅ NEW: Archive specific subquestion only
-                                            viewModel.archiveSubquestion(
-                                                parentQuestionId: questionWithGrade.question.id,
-                                                subquestionId: subquestionId
-                                            )
-                                        },
-                                        onRegrade: {
-                                            // ✅ NEW: Regrade this question
-                                            Task {
-                                                await viewModel.regradeQuestion(questionId: questionWithGrade.question.id)
-                                            }
-                                        },
-                                        onRegradeSubquestion: { subquestionId in
-                                            // ✅ NEW: Regrade specific subquestion
-                                            Task {
-                                                await viewModel.regradeSubquestion(
-                                                    parentQuestionId: questionWithGrade.question.id,
-                                                    subquestionId: subquestionId
-                                                )
-                                            }
-                                        },
-                                        onReparse: {
-                                            Task {
-                                                await viewModel.reparseQuestion(questionId: questionWithGrade.question.id)
-                                            }
-                                        },
-                                        onToggleSelection: {
-                                            viewModel.toggleQuestionSelection(questionId: questionWithGrade.question.id)
-                                        },
-                                        onToggleDeletionSelection: {  // ✅ NEW: Deletion selection callback
-                                            if selectedQuestionsForDeletion.contains(questionWithGrade.question.id) {
-                                                selectedQuestionsForDeletion.remove(questionWithGrade.question.id)
-                                            } else {
-                                                selectedQuestionsForDeletion.insert(questionWithGrade.question.id)
-                                            }
-                                        },
-                                        onLongPress: {  // ✅ NEW: Long press to enter deletion mode
-                                            isDeletionMode = true
-                                            selectedQuestionsForDeletion.insert(questionWithGrade.question.id)
-                                        },
-                                        onRemoveImage: {
-                                            // Find and delete the annotation for this question
-                                            if let questionNumber = questionWithGrade.question.questionNumber,
-                                               let annotation = viewModel.annotations.first(where: { $0.questionNumber == questionNumber }) {
-                                                withAnimation {
-                                                    viewModel.deleteAnnotation(id: annotation.id)
-                                                }
-                                            }
-                                        },
-                                        onEditCroppedImage: { questionId in
-                                            // Find annotation, navigate to its page, pre-select it, enter focused mode
-                                            if let annotation = viewModel.annotations.first(where: { $0.questionNumber == questionId }) {
-                                                selectedImageIndex = annotation.pageIndex
-                                                viewModel.selectedAnnotationId = annotation.id
-                                                focusedAnnotationQuestionId = questionId
-                                                viewModel.showAnnotationMode = true
-                                            }
-                                        },
-                                        onAddPicture: { questionId, pageIndex in
-                                            pendingAnnotationQuestionId = questionId
-                                            selectedImageIndex = pageIndex
-                                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                                                viewModel.isAnnotationSectionExpanded = true
-                                            }
-                                            viewModel.showAnnotationMode = true
-                                        },
-                                        isUnderDiagramAnalysis: viewModel.questionsUnderDiagramAnalysis
-                                            .union(stateManager.questionsUnderBackgroundAnalysis)
-                                            .contains(questionWithGrade.question.id),
-                                        subquestionsUnderAnalysis: viewModel.questionsUnderDiagramAnalysis
-                                            .union(stateManager.questionsUnderBackgroundAnalysis),
-                                        missingDiagramImageIds: viewModel.questionsMissingDiagramImage,
-                                        isFirstQuestion: index == 0
-                                    )
-                                    .id(questionWithGrade.question.id)
+                                    makeQuestionCard(index: index, q: questionWithGrade)
+                                        .id(questionWithGrade.question.id)
                                     .offset(y: questionsAppeared ? 0 : 60)
                                     .opacity(questionsAppeared ? 1 : 0)
                                     .animation(
@@ -481,10 +401,11 @@ struct DigitalHomeworkView: View {
                             }
                         }
                     }
+                    .onAppear { questionScrollProxy = scrollProxy }
                 }
                 .frame(height: geometry.size.height
                     - (viewModel.isAnnotationSectionExpanded ? geometry.size.height * 0.33 : 44)
-                    - ((!viewModel.allQuestionsGraded && !viewModel.isArchiveMode && !isDeletionMode) ? 52 : 0)
+                    - (!viewModel.isArchiveMode && !isDeletionMode ? 52 : 0)
                     - 1)
             }
             .onAppear {
@@ -512,6 +433,31 @@ struct DigitalHomeworkView: View {
                     questionsAppeared = true
                 }
             }
+            .onChange(of: viewModel.allQuestionsGraded) { _, isGraded in
+                if isGraded {
+                    withAnimation(.spring(response: 0.4)) {
+                        expandedQuestionIds = Set(
+                            viewModel.questions
+                                .filter { q in
+                                    if q.isParentQuestion {
+                                        return q.subquestionGrades.values.contains { !$0.isCorrect }
+                                    }
+                                    return q.grade.map { !$0.isCorrect } ?? false
+                                }
+                                .map { $0.question.id }
+                        )
+                    }
+                    // Show congrats animation when score is 100%
+                    if completionScore == 100 {
+                        showCongratsAnimation = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
+                            withAnimation(.easeOut(duration: 0.4)) {
+                                showCongratsAnimation = false
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -527,8 +473,65 @@ struct DigitalHomeworkView: View {
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
-            // Expanded accuracy card with slide-to-mark progress
-            accuracyCardWithSlideToMark
+            // Unified action unit: slide to mark + PDF + undo
+            VStack(spacing: 0) {
+                // Slide to mark progress — show track if not yet marked, checkmark if done
+                if viewModel.hasMarkedProgress {
+                    HStack(spacing: 12) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.green)
+                        Text(NSLocalizedString("proMode.progressMarked", comment: "Progress Already Marked"))
+                            .font(.headline)
+                            .foregroundColor(.green)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 20)
+                } else {
+                    slideToMarkProgressTrack
+                        .padding()
+                }
+
+                Divider().padding(.horizontal)
+
+                // Secondary actions row
+                HStack(spacing: 0) {
+                    Button(action: { viewModel.showPDFPreview = true }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "doc.fill")
+                            Text(NSLocalizedString("proMode.exportToPDF", comment: ""))
+                        }
+                        .font(.subheadline.weight(.medium))
+                        .foregroundColor(.primary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                    }
+                    .fullScreenCover(isPresented: $viewModel.showPDFPreview) {
+                        DigitalHomeworkPDFPreviewView(
+                            subject: viewModel.subject,
+                            questionCount: viewModel.totalQuestions,
+                            questions: viewModel.questions,
+                            croppedImages: viewModel.croppedImages
+                        )
+                    }
+
+                    Divider().frame(height: 36)
+
+                    Button(action: { showRevertConfirmation = true }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "arrow.counterclockwise.circle.fill")
+                            Text(NSLocalizedString("proMode.revertGrading", comment: ""))
+                        }
+                        .font(.subheadline.weight(.medium))
+                        .foregroundColor(.red.opacity(0.8))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                    }
+                }
+            }
+            .background(Color(.secondarySystemGroupedBackground))
+            .cornerRadius(16)
+            .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
 
             // AI accuracy disclaimer
             HStack(spacing: 6) {
@@ -541,12 +544,6 @@ struct DigitalHomeworkView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 4)
-
-            // ✅ NEW: Revert button (appears only after grading)
-            revertButton
-
-            // ✅ NEW: Export to PDF button
-            exportPDFButton
         }
     }
 
@@ -693,31 +690,9 @@ struct DigitalHomeworkView: View {
         let accuracy = stats.accuracy
 
         return VStack(spacing: 20) {
-            // Top section: Merged accuracy stats in one line
+            // Stats row: Correct / Partial / Incorrect (accuracy % removed — shown in dots bar)
             VStack(spacing: 12) {
-                // ✅ MERGED: Accuracy, Correct, and Incorrect in one horizontal line
                 HStack(spacing: 0) {
-                    // Accuracy percentage
-                    VStack(spacing: 4) {
-                        Text(String(format: "%.0f%%", accuracy))
-                            .font(.system(size: 32, weight: .bold))
-                            .foregroundColor(.green)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.6)
-                        Text(NSLocalizedString("proMode.accuracy", comment: "Accuracy"))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                    }
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity)
-
-                    // Vertical divider
-                    Rectangle()
-                        .fill(Color.secondary.opacity(0.3))
-                        .frame(width: 1, height: 50)
-
                     // Correct count
                     VStack(spacing: 6) {
                         HStack(spacing: 4) {
@@ -786,27 +761,6 @@ struct DigitalHomeworkView: View {
                 .padding(.vertical, 8)
             }
             .padding(.top, 20)
-
-            // Bottom section: Slide to mark progress
-            if !viewModel.hasMarkedProgress {
-                slideToMarkProgressTrack
-                    .padding(.bottom, 20)
-            } else {
-                // Progress already marked indicator
-                HStack(spacing: 12) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.title2)
-                        .foregroundColor(.green)
-                    Text(NSLocalizedString("proMode.progressMarked", comment: "Progress Already Marked"))
-                        .font(.headline)
-                        .foregroundColor(.green)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(Color.green.opacity(0.1))
-                .cornerRadius(12)
-                .padding(.bottom, 20)
-            }
         }
         .frame(maxWidth: .infinity)
         .background(Color(.secondarySystemGroupedBackground))
@@ -1859,7 +1813,134 @@ struct DigitalHomeworkView: View {
         }
     }
 
-    // ✅ NEW: Enhanced animated grading progress card
+    // MARK: - Grading Dots Helpers
+
+    private func expandedBinding(for id: String) -> Binding<Bool> {
+        Binding(
+            get: { expandedQuestionIds.contains(id) },
+            set: { newVal in
+                if newVal { expandedQuestionIds.insert(id) }
+                else { expandedQuestionIds.remove(id) }
+            }
+        )
+    }
+
+    @ViewBuilder
+    private func makeQuestionCard(index: Int, q: ProgressiveQuestionWithGrade) -> some View {
+        let qId = q.question.id
+        QuestionCard(
+            questionWithGrade: q,
+            croppedImage: viewModel.getCroppedImage(for: qId),
+            subquestionCroppedImages: viewModel.croppedImages.filter { key, _ in
+                q.question.subquestions?.contains { $0.id == key } == true
+            },
+            isArchiveMode: viewModel.isArchiveMode,
+            isSelected: viewModel.selectedQuestionIds.contains(qId),
+            isDeletionMode: isDeletionMode,
+            isSelectedForDeletion: selectedQuestionsForDeletion.contains(qId),
+            modelType: viewModel.useDeepReasoning ? "gemini" : "openai",
+            onAskAI: { subquestion in
+                viewModel.askAIForHelp(questionId: qId, appState: appState, subquestion: subquestion)
+            },
+            onArchive: { viewModel.archiveQuestion(questionId: qId) },
+            onArchiveSubquestion: { subId in
+                viewModel.archiveSubquestion(parentQuestionId: qId, subquestionId: subId)
+            },
+            onRegrade: { Task { await viewModel.regradeQuestion(questionId: qId) } },
+            onRegradeSubquestion: { subId in
+                Task { await viewModel.regradeSubquestion(parentQuestionId: qId, subquestionId: subId) }
+            },
+            onReparse: { Task { await viewModel.reparseQuestion(questionId: qId) } },
+            onToggleSelection: { viewModel.toggleQuestionSelection(questionId: qId) },
+            onToggleDeletionSelection: {
+                if selectedQuestionsForDeletion.contains(qId) { selectedQuestionsForDeletion.remove(qId) }
+                else { selectedQuestionsForDeletion.insert(qId) }
+            },
+            onLongPress: {
+                isDeletionMode = true
+                selectedQuestionsForDeletion.insert(qId)
+            },
+            onRemoveImage: {
+                if let qNum = q.question.questionNumber,
+                   let ann = viewModel.annotations.first(where: { $0.questionNumber == qNum }) {
+                    withAnimation { viewModel.deleteAnnotation(id: ann.id) }
+                }
+            },
+            onEditCroppedImage: { questionId in
+                if let ann = viewModel.annotations.first(where: { $0.questionNumber == questionId }) {
+                    selectedImageIndex = ann.pageIndex
+                    viewModel.selectedAnnotationId = ann.id
+                    focusedAnnotationQuestionId = questionId
+                    viewModel.showAnnotationMode = true
+                }
+            },
+            onAddPicture: { questionId, pageIndex in
+                pendingAnnotationQuestionId = questionId
+                selectedImageIndex = pageIndex
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                    viewModel.isAnnotationSectionExpanded = true
+                }
+                viewModel.showAnnotationMode = true
+            },
+            isUnderDiagramAnalysis: viewModel.questionsUnderDiagramAnalysis
+                .union(stateManager.questionsUnderBackgroundAnalysis).contains(qId),
+            subquestionsUnderAnalysis: viewModel.questionsUnderDiagramAnalysis
+                .union(stateManager.questionsUnderBackgroundAnalysis),
+            missingDiagramImageIds: viewModel.questionsMissingDiagramImage,
+            isFirstQuestion: index == 0,
+            isExpanded: expandedBinding(for: qId)
+        )
+    }
+
+    private var gradingDots: [GradingDotState] {
+        viewModel.questions.map { q in
+            if q.isParentQuestion {
+                // Parent question: check subquestion grades
+                let anyGrading = q.subquestionGradingStatus.values.contains(true)
+                if anyGrading { return .grading }
+                guard q.allSubquestionsGraded, let score = q.parentScore else {
+                    return q.subquestionGrades.isEmpty ? .waiting : .grading
+                }
+                if q.parentIsCorrect == true { return .correct }
+                if score >= 0.5 { return .partial }
+                return .incorrect
+            } else {
+                if q.isGrading { return .grading }
+                if q.gradingError != nil { return .error }
+                guard let grade = q.grade else { return .waiting }
+                if grade.isCorrect { return .correct }
+                if grade.score >= 0.5 { return .partial }
+                return .incorrect
+            }
+        }
+    }
+
+    private var completionScore: Int {
+        guard !viewModel.questions.isEmpty else { return 0 }
+        var correctCount = 0
+        var total = 0
+        for q in viewModel.questions {
+            if q.isParentQuestion {
+                let subCount = q.totalSubquestionsCount
+                if subCount == 0 { continue }
+                total += subCount
+                correctCount += q.subquestionGrades.values.filter { $0.isCorrect }.count
+            } else {
+                total += 1
+                if q.grade?.isCorrect == true { correctCount += 1 }
+            }
+        }
+        guard total > 0 else { return 0 }
+        return Int(Double(correctCount) / Double(total) * 100)
+    }
+
+    private var completionScoreColor: Color {
+        if completionScore >= 80 { return .green }
+        if completionScore >= 60 { return .orange }
+        return .red
+    }
+
+    // ✅ Enhanced animated grading progress card
     private var gradingProgressCard: some View {
         VStack(spacing: 16) {
             // Top section: Animated icon + status message
@@ -1897,59 +1978,29 @@ struct DigitalHomeworkView: View {
                 Spacer()
             }
 
-            // Progress bar
-            VStack(spacing: 8) {
-                HStack {
-                    Text("\(viewModel.gradedCount) / \(viewModel.totalQuestions)")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.primary)
-
-                    Spacer()
-
-                    Text(String(format: "%.0f%%", (Float(viewModel.gradedCount) / Float(viewModel.totalQuestions)) * 100))
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.blue)
+            // Progress dots row
+            HStack(spacing: 12) {
+                GradingDotsView(dots: gradingDots) { idx in
+                    guard idx < viewModel.questions.count else { return }
+                    let qId = viewModel.questions[idx].question.id
+                    withAnimation { questionScrollProxy?.scrollTo(qId, anchor: .center) }
                 }
+                .frame(maxWidth: .infinity)
 
-                // Animated progress bar
-                GeometryReader { geometry in
-                    ZStack(alignment: .leading) {
-                        // Background
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color(.systemGray5))
-                            .frame(height: 8)
-
-                        // Progress fill with gradient
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(
-                                LinearGradient(
-                                    colors: viewModel.useDeepReasoning ? [.purple, .blue] : [.green, .blue],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .frame(width: geometry.size.width * CGFloat(viewModel.gradedCount) / CGFloat(viewModel.totalQuestions), height: 8)
-                            .animation(.spring(response: 0.5, dampingFraction: 0.7), value: viewModel.gradedCount)
-
-                        // Shimmer effect overlay
-                        if viewModel.gradingAnimation != .complete {
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [Color.white.opacity(0), Color.white.opacity(0.3), Color.white.opacity(0)],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                                .frame(width: 50, height: 8)
-                                .offset(x: shimmerOffset(geometryWidth: geometry.size.width))
-                                .animation(.linear(duration: 1.5).repeatForever(autoreverses: false), value: viewModel.gradedCount)
-                        }
+                Group {
+                    if viewModel.allQuestionsGraded {
+                        Text("\(completionScore)%")
+                            .font(.title2.bold())
+                            .foregroundColor(completionScoreColor)
+                            .transition(.opacity.combined(with: .scale))
+                    } else {
+                        Text("\(viewModel.gradedCount)/\(viewModel.totalQuestions)")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
                     }
                 }
-                .frame(height: 8)
+                .frame(minWidth: 60, alignment: .trailing)
+                .animation(.spring(response: 0.3), value: viewModel.allQuestionsGraded)
             }
         }
         .padding()
@@ -2238,51 +2289,37 @@ struct DigitalHomeworkView: View {
         .background(Color(.systemGroupedBackground))
     }
 
-    // Slim inline progress bar shown during grading — replaces compactGradeBar
+    // Slim inline progress dots shown during grading — replaces compactGradeBar
     private var compactGradingBar: some View {
-        let progress = viewModel.totalQuestions > 0
-            ? CGFloat(viewModel.gradedCount) / CGFloat(viewModel.totalQuestions)
-            : 0
-        let barColor = viewModel.useDeepReasoning ? Color.purple : Color(red: 0.18, green: 0.72, blue: 0.38)
+        HStack(spacing: 10) {
+            Image(viewModel.useDeepReasoning ? "gemini-icon" : "openai-light")
+                .resizable()
+                .renderingMode(.template)
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 16, height: 16)
+                .foregroundColor(viewModel.useDeepReasoning ? .purple : Color(red: 0.18, green: 0.72, blue: 0.38))
 
-        return VStack(spacing: 5) {
-            HStack(spacing: 8) {
-                // Pulsing model icon
-                Image(viewModel.useDeepReasoning ? "gemini-icon" : "openai-light")
-                    .resizable()
-                    .renderingMode(.template)
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 16, height: 16)
-                    .foregroundColor(barColor)
-                    .scaleEffect(1.0)
-                    .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: viewModel.gradedCount)
-
-                Text(viewModel.currentGradingStatus)
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundColor(.primary)
-                    .lineLimit(1)
-
-                Spacer()
-
-                Text("\(viewModel.gradedCount) / \(viewModel.totalQuestions)")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundColor(barColor)
+            GradingDotsView(dots: gradingDots) { idx in
+                guard idx < viewModel.questions.count else { return }
+                let qId = viewModel.questions[idx].question.id
+                withAnimation { questionScrollProxy?.scrollTo(qId, anchor: .center) }
             }
+            .frame(maxWidth: .infinity)
 
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Color(.systemGray5)).frame(height: 5)
-                    Capsule()
-                        .fill(LinearGradient(
-                            colors: viewModel.useDeepReasoning ? [.purple, .blue] : [barColor, .blue],
-                            startPoint: .leading, endPoint: .trailing))
-                        .frame(width: geo.size.width * progress, height: 5)
-                        .animation(.spring(response: 0.5, dampingFraction: 0.7), value: viewModel.gradedCount)
+            Group {
+                if viewModel.allQuestionsGraded {
+                    Text("\(completionScore)%")
+                        .font(.title3.bold())
+                        .foregroundColor(completionScoreColor)
+                        .transition(.opacity.combined(with: .scale))
+                } else {
+                    Text("\(viewModel.gradedCount)/\(viewModel.totalQuestions)")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
                 }
             }
-            .frame(height: 5)
+            .frame(minWidth: 54, alignment: .trailing)
+            .animation(.spring(response: 0.3), value: viewModel.allQuestionsGraded)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
@@ -2400,6 +2437,13 @@ struct QuestionCard: View {
 
     @State private var isShaking = false
     @State private var isPulsing = false
+    var isExpanded: Binding<Bool>? = nil
+    @State private var localExpanded: Bool = true
+
+    private var expandedValue: Bool { isExpanded?.wrappedValue ?? localExpanded }
+    private func toggleExpanded() {
+        if let b = isExpanded { b.wrappedValue.toggle() } else { localExpanded.toggle() }
+    }
 
     // MARK: - Helper Views
 
@@ -2476,6 +2520,17 @@ struct QuestionCard: View {
             } else if let grade = questionWithGrade.grade {
                 HomeworkGradeBadge(grade: grade)
                     .transition(.scale.combined(with: .opacity))
+            }
+
+            // Fold/expand chevron — only show after graded
+            if questionWithGrade.grade != nil {
+                Button(action: { withAnimation(.spring(response: 0.3)) { toggleExpanded() } }) {
+                    Image(systemName: expandedValue ? "chevron.up" : "chevron.down")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(.secondary)
+                        .frame(width: 28, height: 28)
+                }
+                .buttonStyle(.plain)
             }
         }
         .animation(.easeInOut(duration: 0.3), value: questionWithGrade.isGrading)
@@ -2560,58 +2615,55 @@ struct QuestionCard: View {
             questionHeader
             croppedImageSection
 
-            // Question content - rest of original code stays here
+            // Question text + student answer — ALWAYS visible
             if questionWithGrade.question.isParentQuestion {
-                    // Parent question with subquestions
-                    FullLaTeXText(questionWithGrade.question.parentContent ?? "", fontSize: 14)
+                FullLaTeXText(questionWithGrade.question.parentContent ?? "", fontSize: 14)
 
-                    if let subquestions = questionWithGrade.question.subquestions {
-                        ForEach(subquestions) { subquestion in
-                            SubquestionRow(
-                                subquestion: subquestion,
-                                parentQuestionId: questionWithGrade.question.id,
-                                grade: questionWithGrade.subquestionGrades[subquestion.id],
-                                isGrading: questionWithGrade.subquestionGradingStatus[subquestion.id] ?? false,
-                                modelType: modelType,
-                                isArchived: questionWithGrade.archivedSubquestions.contains(subquestion.id),  // ✅ NEW: Check if archived
-                                croppedImage: subquestionCroppedImages[subquestion.id],
-                                parentCroppedImage: croppedImage,
-                                isUnderDiagramAnalysis: subquestionsUnderAnalysis.contains(subquestion.id),
-                                missingDiagramImageIds: missingDiagramImageIds,
-                                onAskAI: {
-                                    // ✅ FIXED: Pass subquestion to parent callback
-                                    debugPrint("💬 Ask AI for subquestion \(subquestion.id)")
-                                    onAskAI(subquestion)
-                                },
-                                onArchive: {
-                                    // ✅ Archive whole parent question
-                                    debugPrint("⭐ Archive from subquestion \(subquestion.id) -> archiving parent Q\(questionWithGrade.question.id)")
-                                    onArchive()
-                                },
-                                onArchiveSubquestion: {
-                                    // ✅ NEW: Archive only this subquestion
-                                    debugPrint("⭐ Archive only subquestion \(subquestion.id)")
-                                    onArchiveSubquestion?(subquestion.id)
-                                },
-                                onRegrade: {
-                                    // ✅ NEW: Regrade only this subquestion
-                                    debugPrint("🔄 Regrade subquestion \(subquestion.id)")
-                                    onRegradeSubquestion?(subquestion.id)
-                                },
-                                onEditCroppedImage: onEditCroppedImage,
-                                onAddPicture: {
-                                    let pageIndex = max((questionWithGrade.question.pageNumber ?? 1) - 1, 0)
-                                    onAddPicture?(subquestion.id, pageIndex)
-                                }
-                            )
-                        }
+                if let subquestions = questionWithGrade.question.subquestions {
+                    ForEach(subquestions) { subquestion in
+                        SubquestionRow(
+                            subquestion: subquestion,
+                            parentQuestionId: questionWithGrade.question.id,
+                            grade: questionWithGrade.subquestionGrades[subquestion.id],
+                            isGrading: questionWithGrade.subquestionGradingStatus[subquestion.id] ?? false,
+                            modelType: modelType,
+                            isArchived: questionWithGrade.archivedSubquestions.contains(subquestion.id),
+                            croppedImage: subquestionCroppedImages[subquestion.id],
+                            parentCroppedImage: croppedImage,
+                            isUnderDiagramAnalysis: subquestionsUnderAnalysis.contains(subquestion.id),
+                            missingDiagramImageIds: missingDiagramImageIds,
+                            onAskAI: {
+                                debugPrint("💬 Ask AI for subquestion \(subquestion.id)")
+                                onAskAI(subquestion)
+                            },
+                            onArchive: {
+                                debugPrint("⭐ Archive from subquestion \(subquestion.id) -> archiving parent Q\(questionWithGrade.question.id)")
+                                onArchive()
+                            },
+                            onArchiveSubquestion: {
+                                debugPrint("⭐ Archive only subquestion \(subquestion.id)")
+                                onArchiveSubquestion?(subquestion.id)
+                            },
+                            onRegrade: {
+                                debugPrint("🔄 Regrade subquestion \(subquestion.id)")
+                                onRegradeSubquestion?(subquestion.id)
+                            },
+                            onEditCroppedImage: onEditCroppedImage,
+                            onAddPicture: {
+                                let pageIndex = max((questionWithGrade.question.pageNumber ?? 1) - 1, 0)
+                                onAddPicture?(subquestion.id, pageIndex)
+                            }
+                        )
                     }
-                } else {
-                    // Regular question - TYPE-SPECIFIC RENDERING
-                    renderQuestionByType(questionWithGrade: questionWithGrade)
                 }
+            } else {
+                // Regular question — always visible
+                renderQuestionByType(questionWithGrade: questionWithGrade)
+            }
 
-                // Correct Answer — only for wrong answers, and not MC/TF (they highlight inline)
+            // AI grading results — folded/expanded by chevron
+            if expandedValue {
+                // Correct Answer (wrong answers only, non-MC/TF)
                 if let grade = questionWithGrade.grade,
                    let correctAnswer = grade.correctAnswer,
                    !correctAnswer.isEmpty,
@@ -2623,7 +2675,6 @@ struct QuestionCard: View {
                             .font(.caption)
                             .fontWeight(.semibold)
                             .foregroundColor(.green)
-
                         FullLaTeXText(correctAnswer, fontSize: 13)
                             .foregroundColor(.primary)
                     }
@@ -2632,7 +2683,7 @@ struct QuestionCard: View {
                     .cornerRadius(8)
                 }
 
-                // Feedback (if graded) - with MathJax rendering support
+                // AI Feedback
                 if let grade = questionWithGrade.grade {
                     FullLaTeXText(grade.feedback, fontSize: 13)
                         .foregroundColor(.secondary)
@@ -2641,41 +2692,35 @@ struct QuestionCard: View {
                         .cornerRadius(8)
                 }
 
-                // Action buttons (if graded and not in archive mode)
+                // Action buttons
                 if questionWithGrade.grade != nil && !isArchiveMode {
+                    let isIncorrect = questionWithGrade.grade.map { !$0.isCorrect } ?? false
                     HStack(spacing: 12) {
-                        Button(action: { onAskAI(nil) }) {  // ✅ FIXED: Pass nil for regular questions
-                            Label(NSLocalizedString("proMode.followUp", comment: ""), systemImage: "message")
-                                .font(.caption)
-                        }
-                        .buttonStyle(.bordered)
-                        .disabled(questionWithGrade.isArchived || questionWithGrade.isGrading)  // ✅ Disable during grading
-
+                        FollowUpButton(action: { onAskAI(nil) }, isIncorrect: isIncorrect)
+                            .disabled(questionWithGrade.isArchived || questionWithGrade.isGrading)
                         Button(action: onRegrade) {
                             Label(NSLocalizedString("proMode.regrade", comment: ""), systemImage: "arrow.triangle.2.circlepath")
                                 .font(.caption)
                         }
                         .buttonStyle(.bordered)
                         .tint(.purple)
-                        .disabled(questionWithGrade.isArchived || questionWithGrade.isGrading)  // ✅ Disable during grading to prevent multi-press
-
+                        .disabled(questionWithGrade.isArchived || questionWithGrade.isGrading)
                         Spacer()
-
                         Button(action: onArchive) {
                             Image(systemName: questionWithGrade.isArchived ? "checkmark.circle" : "books.vertical.fill")
                                 .font(.caption)
                         }
                         .buttonStyle(.bordered)
-                        .disabled(questionWithGrade.isArchived || questionWithGrade.isGrading)  // ✅ Disable during grading
+                        .disabled(questionWithGrade.isArchived || questionWithGrade.isGrading)
                     }
                 }
             }
-            .padding()
-            .frame(maxWidth: .infinity)
-            // ✅ NEW: Dim card during regrading, slight transparency for archived
-            .opacity(questionWithGrade.isGrading ? 0.5 : (questionWithGrade.isArchived ? 0.7 : 1.0))
-            .animation(.easeInOut(duration: 0.3), value: questionWithGrade.isGrading)  // ✅ Smooth dimming animation
         }
+        .padding()
+        .frame(maxWidth: .infinity)
+        .opacity(questionWithGrade.isGrading ? 0.5 : (questionWithGrade.isArchived ? 0.7 : 1.0))
+        .animation(.easeInOut(duration: 0.3), value: questionWithGrade.isGrading)
+    }
 
     var body: some View {
         HStack(spacing: 0) {

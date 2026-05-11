@@ -60,7 +60,7 @@ enum MistakeActiveFilter: String, CaseIterable {
     var localizedName: String {
         switch self {
         case .active: return NSLocalizedString("mistakeReview.filter.active", comment: "")
-        case .all: return NSLocalizedString("mistakeReview.filter.allFilter", comment: "")
+        case .all:    return NSLocalizedString("mistakeReview.filter.allFilter", comment: "")
         case .goodAt: return NSLocalizedString("mistakeReview.filter.goodAt", comment: "Good At")
         }
     }
@@ -86,6 +86,34 @@ struct MistakeReviewView: View {
 
     // NEW: Hierarchical filtering state (multi-select)
     @State private var selectedDetailedBranches: Set<String> = []
+    @State private var showKnowledgeTree = false
+
+    // All grade-appropriate subjects for tree mode (fuzzy-matched to actual stored subject names)
+    private var allSubjects: [SubjectMistakeCount] {
+        var base = TaxonomyService.shared.availableSubjects()
+
+        // For each taxonomy subject, find a matching actual subject via shared taxonomy filename.
+        // e.g. taxonomy "Mathematics" fuzzy-matches stored "Math" → use "Math" as the canonical name.
+        base = base.map { sub in
+            let taxFile = TaxonomyService.taxonomyFilename(for: sub.subject)
+            if let real = mistakeService.subjectsWithMistakes.first(where: {
+                TaxonomyService.taxonomyFilename(for: $0.subject) == taxFile
+            }) {
+                return SubjectMistakeCount(id: sub.id, subject: real.subject,
+                                          mistakeCount: real.mistakeCount,
+                                          icon: real.icon.isEmpty ? sub.icon : real.icon)
+            }
+            return sub
+        }
+
+        // Also include any subjects with mistakes not covered by the taxonomy
+        let covered = Set(base.compactMap { TaxonomyService.taxonomyFilename(for: $0.subject) })
+        for sub in mistakeService.subjectsWithMistakes {
+            guard let f = TaxonomyService.taxonomyFilename(for: sub.subject), !covered.contains(f) else { continue }
+            base.append(sub)
+        }
+        return base
+    }
 
     // Active / All toggle
     @State private var activeFilter: MistakeActiveFilter = .active
@@ -102,23 +130,28 @@ struct MistakeReviewView: View {
     @State private var onboardingStep: MistakeReviewOnboardingStep? = nil
     @State private var onboardingAnchors: [String: CGRect] = [:]
 
+    // Light-up tree sheet
+    @State private var showLightUpSheet = false
+    @State private var lightUpSession: PracticeSession? = nil
+    @State private var showLightUpPractice = false
+
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                    // SECTION 1: Compact Subject Selection
+                    // SECTION 1: Subject Selection
+                    // Tree mode → all grade-appropriate subjects; Heatmap mode → only subjects with mistakes
                     if mistakeService.isLoading {
                         ProgressView(NSLocalizedString("mistakeReview.loadingSubjects", comment: ""))
                             .frame(height: 100)
-                    } else if mistakeService.subjectsWithMistakes.isEmpty {
+                    } else if !showKnowledgeTree && mistakeService.subjectsWithMistakes.isEmpty {
+                        // Heatmap mode with no mistakes yet
                         VStack(spacing: 12) {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.system(size: 48))
                                 .foregroundColor(DesignTokens.Colors.success)
-
                             Text(NSLocalizedString("mistakeReview.noMistakesFound", comment: ""))
                                 .font(.headline)
                                 .foregroundColor(DesignTokens.Colors.success)
-
                             Text(NSLocalizedString("mistakeReview.noMistakesMessage", comment: ""))
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
@@ -127,8 +160,9 @@ struct MistakeReviewView: View {
                         .frame(maxWidth: .infinity)
                         .padding()
                     } else {
+                        let displaySubjects = showKnowledgeTree ? allSubjects : mistakeService.subjectsWithMistakes
                         CompactSubjectSelector(
-                            subjects: mistakeService.subjectsWithMistakes,
+                            subjects: displaySubjects,
                             selectedSubject: $selectedSubject
                         )
                         .mistakeReviewOnboardingAnchor("mistake_review_onboarding_subjectSelector")
@@ -138,69 +172,106 @@ struct MistakeReviewView: View {
                         }
                     }
 
-                    // SECTION 1b: Active / All toggle
-                    Picker("", selection: $activeFilter) {
-                        ForEach(MistakeActiveFilter.allCases, id: \.self) { filter in
-                            Text(filter.localizedName).tag(filter)
+                    // SECTION 1b: Heatmap / Tree toggle — always above the filter picker
+                    if selectedSubject != nil {
+                        HStack {
+                            Spacer()
+                            HStack(spacing: 0) {
+                                heatmapTreeTabButton(
+                                    icon: "chart.bar.fill",
+                                    isSelected: !showKnowledgeTree,
+                                    action: {
+                                        withAnimation(.spring(response: 0.3)) { showKnowledgeTree = false }
+                                        if let s = selectedSubject,
+                                           !mistakeService.subjectsWithMistakes.contains(where: { $0.subject == s }) {
+                                            selectedSubject = mistakeService.subjectsWithMistakes.first?.subject
+                                        }
+                                    }
+                                )
+                                heatmapTreeTabButton(
+                                    icon: "leaf.fill",
+                                    isSelected: showKnowledgeTree,
+                                    action: {
+                                        withAnimation(.spring(response: 0.3)) { showKnowledgeTree = true }
+                                        if selectedSubject == nil {
+                                            selectedSubject = allSubjects.first?.subject
+                                        }
+                                    }
+                                )
+                            }
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(.ultraThinMaterial)
+                                    .overlay(RoundedRectangle(cornerRadius: 10)
+                                        .stroke(Color.secondary.opacity(0.15), lineWidth: 1))
+                            )
                         }
-                    }
-                    .pickerStyle(.segmented)
-                    .mistakeReviewOnboardingAnchor("mistake_review_onboarding_activeFilter")
-                    .padding(.horizontal)
-                    .onChange(of: activeFilter) { _, newFilter in
-                        if newFilter == .goodAt {
-                            selectedDetailedBranches.removeAll()
-                        }
-                    }
-                    .onChange(of: statusService.recentMasteries.count) { _, _ in
-                        // Clear any selected branch chips that may now be empty after mastery
-                        selectedDetailedBranches.removeAll()
-                    }
-
-                    // SECTION 2: Dual Slider Filters (Severity + Time) — hidden for Good At tab
-                    if selectedSubject != nil && activeFilter != .goodAt {
-                        DualSliderFilters(
-                            selectedSeverity: $selectedSeverity,
-                            selectedTimeRange: $selectedTimeRange
-                        )
                         .padding(.horizontal)
                     }
 
-                    // SECTION 2.5: Weak Point Heatmap
-                    if let subject = selectedSubject, activeFilter != .goodAt {
-                        WeakPointHeatmapView(subject: subject, mistakeService: mistakeService)
-                            .mistakeReviewOnboardingAnchor("mistake_review_onboarding_heatmap")
-                            .padding(.horizontal)
-                    }
-
-                    // SECTION 3: Taxonomy Filter OR Good At View
-                    if let subject = selectedSubject {
-                        if activeFilter == .goodAt {
-                            let goodAtData = mistakeService.getGoodAtBranches(
-                                for: subject,
-                                timeRange: selectedTimeRange.mistakeTimeRange
-                            )
-                            GoodAtTaxonomyView(goodAtData: goodAtData)
-                                .padding(.horizontal)
-                        } else {
-                            let taxonomyData = mistakeService.getBaseBranches(
-                                for: subject,
-                                timeRange: selectedTimeRange.mistakeTimeRange,
-                                activeFilter: activeFilter,
-                                severity: selectedSeverity
-                            )
-                            TaxonomyFilterView(
-                                subject: subject,
-                                taxonomyData: taxonomyData,
-                                selectedDetailedBranches: $selectedDetailedBranches
-                            )
-                            .mistakeReviewOnboardingAnchor("mistake_review_onboarding_taxonomy")
-                            .padding(.horizontal)
+                    // SECTION 2: Active / All / Good At picker — hidden in tree mode
+                    if !showKnowledgeTree {
+                        Picker("", selection: $activeFilter) {
+                            ForEach(MistakeActiveFilter.allCases, id: \.self) { filter in
+                                Text(filter.localizedName).tag(filter)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .mistakeReviewOnboardingAnchor("mistake_review_onboarding_activeFilter")
+                        .padding(.horizontal)
+                        .onChange(of: activeFilter) { _, newFilter in
+                            if newFilter == .goodAt { selectedDetailedBranches.removeAll() }
                         }
                     }
 
-                    // SECTION 4: Action Buttons — hidden for Good At tab
-                    if selectedSubject != nil && !mistakeService.subjectsWithMistakes.isEmpty && activeFilter != .goodAt {
+                    // SECTION 3: Content
+                    if let subject = selectedSubject {
+                        if showKnowledgeTree {
+                            // Taxonomy-based tree: all grade-appropriate topics, colored by mastery
+                            let treeBranches = TaxonomyService.shared.knowledgeTree(for: subject)
+                            KnowledgeTreeView(subject: subject, branches: treeBranches)
+                                .padding(.horizontal)
+                        } else {
+                            // Heatmap mode: severity + time filters, then heatmap, then chip filter
+                            if activeFilter != .goodAt {
+                                DualSliderFilters(
+                                    selectedSeverity: $selectedSeverity,
+                                    selectedTimeRange: $selectedTimeRange
+                                )
+                                .padding(.horizontal)
+
+                                WeakPointHeatmapView(subject: subject, mistakeService: mistakeService)
+                                    .mistakeReviewOnboardingAnchor("mistake_review_onboarding_heatmap")
+                                    .padding(.horizontal)
+                            }
+
+                            if activeFilter == .goodAt {
+                                let goodAtData = mistakeService.getGoodAtBranches(
+                                    for: subject,
+                                    timeRange: selectedTimeRange.mistakeTimeRange
+                                )
+                                GoodAtTaxonomyView(goodAtData: goodAtData)
+                                    .padding(.horizontal)
+                            } else {
+                                let taxonomyData = mistakeService.getBaseBranches(
+                                    for: subject,
+                                    timeRange: selectedTimeRange.mistakeTimeRange,
+                                    activeFilter: activeFilter,
+                                    severity: selectedSeverity
+                                )
+                                TaxonomyFilterView(
+                                    subject: subject,
+                                    taxonomyData: taxonomyData,
+                                    selectedDetailedBranches: $selectedDetailedBranches
+                                )
+                                .mistakeReviewOnboardingAnchor("mistake_review_onboarding_taxonomy")
+                                .padding(.horizontal)
+                            }
+                        }
+                    }
+
+                    // SECTION 4: Action Buttons — heatmap mode only, not Good At tab
+                    if !showKnowledgeTree && selectedSubject != nil && !allSubjects.isEmpty && activeFilter != .goodAt {
                         let mistakeCount = calculateFilteredMistakeCount()
 
                         HStack(spacing: 12) {
@@ -279,11 +350,23 @@ struct MistakeReviewView: View {
                         .padding(.horizontal)
                     }
 
+                    // SECTION 4b: Light-up button — tree mode only
+                    if showKnowledgeTree, let subject = selectedSubject {
+                        LightUpTreeButton(
+                            subject: subject,
+                            unlitCount: unlitTopicCount(for: subject),
+                            onTap: { showLightUpSheet = true }
+                        )
+                        .padding(.horizontal)
+                    }
+
                     Spacer(minLength: 100)
                 }
                 .padding(.top)
             }
-            .navigationTitle(NSLocalizedString("mistakeReview.title", comment: ""))
+            .navigationTitle(showKnowledgeTree
+                ? NSLocalizedString("skillGraph.treeTitle", value: "知识树 Knowledge Tree", comment: "")
+                : NSLocalizedString("skillGraph.title", value: "知识库 Skill Graph", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -308,7 +391,8 @@ struct MistakeReviewView: View {
                 await mistakeService.fetchSubjectsWithMistakes(timeRange: selectedTimeRange.mistakeTimeRange)
 
                 // ✅ Auto-select first subject if available and none selected
-                if selectedSubject == nil, let firstSubject = mistakeService.subjectsWithMistakes.first {
+                let autoSelectList = showKnowledgeTree ? allSubjects : mistakeService.subjectsWithMistakes
+                if selectedSubject == nil, let firstSubject = autoSelectList.first {
                     selectedSubject = firstSubject.subject
                 }
                 refreshUnclassifiedCount()
@@ -333,6 +417,29 @@ struct MistakeReviewView: View {
                         selectedSeverity: selectedSeverity,
                         timeRange: selectedTimeRange.mistakeTimeRange,
                         activeFilter: activeFilter
+                    )
+                }
+            }
+            .sheet(isPresented: $showLightUpSheet) {
+                if let subject = selectedSubject {
+                    let treeBranches = TaxonomyService.shared.knowledgeTree(for: subject)
+                    LightUpTreeSheet(
+                        subject: subject,
+                        branches: treeBranches
+                    ) { session in
+                        lightUpSession = session
+                        showLightUpPractice = true
+                    }
+                }
+            }
+            .fullScreenCover(isPresented: $showLightUpPractice) {
+                if let session = lightUpSession {
+                    QuestionSheetView(
+                        session: session,
+                        onPracticeCompleted: {
+                            showLightUpPractice = false
+                            lightUpSession = nil
+                        }
                     )
                 }
             }
@@ -367,7 +474,7 @@ struct MistakeReviewView: View {
     // MARK: - Onboarding
 
     private func startMistakeReviewOnboarding() {
-        guard !onboardingDone, !mistakeService.subjectsWithMistakes.isEmpty else { return }
+        guard !onboardingDone, !allSubjects.isEmpty else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
             if onboardingStep == nil {
                 onboardingStep = .subjectSelector
@@ -401,6 +508,34 @@ struct MistakeReviewView: View {
     }
 
     // MARK: - Helper Methods
+
+    private func unlitTopicCount(for subject: String) -> Int {
+        TaxonomyService.shared.knowledgeTree(for: subject)
+            .flatMap { $0.topics }
+            .filter { !$0.isPracticed }
+            .count
+    }
+
+    @ViewBuilder
+    private func heatmapTreeTabButton(icon: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(isSelected ? .white : .secondary)
+                .frame(width: 40, height: 30)
+                .background(
+                    Group {
+                        if isSelected {
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(themeManager.accentColor)
+                                .shadow(color: themeManager.accentColor.opacity(0.3), radius: 3, x: 0, y: 1)
+                        }
+                    }
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
 
     /// Recompute unclassified count from local storage for the current subject.
     /// Called on load, subject change, time range change, and after categorization.

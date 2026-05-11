@@ -688,6 +688,7 @@
 "practice.feedbackTryAgain" = "Casi. Revisa la respuesta correcta e intenta preguntas similares.";
 "questionDetail.archiveQuestion" = "Archivar pregunta";
 "questionDetail.archiving" = "Archivando...";
+"questionDetail.questionFrom" = "Pregunta de %@";
 "questionDetail.archived" = "Archivado";
 "questionDetail.archiveSuccess" = "¡Éxito!";
 "questionDetail.archiveSuccessMessage" = "Esta pregunta ha sido guardada en tu biblioteca para revisión futura.";
@@ -707,6 +708,7 @@
 "questionDetail.provideDetailedExplanation" = "Proporciona una explicación detallada";
 "questionDetail.typeAnswerAbove" = "Escribe tu respuesta arriba";
 "questionDetail.submitAnswer" = "Enviar respuesta";
+"questionDetail.check" = "Verificar respuesta";
 "questionDetail.markProgress" = "Organización automática";
 "questionDetail.marked" = "Marcado";
 "questionDetail.followUp" = "Seguimiento";
@@ -1561,6 +1563,24 @@
 "mistakeReview.filter.uncategorized" = "Sin categoría";
 "mistakeReview.filter.yourStrengths" = "Tus fortalezas";
 "mistakeReview.filter.goodAt" = "Se te da bien";
+"mistakeReview.filter.tree" = "Árbol";
+"mistakeTree.legend.weakness" = "Punto débil";
+"mistakeTree.legend.borderline" = "En progreso";
+"mistakeTree.legend.mastered" = "Dominado";
+"mistakeTree.legend.untracked" = "Sin seguimiento";
+"mistakeTree.empty" = "Sin datos de temas aún";
+"mistakeTree.detail.accuracy" = "Precisión";
+"mistakeTree.detail.attempts" = "Intentos";
+"mistakeTree.detail.correct" = "Correctas";
+"mistakeTree.detail.days" = "Días activos";
+"mistakeTree.detail.mistakes" = "Errores";
+"mistakeTree.detail.errorTypes" = "Tipos de error comunes";
+"mistakeTree.detail.practice" = "Practicar este tema";
+"mistakeTree.detail.untracked" = "Sin registros de práctica";
+"mistakeTree.detail.untrackedHint" = "La precisión se rastreará al completar la práctica relevante";
+"errorType.conceptual" = "Brecha conceptual";
+"errorType.execution" = "Error de ejecución";
+"errorType.refinement" = "Necesita refinamiento";
 "mistakeReview.filter.noLongerWeak" = "Ya no es una debilidad";
 "mistakeReview.filter.noStrengthsData" = "Aún no hay datos — responde algunas preguntas para ver tus fortalezas.";
 "mistakeReview.filter.strengthsTopicCount" = "%d temas";
@@ -3034,3 +3054,4 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "common.remove" = "Eliminar";
 "guestConversion.loginSuccess" = "¡Sesión iniciada correctamente!";
 "dailyChallenge.bannerReady" = "Las 3 preguntas diarias están listas";
+"practiceSheet.backToChat" = "← Volver al chat";

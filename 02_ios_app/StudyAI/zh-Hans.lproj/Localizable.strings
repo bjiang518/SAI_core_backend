@@ -1493,6 +1493,11 @@
 "practiceSheet.toastProgress" = "已更新 %@ 的学习进度";
 "practiceSheet.toastMistakes" = "%d 道错题已归档至题库";
 "practiceSheet.toastSaved" = "练习已保存";
+"practiceSheet.reviewPrompt.title" = "复习一下错题？";
+"practiceSheet.reviewPrompt.body" = "%d 道错题已归档，要现在复习练习吗？";
+"practiceSheet.reviewPrompt.later" = "稍后";
+"practiceSheet.reviewPrompt.reviewNow" = "立即复习";
+"practiceSheet.toastSaved" = "练习已保存";
 "practiceSheet.scoreExcellent" = "太棒了！";
 "practiceSheet.scoreGreat" = "做得好！";
 "practiceSheet.scoreGood" = "继续加油！";
@@ -1500,6 +1505,7 @@
 
 "questionDetail.archiveQuestion" = "归档题目";
 "questionDetail.archiving" = "归档中...";
+"questionDetail.questionFrom" = "题目来源：%@";
 "questionDetail.archived" = "已归档";
 "questionDetail.archiveSuccess" = "成功！";
 "questionDetail.archiveSuccessMessage" = "此题目已储存到您的题库以供日后复习。";
@@ -1519,6 +1525,7 @@
 "questionDetail.provideDetailedExplanation" = "提供详细解释";
 "questionDetail.typeAnswerAbove" = "在上方输入您的答案";
 "questionDetail.submitAnswer" = "提交答案";
+"questionDetail.check" = "检查答案";
 "questionDetail.markProgress" = "智能整理";
 "questionDetail.marked" = "已标记";
 "questionDetail.followUp" = "继续提问";
@@ -1565,8 +1572,10 @@
 "generatedQuestions.emailGeneratedBy" = "此 PDF 由 StudyAgent（AI 学习助手）产生。";
 "generatedQuestions.emailClosing" = "祝学习愉快！";
 
-// Mistake Review
-"mistakeReview.title" = "错题复习";
+// Skill Graph (formerly Mistake Review)
+"mistakeReview.title" = "知识库";
+"skillGraph.title" = "知识库";
+"skillGraph.treeTitle" = "知识树";
 "mistakeReview.header.title" = "从错误中学习";
 "mistakeReview.header.subtitle" = "选择科目和时间范围来复习做错的题目";
 "mistakeReview.timeRangeTitle" = "时间范围";
@@ -1683,6 +1692,24 @@
 "mistakeReview.filter.active" = "活跃";
 "mistakeReview.filter.allFilter" = "全部";
 "mistakeReview.filter.goodAt" = "掌握";
+"mistakeReview.filter.tree" = "树图";
+"mistakeTree.legend.weakness" = "弱点";
+"mistakeTree.legend.borderline" = "接近掌握";
+"mistakeTree.legend.mastered" = "已掌握";
+"mistakeTree.legend.untracked" = "未追踪";
+"mistakeTree.empty" = "暂无知识点数据";
+"mistakeTree.detail.accuracy" = "正确率";
+"mistakeTree.detail.attempts" = "练习次数";
+"mistakeTree.detail.correct" = "答对次数";
+"mistakeTree.detail.days" = "追踪天数";
+"mistakeTree.detail.mistakes" = "错题记录";
+"mistakeTree.detail.errorTypes" = "常见错误类型";
+"mistakeTree.detail.practice" = "练习此知识点";
+"mistakeTree.detail.untracked" = "暂无练习记录";
+"mistakeTree.detail.untrackedHint" = "完成相关练习后将自动追踪准确率";
+"errorType.conceptual" = "概念理解";
+"errorType.execution" = "计算/步骤";
+"errorType.refinement" = "需要完善";
 "mistakeReview.filter.yourStrengths" = "你本来就很强";
 "mistakeReview.filter.noLongerWeak" = "不再是弱点";
 "mistakeReview.filter.strengthsTopicCount" = "%d 个主题";
@@ -3010,6 +3037,7 @@
 "dailyChallenge.good" = "做得很好！👍";
 "dailyChallenge.keep" = "继续加油！💪";
 "dailyChallenge.reviewAnswers" = "回顾答题";
+"dailyChallenge.reviewMistakes" = "查看错题并练习";
 "dailyChallenge.close" = "关闭";
 "dailyChallenge.prevQuestion" = "上一题";
 "guestConversion.title" = "创建免费账户";
@@ -3094,3 +3122,4 @@
 "common.remove" = "删除";
 "guestConversion.loginSuccess" = "登录成功！";
 "dailyChallenge.bannerReady" = "今日3题已就绪";
+"practiceSheet.backToChat" = "← 返回对话";

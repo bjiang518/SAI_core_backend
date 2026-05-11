@@ -12,8 +12,85 @@
 const AIServiceClient = require('../../../services/ai-client');
 const { getUserId } = require('../utils/auth-helper');
 const { db } = require('../../../../utils/railway-database');
+const { formatGradeLevel } = require('../utils/prompts');
 const crypto = require('crypto');
 const tierCheck = require('../../../middleware/tier-check');
+
+// Supported subjects that map to the app's practice library
+const SUPPORTED_SUBJECTS = [
+  'Math', 'Mathematics', 'Physics', 'Chemistry', 'Biology',
+  'English', 'History', 'Geography', 'Computer Science',
+  'Art', 'Music', 'Physical Education', 'Foreign Language'
+];
+
+function normalizeSubject(raw) {
+  if (!raw) return 'General';
+  const t = raw.trim();
+  // Already a valid subject
+  if (SUPPORTED_SUBJECTS.some(s => s.toLowerCase() === t.toLowerCase())) {
+    return SUPPORTED_SUBJECTS.find(s => s.toLowerCase() === t.toLowerCase()) || t;
+  }
+  // "Others: X" pass-through
+  if (t.startsWith('Others:')) return t;
+  return t;
+}
+
+/**
+ * Detect subject from conversation messages using GPT-4o-mini.
+ * Fast call (max 30 tokens, temp 0.1).
+ */
+async function detectSubjectWithAI(messages, fastify) {
+  if (!process.env.OPENAI_API_KEY) return null;
+  try {
+    const openai = require('openai');
+    const client = new openai({ apiKey: process.env.OPENAI_API_KEY });
+    const text = messages
+      .filter(m => m.role && m.content)
+      .slice(-10)
+      .map(m => `${m.role}: ${String(m.content).substring(0, 300)}`)
+      .join('\n\n')
+      .substring(0, 1500);
+
+    const res = await client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `Identify the academic subject of this educational conversation.
+Pick ONE from: Math, Physics, Chemistry, Biology, English, History, Geography, Computer Science, Art, Music, Physical Education, Foreign Language.
+If none fits, respond with "Others: [subject name in English]".
+Respond with ONLY the subject name, nothing else.`
+        },
+        { role: 'user', content: text }
+      ],
+      max_tokens: 30,
+      temperature: 0.1
+    });
+    const detected = res.choices[0]?.message?.content?.trim();
+    fastify.log.info({ msg: '[SubjectDetect] Detected from conversation', detected });
+    return detected || null;
+  } catch (err) {
+    fastify.log.warn({ msg: '[SubjectDetect] GPT call failed', err: err.message });
+    return null;
+  }
+}
+
+function detectSubjectFromFocusNotes(text) {
+  if (!text) return null;
+  const t = text.toLowerCase();
+  if (/\b(math|algebra|calculus|geometry|triangle|trigonometry|equation|derivative|integral|vertex|angle|shape|数学)\b/.test(t)) return 'Math';
+  if (/\b(physics|mechanics|thermodynamics|velocity|acceleration|newton|物理)\b/.test(t)) return 'Physics';
+  if (/\b(chemistry|chemical|molecule|atom|reaction|acid|base|periodic|化学)\b/.test(t)) return 'Chemistry';
+  if (/\b(biology|cell|dna|rna|evolution|photosynthesis|ecosystem|生物)\b/.test(t)) return 'Biology';
+  if (/\b(english|grammar|essay|vocabulary|literature|writing|英语)\b/.test(t)) return 'English';
+  if (/\b(语文|作文|古诗|文言文|阅读理解)\b/.test(t)) return 'Chinese';
+  if (/\b(history|历史|dynasty|revolution|civilization|war|empire)\b/.test(t)) return 'History';
+  if (/\b(geography|地理|climate|continent|latitude)\b/.test(t)) return 'Geography';
+  if (/\b(computer|programming|algorithm|code|software|计算机)\b/.test(t)) return 'Computer Science';
+  if (/\b(economics|supply|demand|inflation|gdp|经济)\b/.test(t)) return 'Economics';
+  if (/\b(science|experiment|hypothesis|scientific)\b/.test(t)) return 'Science';
+  return null;
+}
 
 module.exports = async function (fastify, opts) {
   const aiClient = new AIServiceClient();
@@ -31,12 +108,11 @@ module.exports = async function (fastify, opts) {
       tags: ['AI', 'Questions', 'Practice'],
       body: {
         type: 'object',
-        required: ['subject'],
         properties: {
           subject: {
             type: 'string',
-            description: 'Subject name',
-            examples: ['Mathematics', 'Physics', 'Chemistry']
+            default: 'General',
+            description: 'Subject name — auto-detected from focus_notes if empty'
           },
           topic: {
             type: 'string',
@@ -99,6 +175,18 @@ module.exports = async function (fastify, opts) {
                 engagement: { type: 'string' }
               }
             }
+          },
+          // Raw conversation messages from chat — triggers AI subject detection + Mode 3 generation
+          raw_messages: {
+            type: 'array',
+            description: 'Raw {role, content} messages from the chat session. When provided, subject is auto-detected and questions are generated from the conversation context.',
+            items: {
+              type: 'object',
+              properties: {
+                role:    { type: 'string' },
+                content: { type: 'string' }
+              }
+            }
           }
         }
       },
@@ -118,6 +206,7 @@ module.exports = async function (fastify, opts) {
       // Step 1: Block Mode 3 for non-premium BEFORE any counter is incremented
       async (request, reply) => {
         const { mode } = request.body || {};
+        // raw_messages now uses Mode 1 internally — no premium check needed for that path
         if (mode === 3) {
           const userId = await getUserId(request);
           if (!userId) return;
@@ -144,7 +233,50 @@ module.exports = async function (fastify, opts) {
       });
     }
 
-    const { subject, topic, difficulty, count = 5, language = 'en', question_type = 'any', use_personalization = false, custom_message, mode = 1, mistakes_data = [], conversation_data = [], question_data = [] } = request.body;
+    const { subject: subjectRaw = 'General', topic, difficulty, count = 5, language = 'en', question_type = 'any', use_personalization = false, custom_message, focus_notes, mode: modeRaw = 1, mistakes_data = [], conversation_data = [], question_data = [], raw_messages = [] } = request.body;
+
+    let subject = subjectRaw;
+    let effectiveFocusNotes = focus_notes;
+    let effectiveTopic = topic;
+    let effectiveGrade = null;
+    let mode = modeRaw;
+    let isAutoSubject = !subjectRaw || subjectRaw.toLowerCase() === 'general';
+
+    if (raw_messages.length > 0) {
+      // Chat → Practice flow:
+      // Step 1: Detect subject from conversation via GPT (lightweight, no storage)
+      // Step 2: Generate mode 1 questions with conversation as focus_notes
+      const allText = raw_messages
+        .filter(m => m.role && m.content)
+        .slice(-10)
+        .map(m => `${m.role === 'user' ? 'Student' : 'AI'}: ${String(m.content).substring(0, 300)}`)
+        .join('\n\n')
+        .substring(0, 1200);
+
+      effectiveFocusNotes = allText;
+      mode = 1;
+      isAutoSubject = true;
+
+      // Detect subject via GPT (Step 1 — subject only, no storage)
+      const gptDetected  = await detectSubjectWithAI(raw_messages, fastify);
+      const regexDetected = detectSubjectFromFocusNotes(allText);
+      subject = normalizeSubject(gptDetected || regexDetected || 'General');
+
+      // Build topic from last AI message — this IS used directly in the AI engine prompt
+      const lastAIMsg = raw_messages.filter(m => m.role === 'assistant').slice(-1)[0]?.content || '';
+      const lastUserMsg = raw_messages.filter(m => m.role === 'user').slice(-1)[0]?.content || '';
+      effectiveTopic = String(lastUserMsg || lastAIMsg).substring(0, 150).trim();
+
+      // Fetch real grade from user profile (Step 2 — use existing practice generation path)
+      const rawProfile = await db.getEnhancedUserProfile(userId).catch(() => null);
+      effectiveGrade = formatGradeLevel(rawProfile?.grade_level) || null;
+
+      fastify.log.info({ msg: '[Chat→Practice] subject detected, grade resolved', subject, grade: effectiveGrade, msgs: raw_messages.length });
+    } else if (isAutoSubject) {
+      subject = normalizeSubject(detectSubjectFromFocusNotes(focus_notes || topic || '')) || 'General';
+    } else {
+      subject = normalizeSubject(subjectRaw);
+    }
 
     // Validate mode-specific requirements
     if (mode === 2 && (!mistakes_data || mistakes_data.length === 0)) {
@@ -188,8 +320,8 @@ module.exports = async function (fastify, opts) {
         // MODE 3: Archive-based questions (conversations + archived questions) via AI Engine
         result = await generateConversationQuestionsWithAIEngine(userId, subject, conversation_data, question_data, difficulty, count, language, question_type, aiClient);
       } else {
-        // MODE 1: Random questions via AI Engine
-        result = await generateQuestionsWithAIEngine(userId, subject, topic, difficulty, count, language, question_type, aiClient);
+        // MODE 1: Random questions with optional topic + grade context
+        result = await generateQuestionsWithAIEngine(userId, subject, effectiveTopic, difficulty, count, language, question_type, aiClient, effectiveFocusNotes, effectiveGrade);
       }
 
       const totalLatency = Date.now() - startTime;
@@ -224,11 +356,13 @@ module.exports = async function (fastify, opts) {
       return {
         success: true,
         questions: result.questions,
+        detectedSubject: subject,  // always returned so iOS can label the session
         metadata: {
           ...result.metadata,
           using_assistants_api: false,
           primary_engine: 'ai_engine',
-          total_latency_ms: totalLatency
+          total_latency_ms: totalLatency,
+          auto_detected_subject: isAutoSubject,
         },
         _performance: {
           latency_ms: totalLatency,
@@ -355,12 +489,17 @@ async function callUnifiedEndpoint(subject, questionType, count, contextType, co
 /**
  * Generate random questions using AI Engine (MODE 1)
  */
-async function generateQuestionsWithAIEngine(userId, subject, topic, difficulty, count, language, questionType, aiClient) {
+async function generateQuestionsWithAIEngine(userId, subject, topic, difficulty, count, language, questionType, aiClient, focusNotes, grade) {
   try {
     console.log('🔄 Calling AI Engine /api/v1/generate-questions (random)...');
+    const contextData = {
+      topics: topic ? [topic] : [],
+      grade: grade || 'General',  // use real grade from profile, not hardcoded 'High School'
+    };
+    if (focusNotes) contextData.focus_notes = focusNotes;
     const aiEngineData = await callUnifiedEndpoint(
       subject, questionType, count, 'random',
-      { topics: topic ? [topic] : [], grade: 'High School' },
+      contextData,
       language, aiClient
     );
     console.log(`✅ AI Engine returned ${aiEngineData.questions.length} questions`);

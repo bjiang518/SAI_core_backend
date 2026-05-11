@@ -177,6 +177,10 @@ export const analyticsAPI = {
     const response = await apiClient.get('/api/admin/analytics/homework-pipeline')
     return response.data
   },
+  getEvents: async () => {
+    const response = await apiClient.get('/api/admin/analytics/events')
+    return response.data
+  },
 }
 
 // Insights API

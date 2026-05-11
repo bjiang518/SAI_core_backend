@@ -1,0 +1,104 @@
+{
+  "subject": "Mathematics",
+  "branches": [
+    {
+      "id": "number_operations",
+      "name": "Number & Operations",
+      "topics": [
+        { "id": "counting",         "name": "Counting & Number Sense",            "gradeMin": 0, "gradeMax": 2 },
+        { "id": "addition_sub",     "name": "Addition & Subtraction",             "gradeMin": 1, "gradeMax": 4 },
+        { "id": "mult_div",         "name": "Multiplication & Division",          "gradeMin": 2, "gradeMax": 5 },
+        { "id": "fractions",        "name": "Fractions",                          "gradeMin": 3, "gradeMax": 7 },
+        { "id": "decimals_pct",     "name": "Decimals & Percentages",             "gradeMin": 4, "gradeMax": 8 },
+        { "id": "integers",         "name": "Integers & Absolute Value",          "gradeMin": 5, "gradeMax": 8 },
+        { "id": "ratios",           "name": "Ratios & Proportions",               "gradeMin": 5, "gradeMax": 8 },
+        { "id": "exponents",        "name": "Exponents & Roots",                  "gradeMin": 6, "gradeMax": 9 },
+        { "id": "number_theory",    "name": "Number Theory",                      "gradeMin": 6, "gradeMax": 9 }
+      ]
+    },
+    {
+      "id": "algebra_foundations",
+      "name": "Algebra - Foundations",
+      "topics": [
+        { "id": "variables",        "name": "Variables & Expressions",            "gradeMin": 5, "gradeMax": 8 },
+        { "id": "linear_eq_1var",   "name": "Linear Equations - One Variable",   "gradeMin": 6, "gradeMax": 9 },
+        { "id": "linear_ineq",      "name": "Linear Inequalities",               "gradeMin": 7, "gradeMax": 10 },
+        { "id": "systems_eq",       "name": "Systems of Equations",              "gradeMin": 7, "gradeMax": 10 },
+        { "id": "algebraic_word",   "name": "Algebraic Word Problems",           "gradeMin": 6, "gradeMax": 10 },
+        { "id": "intro_functions",  "name": "Functions - Introduction",          "gradeMin": 7, "gradeMax": 10 }
+      ]
+    },
+    {
+      "id": "algebra_advanced",
+      "name": "Algebra - Advanced",
+      "topics": [
+        { "id": "polynomials",      "name": "Polynomials",                        "gradeMin": 8, "gradeMax": 11 },
+        { "id": "quadratic",        "name": "Quadratic Equations",               "gradeMin": 8, "gradeMax": 11 },
+        { "id": "func_transform",   "name": "Functions & Transformations",       "gradeMin": 8, "gradeMax": 12 },
+        { "id": "exponential",      "name": "Exponential Functions",             "gradeMin": 9, "gradeMax": 12 },
+        { "id": "logarithms",       "name": "Logarithms",                        "gradeMin": 9, "gradeMax": 12 },
+        { "id": "rational_func",    "name": "Rational Functions",                "gradeMin": 10,"gradeMax": 12 },
+        { "id": "sequences",        "name": "Sequences & Series",                "gradeMin": 10,"gradeMax": 12 }
+      ]
+    },
+    {
+      "id": "geometry",
+      "name": "Geometry",
+      "topics": [
+        { "id": "shapes",           "name": "Shapes & Properties",               "gradeMin": 3, "gradeMax": 7 },
+        { "id": "area_perimeter",   "name": "Area & Perimeter",                  "gradeMin": 3, "gradeMax": 7 },
+        { "id": "angles",           "name": "Angles & Parallel Lines",           "gradeMin": 4, "gradeMax": 9 },
+        { "id": "triangles",        "name": "Triangles & Congruence",            "gradeMin": 7, "gradeMax": 10 },
+        { "id": "similarity",       "name": "Similarity & Transformations",      "gradeMin": 7, "gradeMax": 10 },
+        { "id": "coord_geo",        "name": "Coordinate Geometry",               "gradeMin": 6, "gradeMax": 10 },
+        { "id": "circles",          "name": "Circles",                           "gradeMin": 7, "gradeMax": 10 },
+        { "id": "volume",           "name": "Volume & Surface Area",             "gradeMin": 5, "gradeMax": 9 },
+        { "id": "proofs",           "name": "Geometric Proofs",                  "gradeMin": 8, "gradeMax": 12 }
+      ]
+    },
+    {
+      "id": "data_probability",
+      "name": "Data Analysis & Probability",
+      "topics": [
+        { "id": "graphs",           "name": "Data Collection & Graphs",          "gradeMin": 3, "gradeMax": 7 },
+        { "id": "mean_median",      "name": "Mean, Median & Mode",               "gradeMin": 4, "gradeMax": 7 },
+        { "id": "prob_basic",       "name": "Probability - Basic",               "gradeMin": 5, "gradeMax": 8 },
+        { "id": "stat_analysis",    "name": "Statistical Analysis",              "gradeMin": 7, "gradeMax": 10 },
+        { "id": "data_interp",      "name": "Data Interpretation",               "gradeMin": 6, "gradeMax": 10 },
+        { "id": "combinatorics",    "name": "Probability & Combinatorics",       "gradeMin": 9, "gradeMax": 12 }
+      ]
+    },
+    {
+      "id": "trig_precalc",
+      "name": "Trigonometry & Pre-Calculus",
+      "topics": [
+        { "id": "trig_functions",   "name": "Trigonometric Functions",           "gradeMin": 9, "gradeMax": 12 },
+        { "id": "trig_identities",  "name": "Trigonometric Identities",          "gradeMin": 10,"gradeMax": 12 },
+        { "id": "vectors",          "name": "Vectors",                           "gradeMin": 10,"gradeMax": 12 },
+        { "id": "matrices",         "name": "Matrices",                          "gradeMin": 10,"gradeMax": 12 },
+        { "id": "complex_numbers",  "name": "Complex Numbers",                   "gradeMin": 10,"gradeMax": 12 }
+      ]
+    },
+    {
+      "id": "calculus",
+      "name": "Calculus",
+      "topics": [
+        { "id": "limits",           "name": "Limits",                            "gradeMin": 11,"gradeMax": 13 },
+        { "id": "derivatives",      "name": "Derivatives",                       "gradeMin": 11,"gradeMax": 13 },
+        { "id": "integration",      "name": "Integration",                       "gradeMin": 12,"gradeMax": 13 },
+        { "id": "calc_apps",        "name": "Applications of Calculus",          "gradeMin": 12,"gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "math_modeling",
+      "name": "Mathematical Modeling & Applications",
+      "topics": [
+        { "id": "real_world",       "name": "Real-World Problem Solving",        "gradeMin": 4, "gradeMax": 13 },
+        { "id": "math_reasoning",   "name": "Mathematical Reasoning",            "gradeMin": 5, "gradeMax": 13 },
+        { "id": "estimation",       "name": "Estimation & Approximation",        "gradeMin": 3, "gradeMax": 8 },
+        { "id": "patterns",         "name": "Pattern Recognition",               "gradeMin": 3, "gradeMax": 9 },
+        { "id": "word_problems",    "name": "Word Problems",                     "gradeMin": 3, "gradeMax": 10 }
+      ]
+    }
+  ]
+}

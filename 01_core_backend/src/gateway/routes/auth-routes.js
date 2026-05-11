@@ -1645,11 +1645,19 @@ class AuthRoutes {
         `UPDATE users
          SET email = $1, password_hash = $2, name = $3,
              is_anonymous = false, auth_provider = 'email',
-             email_verified = false, is_active = true
+             email_verified = false, is_active = true,
+             converted_from_guest_at = NOW()
          WHERE id = $4`,
         [email.toLowerCase(), passwordHash, name, userId],
         { cache: false }
       );
+
+      // Record conversion event for dashboard analytics
+      db.query(
+        `INSERT INTO app_events (user_id, event_name, properties)
+         VALUES ($1, 'guest_converted', $2)`,
+        [userId, JSON.stringify({ method: 'email' })]
+      ).catch(() => {});
 
       // 4. Invalidate all old sessions and create a fresh one
       await db.query('DELETE FROM user_sessions WHERE user_id = $1', [userId], { cache: false });

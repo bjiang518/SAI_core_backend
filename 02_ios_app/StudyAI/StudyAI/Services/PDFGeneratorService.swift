@@ -47,6 +47,8 @@ struct PDFExportOptions {
 @MainActor
 class PDFGeneratorService: ObservableObject {
 
+    static let shared = PDFGeneratorService()
+
     @Published var isGenerating = false
     @Published var generationProgress: Double = 0.0
 

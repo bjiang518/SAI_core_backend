@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { AlertCircle, RefreshCw, TrendingUp, Users, BookOpen, BarChart2 } from 'lucide-react'
+import { AlertCircle, RefreshCw, TrendingUp, Users, BookOpen, BarChart2, Activity } from 'lucide-react'
 import { analyticsAPI } from '@/lib/api'
 import { formatDate } from '@/lib/utils'
 
@@ -28,6 +28,13 @@ interface SubjectRow {
   avg_accuracy: number
 }
 
+interface EventRow { event_name: string; total: number; unique_users: number }
+
+interface EventsData {
+  totals: EventRow[]
+  funnel: Record<string, number>
+}
+
 interface AnalyticsData {
   userGrowth: Array<{ date: string; new_users: number }>
   dauChart: Array<{ date: string; active_users: number }>
@@ -39,6 +46,7 @@ interface AnalyticsData {
 
 export default function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null)
+  const [events, setEvents] = useState<EventsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [correlation, setCorrelation] = useState<Array<{ feature: string; users: number; d7_pct: number; paid_pct: number }>>([])
@@ -46,13 +54,15 @@ export default function AnalyticsPage() {
   const fetchData = async () => {
     setLoading(true)
     try {
-      const [overviewRes, corrRes] = await Promise.all([
+      const [overviewRes, corrRes, eventsRes] = await Promise.all([
         analyticsAPI.getOverview(),
         analyticsAPI.getFeatureCorrelation().catch(() => ({ success: false, data: [] })),
+        analyticsAPI.getEvents().catch(() => ({ success: false, data: { totals: [], funnel: {} } })),
       ])
       if (overviewRes.success) { setData(overviewRes.data); setError(null) }
       else setError(overviewRes.error || 'Failed to load analytics')
       if (corrRes.success) setCorrelation(corrRes.data)
+      if (eventsRes.success) setEvents(eventsRes.data)
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string }; status?: number }; message?: string }
       setError(e?.response?.data?.error || (e?.response?.status ? `HTTP ${e.response.status}` : null) || (err instanceof Error ? err.message : String(err)))
@@ -135,6 +145,57 @@ export default function AnalyticsPage() {
                     <div className="text-xs text-muted-foreground">Total questions attempted</div>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* In-app event signals */}
+          {events && events.totals.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Activity className="h-4 w-4" /> In-App Event Signals (last 30d)</CardTitle>
+                <CardDescription>Behavioural events sent from iOS — tracks real user actions in the app</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto mb-4">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-left text-xs font-medium text-muted-foreground">
+                        <th className="pb-2 pr-4">Event</th>
+                        <th className="pb-2 pr-4 text-right">Occurrences</th>
+                        <th className="pb-2 text-right">Unique Users</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {events.totals.map((row) => (
+                        <tr key={row.event_name} className="border-b last:border-0 hover:bg-gray-50">
+                          <td className="py-2 pr-4 font-mono text-xs">{row.event_name}</td>
+                          <td className="py-2 pr-4 text-right font-medium">{row.total.toLocaleString()}</td>
+                          <td className="py-2 text-right text-muted-foreground">{row.unique_users.toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {/* Practice funnel from events */}
+                {Object.keys(events.funnel).length > 0 && (
+                  <div className="pt-3 border-t">
+                    <p className="text-xs font-medium text-muted-foreground mb-2">PRACTICE FUNNEL (from events)</p>
+                    <div className="flex gap-2 flex-wrap">
+                      {[
+                        { key: 'practice_generated', label: 'Generated' },
+                        { key: 'question_answered', label: 'Questions Answered' },
+                        { key: 'practice_completed', label: 'Completed' },
+                        { key: 'practice_abandoned', label: 'Abandoned' },
+                      ].map(({ key, label }) => (
+                        <div key={key} className="bg-muted/40 rounded-lg p-3 flex-1 min-w-24 text-center">
+                          <div className="text-lg font-bold">{(events.funnel[key] || 0).toLocaleString()}</div>
+                          <div className="text-xs text-muted-foreground">{label}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}

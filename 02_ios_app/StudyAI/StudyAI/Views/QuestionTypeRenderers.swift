@@ -8,6 +8,42 @@
 
 import SwiftUI
 
+// MARK: - Follow Up Button (shared across all renderers)
+
+struct FollowUpButton: View {
+    let action: () -> Void
+    var isIncorrect: Bool = false
+    @State private var glow = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                Image(systemName: "message.fill")
+                Text(NSLocalizedString("proMode.followUp", comment: ""))
+            }
+            .font(.system(size: 14, weight: .medium))
+            .foregroundColor(isIncorrect ? .white : .blue)
+            .padding(.horizontal, isIncorrect ? 12 : 0)
+            .padding(.vertical, isIncorrect ? 7 : 0)
+            .background(isIncorrect ? Color(red: 1.0, green: 0.55, blue: 0.0) : Color.clear)
+            .cornerRadius(isIncorrect ? 8 : 0)
+            .shadow(
+                color: isIncorrect ? Color(red: 1.0, green: 0.55, blue: 0.0).opacity(glow ? 0.65 : 0.2) : .clear,
+                radius: glow ? 10 : 3,
+                x: 0, y: 0
+            )
+        }
+        .padding(.top, 4)
+        .onAppear {
+            if isIncorrect {
+                withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
+                    glow = true
+                }
+            }
+        }
+    }
+}
+
 // MARK: - Common Components
 
 /// Raw question text display (complete verbatim question from image)
@@ -145,6 +181,7 @@ struct MultipleChoiceRenderer: View {
     let question: ParsedQuestion
     let isExpanded: Bool
     let onTapAskAI: () -> Void
+    var isIncorrect: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -182,15 +219,7 @@ struct MultipleChoiceRenderer: View {
                 }
 
                 // Follow Up Button
-                Button(action: onTapAskAI) {
-                    HStack {
-                        Image(systemName: "message.fill")
-                        Text(NSLocalizedString("proMode.followUp", comment: ""))
-                    }
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.blue)
-                }
-                .padding(.top, 4)
+                FollowUpButton(action: onTapAskAI, isIncorrect: isIncorrect)
             }
         }
     }
@@ -256,6 +285,7 @@ struct TrueFalseRenderer: View {
     let question: ParsedQuestion
     let isExpanded: Bool
     let onTapAskAI: () -> Void
+    var isIncorrect: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -296,15 +326,7 @@ struct TrueFalseRenderer: View {
                 }
 
                 // Follow Up Button
-                Button(action: onTapAskAI) {
-                    HStack {
-                        Image(systemName: "message.fill")
-                        Text(NSLocalizedString("proMode.followUp", comment: ""))
-                    }
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.blue)
-                }
-                .padding(.top, 4)
+                FollowUpButton(action: onTapAskAI, isIncorrect: isIncorrect)
             }
         }
     }
@@ -367,6 +389,7 @@ struct FillInBlankRenderer: View {
     let question: ParsedQuestion
     let isExpanded: Bool
     let onTapAskAI: () -> Void
+    var isIncorrect: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -408,15 +431,7 @@ struct FillInBlankRenderer: View {
                 }
 
                 // Follow Up Button
-                Button(action: onTapAskAI) {
-                    HStack {
-                        Image(systemName: "message.fill")
-                        Text(NSLocalizedString("proMode.followUp", comment: ""))
-                    }
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.blue)
-                }
-                .padding(.top, 4)
+                FollowUpButton(action: onTapAskAI, isIncorrect: isIncorrect)
             }
         }
     }
@@ -458,6 +473,7 @@ struct CalculationRenderer: View {
     let question: ParsedQuestion
     let isExpanded: Bool
     let onTapAskAI: () -> Void
+    var isIncorrect: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -533,15 +549,7 @@ struct CalculationRenderer: View {
                 }
 
                 // Follow Up Button
-                Button(action: onTapAskAI) {
-                    HStack {
-                        Image(systemName: "message.fill")
-                        Text(NSLocalizedString("proMode.followUp", comment: ""))
-                    }
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.blue)
-                }
-                .padding(.top, 4)
+                FollowUpButton(action: onTapAskAI, isIncorrect: isIncorrect)
             }
         }
     }
@@ -553,6 +561,7 @@ struct ShortAnswerRenderer: View {
     let question: ParsedQuestion
     let isExpanded: Bool
     let onTapAskAI: () -> Void
+    var isIncorrect: Bool = false
 
     var body: some View {
         // Debug logging for ShortAnswerRenderer
@@ -594,15 +603,7 @@ struct ShortAnswerRenderer: View {
                 }
 
                 // Follow Up Button
-                Button(action: onTapAskAI) {
-                    HStack {
-                        Image(systemName: "message.fill")
-                        Text(NSLocalizedString("proMode.followUp", comment: ""))
-                    }
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.blue)
-                }
-                .padding(.top, 4)
+                FollowUpButton(action: onTapAskAI, isIncorrect: isIncorrect)
             }
         }
     }
@@ -614,6 +615,7 @@ struct LongAnswerRenderer: View {
     let question: ParsedQuestion
     let isExpanded: Bool
     let onTapAskAI: () -> Void
+    var isIncorrect: Bool = false
 
     @State private var showFullAnswer = false
 
@@ -699,15 +701,7 @@ struct LongAnswerRenderer: View {
                 }
 
                 // Follow Up Button
-                Button(action: onTapAskAI) {
-                    HStack {
-                        Image(systemName: "message.fill")
-                        Text(NSLocalizedString("proMode.followUp", comment: ""))
-                    }
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.blue)
-                }
-                .padding(.top, 4)
+                FollowUpButton(action: onTapAskAI, isIncorrect: isIncorrect)
             }
         }
     }
@@ -723,6 +717,7 @@ struct MatchingRenderer: View {
     let question: ParsedQuestion
     let isExpanded: Bool
     let onTapAskAI: () -> Void
+    var isIncorrect: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -759,15 +754,7 @@ struct MatchingRenderer: View {
                 }
 
                 // Follow Up Button
-                Button(action: onTapAskAI) {
-                    HStack {
-                        Image(systemName: "message.fill")
-                        Text(NSLocalizedString("proMode.followUp", comment: ""))
-                    }
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.blue)
-                }
-                .padding(.top, 4)
+                FollowUpButton(action: onTapAskAI, isIncorrect: isIncorrect)
             }
         }
     }
@@ -813,6 +800,7 @@ struct QuestionTypeRendererSelector: View {
     let question: ParsedQuestion
     let isExpanded: Bool
     let onTapAskAI: () -> Void
+    var isIncorrect: Bool = false
 
     var body: some View {
         // Debug logging
@@ -832,19 +820,19 @@ struct QuestionTypeRendererSelector: View {
         return Group {
             switch question.detectedQuestionType {
             case .multipleChoice:
-                MultipleChoiceRenderer(question: question, isExpanded: isExpanded, onTapAskAI: onTapAskAI)
+                MultipleChoiceRenderer(question: question, isExpanded: isExpanded, onTapAskAI: onTapAskAI, isIncorrect: isIncorrect)
             case .trueFalse:
-                TrueFalseRenderer(question: question, isExpanded: isExpanded, onTapAskAI: onTapAskAI)
+                TrueFalseRenderer(question: question, isExpanded: isExpanded, onTapAskAI: onTapAskAI, isIncorrect: isIncorrect)
             case .fillInBlank:
-                FillInBlankRenderer(question: question, isExpanded: isExpanded, onTapAskAI: onTapAskAI)
+                FillInBlankRenderer(question: question, isExpanded: isExpanded, onTapAskAI: onTapAskAI, isIncorrect: isIncorrect)
             case .calculation:
-                CalculationRenderer(question: question, isExpanded: isExpanded, onTapAskAI: onTapAskAI)
+                CalculationRenderer(question: question, isExpanded: isExpanded, onTapAskAI: onTapAskAI, isIncorrect: isIncorrect)
             case .longAnswer:
-                LongAnswerRenderer(question: question, isExpanded: isExpanded, onTapAskAI: onTapAskAI)
+                LongAnswerRenderer(question: question, isExpanded: isExpanded, onTapAskAI: onTapAskAI, isIncorrect: isIncorrect)
             case .matching:
-                MatchingRenderer(question: question, isExpanded: isExpanded, onTapAskAI: onTapAskAI)
+                MatchingRenderer(question: question, isExpanded: isExpanded, onTapAskAI: onTapAskAI, isIncorrect: isIncorrect)
             case .shortAnswer, .unknown:
-                ShortAnswerRenderer(question: question, isExpanded: isExpanded, onTapAskAI: onTapAskAI)
+                ShortAnswerRenderer(question: question, isExpanded: isExpanded, onTapAskAI: onTapAskAI, isIncorrect: isIncorrect)
             }
         }
     }

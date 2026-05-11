@@ -367,16 +367,32 @@ async function processDataset(client, rawRows, label, limitRows, normalizer) {
   }
   console.log();
 
-  // Download images
+  // Download / extract images
   console.log(`  Downloading images…`);
   let imgCount = 0;
   for (const row of normalized) {
     if (!row.image_url) continue;
     try {
-      const res = await fetchBinary(row.image_url);
-      if (res.status === 200 && res.body.length > 0) {
-        row.figure_base64 = res.body.toString('base64');
-        imgCount++;
+      const src = row.image_url;
+
+      // data: URL — extract base64 directly (no HTTP request needed)
+      if (src.startsWith('data:')) {
+        const comma = src.indexOf(',');
+        if (comma !== -1) {
+          const b64 = src.slice(comma + 1).trim();
+          if (b64.length > 10) { row.figure_base64 = b64; imgCount++; }
+        }
+        continue;
+      }
+
+      // https:// / http:// — download normally
+      const fullUrl = src.startsWith('//') ? 'https:' + src : src;
+      if (fullUrl.startsWith('http')) {
+        const res = await fetchBinary(fullUrl);
+        if (res.status === 200 && res.body.length > 0) {
+          row.figure_base64 = res.body.toString('base64');
+          imgCount++;
+        }
       }
     } catch { /* non-critical */ }
   }

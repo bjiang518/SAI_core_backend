@@ -1,0 +1,23 @@
+{
+  "subject": "General",
+  "branches": [
+    {
+      "id": "critical_thinking",
+      "name": "Critical Thinking",
+      "topics": [
+        { "id": "logic",              "name": "Logic & Reasoning",                   "gradeMin": 3, "gradeMax": 13 },
+        { "id": "problem_solving",    "name": "Problem Solving Strategies",          "gradeMin": 2, "gradeMax": 13 },
+        { "id": "analysis",           "name": "Analysis & Evaluation",              "gradeMin": 5, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "study_skills",
+      "name": "Study Skills & Learning",
+      "topics": [
+        { "id": "note_taking",        "name": "Note-Taking & Organization",          "gradeMin": 3, "gradeMax": 13 },
+        { "id": "time_management",    "name": "Time Management",                     "gradeMin": 4, "gradeMax": 13 },
+        { "id": "memory_techniques",  "name": "Memory Techniques",                   "gradeMin": 4, "gradeMax": 13 }
+      ]
+    }
+  ]
+}

@@ -101,7 +101,13 @@ struct UserProfile: Codable {
         firstName = try container.decodeIfPresent(String.self, forKey: .firstName)
         lastName = try container.decodeIfPresent(String.self, forKey: .lastName)
         displayName = try container.decodeIfPresent(String.self, forKey: .displayName)
-        gradeLevel = try container.decodeIfPresent(String.self, forKey: .gradeLevel)
+        // grade_level is stored as INTEGER (1–12) on the server.
+        // Try Int first, convert to display string; fall back to String for legacy values.
+        if let gradeInt = try? container.decodeIfPresent(Int.self, forKey: .gradeLevel) {
+            gradeLevel = GradeLevel.allCases.first { $0.numericValue == gradeInt }?.rawValue
+        } else {
+            gradeLevel = try container.decodeIfPresent(String.self, forKey: .gradeLevel)
+        }
         
         // Handle date decoding
         if let dateString = try container.decodeIfPresent(String.self, forKey: .dateOfBirth) {
@@ -260,6 +266,29 @@ enum GradeLevel: String, CaseIterable {
     case grade12 = "12th Grade"
     case college = "College"
     case adult = "Adult Learner"
+
+    // Numeric mapping matching the server's INTEGER grade_level (1–12).
+    // Pre-K/Kindergarten = 0, College/Adult = 13.
+    var numericValue: Int {
+        switch self {
+        case .preK:        return 0
+        case .kindergarten:return 0
+        case .grade1:      return 1
+        case .grade2:      return 2
+        case .grade3:      return 3
+        case .grade4:      return 4
+        case .grade5:      return 5
+        case .grade6:      return 6
+        case .grade7:      return 7
+        case .grade8:      return 8
+        case .grade9:      return 9
+        case .grade10:     return 10
+        case .grade11:     return 11
+        case .grade12:     return 12
+        case .college:     return 13
+        case .adult:       return 13
+        }
+    }
 
     var displayName: String {
         switch self {
@@ -579,8 +608,8 @@ extension UserProfile {
         // Parse grade level - handle both integer and string formats
         var gradeLevel: String?
         if let gradeLevelInt = dict["gradeLevel"] as? Int ?? dict["grade_level"] as? Int {
-            // Backend sends integer, convert to string
-            gradeLevel = String(gradeLevelInt)
+            // Convert integer (1–12) to display string e.g. "1st Grade"
+            gradeLevel = GradeLevel.allCases.first { $0.numericValue == gradeLevelInt }?.rawValue ?? String(gradeLevelInt)
         } else if let gradeLevelStr = dict["gradeLevel"] as? String ?? dict["grade_level"] as? String {
             gradeLevel = gradeLevelStr
         }

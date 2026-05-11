@@ -1,0 +1,742 @@
+╔══════════════════════════════════════════════════════════════╗
+║         GRADE-LEVEL RETRIEVAL VALIDATION                     ║
+╚══════════════════════════════════════════════════════════════╝
+Subjects: Math, Biology, History, Physics, English | 5 questions per case
+
+
+── K–2 (diff 1–1, sources: [gsm8k,arc,openbookqa,scienceqa]) ──
+  Math             [Grade 1] … [QuestionBank] retrieveQuestions — topic="Math" grade="Grade 1" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: Grade 1. Subject topic: Math"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "Grade 1" → capping difficulty to 1–1, sources: [gsm8k,arc,openbookqa,scienceqa]
+[QuestionBank] Resolved subjects: [Math]
+[QuestionBank] queryBank — subject_in="Math" → normalized="Math" diff=1-1 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=gsm8k,arc,openbookqa,scienceqa
+[QuestionBank] Loading cache for subject "Math"…
+[QuestionBank] Cached "Math" — 14071 rows, 81 centroids (10966ms)
+[QuestionBank] ✅ Cache loaded — 14071 rows, 81 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 8792/14071 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — Integers & Rational Numbers(0.452), Algebra - Foundations(0.449), Statistics(0.436), Sequences & Series(0.410), Variables & Expressions(0.408), Linear Equations - One Variable(0.406)
+[QuestionBank] Stage 2 candidates: 1290
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.437)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:1–1  sources:[gsm8k]
+         [1] diff:1 src:gsm8k
+             Ms. Cole teaches math in three levels of classes in her school. There are four times as many student…
+         [2] diff:1 src:gsm8k
+             Audrey has to take two math tests to pass 6th grade. She must correctly answer 70% of the total ques…
+  Biology          [Grade 1] … [QuestionBank] retrieveQuestions — topic="Biology" grade="Grade 1" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: Grade 1. Subject topic: Biology"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "Grade 1" → capping difficulty to 1–1, sources: [gsm8k,arc,openbookqa,scienceqa]
+[QuestionBank] Resolved subjects: [Biology]
+[QuestionBank] queryBank — subject_in="Biology" → normalized="Biology" diff=1-1 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=gsm8k,arc,openbookqa,scienceqa
+[QuestionBank] Loading cache for subject "Biology"…
+[QuestionBank] Cached "Biology" — 11504 rows, 79 centroids (7214ms)
+[QuestionBank] ✅ Cache loaded — 11504 rows, 79 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 2769/11504 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — Scientific Method & Lab Skills(0.529), Cell Biology(0.524), Anatomy & Physiology(0.515), Plants & Microorganisms(0.500), Ecology(0.483), Lab Safety & Techniques(0.483)
+[QuestionBank] Stage 2 candidates: 1903
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.485)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:1–1  sources:[arc,scienceqa]
+         [1] diff:1 src:arc
+             What is the first thing a student should do before starting an experiment?…
+         [2] diff:1 src:scienceqa
+             Select the animal.…
+  History          [Grade 1] … [QuestionBank] retrieveQuestions — topic="History" grade="Grade 1" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: Grade 1. Subject topic: History"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "Grade 1" → capping difficulty to 1–1, sources: [gsm8k,arc,openbookqa,scienceqa]
+[QuestionBank] Resolved subjects: [History]
+[QuestionBank] queryBank — subject_in="History" → normalized="History" diff=1-1 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=any
+[QuestionBank] Loading cache for subject "History"…
+[QuestionBank] Cached "History" — 9599 rows, 34 centroids (5881ms)
+[QuestionBank] ✅ Cache loaded — 9599 rows, 34 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 231/9599 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — World History - Ancient Civilizations(0.439), Geography(0.418), US History - Colonization to Early Republic(0.388), World History - Modern Era(0.384), Economics(0.370), World History - Medieval & Renaissance(0.368)
+[QuestionBank] Stage 2 candidates: 200
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.410)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:1–1  sources:[scienceqa]
+         [1] diff:1 src:scienceqa
+             Is teaching school a good or a service?…
+         [2] diff:1 src:scienceqa
+             Is teaching dance a good or a service?…
+  Physics          [Grade 1] … [QuestionBank] retrieveQuestions — topic="Physics" grade="Grade 1" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: Grade 1. Subject topic: Physics"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "Grade 1" → capping difficulty to 1–1, sources: [gsm8k,arc,openbookqa,scienceqa]
+[QuestionBank] Resolved subjects: [Physics]
+[QuestionBank] queryBank — subject_in="Physics" → normalized="Physics" diff=1-1 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=gsm8k,arc,openbookqa,scienceqa
+[QuestionBank] Loading cache for subject "Physics"…
+[QuestionBank] Cached "Physics" — 5181 rows, 44 centroids (3541ms)
+[QuestionBank] ✅ Cache loaded — 5181 rows, 44 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 1954/5181 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — Mechanics - Dynamics(0.541), Mechanics - Energy & Work(0.530), Mechanics - Kinematics(0.520), Scientific Method & Lab Skills(0.512), Matter & Measurement(0.510), Modern Physics(0.509)
+[QuestionBank] Stage 2 candidates: 865
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.499)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:1–1  sources:[scienceqa,arc]
+         [1] diff:1 src:scienceqa
+             Select the solid.…
+         [2] diff:1 src:arc
+             Isaac Newton is best known for his study of…
+  English          [Grade 1] … [QuestionBank] retrieveQuestions — topic="English" grade="Grade 1" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: Grade 1. Subject topic: English"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "Grade 1" → capping difficulty to 1–1, sources: [gsm8k,arc,openbookqa,scienceqa]
+[QuestionBank] Resolved subjects: [English]
+[QuestionBank] queryBank — subject_in="English" → normalized="English" diff=1-1 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=any
+[QuestionBank] Loading cache for subject "English"…
+[QuestionBank] Cached "English" — 7347 rows, 38 centroids (4728ms)
+[QuestionBank] ✅ Cache loaded — 7347 rows, 38 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 993/7347 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — Reading Foundations(0.520), Reading Comprehension(0.473), Vocabulary Development(0.464), Grammar & Mechanics(0.460), Writing Process & Craft(0.448), Phonics & Word Recognition(0.444)
+[QuestionBank] Stage 2 candidates: 920
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.474)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:1–1  sources:[scienceqa]
+         [1] diff:1 src:scienceqa
+             Answer the riddle. I work in a school. I help you read and write. I give you homework. What am I?…
+         [2] diff:1 src:scienceqa
+             Select the activity that doesn't belong.…
+
+── 3–5 (diff 1–2, sources: [gsm8k,arc,openbookqa,amc8,scienceqa]) ──
+  Math             [Grade 4] … [QuestionBank] retrieveQuestions — topic="Math" grade="Grade 4" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: Grade 4. Subject topic: Math"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "Grade 4" → capping difficulty to 1–2, sources: [gsm8k,arc,openbookqa,amc8,scienceqa]
+[QuestionBank] Resolved subjects: [Math]
+[QuestionBank] queryBank — subject_in="Math" → normalized="Math" diff=1-2 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=gsm8k,arc,openbookqa,amc8,scienceqa
+[QuestionBank] Cache hit for subject "Math"
+[QuestionBank] ✅ Cache loaded — 14071 rows, 81 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 9348/14071 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — Integers & Rational Numbers(0.492), Algebra - Foundations(0.483), Statistics(0.476), Variables & Expressions(0.469), Mathematical Modeling & Applications(0.443), Linear Equations - One Variable(0.437)
+[QuestionBank] Stage 2 candidates: 1469
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.478)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:1–2  sources:[gsm8k,amc8]
+         [1] diff:1 src:gsm8k
+             Ms. Cole teaches math in three levels of classes in her school. There are four times as many student…
+         [2] diff:2 src:amc8
+             Problem $\sqrt{164}$ is…
+  Biology          [Grade 4] … [QuestionBank] retrieveQuestions — topic="Biology" grade="Grade 4" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: Grade 4. Subject topic: Biology"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "Grade 4" → capping difficulty to 1–2, sources: [gsm8k,arc,openbookqa,amc8,scienceqa]
+[QuestionBank] Resolved subjects: [Biology]
+[QuestionBank] queryBank — subject_in="Biology" → normalized="Biology" diff=1-2 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=gsm8k,arc,openbookqa,amc8,scienceqa
+[QuestionBank] Cache hit for subject "Biology"
+[QuestionBank] ✅ Cache loaded — 11504 rows, 79 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 6809/11504 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — Scientific Method & Lab Skills(0.531), Anatomy & Physiology(0.518), Cell Biology(0.503), Plants & Microorganisms(0.491), Ecology(0.491), Data Analysis & Graphing(0.480)
+[QuestionBank] Stage 2 candidates: 4500
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.499)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:1–2  sources:[arc]
+         [1] diff:2 src:arc
+             Students are studying how the positions of Earth and the Sun effect changes on Earth. After four sea…
+         [2] diff:2 src:arc
+             Students go on a class field trip to collect insects. Which of these is an important safety rule for…
+  History          [Grade 4] … [QuestionBank] retrieveQuestions — topic="History" grade="Grade 4" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: Grade 4. Subject topic: History"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "Grade 4" → capping difficulty to 1–2, sources: [gsm8k,arc,openbookqa,amc8,scienceqa]
+[QuestionBank] Resolved subjects: [History]
+[QuestionBank] queryBank — subject_in="History" → normalized="History" diff=1-2 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=any
+[QuestionBank] Cache hit for subject "History"
+[QuestionBank] ✅ Cache loaded — 9599 rows, 34 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 969/9599 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — World History - Ancient Civilizations(0.438), Geography(0.435), World History - Modern Era(0.400), Economics(0.397), US History - Colonization to Early Republic(0.385), US History - Cold War to Present(0.383)
+[QuestionBank] Stage 2 candidates: 831
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.430)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:1–2  sources:[scienceqa]
+         [1] diff:2 src:scienceqa
+             Based on the timeline, which of the following statements is true?…
+         [2] diff:2 src:scienceqa
+             Which sentence states a fact?…
+  Physics          [Grade 4] … [QuestionBank] retrieveQuestions — topic="Physics" grade="Grade 4" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: Grade 4. Subject topic: Physics"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "Grade 4" → capping difficulty to 1–2, sources: [gsm8k,arc,openbookqa,amc8,scienceqa]
+[QuestionBank] Resolved subjects: [Physics]
+[QuestionBank] queryBank — subject_in="Physics" → normalized="Physics" diff=1-2 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=gsm8k,arc,openbookqa,amc8,scienceqa
+[QuestionBank] Cache hit for subject "Physics"
+[QuestionBank] ✅ Cache loaded — 5181 rows, 44 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 3473/5181 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — Mechanics - Dynamics(0.528), Matter & Measurement(0.519), Mechanics - Energy & Work(0.516), Scientific Method & Lab Skills(0.512), Modern Physics(0.506), Mechanics - Kinematics(0.496)
+[QuestionBank] Stage 2 candidates: 1198
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.529)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:1–2  sources:[scienceqa,arc]
+         [1] diff:2 src:scienceqa
+             Which property do these four objects have in common?…
+         [2] diff:2 src:arc
+             A student is investigating Newton's second law of motion by changing the force acting on an object a…
+  English          [Grade 4] … [QuestionBank] retrieveQuestions — topic="English" grade="Grade 4" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: Grade 4. Subject topic: English"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "Grade 4" → capping difficulty to 1–2, sources: [gsm8k,arc,openbookqa,amc8,scienceqa]
+[QuestionBank] Resolved subjects: [English]
+[QuestionBank] queryBank — subject_in="English" → normalized="English" diff=1-2 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=any
+[QuestionBank] Cache hit for subject "English"
+[QuestionBank] ✅ Cache loaded — 7347 rows, 38 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 2344/7347 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — Reading Foundations(0.513), Reading Comprehension(0.487), Vocabulary Development(0.456), Grammar & Mechanics(0.445), Phonics & Word Recognition(0.440), Writing Process & Craft(0.440)
+[QuestionBank] Stage 2 candidates: 1900
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.463)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:1–2  sources:[scienceqa]
+         [1] diff:1 src:scienceqa
+             Answer the riddle. I work in a school. I help you read and write. I give you homework. What am I?…
+         [2] diff:2 src:scienceqa
+             Which word would you find on a dictionary page with the following guide words? teacher - total…
+
+── 6–8 (diff 1–3, all sources) ──
+  Math             [Grade 7] … [QuestionBank] retrieveQuestions — topic="Math" grade="Grade 7" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: Grade 7. Subject topic: Math"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "Grade 7" → capping difficulty to 1–3
+[QuestionBank] Resolved subjects: [Math]
+[QuestionBank] queryBank — subject_in="Math" → normalized="Math" diff=1-3 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=any
+[QuestionBank] Cache hit for subject "Math"
+[QuestionBank] ✅ Cache loaded — 14071 rows, 81 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 12806/14071 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — Statistics(0.486), Algebra - Foundations(0.469), Integers & Rational Numbers(0.463), Variables & Expressions(0.442), Linear Equations - One Variable(0.433), Mathematical Modeling & Applications(0.429)
+[QuestionBank] Stage 2 candidates: 2485
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.504)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:2–3  sources:[amc8,mmlu]
+         [1] diff:2 src:amc8
+             If your average score on your first six mathematics tests was $84$ and your average score on your fi…
+         [2] diff:3 src:mmlu
+             The relation between studying time (in hours) and grade on a final exam (0-100) in a random sample o…
+  Biology          [Grade 7] … [QuestionBank] retrieveQuestions — topic="Biology" grade="Grade 7" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: Grade 7. Subject topic: Biology"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "Grade 7" → capping difficulty to 1–3
+[QuestionBank] Resolved subjects: [Biology]
+[QuestionBank] queryBank — subject_in="Biology" → normalized="Biology" diff=1-3 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=any
+[QuestionBank] Cache hit for subject "Biology"
+[QuestionBank] ✅ Cache loaded — 11504 rows, 79 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 10115/11504 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — Scientific Method & Lab Skills(0.538), Anatomy & Physiology(0.518), Cell Biology(0.510), Lab Safety & Techniques(0.492), Ecology(0.491), Data Analysis & Graphing(0.487)
+[QuestionBank] Stage 2 candidates: 6071
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.503)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:2–3  sources:[arc,mmlu,scienceqa]
+         [1] diff:2 src:arc
+             Students go on a class field trip to collect insects. Which of these is an important safety rule for…
+         [2] diff:3 src:mmlu
+             In adolescence: …
+  History          [Grade 7] … [QuestionBank] retrieveQuestions — topic="History" grade="Grade 7" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: Grade 7. Subject topic: History"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "Grade 7" → capping difficulty to 1–3
+[QuestionBank] Resolved subjects: [History]
+[QuestionBank] queryBank — subject_in="History" → normalized="History" diff=1-3 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=any
+[QuestionBank] Cache hit for subject "History"
+[QuestionBank] ✅ Cache loaded — 9599 rows, 34 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 4211/9599 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — Geography(0.430), World History - Ancient Civilizations(0.418), World History - Modern Era(0.396), Economics(0.396), US History - Vietnam War Era(0.389), Globalization & Contemporary Issues(0.383)
+[QuestionBank] Stage 2 candidates: 2820
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.475)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:3–3  sources:[mmlu,scienceqa]
+         [1] diff:3 src:mmlu
+             To get to school in the morning, we ALL use this as our guide:…
+         [2] diff:3 src:mmlu
+             Different less developed countries have different levels of secondary school enrollment. Some countr…
+  Physics          [Grade 7] … [QuestionBank] retrieveQuestions — topic="Physics" grade="Grade 7" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: Grade 7. Subject topic: Physics"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "Grade 7" → capping difficulty to 1–3
+[QuestionBank] Resolved subjects: [Physics]
+[QuestionBank] queryBank — subject_in="Physics" → normalized="Physics" diff=1-3 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=any
+[QuestionBank] Cache hit for subject "Physics"
+[QuestionBank] ✅ Cache loaded — 5181 rows, 44 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 4618/5181 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — Matter & Measurement(0.527), Scientific Method & Lab Skills(0.527), Mechanics - Energy & Work(0.524), Mechanics - Dynamics(0.519), Modern Physics(0.510), Waves & Optics(0.476)
+[QuestionBank] Stage 2 candidates: 1523
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.484)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:1–2  sources:[arc]
+         [1] diff:1 src:arc
+             7. What is the cause of most earthquakes?…
+         [2] diff:1 src:arc
+             The Sun is classified as…
+  English          [Grade 7] … [QuestionBank] retrieveQuestions — topic="English" grade="Grade 7" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: Grade 7. Subject topic: English"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "Grade 7" → capping difficulty to 1–3
+[QuestionBank] Resolved subjects: [English]
+[QuestionBank] queryBank — subject_in="English" → normalized="English" diff=1-3 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=any
+[QuestionBank] Cache hit for subject "English"
+[QuestionBank] ✅ Cache loaded — 7347 rows, 38 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 4014/7347 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — Reading Foundations(0.483), Reading Comprehension(0.456), Writing - Informative/Explanatory(0.451), Writing Process & Craft(0.445), Vocabulary Development(0.444), Grammar & Mechanics(0.443)
+[QuestionBank] Stage 2 candidates: 2159
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.457)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:1–2  sources:[scienceqa]
+         [1] diff:1 src:scienceqa
+             Answer the riddle. I work in a school. I help you read and write. I give you homework. What am I?…
+         [2] diff:1 src:scienceqa
+             Select the activity that doesn't belong.…
+
+── 9–10 (diff 2–4, all sources) ──
+  Math             [Grade 10] … [QuestionBank] retrieveQuestions — topic="Math" grade="Grade 10" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: Grade 10. Subject topic: Math"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "Grade 10" → capping difficulty to 2–4
+[QuestionBank] Resolved subjects: [Math]
+[QuestionBank] queryBank — subject_in="Math" → normalized="Math" diff=2-4 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=any
+[QuestionBank] Cache hit for subject "Math"
+[QuestionBank] ✅ Cache loaded — 14071 rows, 81 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 4611/14071 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — Statistics(0.477), Algebra - Foundations(0.457), Integers & Rational Numbers(0.450), Mathematical Modeling & Applications(0.432), Linear Equations - One Variable(0.419), Variables & Expressions(0.407)
+[QuestionBank] Stage 2 candidates: 1199
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.532)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:2–3  sources:[mmlu,amc8,amc12]
+         [1] diff:3 src:mmlu
+             The relation between studying time (in hours) and grade on a final exam (0-100) in a random sample o…
+         [2] diff:2 src:amc8
+             The table below displays the grade distribution of the $30$ students in a mathematics class on the l…
+  Biology          [Grade 10] … [QuestionBank] retrieveQuestions — topic="Biology" grade="Grade 10" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: Grade 10. Subject topic: Biology"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "Grade 10" → capping difficulty to 2–4
+[QuestionBank] Resolved subjects: [Biology]
+[QuestionBank] queryBank — subject_in="Biology" → normalized="Biology" diff=2-4 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=any
+[QuestionBank] Cache hit for subject "Biology"
+[QuestionBank] ✅ Cache loaded — 11504 rows, 79 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 8201/11504 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — Scientific Method & Lab Skills(0.524), Anatomy & Physiology(0.510), Cell Biology(0.491), Ecology(0.481), Data Analysis & Graphing(0.478), Lab Safety & Techniques(0.474)
+[QuestionBank] Stage 2 candidates: 4777
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.499)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:3–3  sources:[mmlu,scienceqa]
+         [1] diff:3 src:mmlu
+             In adolescence: …
+         [2] diff:3 src:mmlu
+             Theories…
+  History          [Grade 10] … [QuestionBank] retrieveQuestions — topic="History" grade="Grade 10" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: Grade 10. Subject topic: History"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "Grade 10" → capping difficulty to 2–4
+[QuestionBank] Resolved subjects: [History]
+[QuestionBank] queryBank — subject_in="History" → normalized="History" diff=2-4 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=any
+[QuestionBank] Cache hit for subject "History"
+[QuestionBank] ✅ Cache loaded — 9599 rows, 34 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 6484/9599 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — Geography(0.424), Economics(0.410), World History - Ancient Civilizations(0.406), World History - Modern Era(0.397), Globalization & Contemporary Issues(0.383), US History - Vietnam War Era(0.374)
+[QuestionBank] Stage 2 candidates: 3063
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.484)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:3–3  sources:[mmlu]
+         [1] diff:3 src:mmlu
+             Different less developed countries have different levels of secondary school enrollment. Some countr…
+         [2] diff:3 src:mmlu
+             To get to school in the morning, we ALL use this as our guide:…
+  Physics          [Grade 10] … [QuestionBank] retrieveQuestions — topic="Physics" grade="Grade 10" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: Grade 10. Subject topic: Physics"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "Grade 10" → capping difficulty to 2–4
+[QuestionBank] Resolved subjects: [Physics]
+[QuestionBank] queryBank — subject_in="Physics" → normalized="Physics" diff=2-4 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=any
+[QuestionBank] Cache hit for subject "Physics"
+[QuestionBank] ✅ Cache loaded — 5181 rows, 44 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 2911/5181 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — Mechanics - Energy & Work(0.510), Mechanics - Dynamics(0.509), Matter & Measurement(0.506), Scientific Method & Lab Skills(0.504), Modern Physics(0.495), Mechanics - Kinematics(0.471)
+[QuestionBank] Stage 2 candidates: 801
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.482)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:2–4  sources:[mmlu,arc]
+         [1] diff:3 src:mmlu
+             A 10-N force at an angle 45° above the horizontal has a horizontal component of about…
+         [2] diff:2 src:arc
+             Mr. Garcia's science class was studying energy and ways to cut energy costs. Each student was to com…
+  English          [Grade 10] … [QuestionBank] retrieveQuestions — topic="English" grade="Grade 10" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: Grade 10. Subject topic: English"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "Grade 10" → capping difficulty to 2–4
+[QuestionBank] Resolved subjects: [English]
+[QuestionBank] queryBank — subject_in="English" → normalized="English" diff=2-4 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=any
+[QuestionBank] Cache hit for subject "English"
+[QuestionBank] ✅ Cache loaded — 7347 rows, 38 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 6068/7347 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — Reading Foundations(0.462), Reading Comprehension(0.449), Writing - Informative/Explanatory(0.442), Writing Process & Craft(0.435), Vocabulary Development(0.430), Grammar & Mechanics(0.428)
+[QuestionBank] Stage 2 candidates: 2117
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.423)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:2–4  sources:[scienceqa,agieval]
+         [1] diff:4 src:scienceqa
+             Which excerpt from a student essay is more formal?…
+         [2] diff:4 src:agieval
+             [Passage] Music and literature, rivals among the arts, have not coexisted without intruding on each …
+
+── 11–12 / HS (diff 2–5, all sources) ──
+  Math             [Grade 12] … [QuestionBank] retrieveQuestions — topic="Math" grade="Grade 12" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: Grade 12. Subject topic: Math"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "Grade 12" → capping difficulty to 2–5
+[QuestionBank] Resolved subjects: [Math]
+[QuestionBank] queryBank — subject_in="Math" → normalized="Math" diff=2-5 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=any
+[QuestionBank] Cache hit for subject "Math"
+[QuestionBank] ✅ Cache loaded — 14071 rows, 81 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 5003/14071 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — Statistics(0.478), Algebra - Foundations(0.457), Integers & Rational Numbers(0.429), Linear Equations - One Variable(0.419), Mathematical Modeling & Applications(0.417), Algebra - Advanced(0.410)
+[QuestionBank] Stage 2 candidates: 1533
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.525)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:2–3  sources:[mmlu,amc8,amc12]
+         [1] diff:3 src:mmlu
+             The relation between studying time (in hours) and grade on a final exam (0-100) in a random sample o…
+         [2] diff:2 src:amc8
+             The table below displays the grade distribution of the $30$ students in a mathematics class on the l…
+  Biology          [Grade 12] … [QuestionBank] retrieveQuestions — topic="Biology" grade="Grade 12" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: Grade 12. Subject topic: Biology"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "Grade 12" → capping difficulty to 2–5
+[QuestionBank] Resolved subjects: [Biology]
+[QuestionBank] queryBank — subject_in="Biology" → normalized="Biology" diff=2-5 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=any
+[QuestionBank] Cache hit for subject "Biology"
+[QuestionBank] ✅ Cache loaded — 11504 rows, 79 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 8201/11504 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — Scientific Method & Lab Skills(0.515), Anatomy & Physiology(0.503), Cell Biology(0.487), Data Analysis & Graphing(0.483), Lab Safety & Techniques(0.471), Biochemistry(0.466)
+[QuestionBank] Stage 2 candidates: 3681
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.495)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:3–4  sources:[mmlu]
+         [1] diff:3 src:mmlu
+             In adolescence: …
+         [2] diff:3 src:mmlu
+             In this chapter's Senior View, Dr. Shealy advises you to…
+  History          [Grade 12] … [QuestionBank] retrieveQuestions — topic="History" grade="Grade 12" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: Grade 12. Subject topic: History"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "Grade 12" → capping difficulty to 2–5
+[QuestionBank] Resolved subjects: [History]
+[QuestionBank] queryBank — subject_in="History" → normalized="History" diff=2-5 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=any
+[QuestionBank] Cache hit for subject "History"
+[QuestionBank] ✅ Cache loaded — 9599 rows, 34 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 6484/9599 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — Geography(0.430), Economics(0.405), World History - Ancient Civilizations(0.391), World History - Modern Era(0.389), Globalization & Contemporary Issues(0.380), US History - Vietnam War Era(0.366)
+[QuestionBank] Stage 2 candidates: 3063
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.514)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:3–4  sources:[mmlu]
+         [1] diff:3 src:mmlu
+             Different less developed countries have different levels of secondary school enrollment. Some countr…
+         [2] diff:3 src:mmlu
+             To get to school in the morning, we ALL use this as our guide:…
+  Physics          [Grade 12] … [QuestionBank] retrieveQuestions — topic="Physics" grade="Grade 12" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: Grade 12. Subject topic: Physics"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "Grade 12" → capping difficulty to 2–5
+[QuestionBank] Resolved subjects: [Physics]
+[QuestionBank] queryBank — subject_in="Physics" → normalized="Physics" diff=2-5 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=any
+[QuestionBank] Cache hit for subject "Physics"
+[QuestionBank] ✅ Cache loaded — 5181 rows, 44 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 2911/5181 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — Mechanics - Energy & Work(0.502), Mechanics - Dynamics(0.493), Modern Physics(0.492), Scientific Method & Lab Skills(0.489), Matter & Measurement(0.486), Waves & Optics(0.457)
+[QuestionBank] Stage 2 candidates: 881
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.458)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:2–4  sources:[mmlu,scienceqa,arc]
+         [1] diff:4 src:mmlu
+             Relative error is same as…
+         [2] diff:4 src:mmlu
+             1 F is theoretically equal to…
+  English          [Grade 12] … [QuestionBank] retrieveQuestions — topic="English" grade="Grade 12" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: Grade 12. Subject topic: English"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "Grade 12" → capping difficulty to 2–5
+[QuestionBank] Resolved subjects: [English]
+[QuestionBank] queryBank — subject_in="English" → normalized="English" diff=2-5 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=any
+[QuestionBank] Cache hit for subject "English"
+[QuestionBank] ✅ Cache loaded — 7347 rows, 38 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 6298/7347 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — Reading Comprehension(0.443), Writing - Informative/Explanatory(0.440), Reading Foundations(0.427), Writing Process & Craft(0.426), Speaking & Listening(0.408), Grammar & Mechanics(0.407)
+[QuestionBank] Stage 2 candidates: 1943
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.471)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:4–5  sources:[agieval,scienceqa]
+         [1] diff:5 src:agieval
+             [Passage] Four students will be assigned to a history project in which they will search archives fro…
+         [2] diff:5 src:agieval
+             [Passage] Of the eight students—George, Helen, Irving, Kyle, Lenore, Nina, Olivia, and Robert—in a s…
+
+── College (diff 3–5, all sources) ──
+  Math             [College] … [QuestionBank] retrieveQuestions — topic="Math" grade="College" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: College. Subject topic: Math"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "College" → capping difficulty to 3–5
+[QuestionBank] Resolved subjects: [Math]
+[QuestionBank] queryBank — subject_in="Math" → normalized="Math" diff=3-5 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=any
+[QuestionBank] Cache hit for subject "Math"
+[QuestionBank] ✅ Cache loaded — 14071 rows, 81 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 3412/14071 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — Statistics(0.508), Algebra - Foundations(0.487), Integers & Rational Numbers(0.447), Mathematical Modeling & Applications(0.438), Algebra - Advanced(0.434), Variables & Expressions(0.433)
+[QuestionBank] Stage 2 candidates: 1072
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.535)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:3–3  sources:[mmlu]
+         [1] diff:3 src:mmlu
+             The relation between studying time (in hours) and grade on a final exam (0-100) in a random sample o…
+         [2] diff:3 src:mmlu
+             A college admissions officer is interested in comparing the SAT math scores of high school applicant…
+  Biology          [College] … [QuestionBank] retrieveQuestions — topic="Biology" grade="College" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: College. Subject topic: Biology"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "College" → capping difficulty to 3–5
+[QuestionBank] Resolved subjects: [Biology]
+[QuestionBank] queryBank — subject_in="Biology" → normalized="Biology" diff=3-5 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=any
+[QuestionBank] Cache hit for subject "Biology"
+[QuestionBank] ✅ Cache loaded — 11504 rows, 79 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 4161/11504 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — Scientific Method & Lab Skills(0.557), Anatomy & Physiology(0.550), Cell Biology(0.546), Biochemistry(0.515), Data Analysis & Graphing(0.512), Ecology(0.511)
+[QuestionBank] Stage 2 candidates: 2537
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.535)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:3–3  sources:[mmlu]
+         [1] diff:3 src:mmlu
+             Theories…
+         [2] diff:3 src:mmlu
+             One difference that seems to be mostly cohort rather than age is the difference in ____ for differen…
+  History          [College] … [QuestionBank] retrieveQuestions — topic="History" grade="College" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: College. Subject topic: History"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "College" → capping difficulty to 3–5
+[QuestionBank] Resolved subjects: [History]
+[QuestionBank] queryBank — subject_in="History" → normalized="History" diff=3-5 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=any
+[QuestionBank] Cache hit for subject "History"
+[QuestionBank] ✅ Cache loaded — 9599 rows, 34 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 5746/9599 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — World History - Ancient Civilizations(0.468), US History - Colonization to Early Republic(0.456), World History - Modern Era(0.455), Geography(0.448), Economics(0.448), US History - Cold War to Present(0.445)
+[QuestionBank] Stage 2 candidates: 2548
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.511)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:3–4  sources:[mmlu]
+         [1] diff:3 src:mmlu
+             At the time of independence, there were already hundreds of thousands of university graduates in ___…
+         [2] diff:4 src:mmlu
+             The dominant course for foreign policy throughout most of American history can be categorized as…
+  Physics          [College] … [QuestionBank] retrieveQuestions — topic="Physics" grade="College" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: College. Subject topic: Physics"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "College" → capping difficulty to 3–5
+[QuestionBank] Resolved subjects: [Physics]
+[QuestionBank] queryBank — subject_in="Physics" → normalized="Physics" diff=3-5 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=any
+[QuestionBank] Cache hit for subject "Physics"
+[QuestionBank] ✅ Cache loaded — 5181 rows, 44 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 1392/5181 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — Modern Physics(0.542), Mechanics - Dynamics(0.526), Mechanics - Energy & Work(0.521), Scientific Method & Lab Skills(0.519), Matter & Measurement(0.515), Waves & Optics(0.498)
+[QuestionBank] Stage 2 candidates: 535
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.502)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:3–4  sources:[mmlu]
+         [1] diff:4 src:mmlu
+             Relative error is same as…
+         [2] diff:4 src:mmlu
+             1 F is theoretically equal to…
+  English          [College] … [QuestionBank] retrieveQuestions — topic="English" grade="College" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: College. Subject topic: English"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "College" → capping difficulty to 3–5
+[QuestionBank] Resolved subjects: [English]
+[QuestionBank] queryBank — subject_in="English" → normalized="English" diff=3-5 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=any
+[QuestionBank] Cache hit for subject "English"
+[QuestionBank] ✅ Cache loaded — 7347 rows, 38 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 4947/7347 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — Writing - Informative/Explanatory(0.522), Writing Process & Craft(0.516), Reading Comprehension(0.511), Grammar & Mechanics(0.508), Reading Foundations(0.501), Literary Analysis - Nonfiction(0.481)
+[QuestionBank] Stage 2 candidates: 2385
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.519)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:4–5  sources:[agieval,scienceqa,mmlu]
+         [1] diff:5 src:agieval
+             [Passage] Of the eight students—George, Helen, Irving, Kyle, Lenore, Nina, Olivia, and Robert—in a s…
+         [2] diff:5 src:agieval
+             [Passage] Four students will be assigned to a history project in which they will search archives fro…
+
+── 边界场景测试 (Math) ──
+  Math              [Kindergarten] … [QuestionBank] retrieveQuestions — topic="Math" grade="Kindergarten" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: Kindergarten. Subject topic: Math"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "Kindergarten" → capping difficulty to 1–1, sources: [gsm8k,arc,openbookqa,scienceqa]
+[QuestionBank] Resolved subjects: [Math]
+[QuestionBank] queryBank — subject_in="Math" → normalized="Math" diff=1-1 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=gsm8k,arc,openbookqa,scienceqa
+[QuestionBank] Cache hit for subject "Math"
+[QuestionBank] ✅ Cache loaded — 14071 rows, 81 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 8792/14071 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — Integers & Rational Numbers(0.442), Statistics(0.441), Algebra - Foundations(0.432), Variables & Expressions(0.410), Fraction Concepts & Operations(0.399), Number Theory(0.395)
+[QuestionBank] Stage 2 candidates: 1423
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.502)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:1–1  sources:[gsm8k]
+  Math              [2nd Grade] … [QuestionBank] retrieveQuestions — topic="Math" grade="2nd Grade" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: 2nd Grade. Subject topic: Math"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "2nd Grade" → capping difficulty to 1–1, sources: [gsm8k,arc,openbookqa,scienceqa]
+[QuestionBank] Resolved subjects: [Math]
+[QuestionBank] queryBank — subject_in="Math" → normalized="Math" diff=1-1 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=gsm8k,arc,openbookqa,scienceqa
+[QuestionBank] Cache hit for subject "Math"
+[QuestionBank] ✅ Cache loaded — 14071 rows, 81 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 8792/14071 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — Algebra - Foundations(0.449), Statistics(0.446), Integers & Rational Numbers(0.431), Variables & Expressions(0.424), Linear Equations - One Variable(0.411), Mathematical Modeling & Applications(0.408)
+[QuestionBank] Stage 2 candidates: 1389
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.464)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:1–1  sources:[gsm8k]
+  Math              [5th Grade] … [QuestionBank] retrieveQuestions — topic="Math" grade="5th Grade" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: 5th Grade. Subject topic: Math"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "5th Grade" → capping difficulty to 1–2, sources: [gsm8k,arc,openbookqa,amc8,scienceqa]
+[QuestionBank] Resolved subjects: [Math]
+[QuestionBank] queryBank — subject_in="Math" → normalized="Math" diff=1-2 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=gsm8k,arc,openbookqa,amc8,scienceqa
+[QuestionBank] Cache hit for subject "Math"
+[QuestionBank] ✅ Cache loaded — 14071 rows, 81 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 9348/14071 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — Statistics(0.469), Algebra - Foundations(0.466), Integers & Rational Numbers(0.461), Variables & Expressions(0.431), Sequences & Series(0.424), Mathematical Modeling & Applications(0.418)
+[QuestionBank] Stage 2 candidates: 1412
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.476)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:1–2  sources:[gsm8k,amc8]
+  Math              [Middle School] … [QuestionBank] retrieveQuestions — topic="Math" grade="Middle School" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: Middle School. Subject topic: Math"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "Middle School" → capping difficulty to 1–3
+[QuestionBank] Resolved subjects: [Math]
+[QuestionBank] queryBank — subject_in="Math" → normalized="Math" diff=1-3 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=any
+[QuestionBank] Cache hit for subject "Math"
+[QuestionBank] ✅ Cache loaded — 14071 rows, 81 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 12806/14071 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — Statistics(0.495), Algebra - Foundations(0.465), Integers & Rational Numbers(0.450), Variables & Expressions(0.428), Mathematical Modeling & Applications(0.424), Linear Equations - One Variable(0.414)
+[QuestionBank] Stage 2 candidates: 2485
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.510)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:1–3  sources:[amc8,mmlu,gsm8k]
+  Math              [9th Grade] … [QuestionBank] retrieveQuestions — topic="Math" grade="9th Grade" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: 9th Grade. Subject topic: Math"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "9th Grade" → capping difficulty to 2–4
+[QuestionBank] Resolved subjects: [Math]
+[QuestionBank] queryBank — subject_in="Math" → normalized="Math" diff=2-4 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=any
+[QuestionBank] Cache hit for subject "Math"
+[QuestionBank] ✅ Cache loaded — 14071 rows, 81 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 4611/14071 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — Statistics(0.473), Integers & Rational Numbers(0.459), Algebra - Foundations(0.453), Sequences & Series(0.413), Variables & Expressions(0.411), Mathematical Modeling & Applications(0.408)
+[QuestionBank] Stage 2 candidates: 1181
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.492)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:2–3  sources:[mmlu,amc8]
+  Math              [12th Grade] … [QuestionBank] retrieveQuestions — topic="Math" grade="12th Grade" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: 12th Grade. Subject topic: Math"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "12th Grade" → capping difficulty to 2–5
+[QuestionBank] Resolved subjects: [Math]
+[QuestionBank] queryBank — subject_in="Math" → normalized="Math" diff=2-5 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=any
+[QuestionBank] Cache hit for subject "Math"
+[QuestionBank] ✅ Cache loaded — 14071 rows, 81 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 5003/14071 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — Statistics(0.477), Algebra - Foundations(0.453), Integers & Rational Numbers(0.433), Algebra - Advanced(0.411), Linear Equations - One Variable(0.407), Mathematical Modeling & Applications(0.406)
+[QuestionBank] Stage 2 candidates: 1533
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.502)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:2–3  sources:[mmlu,amc8]
+  Math              [College] … [QuestionBank] retrieveQuestions — topic="Math" grade="College" diff=3 type=any count=5 source=any weaknessKeys=[] mistakes=0
+[QuestionBank] Context summary: "Student grade: College. Subject topic: Math"
+[QuestionBank] targetBaseBranches: [none]
+[QuestionBank] targetDetailedBranches: [none]
+[QuestionBank] Grade "College" → capping difficulty to 3–5
+[QuestionBank] Resolved subjects: [Math]
+[QuestionBank] queryBank — subject_in="Math" → normalized="Math" diff=3-5 types=multiple_choice,short_answer source=any branches=[] detailedBranches=[] allowedSources=any
+[QuestionBank] Cache hit for subject "Math"
+[QuestionBank] ✅ Cache loaded — 14071 rows, 81 branch centroids
+[QuestionBank] Seen questions: 0 | Branch filter: [none] | Detail filter: [none]
+[QuestionBank] Base filter pass: 3412/14071 rows
+[QuestionBank] Stage 2 (centroid-guided): nearest branches — Statistics(0.508), Algebra - Foundations(0.487), Integers & Rational Numbers(0.447), Mathematical Modeling & Applications(0.438), Algebra - Advanced(0.434), Variables & Expressions(0.433)
+[QuestionBank] Stage 2 candidates: 1072
+[QuestionBank] ✅ Stage 2 returned 30 results (top sim=0.535)
+[QuestionBank] candidates after queryBank: 30 | after diversity: will trim to 5
+✅ PASS  diff:3–3  sources:[mmlu]
+
+╔══════════════════════════════════════════════════════════════╗
+║  结果汇总:  37 PASS    0 FAIL    0 EMPTY   共 37 个 case
+╚══════════════════════════════════════════════════════════════╝
+
+✅ 全部通过！年级适配性验证完成。

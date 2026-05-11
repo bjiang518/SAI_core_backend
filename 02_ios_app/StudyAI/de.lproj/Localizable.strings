@@ -698,6 +698,7 @@
 "practice.feedbackTryAgain" = "Knapp daneben. Überprüfe die richtige Antwort und versuche ähnliche Aufgaben.";
 "questionDetail.archiveQuestion" = "Frage archivieren";
 "questionDetail.archiving" = "Archivieren...";
+"questionDetail.questionFrom" = "Frage aus %@";
 "questionDetail.archived" = "Archiviert";
 "questionDetail.archiveSuccess" = "Erfolgreich!";
 "questionDetail.archiveSuccessMessage" = "Diese Frage wurde für spätere Überprüfung in deiner Bibliothek gespeichert.";
@@ -717,6 +718,7 @@
 "questionDetail.provideDetailedExplanation" = "Gib eine detaillierte Erklärung";
 "questionDetail.typeAnswerAbove" = "Antwort oben eingeben";
 "questionDetail.submitAnswer" = "Antwort einreichen";
+"questionDetail.check" = "Antwort prüfen";
 "questionDetail.markProgress" = "Smart sortieren";
 "questionDetail.marked" = "Markiert";
 "questionDetail.followUp" = "Nachfrage";
@@ -2645,6 +2647,24 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "mistakeReview.categorizeMistakes" = "Kategorisieren";
 "mistakeReview.categorizing" = "Kategorisierung…";
 "mistakeReview.filter.goodAt" = "Gut in";
+"mistakeReview.filter.tree" = "Baum";
+"mistakeTree.legend.weakness" = "Schwachstelle";
+"mistakeTree.legend.borderline" = "Im Aufbau";
+"mistakeTree.legend.mastered" = "Beherrscht";
+"mistakeTree.legend.untracked" = "Nicht verfolgt";
+"mistakeTree.empty" = "Noch keine Themendaten";
+"mistakeTree.detail.accuracy" = "Genauigkeit";
+"mistakeTree.detail.attempts" = "Versuche";
+"mistakeTree.detail.correct" = "Richtig";
+"mistakeTree.detail.days" = "Aktive Tage";
+"mistakeTree.detail.mistakes" = "Fehler";
+"mistakeTree.detail.errorTypes" = "Häufige Fehlertypen";
+"mistakeTree.detail.practice" = "Thema üben";
+"mistakeTree.detail.untracked" = "Noch keine Übungsaufzeichnungen";
+"mistakeTree.detail.untrackedHint" = "Die Genauigkeit wird nach Abschluss der relevanten Übungen erfasst";
+"errorType.conceptual" = "Konzeptlücke";
+"errorType.execution" = "Ausführungsfehler";
+"errorType.refinement" = "Verbesserungsbedarf";
 "mistakeReview.filter.noLongerWeak" = "Keine Schwäche mehr";
 "mistakeReview.filter.noStrengthsData" = "Noch keine Daten — beantworte Fragen, um deine Stärken zu sehen.";
 "mistakeReview.filter.strengthsTopicCount" = "%d Themen";
@@ -3112,3 +3132,4 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "common.remove" = "Entfernen";
 "guestConversion.loginSuccess" = "Erfolgreich angemeldet!";
 "dailyChallenge.bannerReady" = "Tägliche 3 Fragen sind bereit";
+"practiceSheet.backToChat" = "← Zurück zum Chat";

@@ -46,6 +46,12 @@ interface OverviewStats {
     }
   }
   iosVersions?: Record<string, number>
+  guestConversion?: {
+    currentGuests: number
+    totalConverted: number
+    convertedThisWeek: number
+    convertedThisMonth: number
+  }
 }
 
 function isTokenExpired(token: string | null): boolean {
@@ -231,6 +237,35 @@ export default function DashboardPage() {
               )
             })}
           </div>
+        </div>
+      )}
+
+      {/* Guest → Free Conversion Funnel */}
+      {stats.guestConversion && (
+        <div className="rounded-lg border bg-card p-6">
+          <h2 className="text-base font-semibold mb-1">Guest → Registered Conversion</h2>
+          <p className="text-xs text-muted-foreground mb-4">Guests who created a free account (user ID preserved, all data kept)</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { label: 'Current Guests',      value: stats.guestConversion.currentGuests,      sub: 'still anonymous' },
+              { label: 'Total Converted',     value: stats.guestConversion.totalConverted,     sub: 'all time' },
+              { label: 'Converted This Week', value: stats.guestConversion.convertedThisWeek,  sub: 'last 7 days' },
+              { label: 'Converted This Month',value: stats.guestConversion.convertedThisMonth, sub: 'last 30 days' },
+            ].map(({ label, value, sub }) => (
+              <div key={label} className="bg-muted/40 rounded-lg p-3">
+                <div className="text-2xl font-bold">{value.toLocaleString()}</div>
+                <div className="text-xs font-medium mt-0.5">{label}</div>
+                <div className="text-xs text-muted-foreground">{sub}</div>
+              </div>
+            ))}
+          </div>
+          {stats.guestConversion.currentGuests > 0 && (
+            <p className="text-xs text-muted-foreground mt-3">
+              Conversion rate (all time): <span className="font-semibold text-foreground">
+                {Math.round(stats.guestConversion.totalConverted / (stats.guestConversion.totalConverted + stats.guestConversion.currentGuests) * 100)}%
+              </span> of guests ever registered
+            </p>
+          )}
         </div>
       )}
 

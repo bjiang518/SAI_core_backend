@@ -301,6 +301,7 @@ struct ContentView: View {
             appSessionManager.appDidEnterBackground()  // ✅ Track background time
 
         case .active:
+            EventTracker.shared.track("app_opened")
             let isSessionValid = sessionManager.appDidBecomeActive()
 
             if !isSessionValid && authService.currentUser != nil {

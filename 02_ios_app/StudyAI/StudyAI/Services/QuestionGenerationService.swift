@@ -44,6 +44,7 @@ class QuestionGenerationService: ObservableObject {
     @Published var lastGeneratedQuestions: [GeneratedQuestion] = []
     @Published var lastGenerationDate: Date?
     @Published var lastGenerationType: String?
+    @Published var lastDetectedSubject: String? = nil  // set by backend auto-detection
 
     private struct CachedQuestionSet {
         let questions: [GeneratedQuestion]
@@ -213,10 +214,14 @@ class QuestionGenerationService: ObservableObject {
                 let year = parts.first ?? ""; let part = parts.dropFirst().first ?? ""; let num = parts.last ?? ""
                 return "AIME \(part) · \(year) #\(num)"
             case "sat":      return "SAT Math"
-            case "mmlu":     return "MMLU · \(topic)"
+            case "mmlu":
+                let branch = baseBranch ?? topic
+                return branch.isEmpty ? "MMLU" : "MMLU · \(branch)"
             case "arc":      return "ARC Science"
             case "gsm8k":    return "Grade School Math"
-            case "openbookqa": return "OpenBookQA"
+            case "openbookqa": return "OpenBookQA Science"
+            case "scienceqa":  return "ScienceQA"
+            case "mathvista":  return "MathVista"
             case "agieval":
                 if sourceId?.contains("sat_en") == true  { return "SAT English" }
                 if sourceId?.contains("lsat_lr") == true { return "LSAT · Logical Reasoning" }
@@ -403,7 +408,8 @@ class QuestionGenerationService: ObservableObject {
     func generateRandomQuestions(
         subject: String,
         config: RandomQuestionsConfig,
-        userProfile: UserProfile
+        userProfile: UserProfile,
+        rawMessages: [[String: String]] = []
     ) async -> Result<[GeneratedQuestion], QuestionGenerationError> {
 
         // Build comprehensive cache key including all configuration parameters
@@ -449,12 +455,20 @@ class QuestionGenerationService: ObservableObject {
         // NEW: Simplified request format for Assistants API
         var requestBody: [String: Any] = [
             "subject": subject,
-            "topic": config.topics.joined(separator: ", "), // Combine topics
+            "topic": config.topics.joined(separator: ", "),
             "count": config.questionCount,
-            "difficulty": mapDifficultyToNumber(config.difficulty) as Any, // Convert to 1-5
-            "question_type": config.questionType.rawValue, // Send question type filter
+            "question_type": config.questionType.rawValue,
             "language": effectiveLanguage
         ]
+        // Only include difficulty when explicitly set — omit for .adaptive so backend auto-selects
+        if let diffNum = mapDifficultyToNumber(config.difficulty) {
+            requestBody["difficulty"] = diffNum
+        }
+
+        // Pass raw conversation messages when provided (triggers AI subject detection + Mode 3)
+        if !rawMessages.isEmpty {
+            requestBody["raw_messages"] = rawMessages
+        }
 
         // ✅ FIX 1: Include personalized focus notes if available
         if let focusNotes = config.focusNotes, !focusNotes.isEmpty {
@@ -485,6 +499,13 @@ class QuestionGenerationService: ObservableObject {
 
 
                 if httpResponse.statusCode == 200 {
+                    // Parse detectedSubject BEFORE parseQuestionResponse, then set synchronously
+                    // using await MainActor.run so the caller reads the correct value immediately
+                    if let rawJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let ds = rawJson["detectedSubject"] as? String, !ds.isEmpty {
+                        await MainActor.run { self.lastDetectedSubject = ds }
+                    }
+
                     let responseResult = try parseQuestionResponse(data: data, generationType: "random")
 
                     if responseResult.success {
@@ -524,9 +545,14 @@ class QuestionGenerationService: ObservableObject {
                         await MainActor.run { self.lastError = errorMsg }
                         return .failure(.aiProcessingError(errorMsg))
                     }
-                } else {
-                    let errorMsg = "Server error: HTTP \(httpResponse.statusCode)"
+                } else if httpResponse.statusCode == 403 || httpResponse.statusCode == 429 {
+                    // Genuine tier/quota block — show upgrade prompt
                     UsageService.shared.flagLimitReached(feature: "questions", errorCode: httpResponse.statusCode == 403 ? "UPGRADE_REQUIRED" : "MONTHLY_LIMIT_REACHED")
+                    await MainActor.run { self.lastError = "Usage limit reached" }
+                    return .failure(.serverError(httpResponse.statusCode))
+                } else {
+                    // Other errors (400 schema, 500 server, etc.) — don't show upgrade page
+                    let errorMsg = "Server error: HTTP \(httpResponse.statusCode)"
                     await MainActor.run { self.lastError = errorMsg }
                     return .failure(.serverError(httpResponse.statusCode))
                 }
@@ -684,7 +710,9 @@ class QuestionGenerationService: ObservableObject {
                     }
 
                     await MainActor.run { self.lastError = errorMsg }
-                    UsageService.shared.flagLimitReached(feature: "questions", errorCode: httpResponse.statusCode == 403 ? "UPGRADE_REQUIRED" : "MONTHLY_LIMIT_REACHED")
+                    if httpResponse.statusCode == 403 || httpResponse.statusCode == 429 {
+                        UsageService.shared.flagLimitReached(feature: "questions", errorCode: httpResponse.statusCode == 403 ? "UPGRADE_REQUIRED" : "MONTHLY_LIMIT_REACHED")
+                    }
                     return .failure(.serverError(httpResponse.statusCode))
                 }
             }
@@ -882,10 +910,17 @@ class QuestionGenerationService: ObservableObject {
 
         let success = json["success"] as? Bool ?? false
         let subject = json["subject"] as? String ?? ""
+        let detectedSubject = json["detectedSubject"] as? String  // set by backend auto-detection
         let tokensUsed = json["tokens_used"] as? Int
         let questionCount = json["question_count"] as? Int ?? 0
         let processingDetails = json["processing_details"] as? [String: Any]
         let error = json["error"] as? String
+
+        // detectedSubject is now set synchronously in generateRandomQuestions via await MainActor.run
+        // (keeping this as an additional safety net for other callers)
+        if let ds = detectedSubject, !ds.isEmpty, Thread.isMainThread {
+            self.lastDetectedSubject = ds
+        }
 
         debugPrint("✅ Success: \(success)")
         debugPrint("📚 Subject: \(subject)")
@@ -1329,7 +1364,9 @@ class QuestionGenerationService: ObservableObject {
                 } else {
                     let errorMsg = "Server error: HTTP \(httpResponse.statusCode)"
                     await MainActor.run { self.lastError = errorMsg }
-                    UsageService.shared.flagLimitReached(feature: "questions", errorCode: httpResponse.statusCode == 403 ? "UPGRADE_REQUIRED" : "MONTHLY_LIMIT_REACHED")
+                    if httpResponse.statusCode == 403 || httpResponse.statusCode == 429 {
+                        UsageService.shared.flagLimitReached(feature: "questions", errorCode: httpResponse.statusCode == 403 ? "UPGRADE_REQUIRED" : "MONTHLY_LIMIT_REACHED")
+                    }
                     return .failure(.serverError(httpResponse.statusCode))
                 }
             }

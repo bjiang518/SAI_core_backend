@@ -233,25 +233,28 @@ async function embedContext(summary) {
 function gradeConstraints(gradeLabel) {
   const g = (gradeLabel || '').toLowerCase();
 
-  // K–2 (ages 5–8): only very basic questions
-  if (/grade [k012]|kindergarten|1st|2nd|first|second/.test(g)) {
-    return { diffMin: 1, diffMax: 1, allowedSources: new Set(['gsm8k', 'arc', 'openbookqa']) };
-  }
-  // 3–5 (ages 8–11): elementary
-  if (/grade [345]|3rd|4th|5th|third|fourth|fifth|elementary/.test(g)) {
-    return { diffMin: 1, diffMax: 2, allowedSources: new Set(['gsm8k', 'arc', 'openbookqa', 'amc8']) };
-  }
-  // 6–8 (ages 11–14): middle school
-  if (/grade [678]|6th|7th|8th|sixth|seventh|eighth|middle/.test(g)) {
-    return { diffMin: 1, diffMax: 3, allowedSources: null };  // all sources ok
+  // IMPORTANT: check higher grades first to avoid "grade 1" matching "grade 10/11/12"
+  // (?!\d) = negative lookahead — ensures the digit is not followed by another digit
+
+  // 11–12 / High School (ages 16–18)
+  if (/grade 1[12](?!\d)|11th|12th|eleventh|twelfth|high school/.test(g)) {
+    return { diffMin: 2, diffMax: 5, allowedSources: null };
   }
   // 9–10 (ages 14–16): early high school
-  if (/grade [9]|grade 10|9th|10th|ninth|tenth/.test(g)) {
+  if (/grade 9(?!\d)|grade 10(?!\d)|9th|10th|ninth|tenth/.test(g)) {
     return { diffMin: 2, diffMax: 4, allowedSources: null };
   }
-  // 11–12 / High School (ages 16–18)
-  if (/grade 1[12]|11th|12th|eleventh|twelfth|high school/.test(g)) {
-    return { diffMin: 2, diffMax: 5, allowedSources: null };
+  // 6–8 (ages 11–14): middle school
+  if (/grade [678](?!\d)|6th|7th|8th|sixth|seventh|eighth|middle/.test(g)) {
+    return { diffMin: 1, diffMax: 3, allowedSources: null };
+  }
+  // 3–5 (ages 8–11): elementary
+  if (/grade [345](?!\d)|3rd|4th|5th|third|fourth|fifth|elementary/.test(g)) {
+    return { diffMin: 1, diffMax: 2, allowedSources: new Set(['gsm8k', 'arc', 'openbookqa', 'amc8', 'scienceqa']) };
+  }
+  // K–2 (ages 5–8): only very basic questions
+  if (/grade [k012](?!\d)|kindergarten|1st|2nd|first|second/.test(g)) {
+    return { diffMin: 1, diffMax: 1, allowedSources: new Set(['gsm8k', 'arc', 'openbookqa', 'scienceqa']) };
   }
   // College / Adult
   if (/college|university|undergraduate|graduate|adult/.test(g)) {
@@ -330,9 +333,31 @@ async function queryBank({ userId, embedding, diffMin, diffMax, questionTypes, c
         const sim          = cosineSimilarity(embedding, cache.embeddings.get(row.id));
         const brBoost      = branchSet.size > 0 && branchSet.has(row.base_branch)     ? 0.15 : 0;
         const detailBoost  = detailSet.size  > 0 && detailSet.has(row.detailed_branch) ? 0.10 : 0;
-        return { ...row, similarity: sim + brBoost + detailBoost };
+        const figureBoost  = row.has_figure ? 0.20 : 0;   // strongly prefer questions with diagrams
+        return { ...row, similarity: sim + brBoost + detailBoost + figureBoost };
       })
       .sort((a, b) => b.similarity - a.similarity);
+  }
+
+  // ── Stage 0: Figure-first search ─────────────────────────────────────
+  // Always try to fill the quota with figure questions first.
+  // Falls through if not enough figure questions exist in this subject/grade pool.
+  {
+    const figCandidates = [];
+    for (const [, meta] of cache.metadata) {
+      if (baseFilter(meta) && meta.has_figure) figCandidates.push(meta);
+    }
+    log(`Stage 0 (figure-first): ${figCandidates.length} figure questions available`);
+    if (figCandidates.length >= count) {
+      const ranked = rankByEmbedding(figCandidates).slice(0, CANDIDATE_K);
+      log(`✅ Stage 0 returned ${ranked.length} figure-only results`);
+      return ranked;
+    }
+    if (figCandidates.length > 0) {
+      log(`⚠️ Stage 0: only ${figCandidates.length} figure questions (need ${count}) — mixing with text questions`);
+    } else {
+      log(`ℹ️  Stage 0: no figure questions in this pool — falling through`);
+    }
   }
 
   // ── Stage 1: Weakness-tag targeted search ────────────────────────────
@@ -583,9 +608,17 @@ async function retrieveQuestions(userId, opts = {}) {
   log(`candidates after queryBank: ${allCandidates.length} | after diversity: will trim to ${count}`);
 
   // 6. Diversity filter + trim
-  const selected = applyDiversityFilter(allCandidates, count);
+  let selected = applyDiversityFilter(allCandidates, count);
 
-  // 6. Format and return
+  // 7. Figure-first reorder: put questions with images at the front,
+  //    keeping relative order within each group (stable sort).
+  const withFig    = selected.filter(r => r.has_figure);
+  const withoutFig = selected.filter(r => !r.has_figure);
+  selected = [...withFig, ...withoutFig];
+
+  log(`figures in selection: ${withFig.length}/${selected.length}`);
+
+  // 8. Format and return
   const questions = selected.map(formatQuestion);
 
   return {

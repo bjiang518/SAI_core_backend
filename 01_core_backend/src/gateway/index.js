@@ -484,6 +484,9 @@ if (features.useGateway) {
   // Passive Reports routes - ACTIVE: Scheduled weekly/monthly reports
   fastify.register(require('./routes/passive-reports'));
 
+  // Behavioural event ingestion — POST /api/events/batch (iOS client)
+  fastify.register(require('./routes/event-routes'));
+
   // AI Engine proxy routes (modular)
   fastify.register(AIModularRoutes);
 
@@ -558,8 +561,9 @@ const start = async () => {
           await db.query('INSERT INTO _migrations (filename) VALUES ($1) ON CONFLICT DO NOTHING', [file]);
           fastify.log.info(`✅ Migration applied: ${file}`);
         } catch (err) {
-          // "already exists" errors mean the migration was already applied manually — mark as done
-          const alreadyExists = ['42P07', '42701', '42P06', '42710'].includes(err.code);
+          // "already exists" errors mean the migration was already applied — mark as done
+          const alreadyExists = ['42P07', '42701', '42P06', '42710'].includes(err.code)
+            || /already exists/i.test(err.message);
           if (alreadyExists) {
             await db.query('INSERT INTO _migrations (filename) VALUES ($1) ON CONFLICT DO NOTHING', [file]);
             fastify.log.info(`✅ Migration already applied (skipping): ${file}`);

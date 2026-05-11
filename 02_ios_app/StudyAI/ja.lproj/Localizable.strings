@@ -671,6 +671,7 @@
 "practice.feedbackTryAgain" = "もう少しです。正しい答えを確認して、似た問題に挑戦しましょう。";
 "questionDetail.archiveQuestion" = "問題をアーカイブ";
 "questionDetail.archiving" = "アーカイブ中...";
+"questionDetail.questionFrom" = "出典：%@";
 "questionDetail.archived" = "アーカイブ済み";
 "questionDetail.archiveSuccess" = "成功！";
 "questionDetail.archiveSuccessMessage" = "この問題は今後の復習のためにライブラリに保存されました。";
@@ -690,6 +691,7 @@
 "questionDetail.provideDetailedExplanation" = "詳細な解説を提供";
 "questionDetail.typeAnswerAbove" = "上に回答を入力";
 "questionDetail.submitAnswer" = "回答を提出";
+"questionDetail.check" = "答えを確認";
 "questionDetail.markProgress" = "スマート整理";
 "questionDetail.marked" = "マーク済み";
 "questionDetail.followUp" = "フォローアップ";
@@ -1539,6 +1541,24 @@
 "mistakeReview.filter.uncategorized" = "未分類";
 "mistakeReview.filter.yourStrengths" = "あなたの強み";
 "mistakeReview.filter.goodAt" = "得意なこと";
+"mistakeReview.filter.tree" = "ツリー";
+"mistakeTree.legend.weakness" = "弱点";
+"mistakeTree.legend.borderline" = "上達中";
+"mistakeTree.legend.mastered" = "習得済み";
+"mistakeTree.legend.untracked" = "未追跡";
+"mistakeTree.empty" = "トピックデータがありません";
+"mistakeTree.detail.accuracy" = "正答率";
+"mistakeTree.detail.attempts" = "練習回数";
+"mistakeTree.detail.correct" = "正解数";
+"mistakeTree.detail.days" = "追跡日数";
+"mistakeTree.detail.mistakes" = "誤答記録";
+"mistakeTree.detail.errorTypes" = "よくある間違いの種類";
+"mistakeTree.detail.practice" = "このトピックを練習";
+"mistakeTree.detail.untracked" = "練習記録がありません";
+"mistakeTree.detail.untrackedHint" = "関連する練習を完了すると正答率が追跡されます";
+"errorType.conceptual" = "概念の理解";
+"errorType.execution" = "計算/手順";
+"errorType.refinement" = "要改善";
 "mistakeReview.filter.noLongerWeak" = "もう弱点ではない";
 "mistakeReview.filter.noStrengthsData" = "まだデータがありません — 問題を解いて強みを確認しましょう。";
 "mistakeReview.filter.strengthsTopicCount" = "%dトピック";
@@ -3155,3 +3175,4 @@
 "tomato.duration.hoursMinutes" = "%d時間%d分";
 
 "dailyChallenge.bannerReady" = "今日の3問が準備できました";
+"practiceSheet.backToChat" = "← チャットに戻る";

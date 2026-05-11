@@ -8,6 +8,7 @@
 
 import SwiftUI
 import Combine
+import Lottie
 
 private let avatarLogger = AppLogger.forFeature("AvatarAnimation")
 
@@ -132,6 +133,13 @@ struct SessionChatView: View {
     @State private var showingLiveLeaveAlert = false
     @State private var pendingTab: MainTab? = nil
     @State private var showingGuestConversion = false
+    // Practice launched from chat
+    @State private var chatPracticeSession: PracticeSession? = nil  // persists after "Back to Chat"
+    @State private var showingPracticeView = false                   // controls fullScreenCover visibility
+    @State private var isGeneratingPractice = false
+    @State private var practiceButtonGlowing = false
+    @State private var showingPracticeConfig = false
+    @State private var pendingPracticeLastMessage = ""
     /// True when Live Mode was disconnected because the app went to background.
     /// Used to show a brief banner when the user returns to foreground.
     @State private var liveEndedByBackground = false
@@ -438,6 +446,61 @@ struct SessionChatView: View {
                     blockedFeature: "voice_minutes",
                     onDismiss: { showingGuestConversion = false }
                 )
+            }
+            // Practice view — stays alive (session persists) so user can return via "Return to Practice"
+            .fullScreenCover(isPresented: $showingPracticeView) {
+                if let session = chatPracticeSession {
+                    QuestionSheetView(
+                        session: session,
+                        backToChatAction: { showingPracticeView = false },  // just close, keep session
+                        onPracticeCompleted: {                              // fully done → clear session
+                            showingPracticeView = false
+                            chatPracticeSession = nil
+                        }
+                    )
+                }
+            }
+            // Config bottom sheet — slides up from bottom
+            .sheet(isPresented: $showingPracticeConfig) {
+                ChatPracticeConfigSheet { config in
+                    Task { await generatePracticeFromChat(lastMessage: pendingPracticeLastMessage, config: config) }
+                }
+            }
+            // Lottie loading — fullScreenCover with transparent background (matches Practice tab behavior)
+            .fullScreenCover(isPresented: $isGeneratingPractice) {
+                ZStack {
+                    // Bubbles rise from the bottom — same layout as NewPracticeSheet.progressSection
+                    VStack(spacing: 0) {
+                        Spacer()
+                        GeometryReader { geo in
+                            VStack(spacing: -60) {
+                                LottieView(
+                                    animationName: "Bubbles x2",
+                                    loopMode: .loop,
+                                    animationSpeed: 1.0,
+                                    powerSavingProgress: 0.7
+                                )
+                                .frame(
+                                    width: min(geo.size.width, 500),
+                                    height: min(geo.size.width - 64, 500) * (500.0 / 370.0)
+                                )
+                                .clipped()
+                                .scaleEffect(1.3)
+                                .offset(y: -60)
+                                .frame(height: 220)
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
+                        .frame(height: 220)
+
+                        Text(detectChinese(in: pendingPracticeLastMessage) ? "正在生成练习题…" : "Generating...")
+                            .font(.headline.bold())
+                            .foregroundColor(.primary)
+                            .padding(.bottom, 48)
+                    }
+                }
+                .presentationBackground(.clear)
+                .interactiveDismissDisabled()
             }
             // ✅ Archive progress animation overlay
             .archiveProgressOverlay(isPresented: $showingArchiveProgress, archiveTask: {
@@ -831,6 +894,8 @@ struct SessionChatView: View {
                     if Self.debugMode {
                     debugPrint("🔄 [TTS] Cleared spoken messages for new session (old: \(oldSessionId ?? "nil"), new: \(newSessionId ?? "nil"))")
                     }
+                    // Clear practice session so "Practice This Topic" resets for new conversation
+                    chatPracticeSession = nil
                     // Clear unified message list when switching to a different session
                     // (oldSessionId != nil means this is a real session change, not initial load)
                     if oldSessionId != nil {
@@ -1140,12 +1205,17 @@ struct SessionChatView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 20)
             }
-            .onChange(of: allMessages.count) { _, newCount in
+            .onChange(of: allMessages.count) { oldCount, newCount in
                 // Mark conversation as started when first message appears
                 if newCount > 0 && !hasConversationStarted {
                     withAnimation(.easeInOut(duration: 0.3)) {
                         hasConversationStarted = true
                     }
+                }
+                // New message added after practice was generated → offer fresh generation
+                // (but not during practice generation itself, and only if count grew)
+                if newCount > oldCount && chatPracticeSession != nil && !isGeneratingPractice {
+                    chatPracticeSession = nil
                 }
                 // No auto-scroll on new messages — user controls scroll position
             }
@@ -1794,87 +1864,148 @@ struct SessionChatView: View {
 
     private var conversationContinuationButtons: some View {
         let lastMessage = networkService.conversationHistory.last?["content"] ?? ""
-
-        // Check if last message is a diagram
         let lastMessageHasDiagram = networkService.conversationHistory.last?["diagramKey"] != nil
         let lastDiagramKey = networkService.conversationHistory.last?["diagramKey"] as? String
+        let responseIsChinese = detectChinese(in: lastMessage)
 
-        return ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                // ✅ CRITICAL: If last message is a diagram, show ONE regenerate button first
-                if lastMessageHasDiagram, let diagramKey = lastDiagramKey {
-                    Button(NSLocalizedString("chat.diagram.regenerate", comment: "")) {
-                        Task {
-                            await viewModel.regenerateDiagram(withKey: diagramKey)
-                        }
-                    }
-                    .modernButtonStyle()
-                }
-
-                // ✨ PRIORITY: Display AI-generated suggestions if available AND language matches AND streaming is complete
-                // ✅ FIX: Only show suggestions after streaming completes to prevent position switching
-                // ✅ FIX: Use stable suggestions that don't change while keyboard is active
-                let responseIsChinese = detectChinese(in: lastMessage)
-                // Exempt special-action suggestions (video/diagram) from language check — their keys
-                // are fixed strings that don't reflect the response language.
-                let suggestionsMatchLanguage = !stableSuggestions.isEmpty &&
-                    (stableSuggestions.allSatisfy { suggestion in
-                        suggestion.value == "__REGENERATE_DIAGRAM__" ||
-                        isVideoSearchRequest(suggestion.value) ||
-                        isDiagramGenerationRequest(suggestion.key) ||
-                        (responseIsChinese == detectChinese(in: suggestion.key))
-                    })
-
-                if viewModel.isStreamingComplete && !stableSuggestions.isEmpty && suggestionsMatchLanguage {
-                    // ✅ STABILITY: Already sorted alphabetically in stableSuggestions
-                    ForEach(stableSuggestions, id: \.id) { suggestion in
-                        // Skip the regenerate suggestion if we already showed it above
-                        if suggestion.value == "__REGENERATE_DIAGRAM__" {
-                            EmptyView()
-                        } else if isVideoSearchRequest(suggestion.value) {
-                            Button(suggestion.key) {
-                                isMessageInputFocused = false
-                                handleVideoSearchRequest(suggestion)
-                            }
-                            .modernButtonStyle()
-                        } else if isDiagramGenerationRequest(suggestion.key) {
-                            Button(suggestion.key) {
-                                // Handle new diagram generation
-                                handleDiagramGenerationRequest(suggestion)
-                            }
-                            .modernButtonStyle()
-                        } else {
-                            Button(suggestion.key) {
-                                // Use the full prompt from AI suggestions
-                                isMessageInputFocused = false  // Dismiss keyboard if visible
-                                viewModel.messageText = suggestion.value
-                                viewModel.sendMessage()
-                            }
-                            .modernButtonStyle()
-                        }
-                    }
-                } else if !lastMessageHasDiagram {
-                    // Fallback to manually-generated contextual buttons (localized)
-                    // Only show if there's no diagram (diagram gets regenerate button instead)
-                    let contextButtons = generateContextualButtons(for: lastMessage)
-                    // ✅ STABILITY FIX: Sort buttons alphabetically to prevent position switching
-                    let sortedButtons = contextButtons.sorted { $0.localizedCompare($1) == .orderedAscending }
-                    ForEach(sortedButtons, id: \.self) { buttonTitle in
-                        Button(buttonTitle) {
-                            isMessageInputFocused = false  // Dismiss keyboard if visible
-                            viewModel.messageText = generateContextualPrompt(for: buttonTitle, lastMessage: lastMessage)
-                            viewModel.sendMessage()
-                        }
-                        .modernButtonStyle()
-                    }
-                }
-            }
-            .padding(.horizontal, 20)
+        // Classify stableSuggestions into special-action vs follow-up
+        let specialFromAI = stableSuggestions.filter { s in
+            s.value != "__REGENERATE_DIAGRAM__" &&
+            (isVideoSearchRequest(s.value) || isDiagramGenerationRequest(s.key))
         }
-        // ✅ FIX: Stabilize position to prevent shifting when TextField height changes
-        .frame(height: 44)  // Fixed height for stable positioning
-        .fixedSize(horizontal: false, vertical: true)  // Prevent vertical compression
-        .layoutPriority(1)  // Higher priority than TextField to prevent being pushed around
+        let regularFromAI = stableSuggestions.filter { s in
+            s.value != "__REGENERATE_DIAGRAM__" &&
+            !isVideoSearchRequest(s.value) &&
+            !isDiagramGenerationRequest(s.key)
+        }
+
+        let canUsePractice = AuthenticationService.shared.currentUser?.isAnonymous != true
+        let showPractice = viewModel.isStreamingComplete && isPracticeWorthy(lastMessage) && canUsePractice
+        let hasActivePractice = chatPracticeSession != nil  // session from this chat persists for return
+
+        // Whether language check passes for regular suggestions
+        let suggestionsMatchLanguage = !stableSuggestions.isEmpty && stableSuggestions.allSatisfy { s in
+            s.value == "__REGENERATE_DIAGRAM__" ||
+            isVideoSearchRequest(s.value) ||
+            isDiagramGenerationRequest(s.key) ||
+            (responseIsChinese == detectChinese(in: s.key))
+        }
+        let hasRegularSuggestions = viewModel.isStreamingComplete && suggestionsMatchLanguage && !regularFromAI.isEmpty
+        // Only show fallback AFTER streaming — prevents unstable layout shift from fallback → AI suggestions
+        let hasFallback = viewModel.isStreamingComplete && !suggestionsMatchLanguage && !lastMessageHasDiagram
+
+        // Has at least one special action to show in Row 1
+        let hasSpecialActions = showPractice || hasActivePractice || lastMessageHasDiagram ||
+            (viewModel.isStreamingComplete && suggestionsMatchLanguage && !specialFromAI.isEmpty)
+
+        return VStack(alignment: .leading, spacing: 6) {
+
+            // ── ROW 1: Special action buttons (Practice / Draw Diagram / Find Video) ─────
+            if hasSpecialActions {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+
+                        // Return to Practice — shown when a session is alive (user came back from practice)
+                        if hasActivePractice {
+                            Button {
+                                showingPracticeView = true
+                            } label: {
+                                Label(responseIsChinese ? "返回练习" : "Return to Practice",
+                                      systemImage: "arrow.uturn.left.circle")
+                                    .fontWeight(.semibold)
+                            }
+                            .actionChipStyle(color: DesignTokens.Colors.Cute.mint, glowing: false)
+                        }
+
+                        // Practice This Topic — peach glow (shown when streaming done AND no active session)
+                        if showPractice && !hasActivePractice {
+                            Button {
+                                pendingPracticeLastMessage = lastMessage
+                                showingPracticeConfig = true
+                            } label: {
+                                Label(responseIsChinese ? "生成练习题" : "Practice This Topic",
+                                      systemImage: "pencil.and.list.clipboard")
+                                    .fontWeight(.semibold)
+                            }
+                            .actionChipStyle(color: DesignTokens.Colors.Cute.peach, glowing: practiceButtonGlowing)
+                            .disabled(isGeneratingPractice)
+                            .onAppear {
+                                practiceButtonGlowing = false
+                                withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
+                                    practiceButtonGlowing = true
+                                }
+                            }
+                            .onDisappear { practiceButtonGlowing = false }
+                        }
+
+                        // Diagram regenerate (when last message is a diagram)
+                        if lastMessageHasDiagram, let diagramKey = lastDiagramKey {
+                            Button {
+                                Task { await viewModel.regenerateDiagram(withKey: diagramKey) }
+                            } label: {
+                                Label(NSLocalizedString("chat.diagram.regenerate", comment: ""),
+                                      systemImage: "arrow.triangle.2.circlepath")
+                                    .fontWeight(.semibold)
+                            }
+                            .actionChipStyle(color: DesignTokens.Colors.Cute.blue, glowing: false)
+                        }
+
+                        // Draw Diagram / Find Video from AI suggestions
+                        if viewModel.isStreamingComplete && suggestionsMatchLanguage {
+                            ForEach(specialFromAI, id: \.id) { suggestion in
+                                if isVideoSearchRequest(suggestion.value) {
+                                    Button(suggestion.key) {
+                                        isMessageInputFocused = false
+                                        handleVideoSearchRequest(suggestion)
+                                    }
+                                    .actionChipStyle(color: DesignTokens.Colors.Cute.lavender, glowing: false)
+                                } else if isDiagramGenerationRequest(suggestion.key) {
+                                    Button(suggestion.key) {
+                                        handleDiagramGenerationRequest(suggestion)
+                                    }
+                                    .actionChipStyle(color: DesignTokens.Colors.Cute.blue, glowing: false)
+                                }
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                }
+                .frame(height: 44)  // fixed height prevents overlap with row 2
+            }
+
+            // ── ROW 2: Regular follow-up suggestion buttons ──────────────────────────────
+            if hasRegularSuggestions || hasFallback {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        if hasRegularSuggestions {
+                            ForEach(regularFromAI, id: \.id) { suggestion in
+                                Button(suggestion.key) {
+                                    isMessageInputFocused = false
+                                    viewModel.messageText = suggestion.value
+                                    viewModel.sendMessage()
+                                }
+                                .modernButtonStyle()
+                            }
+                        } else if hasFallback && !lastMessageHasDiagram {
+                            let contextButtons = generateContextualButtons(for: lastMessage)
+                                .sorted { $0.localizedCompare($1) == .orderedAscending }
+                            ForEach(contextButtons, id: \.self) { title in
+                                Button(title) {
+                                    isMessageInputFocused = false
+                                    viewModel.messageText = generateContextualPrompt(for: title, lastMessage: lastMessage)
+                                    viewModel.sendMessage()
+                                }
+                                .modernButtonStyle()
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                }
+                .frame(height: 44)  // fixed height prevents overlap with row 1
+            }
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .layoutPriority(1)
     }
     
     // Generate context-aware buttons based on AI response
@@ -1958,12 +2089,113 @@ struct SessionChatView: View {
         let mathTerms = ["solve", "equation", "=", "x", "y", "derivative", "integral", "function", "graph", "algebra", "geometry", "calculus", "trigonometry", "formula", "theorem", "proof"]
         return mathTerms.contains { text.contains($0) }
     }
-    
+
     private func containsScienceTerms(_ text: String) -> Bool {
         let scienceTerms = ["photosynthesis", "cell", "atom", "molecule", "chemical", "reaction", "energy", "force", "gravity", "electron", "proton", "dna", "protein", "evolution", "ecosystem", "planet", "solar"]
         return scienceTerms.contains { text.contains($0) }
     }
-    
+
+    // Returns true when the AI response is substantive enough to warrant a practice suggestion.
+    // Any subject the app covers can generate questions — no subject whitelist needed.
+    private func isPracticeWorthy(_ text: String) -> Bool {
+        text.count > 120  // AI gave a real answer, not a one-liner
+    }
+
+    // Fallback subject detection — only used if backend doesn't return detectedSubject
+    private func detectPracticeSubject(from text: String) -> String {
+        let lower = text.lowercased()
+        if containsMathTerms(lower) || lower.contains("数学") || lower.contains("math") { return "Math" }
+        if lower.contains("physics") || lower.contains("物理") { return "Physics" }
+        if lower.contains("chemistry") || lower.contains("化学") { return "Chemistry" }
+        if lower.contains("biology") || lower.contains("生物") { return "Biology" }
+        if lower.contains("grammar") || lower.contains("essay") || lower.contains("writing")
+            || lower.contains("英语") || lower.contains("english") { return "English" }
+        if lower.contains("语文") || lower.contains("chinese") || lower.contains("literature")
+            || lower.contains("文学") { return "Chinese" }
+        if lower.contains("history") || lower.contains("历史") { return "History" }
+        if lower.contains("geography") || lower.contains("地理") { return "Geography" }
+        if lower.contains("computer") || lower.contains("programming") || lower.contains("code")
+            || lower.contains("计算机") { return "Computer Science" }
+        if lower.contains("economics") || lower.contains("经济") { return "Economics" }
+        if lower.contains("psychology") || lower.contains("心理") { return "Psychology" }
+        if lower.contains("art") || lower.contains("艺术") { return "Art" }
+        if containsScienceTerms(lower) || lower.contains("science") || lower.contains("科学") { return "Science" }
+        // Subject not detected — let the AI engine figure it out from focusNotes
+        return "General"
+    }
+
+    // Generate practice questions from the last AI response and present QuestionSheetView
+    private func generatePracticeFromChat(lastMessage: String, config: QuestionGenerationService.RandomQuestionsConfig) async {
+        guard !isGeneratingPractice else { return }
+        await MainActor.run { isGeneratingPractice = true }
+
+        // Send last 12 conversation messages — backend uses these to:
+        // 1) Detect subject via GPT-4o-mini
+        // 2) Generate questions that are directly based on the conversation (Mode 3)
+        let rawMessages: [[String: String]] = networkService.conversationHistory
+            .suffix(12)
+            .compactMap { dict -> [String: String]? in
+                guard let role = dict["role"], let content = dict["content"],
+                      !content.isEmpty, role == "user" || role == "assistant" else { return nil }
+                return ["role": role, "content": content]
+            }
+
+        // Use session's subject as a hint if already determined
+        let subjectHint = viewModel.selectedSubject.lowercased() == "general" ? "General" : viewModel.selectedSubject
+
+        let configWithFocus = QuestionGenerationService.RandomQuestionsConfig(
+            topics: config.topics,
+            focusNotes: nil,  // not needed — raw_messages covers this
+            difficulty: config.difficulty,
+            questionCount: config.questionCount,
+            questionType: config.questionType
+        )
+        let profile = QuestionGenerationDataAdapter.shared.createUserProfile()
+
+        let result = await QuestionGenerationService.shared.generateRandomQuestions(
+            subject: subjectHint,
+            config: configWithFocus,
+            userProfile: profile,
+            rawMessages: rawMessages
+        )
+
+        await MainActor.run {
+            isGeneratingPractice = false
+            switch result {
+            case .success(let questions):
+                // Subject priority: 1) backend GPT detection, 2) detected from question topics, 3) subjectHint, 4) "General"
+                let backendSubject = QuestionGenerationService.shared.lastDetectedSubject
+                    .flatMap { $0.isEmpty || $0.lowercased() == "general" ? nil : $0 }
+
+                // Fallback: infer from the topics of the generated questions
+                let questionTopicSubject: String? = {
+                    let topics = questions.compactMap { $0.topic }.filter { !$0.isEmpty }
+                    guard !topics.isEmpty else { return nil }
+                    let combined = topics.joined(separator: " ").lowercased()
+                    let inferred = detectPracticeSubject(from: combined)
+                    return inferred.lowercased() == "general" ? nil : inferred
+                }()
+
+                let detectedSubject = backendSubject
+                    ?? questionTopicSubject
+                    ?? (subjectHint.lowercased() == "general" ? nil : subjectHint)
+                    ?? "General"
+
+                let session = PracticeSessionManager.shared.saveSession(
+                    questions: questions,
+                    generationType: "Chat Practice",
+                    subject: detectedSubject,
+                    config: configWithFocus
+                )
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    chatPracticeSession = session
+                    showingPracticeView = true
+                }
+            case .failure:
+                break
+            }
+        }
+    }
     private func containsDefinitionTerms(_ text: String) -> Bool {
         let definitionTerms = ["define", "meaning", "refers to", "is a", "means that", "definition", "concept", "term"]
         return definitionTerms.contains { text.contains($0) }
@@ -3152,8 +3384,20 @@ struct YouTubePlayerView: UIViewRepresentable {
 
 extension View {
     func modernButtonStyle() -> some View {
+        self.modifier(ModernButtonStyleModifier())
+    }
+
+    /// Peach-gradient action chip — used for Practice, Draw Diagram, Find Video row
+    func actionChipStyle(color: Color, glowing: Bool) -> some View {
         self
-            .modifier(ModernButtonStyleModifier())
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundColor(color)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 9)
+            .background(color.opacity(0.14))
+            .clipShape(Capsule())
+            .overlay(Capsule().stroke(color.opacity(glowing ? 0.85 : 0.4), lineWidth: 1.5))
+            .shadow(color: color.opacity(glowing ? 0.5 : 0.1), radius: glowing ? 9 : 2, x: 0, y: 0)
     }
 }
 
