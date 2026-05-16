@@ -99,18 +99,22 @@ struct ImageSourceSelectionView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
+                    Button {
                         // CRITICAL: Clear ViewModel state when user cancels/goes back
                         // This ensures clean state when re-entering the camera function
                         let logger = Logger(subsystem: "com.studyai", category: "ImageSourceSelectionView")
                         logger.info("❌ === USER PRESSED CANCEL BUTTON ===")
                         logger.info("📊 State before cancel: \(cameraViewModel.captureState)")
                         logger.info("🖼️ Has image before cancel: \(cameraViewModel.capturedImage != nil)")
-                        
+
                         cameraViewModel.clearForNextCapture()
-                        
+
                         logger.info("🧹 ViewModel cleared after cancel")
                         isPresented = false
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.body.bold())
+                            .foregroundColor(.primary)
                     }
                 }
             }

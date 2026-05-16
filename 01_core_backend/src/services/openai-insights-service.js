@@ -402,30 +402,54 @@ Make it practical with example phrases parents can use.
 Format as numbered list with example dialogue.`,
 
             // ===== SUMMARY REPORT PROMPTS =====
-            'summary:holistic_profile': () => `Create a holistic student profile integrating all data:
+            'summary:holistic_profile': () => {
+                const kt = signals.knowledgeTree;
+                const hasKT = kt !== null && kt !== undefined;
+
+                const ktSection = hasKT
+                    ? [
+                        `\nKnowledge Tree (Topic Mastery — synced from student device):`,
+                        `- Topics practiced: ${kt.totalPracticedTopics}`,
+                        `- Topics mastered: ${kt.totalMasteredTopics}`,
+                        `- Topics struggling (accuracy <50%, 3+ attempts): ${kt.totalStrugglingTopics}`,
+                        ...Object.entries(kt.bySubject || {}).flatMap(([subj, data]) => {
+                            const lines = [];
+                            if (data.mastered?.length)   lines.push(`  ✅ Mastered in ${subj}: ${data.mastered.slice(0,3).join(', ')}`);
+                            if (data.struggling?.length) lines.push(`  ⚠️ Struggling in ${subj}: ${data.struggling.slice(0,3).join(', ')}`);
+                            if (data.inProgress?.length) lines.push(`  🔄 In progress in ${subj}: ${data.inProgress.slice(0,3).join(', ')}`);
+                            return lines;
+                        })
+                      ].join('\n')
+                    : `\nKnowledge Tree: No topic-level data for this period. Do NOT mention or infer topic mastery.`;
+
+                return `Create a holistic student profile using ONLY the data below. Do not invent strengths, progress, or insights not supported by the numbers.
 
 Activity Summary:
-- ${signals.totalQuestions} questions, ${signals.totalChats} chats
-- ${signals.activeDays} active days
-- Subjects: ${signals.subjects?.join(', ')}
+- Questions answered: ${signals.totalQuestions}
+- AI chat sessions: ${signals.totalChats}
+- Active days: ${signals.activeDays}
+- Subjects studied: ${signals.subjects?.join(', ') || 'None'}
 
 Performance Summary:
-- Accuracy: ${signals.overallAccuracy}%
-- Mistakes: ${signals.totalMistakes}
-- Progress: ${signals.progressTrend}
+- Overall accuracy: ${signals.overallAccuracy !== null && signals.overallAccuracy !== undefined ? signals.overallAccuracy + '%' : 'No data (no graded activity this period)'}
+- Total mistakes: ${signals.totalMistakes}
+- Progress trend: ${signals.progressTrend}
+${ktSection}
 
 Wellbeing Summary:
-- Mental health: ${signals.mentalHealthStatus}
-- Engagement: ${signals.engagementLevel}
-- Red flags: ${signals.redFlagCount}
+- Mental health status: ${signals.mentalHealthStatus}
+- Engagement level: ${signals.engagementLevel}
+- Red flags detected: ${signals.redFlagCount}
 
-Provide 4-5 bullet points describing:
-- The student's learning strengths and style
-- How activity, performance, and wellbeing connect
-- The "big picture" story of this student's learning
-- Key opportunities being maximized or missed
+STRICT RULES:
+1. If totalQuestions is 0: clearly state no activity data exists. Do NOT describe learning strengths.
+2. Only call something a "strength" if accuracy ≥ 70% with ≥ 5 questions, or topic shows mastered in Knowledge Tree.
+3. If Knowledge Tree data is absent: no topic-level claims whatsoever.
+4. Use hedged language ("this week's data suggests", "appears to"). Never absolute claims.
 
-Format as HTML list with integrated analysis.`,
+Provide 4-5 bullet points: engagement picture, performance snapshot (with numbers), knowledge tree progress (only if data exists), one parent action, wellbeing note (only if signals present).
+Format as HTML list.`;
+            },
 
             'summary:priority_action': () => `Synthesize top 3-5 priorities for the next ${context.period}:
 

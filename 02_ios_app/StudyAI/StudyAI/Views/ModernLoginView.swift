@@ -819,10 +819,9 @@ struct ModernSignUpView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
+                    XDismissButton {
                         dismiss()
                     }
-                    .font(.headline)
                 }
             }
             .onTapGesture {

@@ -362,7 +362,7 @@ struct QuestionPreviewRow: View {
                     ProgressiveQuestion(
                         id: "1",  // Changed from Int to String
                         questionNumber: "1",
-                        pageNumber: nil,  // No page number for preview
+                        pageNumber: nil,
                         isParent: true,
                         hasSubquestions: true,
                         parentContent: "Solve the following problems:",
@@ -372,11 +372,14 @@ struct QuestionPreviewRow: View {
                                 questionText: "2 + 3 = ?",
                                 studentAnswer: "5",
                                 questionType: "short_answer",
-                                needImage: nil
+                                needImage: nil,
+                                workingSteps: nil
                             )
                         ],
                         questionText: nil,
                         studentAnswer: nil,
+                        workingSteps: nil,
+                        teacherMark: nil,
                         hasImage: false,
                         imageRegion: nil,
                         questionType: "parent",
@@ -385,13 +388,15 @@ struct QuestionPreviewRow: View {
                     ProgressiveQuestion(
                         id: "2",  // Changed from Int to String
                         questionNumber: "2",
-                        pageNumber: nil,  // No page number for preview
+                        pageNumber: nil,
                         isParent: false,
                         hasSubquestions: false,
                         parentContent: nil,
                         subquestions: nil,
                         questionText: "What is the capital of France?",
                         studentAnswer: "Paris",
+                        workingSteps: nil,
+                        teacherMark: nil,
                         hasImage: false,
                         imageRegion: nil,
                         questionType: "short_answer",

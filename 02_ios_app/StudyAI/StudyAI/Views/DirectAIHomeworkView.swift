@@ -641,6 +641,14 @@ struct DirectAIHomeworkView: View {
                 }
             }
         }
+        .onChange(of: appState.shouldOpenGraderCamera) { _, shouldOpen in
+            if shouldOpen {
+                appState.shouldOpenGraderCamera = false
+                stateManager.capturedImages = []
+                stateManager.originalImage = nil
+                showCameraEntry = true
+            }
+        }
     }
     
     // MARK: - Initial View

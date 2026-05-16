@@ -128,9 +128,11 @@ RULE 1 - PRESERVE MATHEMATICAL NOTATION:
 → Keep symbols: +, -, ×, ÷, =, <, >, ≤, ≥, √, ², ³, π
 
 RULE 2 - EXTRACT CALCULATION STEPS (CRITICAL):
-IF student shows work:
-→ Extract complete process: "25 + 17 = 42" (not just "42")
-→ If vertical calculation, describe structure: "carried 1 to tens place"
+IF student shows work/intermediate steps:
+→ Put ONLY the final answer in student_answer (e.g., "63")
+→ Put each intermediate step in working_steps array (e.g., ["30+30=60", "1+2=3", "60+3=63"])
+→ If vertical calculation, each row becomes one step: ["  25", "+17", "----", "  42"]
+→ If student only writes the answer with no steps → working_steps is omitted
 
 RULE 3 - UNITS ARE CRITICAL:
 ✅ "20 stickers", "5 meters", "$10"

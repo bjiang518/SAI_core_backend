@@ -46,7 +46,7 @@ function tierCheck({ feature, getCount }) {
 
     // Write-back expired tier so DB stays in sync without waiting for the midnight cron
     if (isExpired && rawTier !== 'free') {
-      db.setUserTier(userId, 'free', null).catch(() => {});
+      db.setUserTier(userId, 'free', null, 'expiry_downgrade').catch(() => {});
     }
 
     const count = getCount ? Math.max(1, getCount(request) || 1) : 1;

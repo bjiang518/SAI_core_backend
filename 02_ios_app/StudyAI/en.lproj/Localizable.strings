@@ -517,7 +517,7 @@
 "account.usage.resetsMonthly" = "Quota updates on the 1st of each month";
 "account.usage.unlimited" = "Unlimited";
 "account.usage.upgradeLabel" = "Upgrade";
-"account.usage.upgradePlan" = "Upgrade Plan";
+"account.usage.upgradePlan" = "View & Upgrade Plans";
 "account.usage.restorePurchases" = "Restore Purchases";
 "account.usage.manageSubscription" = "Manage Subscription";
 "account.usage.tierGuest" = "Guest Account";
@@ -780,6 +780,11 @@
 "practiceLibrary.typeConversation" = "Conversation Review";
 "practiceLibrary.typeMistake" = "Mistake Practice";
 "practiceLibrary.typeLibrary" = "Library Practice";
+"practiceLibrary.typeChat" = "Chat Practice";
+"practiceLibrary.typeTargeted" = "Targeted Practice";
+"practiceLibrary.typeFeynman" = "Feynman Practice";
+"practiceLibrary.typeDaily" = "Daily Challenge";
+"practiceLibrary.typeSmartPractice" = "Smart Practice";
 
 // Practice Library
 "practiceLibrary.title" = "Practice";
@@ -1767,6 +1772,7 @@
 "mistakeTree.legend.mastered" = "Mastered";
 "mistakeTree.legend.untracked" = "Untracked";
 "mistakeTree.empty" = "No topic data yet";
+"knowledgeTree.hint" = "Each branch has 3 sub-branches, representing deeper topics.";
 "mistakeTree.detail.accuracy" = "Accuracy";
 "mistakeTree.detail.attempts" = "Attempts";
 "mistakeTree.detail.correct" = "Correct";
@@ -2164,6 +2170,7 @@
 "proMode.annotationImageHint" = "Some questions need images — tap to crop from photo";
 "proMode.aiAnalyzeDiagrams" = "Auto-locate diagram regions with AI";
 "proMode.selectAIModel" = "Select AI Model";
+"proMode.nextHomework" = "Next Homework";
 "proMode.revertGrading" = "Revert Grading";
 "proMode.revertGradingAlert.title" = "Revert Grading?";
 "proMode.revertGradingAlert.revert" = "Revert";
@@ -3135,4 +3142,113 @@
 "common.remove" = "Remove";
 "guestConversion.loginSuccess" = "Signed in successfully!";
 "dailyChallenge.bannerReady" = "Daily 3 questions are ready";
+"dailyChallenge.goal.weakness" = "Today's Goal: Beat %d Weakness(es)";
+"dailyChallenge.goal.leaf" = "Today's Goal: Light Up \"%@\"";
+"dailyChallenge.goal.normal" = "Today's Challenge: %@ · 3 Questions";
+"dailyChallenge.achievement.leafLit" = "Leaf Lit!";
+"dailyChallenge.achievement.viewTree" = "View Knowledge Tree";
+"dailyChallenge.achievement.weaknessConverted" = "Defeated %d Weakness(es)!";
+"dailyChallenge.achievement.keepGoing" = "Keep going — weaknesses are fading";
+"dailyChallenge.firework.weaknessMulti" = "Defeated %d Weaknesses!";
+"dailyChallenge.firework.weaknessSingle" = "Weakness Defeated!";
+"dailyChallenge.firework.weaknessSub" = "Keep practicing, you're getting stronger 💪";
 "practiceSheet.backToChat" = "← Back to Chat";
+
+// MARK: - Light Up Knowledge Tree
+"lightUpTree.button.title" = "Light Up Tree";
+"lightUpTree.button.subtitle" = "%d topics to practice";
+"lightUpTree.title" = "Select Topics";
+"lightUpTree.selectAll" = "Select All";
+"lightUpTree.deselectAll" = "Deselect All";
+"lightUpTree.allLit.title" = "All Topics Practiced!";
+"lightUpTree.allLit.message" = "All topics in this subject have practice records. Keep it up!";
+"lightUpTree.selection.header" = "Unpracticed Topics";
+"lightUpTree.selection.subheader" = "%d topics not yet practiced. Select to generate grade-level questions.";
+"lightUpTree.config.title" = "Practice Settings";
+"lightUpTree.generate.selectFirst" = "Please select at least one topic";
+"lightUpTree.generate.button" = "Generate %d Questions (%d Topics)";
+"lightUpTree.generating" = "Generating questions…";
+"lightUpTree.error.sessionNotFound" = "Could not load questions. Please try again.";
+"lightUpTree.selection.quotaHint" = "1 topic per question — up to %d topics (selected: %d)";
+"lightUpTree.selection.limitReached" = "Max %d topics (matches question count)";
+"mistakeTree.detail.lightUp" = "Light Up This Topic";
+
+// MARK: - Onboarding Age Groups
+"ageGroup.young.range" = "Ages 6–8";
+"ageGroup.young.stage" = "Elementary (Lower)";
+"ageGroup.elementary.range" = "Ages 9–12";
+"ageGroup.elementary.stage" = "Elementary (Upper)";
+"ageGroup.middle.range" = "Ages 13–15";
+"ageGroup.middle.stage" = "Middle School";
+"ageGroup.high.range" = "Ages 16–18";
+"ageGroup.high.stage" = "High School";
+"ageGroup.adult.range" = "18+";
+"ageGroup.adult.stage" = "College & Above";
+
+// MARK: - Onboarding Age Step
+"onboarding.age.title.parent" = "How old is your kid?";
+"onboarding.age.yourAge" = "Your Age";
+"onboarding.age.kidAge" = "Kid's Age";
+"onboarding.age.selectAgeGroup" = "Select age group";
+"onboarding.age.selectKidAgeGroup" = "Select kid's age group";
+"onboarding.age.recommendedGrade" = "Recommended Grade";
+"onboarding.age.selectGrade" = "Select grade";
+"onboarding.age.infoTitle" = "We'll personalize based on your choice";
+"onboarding.age.infoSubtitle" = "Content matched to your learning level";
+
+// MARK: - Onboarding Learning Style
+"onboarding.learningStyle.recommended" = "Recommended";
+"onboarding.learningStyle.tag.thinkingSkills" = "Build Thinking";
+"onboarding.learningStyle.tag.deepUnderstanding" = "Deep Understanding";
+"onboarding.learningStyle.tag.longTermGrowth" = "Long-term Growth";
+"onboarding.learningStyle.tag.efficient" = "Fast & Efficient";
+"onboarding.learningStyle.tag.saveTime" = "Save Time";
+"onboarding.learningStyle.tag.solveProblem" = "Solve Problems";
+"onboarding.learningStyle.infoBanner" = "You can change this anytime";
+"onboarding.learningStyle.infoBannerSub" = "Adjust AI help style in Settings";
+
+// MARK: - Onboarding Consent
+"onboarding.consent.heroSubtitle" = "We only use necessary information\nto provide AI learning services";
+"onboarding.consent.dataProtection.title" = "How We Protect Your Data";
+"onboarding.consent.privacy.title" = "Privacy";
+"onboarding.consent.privacy.desc" = "Your Q&A and chat history are never publicly shared";
+"onboarding.consent.personalized.title" = "Personalized";
+"onboarding.consent.personalized.desc" = "AI tailors content to your learning progress";
+"onboarding.consent.parentFriendly.title" = "Parent-Friendly";
+"onboarding.consent.parentFriendly.desc" = "Delete data or disable AI features anytime in Settings";
+"onboarding.consent.aiDisclosure.title" = "AI Usage Declaration";
+"onboarding.consent.aiDisclosure.expand" = "View Details";
+"onboarding.consent.aiDisclosure.collapse" = "Collapse";
+"onboarding.consent.encryption" = "All data is encrypted in transit and at rest";
+"onboarding.consent.agreeSubtitle" = "You can change this anytime in Settings";
+"onboarding.consent.terms" = "By continuing, you agree to our";
+
+// MARK: - Onboarding Trial
+"onboarding.trial.title" = "Your first week is free";
+"onboarding.trial.subtitle" = "Try Premium for 7 days — no charge until next week, cancel anytime.";
+"onboarding.trial.feature1" = "Unlimited homework scans";
+"onboarding.trial.feature2" = "500 AI chat messages / month";
+"onboarding.trial.feature3" = "Live voice tutor sessions";
+"onboarding.trial.cta" = "Start 7-Day Free Trial";
+
+// MARK: - Account Usage
+"account.usage.subtitle" = "Track your usage and unlock more power with StudyAgent.";
+"account.usage.yourUsage" = "Your Usage";
+"account.usage.resetsMonthEnd" = "Resets at the end of each month";
+"account.usage.unlockTitle" = "Unlock unlimited access";
+"account.usage.unlockSubtitle" = "Upgrade to Premium or Ultra and supercharge your learning.";
+"account.usage.viewPlans" = "View Plans";
+
+// MARK: - Upgrade Comparison
+"upgrade.comparison.trialBadge" = "7-Day Free Trial  •  Cancel anytime";
+"upgrade.comparison.headerLine1" = "Upgrade your";
+"onboarding.trial.skip" = "Maybe Later";
+"chat.practiceConfig.title" = "Practice This Topic";
+"questionGeneration.generate" = "Generate Practice";
+"archive.followUpWithAI" = "Follow Up with AI";
+"practice.beta.badge" = "Beta";
+"practice.beta.message" = "We are constructing question banks";
+"practice.mode.ai" = "AI Practice";
+"practice.mode.bank" = "Real Questions";
+"proMode.oneMistake" = "1 mistake";
+"proMode.nMistakes" = "%d mistakes";

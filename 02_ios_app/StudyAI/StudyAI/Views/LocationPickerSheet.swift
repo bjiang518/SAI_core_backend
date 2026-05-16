@@ -48,7 +48,7 @@ struct LocationPickerSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(NSLocalizedString("common.cancel", value: "Cancel", comment: "")) {
+                    XDismissButton {
                         dismiss()
                     }
                 }

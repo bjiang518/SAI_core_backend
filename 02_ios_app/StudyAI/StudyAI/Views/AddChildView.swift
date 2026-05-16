@@ -121,7 +121,7 @@ struct AddChildView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button(NSLocalizedString("common.cancel", value: "Cancel", comment: "")) { dismiss() }
+                    XDismissButton { dismiss() }
                 }
             }
         }

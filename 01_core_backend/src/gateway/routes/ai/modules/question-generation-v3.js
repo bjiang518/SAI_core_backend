@@ -272,7 +272,7 @@ module.exports = async function (fastify, opts) {
           mistakes_data: { type: 'array' },
           conversation_data: { type: 'array' },
           question_data: { type: 'array' },
-          bank_source: { type: 'string', enum: ['amc8', 'amc10', 'amc12', 'aime', 'sat', 'mmlu', 'arc', 'openbookqa', 'gsm8k', 'agieval', 'scienceqa', 'mathvista'] },
+          bank_source: { type: 'string', enum: ['amc8', 'amc10', 'amc12', 'aime', 'sat', 'mmlu', 'arc', 'openbookqa', 'gsm8k', 'agieval', 'scienceqa', 'mathvista', 'kangaroo'] },
         }
       }
     },
@@ -303,6 +303,7 @@ module.exports = async function (fastify, opts) {
       conversation_data = [],
       question_data = [],
       bank_source,
+      grade_level,
     } = request.body;
 
     // Auto-detect subject from focus_notes when caller omits it or sends "General"
@@ -343,11 +344,11 @@ module.exports = async function (fastify, opts) {
       language,
     });
 
-    // Fetch real user profile (grade level) from DB.
-    // Do NOT fall back to 'High School' — an unset grade should produce no constraint,
-    // letting the user-selected difficulty drive retrieval (safer for young children).
+    // Use iOS-supplied grade_level first (local, no DB lag), fall back to DB value
     const rawProfile = await db.getEnhancedUserProfile(userId).catch(() => null);
-    const gradeLabel = formatGradeLevel(rawProfile?.grade_level) || null;
+    const gradeLabel = (grade_level ? formatGradeLevel(grade_level) : null)
+      || formatGradeLevel(rawProfile?.grade_level)
+      || null;
     const difficultyStr = DIFFICULTY_MAP[difficulty] || 'intermediate';
 
     const userProfile = { grade: gradeLabel, location: 'US', subject_proficiency: {} };

@@ -533,7 +533,9 @@ def build_complete_grading_prompt(
     parent_content: Optional[str] = None,
     has_context_image: bool = False,
     use_deep_reasoning: bool = False,
-    language: str = "en"
+    language: str = "en",
+    working_steps: Optional[list] = None,
+    teacher_mark: Optional[dict] = None,
 ) -> str:
     """
     Build complete grading prompt with type × subject specialized instructions.
@@ -605,6 +607,73 @@ STUDENT ANSWER: {student_answer}
     if has_context_image:
         grading_task += "\n\n📷 Note: This question includes an image for visual context."
 
+    # Teacher mark — if teacher already marked it, trust that signal
+    if teacher_mark:
+        mark_type = teacher_mark.get("type", "")
+        mark_content = teacher_mark.get("content", "")
+        if mark_type == "checkmark":
+            grading_task += "\n\n✅ Teacher marked this answer as CORRECT (✓). Align grading with teacher's judgment."
+        elif mark_type == "cross":
+            grading_task += "\n\n❌ Teacher marked this answer as INCORRECT (✗). Focus feedback on what went wrong."
+        elif mark_type == "correction" and mark_content:
+            grading_task += f"\n\n📝 Teacher correction: The teacher crossed out the student's answer and wrote '{mark_content}'. The correct answer is '{mark_content}'."
+
+    # Working steps — structured rubric analysis
+    if working_steps:
+        steps_text = "\n".join(f"  [{i}] {s}" for i, s in enumerate(working_steps))
+        grading_task += f"""
+
+STUDENT'S WORKING STEPS (0-based index):
+{steps_text}
+
+STEP ANALYSIS RUBRIC
+Evaluate the student's work across the dimensions below.
+For each dimension, return a value only if it is clearly observable from the steps shown.
+Use null for any dimension that is not applicable or cannot be determined.
+
+Dimensions and allowed values:
+
+strategy_quality
+  How appropriate is the method/algorithm the student chose?
+  "optimal"    — most efficient valid approach for this problem type
+  "valid"      — correct approach, not the most efficient
+  "suboptimal" — technically works but unnecessarily complex
+  "flawed"     — the approach itself is incorrect in principle
+  null         — cannot determine from the steps shown
+
+first_error_step
+  Zero-based index of the FIRST step that contains an error.
+  Integer (0, 1, 2 …), or null if every step is correct.
+
+missing_steps
+  Critical intermediate steps that are absent, making the solution
+  hard to follow or leaving logical gaps.
+  Short description string, or null if no steps appear to be missing.
+
+computational_error
+  A purely arithmetic or numerical calculation mistake.
+  Short description (e.g. "step [1]: 3×4 written as 11"), or null.
+
+logical_gap
+  A step that does not logically follow from the previous one.
+  Especially relevant for proofs and algebraic derivations.
+  Short description, or null.
+
+formula_misuse
+  A wrong formula was applied, or a correct formula was used with
+  incorrect substitution or rearrangement.
+  Short description, or null.
+
+error_type
+  High-level categorisation of the PRIMARY error (if any).
+  "conceptual_gap"     — student misunderstands the underlying concept
+  "procedural_error"   — correct concept, wrong sequence of steps
+  "computational_slip" — correct method, arithmetic mistake
+  null                 — no error, or error type unclear
+
+Include these inside a "step_analysis" object in the JSON response.
+"""
+
     prompt_parts.append(grading_task)
 
     # Output format instructions — identical for both fast and deep mode
@@ -628,20 +697,255 @@ is_correct DEFINITION (strict rule — never deviate):
 - is_correct = false when score < 0.9
 
 FEEDBACK REQUIREMENT (mandatory, must not be empty):
-- If incorrect (score < 0.9): write 50-100 words explaining the specific error and guiding toward the correct understanding.
-- If correct (score >= 0.9): write under 50 words confirming what the student did well.
+- If incorrect (score < 0.9): 50-100 words explaining the specific error and corrective guidance.
+  When working_steps are present: reference the actual steps shown; do not describe a generic solution.
+- If correct (score >= 0.9): under 50 words affirming what the student did well.
+  When working_steps are present: acknowledge the method/strategy demonstrated in the steps, not just the final answer.
 
 MATH FORMATTING (this is JSON output — backslashes must be doubled):
 - Inline math: \\(expression\\) — e.g. \\(\\frac{3}{2}\\), \\(x^2\\), \\(\\text{mol}\\)
 - Display math: \\[expression\\]
 - NEVER use bare LaTeX commands or $ signs outside delimiters
 
-Return JSON with: score, is_correct, feedback, confidence, correct_answer
+Return JSON with the following fields:
+
+Required fields (always present):
+  score            — float 0.0–1.0
+  is_correct       — boolean (true when score >= 0.9)
+  feedback         — string (see requirement above)
+  confidence       — float 0.0–1.0
+  correct_answer   — string or null
+
+Optional field (include only when working_steps were provided):
+  step_analysis    — object with the rubric dimensions evaluated above;
+                     each dimension is either a value or null
+                     {
+                       "strategy_quality": "optimal"|"valid"|"suboptimal"|"flawed"|null,
+                       "first_error_step": integer|null,
+                       "missing_steps": string|null,
+                       "computational_error": string|null,
+                       "logical_gap": string|null,
+                       "formula_misuse": string|null,
+                       "error_type": "conceptual_gap"|"procedural_error"|"computational_slip"|null
+                     }
 """
 
     prompt_parts.append(output_format)
 
     # Language instruction — only feedback field is localized, JSON keys stay English
+    from src.services.prompt_i18n import normalize_language, GRADING_FEEDBACK_LANG_INSTRUCTION
+    lang_instruction = GRADING_FEEDBACK_LANG_INSTRUCTION.get(normalize_language(language), "")
+    if lang_instruction:
+        prompt_parts.append(lang_instruction)
+
+    return "\n\n".join(prompt_parts)
+
+
+def build_deep_grading_prompt(
+    question_type: Optional[str],
+    subject: Optional[str],
+    question_text: str,
+    student_answer: str,
+    correct_answer: Optional[str] = None,
+    parent_content: Optional[str] = None,
+    has_context_image: bool = False,
+    language: str = "en",
+    working_steps: Optional[list] = None,
+    teacher_mark: Optional[dict] = None,
+) -> str:
+    """
+    Build a deep-mode grading prompt for Gemini 3.1 Pro with thinking budget.
+
+    Produces a richer, more analytical prompt than build_complete_grading_prompt,
+    requesting detailed explanations, method analysis, and step-by-step breakdowns.
+
+    Args:
+        question_type: Type of question (multiple_choice, fill_blank, etc.)
+        subject: Subject area (Math, Physics, English, etc.)
+        question_text: The question being graded
+        student_answer: Student's response
+        correct_answer: Expected answer (if available)
+        parent_content: Parent question context for subquestions
+        has_context_image: Whether question has associated image
+        language: Language code for feedback (e.g. "en", "zh-Hans")
+        working_steps: List of student's working steps (strings)
+        teacher_mark: Dict with "type" and optional "content" keys
+
+    Returns:
+        Complete formatted deep-mode grading prompt
+    """
+
+    prompt_parts = []
+
+    # --- 1. Header (same as fast mode) ---
+    prompt_parts.append("""You are an expert educational grader performing deep analytical assessment.
+
+Grade the following student answer with rigorous, thorough analysis.
+
+GRADING PRINCIPLES:
+- Be consistent: Apply the same standards to similar answers
+- Be educational: Focus on helping students learn from mistakes
+- Be fair: Award partial credit for partially correct work
+- Be specific: Point out exactly what was right or wrong
+- Be encouraging: Frame feedback constructively
+""")
+
+    # Question type and subject context
+    if question_type or subject:
+        context_lines = []
+        if question_type:
+            context_lines.append(f"Question Type: {question_type}")
+        if subject:
+            context_lines.append(f"Subject: {subject}")
+        prompt_parts.append("\n".join(context_lines))
+
+    # --- 2. Specialized type × subject instructions (same as fast mode) ---
+    specialized_instructions = get_grading_instructions(question_type, subject)
+    if specialized_instructions:
+        prompt_parts.append(specialized_instructions)
+
+    # --- 3. Parent question context (same as fast mode) ---
+    if parent_content:
+        prompt_parts.append(f"""📚 PARENT QUESTION CONTEXT:
+This is a subquestion that belongs to a larger multi-part question.
+Parent Question: {parent_content}
+
+Consider the parent question's context when grading this subquestion.""")
+
+    # --- 4. Deep mode: working steps section ---
+    if working_steps:
+        prompt_parts.append("""🔬 DEEP STEP-BY-STEP ANALYSIS REQUIRED:
+You have the student's working steps below. For EACH step:
+1. Evaluate whether it is correct, incorrect, or suboptimal
+2. Identify the FIRST step that introduces an error
+3. Assess the overall strategy: optimal / valid / suboptimal / flawed
+4. Identify missing steps if any critical intermediate work is absent
+5. Identify the method's time/space complexity if applicable (e.g. O(n²), constant, linear)
+6. Suggest a more efficient alternative method if one exists
+
+For step_breakdown, return one entry per step with:
+  - step_index: 0-based integer
+  - status: "correct" | "incorrect" | "suboptimal"
+  - explanation: 1-2 sentence explanation of what is right or wrong at this step""")
+
+    # --- 4b. Deep mode: teacher mark section ---
+    if teacher_mark:
+        mark_type = teacher_mark.get("type", "") if teacher_mark else ""
+        mark_content = teacher_mark.get("content", "") if teacher_mark else ""
+        if mark_type == "checkmark":
+            prompt_parts.append(
+                "✅ TEACHER MARK: The teacher marked this CORRECT (✓). "
+                "Your grading MUST align with the teacher's judgment. "
+                "Explain why the approach is correct and what the student did well."
+            )
+        elif mark_type == "cross":
+            prompt_parts.append(
+                "❌ TEACHER MARK: The teacher marked this INCORRECT (✗). "
+                "Your grading MUST align with the teacher's judgment. "
+                "Focus on identifying the specific error."
+            )
+        elif mark_type == "correction" and mark_content:
+            prompt_parts.append(
+                f"📝 TEACHER MARK: The teacher crossed out the answer and wrote '{mark_content}'. "
+                f"The correct answer is '{mark_content}'. "
+                "Grade accordingly and explain the correction."
+            )
+
+    # --- 5. Grading task (question / answer / correct answer / steps) ---
+    grading_task_lines = [
+        f"QUESTION: {question_text}",
+        "",
+        f"STUDENT ANSWER: {student_answer}",
+    ]
+
+    if correct_answer:
+        grading_task_lines.append(f"\nCORRECT ANSWER: {correct_answer}")
+
+    if has_context_image:
+        grading_task_lines.append("\n📷 Note: This question includes an image for visual context.")
+
+    if working_steps:
+        steps_text = "\n".join(f"  [{i}] {s}" for i, s in enumerate(working_steps))
+        grading_task_lines.append(f"\nSTUDENT'S WORKING STEPS (0-based index):\n{steps_text}")
+
+    prompt_parts.append("\n".join(grading_task_lines))
+
+    # --- 6. Deep output format ---
+    step_analysis_fields = ""
+    if working_steps:
+        step_analysis_fields = """
+  step_analysis (required when steps provided) — object:
+    {
+      "strategy_quality": "optimal"|"valid"|"suboptimal"|"flawed"|null,
+      "first_error_step": integer|null,
+      "missing_steps": string|null,
+      "computational_error": string|null,
+      "logical_gap": string|null,
+      "formula_misuse": string|null,
+      "error_type": "conceptual_gap"|"procedural_error"|"computational_slip"|null
+    }
+
+  step_breakdown (required when steps provided) — array, one entry per step:
+    [
+      {
+        "step_index": 0,
+        "status": "correct"|"incorrect"|"suboptimal",
+        "explanation": "1-2 sentence explanation"
+      },
+      ...
+    ]
+"""
+
+    output_format = f"""SCORING GUIDELINES:
+Assign a grade from 0.0 to 1.0:
+- 1.0 = Perfect, completely correct
+- 0.9 = Excellent, minor issue but substantially correct
+- 0.7-0.8 = Good, correct core understanding with some errors
+- 0.5-0.6 = Partial credit, some understanding but significant gaps
+- 0.3-0.4 = Poor, major misunderstanding but some relevant content
+- 0.0-0.2 = Incorrect, fundamental misunderstanding
+
+is_correct DEFINITION (strict rule — never deviate):
+- is_correct = true  when score >= 0.9
+- is_correct = false when score < 0.9
+
+MATH FORMATTING (this is JSON output — backslashes must be doubled):
+- Inline math: \\(expression\\) — e.g. \\(\\frac{{3}}{{2}}\\), \\(x^2\\), \\(\\text{{mol}}\\)
+- Display math: \\[expression\\]
+- NEVER use bare LaTeX commands or $ signs outside delimiters
+
+Return JSON with the following fields:
+
+Required fields (always present):
+  score              — float 0.0–1.0
+  is_correct         — boolean (true when score >= 0.9)
+  feedback           — string: If incorrect (score < 0.9): 50-100 words explaining the specific error and corrective guidance. If correct (score >= 0.9): under 50 words affirming what the student did well. This field is shown to users on older app versions — keep it self-contained and complete. When working_steps are present: reference the actual steps, not a generic solution.
+  confidence         — float 0.0–1.0
+  correct_answer     — string (the correct answer; empty string "" for composition)
+
+  detailed_explanation — string, 80-150 words:
+    A step-by-step walkthrough of the CORRECT solution. Use 「bold text」 markers
+    (Chinese-style brackets) around KEY CONCEPTS, IMPORTANT TERMS, formula names,
+    and critical steps the student should memorize.
+    Structure: brief assessment → step-by-step correct solution →
+    what the student did right/wrong → takeaway
+
+  method_analysis (always include) — object:
+    {{
+      "approach_description": "brief description of the method the student used (or should use)",
+      "complexity": "time/space complexity or difficulty level — e.g. 'O(n²) — nested loops', 'Constant time', 'Linear scan', 'Standard formula application', 'Multi-step algebraic manipulation'",
+      "alternative_method": "description of a simpler/more elegant approach if one exists, else null",
+      "efficiency_note": "why the alternative is better, else null"
+    }}
+{step_analysis_fields}
+EXACT MATCH RULE (check this FIRST, before applying partial-credit breakdowns):
+- If the student's answer is numerically or semantically equivalent to the correct answer → score = 1.0, is_correct = true.
+- "80" == "80", "0.5" == "1/2" == "50%", "Paris" == "paris" are all exact matches.
+- Do NOT penalize for missing work when the final answer is correct on a simple one-step problem."""
+
+    prompt_parts.append(output_format)
+
+    # --- Language instruction (same pattern as fast mode) ---
     from src.services.prompt_i18n import normalize_language, GRADING_FEEDBACK_LANG_INSTRUCTION
     lang_instruction = GRADING_FEEDBACK_LANG_INSTRUCTION.get(normalize_language(language), "")
     if lang_instruction:

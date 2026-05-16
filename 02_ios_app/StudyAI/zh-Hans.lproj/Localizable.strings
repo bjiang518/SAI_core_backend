@@ -517,7 +517,7 @@
 "account.usage.resetsMonthly" = "配额每月1日更新";
 "account.usage.unlimited" = "无限制";
 "account.usage.upgradeLabel" = "升级";
-"account.usage.upgradePlan" = "升级套餐";
+"account.usage.upgradePlan" = "查看并升级套餐";
 "account.usage.restorePurchases" = "恢复购买";
 "account.usage.manageSubscription" = "管理订阅";
 "account.usage.tierGuest" = "访客账户";
@@ -1417,6 +1417,11 @@
 "practiceLibrary.typeConversation" = "对话复习";
 "practiceLibrary.typeMistake" = "错题练习";
 "practiceLibrary.typeLibrary" = "题库练习";
+"practiceLibrary.typeChat" = "聊天练习";
+"practiceLibrary.typeTargeted" = "针对练习";
+"practiceLibrary.typeFeynman" = "费曼练习";
+"practiceLibrary.typeDaily" = "每日挑战";
+"practiceLibrary.typeSmartPractice" = "智能练习";
 
 // Practice Library
 "practiceLibrary.title" = "练习本";
@@ -1698,6 +1703,7 @@
 "mistakeTree.legend.mastered" = "已掌握";
 "mistakeTree.legend.untracked" = "未追踪";
 "mistakeTree.empty" = "暂无知识点数据";
+"knowledgeTree.hint" = "每个分支有3个子分支，代表更深入的知识点";
 "mistakeTree.detail.accuracy" = "正确率";
 "mistakeTree.detail.attempts" = "练习次数";
 "mistakeTree.detail.correct" = "答对次数";
@@ -2101,6 +2107,7 @@
 "proMode.editImage" = "编辑图片";
 "proMode.annotationImageHint" = "部分题目需要配图 — 点击裁剪照片";
 "proMode.aiAnalyzeDiagrams" = "使用AI自动定位图表区域";
+"proMode.nextHomework" = "下一份作业";
 "proMode.selectAIModel" = "选择AI模型";
 "proMode.revertGrading" = "撤销批改";
 "proMode.revertGradingAlert.title" = "撤销批改？";
@@ -3122,4 +3129,113 @@
 "common.remove" = "删除";
 "guestConversion.loginSuccess" = "登录成功！";
 "dailyChallenge.bannerReady" = "今日3题已就绪";
+"dailyChallenge.goal.weakness" = "今日目标：挑战 %d 个弱点";
+"dailyChallenge.goal.leaf" = "今日目标：点亮「%@」";
+"dailyChallenge.goal.normal" = "今日挑战：%@ · 3 题";
+"dailyChallenge.achievement.leafLit" = "叶子已点亮！";
+"dailyChallenge.achievement.viewTree" = "查看知识树";
+"dailyChallenge.achievement.weaknessConverted" = "消灭了 %d 个弱点！";
+"dailyChallenge.achievement.keepGoing" = "继续保持，弱点正在减少";
+"dailyChallenge.firework.weaknessMulti" = "消灭了 %d 个弱点！";
+"dailyChallenge.firework.weaknessSingle" = "弱点已消灭！";
+"dailyChallenge.firework.weaknessSub" = "坚持练习，越来越强 💪";
 "practiceSheet.backToChat" = "← 返回对话";
+
+// MARK: - Light Up Knowledge Tree
+"lightUpTree.button.title" = "点亮知识树";
+"lightUpTree.button.subtitle" = "%d 个知识点待练习";
+"lightUpTree.title" = "选择知识点";
+"lightUpTree.selectAll" = "全选";
+"lightUpTree.deselectAll" = "取消全选";
+"lightUpTree.allLit.title" = "全部知识点已点亮！";
+"lightUpTree.allLit.message" = "当前科目的所有知识点都已有练习记录，继续保持！";
+"lightUpTree.selection.header" = "未点亮的知识点";
+"lightUpTree.selection.subheader" = "共 %d 个知识点尚未练习，选择后将生成对应年级的练习题";
+"lightUpTree.config.title" = "题目配置";
+"lightUpTree.generate.selectFirst" = "请先选择知识点";
+"lightUpTree.generate.button" = "生成 %d 题（已选 %d 个知识点）";
+"lightUpTree.generating" = "正在生成练习题…";
+"lightUpTree.error.sessionNotFound" = "无法获取练习题，请重试";
+"lightUpTree.selection.quotaHint" = "每道题对应一个知识点，最多可选 %d 个（已选 %d）";
+"lightUpTree.selection.limitReached" = "最多选 %d 个知识点（与题目数量相同）";
+"mistakeTree.detail.lightUp" = "点亮该知识点";
+
+// MARK: - Onboarding Age Groups
+"ageGroup.young.range" = "6-8岁";
+"ageGroup.young.stage" = "小学低年级";
+"ageGroup.elementary.range" = "9-12岁";
+"ageGroup.elementary.stage" = "小学高年级";
+"ageGroup.middle.range" = "13-15岁";
+"ageGroup.middle.stage" = "初中";
+"ageGroup.high.range" = "16-18岁";
+"ageGroup.high.stage" = "高中";
+"ageGroup.adult.range" = "18岁+";
+"ageGroup.adult.stage" = "大学及以上";
+
+// MARK: - Onboarding Age Step
+"onboarding.age.title.parent" = "孩子几岁了？";
+"onboarding.age.yourAge" = "你的年龄";
+"onboarding.age.kidAge" = "孩子的年龄";
+"onboarding.age.selectAgeGroup" = "请选择年龄阶段";
+"onboarding.age.selectKidAgeGroup" = "请选择孩子的年龄阶段";
+"onboarding.age.recommendedGrade" = "推荐年级";
+"onboarding.age.selectGrade" = "请选择年级";
+"onboarding.age.infoTitle" = "我们会根据你的选择";
+"onboarding.age.infoSubtitle" = "提供更适合的学习内容与难度";
+
+// MARK: - Onboarding Learning Style
+"onboarding.learningStyle.recommended" = "推荐";
+"onboarding.learningStyle.tag.thinkingSkills" = "培养思维能力";
+"onboarding.learningStyle.tag.deepUnderstanding" = "深入理解";
+"onboarding.learningStyle.tag.longTermGrowth" = "长期成长";
+"onboarding.learningStyle.tag.efficient" = "快速高效";
+"onboarding.learningStyle.tag.saveTime" = "节省时间";
+"onboarding.learningStyle.tag.solveProblem" = "解决问题";
+"onboarding.learningStyle.infoBanner" = "你可以随时更改";
+"onboarding.learningStyle.infoBannerSub" = "在设置中调整 AI 的帮助方式";
+
+// MARK: - Onboarding Consent
+"onboarding.consent.heroSubtitle" = "我们只使用必要的信息\n来提供 AI 学习服务";
+"onboarding.consent.dataProtection.title" = "我们如何保护你的数据";
+"onboarding.consent.privacy.title" = "隐私保护";
+"onboarding.consent.privacy.desc" = "你的问题和聊天记录不会公开分享，仅用于提供学习帮助";
+"onboarding.consent.personalized.title" = "个性化学习";
+"onboarding.consent.personalized.desc" = "AI 会根据你的学习情况提供更适合的内容和建议";
+"onboarding.consent.parentFriendly.title" = "家长友好";
+"onboarding.consent.parentFriendly.desc" = "你可以随时删除数据或在设置中关闭 AI 功能";
+"onboarding.consent.aiDisclosure.title" = "AI 使用声明";
+"onboarding.consent.aiDisclosure.expand" = "查看详情";
+"onboarding.consent.aiDisclosure.collapse" = "收起";
+"onboarding.consent.encryption" = "所有数据均经过加密传输与存储";
+"onboarding.consent.agreeSubtitle" = "你可以随时在设置中更改你的选择";
+"onboarding.consent.terms" = "继续使用即表示你已阅读并同意";
+
+// MARK: - Onboarding Trial
+"onboarding.trial.title" = "你的第一周免费";
+"onboarding.trial.subtitle" = "免费试用 Premium 7 天，下周才开始收费，随时可取消。";
+"onboarding.trial.feature1" = "无限作业扫描";
+"onboarding.trial.feature2" = "500 条 AI 对话 / 月";
+"onboarding.trial.feature3" = "实时语音辅导";
+"onboarding.trial.cta" = "开始 7 天免费试用";
+
+// MARK: - Account Usage
+"account.usage.subtitle" = "查看你的使用情况，解锁更多 StudyAgent 功能。";
+"account.usage.yourUsage" = "我的使用情况";
+"account.usage.resetsMonthEnd" = "每月底重置";
+"account.usage.unlockTitle" = "解锁无限访问权限";
+"account.usage.unlockSubtitle" = "升级到 Premium 或 Ultra，让学习更高效。";
+"account.usage.viewPlans" = "查看套餐";
+
+// MARK: - Upgrade Comparison
+"upgrade.comparison.trialBadge" = "7天免费试用  •  随时取消";
+"upgrade.comparison.headerLine1" = "升级你的";
+"onboarding.trial.skip" = "稍后再说";
+"chat.practiceConfig.title" = "练习此话题";
+"questionGeneration.generate" = "生成练习题";
+"archive.followUpWithAI" = "继续向 AI 提问";
+"practice.beta.badge" = "Beta";
+"practice.beta.message" = "题库建设中";
+"practice.mode.ai" = "AI 生成题目";
+"practice.mode.bank" = "真题库";
+"proMode.oneMistake" = "1 个错误";
+"proMode.nMistakes" = "%d 个错误";

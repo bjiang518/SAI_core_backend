@@ -233,7 +233,7 @@ module.exports = async function (fastify, opts) {
       });
     }
 
-    const { subject: subjectRaw = 'General', topic, difficulty, count = 5, language = 'en', question_type = 'any', use_personalization = false, custom_message, focus_notes, mode: modeRaw = 1, mistakes_data = [], conversation_data = [], question_data = [], raw_messages = [] } = request.body;
+    const { subject: subjectRaw = 'General', topic, difficulty, count = 5, language = 'en', question_type = 'any', use_personalization = false, custom_message, focus_notes, mode: modeRaw = 1, mistakes_data = [], conversation_data = [], question_data = [], raw_messages = [], grade_level } = request.body;
 
     let subject = subjectRaw;
     let effectiveFocusNotes = focus_notes;
@@ -278,6 +278,18 @@ module.exports = async function (fastify, opts) {
       subject = normalizeSubject(subjectRaw);
     }
 
+    // Resolve grade for ALL modes.
+    // Priority: 1) iOS-supplied grade_level, 2) DB profile (fallback)
+    if (!effectiveGrade) {
+      if (grade_level) {
+        effectiveGrade = formatGradeLevel(grade_level);
+      } else {
+        const rawProfile = await db.getEnhancedUserProfile(userId).catch(() => null);
+        effectiveGrade = formatGradeLevel(rawProfile?.grade_level) || null;
+      }
+      fastify.log.info({ msg: '[Practice] grade resolved', grade: effectiveGrade, source: grade_level ? 'ios_request' : 'db_profile' });
+    }
+
     // Validate mode-specific requirements
     if (mode === 2 && (!mistakes_data || mistakes_data.length === 0)) {
       return reply.status(400).send({
@@ -315,10 +327,10 @@ module.exports = async function (fastify, opts) {
 
       if (mode === 2) {
         // MODE 2: Mistake-based questions via AI Engine
-        result = await generateMistakeQuestionsWithAIEngine(userId, subject, mistakes_data, difficulty, count, language, question_type, aiClient);
+        result = await generateMistakeQuestionsWithAIEngine(userId, subject, mistakes_data, difficulty, count, language, question_type, aiClient, effectiveGrade);
       } else if (mode === 3) {
         // MODE 3: Archive-based questions (conversations + archived questions) via AI Engine
-        result = await generateConversationQuestionsWithAIEngine(userId, subject, conversation_data, question_data, difficulty, count, language, question_type, aiClient);
+        result = await generateConversationQuestionsWithAIEngine(userId, subject, conversation_data, question_data, difficulty, count, language, question_type, aiClient, effectiveGrade);
       } else {
         // MODE 1: Random questions with optional topic + grade context
         result = await generateQuestionsWithAIEngine(userId, subject, effectiveTopic, difficulty, count, language, question_type, aiClient, effectiveFocusNotes, effectiveGrade);
@@ -410,7 +422,7 @@ module.exports = async function (fastify, opts) {
   fastify.post('/api/ai/generate-questions/mistakes', {
     preHandler: [tierCheck({ feature: 'questions' })]
   }, async (request, reply) => {
-    const { subject, mistakes_data = [], config = {} } = request.body;
+    const { subject, mistakes_data = [], config = {}, grade_level, user_profile = {} } = request.body;
     const userId = await getUserId(request);
 
     if (!userId) {
@@ -426,6 +438,15 @@ module.exports = async function (fastify, opts) {
     const questionType = config.question_type || 'any';
     const difficulty = config.difficulty || 3;
 
+    // Resolve grade: iOS request > user_profile in body > DB profile
+    let grade = grade_level || user_profile?.grade || null;
+    if (!grade) {
+      const rawProfile = await db.getEnhancedUserProfile(userId).catch(() => null);
+      grade = formatGradeLevel(rawProfile?.grade_level) || null;
+    } else {
+      grade = formatGradeLevel(grade);
+    }
+
     if (!mistakes_data || mistakes_data.length === 0) {
       return reply.status(400).send({
         success: false,
@@ -436,7 +457,7 @@ module.exports = async function (fastify, opts) {
 
     const startTime = Date.now();
     try {
-      const result = await generateMistakeQuestionsWithAIEngine(userId, subject, mistakes_data, difficulty, count, language, questionType, aiClient);
+      const result = await generateMistakeQuestionsWithAIEngine(userId, subject, mistakes_data, difficulty, count, language, questionType, aiClient, grade);
       const totalLatency = Date.now() - startTime;
       return {
         success: true,
@@ -523,12 +544,12 @@ async function generateQuestionsWithAIEngine(userId, subject, topic, difficulty,
 /**
  * Generate mistake-based questions using AI Engine (MODE 2)
  */
-async function generateMistakeQuestionsWithAIEngine(userId, subject, mistakes_data, difficulty, count, language, questionType, aiClient) {
+async function generateMistakeQuestionsWithAIEngine(userId, subject, mistakes_data, difficulty, count, language, questionType, aiClient, grade) {
   try {
     console.log('🔄 Calling AI Engine /api/v1/generate-questions (mistake)...');
     const aiEngineData = await callUnifiedEndpoint(
       subject, questionType, count, 'mistake',
-      { mistakes_data: mistakes_data || [], grade: 'High School' },
+      { mistakes_data: mistakes_data || [], grade: grade || 'General' },
       language, aiClient
     );
     console.log(`✅ AI Engine returned ${aiEngineData.questions.length} mistake-based questions`);
@@ -553,12 +574,12 @@ async function generateMistakeQuestionsWithAIEngine(userId, subject, mistakes_da
 /**
  * Generate archive-based questions using AI Engine (MODE 3)
  */
-async function generateConversationQuestionsWithAIEngine(userId, subject, conversation_data, question_data, difficulty, count, language, questionType, aiClient) {
+async function generateConversationQuestionsWithAIEngine(userId, subject, conversation_data, question_data, difficulty, count, language, questionType, aiClient, grade) {
   try {
     console.log('🔄 Calling AI Engine /api/v1/generate-questions (archive)...');
     const aiEngineData = await callUnifiedEndpoint(
       subject, questionType, count, 'archive',
-      { conversation_data: conversation_data || [], question_data: question_data || [], grade: 'High School' },
+      { conversation_data: conversation_data || [], question_data: question_data || [], grade: grade || 'General' },
       language, aiClient
     );
     console.log(`✅ AI Engine returned ${aiEngineData.questions.length} archive-based questions`);

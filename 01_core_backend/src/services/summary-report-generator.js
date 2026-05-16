@@ -72,7 +72,7 @@ class SummaryReportGenerator {
      * @param {Date} startDate - Period start date
      * @returns {String} HTML report
      */
-    async generateSummaryReport(activityData, improvementData, mentalHealthData, studentName = '[Student]', studentAge = 7, userId = null, period = 'weekly', startDate = new Date(), language = 'en') {
+    async generateSummaryReport(activityData, improvementData, mentalHealthData, studentName = '[Student]', studentAge = 7, userId = null, period = 'weekly', startDate = new Date(), language = 'en', knowledgeTreeData = null) {
         logger.info(`📋 Generating ${period} Summary Report...`);
 
         try {
@@ -85,7 +85,7 @@ class SummaryReportGenerator {
                 const insightsService = getInsightsService();
 
                 // Prepare signals for AI
-                const signals = this.prepareSignalsForAI(analysis, activityData, improvementData, mentalHealthData);
+                const signals = this.prepareSignalsForAI(analysis, activityData, improvementData, mentalHealthData, knowledgeTreeData);
                 const context = {
                     userId,
                     studentName,
@@ -285,7 +285,7 @@ class SummaryReportGenerator {
     /**
      * Prepare signals for AI insight generation
      */
-    prepareSignalsForAI(analysis, activityData, improvementData, mentalHealthData) {
+    prepareSignalsForAI(analysis, activityData, improvementData, mentalHealthData, knowledgeTreeData = null) {
         // Aggregate key metrics across all reports
         const subjects = Object.keys(activityData.subjectBreakdown || {});
 
@@ -308,14 +308,18 @@ class SummaryReportGenerator {
                 totalChats: activityData.totalChats,
                 activeDays: activityData.activeDays,
                 subjects,
-                overallAccuracy: improvementData.totalMistakes > 0
-                    ? Math.round((1 - (improvementData.totalMistakes / activityData.totalQuestions)) * 100)
-                    : 100,
+                overallAccuracy: activityData.totalQuestions > 0
+                    ? (improvementData.totalMistakes > 0
+                        ? Math.round((1 - (improvementData.totalMistakes / activityData.totalQuestions)) * 100)
+                        : 100)
+                    : null,
                 totalMistakes: improvementData.totalMistakes,
                 progressTrend: analysis.overallTone,
                 mentalHealthStatus: mentalHealthData.emotionalWellbeing.status,
                 engagementLevel: analysis.engagement,
-                redFlagCount: mentalHealthData.emotionalWellbeing.redFlags.length
+                redFlagCount: mentalHealthData.emotionalWellbeing.redFlags.length,
+                // Knowledge tree — null means feature not yet synced (no hallucination)
+                knowledgeTree: knowledgeTreeData
             },
 
             // Priority Action signals

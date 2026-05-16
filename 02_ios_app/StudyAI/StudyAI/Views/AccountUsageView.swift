@@ -19,27 +19,26 @@ struct AccountUsageView: View {
     @State private var isLoading = true
     @State private var showingUpgrade = false
 
-    // Design tokens
-    private let mint   = Color(hex: "7FDBCA")
-    private let yellow = Color(hex: "FFE066")
-    private let peach  = Color(hex: "FFB6A3")
-    private let teal   = DesignTokens.Colors.libraryTeal
-    private let silver = Color(hex: "8C95A6")
-    private let gold   = Color(hex: "D4AF37")
+    // MARK: - Body
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if isLoading {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if let data = usageData {
-                    ScrollView(showsIndicators: false) {
-                        VStack(spacing: 16) {
+        ZStack(alignment: .topTrailing) {
+            Color.white.ignoresSafeArea()
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    headerSection
+
+                    if isLoading {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 60)
+                    } else if let data = usageData {
+                        VStack(spacing: 14) {
                             tierCard(data)
-                            featuresSection(data)
-                            if !data.isAnonymous && !isUnlimitedTier(data.tier) {
-                                quotaResetNote(data)
+                            usageSection(data)
+                            if !isUnlimitedTier(data.tier) {
+                                unlockCard
                             }
                             if !isUnlimitedTier(data.tier) {
                                 upgradeButton
@@ -49,50 +48,49 @@ struct AccountUsageView: View {
                             }
                             restorePurchasesButton
                         }
-                        .padding(16)
-                        .padding(.bottom, 24)
-                    }
-                } else {
-                    VStack(spacing: 16) {
-                        Image(systemName: "exclamationmark.triangle")
-                            .font(.system(size: 40))
-                            .foregroundColor(.secondary)
-                        Text(NSLocalizedString("account.usage.loadError", comment: ""))
-                            .foregroundColor(themeManager.secondaryText)
-                        Button(NSLocalizedString("common.retry", comment: "")) { Task { await loadData() } }
-                            .foregroundColor(teal)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-            }
-            .navigationTitle(NSLocalizedString("account.usage.title", comment: ""))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 32)
+                    } else {
+                        VStack(spacing: 14) {
+                            Image(systemName: "exclamationmark.triangle")
+                                .font(.system(size: 40))
+                                .foregroundColor(.secondary)
+                            Text(NSLocalizedString("account.usage.loadError", comment: ""))
+                                .foregroundColor(.secondary)
+                            Button(NSLocalizedString("common.retry", comment: "")) {
+                                Task { await loadData() }
+                            }
+                            .foregroundColor(Color(hex: "5B7FFF"))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 60)
                     }
                 }
             }
+            .refreshable { await loadData() }
+
+            // X close button
+            Button { dismiss() } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.secondary)
+                    .frame(width: 30, height: 30)
+                    .background(Color(.systemGray5))
+                    .clipShape(Circle())
+            }
+            .padding(.top, 20)
+            .padding(.trailing, 20)
         }
         .task { await loadData() }
-        .refreshable { await loadData() }
         .onChange(of: authService.currentUser?.tier) { _ in
-            // ① Instantly rewrite limits from local tier — no network, no spinner.
-            if let current = usageData {
-                usageData = applyLocalTier(to: current)
-            }
-            // ② Silently refresh usage counts in background (no loading indicator).
+            if let current = usageData { usageData = applyLocalTier(to: current) }
             Task {
                 await silentRefresh()
-                // Deferred refresh after 3 s — by then the backend DB write has settled.
                 try? await Task.sleep(nanoseconds: 3_000_000_000)
                 await silentRefresh()
             }
         }
-        .sheet(isPresented: $showingUpgrade, onDismiss: {
-            // Reload when the upgrade sheet closes in case tier was updated during the session.
+        .fullScreenCover(isPresented: $showingUpgrade, onDismiss: {
             Task { await loadData() }
         }) {
             UpgradeComparisonView(
@@ -103,82 +101,141 @@ struct AccountUsageView: View {
         }
     }
 
+    // MARK: - Header
+
+    private var headerSection: some View {
+        HStack(alignment: .center, spacing: 0) {
+            Image("plan_usage_robot")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 110, height: 110)
+                .padding(.leading, 16)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(NSLocalizedString("account.usage.title", comment: ""))
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundColor(.primary)
+                Text(NSLocalizedString("account.usage.subtitle", value: "Track your usage and unlock more power with StudyAgent.", comment: ""))
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.leading, 12)
+            .padding(.trailing, 52) // leave room for X button
+
+            Spacer()
+        }
+        .padding(.vertical, 20)
+    }
+
     // MARK: - Tier card
 
     private func tierCard(_ data: AccountUsageData) -> some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 10) {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(tierColor(data.tier, isAnonymous: data.isAnonymous).opacity(0.12))
+                    .frame(width: 44, height: 44)
                 Image(systemName: tierIcon(data.tier, isAnonymous: data.isAnonymous))
-                    .font(.system(size: 22))
+                    .font(.system(size: 18))
                     .foregroundColor(tierColor(data.tier, isAnonymous: data.isAnonymous))
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(tierTitle(data.tier, isAnonymous: data.isAnonymous))
-                        .font(.headline)
-                        .foregroundColor(themeManager.primaryText)
-
-                    if data.isAnonymous {
-                        Text(NSLocalizedString("account.usage.lifetimeLimits", comment: ""))
-                            .font(.caption)
-                            .foregroundColor(themeManager.secondaryText)
-                    } else if let resetsAt = data.resetsAt, let date = isoDate(resetsAt) {
-                        Text(String(format: NSLocalizedString("account.usage.resetsOn", comment: ""), date.formatted(.dateTime.month(.abbreviated).day())))
-                            .font(.caption)
-                            .foregroundColor(themeManager.secondaryText)
-                    }
-                }
-
-                Spacer()
-
-                // Tier badge pill
-                Text(tierBadge(data.tier, isAnonymous: data.isAnonymous))
-                    .font(.caption.bold())
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(tierColor(data.tier, isAnonymous: data.isAnonymous).opacity(0.15))
-                    .foregroundColor(tierColor(data.tier, isAnonymous: data.isAnonymous))
-                    .cornerRadius(8)
             }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(tierTitle(data.tier, isAnonymous: data.isAnonymous))
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.primary)
+                if data.isAnonymous {
+                    Text(NSLocalizedString("account.usage.lifetimeLimits", comment: ""))
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                } else if let resetsAt = data.resetsAt, let date = isoDate(resetsAt) {
+                    Text(String(format: NSLocalizedString("account.usage.resetsOn", comment: ""), date.formatted(.dateTime.month(.abbreviated).day())))
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Spacer()
+
+            Text(tierBadge(data.tier, isAnonymous: data.isAnonymous))
+                .font(.system(size: 12, weight: .semibold))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 5)
+                .background(tierColor(data.tier, isAnonymous: data.isAnonymous).opacity(0.12))
+                .foregroundColor(tierColor(data.tier, isAnonymous: data.isAnonymous))
+                .cornerRadius(20)
         }
         .padding(16)
-        .background(themeManager.cardBackground)
-        .cornerRadius(14)
-        .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 2)
+        .background(Color.white)
+        .cornerRadius(16)
+        .shadow(color: .black.opacity(0.05), radius: 6, x: 0, y: 2)
     }
 
-    // MARK: - Features section
+    // MARK: - Usage section
 
-    private func featuresSection(_ data: AccountUsageData) -> some View {
-        VStack(spacing: 0) {
-            ForEach(Array(data.features.enumerated()), id: \.offset) { idx, feature in
-                featureRow(feature)
-                if idx < data.features.count - 1 {
-                    Divider().padding(.leading, 16)
+    private func usageSection(_ data: AccountUsageData) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text(NSLocalizedString("account.usage.yourUsage", value: "Your Usage", comment: ""))
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.primary)
+                Spacer()
+                if !data.isAnonymous {
+                    Text(NSLocalizedString("account.usage.resetsMonthEnd", value: "Resets at the end of each month", comment: ""))
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
                 }
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+
+            VStack(spacing: 0) {
+                ForEach(Array(data.features.enumerated()), id: \.offset) { idx, feature in
+                    featureRow(feature)
+                    if idx < data.features.count - 1 {
+                        Divider().padding(.leading, 60)
+                    }
+                }
+            }
+            .background(Color.white)
+            .cornerRadius(16)
+            .shadow(color: .black.opacity(0.05), radius: 6, x: 0, y: 2)
         }
-        .background(themeManager.cardBackground)
-        .cornerRadius(14)
-        .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 2)
     }
 
     private func featureRow(_ feature: FeatureUsage) -> some View {
+        let info = featureInfo(feature.key)
         let localizedLabel = NSLocalizedString("account.usage.feature.\(feature.key)", value: feature.label, comment: "")
-        return VStack(spacing: 8) {
-            HStack {
+
+        return HStack(spacing: 12) {
+            // Colored icon
+            ZStack {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(info.color.opacity(0.12))
+                    .frame(width: 36, height: 36)
+                Image(systemName: info.icon)
+                    .font(.system(size: 16))
+                    .foregroundColor(info.color)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
                 Text(localizedLabel)
-                    .font(.subheadline)
-                    .foregroundColor(themeManager.primaryText)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.primary)
 
-                Spacer()
-
-                rightLabel(feature)
+                if let limit = feature.limit, limit > 0 {
+                    progressBar(used: feature.used, limit: limit)
+                }
             }
 
-            // Progress bar (only when there's an actual quota)
-            if let limit = feature.limit, limit > 0 {
-                progressBar(used: feature.used, limit: limit)
-            }
+            Spacer()
+
+            rightLabel(feature)
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 11))
+                .foregroundColor(Color(.systemGray3))
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -187,33 +244,25 @@ struct AccountUsageView: View {
     @ViewBuilder
     private func rightLabel(_ feature: FeatureUsage) -> some View {
         if feature.limit == nil {
-            // Unlimited
-            HStack(spacing: 4) {
+            HStack(spacing: 3) {
                 Image(systemName: "infinity")
-                    .font(.caption.bold())
-                Text(NSLocalizedString("account.usage.unlimited", comment: ""))
-                    .font(.caption.bold())
+                    .font(.system(size: 11, weight: .bold))
             }
-            .foregroundColor(teal)
+            .foregroundColor(Color(hex: "34C759"))
         } else if feature.limit == 0 {
-            // Blocked for tier
             HStack(spacing: 4) {
                 Image(systemName: "lock.fill")
-                    .font(.caption)
+                    .font(.system(size: 11))
                 Text(NSLocalizedString("account.usage.upgradeLabel", comment: ""))
-                    .font(.caption.bold())
+                    .font(.system(size: 12, weight: .semibold))
             }
-            .foregroundColor(.secondary)
+            .foregroundColor(Color(hex: "5B7FFF"))
         } else if let limit = feature.limit {
-            let remaining = max(0, limit - feature.used)
             let suffix = feature.unit.map { " \($0)" } ?? ""
             Text("\(feature.used) / \(limit)\(suffix)")
-                .font(.caption.bold())
+                .font(.system(size: 12, weight: .semibold))
                 .foregroundColor(barColor(used: feature.used, limit: limit))
                 .monospacedDigit()
-            + Text(remaining == 0 ? " ⚠" : "")
-                .font(.caption.bold())
-                .foregroundColor(peach)
         }
     }
 
@@ -221,35 +270,44 @@ struct AccountUsageView: View {
         let ratio = min(1.0, Double(used) / Double(limit))
         return GeometryReader { geo in
             ZStack(alignment: .leading) {
-                RoundedRectangle(cornerRadius: 4)
+                RoundedRectangle(cornerRadius: 3)
                     .fill(Color(.systemFill))
-                    .frame(height: 6)
-                RoundedRectangle(cornerRadius: 4)
+                    .frame(height: 5)
+                RoundedRectangle(cornerRadius: 3)
                     .fill(barColor(used: used, limit: limit))
-                    .frame(width: geo.size.width * ratio, height: 6)
+                    .frame(width: geo.size.width * ratio, height: 5)
                     .animation(.easeOut(duration: 0.4), value: ratio)
             }
         }
-        .frame(height: 6)
+        .frame(height: 5)
     }
 
-    // MARK: - Quota reset note
+    // MARK: - Unlock card
 
-    private func quotaResetNote(_ data: AccountUsageData) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: "arrow.clockwise.circle")
-                .font(.caption)
-            if let resetsAt = data.resetsAt, let date = isoDate(resetsAt) {
-                Text(String(format: NSLocalizedString("account.usage.resetsOnFull", value: "Quota resets on %@", comment: ""), date.formatted(.dateTime.month(.abbreviated).day())))
-            } else {
-                Text(NSLocalizedString("account.usage.resetsMonthly", value: "Quota updates on the 1st of each month", comment: ""))
+    private var unlockCard: some View {
+        HStack(spacing: 14) {
+            // Crown illustration
+            Image("plan_usage_crown")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 70, height: 70)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(NSLocalizedString("account.usage.unlockTitle", value: "Unlock unlimited access", comment: ""))
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.primary)
+                Text(NSLocalizedString("account.usage.unlockSubtitle", value: "Upgrade to Premium or Ultra and supercharge your learning.", comment: ""))
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
+
+            Spacer(minLength: 0)
         }
-        .font(.caption)
-        .foregroundColor(themeManager.secondaryText)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 4)
-        .padding(.top, -4)
+        .padding(16)
+        .background(Color.white)
+        .cornerRadius(16)
+        .shadow(color: .black.opacity(0.05), radius: 6, x: 0, y: 2)
     }
 
     // MARK: - Upgrade button
@@ -259,38 +317,34 @@ struct AccountUsageView: View {
             HStack {
                 Image(systemName: "star.circle.fill")
                     .font(.system(size: 18))
-                Text(NSLocalizedString("account.usage.upgradePlan", comment: ""))
-                    .font(.headline)
+                Text(NSLocalizedString("account.usage.upgradePlan", value: "View & Upgrade Plans", comment: ""))
+                    .font(.system(size: 17, weight: .semibold))
                 Spacer()
                 Image(systemName: "chevron.right")
-                    .font(.subheadline)
+                    .font(.system(size: 13))
             }
             .foregroundColor(.white)
             .padding(16)
-            .background(
-                LinearGradient(
-                    colors: [teal, Color(hex: "5BB5D5")],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-            )
-            .cornerRadius(14)
+            .background(DesignTokens.Colors.Cute.buttonBlack)
+            .cornerRadius(16)
         }
     }
 
-    // Required by App Store Guideline 3.1.1 — visible wherever purchases are possible
     private var restorePurchasesButton: some View {
         Button {
             Task { await StoreKitService.shared.restorePurchases() }
         } label: {
-            Text(NSLocalizedString("account.usage.restorePurchases", comment: ""))
-                .font(.subheadline)
-                .foregroundColor(teal)
-                .frame(maxWidth: .infinity)
+            HStack(spacing: 6) {
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 13))
+                Text(NSLocalizedString("account.usage.restorePurchases", comment: ""))
+                    .font(.subheadline)
+            }
+            .foregroundColor(Color(hex: "5B7FFF"))
+            .frame(maxWidth: .infinity)
         }
     }
 
-    // Shown for paid tiers — lets user manage or cancel their subscription
     private var manageSubscriptionButton: some View {
         Button {
             Task {
@@ -310,6 +364,23 @@ struct AccountUsageView: View {
         }
     }
 
+    // MARK: - Feature icon mapping
+
+    private struct FeatureInfo { let icon: String; let color: Color }
+
+    private func featureInfo(_ key: String) -> FeatureInfo {
+        switch key {
+        case "homework_pages":  return .init(icon: "doc.text.fill",            color: Color(hex: "5B7FFF"))
+        case "chat_messages":   return .init(icon: "bubble.left.fill",         color: Color(hex: "9B5FFF"))
+        case "voice_minutes":   return .init(icon: "waveform",                 color: Color(hex: "F59E0B"))
+        case "tts_calls":       return .init(icon: "speaker.wave.2.fill",      color: Color(hex: "F59E0B"))
+        case "questions":       return .init(icon: "checkmark.circle.fill",    color: Color(hex: "34C759"))
+        case "error_analysis":  return .init(icon: "chart.bar.fill",           color: Color(hex: "5B7FFF"))
+        case "reports":         return .init(icon: "doc.plaintext.fill",       color: Color(hex: "FF7BAC"))
+        default:                return .init(icon: "star.fill",                color: Color(hex: "D4AF37"))
+        }
+    }
+
     // MARK: - Helpers
 
     private func loadData() async {
@@ -322,41 +393,34 @@ struct AccountUsageView: View {
         isLoading = false
     }
 
-    /// Fetch updated usage counts without showing the loading spinner.
     private func silentRefresh() async {
         if let raw = await NetworkService.shared.fetchAccountUsage() {
             usageData = applyLocalTier(to: raw)
         }
     }
 
-    /// Override `data.tier` and feature limits with the locally-known tier when they differ.
-    /// Usage counts (`used`) always come from the backend.
     private func applyLocalTier(to data: AccountUsageData) -> AccountUsageData {
         guard let user = authService.currentUser else { return data }
         let localTier = user.isAnonymous ? "guest" : user.tier.rawValue
         guard localTier != data.tier else { return data }
-
         let features = data.features.map { f in
             FeatureUsage(key: f.key, label: f.label, used: f.used,
-                         limit: localLimit(key: f.key, tier: localTier),
-                         unit: f.unit)
+                         limit: localLimit(key: f.key, tier: localTier), unit: f.unit)
         }
         return AccountUsageData(tier: localTier, isAnonymous: data.isAnonymous,
                                 resetsAt: data.resetsAt, features: features)
     }
 
-    /// Local mirror of backend TIER_LIMITS — keeps limits display instant on tier change.
     private func localLimit(key: String, tier: String) -> Int? {
         switch tier {
-        case "premium_plus":
-            return nil  // unlimited
+        case "premium_plus": return nil
         case "premium":
             switch key {
             case "homework_pages": return 50
             case "chat_messages":  return 500
             case "questions":      return 200
             case "voice_minutes":  return 300
-            default:               return nil  // unlimited (error_analysis, reports, tts_calls)
+            default:               return nil
             }
         case "free":
             switch key {
@@ -365,7 +429,7 @@ struct AccountUsageView: View {
             case "questions":      return 10
             case "error_analysis": return 3
             case "tts_calls":      return 50
-            default:               return 0   // blocked (reports, voice_minutes)
+            default:               return 0
             }
         case "guest":
             switch key {
@@ -374,42 +438,34 @@ struct AccountUsageView: View {
             case "tts_calls":      return 20
             default:               return 0
             }
-        default:
-            return nil
+        default: return nil
         }
     }
 
-    private func isUnlimitedTier(_ tier: String) -> Bool {
-        tier == "premium_plus"
-    }
-
-    private func isPaidTier(_ tier: String) -> Bool {
-        tier == "premium" || tier == "premium_plus"
-    }
+    private func isUnlimitedTier(_ tier: String) -> Bool { tier == "premium_plus" }
+    private func isPaidTier(_ tier: String) -> Bool { tier == "premium" || tier == "premium_plus" }
 
     private func barColor(used: Int, limit: Int) -> Color {
         let ratio = Double(used) / Double(limit)
-        if ratio >= 1.0 { return peach }
-        if ratio >= 0.8 { return peach }
-        if ratio >= 0.5 { return yellow }
-        return mint
+        if ratio >= 0.8 { return Color(hex: "FFB6A3") }
+        if ratio >= 0.5 { return Color(hex: "FFE066") }
+        return Color(hex: "5B7FFF")
     }
 
     private func tierColor(_ tier: String, isAnonymous: Bool) -> Color {
         if isAnonymous { return .secondary }
         switch tier {
-        case "premium":      return silver
-        case "premium_plus": return gold
-        default:             return .secondary
+        case "premium":      return Color(hex: "8C95A6")
+        case "premium_plus": return Color(hex: "D4AF37")
+        default:             return Color(hex: "5B7FFF")
         }
     }
 
     private func tierIcon(_ tier: String, isAnonymous: Bool) -> String {
         if isAnonymous { return "person.crop.circle.badge.questionmark" }
         switch tier {
-        case "premium":      return "crown.fill"
-        case "premium_plus": return "crown.fill"
-        default:             return "person.circle.fill"
+        case "premium", "premium_plus": return "crown.fill"
+        default:                         return "person.circle.fill"
         }
     }
 
@@ -432,7 +488,6 @@ struct AccountUsageView: View {
     }
 
     private func isoDate(_ iso: String) -> Date? {
-        let formatter = ISO8601DateFormatter()
-        return formatter.date(from: iso)
+        ISO8601DateFormatter().date(from: iso)
     }
 }

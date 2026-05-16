@@ -1,0 +1,122 @@
+{
+  "subject": "Physics",
+  "branches": [
+    {
+      "id": "mechanics_kinematics",
+      "name": "Mechanics - Kinematics",
+      "topics": [
+        { "id": "motion_in_one_dimension",    "name": "Motion in One Dimension",          "gradeMin": 9, "gradeMax": 13 },
+        { "id": "motion_in_two_dimensions",   "name": "Motion in Two Dimensions",         "gradeMin": 9, "gradeMax": 13 },
+        { "id": "projectile_motion",          "name": "Projectile Motion",                "gradeMin": 9, "gradeMax": 13 },
+        { "id": "circular_motion",            "name": "Circular Motion",                  "gradeMin": 10, "gradeMax": 13 },
+        { "id": "relative_motion",            "name": "Relative Motion",                  "gradeMin": 10, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "mechanics_dynamics",
+      "name": "Mechanics - Dynamics",
+      "topics": [
+        { "id": "newtons_laws_of_motion",     "name": "Newton's Laws of Motion",          "gradeMin": 9, "gradeMax": 13 },
+        { "id": "force_analysis_fbd",         "name": "Force Analysis & Free-Body Diagrams","gradeMin": 9, "gradeMax": 13 },
+        { "id": "friction_drag_forces",       "name": "Friction & Drag Forces",           "gradeMin": 9, "gradeMax": 13 },
+        { "id": "tension_normal_forces",      "name": "Tension & Normal Forces",          "gradeMin": 9, "gradeMax": 13 },
+        { "id": "applications_newtons_laws",  "name": "Applications of Newton's Laws",    "gradeMin": 9, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "mechanics_energy_work",
+      "name": "Mechanics - Energy & Work",
+      "topics": [
+        { "id": "work_power",                 "name": "Work & Power",                     "gradeMin": 9, "gradeMax": 13 },
+        { "id": "kinetic_potential_energy",   "name": "Kinetic & Potential Energy",       "gradeMin": 9, "gradeMax": 13 },
+        { "id": "conservation_of_energy",     "name": "Conservation of Energy",           "gradeMin": 9, "gradeMax": 13 },
+        { "id": "energy_transformations",     "name": "Energy Transformations",           "gradeMin": 9, "gradeMax": 13 },
+        { "id": "simple_machines",            "name": "Simple Machines",                  "gradeMin": 9, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "mechanics_momentum",
+      "name": "Mechanics - Momentum",
+      "topics": [
+        { "id": "linear_momentum",            "name": "Linear Momentum",                  "gradeMin": 9, "gradeMax": 13 },
+        { "id": "impulse_collisions",         "name": "Impulse & Collisions",             "gradeMin": 9, "gradeMax": 13 },
+        { "id": "conservation_of_momentum",   "name": "Conservation of Momentum",         "gradeMin": 9, "gradeMax": 13 },
+        { "id": "center_of_mass",             "name": "Center of Mass",                   "gradeMin": 10, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "mechanics_rotation",
+      "name": "Mechanics - Rotation",
+      "topics": [
+        { "id": "rotational_kinematics",      "name": "Rotational Kinematics",            "gradeMin": 10, "gradeMax": 13 },
+        { "id": "torque_rotational_dynamics", "name": "Torque & Rotational Dynamics",     "gradeMin": 10, "gradeMax": 13 },
+        { "id": "rotational_inertia",         "name": "Rotational Inertia",               "gradeMin": 10, "gradeMax": 13 },
+        { "id": "angular_momentum",           "name": "Angular Momentum",                 "gradeMin": 10, "gradeMax": 13 },
+        { "id": "rotational_energy",          "name": "Rotational Energy",                "gradeMin": 10, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "electricity_magnetism",
+      "name": "Electricity & Magnetism",
+      "topics": [
+        { "id": "electric_charge_coulombs_law","name": "Electric Charge & Coulomb's Law",  "gradeMin": 9, "gradeMax": 13 },
+        { "id": "electric_fields",            "name": "Electric Fields",                  "gradeMin": 9, "gradeMax": 13 },
+        { "id": "electric_potential_voltage", "name": "Electric Potential & Voltage",     "gradeMin": 9, "gradeMax": 13 },
+        { "id": "circuits_series_parallel",   "name": "Circuits - Series & Parallel",     "gradeMin": 9, "gradeMax": 13 },
+        { "id": "resistance_ohms_law",        "name": "Resistance & Ohm's Law",           "gradeMin": 9, "gradeMax": 13 },
+        { "id": "capacitors",                 "name": "Capacitors",                       "gradeMin": 10, "gradeMax": 13 },
+        { "id": "magnetic_fields_forces",     "name": "Magnetic Fields & Forces",         "gradeMin": 10, "gradeMax": 13 },
+        { "id": "electromagnetic_induction",  "name": "Electromagnetic Induction",        "gradeMin": 11, "gradeMax": 13 },
+        { "id": "ac_circuits",                "name": "AC Circuits",                      "gradeMin": 11, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "waves_optics",
+      "name": "Waves & Optics",
+      "topics": [
+        { "id": "wave_properties_behavior",   "name": "Wave Properties & Behavior",       "gradeMin": 9, "gradeMax": 13 },
+        { "id": "sound_waves",                "name": "Sound Waves",                      "gradeMin": 9, "gradeMax": 13 },
+        { "id": "light_electromagnetic_spectrum","name": "Light & Electromagnetic Spectrum","gradeMin": 9, "gradeMax": 13 },
+        { "id": "reflection_refraction",      "name": "Reflection & Refraction",          "gradeMin": 9, "gradeMax": 13 },
+        { "id": "lenses_mirrors",             "name": "Lenses & Mirrors",                 "gradeMin": 9, "gradeMax": 13 },
+        { "id": "interference_diffraction",   "name": "Interference & Diffraction",       "gradeMin": 10, "gradeMax": 13 },
+        { "id": "doppler_effect",             "name": "Doppler Effect",                   "gradeMin": 10, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "thermodynamics",
+      "name": "Thermodynamics",
+      "topics": [
+        { "id": "temperature_heat",           "name": "Temperature & Heat",               "gradeMin": 9, "gradeMax": 13 },
+        { "id": "thermal_energy_specific_heat","name": "Thermal Energy & Specific Heat",  "gradeMin": 9, "gradeMax": 13 },
+        { "id": "heat_transfer_methods",      "name": "Heat Transfer Methods",            "gradeMin": 9, "gradeMax": 13 },
+        { "id": "laws_of_thermodynamics",     "name": "Laws of Thermodynamics",           "gradeMin": 10, "gradeMax": 13 },
+        { "id": "ideal_gas_law",              "name": "Ideal Gas Law",                    "gradeMin": 10, "gradeMax": 13 },
+        { "id": "kinetic_theory_of_gases",    "name": "Kinetic Theory of Gases",          "gradeMin": 10, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "modern_physics",
+      "name": "Modern Physics",
+      "topics": [
+        { "id": "quantum_mechanics_basics",   "name": "Quantum Mechanics - Basics",       "gradeMin": 11, "gradeMax": 13 },
+        { "id": "photoelectric_effect",       "name": "Photoelectric Effect",             "gradeMin": 11, "gradeMax": 13 },
+        { "id": "wave_particle_duality",      "name": "Wave-Particle Duality",            "gradeMin": 11, "gradeMax": 13 },
+        { "id": "atomic_structure",           "name": "Atomic Structure",                 "gradeMin": 9, "gradeMax": 13 },
+        { "id": "nuclear_physics",            "name": "Nuclear Physics",                  "gradeMin": 11, "gradeMax": 13 },
+        { "id": "relativity",                 "name": "Relativity",                       "gradeMin": 11, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "fluids_oscillations",
+      "name": "Fluids & Oscillations",
+      "topics": [
+        { "id": "fluid_statics_pressure",     "name": "Fluid Statics & Pressure",         "gradeMin": 9, "gradeMax": 13 },
+        { "id": "buoyancy_archimedes",        "name": "Buoyancy & Archimedes' Principle", "gradeMin": 9, "gradeMax": 13 },
+        { "id": "fluid_dynamics_bernoulli",   "name": "Fluid Dynamics & Bernoulli's Equation","gradeMin": 10, "gradeMax": 13 },
+        { "id": "simple_harmonic_motion",     "name": "Simple Harmonic Motion",           "gradeMin": 10, "gradeMax": 13 },
+        { "id": "pendulums_springs",          "name": "Pendulums & Springs",              "gradeMin": 10, "gradeMax": 13 }
+      ]
+    }
+  ]
+}

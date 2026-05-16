@@ -324,10 +324,13 @@ struct FamilyManagementView: View {
                 }
 
                 HStack(spacing: 12) {
-                    Button(NSLocalizedString("common.cancel", value: "Cancel", comment: "")) {
+                    Button {
                         showingPINEntry = nil
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.body.bold())
+                            .foregroundColor(.secondary)
                     }
-                    .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity).padding(.vertical, 14)
                     .background(Color(.systemFill)).cornerRadius(12)
 

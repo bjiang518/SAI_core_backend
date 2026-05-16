@@ -58,6 +58,7 @@ struct PracticeLibraryView: View {
     @AppStorage("daily_challenge_last_completed") private var dailyChallengeLastCompleted = ""
     @AppStorage("daily_challenge_session_id") private var dailyChallengeSessionId = ""
     @AppStorage("daily_challenge_session_date") private var dailyChallengeSessionDate = ""
+    @AppStorage("daily_challenge_goal_json") private var dailyChallengeGoalJson = ""
     @State private var isDailyHistoryExpanded = false
     @State private var selectedHistoryDate: String? = nil
     @State private var historyEntries: [DailyChallengeHistory.Entry] = []
@@ -236,7 +237,7 @@ struct PracticeLibraryView: View {
             QuestionSheetView(session: session)
         }
         .navigationDestination(item: $dailyChallengeSession) { session in
-            DailyChallengeView(session: session)
+            DailyChallengeView(session: session, goal: storedDailyChallengeGoal)
         }
         .navigationDestination(isPresented: Binding(
             get: { selectedHistoryDate != nil },
@@ -401,36 +402,161 @@ struct PracticeLibraryView: View {
         isDailyChallengeLoading = true
         Task {
             let adapter = QuestionGenerationDataAdapter.shared
-            let primary = adapter.getMostCommonSubjects().first ?? "Mathematics"
-            let weaknessTopics = adapter.getWeaknessTopics(for: primary)
-            let mixedTopics = adapter.getMixedTopicsWithMastery(for: primary, weaknessTopics: weaknessTopics)
-            let config = QuestionGenerationService.RandomQuestionsConfig(
-                topics: mixedTopics.isEmpty ? [primary] : mixedTopics,
-                focusNotes: adapter.getPersonalizedFocusNotes(for: primary),
-                difficulty: .adaptive,
-                questionCount: 3,
-                questionType: .any
-            )
+            let goal: DailyChallengeGoal
+            let config: QuestionGenerationService.RandomQuestionsConfig
+            let subject: String
+
+            // ── Route 1: Weakness Conversion ──────────────────────────────────
+            let nearMastery = nearMasteryWeaknesses()
+            if !nearMastery.isEmpty {
+                let topicNames = nearMastery.map { $0.topicName }
+                let weaknessKeys = nearMastery.map { $0.key }
+                subject = nearMastery[0].key.split(separator: "/").first.map(String.init) ?? "Mathematics"
+                goal = DailyChallengeGoal(
+                    routeType: .weaknessConversion,
+                    subject: subject,
+                    weaknessKeys: weaknessKeys, weaknessTopicNames: topicNames,
+                    leafTopicKey: "", leafTopicName: "", leafBranchName: ""
+                )
+                config = QuestionGenerationService.RandomQuestionsConfig(
+                    topics: topicNames,
+                    focusNotes: "IMPORTANT: Each question MUST target one of these specific weak concepts the student struggles with: \(topicNames.joined(separator: ", ")). Make questions directly test understanding of exactly these topics.",
+                    difficulty: adapter.getAdaptiveDifficulty(for: subject),
+                    questionCount: 3,
+                    questionType: .any
+                )
+
+            // ── Route 2: Leaf Lighting ─────────────────────────────────────────
+            } else if let leaf = unlitLeafTarget() {
+                subject = leaf.subject
+                goal = DailyChallengeGoal(
+                    routeType: .leafLighting,
+                    subject: subject,
+                    weaknessKeys: [], weaknessTopicNames: [],
+                    leafTopicKey: leaf.topicKey, leafTopicName: leaf.topicName, leafBranchName: leaf.branchName
+                )
+                config = QuestionGenerationService.RandomQuestionsConfig(
+                    topics: [leaf.topicName],
+                    focusNotes: "Generate 3 clear, engaging questions about '\(leaf.topicName)' (\(leaf.branchName)). This is the student's first time practicing this concept — start accessible and build confidence.",
+                    difficulty: adapter.getAdaptiveDifficulty(for: subject),
+                    questionCount: 3,
+                    questionType: .any
+                )
+
+            // ── Route 3: Normal (fixed subject selection) ─────────────────────
+            } else {
+                subject = mostFrequentSubject() ?? "Mathematics"
+                let weaknessTopics = adapter.getWeaknessTopics(for: subject)
+                let mixedTopics = adapter.getMixedTopicsWithMastery(for: subject, weaknessTopics: weaknessTopics)
+                goal = DailyChallengeGoal(
+                    routeType: .normal,
+                    subject: subject,
+                    weaknessKeys: [], weaknessTopicNames: [],
+                    leafTopicKey: "", leafTopicName: "", leafBranchName: ""
+                )
+                config = QuestionGenerationService.RandomQuestionsConfig(
+                    topics: mixedTopics.isEmpty ? [subject] : mixedTopics,
+                    focusNotes: adapter.getPersonalizedFocusNotes(for: subject),
+                    difficulty: adapter.getAdaptiveDifficulty(for: subject),
+                    questionCount: 3,
+                    questionType: .any
+                )
+            }
+
             let result = await dailyChallengeService.generateQuestionsV2(
-                subject: primary,
+                subject: subject,
                 mode: 1,
                 config: config,
                 userProfile: adapter.createUserProfile(),
-                shortTermContext: dailyChallengeService.buildShortTermContext(subject: primary)
+                shortTermContext: dailyChallengeService.buildShortTermContext(subject: subject)
             )
             await MainActor.run {
                 isDailyChallengeLoading = false
                 if case .success = result,
                    let sid = dailyChallengeService.currentSessionId,
                    let session = PracticeSessionManager.shared.getSession(id: sid) {
-                    // Mark as daily_challenge so it's excluded from the regular sessions list
                     PracticeSessionManager.shared.updateGenerationType(sessionId: sid, generationType: "daily_challenge")
                     dailyChallengeSessionId = sid
                     dailyChallengeSessionDate = todayString
+                    // Persist goal for re-entry
+                    if let data = try? JSONEncoder().encode(goal),
+                       let json = String(data: data, encoding: .utf8) {
+                        dailyChallengeGoalJson = json
+                    }
                     dailyChallengeSession = PracticeSessionManager.shared.getSession(id: sid) ?? session
                 }
             }
         }
+    }
+
+    // MARK: - Daily Challenge Route Helpers
+
+    /// Decoded goal from AppStorage (nil if not yet set or decode fails).
+    private var storedDailyChallengeGoal: DailyChallengeGoal? {
+        guard !dailyChallengeGoalJson.isEmpty,
+              let data = dailyChallengeGoalJson.data(using: .utf8)
+        else { return nil }
+        return try? JSONDecoder().decode(DailyChallengeGoal.self, from: data)
+    }
+
+    /// Weaknesses resolvable in ≤ 3 correct answers (with explicitPractice bonus).
+    private func nearMasteryWeaknesses() -> [(key: String, topicName: String)] {
+        let weaknesses = ShortTermStatusService.shared.status.activeWeaknesses
+        var candidates: [(key: String, topicName: String, steps: Int)] = []
+        for (key, wv) in weaknesses where wv.value > 0 {
+            let avgWeight = wv.recentErrorTypes.isEmpty ? 1.5 :
+                wv.recentErrorTypes.map { dailyErrorWeight($0) }.reduce(0, +) / Double(wv.recentErrorTypes.count)
+            let decrement = avgWeight * 0.6 * 1.5
+            let steps = Int(ceil(wv.value / max(decrement, 0.01)))
+            if steps <= 3 {
+                let parts = key.split(separator: "/")
+                let name = parts.count >= 3 ? String(parts[2]) : String(parts.last ?? Substring(key))
+                candidates.append((key: key, topicName: name, steps: steps))
+            }
+        }
+        return candidates
+            .sorted { $0.steps < $1.steps }
+            .prefix(3)
+            .map { (key: $0.key, topicName: $0.topicName) }
+    }
+
+    private func dailyErrorWeight(_ type: String) -> Double {
+        switch type {
+        case "conceptual_gap":    return 3.0
+        case "execution_error":   return 1.5
+        case "needs_refinement":  return 0.5
+        default:                  return 1.5
+        }
+    }
+
+    /// First unlit topic in the user's most-practiced subject.
+    private func unlitLeafTarget() -> (subject: String, topicKey: String, topicName: String, branchName: String)? {
+        guard let subject = mostFrequentSubject() else { return nil }
+        let branches = TaxonomyService.shared.knowledgeTree(for: subject)
+        for branch in branches {
+            for topic in branch.topics where !topic.isPracticed {
+                return (
+                    subject: subject,
+                    topicKey: "\(subject)/\(branch.name)/\(topic.topicName)",
+                    topicName: topic.topicName,
+                    branchName: branch.name
+                )
+            }
+        }
+        return nil
+    }
+
+    /// User's most-practiced subject from local question history.
+    private func mostFrequentSubject() -> String? {
+        let questions = currentUserQuestionStorage().getLocalQuestions()
+        guard !questions.isEmpty else { return nil }
+        var freq: [String: Int] = [:]
+        for q in questions {
+            if let s = q["subject"] as? String, !s.isEmpty, !s.hasPrefix("Others:") {
+                freq[s, default: 0] += 1
+            }
+        }
+        return freq.max(by: { $0.value < $1.value })?.key
     }
 
     // MARK: - Daily Challenge Expandable History

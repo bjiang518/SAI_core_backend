@@ -139,7 +139,7 @@ module.exports = async function (fastify) {
           `UPDATE promo_codes SET uses_count = uses_count + 1 WHERE id = $1`,
           [promo.id]
         );
-        await db.setUserTier(userId, grantedTier, tierExpiresAt);
+        await db.setUserTier(userId, grantedTier, tierExpiresAt, 'promo_code', normalizedCode);
         await db.query('COMMIT');
       } catch (innerErr) {
         await db.query('ROLLBACK');
@@ -672,7 +672,7 @@ module.exports = async function (fastify) {
           `UPDATE promo_codes SET uses_count = uses_count + 1 WHERE id = $1`,
           [promo.id]
         );
-        await db.setUserTier(userId, promo.tier, tierExpiresAt);
+        await db.setUserTier(userId, promo.tier, tierExpiresAt, 'promo_code', normalizedCode);
         await db.query('COMMIT');
       } catch (innerErr) {
         await db.query('ROLLBACK');

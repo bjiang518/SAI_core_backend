@@ -831,8 +831,9 @@ struct EditProfileView: View {
             // Derive country code for the state picker
             selectedCountryCode = LocationData.countryCode(for: country) ?? ""
 
-            // Map stored string array to Subject enum set
-            favoriteSubjects = Set(profile.favoriteSubjects.compactMap { Subject(rawValue: $0) })
+            // Map stored string array to Subject enum set; default to all if empty
+            let mapped = Set(profile.favoriteSubjects.compactMap { Subject(rawValue: $0) })
+            favoriteSubjects = mapped.isEmpty ? Set(Subject.allCases) : mapped
 
             // Map stored learning style to heuristic/straightforward; leave empty for other legacy values
             let stored = profile.learningStyle ?? ""
@@ -1415,8 +1416,12 @@ struct ImageCropperView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(NSLocalizedString("common.cancel", comment: "")) {
+                    Button {
                         dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.body.bold())
+                            .foregroundColor(.primary)
                     }
                 }
 

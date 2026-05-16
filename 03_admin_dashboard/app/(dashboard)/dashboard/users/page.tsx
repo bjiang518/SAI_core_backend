@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { AlertCircle, Search, X, ChevronDown, ChevronUp, BookOpen, TrendingUp, Flame, BarChart2, Clock, FlaskConical, ShieldOff } from 'lucide-react'
+import { AlertCircle, Search, X, ChevronDown, ChevronUp, BookOpen, TrendingUp, Flame, BarChart2, Clock, FlaskConical, ShieldOff, CreditCard } from 'lucide-react'
 import { formatDate, formatDateTime } from '@/lib/utils'
 import { usersAPI } from '@/lib/api'
 
@@ -102,6 +102,17 @@ const EVENT_ICON: Record<string, string> = {
   subscription:     '⭐',
 }
 
+interface TierHistoryEntry {
+  id: number
+  from_tier: string | null
+  to_tier: string
+  from_expires_at: string | null
+  to_expires_at: string | null
+  changed_at: string
+  source: string
+  note: string | null
+}
+
 const PAGE_SIZE = 50
 
 export default function UsersPage() {
@@ -121,6 +132,8 @@ export default function UsersPage() {
   const [journeyData, setJourneyData] = useState<Record<string, JourneyData>>({})
   const [journeyLoading, setJourneyLoading] = useState(false)
   const [markingUser, setMarkingUser] = useState<string | null>(null)
+  const [tierHistory, setTierHistory] = useState<Record<string, TierHistoryEntry[]>>({})
+  const [tierHistoryLoading, setTierHistoryLoading] = useState<string | null>(null)
   const fetchUsers = useCallback(async (page = 1, searchQuery = debouncedSearch) => {
     setLoading(true)
     try {
@@ -160,24 +173,36 @@ export default function UsersPage() {
       return
     }
     setExpandedUserId(userId)
-    if (analysis[userId]) return
 
-    setAnalysisLoading(userId)
-    try {
-      const res = await usersAPI.getAnalysis(userId)
-      if (res.success) {
-        setAnalysis(prev => ({ ...prev, [userId]: res.data }))
-      } else {
-        setAnalysisError(prev => ({ ...prev, [userId]: res.error || 'Failed to load analysis' }))
+    // Fetch analysis if not cached
+    if (!analysis[userId]) {
+      setAnalysisLoading(userId)
+      try {
+        const res = await usersAPI.getAnalysis(userId)
+        if (res.success) {
+          setAnalysis(prev => ({ ...prev, [userId]: res.data }))
+        } else {
+          setAnalysisError(prev => ({ ...prev, [userId]: res.error || 'Failed to load analysis' }))
+        }
+      } catch (err: unknown) {
+        const axiosErr = err as { response?: { data?: { error?: string; details?: string }; status?: number }; message?: string }
+        const msg = axiosErr?.response?.data?.error || axiosErr?.response?.data?.details
+          || (axiosErr?.response?.status ? `HTTP ${axiosErr.response.status}` : null)
+          || (err instanceof Error ? err.message : String(err))
+        setAnalysisError(prev => ({ ...prev, [userId]: `Error: ${msg}` }))
+      } finally {
+        setAnalysisLoading(null)
       }
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { error?: string; details?: string }; status?: number }; message?: string }
-      const msg = axiosErr?.response?.data?.error || axiosErr?.response?.data?.details
-        || (axiosErr?.response?.status ? `HTTP ${axiosErr.response.status}` : null)
-        || (err instanceof Error ? err.message : String(err))
-      setAnalysisError(prev => ({ ...prev, [userId]: `Error: ${msg}` }))
-    } finally {
-      setAnalysisLoading(null)
+    }
+
+    // Fetch tier history if not cached
+    if (!tierHistory[userId]) {
+      setTierHistoryLoading(userId)
+      try {
+        const res = await usersAPI.getTierHistory(userId)
+        if (res.success) setTierHistory(prev => ({ ...prev, [userId]: res.data }))
+      } catch {}
+      finally { setTierHistoryLoading(null) }
     }
   }
 
@@ -410,7 +435,7 @@ export default function UsersPage() {
                                 </div>
                               )}
                               {analysis[user.id] && (
-                                <UserAnalysisPanel data={analysis[user.id]} getTrendIcon={getTrendIcon} buildHeatmap={buildHeatmap} heatColor={heatColor} formatDate={formatDate} formatDateTime={formatDateTime} />
+                                <UserAnalysisPanel data={analysis[user.id]} getTrendIcon={getTrendIcon} buildHeatmap={buildHeatmap} heatColor={heatColor} formatDate={formatDate} formatDateTime={formatDateTime} tierHistory={tierHistory[user.id] ?? null} tierHistoryLoading={tierHistoryLoading === user.id} />
                               )}
                             </td>
                           </tr>
@@ -522,6 +547,8 @@ function UserAnalysisPanel({
   heatColor,
   formatDate,
   formatDateTime,
+  tierHistory,
+  tierHistoryLoading,
 }: {
   data: UserAnalysis
   getTrendIcon: (trend: string) => React.ReactNode
@@ -529,6 +556,8 @@ function UserAnalysisPanel({
   heatColor: (count: number) => string
   formatDate: (d: string) => string
   formatDateTime: (d: string) => string
+  tierHistory: TierHistoryEntry[] | null
+  tierHistoryLoading: boolean
 }) {
   const heatmap = buildHeatmap(data.dailyActivity)
 
@@ -764,6 +793,116 @@ function UserAnalysisPanel({
           </div>
         </div>
       )}
+
+      {/* Tier / Subscription History */}
+      <div className="rounded-lg border bg-white p-3">
+        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5 mb-3">
+          <CreditCard className="h-3.5 w-3.5" /> Subscription History
+        </div>
+        {tierHistoryLoading && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary" />
+            Loading…
+          </div>
+        )}
+        {!tierHistoryLoading && tierHistory !== null && tierHistory.length === 0 && (
+          <p className="text-xs text-muted-foreground">No tier changes recorded yet.</p>
+        )}
+        {!tierHistoryLoading && tierHistory && tierHistory.length > 0 && (
+          <div className="space-y-2">
+            {tierHistory.map((entry) => (
+              <div key={entry.id} className="flex items-start gap-3 text-xs">
+                <div className="mt-0.5 shrink-0">
+                  <TierChangeDot fromTier={entry.from_tier} toTier={entry.to_tier} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <TierPill tier={entry.from_tier} muted />
+                    <span className="text-muted-foreground">→</span>
+                    <TierPill tier={entry.to_tier} />
+                    <SourceBadge source={entry.source} />
+                    {entry.note && (
+                      <span className="text-muted-foreground font-mono truncate max-w-[140px]" title={entry.note}>
+                        {entry.note}
+                      </span>
+                    )}
+                  </div>
+                  {entry.to_expires_at && (
+                    <div className="text-muted-foreground mt-0.5">
+                      expires {formatDate(entry.to_expires_at)}
+                    </div>
+                  )}
+                </div>
+                <div className="shrink-0 text-muted-foreground whitespace-nowrap">
+                  {new Date(entry.changed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
+}
+
+// ─── Tier history helpers ──────────────────────────────────────────────────────
+
+const TIER_LABEL: Record<string, string> = {
+  premium_plus: 'Ultra',
+  premium: 'Premium',
+  free: 'Free',
+}
+
+const TIER_STYLE: Record<string, string> = {
+  premium_plus: 'bg-yellow-100 text-yellow-800',
+  premium: 'bg-blue-100 text-blue-800',
+  free: 'bg-gray-100 text-gray-600',
+}
+
+const SOURCE_STYLE: Record<string, string> = {
+  payment_receipt:  'bg-green-50 text-green-700',
+  apple_webhook:    'bg-green-50 text-green-700',
+  promo_code:       'bg-purple-50 text-purple-700',
+  admin:            'bg-red-50 text-red-700',
+  expiry_downgrade: 'bg-orange-50 text-orange-700',
+  dev_override:     'bg-slate-100 text-slate-600',
+  registration:     'bg-sky-50 text-sky-700',
+}
+
+const SOURCE_LABEL: Record<string, string> = {
+  payment_receipt:  'Payment',
+  apple_webhook:    'Apple IAP',
+  promo_code:       'Promo',
+  admin:            'Admin',
+  expiry_downgrade: 'Expired',
+  dev_override:     'Dev',
+  registration:     'Register',
+}
+
+function TierPill({ tier, muted }: { tier: string | null; muted?: boolean }) {
+  if (!tier) return <span className="text-muted-foreground italic">—</span>
+  const style = muted ? 'bg-gray-50 text-gray-400' : (TIER_STYLE[tier] || 'bg-gray-100 text-gray-600')
+  return (
+    <span className={`px-1.5 py-0.5 rounded font-medium ${style}`}>
+      {TIER_LABEL[tier] || tier}
+    </span>
+  )
+}
+
+function SourceBadge({ source }: { source: string }) {
+  const style = SOURCE_STYLE[source] || 'bg-gray-100 text-gray-500'
+  return (
+    <span className={`px-1.5 py-0.5 rounded ${style}`}>
+      {SOURCE_LABEL[source] || source}
+    </span>
+  )
+}
+
+function TierChangeDot({ fromTier, toTier }: { fromTier: string | null; toTier: string }) {
+  const isUpgrade = !fromTier
+    || (toTier === 'premium_plus')
+    || (toTier === 'premium' && fromTier === 'free')
+  const isDowngrade = toTier === 'free' && fromTier !== 'free'
+  const color = isUpgrade ? 'bg-green-400' : isDowngrade ? 'bg-orange-400' : 'bg-blue-400'
+  return <div className={`h-2 w-2 rounded-full ${color}`} />
 }

@@ -93,22 +93,9 @@ struct QuestionSheetView: View {
         .onAppear { restoreProgress() }
         .onDisappear {
             stopVoiceDictation()
-            if !showingCompletion && answeredIds.count > 0 {
-                EventTracker.shared.track("practice_abandoned", [
-                    "subject": session.subject ?? "unknown",
-                    "answered": answeredIds.count,
-                    "total": session.questions.count,
-                ])
-            }
         }
         .onChange(of: showingCompletion) { _, isShowing in
             if isShowing {
-                EventTracker.shared.track("practice_completed", [
-                    "subject": session.subject ?? "unknown",
-                    "score_pct": Int(scorePercentage),
-                    "correct": correctCount,
-                    "total": answeredIds.count,
-                ])
                 if Int(scorePercentage) == 100 {
                     showCongrats = true
                 }
@@ -180,7 +167,17 @@ struct QuestionSheetView: View {
             }
             Spacer()
             if backToChatAction == nil {
-                Button(action: { dismiss() }) {
+                Button(action: {
+                    if !answeredIds.isEmpty && answeredIds.count < questions.count {
+                        let pct = questions.isEmpty ? 0 : Int(Double(answeredIds.count) / Double(questions.count) * 100)
+                        JourneyTracker.shared.track("practice_abandoned", [
+                            "subject": session.subject,
+                            "practice_type": session.generationType,
+                            "progress_pct": pct
+                        ])
+                    }
+                    dismiss()
+                }) {
                     Text(NSLocalizedString("common.done", comment: ""))
                         .font(.body.bold())
                         .foregroundColor(.primary)
@@ -272,6 +269,26 @@ struct QuestionSheetView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 16) {
 
+                    // Beta notice — only for real bank questions, not AI-generated
+                    if q.isFromBank {
+                        HStack(spacing: 6) {
+                            Text(NSLocalizedString("practice.beta.badge", value: "Beta", comment: ""))
+                                .font(.caption2.bold())
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.orange)
+                                .cornerRadius(4)
+                            Text(NSLocalizedString("practice.beta.message",
+                                                   value: "We are constructing question banks",
+                                                   comment: ""))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Spacer()
+                        }
+                        .padding(.horizontal, 4)
+                    }
+
                     // Question card
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
@@ -293,6 +310,27 @@ struct QuestionSheetView: View {
                                 .lineLimit(1)
                         }
                         MarkdownLaTeXText(q.question, fontSize: 17, isStreaming: false)
+
+                        if let relativePath = q.figureUrl,
+                           let url = URL(string: NetworkService.shared.apiBaseURL + relativePath) {
+                            AsyncImage(url: url) { phase in
+                                switch phase {
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(maxWidth: .infinity)
+                                        .cornerRadius(8)
+                                case .failure:
+                                    EmptyView()
+                                case .empty:
+                                    ProgressView()
+                                        .frame(maxWidth: .infinity, minHeight: 80)
+                                @unknown default:
+                                    EmptyView()
+                                }
+                            }
+                        }
 
                         // Source attribution for bank questions
                         if q.isFromBank {
@@ -1224,7 +1262,6 @@ struct QuestionSheetView: View {
     // MARK: - Grading Logic
 
     private func submitAnswer(_ q: QuestionGenerationService.GeneratedQuestion) {
-        hasSubmitted = true
         let answer = currentAnswer(q)
 
         let optionsDict: [String: String]?
@@ -1247,6 +1284,7 @@ struct QuestionSheetView: View {
             partialCredit = isCorrect ? 1.0 : 0.0
             wasInstantGraded = true
             aiFeedback = nil
+            hasSubmitted = true
             recordAnswer(q: q, answer: answer, correct: isCorrect)
             return
         }
@@ -1263,10 +1301,12 @@ struct QuestionSheetView: View {
             partialCredit = 1.0
             wasInstantGraded = true
             aiFeedback = NSLocalizedString("questionDetail.feedbackExactMatch", comment: "")
+            hasSubmitted = true
             recordAnswer(q: q, answer: answer, correct: true)
             return
         }
 
+        // Not an exact match — wait for AI result before revealing the answer view
         isGradingWithAI = true
         Task { await gradeWithAI(q: q, answer: answer) }
     }
@@ -1295,6 +1335,7 @@ struct QuestionSheetView: View {
             fallbackGrade(q: q, answer: answer)
             logger.error("AI grading failed: \(error.localizedDescription)")
         }
+        hasSubmitted = true
         recordAnswer(q: q, answer: answer, correct: isCorrect)
     }
 
@@ -1382,6 +1423,13 @@ struct QuestionSheetView: View {
         if answeredIds.count == questions.count, let updated = sessionManager.getSession(id: session.id) {
             Task { await sessionManager.syncSessionCompleted(updated) }
         }
+
+        JourneyTracker.shared.track("question_answered", [
+            "correct": correct,
+            "subject": session.subject,
+            "question_type": q.type.rawValue,
+            "practice_type": session.generationType
+        ])
     }
 
     // MARK: - Smart Organize
@@ -1390,6 +1438,13 @@ struct QuestionSheetView: View {
         guard !isOrganizing else { return }
         isOrganizing = true
         Task {
+            JourneyTracker.shared.track("practice_completed", [
+                "subject": session.subject,
+                "practice_type": session.generationType,
+                "score_pct": Int(scorePercentage),
+                "total_questions": questions.count,
+                "correct_count": correctCount
+            ])
             // Mark progress
             PointsEarningManager.shared.markHomeworkProgress(
                 subject: session.subject,

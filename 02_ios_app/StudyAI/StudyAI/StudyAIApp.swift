@@ -61,6 +61,7 @@ struct StudyAIApp: App {
                 .preferredColorScheme(themeManager.effectiveColorScheme)
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                     NotificationService.shared.clearBadge()
+                    JourneyTracker.shared.trackAppOpen(coldStart: false)
                 }
                 .onOpenURL { url in
                     // 处理Google登录

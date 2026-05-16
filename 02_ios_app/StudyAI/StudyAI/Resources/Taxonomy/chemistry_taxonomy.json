@@ -1,0 +1,131 @@
+{
+  "subject": "Chemistry",
+  "branches": [
+    {
+      "id": "matter_measurement",
+      "name": "Matter & Measurement",
+      "topics": [
+        { "id": "properties_of_matter",          "name": "Properties of Matter",              "gradeMin": 9, "gradeMax": 13 },
+        { "id": "states_of_matter",              "name": "States of Matter",                  "gradeMin": 9, "gradeMax": 13 },
+        { "id": "physical_vs_chemical_changes",  "name": "Physical vs Chemical Changes",      "gradeMin": 9, "gradeMax": 13 },
+        { "id": "measurement_significant_figures","name": "Measurement & Significant Figures", "gradeMin": 9, "gradeMax": 13 },
+        { "id": "dimensional_analysis",          "name": "Dimensional Analysis",              "gradeMin": 9, "gradeMax": 13 },
+        { "id": "density_concentration",         "name": "Density & Concentration",           "gradeMin": 9, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "atomic_structure",
+      "name": "Atomic Structure",
+      "topics": [
+        { "id": "atomic_theory_models",          "name": "Atomic Theory & Models",            "gradeMin": 9, "gradeMax": 13 },
+        { "id": "subatomic_particles",           "name": "Subatomic Particles",               "gradeMin": 9, "gradeMax": 13 },
+        { "id": "isotopes_atomic_mass",          "name": "Isotopes & Atomic Mass",            "gradeMin": 9, "gradeMax": 13 },
+        { "id": "electron_configuration",        "name": "Electron Configuration",            "gradeMin": 9, "gradeMax": 13 },
+        { "id": "periodic_trends",               "name": "Periodic Trends",                   "gradeMin": 9, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "chemical_bonding",
+      "name": "Chemical Bonding",
+      "topics": [
+        { "id": "ionic_bonding",                 "name": "Ionic Bonding",                     "gradeMin": 9, "gradeMax": 13 },
+        { "id": "covalent_bonding",              "name": "Covalent Bonding",                  "gradeMin": 9, "gradeMax": 13 },
+        { "id": "metallic_bonding",              "name": "Metallic Bonding",                  "gradeMin": 9, "gradeMax": 13 },
+        { "id": "lewis_structures",              "name": "Lewis Structures",                  "gradeMin": 9, "gradeMax": 13 },
+        { "id": "vsepr_molecular_geometry",      "name": "VSEPR Theory & Molecular Geometry", "gradeMin": 10, "gradeMax": 13 },
+        { "id": "polarity_intermolecular_forces","name": "Polarity & Intermolecular Forces",   "gradeMin": 10, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "chemical_nomenclature",
+      "name": "Chemical Nomenclature",
+      "topics": [
+        { "id": "naming_ionic_compounds",        "name": "Naming Ionic Compounds",            "gradeMin": 9, "gradeMax": 13 },
+        { "id": "naming_covalent_compounds",     "name": "Naming Covalent Compounds",         "gradeMin": 9, "gradeMax": 13 },
+        { "id": "naming_acids_bases",            "name": "Naming Acids & Bases",              "gradeMin": 9, "gradeMax": 13 },
+        { "id": "organic_nomenclature",          "name": "Organic Nomenclature",              "gradeMin": 10, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "chemical_reactions",
+      "name": "Chemical Reactions",
+      "topics": [
+        { "id": "types_of_reactions",            "name": "Types of Reactions",                "gradeMin": 9, "gradeMax": 13 },
+        { "id": "balancing_chemical_equations",  "name": "Balancing Chemical Equations",      "gradeMin": 9, "gradeMax": 13 },
+        { "id": "predicting_products",           "name": "Predicting Products",               "gradeMin": 9, "gradeMax": 13 },
+        { "id": "net_ionic_equations",           "name": "Net Ionic Equations",               "gradeMin": 10, "gradeMax": 13 },
+        { "id": "oxidation_reduction_reactions", "name": "Oxidation-Reduction Reactions",     "gradeMin": 10, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "stoichiometry",
+      "name": "Stoichiometry",
+      "topics": [
+        { "id": "mole_concept",                  "name": "Mole Concept",                      "gradeMin": 9, "gradeMax": 13 },
+        { "id": "molar_mass_calculations",       "name": "Molar Mass Calculations",           "gradeMin": 9, "gradeMax": 13 },
+        { "id": "mass_mole_particle_conversions","name": "Mass-Mole-Particle Conversions",     "gradeMin": 9, "gradeMax": 13 },
+        { "id": "limiting_reactant",             "name": "Limiting Reactant",                 "gradeMin": 10, "gradeMax": 13 },
+        { "id": "percent_yield",                 "name": "Percent Yield",                     "gradeMin": 10, "gradeMax": 13 },
+        { "id": "solution_stoichiometry",        "name": "Solution Stoichiometry",            "gradeMin": 10, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "gases",
+      "name": "Gases",
+      "topics": [
+        { "id": "gas_laws",                      "name": "Gas Laws",                          "gradeMin": 10, "gradeMax": 13 },
+        { "id": "ideal_gas_law",                 "name": "Ideal Gas Law",                     "gradeMin": 10, "gradeMax": 13 },
+        { "id": "gas_stoichiometry",             "name": "Gas Stoichiometry",                 "gradeMin": 10, "gradeMax": 13 },
+        { "id": "daltons_law_partial_pressures", "name": "Dalton's Law of Partial Pressures", "gradeMin": 10, "gradeMax": 13 },
+        { "id": "kinetic_molecular_theory",      "name": "Kinetic Molecular Theory",          "gradeMin": 10, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "thermochemistry",
+      "name": "Thermochemistry",
+      "topics": [
+        { "id": "energy_changes_in_reactions",   "name": "Energy Changes in Reactions",       "gradeMin": 10, "gradeMax": 13 },
+        { "id": "enthalpy_calorimetry",          "name": "Enthalpy & Calorimetry",            "gradeMin": 10, "gradeMax": 13 },
+        { "id": "hesss_law",                     "name": "Hess's Law",                        "gradeMin": 11, "gradeMax": 13 },
+        { "id": "standard_enthalpies_formation", "name": "Standard Enthalpies of Formation",  "gradeMin": 11, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "solutions_aqueous_chemistry",
+      "name": "Solutions & Aqueous Chemistry",
+      "topics": [
+        { "id": "solution_concentration_units",  "name": "Solution Concentration Units",      "gradeMin": 10, "gradeMax": 13 },
+        { "id": "solubility_solubility_rules",   "name": "Solubility & Solubility Rules",     "gradeMin": 10, "gradeMax": 13 },
+        { "id": "colligative_properties",        "name": "Colligative Properties",            "gradeMin": 11, "gradeMax": 13 },
+        { "id": "acids_bases",                   "name": "Acids & Bases",                     "gradeMin": 9, "gradeMax": 13 },
+        { "id": "ph_poh_calculations",           "name": "pH & pOH Calculations",             "gradeMin": 10, "gradeMax": 13 },
+        { "id": "acid_base_titrations",          "name": "Acid-Base Titrations",              "gradeMin": 10, "gradeMax": 13 },
+        { "id": "buffer_solutions",              "name": "Buffer Solutions",                  "gradeMin": 11, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "equilibrium_kinetics",
+      "name": "Equilibrium & Kinetics",
+      "topics": [
+        { "id": "reaction_rates",                "name": "Reaction Rates",                    "gradeMin": 10, "gradeMax": 13 },
+        { "id": "rate_laws_reaction_order",      "name": "Rate Laws & Reaction Order",        "gradeMin": 11, "gradeMax": 13 },
+        { "id": "collision_theory_activation_energy","name": "Collision Theory & Activation Energy","gradeMin": 11, "gradeMax": 13 },
+        { "id": "chemical_equilibrium",          "name": "Chemical Equilibrium",              "gradeMin": 11, "gradeMax": 13 },
+        { "id": "le_chateliers_principle",       "name": "Le Chatelier's Principle",          "gradeMin": 11, "gradeMax": 13 },
+        { "id": "equilibrium_constants",         "name": "Equilibrium Constants",             "gradeMin": 11, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "organic_nuclear_chemistry",
+      "name": "Organic & Nuclear Chemistry",
+      "topics": [
+        { "id": "hydrocarbons_functional_groups","name": "Hydrocarbons & Functional Groups",   "gradeMin": 10, "gradeMax": 13 },
+        { "id": "organic_reactions",             "name": "Organic Reactions",                 "gradeMin": 11, "gradeMax": 13 },
+        { "id": "polymers_biochemistry",         "name": "Polymers & Biochemistry",           "gradeMin": 11, "gradeMax": 13 },
+        { "id": "nuclear_reactions",             "name": "Nuclear Reactions",                 "gradeMin": 11, "gradeMax": 13 },
+        { "id": "radioactive_decay",             "name": "Radioactive Decay",                 "gradeMin": 11, "gradeMax": 13 },
+        { "id": "half_life_calculations",        "name": "Half-Life Calculations",            "gradeMin": 11, "gradeMax": 13 }
+      ]
+    }
+  ]
+}

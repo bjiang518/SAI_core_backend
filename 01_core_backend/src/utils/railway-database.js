@@ -648,13 +648,25 @@ const db = {
 
   /**
    * Set user tier directly (used by admin override + payment webhook)
+   * source: 'payment_receipt' | 'apple_webhook' | 'promo_code' | 'admin' | 'expiry_downgrade' | 'dev_override' | 'registration'
    */
-  async setUserTier(userId, tier, expiresAt = null) {
+  async setUserTier(userId, tier, expiresAt = null, source = 'unknown', note = null) {
+    const prev = await this.query(
+      `SELECT tier, tier_expires_at FROM users WHERE id = $1`,
+      [userId],
+      { cache: false }
+    );
+    const prevRow = prev.rows[0];
     await this.query(
       `UPDATE users SET tier = $1, tier_expires_at = $2 WHERE id = $3`,
       [tier, expiresAt, userId],
       { cache: false }
     );
+    this.query(
+      `INSERT INTO tier_history (user_id, from_tier, to_tier, from_expires_at, to_expires_at, source, note)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [userId, prevRow?.tier ?? null, tier, prevRow?.tier_expires_at ?? null, expiresAt, source, note]
+    ).catch(() => {});
     this.invalidateTierCache(userId);
   },
 
@@ -5921,6 +5933,79 @@ async function runDatabaseMigrations() {
       }
     } else {
       logger.debug('✅ Migration 039: guest_conversion_tracking already applied');
+    }
+
+    // 040: tier_history table for subscription change tracking
+    const m040 = await db.query(
+      `SELECT 1 FROM migration_history WHERE migration_name = '040_tier_history'`
+    );
+    if (m040.rows.length === 0) {
+      try {
+        await db.query(`
+          CREATE TABLE IF NOT EXISTS tier_history (
+            id              SERIAL PRIMARY KEY,
+            user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            from_tier       VARCHAR(20),
+            to_tier         VARCHAR(20) NOT NULL,
+            from_expires_at TIMESTAMP,
+            to_expires_at   TIMESTAMP,
+            changed_at      TIMESTAMP NOT NULL DEFAULT NOW(),
+            source          VARCHAR(50) NOT NULL DEFAULT 'unknown',
+            note            TEXT
+          );
+          CREATE INDEX IF NOT EXISTS idx_tier_history_user
+            ON tier_history (user_id, changed_at DESC);
+        `);
+        await db.query(
+          `INSERT INTO migration_history (migration_name) VALUES ('040_tier_history') ON CONFLICT DO NOTHING`
+        );
+        logger.debug('✅ Migration 040: tier_history table created');
+      } catch (migrationError) {
+        logger.error({ err: migrationError }, '❌ Migration 040 failed');
+      }
+    } else {
+      logger.debug('✅ Migration 040: tier_history already applied');
+    }
+
+    // 041: knowledge_tree_snapshots — per-topic mastery synced from iOS
+    const m041 = await db.query(
+      `SELECT 1 FROM migration_history WHERE migration_name = '041_knowledge_tree_snapshots'`
+    );
+    if (m041.rows.length === 0) {
+      try {
+        await db.query(`
+          CREATE TABLE IF NOT EXISTS knowledge_tree_snapshots (
+            id              SERIAL PRIMARY KEY,
+            user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            subject         VARCHAR(100) NOT NULL,
+            topic_key       VARCHAR(500) NOT NULL,
+            branch_name     VARCHAR(200),
+            topic_name      VARCHAR(200),
+            weakness_value  FLOAT DEFAULT 0,
+            accuracy        FLOAT,
+            total_attempts  INTEGER DEFAULT 0,
+            correct_attempts INTEGER DEFAULT 0,
+            error_types     TEXT[] DEFAULT '{}',
+            is_practiced    BOOLEAN DEFAULT false,
+            is_mastered     BOOLEAN DEFAULT false,
+            first_detected_at TIMESTAMPTZ,
+            last_attempt_at   TIMESTAMPTZ,
+            synced_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          );
+          CREATE INDEX IF NOT EXISTS idx_kts_user_subject
+            ON knowledge_tree_snapshots (user_id, subject, synced_at DESC);
+          CREATE INDEX IF NOT EXISTS idx_kts_user_topic
+            ON knowledge_tree_snapshots (user_id, topic_key, synced_at DESC);
+        `);
+        await db.query(
+          `INSERT INTO migration_history (migration_name) VALUES ('041_knowledge_tree_snapshots') ON CONFLICT DO NOTHING`
+        );
+        logger.debug('✅ Migration 041: knowledge_tree_snapshots table created');
+      } catch (migrationError) {
+        logger.error({ err: migrationError }, '❌ Migration 041 failed');
+      }
+    } else {
+      logger.debug('✅ Migration 041: knowledge_tree_snapshots already applied');
     }
 
   } catch (error) {

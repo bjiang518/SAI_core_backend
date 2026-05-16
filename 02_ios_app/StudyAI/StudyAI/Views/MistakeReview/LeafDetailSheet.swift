@@ -2,6 +2,8 @@ import SwiftUI
 
 struct LeafDetailSheet: View {
     let leaf: TreeLeafDetailData
+    /// Called when user taps "Light Up" on an untracked topic — parent opens generation sheet.
+    var onLightUp: (() -> Void)? = nil
 
     @StateObject private var themeManager = ThemeManager.shared
     @Environment(\.dismiss) private var dismiss
@@ -32,7 +34,7 @@ struct LeafDetailSheet: View {
                 .padding(.bottom, 24)
             }
 
-            practiceButton
+            actionButton
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
                 .background(
@@ -204,23 +206,6 @@ struct LeafDetailSheet: View {
             .clipShape(Capsule())
     }
 
-    // MARK: - Practice button
-
-    private var practiceButton: some View {
-        Button(action: { showPractice = true }) {
-            Text(NSLocalizedString("mistakeTree.detail.practice", comment: ""))
-                .font(.headline)
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 15)
-                .background(
-                    RoundedRectangle(cornerRadius: 14)
-                        .fill(themeManager.accentColor)
-                )
-        }
-        .buttonStyle(.plain)
-    }
-
     // MARK: - Untracked
 
     private var untrackedNote: some View {
@@ -238,6 +223,55 @@ struct LeafDetailSheet: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 24)
+    }
+
+    // MARK: - Bottom action button (tracked vs untracked)
+
+    @ViewBuilder
+    private var actionButton: some View {
+        if leaf.weaknessValue != nil || leaf.questionCount > 0 {
+            // Tracked topic → go to practice list
+            Button(action: { showPractice = true }) {
+                Text(NSLocalizedString("mistakeTree.detail.practice", comment: ""))
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 15)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14)
+                            .fill(themeManager.accentColor)
+                    )
+            }
+            .buttonStyle(.plain)
+        } else {
+            // Untracked topic → light it up
+            Button {
+                dismiss()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    onLightUp?()
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "leaf.fill")
+                        .font(.headline)
+                    Text(NSLocalizedString("mistakeTree.detail.lightUp",
+                                          value: "点亮该知识点",
+                                          comment: ""))
+                        .font(.headline)
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 15)
+                .background(
+                    LinearGradient(
+                        colors: [DesignTokens.Colors.Cute.mint, DesignTokens.Colors.Cute.blue],
+                        startPoint: .leading, endPoint: .trailing
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                )
+            }
+            .buttonStyle(.plain)
+        }
     }
 
     // MARK: - Helpers

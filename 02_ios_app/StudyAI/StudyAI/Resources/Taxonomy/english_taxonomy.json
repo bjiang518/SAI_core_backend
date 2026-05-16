@@ -2,69 +2,110 @@
   "subject": "English",
   "branches": [
     {
-      "id": "phonics",
-      "name": "Phonics & Decoding",
+      "id": "reading_foundations",
+      "name": "Reading Foundations",
       "topics": [
-        { "id": "letter_sounds",    "name": "Letter Sounds & Phonemes",          "gradeMin": 0, "gradeMax": 2 },
-        { "id": "sight_words",      "name": "Sight Words",                       "gradeMin": 0, "gradeMax": 2 },
-        { "id": "word_families",    "name": "Word Families & Patterns",          "gradeMin": 1, "gradeMax": 3 },
-        { "id": "syllables",        "name": "Syllables & Word Structure",        "gradeMin": 1, "gradeMax": 3 }
+        { "id": "phonics_word_recognition",   "name": "Phonics & Word Recognition",       "gradeMin": 0, "gradeMax": 3 },
+        { "id": "fluency_reading_strategies", "name": "Fluency & Reading Strategies",      "gradeMin": 0, "gradeMax": 3 },
+        { "id": "vocabulary_development",     "name": "Vocabulary Development",            "gradeMin": 0, "gradeMax": 3 },
+        { "id": "text_features_structure",    "name": "Text Features & Structure",         "gradeMin": 0, "gradeMax": 3 }
       ]
     },
     {
-      "id": "vocabulary",
-      "name": "Vocabulary & Word Knowledge",
+      "id": "literary_analysis_fiction",
+      "name": "Literary Analysis - Fiction",
       "topics": [
-        { "id": "vocab_context",    "name": "Vocabulary in Context",             "gradeMin": 1, "gradeMax": 13 },
-        { "id": "word_roots",       "name": "Word Roots & Affixes",              "gradeMin": 4, "gradeMax": 13 },
-        { "id": "figurative_lang",  "name": "Figurative Language",               "gradeMin": 4, "gradeMax": 13 },
-        { "id": "academic_vocab",   "name": "Academic Vocabulary",               "gradeMin": 5, "gradeMax": 13 }
+        { "id": "plot_story_structure",       "name": "Plot & Story Structure",            "gradeMin": 4, "gradeMax": 12 },
+        { "id": "character_development",      "name": "Character Development",             "gradeMin": 4, "gradeMax": 12 },
+        { "id": "theme_symbolism",            "name": "Theme & Symbolism",                 "gradeMin": 4, "gradeMax": 12 },
+        { "id": "point_of_view_narration",    "name": "Point of View & Narration",         "gradeMin": 4, "gradeMax": 12 },
+        { "id": "literary_devices_figurative_language","name": "Literary Devices & Figurative Language","gradeMin": 4, "gradeMax": 12 },
+        { "id": "genre_study",                "name": "Genre Study",                       "gradeMin": 4, "gradeMax": 12 }
+      ]
+    },
+    {
+      "id": "literary_analysis_nonfiction",
+      "name": "Literary Analysis - Nonfiction",
+      "topics": [
+        { "id": "main_idea_supporting_details","name": "Main Idea & Supporting Details",   "gradeMin": 4, "gradeMax": 12 },
+        { "id": "text_structure_organization","name": "Text Structure & Organization",     "gradeMin": 4, "gradeMax": 12 },
+        { "id": "authors_purpose_perspective","name": "Author's Purpose & Perspective",    "gradeMin": 5, "gradeMax": 12 },
+        { "id": "rhetorical_devices_appeals", "name": "Rhetorical Devices & Appeals",      "gradeMin": 6, "gradeMax": 12 },
+        { "id": "argument_evidence_evaluation","name": "Argument & Evidence Evaluation",   "gradeMin": 6, "gradeMax": 12 },
+        { "id": "informational_text_types",   "name": "Informational Text Types",          "gradeMin": 4, "gradeMax": 12 }
       ]
     },
     {
       "id": "reading_comprehension",
       "name": "Reading Comprehension",
       "topics": [
-        { "id": "main_idea",        "name": "Main Idea & Details",               "gradeMin": 1, "gradeMax": 8 },
-        { "id": "inference",        "name": "Inference & Evidence",              "gradeMin": 3, "gradeMax": 13 },
-        { "id": "text_structure",   "name": "Text Structure & Organization",     "gradeMin": 3, "gradeMax": 13 },
-        { "id": "authors_purpose",  "name": "Author's Purpose & Perspective",   "gradeMin": 4, "gradeMax": 13 },
-        { "id": "compare_contrast", "name": "Compare & Contrast",               "gradeMin": 3, "gradeMax": 10 },
-        { "id": "summarizing",      "name": "Summarizing & Paraphrasing",        "gradeMin": 4, "gradeMax": 13 }
+        { "id": "inference_interpretation",   "name": "Inference & Interpretation",        "gradeMin": 3, "gradeMax": 12 },
+        { "id": "synthesizing_information",   "name": "Synthesizing Information",          "gradeMin": 4, "gradeMax": 12 },
+        { "id": "making_connections",         "name": "Making Connections",                "gradeMin": 3, "gradeMax": 12 },
+        { "id": "critical_reading_analysis",  "name": "Critical Reading & Analysis",       "gradeMin": 5, "gradeMax": 12 }
       ]
     },
     {
-      "id": "grammar_language",
-      "name": "Grammar & Language",
+      "id": "writing_narrative",
+      "name": "Writing - Narrative",
       "topics": [
-        { "id": "parts_speech",     "name": "Parts of Speech",                   "gradeMin": 1, "gradeMax": 7 },
-        { "id": "sentence_struct",  "name": "Sentence Structure",                "gradeMin": 2, "gradeMax": 9 },
-        { "id": "punctuation",      "name": "Punctuation & Capitalization",      "gradeMin": 1, "gradeMax": 7 },
-        { "id": "subject_verb",     "name": "Subject-Verb Agreement",            "gradeMin": 3, "gradeMax": 8 },
-        { "id": "verb_tense",       "name": "Verb Tense & Aspect",               "gradeMin": 3, "gradeMax": 9 },
-        { "id": "complex_grammar",  "name": "Complex Grammar Structures",        "gradeMin": 7, "gradeMax": 13 }
+        { "id": "story_elements_plot_development","name": "Story Elements & Plot Development","gradeMin": 1, "gradeMax": 13 },
+        { "id": "descriptive_writing",        "name": "Descriptive Writing",               "gradeMin": 2, "gradeMax": 13 },
+        { "id": "dialogue_character_voice",   "name": "Dialogue & Character Voice",        "gradeMin": 3, "gradeMax": 13 },
+        { "id": "personal_narrative_memoir",  "name": "Personal Narrative & Memoir",       "gradeMin": 3, "gradeMax": 13 }
       ]
     },
     {
-      "id": "writing",
-      "name": "Writing",
+      "id": "writing_informative_explanatory",
+      "name": "Writing - Informative/Explanatory",
       "topics": [
-        { "id": "narrative",        "name": "Narrative Writing",                 "gradeMin": 1, "gradeMax": 10 },
-        { "id": "expository",       "name": "Expository Writing",                "gradeMin": 3, "gradeMax": 13 },
-        { "id": "persuasive",       "name": "Persuasive & Argumentative Writing","gradeMin": 5, "gradeMax": 13 },
-        { "id": "research",         "name": "Research & Citation",               "gradeMin": 6, "gradeMax": 13 },
-        { "id": "writing_process",  "name": "Writing Process & Revision",        "gradeMin": 3, "gradeMax": 13 }
+        { "id": "expository_essay_structure", "name": "Expository Essay Structure",        "gradeMin": 3, "gradeMax": 13 },
+        { "id": "research_writing",           "name": "Research Writing",                  "gradeMin": 4, "gradeMax": 13 },
+        { "id": "technical_writing",          "name": "Technical Writing",                 "gradeMin": 6, "gradeMax": 13 },
+        { "id": "process_how_to_writing",     "name": "Process & How-To Writing",          "gradeMin": 3, "gradeMax": 13 }
       ]
     },
     {
-      "id": "literary_analysis",
-      "name": "Literary Analysis",
+      "id": "writing_argumentative",
+      "name": "Writing - Argumentative",
       "topics": [
-        { "id": "plot_character",   "name": "Plot, Character & Setting",         "gradeMin": 2, "gradeMax": 8 },
-        { "id": "theme",            "name": "Theme & Symbolism",                 "gradeMin": 5, "gradeMax": 13 },
-        { "id": "literary_devices", "name": "Literary Devices",                  "gradeMin": 6, "gradeMax": 13 },
-        { "id": "poetry",           "name": "Poetry Analysis",                   "gradeMin": 6, "gradeMax": 13 },
-        { "id": "rhetoric",         "name": "Rhetoric & Argumentation",          "gradeMin": 9, "gradeMax": 13 }
+        { "id": "claim_thesis_development",   "name": "Claim & Thesis Development",        "gradeMin": 4, "gradeMax": 13 },
+        { "id": "evidence_citation",          "name": "Evidence & Citation",               "gradeMin": 5, "gradeMax": 13 },
+        { "id": "counterargument_rebuttal",   "name": "Counterargument & Rebuttal",        "gradeMin": 6, "gradeMax": 13 },
+        { "id": "persuasive_techniques",      "name": "Persuasive Techniques",             "gradeMin": 5, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "writing_process_craft",
+      "name": "Writing Process & Craft",
+      "topics": [
+        { "id": "prewriting_brainstorming",   "name": "Prewriting & Brainstorming",        "gradeMin": 2, "gradeMax": 13 },
+        { "id": "drafting_revision",          "name": "Drafting & Revision",               "gradeMin": 2, "gradeMax": 13 },
+        { "id": "editing_proofreading",       "name": "Editing & Proofreading",            "gradeMin": 2, "gradeMax": 13 },
+        { "id": "sentence_fluency_style",     "name": "Sentence Fluency & Style",          "gradeMin": 4, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "grammar_mechanics",
+      "name": "Grammar & Mechanics",
+      "topics": [
+        { "id": "parts_of_speech",            "name": "Parts of Speech",                   "gradeMin": 1, "gradeMax": 9 },
+        { "id": "sentence_structure_types",   "name": "Sentence Structure & Types",        "gradeMin": 2, "gradeMax": 9 },
+        { "id": "punctuation_capitalization", "name": "Punctuation & Capitalization",      "gradeMin": 1, "gradeMax": 9 },
+        { "id": "subject_verb_agreement",     "name": "Subject-Verb Agreement",            "gradeMin": 3, "gradeMax": 9 },
+        { "id": "verb_tenses_consistency",    "name": "Verb Tenses & Consistency",         "gradeMin": 3, "gradeMax": 9 },
+        { "id": "pronoun_usage",              "name": "Pronoun Usage",                     "gradeMin": 3, "gradeMax": 9 },
+        { "id": "modifier_placement",         "name": "Modifier Placement",               "gradeMin": 5, "gradeMax": 9 }
+      ]
+    },
+    {
+      "id": "speaking_listening",
+      "name": "Speaking & Listening",
+      "topics": [
+        { "id": "oral_presentation_skills",   "name": "Oral Presentation Skills",          "gradeMin": 1, "gradeMax": 13 },
+        { "id": "discussion_collaboration",   "name": "Discussion & Collaboration",        "gradeMin": 1, "gradeMax": 13 },
+        { "id": "listening_comprehension",    "name": "Listening Comprehension",           "gradeMin": 0, "gradeMax": 13 },
+        { "id": "multimedia_communication",   "name": "Multimedia Communication",          "gradeMin": 3, "gradeMax": 13 }
       ]
     }
   ]

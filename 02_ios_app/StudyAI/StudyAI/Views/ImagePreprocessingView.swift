@@ -159,8 +159,12 @@ struct ImagePreprocessingView: View {
             .navigationBarBackButtonHidden(true)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
+                    Button {
                         onCancel()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.body.bold())
+                            .foregroundColor(.primary)
                     }
                 }
             }

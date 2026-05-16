@@ -41,33 +41,49 @@ struct UpgradeComparisonView: View {
     @State private var promoState: PromoState = .idle
 
     // MARK: - Design tokens
-    private let badgeBlue  = Color(hex: "7EC8E3")   // Free badge — Cute blue
-    private let silver     = Color(hex: "8C95A6")   // Premium badge — silver
-    private let badgeGold  = Color(hex: "D4AF37")   // Ultra badge — classic gold
-    private let cardBg     = Color(.systemBackground)
-    private let pageBg     = Color(.systemGroupedBackground)
+    private let freeColor    = Color(hex: "7EC8E3")
+    private let premiumColor = Color(hex: "5B7FFF")
+    private let ultraColor   = Color(hex: "F59E0B")
+    private let silver       = Color(hex: "8C95A6")
+    private let badgeGold    = Color(hex: "D4AF37")
+    private let cardBg       = Color(.systemBackground)
+    private let pageBg       = Color(.systemGroupedBackground)
 
     // MARK: - Comparison table data
 
     private struct PlanRow {
-        let feature: String   // label column
-        let free: String      // "10/mo" | "—" | "✓"
+        let icon: String
+        let iconColor: Color
+        let feature: String
+        let free: String
         let premium: String
         let family: String
     }
 
     private var planRows: [PlanRow] {[
-        PlanRow(feature: NSLocalizedString("upgrade.comparison.featureHomework", comment: ""),    free: "5/mo",   premium: "50/mo",   family: "✓"),
-        PlanRow(feature: NSLocalizedString("upgrade.comparison.featureAiChat", comment: ""),      free: "20/mo",  premium: "500/mo",  family: "✓"),
-        PlanRow(feature: NSLocalizedString("upgrade.comparison.featureLiveTutor", comment: ""),   free: "—",      premium: NSLocalizedString("upgrade.comparison.valueLiveTutor", comment: ""), family: "✓"),
-        PlanRow(feature: NSLocalizedString("upgrade.comparison.featurePractice", comment: ""),    free: "10 qs",  premium: "200 qs",  family: "✓"),
-        PlanRow(feature: NSLocalizedString("upgrade.comparison.featureWeakness", comment: ""),    free: "3/mo",   premium: "✓",       family: "✓"),
-        PlanRow(feature: NSLocalizedString("upgrade.comparison.featureReports", comment: ""),     free: "—",      premium: "✓",       family: "✓"),
-        PlanRow(feature: NSLocalizedString("upgrade.comparison.featureMultipleKids", comment: ""), free: "—",     premium: "—",       family: NSLocalizedString("upgrade.comparison.valueMultipleKids", comment: "")),
+        PlanRow(icon: "doc.text.fill",              iconColor: Color(hex: "5B7FFF"),
+                feature: NSLocalizedString("upgrade.comparison.featureHomework", comment: ""),
+                free: "5/mo", premium: "50/mo", family: "✓"),
+        PlanRow(icon: "bubble.left.fill",           iconColor: Color(hex: "9B5FFF"),
+                feature: NSLocalizedString("upgrade.comparison.featureAiChat", comment: ""),
+                free: "20/mo", premium: "500/mo", family: "✓"),
+        PlanRow(icon: "mic.fill",                   iconColor: Color(hex: "34C759"),
+                feature: NSLocalizedString("upgrade.comparison.featureLiveTutor", comment: ""),
+                free: "—", premium: NSLocalizedString("upgrade.comparison.valueLiveTutor", comment: ""), family: "✓"),
+        PlanRow(icon: "checkmark.circle.fill",      iconColor: Color(hex: "F59E0B"),
+                feature: NSLocalizedString("upgrade.comparison.featurePractice", comment: ""),
+                free: "10 qs", premium: "200 qs", family: "✓"),
+        PlanRow(icon: "chart.bar.fill",             iconColor: Color(hex: "5B7FFF"),
+                feature: NSLocalizedString("upgrade.comparison.featureWeakness", comment: ""),
+                free: "3/mo", premium: "✓", family: "✓"),
+        PlanRow(icon: "figure.2.and.child.holdinghands", iconColor: Color(hex: "FF7BAC"),
+                feature: NSLocalizedString("upgrade.comparison.featureReports", comment: ""),
+                free: "—", premium: "✓", family: "✓"),
+        PlanRow(icon: "person.2.fill",              iconColor: Color(hex: "F59E0B"),
+                feature: NSLocalizedString("upgrade.comparison.featureMultipleKids", comment: ""),
+                free: "—", premium: "—",
+                family: NSLocalizedString("upgrade.comparison.valueMultipleKids", comment: "")),
     ]}
-
-    // Fixed width for the feature-label column
-    private let labelW: CGFloat = 72
 
     // MARK: - Body
 
@@ -76,318 +92,373 @@ struct UpgradeComparisonView: View {
             pageBg.ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 0) {
-                    Spacer().frame(height: 44)
+                VStack(spacing: 20) {
+                    Spacer().frame(height: 32)
+
                     headerSection
-                        .padding(.bottom, 2)
-                    usageSummaryBanner
-                        .padding(.bottom, 4)
-                    upgradeAnimation
-                        .padding(.bottom, 2)
+                        .padding(.horizontal, 20)
+
                     comparisonTable
-                        .padding(.bottom, 20)
+                        .padding(.horizontal, 16)
+
                     bottomCTAs
-                        .padding(.bottom, 12)
+                        .padding(.horizontal, 16)
+
                     promoSection
-                        .padding(.bottom, 8)
+                        .padding(.horizontal, 16)
+
                     continueFreeLink
+
                     termsText
-                        .padding(.top, 12)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 4)
+
                     restoreLink
-                        .padding(.top, 8)
+                        .padding(.bottom, 32)
                 }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 36)
             }
 
             // Floating close button
             Button(action: onDismiss) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(.secondary)
-                    .padding(8)
-                    .background(Color(white: 0.0, opacity: 0.07))
+                    .frame(width: 30, height: 30)
+                    .background(Color(.systemGray5))
                     .clipShape(Circle())
             }
             .padding(.top, 16)
-            .padding(.leading, 20)
+            .padding(.leading, 16)
         }
-        .task {
-            #if DEBUG
-            print("🛒 [UpgradeView] View appeared — loading products")
-            #endif
-            await storeKit.loadProducts()
+        .task { await storeKit.loadProducts() }
+        .onAppear {
+            JourneyTracker.shared.track("upgrade_prompt_shown", [
+                "feature": blockedFeature,
+                "reason": reason == .featureBlocked ? "feature_blocked" : "limit_reached"
+            ])
         }
     }
 
     // MARK: - Header
 
     private var headerSection: some View {
-        VStack(spacing: 6) {
-            Text(NSLocalizedString("upgrade.comparison.headerTitle", comment: ""))
-                .font(.system(size: 26, weight: .bold))
-                .multilineTextAlignment(.center)
-                .foregroundColor(.primary)
-            Text(NSLocalizedString("upgrade.comparison.headerSubtitle", comment: ""))
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
+        HStack(alignment: .bottom, spacing: 0) {
+            VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(NSLocalizedString("upgrade.comparison.headerLine1", value: "Upgrade your", comment: ""))
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundColor(.primary)
+                    Text("StudyAgent")
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundColor(premiumColor)
+                }
+
+                Text(NSLocalizedString("upgrade.comparison.headerSubtitle", comment: ""))
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if premiumTrialEligible || ultraTrialEligible {
+                    HStack(spacing: 5) {
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 10))
+                        Text(NSLocalizedString("upgrade.comparison.trialBadge",
+                             value: "7-Day Free Trial  •  Cancel anytime", comment: ""))
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                    .foregroundColor(premiumColor)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(premiumColor.opacity(0.1))
+                    .cornerRadius(20)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Image("upgrade_robot")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 130, height: 130)
         }
-    }
-
-    // MARK: - Lottie animation
-
-    private var upgradeAnimation: some View {
-        LottieView(
-            animationName: "Upgrade",
-            loopMode: .loop,
-            animationSpeed: 1.0
-        )
-        .frame(width: 300, height: 300)
-        .scaleEffect(0.25)
-        .frame(height: 80)   // collapse layout space after scaling
     }
 
     // MARK: - Comparison table
 
+    // Feature column has fixed width; 3 value columns share remaining space equally.
+    private let featureColW: CGFloat = 112
+
     private var comparisonTable: some View {
         VStack(spacing: 0) {
 
-            // ── Row 1: Badge strip ──────────────────────────────────────
+            // ── Badges (above the white card) ───────────────────────────
             HStack(spacing: 0) {
-                Spacer().frame(width: labelW)
-                badgeStrip(NSLocalizedString("upgrade.comparison.badgeFreeToTry", comment: ""),    icon: "moon.fill",    bg: badgeBlue)
-                badgeStrip(NSLocalizedString("upgrade.comparison.badgeMostPopular", comment: ""), icon: "star.fill",   bg: silver)
-                badgeStrip(NSLocalizedString("upgrade.comparison.badgeBestValue", comment: ""),   icon: "sun.max.fill", bg: badgeGold)
+                Color.clear.frame(width: featureColW)
+                Color.clear.frame(maxWidth: .infinity)  // Free: no badge
+
+                // Premium — Most Popular
+                HStack(spacing: 3) {
+                    Image(systemName: "star.fill").font(.system(size: 9))
+                    Text(NSLocalizedString("upgrade.comparison.badgeMostPopular", comment: ""))
+                        .font(.system(size: 10, weight: .bold))
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity, minHeight: 28)
+                .background(premiumColor)
+                .cornerRadius(8, corners: [.topLeft, .topRight])
+
+                // Ultra — Best Value
+                HStack(spacing: 3) {
+                    Image(systemName: "crown.fill").font(.system(size: 9))
+                    Text(NSLocalizedString("upgrade.comparison.badgeBestValue", comment: ""))
+                        .font(.system(size: 10, weight: .bold))
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity, minHeight: 28)
+                .background(ultraColor)
+                .cornerRadius(8, corners: [.topLeft, .topRight])
             }
 
-            // ── Row 2: Plan name + price ────────────────────────────────
-            HStack(alignment: .top, spacing: 0) {
-                // label col header — empty
-                Spacer().frame(width: labelW)
+            // ── Plan headers (above the white card) ────────────────────
+            HStack(spacing: 0) {
+                Color.clear.frame(width: featureColW)
 
-                planHeader(NSLocalizedString("upgrade.comparison.planFree", comment: ""),    dollars: "0",     period: nil,   accentColor: badgeBlue)
-                planHeader(NSLocalizedString("upgrade.comparison.planPremium", comment: ""), dollars: "9.99",  period: NSLocalizedString("upgrade.comparison.pricePeriod", comment: ""), accentColor: silver)
-                planHeader(NSLocalizedString("upgrade.comparison.planUltra", comment: ""),   dollars: "19.99", period: NSLocalizedString("upgrade.comparison.pricePeriod", comment: ""), accentColor: badgeGold)
+                planHeaderCell(NSLocalizedString("upgrade.comparison.planFree", comment: ""),
+                               price: "$0", period: nil, color: freeColor)
+
+                planHeaderCell(NSLocalizedString("upgrade.comparison.planPremium", comment: ""),
+                               price: "$9.99",
+                               period: NSLocalizedString("upgrade.comparison.pricePeriod", comment: ""),
+                               color: premiumColor)
+                .background(premiumColor.opacity(0.06))
+
+                planHeaderCell(NSLocalizedString("upgrade.comparison.planUltra", comment: ""),
+                               price: "$19.99",
+                               period: NSLocalizedString("upgrade.comparison.pricePeriod", comment: ""),
+                               color: ultraColor)
+                .background(ultraColor.opacity(0.06))
             }
 
-            Divider().padding(.horizontal, 4)
-
-            // ── Rows 3…n: Feature rows ──────────────────────────────────
-            ForEach(Array(planRows.enumerated()), id: \.offset) { idx, row in
-                HStack(spacing: 0) {
-                    Text(row.feature)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.primary)
-                        .multilineTextAlignment(.leading)
-                        .frame(width: labelW, alignment: .leading)
+            // ── Feature rows — white card starts here ──────────────────
+            VStack(spacing: 0) {
+                ForEach(Array(planRows.enumerated()), id: \.offset) { idx, row in
+                    HStack(spacing: 0) {
+                        // Icon + label
+                        HStack(spacing: 8) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(row.iconColor.opacity(0.12))
+                                    .frame(width: 32, height: 32)
+                                Image(systemName: row.icon)
+                                    .font(.system(size: 15))
+                                    .foregroundColor(row.iconColor)
+                            }
+                            Text(row.feature)
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(.primary)
+                                .multilineTextAlignment(.leading)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .frame(width: featureColW, alignment: .leading)
                         .padding(.leading, 10)
 
-                    dataCell(row.free,    checkColor: badgeBlue)
-                    dataCell(row.premium, checkColor: silver)
-                    dataCell(row.family,  checkColor: badgeGold)
-                }
-                .padding(.vertical, 12)
-                .background(idx % 2 == 1 ? Color(.systemFill).opacity(0.25) : Color.clear)
+                        dataCell(row.free,    checkColor: freeColor)
+                        dataCell(row.premium, checkColor: premiumColor)
+                            .background(premiumColor.opacity(0.03))
+                        dataCell(row.family,  checkColor: ultraColor, isUltra: true)
+                            .background(ultraColor.opacity(0.03))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 13)
 
-                if idx < planRows.count - 1 {
-                    Divider().padding(.horizontal, 4).opacity(0.35)
+                    if idx < planRows.count - 1 {
+                        Divider().padding(.leading, featureColW + 8).opacity(0.35)
+                    }
                 }
+                Spacer().frame(height: 8)
             }
-
-            Spacer().frame(height: 10)
+            .background(cardBg)
+            .cornerRadius(16)
+            .shadow(color: .black.opacity(0.07), radius: 10, x: 0, y: 3)
         }
-        .background(cardBg)
-        .cornerRadius(16)
-        .shadow(color: Color.black.opacity(0.08), radius: 10, x: 0, y: 3)
+        .frame(maxWidth: .infinity)
     }
 
-    // Full-width badge strip — colour and icon vary per column
-    private func badgeStrip(_ label: String, icon: String, bg: Color) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.system(size: 10))
-                .foregroundColor(.white)
-            Text(label)
-                .font(.system(size: 11, weight: .bold))
-                .foregroundColor(.white)
-        }
-        .frame(maxWidth: .infinity, minHeight: 32)
-        .background(bg)
-    }
-
-    // Plan name + price cell in the header row
-    private func planHeader(_ title: String, dollars: String, period: String?, accentColor: Color) -> some View {
+    private func planHeaderCell(_ title: String, price: String, period: String?,
+                                color: Color) -> some View {
         VStack(spacing: 2) {
             Text(title)
-                .font(.system(size: 13, weight: .bold))
-                .multilineTextAlignment(.center)
-                .foregroundColor(.primary)
-            // Price + period on a single line: $9.99/mo
+                .font(.system(size: 12, weight: .bold))
+                .foregroundColor(color)
             HStack(alignment: .firstTextBaseline, spacing: 0) {
-                Text("$")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(accentColor)
-                Text(dollars)
-                    .font(.system(size: 19, weight: .bold))
-                    .foregroundColor(accentColor)
-                    .minimumScaleFactor(0.8)
+                Text(price)
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundColor(color)
+                    .minimumScaleFactor(0.75)
                     .lineLimit(1)
                 if let period {
                     Text(period)
-                        .font(.system(size: 10))
+                        .font(.system(size: 9))
                         .foregroundColor(.secondary)
                 }
             }
+            .lineLimit(1)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 10)
     }
 
-    // Individual data cell: checkmark / dash / text
     @ViewBuilder
-    private func dataCell(_ value: String, checkColor: Color) -> some View {
+    private func dataCell(_ value: String, checkColor: Color, isUltra: Bool = false) -> some View {
         Group {
             switch value {
             case "✓":
-                Image(systemName: "checkmark")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(checkColor)
+                ZStack {
+                    Circle().fill(checkColor.opacity(0.15)).frame(width: 26, height: 26)
+                    Image(systemName: "infinity")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(checkColor)
+                }
             case "—":
-                Text("—")
-                    .font(.system(size: 16))
-                    .foregroundColor(Color(.systemGray4))
+                Text("—").font(.system(size: 14)).foregroundColor(Color(.systemGray4))
             default:
                 Text(value)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.primary)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(isUltra ? checkColor : .primary)
                     .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
             }
         }
         .frame(maxWidth: .infinity)
+        .frame(minHeight: 30)
     }
 
-    // MARK: - Bottom section
+    // MARK: - Bottom CTAs
 
     private var bottomCTAs: some View {
         VStack(spacing: 10) {
-            // Ultra CTA
-            VStack(spacing: 4) {
-                Button {
-                    #if DEBUG
-                    print("🛒 [UpgradeView] Start Ultra tapped — products: \(storeKit.products.count)")
-                    #endif
-                    Task {
-                        if let product = storeKit.products.first(where: { $0.id.contains("ultra") }) {
-                            #if DEBUG
-                            print("🛒 [UpgradeView] Purchasing: \(product.id) price=\(product.displayPrice)")
-                            #endif
-                            purchasingUltra = true
-                            await storeKit.purchase(product)
-                            purchasingUltra = false
-                            if storeKit.purchaseError == nil { onDismiss() }
-                        } else {
-                            #if DEBUG
-                            print("⚠️ [UpgradeView] No ultra product. Available: \(storeKit.products.map { "\($0.id) \($0.displayPrice)" })")
-                            #endif
-                        }
+            // Ultra — gold button
+            Button {
+                JourneyTracker.shared.track("upgrade_tapped", ["tier": "ultra", "feature": blockedFeature])
+                Task {
+                    if let product = storeKit.products.first(where: { $0.id.contains("ultra") }) {
+                        purchasingUltra = true
+                        await storeKit.purchase(product)
+                        purchasingUltra = false
+                        if storeKit.purchaseError == nil { onDismiss() }
                     }
-                } label: {
-                    Group {
-                        if purchasingUltra {
-                            ProgressView().tint(.white).frame(maxWidth: .infinity).padding(.vertical, 16)
-                        } else if ultraTrialEligible {
-                            Text(NSLocalizedString("upgrade.comparison.ctaUltraTrial", comment: ""))
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 16)
-                        } else {
-                            let ultraPrice = storeKit.products.first(where: { $0.id.contains("ultra") })?.displayPrice ?? "$19.99"
-                            Text(String(format: NSLocalizedString("upgrade.comparison.ctaUltra", comment: ""), ultraPrice + NSLocalizedString("upgrade.comparison.pricePeriod", comment: "")))
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 16)
-                        }
+                }
+            } label: {
+                HStack {
+                    ZStack {
+                        Circle().fill(Color.white.opacity(0.25)).frame(width: 38, height: 38)
+                        Image(systemName: "crown.fill")
+                            .font(.system(size: 17))
+                            .foregroundColor(.white)
                     }
-                    .background(badgeGold)
-                    .cornerRadius(14)
+                    if purchasingUltra {
+                        ProgressView().tint(.white).frame(maxWidth: .infinity)
+                    } else {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(ultraTrialEligible
+                                 ? NSLocalizedString("upgrade.comparison.ctaUltraTrial", comment: "")
+                                 : String(format: NSLocalizedString("upgrade.comparison.ctaUltra", comment: ""),
+                                          (storeKit.products.first(where: { $0.id.contains("ultra") })?.displayPrice ?? "$19.99")
+                                          + NSLocalizedString("upgrade.comparison.pricePeriod", comment: "")))
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(.white)
+                            if ultraTrialEligible {
+                                let price = storeKit.products.first(where: { $0.id.contains("ultra") })?.displayPrice ?? "$19.99"
+                                Text(String(format: NSLocalizedString("upgrade.comparison.trialSubtext", comment: ""),
+                                            price + NSLocalizedString("upgrade.comparison.pricePeriod", comment: "")))
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.white.opacity(0.85))
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.white)
                 }
-                .disabled(purchasingUltra || purchasingPremium)
-
-                if ultraTrialEligible, !purchasingUltra {
-                    let ultraPrice = storeKit.products.first(where: { $0.id.contains("ultra") })?.displayPrice ?? "$19.99"
-                    Text(String(format: NSLocalizedString("upgrade.comparison.trialSubtext", comment: ""), ultraPrice + NSLocalizedString("upgrade.comparison.pricePeriod", comment: "")))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+                .background(
+                    LinearGradient(
+                        colors: [Color(hex: "F5B731"), Color(hex: "E07B00")],
+                        startPoint: .leading, endPoint: .trailing
+                    )
+                )
+                .cornerRadius(16)
             }
+            .disabled(purchasingUltra || purchasingPremium)
 
-            // Premium CTA
-            VStack(spacing: 4) {
-                Button {
-                    #if DEBUG
-                    print("🛒 [UpgradeView] Start Premium tapped — products: \(storeKit.products.count)")
-                    #endif
-                    Task {
-                        if let product = storeKit.products.first(where: { $0.id.contains("premium") && !$0.id.contains("ultra") }) {
-                            #if DEBUG
-                            print("🛒 [UpgradeView] Purchasing: \(product.id) price=\(product.displayPrice)")
-                            #endif
-                            purchasingPremium = true
-                            await storeKit.purchase(product)
-                            purchasingPremium = false
-                            if storeKit.purchaseError == nil { onDismiss() }
-                        } else {
-                            #if DEBUG
-                            print("⚠️ [UpgradeView] No premium product. Available: \(storeKit.products.map { "\($0.id) \($0.displayPrice)" })")
-                            #endif
-                        }
+            // Premium — blue button
+            Button {
+                JourneyTracker.shared.track("upgrade_tapped", ["tier": "premium", "feature": blockedFeature])
+                Task {
+                    if let product = storeKit.products.first(where: { $0.id.contains("premium") && !$0.id.contains("ultra") }) {
+                        purchasingPremium = true
+                        await storeKit.purchase(product)
+                        purchasingPremium = false
+                        if storeKit.purchaseError == nil { onDismiss() }
                     }
-                } label: {
-                    Group {
-                        if purchasingPremium {
-                            ProgressView().tint(.white).frame(maxWidth: .infinity).padding(.vertical, 14)
-                        } else if premiumTrialEligible {
-                            Text(NSLocalizedString("upgrade.comparison.ctaPremiumTrial", comment: ""))
-                                .fontWeight(.semibold)
-                                .font(.subheadline)
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 14)
-                        } else {
-                            let premiumPrice = storeKit.products.first(where: { $0.id.contains("premium") && !$0.id.contains("ultra") })?.displayPrice ?? "$9.99"
-                            Text(String(format: NSLocalizedString("upgrade.comparison.ctaPremium", comment: ""), premiumPrice + NSLocalizedString("upgrade.comparison.pricePeriod", comment: "")))
-                                .fontWeight(.semibold)
-                                .font(.subheadline)
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 14)
-                        }
+                }
+            } label: {
+                HStack {
+                    ZStack {
+                        Circle().fill(Color.white.opacity(0.2)).frame(width: 38, height: 38)
+                        Image(systemName: "diamond.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(.white)
                     }
-                    .background(silver)
-                    .cornerRadius(14)
+                    if purchasingPremium {
+                        ProgressView().tint(.white).frame(maxWidth: .infinity)
+                    } else {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(premiumTrialEligible
+                                 ? NSLocalizedString("upgrade.comparison.ctaPremiumTrial", comment: "")
+                                 : String(format: NSLocalizedString("upgrade.comparison.ctaPremium", comment: ""),
+                                          (storeKit.products.first(where: { $0.id.contains("premium") && !$0.id.contains("ultra") })?.displayPrice ?? "$9.99")
+                                          + NSLocalizedString("upgrade.comparison.pricePeriod", comment: "")))
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(.white)
+                            if premiumTrialEligible {
+                                let price = storeKit.products.first(where: { $0.id.contains("premium") && !$0.id.contains("ultra") })?.displayPrice ?? "$9.99"
+                                Text(String(format: NSLocalizedString("upgrade.comparison.trialSubtext", comment: ""),
+                                            price + NSLocalizedString("upgrade.comparison.pricePeriod", comment: "")))
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.white.opacity(0.85))
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.white)
                 }
-                .disabled(purchasingUltra || purchasingPremium)
-
-                if premiumTrialEligible, !purchasingPremium {
-                    let premiumPrice = storeKit.products.first(where: { $0.id.contains("premium") && !$0.id.contains("ultra") })?.displayPrice ?? "$9.99"
-                    Text(String(format: NSLocalizedString("upgrade.comparison.trialSubtext", comment: ""), premiumPrice + NSLocalizedString("upgrade.comparison.pricePeriod", comment: "")))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+                .background(
+                    LinearGradient(
+                        colors: [Color(hex: "6B7FFF"), Color(hex: "4B5FEE")],
+                        startPoint: .leading, endPoint: .trailing
+                    )
+                )
+                .cornerRadius(16)
             }
+            .disabled(purchasingUltra || purchasingPremium)
 
             if let error = storeKit.purchaseError {
                 Text(error)
-                    .font(.caption)
-                    .foregroundColor(.red)
+                    .font(.caption).foregroundColor(.red)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 8)
             }
         }
     }
+
+    // MARK: - Continue Free
 
     private var continueFreeLink: some View {
         Button { onDismiss() } label: {
@@ -396,30 +467,26 @@ struct UpgradeComparisonView: View {
                 Image(systemName: "chevron.right").font(.caption2)
             }
             .font(.subheadline)
-            .foregroundColor(.secondary)
+            .foregroundColor(premiumColor)
         }
     }
 
-    // MARK: - Promo code section
+    // MARK: - Promo code section (unchanged logic)
 
     private var promoSection: some View {
         VStack(spacing: 8) {
             if authService.currentUser?.isAnonymous == true {
-                // Guest users can't redeem — show conversion hint
                 Text(NSLocalizedString("promo.guestHint", comment: ""))
                     .font(.footnote)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
             } else if case .success(let expiresAt, let tier) = promoState {
-                // Success banner
                 let isDowngrade = tier == .free
                 HStack(spacing: 8) {
                     Image(systemName: isDowngrade ? "arrow.down.circle.fill" : tier == .premiumPlus ? "crown.fill" : "checkmark.circle.fill")
-                        .foregroundColor(isDowngrade ? .orange : tier == .premiumPlus ? Color(hex: "D4AF37") : .green)
+                        .foregroundColor(isDowngrade ? .orange : tier == .premiumPlus ? badgeGold : .green)
                     let dateStr: String = {
-                        if let d = expiresAt {
-                            return DateFormatter.localizedString(from: d, dateStyle: .medium, timeStyle: .none)
-                        }
+                        if let d = expiresAt { return DateFormatter.localizedString(from: d, dateStyle: .medium, timeStyle: .none) }
                         return ""
                     }()
                     let successKey = isDowngrade ? "promo.success.downgrade" : tier == .premiumPlus ? "promo.success.ultra" : "promo.success"
@@ -427,14 +494,12 @@ struct UpgradeComparisonView: View {
                          ? NSLocalizedString(successKey, comment: "")
                          : String(format: NSLocalizedString(successKey, comment: ""), dateStr))
                         .font(.footnote.bold())
-                        .foregroundColor(isDowngrade ? .orange : tier == .premiumPlus ? Color(hex: "D4AF37") : .green)
+                        .foregroundColor(isDowngrade ? .orange : tier == .premiumPlus ? badgeGold : .green)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background((isDowngrade ? Color.orange : tier == .premiumPlus ? Color(hex: "D4AF37") : Color.green).opacity(0.1))
+                .padding(.horizontal, 16).padding(.vertical, 10)
+                .background((isDowngrade ? Color.orange : tier == .premiumPlus ? badgeGold : Color.green).opacity(0.1))
                 .cornerRadius(10)
             } else if promoExpanded {
-                // Expanded: text field + apply button
                 VStack(spacing: 8) {
                     HStack(spacing: 8) {
                         TextField(NSLocalizedString("promo.placeholder", comment: ""), text: $promoCode)
@@ -443,51 +508,38 @@ struct UpgradeComparisonView: View {
                             .disableAutocorrection(true)
                             .submitLabel(.done)
                             .onSubmit { Task { await applyPromoCode() } }
-
                         if !promoCode.isEmpty {
                             Button { promoCode = "" } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundColor(.secondary)
+                                Image(systemName: "xmark.circle.fill").foregroundColor(.secondary)
                             }
                         }
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
+                    .padding(.horizontal, 12).padding(.vertical, 10)
                     .background(Color(.systemFill))
                     .cornerRadius(10)
 
                     if case .error(let msg) = promoState {
-                        Text(msg)
-                            .font(.caption)
-                            .foregroundColor(.red)
-                            .multilineTextAlignment(.center)
+                        Text(msg).font(.caption).foregroundColor(.red).multilineTextAlignment(.center)
                     }
 
-                    Button {
-                        Task { await applyPromoCode() }
-                    } label: {
+                    Button { Task { await applyPromoCode() } } label: {
                         Group {
                             if case .loading = promoState {
                                 ProgressView().tint(.white).frame(maxWidth: .infinity).padding(.vertical, 12)
                             } else {
                                 Text(NSLocalizedString("promo.button.apply", comment: ""))
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 12)
+                                    .fontWeight(.semibold).foregroundColor(.white)
+                                    .frame(maxWidth: .infinity).padding(.vertical, 12)
                             }
                         }
-                        .background(silver)
-                        .cornerRadius(12)
+                        .background(premiumColor).cornerRadius(12)
                     }
                     .disabled(promoCode.trimmingCharacters(in: .whitespaces).isEmpty || { if case .loading = promoState { return true }; return false }())
                 }
             } else {
-                // Collapsed: tappable link
                 Button { promoExpanded = true } label: {
                     Text(NSLocalizedString("promo.link", comment: ""))
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
+                        .font(.footnote).foregroundColor(.secondary)
                 }
             }
         }
@@ -509,122 +561,58 @@ struct UpgradeComparisonView: View {
             } else {
                 let msg: String
                 switch result.errorCode {
-                case "ALREADY_REDEEMED":
-                    msg = NSLocalizedString("promo.error.alreadyRedeemed", comment: "")
-                case "EXPIRED":
-                    msg = NSLocalizedString("promo.error.expired", comment: "")
-                case "MAX_USES_REACHED":
-                    msg = NSLocalizedString("promo.error.maxUses", comment: "")
-                default:
-                    msg = NSLocalizedString("promo.error.invalid", comment: "")
+                case "ALREADY_REDEEMED": msg = NSLocalizedString("promo.error.alreadyRedeemed", comment: "")
+                case "EXPIRED":          msg = NSLocalizedString("promo.error.expired", comment: "")
+                case "MAX_USES_REACHED": msg = NSLocalizedString("promo.error.maxUses", comment: "")
+                default:                 msg = NSLocalizedString("promo.error.invalid", comment: "")
                 }
                 promoState = .error(msg)
             }
         }
     }
 
-    // Required by App Store Guideline 3.1.1
+    // MARK: - Footer
+
     private var restoreLink: some View {
-        Button {
-            Task { await StoreKitService.shared.restorePurchases() }
-        } label: {
+        Button { Task { await StoreKitService.shared.restorePurchases() } } label: {
             Text(NSLocalizedString("upgrade.comparison.restorePurchases", comment: ""))
-                .font(.caption)
-                .foregroundColor(.secondary)
+                .font(.caption).foregroundColor(.secondary)
         }
     }
 
-    // Subscription renewal disclosure + functional Terms/Privacy links (Guideline 3.1.2c)
     private var termsText: some View {
         let termsKey = (premiumTrialEligible || ultraTrialEligible)
-            ? "upgrade.comparison.termsTrial"
-            : "upgrade.comparison.terms"
+            ? "upgrade.comparison.termsTrial" : "upgrade.comparison.terms"
         return VStack(spacing: 6) {
             Text(NSLocalizedString(termsKey, comment: ""))
-                .font(.caption2)
-                .foregroundColor(.secondary)
+                .font(.caption2).foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 16)
             HStack(spacing: 16) {
                 Link(NSLocalizedString("upgrade.comparison.termsLink", comment: ""),
                      destination: AppURLs.termsOfService)
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+                    .font(.caption2).foregroundColor(.secondary)
                 Link(NSLocalizedString("upgrade.comparison.privacyLink", comment: ""),
                      destination: AppURLs.privacyPolicy)
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+                    .font(.caption2).foregroundColor(.secondary)
             }
         }
     }
+}
 
-    // MARK: - Usage summary banner
+// MARK: - Corner radius helper
 
-    private struct UsageItem {
-        let icon: String
-        let label: String
-        let used: Int
-        let limit: Int
-        var ratio: Double { Double(used) / Double(limit) }
+extension View {
+    func cornerRadius(_ radius: CGFloat, corners: UIRectCorner) -> some View {
+        clipShape(RoundedCorner(radius: radius, corners: corners))
     }
+}
 
-    private var usageSummaryBanner: some View {
-        let freeLimits: [(key: String, icon: String, label: String, limit: Int)] = [
-            ("homework_pages",  "📚", NSLocalizedString("upgrade.comparison.usageHomework", comment: ""), 5),
-            ("chat_messages",   "💬", NSLocalizedString("upgrade.comparison.usageChat", comment: ""),      20),
-            ("questions",       "❓", NSLocalizedString("upgrade.comparison.usagePractice", comment: ""),  10),
-        ]
-
-        let items: [UsageItem] = freeLimits.compactMap { entry in
-            guard let remaining = usageService.remainingUsage[entry.key] else { return nil }
-            let used = max(0, entry.limit - remaining)
-            return UsageItem(icon: entry.icon, label: entry.label, used: used, limit: entry.limit)
-        }
-        .sorted { $0.ratio > $1.ratio }
-        .prefix(2)
-        .map { $0 }
-
-        guard !items.isEmpty else { return AnyView(EmptyView()) }
-
-        return AnyView(
-            VStack(spacing: 6) {
-                Text(NSLocalizedString("upgrade.comparison.yourCurrentUsage", comment: ""))
-                    .font(.caption.bold())
-                    .foregroundColor(.secondary)
-
-                HStack(spacing: 12) {
-                    ForEach(items, id: \.label) { item in
-                        VStack(spacing: 4) {
-                            Text("\(item.icon) \(item.label)")
-                                .font(.caption.bold())
-                                .foregroundColor(.primary)
-                            Text(String(format: NSLocalizedString("upgrade.comparison.usageUsed", comment: ""), item.used, item.limit))
-                                .font(.caption2)
-                                .foregroundColor(item.ratio >= 0.8 ? Color(hex: "D97706") : .secondary)
-                                .monospacedDigit()
-                            GeometryReader { geo in
-                                ZStack(alignment: .leading) {
-                                    RoundedRectangle(cornerRadius: 3)
-                                        .fill(Color(.systemFill))
-                                        .frame(height: 4)
-                                    RoundedRectangle(cornerRadius: 3)
-                                        .fill(item.ratio >= 0.8 ? Color(hex: "D97706") : silver)
-                                        .frame(width: geo.size.width * min(1.0, item.ratio), height: 4)
-                                }
-                            }
-                            .frame(height: 4)
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-                }
-                .padding(12)
-                .background(Color(.systemBackground))
-                .cornerRadius(12)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color(.systemFill), lineWidth: 1)
-                )
-            }
-        )
+private struct RoundedCorner: Shape {
+    var radius: CGFloat
+    var corners: UIRectCorner
+    func path(in rect: CGRect) -> Path {
+        let path = UIBezierPath(roundedRect: rect, byRoundingCorners: corners,
+                                cornerRadii: CGSize(width: radius, height: radius))
+        return Path(path.cgPath)
     }
 }

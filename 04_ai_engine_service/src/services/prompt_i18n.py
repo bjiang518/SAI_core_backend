@@ -123,12 +123,14 @@ MISTAKE_QUESTIONS_USER_MESSAGE = {
 HOMEWORK_LANG_INSTRUCTION = {
     "en": "",  # No extra instruction needed for English
     "zh-Hans": (
-        "\n\nLANGUAGE: Write all 'feedback', 'summary_text', and 'overall_feedback' text fields "
+        "\n\nLANGUAGE: Write all 'feedback', 'summary_text', 'overall_feedback', and "
+        "'handwriting_evaluation.feedback' text fields "
         "in Simplified Chinese (简体中文). All other fields (grade, question_type, subject, etc.) "
         "keep as English keywords exactly as specified above."
     ),
     "zh-Hant": (
-        "\n\nLANGUAGE: Write all 'feedback', 'summary_text', and 'overall_feedback' text fields "
+        "\n\nLANGUAGE: Write all 'feedback', 'summary_text', 'overall_feedback', and "
+        "'handwriting_evaluation.feedback' text fields "
         "in Traditional Chinese (繁體中文). All other fields (grade, question_type, subject, etc.) "
         "keep as English keywords exactly as specified above."
     ),

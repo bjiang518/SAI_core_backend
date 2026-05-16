@@ -78,11 +78,14 @@ struct ImageCropView: View {
                         
                         // Action Buttons
                         HStack(spacing: 20) {
-                            Button("Cancel") {
+                            Button {
                                 isPresented = false
                                 originalImage = nil
+                            } label: {
+                                Image(systemName: "xmark")
+                                    .font(.body.bold())
+                                    .foregroundColor(.white)
                             }
-                            .foregroundColor(.white)
                             .padding(.horizontal, 24)
                             .padding(.vertical, 12)
                             .background(Color.red.opacity(0.8))
@@ -114,11 +117,14 @@ struct ImageCropView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
+                    Button {
                         isPresented = false
                         originalImage = nil
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.body.bold())
+                            .foregroundColor(.white)
                     }
-                    .foregroundColor(.white)
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {

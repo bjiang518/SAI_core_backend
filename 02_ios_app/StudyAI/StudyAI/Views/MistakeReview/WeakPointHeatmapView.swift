@@ -164,12 +164,12 @@ struct WeakPointHeatmapView: View {
                 Text(base)
                     .font(.subheadline).fontWeight(.semibold)
                     .lineLimit(1)
-                Text("· Sub-topics")
+                Text(NSLocalizedString("heatmap.subTopics", value: "· Sub-topics", comment: ""))
                     .font(.caption).foregroundColor(.secondary)
             } else {
                 Image(systemName: "flame.fill")
                     .font(.caption).foregroundColor(.orange)
-                Text("Weak Point Heatmap")
+                Text(NSLocalizedString("heatmap.title", value: "Weak Point Heatmap", comment: ""))
                     .font(.subheadline).fontWeight(.semibold)
             }
             Spacer()
@@ -180,8 +180,8 @@ struct WeakPointHeatmapView: View {
 
     private var emptyState: some View {
         Text(selectedBaseBranch != nil
-             ? "No detailed data yet for this branch."
-             : "No practice data yet. Start answering questions to track your weak areas.")
+             ? NSLocalizedString("heatmap.noDetailedData", value: "No detailed data yet for this branch.", comment: "")
+             : NSLocalizedString("heatmap.noPracticeData", value: "No practice data yet. Answer some questions to see your weak areas here.", comment: ""))
             .font(.caption)
             .foregroundColor(.secondary)
             .multilineTextAlignment(.center)
@@ -203,7 +203,7 @@ struct WeakPointHeatmapView: View {
                         HStack(spacing: 3) {
                             Image(systemName: "chevron.left")
                                 .font(.caption2.weight(.semibold))
-                            Text("Back")
+                            Text(NSLocalizedString("heatmap.back", value: "Back", comment: ""))
                         }
                         .font(.caption2.weight(.medium))
                         .foregroundColor(.blue)

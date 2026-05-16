@@ -184,15 +184,26 @@ struct PracticeSessionCard: View {
 
     private var localizedGenerationType: String {
         switch session.generationType {
-        case "Random Practice":
-            return NSLocalizedString("practiceLibrary.typeRandom",       value: "随机练习", comment: "")
+        case "Random Practice", "random":
+            return NSLocalizedString("practiceLibrary.typeRandom",         value: "随机练习",   comment: "")
+        case "Chat Practice":
+            return NSLocalizedString("practiceLibrary.typeChat",           value: "聊天练习",   comment: "")
         case "Conversation-Based", "Conversation-Based Practice":
-            return NSLocalizedString("practiceLibrary.typeConversation", value: "对话复习", comment: "")
+            return NSLocalizedString("practiceLibrary.typeConversation",   value: "对话复习",   comment: "")
         case "Mistake-Based", "Mistake-Based Practice":
-            return NSLocalizedString("practiceLibrary.typeMistake",      value: "错题练习", comment: "")
+            return NSLocalizedString("practiceLibrary.typeMistake",        value: "错题练习",   comment: "")
         case "Library-Selection":
-            return NSLocalizedString("practiceLibrary.typeLibrary",      value: "题库练习", comment: "")
+            return NSLocalizedString("practiceLibrary.typeLibrary",        value: "题库练习",   comment: "")
+        case "Targeted Practice":
+            return NSLocalizedString("practiceLibrary.typeTargeted",       value: "针对练习",   comment: "")
+        case "Feynman-Based":
+            return NSLocalizedString("practiceLibrary.typeFeynman",        value: "费曼练习",   comment: "")
+        case "daily_challenge":
+            return NSLocalizedString("practiceLibrary.typeDaily",          value: "每日挑战",   comment: "")
         default:
+            if session.generationType.hasPrefix("v2_mode") {
+                return NSLocalizedString("practiceLibrary.typeSmartPractice", value: "智能练习", comment: "")
+            }
             return session.generationType
         }
     }

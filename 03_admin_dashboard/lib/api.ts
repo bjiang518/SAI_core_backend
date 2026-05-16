@@ -105,6 +105,11 @@ export const usersAPI = {
     return response.data
   },
 
+  getTierHistory: async (userId: string) => {
+    const response = await apiClient.get(`/api/admin/users/${userId}/tier-history`)
+    return response.data
+  },
+
   markUser: async (userId: string, type: 'internal' | 'test', value: boolean) => {
     const response = await apiClient.post(`/api/admin/users/${userId}/mark`, { type, value })
     return response.data

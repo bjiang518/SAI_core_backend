@@ -1,0 +1,114 @@
+{
+  "subject": "Computer Science",
+  "branches": [
+    {
+      "id": "programming_fundamentals",
+      "name": "Programming Fundamentals",
+      "topics": [
+        { "id": "variables_data_types",       "name": "Variables & Data Types",           "gradeMin": 3, "gradeMax": 13 },
+        { "id": "operators_expressions",      "name": "Operators & Expressions",          "gradeMin": 4, "gradeMax": 13 },
+        { "id": "input_output",               "name": "Input & Output",                   "gradeMin": 3, "gradeMax": 13 },
+        { "id": "control_flow",               "name": "Control Flow",                     "gradeMin": 4, "gradeMax": 13 },
+        { "id": "loops",                      "name": "Loops",                            "gradeMin": 4, "gradeMax": 13 },
+        { "id": "functions_parameters",       "name": "Functions & Parameters",           "gradeMin": 5, "gradeMax": 13 },
+        { "id": "scope_lifetime",             "name": "Scope & Lifetime",                 "gradeMin": 7, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "data_structures",
+      "name": "Data Structures",
+      "topics": [
+        { "id": "arrays_lists",               "name": "Arrays & Lists",                   "gradeMin": 6, "gradeMax": 13 },
+        { "id": "strings",                    "name": "Strings",                          "gradeMin": 5, "gradeMax": 13 },
+        { "id": "stacks_queues",              "name": "Stacks & Queues",                  "gradeMin": 9, "gradeMax": 13 },
+        { "id": "linked_lists",               "name": "Linked Lists",                     "gradeMin": 9, "gradeMax": 13 },
+        { "id": "trees_binary_search_trees",  "name": "Trees & Binary Search Trees",      "gradeMin": 10, "gradeMax": 13 },
+        { "id": "hash_tables_dictionaries",   "name": "Hash Tables & Dictionaries",       "gradeMin": 10, "gradeMax": 13 },
+        { "id": "graphs",                     "name": "Graphs",                           "gradeMin": 11, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "algorithms",
+      "name": "Algorithms",
+      "topics": [
+        { "id": "algorithm_analysis",         "name": "Algorithm Analysis",               "gradeMin": 9, "gradeMax": 13 },
+        { "id": "searching_algorithms",       "name": "Searching Algorithms",             "gradeMin": 7, "gradeMax": 13 },
+        { "id": "sorting_algorithms",         "name": "Sorting Algorithms",               "gradeMin": 8, "gradeMax": 13 },
+        { "id": "recursion",                  "name": "Recursion",                        "gradeMin": 9, "gradeMax": 13 },
+        { "id": "dynamic_programming",        "name": "Dynamic Programming",              "gradeMin": 11, "gradeMax": 13 },
+        { "id": "greedy_algorithms",          "name": "Greedy Algorithms",                "gradeMin": 11, "gradeMax": 13 },
+        { "id": "graph_algorithms",           "name": "Graph Algorithms",                 "gradeMin": 11, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "object_oriented_programming",
+      "name": "Object-Oriented Programming",
+      "topics": [
+        { "id": "classes_objects",            "name": "Classes & Objects",                "gradeMin": 8, "gradeMax": 13 },
+        { "id": "encapsulation",              "name": "Encapsulation",                    "gradeMin": 9, "gradeMax": 13 },
+        { "id": "inheritance",                "name": "Inheritance",                      "gradeMin": 9, "gradeMax": 13 },
+        { "id": "polymorphism",               "name": "Polymorphism",                     "gradeMin": 10, "gradeMax": 13 },
+        { "id": "abstraction",                "name": "Abstraction",                      "gradeMin": 10, "gradeMax": 13 },
+        { "id": "design_patterns",            "name": "Design Patterns",                  "gradeMin": 11, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "software_development",
+      "name": "Software Development",
+      "topics": [
+        { "id": "version_control",            "name": "Version Control",                  "gradeMin": 7, "gradeMax": 13 },
+        { "id": "testing_debugging",          "name": "Testing & Debugging",              "gradeMin": 5, "gradeMax": 13 },
+        { "id": "code_organization_style",    "name": "Code Organization & Style",        "gradeMin": 5, "gradeMax": 13 },
+        { "id": "documentation",              "name": "Documentation",                    "gradeMin": 6, "gradeMax": 13 },
+        { "id": "development_methodologies",  "name": "Development Methodologies",        "gradeMin": 10, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "web_development",
+      "name": "Web Development",
+      "topics": [
+        { "id": "html_structure",             "name": "HTML & Structure",                 "gradeMin": 5, "gradeMax": 13 },
+        { "id": "css_styling",                "name": "CSS & Styling",                    "gradeMin": 5, "gradeMax": 13 },
+        { "id": "javascript_interactivity",   "name": "JavaScript & Interactivity",       "gradeMin": 7, "gradeMax": 13 },
+        { "id": "frontend_frameworks",        "name": "Frontend Frameworks",              "gradeMin": 10, "gradeMax": 13 },
+        { "id": "backend_development",        "name": "Backend Development",              "gradeMin": 10, "gradeMax": 13 },
+        { "id": "databases_sql",              "name": "Databases & SQL",                  "gradeMin": 9, "gradeMax": 13 },
+        { "id": "apis_restful_services",      "name": "APIs & RESTful Services",          "gradeMin": 11, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "computer_systems",
+      "name": "Computer Systems",
+      "topics": [
+        { "id": "binary_number_systems",      "name": "Binary & Number Systems",          "gradeMin": 5, "gradeMax": 13 },
+        { "id": "boolean_logic_gates",        "name": "Boolean Logic & Logic Gates",      "gradeMin": 6, "gradeMax": 13 },
+        { "id": "computer_architecture",      "name": "Computer Architecture",            "gradeMin": 9, "gradeMax": 13 },
+        { "id": "operating_systems_basics",   "name": "Operating Systems Basics",         "gradeMin": 9, "gradeMax": 13 },
+        { "id": "memory_management",          "name": "Memory Management",                "gradeMin": 10, "gradeMax": 13 },
+        { "id": "file_systems",               "name": "File Systems",                     "gradeMin": 7, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "networks_security",
+      "name": "Networks & Security",
+      "topics": [
+        { "id": "internet_protocols",         "name": "Internet & Protocols",             "gradeMin": 6, "gradeMax": 13 },
+        { "id": "network_architecture",       "name": "Network Architecture",             "gradeMin": 9, "gradeMax": 13 },
+        { "id": "cybersecurity_basics",       "name": "Cybersecurity Basics",             "gradeMin": 6, "gradeMax": 13 },
+        { "id": "encryption_cryptography",    "name": "Encryption & Cryptography",        "gradeMin": 9, "gradeMax": 13 },
+        { "id": "web_security",               "name": "Web Security",                     "gradeMin": 10, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "computational_thinking",
+      "name": "Computational Thinking",
+      "topics": [
+        { "id": "problem_decomposition",      "name": "Problem Decomposition",            "gradeMin": 3, "gradeMax": 13 },
+        { "id": "pattern_recognition",        "name": "Pattern Recognition",              "gradeMin": 3, "gradeMax": 13 },
+        { "id": "abstraction",                "name": "Abstraction",                      "gradeMin": 5, "gradeMax": 13 },
+        { "id": "algorithm_design",           "name": "Algorithm Design",                 "gradeMin": 5, "gradeMax": 13 },
+        { "id": "modeling_simulation",        "name": "Modeling & Simulation",            "gradeMin": 7, "gradeMax": 13 }
+      ]
+    }
+  ]
+}

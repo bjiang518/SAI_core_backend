@@ -188,7 +188,7 @@ struct ParentAuthenticationView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Cancel") {
+                    XDismissButton {
                         dismiss()
                     }
                 }

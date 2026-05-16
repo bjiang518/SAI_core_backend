@@ -1,0 +1,138 @@
+{
+  "subject": "Spanish",
+  "branches": [
+    {
+      "id": "vocabulary_expressions",
+      "name": "Vocabulary & Expressions",
+      "topics": [
+        { "id": "basic_vocabulary",              "name": "Basic Vocabulary (Numbers, Colors, Days)","gradeMin": 3, "gradeMax": 13 },
+        { "id": "family_relationships",          "name": "Family & Relationships",            "gradeMin": 3, "gradeMax": 13 },
+        { "id": "food_dining",                   "name": "Food & Dining",                     "gradeMin": 3, "gradeMax": 13 },
+        { "id": "home_daily_life",               "name": "Home & Daily Life",                 "gradeMin": 4, "gradeMax": 13 },
+        { "id": "school_education",              "name": "School & Education",                "gradeMin": 3, "gradeMax": 13 },
+        { "id": "travel_transportation",         "name": "Travel & Transportation",           "gradeMin": 4, "gradeMax": 13 },
+        { "id": "shopping_money",                "name": "Shopping & Money",                  "gradeMin": 4, "gradeMax": 13 },
+        { "id": "health_body",                   "name": "Health & Body",                     "gradeMin": 4, "gradeMax": 13 },
+        { "id": "weather_seasons",               "name": "Weather & Seasons",                 "gradeMin": 3, "gradeMax": 13 },
+        { "id": "hobbies_activities",            "name": "Hobbies & Activities",              "gradeMin": 4, "gradeMax": 13 },
+        { "id": "idiomatic_expressions",         "name": "Idiomatic Expressions",             "gradeMin": 7, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "grammar_nouns_articles",
+      "name": "Grammar - Nouns & Articles",
+      "topics": [
+        { "id": "gender_masculine_feminine",     "name": "Gender (Masculine/Feminine)",       "gradeMin": 3, "gradeMax": 13 },
+        { "id": "plural_forms",                  "name": "Plural Forms",                      "gradeMin": 3, "gradeMax": 13 },
+        { "id": "definite_articles",             "name": "Definite Articles (el, la, los, las)","gradeMin": 3, "gradeMax": 13 },
+        { "id": "indefinite_articles",           "name": "Indefinite Articles (un, una, unos, unas)","gradeMin": 3, "gradeMax": 13 },
+        { "id": "noun_adjective_agreement",      "name": "Noun-Adjective Agreement",          "gradeMin": 4, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "grammar_verbs_conjugation",
+      "name": "Grammar - Verbs & Conjugation",
+      "topics": [
+        { "id": "present_tense_regular",         "name": "Present Tense (Regular)",           "gradeMin": 3, "gradeMax": 13 },
+        { "id": "present_tense_irregular",       "name": "Present Tense (Irregular)",         "gradeMin": 4, "gradeMax": 13 },
+        { "id": "preterite_tense",               "name": "Preterite Tense",                   "gradeMin": 5, "gradeMax": 13 },
+        { "id": "imperfect_tense",               "name": "Imperfect Tense",                   "gradeMin": 6, "gradeMax": 13 },
+        { "id": "future_tense",                  "name": "Future Tense",                      "gradeMin": 6, "gradeMax": 13 },
+        { "id": "conditional_tense",             "name": "Conditional Tense",                 "gradeMin": 8, "gradeMax": 13 },
+        { "id": "present_perfect",               "name": "Present Perfect",                   "gradeMin": 7, "gradeMax": 13 },
+        { "id": "past_perfect",                  "name": "Past Perfect",                      "gradeMin": 8, "gradeMax": 13 },
+        { "id": "subjunctive_mood",              "name": "Subjunctive Mood",                  "gradeMin": 9, "gradeMax": 13 },
+        { "id": "imperative_commands",           "name": "Imperative (Commands)",             "gradeMin": 6, "gradeMax": 13 },
+        { "id": "progressive_tenses",            "name": "Progressive Tenses (estar + gerund)","gradeMin": 5, "gradeMax": 13 },
+        { "id": "reflexive_verbs",               "name": "Reflexive Verbs",                   "gradeMin": 6, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "grammar_pronouns_adjectives",
+      "name": "Grammar - Pronouns & Adjectives",
+      "topics": [
+        { "id": "subject_pronouns",              "name": "Subject Pronouns",                  "gradeMin": 3, "gradeMax": 13 },
+        { "id": "direct_object_pronouns",        "name": "Direct Object Pronouns",            "gradeMin": 6, "gradeMax": 13 },
+        { "id": "indirect_object_pronouns",      "name": "Indirect Object Pronouns",          "gradeMin": 7, "gradeMax": 13 },
+        { "id": "reflexive_pronouns",            "name": "Reflexive Pronouns",                "gradeMin": 6, "gradeMax": 13 },
+        { "id": "possessive_adjectives_pronouns","name": "Possessive Adjectives & Pronouns",  "gradeMin": 4, "gradeMax": 13 },
+        { "id": "demonstrative_adjectives_pronouns","name": "Demonstrative Adjectives & Pronouns","gradeMin": 5, "gradeMax": 13 },
+        { "id": "descriptive_adjectives",        "name": "Descriptive Adjectives",            "gradeMin": 4, "gradeMax": 13 },
+        { "id": "comparatives_superlatives",     "name": "Comparatives & Superlatives",       "gradeMin": 6, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "grammar_sentence_structure",
+      "name": "Grammar - Sentence Structure",
+      "topics": [
+        { "id": "word_order",                    "name": "Word Order",                        "gradeMin": 3, "gradeMax": 13 },
+        { "id": "question_formation",            "name": "Question Formation",                "gradeMin": 3, "gradeMax": 13 },
+        { "id": "negation",                      "name": "Negation",                          "gradeMin": 3, "gradeMax": 13 },
+        { "id": "prepositions",                  "name": "Prepositions (por, para, etc.)",    "gradeMin": 5, "gradeMax": 13 },
+        { "id": "conjunctions",                  "name": "Conjunctions",                      "gradeMin": 5, "gradeMax": 13 },
+        { "id": "relative_clauses",              "name": "Relative Clauses (que, quien)",     "gradeMin": 8, "gradeMax": 13 },
+        { "id": "complex_sentences",             "name": "Complex Sentences",                 "gradeMin": 8, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "reading_comprehension",
+      "name": "Reading Comprehension",
+      "topics": [
+        { "id": "understanding_main_ideas",      "name": "Understanding Main Ideas",          "gradeMin": 5, "gradeMax": 13 },
+        { "id": "vocabulary_in_context",         "name": "Vocabulary in Context",             "gradeMin": 4, "gradeMax": 13 },
+        { "id": "inference_analysis",            "name": "Inference & Analysis",              "gradeMin": 7, "gradeMax": 13 },
+        { "id": "reading_short_texts",           "name": "Reading Short Texts",               "gradeMin": 4, "gradeMax": 13 },
+        { "id": "reading_literature",            "name": "Reading Literature",                "gradeMin": 9, "gradeMax": 13 },
+        { "id": "reading_authentic_materials",   "name": "Reading Authentic Materials",       "gradeMin": 8, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "writing",
+      "name": "Writing",
+      "topics": [
+        { "id": "sentence_construction",         "name": "Sentence Construction",             "gradeMin": 4, "gradeMax": 13 },
+        { "id": "paragraph_writing",             "name": "Paragraph Writing",                 "gradeMin": 5, "gradeMax": 13 },
+        { "id": "formal_vs_informal_writing",    "name": "Formal vs Informal Writing",        "gradeMin": 7, "gradeMax": 13 },
+        { "id": "descriptive_writing",           "name": "Descriptive Writing",               "gradeMin": 6, "gradeMax": 13 },
+        { "id": "narrative_writing",             "name": "Narrative Writing",                 "gradeMin": 6, "gradeMax": 13 },
+        { "id": "email_letter_writing",          "name": "Email & Letter Writing",            "gradeMin": 6, "gradeMax": 13 },
+        { "id": "essay_writing",                 "name": "Essay Writing",                     "gradeMin": 9, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "speaking_pronunciation",
+      "name": "Speaking & Pronunciation",
+      "topics": [
+        { "id": "pronunciation_accent",          "name": "Pronunciation & Accent",            "gradeMin": 3, "gradeMax": 13 },
+        { "id": "intonation_rhythm",             "name": "Intonation & Rhythm",               "gradeMin": 4, "gradeMax": 13 },
+        { "id": "conversational_practice",       "name": "Conversational Practice",           "gradeMin": 4, "gradeMax": 13 },
+        { "id": "presentations_speeches",        "name": "Presentations & Speeches",          "gradeMin": 7, "gradeMax": 13 },
+        { "id": "asking_answering_questions",    "name": "Asking & Answering Questions",      "gradeMin": 3, "gradeMax": 13 },
+        { "id": "expressing_opinions",           "name": "Expressing Opinions",               "gradeMin": 6, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "listening_comprehension",
+      "name": "Listening Comprehension",
+      "topics": [
+        { "id": "understanding_spoken_spanish",  "name": "Understanding Spoken Spanish",      "gradeMin": 3, "gradeMax": 13 },
+        { "id": "listening_for_main_ideas",      "name": "Listening for Main Ideas",          "gradeMin": 4, "gradeMax": 13 },
+        { "id": "listening_for_details",         "name": "Listening for Details",             "gradeMin": 5, "gradeMax": 13 },
+        { "id": "understanding_different_accents","name": "Understanding Different Accents",   "gradeMin": 9, "gradeMax": 13 },
+        { "id": "following_directions",          "name": "Following Directions",              "gradeMin": 3, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "culture_context",
+      "name": "Culture & Context",
+      "topics": [
+        { "id": "spanish_speaking_countries",    "name": "Spanish-Speaking Countries",        "gradeMin": 3, "gradeMax": 13 },
+        { "id": "cultural_traditions_holidays",  "name": "Cultural Traditions & Holidays",    "gradeMin": 4, "gradeMax": 13 },
+        { "id": "hispanic_literature_arts",      "name": "Hispanic Literature & Arts",        "gradeMin": 9, "gradeMax": 13 },
+        { "id": "daily_life_customs",            "name": "Daily Life & Customs",              "gradeMin": 4, "gradeMax": 13 },
+        { "id": "historical_context",            "name": "Historical Context",                "gradeMin": 8, "gradeMax": 13 },
+        { "id": "regional_differences",          "name": "Regional Differences",              "gradeMin": 8, "gradeMax": 13 }
+      ]
+    }
+  ]
+}

@@ -222,6 +222,11 @@ class QuestionGenerationService: ObservableObject {
             case "openbookqa": return "OpenBookQA Science"
             case "scienceqa":  return "ScienceQA"
             case "mathvista":  return "MathVista"
+            case "kangaroo":
+                // source_id format: kangaroo_2023-L5-P1
+                let parts = sourceId?.replacingOccurrences(of: "kangaroo_", with: "").components(separatedBy: "-") ?? []
+                let year = parts.first ?? ""
+                return year.isEmpty ? "Math Kangaroo" : "Math Kangaroo · \(year)"
             case "agieval":
                 if sourceId?.contains("sat_en") == true  { return "SAT English" }
                 if sourceId?.contains("lsat_lr") == true { return "LSAT · Logical Reasoning" }
@@ -460,6 +465,11 @@ class QuestionGenerationService: ObservableObject {
             "question_type": config.questionType.rawValue,
             "language": effectiveLanguage
         ]
+        // Send grade_level so backend generates age-appropriate questions.
+        // Without this, backend defaults to "General" and generates content beyond the student's level.
+        if !userProfile.grade.isEmpty {
+            requestBody["grade_level"] = userProfile.grade
+        }
         // Only include difficulty when explicitly set — omit for .adaptive so backend auto-selects
         if let diffNum = mapDifficultyToNumber(config.difficulty) {
             requestBody["difficulty"] = diffNum
@@ -533,12 +543,16 @@ class QuestionGenerationService: ObservableObject {
                             config: config
                         )
 
-                        // ✅ Store session ID for progress tracking
                         await MainActor.run {
                             self.currentSessionId = savedSession.id
                         }
 
-                        debugPrint("🎉 Generated \(responseResult.questions.count) random questions successfully")
+                        JourneyTracker.shared.track("practice_generated", [
+                            "subject": subject,
+                            "practice_type": "Random Practice",
+                            "count": responseResult.questions.count,
+                            "difficulty": config.difficulty.rawValue
+                        ])
                         return .success(responseResult.questions)
                     } else {
                         let errorMsg = responseResult.error ?? "Unknown error from AI engine"
@@ -569,311 +583,6 @@ class QuestionGenerationService: ObservableObject {
         }
     }
 
-    /// Generate questions based on previous mistakes
-    func generateMistakeBasedQuestions(
-        subject: String,
-        mistakes: [MistakeData],
-        config: RandomQuestionsConfig,
-        userProfile: UserProfile
-    ) async -> Result<[GeneratedQuestion], QuestionGenerationError> {
-
-        await MainActor.run {
-            self.isGenerating = true
-            self.lastError = nil
-            self.generationProgress = "Analyzing \(mistakes.count) mistakes and generating remedial questions..."
-        }
-
-        defer {
-            Task { @MainActor in
-                self.isGenerating = false
-                self.generationProgress = nil
-            }
-        }
-
-
-        debugPrint("📚 Subject: \(subject)")
-
-
-
-        let endpoint = "/api/ai/generate-questions/mistakes"  // V2 standardized endpoint
-
-        guard let url = URL(string: "\(baseURL)\(endpoint)") else {
-            await MainActor.run { self.lastError = "Invalid URL" }
-            return .failure(.invalidURL)
-        }
-
-        // ✅ FIXED: Nested config structure matching backend expectations
-        // Backend expects: subject, mistakes_data, config { question_count, question_type, difficulty }
-        let requestBody: [String: Any] = [
-            "subject": subject,
-            "mistakes_data": mistakes.map { $0.dictionary },
-            "config": [
-                "question_count": config.questionCount,
-                "question_type": config.questionType.rawValue,
-                "difficulty": config.difficulty.rawValue,
-                "topics": config.topics,
-                "focus_notes": config.focusNotes ?? "",
-                "language": effectiveLanguage
-            ] as [String: Any],
-            "user_profile": userProfile.dictionary
-        ]
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 150.0 // Increased for mistake/archive generation (was 90s)
-
-        // Add authentication
-        if let token = AuthenticationService.shared.getAuthToken() {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        } else {
-            await MainActor.run { self.lastError = "Authentication required" }
-            return .failure(.authenticationRequired)
-        }
-
-        do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
-
-            debugPrint("📤 Sending mistake-based questions request to AI engine...")
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            if let httpResponse = response as? HTTPURLResponse {
-
-
-                if httpResponse.statusCode == 200 {
-                    let responseResult = try parseQuestionResponse(data: data, generationType: "mistake_based")
-
-                    if responseResult.success {
-                        let savedSession2 = PracticeSessionManager.shared.saveSession(
-                            questions: responseResult.questions,
-                            generationType: "Mistake-Based Practice",
-                            subject: subject,
-                            config: config
-                        )
-                        // Update last generated questions (replaces previous)
-                        await MainActor.run {
-                            self.lastGeneratedQuestions = responseResult.questions
-                            self.lastGenerationDate = Date()
-                            self.lastGenerationType = "Mistake-Based Practice"
-                            self.currentSessionId = savedSession2.id
-                        }
-
-                        debugPrint("🎉 Generated \(responseResult.questions.count) mistake-based questions successfully")
-                        return .success(responseResult.questions)
-                    } else {
-                        let errorMsg = responseResult.error ?? "Unknown error from AI engine"
-
-                        // Check for specific field validation bugs (addresses_mistake, builds_on, etc.)
-                        if errorMsg.contains("missing required field: addresses_mistake") ||
-                           errorMsg.contains("addresses_mistake") ||
-                           errorMsg.contains("missing required field:") {
-
-                            // Check if this is the text parsing fallback scenario
-                            // Look for evidence that text parsing actually worked
-                            if let rawString = String(data: data, encoding: .utf8),
-                               (rawString.contains("Text parsing completed") ||
-                                rawString.contains("questions extracted") ||
-                                rawString.contains("Parsed question")) {
-
-
-
-                                // Try to extract questions from the error response that might contain parsed data
-                                if let extractedQuestions = tryExtractQuestionsFromErrorResponse(data: data) {
-
-                                    return .success(extractedQuestions)
-                                }
-                            }
-
-                            let friendlyMsg = "There's a temporary issue with mistake-based question generation. The system is having trouble processing the generated questions. Please try using 'Random Practice' instead, or try again later."
-                            debugPrint("🐛 Detected field validation bug in mistake-based generation: \(errorMsg)")
-                            await MainActor.run { self.lastError = friendlyMsg }
-                            return .failure(.backendValidationBug(friendlyMsg))
-                        }
-
-                        await MainActor.run { self.lastError = errorMsg }
-                        return .failure(.aiProcessingError(errorMsg))
-                    }
-                } else {
-                    // Check for validation errors in non-200 responses too
-                    let errorMsg = "Server error: HTTP \(httpResponse.statusCode)"
-
-                    // Parse error response to check for validation issues
-                    if let errorString = String(data: data, encoding: .utf8) {
-                        if errorString.contains("missing required field: addresses_mistake") ||
-                           errorString.contains("addresses_mistake") ||
-                           errorString.contains("missing required field:") {
-                            let friendlyMsg = "There's a temporary issue with mistake-based question generation. The system is having trouble processing the generated questions. Please try using 'Random Practice' instead, or try again later."
-                            debugPrint("🐛 Detected field validation bug in error response: \(errorString)")
-                            await MainActor.run { self.lastError = friendlyMsg }
-                            return .failure(.backendValidationBug(friendlyMsg))
-                        }
-                    }
-
-                    await MainActor.run { self.lastError = errorMsg }
-                    if httpResponse.statusCode == 403 || httpResponse.statusCode == 429 {
-                        UsageService.shared.flagLimitReached(feature: "questions", errorCode: httpResponse.statusCode == 403 ? "UPGRADE_REQUIRED" : "MONTHLY_LIMIT_REACHED")
-                    }
-                    return .failure(.serverError(httpResponse.statusCode))
-                }
-            }
-
-            await MainActor.run { self.lastError = "No response from server" }
-            return .failure(.networkError("No response from server"))
-
-        } catch {
-            let errorMsg = "Network error: \(error.localizedDescription)"
-            await MainActor.run { self.lastError = errorMsg }
-
-            return .failure(.networkError(error.localizedDescription))
-        }
-    }
-
-    /// Generate questions based on conversation history
-    func generateConversationBasedQuestions(
-        subject: String,
-        conversations: [ConversationData],
-        questions: [[String: Any]],
-        config: RandomQuestionsConfig,
-        userProfile: UserProfile
-    ) async -> Result<[GeneratedQuestion], QuestionGenerationError> {
-
-        await MainActor.run {
-            self.isGenerating = true
-            self.lastError = nil
-            self.generationProgress = "Analyzing \(conversations.count) conversations and \(questions.count) questions and generating personalized questions..."
-        }
-
-        defer {
-            Task { @MainActor in
-                self.isGenerating = false
-                self.generationProgress = nil
-            }
-        }
-
-
-        debugPrint("📚 Subject: \(subject)")
-        debugPrint("💬 Conversations Count: \(conversations.count)")
-
-
-        let endpoint = "/api/ai/generate-questions/practice"
-
-        guard let url = URL(string: "\(baseURL)\(endpoint)") else {
-            await MainActor.run { self.lastError = "Invalid URL" }
-            return .failure(.invalidURL)
-        }
-
-        let requestBody: [String: Any] = [
-            "subject": subject,
-            "mode": 3,
-            "conversation_data": conversations.map { $0.dictionary },
-            "question_data": questions,
-            "count": config.questionCount,
-            "question_type": config.questionType.rawValue,
-            "language": effectiveLanguage
-        ]
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 150.0 // Increased for mistake/archive generation (was 90s)
-
-        // Add authentication
-        if let token = AuthenticationService.shared.getAuthToken() {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        } else {
-            await MainActor.run { self.lastError = "Authentication required" }
-            return .failure(.authenticationRequired)
-        }
-
-        do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
-
-            debugPrint("📤 Sending conversation-based questions request to AI engine...")
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            if let httpResponse = response as? HTTPURLResponse {
-
-
-                // UNIVERSAL PARSING: Always try to parse response data regardless of status code
-                // The backend might include valid questions even in error responses
-                do {
-                    let responseResult = try parseQuestionResponse(data: data, generationType: "conversation_based")
-
-                    // If we successfully parsed questions, return them regardless of status code or success flag
-                    if !responseResult.questions.isEmpty {
-                        // Update last generated questions (replaces previous)
-                        await MainActor.run {
-                            self.lastGeneratedQuestions = responseResult.questions
-                            self.lastGenerationDate = Date()
-                            self.lastGenerationType = "Conversation-Based Practice"
-                        }
-
-                        // ✅ FIX 2: Save session for persistence and capture session ID
-                        let savedSession3 = PracticeSessionManager.shared.saveSession(
-                            questions: responseResult.questions,
-                            generationType: "Conversation-Based Practice",
-                            subject: subject,
-                            config: config
-                        )
-
-                        // ✅ Store session ID for progress tracking
-                        await MainActor.run {
-                            self.currentSessionId = savedSession3.id
-                        }
-
-                        debugPrint("🎉 Generated \(responseResult.questions.count) conversation-based questions successfully (Status: \(httpResponse.statusCode))")
-                        return .success(responseResult.questions)
-                    }
-
-                    // If no questions but successful response
-                    if httpResponse.statusCode == 200 && responseResult.success {
-                        debugPrint("⚠️ Successful response but no questions generated")
-                        await MainActor.run { self.lastError = "No questions were generated" }
-                        return .failure(.aiProcessingError("No questions were generated"))
-                    }
-
-                } catch {
-                    debugPrint("⚠️ Failed to parse JSON response: \(error)")
-                }
-
-                // FALLBACK: If JSON parsing failed, try raw extraction from any response
-
-
-                if let rawString = String(data: data, encoding: .utf8) {
-                    debugPrint("📄 Raw response for extraction (Status \(httpResponse.statusCode)):")
-                    debugPrint("--- START RESPONSE ---")
-                    debugPrint(String(rawString.prefix(1000))) // Show first 1000 chars for debugging
-                    debugPrint("--- END RESPONSE ---")
-
-                    // Try to extract questions using the intelligent recovery system
-                    if let extractedQuestions = tryExtractQuestionsFromErrorResponse(data: data) {
-                        // Update last generated questions (replaces previous)
-                        await MainActor.run {
-                            self.lastGeneratedQuestions = extractedQuestions
-                            self.lastGenerationDate = Date()
-                            self.lastGenerationType = "Conversation-Based Practice"
-                        }
-
-                        return .success(extractedQuestions)
-                    }
-                }
-
-                // If all parsing attempts failed
-                let errorMsg = httpResponse.statusCode == 200 ? "Failed to parse response" : "Server error: HTTP \(httpResponse.statusCode)"
-                await MainActor.run { self.lastError = errorMsg }
-                return .failure(httpResponse.statusCode == 200 ? .invalidResponse(errorMsg) : .serverError(httpResponse.statusCode))
-            }
-
-            await MainActor.run { self.lastError = "No response from server" }
-            return .failure(.networkError("No response from server"))
-
-        } catch {
-            let errorMsg = "Network error: \(error.localizedDescription)"
-            await MainActor.run { self.lastError = errorMsg }
-
-            return .failure(.networkError(error.localizedDescription))
-        }
-    }
 
     // MARK: - Utility Methods
 
@@ -1292,6 +1001,21 @@ class QuestionGenerationService: ObservableObject {
             "language": effectiveLanguage,
             "topic": config.topics.joined(separator: ", ")
         ]
+
+        // Pass local grade so backend generates age-appropriate questions immediately.
+        // For child accounts: read ChildLocalProfile.gradeLevel first (no DB lag after switch).
+        let localGradeForV2: String? = {
+            if UserDefaults.standard.bool(forKey: "isChildSessionActive"),
+               let childId = AuthenticationService.shared.currentUser?.id {
+                let childData = UserDefaults.standard.data(forKey: "child_local_\(childId)")
+                let childLocal = childData.flatMap { try? JSONDecoder().decode(ChildLocalProfile.self, from: $0) }
+                if let g = childLocal?.gradeLevel, !g.isEmpty { return g }
+            }
+            return userProfile.grade.isEmpty ? nil : userProfile.grade
+        }()
+        if let grade = localGradeForV2 {
+            body["grade_level"] = grade
+        }
 
         if let diffNum = mapDifficultyToNumber(config.difficulty) {
             body["difficulty"] = diffNum

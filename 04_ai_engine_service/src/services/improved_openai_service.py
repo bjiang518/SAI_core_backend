@@ -3539,11 +3539,13 @@ Focus on being helpful and educational while maintaining a conversational tone."
         student_answer: str,
         correct_answer: Optional[str] = None,
         subject: Optional[str] = None,
-        question_type: Optional[str] = None,  # NEW: Question type for specialized grading
+        question_type: Optional[str] = None,
         context_image: Optional[str] = None,
-        parent_content: Optional[str] = None,  # NEW: Parent question context
+        parent_content: Optional[str] = None,
         use_deep_reasoning: bool = False,
-        language: str = "en"
+        language: str = "en",
+        working_steps: Optional[list] = None,
+        teacher_mark: Optional[dict] = None,
     ) -> Dict[str, Any]:
         """
         Grade a single question with smart model selection.
@@ -3607,21 +3609,36 @@ Focus on being helpful and educational while maintaining a conversational tone."
                 }
 
         try:
-            # Use new specialized prompt builder with type × subject combinations
-            from src.services.grading_prompts import build_complete_grading_prompt
-
-            # Build specialized grading prompt
-            full_prompt = build_complete_grading_prompt(
-                question_type=question_type,
-                subject=subject,
-                question_text=question_text,
-                student_answer=student_answer,
-                correct_answer=correct_answer,
-                parent_content=parent_content,
-                has_context_image=bool(context_image),
-                use_deep_reasoning=use_deep_reasoning,
-                language=language
-            )
+            # Route to deep or fast prompt builder based on reasoning mode
+            if use_deep_reasoning:
+                from src.services.grading_prompts import build_deep_grading_prompt
+                full_prompt = build_deep_grading_prompt(
+                    question_type=question_type,
+                    subject=subject,
+                    question_text=question_text,
+                    student_answer=student_answer,
+                    correct_answer=correct_answer,
+                    parent_content=parent_content,
+                    has_context_image=bool(context_image),
+                    language=language,
+                    working_steps=working_steps,
+                    teacher_mark=teacher_mark,
+                )
+            else:
+                from src.services.grading_prompts import build_complete_grading_prompt
+                full_prompt = build_complete_grading_prompt(
+                    question_type=question_type,
+                    subject=subject,
+                    question_text=question_text,
+                    student_answer=student_answer,
+                    correct_answer=correct_answer,
+                    parent_content=parent_content,
+                    has_context_image=bool(context_image),
+                    use_deep_reasoning=False,
+                    language=language,
+                    working_steps=working_steps,
+                    teacher_mark=teacher_mark,
+                )
 
             # Prepare input for Responses API (system + user separated)
             system_prompt = "You are an expert educational grader. Grade student answers carefully and fairly."

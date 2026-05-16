@@ -119,7 +119,7 @@ struct ChatPracticeConfigSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(NSLocalizedString("common.cancel", comment: "")) { dismiss() }
+                    XDismissButton { dismiss() }
                 }
             }
         }

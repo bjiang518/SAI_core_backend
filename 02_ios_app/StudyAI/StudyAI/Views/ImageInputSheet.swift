@@ -147,7 +147,7 @@ struct ImageInputSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
+                    XDismissButton {
                         isPresented = false
                     }
                 }

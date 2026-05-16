@@ -5,8 +5,8 @@
       "id": "critical_thinking",
       "name": "Critical Thinking",
       "topics": [
-        { "id": "logic",              "name": "Logic & Reasoning",                   "gradeMin": 3, "gradeMax": 13 },
-        { "id": "problem_solving",    "name": "Problem Solving Strategies",          "gradeMin": 2, "gradeMax": 13 },
+        { "id": "logic",              "name": "Logic & Reasoning",                   "gradeMin": 1, "gradeMax": 13 },
+        { "id": "problem_solving",    "name": "Problem Solving Strategies",          "gradeMin": 0, "gradeMax": 13 },
         { "id": "analysis",           "name": "Analysis & Evaluation",              "gradeMin": 5, "gradeMax": 13 }
       ]
     },

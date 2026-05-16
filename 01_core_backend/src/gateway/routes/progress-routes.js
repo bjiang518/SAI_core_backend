@@ -210,6 +210,15 @@ class ProgressRoutes {
         tags: ['Progress', 'Health']
       }
     }, this.healthCheck.bind(this));
+
+    // Sync knowledge tree snapshot from iOS
+    this.fastify.post('/api/progress/knowledge-tree/sync', {
+      preHandler: authPreHandler,
+      schema: {
+        description: 'Sync knowledge tree topic mastery snapshot from iOS',
+        tags: ['Progress', 'KnowledgeTree']
+      }
+    }, this.syncKnowledgeTree.bind(this));
   }
 
   // Get user ID from request (flexible - could be from JWT, header, or query)
@@ -1273,6 +1282,58 @@ class ProgressRoutes {
         error: 'Failed to sync daily progress',
         message: error.message
       });
+    }
+  }
+
+  async syncKnowledgeTree(request, reply) {
+    try {
+      await ensureDbInitialized();
+      const userId = this.getUserId(request);
+      if (!userId) return reply.status(401).send({ success: false, error: 'Unauthorized' });
+
+      const { subject, snapshots } = request.body || {};
+      if (!subject || !Array.isArray(snapshots)) {
+        return reply.status(400).send({ success: false, error: 'subject and snapshots[] required' });
+      }
+
+      // Cap at 200 topics per subject to prevent abuse
+      const capped = snapshots.slice(0, 200);
+      let upserted = 0;
+
+      for (const s of capped) {
+        if (!s.topic_key || typeof s.topic_key !== 'string') continue;
+
+        await db.query(`
+          INSERT INTO knowledge_tree_snapshots
+            (user_id, subject, topic_key, branch_name, topic_name,
+             weakness_value, accuracy, total_attempts, correct_attempts,
+             error_types, is_practiced, is_mastered,
+             first_detected_at, last_attempt_at, synced_at)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,NOW())
+          ON CONFLICT DO NOTHING
+        `, [
+          userId,
+          subject,
+          s.topic_key,
+          s.branch_name || null,
+          s.topic_name  || null,
+          typeof s.weakness_value  === 'number' ? s.weakness_value  : 0,
+          typeof s.accuracy        === 'number' ? s.accuracy        : null,
+          typeof s.total_attempts  === 'number' ? s.total_attempts  : 0,
+          typeof s.correct_attempts=== 'number' ? s.correct_attempts: 0,
+          Array.isArray(s.error_types) ? s.error_types : [],
+          Boolean(s.is_practiced),
+          Boolean(s.is_mastered),
+          s.first_detected_at || null,
+          s.last_attempt_at   || null
+        ]);
+        upserted++;
+      }
+
+      return reply.send({ success: true, upserted });
+    } catch (error) {
+      request.log.error({ err: error }, '❌ syncKnowledgeTree failed');
+      return reply.status(500).send({ success: false, error: 'Internal server error' });
     }
   }
 

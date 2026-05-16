@@ -50,6 +50,8 @@ struct SuggestedTodo: Identifiable {
         /// Placeholder — activated once APNs push infrastructure is ready.
         case openParentReport
         case openProgress
+        /// Open MistakeReviewView with the knowledge tree tab pre-selected.
+        case openKnowledgeTree(subject: String?)
 
         // ── Category 4 · Deep Extension ────────────────────────────────────
         case startOralPractice
@@ -112,7 +114,6 @@ final class SuggestedTodoEngine: ObservableObject {
 
         // Category 2 — Main Feature
         HomeworkGraderProvider(),
-        OpenChatProvider(),             // fallback — always eligible
         OralPracticeProvider(),         // live mode fallback — same priority tier as scenarios
         LiveScenarioProvider(scenario: .oralComposition),
         LiveScenarioProvider(scenario: .debate),
@@ -123,7 +124,7 @@ final class SuggestedTodoEngine: ObservableObject {
 
         // Category 3 — Extended Features
         FocusSessionProvider(),
-        HomeworkAlbumProvider(),
+        KnowledgeTreeProvider(),
         ParentReportProvider(),         // placeholder — currently always nil
         ProgressCheckProvider(),
 
@@ -426,22 +427,8 @@ private struct HomeworkGraderProvider: SuggestedTodoItemProvider {
 
 // ── 2b · Open Chat  (fallback — always eligible) ──────────────────────────
 
-private struct OpenChatProvider: SuggestedTodoItemProvider {
-    let todoId   = "open_chat"
-    let category = TodoCategory.mainFeature
-    let priority = 20   // weight ~14% when all main-feature options are eligible
-
-    func evaluate() -> SuggestedTodo? {
-        SuggestedTodo(
-            id:       todoId,
-            icon:     "bubble.left.and.bubble.right",
-            title:    NSLocalizedString("todo.chat.title",    value: "问 AI 一个问题",      comment: ""),
-            subtitle: NSLocalizedString("todo.chat.subtitle", value: "把今天的困惑说出来", comment: ""),
-            color:    Color(hex: "4AAFDF"),
-            action:   .openChat
-        )
-    }
-}
+// Removed: OpenChatProvider was too generic ("问 AI 一个问题") with no actionable context.
+// Category 2 now falls back to OralPractice / LiveScenario when grader is ineligible.
 
 // MARK: - Category 3: Extended Feature Providers
 
@@ -450,7 +437,7 @@ private struct OpenChatProvider: SuggestedTodoItemProvider {
 private struct FocusSessionProvider: SuggestedTodoItemProvider {
     let todoId   = "open_focus"
     let category = TodoCategory.extended
-    let priority = 0
+    let priority = 1
 
     func evaluate() -> SuggestedTodo? {
         let done = FocusSessionService.shared.getTodaySessions().filter { $0.isCompleted }.count
@@ -470,27 +457,34 @@ private struct FocusSessionProvider: SuggestedTodoItemProvider {
 
 // ── 3b · Homework Album ───────────────────────────────────────────────────
 
-private struct HomeworkAlbumProvider: SuggestedTodoItemProvider {
-    let todoId   = "open_homework_album"
+// Removed: HomeworkAlbumProvider had no actionable learning goal.
+// "查看保存的作业" is passive browsing — users do this naturally without a prompt.
+
+// ── 3b · Knowledge Tree ───────────────────────────────────────────────────
+// Surfaces when taxonomy data is available for the user's grade level.
+// Opens MistakeReviewView with the knowledge tree tab pre-selected so the
+// user lands directly on the visual topic map rather than the mistake list.
+
+private struct KnowledgeTreeProvider: SuggestedTodoItemProvider {
+    let todoId   = "knowledge_tree"
     let category = TodoCategory.extended
-    let priority = 0
+    let priority = 3
 
     func evaluate() -> SuggestedTodo? {
-        let records = HomeworkImageStorageService.shared.getAllHomeworkImages()
-        guard !records.isEmpty else { return nil }
+        let subjects = TaxonomyService.shared.availableSubjects()
+        guard !subjects.isEmpty else { return nil }
 
-        let subject = records.first?.subject ?? ""
-        let subtitle = subject.isEmpty
-            ? NSLocalizedString("todo.album.subtitle.generic", value: "查看保存的作业",   comment: "")
-            : String(format: NSLocalizedString("todo.album.subtitle.subject", value: "最近：%@", comment: ""), localizeSubject(subject))
+        let topSubject = subjects.first?.subject
+        let subjectDisplay = topSubject.map { localizeSubject($0) }
+            ?? NSLocalizedString("todo.knowledgeTree.defaultSubject", value: "各科目", comment: "")
 
         return SuggestedTodo(
             id:       todoId,
-            icon:     "photo.on.rectangle.angled",
-            title:    NSLocalizedString("todo.album.title",    value: "作业相册", comment: ""),
-            subtitle: subtitle,
-            color:    Color(hex: "FF85C1"),
-            action:   .openHomeworkAlbum
+            icon:     "leaf.fill",
+            title:    NSLocalizedString("todo.knowledgeTree.title",    value: "点亮知识树",            comment: ""),
+            subtitle: String(format: NSLocalizedString("todo.knowledgeTree.subtitle", value: "探索「%@」知识图谱", comment: ""), subjectDisplay),
+            color:    Color(hex: "52B788"),
+            action:   .openKnowledgeTree(subject: topSubject)
         )
     }
 }
@@ -524,7 +518,7 @@ private struct ProgressCheckProvider: SuggestedTodoItemProvider {
     static let staticId = "open_progress"
     let todoId   = ProgressCheckProvider.staticId
     let category = TodoCategory.extended
-    let priority = 0
+    let priority = 1
 
     func evaluate() -> SuggestedTodo? {
         let uid        = AuthenticationService.shared.currentUser?.id ?? "anon"
@@ -577,25 +571,14 @@ private struct DailyQuestionProvider: SuggestedTodoItemProvider {
     let priority = 0
 
     func evaluate() -> SuggestedTodo? {
-        if let cached = NetworkService.cachedSessionQuestion {
-            return SuggestedTodo(
-                id:       todoId,
-                icon:     "lightbulb.fill",
-                title:    NSLocalizedString("todo.dailyQuestion.title",    value: "你知道吗？", comment: ""),
-                subtitle: cached.question,
-                color:    Color(hex: "FFD700"),
-                action:   .showDailyQuestion(question: cached.question)
-            )
-        }
-
-        // Fallback — backend hasn't delivered a question yet today
+        guard let cached = NetworkService.cachedSessionQuestion else { return nil }
         return SuggestedTodo(
             id:       todoId,
-            icon:     "bubble.left.and.bubble.right.fill",
-            title:    NSLocalizedString("todo.dailyQuestion.fallback.title",    value: "开始一段 AI 对话",      comment: ""),
-            subtitle: NSLocalizedString("todo.dailyQuestion.fallback.subtitle", value: "随时可以向 AI 提问",    comment: ""),
-            color:    Color(hex: "4AAFDF"),
-            action:   .openChat
+            icon:     "lightbulb.fill",
+            title:    NSLocalizedString("todo.dailyQuestion.title",    value: "你知道吗？", comment: ""),
+            subtitle: cached.question,
+            color:    Color(hex: "FFD700"),
+            action:   .showDailyQuestion(question: cached.question)
         )
     }
 }

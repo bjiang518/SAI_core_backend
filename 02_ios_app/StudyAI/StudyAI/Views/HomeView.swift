@@ -53,6 +53,8 @@ struct HomeView: View {
     // ── Practice todo shortcut configuration ──────────────────────────────
     /// Pre-selected subject for MistakeReviewView
     @State private var mistakeReviewInitialSubject: String? = nil
+    /// Pre-open knowledge tree tab in MistakeReviewView
+    @State private var mistakeReviewShowKnowledgeTree: Bool = false
     /// Config passed to PracticeLibraryView → NewPracticeSheet (random or concept review shortcuts)
     @State private var practiceLibraryShortcutConfig: PracticeLibraryView.ShortcutConfig? = nil
     /// Direct navigation to QuestionSheetView for the practice retry shortcut
@@ -202,7 +204,8 @@ struct HomeView: View {
                 PointsShopView()
             }
             .navigationDestination(isPresented: $showingMistakeReview) {
-                MistakeReviewView(initialSubject: mistakeReviewInitialSubject)
+                MistakeReviewView(initialSubject: mistakeReviewInitialSubject,
+                                  initialShowKnowledgeTree: mistakeReviewShowKnowledgeTree)
             }
             .navigationDestination(isPresented: $showingQuestionGeneration) {
                 PracticeLibraryView(shortcutConfig: practiceLibraryShortcutConfig)
@@ -218,6 +221,7 @@ struct HomeView: View {
                 feynmanSheetItem = nil
                 practiceRetrySession = nil
                 mistakeReviewInitialSubject = nil
+                mistakeReviewShowKnowledgeTree = false
                 practiceLibraryShortcutConfig = nil
             }
             // ── Track HomeView navigation state ──────────────────────────────────
@@ -239,6 +243,10 @@ struct HomeView: View {
             .onChange(of: appState.shouldOpenMistakeReview) { _, shouldOpen in
                 if shouldOpen {
                     appState.shouldOpenMistakeReview = false
+                    mistakeReviewInitialSubject = appState.pendingMistakeReviewSubject
+                    mistakeReviewShowKnowledgeTree = appState.pendingMistakeReviewShowKnowledgeTree
+                    appState.pendingMistakeReviewSubject = nil
+                    appState.pendingMistakeReviewShowKnowledgeTree = false
                     showingMistakeReview = true
                 }
             }
@@ -274,7 +282,7 @@ struct HomeView: View {
                     ParentReportsContainerView()
                 }
             }
-            .sheet(isPresented: $showingUpgrade) {
+            .fullScreenCover(isPresented: $showingUpgrade) {
                 UpgradeComparisonView(
                     blockedFeature: "Live Tutor",
                     reason: .featureBlocked,
@@ -528,6 +536,11 @@ struct HomeView: View {
         // ── Category 1: Practice ─────────────────────────────────────────────
         case .openMistakeReview(let topSubject):
             mistakeReviewInitialSubject = topSubject
+            mistakeReviewShowKnowledgeTree = false
+            showingMistakeReview = true
+        case .openKnowledgeTree(let subject):
+            mistakeReviewInitialSubject = subject
+            mistakeReviewShowKnowledgeTree = true
             showingMistakeReview = true
         case .startFeynmanPractice(let subjectKey):
             let topWeaknesses = ShortTermStatusService.shared.getTopActiveWeaknesses(limit: 20)

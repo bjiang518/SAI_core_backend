@@ -301,7 +301,6 @@ struct ContentView: View {
             appSessionManager.appDidEnterBackground()  // ✅ Track background time
 
         case .active:
-            EventTracker.shared.track("app_opened")
             let isSessionValid = sessionManager.appDidBecomeActive()
 
             if !isSessionValid && authService.currentUser != nil {
@@ -1006,7 +1005,7 @@ struct ModernProfileView: View {
         .sheet(isPresented: $showingThemeSelection) {
             ThemeSelectionView()
         }
-        .sheet(isPresented: $showingUsage) {
+        .fullScreenCover(isPresented: $showingUsage) {
             AccountUsageView()
         }
         .sheet(isPresented: $showingFamilyManagement) {

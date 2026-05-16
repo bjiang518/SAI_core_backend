@@ -74,9 +74,12 @@ struct MistakeReviewView: View {
     @ObservedObject private var statusService = ShortTermStatusService.shared
     @State private var selectedSubject: String?
 
-    init(initialSubject: String? = nil) {
+    init(initialSubject: String? = nil, initialShowKnowledgeTree: Bool = false) {
         if let subject = initialSubject {
             _selectedSubject = State(initialValue: subject)
+        }
+        if initialShowKnowledgeTree {
+            _showKnowledgeTree = State(initialValue: true)
         }
     }
 
@@ -131,9 +134,11 @@ struct MistakeReviewView: View {
     @State private var onboardingAnchors: [String: CGRect] = [:]
 
     // Light-up tree sheet
-    @State private var showLightUpSheet = false
+    @State private var lightUpSheetContext: LightUpSheetContext? = nil
     @State private var lightUpSession: PracticeSession? = nil
     @State private var showLightUpPractice = false
+    /// Weakness keys for topics practiced via LightUpTreeSheet — used to light up leaves on completion
+    @State private var lightUpTopicKeys: [String] = []
 
     var body: some View {
         ScrollView {
@@ -181,6 +186,8 @@ struct MistakeReviewView: View {
                                     icon: "chart.bar.fill",
                                     isSelected: !showKnowledgeTree,
                                     action: {
+                                        // No mistakes → heatmap is empty, stay in tree mode
+                                        guard !mistakeService.subjectsWithMistakes.isEmpty else { return }
                                         withAnimation(.spring(response: 0.3)) { showKnowledgeTree = false }
                                         if let s = selectedSubject,
                                            !mistakeService.subjectsWithMistakes.contains(where: { $0.subject == s }) {
@@ -229,7 +236,15 @@ struct MistakeReviewView: View {
                         if showKnowledgeTree {
                             // Taxonomy-based tree: all grade-appropriate topics, colored by mastery
                             let treeBranches = TaxonomyService.shared.knowledgeTree(for: subject)
-                            KnowledgeTreeView(subject: subject, branches: treeBranches)
+                            KnowledgeTreeView(
+                                subject: subject,
+                                branches: treeBranches,
+                                onLightUpTopic: { topicId in
+                                    debugPrint("🌿 [LightUp] onLightUpTopic received topicId='\(topicId)'")
+                                    lightUpSheetContext = LightUpSheetContext(initialTopicId: topicId)
+                                    debugPrint("🌿 [LightUp] set lightUpSheetContext topicId='\(topicId)'")
+                                }
+                            )
                                 .padding(.horizontal)
                         } else {
                             // Heatmap mode: severity + time filters, then heatmap, then chip filter
@@ -355,7 +370,7 @@ struct MistakeReviewView: View {
                         LightUpTreeButton(
                             subject: subject,
                             unlitCount: unlitTopicCount(for: subject),
-                            onTap: { showLightUpSheet = true }
+                            onTap: { lightUpSheetContext = LightUpSheetContext(initialTopicId: nil) }
                         )
                         .padding(.horizontal)
                     }
@@ -368,6 +383,13 @@ struct MistakeReviewView: View {
                 ? NSLocalizedString("skillGraph.treeTitle", value: "知识树 Knowledge Tree", comment: "")
                 : NSLocalizedString("skillGraph.title", value: "知识库 Skill Graph", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
+            .onChange(of: showKnowledgeTree) { _, isTree in
+                if isTree {
+                    JourneyTracker.shared.track("knowledge_tree_viewed", [
+                        "subject": selectedSubject ?? "unknown"
+                    ])
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
@@ -389,6 +411,11 @@ struct MistakeReviewView: View {
             }
             .task {
                 await mistakeService.fetchSubjectsWithMistakes(timeRange: selectedTimeRange.mistakeTimeRange)
+
+                // New users with no mistakes: automatically show the knowledge tree
+                if mistakeService.subjectsWithMistakes.isEmpty && !showKnowledgeTree {
+                    showKnowledgeTree = true
+                }
 
                 // ✅ Auto-select first subject if available and none selected
                 let autoSelectList = showKnowledgeTree ? allSubjects : mistakeService.subjectsWithMistakes
@@ -420,27 +447,51 @@ struct MistakeReviewView: View {
                     )
                 }
             }
-            .sheet(isPresented: $showLightUpSheet) {
+            .sheet(item: $lightUpSheetContext) { ctx in
                 if let subject = selectedSubject {
                     let treeBranches = TaxonomyService.shared.knowledgeTree(for: subject)
                     LightUpTreeSheet(
                         subject: subject,
-                        branches: treeBranches
-                    ) { session in
-                        lightUpSession = session
-                        showLightUpPractice = true
-                    }
+                        branches: treeBranches,
+                        onSessionCreated: { session, topicKeys in
+                            debugPrint("🌳 [MistakeReviewView] onSessionCreated — session=\(session.id) topics=\(topicKeys.count)")
+                            lightUpSession = session
+                            lightUpTopicKeys = topicKeys
+                            lightUpSheetContext = nil
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.65) {
+                                debugPrint("🌳 [MistakeReviewView] delay done — setting showLightUpPractice=true")
+                                showLightUpPractice = true
+                            }
+                        },
+                        initialTopicId: ctx.initialTopicId
+                    )
                 }
             }
             .fullScreenCover(isPresented: $showLightUpPractice) {
                 if let session = lightUpSession {
+                    let _ = debugPrint("🌳 [MistakeReviewView] ✅ QuestionSheetView opening — session=\(session.id)")
                     QuestionSheetView(
                         session: session,
                         onPracticeCompleted: {
+                            debugPrint("🌳 [MistakeReviewView] practice completed — closing")
+                            // Light up the practiced topics in the knowledge tree
+                            let keys = lightUpTopicKeys
+                            for key in keys {
+                                ShortTermStatusService.shared.recordCorrectAttempt(
+                                    key: key,
+                                    retryType: .firstTime,
+                                    questionId: nil
+                                )
+                            }
+                            debugPrint("🌳 [MistakeReviewView] lit up \(keys.count) topics")
+                            lightUpTopicKeys = []
                             showLightUpPractice = false
                             lightUpSession = nil
                         }
                     )
+                } else {
+                    let _ = debugPrint("🌳 [MistakeReviewView] ❌ fullScreenCover opened but lightUpSession is nil!")
+                    EmptyView()
                 }
             }
             .onChange(of: appState.shouldDismissPracticeStack) { _, shouldDismiss in
@@ -3175,7 +3226,7 @@ struct PracticeConfigurationSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button(NSLocalizedString("common.cancel", comment: "")) { dismiss() }
+                    XDismissButton { dismiss() }
                 }
             }
         }
@@ -3536,4 +3587,14 @@ struct AdaptiveGlowDot: View {
                 }
             }
     }
+}
+
+// MARK: - Light-up sheet context
+
+/// Carries the optional pre-selected topic ID into LightUpTreeSheet via .sheet(item:).
+/// Using item: instead of isPresented: guarantees the view is created with the correct
+/// topicId in the same render cycle (isPresented: suffers from a SwiftUI pre-creation race).
+struct LightUpSheetContext: Identifiable {
+    let id = UUID()
+    let initialTopicId: String?
 }

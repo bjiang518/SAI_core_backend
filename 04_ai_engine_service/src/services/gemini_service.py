@@ -111,7 +111,8 @@ class GeminiEducationalAIService:
         parsing_mode: str = "standard",
         skip_bbox_detection: bool = True,
         expected_questions: Optional[List[int]] = None,
-        subject: Optional[str] = None
+        subject: Optional[str] = None,
+        language: str = "en"
     ) -> Dict[str, Any]:
         """
         Parse homework image using Gemini Vision API with subject-specific rules.
@@ -150,7 +151,7 @@ class GeminiEducationalAIService:
 
         try:
             # Build prompt with subject-specific rules
-            system_prompt = self._build_parse_prompt(subject=subject)
+            system_prompt = self._build_parse_prompt(subject=subject, language=language)
 
             # Decode base64 image
             import io
@@ -239,7 +240,7 @@ class GeminiEducationalAIService:
 
             # Extract JSON from response (safely handle complex responses)
             raw_response = self._extract_response_text(response)
-            logger.info(f"[PARSE] Raw Gemini response length={len(raw_response)} chars | preview={raw_response[:200]!r}")
+            logger.warning(f"[PARSE] Raw Gemini length={len(raw_response)} | preview={raw_response[:300]!r}")
 
             # Parse JSON
             result = self._extract_json_from_response(raw_response)
@@ -400,11 +401,13 @@ class GeminiEducationalAIService:
         student_answer: str,
         correct_answer: Optional[str] = None,
         subject: Optional[str] = None,
-        question_type: Optional[str] = None,  # NEW: Question type for specialized grading
+        question_type: Optional[str] = None,
         context_image: Optional[str] = None,
-        parent_content: Optional[str] = None,  # NEW: Parent question context
+        parent_content: Optional[str] = None,
         use_deep_reasoning: bool = False,
-        language: str = "en"
+        language: str = "en",
+        working_steps: Optional[list] = None,
+        teacher_mark: Optional[dict] = None,
     ) -> Dict[str, Any]:
         """
         Grade a single question using Gemini with two-mode configuration.
@@ -476,17 +479,19 @@ class GeminiEducationalAIService:
                 }
 
         try:
-            # Build grading prompt (different for deep reasoning)
-            grading_prompt = self._build_grading_prompt(
+            # Build grading prompt using deep-mode specialized builder
+            from src.services.grading_prompts import build_deep_grading_prompt
+            grading_prompt = build_deep_grading_prompt(
+                question_type=question_type,
+                subject=subject,
                 question_text=question_text,
                 student_answer=student_answer,
                 correct_answer=correct_answer,
-                subject=subject,
-                question_type=question_type,  # NEW: Pass question type for specialized grading
-                parent_content=parent_content,  # NEW: Pass parent context
-                use_deep_reasoning=use_deep_reasoning,
+                parent_content=parent_content,
                 has_context_image=bool(context_image),
-                language=language
+                language=language,
+                working_steps=working_steps,
+                teacher_mark=teacher_mark,
             )
 
             logger.debug(f"🚀 Calling Gemini for grading...")
@@ -1253,25 +1258,42 @@ RULES:
             "candidate_count": 1
         }
 
-        try:
-            response = self.client.models.generate_content(
+        import asyncio
+        import functools
+
+        def _call_gemini():
+            return self.client.models.generate_content(
                 model=self.model_name,
                 contents=[image, prompt],
                 config=generation_config
             )
-            text = self._extract_response_text(response)
-            text = text.strip()
-            if text.startswith("```"):
-                text = text.split("```")[1]
-                if text.startswith("json"):
-                    text = text[4:]
-                text = text.strip()
-            return json.loads(text)
-        except Exception as e:
-            logger.error(f"reparse_single_question failed for Q{question_number}: {e}")
-            raise
 
-    def _build_parse_prompt(self, subject: Optional[str] = None, multi_page: bool = False) -> str:
+        last_exc = None
+        for attempt in range(2):  # 1 retry on 503
+            try:
+                loop = asyncio.get_event_loop()
+                response = await loop.run_in_executor(None, _call_gemini)
+                text = self._extract_response_text(response)
+                text = text.strip()
+                if text.startswith("```"):
+                    text = text.split("```")[1]
+                    if text.startswith("json"):
+                        text = text[4:]
+                    text = text.strip()
+                return json.loads(text)
+            except Exception as e:
+                last_exc = e
+                is_503 = "503" in str(e) or "UNAVAILABLE" in str(e)
+                if is_503 and attempt == 0:
+                    logger.warning(f"reparse_single_question 503 on attempt 1, retrying in 3s...")
+                    await asyncio.sleep(3)
+                    continue
+                logger.error(f"reparse_single_question failed for Q{question_number}: {e}")
+                raise
+
+        raise last_exc
+
+    def _build_parse_prompt(self, subject: Optional[str] = None, multi_page: bool = False, language: str = "en") -> str:
         """
         Build homework parsing prompt with optional subject-specific rules.
 
@@ -1315,6 +1337,8 @@ JSON SCHEMA
       "question_number": "2",
       "question_text": "What is 2+2?",
       "student_answer": "4",
+      "working_steps": ["2+2=4"],
+      "teacher_mark": {{"type": "checkmark"}},
       "question_type": "short_answer",
       "need_image": false
     }}
@@ -1462,11 +1486,30 @@ TYPE 5 - LONG ANSWER (question_type: "long_answer"):
 ================================================================================
 ANSWER EXTRACTION (CRITICAL)
 ================================================================================
-- student_answer = EXACT handwriting (even if wrong)
-- Never calculate, infer, or correct
-- If unclear or cut off → set ""
+- student_answer = ONLY the FINAL answer (the last result, boxed answer, circled number, or concluding statement)
+  ✅ If student writes "30+30=60, 1+2=3, 60+3=63" → student_answer: "63"
+  ✅ If student writes only "63" with no working → student_answer: "63"
+  ✅ If student writes "x=5" after solving steps → student_answer: "x=5"
+- working_steps = ordered array of intermediate calculation steps shown by the student
+  ✅ ["30+30=60", "1+2=3", "60+3=63"] (each step as a string)
+  ✅ [] if student shows no working, only writes the final answer
+  - Each element = one line / one step in the student's shown work
+  - Preserve the student's own notation and language
+  - Omit this field entirely if empty (DO NOT include working_steps: [])
+- Never calculate, infer, or correct — extract EXACTLY what is written
+- If unclear or cut off → set student_answer: ""
 - For multi-blank: use " | " to separate (see TYPE 3 above)
-- For two-part question: label each answer with context
+
+TEACHER MARK EXTRACTION:
+- Look for marks in a DIFFERENT ink color (typically red pen) or correction symbols
+- teacher_mark = object describing what the teacher wrote or marked:
+  {{"type": "checkmark"}}                            → teacher drew ✓ (correct)
+  {{"type": "cross"}}                                → teacher drew ✗ (wrong)
+  {{"type": "correction", "content": "65"}}          → teacher crossed out student's answer and wrote the correct one
+  {{"type": "comment", "content": "good method!"}}   → teacher wrote a text comment
+  {{"type": "circle"}}                               → teacher circled the student's work (usually marking an error)
+- Omit teacher_mark entirely if no teacher marks are visible
+- If multiple marks exist, use the most significant one (correction > cross > comment > circle > checkmark)
 
 MATHEMATICAL EXPRESSIONS:
 Use LaTeX for ALL mathematical formulas, symbols, and equations in question_text and student_answer.
@@ -1484,6 +1527,9 @@ OUTPUT CHECKLIST
 5. ✓ Multi-blank answers use " | " separator?
 6. ✓ total_questions = top-level questions only?
 7. ✓ Valid JSON with no markdown?
+8. ✓ student_answer = FINAL answer only (not the full working)?
+9. ✓ working_steps = array of intermediate steps (omitted if none)?
+10. ✓ teacher_mark captured if red-pen corrections visible?
 """
 
         # Combine base prompt with subject-specific rules
@@ -1507,6 +1553,10 @@ OUTPUT CHECKLIST
                 "- id: ALWAYS string."
             )
 
+        from .prompt_i18n import normalize_language, HOMEWORK_LANG_INSTRUCTION
+        lang_key = normalize_language(language)
+        prompt += HOMEWORK_LANG_INSTRUCTION.get(lang_key, "")
+
         return prompt
 
     def _build_grading_prompt(
@@ -1515,11 +1565,13 @@ OUTPUT CHECKLIST
         student_answer: str,
         correct_answer: Optional[str],
         subject: Optional[str],
-        question_type: Optional[str],  # NEW: Question type for specialized prompts
-        parent_content: Optional[str],  # NEW: Parent question context
+        question_type: Optional[str],
+        parent_content: Optional[str],
         use_deep_reasoning: bool = False,
         has_context_image: bool = False,
-        language: str = "en"
+        language: str = "en",
+        working_steps: Optional[list] = None,
+        teacher_mark: Optional[dict] = None,
     ) -> str:
         """
         Build grading prompt using specialized type × subject instructions.
@@ -1539,7 +1591,9 @@ OUTPUT CHECKLIST
             parent_content=parent_content,
             has_context_image=has_context_image,
             use_deep_reasoning=use_deep_reasoning,
-            language=language
+            language=language,
+            working_steps=working_steps,
+            teacher_mark=teacher_mark,
         )
 
     def _normalize_answer(self, answer: str) -> str:

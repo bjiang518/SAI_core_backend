@@ -98,9 +98,13 @@ struct ScannedImageActionView: View {
             .navigationTitle("Document Scanned")
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarItems(
-                leading: Button("Cancel") {
+                leading: Button {
                     onCancel()
                     isPresented = false
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.body.bold())
+                        .foregroundColor(.primary)
                 }
             )
             .fullScreenCover(isPresented: $showPreprocessing) {

@@ -586,13 +586,19 @@ class ProgressiveHomeworkViewModel: ObservableObject {
                 // Get context image if available
                 let contextImage = await getContextImageBase64(for: question.id)
 
-                // Call grading endpoint
+                // Call grading endpoint — pass working_steps and teacher_mark if available (v2)
                 let response = try await networkService.gradeSingleQuestion(
                     questionText: question.displayText,
                     studentAnswer: question.displayStudentAnswer,
                     subject: state.subject,
-                    questionType: question.questionType,  // Pass question type for specialized grading
-                    contextImageBase64: contextImage
+                    questionType: question.questionType,
+                    contextImageBase64: contextImage,
+                    workingSteps: question.workingSteps,
+                    teacherMark: question.teacherMark.map {
+                        var d: [String: Any] = ["type": $0.type]
+                        if let c = $0.content { d["content"] = c }
+                        return d
+                    }
                 )
 
                 if response.success, let grade = response.grade {

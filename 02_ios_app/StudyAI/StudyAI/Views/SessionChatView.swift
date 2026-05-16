@@ -128,6 +128,7 @@ struct SessionChatView: View {
     }
     // Live mode (WeChat-style inline voice chat)
     @State private var isLiveMode = false
+    @State private var liveModeStartTime: Date? = nil
     @StateObject private var liveVMHolder = LiveVMHolder()
     // Live mode leave confirmation
     @State private var showingLiveLeaveAlert = false
@@ -327,6 +328,11 @@ struct SessionChatView: View {
                                 vm.connectToGeminiLive()
                                 withAnimation(.easeInOut(duration: 0.3)) {
                                     isLiveMode = true
+                                    liveModeStartTime = Date()
+                                    JourneyTracker.shared.track("live_mode_started", [
+                                        "subject": viewModel.selectedSubject ?? "unknown",
+                                        "has_scenario": viewModel.liveModeStarterPrompt != nil
+                                    ])
                                     // Only mark conversation started if there are existing messages;
                                     // a fresh Live session has no messages yet so avatar stays hidden
                                     if !allMessages.isEmpty {
@@ -1694,6 +1700,14 @@ struct SessionChatView: View {
     private func exitLiveMode() {
         liveVMHolder.vm?.disconnect()
 
+        if let start = liveModeStartTime {
+            JourneyTracker.shared.track("live_mode_ended", [
+                "duration_sec": Int(Date().timeIntervalSince(start)),
+                "subject": viewModel.selectedSubject ?? "unknown"
+            ])
+            liveModeStartTime = nil
+        }
+
         // Sync Live voice turns into networkService.conversationHistory so
         // subsequent non-live AI responses have full context of what was said.
         // Only sync .voice entries (they are exclusively from the current Live session).
@@ -2625,17 +2639,16 @@ struct SessionChatView: View {
 
                 // Action buttons
                 HStack(spacing: 16) {
-                    Button(NSLocalizedString("common.cancel", comment: "")) {
+                    Button {
                         showingArchiveDialog = false
                         viewModel.archiveTitle = ""
                         viewModel.archiveTopic = ""
                         viewModel.archiveNotes = ""
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.body.bold())
+                            .foregroundColor(.primary)
                     }
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(themeManager.currentTheme == .colorful ? DesignTokens.Colors.Cute.backgroundCream : Color.gray.opacity(0.1))
-                    .cornerRadius(10)
 
                     Button(NSLocalizedString("chat.archive.buttonTitle", comment: "")) {
                         viewModel.archiveCurrentSession()
@@ -2668,7 +2681,7 @@ struct SessionChatView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(NSLocalizedString("common.cancel", comment: "")) {
+                    XDismissButton {
                         showingArchiveDialog = false
                         viewModel.archiveTitle = ""
                         viewModel.archiveTopic = ""

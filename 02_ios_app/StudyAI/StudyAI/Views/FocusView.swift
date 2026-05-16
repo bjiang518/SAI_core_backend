@@ -698,6 +698,10 @@ struct FocusView: View {
         } else {
             focusService.startSession(enableDeepFocus: enableDeepFocus)
         }
+        JourneyTracker.shared.track("focus_session_started", [
+            "deep_focus": enableDeepFocus,
+            "has_music": selectedPlaylist != nil || (selectedMusicTrack != nil && selectedMusicTrack?.id != "no_music")
+        ])
     }
 
     private func togglePauseResume() {
@@ -715,6 +719,12 @@ struct FocusView: View {
     private func endSession() {
         if let completedSession = focusService.endSession() {
             musicService.stop()
+
+            JourneyTracker.shared.track("focus_session_completed", [
+                "duration_min": completedSession.durationInMinutes,
+                "tree_type": completedSession.earnedTreeType?.rawValue ?? "none",
+                "has_music": completedSession.backgroundMusicTrack != nil
+            ])
 
             if let tomato = tomatoGarden.addTomato(from: completedSession) {
                 earnedTomato = tomato

@@ -47,7 +47,7 @@ struct VoiceSettingsView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button(NSLocalizedString("common.cancel", comment: "")) {
+                    XDismissButton {
                         dismiss()
                     }
                 }

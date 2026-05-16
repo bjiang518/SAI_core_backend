@@ -19,7 +19,9 @@ class QuestionGenerationDataAdapter {
     func createUserProfile() -> QuestionGenerationService.UserProfile {
         let profileService = ProfileService.shared
 
-        let grade = profileService.currentProfile?.gradeLevel ?? "High School"
+        // Resolve grade to a human-readable string the AI can enforce (e.g. "1st Grade")
+        // Child accounts may store grade as "1" (numeric string) — normalize it.
+        let grade = resolvedGradeLabel(from: profileService.currentProfile?.gradeLevel)
         let location = profileService.currentProfile?.displayLocation ?? "US"
 
         var preferences: [String: Any] = [:]
@@ -266,5 +268,25 @@ class QuestionGenerationDataAdapter {
 
         debugPrint("   ✅ Final mixed topics: \(mixed)")
         return mixed
+    }
+
+    // MARK: - Grade Helpers
+
+    /// Converts stored gradeLevel string (may be "1", "1st Grade", or nil) to
+    /// the canonical label the AI engine understands (e.g. "1st Grade", "Kindergarten").
+    func resolvedGradeLabel(from gradeString: String?) -> String {
+        guard let raw = gradeString, !raw.isEmpty else { return "High School" }
+
+        // Already a recognised GradeLevel rawValue — e.g. "6th Grade"
+        if GradeLevel(rawValue: raw) != nil { return raw }
+
+        // Numeric string stored by FamilyService — e.g. "1", "6"
+        if let n = Int(raw.trimmingCharacters(in: .whitespaces)),
+           let level = GradeLevel.allCases.first(where: { $0.numericValue == n }) {
+            return level.rawValue   // returns "1st Grade", "2nd Grade", etc.
+        }
+
+        // Fallback — return as-is and let the backend handle it
+        return raw
     }
 }

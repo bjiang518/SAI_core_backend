@@ -48,6 +48,7 @@ struct NewPracticeSheet: View {
         case mathvista  = "mathvista"   // MathVista          (Gr3+, diff 2–5, ALL with figures)
         case arc        = "arc"         // ARC Science        (K–8,  diff 1–2)
         case scienceqa  = "scienceqa"   // ScienceQA          (K–8,  diff 1–3)
+        case kangaroo   = "kangaroo"    // Math Kangaroo      (Gr5+, diff 2–5, competition)
         case amcJunior  = "amcJunior"   // AMC 8              (Gr4–8, diff 2)
         case amcSenior  = "amcSenior"   // AMC 10/12          (Gr9+,  diff 3–4)
         case aime       = "aime"        // AIME               (Gr10+, diff 4–5)
@@ -63,6 +64,7 @@ struct NewPracticeSheet: View {
             case .mathvista: return "Visual Math 🖼"
             case .arc:       return "ARC Science"
             case .scienceqa: return "ScienceQA"
+            case .kangaroo:  return "Math Kangaroo 🦘"
             case .amcJunior: return "AMC 8"
             case .amcSenior: return "AMC 10/12"
             case .aime:      return "AIME"
@@ -78,6 +80,7 @@ struct NewPracticeSheet: View {
             case .mathvista: return "photo.on.rectangle"
             case .arc:       return "atom"
             case .scienceqa: return "flask.fill"
+            case .kangaroo:  return "hare.fill"
             case .amcJunior: return "trophy"
             case .amcSenior: return "trophy.fill"
             case .aime:      return "star.circle.fill"
@@ -93,6 +96,7 @@ struct NewPracticeSheet: View {
             case .mathvista: return ["mathvista"]
             case .arc:       return ["arc", "openbookqa"]
             case .scienceqa: return ["scienceqa"]
+            case .kangaroo:  return ["kangaroo"]
             case .amcJunior: return ["amc8"]
             case .amcSenior: return ["amc10", "amc12"]
             case .aime:      return ["aime"]
@@ -137,11 +141,12 @@ struct NewPracticeSheet: View {
                 var sources: [BankSource] = []
                 if g <= 8  { sources += [.gsm8k] }              // K–8: word problems
                 if g >= 3  { sources += [.mathvista] }           // Gr3+: visual math with figures (diff 2–5)
+                if g >= 5  { sources += [.kangaroo] }            // Gr5+: Math Kangaroo competition (diff 2–5)
                 if g >= 4 && g <= 8 { sources += [.amcJunior] } // Gr4–8: AMC 8
                 if g >= 7  { sources += [.mmlu] }               // Gr7+: MMLU
                 if g >= 9  { sources += [.sat, .amcSenior] }    // Gr9+: SAT, AMC 10/12
                 if g >= 10 { sources += [.aime] }               // Gr10+: AIME
-                if g > 8 && sources.isEmpty { sources = [.mathvista, .mmlu] }
+                if g > 8 && sources.isEmpty { sources = [.kangaroo, .mathvista, .mmlu] }
                 return sources
 
             case "biology", "physics", "chemistry":
@@ -292,7 +297,7 @@ struct NewPracticeSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button(NSLocalizedString("common.cancel", comment: "")) { dismiss() }
+                    XDismissButton { dismiss() }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { startSheetTutorial() }) {
@@ -546,20 +551,16 @@ struct NewPracticeSheet: View {
                     practiceMode = mode
                     if mode == .bank { selectedBankSources.removeAll() }
                 } }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: mode == .ai ? "sparkles" : "graduationcap.fill")
-                            .font(.subheadline)
-                        Text(mode == .ai
-                             ? NSLocalizedString("practice.mode.ai", value: "AI Practice", comment: "")
-                             : NSLocalizedString("practice.mode.bank", value: "Real Questions", comment: ""))
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                    }
-                    .foregroundColor(isSelected ? .white : .secondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background(isSelected ? selectedTab.color : Color.clear)
-                    .cornerRadius(10)
+                    Text(mode == .ai
+                         ? NSLocalizedString("practice.mode.ai", value: "AI Practice", comment: "")
+                         : NSLocalizedString("practice.mode.bank", value: "Real Questions", comment: ""))
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(isSelected ? .white : .secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(isSelected ? selectedTab.color : Color.clear)
+                        .cornerRadius(10)
                 }
                 .buttonStyle(PlainButtonStyle())
             }
@@ -777,7 +778,7 @@ struct NewPracticeSheet: View {
                 Text(questionService.isGenerating
                      ? NSLocalizedString("questionGeneration.generating", comment: "")
                      : practiceMode == .bank
-                       ? NSLocalizedString("practice.bank.retrieve", value: "Retrieve Questions", comment: "")
+                       ? NSLocalizedString("practice.bank.retrieve", value: "获取真题", comment: "")
                        : NSLocalizedString("questionGeneration.generateQuestions", comment: ""))
                     .font(.body.bold())
             }
@@ -853,11 +854,6 @@ struct NewPracticeSheet: View {
                 }
 
                 await MainActor.run {
-                    EventTracker.shared.track("practice_generated", [
-                        "subject": selectedSubject,
-                        "question_count": questionService.lastGeneratedQuestions.count,
-                        "mode": practiceMode == .bank ? "bank" : "ai",
-                    ])
                     dismiss()
                     onSessionCreated(session)
                 }

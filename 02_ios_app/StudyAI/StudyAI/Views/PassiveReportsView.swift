@@ -124,7 +124,7 @@ struct PassiveReportsView: View {
                 // Edit mode: Cancel button
                 if isEditMode {
                     ToolbarItem(placement: .navigationBarLeading) {
-                        Button(NSLocalizedString("common.cancel", value: "Cancel", comment: "")) {
+                        XDismissButton {
                             isEditMode = false
                             selectedBatches.removeAll()
                         }

@@ -12,7 +12,7 @@ const AuthHelper = require('../utils/auth-helper');
 const SessionHelper = require('../utils/session-helper');
 const tierCheck = require('../../../middleware/tier-check');
 const BehaviorAnalyzer = require('../utils/behavior-analyzer');
-const { MATH_FORMATTING_SYSTEM_PROMPT, buildSystemPrompt } = require('../utils/prompts');
+const { MATH_FORMATTING_SYSTEM_PROMPT, buildSystemPrompt, formatGradeLevel } = require('../utils/prompts');
 const PIIMasking = require('../../../../utils/pii-masking');
 const aiEngineCircuitBreaker = require('../../../../utils/ai-engine-client');
 const { v4: uuidv4 } = require('uuid');
@@ -309,7 +309,10 @@ class SessionManagementRoutes {
       const userProfile = await dbForProfile.getEnhancedUserProfile(authenticatedUserId).catch(() => null);
       const learningStyle = userProfile?.learning_style || 'heuristic';
       const studentName = userProfile?.display_name || userProfile?.first_name || null;
-      const gradeLevel = userProfile?.grade_level ?? null;
+      // Use iOS-supplied grade_level first (local, no DB lag), fall back to DB value
+      const gradeLevel = request.body?.grade_level
+        ? formatGradeLevel(request.body.grade_level)
+        : (userProfile?.grade_level ?? null);
 
       let systemPrompt = buildSystemPrompt({ style: learningStyle, studentName, gradeLevel });
       if (isMathSubject) {
@@ -470,7 +473,10 @@ class SessionManagementRoutes {
       const userProfile = await dbForProfile.getEnhancedUserProfile(authenticatedUserId).catch(() => null);
       const learningStyle = userProfile?.learning_style || 'heuristic';
       const studentName = userProfile?.display_name || userProfile?.first_name || null;
-      const gradeLevel = userProfile?.grade_level ?? null;
+      // Use iOS-supplied grade_level first (local, no DB lag), fall back to DB value
+      const gradeLevel = request.body?.grade_level
+        ? formatGradeLevel(request.body.grade_level)
+        : (userProfile?.grade_level ?? null);
 
       let systemPrompt = buildSystemPrompt({ style: learningStyle, studentName, gradeLevel });
       if (isMathSubject) {

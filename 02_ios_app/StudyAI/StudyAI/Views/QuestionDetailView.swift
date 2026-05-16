@@ -744,11 +744,6 @@ struct GeneratedQuestionDetailView: View {
         hasSubmitted = true
         let currentAnswer = getCurrentAnswer()
 
-        EventTracker.shared.track("question_answered", [
-            "subject": subject,
-            "question_type": currentQuestion.type.rawValue,
-        ])
-
         debugPrint("📝 [Generation] Submitting answer for question: \(currentQuestion.question.prefix(50))...")
         debugPrint("📝 [Generation] User answer: \(currentAnswer.prefix(100))")
         debugPrint("📝 [Generation] Correct answer: \(currentQuestion.correctAnswer.prefix(100))")
@@ -793,6 +788,12 @@ struct GeneratedQuestionDetailView: View {
             saveAnswer()
             let maxPoints = currentQuestion.points ?? 1
             onAnswerSubmitted?(isCorrect, maxPoints)
+            JourneyTracker.shared.track("question_answered", [
+                "subject": subject,
+                "question_type": currentQuestion.type.rawValue,
+                "correct": isCorrect,
+                "context": "archive_review"
+            ])
 
             return  // Skip AI grading
         }
@@ -856,6 +857,12 @@ struct GeneratedQuestionDetailView: View {
                     let maxPoints = currentQuestion.points ?? 1
                     let earnedPoints = Int(Double(maxPoints) * partialCredit)
                     onAnswerSubmitted?(isCorrect, earnedPoints)
+                    JourneyTracker.shared.track("question_answered", [
+                        "subject": subject,
+                        "question_type": currentQuestion.type.rawValue,
+                        "correct": isCorrect,
+                        "context": "archive_review"
+                    ])
 
                     // Haptic feedback
                     let generator = UINotificationFeedbackGenerator()

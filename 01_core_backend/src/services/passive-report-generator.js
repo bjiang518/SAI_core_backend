@@ -350,13 +350,15 @@ class PassiveReportGenerator {
                 reportDetails.push(`❌ Mental Health Report: ${error.message}`);
             }
 
-            // Report 4: Summary Report (depends on data from previous reports) (✅ Now period-aware)
+            // Step 4: Summary Report (depends on data from previous reports) (✅ Now period-aware)
             try {
                 logger.info(`   • Generating ${period} Summary Report...`);
 
                 // Fetch student data for summary synthesis
                 const questions = await this.fetchQuestionsForPeriod(userId, dateRange.startDate, dateRange.endDate);
                 const conversations = await this.fetchConversationsForPeriod(userId, dateRange.startDate, dateRange.endDate);
+                // Fetch knowledge tree snapshot — gracefully returns null if table missing or no data
+                const knowledgeTreeData = await this.fetchKnowledgeTreeData(userId, dateRange.startDate, dateRange.endDate);
 
                 const summaryHTML = await this.generateSummaryReport(
                     questions,
@@ -366,7 +368,8 @@ class PassiveReportGenerator {
                     userId,  // ✅ Pass userId for AI context
                     period,  // ✅ Pass period
                     dateRange.startDate,  // ✅ Pass startDate for AI context
-                    language  // ✅ Pass language for i18n
+                    language,  // ✅ Pass language for i18n
+                    knowledgeTreeData  // ✅ Knowledge tree — null-safe
                 );
 
                 if (summaryHTML) {
@@ -540,10 +543,59 @@ class PassiveReportGenerator {
     }
 
     /**
+     * Fetch the most recent knowledge tree snapshot per topic within the period.
+     * Returns null (never throws) so existing reports are never broken.
+     */
+    async fetchKnowledgeTreeData(userId, startDate, endDate) {
+        try {
+            const result = await db.query(`
+                SELECT DISTINCT ON (topic_key)
+                    topic_key, branch_name, topic_name, subject,
+                    weakness_value, accuracy, total_attempts, correct_attempts,
+                    error_types, is_practiced, is_mastered, last_attempt_at
+                FROM knowledge_tree_snapshots
+                WHERE user_id = $1
+                  AND synced_at >= $2 AND synced_at <= $3
+                ORDER BY topic_key, synced_at DESC
+            `, [userId, startDate, endDate]);
+
+            const topics = result.rows;
+            if (topics.length === 0) return null;   // No data yet — callers treat null as "feature not active"
+
+            const bySubject = {};
+            topics.forEach(t => {
+                if (!bySubject[t.subject]) {
+                    bySubject[t.subject] = { mastered: [], struggling: [], inProgress: [], unstarted: [] };
+                }
+                if (t.is_mastered) {
+                    bySubject[t.subject].mastered.push(t.topic_name || t.topic_key);
+                } else if (!t.is_practiced) {
+                    bySubject[t.subject].unstarted.push(t.topic_name || t.topic_key);
+                } else if (t.accuracy !== null && t.accuracy < 0.5 && t.total_attempts >= 3) {
+                    bySubject[t.subject].struggling.push(t.topic_name || t.topic_key);
+                } else {
+                    bySubject[t.subject].inProgress.push(t.topic_name || t.topic_key);
+                }
+            });
+
+            return {
+                totalPracticedTopics: topics.filter(t => t.is_practiced).length,
+                totalMasteredTopics:  topics.filter(t => t.is_mastered).length,
+                totalStrugglingTopics: topics.filter(t => !t.is_mastered && t.accuracy !== null && t.accuracy < 0.5 && t.total_attempts >= 3).length,
+                bySubject
+            };
+        } catch (err) {
+            // Table may not exist on older deployments — degrade gracefully
+            logger.warn(`⚠️ fetchKnowledgeTreeData skipped: ${err.message}`);
+            return null;
+        }
+    }
+
+    /**
      * Generate summary report by synthesizing data
      * ✅ UPDATED: Now period-aware and with AI insights
      */
-    async generateSummaryReport(questions, conversations, studentName, studentAge, userId, period = 'weekly', startDate = new Date(), language = 'en') {
+    async generateSummaryReport(questions, conversations, studentName, studentAge, userId, period = 'weekly', startDate = new Date(), language = 'en', knowledgeTreeData = null) {
         // Basic data structure for summary
         const activityData = {
             totalQuestions: questions.length,
@@ -587,7 +639,8 @@ class PassiveReportGenerator {
             userId,
             period,  // ✅ Pass period for context-aware language
             startDate,  // ✅ Pass startDate for AI context
-            language  // ✅ Pass language for i18n
+            language,  // ✅ Pass language for i18n
+            knowledgeTreeData  // ✅ Knowledge tree — null when not yet synced
         );
     }
 

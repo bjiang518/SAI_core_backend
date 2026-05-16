@@ -513,7 +513,7 @@
 "account.usage.resetsMonthly" = "配額每月1日更新";
 "account.usage.unlimited" = "無限制";
 "account.usage.upgradeLabel" = "升級";
-"account.usage.upgradePlan" = "升級方案";
+"account.usage.upgradePlan" = "查看並升級方案";
 "account.usage.restorePurchases" = "恢復購買";
 "account.usage.manageSubscription" = "管理訂閱";
 "account.usage.tierGuest" = "訪客帳戶";
@@ -1655,6 +1655,7 @@
 "mistakeTree.legend.mastered" = "已掌握";
 "mistakeTree.legend.untracked" = "未追蹤";
 "mistakeTree.empty" = "暫無知識點資料";
+"knowledgeTree.hint" = "每個分支有3個子分支，代表更深入的知識點";
 "mistakeTree.detail.accuracy" = "正確率";
 "mistakeTree.detail.attempts" = "練習次數";
 "mistakeTree.detail.correct" = "答對次數";
@@ -2057,6 +2058,7 @@
 "proMode.editImage" = "編輯圖片";
 "proMode.annotationImageHint" = "部分題目需要配圖 — 點擊裁剪照片";
 "proMode.aiAnalyzeDiagrams" = "使用AI自動定位圖表區域";
+"proMode.nextHomework" = "下一份作業";
 "proMode.selectAIModel" = "選擇AI模型";
 "proMode.revertGrading" = "撤銷批改";
 "proMode.revertGradingAlert.title" = "撤銷批改？";
@@ -3091,4 +3093,113 @@
 "common.remove" = "刪除";
 "guestConversion.loginSuccess" = "登入成功！";
 "dailyChallenge.bannerReady" = "今日3題已就緒";
+"dailyChallenge.goal.weakness" = "今日目標：挑戰 %d 個弱點";
+"dailyChallenge.goal.leaf" = "今日目標：點亮「%@」";
+"dailyChallenge.goal.normal" = "今日挑戰：%@ · 3 題";
+"dailyChallenge.achievement.leafLit" = "葉子已點亮！";
+"dailyChallenge.achievement.viewTree" = "查看知識樹";
+"dailyChallenge.achievement.weaknessConverted" = "消滅了 %d 個弱點！";
+"dailyChallenge.achievement.keepGoing" = "繼續保持，弱點正在減少";
+"dailyChallenge.firework.weaknessMulti" = "消滅了 %d 個弱點！";
+"dailyChallenge.firework.weaknessSingle" = "弱點已消滅！";
+"dailyChallenge.firework.weaknessSub" = "堅持練習，越來越強 💪";
 "practiceSheet.backToChat" = "← 返回對話";
+
+// MARK: - Light Up Knowledge Tree
+"lightUpTree.button.title" = "點亮知識樹";
+"lightUpTree.button.subtitle" = "%d 個知識點待練習";
+"lightUpTree.title" = "選擇知識點";
+"lightUpTree.selectAll" = "全選";
+"lightUpTree.deselectAll" = "取消全選";
+"lightUpTree.allLit.title" = "所有知識點已點亮！";
+"lightUpTree.allLit.message" = "目前科目的所有知識點都已有練習記錄，繼續保持！";
+"lightUpTree.selection.header" = "未點亮的知識點";
+"lightUpTree.selection.subheader" = "共 %d 個知識點尚未練習，選擇後將生成對應年級的練習題";
+"lightUpTree.config.title" = "題目設定";
+"lightUpTree.generate.selectFirst" = "請先選擇知識點";
+"lightUpTree.generate.button" = "生成 %d 題（已選 %d 個知識點）";
+"lightUpTree.generating" = "正在生成練習題…";
+"lightUpTree.error.sessionNotFound" = "無法取得練習題，請重試";
+"lightUpTree.selection.quotaHint" = "每道題對應一個知識點，最多可選 %d 個（已選 %d）";
+"lightUpTree.selection.limitReached" = "最多選 %d 個知識點（與題目數量相同）";
+"mistakeTree.detail.lightUp" = "點亮該知識點";
+
+// MARK: - Onboarding Age Groups
+"ageGroup.young.range" = "6-8歲";
+"ageGroup.young.stage" = "小學低年級";
+"ageGroup.elementary.range" = "9-12歲";
+"ageGroup.elementary.stage" = "小學高年級";
+"ageGroup.middle.range" = "13-15歲";
+"ageGroup.middle.stage" = "國中";
+"ageGroup.high.range" = "16-18歲";
+"ageGroup.high.stage" = "高中";
+"ageGroup.adult.range" = "18歲+";
+"ageGroup.adult.stage" = "大學及以上";
+
+// MARK: - Onboarding Age Step
+"onboarding.age.title.parent" = "孩子幾歲了？";
+"onboarding.age.yourAge" = "你的年齡";
+"onboarding.age.kidAge" = "孩子的年齡";
+"onboarding.age.selectAgeGroup" = "請選擇年齡階段";
+"onboarding.age.selectKidAgeGroup" = "請選擇孩子的年齡階段";
+"onboarding.age.recommendedGrade" = "推薦年級";
+"onboarding.age.selectGrade" = "請選擇年級";
+"onboarding.age.infoTitle" = "我們會根據你的選擇";
+"onboarding.age.infoSubtitle" = "提供更適合的學習內容與難度";
+
+// MARK: - Onboarding Learning Style
+"onboarding.learningStyle.recommended" = "推薦";
+"onboarding.learningStyle.tag.thinkingSkills" = "培養思維能力";
+"onboarding.learningStyle.tag.deepUnderstanding" = "深入理解";
+"onboarding.learningStyle.tag.longTermGrowth" = "長期成長";
+"onboarding.learningStyle.tag.efficient" = "快速高效";
+"onboarding.learningStyle.tag.saveTime" = "節省時間";
+"onboarding.learningStyle.tag.solveProblem" = "解決問題";
+"onboarding.learningStyle.infoBanner" = "你可以隨時更改";
+"onboarding.learningStyle.infoBannerSub" = "在設定中調整 AI 的幫助方式";
+
+// MARK: - Onboarding Consent
+"onboarding.consent.heroSubtitle" = "我們只使用必要的信息\n來提供 AI 學習服務";
+"onboarding.consent.dataProtection.title" = "我們如何保護你的數據";
+"onboarding.consent.privacy.title" = "隱私保護";
+"onboarding.consent.privacy.desc" = "你的問題和聊天記錄不會公開分享，僅用於提供學習幫助";
+"onboarding.consent.personalized.title" = "個性化學習";
+"onboarding.consent.personalized.desc" = "AI 會根據你的學習情況提供更適合的內容和建議";
+"onboarding.consent.parentFriendly.title" = "家長友好";
+"onboarding.consent.parentFriendly.desc" = "你可以隨時刪除數據或在設定中關閉 AI 功能";
+"onboarding.consent.aiDisclosure.title" = "AI 使用聲明";
+"onboarding.consent.aiDisclosure.expand" = "查看詳情";
+"onboarding.consent.aiDisclosure.collapse" = "收起";
+"onboarding.consent.encryption" = "所有數據均經過加密傳輸與存儲";
+"onboarding.consent.agreeSubtitle" = "你可以隨時在設定中更改你的選擇";
+"onboarding.consent.terms" = "繼續使用即表示你已閱讀並同意";
+
+// MARK: - Onboarding Trial
+"onboarding.trial.title" = "你的第一週免費";
+"onboarding.trial.subtitle" = "免費試用 Premium 7 天，下週才開始收費，隨時可取消。";
+"onboarding.trial.feature1" = "無限作業掃描";
+"onboarding.trial.feature2" = "500 條 AI 對話 / 月";
+"onboarding.trial.feature3" = "即時語音輔導";
+"onboarding.trial.cta" = "開始 7 天免費試用";
+
+// MARK: - Account Usage
+"account.usage.subtitle" = "查看你的使用情況，解鎖更多 StudyAgent 功能。";
+"account.usage.yourUsage" = "我的使用情況";
+"account.usage.resetsMonthEnd" = "每月底重置";
+"account.usage.unlockTitle" = "解鎖無限存取權限";
+"account.usage.unlockSubtitle" = "升級到 Premium 或 Ultra，讓學習更高效。";
+"account.usage.viewPlans" = "查看方案";
+
+// MARK: - Upgrade Comparison
+"upgrade.comparison.trialBadge" = "7天免費試用  •  隨時取消";
+"upgrade.comparison.headerLine1" = "升級你的";
+"onboarding.trial.skip" = "稍後再說";
+"chat.practiceConfig.title" = "練習此話題";
+"questionGeneration.generate" = "生成練習題";
+"archive.followUpWithAI" = "繼續向 AI 提問";
+"practice.beta.badge" = "Beta";
+"practice.beta.message" = "題庫建設中";
+"practice.mode.ai" = "AI 生成題目";
+"practice.mode.bank" = "真題庫";
+"proMode.oneMistake" = "1 個錯誤";
+"proMode.nMistakes" = "%d 個錯誤";

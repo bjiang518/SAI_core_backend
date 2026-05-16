@@ -38,16 +38,31 @@ final class TaxonomyService {
         }
     }
 
-    /// Returns all subjects that have a taxonomy JSON for the current user's grade.
+    /// Returns subjects that have at least one grade-appropriate topic for the current user.
     func availableSubjects() -> [SubjectMistakeCount] {
+        let grade = currentGrade()
         let candidates: [(name: String, icon: String)] = [
-            ("Mathematics",  "function"),
-            ("English",      "textformat.abc"),
-            ("Science",      "atom"),
-            ("General",      "graduationcap.fill")
+            ("Math",             "function"),
+            ("English",          "textformat.abc"),
+            ("Science",          "atom"),
+            ("Biology",          "leaf.fill"),
+            ("Chemistry",        "flame.fill"),
+            ("Physics",          "bolt.fill"),
+            ("History",          "book.closed.fill"),
+            ("Geography",        "globe.americas.fill"),
+            ("Computer Science", "desktopcomputer"),
+            ("Chinese",          "character.book.closed.fill"),
+            ("Spanish",          "globe.europe.africa.fill"),
+            ("General",          "graduationcap.fill")
         ]
         return candidates.compactMap { entry in
             guard TaxonomyService.taxonomyFilename(for: entry.name) != nil else { return nil }
+            // Only include subjects that have at least one topic for this grade
+            let raw = loadTaxonomy(subject: entry.name)
+            let hasContent = raw.branches.contains { branch in
+                branch.topics.contains { $0.gradeMin <= grade && grade <= $0.gradeMax }
+            }
+            guard hasContent else { return nil }
             return SubjectMistakeCount(subject: entry.name, mistakeCount: 0, icon: entry.icon)
         }
     }
@@ -55,20 +70,46 @@ final class TaxonomyService {
     /// Subject name → JSON filename mapping
     static func taxonomyFilename(for subject: String) -> String? {
         let lower = subject.lowercased()
-        if lower.contains("math") || lower.contains("数学")   { return "math_taxonomy" }
-        if lower.contains("english") || lower.contains("英语") { return "english_taxonomy" }
-        if lower.contains("science") || lower.contains("物理") ||
-           lower.contains("化学") || lower.contains("生物")    { return "science_taxonomy" }
-        if lower.contains("general") || lower.contains("综合")  { return "general_taxonomy" }
+        if lower.contains("math")                                                          { return "math_taxonomy" }
+        if lower.contains("english") || lower.contains("ela") || lower.contains("英语")   { return "english_taxonomy" }
+        if lower.contains("physics") || lower.contains("物理")                             { return "physics_taxonomy" }
+        if lower.contains("chemistry") || lower.contains("chem") || lower.contains("化学") { return "chemistry_taxonomy" }
+        if lower.contains("biology") || lower.contains("bio") || lower.contains("生物")    { return "biology_taxonomy" }
+        if lower.contains("history") || lower.contains("历史")                             { return "history_taxonomy" }
+        if lower.contains("geography") || lower.contains("geo") || lower.contains("地理")  { return "geography_taxonomy" }
+        if lower.contains("computer") || lower.contains("coding") || lower.contains("cs") { return "compsci_taxonomy" }
+        if lower.contains("chinese") || lower.contains("语文") || lower.contains("中文")   { return "chinese_taxonomy" }
+        if lower.contains("spanish") || lower.contains("español")                         { return "spanish_taxonomy" }
+        if lower.contains("science") || lower.contains("科学")                             { return "science_taxonomy" }
+        if lower.contains("general") || lower.contains("综合")                             { return "general_taxonomy" }
         return nil
     }
 
     // MARK: - Helpers
 
     private func currentGrade() -> Int {
-        guard let gradeString = ProfileService.shared.currentProfile?.gradeLevel,
-              let level = GradeLevel(rawValue: gradeString) else { return 6 }  // default grade 6
-        return level.numericValue
+        guard let gradeString = ProfileService.shared.currentProfile?.gradeLevel else { return 6 }
+
+        // Format 1: matches GradeLevel rawValue exactly — e.g. "6th Grade"
+        if let level = GradeLevel(rawValue: gradeString) {
+            return level.numericValue
+        }
+
+        // Format 2: child accounts store grade as a numeric string — e.g. "6" or "1"
+        if let n = Int(gradeString.trimmingCharacters(in: .whitespaces)),
+           let level = GradeLevel.allCases.first(where: { $0.numericValue == n }) {
+            return level.numericValue
+        }
+
+        // Format 3: FamilyService may also pass the display label — e.g. "Grade 6" or "6th"
+        let lower = gradeString.lowercased()
+        if let level = GradeLevel.allCases.first(where: {
+            lower.contains($0.displayName.lowercased()) || lower == "\($0.numericValue)"
+        }) {
+            return level.numericValue
+        }
+
+        return 6  // safe default
     }
 
     private func loadTaxonomy(subject: String) -> SubjectTaxonomyJSON {

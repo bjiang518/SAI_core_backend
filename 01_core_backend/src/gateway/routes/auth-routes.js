@@ -2733,7 +2733,7 @@ The Study Mates Team
 
     try {
       const userId = request.user.id;
-      await db.setUserTier(userId, tier, null);
+      await db.setUserTier(userId, tier, null, 'dev_override');
 
       // Reset usage counters so testers start fresh on each tier
       const { usageTracker } = require('../routes/ai/utils/usage-tracker');

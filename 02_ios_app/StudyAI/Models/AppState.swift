@@ -129,6 +129,14 @@ class AppState: ObservableObject {
     /// Set to true to open PointsShopView (Earn tab) after sheet/view dismissal.
     @Published var shouldOpenPointsShop = false
 
+    /// Set to true to jump to Grader tab and immediately open the camera.
+    @Published var shouldOpenGraderCamera = false
+
+    /// Parameters for opening MistakeReviewView at a specific subject + knowledge tree tab.
+    /// Set both before setting shouldOpenMistakeReview.
+    @Published var pendingMistakeReviewSubject: String? = nil
+    @Published var pendingMistakeReviewShowKnowledgeTree: Bool = false
+
     /// Power Saving Mode - disables all animations when enabled
     @Published var isPowerSavingMode: Bool {        didSet {
             UserDefaults.standard.set(isPowerSavingMode, forKey: "isPowerSavingMode")
@@ -215,5 +223,14 @@ class AppState: ObservableObject {
     func clearDeepModeFlag() {
         print("🧠 APPSTATE: Clearing deep mode flag")
         shouldUseDeepModeForFirstMessage = false
+    }
+
+    /// Navigate to the knowledge tree tab for a specific subject.
+    func navigateToKnowledgeTree(subject: String) {
+        pendingMistakeReviewSubject = subject
+        pendingMistakeReviewShowKnowledgeTree = true
+        shouldDismissPracticeStack = true
+        selectedTab = .home
+        shouldOpenMistakeReview = true
     }
 }

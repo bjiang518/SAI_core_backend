@@ -14,12 +14,14 @@ public struct ProgressiveSubquestion: Codable, Identifiable {
     public let studentAnswer: String
     public let questionType: String?
     public let needImage: Bool?
+    public let workingSteps: [String]?
 
     public enum CodingKeys: String, CodingKey {
         case id
-        case questionText = "question_text"
+        case questionText  = "question_text"
         case studentAnswer = "student_answer"
-        case questionType = "question_type"
-        case needImage = "need_image"
+        case questionType  = "question_type"
+        case needImage     = "need_image"
+        case workingSteps  = "working_steps"
     }
 }

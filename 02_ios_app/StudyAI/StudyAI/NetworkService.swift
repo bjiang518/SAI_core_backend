@@ -985,6 +985,21 @@ class NetworkService: ObservableObject {
             "subject": subject,
             "language": effectiveLanguage,  // Pass user's language preference
         ]
+        // Pass local grade so the session system prompt uses it immediately.
+        // For child accounts: read ChildLocalProfile.gradeLevel first (no DB lag after switch).
+        // For regular accounts: read ProfileService.currentProfile.
+        let localGrade: String? = {
+            if UserDefaults.standard.bool(forKey: "isChildSessionActive"),
+               let childId = AuthenticationService.shared.currentUser?.id {
+                let childData = UserDefaults.standard.data(forKey: "child_local_\(childId)")
+                let childLocal = childData.flatMap { try? JSONDecoder().decode(ChildLocalProfile.self, from: $0) }
+                if let g = childLocal?.gradeLevel, !g.isEmpty { return g }
+            }
+            return ProfileService.shared.currentProfile?.gradeLevel
+        }()
+        if let grade = localGrade, !grade.isEmpty {
+            sessionData["grade_level"] = grade
+        }
         if let messages = initialMessages, !messages.isEmpty {
             sessionData["initialMessages"] = messages
         }
@@ -1022,7 +1037,8 @@ class NetworkService: ObservableObject {
                             // conversationHistory already cleared by willSet above — no-op:
                             self.conversationHistory.removeAll()
                         }
-                        
+
+                        JourneyTracker.shared.track("chat_opened", ["subject": subject])
                         return (true, sessionId, "Session created successfully")
                     }
                 } else if httpResponse.statusCode == 401 {
@@ -2953,7 +2969,8 @@ class NetworkService: ObservableObject {
 
         var requestData: [String: Any] = [
             "base64_image": base64Image,
-            "parsing_mode": parsingMode
+            "parsing_mode": parsingMode,
+            "language": effectiveLanguage
         ]
 
         // Add Pro Mode parameters if provided
@@ -3062,6 +3079,12 @@ class NetworkService: ObservableObject {
         debugPrint("📚 Subject: \(parseResponse.subject) (confidence: \(parseResponse.subjectConfidence))")
         debugPrint("📊 Questions found: \(parseResponse.totalQuestions)")
         debugPrint("🖼️ Questions with images: \(parseResponse.questions.filter { $0.hasImage == true }.count)")
+
+        JourneyTracker.shared.track("homework_submitted", [
+            "subject": parseResponse.subject,
+            "question_count": parseResponse.totalQuestions,
+            "parsing_mode": parsingMode
+        ])
 
         return parseResponse
     }
@@ -3217,7 +3240,9 @@ class NetworkService: ObservableObject {
         questionType: String? = nil,
         contextImageBase64: String? = nil,
         parentQuestionContent: String? = nil,
-        useDeepReasoning: Bool = false
+        useDeepReasoning: Bool = false,
+        workingSteps: [String]? = nil,
+        teacherMark: [String: Any]? = nil
     ) async throws -> GradeSingleQuestionResponse {
 
         guard let url = URL(string: "\(baseURL)/api/ai/grade-question") else {
@@ -3260,6 +3285,14 @@ class NetworkService: ObservableObject {
 
         if let parentContent = parentQuestionContent {
             requestData["parent_question_content"] = parentContent
+        }
+
+        // New (v2): send working steps and teacher mark if available
+        if let steps = workingSteps, !steps.isEmpty {
+            requestData["working_steps"] = steps
+        }
+        if let mark = teacherMark {
+            requestData["teacher_mark"] = mark
         }
 
         request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
@@ -3345,6 +3378,15 @@ class NetworkService: ObservableObject {
             debugPrint("⚠️ Error: \(error)")
         }
         debugPrint(String(repeating: "=", count: 80) + "\n")
+
+        if let grade = gradeResponse.grade {
+            JourneyTracker.shared.track("homework_graded", [
+                "subject": subject ?? "unknown",
+                "is_correct": grade.isCorrect,
+                "score": grade.score,
+                "mode": useDeepReasoning ? "deep" : "fast"
+            ])
+        }
 
         return gradeResponse
     }
@@ -6545,6 +6587,67 @@ class NetworkService: ObservableObject {
         } catch {
             return (false, error.localizedDescription)
         }
+    }
+
+    // MARK: - Journey Event Ingestion
+
+    func sendJourneyEvents(_ events: [[String: Any]]) async throws {
+        guard let url = URL(string: "\(baseURL)/api/events/batch") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 15
+        if let token = AuthenticationService.shared.getAuthToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["events": events])
+        let (_, response) = try await URLSession.shared.data(for: request)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+            throw URLError(.badServerResponse)
+        }
+    }
+
+    // MARK: - Knowledge Tree Sync
+
+    /// Syncs active weaknesses for a subject to the backend knowledge_tree_snapshots table.
+    /// Fire-and-forget safe: errors are swallowed so callers don't need to handle them.
+    func syncKnowledgeTreeSnapshot(subject: String) async throws {
+        let weaknesses = ShortTermStatusService.shared.status.activeWeaknesses
+        let subjectWeaknesses = weaknesses.filter { $0.key.hasPrefix(subject) }
+        guard !subjectWeaknesses.isEmpty else { return }
+
+        let iso = ISO8601DateFormatter()
+        let snapshots: [[String: Any]] = subjectWeaknesses.map { key, wv in
+            let parts = key.split(separator: "/")
+            return [
+                "topic_key":        key,
+                "branch_name":      parts.count > 1 ? String(parts[1]) : "",
+                "topic_name":       parts.count > 2 ? String(parts[2]) : "",
+                "weakness_value":   wv.value,
+                "accuracy":         wv.accuracy,
+                "total_attempts":   wv.totalAttempts,
+                "correct_attempts": wv.correctAttempts,
+                "error_types":      wv.recentErrorTypes,
+                "is_practiced":     wv.totalAttempts > 0,
+                "is_mastered":      wv.value <= 0,
+                "first_detected_at": iso.string(from: wv.firstDetected),
+                "last_attempt_at":   iso.string(from: wv.lastAttempt)
+            ]
+        }
+
+        guard let url = URL(string: "\(baseURL)/api/progress/knowledge-tree/sync") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 15
+        if let token = AuthenticationService.shared.getAuthToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        request.httpBody = try JSONSerialization.data(withJSONObject: [
+            "subject": subject,
+            "snapshots": snapshots
+        ])
+        _ = try await URLSession.shared.data(for: request)
     }
 }
 

@@ -96,7 +96,7 @@ struct EditChildView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button(NSLocalizedString("common.cancel", value: "Cancel", comment: "")) { dismiss() }
+                    XDismissButton { dismiss() }
                 }
             }
             .sheet(isPresented: $showingAvatarPicker) {
@@ -498,7 +498,7 @@ struct EditChildView: View {
         isSaving = true
         errorMessage = nil
 
-        // Always persist local profile (age, gender, language, subjects, learningStyle, avatar)
+        // Always persist local profile (age, gender, language, subjects, learningStyle, avatar, grade)
         var local = ChildLocalProfile()
         local.age = Int(ageText.trimmingCharacters(in: .whitespaces))
         local.gender = gender
@@ -506,6 +506,7 @@ struct EditChildView: View {
         local.subjects = Array(subjects)
         local.learningStyle = learningStyle
         local.avatarId = avatarId
+        local.gradeLevel = selectedGrade.map { String($0.integerValue) }  // save grade locally too
         FamilyService.shared.saveChildLocalProfile(local, childId: child.id)
 
         // Patch name + grade to server

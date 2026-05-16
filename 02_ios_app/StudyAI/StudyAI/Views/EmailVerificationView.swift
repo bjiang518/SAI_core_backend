@@ -56,10 +56,9 @@ struct EmailVerificationView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button(NSLocalizedString("common.cancel", comment: "")) {
+                    XDismissButton {
                         dismiss()
                     }
-                    .font(.headline)
                 }
             }
             .onTapGesture {

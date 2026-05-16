@@ -44,7 +44,7 @@ struct QuestionArchiveView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button(NSLocalizedString("common.cancel", comment: "")) {
+                    XDismissButton {
                         presentationMode.wrappedValue.dismiss()
                     }
                 }

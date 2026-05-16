@@ -352,7 +352,7 @@ struct ChangeAccountPasswordView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(NSLocalizedString("common.cancel", comment: "")) {
+                    XDismissButton {
                         dismiss()
                     }
                 }
@@ -436,7 +436,7 @@ struct SetParentPasswordView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(NSLocalizedString("common.cancel", comment: "")) {
+                    XDismissButton {
                         dismiss()
                     }
                 }
@@ -543,7 +543,7 @@ struct ChangeParentPasswordView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(NSLocalizedString("common.cancel", comment: "")) {
+                    XDismissButton {
                         dismiss()
                     }
                 }
@@ -650,7 +650,7 @@ struct RemoveParentPasswordView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(NSLocalizedString("common.cancel", comment: "")) {
+                    XDismissButton {
                         dismiss()
                     }
                 }
@@ -716,7 +716,7 @@ struct ForgotParentPINView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button(NSLocalizedString("common.cancel", comment: "")) {
+                    XDismissButton {
                         dismiss()
                     }
                 }

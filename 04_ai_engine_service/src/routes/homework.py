@@ -87,6 +87,8 @@ class ProgressiveSubquestion(BaseModel):
     student_answer: str
     question_type: Optional[str] = "short_answer"
     need_image: Optional[bool] = None
+    working_steps: Optional[List[str]] = None
+    teacher_mark: Optional[dict] = None
 
 
 class ParsedQuestion(BaseModel):
@@ -99,6 +101,9 @@ class ParsedQuestion(BaseModel):
     subquestions: Optional[List['ProgressiveSubquestion']] = None
     question_text: Optional[str] = None
     student_answer: Optional[str] = None
+    # New (v2): intermediate steps and teacher corrections
+    working_steps: Optional[List[str]] = None
+    teacher_mark: Optional[dict] = None
     question_type: Optional[str] = None
     need_image: Optional[bool] = None
 
@@ -114,6 +119,7 @@ class ParseHomeworkQuestionsRequest(BaseModel):
     skip_bbox_detection: Optional[bool] = False
     expected_questions: Optional[List[int]] = None
     model_provider: Optional[str] = "openai"
+    language: Optional[str] = "en"
 
 
 class ParseHomeworkQuestionsMultiRequest(BaseModel):
@@ -198,6 +204,20 @@ class GradeSingleQuestionRequest(BaseModel):
     model_provider: Optional[str] = "openai"
     use_deep_reasoning: bool = False
     language: Optional[str] = "en"
+    # New (v2): optional — absent for old iOS clients, ignored if not provided
+    working_steps: Optional[List[str]] = None
+    teacher_mark: Optional[dict] = None
+
+
+class StepAnalysis(BaseModel):
+    """Structured rubric evaluation of student working steps. All fields nullable."""
+    strategy_quality:    Optional[str] = None  # "optimal"|"valid"|"suboptimal"|"flawed"
+    first_error_step:    Optional[int] = None  # 0-based index; null = no error
+    missing_steps:       Optional[str] = None
+    computational_error: Optional[str] = None
+    logical_gap:         Optional[str] = None
+    formula_misuse:      Optional[str] = None
+    error_type:          Optional[str] = None  # "conceptual_gap"|"procedural_error"|"computational_slip"
 
 
 class GradeResult(BaseModel):
@@ -206,6 +226,8 @@ class GradeResult(BaseModel):
     feedback: str
     confidence: float
     correct_answer: Optional[str] = None
+    # Optional: only present when working_steps were provided (v2)
+    step_analysis: Optional[StepAnalysis] = None
 
 
 class GradeSingleQuestionResponse(BaseModel):
@@ -431,7 +453,8 @@ async def parse_homework_questions(request: ParseHomeworkQuestionsRequest):
             base64_image=request.base64_image,
             parsing_mode=request.parsing_mode,
             skip_bbox_detection=True,
-            expected_questions=request.expected_questions
+            expected_questions=request.expected_questions,
+            language=request.language or "en"
         )
 
         t2 = _time.time()
@@ -467,6 +490,34 @@ async def parse_homework_questions(request: ParseHomeworkQuestionsRequest):
         post_ms = int((_time.time() - t3) * 1000)
         q_count = result.get("total_questions", 0)
         logger.info(f"[TIMING] ■ PARSE DONE | gemini={gemini_ms}ms post_process={post_ms}ms total={processing_time}ms questions={q_count}")
+
+        # Log working_steps / teacher_mark presence for each parsed question
+        for q in questions:
+            q_dict = q if isinstance(q, dict) else (q.model_dump() if hasattr(q, 'model_dump') else vars(q))
+            qid = q_dict.get("id", "?")
+            steps = q_dict.get("working_steps") or []
+            mark  = q_dict.get("teacher_mark")
+            ans   = (q_dict.get("student_answer") or "")[:60]
+            logger.warning(
+                f"[PARSE] Q{qid} answer='{ans}' | "
+                f"working_steps={'YES('+str(len(steps))+')' if steps else 'NONE'} "
+                f"teacher_mark={'YES' if mark else 'NONE'}"
+            )
+            if steps:
+                logger.warning(f"[PARSE] Q{qid} steps: {steps}")
+            if mark:
+                logger.warning(f"[PARSE] Q{qid} teacher_mark: {mark}")
+            for sq in (q_dict.get("subquestions") or []):
+                sq_dict = sq if isinstance(sq, dict) else (sq.model_dump() if hasattr(sq, 'model_dump') else vars(sq))
+                sqid  = sq_dict.get("id", "?")
+                ssteps = sq_dict.get("working_steps") or []
+                smark  = sq_dict.get("teacher_mark")
+                sans   = (sq_dict.get("student_answer") or "")[:60]
+                logger.warning(
+                    f"[PARSE]  └Q{sqid} answer='{sans}' | "
+                    f"working_steps={'YES('+str(len(ssteps))+')' if ssteps else 'NONE'} "
+                    f"teacher_mark={'YES' if smark else 'NONE'}"
+                )
 
         return ParseHomeworkQuestionsResponse(
             success=True,
@@ -684,6 +735,19 @@ async def grade_single_question(request: GradeSingleQuestionRequest):
         # Gemini only handles deep reasoning; standard grading always uses OpenAI
         selected_service = gemini_service if (request.model_provider == "gemini" and request.use_deep_reasoning) else ai_service
 
+        # Log incoming grading request
+        has_steps   = bool(request.working_steps)
+        has_mark    = bool(request.teacher_mark)
+        steps_count = len(request.working_steps) if request.working_steps else 0
+        logger.warning(
+            f"[GRADE] START subject={request.subject} type={request.question_type} "
+            f"deep={request.use_deep_reasoning} working_steps={steps_count} teacher_mark={has_mark}"
+        )
+        if has_steps:
+            logger.warning(f"[GRADE] working_steps: {request.working_steps}")
+        if has_mark:
+            logger.warning(f"[GRADE] teacher_mark: {request.teacher_mark}")
+
         result = await selected_service.grade_single_question(
             question_text=request.question_text,
             student_answer=request.student_answer,
@@ -693,7 +757,9 @@ async def grade_single_question(request: GradeSingleQuestionRequest):
             context_image=request.context_image_base64,
             parent_content=request.parent_question_content,
             use_deep_reasoning=request.use_deep_reasoning,
-            language=request.language or "en"
+            language=request.language or "en",
+            working_steps=request.working_steps,
+            teacher_mark=request.teacher_mark,
         )
 
         if not result["success"]:
@@ -701,6 +767,34 @@ async def grade_single_question(request: GradeSingleQuestionRequest):
 
         processing_time = int((_time.time() - start_time) * 1000)
         grade_data = result.get("grade", {})
+
+        # Log grade result
+        score    = grade_data.get("score", 0.0)
+        correct  = grade_data.get("is_correct", False)
+        sa       = grade_data.get("step_analysis") or {}
+        feedback = grade_data.get("feedback", "")[:120]
+        logger.warning(
+            f"[GRADE] DONE score={score:.2f} correct={correct} "
+            f"strategy={sa.get('strategy_quality')} first_error={sa.get('first_error_step')} "
+            f"error_type={sa.get('error_type')} time={processing_time}ms"
+        )
+        logger.warning(f"[GRADE] feedback: {feedback}")
+        if sa:
+            logger.warning(f"[GRADE] step_analysis: {sa}")
+
+        # Build StepAnalysis if present
+        step_analysis_obj = None
+        if sa:
+            step_analysis_obj = StepAnalysis(
+                strategy_quality    = sa.get("strategy_quality"),
+                first_error_step    = sa.get("first_error_step"),
+                missing_steps       = sa.get("missing_steps"),
+                computational_error = sa.get("computational_error"),
+                logical_gap         = sa.get("logical_gap"),
+                formula_misuse      = sa.get("formula_misuse"),
+                error_type          = sa.get("error_type"),
+            )
+
         return GradeSingleQuestionResponse(
             success=True,
             grade=GradeResult(
@@ -708,7 +802,8 @@ async def grade_single_question(request: GradeSingleQuestionRequest):
                 is_correct=grade_data.get("is_correct", False),
                 feedback=grade_data.get("feedback", ""),
                 confidence=grade_data.get("confidence", 0.5),
-                correct_answer=grade_data.get("correct_answer")
+                correct_answer=grade_data.get("correct_answer"),
+                step_analysis=step_analysis_obj,
             ),
             processing_time_ms=processing_time,
             error=None

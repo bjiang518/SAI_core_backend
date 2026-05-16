@@ -1,0 +1,137 @@
+{
+  "subject": "Geography",
+  "branches": [
+    {
+      "id": "map_skills_geographic_tools",
+      "name": "Map Skills & Geographic Tools",
+      "topics": [
+        { "id": "map_reading_interpretation",    "name": "Map Reading & Interpretation",      "gradeMin": 1, "gradeMax": 12 },
+        { "id": "latitude_longitude",            "name": "Latitude & Longitude",              "gradeMin": 3, "gradeMax": 12 },
+        { "id": "map_scale_distance",            "name": "Map Scale & Distance",              "gradeMin": 3, "gradeMax": 12 },
+        { "id": "map_projections",               "name": "Map Projections",                   "gradeMin": 5, "gradeMax": 12 },
+        { "id": "compass_direction",             "name": "Compass & Direction",               "gradeMin": 1, "gradeMax": 8 },
+        { "id": "topographic_maps",              "name": "Topographic Maps",                  "gradeMin": 5, "gradeMax": 12 },
+        { "id": "thematic_maps",                 "name": "Thematic Maps",                     "gradeMin": 5, "gradeMax": 12 }
+      ]
+    },
+    {
+      "id": "physical_geography_landforms",
+      "name": "Physical Geography - Landforms",
+      "topics": [
+        { "id": "plate_tectonics",               "name": "Plate Tectonics",                   "gradeMin": 5, "gradeMax": 12 },
+        { "id": "mountains_valleys",             "name": "Mountains & Valleys",               "gradeMin": 3, "gradeMax": 12 },
+        { "id": "plains_plateaus",               "name": "Plains & Plateaus",                 "gradeMin": 3, "gradeMax": 12 },
+        { "id": "coastal_features",              "name": "Coastal Features",                  "gradeMin": 4, "gradeMax": 12 },
+        { "id": "erosion_weathering",            "name": "Erosion & Weathering",              "gradeMin": 4, "gradeMax": 12 },
+        { "id": "glaciers_ice_features",         "name": "Glaciers & Ice Features",           "gradeMin": 5, "gradeMax": 12 },
+        { "id": "deserts_dunes",                 "name": "Deserts & Dunes",                   "gradeMin": 4, "gradeMax": 12 }
+      ]
+    },
+    {
+      "id": "physical_geography_climate_weather",
+      "name": "Physical Geography - Climate & Weather",
+      "topics": [
+        { "id": "climate_zones_regions",         "name": "Climate Zones & Regions",           "gradeMin": 3, "gradeMax": 12 },
+        { "id": "temperature_precipitation_patterns","name": "Temperature & Precipitation Patterns","gradeMin": 4, "gradeMax": 12 },
+        { "id": "wind_air_circulation",          "name": "Wind & Air Circulation",            "gradeMin": 6, "gradeMax": 12 },
+        { "id": "climate_change_global_warming", "name": "Climate Change & Global Warming",   "gradeMin": 5, "gradeMax": 12 },
+        { "id": "natural_disasters",             "name": "Natural Disasters",                 "gradeMin": 3, "gradeMax": 12 },
+        { "id": "seasons_solar_energy",          "name": "Seasons & Solar Energy",            "gradeMin": 2, "gradeMax": 8 }
+      ]
+    },
+    {
+      "id": "physical_geography_water_systems",
+      "name": "Physical Geography - Water Systems",
+      "topics": [
+        { "id": "oceans_seas",                   "name": "Oceans & Seas",                     "gradeMin": 3, "gradeMax": 12 },
+        { "id": "rivers_lakes",                  "name": "Rivers & Lakes",                    "gradeMin": 3, "gradeMax": 12 },
+        { "id": "watersheds_drainage_basins",    "name": "Watersheds & Drainage Basins",      "gradeMin": 5, "gradeMax": 12 },
+        { "id": "groundwater_aquifers",          "name": "Groundwater & Aquifers",            "gradeMin": 6, "gradeMax": 12 },
+        { "id": "water_cycle",                   "name": "Water Cycle",                       "gradeMin": 2, "gradeMax": 8 },
+        { "id": "coastal_processes",             "name": "Coastal Processes",                 "gradeMin": 6, "gradeMax": 12 }
+      ]
+    },
+    {
+      "id": "human_geography_population",
+      "name": "Human Geography - Population",
+      "topics": [
+        { "id": "population_distribution_density","name": "Population Distribution & Density", "gradeMin": 5, "gradeMax": 12 },
+        { "id": "population_growth_demographics","name": "Population Growth & Demographics",   "gradeMin": 6, "gradeMax": 12 },
+        { "id": "migration_patterns",            "name": "Migration Patterns",                "gradeMin": 5, "gradeMax": 12 },
+        { "id": "urbanization",                  "name": "Urbanization",                      "gradeMin": 6, "gradeMax": 12 },
+        { "id": "rural_vs_urban",                "name": "Rural vs Urban",                    "gradeMin": 5, "gradeMax": 12 },
+        { "id": "population_pyramids",           "name": "Population Pyramids",               "gradeMin": 7, "gradeMax": 12 }
+      ]
+    },
+    {
+      "id": "human_geography_culture_society",
+      "name": "Human Geography - Culture & Society",
+      "topics": [
+        { "id": "cultural_regions_diffusion",    "name": "Cultural Regions & Diffusion",      "gradeMin": 5, "gradeMax": 12 },
+        { "id": "language_geography",            "name": "Language Geography",                "gradeMin": 6, "gradeMax": 12 },
+        { "id": "religion_belief_systems",       "name": "Religion & Belief Systems",         "gradeMin": 6, "gradeMax": 12 },
+        { "id": "ethnicity_identity",            "name": "Ethnicity & Identity",              "gradeMin": 7, "gradeMax": 12 },
+        { "id": "cultural_landscapes",           "name": "Cultural Landscapes",               "gradeMin": 6, "gradeMax": 12 },
+        { "id": "food_agriculture_culture",      "name": "Food & Agriculture Culture",        "gradeMin": 5, "gradeMax": 12 }
+      ]
+    },
+    {
+      "id": "human_geography_economic",
+      "name": "Human Geography - Economic",
+      "topics": [
+        { "id": "economic_systems_development",  "name": "Economic Systems & Development",    "gradeMin": 6, "gradeMax": 12 },
+        { "id": "agriculture_farming",           "name": "Agriculture & Farming",             "gradeMin": 3, "gradeMax": 12 },
+        { "id": "industry_manufacturing",        "name": "Industry & Manufacturing",          "gradeMin": 6, "gradeMax": 12 },
+        { "id": "trade_globalization",           "name": "Trade & Globalization",             "gradeMin": 7, "gradeMax": 12 },
+        { "id": "natural_resources",             "name": "Natural Resources",                 "gradeMin": 4, "gradeMax": 12 },
+        { "id": "economic_inequality",           "name": "Economic Inequality",               "gradeMin": 8, "gradeMax": 12 }
+      ]
+    },
+    {
+      "id": "political_geography",
+      "name": "Political Geography",
+      "topics": [
+        { "id": "countries_borders",             "name": "Countries & Borders",               "gradeMin": 3, "gradeMax": 12 },
+        { "id": "political_systems",             "name": "Political Systems",                 "gradeMin": 7, "gradeMax": 12 },
+        { "id": "geopolitical_conflicts",        "name": "Geopolitical Conflicts",            "gradeMin": 8, "gradeMax": 12 },
+        { "id": "international_relations",       "name": "International Relations",           "gradeMin": 9, "gradeMax": 12 },
+        { "id": "sovereignty_territory",         "name": "Sovereignty & Territory",           "gradeMin": 8, "gradeMax": 12 }
+      ]
+    },
+    {
+      "id": "regional_geography_continents",
+      "name": "Regional Geography - Continents",
+      "topics": [
+        { "id": "north_america",                 "name": "North America",                     "gradeMin": 3, "gradeMax": 12 },
+        { "id": "south_america",                 "name": "South America",                     "gradeMin": 4, "gradeMax": 12 },
+        { "id": "europe",                        "name": "Europe",                            "gradeMin": 4, "gradeMax": 12 },
+        { "id": "africa",                        "name": "Africa",                            "gradeMin": 4, "gradeMax": 12 },
+        { "id": "asia",                          "name": "Asia",                              "gradeMin": 4, "gradeMax": 12 },
+        { "id": "oceania",                       "name": "Oceania",                           "gradeMin": 4, "gradeMax": 12 },
+        { "id": "antarctica_polar_regions",      "name": "Antarctica & Polar Regions",        "gradeMin": 4, "gradeMax": 12 }
+      ]
+    },
+    {
+      "id": "environmental_geography",
+      "name": "Environmental Geography",
+      "topics": [
+        { "id": "ecosystems_biomes",             "name": "Ecosystems & Biomes",               "gradeMin": 4, "gradeMax": 12 },
+        { "id": "biodiversity_conservation",     "name": "Biodiversity & Conservation",       "gradeMin": 5, "gradeMax": 12 },
+        { "id": "deforestation_land_use",        "name": "Deforestation & Land Use",          "gradeMin": 5, "gradeMax": 12 },
+        { "id": "pollution_waste",               "name": "Pollution & Waste",                 "gradeMin": 4, "gradeMax": 12 },
+        { "id": "sustainable_development",       "name": "Sustainable Development",           "gradeMin": 6, "gradeMax": 12 },
+        { "id": "environmental_hazards",         "name": "Environmental Hazards",             "gradeMin": 5, "gradeMax": 12 }
+      ]
+    },
+    {
+      "id": "geographic_information_systems",
+      "name": "Geographic Information Systems",
+      "topics": [
+        { "id": "gis_technology_mapping",        "name": "GIS Technology & Mapping",          "gradeMin": 7, "gradeMax": 13 },
+        { "id": "spatial_analysis",              "name": "Spatial Analysis",                  "gradeMin": 8, "gradeMax": 13 },
+        { "id": "remote_sensing",                "name": "Remote Sensing",                    "gradeMin": 8, "gradeMax": 13 },
+        { "id": "gps_location_technology",       "name": "GPS & Location Technology",         "gradeMin": 6, "gradeMax": 13 }
+      ]
+    }
+  ]
+}

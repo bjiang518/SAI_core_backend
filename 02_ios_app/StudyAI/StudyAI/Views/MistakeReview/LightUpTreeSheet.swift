@@ -1,4 +1,5 @@
 import SwiftUI
+import Lottie
 import os.log
 
 // MARK: - LightUpTreeSheet
@@ -8,13 +9,16 @@ import os.log
 struct LightUpTreeSheet: View {
     let subject: String
     let branches: [KnowledgeTreeBranch]
-    let onSessionCreated: (PracticeSession) -> Void
+    /// Called with (session, topicWeaknessKeys) when generation succeeds.
+    /// topicWeaknessKeys format: "Subject/BranchName/TopicName" — used to light up tree leaves.
+    let onSessionCreated: (PracticeSession, [String]) -> Void
+    let initialTopicId: String?
 
     @Environment(\.dismiss) private var dismiss
     @StateObject private var themeManager = ThemeManager.shared
 
     // Topic selection
-    @State private var selectedTopicIds: Set<String> = []
+    @State private var selectedTopicIds: Set<String>
 
     // Practice config
     @State private var selectedDifficulty: QuestionGenerationService.RandomQuestionsConfig.QuestionDifficulty = .adaptive
@@ -25,6 +29,23 @@ struct LightUpTreeSheet: View {
     @State private var isGenerating = false
     @State private var generationError: String? = nil
     @State private var generationTask: Task<Void, Never>? = nil
+
+    // Pre-expand the branch that contains the pre-selected topic
+    @State private var expandedBranches: Set<String>
+
+    init(subject: String,
+         branches: [KnowledgeTreeBranch],
+         onSessionCreated: @escaping (PracticeSession, [String]) -> Void,
+         initialTopicId: String? = nil) {
+        self.subject = subject
+        self.branches = branches
+        self.onSessionCreated = onSessionCreated
+        self.initialTopicId = initialTopicId
+
+        _selectedTopicIds = State(initialValue: [])
+        _expandedBranches = State(initialValue: [])
+        debugPrint("🌿 [LightUpTreeSheet] init — initialTopicId='\(initialTopicId ?? "nil")' branches.count=\(branches.count)")
+    }
 
     // Computed: branches that have at least one unlit topic
     private var unlitBranches: [(branch: KnowledgeTreeBranch, topics: [KnowledgeTreeTopic])] {
@@ -42,7 +63,16 @@ struct LightUpTreeSheet: View {
         Set(unlitBranches.flatMap { $0.topics }.map { $0.id })
     }
 
-    private var allSelected: Bool { selectedTopicIds == allUnlitIds && !allUnlitIds.isEmpty }
+    // Max selectable = questionCount (1 topic per question)
+    private var selectionQuota: Int { questionCount }
+
+    // "Select All" is full when we've reached the quota
+    private var allSelected: Bool {
+        let cap = min(allUnlitIds.count, selectionQuota)
+        return cap > 0 && selectedTopicIds.count >= cap
+    }
+
+    @State private var showLimitToast = false
 
     var body: some View {
         NavigationStack {
@@ -72,13 +102,14 @@ struct LightUpTreeSheet: View {
                                 .ignoresSafeArea(edges: .bottom)
                                 .overlay(Divider(), alignment: .top)
                         )
+                        .opacity(isGenerating ? 0 : 1)
                 }
             }
             .navigationTitle(NSLocalizedString("lightUpTree.title", value: "选择知识点", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(NSLocalizedString("common.cancel", comment: "")) { dismiss() }
+                    XDismissButton { dismiss() }
                 }
                 if !unlitBranches.isEmpty {
                     ToolbarItem(placement: .navigationBarTrailing) {
@@ -88,15 +119,14 @@ struct LightUpTreeSheet: View {
                             if allSelected {
                                 selectedTopicIds.removeAll()
                             } else {
-                                selectedTopicIds = allUnlitIds
+                                let ordered = unlitBranches.flatMap { $0.topics }.map { $0.id }
+                                let toAdd = ordered.prefix(selectionQuota)
+                                selectedTopicIds = Set(toAdd)
                             }
                         }
                         .font(.caption)
                     }
                 }
-            }
-            .overlay {
-                if isGenerating { generatingOverlay }
             }
             .alert(NSLocalizedString("common.error", value: "出错了", comment: ""),
                    isPresented: .init(get: { generationError != nil },
@@ -104,6 +134,31 @@ struct LightUpTreeSheet: View {
                 Button(NSLocalizedString("common.ok", comment: "")) { generationError = nil }
             } message: {
                 Text(generationError ?? "")
+            }
+        }
+        // overlay on NavigationStack itself — not inside (avoids nav clipping)
+        // and not in an outer ZStack (avoids layout inflation from scaleEffect)
+        .overlay(alignment: .bottom) {
+            if isGenerating {
+                lottieGeneratingOverlay
+                    .transition(.opacity)
+                    .ignoresSafeArea(edges: .bottom)
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: isGenerating)
+        .onAppear {
+            debugPrint("🌿 [LightUpTreeSheet] onAppear — initialTopicId='\(initialTopicId ?? "nil")'")
+            debugPrint("🌿 [LightUpTreeSheet] unlitBranches.count=\(unlitBranches.count) allUnlitIds=\(allUnlitIds.sorted())")
+            guard let topicId = initialTopicId else {
+                debugPrint("🌿 [LightUpTreeSheet] onAppear — initialTopicId is nil, skipping pre-selection")
+                return
+            }
+            selectedTopicIds = [topicId]
+            if let branch = branches.first(where: { b in b.topics.contains(where: { $0.id == topicId }) }) {
+                expandedBranches = [branch.id]
+                debugPrint("🌿 [LightUpTreeSheet] pre-selected topicId='\(topicId)' in branch='\(branch.id)'")
+            } else {
+                debugPrint("🌿 [LightUpTreeSheet] ⚠️ topicId='\(topicId)' not found in any branch! Available ids: \(branches.flatMap { $0.topics }.map { $0.id }.sorted())")
             }
         }
         .presentationDetents([.large])
@@ -145,13 +200,21 @@ struct LightUpTreeSheet: View {
                     .font(.headline)
                     .foregroundColor(themeManager.primaryText)
                     .padding(.horizontal, 20)
-                Text(String(format: NSLocalizedString("lightUpTree.selection.subheader",
-                                                       value: "共 %d 个知识点尚未练习，选择后将生成对应年级的练习题",
-                                                       comment: ""),
-                            allUnlitIds.count))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal, 20)
+
+                // Dynamic hint: shows quota and current selection count
+                HStack(spacing: 4) {
+                    Image(systemName: "info.circle")
+                        .font(.caption2)
+                    Text(String(format: NSLocalizedString(
+                        "lightUpTree.selection.quotaHint",
+                        value: "每道题对应一个知识点，最多可选 %d 个（已选 %d）",
+                        comment: ""),
+                        selectionQuota, selectedTopicIds.count))
+                        .font(.caption)
+                }
+                .foregroundColor(selectedTopicIds.count >= selectionQuota ? themeManager.accentColor : .secondary)
+                .padding(.horizontal, 20)
+                .animation(.easeInOut(duration: 0.2), value: selectedTopicIds.count)
             }
 
             // Branch groups
@@ -159,46 +222,104 @@ struct LightUpTreeSheet: View {
                 branchGroup(branch: item.branch, topics: item.topics)
             }
         }
+        // Limit toast overlay
+        .overlay(alignment: .bottom) {
+            if showLimitToast {
+                Text(String(format: NSLocalizedString(
+                    "lightUpTree.selection.limitReached",
+                    value: "最多选 %d 个知识点（与题目数量相同）",
+                    comment: ""), selectionQuota))
+                    .font(.caption.bold())
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(Color.black.opacity(0.75))
+                    .cornerRadius(20)
+                    .padding(.bottom, 8)
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            }
+        }
     }
 
     private func branchGroup(branch: KnowledgeTreeBranch, topics: [KnowledgeTreeTopic]) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            // Branch header
-            HStack {
-                Text(BranchLocalizer.localized(branch.name))
-                    .font(.subheadline.bold())
-                    .foregroundColor(themeManager.primaryText)
-                Spacer()
-                let branchSelected = topics.filter { selectedTopicIds.contains($0.id) }.count
-                if branchSelected > 0 {
-                    Text("\(branchSelected)/\(topics.count)")
-                        .font(.caption2.bold())
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(themeManager.accentColor)
-                        .clipShape(Capsule())
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 4)
+        let isExpanded = expandedBranches.contains(branch.id)
+        let branchSelected = topics.filter { selectedTopicIds.contains($0.id) }.count
 
-            // Topic chips (flow layout)
-            ChipFlowLayout(spacing: 8) {
-                ForEach(topics) { topic in
-                    topicChip(topic: topic)
+        return VStack(spacing: 0) {
+            // ── Tappable header ──────────────────────────────────────────────
+            Button {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                    if isExpanded { expandedBranches.remove(branch.id) }
+                    else          { expandedBranches.insert(branch.id) }
                 }
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.caption2.bold())
+                        .foregroundColor(.secondary)
+                        .frame(width: 14)
+                        .animation(.spring(response: 0.25), value: isExpanded)
+
+                    Text(BranchLocalizer.localized(branch.name))
+                        .font(.subheadline.bold())
+                        .foregroundColor(themeManager.primaryText)
+
+                    Spacer()
+
+                    // Badge: selected/total when any selected, total-only otherwise
+                    if branchSelected > 0 {
+                        Text("\(branchSelected)/\(topics.count)")
+                            .font(.caption2.bold())
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 8).padding(.vertical, 3)
+                            .background(themeManager.accentColor)
+                            .clipShape(Capsule())
+                    } else {
+                        Text("\(topics.count)")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 8).padding(.vertical, 3)
+                            .background(Color(uiColor: .systemGray5))
+                            .clipShape(Capsule())
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 13)
+                .contentShape(Rectangle())
             }
-            .padding(.horizontal, 20)
+            .buttonStyle(.plain)
+
+            // ── Topics (shown when expanded) ─────────────────────────────────
+            if isExpanded {
+                ChipFlowLayout(spacing: 8) {
+                    ForEach(topics) { topic in
+                        topicChip(topic: topic)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 10)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+
+            Divider().padding(.horizontal, 20)
         }
     }
 
     private func topicChip(topic: KnowledgeTreeTopic) -> some View {
         let isSelected = selectedTopicIds.contains(topic.id)
+        let atLimit = !isSelected && selectedTopicIds.count >= selectionQuota
         return Button {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
             if isSelected {
                 selectedTopicIds.remove(topic.id)
+            } else if atLimit {
+                // Quota reached — show toast
+                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                withAnimation(.easeInOut(duration: 0.2)) { showLimitToast = true }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                    withAnimation(.easeInOut(duration: 0.3)) { showLimitToast = false }
+                }
             } else {
                 selectedTopicIds.insert(topic.id)
             }
@@ -206,12 +327,12 @@ struct LightUpTreeSheet: View {
             HStack(spacing: 6) {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .font(.caption)
-                    .foregroundColor(isSelected ? .white : .secondary)
+                    .foregroundColor(isSelected ? .white : (atLimit ? Color(uiColor: .systemGray3) : .secondary))
                 Text(BranchLocalizer.localized(topic.topicName))
                     .font(.caption)
                     .fontWeight(.medium)
                     .lineLimit(2)
-                    .foregroundColor(isSelected ? .white : themeManager.primaryText)
+                    .foregroundColor(isSelected ? .white : (atLimit ? .secondary.opacity(0.5) : themeManager.primaryText))
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
@@ -219,7 +340,7 @@ struct LightUpTreeSheet: View {
                 RoundedRectangle(cornerRadius: 10)
                     .fill(isSelected
                           ? themeManager.accentColor
-                          : Color(uiColor: .systemGray6))
+                          : (atLimit ? Color(uiColor: .systemGray5).opacity(0.5) : Color(uiColor: .systemGray6)))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
@@ -275,7 +396,17 @@ struct LightUpTreeSheet: View {
                     Text("1").font(.caption).foregroundColor(.secondary)
                     Slider(value: Binding(
                         get: { Double(questionCount) },
-                        set: { questionCount = Int($0) }
+                        set: { newVal in
+                            let newCount = Int(newVal)
+                            questionCount = newCount
+                            // Trim selected topics when count decreases
+                            if selectedTopicIds.count > newCount {
+                                let ordered = unlitBranches.flatMap { $0.topics }
+                                    .map { $0.id }
+                                    .filter { selectedTopicIds.contains($0) }
+                                selectedTopicIds = Set(ordered.prefix(newCount))
+                            }
+                        }
                     ), in: 1...10, step: 1)
                     .accentColor(DesignTokens.Colors.Cute.peach)
                     Text("10").font(.caption).foregroundColor(.secondary)
@@ -416,36 +547,30 @@ struct LightUpTreeSheet: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Generating Overlay
+    // MARK: - Lottie generating overlay
 
-    private var generatingOverlay: some View {
-        ZStack {
-            Color.black.opacity(0.4).ignoresSafeArea()
-            VStack(spacing: 20) {
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                    .scaleEffect(1.6)
-                Text(NSLocalizedString("lightUpTree.generating", value: "正在生成练习题…", comment: ""))
-                    .font(.headline)
-                    .foregroundColor(.white)
-                Button {
-                    generationTask?.cancel()
-                    isGenerating = false
-                } label: {
-                    Text(NSLocalizedString("common.cancel", comment: ""))
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.7))
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 8)
-                        .background(Color.white.opacity(0.15))
-                        .cornerRadius(8)
-                }
-            }
-            .padding(40)
-            .background(
-                RoundedRectangle(cornerRadius: 24)
-                    .fill(Color.black.opacity(0.72))
+    private var lottieGeneratingOverlay: some View {
+        ZStack(alignment: .topTrailing) {
+            LottieView(
+                animationName: "Bubbles x2",
+                loopMode: .loop,
+                animationSpeed: 1.0,
+                powerSavingProgress: 0.7
             )
+            .frame(maxWidth: .infinity)
+            .frame(height: 320)
+            .scaleEffect(1.3)
+
+            Button {
+                generationTask?.cancel()
+                isGenerating = false
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title2)
+                    .foregroundColor(.secondary.opacity(0.7))
+            }
+            .padding(.top, 12)
+            .padding(.trailing, 20)
         }
     }
 
@@ -460,27 +585,30 @@ struct LightUpTreeSheet: View {
         }
 
         let topicNames = selectedTopics.map { $0.topicName }
+        let gradeLabel = QuestionGenerationDataAdapter.shared.resolvedGradeLabel(
+            from: ProfileService.shared.currentProfile?.gradeLevel
+        )
+        let gradeFocusNote = "IMPORTANT: Generate questions strictly appropriate for \(gradeLabel) students only. Do NOT include content beyond this grade level."
         let config = QuestionGenerationService.RandomQuestionsConfig(
             topics: topicNames,
-            focusNotes: topicNames.joined(separator: ", "),
+            focusNotes: gradeFocusNote + " Topics: " + topicNames.joined(separator: ", "),
             difficulty: selectedDifficulty,
             questionCount: questionCount,
             questionType: selectedType
         )
         let profile = QuestionGenerationDataAdapter.shared.createUserProfile()
 
-        let result = await QuestionGenerationService.shared.generateRandomQuestions(
+        let result = await QuestionGenerationService.shared.generateQuestionsV2(
             subject: subject,
+            mode: 1,
             config: config,
             userProfile: profile
         )
 
         switch result {
         case .success:
-            // QuestionGenerationService already saved the session internally.
-            // Reuse it to avoid double PDF generation (causes WebView continuation leak → app freeze).
-            guard let sessionId = await MainActor.run(body: { QuestionGenerationService.shared.currentSessionId }),
-                  let session = PracticeSessionManager.shared.getSession(id: sessionId) else {
+            debugPrint("🌳 [LightUpTree] ✅ generation success — reading currentSessionId")
+            guard let sessionId = await MainActor.run(body: { QuestionGenerationService.shared.currentSessionId }) else {                debugPrint("🌳 [LightUpTree] ❌ currentSessionId is nil")
                 await MainActor.run {
                     generationError = NSLocalizedString("lightUpTree.error.sessionNotFound",
                                                         value: "无法获取练习题，请重试",
@@ -488,11 +616,36 @@ struct LightUpTreeSheet: View {
                 }
                 return
             }
-            await MainActor.run { dismiss() }
-            try? await Task.sleep(nanoseconds: 350_000_000)
-            await MainActor.run { onSessionCreated(session) }
+            debugPrint("🌳 [LightUpTree] sessionId=\(sessionId) — looking up session")
+            guard let session = PracticeSessionManager.shared.getSession(id: sessionId) else {
+                debugPrint("🌳 [LightUpTree] ❌ getSession returned nil for id=\(sessionId)")
+                await MainActor.run {
+                    generationError = NSLocalizedString("lightUpTree.error.sessionNotFound",
+                                                        value: "无法获取练习题，请重试",
+                                                        comment: "")
+                }
+                return
+            }
+            debugPrint("🌳 [LightUpTree] ✅ session found — handing off to parent (parent will dismiss sheet)")
+            // Build weakness keys in the format the knowledge tree expects:
+            // "Subject/BranchName/TopicName"  e.g. "Mathematics/Number & Operations/Fractions"
+            let topicKeys: [String] = selectedTopics.compactMap { topic in
+                guard let branch = branches.first(where: { b in
+                    b.topics.contains(where: { $0.id == topic.id })
+                }) else { return nil }
+                return "\(subject)/\(branch.name)/\(topic.topicName)"
+            }
+            debugPrint("🌳 [LightUpTree] topic keys to light up: \(topicKeys)")
+            await MainActor.run { onSessionCreated(session, topicKeys) }
+            JourneyTracker.shared.track("tree_lightup_done", [
+                "subject": subject,
+                "topic_count": selectedTopicIds.count,
+                "question_count": questionCount
+            ])
+            debugPrint("🌳 [LightUpTree] onSessionCreated done ✅")
 
         case .failure(let error):
+            debugPrint("🌳 [LightUpTree] ❌ generation failed: \(error.localizedDescription)")
             await MainActor.run { generationError = error.localizedDescription }
         }
     }
@@ -506,32 +659,43 @@ struct LightUpTreeButton: View {
     let onTap: () -> Void
 
     @StateObject private var themeManager = ThemeManager.shared
+    @State private var glowing = false
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 10) {
-                Image(systemName: "leaf.fill")
-                    .font(.title3)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(NSLocalizedString("lightUpTree.button.title",
-                                          value: "点亮知识树",
-                                          comment: ""))
-                        .font(.body.bold())
-                    if unlitCount > 0 {
-                        Text(String(format: NSLocalizedString(
-                            "lightUpTree.button.subtitle",
-                            value: "%d 个知识点待练习",
-                            comment: ""), unlitCount))
-                            .font(.caption)
-                            .opacity(0.85)
-                    }
+            HStack(spacing: 12) {
+                // Glowing leaf icon
+                ZStack {
+                    // Outer glow ring
+                    Image(systemName: "leaf.fill")
+                        .font(.title2)
+                        .foregroundColor(DesignTokens.Colors.Cute.mint)
+                        .blur(radius: glowing ? 8 : 4)
+                        .opacity(glowing ? 0.9 : 0.5)
+                        .scaleEffect(glowing ? 1.3 : 1.0)
+
+                    // Sharp leaf on top
+                    Image(systemName: "leaf.fill")
+                        .font(.title2)
+                        .foregroundColor(.white)
+                        .shadow(color: DesignTokens.Colors.Cute.mint.opacity(0.9),
+                                radius: glowing ? 12 : 6, x: 0, y: 0)
                 }
+                .animation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true),
+                           value: glowing)
+
+                Text(NSLocalizedString("lightUpTree.button.title",
+                                      value: "点亮知识树",
+                                      comment: ""))
+                    .font(.body.bold())
+                    .foregroundColor(.white)
+
                 Spacer()
+
                 Image(systemName: "chevron.right")
                     .font(.caption.bold())
-                    .opacity(0.7)
+                    .foregroundColor(.white.opacity(0.7))
             }
-            .foregroundColor(.white)
             .padding(.horizontal, 20)
             .padding(.vertical, 14)
             .background(
@@ -541,7 +705,12 @@ struct LightUpTreeButton: View {
                 )
             )
             .cornerRadius(14)
+            .shadow(color: DesignTokens.Colors.Cute.mint.opacity(glowing ? 0.5 : 0.2),
+                    radius: glowing ? 12 : 6, x: 0, y: 3)
+            .animation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true),
+                       value: glowing)
         }
         .buttonStyle(.plain)
+        .onAppear { glowing = true }
     }
 }

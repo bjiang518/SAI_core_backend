@@ -1897,6 +1897,7 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "proMode.editImage" = "Bild bearbeiten";
 "proMode.annotationImageHint" = "Some questions need images — tap to crop from photo";
 "proMode.aiAnalyzeDiagrams" = "Diagrammbereiche automatisch per KI erkennen";
+"proMode.nextHomework" = "Nächste Hausaufgabe";
 "proMode.selectAIModel" = "Select AI Model";
 "proMode.revertGrading" = "Revert Grading";
 "proMode.revertGradingAlert.title" = "Revert Grading?";
@@ -2385,6 +2386,11 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "practiceLibrary.typeConversation" = "Gesprächswiederholung";
 "practiceLibrary.typeMistake" = "Fehlerübung";
 "practiceLibrary.typeLibrary" = "Bibliotheksübung";
+"practiceLibrary.typeChat" = "Chat-Übung";
+"practiceLibrary.typeTargeted" = "Gezielte Übung";
+"practiceLibrary.typeFeynman" = "Feynman-Übung";
+"practiceLibrary.typeDaily" = "Tägliche Herausforderung";
+"practiceLibrary.typeSmartPractice" = "Intelligente Übung";
 
 // Practice Library
 "practiceLibrary.title" = "Practice";
@@ -2561,7 +2567,7 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "account.usage.resetsMonthly" = "Kontingent wird monatlich am 1. aktualisiert";
 "account.usage.unlimited" = "Unbegrenzt";
 "account.usage.upgradeLabel" = "Upgrade";
-"account.usage.upgradePlan" = "Tarif upgraden";
+"account.usage.upgradePlan" = "Tarife ansehen & upgraden";
 "account.usage.restorePurchases" = "Käufe wiederherstellen";
 "account.usage.manageSubscription" = "Abonnement verwalten";
 "account.usage.tierGuest" = "Gastkonto";
@@ -2653,6 +2659,7 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "mistakeTree.legend.mastered" = "Beherrscht";
 "mistakeTree.legend.untracked" = "Nicht verfolgt";
 "mistakeTree.empty" = "Noch keine Themendaten";
+"knowledgeTree.hint" = "Jeder Ast hat 3 Unteräste, die tiefere Themen darstellen";
 "mistakeTree.detail.accuracy" = "Genauigkeit";
 "mistakeTree.detail.attempts" = "Versuche";
 "mistakeTree.detail.correct" = "Richtig";
@@ -3132,4 +3139,113 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "common.remove" = "Entfernen";
 "guestConversion.loginSuccess" = "Erfolgreich angemeldet!";
 "dailyChallenge.bannerReady" = "Tägliche 3 Fragen sind bereit";
+"dailyChallenge.goal.weakness" = "Heutiges Ziel: %d Schwäche(n) überwinden";
+"dailyChallenge.goal.leaf" = "Heutiges Ziel: \"%@\" aufleuchten";
+"dailyChallenge.goal.normal" = "Heutige Aufgabe: %@ · 3 Fragen";
+"dailyChallenge.achievement.leafLit" = "Blatt beleuchtet!";
+"dailyChallenge.achievement.viewTree" = "Wissensbaum ansehen";
+"dailyChallenge.achievement.weaknessConverted" = "%d Schwäche(n) überwunden!";
+"dailyChallenge.achievement.keepGoing" = "Weiter so! Die Schwächen nehmen ab";
+"dailyChallenge.firework.weaknessMulti" = "%d Schwächen überwunden!";
+"dailyChallenge.firework.weaknessSingle" = "Schwäche überwunden!";
+"dailyChallenge.firework.weaknessSub" = "Weiter üben und immer stärker werden 💪";
 "practiceSheet.backToChat" = "← Zurück zum Chat";
+
+// MARK: - Light Up Knowledge Tree
+"lightUpTree.button.title" = "Wissensbaum aufleuchten";
+"lightUpTree.button.subtitle" = "%d Themen zu üben";
+"lightUpTree.title" = "Themen auswählen";
+"lightUpTree.selectAll" = "Alle auswählen";
+"lightUpTree.deselectAll" = "Alle abwählen";
+"lightUpTree.allLit.title" = "Alle Themen geübt!";
+"lightUpTree.allLit.message" = "Alle Themen in diesem Fach haben Übungseinträge. Weiter so!";
+"lightUpTree.selection.header" = "Noch nicht geübte Themen";
+"lightUpTree.selection.subheader" = "%d Themen noch nicht geübt. Auswählen, um passende Fragen zu erstellen.";
+"lightUpTree.config.title" = "Übungseinstellungen";
+"lightUpTree.generate.selectFirst" = "Bitte mindestens ein Thema auswählen";
+"lightUpTree.generate.button" = "%d Fragen generieren (%d Themen)";
+"lightUpTree.generating" = "Fragen werden erstellt…";
+"lightUpTree.error.sessionNotFound" = "Fragen konnten nicht geladen werden. Bitte erneut versuchen.";
+"lightUpTree.selection.quotaHint" = "1 Thema pro Frage – max. %d Themen (gewählt: %d)";
+"lightUpTree.selection.limitReached" = "Max. %d Themen (entspricht der Fragenanzahl)";
+"mistakeTree.detail.lightUp" = "Dieses Thema aufleuchten";
+
+// MARK: - Onboarding Age Groups
+"ageGroup.young.range" = "6–8 Jahre";
+"ageGroup.young.stage" = "Grundschule (Unterstufe)";
+"ageGroup.elementary.range" = "9–12 Jahre";
+"ageGroup.elementary.stage" = "Grundschule (Oberstufe)";
+"ageGroup.middle.range" = "13–15 Jahre";
+"ageGroup.middle.stage" = "Mittelschule";
+"ageGroup.high.range" = "16–18 Jahre";
+"ageGroup.high.stage" = "Gymnasium";
+"ageGroup.adult.range" = "18+";
+"ageGroup.adult.stage" = "Hochschule+";
+
+// MARK: - Onboarding Age Step
+"onboarding.age.title.parent" = "Wie alt ist dein Kind?";
+"onboarding.age.yourAge" = "Dein Alter";
+"onboarding.age.kidAge" = "Alter des Kindes";
+"onboarding.age.selectAgeGroup" = "Altersgruppe auswählen";
+"onboarding.age.selectKidAgeGroup" = "Altersgruppe des Kindes wählen";
+"onboarding.age.recommendedGrade" = "Empfohlene Klasse";
+"onboarding.age.selectGrade" = "Klasse auswählen";
+"onboarding.age.infoTitle" = "Wir personalisieren anhand deiner Wahl";
+"onboarding.age.infoSubtitle" = "Inhalte angepasst an dein Lernniveau";
+
+// MARK: - Onboarding Learning Style
+"onboarding.learningStyle.recommended" = "Empfohlen";
+"onboarding.learningStyle.tag.thinkingSkills" = "Denkvermögen aufbauen";
+"onboarding.learningStyle.tag.deepUnderstanding" = "Tiefes Verständnis";
+"onboarding.learningStyle.tag.longTermGrowth" = "Langfristiges Wachstum";
+"onboarding.learningStyle.tag.efficient" = "Schnell & effizient";
+"onboarding.learningStyle.tag.saveTime" = "Zeit sparen";
+"onboarding.learningStyle.tag.solveProblem" = "Probleme lösen";
+"onboarding.learningStyle.infoBanner" = "Du kannst das jederzeit ändern";
+"onboarding.learningStyle.infoBannerSub" = "KI-Hilfsstil in Einstellungen anpassen";
+
+// MARK: - Onboarding Consent
+"onboarding.consent.heroSubtitle" = "Wir verwenden nur notwendige Informationen\num KI-Lernservices bereitzustellen";
+"onboarding.consent.dataProtection.title" = "Wie wir deine Daten schützen";
+"onboarding.consent.privacy.title" = "Datenschutz";
+"onboarding.consent.privacy.desc" = "Deine Fragen und Chats werden nie öffentlich geteilt";
+"onboarding.consent.personalized.title" = "Personalisiert";
+"onboarding.consent.personalized.desc" = "KI passt Inhalte an deinen Lernfortschritt an";
+"onboarding.consent.parentFriendly.title" = "Elternfreundlich";
+"onboarding.consent.parentFriendly.desc" = "Daten löschen oder KI-Funktionen jederzeit in Einstellungen deaktivieren";
+"onboarding.consent.aiDisclosure.title" = "KI-Nutzungserklärung";
+"onboarding.consent.aiDisclosure.expand" = "Details anzeigen";
+"onboarding.consent.aiDisclosure.collapse" = "Einklappen";
+"onboarding.consent.encryption" = "Alle Daten werden verschlüsselt übertragen und gespeichert";
+"onboarding.consent.agreeSubtitle" = "Du kannst das jederzeit in den Einstellungen ändern";
+"onboarding.consent.terms" = "Durch Fortfahren stimmst du unseren";
+
+// MARK: - Onboarding Trial
+"onboarding.trial.title" = "Deine erste Woche ist kostenlos";
+"onboarding.trial.subtitle" = "Teste Premium 7 Tage — keine Kosten bis nächste Woche, jederzeit kündbar.";
+"onboarding.trial.feature1" = "Unbegrenzte Hausaufgaben-Scans";
+"onboarding.trial.feature2" = "500 KI-Nachrichten / Monat";
+"onboarding.trial.feature3" = "Live-Sprachtutoring";
+"onboarding.trial.cta" = "7-Tage-Gratis-Test starten";
+
+// MARK: - Account Usage
+"account.usage.subtitle" = "Verfolge deine Nutzung und schalte mehr Funktionen mit StudyAgent frei.";
+"account.usage.yourUsage" = "Deine Nutzung";
+"account.usage.resetsMonthEnd" = "Wird am Monatsende zurückgesetzt";
+"account.usage.unlockTitle" = "Unbegrenzten Zugang freischalten";
+"account.usage.unlockSubtitle" = "Upgrade auf Premium oder Ultra und optimiere dein Lernen.";
+"account.usage.viewPlans" = "Tarife ansehen";
+
+// MARK: - Upgrade Comparison
+"upgrade.comparison.trialBadge" = "7 Tage kostenlos  •  Jederzeit kündbar";
+"upgrade.comparison.headerLine1" = "Upgrade dein";
+"onboarding.trial.skip" = "Vielleicht später";
+"chat.practiceConfig.title" = "Dieses Thema üben";
+"questionGeneration.generate" = "Übungen erstellen";
+"archive.followUpWithAI" = "Mit KI weiter fragen";
+"practice.beta.badge" = "Beta";
+"practice.beta.message" = "Wir bauen Fragensammlungen auf";
+"practice.mode.ai" = "KI-Übungen";
+"practice.mode.bank" = "Echte Fragen";
+"proMode.oneMistake" = "1 Fehler";
+"proMode.nMistakes" = "%d Fehler";

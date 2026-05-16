@@ -1,0 +1,147 @@
+{
+  "subject": "History",
+  "branches": [
+    {
+      "id": "world_history_ancient_civilizations",
+      "name": "World History - Ancient Civilizations",
+      "topics": [
+        { "id": "mesopotamia_early_river_civs",   "name": "Mesopotamia & Early River Civilizations","gradeMin": 5, "gradeMax": 12 },
+        { "id": "ancient_egypt",                  "name": "Ancient Egypt",                     "gradeMin": 5, "gradeMax": 12 },
+        { "id": "ancient_greece",                 "name": "Ancient Greece",                    "gradeMin": 5, "gradeMax": 12 },
+        { "id": "ancient_rome",                   "name": "Ancient Rome",                      "gradeMin": 5, "gradeMax": 12 },
+        { "id": "ancient_china",                  "name": "Ancient China",                     "gradeMin": 5, "gradeMax": 12 },
+        { "id": "ancient_india_southeast_asia",   "name": "Ancient India & Southeast Asia",    "gradeMin": 5, "gradeMax": 12 },
+        { "id": "pre_columbian_americas",         "name": "Pre-Columbian Americas",            "gradeMin": 5, "gradeMax": 12 }
+      ]
+    },
+    {
+      "id": "world_history_medieval_renaissance",
+      "name": "World History - Medieval & Renaissance",
+      "topics": [
+        { "id": "fall_of_rome_byzantine",         "name": "Fall of Rome & Byzantine Empire",   "gradeMin": 6, "gradeMax": 12 },
+        { "id": "islamic_golden_age",             "name": "Islamic Golden Age",                "gradeMin": 6, "gradeMax": 12 },
+        { "id": "medieval_europe",                "name": "Medieval Europe",                   "gradeMin": 6, "gradeMax": 12 },
+        { "id": "african_kingdoms",               "name": "African Kingdoms",                  "gradeMin": 6, "gradeMax": 12 },
+        { "id": "renaissance_humanism",           "name": "Renaissance & Humanism",            "gradeMin": 7, "gradeMax": 12 },
+        { "id": "protestant_reformation",         "name": "Protestant Reformation",            "gradeMin": 7, "gradeMax": 12 }
+      ]
+    },
+    {
+      "id": "world_history_age_exploration_revolution",
+      "name": "World History - Age of Exploration to Revolution",
+      "topics": [
+        { "id": "age_of_exploration_colonialism", "name": "Age of Exploration & Colonialism",  "gradeMin": 7, "gradeMax": 12 },
+        { "id": "scientific_revolution",          "name": "Scientific Revolution",             "gradeMin": 7, "gradeMax": 12 },
+        { "id": "enlightenment",                  "name": "Enlightenment",                     "gradeMin": 7, "gradeMax": 12 },
+        { "id": "french_revolution",              "name": "French Revolution",                 "gradeMin": 8, "gradeMax": 12 },
+        { "id": "latin_american_independence",    "name": "Latin American Independence",       "gradeMin": 8, "gradeMax": 12 }
+      ]
+    },
+    {
+      "id": "world_history_modern_era",
+      "name": "World History - Modern Era",
+      "topics": [
+        { "id": "industrial_revolution",          "name": "Industrial Revolution",             "gradeMin": 8, "gradeMax": 12 },
+        { "id": "imperialism_colonialism",        "name": "Imperialism & Colonialism",         "gradeMin": 8, "gradeMax": 12 },
+        { "id": "world_war_i",                    "name": "World War I",                       "gradeMin": 8, "gradeMax": 12 },
+        { "id": "interwar_rise_of_totalitarianism","name": "Interwar Period & Rise of Totalitarianism","gradeMin": 9, "gradeMax": 12 },
+        { "id": "world_war_ii",                   "name": "World War II",                      "gradeMin": 8, "gradeMax": 12 },
+        { "id": "cold_war",                       "name": "Cold War",                          "gradeMin": 9, "gradeMax": 12 },
+        { "id": "decolonization_post_colonialism","name": "Decolonization & Post-Colonialism",  "gradeMin": 9, "gradeMax": 12 },
+        { "id": "contemporary_global_issues",     "name": "Contemporary Global Issues",        "gradeMin": 9, "gradeMax": 12 }
+      ]
+    },
+    {
+      "id": "us_history_colonization_early_republic",
+      "name": "US History - Colonization to Early Republic",
+      "topics": [
+        { "id": "pre_columbian_native_americans", "name": "Pre-Columbian America & Native Americans","gradeMin": 4, "gradeMax": 12 },
+        { "id": "european_exploration_colonization","name": "European Exploration & Colonization","gradeMin": 4, "gradeMax": 12 },
+        { "id": "colonial_america",               "name": "Colonial America",                  "gradeMin": 4, "gradeMax": 12 },
+        { "id": "american_revolution",            "name": "American Revolution",               "gradeMin": 4, "gradeMax": 12 },
+        { "id": "constitution_bill_of_rights",    "name": "Constitution & Bill of Rights",     "gradeMin": 4, "gradeMax": 12 },
+        { "id": "early_republic_federalism",      "name": "Early Republic & Federalism",       "gradeMin": 5, "gradeMax": 12 }
+      ]
+    },
+    {
+      "id": "us_history_expansion_division",
+      "name": "US History - Expansion & Division",
+      "topics": [
+        { "id": "westward_expansion_manifest_destiny","name": "Westward Expansion & Manifest Destiny","gradeMin": 5, "gradeMax": 12 },
+        { "id": "jacksonian_democracy",           "name": "Jacksonian Democracy",              "gradeMin": 7, "gradeMax": 12 },
+        { "id": "slavery_abolitionism",           "name": "Slavery & Abolitionism",            "gradeMin": 5, "gradeMax": 12 },
+        { "id": "civil_war",                      "name": "Civil War",                         "gradeMin": 5, "gradeMax": 12 },
+        { "id": "reconstruction",                 "name": "Reconstruction",                    "gradeMin": 5, "gradeMax": 12 }
+      ]
+    },
+    {
+      "id": "us_history_industrialization_wwi",
+      "name": "US History - Industrialization to WWI",
+      "topics": [
+        { "id": "industrial_revolution_america",  "name": "Industrial Revolution in America",  "gradeMin": 7, "gradeMax": 12 },
+        { "id": "immigration_urbanization",       "name": "Immigration & Urbanization",        "gradeMin": 7, "gradeMax": 12 },
+        { "id": "progressive_era",                "name": "Progressive Era",                   "gradeMin": 7, "gradeMax": 12 },
+        { "id": "us_imperialism",                 "name": "US Imperialism",                    "gradeMin": 8, "gradeMax": 12 },
+        { "id": "world_war_i_us",                 "name": "World War I",                       "gradeMin": 8, "gradeMax": 12 }
+      ]
+    },
+    {
+      "id": "us_history_roaring_20s_wwii",
+      "name": "US History - Roaring 20s to WWII",
+      "topics": [
+        { "id": "roaring_twenties",               "name": "Roaring Twenties",                  "gradeMin": 8, "gradeMax": 12 },
+        { "id": "great_depression",               "name": "Great Depression",                  "gradeMin": 8, "gradeMax": 12 },
+        { "id": "new_deal",                       "name": "New Deal",                          "gradeMin": 8, "gradeMax": 12 },
+        { "id": "world_war_ii_us",                "name": "World War II",                      "gradeMin": 8, "gradeMax": 12 }
+      ]
+    },
+    {
+      "id": "us_history_cold_war_present",
+      "name": "US History - Cold War to Present",
+      "topics": [
+        { "id": "post_wwii_america",              "name": "Post-WWII America",                 "gradeMin": 8, "gradeMax": 12 },
+        { "id": "cold_war_containment",           "name": "Cold War & Containment",            "gradeMin": 8, "gradeMax": 12 },
+        { "id": "civil_rights_movement",          "name": "Civil Rights Movement",             "gradeMin": 8, "gradeMax": 12 },
+        { "id": "vietnam_war_social_movements",   "name": "Vietnam War & Social Movements",    "gradeMin": 8, "gradeMax": 12 },
+        { "id": "modern_america_contemporary",    "name": "Modern America & Contemporary Issues","gradeMin": 9, "gradeMax": 12 }
+      ]
+    },
+    {
+      "id": "government_civics",
+      "name": "Government & Civics",
+      "topics": [
+        { "id": "principles_of_democracy",        "name": "Principles of Democracy",           "gradeMin": 5, "gradeMax": 12 },
+        { "id": "structure_us_government",        "name": "Structure of US Government",        "gradeMin": 5, "gradeMax": 12 },
+        { "id": "federalism_state_government",    "name": "Federalism & State Government",     "gradeMin": 7, "gradeMax": 12 },
+        { "id": "rights_responsibilities",        "name": "Rights & Responsibilities",         "gradeMin": 4, "gradeMax": 12 },
+        { "id": "elections_voting",               "name": "Elections & Voting",                "gradeMin": 5, "gradeMax": 12 },
+        { "id": "political_parties_interest_groups","name": "Political Parties & Interest Groups","gradeMin": 8, "gradeMax": 12 },
+        { "id": "legal_system_courts",            "name": "Legal System & Courts",             "gradeMin": 7, "gradeMax": 12 },
+        { "id": "public_policy",                  "name": "Public Policy",                     "gradeMin": 9, "gradeMax": 12 }
+      ]
+    },
+    {
+      "id": "economics",
+      "name": "Economics",
+      "topics": [
+        { "id": "economic_systems",               "name": "Economic Systems",                  "gradeMin": 7, "gradeMax": 12 },
+        { "id": "supply_demand",                  "name": "Supply & Demand",                   "gradeMin": 7, "gradeMax": 12 },
+        { "id": "market_structures",              "name": "Market Structures",                 "gradeMin": 9, "gradeMax": 12 },
+        { "id": "money_banking",                  "name": "Money & Banking",                   "gradeMin": 8, "gradeMax": 12 },
+        { "id": "fiscal_monetary_policy",         "name": "Fiscal & Monetary Policy",          "gradeMin": 9, "gradeMax": 12 },
+        { "id": "international_trade",            "name": "International Trade",               "gradeMin": 9, "gradeMax": 12 },
+        { "id": "personal_finance",               "name": "Personal Finance",                  "gradeMin": 7, "gradeMax": 12 }
+      ]
+    },
+    {
+      "id": "geography",
+      "name": "Geography",
+      "topics": [
+        { "id": "physical_geography",             "name": "Physical Geography",                "gradeMin": 3, "gradeMax": 12 },
+        { "id": "human_geography",                "name": "Human Geography",                   "gradeMin": 5, "gradeMax": 12 },
+        { "id": "map_skills_geographic_tools",    "name": "Map Skills & Geographic Tools",     "gradeMin": 3, "gradeMax": 12 },
+        { "id": "regions_regional_studies",       "name": "Regions & Regional Studies",        "gradeMin": 5, "gradeMax": 12 }
+      ]
+    }
+  ]
+}

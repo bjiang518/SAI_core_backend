@@ -126,10 +126,9 @@ struct PlaylistEditorView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button(NSLocalizedString("common.cancel", comment: "Cancel")) {
+                    XDismissButton {
                         dismiss()
                     }
-                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .primary)
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {

@@ -314,14 +314,17 @@ struct ProgressiveHomeworkView: View {
 
     // MARK: - Progress Section
 
-    private var gradingDots: [GradingDotState] {
+    private var gradingDots: [QuestionDotInfo] {
         viewModel.state.questions.map { q in
-            if q.isGrading { return .grading }
-            if q.gradingError != nil { return .error }
-            guard let grade = q.grade else { return .waiting }
-            if grade.isCorrect { return .correct }
-            if grade.score >= 0.5 { return .partial }
-            return .incorrect
+            let state: GradingDotState = {
+                if q.isGrading { return .grading }
+                if q.gradingError != nil { return .error }
+                guard let grade = q.grade else { return .waiting }
+                if grade.isCorrect { return .correct }
+                if grade.score >= 0.5 { return .partial }
+                return .incorrect
+            }()
+            return QuestionDotInfo(state: state, questionId: q.id, subDots: [], subIds: [])
         }
     }
 
@@ -339,9 +342,11 @@ struct ProgressiveHomeworkView: View {
 
     private var progressSection: some View {
         HStack(spacing: 12) {
-            GradingDotsView(dots: gradingDots) { idx in
-                withAnimation { scrollProxy?.scrollTo("question_\(idx)", anchor: .center) }
-            }
+            GradingDotsView(
+                dots: gradingDots,
+                onSelectQuestion: { _ in },
+                onSelectSubquestion: { _, _ in }
+            )
             .frame(maxWidth: .infinity)
 
             Group {
@@ -756,19 +761,84 @@ struct QuestionGradeCard: View {
                     )
             }
 
-            // Student answer
+            // Student answer + working steps
             VStack(alignment: .leading, spacing: 4) {
-                Text("Your Answer:")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                let q = questionWithGrade.question
 
-                Text(questionWithGrade.question.displayStudentAnswer.isEmpty ? "No answer" : questionWithGrade.question.displayStudentAnswer)
-                    .font(.body)
-                    .foregroundColor(questionWithGrade.question.displayStudentAnswer.isEmpty ? .red : .primary)
+                // Working steps (new field — only shown if server returns them)
+                if let steps = q.workingSteps, !steps.isEmpty {
+                    Text(NSLocalizedString("homework.workingSteps", value: "Working Steps", comment: ""))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    let errorIdx = questionWithGrade.grade?.stepAnalysis?.firstErrorStep
+                    VStack(alignment: .leading, spacing: 3) {
+                        ForEach(Array(steps.enumerated()), id: \.offset) { i, step in
+                            let isErrorStep = errorIdx != nil && errorIdx! >= 0 && errorIdx! == i
+                            HStack(alignment: .top, spacing: 6) {
+                                Text("\(i + 1).")
+                                    .font(.caption2)
+                                    .foregroundColor(isErrorStep ? .red : .secondary)
+                                    .frame(width: 16, alignment: .trailing)
+                                Text(step)
+                                    .font(.callout)
+                                    .foregroundColor(isErrorStep ? .red : .primary)
+                                if isErrorStep {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.caption2)
+                                        .foregroundColor(.red)
+                                }
+                            }
+                            .padding(.vertical, 2)
+                            .padding(.horizontal, 6)
+                            .background(isErrorStep ? Color.red.opacity(0.08) : Color.clear)
+                            .cornerRadius(4)
+                        }
+                    }
                     .padding(8)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color(.tertiarySystemGroupedBackground))
                     .cornerRadius(6)
+
+                    Text(NSLocalizedString("homework.finalAnswer", value: "Final Answer", comment: ""))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.top, 2)
+                } else {
+                    Text(NSLocalizedString("homework.yourAnswer", value: "Your Answer:", comment: ""))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                // Final answer (always shown)
+                Text(q.displayStudentAnswer.isEmpty ? NSLocalizedString("homework.noAnswer", value: "No answer", comment: "") : q.displayStudentAnswer)
+                    .font(.body)
+                    .foregroundColor(q.displayStudentAnswer.isEmpty ? .red : .primary)
+                    .padding(8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(.tertiarySystemGroupedBackground))
+                    .cornerRadius(6)
+
+                // Teacher mark (new field — only shown if server returns it)
+                if let mark = q.teacherMark {
+                    HStack(spacing: 6) {
+                        Image(systemName: teacherMarkIcon(mark.type))
+                            .font(.caption)
+                            .foregroundColor(teacherMarkColor(mark.type))
+                        if let content = mark.content, !content.isEmpty {
+                            Text(content)
+                                .font(.caption)
+                                .foregroundColor(teacherMarkColor(mark.type))
+                        } else {
+                            Text(NSLocalizedString("homework.teacherMark.\(mark.type)", value: teacherMarkLabel(mark.type), comment: ""))
+                                .font(.caption)
+                                .foregroundColor(teacherMarkColor(mark.type))
+                        }
+                    }
+                    .padding(.horizontal, 8).padding(.vertical, 4)
+                    .background(teacherMarkColor(mark.type).opacity(0.1))
+                    .cornerRadius(6)
+                }
             }
 
             // Grade details (if graded)
@@ -874,6 +944,38 @@ struct QuestionGradeCard: View {
         if isCorrect { return .green }
         if score >= 0.5 { return .orange }
         return .red
+    }
+
+    private func teacherMarkIcon(_ type: String) -> String {
+        switch type {
+        case "checkmark":   return "checkmark.circle.fill"
+        case "cross":       return "xmark.circle.fill"
+        case "correction":  return "pencil.circle.fill"
+        case "comment":     return "bubble.left.fill"
+        case "circle":      return "circle"
+        default:            return "pencil.circle"
+        }
+    }
+
+    private func teacherMarkColor(_ type: String) -> Color {
+        switch type {
+        case "checkmark":   return .green
+        case "cross":       return .red
+        case "correction":  return .orange
+        case "comment":     return .blue
+        default:            return .secondary
+        }
+    }
+
+    private func teacherMarkLabel(_ type: String) -> String {
+        switch type {
+        case "checkmark":   return "Teacher marked correct"
+        case "cross":       return "Teacher marked incorrect"
+        case "correction":  return "Teacher correction"
+        case "comment":     return "Teacher comment"
+        case "circle":      return "Teacher circled"
+        default:            return "Teacher mark"
+        }
     }
 }
 

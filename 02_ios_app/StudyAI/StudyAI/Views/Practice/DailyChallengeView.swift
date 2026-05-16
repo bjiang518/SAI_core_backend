@@ -12,6 +12,7 @@ import Lottie
 @MainActor
 struct DailyChallengeView: View {
     let session: PracticeSession
+    var goal: DailyChallengeGoal? = nil
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
@@ -60,6 +61,13 @@ struct DailyChallengeView: View {
     @State private var showingGuestConversion = false
     @State private var showCongrats = false
     @State private var hasAnalyzed = false
+    // Goal achievement
+    @State private var leafWasLit = false
+    @State private var convertedWeaknessCount = 0
+    @State private var showWeaknessFirework = false
+    @State private var leafAnimationPhase: LeafAnimPhase = .gray
+
+    enum LeafAnimPhase { case gray, lighting, green }
     // Slide-to-organize
     @State private var slideOffset: CGFloat = 0
     @State private var hasTriggeredOrganize = false
@@ -98,6 +106,7 @@ struct DailyChallengeView: View {
             } else if let q = currentQuestion {
                 VStack(spacing: 0) {
                     topBar
+                    goalHintBar
                     Spacer(minLength: 0)
                     questionContent(q)
                         .offset(y: questionOffset)
@@ -137,6 +146,19 @@ struct DailyChallengeView: View {
                     withAnimation(.easeOut(duration: 0.4)) { showCongrats = false }
                 }
             }
+            // Process goal achievements when completion screen first appears
+            if isShowing && correctCount > 0 {
+                Task { await processGoalAchievement() }
+            }
+        }
+        .overlay {
+            if showWeaknessFirework {
+                WeaknessConversionOverlay(count: convertedWeaknessCount) {
+                    showWeaknessFirework = false
+                }
+                .transition(.opacity.animation(.easeInOut(duration: 0.2)))
+                .zIndex(998)
+            }
         }
         .overlay(alignment: .bottom) {
             if showOrganizeToast { organizeToastView }
@@ -172,6 +194,26 @@ struct DailyChallengeView: View {
                     startPoint: .top, endPoint: .bottom
                 )
             }
+        }
+    }
+
+    // MARK: - Goal Hint Bar
+
+    @ViewBuilder
+    private var goalHintBar: some View {
+        if let g = goal, g.routeType != .normal {
+            HStack(spacing: 6) {
+                Image(systemName: g.hintIcon)
+                    .font(.caption.bold())
+                    .foregroundColor(g.hintColor)
+                Text(g.hintText)
+                    .font(.caption.bold())
+                    .foregroundColor(g.hintColor)
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 6)
+            .background(g.hintColor.opacity(0.08))
         }
     }
 
@@ -734,6 +776,13 @@ struct DailyChallengeView: View {
                 .scaleEffect(completionScale)
                 .animation(.spring(response: 0.5, dampingFraction: 0.6).delay(0.25), value: completionScale)
 
+                // Goal achievement card
+                if leafWasLit || leafAnimationPhase != .gray || convertedWeaknessCount > 0 {
+                    goalAchievementCard
+                        .scaleEffect(completionScale)
+                        .animation(.spring(response: 0.5, dampingFraction: 0.6).delay(0.32), value: completionScale)
+                }
+
                 Spacer(minLength: 12)
 
                 // Slide to Smart Organize
@@ -832,6 +881,126 @@ struct DailyChallengeView: View {
         }
     }
 
+    // MARK: - Goal Achievement Card
+
+    private var goalAchievementCard: some View {
+        VStack(spacing: 14) {
+            if leafWasLit || leafAnimationPhase != .gray {
+                leafAchievementContent
+            } else if convertedWeaknessCount > 0 {
+                weaknessAchievementContent
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
+        .background(
+            RoundedRectangle(cornerRadius: 18)
+                .fill(leafWasLit || leafAnimationPhase != .gray
+                      ? DesignTokens.Colors.Cute.mint.opacity(0.08)
+                      : Color.orange.opacity(0.08))
+                .overlay(RoundedRectangle(cornerRadius: 18)
+                    .stroke((leafWasLit || leafAnimationPhase != .gray
+                             ? DesignTokens.Colors.Cute.mint
+                             : Color.orange).opacity(0.3), lineWidth: 1.5))
+        )
+        .padding(.horizontal, 32)
+    }
+
+    private var leafAchievementContent: some View {
+        VStack(spacing: 12) {
+            // Animated leaf
+            ZStack {
+                // Glow ring (phase 2)
+                Circle()
+                    .fill(DesignTokens.Colors.Cute.mint)
+                    .frame(width: 70, height: 70)
+                    .blur(radius: 16)
+                    .opacity(leafAnimationPhase == .green ? 0.55 : 0)
+                    .animation(.easeOut(duration: 0.6), value: leafAnimationPhase)
+
+                Image("tree_leaf")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .saturation(leafAnimationPhase == .green ? 1 : 0)
+                    .colorMultiply(leafAnimationPhase == .green
+                                   ? Color(red: 0.35, green: 0.85, blue: 0.30)
+                                   : (leafAnimationPhase == .lighting ? Color.white : Color(white: 0.72)))
+                    .frame(width: 48, height: 48)
+                    .scaleEffect(leafAnimationPhase == .lighting ? 1.45 : (leafAnimationPhase == .green ? 1.15 : 1.0))
+                    .shadow(color: leafAnimationPhase == .green
+                            ? DesignTokens.Colors.Cute.mint.opacity(0.8) : .clear,
+                            radius: 10, x: 0, y: 0)
+                    .animation(.spring(response: 0.35, dampingFraction: 0.55), value: leafAnimationPhase)
+            }
+            .frame(width: 70, height: 70)
+
+            VStack(spacing: 4) {
+                Text(NSLocalizedString("dailyChallenge.achievement.leafLit",
+                                       value: "叶子已点亮！",
+                                       comment: ""))
+                    .font(.headline.bold())
+                    .foregroundColor(DesignTokens.Colors.Cute.mint)
+                if let topicName = goal?.leafTopicName, !topicName.isEmpty {
+                    Text(BranchLocalizer.localized(topicName))
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Button(action: openKnowledgeTree) {
+                HStack(spacing: 6) {
+                    Image(systemName: "leaf.fill")
+                        .font(.system(size: 13, weight: .semibold))
+                    Text(NSLocalizedString("dailyChallenge.achievement.viewTree",
+                                           value: "查看知识树",
+                                           comment: ""))
+                        .font(.subheadline.bold())
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 11)
+                .background(
+                    LinearGradient(
+                        colors: [DesignTokens.Colors.Cute.mint, DesignTokens.Colors.Cute.blue],
+                        startPoint: .leading, endPoint: .trailing
+                    )
+                )
+                .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var weaknessAchievementContent: some View {
+        HStack(spacing: 14) {
+            Image(systemName: "bolt.fill")
+                .font(.system(size: 28))
+                .foregroundColor(.orange)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(String(format: NSLocalizedString(
+                    "dailyChallenge.achievement.weaknessConverted",
+                    value: "消灭了 %d 个弱点！",
+                    comment: ""), convertedWeaknessCount))
+                    .font(.subheadline.bold())
+                    .foregroundColor(.orange)
+                Text(NSLocalizedString("dailyChallenge.achievement.keepGoing",
+                                       value: "继续保持，弱点正在减少",
+                                       comment: ""))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            Spacer()
+        }
+    }
+
+    private func openKnowledgeTree() {
+        guard let g = goal else { return }
+        dismiss()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            AppState.shared.navigateToKnowledgeTree(subject: g.subject)
+        }
+    }
+
     private var completionPoints: Int {
         if correctCount >= questions.count { return 10 }
         if correctCount == 2 { return 8 }
@@ -865,6 +1034,8 @@ struct DailyChallengeView: View {
                 answeredResults[qId] = (answer: answer, isCorrect: correct)
             }
         }
+        // Restore organize state so slide-to-organize can't be triggered a second time
+        hasAnalyzed = hasCollectedTodayReward
         if completed.count == qs.count {
             restoreQuestionState(at: currentIndex)
             showingCompletion = true
@@ -895,8 +1066,7 @@ struct DailyChallengeView: View {
             return
         }
 
-        // Show panel immediately with loading state, then grade with AI
-        hasAnswered = true
+        // Not exact match — show loading overlay only, reveal feedback panel after AI result
         isGradingWithAI = true
         Task {
             defer { isGradingWithAI = false }
@@ -930,10 +1100,10 @@ struct DailyChallengeView: View {
                     sessionId: session.id, completedQuestionId: qId,
                     answer: answer, isCorrect: isCorrect)
             }
-            let gen = UINotificationFeedbackGenerator()
-            gen.notificationOccurred(isCorrect ? .success : .error)
+            UINotificationFeedbackGenerator().notificationOccurred(isCorrect ? .success : .error)
+            hasAnswered = true
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) { feedbackVisible = true }
         }
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) { feedbackVisible = true }
     }
 
     private func finishAnswer(answer: String, correct: Bool, q: QuestionGenerationService.GeneratedQuestion) {
@@ -1236,6 +1406,67 @@ struct DailyChallengeView: View {
         }
     }
 
+    /// Evaluate route-specific achievements and trigger side-effects (leaf lighting, weakness credit).
+    private func processGoalAchievement() async {
+        guard let g = goal, correctCount > 0 else { return }
+
+        switch g.routeType {
+
+        case .leafLighting:
+            await MainActor.run {
+                // Phase 1 — animate leaf from gray to lighting
+                withAnimation(.easeIn(duration: 0.25)) { leafAnimationPhase = .lighting }
+            }
+            try? await Task.sleep(nanoseconds: 400_000_000)
+            await MainActor.run {
+                // Record mastery → makes isPracticed = true in knowledge tree
+                ShortTermStatusService.shared.recordCorrectAttempt(
+                    key: g.leafTopicKey,
+                    retryType: .explicitPractice,
+                    questionId: nil
+                )
+                // Phase 2 — green glow bloom
+                withAnimation(.spring(response: 0.45, dampingFraction: 0.6)) {
+                    leafAnimationPhase = .green
+                    leafWasLit = true
+                }
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+            }
+            // Sync to backend in background (fire-and-forget)
+            Task.detached(priority: .background) {
+                try? await NetworkService.shared.syncKnowledgeTreeSnapshot(subject: g.subject)
+            }
+
+        case .weaknessConversion:
+            let keys = g.weaknessKeys
+            guard !keys.isEmpty else { return }
+            var resolved = 0
+            await MainActor.run {
+                for i in 0..<correctCount {
+                    let key = keys[i % keys.count]
+                    let before = ShortTermStatusService.shared.status.activeWeaknesses[key]?.value ?? 0
+                    ShortTermStatusService.shared.recordCorrectAttempt(
+                        key: key,
+                        retryType: .explicitPractice,
+                        questionId: nil
+                    )
+                    let after = ShortTermStatusService.shared.status.activeWeaknesses[key]?.value ?? 0
+                    if before > 0 && after <= 0 { resolved += 1 }
+                }
+                convertedWeaknessCount = resolved
+                if resolved > 0 {
+                    // Delay slightly so completion screen settles first
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                        showWeaknessFirework = true
+                    }
+                }
+            }
+
+        case .normal:
+            break
+        }
+    }
+
     private func organizeAndFinish() {
         guard !isOrganizing else { return }
         // Already collected — just close without awarding points again
@@ -1481,6 +1712,93 @@ struct DailyChallengeView: View {
     }
 }
 
+// MARK: - Weakness Conversion Firework Overlay
+
+struct WeaknessConversionOverlay: View {
+    let count: Int
+    let onDismiss: () -> Void
+
+    @State private var burst = false
+    @State private var cardScale: CGFloat = 0.3
+    @State private var cardOpacity: Double = 0
+
+    private let colors: [Color] = [.orange, .yellow, .red, .pink, .orange, .yellow, .red, .pink,
+                                    .orange, .yellow, .red, .pink, .orange, .yellow, .red, .pink]
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.5).ignoresSafeArea()
+                .onTapGesture { dismissOverlay() }
+
+            // Burst particles
+            ForEach(0..<14, id: \.self) { i in
+                let angle = Double(i) * (360.0 / 14.0)
+                let rad   = angle * .pi / 180
+                Circle()
+                    .fill(colors[i])
+                    .frame(width: i % 3 == 0 ? 12 : 7)
+                    .offset(x: burst ? cos(rad) * 160 : 0,
+                            y: burst ? sin(rad) * 160 : 0)
+                    .opacity(burst ? 0 : 0.9)
+                    .animation(.easeOut(duration: 0.85).delay(Double(i) * 0.02), value: burst)
+            }
+
+            // Card
+            VStack(spacing: 16) {
+                ZStack {
+                    Circle()
+                        .fill(LinearGradient(colors: [.orange, .yellow],
+                                             startPoint: .topLeading, endPoint: .bottomTrailing))
+                        .frame(width: 72, height: 72)
+                    Text("🏆")
+                        .font(.system(size: 36))
+                }
+
+                Text(count > 1
+                     ? String(format: NSLocalizedString("dailyChallenge.firework.weaknessMulti",
+                                                        value: "消灭了 %d 个弱点！",
+                                                        comment: ""), count)
+                     : NSLocalizedString("dailyChallenge.firework.weaknessSingle",
+                                         value: "弱点已消灭！",
+                                         comment: ""))
+                    .font(.title2.bold())
+                    .foregroundColor(.primary)
+                    .multilineTextAlignment(.center)
+
+                Text(NSLocalizedString("dailyChallenge.firework.weaknessSub",
+                                       value: "坚持练习，越来越强 💪",
+                                       comment: ""))
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.vertical, 28)
+            .padding(.horizontal, 24)
+            .frame(maxWidth: 300)
+            .background(
+                RoundedRectangle(cornerRadius: 24)
+                    .fill(Color(uiColor: .systemBackground))
+                    .shadow(color: .black.opacity(0.18), radius: 24, x: 0, y: 8)
+            )
+            .scaleEffect(cardScale)
+            .opacity(cardOpacity)
+        }
+        .onAppear {
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.62)) {
+                cardScale = 1.0; cardOpacity = 1.0
+            }
+            withAnimation { burst = true }
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) { dismissOverlay() }
+        }
+    }
+
+    private func dismissOverlay() {
+        withAnimation(.easeOut(duration: 0.22)) { cardScale = 0.85; cardOpacity = 0 }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) { onDismiss() }
+    }
+}
+
 // MARK: - Daily Challenge History
 
 struct DailyChallengeHistory {
@@ -1525,5 +1843,61 @@ struct DailyChallengeHistory {
 private extension Array {
     subscript(dailySafe index: Int) -> Element? {
         indices.contains(index) ? self[index] : nil
+    }
+}
+
+// MARK: - Daily Challenge Goal (route + achievement metadata)
+
+struct DailyChallengeGoal: Codable {
+    enum RouteType: String, Codable {
+        case weaknessConversion
+        case leafLighting
+        case normal
+    }
+
+    let routeType: RouteType
+    let subject: String
+    // weakness route
+    let weaknessKeys: [String]
+    let weaknessTopicNames: [String]
+    // leaf route
+    let leafTopicKey: String
+    let leafTopicName: String
+    let leafBranchName: String
+
+    var hintText: String {
+        switch routeType {
+        case .weaknessConversion:
+            return String(format: NSLocalizedString(
+                "dailyChallenge.goal.weakness",
+                value: "今日目标：挑战 %d 个弱点",
+                comment: ""), weaknessTopicNames.count)
+        case .leafLighting:
+            return String(format: NSLocalizedString(
+                "dailyChallenge.goal.leaf",
+                value: "今日目标：点亮「%@」",
+                comment: ""), leafTopicName)
+        case .normal:
+            return String(format: NSLocalizedString(
+                "dailyChallenge.goal.normal",
+                value: "今日挑战：%@ · 3 题",
+                comment: ""), subject)
+        }
+    }
+
+    var hintIcon: String {
+        switch routeType {
+        case .weaknessConversion: return "bolt.fill"
+        case .leafLighting:       return "leaf.fill"
+        case .normal:             return "star.fill"
+        }
+    }
+
+    var hintColor: Color {
+        switch routeType {
+        case .weaknessConversion: return Color.orange
+        case .leafLighting:       return DesignTokens.Colors.Cute.mint
+        case .normal:             return Color.accentColor
+        }
     }
 }

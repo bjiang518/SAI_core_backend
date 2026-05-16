@@ -1941,6 +1941,7 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "proMode.editImage" = "Modifier l'image";
 "proMode.annotationImageHint" = "Certaines questions nécessitent des images — appuyez pour rogner depuis la photo";
 "proMode.aiAnalyzeDiagrams" = "Localiser automatiquement les zones de diagramme avec l'IA";
+"proMode.nextHomework" = "Devoir suivant";
 "proMode.selectAIModel" = "Sélectionner le modèle IA";
 "proMode.revertGrading" = "Annuler la correction";
 "proMode.revertGradingAlert.title" = "Annuler la correction ?";
@@ -2447,6 +2448,11 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "practiceLibrary.typeConversation" = "Révision de conversation";
 "practiceLibrary.typeMistake" = "Pratique des erreurs";
 "practiceLibrary.typeLibrary" = "Pratique de bibliothèque";
+"practiceLibrary.typeChat" = "Pratique de chat";
+"practiceLibrary.typeTargeted" = "Pratique ciblée";
+"practiceLibrary.typeFeynman" = "Pratique Feynman";
+"practiceLibrary.typeDaily" = "Défi quotidien";
+"practiceLibrary.typeSmartPractice" = "Pratique intelligente";
 
 // Practice Library
 "practiceLibrary.title" = "Pratique";
@@ -2602,7 +2608,7 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "account.usage.resetsMonthly" = "Le quota est mis à jour le 1er de chaque mois";
 "account.usage.unlimited" = "Illimité";
 "account.usage.upgradeLabel" = "Passer à la version supérieure";
-"account.usage.upgradePlan" = "Changer de forfait";
+"account.usage.upgradePlan" = "Voir et changer de forfait";
 "account.usage.restorePurchases" = "Restaurer les achats";
 "account.usage.manageSubscription" = "Gérer l'abonnement";
 "account.usage.tierGuest" = "Compte invité";
@@ -2665,6 +2671,7 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "mistakeTree.legend.mastered" = "Maîtrisé";
 "mistakeTree.legend.untracked" = "Non suivi";
 "mistakeTree.empty" = "Aucune donnée de sujet";
+"knowledgeTree.hint" = "Chaque branche a 3 sous-branches représentant des sujets plus approfondis";
 "mistakeTree.detail.accuracy" = "Précision";
 "mistakeTree.detail.attempts" = "Tentatives";
 "mistakeTree.detail.correct" = "Correctes";
@@ -3071,6 +3078,16 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "common.remove" = "Supprimer";
 "guestConversion.loginSuccess" = "Connexion réussie !";
 "dailyChallenge.bannerReady" = "Les 3 questions du jour sont prêtes";
+"dailyChallenge.goal.weakness" = "Objectif du jour : Surmonter %d faiblesse(s)";
+"dailyChallenge.goal.leaf" = "Objectif du jour : Illuminer « %@ »";
+"dailyChallenge.goal.normal" = "Défi du jour : %@ · 3 questions";
+"dailyChallenge.achievement.leafLit" = "Feuille illuminée !";
+"dailyChallenge.achievement.viewTree" = "Voir l'arbre des connaissances";
+"dailyChallenge.achievement.weaknessConverted" = "Surmonté %d faiblesse(s) !";
+"dailyChallenge.achievement.keepGoing" = "Continuez ! Les faiblesses diminuent";
+"dailyChallenge.firework.weaknessMulti" = "Surmonté %d faiblesses !";
+"dailyChallenge.firework.weaknessSingle" = "Faiblesse surmontée !";
+"dailyChallenge.firework.weaknessSub" = "Continuez à pratiquer, vous devenez plus fort 💪";
 
 // MARK: - Keys present in English but missing from French
 
@@ -3155,3 +3172,102 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 // Saved digital homework
 "savedDigitalHomework.title" = "Devoirs numériques";
 "practiceSheet.backToChat" = "← Retour au chat";
+
+// MARK: - Light Up Knowledge Tree
+"lightUpTree.button.title" = "Illuminer l'arbre";
+"lightUpTree.button.subtitle" = "%d thèmes à pratiquer";
+"lightUpTree.title" = "Sélectionner des thèmes";
+"lightUpTree.selectAll" = "Tout sélectionner";
+"lightUpTree.deselectAll" = "Tout déselectionner";
+"lightUpTree.allLit.title" = "Tous les thèmes pratiqués !";
+"lightUpTree.allLit.message" = "Tous les thèmes de cette matière ont des entrées de pratique. Continuez !";
+"lightUpTree.selection.header" = "Thèmes non pratiqués";
+"lightUpTree.selection.subheader" = "%d thèmes non encore pratiqués. Sélectionnez pour générer des questions adaptées.";
+"lightUpTree.config.title" = "Paramètres de pratique";
+"lightUpTree.generate.selectFirst" = "Veuillez sélectionner au moins un thème";
+"lightUpTree.generate.button" = "Générer %d questions (%d thèmes)";
+"lightUpTree.generating" = "Génération des questions…";
+"lightUpTree.error.sessionNotFound" = "Impossible de charger les questions. Veuillez réessayer.";
+"lightUpTree.selection.quotaHint" = "1 thème par question – max. %d thèmes (sélectionnés : %d)";
+"lightUpTree.selection.limitReached" = "Max. %d thèmes (= nombre de questions)";
+"mistakeTree.detail.lightUp" = "Illuminer ce thème";
+
+// MARK: - Onboarding Age Groups
+"ageGroup.young.range" = "6–8 ans";
+"ageGroup.young.stage" = "Primaire (cycle 2)";
+"ageGroup.elementary.range" = "9–12 ans";
+"ageGroup.elementary.stage" = "Primaire (cycle 3)";
+"ageGroup.middle.range" = "13–15 ans";
+"ageGroup.middle.stage" = "Collège";
+"ageGroup.high.range" = "16–18 ans";
+"ageGroup.high.stage" = "Lycée";
+"ageGroup.adult.range" = "18+";
+"ageGroup.adult.stage" = "Université+";
+
+// MARK: - Onboarding Age Step
+"onboarding.age.title.parent" = "Quel âge a votre enfant ?";
+"onboarding.age.yourAge" = "Votre âge";
+"onboarding.age.kidAge" = "Âge de l'enfant";
+"onboarding.age.selectAgeGroup" = "Choisir la tranche d'âge";
+"onboarding.age.selectKidAgeGroup" = "Choisir pour l'enfant";
+"onboarding.age.recommendedGrade" = "Niveau recommandé";
+"onboarding.age.selectGrade" = "Choisir un niveau";
+"onboarding.age.infoTitle" = "Nous personnaliserons selon votre choix";
+"onboarding.age.infoSubtitle" = "Contenu adapté à votre niveau";
+
+// MARK: - Onboarding Learning Style
+"onboarding.learningStyle.recommended" = "Recommandé";
+"onboarding.learningStyle.tag.thinkingSkills" = "Développer la pensée";
+"onboarding.learningStyle.tag.deepUnderstanding" = "Compréhension approfondie";
+"onboarding.learningStyle.tag.longTermGrowth" = "Croissance long terme";
+"onboarding.learningStyle.tag.efficient" = "Rapide & efficace";
+"onboarding.learningStyle.tag.saveTime" = "Gagner du temps";
+"onboarding.learningStyle.tag.solveProblem" = "Résoudre des problèmes";
+"onboarding.learningStyle.infoBanner" = "Vous pouvez changer cela à tout moment";
+"onboarding.learningStyle.infoBannerSub" = "Ajustez le style d'aide dans Réglages";
+
+// MARK: - Onboarding Consent
+"onboarding.consent.heroSubtitle" = "Nous n'utilisons que les informations nécessaires\npour fournir les services d'apprentissage IA";
+"onboarding.consent.dataProtection.title" = "Comment nous protégeons vos données";
+"onboarding.consent.privacy.title" = "Confidentialité";
+"onboarding.consent.privacy.desc" = "Vos questions et chats ne sont jamais partagés publiquement";
+"onboarding.consent.personalized.title" = "Personnalisé";
+"onboarding.consent.personalized.desc" = "L'IA adapte le contenu à votre progression";
+"onboarding.consent.parentFriendly.title" = "Adapté aux parents";
+"onboarding.consent.parentFriendly.desc" = "Supprimez les données ou désactivez l'IA dans Réglages";
+"onboarding.consent.aiDisclosure.title" = "Déclaration d'utilisation IA";
+"onboarding.consent.aiDisclosure.expand" = "Voir les détails";
+"onboarding.consent.aiDisclosure.collapse" = "Réduire";
+"onboarding.consent.encryption" = "Toutes les données sont chiffrées en transit et au repos";
+"onboarding.consent.agreeSubtitle" = "Vous pouvez modifier cela à tout moment dans Réglages";
+"onboarding.consent.terms" = "En continuant, vous acceptez nos";
+
+// MARK: - Onboarding Trial
+"onboarding.trial.title" = "Votre première semaine est gratuite";
+"onboarding.trial.subtitle" = "Essayez Premium 7 jours sans frais, annulez à tout moment.";
+"onboarding.trial.feature1" = "Scans de devoirs illimités";
+"onboarding.trial.feature2" = "500 messages IA / mois";
+"onboarding.trial.feature3" = "Sessions de tutorat vocal";
+"onboarding.trial.cta" = "Démarrer l'essai gratuit de 7 jours";
+
+// MARK: - Account Usage
+"account.usage.subtitle" = "Suivez votre utilisation et débloquez plus de fonctionnalités avec StudyAgent.";
+"account.usage.yourUsage" = "Votre utilisation";
+"account.usage.resetsMonthEnd" = "Réinitialisé en fin de mois";
+"account.usage.unlockTitle" = "Débloquer l'accès illimité";
+"account.usage.unlockSubtitle" = "Passez à Premium ou Ultra et boostez votre apprentissage.";
+"account.usage.viewPlans" = "Voir les forfaits";
+
+// MARK: - Upgrade Comparison
+"upgrade.comparison.trialBadge" = "7 jours gratuits  •  Annulez à tout moment";
+"upgrade.comparison.headerLine1" = "Améliorez votre";
+"onboarding.trial.skip" = "Peut-être plus tard";
+"chat.practiceConfig.title" = "Pratiquer ce sujet";
+"questionGeneration.generate" = "Générer des exercices";
+"archive.followUpWithAI" = "Continuer avec l'IA";
+"practice.beta.badge" = "Beta";
+"practice.beta.message" = "Nous construisons des banques de questions";
+"practice.mode.ai" = "Pratique IA";
+"practice.mode.bank" = "Vraies Questions";
+"proMode.oneMistake" = "1 erreur";
+"proMode.nMistakes" = "%d erreurs";

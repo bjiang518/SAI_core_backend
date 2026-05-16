@@ -105,7 +105,7 @@ module.exports = async function (fastify, opts) {
 
     try {
       // Update tier
-      await db.setUserTier(userId, tier, expiresAt);
+      await db.setUserTier(userId, tier, expiresAt, 'payment_receipt', product_id || null);
 
       // Record subscription row (upsert on transaction_id)
       await db.query(`
@@ -197,8 +197,7 @@ module.exports = async function (fastify, opts) {
         case 'DID_RENEW': {
           const tier = PRODUCT_TIER_MAP[productId] || 'premium';
           const expiresAt = expiresDateMs ? new Date(Number(expiresDateMs)) : null;
-          await db.setUserTier(userId, tier, expiresAt);
-          fastify.log.info(`[AppleWebhook] ${notificationType}: user=${userId} → tier=${tier}`);
+          await db.setUserTier(userId, tier, expiresAt, 'apple_webhook', notificationType);
           break;
         }
 
@@ -207,8 +206,7 @@ module.exports = async function (fastify, opts) {
         case 'REVOKE':
         case 'DID_FAIL_TO_RENEW':
         case 'GRACE_PERIOD_EXPIRED': {
-          await db.setUserTier(userId, 'free', null);
-          fastify.log.info(`[AppleWebhook] ${notificationType}: user=${userId} → tier=free`);
+          await db.setUserTier(userId, 'free', null, 'apple_webhook', notificationType);
           break;
         }
 

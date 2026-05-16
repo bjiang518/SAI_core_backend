@@ -31,7 +31,7 @@ struct ParentReportsContainerView: View {
                     }
                 )
             }
-            .sheet(isPresented: $showingUpgrade) {
+            .fullScreenCover(isPresented: $showingUpgrade) {
                 UpgradeComparisonView(
                     blockedFeature: NSLocalizedString("upgrade.comparison.featureReports", comment: ""),
                     reason: .featureBlocked,

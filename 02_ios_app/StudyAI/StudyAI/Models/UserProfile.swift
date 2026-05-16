@@ -393,50 +393,37 @@ enum LearningStyle: String, CaseIterable {
 }
 
 enum Subject: String, CaseIterable {
+    // Only subjects available in the question bank / taxonomy
     case math = "Math"
     case english = "English"
     case history = "History"
-    case geography = "Geography"
     case physics = "Physics"
     case chemistry = "Chemistry"
     case biology = "Biology"
     case computerScience = "Computer Science"
-    case foreignLanguage = "Foreign Language"
-    case art = "Art"
-    case music = "Music"
-    case physicalEducation = "Physical Education"
 
     var displayName: String {
-        return self.rawValue
+        switch self {
+        case .math:             return NSLocalizedString("subject.math", comment: "")
+        case .english:          return NSLocalizedString("subject.english", comment: "")
+        case .history:          return NSLocalizedString("subject.history", comment: "")
+        case .physics:          return NSLocalizedString("subject.physics", comment: "")
+        case .chemistry:        return NSLocalizedString("subject.chemistry", comment: "")
+        case .biology:          return NSLocalizedString("subject.biology", comment: "")
+        case .computerScience:  return NSLocalizedString("subject.computerscience", comment: "")
+        }
     }
 
     /// Icon name (SF Symbol)
     var icon: String {
         switch self {
-        case .math:
-            return "function"
-        case .physics:
-            return "atom"
-        case .chemistry:
-            return "flask.fill"
-        case .biology:
-            return "leaf.fill"
-        case .computerScience:
-            return "desktopcomputer"
-        case .english:
-            return "book.fill"
-        case .foreignLanguage:
-            return "globe.americas.fill"
-        case .history:
-            return "clock.fill"
-        case .geography:
-            return "globe"
-        case .art:
-            return "paintbrush.fill"
-        case .music:
-            return "music.note"
-        case .physicalEducation:
-            return "figure.run"
+        case .math:            return "function"
+        case .physics:         return "atom"
+        case .chemistry:       return "flask.fill"
+        case .biology:         return "leaf.fill"
+        case .computerScience: return "desktopcomputer"
+        case .english:         return "book.fill"
+        case .history:         return "clock.fill"
         }
     }
 
@@ -475,30 +462,30 @@ enum Subject: String, CaseIterable {
         case "english", "english language", "english literature", "ela", "language arts":
             return .english
 
-        // Foreign Language variants
+        // Foreign Language variants → not in taxonomy, return nil
         case "foreign language", "spanish", "french", "german", "chinese", "japanese",
              "mandarin", "language", "world language", "second language":
-            return .foreignLanguage
+            return nil
 
         // History variants
         case "history", "world history", "us history", "american history", "social studies":
             return .history
 
-        // Geography variants
+        // Geography variants → not in taxonomy, return nil
         case "geography", "geo":
-            return .geography
+            return nil
 
-        // Art variants
+        // Art variants → not in taxonomy, return nil
         case "art", "arts", "visual art", "drawing", "painting":
-            return .art
+            return nil
 
-        // Music variants
+        // Music variants → not in taxonomy, return nil
         case "music", "band", "orchestra", "choir":
-            return .music
+            return nil
 
-        // Physical Education variants
+        // Physical Education variants → not in taxonomy, return nil
         case "physical education", "pe", "p.e.", "gym", "sports", "athletics", "fitness":
-            return .physicalEducation
+            return nil
 
         // Special handling for specific topics that map to subjects
         case "patterns and sequences", "patterns", "sequences":

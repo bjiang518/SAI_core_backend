@@ -1547,6 +1547,7 @@
 "mistakeTree.legend.mastered" = "習得済み";
 "mistakeTree.legend.untracked" = "未追跡";
 "mistakeTree.empty" = "トピックデータがありません";
+"knowledgeTree.hint" = "各ブランチには3つのサブブランチがあり、より深いトピックを表しています";
 "mistakeTree.detail.accuracy" = "正答率";
 "mistakeTree.detail.attempts" = "練習回数";
 "mistakeTree.detail.correct" = "正解数";
@@ -1946,6 +1947,7 @@
 "proMode.addAnnotation" = "注釈を追加";
 "proMode.editAnnotations" = "注釈を編集（%d）";
 "proMode.annotationImageHint" = "一部の問題には画像が必要です — タップして写真からトリミング";
+"proMode.nextHomework" = "次の宿題";
 "proMode.selectAIModel" = "AIモデルを選択";
 "proMode.revertGrading" = "採点を元に戻す";
 "proMode.revertGradingAlert.title" = "採点を元に戻しますか？";
@@ -2473,6 +2475,11 @@
 "practiceLibrary.typeConversation" = "会話復習";
 "practiceLibrary.typeMistake" = "間違い練習";
 "practiceLibrary.typeLibrary" = "ライブラリ練習";
+"practiceLibrary.typeChat" = "チャット練習";
+"practiceLibrary.typeTargeted" = "的確な練習";
+"practiceLibrary.typeFeynman" = "フェイマン練習";
+"practiceLibrary.typeDaily" = "デイリーチャレンジ";
+"practiceLibrary.typeSmartPractice" = "スマート練習";
 
 // Practice Library
 "practiceLibrary.title" = "練習";
@@ -2632,7 +2639,7 @@
 "account.usage.badgeGuest" = "ゲスト";
 "account.usage.unlimited" = "無制限";
 "account.usage.upgradeLabel" = "アップグレード";
-"account.usage.upgradePlan" = "プランをアップグレード";
+"account.usage.upgradePlan" = "プランを見る・アップグレード";
 "account.usage.manageSubscription" = "サブスクリプション管理";
 "account.usage.restorePurchases" = "購入を復元";
 "account.usage.resetsOn" = "%@にリセット";
@@ -3175,4 +3182,113 @@
 "tomato.duration.hoursMinutes" = "%d時間%d分";
 
 "dailyChallenge.bannerReady" = "今日の3問が準備できました";
+"dailyChallenge.goal.weakness" = "今日の目標：%d 個の弱点に挑戦";
+"dailyChallenge.goal.leaf" = "今日の目標：「%@」を解禁";
+"dailyChallenge.goal.normal" = "今日のチャレンジ：%@ · 3問";
+"dailyChallenge.achievement.leafLit" = "葉が解禁されました！";
+"dailyChallenge.achievement.viewTree" = "知識ツリーを見る";
+"dailyChallenge.achievement.weaknessConverted" = "%d 個の弱点を克服！";
+"dailyChallenge.achievement.keepGoing" = "続けて！弱点は減っています";
+"dailyChallenge.firework.weaknessMulti" = "%d 個の弱点を克服！";
+"dailyChallenge.firework.weaknessSingle" = "弱点を克服！";
+"dailyChallenge.firework.weaknessSub" = "練習を続けて、どんどん強くなろう 💪";
 "practiceSheet.backToChat" = "← チャットに戻る";
+
+// MARK: - Light Up Knowledge Tree
+"lightUpTree.button.title" = "知識ツリーを点灯";
+"lightUpTree.button.subtitle" = "%d 個のトピックを練習する";
+"lightUpTree.title" = "知識ポイントを選択";
+"lightUpTree.selectAll" = "すべて選択";
+"lightUpTree.deselectAll" = "すべて解除";
+"lightUpTree.allLit.title" = "すべての知識ポイントが点灯済み！";
+"lightUpTree.allLit.message" = "この科目のすべてのトピックに練習記録があります。この調子で！";
+"lightUpTree.selection.header" = "未練習のトピック";
+"lightUpTree.selection.subheader" = "%d 個のトピックがまだ練習されていません。選択して学年に合った問題を生成しましょう。";
+"lightUpTree.config.title" = "練習設定";
+"lightUpTree.generate.selectFirst" = "トピックを少なくとも1つ選択してください";
+"lightUpTree.generate.button" = "%d 問を生成（%d トピック選択中）";
+"lightUpTree.generating" = "練習問題を生成中…";
+"lightUpTree.error.sessionNotFound" = "問題を読み込めませんでした。もう一度お試しください。";
+"lightUpTree.selection.quotaHint" = "1問につき1トピック — 最大 %d 個（選択中: %d）";
+"lightUpTree.selection.limitReached" = "最大 %d 個まで（問題数と同じ）";
+"mistakeTree.detail.lightUp" = "このトピックを点灯";
+
+// MARK: - Onboarding Age Groups
+"ageGroup.young.range" = "6〜8歳";
+"ageGroup.young.stage" = "小学校低学年";
+"ageGroup.elementary.range" = "9〜12歳";
+"ageGroup.elementary.stage" = "小学校高学年";
+"ageGroup.middle.range" = "13〜15歳";
+"ageGroup.middle.stage" = "中学校";
+"ageGroup.high.range" = "16〜18歳";
+"ageGroup.high.stage" = "高校";
+"ageGroup.adult.range" = "18歳以上";
+"ageGroup.adult.stage" = "大学・社会人";
+
+// MARK: - Onboarding Age Step
+"onboarding.age.title.parent" = "お子さんは何歳ですか？";
+"onboarding.age.yourAge" = "あなたの年齢";
+"onboarding.age.kidAge" = "お子さんの年齢";
+"onboarding.age.selectAgeGroup" = "年齢グループを選択";
+"onboarding.age.selectKidAgeGroup" = "お子さんの年齢グループを選択";
+"onboarding.age.recommendedGrade" = "推奨学年";
+"onboarding.age.selectGrade" = "学年を選択";
+"onboarding.age.infoTitle" = "選択に基づいてカスタマイズします";
+"onboarding.age.infoSubtitle" = "学習レベルに合ったコンテンツを提供";
+
+// MARK: - Onboarding Learning Style
+"onboarding.learningStyle.recommended" = "おすすめ";
+"onboarding.learningStyle.tag.thinkingSkills" = "思考力を高める";
+"onboarding.learningStyle.tag.deepUnderstanding" = "深い理解";
+"onboarding.learningStyle.tag.longTermGrowth" = "長期的な成長";
+"onboarding.learningStyle.tag.efficient" = "速くて効率的";
+"onboarding.learningStyle.tag.saveTime" = "時間を節約";
+"onboarding.learningStyle.tag.solveProblem" = "問題を解決";
+"onboarding.learningStyle.infoBanner" = "いつでも変更できます";
+"onboarding.learningStyle.infoBannerSub" = "設定でAIサポートスタイルを調整";
+
+// MARK: - Onboarding Consent
+"onboarding.consent.heroSubtitle" = "必要な情報のみを使用して\nAI学習サービスを提供します";
+"onboarding.consent.dataProtection.title" = "データ保護の方法";
+"onboarding.consent.privacy.title" = "プライバシー";
+"onboarding.consent.privacy.desc" = "質問やチャットは公開されません";
+"onboarding.consent.personalized.title" = "パーソナライズ";
+"onboarding.consent.personalized.desc" = "AIが学習の進捗に合わせてコンテンツを調整";
+"onboarding.consent.parentFriendly.title" = "保護者向け";
+"onboarding.consent.parentFriendly.desc" = "データ削除やAI機能の無効化をいつでも設定で";
+"onboarding.consent.aiDisclosure.title" = "AI利用宣言";
+"onboarding.consent.aiDisclosure.expand" = "詳細を見る";
+"onboarding.consent.aiDisclosure.collapse" = "閉じる";
+"onboarding.consent.encryption" = "すべてのデータは転送中・保存中に暗号化";
+"onboarding.consent.agreeSubtitle" = "設定でいつでも変更できます";
+"onboarding.consent.terms" = "続行することで、以下に同意したことになります：";
+
+// MARK: - Onboarding Trial
+"onboarding.trial.title" = "最初の1週間は無料";
+"onboarding.trial.subtitle" = "7日間Premiumを無料でお試し — 来週まで請求なし、いつでもキャンセル可。";
+"onboarding.trial.feature1" = "宿題スキャン無制限";
+"onboarding.trial.feature2" = "AIチャット500件 / 月";
+"onboarding.trial.feature3" = "ライブ音声チュータリング";
+"onboarding.trial.cta" = "7日間無料トライアルを開始";
+
+// MARK: - Account Usage
+"account.usage.subtitle" = "使用状況を確認し、StudyAgentの機能をもっと解放しましょう。";
+"account.usage.yourUsage" = "使用状況";
+"account.usage.resetsMonthEnd" = "毎月末にリセット";
+"account.usage.unlockTitle" = "無制限アクセスを解放";
+"account.usage.unlockSubtitle" = "PremiumまたはUltraにアップグレードして学習を加速。";
+"account.usage.viewPlans" = "プランを見る";
+
+// MARK: - Upgrade Comparison
+"upgrade.comparison.trialBadge" = "7日間無料  •  いつでもキャンセル可";
+"upgrade.comparison.headerLine1" = "アップグレード";
+"onboarding.trial.skip" = "後で";
+"chat.practiceConfig.title" = "このトピックを練習";
+"questionGeneration.generate" = "練習問題を生成";
+"archive.followUpWithAI" = "AIに続けて質問する";
+"practice.beta.badge" = "Beta";
+"practice.beta.message" = "問題集を構築中です";
+"practice.mode.ai" = "AI 練習";
+"practice.mode.bank" = "本物の問題";
+"proMode.oneMistake" = "1 つの誤り";
+"proMode.nMistakes" = "%d つの誤り";

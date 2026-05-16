@@ -1,0 +1,120 @@
+{
+  "subject": "Chinese",
+  "branches": [
+    {
+      "id": "reading_foundations",
+      "name": "Reading Foundations",
+      "topics": [
+        { "id": "character_recognition",         "name": "Character Recognition (识字)",      "gradeMin": 0, "gradeMax": 6 },
+        { "id": "pinyin_pronunciation",           "name": "Pinyin & Pronunciation",            "gradeMin": 0, "gradeMax": 3 },
+        { "id": "reading_fluency",                "name": "Reading Fluency",                   "gradeMin": 0, "gradeMax": 6 },
+        { "id": "vocabulary_development",         "name": "Vocabulary Development (词汇积累)",  "gradeMin": 0, "gradeMax": 8 },
+        { "id": "reading_strategies",             "name": "Reading Strategies",                "gradeMin": 1, "gradeMax": 8 }
+      ]
+    },
+    {
+      "id": "modern_chinese_reading",
+      "name": "Modern Chinese Reading",
+      "topics": [
+        { "id": "article_comprehension",          "name": "Article Comprehension (阅读理解)",   "gradeMin": 3, "gradeMax": 13 },
+        { "id": "main_idea_theme",                "name": "Main Idea & Theme (主旨大意)",        "gradeMin": 4, "gradeMax": 13 },
+        { "id": "text_structure_organization",    "name": "Text Structure & Organization",     "gradeMin": 4, "gradeMax": 13 },
+        { "id": "authors_purpose_perspective",    "name": "Author's Purpose & Perspective",    "gradeMin": 5, "gradeMax": 13 },
+        { "id": "inference_analysis",             "name": "Inference & Analysis (推理分析)",    "gradeMin": 5, "gradeMax": 13 },
+        { "id": "literary_devices",               "name": "Literary Devices (修辞手法)",        "gradeMin": 5, "gradeMax": 13 },
+        { "id": "genre_study",                    "name": "Genre Study (体裁学习)",             "gradeMin": 4, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "classical_chinese",
+      "name": "Classical Chinese (文言文)",
+      "topics": [
+        { "id": "classical_grammar_structure",    "name": "Classical Grammar & Structure",     "gradeMin": 7, "gradeMax": 13 },
+        { "id": "classical_vocabulary",           "name": "Classical Vocabulary (实词/虚词)",   "gradeMin": 7, "gradeMax": 13 },
+        { "id": "translation",                    "name": "Translation (文言翻译)",             "gradeMin": 7, "gradeMax": 13 },
+        { "id": "classical_text_analysis",        "name": "Classical Text Analysis",           "gradeMin": 8, "gradeMax": 13 },
+        { "id": "historical_context",             "name": "Historical Context",                "gradeMin": 7, "gradeMax": 13 },
+        { "id": "classical_idioms",               "name": "Classical Idioms (成语典故)",        "gradeMin": 7, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "poetry_literature",
+      "name": "Poetry & Literature (诗词文学)",
+      "topics": [
+        { "id": "ancient_poetry",                 "name": "Ancient Poetry (古诗词)",            "gradeMin": 3, "gradeMax": 13 },
+        { "id": "modern_poetry",                  "name": "Modern Poetry (现代诗歌)",           "gradeMin": 6, "gradeMax": 13 },
+        { "id": "famous_works",                   "name": "Famous Works (名著阅读)",            "gradeMin": 7, "gradeMax": 13 },
+        { "id": "literary_appreciation",          "name": "Literary Appreciation (文学鉴赏)",   "gradeMin": 7, "gradeMax": 13 },
+        { "id": "poetry_techniques",              "name": "Poetry Techniques (诗歌技巧)",       "gradeMin": 8, "gradeMax": 13 },
+        { "id": "cultural_background",            "name": "Cultural Background (文化背景)",     "gradeMin": 5, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "writing_narrative",
+      "name": "Writing - Narrative (记叙文)",
+      "topics": [
+        { "id": "story_elements",                 "name": "Story Elements (记叙要素)",          "gradeMin": 3, "gradeMax": 13 },
+        { "id": "character_setting_description",  "name": "Character & Setting Description",   "gradeMin": 3, "gradeMax": 13 },
+        { "id": "plot_development",               "name": "Plot Development (情节发展)",        "gradeMin": 4, "gradeMax": 13 },
+        { "id": "descriptive_techniques",         "name": "Descriptive Techniques (描写手法)",  "gradeMin": 4, "gradeMax": 13 },
+        { "id": "personal_narrative",             "name": "Personal Narrative (记事作文)",      "gradeMin": 3, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "writing_expository",
+      "name": "Writing - Expository (说明文)",
+      "topics": [
+        { "id": "expository_methods",             "name": "Expository Methods (说明方法)",      "gradeMin": 5, "gradeMax": 13 },
+        { "id": "structure_organization",         "name": "Structure & Organization (结构安排)", "gradeMin": 5, "gradeMax": 13 },
+        { "id": "informative_writing",            "name": "Informative Writing (说明性文章)",   "gradeMin": 5, "gradeMax": 13 },
+        { "id": "process_explanation",            "name": "Process Explanation (事理说明)",     "gradeMin": 6, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "writing_argumentative",
+      "name": "Writing - Argumentative (议论文)",
+      "topics": [
+        { "id": "thesis_argument",                "name": "Thesis & Argument (论点论据)",        "gradeMin": 7, "gradeMax": 13 },
+        { "id": "argumentation_methods",          "name": "Argumentation Methods (论证方法)",    "gradeMin": 8, "gradeMax": 13 },
+        { "id": "persuasive_techniques",          "name": "Persuasive Techniques (说服技巧)",    "gradeMin": 8, "gradeMax": 13 },
+        { "id": "logical_reasoning",              "name": "Logical Reasoning (逻辑推理)",        "gradeMin": 8, "gradeMax": 13 },
+        { "id": "counterargument",                "name": "Counterargument (驳论)",             "gradeMin": 9, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "language_knowledge",
+      "name": "Language Knowledge (语言基础)",
+      "topics": [
+        { "id": "grammar_syntax",                 "name": "Grammar & Syntax (语法句法)",        "gradeMin": 2, "gradeMax": 13 },
+        { "id": "parts_of_speech",                "name": "Parts of Speech (词性)",            "gradeMin": 2, "gradeMax": 9 },
+        { "id": "sentence_patterns",              "name": "Sentence Patterns (句式)",          "gradeMin": 3, "gradeMax": 13 },
+        { "id": "punctuation",                    "name": "Punctuation (标点符号)",             "gradeMin": 1, "gradeMax": 9 },
+        { "id": "common_errors",                  "name": "Common Errors (病句修改)",           "gradeMin": 5, "gradeMax": 13 },
+        { "id": "idioms_proverbs",                "name": "Idioms & Proverbs (成语俗语)",       "gradeMin": 4, "gradeMax": 13 },
+        { "id": "rhetorical_devices",             "name": "Rhetorical Devices (修辞方法)",      "gradeMin": 5, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "oral_communication",
+      "name": "Oral Communication (口语交际)",
+      "topics": [
+        { "id": "speaking_skills",                "name": "Speaking Skills (口语表达)",         "gradeMin": 0, "gradeMax": 13 },
+        { "id": "listening_comprehension",        "name": "Listening Comprehension (听力理解)",  "gradeMin": 0, "gradeMax": 13 },
+        { "id": "presentation_speech",            "name": "Presentation & Speech (演讲)",       "gradeMin": 5, "gradeMax": 13 },
+        { "id": "discussion_debate",              "name": "Discussion & Debate (讨论辩论)",      "gradeMin": 6, "gradeMax": 13 },
+        { "id": "interview_dialogue",             "name": "Interview & Dialogue (访谈对话)",    "gradeMin": 7, "gradeMax": 13 }
+      ]
+    },
+    {
+      "id": "comprehensive_language_skills",
+      "name": "Comprehensive Language Skills",
+      "topics": [
+        { "id": "integrated_reading_writing",     "name": "Integrated Reading & Writing",      "gradeMin": 5, "gradeMax": 13 },
+        { "id": "material_synthesis",             "name": "Material Synthesis (材料整合)",      "gradeMin": 7, "gradeMax": 13 },
+        { "id": "critical_thinking",              "name": "Critical Thinking (批判性思维)",     "gradeMin": 7, "gradeMax": 13 },
+        { "id": "cultural_literacy",              "name": "Cultural Literacy (文化素养)",       "gradeMin": 5, "gradeMax": 13 },
+        { "id": "language_application",           "name": "Language Application (语言运用)",    "gradeMin": 3, "gradeMax": 13 }
+      ]
+    }
+  ]
+}

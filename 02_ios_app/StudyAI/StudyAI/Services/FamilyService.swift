@@ -33,6 +33,7 @@ struct ChildLocalProfile: Codable {
     var subjects: [String]     // Subject.rawValue array
     var learningStyle: String? // "heuristic" or "straightforward"
     var avatarId: Int?         // ProfileAvatar rawValue (1–6)
+    var gradeLevel: String?    // integer string e.g. "1" (mirrors ChildAccount.gradeLevel)
 
     init() { subjects = [] }
 }

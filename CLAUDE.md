@@ -25,7 +25,7 @@ StudyAI_Workspace_GitHub/
 cd 01_core_backend
 npm run dev       # hot reload (nodemon)
 npm start         # production
-git push origin main  # auto-deploys to Railway
+railway up        # deploy to Railway via CLI
 ```
 **URL**: https://sai-backend-production.up.railway.app
 
@@ -39,6 +39,7 @@ Requires code signing — check project settings for valid provisioning profile.
 ```bash
 cd 04_ai_engine_service
 python3 src/main.py  # local dev (use python3, not python — system may be 2.7)
+railway up           # deploy to Railway via CLI
 # Production: start.sh → Gunicorn with 3 UvicornWorker processes
 ```
 **URL**: https://studyai-ai-engine-production.up.railway.app
@@ -125,6 +126,28 @@ selected_service = gemini_service if (request.model_provider == "gemini" and req
 - Error analysis pipeline handles `ShortTermStatusService` — don't call it directly from `archiveQuestion()`
 - `weaknessKey` format: `"Subject/concept_underscored/question_type"`
 - Two-pass pipeline: Pass 1 (immediate) → `QuestionLocalStorage`, Pass 2 (background) → `ErrorAnalysisQueueService`
+
+### Practice Question Generation — Grade Level Rules
+**Always pass `grade_level` in every generation request. Without it the AI defaults to "General" and generates content far beyond the student's level.**
+
+| Path | iOS sends | Backend resolves |
+|------|-----------|-----------------|
+| MODE 1 random `/practice` | `grade_level: userProfile.grade` | reads `grade_level` → `formatGradeLevel()` → DB fallback |
+| MODE 2 mistakes `/mistakes` | `user_profile: { grade }` | reads `grade_level` → `user_profile.grade` → DB fallback |
+| MODE 3 archive `/practice` mode=3 | `grade_level: userProfile.grade` | same as MODE 1 |
+| v3 `/practice/v2` | `user_profile` included | always fetches from DB |
+
+- `formatGradeLevel(1)` → `"1st Grade"`, `formatGradeLevel(0)` → `"Kindergarten"`
+- AI Engine prompt (`prompt_service.py → get_unified_questions_prompt`) enforces grade with a `GRADE REQUIREMENT (STRICTLY ENFORCED)` block — do not remove it
+- For K-3: whole numbers, simple halves/thirds only; no algebra, no multi-variable equations
+- `PracticeSessionManager.saveSession()` triggers background PDF generation (MathJax/WebView). **Never call it twice for the same questions** — concurrent WebView renders cause `SWIFT TASK CONTINUATION MISUSE` and app freeze
+
+### Knowledge Tree (点亮知识树) Feature
+- Entry: `MistakeReviewView` → Knowledge Tree mode → "点亮知识树" button (`LightUpTreeButton`)
+- Sheet: `LightUpTreeSheet` — shows unlit topics (gray leaves, `!topic.isPracticed`), config (difficulty/count/type), generates via `QuestionGenerationService.generateRandomQuestions`
+- **Do NOT call `PracticeSessionManager.saveSession` inside `LightUpTreeSheet.generate()`** — the service already saves internally; double save = double PDF render = app freeze
+- After generation: reuse session via `QuestionGenerationService.shared.currentSessionId` → `PracticeSessionManager.shared.getSession(id:)`
+- Sheet dismiss flow: `onSessionCreated` sets `lightUpSession` + `showLightUpSheet = false`, then waits **650ms** before setting `showLightUpPractice = true`. Presenting `fullScreenCover` while sheet is mid-dismiss causes SwiftUI to silently reset `lightUpSession` to nil
 
 ### Diagram Generation
 - Model: gpt-5.2 for both initial and regenerate
@@ -226,6 +249,43 @@ git commit -m "feat: description"
 git push origin feature/feature-name
 # PR on GitHub; merging to main auto-deploys to Railway
 ```
+
+## App Store & Backward Compatibility
+
+**StudyAI 已上线 App Store，有真实用户在使用旧版本 iOS 客户端。**
+
+### 核心原则
+- 后端（Railway 自动部署）先于 iOS 更新上线，旧版客户端必须能继续正常使用
+- iOS 更新需经过 App Store 审核（1-3天），期间新旧客户端并存
+- **永远不要做破坏旧客户端的后端改动**
+
+### 后端改动检查清单
+在修改任何 API 接口前，必须确认：
+1. **请求体字段**：新增字段必须有默认值；不可删除旧客户端依赖的字段
+2. **响应格式**：只能新增字段，不可删除或重命名旧字段
+3. **接口路径**：不可修改现有路径；新功能用新路径（如 `/v2`）
+4. **错误码**：不可修改已有错误码的语义；新错误用新码
+5. **数据库**：新增列必须有默认值；不可删除旧列
+
+### 常见安全模式
+```javascript
+// ✅ 安全：新字段给默认值
+const { existing_field, new_field = 'default' } = request.body;
+
+// ✅ 安全：新接口走新路径，旧接口保留
+fastify.post('/api/ai/generate-questions/practice/v2', ...)  // 新
+// 旧的 /practice 继续保留，不删除
+
+// ❌ 危险：修改旧接口的响应结构
+// ❌ 危险：删除旧接口
+// ❌ 危险：重命名字段（会导致旧客户端解析失败）
+```
+
+### 已知的旧客户端路线
+- `POST /api/ai/generate-questions/practice` (v2.js) — ChatView "Practice This Topic" 使用，**保留不删**
+- `POST /api/ai/generate-questions/practice/v2` (v3.js) — 新版 Practice 主流程
+- `POST /api/ai/generate-questions/mistakes` (v2.js) — 错题生成，旧客户端发送 `user_profile.grade`
+
 
 ## Gamification (Pomodoro Tomato Garden)
 25-min sessions earn collectible tomatoes (13 types, 4 rarity tiers). 5 same-tier → 1 higher-tier exchange. Physics garden (SpriteKit), max 25 tomatoes.

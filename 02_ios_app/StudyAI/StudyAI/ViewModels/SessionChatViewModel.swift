@@ -278,6 +278,8 @@ class SessionChatViewModel: ObservableObject {
         isSubmitting = true
         errorMessage = ""
 
+        JourneyTracker.shared.track("chat_message_sent", ["subject": selectedSubject])
+
         // ✅ CRITICAL FIX: Clear follow-up suggestions IMMEDIATELY to prevent auto-trigger
         debugPrint("🔴 CLEARING aiGeneratedSuggestions at sendMessage start")
         aiGeneratedSuggestions = []

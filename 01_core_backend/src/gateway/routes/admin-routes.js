@@ -1150,7 +1150,7 @@ module.exports = async function (fastify, opts) {
     }
 
     try {
-      await db.setUserTier(userId, tier, expiresAt);
+      await db.setUserTier(userId, tier, expiresAt, 'admin', request.adminUser?.email || null);
       fastify.log.info(`[Admin] set-tier: user=${userId} tier=${tier} expires=${expiresAt || 'null'} by=${request.adminUser?.email}`);
       return reply.send({ success: true, data: { tier, expires_at: expiresAt } });
     } catch (error) {
@@ -1380,6 +1380,28 @@ module.exports = async function (fastify, opts) {
   });
 
   // ============================================================================
+  /**
+   * GET /api/admin/users/:userId/tier-history
+   * Returns all tier changes for a user, newest first.
+   */
+  fastify.get('/api/admin/users/:userId/tier-history', { preHandler: verifyAdmin }, async (request, reply) => {
+    const { userId } = request.params;
+    try {
+      const result = await db.query(
+        `SELECT id, from_tier, to_tier, from_expires_at, to_expires_at, changed_at, source, note
+         FROM tier_history
+         WHERE user_id = $1
+         ORDER BY changed_at DESC
+         LIMIT 50`,
+        [userId]
+      );
+      return reply.send({ success: true, data: result.rows });
+    } catch (error) {
+      fastify.log.error({ err: error }, '[Admin] tier-history fetch failed');
+      return reply.code(500).send({ success: false, error: 'Failed to fetch tier history' });
+    }
+  });
+
   // INTERNAL / TEST USER MANAGEMENT
   // ============================================================================
 

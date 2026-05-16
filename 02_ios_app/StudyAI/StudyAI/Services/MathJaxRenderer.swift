@@ -404,9 +404,31 @@ public struct FullLaTeXText: View {
         content.contains("\\sum")
     }
 
+    /// If the string contains LaTeX commands but no delimiters, the AI omitted the \(...\) wrappers.
+    /// Wrap the entire string so MathJax can find and render it.
+    private var processedContent: String {
+        let bareLatexCommands = ["\\frac", "\\sqrt", "\\sum", "\\int", "\\lim", "\\prod",
+                                 "\\alpha", "\\beta", "\\theta", "\\pi", "\\infty",
+                                 "\\pm", "\\times", "\\div", "\\approx", "\\neq",
+                                 "\\geq", "\\leq", "\\text", "\\cdot", "\\vec"]
+        let hasDelimiters = content.contains("\\(") || content.contains("\\[") || content.contains("$")
+        let hasBareLatex = !hasDelimiters && bareLatexCommands.contains(where: { content.contains($0) })
+        guard hasBareLatex else { return content }
+
+        // Preserve a leading answer label like "A. " or "B. " outside the math block
+        let labelPattern = "^([A-Da-d][.)][[:space:]]*)"
+        if let range = content.range(of: labelPattern, options: [.regularExpression]),
+           range.lowerBound == content.startIndex {
+            let label = String(content[range])
+            let math  = String(content[range.upperBound...])
+            return "\(label)\\(\(math)\\)"
+        }
+        return "\\(\(content)\\)"
+    }
+
     public var body: some View {
         if containsLatex {
-            MathContentView(content: content, fontSize: fontSize, isStreaming: isStreaming, interactionEnabled: interactionEnabled)
+            MathContentView(content: processedContent, fontSize: fontSize, isStreaming: isStreaming, interactionEnabled: interactionEnabled)
         } else {
             Text(content)
                 .font(.system(size: fontSize))

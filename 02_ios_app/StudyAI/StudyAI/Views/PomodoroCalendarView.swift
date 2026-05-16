@@ -457,7 +457,7 @@ struct AddPomodoroEventSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button(NSLocalizedString("common.cancel", comment: "")) { dismiss() }
+                    XDismissButton { dismiss() }
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {

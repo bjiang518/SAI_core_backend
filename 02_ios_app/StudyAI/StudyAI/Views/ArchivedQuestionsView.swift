@@ -822,7 +822,7 @@ struct QuestionDetailView: View {
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: "message.fill")
-                Text("Follow Up with AI")
+                Text(NSLocalizedString("archive.followUpWithAI", value: "Follow Up with AI", comment: ""))
                     .fontWeight(.semibold)
             }
             .foregroundColor(.white)

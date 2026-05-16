@@ -12,6 +12,21 @@ import Foundation
 
 // Note: ProgressiveSubquestion is now in ProgressiveSubquestionModel.swift
 
+/// Teacher correction mark detected in the homework image (red pen, ✓, ✗, etc.)
+struct TeacherMark: Codable {
+    /// "checkmark" | "cross" | "correction" | "comment" | "circle"
+    let type: String
+    /// Text content written by the teacher (correction value or comment text)
+    let content: String?
+    /// Which step the mark refers to (if identifiable)
+    let onStep: String?
+
+    enum CodingKeys: String, CodingKey {
+        case type, content
+        case onStep = "on_step"
+    }
+}
+
 /// Image region with normalized coordinates
 struct ImageRegion: Codable {
     let topLeft: [Double]         // [x, y] normalized to [0-1]
@@ -42,6 +57,15 @@ struct ProgressiveQuestion: Codable, Identifiable {
     let questionText: String?
     let studentAnswer: String?
 
+    // NEW (v2): Intermediate working steps shown by the student.
+    // Old server responses omit this field → decodes as nil → ignored by UI.
+    // New server responses populate this → UI renders step-by-step breakdown.
+    let workingSteps: [String]?
+
+    // NEW (v2): Teacher correction marks (red pen, ✓, ✗, written corrections).
+    // Absent for old server responses; new responses include when marks are visible.
+    let teacherMark: TeacherMark?
+
     // Image region (optional) - Made optional for compatibility with simplified AI response
     let hasImage: Bool?
     let imageRegion: ImageRegion?
@@ -51,13 +75,15 @@ struct ProgressiveQuestion: Codable, Identifiable {
     enum CodingKeys: String, CodingKey {
         case id
         case questionNumber = "question_number"
-        case pageNumber = "pageNumber"  // NEW: Page number for batch parsing
+        case pageNumber = "pageNumber"
         case isParent = "is_parent"
         case hasSubquestions = "has_subquestions"
         case parentContent = "parent_content"
         case subquestions
         case questionText = "question_text"
         case studentAnswer = "student_answer"
+        case workingSteps = "working_steps"
+        case teacherMark = "teacher_mark"
         case hasImage = "has_image"
         case imageRegion = "image_region"
         case questionType = "question_type"
@@ -113,7 +139,8 @@ struct ProgressiveQuestion: Codable, Identifiable {
                 questionText: sub.questionText,
                 studentAnswer: sub.studentAnswer,
                 questionType: sub.questionType,
-                needImage: sub.needImage
+                needImage: sub.needImage,
+                workingSteps: sub.workingSteps
             )
         }
 
@@ -127,6 +154,8 @@ struct ProgressiveQuestion: Codable, Identifiable {
             subquestions: deduped,
             questionText: questionText,
             studentAnswer: studentAnswer,
+            workingSteps: workingSteps,
+            teacherMark: teacherMark,
             hasImage: hasImage,
             imageRegion: imageRegion,
             questionType: questionType,
@@ -197,34 +226,90 @@ extension ParseHomeworkQuestionsResponse {
 
 // MARK: - Phase 2: Grading Models
 
+/// Structured rubric evaluation of student working steps.
+/// All fields are optional — null means "not applicable / not determined".
+struct StepAnalysis: Codable {
+    let strategyQuality:    String?  // "optimal"|"valid"|"suboptimal"|"flawed"
+    let firstErrorStep:     Int?     // 0-based index of first wrong step; nil = no error
+    let missingSteps:       String?  // description of absent critical steps
+    let computationalError: String?  // description of arithmetic mistake
+    let logicalGap:         String?  // description of invalid logical jump
+    let formulaMisuse:      String?  // description of wrong formula use
+    let errorType:          String?  // "conceptual_gap"|"procedural_error"|"computational_slip"
+
+    enum CodingKeys: String, CodingKey {
+        case strategyQuality    = "strategy_quality"
+        case firstErrorStep     = "first_error_step"
+        case missingSteps       = "missing_steps"
+        case computationalError = "computational_error"
+        case logicalGap         = "logical_gap"
+        case formulaMisuse      = "formula_misuse"
+        case errorType          = "error_type"
+    }
+}
+
+/// Per-step breakdown from deep grading mode
+struct StepBreakdownItem: Codable {
+    let stepIndex:   Int
+    let status:      String   // "correct" | "incorrect" | "suboptimal"
+    let explanation: String
+
+    enum CodingKeys: String, CodingKey {
+        case stepIndex   = "step_index"
+        case status
+        case explanation
+    }
+
+    var isCorrect:    Bool { status == "correct" }
+    var isSuboptimal: Bool { status == "suboptimal" }
+}
+
+/// Method-level analysis from deep grading mode
+struct MethodAnalysis: Codable {
+    let approachDescription: String?
+    let complexity:          String?
+    let alternativeMethod:   String?
+    let efficiencyNote:      String?
+
+    enum CodingKeys: String, CodingKey {
+        case approachDescription = "approach_description"
+        case complexity
+        case alternativeMethod   = "alternative_method"
+        case efficiencyNote      = "efficiency_note"
+    }
+}
+
 /// Result of grading a single question or subquestion
 struct ProgressiveGradeResult: Codable {
-    let score: Float              // 0.0-1.0
-    let isCorrect: Bool           // score >= 0.9
-    let feedback: String          // Max 30 words
-    let confidence: Float         // 0.0-1.0
-    let correctAnswer: String?    // The expected/correct answer
+    let score: Float
+    let isCorrect: Bool
+    let feedback: String
+    let confidence: Float
+    let correctAnswer: String?
+    let stepAnalysis: StepAnalysis?   // present only when working_steps were provided
+    let stepBreakdown:       [StepBreakdownItem]?  // deep mode: per-step analysis
+    let methodAnalysis:      MethodAnalysis?        // deep mode: complexity + alternative
+    let detailedExplanation: String?                // deep mode: full walkthrough with 「bold」 markers
 
     enum CodingKeys: String, CodingKey {
         case score
-        case isCorrect = "is_correct"
+        case isCorrect    = "is_correct"
         case feedback
         case confidence
         case correctAnswer = "correct_answer"
+        case stepAnalysis  = "step_analysis"
+        case stepBreakdown       = "step_breakdown"
+        case methodAnalysis      = "method_analysis"
+        case detailedExplanation = "detailed_explanation"
     }
 
-    /// Color for UI display
     var scoreColor: ScoreColor {
         if isCorrect { return .correct }
         if score >= 0.5 { return .partial }
         return .incorrect
     }
 
-    enum ScoreColor {
-        case correct    // Green
-        case partial    // Orange
-        case incorrect  // Red
-    }
+    enum ScoreColor { case correct, partial, incorrect }
 }
 
 /// Response from grade-question endpoint (Phase 2)

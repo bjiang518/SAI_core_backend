@@ -282,7 +282,7 @@ struct EssayResultsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Cancel") {
+                    XDismissButton {
                         showExportSheet = false
                     }
                 }

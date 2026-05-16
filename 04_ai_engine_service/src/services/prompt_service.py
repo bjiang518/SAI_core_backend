@@ -1536,10 +1536,23 @@ RULE: correct_answer MUST be exactly "True" or "False".""",
             "- If the context shows mistakes, lean easier; if the student answered correctly, add a moderate challenge."
         ))
 
+        # Only add strict grade enforcement when a specific grade is known.
+        # For "General" / None / empty, skip the block — it confuses the AI
+        # and degrades quality for clients that don't supply a real grade level.
+        is_specific_grade = grade and grade.lower() not in ("general", "high school", "university/college")
+        grade_requirement_block = f"""GRADE REQUIREMENT (STRICTLY ENFORCED):
+- Student level: {grade}
+- Every question MUST be within the {grade} curriculum scope — no exceptions.
+- Do NOT introduce concepts, notation, or operations beyond what a {grade} student is taught.
+- For early grades (K-3): use whole numbers, simple fractions (halves/thirds), concrete real-world scenarios. No algebra, no multi-variable equations.
+- For middle grades (4-6): fractions, decimals, basic ratios are acceptable; no advanced algebra.
+- If the topic seems too advanced for {grade}, simplify it to the most foundational version of that concept appropriate for {grade}.
+""" if is_specific_grade else ""
+
         prompt = f"""Generate {count} {difficulty}-level {subject} questions for a {grade} student.
 All questions MUST be type: {question_type}
 
-CONTEXT:
+{grade_requirement_block}CONTEXT:
 {context_block}
 
 {difficulty_guidance}

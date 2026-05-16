@@ -46,10 +46,18 @@ struct LeafShape: Shape {
 struct KnowledgeTreeView: View {
     let subject: String
     let branches: [KnowledgeTreeBranch]
+    /// Called when user taps "Light Up" on an untracked leaf — passes topic id.
+    var onLightUpTopic: ((String) -> Void)? = nil
 
     @StateObject private var themeManager = ThemeManager.shared
     @State private var selectedLeaf: TreeLeafDetailData?
     @State private var showLeaves = false
+
+    // Light-up animation state
+    @State private var prevPracticedIds: Set<String> = []
+    @State private var flashLeafIds:  Set<String> = []   // phase 1: white flash + scale
+    @State private var glowLeafIds:   Set<String> = []   // phase 2: color + radial glow
+    @State private var settleLeafIds: Set<String> = []   // phase 3: glow fading
 
     private let canvasHeight: CGFloat = 440
     private let leafTopPadding: CGFloat = 24
@@ -75,15 +83,17 @@ struct KnowledgeTreeView: View {
 
                     ZStack {
                         // Grass behind everything — rendered first = lowest z-order
+                        // Position in ZStack coordinates (NOT offset-adjusted):
+                        // y = layout.rootPosition.y puts the grass center at the canvas root.
+                        // After ZStack .offset(y: -offset), it aligns with the visible trunk base.
                         let grassW = CGFloat(geo.size.width) * 0.44
                         let grassH = grassW * 0.48
-                        let rootY  = layout.rootPosition.y - offset
                         Image("tree_grass")
                             .resizable()
                             .aspectRatio(contentMode: .fill)
                             .frame(width: grassW, height: grassH)
                             .position(x: geo.size.width / 2,
-                                      y: rootY + grassH * 0.55)
+                                      y: layout.rootPosition.y - grassH * 0.05)
                             .allowsHitTesting(false)
 
                         // Trunk + branches above grass
@@ -121,9 +131,19 @@ struct KnowledgeTreeView: View {
         }
         .onAppear {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { showLeaves = true }
+            prevPracticedIds = practicedLeafIds(from: branches)
+        }
+        .onChange(of: practicedLeafIds(from: branches).sorted().joined()) { _, newHash in
+            let newPracticed = practicedLeafIds(from: branches)
+            let newlyLit = newPracticed.subtracting(prevPracticedIds)
+            prevPracticedIds = newPracticed
+            guard !newlyLit.isEmpty else { return }
+            triggerLightUpAnimation(for: newlyLit)
         }
         .sheet(item: $selectedLeaf) { leaf in
-            LeafDetailSheet(leaf: leaf)
+            let extractedId = leaf.id.components(separatedBy: "/").last ?? leaf.topicName
+            let _ = debugPrint("🌿 [LightUp] LeafDetailSheet opened — leaf.id='\(leaf.id)' extractedTopicId='\(extractedId)' topicName='\(leaf.topicName)'")
+            LeafDetailSheet(leaf: leaf, onLightUp: onLightUpTopic.map { cb in { cb(extractedId) } })
         }
     }
 
@@ -154,41 +174,66 @@ struct KnowledgeTreeView: View {
         return result
     }
 
-    // MARK: - Leaf view (image asset, tinted by mastery, rotated by branch angle)
-
     @ViewBuilder
     private func leafView(_ leaf: TreeLeafDetailData) -> some View {
-        let isSelected = selectedLeaf?.id == leaf.id
-        let topic      = topicFor(leaf)
-        let color      = topic?.leafColor ?? Color.secondary.opacity(0.40)
-        let diameter   = topic?.leafDiameter ?? 9
-        let container  = diameter + 14
-
-        // The asset image tip points roughly 45° right of vertical (northeast).
-        // Rotate by (angleDeg - 45) so the tip aligns with the branch direction.
+        let isSelected   = selectedLeaf?.id == leaf.id
+        let topic        = topicFor(leaf)
+        let color        = topic?.leafColor ?? Color.secondary.opacity(0.40)
+        let diameter     = topic?.leafDiameter ?? 9
+        let container    = diameter + 14
         let imageRotation = leaf.angleDeg - 45
 
+        let isFlashing  = flashLeafIds.contains(leaf.id)
+        let isGlowing   = glowLeafIds.contains(leaf.id)
+        let isSettling  = settleLeafIds.contains(leaf.id)
+        let isAnimating = isFlashing || isGlowing || isSettling
+
         ZStack {
-            // Glow ring when selected
+            // Radial glow bloom — phase 2 & 3
+            if isGlowing || isSettling {
+                Circle()
+                    .fill(color)
+                    .frame(width: diameter * 2.8, height: diameter * 2.8)
+                    .blur(radius: 10)
+                    .opacity(isGlowing ? 0.75 : 0)
+                    .animation(.easeOut(duration: 0.5), value: isGlowing)
+                    .allowsHitTesting(false)
+            }
+
+            // Selection ring
             Circle()
                 .strokeBorder(color.opacity(0.5), lineWidth: 2)
                 .frame(width: diameter + 10, height: diameter + 10)
                 .opacity(isSelected ? 1 : 0)
 
-            // Leaf image, desaturated then re-tinted with mastery color
+            // Leaf image
             Image("tree_leaf")
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-                .saturation(topic?.isPracticed == true ? 0 : 0)   // always desat then re-color
-                .colorMultiply(tintColor(for: leaf))
-                .opacity(topic?.isPracticed == true ? 1.0 : 0.45)
+                .saturation(0)
+                .colorMultiply(isFlashing ? Color.white : tintColor(for: leaf))
+                .opacity(topic?.isPracticed == true ? 1.0 : (isFlashing ? 1.0 : 0.45))
                 .frame(width: diameter, height: diameter)
                 .rotationEffect(.degrees(imageRotation))
-                .shadow(color: color.opacity(0.35), radius: 2, x: 0, y: 1)
+                .shadow(
+                    color: isGlowing ? color.opacity(0.9) : color.opacity(0.35),
+                    radius: isGlowing ? 10 : 2,
+                    x: 0, y: 1
+                )
+                .animation(.easeInOut(duration: 0.35), value: isFlashing)
+                .animation(.easeInOut(duration: 0.4), value: isGlowing)
         }
         .frame(width: container, height: container)
-        .scaleEffect(showLeaves ? 1.0 : 0.01)
+        .scaleEffect(showLeaves ? (isFlashing ? 1.55 : (isGlowing ? 1.25 : 1.0)) : 0.01)
         .opacity(showLeaves ? 1 : 0)
+        .animation(
+            isFlashing
+                ? .spring(response: 0.25, dampingFraction: 0.55)
+                : (isGlowing
+                    ? .spring(response: 0.35, dampingFraction: 0.65)
+                    : .spring(response: 0.45, dampingFraction: 0.70)),
+            value: isFlashing || isGlowing
+        )
         .animation(.spring(response: 0.45, dampingFraction: 0.65).delay(leaf.animDelay), value: showLeaves)
         .scaleEffect(isSelected ? 1.12 : 1.0)
         .animation(.spring(response: 0.28, dampingFraction: 0.60), value: isSelected)
@@ -365,5 +410,47 @@ struct KnowledgeTreeView: View {
                 .font(.subheadline).foregroundColor(.secondary)
         }
         .frame(height: canvasHeight).frame(maxWidth: .infinity)
+    }
+
+    // MARK: - Light-up animation helpers
+
+    /// Returns the set of leaf IDs (branchId/topicId) that are currently practiced.
+    private func practicedLeafIds(from branches: [KnowledgeTreeBranch]) -> Set<String> {
+        Set(branches.flatMap { branch in
+            branch.topics.compactMap { topic in
+                topic.isPracticed ? "\(branch.id)/\(topic.id)" : nil
+            }
+        })
+    }
+
+    /// Runs a 3-phase light-up animation for the given leaf IDs.
+    private func triggerLightUpAnimation(for ids: Set<String>) {
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+
+        // Phase 1 — white flash + big scale
+        withAnimation(.spring(response: 0.22, dampingFraction: 0.50)) {
+            flashLeafIds = flashLeafIds.union(ids)
+        }
+
+        // Phase 2 — color blooms in + radial glow
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.30) {
+            withAnimation(.spring(response: 0.40, dampingFraction: 0.60)) {
+                flashLeafIds = flashLeafIds.subtracting(ids)
+                glowLeafIds  = glowLeafIds.union(ids)
+            }
+        }
+
+        // Phase 3 — glow fades, settle to normal
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.80) {
+            withAnimation(.easeOut(duration: 0.55)) {
+                glowLeafIds   = glowLeafIds.subtracting(ids)
+                settleLeafIds = settleLeafIds.union(ids)
+            }
+        }
+
+        // Clean up settle flag
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.55) {
+            settleLeafIds = settleLeafIds.subtracting(ids)
+        }
     }
 }

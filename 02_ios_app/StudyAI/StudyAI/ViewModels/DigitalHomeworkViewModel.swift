@@ -641,19 +641,25 @@ class DigitalHomeworkViewModel: ObservableObject {
             return
         }
 
-        // Convert normalized coordinates to pixel coordinates
-        let imageWidth = normalizedImage.size.width
-        let imageHeight = normalizedImage.size.height
+        // Use cgImage pixel dimensions — cgImage.cropping(to:) expects pixel coordinates.
+        // normalizedImage.size returns points (scale-dependent), which would produce a wrong
+        // cropRect when the image scale is 2× or 3×.
+        guard let cgSource = normalizedImage.cgImage else {
+            logger.error("No cgImage for Q\(questionNumber)")
+            return
+        }
+        let pixelWidth  = CGFloat(cgSource.width)
+        let pixelHeight = CGFloat(cgSource.height)
 
-        let x = CGFloat(annotation.topLeft[0]) * imageWidth
-        let y = CGFloat(annotation.topLeft[1]) * imageHeight
-        let width = CGFloat(annotation.bottomRight[0] - annotation.topLeft[0]) * imageWidth
-        let height = CGFloat(annotation.bottomRight[1] - annotation.topLeft[1]) * imageHeight
+        let x = CGFloat(annotation.topLeft[0]) * pixelWidth
+        let y = CGFloat(annotation.topLeft[1]) * pixelHeight
+        let x2 = min(pixelWidth,  CGFloat(annotation.bottomRight[0]) * pixelWidth)
+        let y2 = min(pixelHeight, CGFloat(annotation.bottomRight[1]) * pixelHeight)
 
-        let cropRect = CGRect(x: x, y: y, width: width, height: height)
+        let cropRect = CGRect(x: x, y: y, width: x2 - x, height: y2 - y)
 
         // Crop image
-        if let croppedCGImage = normalizedImage.cgImage?.cropping(to: cropRect) {
+        if let croppedCGImage = cgSource.cropping(to: cropRect) {
             // ✅ OPTIMIZATION 2: Convert to JPEG data immediately (10x memory reduction)
             let croppedUIImage = UIImage(cgImage: croppedCGImage, scale: 1.0, orientation: .up)
 
@@ -993,9 +999,19 @@ class DigitalHomeworkViewModel: ObservableObject {
     ) {
         guard let questionNumber else { return }
         guard !annotations.contains(where: { $0.questionNumber == questionNumber }) else { return }
+        // Expand backend bbox slightly — Gemini's right edge is systematically tight.
+        // Right gets 3 %, other sides get 1.5 % for balanced appearance.
+        let tl = [
+            max(0.0, region.topLeft[0]     - 0.015),
+            max(0.0, region.topLeft[1]     - 0.008)
+        ]
+        let br = [
+            min(1.0, region.bottomRight[0] + 0.030),
+            min(1.0, region.bottomRight[1] + 0.008)
+        ]
         annotations.append(QuestionAnnotation(
-            topLeft: region.topLeft,
-            bottomRight: region.bottomRight,
+            topLeft: tl,
+            bottomRight: br,
             questionNumber: questionNumber,
             color: annotationColor(for: annotations.count),
             pageIndex: pageIndex
@@ -1115,6 +1131,16 @@ class DigitalHomeworkViewModel: ObservableObject {
         isGrading = false
         logger.info("All questions graded successfully")
 
+        let total = updatedQuestions.count
+        let correct = updatedQuestions.filter { $0.grade?.isCorrect == true }.count
+        let scorePct = total > 0 ? Int(Double(correct) / Double(total) * 100) : 0
+        JourneyTracker.shared.track("homework_session_graded", [
+            "subject": subject,
+            "total_questions": total,
+            "correct_count": correct,
+            "score_pct": scorePct
+        ])
+
         // Reset animation state
         withAnimation(.easeOut(duration: 0.3)) {
             gradingAnimation = .idle
@@ -1189,9 +1215,10 @@ class DigitalHomeworkViewModel: ObservableObject {
                     questionText: question.displayText,
                     studentAnswer: question.displayStudentAnswer,
                     subject: subject,
-                    questionType: question.questionType,  // Pass question type for specialized grading
+                    questionType: question.questionType,
                     contextImageBase64: contextImage,
-                    useDeepReasoning: useDeepReasoning
+                    useDeepReasoning: useDeepReasoning,
+                    workingSteps: question.workingSteps
                 )
 
                 if response.success, let grade = response.grade {
@@ -1264,10 +1291,11 @@ class DigitalHomeworkViewModel: ObservableObject {
                 questionText: subquestion.questionText,
                 studentAnswer: subquestion.studentAnswer,
                 subject: subject,
-                questionType: subquestion.questionType,  // Pass question type for specialized grading
+                questionType: subquestion.questionType,
                 contextImageBase64: contextImage,
-                parentQuestionContent: parentContent,  // ✅ NEW: Pass parent question content
-                useDeepReasoning: useDeepReasoning  // Pass deep reasoning mode
+                parentQuestionContent: parentContent,
+                useDeepReasoning: useDeepReasoning,
+                workingSteps: subquestion.workingSteps
             )
 
             if response.success, let grade = response.grade {
@@ -1437,7 +1465,8 @@ class DigitalHomeworkViewModel: ObservableObject {
                 subject: subject,
                 questionType: question.questionType,
                 contextImageBase64: contextImage,
-                useDeepReasoning: true  // ✅ Force deep reasoning for regrade
+                useDeepReasoning: true,
+                workingSteps: question.workingSteps
             )
 
             await MainActor.run {
@@ -1548,7 +1577,8 @@ class DigitalHomeworkViewModel: ObservableObject {
                 questionType: subquestion.questionType,
                 contextImageBase64: contextImage,
                 parentQuestionContent: parentContent,
-                useDeepReasoning: true  // ✅ Force deep reasoning for regrade
+                useDeepReasoning: true,
+                workingSteps: subquestion.workingSteps
             )
 
             await MainActor.run {
