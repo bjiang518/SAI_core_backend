@@ -237,7 +237,7 @@ struct FirstTimeOnboardingView: View {
         .onTapGesture {
             UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         }
-        .background(Color.white.ignoresSafeArea())
+        .background(Color(.systemBackground).ignoresSafeArea())
         .sheet(isPresented: $showingPrivacyPolicy) { PrivacyPolicyView() }
         .sheet(isPresented: $showingGuestConversion) {
             GuestConversionView(
@@ -274,7 +274,7 @@ struct FirstTimeOnboardingView: View {
 
     private var roleStep: some View {
         ZStack(alignment: .top) {
-            Color.white.ignoresSafeArea()
+            Color(.systemBackground).ignoresSafeArea()
 
             VStack(spacing: 0) {
                 ScrollView(showsIndicators: false) {
@@ -346,7 +346,7 @@ struct FirstTimeOnboardingView: View {
                     .padding(.horizontal, 24)
                     .padding(.vertical, 16)
                 }
-                .background(Color.white)
+                .background(Color(.secondarySystemBackground))
             }
         }
     }
@@ -412,7 +412,7 @@ struct FirstTimeOnboardingView: View {
 
     private var parentSetupStep: some View {
         ZStack(alignment: .top) {
-            Color.white.ignoresSafeArea()
+            Color(.systemBackground).ignoresSafeArea()
 
             VStack(spacing: 0) {
                 ScrollView(showsIndicators: false) {
@@ -488,7 +488,7 @@ struct FirstTimeOnboardingView: View {
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 14)
                             }
-                            .background(Color.white)
+                            .background(Color(.secondarySystemBackground))
                             .cornerRadius(14)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 14)
@@ -539,7 +539,7 @@ struct FirstTimeOnboardingView: View {
                                     isOn: $controlReports
                                 )
                             }
-                            .background(Color.white)
+                            .background(Color(.secondarySystemBackground))
                             .cornerRadius(14)
                             .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(.systemGray4), lineWidth: 1))
                             .shadow(color: .black.opacity(0.04), radius: 4, x: 0, y: 2)
@@ -584,7 +584,7 @@ struct FirstTimeOnboardingView: View {
                     }
                     .padding(.bottom, 16)
                 }
-                .background(Color.white)
+                .background(Color(.secondarySystemBackground))
             }
         }
     }
@@ -618,7 +618,7 @@ struct FirstTimeOnboardingView: View {
 
     private var studentAgeStep: some View {
         ZStack(alignment: .top) {
-            Color.white.ignoresSafeArea()
+            Color(.systemBackground).ignoresSafeArea()
 
             VStack(spacing: 0) {
                 ScrollView(showsIndicators: false) {
@@ -688,7 +688,7 @@ struct FirstTimeOnboardingView: View {
                                 }
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 14)
-                                .background(Color.white)
+                                .background(Color(.secondarySystemBackground))
                                 .cornerRadius(12)
                                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(.systemGray4), lineWidth: 1))
                             }
@@ -722,7 +722,7 @@ struct FirstTimeOnboardingView: View {
                                 }
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 14)
-                                .background(Color.white)
+                                .background(Color(.secondarySystemBackground))
                                 .cornerRadius(12)
                                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(.systemGray4), lineWidth: 1))
                             }
@@ -753,7 +753,7 @@ struct FirstTimeOnboardingView: View {
                         }
                         .padding(.horizontal, 20)
                         .padding(.vertical, 14)
-                        .background(Color.white)
+                        .background(Color(.secondarySystemBackground))
                         .cornerRadius(16)
                         .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
                         .padding(.horizontal, 20)
@@ -783,7 +783,7 @@ struct FirstTimeOnboardingView: View {
                     }
                     .padding(.bottom, 16)
                 }
-                .background(Color.white)
+                .background(Color(.secondarySystemBackground))
             }
         }
     }
@@ -827,7 +827,7 @@ struct FirstTimeOnboardingView: View {
             .frame(width: 72)
             .padding(.vertical, 12)
             .padding(.horizontal, 4)
-            .background(Color.white)
+            .background(Color(.secondarySystemBackground))
             .cornerRadius(14)
             .shadow(color: .black.opacity(on ? 0 : 0.06), radius: 4, x: 0, y: 2)
             .overlay(
@@ -879,7 +879,7 @@ struct FirstTimeOnboardingView: View {
 
     private var languageStep: some View {
         ZStack(alignment: .top) {
-            Color.white.ignoresSafeArea()
+            Color(.systemBackground).ignoresSafeArea()
 
         VStack(spacing: 0) {
             ScrollView(showsIndicators: false) {
@@ -945,7 +945,7 @@ struct FirstTimeOnboardingView: View {
                 .padding(.horizontal, 24)
                 .padding(.vertical, 16)
             }
-            .background(Color.white)
+            .background(Color(.secondarySystemBackground))
         }
         }
     }
@@ -984,7 +984,7 @@ struct FirstTimeOnboardingView: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
             .frame(maxWidth: .infinity)
-            .background(Color.white)
+            .background(Color(.secondarySystemBackground))
             .cornerRadius(14)
             .shadow(color: Color.black.opacity(on ? 0.0 : 0.07), radius: 6, x: 0, y: 2)
             .overlay(
@@ -1066,7 +1066,7 @@ struct FirstTimeOnboardingView: View {
 
     private var learningStyleStep: some View {
         ZStack(alignment: .top) {
-        Color.white.ignoresSafeArea()
+        Color(.systemBackground).ignoresSafeArea()
         VStack(spacing: 0) {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 20) {
@@ -1137,7 +1137,7 @@ struct FirstTimeOnboardingView: View {
                             .foregroundColor(DesignTokens.Colors.Cute.textSecondary)
                     }
                     .padding(16)
-                    .background(Color.white)
+                    .background(Color(.secondarySystemBackground))
                     .cornerRadius(14)
                     .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
                     .padding(.horizontal, 20)
@@ -1167,7 +1167,7 @@ struct FirstTimeOnboardingView: View {
                 }
                 .padding(.bottom, 16)
             }
-            .background(Color.white)
+            .background(Color(.secondarySystemBackground))
         }
         }
     }
@@ -1284,7 +1284,7 @@ struct FirstTimeOnboardingView: View {
 
     private var consentStep: some View {
         ZStack(alignment: .top) {
-            Color.white.ignoresSafeArea()
+            Color(.systemBackground).ignoresSafeArea()
 
             VStack(spacing: 0) {
                 ScrollView(showsIndicators: false) {
@@ -1488,7 +1488,7 @@ struct FirstTimeOnboardingView: View {
                     }
                     .padding(.bottom, 16)
                 }
-                .background(Color.white)
+                .background(Color(.secondarySystemBackground))
             }
         }
     }
@@ -1513,7 +1513,7 @@ struct FirstTimeOnboardingView: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity)
-        .background(Color.white)
+        .background(Color(.secondarySystemBackground))
         .cornerRadius(14)
         .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
     }
@@ -1538,7 +1538,7 @@ struct FirstTimeOnboardingView: View {
         }
         .padding(8)
         .frame(maxWidth: .infinity)
-        .background(Color.white)
+        .background(Color(.secondarySystemBackground))
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.04), radius: 3, x: 0, y: 1)
     }

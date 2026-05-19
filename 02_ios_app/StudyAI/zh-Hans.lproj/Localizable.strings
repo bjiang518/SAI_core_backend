@@ -3239,3 +3239,7 @@
 "practice.mode.bank" = "真题库";
 "proMode.oneMistake" = "1 个错误";
 "proMode.nMistakes" = "%d 个错误";
+"todo.knowledgeTree.title" = "点亮知识树";
+"todo.knowledgeTree.subtitle" = "探索「%@」知识图谱";
+"todo.knowledgeTree.defaultSubject" = "各科目";
+"practice.bank.retrieve" = "获取真题";

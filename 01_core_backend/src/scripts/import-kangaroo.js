@@ -2,21 +2,21 @@
  * Import Math Kangaroo (qualcomm/M3Kang) into question_bank.
  *
  * Source : qualcomm/M3Kang on HuggingFace (Research Use Only)
- *          ~1,747 unique problems, 2007–2024, grades 5–12, MCQ (A–E)
- *          ~50 % have diagrams; available in 108 languages.
+ *          ~1,747 unique English problems, 2007–2024, grades 5–12, MCQ (A–E)
+ *          ~50% have diagrams.
  *
- * This script fetches English-only rows via the HF filter API,
- * parses question text + choices, tags with the Math taxonomy, embeds, inserts.
+ * The dataset is stored as large Parquet files (~400 MB each).
+ * Step 1 — extract to JSONL using the Python helper:
+ *   pip install datasets pillow
+ *   HF_TOKEN=hf_xxx python src/scripts/extract-kangaroo-data.py
  *
- * Requires HF_TOKEN in .env (must accept dataset terms on HuggingFace first):
- *   https://huggingface.co/datasets/qualcomm/M3Kang
+ * Step 2 — import JSONL into the DB:
+ *   node src/scripts/import-kangaroo.js --from-file=kangaroo_en.jsonl
+ *   node src/scripts/import-kangaroo.js --from-file=kangaroo_en.jsonl --dry-run --limit=5
+ *   railway run node src/scripts/import-kangaroo.js --from-file=kangaroo_en.jsonl
  *
- * Usage:
- *   node src/scripts/import-kangaroo.js --probe          # inspect raw schema
- *   node src/scripts/import-kangaroo.js --dry-run --limit=5
- *   node src/scripts/import-kangaroo.js                  # full import
- *   node src/scripts/import-kangaroo.js --limit=200      # partial
- *   railway run node src/scripts/import-kangaroo.js
+ * Probe (check HF file tree):
+ *   node src/scripts/import-kangaroo.js --probe
  */
 
 'use strict';
@@ -24,13 +24,16 @@
 require('dotenv').config();
 const https = require('https');
 const http  = require('http');
+const fs    = require('fs');
+const readline = require('readline');
 const { Pool }  = require('pg');
 const OpenAI    = require('openai');
 const { buildTaxonomyPrompt } = require('./taxonomy');
 
-const DRY_RUN = process.argv.includes('--dry-run');
-const PROBE   = process.argv.includes('--probe');
-const LIMIT   = (() => { const f = process.argv.find(a => a.startsWith('--limit=')); return f ? parseInt(f.split('=')[1]) : Infinity; })();
+const DRY_RUN   = process.argv.includes('--dry-run');
+const PROBE     = process.argv.includes('--probe');
+const LIMIT     = (() => { const f = process.argv.find(a => a.startsWith('--limit=')); return f ? parseInt(f.split('=')[1]) : Infinity; })();
+const FROM_FILE = (() => { const f = process.argv.find(a => a.startsWith('--from-file=')); return f ? f.split('=').slice(1).join('=') : null; })();
 
 const TAGGING_BATCH = 8;
 const EMBED_BATCH   = 20;
@@ -84,6 +87,21 @@ function fetchJson(url, retries = 4) {
       }).on('error', reject);
     };
     attempt(retries);
+  });
+}
+
+// Fetch first `maxBytes` of a file from the dataset repo (for probing)
+function fetchRawFile(filePath, maxBytes = 4096) {
+  return new Promise((resolve, reject) => {
+    const url = `https://huggingface.co/datasets/qualcomm/M3Kang/resolve/main/${filePath}`;
+    const headers = { ...hfHeaders(), Accept: '*/*' };
+    if (maxBytes) headers['Range'] = `bytes=0-${maxBytes - 1}`;
+    https.get(url, { headers }, res => {
+      const chunks = [];
+      res.on('data', c => chunks.push(c));
+      res.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+      res.on('error', reject);
+    }).on('error', reject);
   });
 }
 
@@ -164,6 +182,25 @@ async function fetchKangarooEnglish(limitRows) {
 }
 
 // ---------------------------------------------------------------------------
+// Read rows from a JSONL file produced by extract-kangaroo-data.py
+// ---------------------------------------------------------------------------
+async function readJsonlFile(filePath, limitRows) {
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`File not found: ${filePath}\nRun: python src/scripts/extract-kangaroo-data.py`);
+  }
+  const rows = [];
+  const rl = readline.createInterface({ input: fs.createReadStream(filePath, 'utf8'), crlfDelay: Infinity });
+  for await (const line of rl) {
+    const t = line.trim();
+    if (!t) continue;
+    try { rows.push(JSON.parse(t)); } catch { /* skip malformed lines */ }
+    if (rows.length >= limitRows) break;
+  }
+  console.log(`  ${rows.length} rows read from ${filePath}`);
+  return rows;
+}
+
+// ---------------------------------------------------------------------------
 // Parse question text → question body + options [{label, text, is_correct}]
 //
 // Math Kangaroo format (typical):
@@ -204,6 +241,23 @@ function levelToDifficulty(level) {
   if (level == null) return { diff: 3, grade: '8th Grade' };
   const l = String(level).toLowerCase().trim();
 
+  // Numeric levels 0-5 (M3Kang high_quality format: lvl-N_YYYY_P)
+  // 0 = Pre-Écolier (Gr 1-2), 1 = Écolier (Gr 3-4), 2 = Benjamin (Gr 5-6)
+  // 3 = Cadet (Gr 7-8), 4 = Junior (Gr 9-10), 5 = Student (Gr 11-12)
+  const n = parseInt(l);
+  if (!isNaN(n)) {
+    const table = {
+      0: { diff: 1, grade: '2nd Grade'  },
+      1: { diff: 1, grade: '4th Grade'  },
+      2: { diff: 2, grade: '6th Grade'  },
+      3: { diff: 3, grade: '8th Grade'  },
+      4: { diff: 4, grade: '10th Grade' },
+      5: { diff: 5, grade: '12th Grade' },
+    };
+    if (table[n]) return table[n];
+  }
+
+  // Named levels (fallback for standard split)
   if (/pre.?ecolier|pré.?ecolier/.test(l)) return { diff: 1, grade: '2nd Grade'  };
   if (/^ecolier$/.test(l))                 return { diff: 1, grade: '4th Grade'  };
   if (/benjamin/.test(l))                  return { diff: 2, grade: '6th Grade'  };
@@ -222,16 +276,69 @@ function levelToDifficulty(level) {
     return       { diff: 5, grade: '12th Grade' };
   }
 
-  // Numeric level (1–6 corresponding to kangaroo grade tiers)
-  const n = parseInt(l);
-  if (!isNaN(n)) {
-    const table = [, { diff: 1, grade: '2nd Grade' }, { diff: 1, grade: '4th Grade' },
-                      { diff: 2, grade: '6th Grade' }, { diff: 3, grade: '8th Grade' },
-                      { diff: 4, grade: '10th Grade'}, { diff: 5, grade: '12th Grade'}];
-    if (table[n]) return table[n];
+  return { diff: 3, grade: '8th Grade' };
+}
+
+// ---------------------------------------------------------------------------
+// GPT-4o-mini vision — extract MCQ choices (A-E) from the question image.
+// Used when the text field doesn't contain the choices (all M3Kang rows).
+// ---------------------------------------------------------------------------
+const CHOICE_EXTRACT_CONCURRENCY = 5;  // parallel vision calls
+const CHOICE_EXTRACT_PROMPT =
+  'This is a Math Kangaroo multiple-choice problem. ' +
+  'Extract the 5 answer options (A through E) from the image. ' +
+  'Return ONLY a JSON array (no markdown): ' +
+  '[{"label":"A","text":"..."},{"label":"B","text":"..."},...]. ' +
+  'Keep each text short and exact. If an option contains a diagram or expression, describe it briefly.';
+
+async function extractChoicesFromImage(correctLabel, imageBase64) {
+  try {
+    const res = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      max_tokens: 300,
+      temperature: 0,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}`, detail: 'low' } },
+          { type: 'text', text: CHOICE_EXTRACT_PROMPT },
+        ],
+      }],
+    });
+    const m = res.choices[0].message.content.match(/\[[\s\S]*\]/);
+    if (!m) return null;
+    const choices = JSON.parse(m[0]);
+    if (!Array.isArray(choices) || choices.length < 4) return null;
+    return choices.slice(0, 5).map(c => ({
+      label:      String(c.label || '').toUpperCase(),
+      text:       String(c.text || '').trim(),
+      is_correct: String(c.label || '').toUpperCase() === correctLabel,
+    })).filter(c => c.label && c.text);
+  } catch {
+    return null;
+  }
+}
+
+// Run extractChoicesFromImage with bounded concurrency
+async function extractChoicesBatch(rows) {
+  const results = new Array(rows.length).fill(null);
+  const queue   = rows.map((r, i) => ({ r, i }));
+  let done = 0;
+
+  async function worker() {
+    while (queue.length > 0) {
+      const { r, i } = queue.shift();
+      if (!r.figure_base64) { done++; continue; }
+      results[i] = await extractChoicesFromImage(r.correct_answer, r.figure_base64);
+      done++;
+      process.stdout.write(`\r  vision extracted ${done}/${rows.length}`);
+      await sleep(200); // gentle rate limit
+    }
   }
 
-  return { diff: 3, grade: '8th Grade' };
+  await Promise.all(Array.from({ length: CHOICE_EXTRACT_CONCURRENCY }, worker));
+  console.log();
+  return results;
 }
 
 // ---------------------------------------------------------------------------
@@ -310,23 +417,25 @@ async function insertRows(client, rows) {
 }
 
 // ---------------------------------------------------------------------------
-// Normalize a raw M3Kang row
+// Normalize a raw M3Kang row (from HF API or from JSONL file)
 // ---------------------------------------------------------------------------
 function normalizeRow(r, idx) {
   const rawText      = r.text || r.question || '';
   const correctLabel = (r.label || r.answer || r.correct_answer || 'A').trim().toUpperCase();
   const { question, options } = parseKangarooText(rawText, correctLabel);
   const { diff }              = levelToDifficulty(r.level);
-  // Prefer the dataset's own problem ID; fall back to row index
   const problemId  = r.id || r.problem_id || `row${idx}`;
   const sourceId   = `kangaroo_${problemId}`;
-  const imageUrl   = r.image?.src || r.image_url || (typeof r.image === 'string' ? r.image : null);
+  // image_b64: from Python extractor (already base64 PNG)
+  // image_url: from HF datasets-server (needs downloading)
+  const imageB64   = r.image_b64 || null;
+  const imageUrl   = (!imageB64) ? (r.image?.src || r.image_url || (typeof r.image === 'string' ? r.image : null)) : null;
 
   return {
     source:          'kangaroo',
     source_id:       sourceId,
     subject:         'Math',
-    topic:           null,      // filled by GPT
+    topic:           null,
     base_branch:     null,
     detailed_branch: null,
     difficulty:      diff,
@@ -336,9 +445,9 @@ function normalizeRow(r, idx) {
     correct_answer:  correctLabel,
     explanation:     null,
     embedding:       null,
-    figure_base64:   null,
-    image_url:       imageUrl,
-    has_image:       !!imageUrl,
+    figure_base64:   imageB64,   // pre-filled from Python extractor
+    image_url:       imageUrl,   // needs downloading (HF API path)
+    has_image:       !!(imageB64 || imageUrl),
   };
 }
 
@@ -351,10 +460,10 @@ function normalizeRow(r, idx) {
     console.log('\nMath Kangaroo (M3Kang) import');
     console.log(`HF_TOKEN : ${process.env.HF_TOKEN ? '✅ set' : '❌ missing — gated dataset needs token'}`);
     console.log(`Dry run  : ${DRY_RUN}`);
-    console.log(`Probe    : ${PROBE}`);
-    console.log(`Limit    : ${LIMIT === Infinity ? 'all' : LIMIT}\n`);
+    console.log(`Limit    : ${LIMIT === Infinity ? 'all' : LIMIT}`);
+    console.log(`From file: ${FROM_FILE || '(HF API)'}\n`);
 
-    if (!process.env.HF_TOKEN) {
+    if (!FROM_FILE && !process.env.HF_TOKEN) {
       console.error('Set HF_TOKEN in .env. Accept the dataset terms first at:');
       console.error('  https://huggingface.co/datasets/qualcomm/M3Kang');
       process.exit(1);
@@ -362,30 +471,50 @@ function normalizeRow(r, idx) {
 
     // ── PROBE: inspect raw schema ──────────────────────────────────────────
     if (PROBE) {
-      console.log('Fetching 3 rows to inspect M3Kang schema…\n');
-      const data = await fetchJson(
-        `https://datasets-server.huggingface.co/rows?dataset=qualcomm%2FM3Kang&config=default&split=train&offset=0&length=3`
-      );
-      if (!data.rows?.length) {
-        console.log('No rows returned. Raw response:', JSON.stringify(data).slice(0, 500));
-        return;
-      }
-      data.rows.forEach((wrapper, i) => {
-        const r = wrapper.row ?? wrapper;
-        console.log(`── Row ${i + 1} (${r.language || '?'}, level=${r.level}) ──`);
-        for (const [k, v] of Object.entries(r)) {
-          const display = typeof v === 'object' ? JSON.stringify(v).slice(0, 120) : String(v).slice(0, 120);
-          console.log(`  ${k.padEnd(18)}: ${display}`);
-        }
-        console.log();
+      console.log('Querying HuggingFace Hub for M3Kang file tree…\n');
+
+      // 1. List root
+      const root = await fetchJson('https://huggingface.co/api/datasets/qualcomm/M3Kang/tree/main');
+      const rootFiles = Array.isArray(root) ? root : [];
+      console.log(`Root (${rootFiles.length} entries):`);
+      rootFiles.forEach(f => console.log(`  ${(f.type||'?').padEnd(10)} ${f.path}`));
+
+      // 2. List data/ subdirectory
+      console.log('\nListing data/ …');
+      const dataDir = await fetchJson('https://huggingface.co/api/datasets/qualcomm/M3Kang/tree/main/data')
+        .catch(() => []);
+      const dataFiles = Array.isArray(dataDir) ? dataDir : [];
+      console.log(`data/ (${dataFiles.length} entries):`);
+      dataFiles.slice(0, 20).forEach(f => console.log(`  ${(f.type||'?').padEnd(10)} ${f.path}  (${f.size||'?'} bytes)`));
+      if (dataFiles.length > 20) console.log(`  … and ${dataFiles.length - 20} more`);
+
+      // 3. Fetch first 3 lines of the first JSONL/parquet file
+      const sampleFile = dataFiles.find(f => {
+        const p = f.path || '';
+        return p.endsWith('.jsonl') || p.endsWith('.jsonl.gz') || p.endsWith('.parquet') || p.endsWith('.json') || p.endsWith('.arrow');
       });
-      console.log('Level values seen:', [...new Set(data.rows.map(w => String((w.row ?? w).level)))].join(', '));
+      if (sampleFile) {
+        console.log(`\nFetching first ~3KB of: ${sampleFile.path}`);
+        const raw = await fetchRawFile(sampleFile.path, 3000).catch(e => `ERROR: ${e.message}`);
+        console.log(raw.slice(0, 800));
+      } else {
+        console.log('\nNo JSONL/Parquet/JSON files found in data/. Trying README for schema hints…');
+        const readme = await fetchRawFile('README.md', 4000).catch(() => '');
+        const schemaSection = readme.slice(readme.indexOf('feature') > 0 ? readme.indexOf('feature') - 100 : 0, readme.indexOf('feature') + 1000);
+        console.log(schemaSection.slice(0, 1000));
+      }
       return;
     }
 
-    // ── Fetch ──────────────────────────────────────────────────────────────
-    console.log('Fetching English rows…');
-    const rawRows = await fetchKangarooEnglish(LIMIT);
+    // ── Fetch or read file ─────────────────────────────────────────────────
+    let rawRows;
+    if (FROM_FILE) {
+      console.log(`Reading from file: ${FROM_FILE}`);
+      rawRows = await readJsonlFile(FROM_FILE, LIMIT);
+    } else {
+      console.log('Fetching English rows from HF API…');
+      rawRows = await fetchKangarooEnglish(LIMIT);
+    }
 
     // ── Normalize ──────────────────────────────────────────────────────────
     const normalized = rawRows.map((r, idx) => {
@@ -403,21 +532,50 @@ function normalizeRow(r, idx) {
     console.log('Level dist :', JSON.stringify(levelDist));
 
     if (DRY_RUN) {
-      normalized.slice(0, 4).forEach(r => {
+      // For dry-run: try vision on first row that has no options + has image
+      const sample = normalized.slice(0, 5);
+      const noOpts = sample.filter(r => !r.options && r.figure_base64);
+      if (noOpts.length > 0) {
+        console.log(`\nTesting vision extraction on first ${Math.min(2, noOpts.length)} images…`);
+        for (const r of noOpts.slice(0, 2)) {
+          const choices = await extractChoicesFromImage(r.correct_answer, r.figure_base64);
+          console.log(`  ${r.source_id}: ${choices ? choices.map(o => `${o.label}) ${o.text.slice(0,20)}`).join(' | ') : '⚠️ vision failed'}`);
+        }
+      }
+      sample.forEach(r => {
         const imgMark = r.has_image ? '🖼 ' : '   ';
         console.log(`\n${imgMark}[diff:${r.difficulty}] ${r.source_id}`);
         console.log(`  Q: ${r.question.slice(0, 120)}…`);
         if (r.options) {
           console.log(`  Opts: ${r.options.map(o => `${o.label}) ${o.text.slice(0, 20)}`).join(' | ')}`);
         } else {
-          console.log('  ⚠️  No options parsed');
+          console.log('  (choices in image — vision will extract)');
         }
         console.log(`  Correct: ${r.correct_answer}`);
       });
       return;
     }
 
-    // Only insert rows where choices were parsed (quality gate)
+    // ── Vision extraction: get MCQ choices from images ─────────────────────
+    // All M3Kang rows have choices in the image, not in text.
+    const needsVision = normalized.filter(r => !r.options && r.figure_base64);
+    const hasOptions  = normalized.filter(r => r.options && r.options.length >= 4);
+    console.log(`\nChoice extraction:  ${hasOptions.length} from text,  ${needsVision.length} need vision`);
+
+    if (needsVision.length > 0) {
+      console.log(`Running GPT-4o-mini vision on ${needsVision.length} images…`);
+      const visionResults = await extractChoicesBatch(needsVision);
+      let visionOk = 0;
+      visionResults.forEach((choices, i) => {
+        if (choices && choices.length >= 4) {
+          needsVision[i].options = choices;
+          visionOk++;
+        }
+      });
+      console.log(`  ${visionOk}/${needsVision.length} choices extracted successfully`);
+    }
+
+    // Only insert rows where choices are now available (text-parsed or vision-extracted)
     const valid = normalized.filter(r => r.options && r.options.length >= 4);
     console.log(`\nValid rows (options OK): ${valid.length}/${normalized.length}`);
 

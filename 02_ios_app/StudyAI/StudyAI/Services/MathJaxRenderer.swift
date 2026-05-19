@@ -46,6 +46,7 @@ private enum MathHTML {
     /// is missing (should never happen in production).
     static func page(content: String, fontSize: CGFloat, colorScheme: ColorScheme) -> String {
         let textColor  = colorScheme == .dark ? "#FFFFFF" : "#000000"
+        let highlightOpacity = colorScheme == .dark ? "0.30" : "0.45"
         let scriptTag: String
         if let url = Bundle.main.url(forResource: "mathjax.min", withExtension: "js") {
             scriptTag = "<script src=\"\(url.absoluteString)\"></script>"
@@ -97,10 +98,15 @@ private enum MathHTML {
             color: \(textColor) !important;
             word-wrap: break-word;
         }
-        h1,h2,h3,h4,h5,h6 { color:\(textColor) !important; font-weight:bold; margin:0.4em 0 0.2em 0; }
-        h1{font-size:1.8em} h2{font-size:1.5em} h3{font-size:1.3em}
-        h4{font-size:1.1em} h5,h6{font-size:1em}
-        strong { font-weight:bold; }
+        h1 { color:#C9A0DC !important; font-weight:900; font-size:1.4em; margin:0.5em 0 0.3em 0; }
+        h2 { color:#7FDBCA !important; font-weight:800; font-size:1.25em; margin:0.4em 0 0.25em 0; }
+        h3 { color:#FFB6A3 !important; font-weight:700; font-size:1.15em; margin:0.35em 0 0.2em 0; }
+        h4 { color:#FF85C1 !important; font-weight:700; font-size:1.05em; margin:0.3em 0 0.15em 0; }
+        h5,h6 { color:#FFE066 !important; font-weight:600; font-size:1em; margin:0.25em 0 0.1em 0; }
+        strong {
+            padding:0 3px; font-weight:normal; border-radius:2px;
+        }
+        h1 strong,h2 strong,h3 strong,h4 strong,h5 strong,h6 strong { background:none; }
         em     { font-style:italic; }
         ul,ol  { padding-left:1.4em; margin:0.2em 0; }
         li     { margin:0.1em 0; line-height:1.5; }
@@ -133,6 +139,15 @@ private enum MathHTML {
         }
 
         MathJax.startup.promise.then(function() {
+            var op = \(highlightOpacity);
+            document.querySelectorAll('strong').forEach(function(el) {
+                var mid = 'rgba(126,200,227,'+op+')';
+                var end = 'rgba(126,200,227,0)';
+                el.style.backgroundImage = 'linear-gradient(104deg,'+end+' 0.9%,'+mid+' 2.4%,'+mid+' 95.8%,'+end+' 97%)';
+                el.style.backgroundSize = '100% 82%';
+                el.style.backgroundPosition = '0 55%';
+                el.style.backgroundRepeat = 'no-repeat';
+            });
             updateHeight();
             // Safety-net second pass: catches slow CDN font metrics or any
             // multi-pass MathJax typesetting that completes after the first rAF.
@@ -330,12 +345,15 @@ private struct MathContentView: View {
         } else {
             // Single WebView, loaded once when streaming ends
             ZStack(alignment: .topLeading) {
-                // Readable placeholder while MathJax typsets (full opacity so text is legible)
+                // Invisible height-holder while MathJax renders.
+                // Keeps layout stable (no jump) but hides the raw LaTeX source.
+                // Removed once WebView is ready so it doesn't add extra whitespace.
                 if !mathReady {
                     Text(content)
                         .font(.system(size: fontSize))
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .opacity(0)
                 }
                 MathWebView(
                     html: MathHTML.page(content: content, fontSize: fontSize, colorScheme: colorScheme),
@@ -396,12 +414,12 @@ public struct FullLaTeXText: View {
     /// Returns true if content contains any LaTeX math markers.
     /// If false, a plain Text() is used instead — no WKWebView spawned.
     private var containsLatex: Bool {
-        content.contains("$") ||
-        content.contains("\\[") ||
-        content.contains("\\(") ||
-        content.contains("\\frac") ||
-        content.contains("\\sqrt") ||
-        content.contains("\\sum")
+        let triggers = ["$", "\\[", "\\(", "\\frac", "\\sqrt", "\\sum",
+                        "\\int", "\\lim", "\\prod", "\\alpha", "\\beta",
+                        "\\theta", "\\pi", "\\infty", "\\pm", "\\times",
+                        "\\div", "\\approx", "\\neq", "\\geq", "\\leq",
+                        "\\text", "\\cdot", "\\vec"]
+        return triggers.contains(where: { content.contains($0) })
     }
 
     /// If the string contains LaTeX commands but no delimiters, the AI omitted the \(...\) wrappers.

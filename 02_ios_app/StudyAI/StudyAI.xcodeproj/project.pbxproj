@@ -925,6 +925,7 @@
 		7BFC71332EC5A91D00DB95A7 /* AssistantLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BFC712F2EC5A91D00DB95A7 /* AssistantLogger.swift */; };
 		7BFC71352EC5A91D00DB95A7 /* AssistantLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BFC712F2EC5A91D00DB95A7 /* AssistantLogger.swift */; };
 		7BFF00012F9A000000000001 /* EventTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BFF00002F9A000000000001 /* EventTracker.swift */; };
+		7BFF00022F9B000000000002 /* WorkingStepsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BFF00032F9B000000000002 /* WorkingStepsCard.swift */; };
 		7BFU0001FRCU2F6500DA84B0 /* ForceUpdateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BFU0000FRCU2F6500DA84B0 /* ForceUpdateView.swift */; };
 		7BFU0002FRCU2F6500DA84B0 /* ForceUpdateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BFU0000FRCU2F6500DA84B0 /* ForceUpdateView.swift */; };
 		7BFU0003FRCU2F6500DA84B0 /* ForceUpdateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BFU0000FRCU2F6500DA84B0 /* ForceUpdateView.swift */; };
@@ -962,6 +963,7 @@
 		9EBBD9AA039F40A48A615366 /* peaceful-piano-instrumental-for-studying.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = D39A3CCCA20040A08626204B /* peaceful-piano-instrumental-for-studying.mp3 */; };
 		9F1B2C579AB0463A90EF1624 /* StudyAI/Services/MusicDownloadService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7C4CE372A8C4C62B1A19704 /* StudyAI/Services/MusicDownloadService.swift */; };
 		9FF8A1F6F34E4BF786B5EAC3 /* VoiceInteractionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEAD0FA974974B559BA7B6B7 /* VoiceInteractionService.swift */; };
+		A1B2C3D4E5F60001DEEF0001 /* DeepGradingExplanationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60002DEEF0001 /* DeepGradingExplanationView.swift */; };
 		A6AAD8B3B1CF457696752650 /* SessionDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E13D4A8943284F528CD3C3C1 /* SessionDetailView.swift */; };
 		A7A2882F9B7E42C08544A02A /* HomeworkSessionPersistenceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDA2D8E1930E4A4D9422AA5A /* HomeworkSessionPersistenceService.swift */; };
 		A823C26E80984911960B4AA1 /* ArchivedQuestionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27D08428900147788147829E /* ArchivedQuestionsView.swift */; };
@@ -995,8 +997,6 @@
 		D3FB6347F13948AB873BE1F8 /* SpeechRecognitionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8405427D871C4C278BB1D075 /* SpeechRecognitionService.swift */; };
 		D75669EAA9F34CCEA3A94CFC /* AppReviewService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36EA34712468482EB2AD1328 /* AppReviewService.swift */; };
 		D7A654E73DEE4B75BE0EECAB /* GradingDotsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51E56E31CA8946219EDF8FAE /* GradingDotsView.swift */; };
-		7BFF00022F9B000000000002 /* WorkingStepsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BFF00032F9B000000000002 /* WorkingStepsCard.swift */; };
-		A1B2C3D4E5F60001DEEF0001 /* DeepGradingExplanationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60002DEEF0001 /* DeepGradingExplanationView.swift */; };
 		D87DBC4B66CF4F958C156B26 /* QuestionArchiveModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E2AD38EF0CF492393C1C87D /* QuestionArchiveModels.swift */; };
 		DB5A2A9F79A748FF64791D01 /* TesterTierSwitcherView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4ABE1220ED59128FA0628FFC /* TesterTierSwitcherView.swift */; };
 		DB5CF3C197754361B71BF918 /* QuestionSegmenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8357641D6957415C8C814D59 /* QuestionSegmenter.swift */; };
@@ -1123,8 +1123,6 @@
 		4C75C2233B72490A8E27CDEB /* HomeworkResultsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HomeworkResultsView.swift; path = StudyAI/Views/HomeworkResultsView.swift; sourceTree = SOURCE_ROOT; };
 		4DF193AD601745DBBF37C3CE /* BackgroundMusicService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BackgroundMusicService.swift; path = StudyAI/Services/BackgroundMusicService.swift; sourceTree = SOURCE_ROOT; };
 		51E56E31CA8946219EDF8FAE /* GradingDotsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GradingDotsView.swift; path = StudyAI/Views/Components/GradingDotsView.swift; sourceTree = SOURCE_ROOT; };
-		7BFF00032F9B000000000002 /* WorkingStepsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WorkingStepsCard.swift; path = StudyAI/Views/Components/WorkingStepsCard.swift; sourceTree = SOURCE_ROOT; };
-		A1B2C3D4E5F60002DEEF0001 /* DeepGradingExplanationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DeepGradingExplanationView.swift; path = StudyAI/Views/Components/DeepGradingExplanationView.swift; sourceTree = SOURCE_ROOT; };
 		5CEA0FCA /* GreetingVoiceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GreetingVoiceService.swift; path = StudyAI/Services/GreetingVoiceService.swift; sourceTree = SOURCE_ROOT; };
 		685F5AB0784E4EAEB6B58C7E /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ContentView.swift; path = StudyAI/ContentView.swift; sourceTree = SOURCE_ROOT; };
 		69D668B7833B4B1D9DF8653A /* SubjectBreakdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SubjectBreakdownView.swift; path = StudyAI/Views/SubjectBreakdownView.swift; sourceTree = SOURCE_ROOT; };
@@ -1431,6 +1429,7 @@
 		7BEEB62A2E8EFFEB00957748 /* AI Spiral Loading.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "AI Spiral Loading.json"; sourceTree = "<group>"; };
 		7BFC712F2EC5A91D00DB95A7 /* AssistantLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AssistantLogger.swift; path = StudyAI/Services/AssistantLogger.swift; sourceTree = SOURCE_ROOT; };
 		7BFF00002F9A000000000001 /* EventTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = EventTracker.swift; path = StudyAI/Services/EventTracker.swift; sourceTree = SOURCE_ROOT; };
+		7BFF00032F9B000000000002 /* WorkingStepsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WorkingStepsCard.swift; path = StudyAI/Views/Components/WorkingStepsCard.swift; sourceTree = SOURCE_ROOT; };
 		7BFU0000FRCU2F6500DA84B0 /* ForceUpdateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForceUpdateView.swift; sourceTree = "<group>"; };
 		7BTA0001A00000000000TAXM /* SubjectTaxonomyModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SubjectTaxonomyModels.swift; path = StudyAI/Models/SubjectTaxonomyModels.swift; sourceTree = SOURCE_ROOT; };
 		7BTA0002A00000000000TAXS /* TaxonomyService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TaxonomyService.swift; path = StudyAI/Services/TaxonomyService.swift; sourceTree = SOURCE_ROOT; };
@@ -1463,6 +1462,7 @@
 		9969A366189C4E3AA0A188D8 /* SubjectDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SubjectDetailView.swift; path = StudyAI/Views/SubjectDetailView.swift; sourceTree = SOURCE_ROOT; };
 		9D2C1B0980334724B73CC227 /* PerspectiveCorrector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PerspectiveCorrector.swift; path = StudyAI/Services/PerspectiveCorrector.swift; sourceTree = SOURCE_ROOT; };
 		A12AEFD609E645B2806E4811 /* TomatoExchangeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TomatoExchangeView.swift; path = StudyAI/Views/TomatoExchangeView.swift; sourceTree = SOURCE_ROOT; };
+		A1B2C3D4E5F60002DEEF0001 /* DeepGradingExplanationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DeepGradingExplanationView.swift; path = StudyAI/Views/Components/DeepGradingExplanationView.swift; sourceTree = SOURCE_ROOT; };
 		A21B919EA56142DFAC1020BF /* AMBRoom-Soft_rain_tapping_on-Elevenlabs.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; name = "AMBRoom-Soft_rain_tapping_on-Elevenlabs.mp3"; path = "StudyAI/Resources/AMBRoom-Soft_rain_tapping_on-Elevenlabs.mp3"; sourceTree = SOURCE_ROOT; };
 		A495A22D3B7A4F948336AFBA /* UnifiedImageEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UnifiedImageEditorView.swift; path = StudyAI/Views/UnifiedImageEditorView.swift; sourceTree = SOURCE_ROOT; };
 		A8B9760D87F648899A6633CB /* ScannedImageActionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ScannedImageActionView.swift; path = StudyAI/Views/ScannedImageActionView.swift; sourceTree = SOURCE_ROOT; };
@@ -3672,7 +3672,7 @@
 				CODE_SIGN_ENTITLEMENTS = StudyAI/StudyAI.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 60;
+				CURRENT_PROJECT_VERSION = 62;
 				DEVELOPMENT_TEAM = 2ZZ99T96B8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -3689,7 +3689,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1.9;
+				MARKETING_VERSION = 1.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.OliOli.StudyMatesAI;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -3711,7 +3711,7 @@
 				CODE_SIGN_ENTITLEMENTS = StudyAI/StudyAI.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 60;
+				CURRENT_PROJECT_VERSION = 62;
 				DEVELOPMENT_TEAM = 2ZZ99T96B8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -3728,7 +3728,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1.9;
+				MARKETING_VERSION = 1.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.OliOli.StudyMatesAI;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";

@@ -3292,3 +3292,7 @@
 "practice.mode.bank" = "本物の問題";
 "proMode.oneMistake" = "1 つの誤り";
 "proMode.nMistakes" = "%d つの誤り";
+"todo.knowledgeTree.title" = "知識ツリーを点灯";
+"todo.knowledgeTree.subtitle" = "「%@」の知識マップを探索";
+"todo.knowledgeTree.defaultSubject" = "全科目";
+"practice.bank.retrieve" = "本物の問題を取得";

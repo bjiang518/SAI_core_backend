@@ -96,23 +96,35 @@ struct ModernUserMessageView: View {
         isDeepMode ? Color.purple : Color.green
     }
 
+    private var content: String { message["content"] ?? "" }
+
+    private var containsLatex: Bool {
+        content.contains("$") || content.contains("\\[") || content.contains("\\(") ||
+        content.contains("\\frac") || content.contains("\\sqrt") || content.contains("\\sum")
+    }
+
     var body: some View {
         HStack {
             Spacer(minLength: 60)
 
-            MarkdownLaTeXText(message["content"] ?? "", fontSize: 18, isStreaming: false)
-                .textSelection(.enabled)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(bubbleColor.opacity(0.15))
-                .cornerRadius(18)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 18)
-                        .stroke(bubbleColor.opacity(0.3), lineWidth: 0.5)
-                )
-                .fixedSize(horizontal: false, vertical: true)
+            Group {
+                if containsLatex {
+                    MarkdownLaTeXText(content, fontSize: 18, isStreaming: false)
+                } else {
+                    Text(content)
+                        .font(.system(size: 18))
+                }
+            }
+            .textSelection(.enabled)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(bubbleColor.opacity(0.15))
+            .cornerRadius(18)
+            .overlay(
+                RoundedRectangle(cornerRadius: 18)
+                    .stroke(bubbleColor.opacity(0.3), lineWidth: 0.5)
+            )
         }
-        .fixedSize(horizontal: false, vertical: true)
     }
 }
 

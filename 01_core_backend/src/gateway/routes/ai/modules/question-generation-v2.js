@@ -78,7 +78,10 @@ Respond with ONLY the subject name, nothing else.`
 function detectSubjectFromFocusNotes(text) {
   if (!text) return null;
   const t = text.toLowerCase();
-  if (/\b(math|algebra|calculus|geometry|triangle|trigonometry|equation|derivative|integral|vertex|angle|shape|数学)\b/.test(t)) return 'Math';
+  // Math — English and Chinese arithmetic/math terms
+  if (/\b(math|algebra|calculus|geometry|triangle|trigonometry|equation|derivative|integral|vertex|angle|shape|数学|计算|加法|减法|乘法|除法|分数|小数|方程|几何|图形|凑十|凑成|运算|整数|自然数|质数|最大公因数|最小公倍数)\b/.test(t)) return 'Math';
+  // Also catch bare arithmetic patterns like "8+6", "3×4", "10÷2"
+  if (/[0-9]+\s*[+\-×÷*\/=]\s*[0-9]+/.test(t)) return 'Math';
   if (/\b(physics|mechanics|thermodynamics|velocity|acceleration|newton|物理)\b/.test(t)) return 'Physics';
   if (/\b(chemistry|chemical|molecule|atom|reaction|acid|base|periodic|化学)\b/.test(t)) return 'Chemistry';
   if (/\b(biology|cell|dna|rna|evolution|photosynthesis|ecosystem|生物)\b/.test(t)) return 'Biology';
@@ -244,8 +247,8 @@ module.exports = async function (fastify, opts) {
 
     if (raw_messages.length > 0) {
       // Chat → Practice flow:
-      // Step 1: Detect subject from conversation via GPT (lightweight, no storage)
-      // Step 2: Generate mode 1 questions with conversation as focus_notes
+      // Pass conversation as focus_notes so AI engine generates contextually relevant questions.
+      // Subject is determined by the AI engine itself (it sees the conversation) — no separate GPT call needed.
       const allText = raw_messages
         .filter(m => m.role && m.content)
         .slice(-10)
@@ -256,24 +259,26 @@ module.exports = async function (fastify, opts) {
       effectiveFocusNotes = allText;
       mode = 1;
       isAutoSubject = true;
+      // Send "General" — AI engine will detect and return the real subject in its response
+      subject = 'General';
 
-      // Detect subject via GPT (Step 1 — subject only, no storage)
-      const gptDetected  = await detectSubjectWithAI(raw_messages, fastify);
-      const regexDetected = detectSubjectFromFocusNotes(allText);
-      subject = normalizeSubject(gptDetected || regexDetected || 'General');
-
-      // Build topic from last AI message — this IS used directly in the AI engine prompt
+      // Build topic from last message — used directly in the AI engine prompt
       const lastAIMsg = raw_messages.filter(m => m.role === 'assistant').slice(-1)[0]?.content || '';
       const lastUserMsg = raw_messages.filter(m => m.role === 'user').slice(-1)[0]?.content || '';
       effectiveTopic = String(lastUserMsg || lastAIMsg).substring(0, 150).trim();
 
-      // Fetch real grade from user profile (Step 2 — use existing practice generation path)
+      // Fetch real grade from user profile
       const rawProfile = await db.getEnhancedUserProfile(userId).catch(() => null);
       effectiveGrade = formatGradeLevel(rawProfile?.grade_level) || null;
 
-      fastify.log.info({ msg: '[Chat→Practice] subject detected, grade resolved', subject, grade: effectiveGrade, msgs: raw_messages.length });
+      fastify.log.info({ msg: '[Chat→Practice] passing conversation to AI engine for subject auto-detect', msgs: raw_messages.length, grade: effectiveGrade });
     } else if (isAutoSubject) {
       subject = normalizeSubject(detectSubjectFromFocusNotes(focus_notes || topic || '')) || 'General';
+      // If focus_notes was provided as a fallback (e.g. lastMessage from iOS when rawMessages is sparse),
+      // use it as effectiveFocusNotes so the AI engine generates relevant questions.
+      if (focus_notes && !effectiveFocusNotes) {
+        effectiveFocusNotes = focus_notes;
+      }
     } else {
       subject = normalizeSubject(subjectRaw);
     }
@@ -368,7 +373,9 @@ module.exports = async function (fastify, opts) {
       return {
         success: true,
         questions: result.questions,
-        detectedSubject: subject,  // always returned so iOS can label the session
+        // Use the subject returned by the AI engine (it detected it from context).
+        // Falls back to the input subject if AI didn't provide one.
+        detectedSubject: normalizeSubject(result.subject || subject),
         metadata: {
           ...result.metadata,
           using_assistants_api: false,

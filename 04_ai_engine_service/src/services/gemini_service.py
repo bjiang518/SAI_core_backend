@@ -795,6 +795,19 @@ class GeminiEducationalAIService:
             raw_text = self._extract_response_text(response)
             raw_text = self._strip_markdown_fences(raw_text)
             raw_text = self._repair_latex_json(raw_text)
+
+            # Extract AI-detected subject from top-level JSON before parsing questions.
+            # When input subject was "General", the AI is asked to infer and return it.
+            detected_subject = subject
+            try:
+                top_level = self._extract_json_from_response(raw_text)
+                if isinstance(top_level, dict):
+                    ai_subject = top_level.get("subject", "")
+                    if ai_subject and ai_subject.strip().lower() not in ("general", ""):
+                        detected_subject = ai_subject.strip()
+            except Exception:
+                pass  # fall back to input subject
+
             try:
                 questions_json = self._parse_questions_json(raw_text, question_type)
             except ValueError as parse_err:
@@ -833,7 +846,7 @@ class GeminiEducationalAIService:
                     "success": False,
                     "error": "No valid questions in Gemini response",
                     "generation_type": f"unified_{question_type}",
-                    "subject": subject,
+                    "subject": detected_subject,
                 }
 
             # Inject error-analysis keys using the ORIGINAL context so that mistake
@@ -857,12 +870,12 @@ class GeminiEducationalAIService:
             if hasattr(response, 'usage_metadata') and response.usage_metadata:
                 tokens_used = getattr(response.usage_metadata, 'total_token_count', 0)
 
-            logger.debug(f"✅ Gemini question gen: {len(questions_json)} {question_type} for {subject}")
+            logger.debug(f"✅ Gemini question gen: {len(questions_json)} {question_type} for {detected_subject}")
             return {
                 "success": True,
                 "questions": questions_json,
                 "generation_type": f"unified_{question_type}",
-                "subject": subject,
+                "subject": detected_subject,
                 "tokens_used": tokens_used,
                 "question_count": len(questions_json),
             }

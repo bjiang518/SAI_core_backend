@@ -115,7 +115,8 @@ struct SessionChatView: View {
     @State private var showingCamera = false
     @State private var showingScenarioPicker = false
     @State private var showingImageInputSheet = false
-    @State private var showingExistingSessionAlert = false
+    @State private var showingExistingSessionAlert = false 
+    @State private var pendingLiveModeStarterPrompt: String? = nil
     @State private var isVoiceMode = false
     @State private var hasConversationStarted = false
     @State private var showingPermissionAlert = false
@@ -540,16 +541,38 @@ struct SessionChatView: View {
                             showingArchiveProgress = true
                             appState.clearPendingChatMessage()
                             showingExistingSessionAlert = false
+                            // After archive completes, showingArchiveSuccess fires → startNewSession.
+                            // pendingLiveModeStarterPrompt is consumed there.
                         },
                         onContinue: {
-                            viewModel.proceedWithHomeworkQuestion()
+                            if let prompt = pendingLiveModeStarterPrompt {
+                                // Live mode: continue existing session in live mode
+                                pendingLiveModeStarterPrompt = nil
+                                viewModel.liveModeStarterPrompt = prompt
+                                if let sessionId = networkService.currentSessionId {
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                                        activateLiveMode(sessionId: sessionId)
+                                    }
+                                }
+                            } else {
+                                viewModel.proceedWithHomeworkQuestion()
+                            }
                             showingExistingSessionAlert = false
                         },
                         onStartNew: {
-                            viewModel.startNewConversationWithHomeworkQuestion()
+                            if pendingLiveModeStarterPrompt != nil {
+                                // Live mode: discard current session, create new, then activate
+                                pendingLiveModeStarterPrompt = nil
+                                hasConversationStarted = false
+                                viewModel.pendingLiveModeActivation = true
+                                viewModel.startNewSession()
+                            } else {
+                                viewModel.startNewConversationWithHomeworkQuestion()
+                            }
                             showingExistingSessionAlert = false
                         },
                         onCancel: {
+                            pendingLiveModeStarterPrompt = nil
                             appState.clearPendingChatMessage()
                             showingExistingSessionAlert = false
                         }
@@ -568,6 +591,11 @@ struct SessionChatView: View {
                     showingArchiveSuccess = false
                     withAnimation(.easeInOut(duration: 0.3)) {
                         hasConversationStarted = false
+                    }
+                    if pendingLiveModeStarterPrompt != nil {
+                        // Live mode was pending — start new session then activate live mode
+                        pendingLiveModeStarterPrompt = nil
+                        viewModel.pendingLiveModeActivation = true
                     }
                     viewModel.startNewSession()
                 }
@@ -650,8 +678,12 @@ struct SessionChatView: View {
                         }
                     case .startLiveMode(let starterPrompt):
                         viewModel.liveModeStarterPrompt = starterPrompt
-                        if let sessionId = networkService.currentSessionId {
-                            // Session already exists — enter Live Mode directly
+                        if !networkService.conversationHistory.isEmpty {
+                            // Existing session with messages — ask user to archive or start new
+                            pendingLiveModeStarterPrompt = starterPrompt
+                            showingExistingSessionAlert = true
+                        } else if let sessionId = networkService.currentSessionId {
+                            // Empty session already exists — enter Live Mode directly
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                                 activateLiveMode(sessionId: sessionId)
                             }
@@ -1992,7 +2024,7 @@ struct SessionChatView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         if hasRegularSuggestions {
-                            ForEach(regularFromAI, id: \.id) { suggestion in
+                            ForEach(regularFromAI.prefix(3), id: \.id) { suggestion in
                                 Button(suggestion.key) {
                                     isMessageInputFocused = false
                                     viewModel.messageText = suggestion.value
@@ -2003,7 +2035,7 @@ struct SessionChatView: View {
                         } else if hasFallback && !lastMessageHasDiagram {
                             let contextButtons = generateContextualButtons(for: lastMessage)
                                 .sorted { $0.localizedCompare($1) == .orderedAscending }
-                            ForEach(contextButtons, id: \.self) { title in
+                            ForEach(contextButtons.prefix(3), id: \.self) { title in
                                 Button(title) {
                                     isMessageInputFocused = false
                                     viewModel.messageText = generateContextualPrompt(for: title, lastMessage: lastMessage)
@@ -2100,8 +2132,15 @@ struct SessionChatView: View {
     
     // Helper functions for intelligent content analysis
     private func containsMathTerms(_ text: String) -> Bool {
-        let mathTerms = ["solve", "equation", "=", "x", "y", "derivative", "integral", "function", "graph", "algebra", "geometry", "calculus", "trigonometry", "formula", "theorem", "proof"]
-        return mathTerms.contains { text.contains($0) }
+        let mathTerms = ["solve", "equation", "=", "derivative", "integral", "function", "graph",
+                         "algebra", "geometry", "calculus", "trigonometry", "formula", "theorem", "proof",
+                         // Chinese math terms
+                         "数学", "计算", "加法", "减法", "乘法", "除法", "分数", "小数", "方程", "几何",
+                         "图形", "凑十", "凑成", "运算", "整数", "质数", "面积", "周长", "体积"]
+        if mathTerms.contains(where: { text.contains($0) }) { return true }
+        // Bare arithmetic pattern: digits with operators
+        let arithPattern = try? NSRegularExpression(pattern: #"\d+\s*[+\-×÷*/=]\s*\d+"#)
+        return arithPattern?.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) != nil
     }
 
     private func containsScienceTerms(_ text: String) -> Bool {
@@ -2157,9 +2196,15 @@ struct SessionChatView: View {
         // Use session's subject as a hint if already determined
         let subjectHint = viewModel.selectedSubject.lowercased() == "general" ? "General" : viewModel.selectedSubject
 
+        // If rawMessages is sparse (< 2 msgs), fall back to lastMessage as focusNotes so the
+        // backend always has text to detect subject from, instead of returning "General".
+        let fallbackFocusNotes: String? = rawMessages.count < 2
+            ? String(lastMessage.prefix(600)).trimmingCharacters(in: .whitespacesAndNewlines)
+            : nil
+
         let configWithFocus = QuestionGenerationService.RandomQuestionsConfig(
             topics: config.topics,
-            focusNotes: nil,  // not needed — raw_messages covers this
+            focusNotes: fallbackFocusNotes,
             difficulty: config.difficulty,
             questionCount: config.questionCount,
             questionType: config.questionType
@@ -2195,14 +2240,23 @@ struct SessionChatView: View {
                     ?? (subjectHint.lowercased() == "general" ? nil : subjectHint)
                     ?? "General"
 
-                let session = PracticeSessionManager.shared.saveSession(
-                    questions: questions,
-                    generationType: "Chat Practice",
+                // generateRandomQuestions already saved a session internally (subject="General",
+                // type="Random Practice"). Update it in-place rather than calling saveSession again
+                // with the same questions — double-saving causes SWIFT TASK CONTINUATION MISUSE
+                // and the first session (wrong subject) would persist via deduplication.
+                let sessionId = QuestionGenerationService.shared.currentSessionId ?? ""
+                guard !sessionId.isEmpty,
+                      let session = PracticeSessionManager.shared.getSession(id: sessionId) else {
+                    return
+                }
+                PracticeSessionManager.shared.updateSubjectAndType(
+                    sessionId: sessionId,
                     subject: detectedSubject,
-                    config: configWithFocus
+                    generationType: "Chat Practice"
                 )
+                let updatedSession = PracticeSessionManager.shared.getSession(id: sessionId) ?? session
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                    chatPracticeSession = session
+                    chatPracticeSession = updatedSession
                     showingPracticeView = true
                 }
             case .failure:

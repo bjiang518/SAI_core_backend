@@ -18,6 +18,12 @@ interface User {
   tier_expires_at: string | null
   total_sessions: number
   last_user_agent: string | null
+  recent_tier_changes: Array<{
+    from_tier: string | null
+    to_tier: string
+    changed_at: string
+    source: string
+  }> | null
 }
 
 interface Pagination {
@@ -93,11 +99,13 @@ const EVENT_ICON: Record<string, string> = {
   registered:       '🎉',
   app_session:      '📱',
   ai_chat:          '💬',
+  live_mode:        '🎙️',
   parsed:           '📷',
   graded:           '✏️',
-  homework_archive: '📝',
+  homework_archive: '🌳',
   practice_gen:     '📚',
   practice_done:    '✅',
+  focus:            '🍅',
   report:           '📊',
   subscription:     '⭐',
 }
@@ -122,6 +130,7 @@ export default function UsersPage() {
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [activeFilter, setActiveFilter] = useState<string>('all')
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null)
@@ -137,7 +146,7 @@ export default function UsersPage() {
   const fetchUsers = useCallback(async (page = 1, searchQuery = debouncedSearch) => {
     setLoading(true)
     try {
-      const res = await usersAPI.getList({ page, limit: PAGE_SIZE, ...(searchQuery ? { search: searchQuery } : {}) })
+      const res = await usersAPI.getList({ page, limit: PAGE_SIZE, ...(searchQuery ? { search: searchQuery } : {}), ...(activeFilter !== 'all' ? { filter: activeFilter } : {}) })
       if (res.success) {
         setUsers(res.data)
         setPagination(res.pagination)
@@ -154,10 +163,11 @@ export default function UsersPage() {
     } finally {
       setLoading(false)
     }
-  }, [debouncedSearch])
+  }, [debouncedSearch, activeFilter])
 
   useEffect(() => { fetchUsers(1, '') }, [])
   useEffect(() => { fetchUsers(1, debouncedSearch) }, [debouncedSearch])
+  useEffect(() => { fetchUsers(1, debouncedSearch) }, [activeFilter])
 
   const handleSearchChange = (value: string) => {
     setSearch(value)
@@ -279,26 +289,51 @@ export default function UsersPage() {
         <p className="text-muted-foreground mt-1">Manage and view all registered users</p>
       </div>
 
-      {/* Stats + Search row */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex gap-4 text-sm">
-          <span className="font-semibold text-2xl">{pagination.total.toLocaleString()}</span>
-          <span className="text-muted-foreground self-end pb-0.5">total users</span>
-        </div>
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-          <input
-            type="text"
-            placeholder="Search by name or email…"
-            value={search}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            className="w-full pl-9 pr-8 py-2 text-sm rounded-lg border border-input bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          />
-          {search && (
-            <button onClick={clearSearch} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-              <X className="h-4 w-4" />
+      {/* Filter buttons + search */}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap gap-2">
+          {[
+            { key: 'all',    label: 'All Users' },
+            { key: 'active', label: '🟢 Active (7d)' },
+            { key: 'paid',   label: '⭐ Paid' },
+            { key: 'heavy',  label: '🔥 Heavy Usage' },
+            { key: 'guest',  label: '👤 Guest' },
+          ].map(f => (
+            <button
+              key={f.key}
+              onClick={() => setActiveFilter(f.key)}
+              className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${
+                activeFilter === f.key
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-background border-input text-muted-foreground hover:bg-gray-50'
+              }`}
+            >
+              {f.label}
             </button>
-          )}
+          ))}
+        </div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex gap-4 text-sm">
+            <span className="font-semibold text-2xl">{pagination.total.toLocaleString()}</span>
+            <span className="text-muted-foreground self-end pb-0.5">
+              {activeFilter === 'all' ? 'total users' : `${activeFilter} users`}
+            </span>
+          </div>
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search by name or email…"
+              value={search}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="w-full pl-9 pr-8 py-2 text-sm rounded-lg border border-input bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            {search && (
+              <button onClick={clearSearch} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -338,6 +373,7 @@ export default function UsersPage() {
                       <th className="pb-2 pr-4">Name</th>
                       <th className="pb-2 pr-4">Email</th>
                       <th className="pb-2 pr-4">Status</th>
+                      <th className="pb-2 pr-4">Tier History</th>
                       <th className="pb-2 pr-4">Expires</th>
                       <th className="pb-2 pr-4">Joined</th>
                       <th className="pb-2 pr-4">Last Active</th>
@@ -361,6 +397,9 @@ export default function UsersPage() {
                           <td className="py-3 pr-4 font-medium">{user.name || '—'}</td>
                           <td className="py-3 pr-4 text-muted-foreground">{user.email}</td>
                           <td className="py-3 pr-4">{getStatusBadge(user.subscriptionStatus)}</td>
+                          <td className="py-3 pr-4">
+                            <InlineTierHistory changes={user.recent_tier_changes} />
+                          </td>
                           <td className="py-3 pr-4 text-xs">
                             {(['premium', 'ultra'].includes(user.subscriptionStatus) && user.tier_expires_at)
                               ? (() => {
@@ -421,7 +460,7 @@ export default function UsersPage() {
                         {/* Expanded analysis panel */}
                         {expandedUserId === user.id && (
                           <tr className="border-b bg-gray-50">
-                            <td colSpan={8} className="py-4 px-4">
+                            <td colSpan={9} className="py-4 px-4">
                               {analysisLoading === user.id && (
                                 <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
                                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
@@ -534,6 +573,41 @@ export default function UsersPage() {
           </div>
         </>
       )}
+    </div>
+  )
+}
+
+// ─── Inline Tier History ───────────────────────────────────────────────────────
+
+function InlineTierHistory({ changes }: { changes: User['recent_tier_changes'] }) {
+  if (!changes || changes.length === 0) return <span className="text-xs text-muted-foreground">—</span>
+
+  const LABEL: Record<string, string> = { premium_plus: 'Ultra', premium: 'Premium', free: 'Free' }
+  const STYLE: Record<string, string> = {
+    premium_plus: 'bg-yellow-100 text-yellow-800',
+    premium: 'bg-blue-100 text-blue-800',
+    free: 'bg-gray-100 text-gray-500',
+  }
+
+  // Build unique chain: start from earliest, end at latest
+  const ordered = [...changes].reverse()
+  const chain: string[] = []
+  if (ordered[0]?.from_tier) chain.push(ordered[0].from_tier)
+  for (const c of ordered) chain.push(c.to_tier)
+
+  // Deduplicate consecutive identical tiers
+  const deduped = chain.filter((t, i) => i === 0 || t !== chain[i - 1])
+
+  return (
+    <div className="flex items-center gap-1 flex-wrap">
+      {deduped.map((tier, i) => (
+        <React.Fragment key={i}>
+          {i > 0 && <span className="text-gray-300 text-xs">›</span>}
+          <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${STYLE[tier] || 'bg-gray-100 text-gray-600'}`}>
+            {LABEL[tier] || tier}
+          </span>
+        </React.Fragment>
+      ))}
     </div>
   )
 }

@@ -1549,7 +1549,18 @@ RULE: correct_answer MUST be exactly "True" or "False".""",
 - If the topic seems too advanced for {grade}, simplify it to the most foundational version of that concept appropriate for {grade}.
 """ if is_specific_grade else ""
 
-        prompt = f"""Generate {count} {difficulty}-level {subject} questions for a {grade} student.
+        auto_detect_subject = subject.lower() in ("general", "")
+        subject_instruction = (
+            f'- "subject": "The academic subject name in English (e.g. Math, Physics, English, Chinese, History, Biology, Chemistry, Computer Science). Infer it from the context above."\n'
+            if auto_detect_subject else ""
+        )
+        subject_in_prompt = (
+            "the appropriate subject inferred from the context"
+            if auto_detect_subject else subject
+        )
+
+        prompt = f"""Generate {count} {difficulty}-level questions for a {grade} student.
+Subject: {subject_in_prompt}
 All questions MUST be type: {question_type}
 
 {grade_requirement_block}CONTEXT:
@@ -1560,8 +1571,8 @@ All questions MUST be type: {question_type}
 {fmt}
 
 CRITICAL:
-- Return a JSON object with a "questions" key containing an array of exactly {count} objects. No markdown, no extra text.
-- All questions must be {question_type} type.
+- Return a JSON object with {"a top-level " + '"subject" string (the detected academic subject) and ' if auto_detect_subject else ""}a "questions" key containing an array of exactly {count} objects. No markdown, no extra text.
+{subject_instruction}- All questions must be {question_type} type.
 - MATH FORMATTING: This is JSON output — backslashes must be doubled. Use \\\\(...\\\\) for math. Examples: \\\\(x^2\\\\), \\\\(\\\\frac{{1}}{{2}}\\\\), \\\\(\\\\sqrt{{x}}\\\\), \\\\(\\\\alpha\\\\). Never use a single backslash in JSON string values. ALL math in multiple_choice_options 'text' MUST be wrapped in \\\\(...\\\\) — never bare \\\\frac or \\\\sqrt without delimiters.
 - LANGUAGE: {lang_instruction}
 

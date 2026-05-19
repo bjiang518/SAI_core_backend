@@ -3169,3 +3169,6 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "practice.beta.message" = "Estamos construyendo bancos de preguntas";
 "proMode.oneMistake" = "1 error";
 "proMode.nMistakes" = "%d errores";
+"todo.knowledgeTree.title" = "Iluminar árbol de conocimiento";
+"todo.knowledgeTree.subtitle" = "Explorar el mapa de conocimiento de \"%@\"";
+"todo.knowledgeTree.defaultSubject" = "Todas las materias";

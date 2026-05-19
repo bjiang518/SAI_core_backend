@@ -3271,3 +3271,7 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "practice.mode.bank" = "Vraies Questions";
 "proMode.oneMistake" = "1 erreur";
 "proMode.nMistakes" = "%d erreurs";
+"todo.knowledgeTree.title" = "Illuminer l'arbre de connaissances";
+"todo.knowledgeTree.subtitle" = "Explorer la carte de connaissances « %@ »";
+"todo.knowledgeTree.defaultSubject" = "Toutes les matières";
+"practice.bank.retrieve" = "Obtenir de vraies questions";

@@ -43,6 +43,19 @@ module.exports = async function (fastify, opts) {
     return _gradeEventsExist;
   }
 
+  // Cache whether the app_events table exists
+  let _appEventsExist = null;
+  async function appEventsExist() {
+    if (_appEventsExist !== null) return _appEventsExist;
+    try {
+      await db.query(`SELECT id FROM app_events LIMIT 0`);
+      _appEventsExist = true;
+    } catch {
+      _appEventsExist = false;
+    }
+    return _appEventsExist;
+  }
+
   async function getIFilter(includeInternal) {
     if (includeInternal) return '';
     if (!(await internalColsExist())) return '';
@@ -163,6 +176,7 @@ module.exports = async function (fastify, opts) {
       const tierWhereClause = (await internalColsExist()) && !includeInternal
         ? 'WHERE COALESCE(u.is_internal, false) = false AND COALESCE(u.is_test_user, false) = false'
         : ''
+      const hasAE_overview = await appEventsExist()
 
       // Consolidated into 4 queries instead of 13 to reduce connection pool pressure
       const [mainResult, tierResult, economyResult, iosVersionResult, guestConvResult] = await Promise.all([
@@ -173,9 +187,9 @@ module.exports = async function (fastify, opts) {
             (SELECT COUNT(*) FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE p.parent_id IS NULL ${iFilter})::int AS total_users,
             (SELECT COUNT(*) FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE u.created_at <= NOW() - INTERVAL '7 days' AND p.parent_id IS NULL ${iFilter})::int AS users_week_ago,
             (SELECT COUNT(*) FROM sessions WHERE (created_at AT TIME ZONE '${DASHBOARD_TZ}')::date = (NOW() AT TIME ZONE '${DASHBOARD_TZ}')::date)::int AS sessions_today,
-            (SELECT COUNT(DISTINCT us.user_id) FROM user_sessions us JOIN users u ON u.id = us.user_id WHERE u.is_anonymous = false ${iFilter} AND (us.created_at AT TIME ZONE '${DASHBOARD_TZ}')::date = (NOW() AT TIME ZONE '${DASHBOARD_TZ}')::date)::int AS dau,
-            (SELECT COUNT(DISTINCT us.user_id) FROM user_sessions us JOIN users u ON u.id = us.user_id WHERE u.is_anonymous = false ${iFilter} AND us.created_at >= NOW() - INTERVAL '7 days')::int AS wau,
-            (SELECT COUNT(DISTINCT us.user_id) FROM user_sessions us JOIN users u ON u.id = us.user_id WHERE u.is_anonymous = false ${iFilter} AND us.created_at >= NOW() - INTERVAL '30 days')::int AS mau,
+            (SELECT COUNT(DISTINCT user_id) FROM app_events WHERE event_name = 'app_open' AND (occurred_at AT TIME ZONE '${DASHBOARD_TZ}')::date = (NOW() AT TIME ZONE '${DASHBOARD_TZ}')::date)::int AS dau,
+            (SELECT COUNT(DISTINCT user_id) FROM app_events WHERE event_name = 'app_open' AND occurred_at >= NOW() - INTERVAL '7 days')::int AS wau,
+            (SELECT COUNT(DISTINCT user_id) FROM app_events WHERE event_name = 'app_open' AND occurred_at >= NOW() - INTERVAL '30 days')::int AS mau,
             (SELECT COUNT(*) FROM users u LEFT JOIN profiles p ON p.user_id = u.id
               WHERE p.parent_id IS NULL AND u.is_anonymous = false ${iFilter}
               AND GREATEST(u.last_login_at,
@@ -186,17 +200,17 @@ module.exports = async function (fastify, opts) {
             (SELECT COUNT(*) FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE u.created_at >= NOW() - INTERVAL '7 days' AND p.parent_id IS NULL ${iFilter})::int AS new_users_this_week
         `),
 
-        // Query 2: Tier distribution
+        // Query 2: Tier distribution — all counts exclude child accounts (p.parent_id IS NULL) and anonymous users
         db.query(`
           SELECT
-            COUNT(*) FILTER (WHERE u.tier = 'premium'      AND (u.tier_expires_at IS NULL OR u.tier_expires_at > NOW()) AND p.parent_id IS NULL)::int AS premium_count,
-            COUNT(*) FILTER (WHERE u.tier = 'premium_plus' AND (u.tier_expires_at IS NULL OR u.tier_expires_at > NOW()) AND p.parent_id IS NULL)::int AS premium_plus_count,
+            COUNT(*) FILTER (WHERE u.tier = 'premium'      AND (u.tier_expires_at IS NULL OR u.tier_expires_at > NOW()) AND u.is_anonymous = false AND p.parent_id IS NULL)::int AS premium_count,
+            COUNT(*) FILTER (WHERE u.tier = 'premium_plus' AND (u.tier_expires_at IS NULL OR u.tier_expires_at > NOW()) AND u.is_anonymous = false AND p.parent_id IS NULL)::int AS premium_plus_count,
             COUNT(*) FILTER (WHERE ((u.tier = 'free' OR u.tier IS NULL) OR (u.tier IN ('premium', 'premium_plus') AND u.tier_expires_at IS NOT NULL AND u.tier_expires_at <= NOW())) AND u.is_anonymous = false AND p.parent_id IS NULL)::int AS free_count,
             COUNT(*) FILTER (WHERE u.is_anonymous = true   AND p.parent_id IS NULL)::int AS guest_count
           FROM users u
           LEFT JOIN profiles p ON p.user_id = u.id
           ${tierWhereClause}
-        `),
+        `).catch(() => ({ rows: [{ premium_count: 0, premium_plus_count: 0, free_count: 0, guest_count: 0 }] })),
 
         // Query 3: Points economy + XP + spend combined
         db.query(`
@@ -346,6 +360,7 @@ module.exports = async function (fastify, opts) {
       const page = parseInt(request.query.page) || 1;
       const limit = Math.min(parseInt(request.query.limit) || 50, 100);
       const search = request.query.search || '';
+      const filter = request.query.filter || '';
       const offset = (page - 1) * limit;
 
       let query = `
@@ -390,7 +405,12 @@ module.exports = async function (fastify, opts) {
               (SELECT MAX(dsa.activity_date) FROM daily_subject_activities dsa WHERE dsa.user_id = u.id)
             ) < NOW() - INTERVAL '30 days' THEN 'inactive'
             ELSE 'free'
-          END as "subscriptionStatus"
+          END as "subscriptionStatus",
+          (SELECT JSON_AGG(th ORDER BY th.changed_at DESC)
+           FROM (SELECT from_tier, to_tier, changed_at, source
+                 FROM tier_history
+                 WHERE user_id = u.id
+                 ORDER BY changed_at DESC LIMIT 3) th) as recent_tier_changes
         FROM users u
         LEFT JOIN profiles p ON p.user_id = u.id
       `;
@@ -403,6 +423,16 @@ module.exports = async function (fastify, opts) {
         query += ` WHERE p.parent_id IS NULL`;
       }
 
+      if (filter === 'active') {
+        query += ` AND GREATEST(u.last_login_at,(SELECT MAX(s.created_at) FROM sessions s WHERE s.user_id=u.id),(SELECT MAX(us.created_at) FROM user_sessions us WHERE us.user_id=u.id),(SELECT MAX(dsa.activity_date) FROM daily_subject_activities dsa WHERE dsa.user_id=u.id)) >= NOW() - INTERVAL '7 days'`;
+      } else if (filter === 'paid') {
+        query += ` AND u.tier IN ('premium','premium_plus') AND (u.tier_expires_at IS NULL OR u.tier_expires_at > NOW())`;
+      } else if (filter === 'heavy') {
+        query += ` AND (SELECT COUNT(*) FROM sessions s WHERE s.user_id=u.id) >= 20`;
+      } else if (filter === 'guest') {
+        query += ` AND u.is_anonymous = true`;
+      }
+
       query += ` ORDER BY u.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
       params.push(limit, offset);
 
@@ -413,6 +443,15 @@ module.exports = async function (fastify, opts) {
       if (search) {
         countQuery += ' AND (u.email ILIKE $1 OR u.name ILIKE $1)';
         countParams.push(`%${search}%`);
+      }
+      if (filter === 'active') {
+        countQuery += ` AND GREATEST(u.last_login_at,(SELECT MAX(s.created_at) FROM sessions s WHERE s.user_id=u.id),(SELECT MAX(us.created_at) FROM user_sessions us WHERE us.user_id=u.id),(SELECT MAX(dsa.activity_date) FROM daily_subject_activities dsa WHERE dsa.user_id=u.id)) >= NOW() - INTERVAL '7 days'`;
+      } else if (filter === 'paid') {
+        countQuery += ` AND u.tier IN ('premium','premium_plus') AND (u.tier_expires_at IS NULL OR u.tier_expires_at > NOW())`;
+      } else if (filter === 'heavy') {
+        countQuery += ` AND (SELECT COUNT(*) FROM sessions s WHERE s.user_id=u.id) >= 20`;
+      } else if (filter === 'guest') {
+        countQuery += ` AND u.is_anonymous = true`;
       }
       const countResult = await db.query(countQuery, countParams);
       const total = parseInt(countResult.rows[0].total);
@@ -626,11 +665,33 @@ module.exports = async function (fastify, opts) {
       const includeInternal = request.query.includeInternal === 'true'
       const iFilter = await getIFilterNoAlias(includeInternal)
       const hasGE = await gradeEventsExist()
-      const geEverGraded      = hasGE ? `(SELECT COUNT(DISTINCT user_id) FROM grade_events)::int` : `0::int`
-      const geTotalGradings   = hasGE ? `(SELECT COUNT(*) FROM grade_events)::int`                : `0::int`
-      const geActivityQuery   = hasGE
-        ? `SELECT (created_at AT TIME ZONE '${DASHBOARD_TZ}')::date as date, COUNT(*)::int as questions FROM grade_events WHERE created_at >= NOW() - INTERVAL '30 days' GROUP BY (created_at AT TIME ZONE '${DASHBOARD_TZ}')::date ORDER BY date`
-        : `SELECT NULL::date as date, 0::int as questions WHERE false`
+      const hasAE = await appEventsExist()
+
+      // ever_graded: prefer app_events, fall back to grade_events, then archived_questions
+      const aeEverGraded = hasAE
+        ? `(SELECT COUNT(DISTINCT user_id) FROM app_events WHERE event_name = 'homework_graded')::int`
+        : hasGE
+          ? `(SELECT COUNT(DISTINCT user_id) FROM grade_events)::int`
+          : `(SELECT COUNT(DISTINCT user_id::uuid) FROM archived_questions WHERE student_answer IS NOT NULL)::int`
+
+      // total_gradings: prefer app_events (graded + session_graded events)
+      const aeTotalGradings = hasAE
+        ? `(SELECT COUNT(*) FROM app_events WHERE event_name IN ('homework_graded', 'homework_session_graded'))::int`
+        : hasGE
+          ? `(SELECT COUNT(*) FROM grade_events)::int`
+          : `0::int`
+
+      // homework volume chart: prefer app_events.homework_submitted (unique submitters per day)
+      const homeworkVolumeQuery = hasAE
+        ? `SELECT (occurred_at AT TIME ZONE '${DASHBOARD_TZ}')::date as date, COUNT(DISTINCT user_id)::int as questions FROM app_events WHERE event_name = 'homework_submitted' AND occurred_at >= NOW() - INTERVAL '30 days' GROUP BY (occurred_at AT TIME ZONE '${DASHBOARD_TZ}')::date ORDER BY date`
+        : hasGE
+          ? `SELECT (created_at AT TIME ZONE '${DASHBOARD_TZ}')::date as date, COUNT(*)::int as questions FROM grade_events WHERE created_at >= NOW() - INTERVAL '30 days' GROUP BY (created_at AT TIME ZONE '${DASHBOARD_TZ}')::date ORDER BY date`
+          : `SELECT NULL::date as date, 0::int as questions WHERE false`
+
+      // DAU chart: prefer app_events.app_open (real app opens)
+      const dauChartQuery = hasAE
+        ? `SELECT (occurred_at AT TIME ZONE '${DASHBOARD_TZ}')::date as date, COUNT(DISTINCT user_id)::int as active_users FROM app_events WHERE event_name = 'app_open' AND occurred_at >= NOW() - INTERVAL '30 days' GROUP BY (occurred_at AT TIME ZONE '${DASHBOARD_TZ}')::date ORDER BY date`
+        : `SELECT (created_at AT TIME ZONE '${DASHBOARD_TZ}')::date as date, COUNT(DISTINCT user_id)::int as active_users FROM user_sessions WHERE created_at >= NOW() - INTERVAL '30 days' GROUP BY (created_at AT TIME ZONE '${DASHBOARD_TZ}')::date ORDER BY date`
       const [
         userGrowthResult,
         dauChartResult,
@@ -648,14 +709,8 @@ module.exports = async function (fastify, opts) {
           ORDER BY date
         `),
 
-        // DAU chart — any login (user_sessions) is a better proxy than chat-only (sessions)
-        db.query(`
-          SELECT (created_at AT TIME ZONE '${DASHBOARD_TZ}')::date as date, COUNT(DISTINCT user_id)::int as active_users
-          FROM user_sessions
-          WHERE created_at >= NOW() - INTERVAL '30 days'
-          GROUP BY (created_at AT TIME ZONE '${DASHBOARD_TZ}')::date
-          ORDER BY date
-        `),
+        // DAU chart — app_events.app_open is the real signal; fallback to user_sessions
+        db.query(dauChartQuery),
 
         // Grade level distribution
         db.query(`
@@ -684,18 +739,18 @@ module.exports = async function (fastify, opts) {
           SELECT
             (SELECT COUNT(*) FROM users)::int as total_users,
             (SELECT COUNT(DISTINCT user_id) FROM sessions)::int as ever_chatted,
-            ${geEverGraded} as ever_graded,
+            ${aeEverGraded} as ever_graded,
             (SELECT COUNT(DISTINCT user_id) FROM archived_questions)::int as ever_attempted_questions,
             (SELECT COUNT(DISTINCT user_id) FROM practice_sheets)::int as ever_practiced,
             (SELECT COUNT(DISTINCT user_id) FROM parent_report_batches)::int as ever_reported,
             (SELECT COUNT(DISTINCT user_id) FROM subject_progress WHERE streak_count > 0)::int as has_active_streak,
             (SELECT COUNT(DISTINCT user_id) FROM point_transactions WHERE type = 'spend')::int as ever_redeemed_points,
-            ${geTotalGradings} as total_gradings,
+            ${aeTotalGradings} as total_gradings,
             (SELECT COUNT(*) FROM archived_questions)::int as total_questions_attempted
         `),
 
-        // Grading activity — last 30 days
-        db.query(geActivityQuery),
+        // Homework submission volume — last 30 days (app_events preferred)
+        db.query(homeworkVolumeQuery),
       ]);
 
       return reply.send({
@@ -852,15 +907,42 @@ module.exports = async function (fastify, opts) {
           FROM parent_report_batches
         `),
 
-        // Most common struggling topics from archived_questions
-        db.query(`
-          SELECT subject, COUNT(*)::int as count
-          FROM archived_questions
-          WHERE grade IN ('INCORRECT', 'EMPTY') OR grade IS NULL
-          GROUP BY subject
-          ORDER BY count DESC
-          LIMIT 8
-        `),
+        // Top weaknesses: archived_questions + app_events question_answered incorrect
+        (async () => {
+          const hasAEi = await appEventsExist()
+          if (hasAEi) {
+            return db.query(`
+              SELECT subject, SUM(cnt)::int as count
+              FROM (
+                SELECT subject, COUNT(*)::int as cnt
+                FROM archived_questions
+                WHERE (grade IN ('INCORRECT', 'EMPTY') OR grade IS NULL)
+                  AND subject IS NOT NULL
+                GROUP BY subject
+                UNION ALL
+                SELECT properties->>'subject' as subject, COUNT(*)::int as cnt
+                FROM app_events
+                WHERE event_name = 'question_answered'
+                  AND (properties->>'correct')::boolean = false
+                  AND occurred_at >= NOW() - INTERVAL '90 days'
+                  AND properties->>'subject' IS NOT NULL
+                GROUP BY properties->>'subject'
+              ) t
+              WHERE subject IS NOT NULL
+              GROUP BY subject
+              ORDER BY count DESC
+              LIMIT 8
+            `)
+          }
+          return db.query(`
+            SELECT subject, COUNT(*)::int as count
+            FROM archived_questions
+            WHERE grade IN ('INCORRECT', 'EMPTY') OR grade IS NULL
+            GROUP BY subject
+            ORDER BY count DESC
+            LIMIT 8
+          `)
+        })(),
       ]);
 
       return reply.send({
@@ -1431,6 +1513,27 @@ module.exports = async function (fastify, opts) {
       const days = Math.min(parseInt(request.query.days) || 60, 90);
       const includeInternal = request.query.includeInternal === 'true';
       const iFilter = await getIFilterNoAlias(includeInternal);
+      const hasAE_ret = await appEventsExist()
+
+      const returnsCTE = hasAE_ret
+        ? `returns AS (
+            SELECT DISTINCT c.signup_date, c.user_id,
+              ((eng.occurred_at AT TIME ZONE '${DASHBOARD_TZ}')::date - c.signup_date) AS days_since_signup
+            FROM cohorts c
+            JOIN (
+              SELECT user_id, occurred_at FROM app_events WHERE event_name NOT IN ('app_background')
+              UNION
+              SELECT user_id, created_at AS occurred_at FROM user_sessions
+            ) eng ON eng.user_id = c.user_id
+            WHERE (eng.occurred_at AT TIME ZONE '${DASHBOARD_TZ}')::date > c.signup_date
+          )`
+        : `returns AS (
+            SELECT DISTINCT c.signup_date, c.user_id,
+              ((us.created_at AT TIME ZONE '${DASHBOARD_TZ}')::date - c.signup_date) AS days_since_signup
+            FROM cohorts c
+            JOIN user_sessions us ON us.user_id = c.user_id
+            WHERE (us.created_at AT TIME ZONE '${DASHBOARD_TZ}')::date > c.signup_date
+          )`
 
       const [cohortResult, summaryResult] = await Promise.all([
         db.query(`
@@ -1440,17 +1543,11 @@ module.exports = async function (fastify, opts) {
             WHERE is_anonymous = false ${iFilter}
               AND created_at >= NOW() - INTERVAL '${days} days'
           ),
-          returns AS (
-            SELECT DISTINCT c.signup_date, c.user_id,
-              ((us.created_at AT TIME ZONE '${DASHBOARD_TZ}')::date - c.signup_date) AS days_since_signup
-            FROM cohorts c
-            JOIN user_sessions us ON us.user_id = c.user_id
-            WHERE (us.created_at AT TIME ZONE '${DASHBOARD_TZ}')::date > c.signup_date
-          )
+          ${returnsCTE}
           SELECT
             c.signup_date,
             COUNT(DISTINCT c.user_id)::int AS cohort_size,
-            COUNT(DISTINCT CASE WHEN r.days_since_signup = 1   THEN r.user_id END)::int AS d1,
+            COUNT(DISTINCT CASE WHEN r.days_since_signup <= 1  THEN r.user_id END)::int AS d1,
             COUNT(DISTINCT CASE WHEN r.days_since_signup <= 3  THEN r.user_id END)::int AS d3,
             COUNT(DISTINCT CASE WHEN r.days_since_signup <= 7  THEN r.user_id END)::int AS d7,
             COUNT(DISTINCT CASE WHEN r.days_since_signup <= 14 THEN r.user_id END)::int AS d14,
@@ -1466,14 +1563,9 @@ module.exports = async function (fastify, opts) {
               AND created_at >= NOW() - INTERVAL '${days} days'
               AND created_at <= NOW() - INTERVAL '30 days'
           ),
-          returns AS (
-            SELECT DISTINCT c.user_id, c.signup_date,
-              ((us.created_at AT TIME ZONE '${DASHBOARD_TZ}')::date - c.signup_date) AS days_since_signup
-            FROM cohorts c JOIN user_sessions us ON us.user_id = c.user_id
-            WHERE (us.created_at AT TIME ZONE '${DASHBOARD_TZ}')::date > c.signup_date
-          )
+          ${returnsCTE}
           SELECT
-            ROUND(AVG(CASE WHEN r.days_since_signup = 1 THEN 1.0 ELSE 0.0 END) * 100, 1) AS avg_d1_pct,
+            ROUND(AVG(CASE WHEN r.days_since_signup <= 1 THEN 1.0 ELSE 0.0 END) * 100, 1) AS avg_d1_pct,
             ROUND(AVG(CASE WHEN r.days_since_signup <= 7 THEN 1.0 ELSE 0.0 END) * 100, 1) AS avg_d7_pct,
             ROUND(AVG(CASE WHEN r.days_since_signup <= 30 THEN 1.0 ELSE 0.0 END) * 100, 1) AS avg_d30_pct
           FROM cohorts c
@@ -1501,19 +1593,39 @@ module.exports = async function (fastify, opts) {
       const includeInternal = request.query.includeInternal === 'true';
       const iFilter = await getIFilter(includeInternal);
       const hasGE = await gradeEventsExist();
+      const hasAE_funnel = await appEventsExist();
       const cutoff = `NOW() - INTERVAL '${days} days'`;
-      const firstArchiveSql = hasGE
-        ? `(SELECT COUNT(DISTINCT ge.user_id)::int FROM grade_events ge JOIN users u ON u.id = ge.user_id WHERE u.is_anonymous = false ${iFilter} AND ge.created_at >= ${cutoff})`
-        : `0::int`;
+
+      // first_archive: users who submitted homework — app_events is most accurate
+      const firstArchiveSql = hasAE_funnel
+        ? `(SELECT COUNT(DISTINCT ae.user_id)::int FROM app_events ae JOIN users u ON u.id = ae.user_id WHERE u.is_anonymous = false ${iFilter} AND ae.event_name = 'homework_submitted' AND ae.occurred_at >= ${cutoff})`
+        : hasGE
+          ? `(SELECT COUNT(DISTINCT ge.user_id)::int FROM grade_events ge JOIN users u ON u.id = ge.user_id WHERE u.is_anonymous = false ${iFilter} AND ge.created_at >= ${cutoff})`
+          : `(SELECT COUNT(DISTINCT CAST(aq.user_id AS UUID))::int FROM archived_questions aq JOIN users u ON u.id = CAST(aq.user_id AS UUID) WHERE u.is_anonymous = false ${iFilter} AND aq.created_at >= ${cutoff})`;
+
+      // first_chat: users who opened a chat session
+      const firstChatSql = hasAE_funnel
+        ? `(SELECT COUNT(DISTINCT ae.user_id)::int FROM app_events ae JOIN users u ON u.id = ae.user_id WHERE u.is_anonymous = false ${iFilter} AND ae.event_name = 'chat_opened' AND ae.occurred_at >= ${cutoff})`
+        : `(SELECT COUNT(DISTINCT s.user_id)::int FROM sessions s JOIN users u ON u.id = s.user_id WHERE u.is_anonymous = false ${iFilter} AND s.created_at >= ${cutoff})`;
+
+      // practice_completed: use app_events if available
+      const practiceCompletedSql = hasAE_funnel
+        ? `(SELECT COUNT(DISTINCT ae.user_id)::int FROM app_events ae JOIN users u ON u.id = ae.user_id WHERE u.is_anonymous = false ${iFilter} AND ae.event_name = 'practice_completed' AND ae.occurred_at >= ${cutoff})`
+        : `(SELECT COUNT(DISTINCT ps.user_id)::int FROM practice_sheets ps JOIN users u ON u.id = ps.user_id WHERE u.is_anonymous = false ${iFilter} AND ps.created_at >= ${cutoff} AND ps.completed_at IS NOT NULL)`;
+
+      // first_practice: use app_events.practice_generated to stay consistent with app_events archive source
+      const firstPracticeSql = hasAE_funnel
+        ? `(SELECT COUNT(DISTINCT ae.user_id)::int FROM app_events ae JOIN users u ON u.id = ae.user_id WHERE u.is_anonymous = false ${iFilter} AND ae.event_name = 'practice_generated' AND ae.occurred_at >= ${cutoff})`
+        : `(SELECT COUNT(DISTINCT ps.user_id)::int FROM practice_sheets ps JOIN users u ON u.id = ps.user_id WHERE u.is_anonymous = false ${iFilter} AND ps.created_at >= ${cutoff})`;
 
       const result = await db.query(`
         SELECT
           (SELECT COUNT(*)::int FROM users u WHERE u.is_anonymous = false ${iFilter} AND u.created_at >= ${cutoff}) AS registered,
-          (SELECT COUNT(DISTINCT s.user_id)::int FROM sessions s JOIN users u ON u.id = s.user_id WHERE u.is_anonymous = false ${iFilter} AND s.created_at >= ${cutoff}) AS first_chat,
+          ${firstChatSql} AS first_chat,
           ${firstArchiveSql} AS first_archive,
-          (SELECT COUNT(DISTINCT ps.user_id)::int FROM practice_sheets ps JOIN users u ON u.id = ps.user_id WHERE u.is_anonymous = false ${iFilter} AND ps.created_at >= ${cutoff}) AS first_practice,
+          ${firstPracticeSql} AS first_practice,
           (SELECT COUNT(DISTINCT ps.user_id)::int FROM practice_sheets ps JOIN users u ON u.id = ps.user_id WHERE u.is_anonymous = false ${iFilter} AND ps.created_at >= ${cutoff} AND ps.completed_count > 0) AS practice_opened,
-          (SELECT COUNT(DISTINCT ps.user_id)::int FROM practice_sheets ps JOIN users u ON u.id = ps.user_id WHERE u.is_anonymous = false ${iFilter} AND ps.created_at >= ${cutoff} AND ps.completed_at IS NOT NULL) AS practice_done,
+          ${practiceCompletedSql} AS practice_done,
           (SELECT COUNT(DISTINCT pr.user_id)::int FROM parent_report_batches pr JOIN users u ON u.id = pr.user_id WHERE u.is_anonymous = false ${iFilter} AND pr.generated_at >= ${cutoff}) AS report_generated,
           (SELECT COUNT(DISTINCT promo.user_id)::int FROM promo_redemptions promo JOIN users u ON u.id = promo.user_id WHERE u.is_anonymous = false ${iFilter} AND promo.redeemed_at >= ${cutoff}) AS converted_paid
       `);
@@ -1552,69 +1664,130 @@ module.exports = async function (fastify, opts) {
     try {
       const { userId } = request.params;
 
-      const [regResult, sessionsResult, gradingResult, archiveResult, practiceResult, reportResult, promoResult, loginResult] = await Promise.all([
+      // Check app_events table exists
+      let hasAppEvents = false;
+      try { await db.query('SELECT id FROM app_events LIMIT 0'); hasAppEvents = true; } catch {}
+
+      const [regResult, loginResult, reportResult, promoResult, appEventsResult] = await Promise.all([
         db.query(`SELECT created_at, auth_provider FROM users WHERE id = $1`, [userId]),
-        db.query(`SELECT id, created_at, session_type, subject FROM sessions WHERE user_id = $1 ORDER BY created_at ASC LIMIT 200`, [userId]),
-        // grade_events — only query if table exists
-        (await gradeEventsExist())
-          ? db.query(`SELECT id, created_at, subject, grade, is_correct FROM grade_events WHERE user_id = $1 ORDER BY created_at ASC LIMIT 500`, [userId])
-          : Promise.resolve({ rows: [] }),
-        // archived_questions (TEXT user_id) — parse-only session archiving
-        db.query(`SELECT id, created_at, subject FROM archived_questions WHERE user_id = $1::text ORDER BY created_at ASC LIMIT 200`, [userId]),
-        db.query(`SELECT id, created_at, completed_at, subject, score_percentage, source_type FROM practice_sheets WHERE user_id = $1 ORDER BY created_at ASC LIMIT 100`, [userId]),
+        db.query(`SELECT created_at, device_info FROM user_sessions WHERE user_id = $1 ORDER BY created_at ASC LIMIT 300`, [userId]),
         db.query(`SELECT id, generated_at, period, overall_grade, status FROM parent_report_batches WHERE user_id = $1 ORDER BY generated_at ASC LIMIT 50`, [userId]),
-        db.query(`SELECT redeemed_at, tier_expires_at FROM promo_redemptions WHERE user_id = $1 ORDER BY redeemed_at ASC LIMIT 10`, [userId]),
-        db.query(`SELECT created_at, device_info FROM user_sessions WHERE user_id = $1 ORDER BY created_at ASC LIMIT 200`, [userId]),
+        db.query(`SELECT redeemed_at, tier_expires_at FROM promo_redemptions WHERE user_id = $1 ORDER BY redeemed_at ASC LIMIT 20`, [userId]),
+        hasAppEvents
+          ? db.query(`SELECT event_name, properties, occurred_at FROM app_events WHERE user_id = $1 ORDER BY occurred_at ASC LIMIT 1000`, [userId])
+          : Promise.resolve({ rows: [] }),
       ]);
 
+      // Map app_events event_name → journey type
+      const TYPE_MAP = {
+        app_open:                'app_session',
+        chat_opened:             'ai_chat',
+        chat_message_sent:       'ai_chat',
+        live_mode_started:       'live_mode',
+        live_mode_ended:         'live_mode',
+        homework_submitted:      'parsed',
+        homework_graded:         'graded',
+        homework_session_graded: 'graded',
+        focus_session_started:   'focus',
+        focus_session_completed: 'focus',
+        question_answered:       'graded',
+        practice_generated:      'practice_gen',
+        practice_completed:      'practice_done',
+        practice_abandoned:      'practice_gen',
+        knowledge_tree_viewed:   'homework_archive',
+        tree_lightup_done:       'homework_archive',
+      };
+
+      // Build human-readable label from event_name + properties
+      function labelFromEvent(name, p) {
+        p = p || {};
+        switch (name) {
+          case 'app_open':
+            return `App Opened${p.cold_start ? ' (cold start)' : ''}${p.app_version ? ` · v${p.app_version}` : ''}`;
+          case 'chat_opened':
+            return `Started Chat${p.subject ? ` · ${p.subject}` : ''}`;
+          case 'chat_message_sent':
+            return `Sent Message${p.subject ? ` · ${p.subject}` : ''}`;
+          case 'live_mode_started':
+            return `Started Live Mode${p.subject ? ` · ${p.subject}` : ''}${p.has_scenario ? ' (scenario)' : ''}`;
+          case 'live_mode_ended':
+            return `Ended Live Mode${p.duration_sec ? ` · ${Math.round(p.duration_sec / 60)}min` : ''}${p.subject ? ` · ${p.subject}` : ''}`;
+          case 'homework_submitted':
+            return `Submitted Homework · ${p.subject || 'Unknown'}${p.question_count ? ` (${p.question_count}q)` : ''}${p.parsing_mode ? ` · ${p.parsing_mode}` : ''}`;
+          case 'homework_graded':
+            return `Graded · ${p.subject || 'Unknown'}${p.is_correct != null ? (p.is_correct ? ' · ✓' : ' · ✗') : ''}${p.score != null ? ` · ${Math.round(p.score)}%` : ''}`;
+          case 'homework_session_graded':
+            return `Session Graded · ${p.subject || 'Unknown'} · ${p.correct_count ?? '?'}/${p.total_questions ?? '?'}${p.accuracy_pct != null ? ` (${Math.round(p.accuracy_pct)}%)` : ''}`;
+          case 'focus_session_started':
+            return `Focus Started${p.deep_focus ? ' · Deep Focus' : ''}${p.has_music ? ' 🎵' : ''}`;
+          case 'focus_session_completed':
+            return `Focus Done · ${p.duration_min ?? '?'}min${p.tree_type ? ` · ${p.tree_type}` : ''}`;
+          case 'question_answered':
+            return `Answered · ${p.subject || 'Unknown'} · ${p.question_type || 'Q'}${p.correct != null ? (p.correct ? ' ✓' : ' ✗') : ''}`;
+          case 'practice_generated':
+            return `Generated Practice · ${p.subject || 'Unknown'} · ${p.count ?? '?'}q (${p.practice_type || 'random'})`;
+          case 'practice_completed':
+            return `Practice Done · ${p.subject || 'Unknown'} · ${p.score_pct != null ? p.score_pct + '%' : 'n/a'} (${p.correct_count ?? '?'}/${p.total_questions ?? '?'})`;
+          case 'practice_abandoned':
+            return `Practice Abandoned · ${p.subject || 'Unknown'} at ${p.progress_pct ?? 0}%`;
+          case 'knowledge_tree_viewed':
+            return `Viewed Knowledge Tree · ${p.subject || 'Unknown'}`;
+          case 'tree_lightup_done':
+            return `Lit Up Tree · ${p.subject || 'Unknown'} · ${p.topic_count ?? '?'} topics`;
+          default:
+            return name;
+        }
+      }
+
       const events = [];
+
+      // Registration
       if (regResult.rows[0]) {
         events.push({ type: 'registered', time: regResult.rows[0].created_at, label: `Registered via ${regResult.rows[0].auth_provider || 'email'}` });
       }
-      for (const r of loginResult.rows) {
-        const ua = r.device_info?.userAgent || '';
-        const version = (ua.match(/StudyAI-iOS\/(.+)/) || [])[1] || '';
-        events.push({ type: 'app_session', time: r.created_at, label: `Opened App${version ? ` · v${version}` : ''}` });
+
+      // All real app events (skip app_background — noise)
+      for (const r of appEventsResult.rows) {
+        if (r.event_name === 'app_background') continue;
+        const type = TYPE_MAP[r.event_name] || 'app_session';
+        events.push({ type, time: r.occurred_at, label: labelFromEvent(r.event_name, r.properties) });
       }
-      for (const r of sessionsResult.rows) {
-        events.push({ type: 'ai_chat', time: r.created_at, label: `Started AI Chat${r.subject ? ` · ${r.subject}` : ''}` });
-      }
-      for (const r of gradingResult.rows) {
-        const result = r.grade ? ` · ${r.grade}` : (r.is_correct != null ? (r.is_correct ? ' · CORRECT' : ' · INCORRECT') : '');
-        events.push({ type: 'graded', time: r.created_at, label: `Graded · ${r.subject || 'Unknown'}${result}` });
-      }
-      for (const r of archiveResult.rows) {
-        events.push({ type: 'parsed', time: r.created_at, label: `Parsed Homework · ${r.subject || 'Unknown'}` });
-      }
-      for (const r of practiceResult.rows) {
-        events.push({ type: 'practice_gen', time: r.created_at, label: `Generated Practice · ${r.subject || 'Unknown'} (${r.source_type || 'random'})` });
-        if (r.completed_at) {
-          events.push({ type: 'practice_done', time: r.completed_at, label: `Completed Practice · ${r.score_percentage != null ? r.score_percentage + '%' : 'n/a'}` });
+
+      // If no app_events data yet, fall back to user_sessions for app opens
+      if (!hasAppEvents || appEventsResult.rows.filter(r => r.event_name === 'app_open').length === 0) {
+        for (const r of loginResult.rows) {
+          const ua = r.device_info?.userAgent || '';
+          const version = (ua.match(/StudyAI-iOS\/(.+)/) || [])[1] || '';
+          events.push({ type: 'app_session', time: r.created_at, label: `Opened App${version ? ` · v${version}` : ''}` });
         }
       }
+
+      // Reports (not in app_events)
       for (const r of reportResult.rows) {
         events.push({ type: 'report', time: r.generated_at, label: `Report Generated · ${r.period} · Grade ${r.overall_grade || 'n/a'}` });
       }
+
+      // Subscriptions (not in app_events)
       for (const r of promoResult.rows) {
-        events.push({ type: 'subscription', time: r.redeemed_at, label: `Upgraded to Premium (expires ${r.tier_expires_at ? new Date(r.tier_expires_at).toLocaleDateString() : 'never'})` });
+        events.push({ type: 'subscription', time: r.redeemed_at, label: `Upgraded via Promo (expires ${r.tier_expires_at ? new Date(r.tier_expires_at).toLocaleDateString() : 'never'})` });
       }
 
       events.sort((a, b) => new Date(a.time) - new Date(b.time));
 
-      const graded = gradingResult.rows.length;
-      const parsed = archiveResult.rows.length;
+      // Summary from app_events counts
+      const countEvent = (name) => appEventsResult.rows.filter(r => r.event_name === name).length;
 
       return reply.send({
         success: true,
         data: {
           events,
           summary: {
-            totalSessions: sessionsResult.rows.length,
-            totalParsed:   parsed,
-            totalGraded:   graded,
-            totalPractice: practiceResult.rows.length,
+            totalLogins:   hasAppEvents ? countEvent('app_open') : loginResult.rows.length,
+            totalSessions: countEvent('chat_opened'),
+            totalParsed:   countEvent('homework_submitted'),
+            totalGraded:   countEvent('homework_graded') + countEvent('homework_session_graded'),
+            totalPractice: countEvent('practice_generated'),
             totalReports:  reportResult.rows.length,
-            totalLogins:   loginResult.rows.length,
           },
         },
       });
@@ -1643,7 +1816,8 @@ module.exports = async function (fastify, opts) {
             GREATEST(
               u.last_login_at,
               (SELECT MAX(us.created_at) FROM user_sessions us WHERE us.user_id = u.id),
-              (SELECT MAX(s.created_at)  FROM sessions s   WHERE s.user_id = u.id)
+              (SELECT MAX(s.created_at)  FROM sessions s   WHERE s.user_id = u.id),
+              (SELECT MAX(ae.occurred_at) FROM app_events ae WHERE ae.user_id = u.id AND ae.event_name != 'app_background')
             ) AS last_active
           FROM users u
           WHERE u.is_anonymous = false ${iFilter}
@@ -1700,9 +1874,12 @@ module.exports = async function (fastify, opts) {
     try {
       const iFilter = await getIFilter(false);
       const hasGE = await gradeEventsExist();
-      const usedGradingSql = hasGE
-        ? `EXISTS(SELECT 1 FROM grade_events ge WHERE ge.user_id = u.id)`
-        : `false`;
+      const hasAE_fc = await appEventsExist();
+      const usedGradingSql = hasAE_fc
+        ? `EXISTS(SELECT 1 FROM app_events ae WHERE ae.user_id = u.id AND ae.event_name = 'homework_graded')`
+        : hasGE
+          ? `EXISTS(SELECT 1 FROM grade_events ge WHERE ge.user_id = u.id)`
+          : `EXISTS(SELECT 1 FROM archived_questions aq WHERE aq.user_id = u.id::text)`;
       const result = await db.query(`
         WITH base AS (
           SELECT

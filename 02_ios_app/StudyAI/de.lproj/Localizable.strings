@@ -3249,3 +3249,7 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "practice.mode.bank" = "Echte Fragen";
 "proMode.oneMistake" = "1 Fehler";
 "proMode.nMistakes" = "%d Fehler";
+"todo.knowledgeTree.title" = "Wissensbaum beleuchten";
+"todo.knowledgeTree.subtitle" = "Wissenskarte «%@» erkunden";
+"todo.knowledgeTree.defaultSubject" = "Alle Fächer";
+"practice.bank.retrieve" = "Echte Fragen abrufen";

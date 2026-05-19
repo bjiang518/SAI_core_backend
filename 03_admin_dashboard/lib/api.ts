@@ -80,7 +80,7 @@ export const statsAPI = {
 
 // Users API
 export const usersAPI = {
-  getList: async (params?: { page?: number; limit?: number; search?: string }) => {
+  getList: async (params?: { page?: number; limit?: number; search?: string; filter?: string }) => {
     const response = await apiClient.get('/api/admin/users/list', { params })
     return response.data
   },

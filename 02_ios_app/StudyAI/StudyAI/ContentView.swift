@@ -778,12 +778,6 @@ struct ModernProfileView: View {
                                 Text(NSLocalizedString("settings.kidsAccounts", value: "Kids Accounts", comment: ""))
                                     .font(.body).foregroundColor(.primary)
                                 Spacer()
-                                Text(NSLocalizedString("settings.ultraBadge", value: "Ultra", comment: ""))
-                                    .font(.caption.bold())
-                                    .padding(.horizontal, 8).padding(.vertical, 3)
-                                    .background(Color(hex: "D4AF37").opacity(0.15))
-                                    .foregroundColor(Color(hex: "D4AF37"))
-                                    .cornerRadius(6)
                                 Image(systemName: "chevron.right").font(.caption).foregroundColor(.secondary)
                             }
                             .contentShape(Rectangle())

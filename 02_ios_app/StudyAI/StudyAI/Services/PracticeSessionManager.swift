@@ -465,6 +465,29 @@ class PracticeSessionManager: ObservableObject {
         updatePublishedState()
     }
 
+    /// Update both subject and generationType for an existing session (used by chat→practice flow
+    /// so we don't double-save the same questions with two different subjects).
+    func updateSubjectAndType(sessionId: String, subject: String, generationType: String) {
+        var sessions = loadAllSessions()
+        guard let index = sessions.firstIndex(where: { $0.id == sessionId }) else { return }
+        let current = sessions[index]
+        sessions[index] = PracticeSession(
+            id: current.id,
+            questions: current.questions,
+            generationType: generationType,
+            subject: subject,
+            difficulty: current.difficulty,
+            questionType: current.questionType,
+            createdDate: current.createdDate,
+            lastAccessedDate: current.lastAccessedDate,
+            completedQuestionIds: current.completedQuestionIds,
+            answers: current.answers,
+            isOrganized: current.isOrganized
+        )
+        saveSessions(sessions)
+        updatePublishedState()
+    }
+
     /// Reset all answers for a session so the user can redo it from scratch.
     /// Preserves the isOrganized flag so the Smart Organize banner stays dismissed.
     func resetSessionProgress(sessionId: String) {

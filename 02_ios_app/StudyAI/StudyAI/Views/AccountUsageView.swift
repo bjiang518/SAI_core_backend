@@ -23,7 +23,7 @@ struct AccountUsageView: View {
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            Color.white.ignoresSafeArea()
+            Color(.systemBackground).ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
@@ -167,7 +167,7 @@ struct AccountUsageView: View {
                 .cornerRadius(20)
         }
         .padding(16)
-        .background(Color.white)
+        .background(Color(.secondarySystemBackground))
         .cornerRadius(16)
         .shadow(color: .black.opacity(0.05), radius: 6, x: 0, y: 2)
     }
@@ -198,7 +198,7 @@ struct AccountUsageView: View {
                     }
                 }
             }
-            .background(Color.white)
+            .background(Color(.secondarySystemBackground))
             .cornerRadius(16)
             .shadow(color: .black.opacity(0.05), radius: 6, x: 0, y: 2)
         }
@@ -305,7 +305,7 @@ struct AccountUsageView: View {
             Spacer(minLength: 0)
         }
         .padding(16)
-        .background(Color.white)
+        .background(Color(.secondarySystemBackground))
         .cornerRadius(16)
         .shadow(color: .black.opacity(0.05), radius: 6, x: 0, y: 2)
     }

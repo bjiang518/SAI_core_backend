@@ -79,95 +79,98 @@ class StorageSyncService {
 
     private func syncArchivedQuestions() async throws -> (synced: Int, duplicates: Int) {
         guard let token = AuthenticationService.shared.getAuthToken() else {
-            debugPrint("❌ [Sync] No auth token for questions sync")
             throw SyncError.notAuthenticated
         }
 
-        debugPrint("📚 [Sync] === SYNCING ARCHIVED QUESTIONS ===")
-
-        // STEP 1: Fetch server questions
-        debugPrint("📥 [Sync] Step 1: Fetching server questions...")
-        let serverQuestions = try await fetchQuestionsFromServer(token: token)
-        debugPrint("   ✅ [Sync] Fetched \(serverQuestions.count) questions from server")
-
-        // STEP 2: Get local questions
-        debugPrint("📱 [Sync] Step 2: Getting local questions...")
         let localStorage = currentUserQuestionStorage()
         let localQuestions = localStorage.getLocalQuestions()
-        debugPrint("   ✅ [Sync] Found \(localQuestions.count) local questions")
+        guard !localQuestions.isEmpty else { return (0, 0) }
 
-        var syncedToServerCount = 0
-        var duplicateCount = 0
+        // Separate already-synced from pending
+        let serverQuestions = (try? await fetchQuestionsFromServer(token: token)) ?? []
+        let serverIds = Set(serverQuestions.compactMap { $0["id"] as? String })
 
-        // STEP 3: Build server ID set for dedup check
-        debugPrint("🔍 [Sync] Step 3: Building server ID set for dedup check...")
-        var serverQuestionIds = Set<String>()
-        for serverQ in serverQuestions {
-            if let id = serverQ["id"] as? String {
-                serverQuestionIds.insert(id)
-            }
-        }
-        debugPrint("   📊 [Sync] Server IDs: \(serverQuestionIds.count), Local IDs: \(localQuestions.count)")
-
-        // STEP 4: Upload local questions that don't exist on server
-        debugPrint("\n📤 [Sync] Step 5: Uploading local questions to server...")
-
-        guard !localQuestions.isEmpty else {
-            debugPrint("   ℹ️ [Sync] No local questions to upload")
-            return (0, 0)
+        let pending = localQuestions.filter { q in
+            guard let id = q["id"] as? String, id.count > 10 else { return true }
+            return !serverIds.contains(id)
         }
 
-        for (index, questionData) in localQuestions.enumerated() {
-            debugPrint("\n   📝 [Sync] Question \(index + 1)/\(localQuestions.count):")
+        guard !pending.isEmpty else {
+            debugPrint("✅ [Sync] All \(localQuestions.count) questions already on server")
+            return (0, localQuestions.count)
+        }
 
-            do {
-                // Check if already exists on server by checking if it has server ID
-                if let id = questionData["id"] as? String, id.count > 10 {
-                    if serverQuestionIds.contains(id) {
-                        debugPrint("   ⏭️  [Sync] Already on server with ID: \(id) - SKIPPING (duplicate)")
-                        duplicateCount += 1
-                        continue
-                    } else {
-                        debugPrint("   ❓ [Sync] Has ID but not on server - will upload")
-                    }
-                } else {
-                    debugPrint("   🆕 [Sync] No server ID found - will upload to server")
-                }
+        debugPrint("📦 [Sync] Uploading \(pending.count) questions in batch (skipping \(localQuestions.count - pending.count) already synced)")
 
-                // Prepare question for archiving
-                guard let subject = questionData["subject"] as? String,
-                      let questionText = questionData["questionText"] as? String,
-                      let _ = questionData["answerText"] as? String else {
-                    debugPrint("   ⚠️  [Sync] Missing required fields - skipping")
-                    continue
-                }
+        // Send in batches of 100 to stay within the 200-item server limit
+        let batchSize = 100
+        var totalSynced = 0
+        var totalDuplicates = 0
 
-                // Extract only the fields we need for logging
-                let grade = questionData["grade"] as? String
-                let isCorrect = questionData["isCorrect"] as? Bool  // ✅ Extract for logging
+        for batchStart in stride(from: 0, to: pending.count, by: batchSize) {
+            let batch = Array(pending[batchStart..<min(batchStart + batchSize, pending.count)])
+            let (synced, dupes, serverResults) = try await uploadBatchToServer(batch, token: token)
+            totalSynced += synced
+            totalDuplicates += dupes
 
-                debugPrint("   📋 [Sync] Subject: \(subject), Question: \(questionText.prefix(50))...")
-                debugPrint("   📊 [Sync] Grade: \(grade ?? "N/A"), isCorrect: \(isCorrect?.description ?? "nil")")
-
-                // Upload directly to server using new method
-                debugPrint("   📤 [Sync] Uploading to server API...")
-                let serverId = try await QuestionArchiveService.shared.uploadQuestionToServer(questionData)
-
-                // Update local storage with server ID
-                var updatedQuestion = questionData
-                updatedQuestion["id"] = serverId
-                _ = currentUserQuestionStorage().saveQuestions([updatedQuestion])
-
-                syncedToServerCount += 1
-                debugPrint("   ✅ [Sync] Successfully uploaded question (Server ID: \(serverId))")
-
-            } catch {
-                debugPrint("   ❌ [Sync] Failed to upload question: \(error)")
+            // Update local storage with server-assigned IDs
+            for (i, result) in serverResults.enumerated() {
+                guard let serverId = result["id"] as? String else { continue }
+                var updated = batch[i]
+                updated["id"] = serverId
+                _ = localStorage.saveQuestions([updated])
             }
         }
 
-        debugPrint("\n📊 [Sync] Questions summary: \(syncedToServerCount) uploaded, \(duplicateCount) duplicates")
-        return (syncedToServerCount, duplicateCount)
+        debugPrint("✅ [Sync] Batch complete: \(totalSynced) synced, \(totalDuplicates) duplicates")
+        return (totalSynced, totalDuplicates)
+    }
+
+    private func uploadBatchToServer(_ questions: [[String: Any]], token: String) async throws -> (synced: Int, duplicates: Int, results: [[String: Any]]) {
+        guard let url = URL(string: "\(baseURL)/api/archived-questions/sync/batch") else {
+            throw SyncError.invalidURL
+        }
+
+        let body: [String: Any] = ["questions": questions.map { q -> [String: Any] in
+            let rawGrade = (q["grade"] as? String ?? "").uppercased()
+            return [
+                "subject":          q["subject"] as? String ?? "Unknown",
+                "questionText":     q["questionText"] as? String ?? "",
+                "rawQuestionText":  q["rawQuestionText"] as? String ?? q["questionText"] as? String ?? "",
+                "answerText":       q["answerText"] as? String ?? "",
+                "studentAnswer":    q["studentAnswer"] as? String ?? "",
+                "confidence":       q["confidence"] as? Float ?? 0,
+                "hasVisualElements":q["hasVisualElements"] as? Bool ?? false,
+                "tags":             q["tags"] as? [String] ?? [],
+                "notes":            q["notes"] as? String ?? "",
+                "grade":            rawGrade.isEmpty ? "EMPTY" : rawGrade,
+                "points":           q["points"] as? Float ?? 0,
+                "maxPoints":        q["maxPoints"] as? Float ?? 1,
+                "feedback":         q["feedback"] as? String ?? "",
+                "isCorrect":        q["isCorrect"] as? Bool ?? false,
+                "archivedAt":       q["archivedAt"] as? String ?? ISO8601DateFormatter().string(from: Date())
+            ]
+        }]
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+            throw SyncError.syncFailed("Batch upload failed")
+        }
+
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw SyncError.invalidResponse
+        }
+
+        let synced = json["synced"] as? Int ?? 0
+        let dupes = json["duplicates"] as? Int ?? 0
+        let results = json["results"] as? [[String: Any]] ?? []
+        return (synced, dupes, results)
     }
 
     // MARK: - Fetch Questions from Server

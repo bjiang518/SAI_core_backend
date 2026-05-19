@@ -1213,7 +1213,7 @@ struct QuestionSheetView: View {
             .padding(.vertical, 16)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(.label).opacity(0.9))
+                    .fill(Color(UIColor(white: 0.12, alpha: 0.93)))
                     .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 6)
             )
             .padding(.horizontal, 20)

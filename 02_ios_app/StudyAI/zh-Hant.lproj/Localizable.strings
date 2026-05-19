@@ -3203,3 +3203,7 @@
 "practice.mode.bank" = "真題庫";
 "proMode.oneMistake" = "1 個錯誤";
 "proMode.nMistakes" = "%d 個錯誤";
+"todo.knowledgeTree.title" = "點亮知識樹";
+"todo.knowledgeTree.subtitle" = "探索「%@」知識圖譜";
+"todo.knowledgeTree.defaultSubject" = "各科目";
+"practice.bank.retrieve" = "獲取真題";

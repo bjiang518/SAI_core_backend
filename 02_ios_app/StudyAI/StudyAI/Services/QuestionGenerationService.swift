@@ -223,9 +223,9 @@ class QuestionGenerationService: ObservableObject {
             case "scienceqa":  return "ScienceQA"
             case "mathvista":  return "MathVista"
             case "kangaroo":
-                // source_id format: kangaroo_2023-L5-P1
-                let parts = sourceId?.replacingOccurrences(of: "kangaroo_", with: "").components(separatedBy: "-") ?? []
-                let year = parts.first ?? ""
+                // source_id: "kangaroo_lvl-0_2015_1" → strip prefix → split by "_" → find 4-digit year
+                let stripped = sourceId?.replacingOccurrences(of: "kangaroo_", with: "") ?? ""
+                let year = stripped.components(separatedBy: "_").first(where: { $0.count == 4 && Int($0) != nil }) ?? ""
                 return year.isEmpty ? "Math Kangaroo" : "Math Kangaroo · \(year)"
             case "agieval":
                 if sourceId?.contains("sat_en") == true  { return "SAT English" }

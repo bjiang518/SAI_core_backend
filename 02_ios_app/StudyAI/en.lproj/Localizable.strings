@@ -3252,3 +3252,7 @@
 "practice.mode.bank" = "Real Questions";
 "proMode.oneMistake" = "1 mistake";
 "proMode.nMistakes" = "%d mistakes";
+"todo.knowledgeTree.title" = "Light Up Knowledge Tree";
+"todo.knowledgeTree.subtitle" = "Explore \"%@\" knowledge map";
+"todo.knowledgeTree.defaultSubject" = "All Subjects";
+"practice.bank.retrieve" = "Get Real Questions";

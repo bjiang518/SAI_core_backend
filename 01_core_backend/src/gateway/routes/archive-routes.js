@@ -230,6 +230,46 @@ class ArchiveRoutes {
       }
     }, this.archiveQuestionSync.bind(this));
 
+    // Batch archive questions — replaces N individual /sync calls with one request
+    this.fastify.post('/api/archived-questions/sync/batch', {
+      preHandler: authPreHandler,
+      schema: {
+        description: 'Batch archive questions from iOS storage sync (up to 200 per request)',
+        tags: ['Archived Questions'],
+        body: {
+          type: 'object',
+          required: ['questions'],
+          properties: {
+            questions: {
+              type: 'array',
+              maxItems: 200,
+              items: {
+                type: 'object',
+                required: ['subject', 'grade', 'isCorrect'],
+                properties: {
+                  subject: { type: 'string' },
+                  questionText: { type: 'string' },
+                  rawQuestionText: { type: 'string' },
+                  answerText: { type: 'string' },
+                  studentAnswer: { type: 'string' },
+                  confidence: { type: 'number' },
+                  hasVisualElements: { type: 'boolean' },
+                  tags: { type: 'array', items: { type: 'string' } },
+                  notes: { type: 'string' },
+                  grade: { type: 'string' },
+                  points: { type: 'number' },
+                  maxPoints: { type: 'number' },
+                  feedback: { type: 'string' },
+                  isCorrect: { type: 'boolean' },
+                  archivedAt: { type: 'string' }
+                }
+              }
+            }
+          }
+        }
+      }
+    }, this.archiveQuestionSyncBatch.bind(this));
+
     // Get user's archived questions with pagination and filtering
     this.fastify.get('/api/archived-questions', {
       preHandler: authPreHandler,
@@ -1066,6 +1106,77 @@ class ArchiveRoutes {
         error: 'Failed to archive question',
         message: error.message
       });
+    }
+  }
+
+  async archiveQuestionSyncBatch(request, reply) {
+    try {
+      const userId = this.getUserId(request);
+      const { questions } = request.body;
+
+      if (!questions || questions.length === 0) {
+        return reply.status(200).send({ success: true, synced: 0, duplicates: 0, results: [] });
+      }
+
+      this.fastify.log.info(`📦 [SyncBatch] Archiving ${questions.length} questions for user: ${PIIMasking.maskUserId(userId)}`);
+
+      const results = [];
+
+      // Process in a single transaction for atomicity and performance
+      await db.query('BEGIN');
+      try {
+        for (const q of questions) {
+          const grade = (q.grade || 'EMPTY').toUpperCase();
+          const values = [
+            userId,
+            q.subject || 'Unknown',
+            q.questionText || '',
+            q.rawQuestionText || q.questionText || '',
+            q.answerText || '',
+            q.confidence ?? 0,
+            q.hasVisualElements ?? false,
+            q.tags ?? [],
+            q.notes || '',
+            q.studentAnswer || '',
+            grade,
+            q.points ?? 0,
+            q.maxPoints ?? 1,
+            q.feedback || '',
+            q.isCorrect ?? false,
+            q.archivedAt || new Date().toISOString(),
+            q.answerText || '',
+          ];
+
+          const res = await db.query(`
+            INSERT INTO questions (
+              user_id, subject, question_text, raw_question_text, answer_text, confidence,
+              has_visual_elements, tags, notes, student_answer, grade, points, max_points,
+              feedback, is_correct, archived_at, ai_answer
+            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+            ON CONFLICT (user_id, question_text, student_answer, grade) DO UPDATE
+              SET feedback = EXCLUDED.feedback
+            RETURNING id, subject, grade, is_correct, archived_at, xmax
+          `, values);
+
+          const row = res.rows[0];
+          // xmax = 0 means INSERT (new row); non-zero means UPDATE (duplicate)
+          results.push({ id: row.id, subject: row.subject, grade: row.grade, duplicate: row.xmax !== '0' });
+        }
+        await db.query('COMMIT');
+      } catch (err) {
+        await db.query('ROLLBACK');
+        throw err;
+      }
+
+      const synced = results.filter(r => !r.duplicate).length;
+      const duplicates = results.filter(r => r.duplicate).length;
+
+      this.fastify.log.info(`✅ [SyncBatch] Done: ${synced} new, ${duplicates} duplicates`);
+
+      return reply.status(200).send({ success: true, synced, duplicates, results });
+    } catch (error) {
+      this.fastify.log.error('❌ [SyncBatch] Error:', error);
+      return reply.status(500).send({ success: false, error: 'Batch sync failed', message: error.message });
     }
   }
 
