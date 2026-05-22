@@ -14,35 +14,47 @@ const AuthHelper = require('../utils/auth-helper');
 const CACHE_TTL = 86400; // 24 hours
 const MAX_TRANSCRIPT_CHARS = 12000;
 
-const SYSTEM_PROMPT = `You are an expert educational content designer. Generate a vivid, visually rich one-page HTML study summary for students.
+const SYSTEM_PROMPT = `You are an expert educational content designer. Generate a clean, readable one-page HTML study summary for students.
 
-DESIGN RULES (follow exactly):
-- Return ONLY a complete self-contained HTML document. No markdown fences, no explanatory text before or after.
-- Use ONLY inline CSS. No external stylesheets or CDN links, EXCEPT: if the subject involves math or science formulas, include MathJax: <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
-- Color palette (use these hex values): peach #FFB6A3, pink #FF85C1, blue #7EC8E3, lavender #C9A0DC, mint #7FDBCA, yellow #FFE066, dark text #1a1a1a
-- Font stack: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif
-- Max-width: 700px, centered with auto margins, padding 20px, line-height 1.7
+DESIGN REQUIREMENTS (follow precisely):
+- Return ONLY a complete self-contained HTML document. No markdown fences, no text before or after.
+- Typography: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif. Title 22px bold, section headers 15px bold, body 14px, secondary 12px. Line-height 1.65.
+- Page background: #f7f8fa. Content max-width 680px, centered, padding 16px 20px.
+- NO bright gradients, NO oversized text, NO neon fills. Use color only as subtle accents.
+- Accent palette (use sparingly): blue #7EC8E3, teal #7FDBCA, amber #FFE066, pink #FF85C1 — backgrounds at 0.10-0.15 opacity, borders and icons at full color.
+- All cards: white #ffffff, border-radius 10px, box-shadow 0 1px 4px rgba(0,0,0,0.07).
+- Text: #1a1a1a headings, #333333 body, #666666 secondary.
+- If math/science subject: add <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script> and wrap formulas in \\(...\\) or \\[...\\].
 
-REQUIRED SECTIONS (in this order):
-1. 🎬 Title Banner — gradient background (peach→pink), video title + channel name, subject tag pill
-2. 📌 Key Concepts — 2-3 column card grid, each card with colored left-border and emoji icon
-3. 🔄 Main Flow — CSS-only flowchart using flex column layout with colored rounded boxes, connected by ↓ unicode arrows styled with color
-4. 💡 Key Facts — bullet list with colored bullet dots, concise facts from the video
-5. 📝 Summary Paragraph — 3-5 sentence takeaway in a soft-background box
+REQUIRED SECTIONS:
 
-FLOWCHART RULES:
-- Use a <div> flex-column container with individual step <div> boxes
-- Each box: border-radius 12px, padding 12px 16px, colored background (alternate between blue/mint/lavender/yellow with 0.15 opacity), border 1.5px solid same color
-- Arrow between boxes: a centered <div> with content "↓" in a colored circle
-- Maximum 6 flow steps
+1. TITLE CARD
+   White card, 3px left border color #7EC8E3, padding 16px 20px, border-radius 10px, margin-bottom 16px.
+   - Video title: 22px bold #1a1a1a, margin-bottom 4px, line-height 1.3
+   - Channel: 13px #666666, margin-bottom 8px
+   - Subject pill: display inline-block, 12px, padding 2px 10px, border-radius 20px, background rgba(126,200,227,0.12), border 1px solid #7EC8E3, color #7EC8E3
 
-VISUAL RULES:
-- Section headers: 18px bold, with emoji prefix, bottom-border accent line in theme color
-- Cards/boxes: border-radius 10-14px, subtle box-shadow (0 2px 8px rgba(0,0,0,0.07))
-- Use emoji icons throughout for visual hierarchy
-- Responsive: all widths in percentages or max-width constraints
+2. KEY CONCEPTS (3-5 concepts, label section "📌 Key Concepts")
+   Section header: 15px bold #1a1a1a, padding-bottom 6px, border-bottom 2px solid #7FDBCA, margin-bottom 12px.
+   Grid: display grid, grid-template-columns repeat(auto-fit, minmax(150px, 1fr)), gap 10px.
+   Each card: white, padding 12px, border-radius 10px, border-top 3px solid (cycle: #7EC8E3, #7FDBCA, #FFE066), box-shadow 0 1px 4px rgba(0,0,0,0.06).
+   Card content: emoji + concept name 14px bold + description 13px #555.
 
-If the subject involves math/physics/chemistry, wrap formulas in \\(...\\) for MathJax inline rendering.`;
+3. MAIN FLOW (3-5 steps max, label section "🔄 Main Flow")
+   Section header same style as above, border-bottom color #FFE066.
+   Flex column, gap 4px. Each step: white card, border-left 3px solid #7EC8E3, padding 10px 14px, border-radius 0 8px 8px 0, 14px #333.
+   Connector between steps: div, text-align center, font-size 16px, color #7EC8E3, line-height 1.2, content "↓". No wrapper box around the flow.
+
+4. KEY FACTS (label section "💡 Key Facts")
+   Section header, border-bottom color #FF85C1.
+   Unordered list, list-style none, padding-left 0, each li: 14px #333, padding 4px 0 4px 18px, position relative.
+   li::before: content "→", position absolute, left 0, color #7FDBCA, font-weight 600.
+
+5. SUMMARY (label section "📝 Summary")
+   Card: background #f0faf8, border-radius 10px, padding 14px 16px.
+   3-4 sentence paragraph, 14px, font-style italic, color #333, line-height 1.7.
+
+Return ONLY the HTML document.`;
 
 class VideoSummaryRoutes {
   constructor(fastify) {
