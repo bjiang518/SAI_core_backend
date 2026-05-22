@@ -34,15 +34,28 @@ async function fetchTranscriptFromPage(videoId) {
   if (!res.ok) throw new Error(`YouTube page fetch failed: HTTP ${res.status}`);
   const html = await res.text();
 
-  // Extract the ytInitialPlayerResponse JSON (always on one logical line before ;\n)
+  // Find ytInitialPlayerResponse and extract the JSON using bracket counting.
+  // Simple ;\n splitting fails because ;\n can appear inside JSON string values.
   const tag = 'ytInitialPlayerResponse = ';
-  const start = html.indexOf(tag);
-  if (start === -1) throw new Error('ytInitialPlayerResponse not found in page');
-  const jsonStart = start + tag.length;
-  const jsonEnd = html.indexOf(';\n', jsonStart);
-  if (jsonEnd === -1) throw new Error('Could not locate end of ytInitialPlayerResponse');
+  const tagIdx = html.indexOf(tag);
+  if (tagIdx === -1) throw new Error('ytInitialPlayerResponse not found in page');
 
-  const playerResponse = JSON.parse(html.slice(jsonStart, jsonEnd));
+  const jsonStart = tagIdx + tag.length;
+  if (html[jsonStart] !== '{') throw new Error('ytInitialPlayerResponse is not an object');
+
+  let depth = 0, inString = false, escaped = false;
+  let i = jsonStart;
+  for (; i < html.length; i++) {
+    const c = html[i];
+    if (escaped)          { escaped = false; continue; }
+    if (c === '\\' && inString) { escaped = true; continue; }
+    if (c === '"')        { inString = !inString; continue; }
+    if (inString)         { continue; }
+    if (c === '{')        { depth++; }
+    else if (c === '}')   { depth--; if (depth === 0) break; }
+  }
+
+  const playerResponse = JSON.parse(html.slice(jsonStart, i + 1));
   const tracks = playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
   if (tracks.length === 0) throw new Error('No caption tracks in player response');
 
