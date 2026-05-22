@@ -26,6 +26,7 @@ const TTSRoutes = require('./modules/tts');
 const AnalyticsRoutes = require('./modules/analytics');
 const DiagramGenerationRoutes = require('./modules/diagram-generation'); // NEW: AI diagram generation
 const VideoSearchRoutes = require('./modules/video-search'); // NEW: Educational video search
+const YoutubeTranscriptRoutes = require('./modules/youtube-transcript'); // NEW: Video transcript for Learning feature
 const ErrorAnalysisRoutes = require('./modules/error-analysis'); // NEW: Pass 2 error analysis
 const WeaknessDescriptionRoutes = require('./modules/weakness-description'); // NEW: Weakness description generation
 const ConceptExtractionRoutes = require('./modules/concept-extraction'); // NEW: Bidirectional status tracking
@@ -33,6 +34,7 @@ const InteractiveStreamingRoutes = require('./modules/interactive-streaming'); /
 const GeminiLiveRoutes = require('./modules/gemini-live-v2'); // NEW: Gemini Live API voice chat (v2 - official protocol)
 const PracticeLibraryRoutes = require('./modules/practice-library'); // NEW: Practice Library backend sync
 const ProgressInsightsRoutes = require('./modules/progress-insights'); // NEW: AI progress insights
+const VideoSummaryRoutes = require('./modules/video-summary'); // NEW: Video transcript HTML summary
 
 /**
  * Register all AI routes
@@ -55,6 +57,8 @@ async function aiRoutes(fastify, opts) {
     { name: 'Analytics', Class: AnalyticsRoutes },
     { name: 'Diagram Generation', Class: DiagramGenerationRoutes }, // NEW: AI diagram generation
     { name: 'Video Search', Class: VideoSearchRoutes }, // NEW: Educational video search
+    { name: 'YouTube Transcript', Class: YoutubeTranscriptRoutes }, // NEW: Video transcript for Learning
+    { name: 'Video Summary', Class: VideoSummaryRoutes }, // NEW: HTML study summary from transcript
   ];
 
   for (const module of classModules) {
