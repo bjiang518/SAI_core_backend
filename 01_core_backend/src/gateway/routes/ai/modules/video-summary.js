@@ -34,26 +34,27 @@ REQUIRED SECTIONS:
    - Channel: 13px #666666, margin-bottom 8px
    - Subject pill: display inline-block, 12px, padding 2px 10px, border-radius 20px, background rgba(126,200,227,0.12), border 1px solid #7EC8E3, color #7EC8E3
 
-2. KEY CONCEPTS (3-5 concepts, label section "📌 Key Concepts")
+2. KEY CONCEPTS (3-5 concepts, label section "Key Concepts")
    Section header: 15px bold #1a1a1a, padding-bottom 6px, border-bottom 2px solid #7FDBCA, margin-bottom 12px.
    Grid: display grid, grid-template-columns repeat(auto-fit, minmax(150px, 1fr)), gap 10px.
    Each card: white, padding 12px, border-radius 10px, border-top 3px solid (cycle: #7EC8E3, #7FDBCA, #FFE066), box-shadow 0 1px 4px rgba(0,0,0,0.06).
-   Card content: emoji + concept name 14px bold + description 13px #555.
+   Card content: concept name 14px bold + description 13px #555. NO emoji icons.
 
-3. MAIN FLOW (3-5 steps max, label section "🔄 Main Flow")
+3. MAIN FLOW (3-5 steps max, label section "Main Flow")
    Section header same style as above, border-bottom color #FFE066.
    Flex column, gap 4px. Each step: white card, border-left 3px solid #7EC8E3, padding 10px 14px, border-radius 0 8px 8px 0, 14px #333.
    Connector between steps: div, text-align center, font-size 16px, color #7EC8E3, line-height 1.2, content "↓". No wrapper box around the flow.
 
-4. KEY FACTS (label section "💡 Key Facts")
+4. KEY FACTS (label section "Key Facts")
    Section header, border-bottom color #FF85C1.
    Unordered list, list-style none, padding-left 0, each li: 14px #333, padding 4px 0 4px 18px, position relative.
-   li::before: content "→", position absolute, left 0, color #7FDBCA, font-weight 600.
+   li::before: content "->", position absolute, left 0, color #7FDBCA, font-weight 600.
 
-5. SUMMARY (label section "📝 Summary")
+5. SUMMARY (label section "Summary")
    Card: background #f0faf8, border-radius 10px, padding 14px 16px.
    3-4 sentence paragraph, 14px, font-style italic, color #333, line-height 1.7.
 
+NO emoji characters anywhere in the document — not in section headers, not in cards, not in bullet points.
 Return ONLY the HTML document.`;
 
 class VideoSummaryRoutes {
