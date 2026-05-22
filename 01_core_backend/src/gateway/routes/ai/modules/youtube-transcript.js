@@ -6,73 +6,25 @@
  * Returns: { success: true, segments: [{ text, offset, duration }] }
  * Caches in Redis for 24 h — transcripts are static.
  *
- * Strategy:
- *  1. Try the youtube-transcript npm package (fast, works for most videos).
- *  2. If that fails (e.g. "Transcript is disabled"), fall back to scraping
- *     ytInitialPlayerResponse from the YouTube page and fetching the caption
- *     XML directly — this works for videos that have CC but block the
- *     transcript tab in YouTube Studio.
+ * Three-strategy waterfall:
+ *  1. youtube-transcript npm package  — fast, works for most videos
+ *  2. Page scrape + bracket-counted JSON extraction — works when the
+ *     package fails with "Transcript is disabled"
+ *  3. YouTube InnerTube API (/youtubei/v1/player) — bypasses consent
+ *     pages and bot-detection that make strategy 2 return empty tracks;
+ *     uses the same internal endpoint the YouTube website itself calls
  */
 
 const AuthHelper = require('../utils/auth-helper');
 const { YoutubeTranscript } = require('youtube-transcript');
 
-const YT_PAGE_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+const YT_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+// Stable public API key embedded in YouTube's web JS bundle
+const YT_INNERTUBE_KEY = 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8';
 
-/**
- * Fallback: fetch captions by scraping ytInitialPlayerResponse from the
- * YouTube watch page and pulling the caption XML directly.
- */
-async function fetchTranscriptFromPage(videoId) {
-  const res = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
-    headers: {
-      'User-Agent': YT_PAGE_UA,
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-    }
-  });
-  if (!res.ok) throw new Error(`YouTube page fetch failed: HTTP ${res.status}`);
-  const html = await res.text();
-
-  // Find ytInitialPlayerResponse and extract the JSON using bracket counting.
-  // Simple ;\n splitting fails because ;\n can appear inside JSON string values.
-  const tag = 'ytInitialPlayerResponse = ';
-  const tagIdx = html.indexOf(tag);
-  if (tagIdx === -1) throw new Error('ytInitialPlayerResponse not found in page');
-
-  const jsonStart = tagIdx + tag.length;
-  if (html[jsonStart] !== '{') throw new Error('ytInitialPlayerResponse is not an object');
-
-  let depth = 0, inString = false, escaped = false;
-  let i = jsonStart;
-  for (; i < html.length; i++) {
-    const c = html[i];
-    if (escaped)          { escaped = false; continue; }
-    if (c === '\\' && inString) { escaped = true; continue; }
-    if (c === '"')        { inString = !inString; continue; }
-    if (inString)         { continue; }
-    if (c === '{')        { depth++; }
-    else if (c === '}')   { depth--; if (depth === 0) break; }
-  }
-
-  const playerResponse = JSON.parse(html.slice(jsonStart, i + 1));
-  const tracks = playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
-  if (tracks.length === 0) throw new Error('No caption tracks in player response');
-
-  // Prefer English; fall back to any auto-generated track
-  const track =
-    tracks.find(t => t.languageCode === 'en') ||
-    tracks.find(t => t.languageCode?.startsWith('en')) ||
-    tracks[0];
-
-  const captionUrl = `${track.baseUrl}&fmt=json3`;
-  const captionRes = await fetch(captionUrl, {
-    headers: { 'User-Agent': YT_PAGE_UA }
-  });
-  if (!captionRes.ok) throw new Error(`Caption XML fetch failed: HTTP ${captionRes.status}`);
-  const captionData = await captionRes.json();
-
-  const segments = (captionData.events || [])
+/** Parse a json3-format caption response into our segment shape. */
+function parseJson3(captionData) {
+  return (captionData.events || [])
     .filter(e => e.segs && e.segs.length > 0)
     .map(e => ({
       text: e.segs.map(s => s.utf8 || '').join('').trim().replace(/\n/g, ' '),
@@ -80,10 +32,106 @@ async function fetchTranscriptFromPage(videoId) {
       duration: e.dDurationMs || 0
     }))
     .filter(s => s.text.length > 0);
+}
 
+/** Fetch the json3 caption XML for a given track baseUrl. */
+async function fetchCaptionXml(baseUrl) {
+  const res = await fetch(`${baseUrl}&fmt=json3`, { headers: { 'User-Agent': YT_UA } });
+  if (!res.ok) throw new Error(`Caption XML fetch failed: HTTP ${res.status}`);
+  return parseJson3(await res.json());
+}
+
+/** Pick best English track, falling back to first available. */
+function pickTrack(tracks) {
+  return (
+    tracks.find(t => t.languageCode === 'en') ||
+    tracks.find(t => t.languageCode?.startsWith('en')) ||
+    tracks[0]
+  );
+}
+
+// ─── Strategy 2: scrape ytInitialPlayerResponse from watch page ──────────────
+
+async function fetchTranscriptFromPage(videoId) {
+  const res = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+    headers: {
+      'User-Agent': YT_UA,
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      // Consent cookies to skip GDPR gate pages
+      'Cookie': 'CONSENT=YES+cb; SOCS=CAESEwgDEgk2NjgxOTIxMzIaAmVuIAEaBgiAjv2kBg',
+    }
+  });
+  if (!res.ok) throw new Error(`Page fetch failed: HTTP ${res.status}`);
+  const html = await res.text();
+
+  const tag = 'ytInitialPlayerResponse = ';
+  const tagIdx = html.indexOf(tag);
+  if (tagIdx === -1) throw new Error('ytInitialPlayerResponse not found');
+  const jsonStart = tagIdx + tag.length;
+  if (html[jsonStart] !== '{') throw new Error('ytInitialPlayerResponse is not an object');
+
+  // Bracket-count to find the matching closing brace (;\n inside strings would break a naive split)
+  let depth = 0, inString = false, escaped = false, i = jsonStart;
+  for (; i < html.length; i++) {
+    const c = html[i];
+    if (escaped)               { escaped = false; continue; }
+    if (c === '\\' && inString){ escaped = true;  continue; }
+    if (c === '"')             { inString = !inString; continue; }
+    if (inString)              { continue; }
+    if (c === '{')             { depth++; }
+    else if (c === '}')        { depth--; if (depth === 0) break; }
+  }
+
+  const player = JSON.parse(html.slice(jsonStart, i + 1));
+  const tracks = player?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
+  if (tracks.length === 0) throw new Error('No caption tracks in page response');
+
+  const segments = await fetchCaptionXml(pickTrack(tracks).baseUrl);
   if (segments.length === 0) throw new Error('Caption track was empty after parsing');
   return segments;
 }
+
+// ─── Strategy 3: YouTube InnerTube /youtubei/v1/player ───────────────────────
+// Same JSON endpoint the YouTube website calls; not affected by consent pages
+// or the "Transcript disabled" restriction that blocks the package.
+
+async function fetchTranscriptInnerTube(videoId) {
+  const res = await fetch(
+    `https://www.youtube.com/youtubei/v1/player?key=${YT_INNERTUBE_KEY}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': YT_UA,
+        'Origin': 'https://www.youtube.com',
+        'Referer': `https://www.youtube.com/watch?v=${videoId}`,
+      },
+      body: JSON.stringify({
+        videoId,
+        context: {
+          client: {
+            clientName: 'WEB',
+            clientVersion: '2.20240101.00.00',
+            hl: 'en',
+            gl: 'US',
+          }
+        }
+      })
+    }
+  );
+  if (!res.ok) throw new Error(`InnerTube player API failed: HTTP ${res.status}`);
+  const data = await res.json();
+
+  const tracks = data?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
+  if (tracks.length === 0) throw new Error('No caption tracks from InnerTube');
+
+  const segments = await fetchCaptionXml(pickTrack(tracks).baseUrl);
+  if (segments.length === 0) throw new Error('InnerTube caption track was empty');
+  return segments;
+}
+
+// ─── Route class ─────────────────────────────────────────────────────────────
 
 class YoutubeTranscriptRoutes {
   constructor(fastify) {
@@ -137,19 +185,29 @@ class YoutubeTranscriptRoutes {
 
     // Strategy 1: youtube-transcript npm package
     try {
-      this.fastify.log.info(`📝 Fetching transcript (strategy 1 — package): ${videoId}`);
+      this.fastify.log.info(`📝 [S1] Fetching transcript via package: ${videoId}`);
       const raw = await YoutubeTranscript.fetchTranscript(videoId, { lang: 'en' });
       segments = raw.map(s => ({ text: s.text, offset: s.offset, duration: s.duration }));
-      this.fastify.log.info(`📝 Strategy 1 succeeded: ${segments.length} segments for ${videoId}`);
-    } catch (err1) {
-      this.fastify.log.warn(`📝 Strategy 1 failed for ${videoId}: ${err1.message} — trying page scrape`);
+      this.fastify.log.info(`📝 [S1] OK — ${segments.length} segments`);
+    } catch (e1) {
+      this.fastify.log.warn(`📝 [S1] failed: ${e1.message}`);
 
-      // Strategy 2: scrape ytInitialPlayerResponse directly
+      // Strategy 2: page scrape with consent cookies + bracket-counted JSON
       try {
+        this.fastify.log.info(`📝 [S2] Fetching transcript via page scrape: ${videoId}`);
         segments = await fetchTranscriptFromPage(videoId);
-        this.fastify.log.info(`📝 Strategy 2 succeeded: ${segments.length} segments for ${videoId}`);
-      } catch (err2) {
-        this.fastify.log.warn(`📝 Strategy 2 also failed for ${videoId}: ${err2.message}`);
+        this.fastify.log.info(`📝 [S2] OK — ${segments.length} segments`);
+      } catch (e2) {
+        this.fastify.log.warn(`📝 [S2] failed: ${e2.message}`);
+
+        // Strategy 3: InnerTube API
+        try {
+          this.fastify.log.info(`📝 [S3] Fetching transcript via InnerTube: ${videoId}`);
+          segments = await fetchTranscriptInnerTube(videoId);
+          this.fastify.log.info(`📝 [S3] OK — ${segments.length} segments`);
+        } catch (e3) {
+          this.fastify.log.warn(`📝 [S3] failed: ${e3.message}`);
+        }
       }
     }
 
@@ -158,11 +216,9 @@ class YoutubeTranscriptRoutes {
     }
 
     if (redis) {
-      try {
-        await redis.setex(cacheKey, 86400, JSON.stringify(segments));
-      } catch (e) {
-        this.fastify.log.warn(`Redis set failed for transcript: ${e.message}`);
-      }
+      redis.setex(cacheKey, 86400, JSON.stringify(segments)).catch(e =>
+        this.fastify.log.warn(`Redis set failed for transcript: ${e.message}`)
+      );
     }
 
     return { success: true, segments };
