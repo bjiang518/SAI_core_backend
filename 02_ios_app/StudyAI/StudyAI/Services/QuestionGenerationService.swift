@@ -120,6 +120,26 @@ class QuestionGenerationService: ObservableObject {
         let specificIssue: String?          // "Arithmetic calculation error"
         let questionImageUrl: String?       // Image URL for visual context
 
+        // Tag context for distractor-aware generation
+        let errorMicroTags: [String]        // e.g. ["sign_error", "arithmetic_slip"]
+        let skillTags: [String]             // e.g. ["algebraic_manipulation"]
+
+        init(originalQuestion: String, userAnswer: String, correctAnswer: String,
+             errorType: String? = nil, baseBranch: String? = nil, detailedBranch: String? = nil,
+             specificIssue: String? = nil, questionImageUrl: String? = nil,
+             errorMicroTags: [String] = [], skillTags: [String] = []) {
+            self.originalQuestion = originalQuestion
+            self.userAnswer = userAnswer
+            self.correctAnswer = correctAnswer
+            self.errorType = errorType
+            self.baseBranch = baseBranch
+            self.detailedBranch = detailedBranch
+            self.specificIssue = specificIssue
+            self.questionImageUrl = questionImageUrl
+            self.errorMicroTags = errorMicroTags
+            self.skillTags = skillTags
+        }
+
         var dictionary: [String: Any] {
             var dict: [String: Any] = [
                 "original_question": originalQuestion,
@@ -143,6 +163,8 @@ class QuestionGenerationService: ObservableObject {
             if let questionImageUrl = questionImageUrl {
                 dict["question_image_url"] = questionImageUrl
             }
+            if !errorMicroTags.isEmpty { dict["error_micro_tags"] = errorMicroTags }
+            if !skillTags.isEmpty      { dict["skill_tags"] = skillTags }
 
             return dict
         }
@@ -1035,6 +1057,17 @@ class QuestionGenerationService: ObservableObject {
             body["short_term_context"] = shortTermContext
             body["mistakes_data"] = mistakesData.map { $0.dictionary }
             if let src = bankSource { body["bank_source"] = src }
+            // Include tag weakness context so the bank can boost/de-boost matching questions
+            let errorMicroWeakness = ShortTermStatusService.shared.topErrorMicroTags(limit: 3)
+            let skillWeakness      = ShortTermStatusService.shared.topSkillWeaknesses(limit: 2)
+            let styleWeakness      = ShortTermStatusService.shared.topStyleWeaknesses(limit: 2)
+            if !errorMicroWeakness.isEmpty || !skillWeakness.isEmpty || !styleWeakness.isEmpty {
+                body["tag_weakness_context"] = [
+                    "error_micro_weakness": errorMicroWeakness,
+                    "skill_weakness": skillWeakness,
+                    "style_weakness": styleWeakness,
+                ]
+            }
         default:
             break
         }

@@ -903,6 +903,11 @@ struct MistakeQuestion: Codable, Identifiable {
     // ✅ Pro Mode image field (for questions with images)
     let questionImageUrl: String?
 
+    // ✅ Question tags (added with tag taxonomy system)
+    let errorMicroTags: [String]   // e.g. ["sign_error", "arithmetic_slip"]
+    let skillTags: [String]        // e.g. ["algebraic_manipulation"]
+    let styleTags: [String]        // e.g. ["multi_step", "olympiad"]
+
     // Computed properties
     var hasErrorAnalysis: Bool {
         errorAnalysisStatus == .completed && errorType != nil
@@ -921,7 +926,8 @@ struct MistakeQuestion: Codable, Identifiable {
          learningSuggestion: String? = nil, errorAnalysisStatus: ErrorAnalysisStatus = .failed,
          weaknessKey: String? = nil,
          baseBranch: String? = nil, detailedBranch: String? = nil, specificIssue: String? = nil,
-         questionImageUrl: String? = nil) {
+         questionImageUrl: String? = nil,
+         errorMicroTags: [String] = [], skillTags: [String] = [], styleTags: [String] = []) {
         self.id = id
         self.subject = subject
         self.question = question
@@ -946,6 +952,9 @@ struct MistakeQuestion: Codable, Identifiable {
         self.detailedBranch = detailedBranch
         self.specificIssue = specificIssue
         self.questionImageUrl = questionImageUrl
+        self.errorMicroTags = errorMicroTags
+        self.skillTags = skillTags
+        self.styleTags = styleTags
     }
 
     enum CodingKeys: String, CodingKey {
@@ -955,6 +964,7 @@ struct MistakeQuestion: Codable, Identifiable {
         case weaknessKey
         case baseBranch, detailedBranch, specificIssue
         case questionImageUrl
+        case errorMicroTags, skillTags, styleTags
     }
 
     init(from decoder: Decoder) throws {
@@ -1011,6 +1021,11 @@ struct MistakeQuestion: Codable, Identifiable {
         specificIssue = try container.decodeIfPresent(String.self, forKey: .specificIssue)
 
         questionImageUrl = try container.decodeIfPresent(String.self, forKey: .questionImageUrl)
+
+        // Decode tag fields (optional — older stored records won't have them)
+        errorMicroTags = (try? container.decodeIfPresent([String].self, forKey: .errorMicroTags)) ?? []
+        skillTags      = (try? container.decodeIfPresent([String].self, forKey: .skillTags))      ?? []
+        styleTags      = (try? container.decodeIfPresent([String].self, forKey: .styleTags))      ?? []
 
         // Handle date parsing
         let dateString = try container.decode(String.self, forKey: .createdAt)

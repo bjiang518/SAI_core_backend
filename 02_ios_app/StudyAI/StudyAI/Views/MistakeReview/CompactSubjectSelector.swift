@@ -11,6 +11,8 @@ import SwiftUI
 struct CompactSubjectSelector: View {
     let subjects: [SubjectMistakeCount]
     @Binding var selectedSubject: String?
+    /// When non-nil, badges show "practiced/total" instead of mistake count.
+    var treeCounts: [String: (practiced: Int, total: Int)]? = nil
     @Namespace private var animation
 
     var body: some View {
@@ -80,7 +82,7 @@ struct CompactSubjectSelector: View {
             // Text content — centered on top
             VStack(spacing: 6) {
                 subjectLabel(subject: subject, isSelected: isSelected)
-                countBadge(count: subject.mistakeCount, isSelected: isSelected)
+                countBadge(subject: subject, isSelected: isSelected)
             }
         }
     }
@@ -105,14 +107,20 @@ struct CompactSubjectSelector: View {
     }
 
     @ViewBuilder
-    private func countBadge(count: Int, isSelected: Bool) -> some View {
-        Text("\(count)")
+    private func countBadge(subject: SubjectMistakeCount, isSelected: Bool) -> some View {
+        let label: String = {
+            if let tc = treeCounts?[subject.subject] {
+                return "\(tc.practiced)/\(tc.total)"
+            }
+            return "\(subject.mistakeCount)"
+        }()
+        Text(label)
             .font(isSelected ? .caption : .caption2)
             .fontWeight(.bold)
             .foregroundColor(.white)
             .padding(.horizontal, isSelected ? 8 : 6)
             .padding(.vertical, isSelected ? 4 : 3)
-            .background(Capsule().fill(isSelected ? Color.blue : Color.red))
+            .background(Capsule().fill(isSelected ? Color.blue : Color.secondary.opacity(0.6)))
     }
 
     private func cardBackground(isSelected: Bool) -> some View {

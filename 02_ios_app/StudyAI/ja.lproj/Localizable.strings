@@ -3296,3 +3296,68 @@
 "todo.knowledgeTree.subtitle" = "「%@」の知識マップを探索";
 "todo.knowledgeTree.defaultSubject" = "全科目";
 "practice.bank.retrieve" = "本物の問題を取得";
+
+// MARK: - Learning View
+"learning.header.title" = "動画学習";
+"learning.video.change" = "変更";
+"learning.video.pick" = "動画を選んで学習を開始";
+"learning.video.searching" = "動画を検索中...";
+"learning.video.empty" = "動画が見つかりません";
+"learning.chat.hintNoVideo" = "動画を選んで一時停止し、質問できます";
+"learning.chat.hint" = "いつでも一時停止してAIに質問";
+"learning.chat.placeholder" = "質問する...";
+
+// MARK: - Learning feature additions
+"mistakeTree.detail.startLearning" = "学習を始める";
+"learning.smartai.hint" = "SmartAI — AIが動画内容を理解します";
+"learning.smartai.badge" = "SmartAI";
+"chat.video.startLearning" = "動画学習";
+"learning.header.back" = "チャット";
+"learning.header.close" = "閉じる";
+"learning.suggestion.diagram" = "図を描く";
+
+// Trial page (redesigned)
+"onboarding.trial.title.part1" = "最初の";
+"onboarding.trial.title.highlight" = "1週間";
+"onboarding.trial.title.part2" = "は無料";
+"onboarding.trial.feature1.title" = "宿題を数秒で解決";
+"onboarding.trial.feature1.sub" = "写真を撮るだけで、AIがステップごとに解説。";
+"onboarding.trial.feature2.title" = "いつでもライブ音声チュータリング";
+"onboarding.trial.feature2.sub" = "リアルタイムで問題を話し合う——専属家庭教師のように。";
+"onboarding.trial.feature3.title" = "本番問題集を解放";
+"onboarding.trial.feature3.sub" = "全科目の過去問で実戦練習。";
+"onboarding.trial.feature4.title" = "動画学習分析";
+"onboarding.trial.feature4.sub" = "動画を見てAIが要約・ポイント・クイズを自動生成。";
+"onboarding.trial.feature5.title" = "ミスをマスターに変える";
+"onboarding.trial.feature5.sub" = "AIが弱点を追跡し、的確な練習を自動作成。";
+"onboarding.trial.trust1" = "いつでもキャンセル";
+"onboarding.trial.trust2" = "来週まで請求なし";
+"onboarding.trial.trust3" = "数百万人の学生が利用中";
+"onboarding.trial.comparePlans" = "プランを比較";
+
+/* Knowledge Tree — new action buttons */
+"knowledgeTree.learnNewConcept" = "新しい概念を学ぶ";
+"knowledgeTree.practiceConcept" = "概念を練習する";
+"knowledgeTree.recentSummaries" = "最近の学習サマリー";
+
+/* Leaf Detail Sheet */
+"mistakeTree.detail.videoSummaries" = "動画サマリー";
+
+/* Video Summary */
+"video.summary.title" = "動画サマリー";
+"video.summary.archived" = "ライブラリに保存しました";
+"video.summary.unavailable" = "サマリー利用不可 — この動画にはアクセス可能な字幕がありません";
+
+/* Recent Summaries */
+"summaries.empty" = "保存済みのサマリーはまだありません";
+
+/* PDF export */
+"pdf.generating" = "PDF を生成中…";
+"pdf.failed" = "PDF を生成できませんでした";
+"pdf.saved" = "ファイルに保存しました";
+
+/* Learning View — video action bar */
+"learning.video.practice" = "練習";
+"learning.video.summary" = "サマリー";
+"learning.video.summary.generating" = "生成中…";
+"learning.video.summary.loading" = "読み込み中…";

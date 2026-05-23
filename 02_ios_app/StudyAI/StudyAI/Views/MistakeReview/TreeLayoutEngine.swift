@@ -71,8 +71,8 @@ struct TreeLayoutEngine {
         let secondaryBase = h * (0.10 + maturity * 0.05)
         let stemBase      = h * (0.07 + maturity * 0.03)
 
-        // Primary half-span (degrees from vertical), capped to keep branches upward
-        let halfSpan: Double = n == 1 ? 0 : min(Double(n - 1) * 16.0 + 8.0, 58.0)
+        // Primary half-span (degrees from vertical) — tighter to prevent off-screen spread
+        let halfSpan: Double = n == 1 ? 0 : min(Double(n - 1) * 13.0 + 6.0, 46.0)
 
         var segments: [TreeBranchSegment] = []
         var leaves:   [TreeLeafNode]      = []
@@ -105,7 +105,6 @@ struct TreeLayoutEngine {
 
                 let subWidth = clamp(CGFloat(topicsPerSub) * leafUnit * 0.7, 1.5, 4.5)
                 let subLen   = secondaryBase
-                let subCtrl  = CGPoint(x: primaryPos.x, y: primaryPos.y - secondaryBase * 0.4)
                 let subPos   = tip(from: primaryPos, angleDeg: subAngle, length: subLen)
 
                 segments.append(TreeBranchSegment(
@@ -116,30 +115,48 @@ struct TreeLayoutEngine {
                     alpha: 0.80, isPrimary: false
                 ))
 
-                // ── Leaves (3rd level) ────────────────────────────────────────
+                // ── Leaves distributed ALONG the sub-branch depth ─────────────
+                // Topics spread from 40% to 100% of sub-branch length so that
+                // inner topics appear near the primary node (fills tree interior)
+                // and outer topics appear at the tip (current behavior).
                 let startIdx  = sg * topicsPerSub
                 let endIdx    = min(startIdx + topicsPerSub, topicCount)
                 guard startIdx < endIdx else { continue }
                 let subTopics = Array(branch.topics[startIdx..<endIdx])
 
-                let lCount     = subTopics.count
-                let leafSpread: Double = lCount <= 1 ? 0 : min(Double(lCount - 1) * 13.0, 20.0)
+                let lCount = subTopics.count
+                let margin: CGFloat = 14
 
                 for (j, topic) in subTopics.enumerated() {
-                    let leafAngle: Double = lCount == 1 ? subAngle
-                        : subAngle - leafSpread + Double(j) * (2 * leafSpread / Double(lCount - 1))
+                    // depthT: 0.4 (inner, near primary) → 1.0 (outer, at sub tip)
+                    let depthT = lCount == 1 ? 1.0
+                        : 0.4 + 0.6 * Double(j) / Double(lCount - 1)
 
-                    // Alternate near/far to prevent overlap
-                    let distScale: CGFloat = j % 2 == 0 ? 0.85 : 1.15
-                    let leafLen   = stemBase * distScale
-                    let leafPos   = tip(from: subPos, angleDeg: leafAngle, length: leafLen)
+                    // Anchor point along the sub-branch
+                    let anchor = CGPoint(
+                        x: primaryPos.x + (subPos.x - primaryPos.x) * CGFloat(depthT),
+                        y: primaryPos.y + (subPos.y - primaryPos.y) * CGFloat(depthT)
+                    )
 
-                    let midX = (subPos.x + leafPos.x) / 2
-                    let midY = (subPos.y + leafPos.y) / 2 - 6
+                    // Alternate left/right of the sub-branch axis
+                    let fanDir = (j % 2 == 0) ? 1.0 : -1.0
+                    // Inner leaves fan less; outer leaves fan more
+                    let fanMag = depthT < 0.6 ? 11.0 : 20.0
+                    let leafAngle = subAngle + fanDir * fanMag
+
+                    // Stem length: shorter for inner, longer for outer
+                    let leafLen = stemBase * CGFloat(0.45 + 0.55 * depthT)
+
+                    var leafPos = tip(from: anchor, angleDeg: leafAngle, length: leafLen)
+
+                    // Hard bounds — keep every leaf inside the canvas
+                    leafPos.x = min(max(leafPos.x, margin), w - margin)
+                    leafPos.y = max(leafPos.y, 8)
 
                     segments.append(TreeBranchSegment(
-                        from: subPos, to: leafPos,
-                        control: CGPoint(x: midX, y: midY),
+                        from: anchor, to: leafPos,
+                        control: CGPoint(x: (anchor.x + leafPos.x) / 2,
+                                        y: (anchor.y + leafPos.y) / 2 - 5),
                         startWidth: 1.8, endWidth: 0.8,
                         alpha: 0.55, isPrimary: false
                     ))

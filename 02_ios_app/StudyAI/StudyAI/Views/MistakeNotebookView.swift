@@ -11,6 +11,7 @@ import Combine
 
 struct MistakeNotebookView: View {
     @StateObject private var viewModel = MistakeNotebookViewModel()
+    @State private var selectedTag: String? = nil
 
     var body: some View {
         NavigationStack {
@@ -26,6 +27,13 @@ struct MistakeNotebookView: View {
                     } else if viewModel.mistakeGroups.isEmpty {
                         emptyStateView
                     } else {
+                        // Error pattern summary (only when tags exist)
+                        if !viewModel.topMicroTags.isEmpty {
+                            ErrorPatternSummaryCard(
+                                topTags: viewModel.topMicroTags,
+                                onTagTap: { tag in selectedTag = tag }
+                            )
+                        }
                         mistakeGroupsList
                     }
                 }
@@ -37,6 +45,15 @@ struct MistakeNotebookView: View {
             }
             .refreshable {
                 await viewModel.loadLocalMistakes()
+            }
+            .sheet(item: Binding(
+                get: { selectedTag.map { TagSelection(tag: $0) } },
+                set: { selectedTag = $0?.tag }
+            )) { selection in
+                TaggedMistakesSheet(
+                    tag: selection.tag,
+                    mistakes: viewModel.mistakes(for: selection.tag)
+                )
             }
         }
     }
@@ -161,6 +178,25 @@ class MistakeNotebookViewModel: ObservableObject {
     @Published var isLoading = false
 
     private let localStorage = currentUserQuestionStorage()
+    private var rawMistakes: [[String: Any]] = []
+
+    /// Top error micro tags across all mistakes, sorted by frequency.
+    var topMicroTags: [(tag: String, count: Int)] {
+        var counts: [String: Int] = [:]
+        for m in rawMistakes {
+            for tag in (m["errorMicroTags"] as? [String] ?? []) {
+                counts[tag, default: 0] += 1
+            }
+        }
+        return counts.sorted { $0.value > $1.value }.prefix(5).map { ($0.key, $0.value) }
+    }
+
+    /// All mistakes that carry a given micro tag.
+    func mistakes(for tag: String) -> [LocalMistake] {
+        rawMistakes
+            .filter { ($0["errorMicroTags"] as? [String] ?? []).contains(tag) }
+            .map { LocalMistake(from: $0) }
+    }
 
     /// Load mistakes from LOCAL storage (primary source)
     func loadLocalMistakes() async {
@@ -170,6 +206,7 @@ class MistakeNotebookViewModel: ObservableObject {
         // Get all wrong questions from local storage
         let allQuestions = localStorage.getLocalQuestions()
         let mistakes = allQuestions.filter { ($0["isCorrect"] as? Bool) == false }
+        rawMistakes = mistakes
 
         // Group by error type
         var grouped: [String: [LocalMistake]] = [:]
@@ -179,19 +216,7 @@ class MistakeNotebookViewModel: ObservableObject {
                 ? (mistakeData["errorType"] as? String ?? "analyzing")
                 : "analyzing"
 
-            let mistake = LocalMistake(
-                id: mistakeData["id"] as? String ?? "",
-                questionText: mistakeData["questionText"] as? String ?? "",
-                studentAnswer: mistakeData["studentAnswer"] as? String ?? "",
-                correctAnswer: mistakeData["answerText"] as? String ?? "",
-                subject: mistakeData["subject"] as? String ?? "",
-                errorType: mistakeData["errorType"] as? String,
-                errorEvidence: mistakeData["errorEvidence"] as? String,
-                errorConfidence: mistakeData["errorConfidence"] as? Double,
-                learningSuggestion: mistakeData["learningSuggestion"] as? String,
-                errorAnalysisStatus: mistakeData["errorAnalysisStatus"] as? String ?? "pending",
-                archivedAt: mistakeData["archivedAt"] as? String ?? ""
-            )
+            let mistake = LocalMistake(from: mistakeData)
 
             if grouped[errorType] == nil {
                 grouped[errorType] = []
@@ -264,4 +289,128 @@ struct LocalMistake: Identifiable {
     let learningSuggestion: String?
     let errorAnalysisStatus: String
     let archivedAt: String
+    let errorMicroTags: [String]
+
+    init(from data: [String: Any]) {
+        id                  = data["id"]                  as? String ?? ""
+        questionText        = data["questionText"]        as? String ?? ""
+        studentAnswer       = data["studentAnswer"]       as? String ?? ""
+        correctAnswer       = data["answerText"]          as? String ?? ""
+        subject             = data["subject"]             as? String ?? ""
+        errorType           = data["errorType"]           as? String
+        errorEvidence       = data["errorEvidence"]       as? String
+        errorConfidence     = data["errorConfidence"]     as? Double
+        learningSuggestion  = data["learningSuggestion"]  as? String
+        errorAnalysisStatus = data["errorAnalysisStatus"] as? String ?? "pending"
+        archivedAt          = data["archivedAt"]          as? String ?? ""
+        errorMicroTags      = data["errorMicroTags"]      as? [String] ?? []
+    }
+}
+
+// MARK: - Tag Selection (for .sheet(item:))
+
+private struct TagSelection: Identifiable {
+    let tag: String
+    var id: String { tag }
+}
+
+// MARK: - Error Pattern Summary Card
+
+struct ErrorPatternSummaryCard: View {
+    let topTags: [(tag: String, count: Int)]
+    let onTagTap: (String) -> Void
+
+    @StateObject private var themeManager = ThemeManager.shared
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundColor(DesignTokens.Colors.error)
+                    .font(.caption)
+                Text(NSLocalizedString("mistakeNotebook.recurringPatterns",
+                                      value: "Recurring Error Patterns",
+                                      comment: ""))
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(topTags, id: \.tag) { item in
+                        Button(action: { onTagTap(item.tag) }) {
+                            HStack(spacing: 5) {
+                                Text(TagLocalization.displayName(for: item.tag))
+                                    .font(.caption2)
+                                    .fontWeight(.medium)
+                                Text("×\(item.count)")
+                                    .font(.caption2)
+                                    .fontWeight(.bold)
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 2)
+                                    .background(DesignTokens.Colors.error.opacity(0.15))
+                                    .cornerRadius(8)
+                            }
+                            .foregroundColor(DesignTokens.Colors.error)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(DesignTokens.Colors.error.opacity(0.08))
+                            .cornerRadius(12)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
+            }
+        }
+        .padding(12)
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.05), radius: 3, x: 0, y: 1)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(DesignTokens.Colors.error.opacity(0.15), lineWidth: 1)
+        )
+    }
+}
+
+// MARK: - Tagged Mistakes Sheet
+
+struct TaggedMistakesSheet: View {
+    let tag: String
+    let mistakes: [LocalMistake]
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) var colorScheme
+
+    var body: some View {
+        NavigationStack {
+            List {
+                ForEach(mistakes) { mistake in
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(mistake.subject)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        SmartLaTeXView(mistake.questionText, fontSize: 14,
+                                       colorScheme: colorScheme, strategy: .mathjax)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        if let suggestion = mistake.learningSuggestion, !suggestion.isEmpty {
+                            Text(suggestion)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .lineLimit(2)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+            .listStyle(.plain)
+            .navigationTitle(TagLocalization.displayName(for: tag))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(NSLocalizedString("common.done", comment: "")) { dismiss() }
+                }
+            }
+        }
+    }
 }

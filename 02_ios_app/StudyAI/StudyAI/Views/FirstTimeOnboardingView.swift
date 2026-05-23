@@ -244,19 +244,16 @@ struct FirstTimeOnboardingView: View {
                 blockedFeature: nil,
                 onDismiss: {
                     showingGuestConversion = false
-                    // If conversion succeeded (user is now a real account), show the trial upgrade
+                    // If conversion succeeded, proceed to upgrade comparison
                     let user = AuthenticationService.shared.currentUser
                     if user?.isAnonymous == false, AuthenticationService.shared.isAuthenticated {
                         showingUpgradeFromOnboarding = true
                     }
-                    // If they dismissed without converting, go straight to home
-                    else {
-                        onComplete()
-                    }
+                    // Dismissed without converting — stay on trial page (do nothing)
                 }
             )
         }
-        .fullScreenCover(isPresented: $showingUpgradeFromOnboarding, onDismiss: onComplete) {
+        .fullScreenCover(isPresented: $showingUpgradeFromOnboarding) {
             UpgradeComparisonView(
                 blockedFeature: "",
                 reason: .featureBlocked,
@@ -901,7 +898,7 @@ struct FirstTimeOnboardingView: View {
                             Image("onboarding_globe")
                                 .resizable()
                                 .scaledToFit()
-                                .frame(width: 160, height: 160)
+                                .frame(width: 130, height: 130)
                             Image(systemName: "sparkle")
                                 .font(.system(size: 14, weight: .semibold))
                                 .foregroundColor(Color(hex: "FFD700"))
@@ -957,31 +954,34 @@ struct FirstTimeOnboardingView: View {
             languagePreference = option.code
             LanguageManager.shared.setLanguage(option.code)
         } label: {
-            HStack(spacing: 12) {
+            HStack(spacing: 8) {
                 // Flag in a rounded container
                 Text(option.flag)
-                    .font(.system(size: 34))
-                    .frame(width: 50, height: 50)
+                    .font(.system(size: 28))
+                    .frame(width: 42, height: 42)
                     .background(Color(.systemGray6))
-                    .cornerRadius(12)
+                    .cornerRadius(10)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(option.name)
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.system(size: 14, weight: .semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
                         .foregroundColor(on ? Color(hex: "5B7FFF") : DesignTokens.Colors.Cute.textPrimary)
                     Text(option.nativeName)
-                        .font(.system(size: 12))
+                        .font(.system(size: 11))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                         .foregroundColor(DesignTokens.Colors.Cute.textSecondary)
                 }
-
-                Spacer(minLength: 0)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 18))
+                    .font(.system(size: 16))
                     .foregroundColor(Color(hex: "5B7FFF"))
                     .opacity(on ? 1 : 0)
             }
-            .padding(.horizontal, 14)
+            .padding(.horizontal, 10)
             .padding(.vertical, 12)
             .frame(maxWidth: .infinity)
             .background(Color(.secondarySystemBackground))
@@ -1646,93 +1646,237 @@ struct FirstTimeOnboardingView: View {
     // MARK: - Step 7: Trial Pitch
 
     private var trialStep: some View {
-        VStack(spacing: 0) {
-            ScrollView {
-                VStack(spacing: 28) {
-                    // Crown icon
-                    ZStack {
-                        Circle()
-                            .fill(Color(hex: "D97706").opacity(0.12))
-                            .frame(width: 100, height: 100)
-                        Image(systemName: "crown.fill")
-                            .font(.system(size: 46))
-                            .foregroundColor(Color(hex: "D97706"))
-                    }
-                    .padding(.top, 8)
+        ZStack(alignment: .top) {
+            // Soft lavender gradient background
+            LinearGradient(
+                colors: [Color(hex: "F0EEFF"), Color(hex: "F8F7FF"), Color.white],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
 
-                    VStack(spacing: 10) {
-                        Text(NSLocalizedString("onboarding.trial.title", value: "Your first week is free", comment: ""))
-                            .font(.title2).fontWeight(.bold)
-                            .foregroundColor(DesignTokens.Colors.Cute.textPrimary)
-                            .multilineTextAlignment(.center)
-                        Text(NSLocalizedString("onboarding.trial.subtitle", value: "Try Premium for 7 days — no charge until next week, cancel anytime.", comment: ""))
-                            .font(.subheadline)
-                            .foregroundColor(DesignTokens.Colors.Cute.textSecondary)
-                            .multilineTextAlignment(.center)
+            VStack(spacing: 0) {
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 20) {
+
+                        // Header: title left, robot right
+                        ZStack(alignment: .topLeading) {
+                            HStack {
+                                Spacer()
+                                Image("onboarding_trial_robot")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 180, height: 180)
+                                    .offset(x: 8, y: 55)
+                            }
+
+                            VStack(alignment: .leading, spacing: 10) {
+                                // "Your first week is free" — "week" in lavender
+                                Group {
+                                    Text(NSLocalizedString("onboarding.trial.title.part1", value: "Your first ", comment: ""))
+                                        .foregroundColor(Color(hex: "1A1150"))
+                                    + Text(NSLocalizedString("onboarding.trial.title.highlight", value: "week", comment: ""))
+                                        .foregroundColor(Color(hex: "7B5FE4"))
+                                    + Text(NSLocalizedString("onboarding.trial.title.part2", value: " is free", comment: ""))
+                                        .foregroundColor(Color(hex: "1A1150"))
+                                }
+                                .font(.system(size: 32, weight: .bold))
+                                .lineSpacing(2)
+
+                                Text(NSLocalizedString("onboarding.trial.subtitle", value: "Try Premium for 7 days —\nno charge until next week,\ncancel anytime.", comment: ""))
+                                    .font(.system(size: 15))
+                                    .foregroundColor(Color(hex: "5A5080"))
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            .padding(.horizontal, 24)
+                            .padding(.top, 12)
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 240)
+                        .padding(.bottom, 8)
+
+                        // Feature list card
+                        VStack(spacing: 0) {
+                            trialFeatureRow(
+                                title: NSLocalizedString("onboarding.trial.feature1.title", value: "Solve any homework in seconds", comment: ""),
+                                subtitle: NSLocalizedString("onboarding.trial.feature1.sub", value: "Snap a photo — get instant step-by-step AI explanations.", comment: ""),
+                                icon: "camera.viewfinder",
+                                iconBg: Color(hex: "EEE8FF"),
+                                iconColor: Color(hex: "7B5FE4"),
+                                checkColor: Color(hex: "7B5FE4")
+                            )
+                            Divider().padding(.leading, 70)
+                            trialFeatureRow(
+                                title: NSLocalizedString("onboarding.trial.feature2.title", value: "Live voice tutor, anytime", comment: ""),
+                                subtitle: NSLocalizedString("onboarding.trial.feature2.sub", value: "Talk through any problem in real time — like a private teacher.", comment: ""),
+                                icon: "waveform.badge.mic",
+                                iconBg: Color(hex: "E0EFFF"),
+                                iconColor: Color(hex: "4A90D9"),
+                                checkColor: Color(hex: "4A90D9")
+                            )
+                            Divider().padding(.leading, 70)
+                            trialFeatureRow(
+                                title: NSLocalizedString("onboarding.trial.feature3.title", value: "Unlock real exam question bank", comment: ""),
+                                subtitle: NSLocalizedString("onboarding.trial.feature3.sub", value: "Practice with curated past-exam questions across all subjects.", comment: ""),
+                                icon: "books.vertical.fill",
+                                iconBg: Color(hex: "FFF3E0"),
+                                iconColor: Color(hex: "F59E0B"),
+                                checkColor: Color(hex: "F59E0B")
+                            )
+                            Divider().padding(.leading, 70)
+                            trialFeatureRow(
+                                title: NSLocalizedString("onboarding.trial.feature4.title", value: "Video learning analysis", comment: ""),
+                                subtitle: NSLocalizedString("onboarding.trial.feature4.sub", value: "Watch a video and get AI summaries, key points, and quizzes.", comment: ""),
+                                icon: "play.rectangle.fill",
+                                iconBg: Color(hex: "FFE8F0"),
+                                iconColor: Color(hex: "E05C8A"),
+                                checkColor: Color(hex: "E05C8A")
+                            )
+                            Divider().padding(.leading, 70)
+                            trialFeatureRow(
+                                title: NSLocalizedString("onboarding.trial.feature5.title", value: "Turn mistakes into mastery", comment: ""),
+                                subtitle: NSLocalizedString("onboarding.trial.feature5.sub", value: "AI tracks your weak spots and builds targeted practice for you.", comment: ""),
+                                icon: "brain.head.profile",
+                                iconBg: Color(hex: "E0F5EF"),
+                                iconColor: Color(hex: "34A87E"),
+                                checkColor: Color(hex: "34A87E")
+                            )
+                        }
+                        .background(Color.white)
+                        .cornerRadius(20)
+                        .shadow(color: Color(hex: "7B5FE4").opacity(0.08), radius: 12, x: 0, y: 4)
+                        .padding(.horizontal, 16)
+
+                        // Bottom trust badges
+                        HStack(spacing: 0) {
+                            trialTrustBadge(icon: "shield.fill",
+                                text: NSLocalizedString("onboarding.trial.trust1", value: "Cancel anytime", comment: ""))
+                            trialTrustBadge(icon: "lock.fill",
+                                text: NSLocalizedString("onboarding.trial.trust2", value: "No charges until next week", comment: ""))
+                            trialTrustBadge(icon: "face.smiling",
+                                text: NSLocalizedString("onboarding.trial.trust3", value: "Trusted by millions of students", comment: ""))
+                        }
+                        .padding(.top, 4)
+                        .padding(.bottom, 8)
+                    }
+                    .padding(.bottom, 16)
+                }
+
+                // CTA buttons area
+                VStack(spacing: 10) {
+                    Button {
+                        if authService.currentUser?.isAnonymous == true {
+                            showingGuestConversion = true
+                        } else {
+                            showingUpgradeFromOnboarding = true
+                        }
+                    } label: {
+                        HStack(spacing: 8) {
+                            Text(NSLocalizedString("onboarding.trial.cta", value: "Start 7-Day Free Trial", comment: ""))
+                                .font(.system(size: 17, weight: .semibold))
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 14, weight: .semibold))
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 54)
+                        .background(DesignTokens.Colors.Cute.buttonBlack)
+                        .clipShape(Capsule())
                     }
 
-                    VStack(spacing: 0) {
-                        trialFeatureRow(
-                            NSLocalizedString("onboarding.trial.feature1", value: "Unlimited homework scans", comment: ""),
-                            icon: "doc.text.fill", color: DesignTokens.Colors.Cute.peach)
-                        Divider().padding(.leading, 50)
-                        trialFeatureRow(
-                            NSLocalizedString("onboarding.trial.feature2", value: "500 AI chat messages / month", comment: ""),
-                            icon: "message.fill", color: DesignTokens.Colors.Cute.blue)
-                        Divider().padding(.leading, 50)
-                        trialFeatureRow(
-                            NSLocalizedString("onboarding.trial.feature3", value: "Live voice tutor sessions", comment: ""),
-                            icon: "waveform", color: DesignTokens.Colors.Cute.mint)
+                    Button {
+                        if authService.currentUser?.isAnonymous == true {
+                            showingGuestConversion = true
+                        } else {
+                            showingUpgradeFromOnboarding = true
+                        }
+                    } label: {
+                        HStack(spacing: 8) {
+                            Text(NSLocalizedString("onboarding.trial.comparePlans", value: "Compare plans", comment: ""))
+                                .font(.system(size: 17, weight: .semibold))
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 14, weight: .semibold))
+                        }
+                        .foregroundColor(Color(hex: "7B5FE4"))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 54)
+                        .background(Color.clear)
+                        .overlay(
+                            Capsule()
+                                .stroke(Color(hex: "7B5FE4").opacity(0.45), lineWidth: 1.5)
+                        )
+                        .clipShape(Capsule())
                     }
-                    .background(DesignTokens.Colors.Cute.backgroundSoftPink)
-                    .cornerRadius(16)
+
+                    Button(action: onComplete) {
+                        Text(NSLocalizedString("onboarding.trial.skip", value: "Maybe Later", comment: ""))
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundColor(Color(.systemGray2))
+                    }
+                    .padding(.bottom, 8)
                 }
                 .padding(.horizontal, 24)
-                .padding(.bottom, 24)
-            }
-
-            bottomBar {
-                Button {
-                    if authService.currentUser?.isAnonymous == true {
-                        // Guest account — must create a free account first
-                        showingGuestConversion = true
-                    } else {
-                        showingUpgradeFromOnboarding = true
-                    }
-                } label: {
-                    Text(NSLocalizedString("onboarding.trial.cta", value: "Start 7-Day Free Trial", comment: ""))
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity).frame(height: 52)
-                        .background(Color(hex: "D97706"))
-                        .cornerRadius(14)
-                }
-
-                Button(action: onComplete) {
-                    Text(NSLocalizedString("onboarding.trial.skip", value: "Maybe Later", comment: ""))
-                        .font(.subheadline)
-                        .foregroundColor(DesignTokens.Colors.Cute.blue)
-                }
+                .padding(.top, 12)
+                .background(Color.white.opacity(0.95))
             }
         }
     }
 
-    private func trialFeatureRow(_ text: String, icon: String, color: Color) -> some View {
+    private func trialFeatureRow(
+        title: String,
+        subtitle: String,
+        icon: String,
+        iconBg: Color,
+        iconColor: Color,
+        checkColor: Color
+    ) -> some View {
         HStack(spacing: 14) {
             ZStack {
-                Circle().fill(color.opacity(0.15)).frame(width: 36, height: 36)
-                Image(systemName: icon).font(.system(size: 16)).foregroundColor(color)
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(iconBg)
+                    .frame(width: 48, height: 48)
+                Image(systemName: icon)
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundColor(iconColor)
             }
-            Text(text)
-                .font(.subheadline)
-                .foregroundColor(DesignTokens.Colors.Cute.textPrimary)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(Color(hex: "1A1150"))
+                Text(subtitle)
+                    .font(.system(size: 13))
+                    .foregroundColor(Color(hex: "5A5080"))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             Spacer()
-            Image(systemName: "checkmark")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(color)
+
+            ZStack {
+                Circle()
+                    .fill(checkColor.opacity(0.12))
+                    .frame(width: 28, height: 28)
+                Image(systemName: "checkmark")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(checkColor)
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
+    }
+
+    private func trialTrustBadge(icon: String, text: String) -> some View {
+        VStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 20))
+                .foregroundColor(Color(hex: "7B5FE4").opacity(0.7))
+            Text(text)
+                .font(.system(size: 11))
+                .foregroundColor(Color(hex: "5A5080"))
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 4)
     }
 
     // MARK: - Save

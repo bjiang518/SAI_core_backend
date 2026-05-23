@@ -15,6 +15,7 @@ from config.taxonomy_router import (
     validate_taxonomy_path,
     normalize_subject
 )
+from config.tag_taxonomy import get_allowed_tags, get_all_valid_tags
 
 
 class ErrorAnalysisService:
@@ -40,10 +41,13 @@ class ErrorAnalysisService:
         subject = question_data.get('subject', 'Math')
         language = question_data.get('language', 'en')
         question_image_base64 = question_data.get('question_image_base64')
+        grade_level = question_data.get('grade_level')
+        question_type = question_data.get('question_type')
 
         system_prompt = self._get_system_prompt(subject, language)
         analysis_prompt = self._build_analysis_prompt(
-            question_text, student_answer, correct_answer, subject
+            question_text, student_answer, correct_answer, subject,
+            grade_level=grade_level, question_type=question_type
         )
 
         try:
@@ -119,6 +123,19 @@ class ErrorAnalysisService:
             # Clamp confidence
             result['confidence'] = max(0.0, min(1.0, result.get('confidence', 0.7)))
 
+            # Validate and sanitize tags against the allowed list
+            allowed = get_allowed_tags(subject, grade_level=grade_level, question_type=question_type)
+            error_type_final = result.get('error_type', 'execution_error')
+            allowed_micro = set(allowed["error_micro_tags"].get(error_type_final, []))
+            allowed_skill = set(allowed["skill_tags"])
+            allowed_style = set(allowed["style_tags"])
+            allowed_mc = set(allowed["mc_strategy_tags"])
+
+            result['skill_tags'] = [t for t in result.get('skill_tags', []) if t in allowed_skill]
+            result['style_tags'] = [t for t in result.get('style_tags', []) if t in allowed_style]
+            result['mc_strategy_tags'] = [t for t in result.get('mc_strategy_tags', []) if t in allowed_mc]
+            result['error_micro_tags'] = [t for t in result.get('error_micro_tags', []) if t in allowed_micro]
+
             return result
 
         except Exception as e:
@@ -142,7 +159,11 @@ class ErrorAnalysisService:
                 "evidence": None,
                 "learning_suggestion": None,
                 "confidence": 0.3,
-                "analysis_failed": True
+                "analysis_failed": True,
+                "skill_tags": [],
+                "style_tags": [],
+                "mc_strategy_tags": [],
+                "error_micro_tags": [],
             }
 
     def _get_system_prompt(self, subject, language: str = "en"):
@@ -224,7 +245,8 @@ LANGUAGE REQUIREMENT: Write the 'specific_issue', 'learning_suggestion', and 'ev
 
         return prompt
 
-    def _build_analysis_prompt(self, question, student_ans, correct_ans, subject):
+    def _build_analysis_prompt(self, question, student_ans, correct_ans, subject,
+                               grade_level=None, question_type=None):
         """Build the user prompt with structured taxonomy and clear instructions."""
         taxonomy_text = get_taxonomy_prompt_text(subject)
         normalized = normalize_subject(subject)
@@ -248,6 +270,17 @@ LANGUAGE REQUIREMENT: Write the 'specific_issue', 'learning_suggestion', and 'ev
             details = detailed_branches.get(base, [])
             details_str = ", ".join(details)
             taxonomy_table += f"{i}. **{base}**\n   Topics: {details_str}\n"
+
+        # Build tag section from taxonomy
+        allowed_tags = get_allowed_tags(subject, grade_level=grade_level, question_type=question_type)
+        mc_tags_text = (
+            ", ".join(allowed_tags["mc_strategy_tags"])
+            if allowed_tags["mc_strategy_tags"]
+            else "N/A — not a multiple-choice question, return []"
+        )
+        micro_exec = ", ".join(allowed_tags["error_micro_tags"].get("execution_error", [])) or "none"
+        micro_conc = ", ".join(allowed_tags["error_micro_tags"].get("conceptual_gap", [])) or "none"
+        micro_refn = ", ".join(allowed_tags["error_micro_tags"].get("needs_refinement", [])) or "none"
 
         return f"""## Student Error to Analyze
 
@@ -281,6 +314,26 @@ You MUST select exactly one base branch and one of its topics. Copy the name cha
 
 ---
 
+## Question Tags
+
+After classifying the error, select tags from the EXACT lists below only.
+
+**skill_tags** (1-3 tags — cognitive skill this question requires):
+Allowed: {", ".join(allowed_tags["skill_tags"]) or "none"}
+
+**style_tags** (1-2 tags — question flavor / context):
+Allowed: {", ".join(allowed_tags["style_tags"]) or "none"}
+
+**mc_strategy_tags** (0-2 tags — only if multiple choice, else []):
+Allowed: {mc_tags_text}
+
+**error_micro_tags** (1-3 tags — specific error pattern for your chosen error_type):
+  If execution_error: {micro_exec}
+  If conceptual_gap:  {micro_conc}
+  If needs_refinement:{micro_refn}
+
+---
+
 ## Required Output (JSON)
 
 {{
@@ -290,7 +343,11 @@ You MUST select exactly one base branch and one of its topics. Copy the name cha
     "specific_issue": "<1-2 sentences: what went wrong>",
     "evidence": "<quote from student's answer showing the error>",
     "learning_suggestion": "<1-2 sentences: actionable advice>",
-    "confidence": <0.0 to 1.0>
+    "confidence": <0.0 to 1.0>,
+    "skill_tags": ["<tag>"],
+    "style_tags": ["<tag>"],
+    "mc_strategy_tags": [],
+    "error_micro_tags": ["<tag>"]
 }}"""
 
     async def analyze_batch(self, questions_data):
@@ -326,7 +383,11 @@ You MUST select exactly one base branch and one of its topics. Copy the name cha
                     "evidence": None,
                     "learning_suggestion": None,
                     "confidence": 0.3,
-                    "analysis_failed": True
+                    "analysis_failed": True,
+                    "skill_tags": [],
+                    "style_tags": [],
+                    "mc_strategy_tags": [],
+                    "error_micro_tags": [],
                 })
             else:
                 processed_results.append(result)

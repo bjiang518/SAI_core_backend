@@ -199,7 +199,8 @@ class ShortTermStatusService: ObservableObject {
 
     // MARK: - Record Mistake
 
-    func recordMistake(key: String, errorType: String, questionId: String? = nil) {
+    func recordMistake(key: String, errorType: String, questionId: String? = nil,
+                       microTags: [String] = [], skillTags: [String] = [], styleTags: [String] = []) {
         let resolvedKey = resolveWeaknessKey(key)
         let increment = errorTypeWeight(errorType)
 
@@ -232,6 +233,11 @@ class ShortTermStatusService: ObservableObject {
                 }
             }
 
+            // Increment tag counts
+            for tag in microTags { weakness.errorMicroTagCounts[tag, default: 0] += 1 }
+            for tag in skillTags  { weakness.skillTagCounts[tag, default: 0] += 1 }
+            for tag in styleTags  { weakness.styleTagCounts[tag, default: 0] += 1 }
+
             weakness.lastAttempt = Date()
             weakness.totalAttempts += 1
             status.activeWeaknesses[resolvedKey] = weakness
@@ -248,6 +254,9 @@ class ShortTermStatusService: ObservableObject {
             if let qId = questionId {
                 newWeakness.recentQuestionIds = [qId]
             }
+            for tag in microTags { newWeakness.errorMicroTagCounts[tag, default: 0] += 1 }
+            for tag in skillTags  { newWeakness.skillTagCounts[tag, default: 0] += 1 }
+            for tag in styleTags  { newWeakness.styleTagCounts[tag, default: 0] += 1 }
             status.activeWeaknesses[resolvedKey] = newWeakness
             weaknessLogger.info("🆕 CREATE key='\(resolvedKey)' value=\(increment) errType=\(errorType)")
         }
@@ -278,7 +287,9 @@ class ShortTermStatusService: ObservableObject {
     // MARK: - Record Correct Attempt
 
     // ✅ HYBRID RETRY DETECTION: Explicit practice + auto-detection
-    func recordCorrectAttempt(key: String, retryType: RetryType = .firstTime, questionId: String? = nil) {
+    func recordCorrectAttempt(key: String, retryType: RetryType = .firstTime,
+                              questionId: String? = nil, skillTags: [String] = [],
+                              styleTags: [String] = []) {
         let resolvedKey = resolveWeaknessKey(key)
         guard var weakness = status.activeWeaknesses[resolvedKey] else {
             // ✅ NEW: If key doesn't exist, create mastery entry with negative value
@@ -338,15 +349,52 @@ class ShortTermStatusService: ObservableObject {
         weakness.correctAttempts += 1
         weakness.totalAttempts += 1
         weakness.lastAttempt = Date()
+        for tag in skillTags  { weakness.skillTagCounts[tag, default: 0] += 1 }
+        for tag in styleTags  { weakness.styleTagCounts[tag, default: 0] += 1 }
 
         status.activeWeaknesses[resolvedKey] = weakness
         enforceMemoryLimit()
         save()
     }
 
+    // MARK: - Tag Weakness Queries
+
+    /// Returns the most frequently occurring error micro tags across ALL active weaknesses.
+    func topErrorMicroTags(limit: Int = 3) -> [String] {
+        var totals: [String: Int] = [:]
+        for weakness in status.activeWeaknesses.values where weakness.value > 0 {
+            for (tag, count) in weakness.errorMicroTagCounts {
+                totals[tag, default: 0] += count
+            }
+        }
+        return totals.sorted { $0.value > $1.value }.prefix(limit).map(\.key)
+    }
+
+    /// Returns the most frequently occurring skill tags across ALL active weaknesses.
+    func topSkillWeaknesses(limit: Int = 2) -> [String] {
+        var totals: [String: Int] = [:]
+        for weakness in status.activeWeaknesses.values where weakness.value > 0 {
+            for (tag, count) in weakness.skillTagCounts {
+                totals[tag, default: 0] += count
+            }
+        }
+        return totals.sorted { $0.value > $1.value }.prefix(limit).map(\.key)
+    }
+
+    /// Returns the style tags most associated with wrong answers — used to de-boost
+    /// those question styles in Mode 4 bank retrieval.
+    func topStyleWeaknesses(limit: Int = 2) -> [String] {
+        var totals: [String: Int] = [:]
+        for weakness in status.activeWeaknesses.values where weakness.value > 0 {
+            for (tag, count) in weakness.styleTagCounts {
+                totals[tag, default: 0] += count
+            }
+        }
+        return totals.sorted { $0.value > $1.value }.prefix(limit).map(\.key)
+    }
+
     // ✅ NEW: Memory management
     // Prunes mastered entries first (value ≤ 0), then oldest weak entries only if still needed.
-    // Active weakness entries (value > 0) are NEVER pruned — they back the "Active" filter in
     // MistakeReviewView, so silently removing them causes questions to disappear.
     private func enforceMemoryLimit() {
         let maxKeysPerSubject = 60  // raised; mastered items are pruned first so this is rarely hit

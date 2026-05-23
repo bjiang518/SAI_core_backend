@@ -353,8 +353,19 @@ struct DailyChallengeView: View {
 
     private func tfOptions(_ q: QuestionGenerationService.GeneratedQuestion) -> some View {
         HStack(spacing: 12) {
-            optionCard(label: "✓", text: NSLocalizedString("common.true", value: "正确", comment: ""), q: q)
-            optionCard(label: "✗", text: NSLocalizedString("common.false", value: "错误", comment: ""), q: q)
+            optionCard(label: "✓", text: "True",
+                       displayText: NSLocalizedString("common.true", value: "正确", comment: ""), q: q)
+            optionCard(label: "✗", text: "False",
+                       displayText: NSLocalizedString("common.false", value: "错误", comment: ""), q: q)
+        }
+    }
+
+    private func localizedCorrectAnswer(_ q: QuestionGenerationService.GeneratedQuestion) -> String {
+        guard q.type == .trueFalse else { return q.correctAnswer }
+        switch q.correctAnswer.lowercased() {
+        case "true":  return NSLocalizedString("common.true",  value: "正确", comment: "")
+        case "false": return NSLocalizedString("common.false", value: "错误", comment: "")
+        default:      return q.correctAnswer
         }
     }
 
@@ -584,7 +595,7 @@ struct DailyChallengeView: View {
                             Text(NSLocalizedString("dailyChallenge.correctAnswerPrefix", value: "正确答案：", comment: ""))
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
-                            MarkdownLaTeXText(q.correctAnswer, fontSize: 14, isStreaming: false)
+                            MarkdownLaTeXText(localizedCorrectAnswer(q), fontSize: 14, isStreaming: false)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
@@ -1700,7 +1711,7 @@ struct DailyChallengeView: View {
 
     private func triggerCompletionAnimation() {        savedCorrectCount = correctCount  // persist for PointsShopView claim
         completionScale = 0.5
-        let stars = correctCount >= questions.count ? 3 : correctCount >= questions.count / 2 ? 2 : 1
+        let stars = correctCount >= questions.count ? 3 : correctCount * 2 >= questions.count ? 2 : 1
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             withAnimation(.spring(response: 0.5, dampingFraction: 0.6)) { completionScale = 1.0 }
         }

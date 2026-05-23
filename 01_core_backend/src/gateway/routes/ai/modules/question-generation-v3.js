@@ -17,6 +17,21 @@ const { db } = require('../../../../utils/railway-database');
 const { formatGradeLevel } = require('../utils/prompts');
 const questionBank = require('./question-bank-service');
 
+// Extracts the top-N most frequent tags from mistakes_data or short_term_context
+function extractTopTags(items, tagField, limit) {
+  const counts = {};
+  for (const item of (items || [])) {
+    const tags = item[tagField] || [];
+    for (const tag of tags) {
+      counts[tag] = (counts[tag] || 0) + 1;
+    }
+  }
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([tag]) => tag);
+}
+
 // Maps iOS difficulty int (2/3/4) to string expected by AI engine
 const DIFFICULTY_MAP = { 1: 'beginner', 2: 'beginner', 3: 'intermediate', 4: 'advanced', 5: 'advanced' };
 
@@ -273,6 +288,14 @@ module.exports = async function (fastify, opts) {
           conversation_data: { type: 'array' },
           question_data: { type: 'array' },
           bank_source: { type: 'string', enum: ['amc8', 'amc10', 'amc12', 'aime', 'sat', 'mmlu', 'arc', 'openbookqa', 'gsm8k', 'agieval', 'scienceqa', 'mathvista', 'kangaroo'] },
+          tag_weakness_context: {
+            type: 'object',
+            properties: {
+              error_micro_weakness: { type: 'array', items: { type: 'string' } },
+              skill_weakness: { type: 'array', items: { type: 'string' } },
+              style_weakness: { type: 'array', items: { type: 'string' } },
+            }
+          },
         }
       }
     },
@@ -370,16 +393,33 @@ module.exports = async function (fastify, opts) {
           .map(c => c.weakness_key || c.weaknessKey)
           .filter(Boolean);
 
+        // Prefer iOS-supplied tag context (derived from ShortTermStatusService on device);
+        // fall back to deriving from mistakes_data if not provided
+        let tagWeaknessContext = request.body.tag_weakness_context || null;
+        if (!tagWeaknessContext) {
+          const allItems = [...(mistakes_data || []), ...(short_term_context || [])];
+          const errorMicroWeakness = extractTopTags(allItems, 'error_micro_tags', 3);
+          const skillWeakness      = extractTopTags(allItems, 'skill_tags', 2);
+          if (errorMicroWeakness.length > 0 || skillWeakness.length > 0) {
+            tagWeaknessContext = { error_micro_weakness: errorMicroWeakness, skill_weakness: skillWeakness };
+          }
+        }
+
+        if (tagWeaknessContext) {
+          fastify.log.info({ msg: '🏷 Tag weakness context', tagWeaknessContext });
+        }
+
         const bankResult = await questionBank.retrieveQuestions(userId, {
-          topic:            topic || subject,
-          difficulty:       difficulty || 3,
-          questionType:     question_type,
+          topic:              topic || subject,
+          difficulty:         difficulty || 3,
+          questionType:       question_type,
           count,
-          mistakesData:     mistakes_data,
-          conversationData: conversation_data,
+          mistakesData:       mistakes_data,
+          conversationData:   conversation_data,
           weaknessKeys,
-          source:           bank_source || null,
-          gradeLevel:       gradeLabel,   // ← grade-aware difficulty capping
+          source:             bank_source || null,
+          gradeLevel:         gradeLabel,
+          tagWeaknessContext,
         });
 
         allQuestions = bankResult.questions;
@@ -388,6 +428,16 @@ module.exports = async function (fastify, opts) {
           acc[q.question_type] = (acc[q.question_type] || 0) + 1;
           return acc;
         }, {});
+
+        // Mark retrieved questions as seen immediately so they won't repeat
+        // in future sessions even if the user doesn't complete grading.
+        // Fire-and-forget — don't block the response.
+        const seenIds = allQuestions.map(q => q.bank_question_id).filter(Boolean);
+        if (seenIds.length > 0) {
+          questionBank.markSeen(userId, seenIds).catch(err =>
+            fastify.log.warn({ msg: '⚠️ markSeen failed (non-critical)', err: err.message })
+          );
+        }
 
         const totalLatency = Date.now() - startTime;
 
@@ -507,7 +557,8 @@ module.exports = async function (fastify, opts) {
 
     } catch (error) {
       const totalLatency = Date.now() - startTime;
-      fastify.log.error('❌ Question generation v2 failed:', error);
+      // Use { err } so pino serializes the full Error (message + stack)
+      fastify.log.error({ err: error }, '❌ Question generation v2 failed');
 
       await logMetricsV3({
         userId,

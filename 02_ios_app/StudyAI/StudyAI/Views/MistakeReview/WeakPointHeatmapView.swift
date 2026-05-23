@@ -77,20 +77,11 @@ struct WeakPointHeatmapView: View {
 
     // MARK: - Arc Canvas
 
-    private func arcColor(for branch: BranchAccuracyData, at index: Int) -> Color {
-        if branch.isMastered {
-            switch index {
-            case 0: return Color(hue: 0.15, saturation: 0.4, brightness: 0.95)  // light yellow
-            case 1: return .green
-            default: return Color(hue: 0.37, saturation: 0.8, brightness: 0.45) // dark green
-            }
-        } else {
-            switch index {
-            case 0: return .red
-            case 1: return .orange
-            default: return Color(hue: 0.14, saturation: 0.9, brightness: 0.95) // yellow
-            }
-        }
+    private func arcColor(for branch: BranchAccuracyData) -> Color {
+        if branch.accuracy >= 0.75 { return .green }
+        if branch.accuracy >= 0.55 { return Color(hue: 0.14, saturation: 0.9, brightness: 0.85) }
+        if branch.accuracy >= 0.35 { return .orange }
+        return .red
     }
 
     private func arcCanvas(width: CGFloat) -> some View {
@@ -109,26 +100,26 @@ struct WeakPointHeatmapView: View {
                 guard idx < radii.count else { break }
                 let branch = branches[idx]
                 let r = radii[idx]
-                let color = arcColor(for: branch, at: idx)
 
-                // ── Gray background track (full 180°) ────────────────────────
-                var bgPath = Path()
-                bgPath.addArc(center: center, radius: r,
-                              startAngle: .degrees(180), endAngle: .degrees(0),
-                              clockwise: false)
-                ctx.stroke(bgPath,
-                           with: .color(.gray.opacity(0.14)),
+                // ── Layer 1: Full arc in red = incorrect territory ──
+                var fullPath = Path()
+                fullPath.addArc(center: center, radius: r,
+                                startAngle: .degrees(180), endAngle: .degrees(0),
+                                clockwise: false)
+                ctx.stroke(fullPath,
+                           with: .color(Color.red.opacity(0.75)),
                            style: StrokeStyle(lineWidth: arcThickness, lineCap: .round))
 
-                // ── Colored fill (accuracy-based sweep) ─────────────────────
+                // ── Layer 2: Green from left = correct territory, proportional to accuracy ──
+                // Left side (180°→endDeg) = correct count ratio; right remainder = incorrect.
                 if branch.accuracy > 0.001 {
                     let endDeg = 180.0 - branch.accuracy * 180.0
-                    var fillPath = Path()
-                    fillPath.addArc(center: center, radius: r,
-                                    startAngle: .degrees(180), endAngle: .degrees(endDeg),
-                                    clockwise: false)
-                    ctx.stroke(fillPath,
-                               with: .color(color),
+                    var greenPath = Path()
+                    greenPath.addArc(center: center, radius: r,
+                                     startAngle: .degrees(180), endAngle: .degrees(endDeg),
+                                     clockwise: false)
+                    ctx.stroke(greenPath,
+                               with: .color(.green),
                                style: StrokeStyle(lineWidth: arcThickness, lineCap: .round))
                 }
             }
@@ -215,7 +206,7 @@ struct WeakPointHeatmapView: View {
                 }
 
                 ForEach(Array(displayBranches.enumerated()), id: \.element.id) { idx, branch in
-                    let color = arcColor(for: branch, at: idx)
+                    let color = arcColor(for: branch)
                     Button {
                         guard selectedBaseBranch == nil else { return }
                         withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {

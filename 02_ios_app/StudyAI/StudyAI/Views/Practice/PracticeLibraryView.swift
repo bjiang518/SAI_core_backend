@@ -51,6 +51,7 @@ struct PracticeLibraryView: View {
     @State private var selectedSession: PracticeSession? = nil
     @State private var dailyChallengeSession: PracticeSession? = nil
     @State private var showingNewPractice: Bool = false
+    @State private var showingPracticeInfo: Bool = false
 
     // Daily Challenge
     @ObservedObject private var dailyChallengeService = QuestionGenerationService.shared
@@ -79,7 +80,7 @@ struct PracticeLibraryView: View {
     @State private var showingDeleteConfirm: Bool = false
 
     // Info alert
-    @State private var showingPracticeInfo: Bool = false
+    @State private var showingUpgradeFromLibrary: Bool = false
 
     // Onboarding tutorial
     @AppStorage("practice_lib_onboarding_done") private var libOnboardingDone = false
@@ -267,6 +268,13 @@ struct PracticeLibraryView: View {
             Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) { }
         } message: {
             Text(NSLocalizedString("practiceLibrary.deleteMessage", comment: ""))
+        }
+        .fullScreenCover(isPresented: $showingUpgradeFromLibrary) {
+            UpgradeComparisonView(
+                blockedFeature: "questions",
+                reason: .limitReached,
+                onDismiss: { showingUpgradeFromLibrary = false }
+            )
         }
         .overlay {
             if let step = practiceOnboardingStep {
@@ -472,18 +480,23 @@ struct PracticeLibraryView: View {
             )
             await MainActor.run {
                 isDailyChallengeLoading = false
-                if case .success = result,
-                   let sid = dailyChallengeService.currentSessionId,
-                   let session = PracticeSessionManager.shared.getSession(id: sid) {
-                    PracticeSessionManager.shared.updateGenerationType(sessionId: sid, generationType: "daily_challenge")
-                    dailyChallengeSessionId = sid
-                    dailyChallengeSessionDate = todayString
-                    // Persist goal for re-entry
-                    if let data = try? JSONEncoder().encode(goal),
-                       let json = String(data: data, encoding: .utf8) {
-                        dailyChallengeGoalJson = json
+                switch result {
+                case .success:
+                    if let sid = dailyChallengeService.currentSessionId,
+                       let session = PracticeSessionManager.shared.getSession(id: sid) {
+                        PracticeSessionManager.shared.updateGenerationType(sessionId: sid, generationType: "daily_challenge")
+                        dailyChallengeSessionId = sid
+                        dailyChallengeSessionDate = todayString
+                        if let data = try? JSONEncoder().encode(goal),
+                           let json = String(data: data, encoding: .utf8) {
+                            dailyChallengeGoalJson = json
+                        }
+                        dailyChallengeSession = PracticeSessionManager.shared.getSession(id: sid) ?? session
                     }
-                    dailyChallengeSession = PracticeSessionManager.shared.getSession(id: sid) ?? session
+                case .failure(let err):
+                    if case .serverError(let code) = err, code == 429 || code == 403 {
+                        showingUpgradeFromLibrary = true
+                    }
                 }
             }
         }

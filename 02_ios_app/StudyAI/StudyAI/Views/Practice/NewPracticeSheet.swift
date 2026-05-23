@@ -197,6 +197,7 @@ struct NewPracticeSheet: View {
     @State private var showingError: Bool = false
     @State private var errorMessage: String = ""
     @State private var showingGuestConversion: Bool = false
+    @State private var showingUpgradeFromLimit: Bool = false
 
     // Difficulty bar animation
 
@@ -324,6 +325,13 @@ struct NewPracticeSheet: View {
             GuestConversionView(
                 blockedFeature: "questions",
                 onDismiss: { showingGuestConversion = false }
+            )
+        }
+        .fullScreenCover(isPresented: $showingUpgradeFromLimit) {
+            UpgradeComparisonView(
+                blockedFeature: "questions",
+                reason: .limitReached,
+                onDismiss: { showingUpgradeFromLimit = false }
             )
         }
         .onAppear {
@@ -859,8 +867,16 @@ struct NewPracticeSheet: View {
                 }
             } catch {
                 await MainActor.run {
-                    errorMessage = error.localizedDescription
-                    showingError = true
+                    if let qErr = error as? QuestionGenerationError,
+                       case .serverError(let code) = qErr,
+                       code == 429 || code == 403 {
+                        // Tier limit — show upgrade prompt inline (ContentView sheet
+                        // can't stack on top of this sheet due to iOS restrictions)
+                        showingUpgradeFromLimit = true
+                    } else {
+                        errorMessage = error.localizedDescription
+                        showingError = true
+                    }
                 }
             }
         }

@@ -1,16 +1,46 @@
 /**
  * Video Search Routes Module
  * Searches YouTube for relevant educational videos by keyword.
- * No channel whitelist — YouTube's own ranking surfaces the best results.
+ * Priority channels are surfaced first; SmartAI (caption) videos ranked higher within each tier.
  * Uses videos.list?part=status to verify embeddability before returning.
  *
  * Endpoint: POST /api/ai/search-video
  * Body: { query: string, max_results?: number }
- * Returns: { success: true, videos: [{ videoId, title, channelTitle, thumbnail, url }] }
+ * Returns: { success: true, videos: [{ videoId, title, channelTitle, thumbnail, url, hasTranscript }] }
  */
+
+// Preferred educational channels — ordered by priority (index 0 = highest).
+// Matched case-insensitively against channelTitle from YouTube search results.
+const PRIORITY_CHANNELS = [
+  'khan academy',
+  '3blue1brown',
+  'art of problem solving',
+  'aops',
+  'math antics',
+  'mathantics',
+  'nancypi',
+  'the organic chemistry tutor',
+  'organic chemistry tutor',
+  'professor dave explains',
+  'professor dave',
+  'crash course',
+  'crashcourse',
+  'kurzgesagt',
+];
+
+/**
+ * Returns the priority rank of a channel (lower = better).
+ * Returns PRIORITY_CHANNELS.length if not in the list (lowest priority).
+ */
+function channelPriority(channelTitle) {
+  const lower = (channelTitle || '').toLowerCase();
+  const idx = PRIORITY_CHANNELS.findIndex(p => lower.includes(p));
+  return idx === -1 ? PRIORITY_CHANNELS.length : idx;
+}
 
 const AuthHelper = require('../utils/auth-helper');
 const https = require('https');
+const { YoutubeTranscript } = require('youtube-transcript');
 
 const YOUTUBE_SEARCH_BASE = 'https://www.googleapis.com/youtube/v3/search';
 const YOUTUBE_VIDEOS_BASE = 'https://www.googleapis.com/youtube/v3/videos';
@@ -80,7 +110,7 @@ function youtubeSearch(query, apiKey, maxFetch = 15) {
 function checkEmbeddable(videoIds, apiKey) {
   return new Promise((resolve) => {
     if (videoIds.length === 0) {
-      resolve(new Set());
+      resolve({ embeddable: new Set(), captions: new Set() });
       return;
     }
     const params = new URLSearchParams({
@@ -97,6 +127,7 @@ function checkEmbeddable(videoIds, apiKey) {
         try {
           const data = JSON.parse(body);
           const embeddable = new Set();
+          const captions   = new Set();
           for (const item of (data.items || [])) {
             const status = item.status || {};
             const cd = item.contentDetails || {};
@@ -120,16 +151,18 @@ function checkEmbeddable(videoIds, apiKey) {
             if (regionRestriction.blocked && regionRestriction.blocked.length > 0) continue;
 
             embeddable.add(item.id);
+
+            // contentDetails.caption === 'true' means the video has captions (CC button).
+            // Using the official API avoids scraping and cloud-server IP blocks.
+            if (cd.caption === 'true') captions.add(item.id);
           }
-          resolve(embeddable);
+          resolve({ embeddable, captions });
         } catch (e) {
-          // On parse error, allow all (degrade gracefully, fallback still catches bad ones)
-          resolve(new Set(videoIds));
+          resolve({ embeddable: new Set(videoIds), captions: new Set() });
         }
       });
     }).on('error', () => {
-      // On network error, allow all (degrade gracefully)
-      resolve(new Set(videoIds));
+      resolve({ embeddable: new Set(videoIds), captions: new Set() });
     });
   });
 }
@@ -138,6 +171,33 @@ class VideoSearchRoutes {
   constructor(fastify) {
     this.fastify = fastify;
     this.authHelper = new AuthHelper(fastify);
+  }
+
+  /**
+   * Check if a YouTube video has a transcript available.
+   * Races against a 2 s timeout; result cached in Redis for 1 h.
+   */
+  async checkHasTranscript(videoId) {
+    const redis = this.fastify.redis || null;
+    const cacheKey = `yt_has_transcript:${videoId}`;
+
+    if (redis) {
+      try {
+        const cached = await redis.get(cacheKey);
+        if (cached !== null) return cached === '1';
+      } catch (_) { /* ignore */ }
+    }
+
+    const timeout = new Promise(resolve => setTimeout(() => resolve(false), 2000));
+    const check = YoutubeTranscript.fetchTranscript(videoId, { lang: 'en' })
+      .then(t => Array.isArray(t) && t.length > 0)
+      .catch(() => false);
+    const result = await Promise.race([check, timeout]);
+
+    if (redis) {
+      redis.setex(cacheKey, 3600, result ? '1' : '0').catch(() => {});
+    }
+    return result;
   }
 
   registerRoutes() {
@@ -150,7 +210,7 @@ class VideoSearchRoutes {
           required: ['query'],
           properties: {
             query: { type: 'string', description: 'YouTube search query' },
-            max_results: { type: 'integer', default: 3, minimum: 1, maximum: 5 },
+            max_results: { type: 'integer', default: 3, minimum: 1, maximum: 10 },
           }
         }
       }
@@ -193,17 +253,41 @@ class VideoSearchRoutes {
           url: `https://youtube.com/watch?v=${item.id.videoId}`,
         }));
 
-      // Definitive embeddability check via videos.list?part=status.
-      // search.list videoEmbeddable=true is advisory and often wrong.
+      // Definitive embeddability + caption check via videos.list (official API, no scraping).
       const allVideoIds = candidates.map(v => v.videoId);
-      const embeddableIds = await checkEmbeddable(allVideoIds, apiKey);
-      const videos = candidates
+      const { embeddable: embeddableIds, captions } = await checkEmbeddable(allVideoIds, apiKey);
+
+      // Annotate all embeddable candidates with hasTranscript from contentDetails.caption
+      const embeddable = candidates
         .filter(v => embeddableIds.has(v.videoId))
-        .slice(0, max_results);
+        .map(v => ({ ...v, hasTranscript: captions.has(v.videoId) }));
 
-      this.fastify.log.info(`🎬 ${candidates.length} candidates, ${embeddableIds.size} embeddable, returning ${videos.length}`);
+      // Sort by tier (lower = better), then channel priority, then original YouTube order.
+      // Tier 0: priority channel + SmartAI  ← best
+      // Tier 1: priority channel only
+      // Tier 2: SmartAI only
+      // Tier 3: everything else
+      const scored = embeddable.map((v, i) => {
+        const isPriority = channelPriority(v.channelTitle) < PRIORITY_CHANNELS.length;
+        const tier = (isPriority && v.hasTranscript) ? 0
+                   : isPriority                      ? 1
+                   : v.hasTranscript                 ? 2
+                   :                                   3;
+        return { v, tier, channelRank: channelPriority(v.channelTitle), i };
+      });
+      scored.sort((a, b) =>
+        a.tier !== b.tier          ? a.tier - b.tier :
+        a.channelRank !== b.channelRank ? a.channelRank - b.channelRank :
+        a.i - b.i
+      );
+      const selected = scored.slice(0, max_results).map(s => s.v);
 
-      return { success: true, videos };
+      this.fastify.log.info(
+        `🎬 ${candidates.length} candidates, ${embeddable.length} embeddable, ` +
+        `${embeddable.filter(v => v.hasTranscript).length} SmartAI, returning ${selected.length}`
+      );
+
+      return { success: true, videos: selected };
 
     } catch (err) {
       this.fastify.log.error(`❌ Video search error: ${err.message}`);

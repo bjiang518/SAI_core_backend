@@ -104,6 +104,8 @@ class SessionChatViewModel: ObservableObject {
     // Video search state
     @Published var isSearchingVideo = false
     @Published var videoSearchResults: [String: [VideoSearchResult]] = [:]  // videoKey -> results
+    // Set to true when user enters Video Study mode during this session — used for archive tagging
+    @Published var videoStudyUsed = false
 
     // UI refresh
     @Published var refreshTrigger = UUID()
@@ -522,7 +524,7 @@ class SessionChatViewModel: ObservableObject {
         let result = await networkService.archiveSession(
             sessionId: sessionId,
             title: archiveTitle.isEmpty ? nil : archiveTitle,
-            topic: archiveTopic.isEmpty ? nil : archiveTopic,
+            topic: videoStudyUsed && archiveTopic.isEmpty ? "视频学习" : (archiveTopic.isEmpty ? nil : archiveTopic),
             subject: selectedSubject,
             notes: archiveNotes.isEmpty ? nil : archiveNotes,
             diagrams: generatedDiagrams,

@@ -23,7 +23,7 @@ const pool = new Pool({
   min: 2,   // Keep 2 warm connections (reduced from 5 to save resources)
 
   // OPTIMIZED: Timeout configuration
-  idleTimeoutMillis: 30000, // Close idle connections after 30s (was 60s)
+  idleTimeoutMillis: 10000, // Close idle connections after 10s — Railway kills them at ~15-30s, so close ours first
   connectionTimeoutMillis: 2000, // Fail fast if no connection (was 5s)
 
   // Keep TCP connections alive so Railway's server-side idle timeout
@@ -91,8 +91,20 @@ pool.on('acquire', (client) => {
 });
 
 pool.on('error', (err, client) => {
+  // ECONNRESET / ETIMEDOUT on idle connections is expected on Railway —
+  // the PG server drops idle TCP connections and the pool removes them automatically.
+  // Log at warn (not error) so it doesn't trigger false alerts.
+  const isExpectedIdleReset =
+    err.code === 'ECONNRESET' ||
+    err.code === 'ETIMEDOUT' ||
+    (err.message && err.message.includes('Connection terminated'));
+
+  if (isExpectedIdleReset) {
+    logger.warn('⚠️ PostgreSQL idle connection reset (non-fatal, pool will reconnect): %s', err.code);
+    return;
+  }
+
   logger.error('❌ Unexpected PostgreSQL error: code=%s msg=%s', err.code, err.message, err.stack);
-  // Log connection timeouts separately
   if (err.message && err.message.includes('timeout')) {
     queryMetrics.connectionTimeouts++;
     logger.error('⚠️ Connection timeout count:', queryMetrics.connectionTimeouts);

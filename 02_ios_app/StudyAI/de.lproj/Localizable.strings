@@ -3253,3 +3253,68 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "todo.knowledgeTree.subtitle" = "Wissenskarte «%@» erkunden";
 "todo.knowledgeTree.defaultSubject" = "Alle Fächer";
 "practice.bank.retrieve" = "Echte Fragen abrufen";
+
+// MARK: - Learning View
+"learning.header.title" = "Video-Lernen";
+"learning.video.change" = "Wechseln";
+"learning.video.pick" = "Wähle ein Video zum Lernen";
+"learning.video.searching" = "Videos werden gesucht...";
+"learning.video.empty" = "Keine Videos gefunden";
+"learning.chat.hintNoVideo" = "Wähle ein Video und pausiere, um Fragen zu stellen";
+"learning.chat.hint" = "Pausiere jederzeit, um die KI zu fragen";
+"learning.chat.placeholder" = "Eine Frage stellen...";
+
+// MARK: - Learning feature additions
+"mistakeTree.detail.startLearning" = "Lernen starten";
+"learning.smartai.hint" = "SmartAI — KI versteht das Video";
+"learning.smartai.badge" = "SmartAI";
+"chat.video.startLearning" = "Video lernen";
+"learning.header.back" = "Chat";
+"learning.header.close" = "Schließen";
+"learning.suggestion.diagram" = "Diagramm";
+
+// Trial page (redesigned)
+"onboarding.trial.title.part1" = "Deine erste ";
+"onboarding.trial.title.highlight" = "Woche";
+"onboarding.trial.title.part2" = " ist kostenlos";
+"onboarding.trial.feature1.title" = "Jede Hausaufgabe in Sekunden lösen";
+"onboarding.trial.feature1.sub" = "Foto aufnehmen — sofortige KI-Schritt-für-Schritt-Erklärungen erhalten.";
+"onboarding.trial.feature2.title" = "Live-Sprach-Tutor, jederzeit";
+"onboarding.trial.feature2.sub" = "Besprich jedes Problem in Echtzeit — wie ein Privatlehrer.";
+"onboarding.trial.feature3.title" = "Echte Prüfungsfragenbank freischalten";
+"onboarding.trial.feature3.sub" = "Übe mit kuratierten Prüfungsfragen aus allen Fächern.";
+"onboarding.trial.feature4.title" = "Video-Lernanalyse";
+"onboarding.trial.feature4.sub" = "Video ansehen und KI-Zusammenfassungen, Kernpunkte und Quiz erhalten.";
+"onboarding.trial.feature5.title" = "Fehler in Meisterschaft verwandeln";
+"onboarding.trial.feature5.sub" = "KI verfolgt deine Schwächen und erstellt gezieltes Übungsmaterial.";
+"onboarding.trial.trust1" = "Jederzeit kündbar";
+"onboarding.trial.trust2" = "Keine Kosten bis nächste Woche";
+"onboarding.trial.trust3" = "Millionen Schüler vertrauen uns";
+"onboarding.trial.comparePlans" = "Pläne vergleichen";
+
+/* Knowledge Tree — new action buttons */
+"knowledgeTree.learnNewConcept" = "Neues Konzept lernen";
+"knowledgeTree.practiceConcept" = "Konzept üben";
+"knowledgeTree.recentSummaries" = "Aktuelle Lernzusammenfassungen";
+
+/* Leaf Detail Sheet */
+"mistakeTree.detail.videoSummaries" = "Video-Zusammenfassungen";
+
+/* Video Summary */
+"video.summary.title" = "Video-Zusammenfassung";
+"video.summary.archived" = "In der Bibliothek gespeichert";
+"video.summary.unavailable" = "Zusammenfassung nicht verfügbar – keine zugänglichen Untertitel für dieses Video";
+
+/* Recent Summaries */
+"summaries.empty" = "Noch keine gespeicherten Zusammenfassungen";
+
+/* PDF export */
+"pdf.generating" = "PDF wird erstellt…";
+"pdf.failed" = "PDF konnte nicht erstellt werden";
+"pdf.saved" = "In Dateien gespeichert";
+
+/* Learning View — video action bar */
+"learning.video.practice" = "Üben";
+"learning.video.summary" = "Zusammenfassung";
+"learning.video.summary.generating" = "Wird erstellt…";
+"learning.video.summary.loading" = "Lädt…";

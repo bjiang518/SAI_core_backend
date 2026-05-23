@@ -3963,9 +3963,6 @@ class NetworkService: ObservableObject {
     /// Search YouTube for educational videos matching a query.
     /// Returns up to `maxResults` results, prioritising whitelisted edu channels.
     func searchVideo(query: String, maxResults: Int = 3) async -> VideoSearchResponse {
-        guard AuthenticationService.shared.getAuthToken() != nil else {
-            return VideoSearchResponse(success: false, videos: nil, error: "Authentication required")
-        }
 
         guard let url = URL(string: "\(baseURL)/api/ai/search-video") else {
             return VideoSearchResponse(success: false, videos: nil, error: "Invalid URL")
@@ -3990,6 +3987,61 @@ class NetworkService: ObservableObject {
         } catch {
             logger.error("Video search error: \(error.localizedDescription)")
             return VideoSearchResponse(success: false, videos: nil, error: error.localizedDescription)
+        }
+    }
+
+    // MARK: - YouTube Transcript (Learning feature)
+
+    /// Fetch timed transcript segments for a YouTube video.
+    /// Returns empty array if the video has no transcript (caller should check `VideoSearchResult.hasTranscript`).
+    func fetchYouTubeTranscript(videoId: String) async -> [TranscriptSegment] {
+        guard let url = URL(string: "\(baseURL)/api/ai/youtube/transcript?videoId=\(videoId)") else {
+            return []
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 10.0
+        addAuthHeader(to: &request)
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return [] }
+            let decoded = try JSONDecoder().decode(TranscriptResponse.self, from: data)
+            return decoded.segments ?? []
+        } catch {
+            logger.error("Transcript fetch error: \(error.localizedDescription)")
+            return []
+        }
+    }
+
+    func generateVideoSummary(videoId: String, transcriptText: String, title: String,
+                               channelTitle: String, subject: String) async -> VideoSummaryResponse {
+        guard let url = URL(string: "\(baseURL)/api/ai/generate-video-summary") else {
+            return VideoSummaryResponse(success: false, html: nil, title: nil, cached: nil, error: "Invalid URL")
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 60.0
+        addAuthHeader(to: &request)
+
+        let body: [String: Any] = [
+            "videoId": videoId,
+            "transcript_text": transcriptText,
+            "title": title,
+            "channel_title": channelTitle,
+            "subject": subject
+        ]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                return VideoSummaryResponse(success: false, html: nil, title: nil, cached: nil, error: "Server error")
+            }
+            return try JSONDecoder().decode(VideoSummaryResponse.self, from: data)
+        } catch {
+            logger.error("Video summary error: \(error.localizedDescription)")
+            return VideoSummaryResponse(success: false, html: nil, title: nil, cached: nil, error: error.localizedDescription)
         }
     }
 
@@ -6661,6 +6713,7 @@ struct VideoSearchResult: Codable, Identifiable {
     let thumbnail: String?
     let url: String
     let isEduChannel: Bool
+    let hasTranscript: Bool?
 
     var id: String { videoId }
 
@@ -6673,10 +6726,11 @@ struct VideoSearchResult: Codable, Identifiable {
         thumbnail = try c.decodeIfPresent(String.self, forKey: .thumbnail)
         url = try c.decode(String.self, forKey: .url)
         isEduChannel = try c.decodeIfPresent(Bool.self, forKey: .isEduChannel) ?? false
+        hasTranscript = try c.decodeIfPresent(Bool.self, forKey: .hasTranscript)
     }
 
     // Memberwise init for constructing from archived dict
-    init(videoId: String, title: String, channelTitle: String, description: String?, thumbnail: String?, url: String, isEduChannel: Bool) {
+    init(videoId: String, title: String, channelTitle: String, description: String?, thumbnail: String?, url: String, isEduChannel: Bool, hasTranscript: Bool? = nil) {
         self.videoId = videoId
         self.title = title
         self.channelTitle = channelTitle
@@ -6684,16 +6738,39 @@ struct VideoSearchResult: Codable, Identifiable {
         self.thumbnail = thumbnail
         self.url = url
         self.isEduChannel = isEduChannel
+        self.hasTranscript = hasTranscript
     }
 
     enum CodingKeys: String, CodingKey {
-        case videoId, title, channelTitle, description, thumbnail, url, isEduChannel
+        case videoId, title, channelTitle, description, thumbnail, url, isEduChannel, hasTranscript
     }
 }
 
 struct VideoSearchResponse: Codable {
     let success: Bool
     let videos: [VideoSearchResult]?
+    let error: String?
+}
+
+// MARK: - YouTube Transcript Models
+
+struct TranscriptSegment: Codable {
+    let text: String
+    let offset: Double   // milliseconds from video start
+    let duration: Double // milliseconds
+}
+
+struct TranscriptResponse: Codable {
+    let success: Bool
+    let segments: [TranscriptSegment]?
+    let error: String?
+}
+
+struct VideoSummaryResponse: Codable {
+    let success: Bool
+    let html: String?
+    let title: String?
+    let cached: Bool?
     let error: String?
 }
 

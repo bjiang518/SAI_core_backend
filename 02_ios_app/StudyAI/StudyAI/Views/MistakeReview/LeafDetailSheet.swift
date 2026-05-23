@@ -6,8 +6,11 @@ struct LeafDetailSheet: View {
     var onLightUp: (() -> Void)? = nil
 
     @StateObject private var themeManager = ThemeManager.shared
+    @ObservedObject private var summaryStore = VideoSummaryStore.shared
     @Environment(\.dismiss) private var dismiss
     @State private var showPractice = false
+    @State private var showLearning = false
+    @State private var selectedSummary: VideoSummary? = nil
 
     var body: some View {
         VStack(spacing: 0) {
@@ -28,6 +31,10 @@ struct LeafDetailSheet: View {
                         }
                     } else {
                         untrackedNote
+                    }
+                    let topicSummaries = summaryStore.summaries(for: leaf.subject, topicName: leaf.topicName)
+                    if !topicSummaries.isEmpty {
+                        videoSummariesSection(topicSummaries)
                     }
                 }
                 .padding(.horizontal, 20)
@@ -54,6 +61,29 @@ struct LeafDetailSheet: View {
                 timeRange: .allTime,
                 activeFilter: .all
             )
+        }
+        .sheet(item: $selectedSummary) { summary in
+            VideoSummarySheet(
+                html: summary.html,
+                videoId: summary.videoId,
+                videoTitle: summary.videoTitle,
+                channelTitle: summary.channelTitle,
+                subject: summary.subject,
+                topicName: summary.topicName
+            )
+        }
+        .fullScreenCover(isPresented: $showLearning) {
+            NavigationStack {
+                LearningView(
+                    topicName: leaf.topicName,
+                    branchName: leaf.branchName,
+                    subject: leaf.subject,
+                    // Pass the weakness key only for unlit leaves so we can celebrate + light up after practice
+                    unlitLeafKey: (leaf.weaknessValue == nil && leaf.questionCount == 0)
+                        ? "\(leaf.subject)/\(leaf.branchName)/\(leaf.topicName)"
+                        : nil
+                )
+            }
         }
     }
 
@@ -225,52 +255,92 @@ struct LeafDetailSheet: View {
         .padding(.vertical, 24)
     }
 
-    // MARK: - Bottom action button (tracked vs untracked)
+    // MARK: - Bottom action buttons (always Learn + Practice)
 
     @ViewBuilder
     private var actionButton: some View {
-        if leaf.weaknessValue != nil || leaf.questionCount > 0 {
-            // Tracked topic → go to practice list
-            Button(action: { showPractice = true }) {
-                Text(NSLocalizedString("mistakeTree.detail.practice", comment: ""))
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 15)
-                    .background(
+        HStack(spacing: 12) {
+            leafActionButton(
+                icon: "play.circle.fill",
+                title: NSLocalizedString("mistakeTree.detail.startLearning", value: "Start Learning", comment: ""),
+                action: { showLearning = true }
+            )
+
+            leafActionButton(
+                icon: "pencil.and.list.clipboard",
+                title: NSLocalizedString("mistakeTree.detail.practice", comment: ""),
+                action: {
+                    if leaf.weaknessValue != nil || leaf.questionCount > 0 {
+                        showPractice = true
+                    } else {
+                        dismiss()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { onLightUp?() }
+                    }
+                }
+            )
+        }
+    }
+
+    private func leafActionButton(icon: String, title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 15))
+                Text(title)
+                    .font(.system(size: 15, weight: .semibold))
+            }
+            .foregroundColor(themeManager.accentColor)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 15)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(themeManager.accentColor.opacity(0.08))
+                    .overlay(
                         RoundedRectangle(cornerRadius: 14)
-                            .fill(themeManager.accentColor)
+                            .strokeBorder(themeManager.accentColor.opacity(0.5), lineWidth: 1.5)
                     )
-            }
-            .buttonStyle(.plain)
-        } else {
-            // Untracked topic → light it up
-            Button {
-                dismiss()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                    onLightUp?()
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Video Summaries
+
+    private func videoSummariesSection(_ items: [VideoSummary]) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(NSLocalizedString("mistakeTree.detail.videoSummaries",
+                                   value: "Video Summaries",
+                                   comment: ""))
+                .font(.subheadline.bold())
+                .foregroundColor(themeManager.primaryText)
+
+            ForEach(items) { summary in
+                Button { selectedSummary = summary } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "doc.text.image.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(DesignTokens.Colors.Cute.mint)
+                            .frame(width: 28)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(summary.videoTitle)
+                                .font(.caption.bold())
+                                .foregroundColor(themeManager.primaryText)
+                                .lineLimit(1)
+                            Text(summary.channelTitle)
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(12)
+                    .background(Color.secondary.opacity(0.06))
+                    .cornerRadius(12)
                 }
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "leaf.fill")
-                        .font(.headline)
-                    Text(NSLocalizedString("mistakeTree.detail.lightUp",
-                                          value: "点亮该知识点",
-                                          comment: ""))
-                        .font(.headline)
-                }
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 15)
-                .background(
-                    LinearGradient(
-                        colors: [DesignTokens.Colors.Cute.mint, DesignTokens.Colors.Cute.blue],
-                        startPoint: .leading, endPoint: .trailing
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-                )
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
         }
     }
 

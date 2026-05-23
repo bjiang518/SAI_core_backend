@@ -838,7 +838,24 @@ extension HomeView {
             color: colorScheme == .dark ? DesignTokens.Colors.rainbowIndigo.dark : DesignTokens.Colors.rainbowIndigo.light,
             lottieAnimation: "mistakeNotebook",
             lottieScale: 0.16,
-            action: { showingMistakeReview = true }
+            action: {
+                mistakeReviewShowKnowledgeTree = false
+                showingMistakeReview = true
+            }
+        )
+
+        // Card 6b: Knowledge & Learning (knowledge tree)
+        HorizontalActionButton(
+            icon: "leaf.fill",
+            title: NSLocalizedString("home.knowledgeLearning", value: "Knowledge & Learning", comment: ""),
+            subtitle: NSLocalizedString("home.knowledgeLearningDescription", value: "Explore your knowledge tree", comment: ""),
+            color: DesignTokens.Colors.Cute.mint,
+            lottieAnimation: "Tree",
+            lottieScale: 0.06,
+            action: {
+                mistakeReviewShowKnowledgeTree = true
+                showingMistakeReview = true
+            }
         )
 
         // Card 7: Pomodoro Focus

@@ -20,6 +20,8 @@ class ErrorAnalysisRequest(BaseModel):
     questionId: Optional[str] = Field(None, alias="question_id")
     questionImageBase64: Optional[str] = Field(None, alias="question_image_base64")
     language: Optional[str] = "en"
+    gradeLevel: Optional[str] = Field(None, alias="grade_level")
+    questionType: Optional[str] = Field(None, alias="question_type")
 
     class Config:
         populate_by_name = True  # Allow both camelCase and snake_case
@@ -40,6 +42,12 @@ class ErrorAnalysisResponse(BaseModel):
     learning_suggestion: Optional[str]
     analysis_failed: bool = False
 
+    # Question tags
+    skill_tags: List[str] = []
+    style_tags: List[str] = []
+    mc_strategy_tags: List[str] = []
+    error_micro_tags: List[str] = []
+
 @router.post("/analyze", response_model=ErrorAnalysisResponse)
 async def analyze_single_error(request: ErrorAnalysisRequest):
     """
@@ -53,7 +61,9 @@ async def analyze_single_error(request: ErrorAnalysisRequest):
         "subject": request.subject,
         "question_id": request.questionId,
         "question_image_base64": request.questionImageBase64,
-        "language": request.language or "en"
+        "language": request.language or "en",
+        "grade_level": request.gradeLevel,
+        "question_type": request.questionType,
     }
     result = await error_service.analyze_error(question_data)
     return result
@@ -72,7 +82,9 @@ async def analyze_batch_errors(request: BatchErrorAnalysisRequest):
             "subject": q.subject,
             "question_id": q.questionId,
             "question_image_base64": q.questionImageBase64,
-            "language": q.language or "en"
+            "language": q.language or "en",
+            "grade_level": q.gradeLevel,
+            "question_type": q.questionType,
         }
         for q in request.questions
     ]

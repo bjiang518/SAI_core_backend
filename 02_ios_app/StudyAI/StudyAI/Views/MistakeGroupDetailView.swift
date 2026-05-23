@@ -271,19 +271,19 @@ struct MistakeGroupDetailView_Previews: PreviewProvider {
                 group: MistakeGroup(
                     errorType: "procedural_error",
                     mistakes: [
-                        LocalMistake(
-                            id: "1",
-                            questionText: "Solve for x: 2x + 5 = 13",
-                            studentAnswer: "x = 9",
-                            correctAnswer: "x = 4",
-                            subject: "Algebra",
-                            errorType: "procedural_error",
-                            errorEvidence: "Student added 5 instead of subtracting",
-                            errorConfidence: 0.9,
-                            learningSuggestion: "Remember to do the inverse operation",
-                            errorAnalysisStatus: "completed",
-                            archivedAt: "2025-01-25T12:00:00Z"
-                        )
+                        LocalMistake(from: [
+                            "id": "1",
+                            "questionText": "Solve for x: 2x + 5 = 13",
+                            "studentAnswer": "x = 9",
+                            "answerText": "x = 4",
+                            "subject": "Algebra",
+                            "errorType": "procedural_error",
+                            "errorEvidence": "Student added 5 instead of subtracting",
+                            "errorConfidence": 0.9,
+                            "learningSuggestion": "Remember to do the inverse operation",
+                            "errorAnalysisStatus": "completed",
+                            "archivedAt": "2025-01-25T12:00:00Z"
+                        ])
                     ],
                     count: 1
                 )

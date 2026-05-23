@@ -122,7 +122,10 @@ class ErrorAnalysisQueueService: ObservableObject {
                         ShortTermStatusService.shared.recordMistake(
                             key: weaknessKey,
                             errorType: errorType,
-                            questionId: questionId
+                            questionId: questionId,
+                            microTags: q["errorMicroTags"] as? [String] ?? [],
+                            skillTags: q["skillTags"]      as? [String] ?? [],
+                            styleTags: q["styleTags"]      as? [String] ?? []
                         )
                         let canonicalKey = ShortTermStatusService.shared.resolveWeaknessKey(weaknessKey)
                         fields["weaknessKey"] = canonicalKey
@@ -242,12 +245,16 @@ class ErrorAnalysisQueueService: ObservableObject {
                 for q in preKeyedCorrect {
                     guard let weaknessKey = q["weaknessKey"] as? String, !weaknessKey.isEmpty else { continue }
                     let questionId = q["id"] as? String
+                    let skillTags  = q["skillTags"]  as? [String] ?? []
+                    let styleTags  = q["styleTags"]  as? [String] ?? []
                     debugPrint("✅ [WeaknessTracking] Fast-path correct: key='\(weaknessKey)' qid=\(questionId?.prefix(8) ?? "?")")
                     await MainActor.run {
                         ShortTermStatusService.shared.recordCorrectAttempt(
                             key: weaknessKey,
                             retryType: .explicitPractice,
-                            questionId: questionId
+                            questionId: questionId,
+                            skillTags: skillTags,
+                            styleTags: styleTags
                         )
                     }
                     // Mark as analyzed so this question isn't reprocessed
@@ -285,7 +292,8 @@ class ErrorAnalysisQueueService: ObservableObject {
 
             return ConceptExtractionRequest(
                 questionText: questionText,
-                subject: subject
+                subject: subject,
+                questionType: question["questionType"] as? String
             )
         }
 
@@ -333,8 +341,19 @@ class ErrorAnalysisQueueService: ObservableObject {
                     ShortTermStatusService.shared.recordCorrectAttempt(
                         key: weaknessKey,
                         retryType: .firstTime,
-                        questionId: questionId
+                        questionId: questionId,
+                        skillTags: concept.skillTags ?? [],
+                        styleTags: concept.styleTags ?? []
                     )
+
+                    // Store tags for the correct question
+                    if let qId = questionId {
+                        localStorage.updateQuestion(id: qId, fields: [
+                            "skillTags": concept.skillTags ?? [],
+                            "styleTags": concept.styleTags ?? [],
+                            "mcStrategyTags": concept.mcStrategyTags ?? [],
+                        ])
+                    }
                 } else {
                     debugPrint("⚠️ [ConceptExtraction] Extraction failed for question \(index)")
                 }
@@ -539,10 +558,14 @@ class ErrorAnalysisQueueService: ObservableObject {
         let hasPrefilledKeys = !existingBase.isEmpty && !existingDetailed.isEmpty && !existingErrType.isEmpty
 
         if hasPrefilledKeys {
-            // Preserve taxonomy; update status + narrative fields
+            // Preserve taxonomy; update status + narrative fields + tags
             var updatedFields: [String: Any] = [
                 "errorAnalysisStatus": ErrorAnalysisStatus.completed.rawValue,
-                "errorAnalyzedAt": ISO8601DateFormatter().string(from: Date())
+                "errorAnalyzedAt": ISO8601DateFormatter().string(from: Date()),
+                "skillTags":      analysis.skill_tags       ?? [],
+                "styleTags":      analysis.style_tags       ?? [],
+                "mcStrategyTags": analysis.mc_strategy_tags ?? [],
+                "errorMicroTags": analysis.error_micro_tags ?? [],
             ]
             if let suggestion = analysis.learning_suggestion, !suggestion.isEmpty {
                 updatedFields["learningSuggestion"] = suggestion
@@ -552,11 +575,17 @@ class ErrorAnalysisQueueService: ObservableObject {
             }
             // Normalise the stored weaknessKey to the canonical format so the active filter finds it
             if !existingWK.isEmpty {
+                let microTags = analysis.error_micro_tags ?? []
+                let skillTags = analysis.skill_tags ?? []
+                let styleTags = analysis.style_tags ?? []
                 Task { @MainActor in
                     ShortTermStatusService.shared.recordMistake(
                         key: existingWK,
                         errorType: existingErrType,
-                        questionId: questionId
+                        questionId: questionId,
+                        microTags: microTags,
+                        skillTags: skillTags,
+                        styleTags: styleTags
                     )
                     let canonical = ShortTermStatusService.shared.resolveWeaknessKey(existingWK)
                     if canonical != existingWK {
@@ -565,7 +594,7 @@ class ErrorAnalysisQueueService: ObservableObject {
                 }
             }
             localStorage.updateQuestion(id: questionId, fields: updatedFields)
-            debugPrint("✅ [ErrorAnalysis] Preserved pre-filled keys for Q \(questionId.prefix(8))… — only updated narratives")
+            debugPrint("✅ [ErrorAnalysis] Preserved pre-filled keys for Q \(questionId.prefix(8))… — updated narratives + tags(\(updatedFields["errorMicroTags"] as? [String] ?? []))")
             return
         }
 
@@ -629,7 +658,11 @@ class ErrorAnalysisQueueService: ObservableObject {
             "learningSuggestion": analysis.learning_suggestion ?? "",
             "errorConfidence": analysis.confidence as Any,
             "errorAnalysisStatus": (analysis.analysis_failed ? ErrorAnalysisStatus.failed : .completed).rawValue,
-            "errorAnalyzedAt": ISO8601DateFormatter().string(from: Date())
+            "errorAnalyzedAt": ISO8601DateFormatter().string(from: Date()),
+            "skillTags": analysis.skill_tags ?? [],
+            "styleTags": analysis.style_tags ?? [],
+            "mcStrategyTags": analysis.mc_strategy_tags ?? [],
+            "errorMicroTags": analysis.error_micro_tags ?? [],
         ]
         if let wk = allQuestions[index]["weaknessKey"] as? String {
             updatedFields["weaknessKey"] = wk
@@ -650,7 +683,10 @@ class ErrorAnalysisQueueService: ObservableObject {
                 ShortTermStatusService.shared.recordMistake(
                     key: weaknessKey,
                     errorType: errorType,
-                    questionId: questionId
+                    questionId: questionId,
+                    microTags: analysis.error_micro_tags ?? [],
+                    skillTags: analysis.skill_tags ?? [],
+                    styleTags: analysis.style_tags ?? []
                 )
             }
         } else {
@@ -721,6 +757,12 @@ struct ErrorAnalysisResponse: Codable {
     let learning_suggestion: String?
     let confidence: Double
     let analysis_failed: Bool
+
+    // Question tags (new — optional so old responses still parse)
+    let skill_tags: [String]?
+    let style_tags: [String]?
+    let mc_strategy_tags: [String]?
+    let error_micro_tags: [String]?
 }
 
 // MARK: - Concept Extraction Models (Bidirectional Status Tracking)
@@ -730,25 +772,32 @@ struct ErrorAnalysisResponse: Codable {
 struct ConceptExtractionRequest: Codable {
     let questionText: String
     let subject: String
+    let questionType: String?
 
     enum CodingKeys: String, CodingKey {
         case questionText = "question_text"
         case subject
+        case questionType = "question_type"
     }
 }
 
-/// Response from concept extraction (ONLY taxonomy, no error analysis)
-/// Used to reduce weakness values when students answer correctly
+/// Response from concept extraction (taxonomy + question tags for correct answers)
 struct ConceptExtractionResponse: Codable {
     let subject: String
     let baseBranch: String?
     let detailedBranch: String?
     let extractionFailed: Bool
+    let skillTags: [String]?
+    let styleTags: [String]?
+    let mcStrategyTags: [String]?
 
     enum CodingKeys: String, CodingKey {
         case subject
         case baseBranch = "base_branch"
         case detailedBranch = "detailed_branch"
         case extractionFailed = "extraction_failed"
+        case skillTags = "skill_tags"
+        case styleTags = "style_tags"
+        case mcStrategyTags = "mc_strategy_tags"
     }
 }

@@ -111,11 +111,16 @@ class MistakeReviewService: ObservableObject {
                 // ✅ Extract Pro Mode image field
                 let questionImageUrl = data["questionImageUrl"] as? String
 
+                // ✅ Extract tag fields (added with tag taxonomy system)
+                let errorMicroTags = data["errorMicroTags"] as? [String] ?? []
+                let skillTags      = data["skillTags"]      as? [String] ?? []
+                let styleTags      = data["styleTags"]      as? [String] ?? []
+
                 let mistake = MistakeQuestion(
                     id: id,
                     subject: subject,
                     question: questionText,
-                    rawQuestionText: rawQuestionText,  // ✅ Pass full question text
+                    rawQuestionText: rawQuestionText,
                     correctAnswer: answerText,
                     studentAnswer: studentAnswer,
                     explanation: feedback,
@@ -134,7 +139,10 @@ class MistakeReviewService: ObservableObject {
                     baseBranch: baseBranch,
                     detailedBranch: detailedBranch,
                     specificIssue: specificIssue,
-                    questionImageUrl: questionImageUrl
+                    questionImageUrl: questionImageUrl,
+                    errorMicroTags: errorMicroTags,
+                    skillTags: skillTags,
+                    styleTags: styleTags
                 )
 
                 mistakes.append(mistake)
@@ -422,7 +430,7 @@ class MistakeReviewService: ObservableObject {
         for (key, val) in activeWeaknesses {
             let parts = key.split(separator: "/", maxSplits: 2)
             guard parts.count >= 2, String(parts[0]) == subject else { continue }
-            let normBase = String(parts[1])   // already lowercased+underscored
+            let normBase = String(parts[1])
             var g = groups[normBase] ?? Agg()
             g.total += val.totalAttempts
             g.correct += val.correctAttempts

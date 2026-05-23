@@ -11,6 +11,7 @@ from config.taxonomy_router import (
     validate_taxonomy_path,
     normalize_subject
 )
+from config.tag_taxonomy import get_allowed_tags
 
 class ConceptExtractionService:
     """
@@ -32,15 +33,16 @@ class ConceptExtractionService:
         Extract curriculum taxonomy for a question (NO error analysis)
 
         Args:
-            question_data: Dict with question_text and subject
+            question_data: Dict with question_text, subject, and optional question_type
 
         Returns:
-            Dict with subject, base_branch, detailed_branch
+            Dict with subject, base_branch, detailed_branch, skill_tags, style_tags, mc_strategy_tags
         """
         question_text = question_data.get('question_text', '')
         subject = question_data.get('subject', 'Math')
+        question_type = question_data.get('question_type')
 
-        extraction_prompt = self._build_extraction_prompt(question_text, subject)
+        extraction_prompt = self._build_extraction_prompt(question_text, subject, question_type=question_type)
 
         try:
             response = await self.client.chat.completions.create(
@@ -51,7 +53,7 @@ class ConceptExtractionService:
                 ],
                 response_format={"type": "json_object"},
                 temperature=0.2,  # Low temperature for consistent categorization
-                max_completion_tokens=150  # Much smaller than error analysis (we only need taxonomy)
+                max_completion_tokens=300  # Slightly larger to fit tags
             )
 
             result = json.loads(response.choices[0].message.content)
@@ -73,6 +75,12 @@ class ConceptExtractionService:
                         result['detailed_branch'] = detailed_branches[base_branches[0]][0]
                         print(f"⚠️ [ConceptExtraction] Invalid base branch for {subject}, using fallback: {result['base_branch']}/{result['detailed_branch']}")
 
+            # Validate tags against allowed list (no error_micro_tags for correct answers)
+            allowed = get_allowed_tags(subject, question_type=question_type)
+            result['skill_tags'] = [t for t in result.get('skill_tags', []) if t in set(allowed['skill_tags'])]
+            result['style_tags'] = [t for t in result.get('style_tags', []) if t in set(allowed['style_tags'])]
+            result['mc_strategy_tags'] = [t for t in result.get('mc_strategy_tags', []) if t in set(allowed['mc_strategy_tags'])]
+
             # Ensure subject is returned
             result['subject'] = subject
 
@@ -84,6 +92,9 @@ class ConceptExtractionService:
                 "subject": subject,
                 "base_branch": None,
                 "detailed_branch": None,
+                "skill_tags": [],
+                "style_tags": [],
+                "mc_strategy_tags": [],
                 "extraction_failed": True
             }
 
@@ -126,7 +137,7 @@ Return:
 
 NO error analysis needed. Just taxonomy classification."""
 
-    def _build_extraction_prompt(self, question, subject):
+    def _build_extraction_prompt(self, question, subject, question_type=None):
         taxonomy_text = get_taxonomy_prompt_text(subject)
         normalized = normalize_subject(subject)
         is_generic = normalized == "others"
@@ -138,7 +149,15 @@ NO error analysis needed. Just taxonomy classification."""
 Interpret the taxonomy categories in the context of {subject} education.
 """
 
-        return f"""Classify this {subject} question into the curriculum hierarchy.
+        # Build tag lists for the prompt
+        allowed_tags = get_allowed_tags(subject, question_type=question_type)
+        mc_tags_text = (
+            ", ".join(allowed_tags["mc_strategy_tags"])
+            if allowed_tags["mc_strategy_tags"]
+            else "N/A — not multiple choice, return []"
+        )
+
+        return f"""Classify this {subject} question into the curriculum hierarchy and identify its tags.
 
 **Question**: {question}
 
@@ -157,7 +176,18 @@ Interpret the taxonomy categories in the context of {subject} education.
 
 {taxonomy_text['detailed_branches']}
 
-**IMPORTANT**: Copy the exact branch/topic name character-for-character from the lists above. Do not paraphrase or create variations.
+## Step 3: Select Tags
+
+**skill_tags** (1-3 tags — cognitive skill this question requires):
+Allowed: {", ".join(allowed_tags["skill_tags"]) or "none"}
+
+**style_tags** (1-2 tags — question flavor / context):
+Allowed: {", ".join(allowed_tags["style_tags"]) or "none"}
+
+**mc_strategy_tags** (0-2 tags — only if multiple choice, else []):
+Allowed: {mc_tags_text}
+
+**IMPORTANT**: Copy the exact branch/topic names character-for-character. Only use tags from the exact lists above.
 
 ---
 
@@ -166,10 +196,13 @@ Interpret the taxonomy categories in the context of {subject} education.
 {{
     "subject": "{subject}",
     "base_branch": "<exact name from Step 1 list>",
-    "detailed_branch": "<exact name from Step 2 list matching the base branch>"
+    "detailed_branch": "<exact name from Step 2 list matching the base branch>",
+    "skill_tags": ["<tag>"],
+    "style_tags": ["<tag>"],
+    "mc_strategy_tags": []
 }}
 
-Now classify the question above using ONLY the predefined taxonomy options.
+Now classify the question above using ONLY the predefined taxonomy and tag options.
 """
 
     async def extract_batch(self, questions_data):
@@ -198,6 +231,9 @@ Now classify the question above using ONLY the predefined taxonomy options.
                     "subject": subject,
                     "base_branch": None,
                     "detailed_branch": None,
+                    "skill_tags": [],
+                    "style_tags": [],
+                    "mc_strategy_tags": [],
                     "extraction_failed": True
                 })
             else:

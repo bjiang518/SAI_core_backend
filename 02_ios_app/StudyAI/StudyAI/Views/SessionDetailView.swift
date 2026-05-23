@@ -10,15 +10,19 @@ import AVFoundation
 
 struct SessionDetailView: View {
     let sessionId: String
-    let isConversation: Bool // Add parameter to distinguish between conversations and sessions
+    let isConversation: Bool
     @StateObject private var railwayService = RailwayArchiveService.shared
     @State private var session: ArchivedSession?
     @State private var conversation: ArchivedConversation?
     @State private var isLoading = true
     @State private var errorMessage = ""
     @State private var isContinuing = false
+    @State private var resumeVideoId: String? = nil
+    @State private var resumeVideoTitle: String? = nil
+    @State private var resumeVideoChannel: String? = nil
+    @State private var showingVideoLearning = false
     @Environment(\.dismiss) private var dismiss
-    
+
     init(sessionId: String, isConversation: Bool = false) {
         self.sessionId = sessionId
         self.isConversation = isConversation
@@ -81,8 +85,28 @@ struct SessionDetailView: View {
             }
         }
         .onAppear {
-            Task {
-                await loadDetails()
+            Task { await loadDetails() }
+        }
+        .fullScreenCover(isPresented: $showingVideoLearning) {
+            if let videoId = resumeVideoId {
+                let video = VideoSearchResult(
+                    videoId: videoId,
+                    title: resumeVideoTitle ?? videoId,
+                    channelTitle: resumeVideoChannel ?? "",
+                    description: nil,
+                    thumbnail: "https://img.youtube.com/vi/\(videoId)/mqdefault.jpg",
+                    url: "https://youtube.com/watch?v=\(videoId)",
+                    isEduChannel: false,
+                    hasTranscript: nil
+                )
+                NavigationStack {
+                    LearningView(
+                        topicName: resumeVideoTitle ?? "",
+                        branchName: "",
+                        subject: conversation?.subject ?? "General",
+                        initialVideo: video
+                    )
+                }
             }
         }
     }
@@ -93,7 +117,18 @@ struct SessionDetailView: View {
         defer { isContinuing = false }
 
         let subject = conv.subject.isEmpty ? "General" : conv.subject
-        let parsedMessages = parseConversationToMessages(conv.conversationContent)
+
+        // Parse optional VIDEO_LEARNING marker from learning archives
+        let content = conv.conversationContent
+        let videoInfo = parseVideoLearningMarker(content)
+        resumeVideoId = videoInfo?.videoId
+        resumeVideoTitle = videoInfo?.title
+        resumeVideoChannel = videoInfo?.channel
+
+        // Strip the marker line from conversation history passed to session
+        let cleanContent = content.hasPrefix("[VIDEO_LEARNING") ?
+            content.components(separatedBy: "\n\n").dropFirst().joined(separator: "\n\n") : content
+        let parsedMessages = parseConversationToMessages(cleanContent)
 
         let result = await NetworkService.shared.createSession(
             subject: subject,
@@ -106,12 +141,32 @@ struct SessionDetailView: View {
         }
 
         debugPrint("✅ [Continue] Continuation session created: \(newSessionId.prefix(8))…")
-        AppState.shared.pendingChatAction = .continuationSession(
-            sessionId: newSessionId,
-            history: parsedMessages,
-            subject: subject
-        )
-        AppState.shared.selectedTab = .chat
+
+        if resumeVideoId != nil {
+            // Learning session with video — open LearningView with the session
+            showingVideoLearning = true
+        } else {
+            AppState.shared.pendingChatAction = .continuationSession(
+                sessionId: newSessionId,
+                history: parsedMessages,
+                subject: subject
+            )
+            AppState.shared.selectedTab = .chat
+        }
+    }
+
+    private func parseVideoLearningMarker(_ content: String) -> (videoId: String, title: String, channel: String)? {
+        guard content.hasPrefix("[VIDEO_LEARNING") else { return nil }
+        let firstLine = content.components(separatedBy: "\n").first ?? ""
+        func extract(_ key: String) -> String {
+            guard let r = firstLine.range(of: "\(key)=\"") else { return "" }
+            let start = firstLine.index(r.upperBound, offsetBy: 0)
+            guard let end = firstLine[start...].firstIndex(of: "\"") else { return "" }
+            return String(firstLine[start..<end])
+        }
+        let videoId = extract("videoId")
+        guard !videoId.isEmpty else { return nil }
+        return (videoId: videoId, title: extract("title"), channel: extract("channel"))
     }
 
     /// Parse archived conversation text into `[["role": ..., "content": ...]]` for seeding a new session.

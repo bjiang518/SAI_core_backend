@@ -115,10 +115,12 @@ struct SessionChatView: View {
     @State private var showingCamera = false
     @State private var showingScenarioPicker = false
     @State private var showingImageInputSheet = false
-    @State private var showingExistingSessionAlert = false 
+    @State private var showingExistingSessionAlert = false
     @State private var pendingLiveModeStarterPrompt: String? = nil
     @State private var isVoiceMode = false
     @State private var hasConversationStarted = false
+    // Video Learning mode — launched from a chat video card
+    @State private var learningModeVideo: VideoSearchResult? = nil
     @State private var showingPermissionAlert = false
     @State private var showingArchiveInfo = false
     @State private var exampleCardScale: CGFloat = 0.8
@@ -508,6 +510,38 @@ struct SessionChatView: View {
                 }
                 .presentationBackground(.clear)
                 .interactiveDismissDisabled()
+            }
+            // Video Learning mode: launched from a chat video card, reuses the current session
+            .fullScreenCover(item: $learningModeVideo) { video in
+                let recentHistory: [LearningMessage] = networkService.conversationHistory
+                    .suffix(8)
+                    .compactMap { dict in
+                        guard let role = dict["role"], let content = dict["content"],
+                              !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        else { return nil }
+                        return LearningMessage(role: role == "user" ? .user : .assistant, content: content)
+                    }
+                NavigationStack {
+                    LearningView(
+                        topicName: video.title,
+                        branchName: "",
+                        subject: "General",
+                        initialVideo: video,
+                        fromChatSessionId: networkService.currentSessionId,
+                        initialChatMessages: recentHistory,
+                        onDismiss: { messages in
+                            for msg in messages {
+                                networkService.appendToConversationHistory([
+                                    "role": msg.role == .user ? "user" : "assistant",
+                                    "content": msg.content
+                                ])
+                            }
+                        }
+                    )
+                }
+            }
+            .onChange(of: learningModeVideo?.videoId) { id in
+                if id != nil { viewModel.videoStudyUsed = true }
             }
             // ✅ Archive progress animation overlay
             .archiveProgressOverlay(isPresented: $showingArchiveProgress, archiveTask: {
@@ -1096,8 +1130,10 @@ struct SessionChatView: View {
                                         // Each video renders as its own independent card
                                         let videos = viewModel.getVideoResults(for: videoKey) ?? []
                                         ForEach(videos) { video in
-                                            VideoRowView(video: video)
-                                                .padding(.horizontal, 16)
+                                            VideoRowView(video: video, onStartLearning: {
+                                                learningModeVideo = video
+                                            })
+                                            .padding(.horizontal, 16)
                                         }
                                     } else if let diagramKey = message["diagramKey"] {
                                         let diagramData = viewModel.getDiagramData(for: diagramKey)
@@ -1998,7 +2034,7 @@ struct SessionChatView: View {
 
                         // Draw Diagram / Find Video from AI suggestions
                         if viewModel.isStreamingComplete && suggestionsMatchLanguage {
-                            ForEach(specialFromAI, id: \.id) { suggestion in
+                            ForEach(specialFromAI, id: \.key) { suggestion in
                                 if isVideoSearchRequest(suggestion.value) {
                                     Button(suggestion.key) {
                                         isMessageInputFocused = false
@@ -2016,7 +2052,8 @@ struct SessionChatView: View {
                     }
                     .padding(.horizontal, 20)
                 }
-                .frame(height: 44)  // fixed height prevents overlap with row 2
+                .frame(height: 44)
+                .transaction { $0.animation = nil }
             }
 
             // ── ROW 2: Regular follow-up suggestion buttons ──────────────────────────────
@@ -2024,13 +2061,14 @@ struct SessionChatView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         if hasRegularSuggestions {
-                            ForEach(regularFromAI.prefix(3), id: \.id) { suggestion in
+                            ForEach(regularFromAI.prefix(3), id: \.key) { suggestion in
                                 Button(suggestion.key) {
                                     isMessageInputFocused = false
                                     viewModel.messageText = suggestion.value
                                     viewModel.sendMessage()
                                 }
                                 .modernButtonStyle()
+                                .fixedSize()
                             }
                         } else if hasFallback && !lastMessageHasDiagram {
                             let contextButtons = generateContextualButtons(for: lastMessage)
@@ -2042,12 +2080,14 @@ struct SessionChatView: View {
                                     viewModel.sendMessage()
                                 }
                                 .modernButtonStyle()
+                                .fixedSize()
                             }
                         }
                     }
                     .padding(.horizontal, 20)
                 }
-                .frame(height: 44)  // fixed height prevents overlap with row 1
+                .frame(height: 44)
+                .transaction { $0.animation = nil }
             }
         }
         .fixedSize(horizontal: false, vertical: true)
@@ -3160,6 +3200,8 @@ struct VideoResultCard: View {
 
 struct VideoRowView: View {
     let video: VideoSearchResult
+    /// Called when user taps "视频学习" — presents the full learning view for this video
+    var onStartLearning: (() -> Void)? = nil
     @StateObject private var themeManager = ThemeManager.shared
     @State private var thumbnail: UIImage? = nil
     @State private var isExpanded = false
@@ -3215,6 +3257,24 @@ struct VideoRowView: View {
                     }
 
                     Spacer(minLength: 0)
+
+                    // 视频学习 button — enters full learning mode for this video
+                    if let startLearning = onStartLearning {
+                        Button(action: startLearning) {
+                            HStack(spacing: 3) {
+                                Image(systemName: "play.circle.fill")
+                                    .font(.system(size: 12))
+                                Text(NSLocalizedString("chat.video.startLearning", value: "视频学习", comment: ""))
+                                    .font(.system(size: 11, weight: .semibold))
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
+                            .background(Color.accentColor)
+                            .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
 
                     // Open in YouTube external link
                     Button {
@@ -3388,10 +3448,9 @@ struct YouTubePlayerView: UIViewRepresentable {
         </body>
         </html>
         """
-        // baseURL is nil — the page has no real origin, so YouTube's player
-        // won't see a mismatched youtube.com security context.
-        // origin in playerVars is set to 'https://study-mates.net' (app's domain) to match.
-        webView.loadHTMLString(html, baseURL: nil)
+        // baseURL must match origin in playerVars so YouTube's IFrame API postMessage
+        // events (infoDelivery etc.) reach this page. nil origin causes silent drops.
+        webView.loadHTMLString(html, baseURL: URL(string: "https://study-mates.net"))
     }
 
     class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {

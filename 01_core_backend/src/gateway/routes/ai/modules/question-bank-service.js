@@ -12,6 +12,7 @@
 const { Pool } = require('pg');
 const OpenAI   = require('openai');
 const { parseWeaknessKey } = require('../../../../scripts/taxonomy');
+const { tagMatchScore }    = require('../../../../scripts/tag-taxonomy');
 
 const openai      = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const EMBED_MODEL = 'text-embedding-3-small';
@@ -27,8 +28,8 @@ const cachePool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
   max: 5,
-  statement_timeout: 120000,
-  query_timeout:     120000,
+  statement_timeout: parseInt(process.env.PG_STATEMENT_TIMEOUT || '120000'),
+  query_timeout:     parseInt(process.env.PG_QUERY_TIMEOUT     || '120000'),
 });
 
 // subject → { embeddings: Map<id, float[]>, metadata: Map<id, row>, centroids: Map<base_branch, float[]>, loadedAt: number }
@@ -90,8 +91,15 @@ async function loadSubjectCache(subject) {
   })();
 
   _subjectLoading.set(subject, promise);
-  await promise;
-  _subjectLoading.delete(subject);
+  try {
+    await promise;
+  } catch (err) {
+    console.error(`[QuestionBank] ❌ Cache load failed for "${subject}":`, err.message || err);
+    throw err;
+  } finally {
+    // Always clean up — even on failure — so the next request can retry
+    _subjectLoading.delete(subject);
+  }
 }
 
 /** Invalidate cache for a subject (or all if no subject given). */
@@ -105,33 +113,32 @@ const MULTI_SUBJECT_MAP = {
   'science': ['Biology', 'Chemistry', 'Physics'],
 };
 
-// WeaknessKey branch names (short form) → DB branch names (full form).
-// Handles mismatches between the taxonomy used in weaknessKeys and the branch
-// labels actually stored in question_bank.base_branch.
+// WeaknessKey branch names (short form) → DB base_branch names.
+// Only needed when iOS sends a SHORT alias that differs from the taxonomy
+// branch name stored in question_bank.base_branch.
+// DO NOT add entries where the weaknessKey already matches the DB name exactly.
 const BRANCH_NAME_MAP = {
-  // Physics
+  // Physics — iOS sends short aliases; DB stores full taxonomy names
   'Kinematics':          'Mechanics - Kinematics',
   'Dynamics':            'Mechanics - Dynamics',
-  'Thermodynamics':      'Thermodynamics & Heat',
+  'Thermodynamics':      'Thermodynamics',        // taxonomy: 'Thermodynamics'
   'Waves':               'Waves & Optics',
   'Electricity':         'Electricity & Magnetism',
   'Electromagnetism':    'Electricity & Magnetism',
   'Optics':              'Waves & Optics',
-  // Chemistry
-  'Atomic Structure':    'Atomic Structure & Periodic Table',
-  'Periodic Table':      'Atomic Structure & Periodic Table',
-  'Chemical Bonding':    'Chemical Bonds & Molecular Structure',
-  'Stoichiometry':       'Stoichiometry & Chemical Reactions',
+  // Chemistry — DB is tagged with exact taxonomy names from taxonomy.js
+  // 'Atomic Structure', 'Chemical Bonding', 'Stoichiometry' match DB directly — no alias needed
+  'Periodic Table':      'Atomic Structure',      // short alias → taxonomy base_branch
   // Biology
   'Cell Division':       'Cell Biology',
   'Mitosis':             'Cell Biology',
-  'Meiosis':             'Meiosis',
+  'Meiosis':             'Cellular Processes',
   'Genetics':            'Genetics - Molecular',
-  'Ecology':             'Ecology & Environment',
+  'Ecology':             'Ecology',
   // Math
   'Quadratic':           'Algebra - Foundations',
   'Linear Equations':    'Linear Equations - One Variable',
-  'Trigonometry':        'Trigonometry - Basics',
+  'Trigonometry':        'Trigonometry',
 };
 
 // Normalize iOS subject strings AND math topic names to DB canonical values
@@ -250,11 +257,11 @@ function gradeConstraints(gradeLabel) {
   }
   // 3–5 (ages 8–11): elementary
   if (/grade [345](?!\d)|3rd|4th|5th|third|fourth|fifth|elementary/.test(g)) {
-    return { diffMin: 1, diffMax: 2, allowedSources: new Set(['gsm8k', 'arc', 'openbookqa', 'amc8', 'scienceqa']) };
+    return { diffMin: 1, diffMax: 2, allowedSources: new Set(['gsm8k', 'arc', 'openbookqa', 'amc8', 'scienceqa', 'kangaroo']) };
   }
   // K–2 (ages 5–8): only very basic questions
   if (/grade [k012](?!\d)|kindergarten|1st|2nd|first|second/.test(g)) {
-    return { diffMin: 1, diffMax: 1, allowedSources: new Set(['gsm8k', 'arc', 'openbookqa', 'scienceqa']) };
+    return { diffMin: 1, diffMax: 1, allowedSources: new Set(['gsm8k', 'arc', 'openbookqa', 'scienceqa', 'kangaroo']) };
   }
   // College / Adult
   if (/college|university|undergraduate|graduate|adult/.test(g)) {
@@ -290,7 +297,7 @@ function cosineSimilarity(a, b) {
 // ---------------------------------------------------------------------------
 // pgvector query
 // ---------------------------------------------------------------------------
-async function queryBank({ userId, embedding, diffMin, diffMax, questionTypes, count, source, targetBaseBranches, targetDetailedBranches, subject, allowedSources }) {
+async function queryBank({ userId, embedding, diffMin, diffMax, questionTypes, count, source, targetBaseBranches, targetDetailedBranches, subject, allowedSources, tagWeaknessContext }) {
   const subjectKey = normalizeSubject(subject);
   const log = (msg) => console.log(`[QuestionBank] ${msg}`);
 
@@ -315,9 +322,13 @@ async function queryBank({ userId, embedding, diffMin, diffMax, questionTypes, c
     if (meta.difficulty < diffMin || meta.difficulty > diffMax) return false;
     if (!questionTypes.includes(meta.question_type)) return false;
     if (source && meta.source !== source) return false;
-    if (allowedSources && !allowedSources.has(meta.source)) return false;
+    // allowedSources is a grade-level safety guard for un-filtered browsing.
+    // When the caller explicitly requests a specific source, trust that choice
+    // and skip the allowedSources check — diffMin/diffMax is the real safety net.
+    if (!source && allowedSources && !allowedSources.has(meta.source)) return false;
+    // Drop questions with near-empty stems (< 15 chars after trim)
+    if ((meta.question || '').trim().length < 15) return false;
     // Drop figure-only questions whose text is too short to be meaningful without the image
-    // (e.g. scienceqa: "Select the fish below." = 22 chars, useless as text)
     if (meta.has_figure && (meta.question || '').trim().length < 40) return false;
     return true;
   }
@@ -334,29 +345,37 @@ async function queryBank({ userId, embedding, diffMin, diffMax, questionTypes, c
         const brBoost      = branchSet.size > 0 && branchSet.has(row.base_branch)     ? 0.15 : 0;
         const detailBoost  = detailSet.size  > 0 && detailSet.has(row.detailed_branch) ? 0.10 : 0;
         const figureBoost  = row.has_figure ? 0.20 : 0;   // strongly prefer questions with diagrams
-        return { ...row, similarity: sim + brBoost + detailBoost + figureBoost };
+        const tagBoost     = tagWeaknessContext
+          ? tagMatchScore(row.tags, tagWeaknessContext) * 0.12
+          : 0;
+        return { ...row, similarity: sim + brBoost + detailBoost + figureBoost + tagBoost };
       })
       .sort((a, b) => b.similarity - a.similarity);
   }
 
   // ── Stage 0: Figure-first search ─────────────────────────────────────
-  // Always try to fill the quota with figure questions first.
-  // Falls through if not enough figure questions exist in this subject/grade pool.
+  // When branch targeting is active, only consider figures from matching branches.
+  // Without targeting, use any figure question (preserves visual-rich results for
+  // general browsing).
   {
     const figCandidates = [];
     for (const [, meta] of cache.metadata) {
-      if (baseFilter(meta) && meta.has_figure) figCandidates.push(meta);
+      if (!baseFilter(meta) || !meta.has_figure) continue;
+      // Branch filter: when targeting a specific topic, only use on-topic figures.
+      // This prevents off-topic figures from crowding out Stage 1.
+      if (branchSet.size > 0 && !branchSet.has(meta.base_branch)) continue;
+      figCandidates.push(meta);
     }
-    log(`Stage 0 (figure-first): ${figCandidates.length} figure questions available`);
+    log(`Stage 0 (figure-first): ${figCandidates.length} figure questions available${branchSet.size > 0 ? ` (branch-filtered)` : ''}`);
     if (figCandidates.length >= count) {
       const ranked = rankByEmbedding(figCandidates).slice(0, CANDIDATE_K);
       log(`✅ Stage 0 returned ${ranked.length} figure-only results`);
       return ranked;
     }
     if (figCandidates.length > 0) {
-      log(`⚠️ Stage 0: only ${figCandidates.length} figure questions (need ${count}) — mixing with text questions`);
+      log(`⚠️ Stage 0: only ${figCandidates.length} branch-matching figures — falling through to Stage 1`);
     } else {
-      log(`ℹ️  Stage 0: no figure questions in this pool — falling through`);
+      log(`ℹ️  Stage 0: no branch-matching figures — falling through`);
     }
   }
 
@@ -500,6 +519,7 @@ function formatQuestion(row) {
     source_id:               row.source_id,
     bank_question_id:        row.id,
     figure_url:              row.has_figure ? `/api/ai/question-bank/figure/${row.id}` : null,
+    tags:                    row.tags || {},
   };
 }
 
@@ -533,6 +553,7 @@ async function retrieveQuestions(userId, opts = {}) {
     weaknessKeys = [],
     source = null,
     gradeLevel = null,
+    tagWeaknessContext = null,
   } = opts;
 
   const log = (msg) => console.log(`[QuestionBank] ${msg}`);
@@ -596,6 +617,7 @@ async function retrieveQuestions(userId, opts = {}) {
       targetDetailedBranches,
       subject: subj,
       allowedSources: effectiveAllowedSources,
+      tagWeaknessContext,
     });
     allCandidates.push(...subjCandidates);
   }
@@ -610,8 +632,42 @@ async function retrieveQuestions(userId, opts = {}) {
   // 6. Diversity filter + trim
   let selected = applyDiversityFilter(allCandidates, count);
 
-  // 7. Figure-first reorder: put questions with images at the front,
-  //    keeping relative order within each group (stable sort).
+  // 6b. Fill gap with seen questions when unseen pool is exhausted.
+  //     Ensures the user always receives exactly `count` questions, never 0.
+  if (selected.length < count) {
+    const needed         = count - selected.length;
+    const returnedIds    = new Set(selected.map(r => r.id));
+    const fillPool       = [];
+
+    for (const subj of subjectList) {
+      const cache = _subjectCaches.get(normalizeSubject(subj));
+      if (!cache) continue;
+      // Recompute grade-level source restrictions for this subject (same logic as main query)
+      const fillAllowedSources = (gc?.allowedSources && QUANTITATIVE_SUBJECTS.has(subj))
+        ? gc.allowedSources
+        : null;
+      for (const [id, meta] of cache.metadata) {
+        if (returnedIds.has(id)) continue;
+        if (meta.difficulty < diffMin || meta.difficulty > diffMax) continue;
+        if (!questionTypes.includes(meta.question_type)) continue;
+        if (source && meta.source !== source) continue;
+        if (!source && fillAllowedSources && !fillAllowedSources.has(meta.source)) continue;
+        const vec = cache.embeddings.get(id);
+        if (!vec) continue;
+        fillPool.push({ ...meta, similarity: cosineSimilarity(embedding, vec) });
+      }
+    }
+    const fill = applyDiversityFilter(
+      fillPool.sort((a, b) => b.similarity - a.similarity).slice(0, needed * 4),
+      needed
+    );
+    if (fill.length > 0) {
+      log(`⚠️ Unseen pool short (${selected.length}/${count}) — filled ${fill.length} from seen questions`);
+      selected = [...selected, ...fill];
+    }
+  }
+
+  // 7. Figure-first reorder
   const withFig    = selected.filter(r => r.has_figure);
   const withoutFig = selected.filter(r => !r.has_figure);
   selected = [...withFig, ...withoutFig];
@@ -625,7 +681,7 @@ async function retrieveQuestions(userId, opts = {}) {
     questions,
     generationType: 'question_bank',
     source: source || 'mixed',
-    contextSummary: summary,  // for debugging
+    contextSummary: summary,
   };
 }
 

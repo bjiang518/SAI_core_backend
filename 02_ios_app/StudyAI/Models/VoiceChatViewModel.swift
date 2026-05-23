@@ -224,7 +224,7 @@ class VoiceChatViewModel: ObservableObject {
             }
         }
 
-        // Start session
+        // Build start_session payload
         var startData: [String: Any] = [
             "subject": subject,
             "language": getCurrentLanguage(),
@@ -233,16 +233,35 @@ class VoiceChatViewModel: ObservableObject {
         if let prompt = scenarioPrompt {
             startData["scenario_prompt"] = prompt
         }
-        sendWebSocketMessage(type: "start_session", data: startData)
 
-        // Start receiving messages
-        receiveWebSocketMessages()
+        // Use an initial ping to confirm the WebSocket upgrade is complete and the
+        // backend's message handler is attached before sending start_session.
+        // Without this, start_session can arrive before Fastify's onmessage listener
+        // is ready, causing the message to be silently dropped.
+        logger.info("📡 Sending initial ping to confirm WS handshake…")
+        webSocket?.sendPing { [weak self] pingError in
+            guard let self else { return }
+            if let pingError = pingError {
+                self.logger.error("❌ Initial ping failed — WS not ready: \(pingError.localizedDescription)")
+                Task { @MainActor in
+                    self.connectionState = .error("Connection failed: \(pingError.localizedDescription)")
+                }
+                return
+            }
+            self.logger.info("✅ Ping OK — WS handshake confirmed, now sending start_session")
+            self.sendWebSocketMessage(type: "start_session", data: startData)
+            self.receiveWebSocketMessages()
+        }
         // connectionState moves to .connected when session_ready arrives from the server
     }
 
     /// Disconnect from Gemini Live
     func disconnect() {
-        logger.info("Disconnecting from Gemini Live")
+        logger.info("🔴 [DISCONNECT] called — connectionState=\(String(describing: connectionState)) webSocket=\(self.webSocket == nil ? "nil" : "set")")
+        // Capture call site for debugging
+        #if DEBUG
+        Thread.callStackSymbols.prefix(5).forEach { logger.debug("  ↳ \($0)") }
+        #endif
 
         // Stop keepalive pings
         keepAliveTimer?.invalidate()
@@ -534,24 +553,32 @@ class VoiceChatViewModel: ObservableObject {
             return
         }
 
+        logger.info("📤 [WS send] type=\(type) webSocket=\(self.webSocket == nil ? "NIL ⚠️" : "set")")
         webSocket?.send(.string(jsonString)) { error in
             if let error = error {
-                self.logger.error("WebSocket send error: \(error)")
+                self.logger.error("📤 [WS send] FAILED type=\(type): \(error)")
                 Task { @MainActor in
                     self.errorMessage = "Failed to send message"
                 }
+            } else {
+                self.logger.info("📤 [WS send] OK type=\(type)")
             }
         }
     }
 
     private func receiveWebSocketMessages() {
+        logger.info("👂 [WS receive] waiting for next message — webSocket=\(self.webSocket == nil ? "NIL ⚠️" : "set")")
         webSocket?.receive { [weak self] result in
-            guard let self = self else { return }
+            guard let self = self else {
+                AppLogger.forFeature("LearningLive").warning("👂 [WS receive] self=nil — VM was deallocated!")
+                return
+            }
 
             switch result {
             case .success(let message):
                 switch message {
                 case .string(let text):
+                    self.logger.info("👂 [WS receive] ✅ got string msg, length=\(text.count)")
                     // Fast path: route audio_chunk directly to AudioStreamManager
                     // off the main thread — no @MainActor contention during audio processing.
                     if text.contains("\"audio_chunk\""),
@@ -583,11 +610,10 @@ class VoiceChatViewModel: ObservableObject {
                 self.receiveWebSocketMessages()
 
             case .failure(let error):
-                self.logger.error("WebSocket receive error: \(error)")
+                self.logger.error("👂 [WS receive] ❌ FAILED: \(error.localizedDescription) (code=\((error as NSError).code))")
                 Task { @MainActor in
                     self.connectionState = .error(error.localizedDescription)
                     self.errorMessage = "Connection lost"
-                    // Mark session as suspended so UI shows "Tap to Reactivate"
                     self.isSessionSuspended = true
                 }
             }
@@ -720,12 +746,11 @@ class VoiceChatViewModel: ObservableObject {
         guard let audioEngine = audioEngine else { return }
 
         let inputNode = audioEngine.inputNode
-        let recordingFormat = inputNode.outputFormat(forBus: 0)
 
-        logger.info("Audio format: \(recordingFormat)")
-
-        // Install tap to capture audio
-        inputNode.installTap(onBus: 0, bufferSize: 4096, format: recordingFormat) { [weak self] buffer, time in
+        // Pass nil so AVAudio uses the node's native hardware format.
+        // Using outputFormat(forBus:) before the audio session is active returns
+        // sampleRate=0 which causes an AVAudioEngine crash.
+        inputNode.installTap(onBus: 0, bufferSize: 4096, format: nil) { [weak self] buffer, time in
             guard let self = self else { return }
 
             // ✅ Voice Activity Detection: Calculate audio level first
@@ -779,8 +804,10 @@ class VoiceChatViewModel: ObservableObject {
             audioEngine = AVAudioEngine()
             guard let engine = audioEngine else { return }
             let inputNode = engine.inputNode
-            let recordingFormat = inputNode.outputFormat(forBus: 0)
-            inputNode.installTap(onBus: 0, bufferSize: 4096, format: recordingFormat) { [weak self] buffer, _ in
+            // Pass nil so AVAudio uses the node's native hardware format.
+            // Using outputFormat(forBus:) before the audio session is active returns
+            // sampleRate=0 which causes an AVAudioEngine crash.
+            inputNode.installTap(onBus: 0, bufferSize: 4096, format: nil) { [weak self] buffer, _ in
                 guard let self, self.isCapturing else { return }
                 // Same processing as startAudioEngine tap — reuse existing logic
                 guard let channelData = buffer.floatChannelData?[0] else { return }

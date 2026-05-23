@@ -3207,3 +3207,68 @@
 "todo.knowledgeTree.subtitle" = "探索「%@」知識圖譜";
 "todo.knowledgeTree.defaultSubject" = "各科目";
 "practice.bank.retrieve" = "獲取真題";
+
+// MARK: - Learning View
+"learning.header.title" = "影片學習";
+"learning.video.change" = "換一個";
+"learning.video.pick" = "選擇一個影片開始學習";
+"learning.video.searching" = "正在搜尋影片...";
+"learning.video.empty" = "暫無相關影片";
+"learning.chat.hintNoVideo" = "選擇影片後可以隨時暫停提問";
+"learning.chat.hint" = "隨時暫停影片，向 AI 提問";
+"learning.chat.placeholder" = "問一個問題...";
+
+// MARK: - Learning feature additions
+"mistakeTree.detail.startLearning" = "開始學習";
+"learning.smartai.hint" = "SmartAI — AI 能理解影片內容";
+"learning.smartai.badge" = "SmartAI";
+"chat.video.startLearning" = "影片學習";
+"learning.header.back" = "對話";
+"learning.header.close" = "關閉";
+"learning.suggestion.diagram" = "畫圖";
+
+// Trial page (redesigned)
+"onboarding.trial.title.part1" = "你的第一";
+"onboarding.trial.title.highlight" = "週";
+"onboarding.trial.title.part2" = "免費";
+"onboarding.trial.feature1.title" = "秒解任何作業";
+"onboarding.trial.feature1.sub" = "拍照上傳，即刻獲得逐步 AI 講解。";
+"onboarding.trial.feature2.title" = "隨時實時語音輔導";
+"onboarding.trial.feature2.sub" = "隨時語音交流，像有專屬私教在身邊。";
+"onboarding.trial.feature3.title" = "解鎖真題題庫";
+"onboarding.trial.feature3.sub" = "涵蓋全科目的歷年真題，精準刷題備考。";
+"onboarding.trial.feature4.title" = "視頻學習分析";
+"onboarding.trial.feature4.sub" = "看視頻，AI 自動生成摘要、重點與練習題。";
+"onboarding.trial.feature5.title" = "將錯題轉化為掌握";
+"onboarding.trial.feature5.sub" = "AI 追蹤薄弱點，為你定製專項練習。";
+"onboarding.trial.trust1" = "隨時取消";
+"onboarding.trial.trust2" = "下週前不扣費";
+"onboarding.trial.trust3" = "數百萬學生的選擇";
+"onboarding.trial.comparePlans" = "比較方案";
+
+/* Knowledge Tree — new action buttons */
+"knowledgeTree.learnNewConcept" = "學習新概念";
+"knowledgeTree.practiceConcept" = "練習概念";
+"knowledgeTree.recentSummaries" = "最近學習摘要";
+
+/* Leaf Detail Sheet */
+"mistakeTree.detail.videoSummaries" = "影片摘要";
+
+/* Video Summary */
+"video.summary.title" = "影片摘要";
+"video.summary.archived" = "已儲存至學習庫";
+"video.summary.unavailable" = "摘要不可用 — 此影片無可存取的字幕";
+
+/* Recent Summaries */
+"summaries.empty" = "尚無儲存的摘要";
+
+/* PDF export */
+"pdf.generating" = "正在生成 PDF…";
+"pdf.failed" = "無法生成 PDF";
+"pdf.saved" = "已儲存至檔案";
+
+/* Learning View — video action bar */
+"learning.video.practice" = "練習";
+"learning.video.summary" = "摘要";
+"learning.video.summary.generating" = "生成中…";
+"learning.video.summary.loading" = "載入中…";

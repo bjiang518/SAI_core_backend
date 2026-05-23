@@ -3256,3 +3256,89 @@
 "todo.knowledgeTree.subtitle" = "Explore \"%@\" knowledge map";
 "todo.knowledgeTree.defaultSubject" = "All Subjects";
 "practice.bank.retrieve" = "Get Real Questions";
+
+// MARK: - Learning View
+"learning.header.title" = "Video Learning";
+"learning.video.change" = "Change";
+"learning.video.pick" = "Pick a video to start learning";
+"learning.video.searching" = "Searching videos...";
+"learning.video.empty" = "No videos found";
+"learning.chat.hintNoVideo" = "Select a video, then pause to ask questions";
+"learning.chat.hint" = "Pause the video anytime to ask AI";
+"learning.chat.placeholder" = "Ask a question...";
+
+// MARK: - Learning feature additions
+"mistakeTree.detail.startLearning" = "Start Learning";
+"learning.smartai.hint" = "SmartAI — AI knows what the video is saying";
+"learning.smartai.badge" = "SmartAI";
+"chat.video.startLearning" = "Video Learning";
+"learning.header.back" = "Chat";
+"learning.header.close" = "Close";
+"learning.chat.sessionStart" = "Video Learning begins";
+"learning.archive.topic" = "Video Learning";
+"learning.diagram.request" = "Help me draw a diagram";
+"learning.suggestion.diagram" = "Draw Diagram";
+"learning.exit.title" = "Exit Video Learning";
+"learning.exit.save" = "Save & Exit";
+"learning.exit.noSave" = "Exit without Saving";
+"learning.exit.cancel" = "Keep Learning";
+"learning.exit.message" = "Save this session to view it later in Library.";
+"learning.exit.messageNoSession" = "Are you sure you want to exit?";
+"learning.diagram.failed" = "Diagram generation ran into an issue. Try describing what you want more specifically.";
+"learning.menu.voiceSettings" = "Voice Settings";
+"learning.menu.archive" = "Save to Library";
+"learning.menu.liveMode" = "Live Talk";
+"learning.voice.pauseHint" = "Pause video to start speaking";
+"learning.voice.listening" = "Listening...";
+"learning.live.active" = "Live — speak to AI";
+"learning.live.stop" = "Stop";
+"learning.menu.stopLive" = "Stop Live";
+"learning.practice.button" = "Practice This Topic";
+"learning.leafLit.title" = "Leaf Lit Up!";
+"learning.leafLit.subtitle" = "Check your progress in the Knowledge Tree";
+
+// Trial page (redesigned)
+"onboarding.trial.title.part1" = "Your first ";
+"onboarding.trial.title.highlight" = "week";
+"onboarding.trial.title.part2" = " is free";
+"onboarding.trial.feature1.title" = "Solve any homework in seconds";
+"onboarding.trial.feature1.sub" = "Snap a photo — get instant step-by-step AI explanations.";
+"onboarding.trial.feature2.title" = "Live voice tutor, anytime";
+"onboarding.trial.feature2.sub" = "Talk through any problem in real time — like a private teacher.";
+"onboarding.trial.feature3.title" = "Unlock real exam question bank";
+"onboarding.trial.feature3.sub" = "Practice with curated past-exam questions across all subjects.";
+"onboarding.trial.feature4.title" = "Video learning analysis";
+"onboarding.trial.feature4.sub" = "Watch a video and get AI summaries, key points, and quizzes.";
+"onboarding.trial.feature5.title" = "Turn mistakes into mastery";
+"onboarding.trial.feature5.sub" = "AI tracks your weak spots and builds targeted practice for you.";
+"onboarding.trial.trust1" = "Cancel anytime";
+"onboarding.trial.trust2" = "No charges until next week";
+"onboarding.trial.trust3" = "Trusted by millions of students";
+"onboarding.trial.comparePlans" = "Compare plans";
+
+/* Knowledge Tree — new action buttons */
+"knowledgeTree.learnNewConcept" = "Learn New Concept";
+"knowledgeTree.practiceConcept" = "Practice Concept";
+"knowledgeTree.recentSummaries" = "Recent Learning Summaries";
+
+/* Leaf Detail Sheet */
+"mistakeTree.detail.videoSummaries" = "Video Summaries";
+
+/* Video Summary */
+"video.summary.title" = "Video Summary";
+"video.summary.archived" = "Saved to Library";
+"video.summary.unavailable" = "Summary unavailable — no accessible captions for this video";
+
+/* Recent Summaries */
+"summaries.empty" = "No summaries saved yet";
+
+/* PDF export */
+"pdf.generating" = "Generating PDF…";
+"pdf.failed" = "Could not generate PDF";
+"pdf.saved" = "Saved to Files";
+
+/* Learning View — video action bar */
+"learning.video.practice" = "Practice";
+"learning.video.summary" = "Summary";
+"learning.video.summary.generating" = "Generating…";
+"learning.video.summary.loading" = "Loading…";

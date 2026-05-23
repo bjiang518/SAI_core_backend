@@ -177,45 +177,6 @@ struct MistakeReviewView: View {
                         }
                     }
 
-                    // SECTION 1b: Heatmap / Tree toggle — always above the filter picker
-                    if selectedSubject != nil {
-                        HStack {
-                            Spacer()
-                            HStack(spacing: 0) {
-                                heatmapTreeTabButton(
-                                    icon: "chart.bar.fill",
-                                    isSelected: !showKnowledgeTree,
-                                    action: {
-                                        // No mistakes → heatmap is empty, stay in tree mode
-                                        guard !mistakeService.subjectsWithMistakes.isEmpty else { return }
-                                        withAnimation(.spring(response: 0.3)) { showKnowledgeTree = false }
-                                        if let s = selectedSubject,
-                                           !mistakeService.subjectsWithMistakes.contains(where: { $0.subject == s }) {
-                                            selectedSubject = mistakeService.subjectsWithMistakes.first?.subject
-                                        }
-                                    }
-                                )
-                                heatmapTreeTabButton(
-                                    icon: "leaf.fill",
-                                    isSelected: showKnowledgeTree,
-                                    action: {
-                                        withAnimation(.spring(response: 0.3)) { showKnowledgeTree = true }
-                                        if selectedSubject == nil {
-                                            selectedSubject = allSubjects.first?.subject
-                                        }
-                                    }
-                                )
-                            }
-                            .background(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(.ultraThinMaterial)
-                                    .overlay(RoundedRectangle(cornerRadius: 10)
-                                        .stroke(Color.secondary.opacity(0.15), lineWidth: 1))
-                            )
-                        }
-                        .padding(.horizontal)
-                    }
-
                     // SECTION 2: Active / All / Good At picker — hidden in tree mode
                     if !showKnowledgeTree {
                         Picker("", selection: $activeFilter) {
@@ -3597,4 +3558,25 @@ struct AdaptiveGlowDot: View {
 struct LightUpSheetContext: Identifiable {
     let id = UUID()
     let initialTopicId: String?
+}
+
+// MARK: - Tag Localization
+
+enum TagLocalization {
+    static func displayName(for tag: String) -> String {
+        displayNames[tag] ?? tag.replacingOccurrences(of: "_", with: " ").capitalized
+    }
+
+    static let displayNames: [String: String] = [
+        "misread_problem":        NSLocalizedString("tag.misread_problem",        value: "Misread Problem",        comment: ""),
+        "incomplete_solution":    NSLocalizedString("tag.incomplete_solution",    value: "Incomplete Solution",    comment: ""),
+        "calculation_error":      NSLocalizedString("tag.calculation_error",      value: "Calculation Error",      comment: ""),
+        "concept_misunderstand":  NSLocalizedString("tag.concept_misunderstand",  value: "Concept Error",          comment: ""),
+        "sign_error":             NSLocalizedString("tag.sign_error",             value: "Sign Error",             comment: ""),
+        "unit_error":             NSLocalizedString("tag.unit_error",             value: "Unit Error",             comment: ""),
+        "formula_error":          NSLocalizedString("tag.formula_error",          value: "Formula Error",          comment: ""),
+        "logic_error":            NSLocalizedString("tag.logic_error",            value: "Logic Error",            comment: ""),
+        "transcription_error":    NSLocalizedString("tag.transcription_error",    value: "Transcription Error",    comment: ""),
+        "wrong_method":           NSLocalizedString("tag.wrong_method",           value: "Wrong Method",           comment: ""),
+    ]
 }

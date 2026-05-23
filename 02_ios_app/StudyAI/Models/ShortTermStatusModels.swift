@@ -76,29 +76,55 @@ struct ConversationBehaviorSignal: Codable, Identifiable {
 }
 
 struct WeaknessValue: Codable {
-    var value: Double              // Current weakness intensity (0.0 = mastered)
-    var firstDetected: Date        // When this key was first created
-    var lastAttempt: Date          // Most recent attempt on this weakness
-    var totalAttempts: Int         // Number of times attempted
-    var correctAttempts: Int       // Number of correct attempts
+    var value: Double
+    var firstDetected: Date
+    var lastAttempt: Date
+    var totalAttempts: Int
+    var correctAttempts: Int
 
-    // ✅ FIX #2: Track recent error types for weighted decrement
-    var recentErrorTypes: [String] = []  // Last 3 error types
+    var recentErrorTypes: [String] = []
+    var recentQuestionIds: [String] = []
+    var masteryQuestions: [String] = []
 
-    // ✅ CONDITIONAL TRACKING: Only populated when value > 0 (weakness)
-    var recentQuestionIds: [String] = []      // Last 5 question IDs (only when positive)
+    var errorMicroTagCounts: [String: Int] = [:]
+    var skillTagCounts: [String: Int] = [:]
+    var styleTagCounts: [String: Int] = [:]
 
-    // ✅ MASTERY TRACKING: Only populated when value < 0 (mastery)
-    var masteryQuestions: [String] = []       // Recent correct questions (only when negative)
+    // Custom decoder so fields added after initial release don't break stored data.
+    // Swift's synthesized init(from:) uses decode(_:forKey:) which throws if the key
+    // is absent — causing the entire activeWeaknesses dict to silently become empty.
+    init(value: Double, firstDetected: Date, lastAttempt: Date,
+         totalAttempts: Int, correctAttempts: Int) {
+        self.value = value
+        self.firstDetected = firstDetected
+        self.lastAttempt = lastAttempt
+        self.totalAttempts = totalAttempts
+        self.correctAttempts = correctAttempts
+    }
 
-    // Computed properties
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        value           = try c.decode(Double.self, forKey: .value)
+        firstDetected   = try c.decode(Date.self,   forKey: .firstDetected)
+        lastAttempt     = try c.decode(Date.self,   forKey: .lastAttempt)
+        totalAttempts   = try c.decode(Int.self,    forKey: .totalAttempts)
+        correctAttempts = try c.decode(Int.self,    forKey: .correctAttempts)
+        // All fields added after v1 use decodeIfPresent so old stored JSON still loads.
+        recentErrorTypes     = (try? c.decodeIfPresent([String].self,       forKey: .recentErrorTypes))     ?? []
+        recentQuestionIds    = (try? c.decodeIfPresent([String].self,       forKey: .recentQuestionIds))    ?? []
+        masteryQuestions     = (try? c.decodeIfPresent([String].self,       forKey: .masteryQuestions))     ?? []
+        errorMicroTagCounts  = (try? c.decodeIfPresent([String: Int].self,  forKey: .errorMicroTagCounts))  ?? [:]
+        skillTagCounts       = (try? c.decodeIfPresent([String: Int].self,  forKey: .skillTagCounts))       ?? [:]
+        styleTagCounts       = (try? c.decodeIfPresent([String: Int].self,  forKey: .styleTagCounts))       ?? [:]
+    }
+
     var accuracy: Double {
         guard totalAttempts > 0 else { return 0.0 }
         return Double(correctAttempts) / Double(totalAttempts)
     }
 
     var daysActive: Int {
-        return Calendar.current.dateComponents([.day], from: firstDetected, to: Date()).day ?? 0
+        Calendar.current.dateComponents([.day], from: firstDetected, to: Date()).day ?? 0
     }
 }
 

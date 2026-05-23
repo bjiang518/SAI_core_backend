@@ -3243,3 +3243,89 @@
 "todo.knowledgeTree.subtitle" = "探索「%@」知识图谱";
 "todo.knowledgeTree.defaultSubject" = "各科目";
 "practice.bank.retrieve" = "获取真题";
+
+// MARK: - Learning View
+"learning.header.title" = "视频学习";
+"learning.video.change" = "换一个";
+"learning.video.pick" = "选择一个视频开始学习";
+"learning.video.searching" = "正在搜索视频...";
+"learning.video.empty" = "暂无相关视频";
+"learning.chat.hintNoVideo" = "选择视频后可以随时暂停提问";
+"learning.chat.hint" = "随时暂停视频，向 AI 提问";
+"learning.chat.placeholder" = "问一个问题...";
+
+// MARK: - Learning feature additions
+"mistakeTree.detail.startLearning" = "开始学习";
+"learning.smartai.hint" = "SmartAI — AI 能理解视频内容";
+"learning.smartai.badge" = "SmartAI";
+"chat.video.startLearning" = "视频学习";
+"learning.header.back" = "对话";
+"learning.header.close" = "关闭";
+"learning.chat.sessionStart" = "视频学习开始";
+"learning.archive.topic" = "视频学习";
+"learning.diagram.request" = "帮我画一个图示来解释这个概念";
+"learning.suggestion.diagram" = "画图";
+"learning.exit.title" = "退出视频学习";
+"learning.exit.save" = "保存并退出";
+"learning.exit.noSave" = "不保存，直接退出";
+"learning.exit.cancel" = "继续学习";
+"learning.exit.message" = "保存后可在「Library」查看本次学习记录。";
+"learning.exit.messageNoSession" = "确定要退出视频学习吗？";
+"learning.diagram.failed" = "图示生成遇到了一些问题，请尝试更具体地描述你想画的内容。";
+"learning.menu.voiceSettings" = "语音设置";
+"learning.menu.archive" = "保存到 Library";
+"learning.menu.liveMode" = "实时对话";
+"learning.voice.pauseHint" = "暂停视频后才能说话";
+"learning.voice.listening" = "正在聆听...";
+"learning.live.active" = "实时对话中 — 开口说话";
+"learning.live.stop" = "停止";
+"learning.menu.stopLive" = "停止 Live";
+"learning.practice.button" = "生成练习题";
+"learning.leafLit.title" = "知识点已点亮！";
+"learning.leafLit.subtitle" = "在知识树中查看你的进展";
+
+// Trial page (redesigned)
+"onboarding.trial.title.part1" = "你的第一";
+"onboarding.trial.title.highlight" = "周";
+"onboarding.trial.title.part2" = "免费";
+"onboarding.trial.feature1.title" = "秒解任何作业";
+"onboarding.trial.feature1.sub" = "拍照上传，即刻获得逐步 AI 讲解。";
+"onboarding.trial.feature2.title" = "随时实时语音辅导";
+"onboarding.trial.feature2.sub" = "随时语音交流，像有专属私教在身边。";
+"onboarding.trial.feature3.title" = "解锁真题题库";
+"onboarding.trial.feature3.sub" = "涵盖全科目的历年真题，精准刷题备考。";
+"onboarding.trial.feature4.title" = "视频学习分析";
+"onboarding.trial.feature4.sub" = "看视频，AI 自动生成摘要、重点与练习题。";
+"onboarding.trial.feature5.title" = "将错题转化为掌握";
+"onboarding.trial.feature5.sub" = "AI 追踪薄弱点，为你定制专项练习。";
+"onboarding.trial.trust1" = "随时取消";
+"onboarding.trial.trust2" = "下周前不扣费";
+"onboarding.trial.trust3" = "数百万学生的选择";
+"onboarding.trial.comparePlans" = "比较方案";
+
+/* Knowledge Tree — new action buttons */
+"knowledgeTree.learnNewConcept" = "学习新概念";
+"knowledgeTree.practiceConcept" = "练习概念";
+"knowledgeTree.recentSummaries" = "最近学习摘要";
+
+/* Leaf Detail Sheet */
+"mistakeTree.detail.videoSummaries" = "视频摘要";
+
+/* Video Summary */
+"video.summary.title" = "视频摘要";
+"video.summary.archived" = "已保存到学习库";
+"video.summary.unavailable" = "摘要不可用 — 该视频无可访问的字幕";
+
+/* Recent Summaries */
+"summaries.empty" = "暂无保存的摘要";
+
+/* PDF export */
+"pdf.generating" = "正在生成 PDF…";
+"pdf.failed" = "无法生成 PDF";
+"pdf.saved" = "已保存到文件";
+
+/* Learning View — video action bar */
+"learning.video.practice" = "练习";
+"learning.video.summary" = "摘要";
+"learning.video.summary.generating" = "生成中…";
+"learning.video.summary.loading" = "加载中…";

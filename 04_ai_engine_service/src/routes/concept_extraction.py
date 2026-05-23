@@ -27,12 +27,15 @@ class BatchConceptExtractionRequest(BaseModel):
 
 class ConceptExtractionResponse(BaseModel):
     """
-    Lightweight response - ONLY curriculum taxonomy
+    Lightweight response - curriculum taxonomy + question tags
     No error analysis data needed for correct answers
     """
     subject: str
     base_branch: Optional[str]
     detailed_branch: Optional[str]
+    skill_tags: List[str] = []
+    style_tags: List[str] = []
+    mc_strategy_tags: List[str] = []
     extraction_failed: bool = False
 
 @router.post("/extract", response_model=ConceptExtractionResponse)

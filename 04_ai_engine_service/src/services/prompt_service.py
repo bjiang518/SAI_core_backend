@@ -1151,6 +1151,17 @@ Generate now:"""
 
         unique_source_tags = list(set(all_source_tags))
 
+        # Aggregate error_micro_tags and skill_tags sent from iOS (new tag system)
+        all_micro_tags = []
+        all_skill_tags_new = []
+        for m in mistakes_data:
+            all_micro_tags.extend(m.get('error_micro_tags', []))
+            all_skill_tags_new.extend(m.get('skill_tags', []))
+
+        from collections import Counter as _Counter
+        top_micro_tags = [tag for tag, _ in _Counter(all_micro_tags).most_common(3)]
+        top_skill_tags = [tag for tag, _ in _Counter(all_skill_tags_new).most_common(2)]
+
         # ✅ FIX: Initialize variables BEFORE the if block to prevent UnboundLocalError
         # These variables are used later in f-strings, so they must always be defined
         most_common_error = None
@@ -1203,6 +1214,36 @@ Generate {question_count} questions that:
 Focus on helping the student master the specific topic they struggled with.
 """
 
+        # Distractor design section — only shown when micro tags are available
+        _MICRO_TAG_GUIDANCE = {
+            "sign_error":           "include an option where only the sign differs from the correct answer",
+            "arithmetic_slip":      "include an option from a common single-digit arithmetic mistake",
+            "algebraic_slip":       "include an option from a coefficient or term-transposition error",
+            "decimal_placement":    "include an option with the decimal point shifted one place",
+            "order_of_operations":  "include an option that results from applying operations in the wrong order",
+            "unit_omission":        "include an option that is numerically correct but missing units",
+            "wrong_formula":        "include an option computed with a plausible but incorrect formula",
+            "setup_error":          "include an option from a fundamentally wrong equation or model setup",
+            "inverse_direction":    "include an option where division replaces multiplication (or vice versa)",
+            "condition_ignored":    "include an option that ignores one of the stated constraints",
+            "misread_problem":      "include an option that answers a subtly different version of the question",
+            "transcription_error":  "include an option with one digit or symbol copied incorrectly",
+            "incomplete_solution":  "include an option that is an intermediate step rather than the final answer",
+        }
+        distractor_section = ""
+        if top_micro_tags:
+            guidance_lines = []
+            for tag in top_micro_tags:
+                hint = _MICRO_TAG_GUIDANCE.get(tag)
+                if hint:
+                    guidance_lines.append(f"  - {tag.replace('_', ' ').title()}: {hint}")
+            if guidance_lines:
+                distractor_section = f"""
+DISTRACTOR DESIGN — This student repeatedly makes these specific errors: {', '.join(top_micro_tags)}
+For multiple-choice questions, design wrong answer choices that a student making these errors would plausibly choose:
+{chr(10).join(guidance_lines)}
+"""
+
         # ALWAYS include LaTeX formatting instructions for ALL question types
         # True/false, multiple choice, etc. can all contain mathematical notation
         # Build math formatting instruction (can't use backslashes in f-string)
@@ -1221,6 +1262,7 @@ Focus on helping the student master the specific topic they struggled with.
 
 {chr(10).join(mistakes_summary)}
 {error_analysis_section}
+{distractor_section}
 {math_note}
 {tags_note}
 

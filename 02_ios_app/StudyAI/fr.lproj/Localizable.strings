@@ -3275,3 +3275,68 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "todo.knowledgeTree.subtitle" = "Explorer la carte de connaissances « %@ »";
 "todo.knowledgeTree.defaultSubject" = "Toutes les matières";
 "practice.bank.retrieve" = "Obtenir de vraies questions";
+
+// MARK: - Learning View
+"learning.header.title" = "Apprentissage Vidéo";
+"learning.video.change" = "Changer";
+"learning.video.pick" = "Choisissez une vidéo pour commencer";
+"learning.video.searching" = "Recherche de vidéos...";
+"learning.video.empty" = "Aucune vidéo trouvée";
+"learning.chat.hintNoVideo" = "Sélectionnez une vidéo, puis mettez en pause pour poser des questions";
+"learning.chat.hint" = "Mettez en pause à tout moment pour interroger l'IA";
+"learning.chat.placeholder" = "Posez une question...";
+
+// MARK: - Learning feature additions
+"mistakeTree.detail.startLearning" = "Commencer à apprendre";
+"learning.smartai.hint" = "SmartAI — l'IA comprend la vidéo";
+"learning.smartai.badge" = "SmartAI";
+"chat.video.startLearning" = "Vidéo";
+"learning.header.back" = "Chat";
+"learning.header.close" = "Fermer";
+"learning.suggestion.diagram" = "Dessiner";
+
+// Trial page (redesigned)
+"onboarding.trial.title.part1" = "Votre première ";
+"onboarding.trial.title.highlight" = "semaine";
+"onboarding.trial.title.part2" = " est gratuite";
+"onboarding.trial.feature1.title" = "Résolvez n'importe quel devoir en secondes";
+"onboarding.trial.feature1.sub" = "Prenez une photo — obtenez des explications IA étape par étape.";
+"onboarding.trial.feature2.title" = "Tuteur vocal en direct, à tout moment";
+"onboarding.trial.feature2.sub" = "Discutez de n'importe quel problème en temps réel — comme un professeur privé.";
+"onboarding.trial.feature3.title" = "Débloquez la banque de vrais examens";
+"onboarding.trial.feature3.sub" = "Entraînez-vous avec des questions d'examens passés dans toutes les matières.";
+"onboarding.trial.feature4.title" = "Analyse d'apprentissage vidéo";
+"onboarding.trial.feature4.sub" = "Regardez une vidéo et obtenez des résumés, points clés et quiz IA.";
+"onboarding.trial.feature5.title" = "Transformez les erreurs en maîtrise";
+"onboarding.trial.feature5.sub" = "L'IA suit vos points faibles et crée des exercices ciblés pour vous.";
+"onboarding.trial.trust1" = "Annulez à tout moment";
+"onboarding.trial.trust2" = "Aucun frais avant la semaine prochaine";
+"onboarding.trial.trust3" = "Approuvé par des millions d'élèves";
+"onboarding.trial.comparePlans" = "Comparer les plans";
+
+/* Knowledge Tree — new action buttons */
+"knowledgeTree.learnNewConcept" = "Apprendre un nouveau concept";
+"knowledgeTree.practiceConcept" = "Pratiquer le concept";
+"knowledgeTree.recentSummaries" = "Résumés d'apprentissage récents";
+
+/* Leaf Detail Sheet */
+"mistakeTree.detail.videoSummaries" = "Résumés vidéo";
+
+/* Video Summary */
+"video.summary.title" = "Résumé vidéo";
+"video.summary.archived" = "Enregistré dans la bibliothèque";
+"video.summary.unavailable" = "Résumé indisponible — aucun sous-titre accessible pour cette vidéo";
+
+/* Recent Summaries */
+"summaries.empty" = "Aucun résumé enregistré pour l'instant";
+
+/* PDF export */
+"pdf.generating" = "Génération du PDF…";
+"pdf.failed" = "Impossible de générer le PDF";
+"pdf.saved" = "Enregistré dans Fichiers";
+
+/* Learning View — video action bar */
+"learning.video.practice" = "Pratiquer";
+"learning.video.summary" = "Résumé";
+"learning.video.summary.generating" = "Génération…";
+"learning.video.summary.loading" = "Chargement…";
