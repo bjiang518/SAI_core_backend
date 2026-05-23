@@ -70,7 +70,7 @@ class VideoSummaryRoutes {
         tags: ['AI', 'Video'],
         body: {
           type: 'object',
-          required: ['videoId', 'transcript_text'],
+          required: ['videoId'],
           properties: {
             videoId:         { type: 'string' },
             transcript_text: { type: 'string' },
@@ -97,9 +97,11 @@ class VideoSummaryRoutes {
       subject = 'General',
     } = request.body;
 
-    if (!videoId || !transcript_text || transcript_text.trim().length === 0) {
-      return reply.status(400).send({ success: false, error: 'videoId and transcript_text are required' });
+    if (!videoId) {
+      return reply.status(400).send({ success: false, error: 'videoId is required' });
     }
+
+    const hasTranscript = transcript_text && transcript_text.trim().length > 0;
 
     const redis = this.fastify.redis || null;
     const cacheKey = `video_summary:${videoId}`;
@@ -119,20 +121,28 @@ class VideoSummaryRoutes {
       return reply.status(500).send({ success: false, error: 'Summary generation not configured' });
     }
 
-    this.fastify.log.info(`[VideoSummary] Generating for videoId=${videoId}, subject=${subject}, user=${userId}`);
+    this.fastify.log.info(`[VideoSummary] Generating for videoId=${videoId}, subject=${subject}, hasTranscript=${hasTranscript}, user=${userId}`);
 
-    const truncatedTranscript = transcript_text.length > MAX_TRANSCRIPT_CHARS
-      ? transcript_text.slice(0, MAX_TRANSCRIPT_CHARS) + '...'
-      : transcript_text;
+    const truncatedTranscript = hasTranscript
+      ? (transcript_text.length > MAX_TRANSCRIPT_CHARS
+          ? transcript_text.slice(0, MAX_TRANSCRIPT_CHARS) + '...'
+          : transcript_text)
+      : null;
 
-    const userPrompt = `Video title: "${title}"
+    const userPrompt = truncatedTranscript
+      ? `Video title: "${title}"
 Channel: ${channel_title}
 Subject: ${subject}
 
 Full transcript:
 ${truncatedTranscript}
 
-Generate a complete, vivid one-page HTML study summary following the design rules exactly.`;
+Generate a complete, vivid one-page HTML study summary following the design rules exactly.`
+      : `Video title: "${title}"
+Channel: ${channel_title}
+Subject: ${subject}
+
+No transcript is available for this video. Use your general knowledge about the subject and topic inferred from the title to generate a comprehensive, accurate one-page HTML study summary following the design rules exactly.`;
 
     try {
       // Lazy-require to avoid module-load failure if OPENAI_API_KEY is missing at startup
