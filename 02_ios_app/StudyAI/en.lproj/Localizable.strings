@@ -3342,3 +3342,7 @@
 "learning.video.summary" = "Summary";
 "learning.video.summary.generating" = "Generating…";
 "learning.video.summary.loading" = "Loading…";
+
+/* Home screen — Knowledge & Learning card */
+"home.knowledgeLearning" = "Knowledge & Learning";
+"home.knowledgeLearningDescription" = "Explore your knowledge tree";

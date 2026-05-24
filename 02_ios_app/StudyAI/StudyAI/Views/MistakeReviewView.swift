@@ -139,6 +139,11 @@ struct MistakeReviewView: View {
     @State private var showLightUpPractice = false
     /// Weakness keys for topics practiced via LightUpTreeSheet — used to light up leaves on completion
     @State private var lightUpTopicKeys: [String] = []
+    // Learn New Concept + Recent Summaries (tree mode)
+    @State private var showingConceptSelector = false
+    @State private var conceptForLearning: KnowledgeTreeTopic? = nil
+    @State private var showLearningFromTree = false
+    @State private var showingRecentSummaries = false
 
     var body: some View {
         ScrollView {
@@ -168,7 +173,13 @@ struct MistakeReviewView: View {
                         let displaySubjects = showKnowledgeTree ? allSubjects : mistakeService.subjectsWithMistakes
                         CompactSubjectSelector(
                             subjects: displaySubjects,
-                            selectedSubject: $selectedSubject
+                            selectedSubject: $selectedSubject,
+                            treeCounts: showKnowledgeTree
+                                ? Dictionary(uniqueKeysWithValues: displaySubjects.map { s in
+                                    let p = leafProgress(for: s.subject)
+                                    return (s.subject, p)
+                                })
+                                : nil
                         )
                         .mistakeReviewOnboardingAnchor("mistake_review_onboarding_subjectSelector")
                         .onChange(of: selectedSubject) { _, _ in
@@ -326,13 +337,47 @@ struct MistakeReviewView: View {
                         .padding(.horizontal)
                     }
 
-                    // SECTION 4b: Light-up button — tree mode only
+                    // SECTION 4b: Tree-mode action buttons
                     if showKnowledgeTree, let subject = selectedSubject {
-                        LightUpTreeButton(
-                            subject: subject,
-                            unlitCount: unlitTopicCount(for: subject),
-                            onTap: { lightUpSheetContext = LightUpSheetContext(initialTopicId: nil) }
-                        )
+                        VStack(spacing: 10) {
+                            HStack(spacing: 12) {
+                                // Learn New Concept
+                                treeActionButton(
+                                    icon: "play.circle.fill",
+                                    title: NSLocalizedString("knowledgeTree.learnNewConcept",
+                                                             value: "Learn New Concept", comment: ""),
+                                    color: DesignTokens.Colors.Cute.blue,
+                                    action: { showingConceptSelector = true }
+                                )
+
+                                // Practice Concept (same flow as Light Up Tree)
+                                treeActionButton(
+                                    icon: "leaf.fill",
+                                    title: NSLocalizedString("knowledgeTree.practiceConcept",
+                                                             value: "Practice Concept", comment: ""),
+                                    color: DesignTokens.Colors.Cute.mint,
+                                    action: { lightUpSheetContext = LightUpSheetContext(initialTopicId: nil) }
+                                )
+                            }
+
+                            // Recent Learning Summaries text link
+                            let summaryCount = VideoSummaryStore.shared.summaries(for: subject).count
+                            if summaryCount > 0 {
+                                Button { showingRecentSummaries = true } label: {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "doc.text.image")
+                                            .font(.system(size: 13))
+                                        Text(NSLocalizedString("knowledgeTree.recentSummaries",
+                                                               value: "Recent Learning Summaries",
+                                                               comment: "")
+                                             + " (\(summaryCount))")
+                                            .font(.system(size: 13, weight: .medium))
+                                    }
+                                    .foregroundColor(.secondary)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
                         .padding(.horizontal)
                     }
 
@@ -455,6 +500,33 @@ struct MistakeReviewView: View {
                     EmptyView()
                 }
             }
+            // Learn New Concept — topic picker → LearningView
+            .sheet(isPresented: $showingConceptSelector) {
+                if let subject = selectedSubject {
+                    ConceptSelectorSheet(
+                        subject: subject,
+                        branches: TaxonomyService.shared.knowledgeTree(for: subject)
+                    ) { topic in
+                        conceptForLearning = topic
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                            showLearningFromTree = true
+                        }
+                    }
+                }
+            }
+            .fullScreenCover(isPresented: $showLearningFromTree) {
+                if let t = conceptForLearning, let subject = selectedSubject {
+                    NavigationStack {
+                        LearningView(topicName: t.topicName, branchName: t.branchName, subject: subject)
+                    }
+                }
+            }
+            // Recent Learning Summaries
+            .sheet(isPresented: $showingRecentSummaries) {
+                if let subject = selectedSubject {
+                    RecentSummariesSheet(subject: subject)
+                }
+            }
             .onChange(of: appState.shouldDismissPracticeStack) { _, shouldDismiss in
                 if shouldDismiss {
                     debugPrint("🔴 [MistakeReviewView] shouldDismissPracticeStack fired → dismissing showingMistakeList. selectedTab=\(appState.selectedTab)")
@@ -526,6 +598,33 @@ struct MistakeReviewView: View {
             .flatMap { $0.topics }
             .filter { !$0.isPracticed }
             .count
+    }
+
+    private func leafProgress(for subject: String) -> (practiced: Int, total: Int) {
+        let topics = TaxonomyService.shared.knowledgeTree(for: subject).flatMap { $0.topics }
+        return (topics.filter { $0.isPracticed }.count, topics.count)
+    }
+
+    @ViewBuilder
+    private func treeActionButton(icon: String, title: String, color: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 14))
+                Text(title)
+                    .font(.system(size: 14, weight: .semibold))
+            }
+            .foregroundColor(color)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 13)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(color.opacity(0.09))
+                    .overlay(RoundedRectangle(cornerRadius: 14)
+                        .stroke(color.opacity(0.40), lineWidth: 1.5))
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder

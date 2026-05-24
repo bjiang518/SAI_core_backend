@@ -3361,3 +3361,11 @@
 "learning.video.summary" = "サマリー";
 "learning.video.summary.generating" = "生成中…";
 "learning.video.summary.loading" = "読み込み中…";
+
+/* Skill graph titles */
+"skillGraph.title" = "スキルグラフ";
+"skillGraph.treeTitle" = "知識ツリー";
+
+/* Home screen — Knowledge & Learning card */
+"home.knowledgeLearning" = "知識と学習";
+"home.knowledgeLearningDescription" = "知識ツリーを探索";

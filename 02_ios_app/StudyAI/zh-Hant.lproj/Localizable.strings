@@ -3272,3 +3272,11 @@
 "learning.video.summary" = "摘要";
 "learning.video.summary.generating" = "生成中…";
 "learning.video.summary.loading" = "載入中…";
+
+/* Skill graph titles */
+"skillGraph.title" = "技能圖";
+"skillGraph.treeTitle" = "知識樹";
+
+/* Home screen — Knowledge & Learning card */
+"home.knowledgeLearning" = "知識與學習";
+"home.knowledgeLearningDescription" = "探索您的知識樹";

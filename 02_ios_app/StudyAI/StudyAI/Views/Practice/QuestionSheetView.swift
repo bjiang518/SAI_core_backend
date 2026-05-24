@@ -590,8 +590,13 @@ struct QuestionSheetView: View {
         VStack(spacing: 8) {
             ForEach(q.options ?? [], id: \.self) { option in
                 let isSelected = selectedOption == option
-                // Trust AI grading for the selected option — handles correctAnswer format mismatches
-                let isCorrectOpt = isOptionCorrect(option: option, q: q) || (isSelected && isCorrect)
+                // When AI confirmed the student is correct (not an instant DB match),
+                // trust the student's choice over the DB's correct_answer — the DB may be wrong.
+                // Only fall back to isOptionCorrect (DB answer) when:
+                //   - It was an instant exact match (wasInstantGraded = true), OR
+                //   - The student was marked wrong (so we show the DB answer as the right one)
+                let dbAnswerReliable = wasInstantGraded || !isCorrect
+                let isCorrectOpt = (dbAnswerReliable && isOptionCorrect(option: option, q: q)) || (isSelected && isCorrect)
                 let iconName: String = isCorrectOpt ? "checkmark" : (isSelected ? "xmark" : "circle")
                 let iconColor: Color = isCorrectOpt ? .green : (isSelected ? .red : Color(.tertiaryLabel))
                 HStack(spacing: 12) {
@@ -829,10 +834,24 @@ struct QuestionSheetView: View {
             ?? (saved?["feedback"] as? String)
             ?? q.explanation
 
+        // For bank questions with figures, add the full figure URL so AI has visual context
+        let figureNote: String = {
+            guard q.isFromBank, let figureUrl = q.figureUrl else { return "" }
+            let fullUrl = NetworkService.shared.apiBaseURL + figureUrl
+            return "\n\n[Question image: \(fullUrl)]"
+        }()
+
+        // Include MC options in context so AI understands the choices
+        let optionsNote: String = {
+            guard (q.type == .multipleChoice || q.type == .trueFalse),
+                  let opts = q.options, !opts.isEmpty else { return "" }
+            return "\n\n\(NSLocalizedString("proMode.answerChoices", value: "Answer choices", comment: "")):\n" + opts.joined(separator: "\n")
+        }()
+
         let message = """
         \(NSLocalizedString("proMode.askAIPrompt", comment: ""))
 
-        \(q.question)
+        \(q.question)\(optionsNote)\(figureNote)
 
         \(NSLocalizedString("proMode.myAnswer", comment: "")): \(userAns)
 
@@ -903,6 +922,7 @@ struct QuestionSheetView: View {
         let parsedQ = ParsedQuestion(
             questionText: q.question,
             answerText: q.correctAnswer,
+            hasVisualElements: q.figureUrl != nil,
             studentAnswer: studentAns.isEmpty ? nil : studentAns,
             correctAnswer: q.correctAnswer,
             grade: isCorrectAnswer ? "CORRECT" : "INCORRECT",
@@ -910,7 +930,8 @@ struct QuestionSheetView: View {
             pointsPossible: Float(q.points ?? 1),
             feedback: q.explanation.isEmpty ? nil : q.explanation,
             questionType: q.type.rawValue,
-            options: q.options
+            options: q.options,
+            questionImageUrl: q.figureUrl.map { NetworkService.shared.apiBaseURL + $0 }
         )
 
         let request = QuestionArchiveRequest(
@@ -1272,23 +1293,6 @@ struct QuestionSheetView: View {
             optionsDict = nil
         }
 
-        // MC and T/F are objective — use direct comparison only, never AI
-        if q.type == .multipleChoice || q.type == .trueFalse {
-            let matchResult = AnswerMatchingService.shared.matchAnswer(
-                userAnswer: answer,
-                correctAnswer: q.correctAnswer,
-                questionType: q.type.rawValue,
-                options: optionsDict
-            )
-            isCorrect = matchResult.matchScore >= 0.9
-            partialCredit = isCorrect ? 1.0 : 0.0
-            wasInstantGraded = true
-            aiFeedback = nil
-            hasSubmitted = true
-            recordAnswer(q: q, answer: answer, correct: isCorrect)
-            return
-        }
-
         let matchResult = AnswerMatchingService.shared.matchAnswer(
             userAnswer: answer,
             correctAnswer: q.correctAnswer,
@@ -1296,30 +1300,69 @@ struct QuestionSheetView: View {
             options: optionsDict
         )
 
-        if matchResult.isExactMatch {
+        // Exact match → always instant correct regardless of question type
+        if matchResult.isExactMatch || matchResult.matchScore >= 0.9 {
             isCorrect = true
             partialCredit = 1.0
             wasInstantGraded = true
-            aiFeedback = NSLocalizedString("questionDetail.feedbackExactMatch", comment: "")
+            aiFeedback = nil
             hasSubmitted = true
             recordAnswer(q: q, answer: answer, correct: true)
             return
         }
 
-        // Not an exact match — wait for AI result before revealing the answer view
+        // No exact match — bank questions always fall back to AI (DB correct_answer may be wrong)
+        // Non-bank MC/T-F are objective: no match = wrong, no AI needed
+        if q.isFromBank {
+            isGradingWithAI = true
+            Task { await gradeWithAI(q: q, answer: answer) }
+            return
+        }
+
+        if q.type == .multipleChoice || q.type == .trueFalse {
+            isCorrect = false
+            partialCredit = 0.0
+            wasInstantGraded = true
+            aiFeedback = nil
+            hasSubmitted = true
+            recordAnswer(q: q, answer: answer, correct: false)
+            return
+        }
+
+        // Short answer: AI grading
         isGradingWithAI = true
         Task { await gradeWithAI(q: q, answer: answer) }
+    }
+
+    /// Download a bank question figure and return its base64-encoded data, or nil on failure.
+    private func fetchFigureBase64(_ relativePath: String) async -> String? {
+        guard let url = URL(string: NetworkService.shared.apiBaseURL + relativePath) else { return nil }
+        guard let (data, _) = try? await URLSession.shared.data(from: url) else { return nil }
+        return data.base64EncodedString()
     }
 
     private func gradeWithAI(q: QuestionGenerationService.GeneratedQuestion, answer: String) async {
         defer { isGradingWithAI = false }
         do {
+            // For bank questions with figures, download the figure and pass to AI
+            var contextImageBase64: String? = nil
+            if q.isFromBank, let figureUrl = q.figureUrl {
+                contextImageBase64 = await fetchFigureBase64(figureUrl)
+            }
+
+            // Include MC options in question text so AI can evaluate against actual choices
+            var questionTextForAI = q.question
+            if (q.type == .multipleChoice || q.type == .trueFalse),
+               let opts = q.options, !opts.isEmpty {
+                questionTextForAI += "\n\nAnswer choices:\n" + opts.joined(separator: "\n")
+            }
+
             let response = try await NetworkService.shared.gradeSingleQuestion(
-                questionText: q.question,
+                questionText: questionTextForAI,
                 studentAnswer: answer,
                 subject: q.topic.isEmpty ? session.subject : q.topic,
                 questionType: q.type.rawValue,
-                contextImageBase64: nil,
+                contextImageBase64: contextImageBase64,
                 parentQuestionContent: nil,
                 useDeepReasoning: true
             )
@@ -1363,12 +1406,23 @@ struct QuestionSheetView: View {
         let wasCorrect = correctAnsweredIds.contains(qId)
 
         do {
+            // For bank questions: download figure if available and enrich question text with options
+            var contextImageBase64: String? = nil
+            if q.isFromBank, let figureUrl = q.figureUrl {
+                contextImageBase64 = await fetchFigureBase64(figureUrl)
+            }
+            var questionTextForAI = q.question
+            if (q.type == .multipleChoice || q.type == .trueFalse),
+               let opts = q.options, !opts.isEmpty {
+                questionTextForAI += "\n\nAnswer choices:\n" + opts.joined(separator: "\n")
+            }
+
             let response = try await NetworkService.shared.gradeSingleQuestion(
-                questionText: q.question,
+                questionText: questionTextForAI,
                 studentAnswer: savedAnswer,
                 subject: q.topic.isEmpty ? session.subject : q.topic,
                 questionType: q.type.rawValue,
-                contextImageBase64: nil,
+                contextImageBase64: contextImageBase64,
                 parentQuestionContent: nil,
                 useDeepReasoning: true
             )
@@ -1476,6 +1530,7 @@ struct QuestionSheetView: View {
                     return ParsedQuestion(
                         questionText: q.question,
                         answerText: q.correctAnswer,
+                        hasVisualElements: q.figureUrl != nil,
                         studentAnswer: saved?["answer"] as? String,
                         correctAnswer: q.correctAnswer,
                         grade: "INCORRECT",
@@ -1483,7 +1538,8 @@ struct QuestionSheetView: View {
                         pointsPossible: Float(q.points ?? 1),
                         feedback: q.explanation.isEmpty ? nil : q.explanation,
                         questionType: q.type.rawValue,
-                        options: q.options
+                        options: q.options,
+                        questionImageUrl: q.figureUrl.map { NetworkService.shared.apiBaseURL + $0 }
                     )
                 }
                 let request = QuestionArchiveRequest(

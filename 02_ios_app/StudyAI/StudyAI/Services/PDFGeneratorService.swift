@@ -96,7 +96,7 @@ class PDFGeneratorService: ObservableObject {
 
         pdfLog.pdfLatex("=== generatePracticePDF START — \(questions.count) questions, subject='\(subject)' ===")
 
-        // Phase 1 (0–60%): Pre-render questions containing LaTeX using MathJax.
+        // Phase 1a (0–50%): Pre-render questions containing LaTeX using MathJax.
         var renderedContent: [Int: UIImage] = [:]
         var latexCount = 0
         for (index, question) in questions.enumerated() {
@@ -116,10 +116,29 @@ class PDFGeneratorService: ObservableObject {
             } else {
                 pdfLog.pdfLatex("Q\(index+1): no LaTeX → plain text")
             }
-            generationProgress = Double(index + 1) / Double(questions.count) * 0.6
+            generationProgress = Double(index + 1) / Double(questions.count) * 0.5
         }
         let mathJaxRendered = renderedContent.count
-        pdfLog.pdfLatex("=== Phase 1 done — \(latexCount)/\(questions.count) had LaTeX, \(mathJaxRendered)/\(latexCount) rendered by MathJax, \(latexCount - mathJaxRendered) fell back to plain text ===")
+        pdfLog.pdfLatex("=== Phase 1a done — \(latexCount)/\(questions.count) had LaTeX, \(mathJaxRendered)/\(latexCount) rendered ===")
+
+        // Phase 1b (50–60%): Pre-download figure images for bank questions.
+        var figureImages: [Int: UIImage] = [:]
+        let baseURL = NetworkService.shared.apiBaseURL
+        for (index, question) in questions.enumerated() {
+            guard let relativePath = question.figureUrl,
+                  let url = URL(string: baseURL + relativePath) else { continue }
+            if let (data, _) = try? await URLSession.shared.data(from: url),
+               let image = UIImage(data: data) {
+                figureImages[index] = image
+                log.info("  [PracticeQ \(index+1)] figure downloaded: \(url.lastPathComponent)")
+            } else {
+                log.warning("  [PracticeQ \(index+1)] figure download failed: \(relativePath)")
+            }
+            generationProgress = 0.5 + Double(index + 1) / Double(questions.count) * 0.1
+        }
+        if !figureImages.isEmpty {
+            pdfLog.pdfLatex("=== Phase 1b done — \(figureImages.count) figures downloaded ===")
+        }
 
         // Phase 2 (60–100%): Build the vector PDF.
         return buildVectorPDF(options: options, totalItems: questions.count) { ctx, pageRect, addPage in
@@ -138,27 +157,29 @@ class PDFGeneratorService: ObservableObject {
             let effectiveWidth = cols?.columnWidth ?? renderWidth
 
             for (index, question) in questions.enumerated() {
-                let rendered = renderedContent[index]
+                let rendered   = renderedContent[index]
+                let figureImg  = figureImages[index]
+                let figureH: CGFloat = figureImg.map { scaledImageHeight($0, maxWidth: effectiveWidth, maxHeight: 300) + 10 } ?? 0
                 let contentH: CGFloat
                 if let r = rendered {
                     contentH = scaledImageHeight(r, maxWidth: effectiveWidth, maxHeight: 4000)
                 } else {
                     let textH = multilineHeight(plainText(question.question), width: effectiveWidth, fontSize: options.questionFontSize)
                     let optH = question.options.map { CGFloat($0.count) * (options.questionFontSize + 11) + 16 } ?? 0
-                    contentH = textH + optH
+                    contentH = textH + figureH + optH
                 }
                 let blockH = contentH + 60
 
                 if let cols = cols {
                     let (drawX, drawY) = cols.fitBlock(height: blockH)
                     let _ = self.drawPracticeQuestion(ctx: ctx, pageRect: pageRect, question: question,
-                        renderedContent: rendered, number: index + 1, startY: drawY, options: options,
+                        renderedContent: rendered, figureImage: figureImg, number: index + 1, startY: drawY, options: options,
                         overrideX: drawX, overrideWidth: effectiveWidth)
                     cols.advance(blockH + options.questionGap)
                 } else {
                     if y + blockH > pageSize.height - margin { addPage(); y = margin }
                     y = drawPracticeQuestion(ctx: ctx, pageRect: pageRect, question: question,
-                        renderedContent: rendered, number: index + 1, startY: y, options: options)
+                        renderedContent: rendered, figureImage: figureImg, number: index + 1, startY: y, options: options)
                     y += options.questionGap
                 }
                 generationProgress = 0.6 + Double(index + 1) / Double(questions.count) * 0.4
@@ -815,6 +836,7 @@ class PDFGeneratorService: ObservableObject {
         pageRect: CGRect,
         question: QuestionGenerationService.GeneratedQuestion,
         renderedContent: UIImage?,
+        figureImage: UIImage? = nil,
         number: Int,
         startY: CGFloat,
         options: PDFExportOptions,
@@ -836,6 +858,13 @@ class PDFGeneratorService: ObservableObject {
 
                 // Index + question body on one line: "1. Question text…"
                 y += drawMultiline("\(number). \(plainText(question.question))", font: bodyFont, x: x, y: y, width: w) + 10
+
+                // Figure image for bank questions (MathVista, scienceqa, kangaroo, etc.)
+                if let fig = figureImage {
+                    let sz = scaledImageSize(fig, maxWidth: w, maxHeight: 300)
+                    fig.draw(in: CGRect(x: x, y: y, width: sz.width, height: sz.height))
+                    y += sz.height + 8
+                }
 
                 // Options
                 if let opts = question.options, !opts.isEmpty {

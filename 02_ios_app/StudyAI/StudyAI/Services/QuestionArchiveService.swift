@@ -148,8 +148,10 @@ class QuestionArchiveService: ObservableObject {
                 "source": request.source
             ]
 
-            // ✅ Add image URL from request context if available
-            if let imageUrl = request.originalImageUrl, !imageUrl.isEmpty {
+            // ✅ Add image URL: prefer per-question figureUrl (bank questions),
+            //    fall back to request-level originalImageUrl (homework camera)
+            let effectiveImageUrl = question.questionImageUrl ?? request.originalImageUrl
+            if let imageUrl = effectiveImageUrl, !imageUrl.isEmpty {
                 questionData["questionImageUrl"] = imageUrl
             }
 

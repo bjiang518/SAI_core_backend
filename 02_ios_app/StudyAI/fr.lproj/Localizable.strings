@@ -3340,3 +3340,11 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "learning.video.summary" = "Résumé";
 "learning.video.summary.generating" = "Génération…";
 "learning.video.summary.loading" = "Chargement…";
+
+/* Skill graph titles */
+"skillGraph.title" = "Graphe de compétences";
+"skillGraph.treeTitle" = "Arbre de connaissances";
+
+/* Home screen — Knowledge & Learning card */
+"home.knowledgeLearning" = "Connaissance & Apprentissage";
+"home.knowledgeLearningDescription" = "Explorez votre arbre de connaissances";

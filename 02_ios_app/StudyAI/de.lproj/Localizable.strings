@@ -3318,3 +3318,11 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "learning.video.summary" = "Zusammenfassung";
 "learning.video.summary.generating" = "Wird erstellt…";
 "learning.video.summary.loading" = "Lädt…";
+
+/* Skill graph titles */
+"skillGraph.title" = "Kompetenzgraph";
+"skillGraph.treeTitle" = "Wissensbaum";
+
+/* Home screen — Knowledge & Learning card */
+"home.knowledgeLearning" = "Wissen & Lernen";
+"home.knowledgeLearningDescription" = "Wissensbaum erkunden";

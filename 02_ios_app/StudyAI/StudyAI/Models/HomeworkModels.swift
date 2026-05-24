@@ -611,6 +611,9 @@ struct ParsedQuestion: Codable {
     let questionType: String?      // "multiple_choice", "true_false", etc.
     let options: [String]?         // Multiple choice options
 
+    // Figure/image for bank questions (relative path from question_bank.figure_url)
+    let questionImageUrl: String?
+
     // Parent/child structure (for hierarchical parsing)
     let isParent: Bool?
     let hasSubquestions: Bool?
@@ -633,6 +636,7 @@ struct ParsedQuestion: Codable {
          feedback: String? = nil,
          questionType: String? = nil,
          options: [String]? = nil,
+         questionImageUrl: String? = nil,
          isParent: Bool? = nil,
          hasSubquestions: Bool? = nil,
          parentContent: String? = nil,
@@ -653,6 +657,7 @@ struct ParsedQuestion: Codable {
         self.feedback = feedback
         self.questionType = questionType
         self.options = options
+        self.questionImageUrl = questionImageUrl
         self.isParent = isParent
         self.hasSubquestions = hasSubquestions
         self.parentContent = parentContent
