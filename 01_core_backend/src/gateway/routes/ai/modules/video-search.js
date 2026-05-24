@@ -4,8 +4,11 @@
  * Priority channels are surfaced first; SmartAI (caption) videos ranked higher within each tier.
  * Uses videos.list?part=status to verify embeddability before returning.
  *
+ * Language strategy: prefer user's language (relevanceLanguage={lang}), fall back to English
+ * if not enough localized results. English users get the existing single-pass behaviour.
+ *
  * Endpoint: POST /api/ai/search-video
- * Body: { query: string, max_results?: number }
+ * Body: { query: string, max_results?: number, language?: string }
  * Returns: { success: true, videos: [{ videoId, title, channelTitle, thumbnail, url, hasTranscript }] }
  */
 
@@ -27,6 +30,25 @@ const PRIORITY_CHANNELS = [
   'crashcourse',
   'kurzgesagt',
 ];
+
+/**
+ * Map from app language codes (ISO 639-1 / BCP-47) to YouTube relevanceLanguage codes.
+ * Falls back to the first segment before '-', then to 'en'.
+ */
+const YT_LANG_MAP = {
+  'en': 'en',
+  'zh': 'zh-Hans', 'zh-Hans': 'zh-Hans', 'zh-Hant': 'zh-TW',
+  'ja': 'ja', 'de': 'de', 'es': 'es', 'fr': 'fr',
+  'ko': 'ko', 'pt': 'pt', 'it': 'it', 'ru': 'ru',
+  'ar': 'ar', 'hi': 'hi',
+};
+
+function toYtLang(appLang = 'en') {
+  const direct = YT_LANG_MAP[appLang];
+  if (direct) return direct;
+  const base = appLang.split('-')[0];
+  return YT_LANG_MAP[base] || 'en';
+}
 
 /**
  * Returns the priority rank of a channel (lower = better).
@@ -59,9 +81,13 @@ function decodeHtmlEntities(str) {
 }
 
 /**
- * Call YouTube Data API v3 search.list
+ * Call YouTube Data API v3 search.list.
+ * @param {string} query - search query
+ * @param {string} apiKey
+ * @param {number} maxFetch - number of candidates to request
+ * @param {string} relevanceLang - BCP-47 language code for YouTube relevanceLanguage
  */
-function youtubeSearch(query, apiKey, maxFetch = 15) {
+function youtubeSearch(query, apiKey, maxFetch = 15, relevanceLang = 'en') {
   return new Promise((resolve, reject) => {
     const params = new URLSearchParams({
       part: 'snippet',
@@ -69,7 +95,7 @@ function youtubeSearch(query, apiKey, maxFetch = 15) {
       type: 'video',
       videoDuration: 'medium',     // 4–20 min — best for educational content
       videoEmbeddable: 'true',     // advisory pre-filter (not definitive)
-      relevanceLanguage: 'en',
+      relevanceLanguage: relevanceLang,
       maxResults: String(maxFetch),
       key: apiKey,
     });
@@ -167,6 +193,53 @@ function checkEmbeddable(videoIds, apiKey) {
   });
 }
 
+/**
+ * Shared helper: take raw YouTube search results, filter for embeddability,
+ * annotate with hasTranscript, rank by tier+channel priority, return top N.
+ */
+async function filterAndRank(rawItems, apiKey, maxReturn) {
+  const candidates = rawItems
+    .filter(item => item.id?.videoId)
+    .map(item => ({
+      videoId: item.id.videoId,
+      title: decodeHtmlEntities(item.snippet.title),
+      channelTitle: decodeHtmlEntities(item.snippet.channelTitle),
+      channelId: item.snippet.channelId,
+      description: decodeHtmlEntities((item.snippet.description || '').slice(0, 160)),
+      thumbnail: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url || null,
+      url: `https://youtube.com/watch?v=${item.id.videoId}`,
+    }));
+
+  if (candidates.length === 0) return [];
+
+  const allVideoIds = candidates.map(v => v.videoId);
+  const { embeddable: embeddableIds, captions } = await checkEmbeddable(allVideoIds, apiKey);
+
+  const embeddable = candidates
+    .filter(v => embeddableIds.has(v.videoId))
+    .map(v => ({ ...v, hasTranscript: captions.has(v.videoId) }));
+
+  // Sort by tier (lower = better), then channel priority, then original YouTube order.
+  // Tier 0: priority channel + SmartAI  ← best
+  // Tier 1: priority channel only
+  // Tier 2: SmartAI only
+  // Tier 3: everything else
+  const scored = embeddable.map((v, i) => {
+    const isPriority = channelPriority(v.channelTitle) < PRIORITY_CHANNELS.length;
+    const tier = (isPriority && v.hasTranscript) ? 0
+               : isPriority                      ? 1
+               : v.hasTranscript                 ? 2
+               :                                   3;
+    return { v, tier, channelRank: channelPriority(v.channelTitle), i };
+  });
+  scored.sort((a, b) =>
+    a.tier !== b.tier               ? a.tier - b.tier :
+    a.channelRank !== b.channelRank ? a.channelRank - b.channelRank :
+    a.i - b.i
+  );
+  return scored.slice(0, maxReturn).map(s => s.v);
+}
+
 class VideoSearchRoutes {
   constructor(fastify) {
     this.fastify = fastify;
@@ -209,8 +282,9 @@ class VideoSearchRoutes {
           type: 'object',
           required: ['query'],
           properties: {
-            query: { type: 'string', description: 'YouTube search query' },
+            query:       { type: 'string', description: 'YouTube search query' },
             max_results: { type: 'integer', default: 3, minimum: 1, maximum: 10 },
+            language:    { type: 'string', description: 'BCP-47 app language code (e.g. zh-Hans, ja, de)' },
           }
         }
       }
@@ -223,7 +297,7 @@ class VideoSearchRoutes {
       return reply.status(401).send({ success: false, error: 'AUTHENTICATION_REQUIRED' });
     }
 
-    const { query, max_results = 3 } = request.body;
+    const { query, max_results = 3, language = 'en' } = request.body;
 
     if (!query || query.trim().length === 0) {
       return reply.status(400).send({ success: false, error: 'Query is required' });
@@ -235,58 +309,50 @@ class VideoSearchRoutes {
       return reply.status(500).send({ success: false, error: 'Video search not configured' });
     }
 
+    const ytLang = toYtLang(language);
+    const q = query.trim();
+
     try {
-      this.fastify.log.info(`🎬 Video search: "${query}" (user=${userId})`);
+      this.fastify.log.info(`🎬 Video search: "${q}" lang=${language}→${ytLang} (user=${userId})`);
 
-      // Fetch extra candidates so embeddability filtering still yields enough results
-      const data = await youtubeSearch(query.trim(), apiKey, max_results * 5);
+      // ── Single-pass for English (existing behaviour, no extra API call) ─────
+      if (ytLang === 'en') {
+        const data = await youtubeSearch(q, apiKey, max_results * 5, 'en');
+        const selected = await filterAndRank(data.items || [], apiKey, max_results);
+        this.fastify.log.info(
+          `🎬 ${(data.items || []).length} candidates, returning ${selected.length}`
+        );
+        return { success: true, videos: selected };
+      }
 
-      const candidates = (data.items || [])
-        .filter(item => item.id?.videoId)
-        .map(item => ({
-          videoId: item.id.videoId,
-          title: decodeHtmlEntities(item.snippet.title),
-          channelTitle: decodeHtmlEntities(item.snippet.channelTitle),
-          channelId: item.snippet.channelId,
-          description: decodeHtmlEntities((item.snippet.description || '').slice(0, 160)),
-          thumbnail: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url || null,
-          url: `https://youtube.com/watch?v=${item.id.videoId}`,
-        }));
-
-      // Definitive embeddability + caption check via videos.list (official API, no scraping).
-      const allVideoIds = candidates.map(v => v.videoId);
-      const { embeddable: embeddableIds, captions } = await checkEmbeddable(allVideoIds, apiKey);
-
-      // Annotate all embeddable candidates with hasTranscript from contentDetails.caption
-      const embeddable = candidates
-        .filter(v => embeddableIds.has(v.videoId))
-        .map(v => ({ ...v, hasTranscript: captions.has(v.videoId) }));
-
-      // Sort by tier (lower = better), then channel priority, then original YouTube order.
-      // Tier 0: priority channel + SmartAI  ← best
-      // Tier 1: priority channel only
-      // Tier 2: SmartAI only
-      // Tier 3: everything else
-      const scored = embeddable.map((v, i) => {
-        const isPriority = channelPriority(v.channelTitle) < PRIORITY_CHANNELS.length;
-        const tier = (isPriority && v.hasTranscript) ? 0
-                   : isPriority                      ? 1
-                   : v.hasTranscript                 ? 2
-                   :                                   3;
-        return { v, tier, channelRank: channelPriority(v.channelTitle), i };
-      });
-      scored.sort((a, b) =>
-        a.tier !== b.tier          ? a.tier - b.tier :
-        a.channelRank !== b.channelRank ? a.channelRank - b.channelRank :
-        a.i - b.i
-      );
-      const selected = scored.slice(0, max_results).map(s => s.v);
+      // ── Two-pass for non-English: prefer localized, fall back to English ────
+      // Pass 1: user's language
+      const localizedData = await youtubeSearch(q, apiKey, max_results * 5, ytLang);
+      const localized = await filterAndRank(localizedData.items || [], apiKey, max_results);
 
       this.fastify.log.info(
-        `🎬 ${candidates.length} candidates, ${embeddable.length} embeddable, ` +
-        `${embeddable.filter(v => v.hasTranscript).length} SmartAI, returning ${selected.length}`
+        `🎬 [${ytLang}] ${(localizedData.items || []).length} candidates → ${localized.length} after filter`
       );
 
+      if (localized.length >= max_results) {
+        return { success: true, videos: localized };
+      }
+
+      // Pass 2: English fallback to fill remaining slots
+      const needed = max_results - localized.length;
+      const englishData = await youtubeSearch(q, apiKey, needed * 5, 'en');
+      const englishAll  = await filterAndRank(englishData.items || [], apiKey, needed);
+
+      this.fastify.log.info(
+        `🎬 [en fallback] ${(englishData.items || []).length} candidates → ${englishAll.length} after filter`
+      );
+
+      // Merge: localized first, then English-only (deduplicate by videoId)
+      const localizedIds = new Set(localized.map(v => v.videoId));
+      const englishOnly  = englishAll.filter(v => !localizedIds.has(v.videoId));
+      const selected = [...localized, ...englishOnly].slice(0, max_results);
+
+      this.fastify.log.info(`🎬 Merged: ${localized.length} localized + ${englishOnly.length} English fallback`);
       return { success: true, videos: selected };
 
     } catch (err) {
