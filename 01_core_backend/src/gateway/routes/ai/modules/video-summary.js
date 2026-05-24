@@ -77,6 +77,7 @@ class VideoSummaryRoutes {
             title:           { type: 'string' },
             channel_title:   { type: 'string' },
             subject:         { type: 'string' },
+            language:        { type: 'string' },
           }
         }
       }
@@ -95,7 +96,19 @@ class VideoSummaryRoutes {
       title = 'Video',
       channel_title = '',
       subject = 'General',
+      language = 'en',
     } = request.body;
+
+    // Map language code to a natural-language instruction for the AI
+    const languageNames = {
+      'en': 'English', 'zh': 'Chinese (Simplified)', 'zh-Hans': 'Chinese (Simplified)',
+      'zh-Hant': 'Chinese (Traditional)', 'ja': 'Japanese', 'de': 'German',
+      'es': 'Spanish', 'fr': 'French', 'ko': 'Korean', 'pt': 'Portuguese',
+    };
+    const langName = languageNames[language] || languageNames[language.split('-')[0]] || 'English';
+    const langInstruction = language !== 'en'
+      ? `\nIMPORTANT: Write ALL text content (section headers, descriptions, facts, summary) in ${langName}. Only the HTML structure and CSS remain in English.`
+      : '';
 
     if (!videoId) {
       return reply.status(400).send({ success: false, error: 'videoId is required' });
@@ -104,7 +117,8 @@ class VideoSummaryRoutes {
     const hasTranscript = transcript_text && transcript_text.trim().length > 0;
 
     const redis = this.fastify.redis || null;
-    const cacheKey = `video_summary:${videoId}`;
+    // Cache key includes language so users get summaries in their own language
+    const cacheKey = `video_summary:${videoId}:${language}`;
 
     // Return cached result immediately if available
     if (redis) {
@@ -132,7 +146,7 @@ class VideoSummaryRoutes {
     const userPrompt = truncatedTranscript
       ? `Video title: "${title}"
 Channel: ${channel_title}
-Subject: ${subject}
+Subject: ${subject}${langInstruction}
 
 Full transcript:
 ${truncatedTranscript}
@@ -140,7 +154,7 @@ ${truncatedTranscript}
 Generate a complete, vivid one-page HTML study summary following the design rules exactly.`
       : `Video title: "${title}"
 Channel: ${channel_title}
-Subject: ${subject}
+Subject: ${subject}${langInstruction}
 
 No transcript is available for this video. Use your general knowledge about the subject and topic inferred from the title to generate a comprehensive, accurate one-page HTML study summary following the design rules exactly.`;
 
