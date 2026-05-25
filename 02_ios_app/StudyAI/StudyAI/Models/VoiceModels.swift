@@ -46,6 +46,63 @@ struct VoiceSettings: Codable {
     }
 }
 
+// MARK: - Grade-Based First-Time Defaults
+
+/// Applies grade-aware defaults the very first time we see a user's grade.
+/// Once applied, the per-user flag prevents future overrides — user's manual changes always win.
+///
+/// Rules:
+///   • Grade ≤ 5:  voiceType = .mia, voice enabled, sync-with-text enabled
+///   • Grade > 5:  voice disabled (text-only by default), other settings untouched
+enum VoiceDefaultsByGrade {
+    static let voiceEnabledKey = "is_voice_enabled"   // suffixed with "_<uid>"
+
+    /// Per-user persisted "isVoiceEnabled" — read this in VoiceInteractionService.init.
+    static func loadVoiceEnabled() -> Bool {
+        let uid = AuthenticationService.shared.currentUser?.id ?? "anonymous"
+        return UserDefaults.standard.bool(forKey: "\(voiceEnabledKey)_\(uid)")
+    }
+
+    static func saveVoiceEnabled(_ enabled: Bool) {
+        let uid = AuthenticationService.shared.currentUser?.id ?? "anonymous"
+        UserDefaults.standard.set(enabled, forKey: "\(voiceEnabledKey)_\(uid)")
+    }
+
+    private static func parseGrade(_ raw: String?) -> Int? {
+        guard let raw, !raw.isEmpty else { return nil }
+        if let int = Int(raw) { return int }
+        return GradeLevel(rawValue: raw)?.integerValue
+    }
+
+    /// Idempotent per user. Returns the resolved (voiceSettings, interactiveSettings, isVoiceEnabled)
+    /// the caller should push into VoiceInteractionService. Returns nil if no work was done
+    /// (already applied, or grade not yet available).
+    static func applyIfNeeded(gradeLevelString: String?) -> (VoiceSettings, InteractiveModeSettings, Bool)? {
+        let uid = AuthenticationService.shared.currentUser?.id ?? "anonymous"
+        let flagKey = "voice_defaults_by_grade_applied_\(uid)"
+        guard !UserDefaults.standard.bool(forKey: flagKey) else { return nil }
+        guard let grade = parseGrade(gradeLevelString) else { return nil }
+
+        var voice = VoiceSettings.load()
+        var interactive = InteractiveModeSettings.load()
+        let voiceEnabled: Bool
+
+        if grade <= 5 {
+            voice.voiceType = .eva
+            interactive.isEnabled = true
+            voiceEnabled = true
+        } else {
+            voiceEnabled = false
+        }
+
+        voice.save()
+        interactive.save()
+        saveVoiceEnabled(voiceEnabled)
+        UserDefaults.standard.set(true, forKey: flagKey)
+        return (voice, interactive, voiceEnabled)
+    }
+}
+
 // MARK: - Voice Type Enum
 
 enum VoiceType: String, CaseIterable, Codable {

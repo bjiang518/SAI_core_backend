@@ -90,7 +90,8 @@ class SynchronizedTextRenderer: ObservableObject {
     // MARK: - Configuration
 
     /// Fallback: Characters per second when no alignment data available
-    private let fallbackCharsPerSecond: Double = 15.0
+    /// Set to 60 chars/sec (~4 words/sec) which matches comfortable reading pace
+    private let fallbackCharsPerSecond: Double = 60.0
 
     /// Faster fallback for continuation after alignment data exhausted
     /// This ensures remaining text reveals quickly to catch up with audio completion

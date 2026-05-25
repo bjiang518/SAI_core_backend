@@ -1064,6 +1064,7 @@ CRITICAL:
 - For MC: "multiple_choice_options" = [{{"label":"A","text":"...","is_correct":true/false}}]
 - For non-MC: set "multiple_choice_options" to null
 - ANSWER FORMAT: multiple_choice correct_answer MUST be "B. full option text" (letter + dot + space + exact option text). true_false MUST be exactly "True" or "False".
+- SELF-CONTAINED: Every question MUST be fully answerable from the question text alone. Do NOT reference any image, picture, diagram, figure, graph, chart, or table — no phrases like "the figure above", "as shown", "in the picture", "refer to the diagram", "the missing picture", etc. All necessary information must be written out as text or math expressions.
 {question_type_instruction}
 - Generate EXACTLY {question_count} questions
 
@@ -1298,6 +1299,7 @@ CRITICAL REQUIREMENTS:
 - For MC: "multiple_choice_options" = [{{"label":"A","text":"...","is_correct":true/false}}]
 - For non-MC: set "multiple_choice_options" to null
 - ANSWER FORMAT: multiple_choice correct_answer MUST be "B. full option text" (letter + dot + space + exact option text). true_false MUST be exactly "True" or "False".
+- SELF-CONTAINED: Every question MUST be fully answerable from the question text alone. Do NOT reference any image, picture, diagram, figure, graph, chart, or table — no phrases like "the figure above", "as shown", "in the picture", "refer to the diagram", "the missing picture", etc. All necessary information must be written out as text or math expressions.
 {question_type_instruction}
 {tags_note if unique_source_tags else ""}
 - Generate EXACTLY {question_count} questions
@@ -1405,6 +1407,7 @@ CRITICAL:
 - For MC: "multiple_choice_options" = [{{"label":"A","text":"...","is_correct":true/false}}]
 - For non-MC: set "multiple_choice_options" to null
 - ANSWER FORMAT: multiple_choice correct_answer MUST be "B. full option text" (letter + dot + space + exact option text). true_false MUST be exactly "True" or "False".
+- SELF-CONTAINED: Every question MUST be fully answerable from the question text alone. Do NOT reference any image, picture, diagram, figure, graph, chart, or table — no phrases like "the figure above", "as shown", "in the picture", "refer to the diagram", "the missing picture", etc. All necessary information must be written out as text or math expressions.
 {question_type_instruction}
 - Generate EXACTLY {question_count} questions
 
@@ -1615,6 +1618,7 @@ All questions MUST be type: {question_type}
 CRITICAL:
 - Return a JSON object with {"a top-level " + '"subject" string (the detected academic subject) and ' if auto_detect_subject else ""}a "questions" key containing an array of exactly {count} objects. No markdown, no extra text.
 {subject_instruction}- All questions must be {question_type} type.
+- SELF-CONTAINED: Every question MUST be fully answerable from the question text alone. Do NOT reference any image, picture, diagram, figure, graph, chart, or table — no phrases like "the figure above", "as shown", "in the picture", "refer to the diagram", "the missing picture", etc. All necessary information must be written out as text or math expressions.
 - MATH FORMATTING: This is JSON output — backslashes must be doubled. Use \\\\(...\\\\) for math. Examples: \\\\(x^2\\\\), \\\\(\\\\frac{{1}}{{2}}\\\\), \\\\(\\\\sqrt{{x}}\\\\), \\\\(\\\\alpha\\\\). Never use a single backslash in JSON string values. ALL math in multiple_choice_options 'text' MUST be wrapped in \\\\(...\\\\) — never bare \\\\frac or \\\\sqrt without delimiters.
 - LANGUAGE: {lang_instruction}
 

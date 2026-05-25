@@ -49,3 +49,21 @@ extension Animation {
         return AppState.shared.isPowerSavingMode ? nil : self
     }
 }
+
+// MARK: - iPad sheet sizing
+
+extension View {
+    /// Locks the iPad form-sheet size so it doesn't oscillate when inner content dimensions
+    /// change (e.g. conditional sections, mode toggles, async loading).
+    /// No-op on iPhone — bottom sheets are sized by the system, the min/ideal hints are ignored.
+    /// Apply to the root view inside the sheet body.
+    func iPadSheetFixedSize(width: CGFloat = 540, height: CGFloat = 760) -> some View {
+        let isPad = UIDevice.current.userInterfaceIdiom == .pad
+        return self.frame(
+            minWidth: isPad ? width : nil,
+            idealWidth: isPad ? width : nil,
+            minHeight: isPad ? height : nil,
+            idealHeight: isPad ? height : nil
+        )
+    }
+}

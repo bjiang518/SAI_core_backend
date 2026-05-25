@@ -1829,6 +1829,21 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 
 // Custom Date Range Picker
 "library.filter.moreSpecific" = "Plus spécifique";
+"library.filter.all" = "Tous";
+"library.filter.type.label" = "Type";
+"library.filter.type.all" = "Tous";
+"library.filter.type.questions" = "Questions";
+"library.filter.type.conversations" = "Conversations";
+"library.filter.type.images" = "Images";
+"library.filter.source.label" = "Source";
+"library.filter.source.all" = "Tous";
+"library.filter.source.homework" = "Devoirs";
+"library.filter.source.bank" = "Banque de questions";
+"library.filter.source.practice" = "Pratique";
+"library.filter.result.label" = "Résultat";
+"library.filter.result.all" = "Tous";
+"library.filter.result.correct" = "Correct";
+"library.filter.result.incorrect" = "Incorrect";
 "library.customDate.title" = "Sélectionner une plage de dates personnalisée";
 "library.customDate.subtitle" = "Choisissez les dates de début et de fin pour votre filtre";
 "library.customDate.startDate" = "Date de début";
@@ -3081,6 +3096,9 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "dailyChallenge.goal.weakness" = "Objectif du jour : Surmonter %d faiblesse(s)";
 "dailyChallenge.goal.leaf" = "Objectif du jour : Illuminer « %@ »";
 "dailyChallenge.goal.normal" = "Défi du jour : %@ · 3 questions";
+"dailyChallenge.questionBankBadge" = "Banque de questions";
+"dailyChallenge.questionBankHint" = "Les questions du jour viennent de la banque de questions. Bonne chance !";
+"dailyChallenge.figureLoadFailed" = "Échec du chargement de l'image. Vérifiez votre réseau et réessayez.";
 "dailyChallenge.achievement.leafLit" = "Feuille illuminée !";
 "dailyChallenge.achievement.viewTree" = "Voir l'arbre des connaissances";
 "dailyChallenge.achievement.weaknessConverted" = "Surmonté %d faiblesse(s) !";
@@ -3184,6 +3202,13 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "lightUpTree.selection.header" = "Thèmes non pratiqués";
 "lightUpTree.selection.subheader" = "%d thèmes non encore pratiqués. Sélectionnez pour générer des questions adaptées.";
 "lightUpTree.config.title" = "Paramètres de pratique";
+"lightUpTree.source.title" = "Source des questions";
+"lightUpTree.source.ai" = "Générées par IA";
+"lightUpTree.source.bank" = "Banque de questions";
+"lightUpTree.source.bankHint.math" = "Maths : AMC, AIME, SAT Math, Math Kangaroo, GSM8K et plus. Peut ne pas correspondre exactement à la difficulté choisie.";
+"lightUpTree.source.bankHint.english" = "Anglais : SAT English et LSAT Reading/Logic. Peut ne pas correspondre exactement à la difficulté choisie.";
+"lightUpTree.source.bankHint.science" = "Sciences : ARC Science, ScienceQA et OpenBookQA. Peut ne pas correspondre exactement à la difficulté choisie.";
+"lightUpTree.source.bankHint.general" = "MMLU et questions d'examen sélectionnées. Peut ne pas correspondre exactement à la difficulté choisie.";
 "lightUpTree.generate.selectFirst" = "Veuillez sélectionner au moins un thème";
 "lightUpTree.generate.button" = "Générer %d questions (%d thèmes)";
 "lightUpTree.generating" = "Génération des questions…";
@@ -3268,13 +3293,28 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 "practice.beta.badge" = "Beta";
 "practice.beta.message" = "Nous construisons des banques de questions";
 "practice.mode.ai" = "Pratique IA";
-"practice.mode.bank" = "Vraies Questions";
+"practice.mode.bank" = "Banque de questions";
 "proMode.oneMistake" = "1 erreur";
 "proMode.nMistakes" = "%d erreurs";
 "todo.knowledgeTree.title" = "Illuminer l'arbre de connaissances";
 "todo.knowledgeTree.subtitle" = "Explorer la carte de connaissances « %@ »";
 "todo.knowledgeTree.defaultSubject" = "Toutes les matières";
-"practice.bank.retrieve" = "Obtenir de vraies questions";
+"practice.bank.retrieve" = "Obtenir de la banque";
+"practice.bank.sources" = "Sources";
+"practice.bank.allSources" = "Toutes";
+"practice.bank.clearSources" = "Effacer la sélection";
+"practice.bank.selectedCount" = "%d sélectionné(s)";
+"practice.bank.source.gradeSchool" = "École primaire";
+"practice.bank.source.visualMath" = "Visual Math 🖼";
+"practice.bank.source.arc" = "ARC Science";
+"practice.bank.source.scienceqa" = "ScienceQA";
+"practice.bank.source.kangaroo" = "Math Kangaroo 🦘";
+"practice.bank.source.amcJunior" = "AMC 8";
+"practice.bank.source.amcSenior" = "AMC 10/12";
+"practice.bank.source.aime" = "AIME";
+"practice.bank.source.sat" = "SAT Math";
+"practice.bank.source.mmlu" = "MMLU";
+"practice.bank.source.english" = "SAT/LSAT";
 
 // MARK: - Learning View
 "learning.header.title" = "Apprentissage Vidéo";
@@ -3288,7 +3328,11 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 
 // MARK: - Learning feature additions
 "mistakeTree.detail.startLearning" = "Commencer à apprendre";
-"learning.smartai.hint" = "SmartAI — l'IA comprend la vidéo";
+"mistakeTree.detail.questionBank" = "Banque de questions";
+"leafDetail.bank.errorTitle" = "Impossible de charger les vraies questions";
+"leafDetail.bank.errorEmpty" = "Aucune vraie question disponible pour ce concept pour le moment.";
+"leafDetail.bank.loading" = "Recherche dans la banque de questions…";
+"learning.smartai.hint" = "l'IA comprend la vidéo";
 "learning.smartai.badge" = "SmartAI";
 "chat.video.startLearning" = "Vidéo";
 "learning.header.back" = "Chat";

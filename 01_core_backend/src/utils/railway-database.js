@@ -6020,6 +6020,40 @@ async function runDatabaseMigrations() {
       logger.debug('✅ Migration 041: knowledge_tree_snapshots already applied');
     }
 
+    // 042: user_video_interactions — per-user video engagement tracking
+    const m042 = await db.query(
+      `SELECT 1 FROM migration_history WHERE migration_name = '042_user_video_interactions'`
+    );
+    if (m042.rows.length === 0) {
+      try {
+        await db.query(`
+          CREATE TABLE IF NOT EXISTS user_video_interactions (
+            id               SERIAL PRIMARY KEY,
+            user_id          UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            video_id         VARCHAR(20),
+            title            TEXT,
+            channel_title    VARCHAR(200),
+            subject          VARCHAR(100),
+            interaction_type VARCHAR(20) NOT NULL CHECK (interaction_type IN ('search','view','summary')),
+            search_query     TEXT,
+            created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          );
+          CREATE INDEX IF NOT EXISTS idx_uvi_user_created
+            ON user_video_interactions (user_id, created_at DESC);
+          CREATE INDEX IF NOT EXISTS idx_uvi_user_subject
+            ON user_video_interactions (user_id, subject, created_at DESC);
+        `);
+        await db.query(
+          `INSERT INTO migration_history (migration_name) VALUES ('042_user_video_interactions') ON CONFLICT DO NOTHING`
+        );
+        logger.debug('✅ Migration 042: user_video_interactions table created');
+      } catch (migrationError) {
+        logger.error({ err: migrationError }, '❌ Migration 042 failed');
+      }
+    } else {
+      logger.debug('✅ Migration 042: user_video_interactions already applied');
+    }
+
   } catch (error) {
     logger.error('❌ Database migration failed:', error);
     // Don't throw - let the app continue with what it has

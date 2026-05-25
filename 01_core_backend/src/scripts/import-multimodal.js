@@ -34,7 +34,9 @@ const TAGGING_BATCH = 8;
 const EMBED_BATCH   = 20;
 const HF_PAGE_SIZE  = 100;
 
-const pool   = new Pool({ connectionString: process.env.DATABASE_URL, ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false, statement_timeout: 60000, query_timeout: 60000 });
+// Prefer DATABASE_PUBLIC_URL when running locally (internal hostname unreachable outside Railway)
+const dbUrl = process.env.DATABASE_PUBLIC_URL || process.env.DATABASE_URL;
+const pool   = new Pool({ connectionString: dbUrl, ssl: { rejectUnauthorized: false }, statement_timeout: 60000, query_timeout: 60000 });
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E'];
@@ -292,9 +294,20 @@ async function importMathVista(client, limitRows) {
   console.log(`  ${allRows.length} total, ${mcq.length} English MCQ`);
   return processDataset(client, mcq, 'mathvista', limitRows, (r, idx) => {
     const choices = r.choices || [];
-    const correctLetter = choices.length > 0
-      ? (LETTERS.includes(r.answer?.toUpperCase()) ? r.answer.toUpperCase() : 'A')
-      : 'A';
+    const answerRaw = String(r.answer ?? '').trim();
+    let correctLetter = 'A';
+    if (choices.length > 0) {
+      if (LETTERS.includes(answerRaw.toUpperCase())) {
+        // r.answer is already a letter (some subsets store it this way)
+        correctLetter = answerRaw.toUpperCase();
+      } else {
+        // MathVista stores the answer as the actual choice text — find its index
+        const matchIdx = choices.findIndex(
+          c => String(c).trim().toLowerCase() === answerRaw.toLowerCase()
+        );
+        correctLetter = matchIdx >= 0 ? (LETTERS[matchIdx] || 'A') : 'A';
+      }
+    }
     const options = choices.map((text, i) => ({
       label: LETTERS[i],
       text: String(text).trim(),

@@ -1995,6 +1995,21 @@
 
 // Custom Date Range Picker
 "library.filter.moreSpecific" = "更具体";
+"library.filter.all" = "全部";
+"library.filter.type.label" = "类型";
+"library.filter.type.all" = "全部";
+"library.filter.type.questions" = "题目";
+"library.filter.type.conversations" = "对话";
+"library.filter.type.images" = "原图";
+"library.filter.source.label" = "来源";
+"library.filter.source.all" = "全部";
+"library.filter.source.homework" = "作业";
+"library.filter.source.bank" = "真题";
+"library.filter.source.practice" = "练习本";
+"library.filter.result.label" = "结果";
+"library.filter.result.all" = "全部";
+"library.filter.result.correct" = "正确";
+"library.filter.result.incorrect" = "错误";
 "library.customDate.title" = "选择自订日期范围";
 "library.customDate.subtitle" = "选择筛选的开始和结束日期";
 "library.customDate.startDate" = "开始日期";
@@ -3132,6 +3147,9 @@
 "dailyChallenge.goal.weakness" = "今日目标：挑战 %d 个弱点";
 "dailyChallenge.goal.leaf" = "今日目标：点亮「%@」";
 "dailyChallenge.goal.normal" = "今日挑战：%@ · 3 题";
+"dailyChallenge.questionBankBadge" = "真题";
+"dailyChallenge.questionBankHint" = "今日为真题挑战，加油！";
+"dailyChallenge.figureLoadFailed" = "题目配图加载失败，请检查网络后重试。";
 "dailyChallenge.achievement.leafLit" = "叶子已点亮！";
 "dailyChallenge.achievement.viewTree" = "查看知识树";
 "dailyChallenge.achievement.weaknessConverted" = "消灭了 %d 个弱点！";
@@ -3152,6 +3170,13 @@
 "lightUpTree.selection.header" = "未点亮的知识点";
 "lightUpTree.selection.subheader" = "共 %d 个知识点尚未练习，选择后将生成对应年级的练习题";
 "lightUpTree.config.title" = "题目配置";
+"lightUpTree.source.title" = "出题来源";
+"lightUpTree.source.ai" = "AI 出题";
+"lightUpTree.source.bank" = "真题题库";
+"lightUpTree.source.bankHint.math" = "数学题源：AMC、AIME、SAT Math、Math Kangaroo、GSM8K 等真题。可能不完全匹配所选难度。";
+"lightUpTree.source.bankHint.english" = "英语题源：SAT 英语、LSAT 阅读/逻辑等真题。可能不完全匹配所选难度。";
+"lightUpTree.source.bankHint.science" = "科学题源：ARC Science、ScienceQA、OpenBookQA 等真题。可能不完全匹配所选难度。";
+"lightUpTree.source.bankHint.general" = "题源：MMLU 等精选真题。可能不完全匹配所选难度。";
 "lightUpTree.generate.selectFirst" = "请先选择知识点";
 "lightUpTree.generate.button" = "生成 %d 题（已选 %d 个知识点）";
 "lightUpTree.generating" = "正在生成练习题…";
@@ -3243,6 +3268,21 @@
 "todo.knowledgeTree.subtitle" = "探索「%@」知识图谱";
 "todo.knowledgeTree.defaultSubject" = "各科目";
 "practice.bank.retrieve" = "获取真题";
+"practice.bank.sources" = "题库来源";
+"practice.bank.allSources" = "全部";
+"practice.bank.clearSources" = "清除选择（显示全部）";
+"practice.bank.selectedCount" = "已选 %d 个";
+"practice.bank.source.gradeSchool" = "小学";
+"practice.bank.source.visualMath" = "图像数学 🖼";
+"practice.bank.source.arc" = "ARC科学";
+"practice.bank.source.scienceqa" = "科学问答";
+"practice.bank.source.kangaroo" = "数学袋鼠 🦘";
+"practice.bank.source.amcJunior" = "AMC 8";
+"practice.bank.source.amcSenior" = "AMC 10/12";
+"practice.bank.source.aime" = "AIME";
+"practice.bank.source.sat" = "SAT数学";
+"practice.bank.source.mmlu" = "MMLU";
+"practice.bank.source.english" = "SAT/LSAT";
 
 // MARK: - Learning View
 "learning.header.title" = "视频学习";
@@ -3256,7 +3296,11 @@
 
 // MARK: - Learning feature additions
 "mistakeTree.detail.startLearning" = "开始学习";
-"learning.smartai.hint" = "SmartAI — AI 能理解视频内容";
+"mistakeTree.detail.questionBank" = "题库练习";
+"leafDetail.bank.errorTitle" = "无法加载真题";
+"leafDetail.bank.errorEmpty" = "题库中暂无该知识点的真题。";
+"leafDetail.bank.loading" = "正在从题库检索真题…";
+"learning.smartai.hint" = "AI 能理解视频内容";
 "learning.smartai.badge" = "SmartAI";
 "chat.video.startLearning" = "视频学习";
 "learning.header.back" = "对话";

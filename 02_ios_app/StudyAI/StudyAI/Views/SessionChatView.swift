@@ -449,6 +449,7 @@ struct SessionChatView: View {
                         viewModel.processImageWithPrompt(image: image, prompt: prompt, deepMode: deepMode)
                     }
                 }
+                .iPadSheetFixedSize()
             }
             .sheet(isPresented: $showingGuestConversion) {
                 GuestConversionView(

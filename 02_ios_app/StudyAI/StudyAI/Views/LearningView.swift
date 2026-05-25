@@ -412,7 +412,7 @@ struct LearningView: View {
                         showingVoiceSettings = true
                     } label: {
                         Label(NSLocalizedString("learning.menu.voiceSettings", value: "语音设置", comment: ""),
-                              systemImage: "speaker.wave.2")
+                              systemImage: "slider.horizontal.3")
                     }
                     Divider()
                     Button {
@@ -425,7 +425,7 @@ struct LearningView: View {
                         Label(isLiveMode
                               ? NSLocalizedString("learning.menu.stopLive", value: "停止 Live", comment: "")
                               : NSLocalizedString("learning.menu.liveMode", value: "Live Talk", comment: ""),
-                              systemImage: isLiveMode ? "stop.circle" : "waveform.and.mic")
+                              systemImage: isLiveMode ? "waveform.slash" : "waveform.circle.fill")
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")
@@ -639,7 +639,7 @@ struct LearningView: View {
                     .clipShape(Capsule())
 
                     Text(NSLocalizedString("learning.smartai.hint",
-                                          value: "SmartAI — AI 能理解视频内容",
+                                          value: "AI 能理解视频内容",
                                           comment: ""))
                         .font(.caption2)
                         .foregroundColor(.secondary)
@@ -891,9 +891,23 @@ struct LearningView: View {
                     }
                 }
                 .onChange(of: liveHolder.vm?.messages.count) { _ in
-                    // Scroll when live messages arrive
-                    if let last = liveHolder.vm?.messages.last {
-                        withAnimation { proxy.scrollTo("live-\(last.id.uuidString)", anchor: .bottom) }
+                    // Scroll to latest live voice message — IDs must match LiveMessagesSection:
+                    // user → "voice-<uuid>", AI → "voice-ai-<uuid>"
+                    if let live = liveHolder.vm, let last = live.messages.last {
+                        let lastId = last.role == .user
+                            ? "voice-\(last.id.uuidString)"
+                            : "voice-ai-\(last.id.uuidString)"
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            withAnimation(.easeOut(duration: 0.3)) {
+                                proxy.scrollTo(lastId, anchor: .bottom)
+                            }
+                        }
+                    }
+                }
+                // Live mode: follow real-time AI transcription as it streams
+                .onChange(of: liveHolder.vm?.liveTranscription) { _ in
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        proxy.scrollTo("live-transcription", anchor: .bottom)
                     }
                 }
             }
@@ -1204,10 +1218,19 @@ struct LearningView: View {
             liveLogger.info("▶️ [activateLiveMode] sessionId=\(sessionId)")
             TTSQueueService.shared.stopAllTTS()
 
+            let videoContext = vm.liveModeVideoContext().map {
+                VoiceChatViewModel.VideoContext(
+                    title: $0.videoTitle,
+                    currentTimeSec: $0.currentTimeSec,
+                    formattedTranscript: $0.formattedTranscript,
+                    isWindowed: $0.transcriptIsWindowed
+                )
+            }
             let liveVM = VoiceChatViewModel(
                 sessionId: sessionId,
                 subject: subject,
-                voiceType: voiceService.voiceSettings.voiceType
+                voiceType: voiceService.voiceSettings.voiceType,
+                videoContext: videoContext
             )
             // Don't wire onMessageAppended — messages shown via LiveMessagesSection,
             // merged into vm.messages only when live mode ends.
@@ -1323,20 +1346,19 @@ struct LearningView: View {
         let videoTitle = vm.selectedVideo?.title ?? topicName
         let channelTitle = vm.selectedVideo?.channelTitle ?? ""
 
-        // Pass transcript as raw_messages — this uses the backend's tested context-extraction
-        // path (raw_messages.length > 0 block) which extracts the full text, detects subject,
-        // and passes it as focus_notes to the AI engine. Sending it as focus_notes directly
-        // skips that block and gets weaker integration.
-        let rawMessagesForGeneration: [[String: String]] = !transcriptText.isEmpty ? [
-            ["role": "user",
-             "content": "Generate practice questions about this video: '\(videoTitle)' by \(channelTitle), subject: \(subject)."],
-            ["role": "assistant",
-             "content": String(transcriptText.prefix(5000))]
-        ] : []
+        // Build focus_notes from transcript directly — bypasses raw_messages path which
+        // truncates each message to 300 chars, losing most of the transcript content.
+        let focusForVideo: String
+        if !transcriptText.isEmpty {
+            let truncated = String(transcriptText.prefix(4000))
+            focusForVideo = "Video: '\(videoTitle)' by \(channelTitle)\n\nContent:\n\(truncated)"
+        } else {
+            focusForVideo = "Video: \(videoTitle). Subject: \(subject)"
+        }
 
         let configWithFocus = QuestionGenerationService.RandomQuestionsConfig(
             topics: config.topics,
-            focusNotes: transcriptText.isEmpty ? "Video: \(videoTitle). Subject: \(subject)" : nil,
+            focusNotes: focusForVideo,
             difficulty: config.difficulty,
             questionCount: config.questionCount,
             questionType: config.questionType
@@ -1347,7 +1369,7 @@ struct LearningView: View {
             subject: subject,
             config: configWithFocus,
             userProfile: profile,
-            rawMessages: rawMessagesForGeneration
+            rawMessages: []
         )
 
         switch result {

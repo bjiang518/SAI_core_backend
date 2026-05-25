@@ -38,12 +38,15 @@ struct WeaknessPracticeView: View {
         self._viewModel = StateObject(wrappedValue: WeaknessPracticeViewModel(weaknessKey: subject))
     }
 
+    @State private var modeConfirmed     = false
+    @State private var useRealQuestions  = false
+    @State private var bankQuestionCount = 5
+
     var body: some View {
         ZStack {
             themeManager.backgroundColor.ignoresSafeArea()
 
             if let session = practiceSession {
-                // Hand off to the unified question sheet used by PracticeLibraryView
                 QuestionSheetView(session: session)
             } else if let error = viewModel.error {
                 VStack(spacing: 20) {
@@ -69,7 +72,8 @@ struct WeaknessPracticeView: View {
                     Button("Done", action: { dismiss() })
                         .foregroundColor(.secondary)
                 }
-            } else {
+            } else if modeConfirmed || preloadedQuestions != nil {
+                // Loading / generating
                 VStack(spacing: 16) {
                     ProgressView()
                         .scaleEffect(1.2)
@@ -79,15 +83,153 @@ struct WeaknessPracticeView: View {
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
+            } else {
+                // Mode selection — shown before loading starts
+                weaknessModeSelectionView
             }
         }
         .task {
+            guard modeConfirmed || preloadedQuestions != nil else { return }
             if let questions = preloadedQuestions {
                 viewModel.loadPreloadedQuestions(questions)
+                buildSession()
+            } else if useRealQuestions {
+                await loadBankQuestions()
             } else {
                 await viewModel.loadPracticeQuestions()
+                buildSession()
             }
-            buildSession()
+        }
+        .onChange(of: modeConfirmed) { _, confirmed in
+            guard confirmed else { return }
+            Task {
+                if useRealQuestions {
+                    await loadBankQuestions()
+                } else {
+                    await viewModel.loadPracticeQuestions()
+                    buildSession()
+                }
+            }
+        }
+    }
+
+    // MARK: - Mode Selection
+
+    private var weaknessModeSelectionView: some View {
+        let parts  = weaknessKey.split(separator: "/")
+        let topic  = parts.count >= 2 ? String(parts[1]) : weaknessKey
+        let detail = parts.count >= 3 ? String(parts[2]) : nil
+
+        return ScrollView {
+            VStack(spacing: 24) {
+                VStack(spacing: 6) {
+                    Text(NSLocalizedString("weaknessPractice.modeTitle", value: "Practice Mode", comment: ""))
+                        .font(.title3.bold())
+                    Text(detail ?? topic)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.top, 20)
+
+                // AI / Real Questions toggle
+                HStack(spacing: 0) {
+                    ForEach([false, true], id: \.self) { isBank in
+                        let sel = useRealQuestions == isBank
+                        Button(action: { withAnimation(.easeInOut(duration: 0.2)) { useRealQuestions = isBank } }) {
+                            Text(isBank
+                                 ? NSLocalizedString("practice.mode.bank", value: "Real Questions", comment: "")
+                                 : NSLocalizedString("practice.mode.ai",   value: "AI Practice",    comment: ""))
+                                .font(.subheadline.bold())
+                                .foregroundColor(sel ? .white : .secondary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .background(sel ? themeManager.accentColor : Color.clear)
+                                .cornerRadius(10)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
+                .padding(4)
+                .background(Color.gray.opacity(0.12))
+                .cornerRadius(13)
+                .padding(.horizontal)
+
+                if useRealQuestions {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text(NSLocalizedString("questionGeneration.numberOfQuestions", comment: ""))
+                                .font(.body)
+                                .fontWeight(.medium)
+                            Spacer()
+                            Text("\(bankQuestionCount)")
+                                .font(.caption).foregroundColor(.secondary)
+                                .padding(.horizontal, 8).padding(.vertical, 4)
+                                .background(themeManager.accentColor.opacity(0.1)).cornerRadius(6)
+                        }
+                        Slider(value: Binding(get: { Double(bankQuestionCount) }, set: { bankQuestionCount = Int($0) }),
+                               in: 3...10, step: 1)
+                            .accentColor(themeManager.accentColor)
+                    }
+                    .padding(.horizontal)
+                }
+
+                Button(action: { modeConfirmed = true }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: useRealQuestions ? "magnifyingglass" : "sparkles")
+                        Text(useRealQuestions
+                             ? NSLocalizedString("practice.bank.retrieve", value: "Get Real Questions", comment: "")
+                             : NSLocalizedString("weaknessPractice.startAI", value: "Generate Questions", comment: ""))
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 52)
+                    .background(themeManager.accentColor)
+                    .cornerRadius(14)
+                }
+                .padding(.horizontal)
+
+                Button(NSLocalizedString("common.cancel", comment: ""), action: { dismiss() })
+                    .foregroundColor(.secondary)
+                    .padding(.bottom, 20)
+            }
+        }
+    }
+
+    // MARK: - Bank Question Loading
+
+    private func loadBankQuestions() async {
+        let parts   = weaknessKey.split(separator: "/")
+        let subject = String(parts.first ?? "Math")
+        let service = QuestionGenerationService.shared
+        let adapter = QuestionGenerationDataAdapter.shared
+        let profile = adapter.createUserProfile()
+
+        let config = QuestionGenerationService.RandomQuestionsConfig(
+            topics:        [subject],
+            focusNotes:    nil,
+            difficulty:    .intermediate,
+            questionCount: bankQuestionCount,
+            questionType:  .any
+        )
+        let result = await service.generateQuestionsV2(
+            subject:          subject,
+            mode:             4,
+            config:           config,
+            userProfile:      profile,
+            shortTermContext: [["weakness_key": weaknessKey]],
+            bankSource:       nil
+        )
+        await MainActor.run {
+            if case .success = result,
+               let sid     = service.currentSessionId,
+               let session = PracticeSessionManager.shared.getSession(id: sid) {
+                practiceSession = session
+            } else {
+                // Bank had no results — fall back to AI
+                useRealQuestions = false
+                Task { await viewModel.loadPracticeQuestions(); buildSession() }
+            }
         }
     }
 

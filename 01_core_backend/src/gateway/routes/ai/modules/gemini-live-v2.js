@@ -318,8 +318,8 @@ module.exports = async function (fastify, opts) {
              * Translates iOS "start_session" to official "setup" message
              */
             async function handleStartSession(data) {
-                const { subject, language, character, scenario_prompt } = data;
-                logger.info({ sessionId, subject, language, character, hasScenario: !!scenario_prompt }, '[Live] handleStartSession');
+                const { subject, language, character, scenario_prompt, video_context } = data;
+                logger.info({ sessionId, subject, language, character, hasScenario: !!scenario_prompt, hasVideoContext: !!video_context }, '[Live] handleStartSession');
 
                 currentSubject = subject || null;
                 activeScenarioPrompt = scenario_prompt || null;
@@ -337,7 +337,7 @@ module.exports = async function (fastify, opts) {
                 };
                 const voiceName = geminiVoiceMap[character] || 'Puck';
 
-                const systemInstruction = buildSystemInstruction(subject, language, scenario_prompt);
+                const systemInstruction = buildSystemInstruction(subject, language, scenario_prompt, video_context);
 
                 const setupMessage = {
                     setup: {
@@ -995,7 +995,7 @@ module.exports = async function (fastify, opts) {
     /**
      * Build system instruction for educational tutor
      */
-    function buildSystemInstruction(subject, language = 'en', scenarioPrompt = null) {
+    function buildSystemInstruction(subject, language = 'en', scenarioPrompt = null, videoContext = null) {
         const subjectContext = subject || 'General';
 
         const prompts = {
@@ -1109,8 +1109,72 @@ Always encourage the student and adapt your teaching style to their needs.`,
         };
 
         const base = prompts[language] || prompts.en;
-        if (!scenarioPrompt) return base;
-        return `${base}\n\n---\n\n🎭 SCENARIO:\n${scenarioPrompt}`;
+        let result = base;
+        if (scenarioPrompt) {
+            result += `\n\n---\n\n🎭 SCENARIO:\n${scenarioPrompt}`;
+        }
+        const videoBlock = buildVideoContextBlock(videoContext, language);
+        if (videoBlock) {
+            result += `\n\n---\n\n${videoBlock}`;
+        }
+        return result;
+    }
+
+    /**
+     * Build the VIDEO CONTEXT block injected into the Gemini Live system prompt
+     * when the user opens Live Mode from the video learning page (SmartAI mode).
+     *
+     * Mirrors the regular chat context strategy: the iOS client has already applied
+     * a ±5 min sliding window around the current playback time and capped to
+     * ~3000 tokens, so the backend just formats the block.
+     */
+    function buildVideoContextBlock(videoContext, language = 'en') {
+        if (!videoContext || !videoContext.transcript) return null;
+        const title = videoContext.title || 'untitled video';
+        const t = Math.max(0, Math.floor(Number(videoContext.current_time_sec) || 0));
+        const mm = String(Math.floor(t / 60)).padStart(2, '0');
+        const ss = String(t % 60).padStart(2, '0');
+        const isWindowed = !!videoContext.is_windowed;
+
+        const headers = {
+            en: {
+                title:      '🎬 VIDEO CONTEXT (the student is watching a tutorial video)',
+                watching:   'Currently watching',
+                playback:   'Current playback time',
+                transcript: isWindowed
+                    ? 'Transcript (window of ±5 min around current playback time)'
+                    : 'Full transcript',
+                guidance:   'Use this transcript to ground answers in what the speaker actually said. When the student asks "what did he/she just say", refer to lines near the current playback time. Do not read the transcript aloud verbatim — paraphrase or quote briefly when helpful.'
+            },
+            'zh-Hans': {
+                title:      '🎬 视频上下文（学生正在观看教学视频）',
+                watching:   '正在观看',
+                playback:   '当前播放时间',
+                transcript: isWindowed
+                    ? '字幕（围绕当前播放时间 ±5 分钟的片段）'
+                    : '完整字幕',
+                guidance:   '使用字幕内容回答问题。当学生问"他/她刚刚说了什么"时，参考当前播放时间附近的片段。不要逐字朗读字幕——必要时简短引用或转述即可。'
+            },
+            'zh-Hant': {
+                title:      '🎬 影片上下文（學生正在觀看教學影片）',
+                watching:   '正在觀看',
+                playback:   '當前播放時間',
+                transcript: isWindowed
+                    ? '字幕（圍繞當前播放時間 ±5 分鐘的片段）'
+                    : '完整字幕',
+                guidance:   '使用字幕內容回答問題。當學生問「他/她剛剛說了什麼」時，參考當前播放時間附近的片段。不要逐字朗讀字幕——必要時簡短引用或轉述即可。'
+            }
+        };
+        const h = headers[language] || headers.en;
+
+        return `${h.title}
+${h.watching}: "${title}"
+${h.playback}: ${mm}:${ss}
+
+${h.transcript}:
+${videoContext.transcript}
+
+${h.guidance}`;
     }
 
     /**

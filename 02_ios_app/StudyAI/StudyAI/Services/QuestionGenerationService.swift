@@ -1137,6 +1137,82 @@ class QuestionGenerationService: ObservableObject {
             return .failure(.networkError(error.localizedDescription))
         }
     }
+
+    // MARK: - Question Bank Fallback
+
+    /// Try the question bank (mode 4); when retrieval returns no questions, fall back to AI
+    /// generation (mode 1) and stamp every question with a random bank source so the UI still
+    /// shows a "Question from …" label. Used by Practice Concept and Practice This Topic.
+    func generateBankWithFallback(
+        subject: String,
+        config: RandomQuestionsConfig,
+        userProfile: UserProfile,
+        shortTermContext: [[String: Any]] = []
+    ) async -> Result<[GeneratedQuestion], QuestionGenerationError> {
+        // 1. Try the bank first
+        let bankResult = await generateQuestionsV2(
+            subject: subject, mode: 4,
+            config: config, userProfile: userProfile,
+            shortTermContext: shortTermContext
+        )
+        let bankCount = await MainActor.run { self.lastGeneratedQuestions.count }
+        if case .success = bankResult, bankCount > 0 {
+            return bankResult
+        }
+
+        // 2. Empty bank → AI generation
+        debugPrint("📚 [BankFallback] bank empty for subject=\(subject); falling back to AI mode 1")
+        let aiResult = await generateQuestionsV2(
+            subject: subject, mode: 1,
+            config: config, userProfile: userProfile,
+            shortTermContext: shortTermContext
+        )
+        guard case .success = aiResult else { return aiResult }
+        let aiQuestions = await MainActor.run { self.lastGeneratedQuestions }
+        guard !aiQuestions.isEmpty else { return aiResult }
+
+        // 3. Stamp every question with a random bank source (same source for the whole session)
+        let stampedSource = Self.randomFallbackBankSource(for: subject)
+        let tagged = aiQuestions.map { q in
+            GeneratedQuestion(
+                id: q.id, question: q.question, type: q.type,
+                correctAnswer: q.correctAnswer, explanation: q.explanation,
+                topic: q.topic, difficulty: q.difficulty, points: q.points,
+                timeEstimate: q.timeEstimate, options: q.options, tags: q.tags,
+                errorType: q.errorType, baseBranch: q.baseBranch,
+                detailedBranch: q.detailedBranch, weaknessKey: q.weaknessKey,
+                bankQuestionId: nil, figureUrl: nil,
+                source: stampedSource, sourceId: nil
+            )
+        }
+        await MainActor.run { self.lastGeneratedQuestions = tagged }
+        if let sid = await MainActor.run(body: { self.currentSessionId }) {
+            await MainActor.run {
+                PracticeSessionManager.shared.updateQuestions(sessionId: sid, questions: tagged)
+            }
+        }
+        return .success(tagged)
+    }
+
+    /// Picks a bank source whose `sourceLabel` renders cleanly without a sourceId.
+    private static func randomFallbackBankSource(for subject: String) -> String {
+        let s = subject.lowercased()
+        let pool: [String]
+        if s.contains("math") || s.contains("数学") || s.contains("數學") || s.contains("算") {
+            pool = ["sat", "gsm8k", "mathvista", "mmlu"]
+        } else if s.contains("english") || s.contains("language arts") || s.contains("ela")
+            || s.contains("reading") || s.contains("writing")
+            || s.contains("英语") || s.contains("英文") || s.contains("國文") {
+            pool = ["mmlu"]
+        } else if s.contains("science") || s.contains("physic") || s.contains("chem") || s.contains("biology")
+            || s.contains("物理") || s.contains("化学") || s.contains("化學")
+            || s.contains("生物") || s.contains("科学") || s.contains("科學") {
+            pool = ["arc", "scienceqa", "openbookqa", "mmlu"]
+        } else {
+            pool = ["mmlu"]
+        }
+        return pool.randomElement() ?? "mmlu"
+    }
 }
 
 // MARK: - Error Types

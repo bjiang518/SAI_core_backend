@@ -131,6 +131,46 @@ async function fetchTranscriptInnerTube(videoId) {
   return segments;
 }
 
+// ─── Strategy 4: InnerTube ANDROID client ────────────────────────────────────
+// Uses Android YouTube app headers — different server path than WEB client,
+// bypasses bot-detection that affects the WEB strategy when Railway IP is flagged.
+
+async function fetchTranscriptInnerTubeAndroid(videoId) {
+  const res = await fetch(
+    'https://www.youtube.com/youtubei/v1/player',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'com.google.android.youtube/17.36.4 (Linux; U; Android 12; GB) gzip',
+        'X-Youtube-Client-Name': '3',
+        'X-Youtube-Client-Version': '17.36.4',
+      },
+      body: JSON.stringify({
+        videoId,
+        context: {
+          client: {
+            clientName: 'ANDROID',
+            clientVersion: '17.36.4',
+            androidSdkVersion: 31,
+            hl: 'en',
+            gl: 'US',
+          }
+        }
+      })
+    }
+  );
+  if (!res.ok) throw new Error(`InnerTube ANDROID failed: HTTP ${res.status}`);
+  const data = await res.json();
+
+  const tracks = data?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
+  if (tracks.length === 0) throw new Error('No caption tracks from InnerTube ANDROID');
+
+  const segments = await fetchCaptionXml(pickTrack(tracks).baseUrl);
+  if (segments.length === 0) throw new Error('InnerTube ANDROID caption track was empty');
+  return segments;
+}
+
 // ─── Route class ─────────────────────────────────────────────────────────────
 
 class YoutubeTranscriptRoutes {
@@ -161,10 +201,13 @@ class YoutubeTranscriptRoutes {
       return reply.status(401).send({ success: false, error: 'AUTHENTICATION_REQUIRED' });
     }
 
-    const { videoId } = request.query;
+    const { videoId, title = null, subject = null } = request.query;
     if (!videoId || !videoId.trim()) {
       return reply.status(400).send({ success: false, error: 'videoId is required' });
     }
+
+    // Fire-and-forget: record that this user opened this video
+    recordVideoView(this.fastify, userId, videoId.trim(), title, subject);
 
     const redis = this.fastify.redis || null;
     const cacheKey = `yt_transcript:${videoId}`;
@@ -200,13 +243,22 @@ class YoutubeTranscriptRoutes {
       } catch (e2) {
         this.fastify.log.warn(`📝 [S2] failed: ${e2.message}`);
 
-        // Strategy 3: InnerTube API
+        // Strategy 3: InnerTube WEB client
         try {
           this.fastify.log.info(`📝 [S3] Fetching transcript via InnerTube: ${videoId}`);
           segments = await fetchTranscriptInnerTube(videoId);
           this.fastify.log.info(`📝 [S3] OK — ${segments.length} segments`);
         } catch (e3) {
           this.fastify.log.warn(`📝 [S3] failed: ${e3.message}`);
+
+          // Strategy 4: InnerTube ANDROID client — different server path, bypasses WEB bot-detection
+          try {
+            this.fastify.log.info(`📝 [S4] Fetching transcript via InnerTube ANDROID: ${videoId}`);
+            segments = await fetchTranscriptInnerTubeAndroid(videoId);
+            this.fastify.log.info(`📝 [S4] OK — ${segments.length} segments`);
+          } catch (e4) {
+            this.fastify.log.warn(`📝 [S4] failed: ${e4.message}`);
+          }
         }
       }
     }
@@ -223,6 +275,16 @@ class YoutubeTranscriptRoutes {
 
     return { success: true, segments };
   }
+}
+
+function recordVideoView(fastify, userId, videoId, title, subject) {
+  const { db } = require('../../../../utils/railway-database');
+  db.query(
+    `INSERT INTO user_video_interactions
+       (user_id, video_id, title, subject, interaction_type)
+     VALUES ($1, $2, $3, $4, 'view')`,
+    [userId, videoId, title || null, subject || null]
+  ).catch(e => fastify.log.warn(`[VideoTracking] Failed to record view: ${e.message}`));
 }
 
 module.exports = YoutubeTranscriptRoutes;

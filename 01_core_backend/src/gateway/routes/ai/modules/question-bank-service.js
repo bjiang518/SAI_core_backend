@@ -344,7 +344,7 @@ async function queryBank({ userId, embedding, diffMin, diffMax, questionTypes, c
         const sim          = cosineSimilarity(embedding, cache.embeddings.get(row.id));
         const brBoost      = branchSet.size > 0 && branchSet.has(row.base_branch)     ? 0.15 : 0;
         const detailBoost  = detailSet.size  > 0 && detailSet.has(row.detailed_branch) ? 0.10 : 0;
-        const figureBoost  = row.has_figure ? 0.20 : 0;   // strongly prefer questions with diagrams
+        const figureBoost  = row.has_figure ? 0.05 : 0;   // small preference; capped at 2 per batch
         const tagBoost     = tagWeaknessContext
           ? tagMatchScore(row.tags, tagWeaknessContext) * 0.12
           : 0;
@@ -353,31 +353,10 @@ async function queryBank({ userId, embedding, diffMin, diffMax, questionTypes, c
       .sort((a, b) => b.similarity - a.similarity);
   }
 
-  // ── Stage 0: Figure-first search ─────────────────────────────────────
-  // When branch targeting is active, only consider figures from matching branches.
-  // Without targeting, use any figure question (preserves visual-rich results for
-  // general browsing).
-  {
-    const figCandidates = [];
-    for (const [, meta] of cache.metadata) {
-      if (!baseFilter(meta) || !meta.has_figure) continue;
-      // Branch filter: when targeting a specific topic, only use on-topic figures.
-      // This prevents off-topic figures from crowding out Stage 1.
-      if (branchSet.size > 0 && !branchSet.has(meta.base_branch)) continue;
-      figCandidates.push(meta);
-    }
-    log(`Stage 0 (figure-first): ${figCandidates.length} figure questions available${branchSet.size > 0 ? ` (branch-filtered)` : ''}`);
-    if (figCandidates.length >= count) {
-      const ranked = rankByEmbedding(figCandidates).slice(0, CANDIDATE_K);
-      log(`✅ Stage 0 returned ${ranked.length} figure-only results`);
-      return ranked;
-    }
-    if (figCandidates.length > 0) {
-      log(`⚠️ Stage 0: only ${figCandidates.length} branch-matching figures — falling through to Stage 1`);
-    } else {
-      log(`ℹ️  Stage 0: no branch-matching figures — falling through`);
-    }
-  }
+  // Stage 0 (figure-first) was removed — it forced all results to be figure
+  // questions, which made every retrieval visually heavy and slow. Figures
+  // still get a small ranking boost in rankByEmbedding, and a hard cap of
+  // MAX_FIGURES_PER_BATCH applies after diversity filtering (see step 6c).
 
   // ── Stage 1: Weakness-tag targeted search ────────────────────────────
   if (branchSet.size > 0) {
@@ -631,6 +610,25 @@ async function retrieveQuestions(userId, opts = {}) {
 
   // 6. Diversity filter + trim
   let selected = applyDiversityFilter(allCandidates, count);
+
+  // 6c. Cap figure questions at MAX_FIGURES_PER_BATCH (default 2).
+  //     If too many figures, swap excess for text-only candidates from the pool.
+  const MAX_FIGURES_PER_BATCH = 2;
+  const figCount = selected.filter(r => r.has_figure).length;
+  if (figCount > MAX_FIGURES_PER_BATCH) {
+    const selectedIds = new Set(selected.map(r => r.id));
+    const textCandidates = allCandidates.filter(r => !r.has_figure && !selectedIds.has(r.id));
+    const excess = figCount - MAX_FIGURES_PER_BATCH;
+    const figQuestions = selected.filter(r => r.has_figure);
+    const textQuestions = selected.filter(r => !r.has_figure);
+    // Drop the lowest-similarity figure questions
+    figQuestions.sort((a, b) => b.similarity - a.similarity);
+    const keepFigs = figQuestions.slice(0, MAX_FIGURES_PER_BATCH);
+    // Replace excess with top text candidates
+    const fillText = textCandidates.slice(0, excess);
+    selected = [...keepFigs, ...textQuestions, ...fillText].slice(0, count);
+    log(`📏 Figure cap: trimmed from ${figCount} to ${selected.filter(r => r.has_figure).length} figures (max ${MAX_FIGURES_PER_BATCH})`);
+  }
 
   // 6b. Fill gap with seen questions when unseen pool is exhausted.
   //     Ensures the user always receives exactly `count` questions, never 0.

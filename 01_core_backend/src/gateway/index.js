@@ -42,7 +42,8 @@ const { dailyResetService } = require('../services/daily-reset-service');
 const dataRetentionService = require('../services/data-retention-service');  // GDPR/COPPA compliance
 const questionCacheService = require('../services/question-cache-service');  // COST OPTIMIZATION: Question caching
 const { dailyQuestionService } = require('../services/daily-question-service');  // Daily fun question per grade
-const { reportSchedulerService } = require('../services/report-scheduler-service');  // Passive parent report scheduling
+const { reportSchedulerService }       = require('../services/report-scheduler-service');  // Passive parent report scheduling
+const { notificationSchedulerService } = require('../services/notification-scheduler-service'); // AI push notifications
 const DailyQuestionRoutes = require('./routes/daily-question-routes');  // GET /api/daily/question
 
 // Register multipart support for file uploads
@@ -633,6 +634,14 @@ const start = async () => {
       // Non-fatal — manual generation via API still works
     }
 
+    // Initialize Notification Scheduler — AI-personalized push at 18:00 user local time
+    try {
+      await notificationSchedulerService.initialize(fastify.redis || null);
+      fastify.log.info('✅ Notification Scheduler initialized (cron hourly)');
+    } catch (nsError) {
+      fastify.log.error('❌ Failed to initialize Notification Scheduler:', nsError);
+    }
+
     // Graceful shutdown handling for cleanup
     const gracefulShutdown = async (signal) => {
       fastify.log.info(`🛑 Received ${signal}, shutting down gracefully...`);
@@ -672,6 +681,7 @@ const start = async () => {
       // Stop report scheduler
       try {
         reportSchedulerService.stop();
+        notificationSchedulerService.stop();
         fastify.log.info('✅ Report Scheduler stopped');
       } catch (e) {
         fastify.log.error('⚠️ Error stopping Report Scheduler:', e);

@@ -1853,6 +1853,21 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 
 // Custom Date Range Picker
 "library.filter.moreSpecific" = "Más específico";
+"library.filter.all" = "Todos";
+"library.filter.type.label" = "Tipo";
+"library.filter.type.all" = "Todos";
+"library.filter.type.questions" = "Preguntas";
+"library.filter.type.conversations" = "Conversaciones";
+"library.filter.type.images" = "Imágenes";
+"library.filter.source.label" = "Fuente";
+"library.filter.source.all" = "Todos";
+"library.filter.source.homework" = "Deberes";
+"library.filter.source.bank" = "Banco de preguntas";
+"library.filter.source.practice" = "Práctica";
+"library.filter.result.label" = "Resultado";
+"library.filter.result.all" = "Todos";
+"library.filter.result.correct" = "Correcto";
+"library.filter.result.incorrect" = "Incorrecto";
 "library.customDate.title" = "Seleccionar rango de fechas personalizado";
 "library.customDate.subtitle" = "Elige fechas de inicio y fin para tu filtro";
 "library.customDate.startDate" = "Fecha de inicio";
@@ -2459,11 +2474,23 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 
 // Practice Mode Toggle (AI vs Question Bank)
 "practice.mode.ai" = "Práctica con IA";
-"practice.mode.bank" = "Preguntas reales";
+"practice.mode.bank" = "Banco de preguntas";
 "practice.bank.sources" = "Fuentes";
 "practice.bank.allSources" = "Todas";
 "practice.bank.clearSources" = "Limpiar selección (mostrar todas)";
-"practice.bank.retrieve" = "Obtener preguntas";
+"practice.bank.retrieve" = "Obtener del banco";
+"practice.bank.selectedCount" = "%d seleccionado(s)";
+"practice.bank.source.gradeSchool" = "Primaria";
+"practice.bank.source.visualMath" = "Visual Math 🖼";
+"practice.bank.source.arc" = "ARC Science";
+"practice.bank.source.scienceqa" = "ScienceQA";
+"practice.bank.source.kangaroo" = "Math Kangaroo 🦘";
+"practice.bank.source.amcJunior" = "AMC 8";
+"practice.bank.source.amcSenior" = "AMC 10/12";
+"practice.bank.source.aime" = "AIME";
+"practice.bank.source.sat" = "SAT Math";
+"practice.bank.source.mmlu" = "MMLU";
+"practice.bank.source.english" = "SAT/LSAT";
 
 // New Practice Sheet
 "newPractice.title" = "Nueva práctica";
@@ -3064,6 +3091,9 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "dailyChallenge.goal.weakness" = "Meta de hoy: ¡Supera %d debilidad(es)!";
 "dailyChallenge.goal.leaf" = "Meta de hoy: Iluminar \"%@\"";
 "dailyChallenge.goal.normal" = "Desafío de hoy: %@ · 3 preguntas";
+"dailyChallenge.questionBankBadge" = "Banco de preguntas";
+"dailyChallenge.questionBankHint" = "Las preguntas de hoy son del banco de preguntas. ¡Suerte!";
+"dailyChallenge.figureLoadFailed" = "No se pudo cargar la imagen. Comprueba tu red y vuelve a intentarlo.";
 "dailyChallenge.achievement.leafLit" = "¡Hoja iluminada!";
 "dailyChallenge.achievement.viewTree" = "Ver árbol de conocimiento";
 "dailyChallenge.achievement.weaknessConverted" = "¡Superaste %d debilidad(es)!";
@@ -3084,6 +3114,13 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "lightUpTree.selection.header" = "Temas sin practicar";
 "lightUpTree.selection.subheader" = "%d temas sin practicar. Selecciona para generar preguntas de tu nivel.";
 "lightUpTree.config.title" = "Configuración de práctica";
+"lightUpTree.source.title" = "Fuente de preguntas";
+"lightUpTree.source.ai" = "Generadas por IA";
+"lightUpTree.source.bank" = "Banco de preguntas";
+"lightUpTree.source.bankHint.math" = "Matemáticas: AMC, AIME, SAT Math, Math Kangaroo, GSM8K y más. Puede no coincidir exactamente con la dificultad elegida.";
+"lightUpTree.source.bankHint.english" = "Inglés: SAT English y LSAT Reading/Logic. Puede no coincidir exactamente con la dificultad elegida.";
+"lightUpTree.source.bankHint.science" = "Ciencias: ARC Science, ScienceQA y OpenBookQA. Puede no coincidir exactamente con la dificultad elegida.";
+"lightUpTree.source.bankHint.general" = "MMLU y preguntas de examen seleccionadas. Puede no coincidir exactamente con la dificultad elegida.";
 "lightUpTree.generate.selectFirst" = "Por favor, selecciona al menos un tema";
 "lightUpTree.generate.button" = "Generar %d preguntas (%d temas)";
 "lightUpTree.generating" = "Generando preguntas…";
@@ -3185,7 +3222,11 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 
 // MARK: - Learning feature additions
 "mistakeTree.detail.startLearning" = "Empezar a aprender";
-"learning.smartai.hint" = "SmartAI — la IA entiende el vídeo";
+"mistakeTree.detail.questionBank" = "Banco de preguntas";
+"leafDetail.bank.errorTitle" = "No se pudieron cargar las preguntas reales";
+"leafDetail.bank.errorEmpty" = "Aún no hay preguntas reales disponibles para este concepto.";
+"leafDetail.bank.loading" = "Buscando en el banco de preguntas…";
+"learning.smartai.hint" = "la IA entiende el vídeo";
 "learning.smartai.badge" = "SmartAI";
 "chat.video.startLearning" = "Video";
 "learning.header.back" = "Chat";

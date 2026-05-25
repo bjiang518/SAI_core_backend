@@ -166,6 +166,7 @@ class NotificationService: NSObject, ObservableObject {
                 content.sound = .default
                 content.badge = 1
                 content.categoryIdentifier = "STUDY_REMINDER"
+                content.userInfo = PersonalizedMessageEngine.deepLinkUserInfo(for: signals)
 
                 let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: false)
                 let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
@@ -221,8 +222,17 @@ class NotificationService: NSObject, ObservableObject {
                 return (subject: subject, concept: concept)
             }()
 
-            // Incomplete practice session subject
-            let incompleteSubject = PracticeSessionManager.shared.incompleteSessions.first?.subject
+            let rawWeaknessKey: String? = {
+                let weaknesses = ShortTermStatusService.shared.status.activeWeaknesses
+                    .filter { $0.value.value > 0 }
+                    .sorted { $0.value.value > $1.value.value }
+                return weaknesses.first?.key
+            }()
+
+            // Incomplete practice session subject + id
+            let incompleteSession = PracticeSessionManager.shared.incompleteSessions.first
+            let incompleteSubject = incompleteSession?.subject
+            let incompleteSessionId = incompleteSession?.id
 
             // Daily goal progress (first incomplete daily goal)
             let goalProgress: Double? = {
@@ -237,7 +247,9 @@ class NotificationService: NSObject, ObservableObject {
                 topWeakness: topWeakness,
                 favoriteSubject: profile?.favoriteSubjects.first,
                 incompleteSessionSubject: incompleteSubject,
-                goalProgressPercent: goalProgress
+                goalProgressPercent: goalProgress,
+                rawWeaknessKey: rawWeaknessKey,
+                incompleteSessionId: incompleteSessionId
             )
         }
     }
@@ -552,8 +564,22 @@ extension NotificationService: UNUserNotificationCenterDelegate {
         let userInfo = response.notification.request.content.userInfo
 
         if identifier.hasPrefix(studyReminderIdentifierPrefix) {
-            // User tapped study reminder - could open app to specific view
-            debugPrint("📱 NotificationService: Study reminder tapped")
+            let deepLink = userInfo["deepLink"] as? String ?? "studyai://practice/daily"
+            DispatchQueue.main.async {
+                if deepLink.hasPrefix("studyai://practice/weakness"),
+                   let key = userInfo["weaknessKey"] as? String {
+                    AppState.shared.pendingWeaknessKey = key
+                    AppState.shared.shouldOpenWeaknessPractice = true
+                    AppState.shared.selectedTab = .home
+                } else if deepLink.hasPrefix("studyai://practice/continue"),
+                          let sessionId = userInfo["sessionId"] as? String {
+                    AppState.shared.pendingPracticeSessionId = sessionId
+                    AppState.shared.shouldOpenIncompleteSession = true
+                    AppState.shared.selectedTab = .home
+                } else {
+                    AppState.shared.shouldOpenDailyChallenge = true
+                }
+            }
         } else if identifier.hasPrefix(dailyChallengeIdentifierPrefix) {
             debugPrint("📱 NotificationService: Daily challenge notification tapped")
             DispatchQueue.main.async {
@@ -569,9 +595,12 @@ extension NotificationService: UNUserNotificationCenterDelegate {
                 object: nil,
                 userInfo: userInfo
             )
+        } else if identifier == "com.studyai.streakProtection" {
+            debugPrint("📱 NotificationService: Streak protection notification tapped")
+            DispatchQueue.main.async {
+                AppState.shared.shouldOpenDailyChallenge = true
+            }
         } else if identifier.hasPrefix("com.studyai.homeworkComplete") {
-            // User tapped homework completion notification
-            debugPrint("📱 NotificationService: Homework completion notification tapped")
         }
 
         completionHandler()

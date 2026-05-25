@@ -192,11 +192,12 @@ module.exports = async function (fastify, opts) {
             (SELECT COUNT(DISTINCT user_id) FROM app_events WHERE event_name = 'app_open' AND occurred_at >= NOW() - INTERVAL '30 days')::int AS mau,
             (SELECT COUNT(*) FROM users u LEFT JOIN profiles p ON p.user_id = u.id
               WHERE p.parent_id IS NULL AND u.is_anonymous = false ${iFilter}
-              AND GREATEST(u.last_login_at,
+              AND LEAST(GREATEST(u.last_login_at,
                 (SELECT MAX(s.created_at)  FROM sessions s   WHERE s.user_id = u.id),
                 (SELECT MAX(us.created_at) FROM user_sessions us WHERE us.user_id = u.id),
-                (SELECT MAX(dsa.activity_date) FROM daily_subject_activities dsa WHERE dsa.user_id = u.id)
-              ) < NOW() - INTERVAL '30 days')::int AS churn_risk,
+                (SELECT MAX(ae.occurred_at) FROM app_events ae WHERE ae.user_id = u.id AND ae.event_name != 'app_background'),
+                (SELECT LEAST(MAX(dsa.activity_date::timestamptz), NOW()) FROM daily_subject_activities dsa WHERE dsa.user_id = u.id)
+              ), NOW()) < NOW() - INTERVAL '30 days')::int AS churn_risk,
             (SELECT COUNT(*) FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE u.created_at >= NOW() - INTERVAL '7 days' AND p.parent_id IS NULL ${iFilter})::int AS new_users_this_week
         `),
 
@@ -372,18 +373,20 @@ module.exports = async function (fastify, opts) {
           u.is_anonymous,
           u.tier_expires_at,
           u.created_at as join_date,
-          GREATEST(
+          LEAST(GREATEST(
             u.last_login_at,
-            (SELECT MAX(s.created_at)  FROM sessions s                  WHERE s.user_id = u.id),
-            (SELECT MAX(us.created_at) FROM user_sessions us             WHERE us.user_id = u.id),
-            (SELECT MAX(dsa.activity_date) FROM daily_subject_activities dsa WHERE dsa.user_id = u.id)
-          ) as last_active,
-          EXTRACT(day FROM NOW() - GREATEST(
+            (SELECT MAX(s.created_at)  FROM sessions s        WHERE s.user_id = u.id),
+            (SELECT MAX(us.created_at) FROM user_sessions us  WHERE us.user_id = u.id),
+            (SELECT MAX(ae.occurred_at) FROM app_events ae    WHERE ae.user_id = u.id AND ae.event_name != 'app_background'),
+            (SELECT LEAST(MAX(dsa.activity_date::timestamptz), NOW()) FROM daily_subject_activities dsa WHERE dsa.user_id = u.id)
+          ), NOW()) as last_active,
+          EXTRACT(day FROM NOW() - LEAST(GREATEST(
             u.last_login_at,
-            (SELECT MAX(s.created_at)  FROM sessions s                  WHERE s.user_id = u.id),
-            (SELECT MAX(us.created_at) FROM user_sessions us             WHERE us.user_id = u.id),
-            (SELECT MAX(dsa.activity_date) FROM daily_subject_activities dsa WHERE dsa.user_id = u.id)
-          ))::int as days_inactive,
+            (SELECT MAX(s.created_at)  FROM sessions s        WHERE s.user_id = u.id),
+            (SELECT MAX(us.created_at) FROM user_sessions us  WHERE us.user_id = u.id),
+            (SELECT MAX(ae.occurred_at) FROM app_events ae    WHERE ae.user_id = u.id AND ae.event_name != 'app_background'),
+            (SELECT LEAST(MAX(dsa.activity_date::timestamptz), NOW()) FROM daily_subject_activities dsa WHERE dsa.user_id = u.id)
+          ), NOW()))::int as days_inactive,
           (SELECT COUNT(*) FROM sessions s WHERE s.user_id = u.id) as total_sessions,
           (SELECT device_info->>'userAgent'
            FROM user_sessions us
@@ -393,17 +396,19 @@ module.exports = async function (fastify, opts) {
             WHEN u.is_anonymous = true THEN 'guest'
             WHEN u.tier = 'premium_plus' AND (u.tier_expires_at IS NULL OR u.tier_expires_at > NOW()) THEN 'ultra'
             WHEN u.tier = 'premium'      AND (u.tier_expires_at IS NULL OR u.tier_expires_at > NOW()) THEN 'premium'
-            WHEN GREATEST(
+            WHEN LEAST(GREATEST(
               u.last_login_at,
-              (SELECT MAX(s.created_at)  FROM sessions s                  WHERE s.user_id = u.id),
-              (SELECT MAX(us.created_at) FROM user_sessions us             WHERE us.user_id = u.id),
-              (SELECT MAX(dsa.activity_date) FROM daily_subject_activities dsa WHERE dsa.user_id = u.id)
-            ) IS NULL OR GREATEST(
+              (SELECT MAX(s.created_at)  FROM sessions s        WHERE s.user_id = u.id),
+              (SELECT MAX(us.created_at) FROM user_sessions us  WHERE us.user_id = u.id),
+              (SELECT MAX(ae.occurred_at) FROM app_events ae    WHERE ae.user_id = u.id AND ae.event_name != 'app_background'),
+              (SELECT LEAST(MAX(dsa.activity_date::timestamptz), NOW()) FROM daily_subject_activities dsa WHERE dsa.user_id = u.id)
+            ), NOW()) IS NULL OR LEAST(GREATEST(
               u.last_login_at,
-              (SELECT MAX(s.created_at)  FROM sessions s                  WHERE s.user_id = u.id),
-              (SELECT MAX(us.created_at) FROM user_sessions us             WHERE us.user_id = u.id),
-              (SELECT MAX(dsa.activity_date) FROM daily_subject_activities dsa WHERE dsa.user_id = u.id)
-            ) < NOW() - INTERVAL '30 days' THEN 'inactive'
+              (SELECT MAX(s.created_at)  FROM sessions s        WHERE s.user_id = u.id),
+              (SELECT MAX(us.created_at) FROM user_sessions us  WHERE us.user_id = u.id),
+              (SELECT MAX(ae.occurred_at) FROM app_events ae    WHERE ae.user_id = u.id AND ae.event_name != 'app_background'),
+              (SELECT LEAST(MAX(dsa.activity_date::timestamptz), NOW()) FROM daily_subject_activities dsa WHERE dsa.user_id = u.id)
+            ), NOW()) < NOW() - INTERVAL '30 days' THEN 'inactive'
             ELSE 'free'
           END as "subscriptionStatus",
           (SELECT JSON_AGG(th ORDER BY th.changed_at DESC)
@@ -423,10 +428,16 @@ module.exports = async function (fastify, opts) {
         query += ` WHERE p.parent_id IS NULL`;
       }
 
+      const LAST_ACTIVE_EXPR = `LEAST(GREATEST(u.last_login_at,(SELECT MAX(s.created_at) FROM sessions s WHERE s.user_id=u.id),(SELECT MAX(us.created_at) FROM user_sessions us WHERE us.user_id=u.id),(SELECT MAX(ae.occurred_at) FROM app_events ae WHERE ae.user_id=u.id AND ae.event_name!='app_background'),(SELECT LEAST(MAX(dsa.activity_date::timestamptz),NOW()) FROM daily_subject_activities dsa WHERE dsa.user_id=u.id)),NOW())`;
+
       if (filter === 'active') {
-        query += ` AND GREATEST(u.last_login_at,(SELECT MAX(s.created_at) FROM sessions s WHERE s.user_id=u.id),(SELECT MAX(us.created_at) FROM user_sessions us WHERE us.user_id=u.id),(SELECT MAX(dsa.activity_date) FROM daily_subject_activities dsa WHERE dsa.user_id=u.id)) >= NOW() - INTERVAL '7 days'`;
+        query += ` AND ${LAST_ACTIVE_EXPR} >= NOW() - INTERVAL '7 days'`;
+      } else if (filter === 'activetoday') {
+        query += ` AND ${LAST_ACTIVE_EXPR} >= CURRENT_DATE`;
       } else if (filter === 'paid') {
         query += ` AND u.tier IN ('premium','premium_plus') AND (u.tier_expires_at IS NULL OR u.tier_expires_at > NOW())`;
+      } else if (filter === 'all_paid') {
+        query += ` AND EXISTS (SELECT 1 FROM tier_history th WHERE th.user_id = u.id AND th.to_tier IN ('premium','premium_plus'))`;
       } else if (filter === 'heavy') {
         query += ` AND (SELECT COUNT(*) FROM sessions s WHERE s.user_id=u.id) >= 20`;
       } else if (filter === 'guest') {
@@ -445,9 +456,13 @@ module.exports = async function (fastify, opts) {
         countParams.push(`%${search}%`);
       }
       if (filter === 'active') {
-        countQuery += ` AND GREATEST(u.last_login_at,(SELECT MAX(s.created_at) FROM sessions s WHERE s.user_id=u.id),(SELECT MAX(us.created_at) FROM user_sessions us WHERE us.user_id=u.id),(SELECT MAX(dsa.activity_date) FROM daily_subject_activities dsa WHERE dsa.user_id=u.id)) >= NOW() - INTERVAL '7 days'`;
+        countQuery += ` AND ${LAST_ACTIVE_EXPR} >= NOW() - INTERVAL '7 days'`;
+      } else if (filter === 'activetoday') {
+        countQuery += ` AND ${LAST_ACTIVE_EXPR} >= CURRENT_DATE`;
       } else if (filter === 'paid') {
         countQuery += ` AND u.tier IN ('premium','premium_plus') AND (u.tier_expires_at IS NULL OR u.tier_expires_at > NOW())`;
+      } else if (filter === 'all_paid') {
+        countQuery += ` AND EXISTS (SELECT 1 FROM tier_history th WHERE th.user_id = u.id AND th.to_tier IN ('premium','premium_plus'))`;
       } else if (filter === 'heavy') {
         countQuery += ` AND (SELECT COUNT(*) FROM sessions s WHERE s.user_id=u.id) >= 20`;
       } else if (filter === 'guest') {
@@ -746,7 +761,9 @@ module.exports = async function (fastify, opts) {
             (SELECT COUNT(DISTINCT user_id) FROM subject_progress WHERE streak_count > 0)::int as has_active_streak,
             (SELECT COUNT(DISTINCT user_id) FROM point_transactions WHERE type = 'spend')::int as ever_redeemed_points,
             ${aeTotalGradings} as total_gradings,
-            (SELECT COUNT(*) FROM archived_questions)::int as total_questions_attempted
+            (SELECT COUNT(*) FROM archived_questions)::int as total_questions_attempted,
+            (SELECT COUNT(DISTINCT user_id) FROM user_video_interactions)::int as ever_used_video,
+            (SELECT COUNT(DISTINCT user_id) FROM knowledge_tree_snapshots)::int as ever_synced_knowledge_tree
         `),
 
         // Homework submission volume — last 30 days (app_events preferred)
@@ -1668,7 +1685,7 @@ module.exports = async function (fastify, opts) {
       let hasAppEvents = false;
       try { await db.query('SELECT id FROM app_events LIMIT 0'); hasAppEvents = true; } catch {}
 
-      const [regResult, loginResult, reportResult, promoResult, appEventsResult] = await Promise.all([
+      const [regResult, loginResult, reportResult, promoResult, appEventsResult, videoResult] = await Promise.all([
         db.query(`SELECT created_at, auth_provider FROM users WHERE id = $1`, [userId]),
         db.query(`SELECT created_at, device_info FROM user_sessions WHERE user_id = $1 ORDER BY created_at ASC LIMIT 300`, [userId]),
         db.query(`SELECT id, generated_at, period, overall_grade, status FROM parent_report_batches WHERE user_id = $1 ORDER BY generated_at ASC LIMIT 50`, [userId]),
@@ -1676,6 +1693,8 @@ module.exports = async function (fastify, opts) {
         hasAppEvents
           ? db.query(`SELECT event_name, properties, occurred_at FROM app_events WHERE user_id = $1 ORDER BY occurred_at ASC LIMIT 1000`, [userId])
           : Promise.resolve({ rows: [] }),
+        db.query(`SELECT interaction_type, video_id, title, subject, search_query, created_at FROM user_video_interactions WHERE user_id = $1 ORDER BY created_at ASC LIMIT 200`, [userId])
+          .catch(() => ({ rows: [] })),
       ]);
 
       // Map app_events event_name → journey type
@@ -1772,6 +1791,16 @@ module.exports = async function (fastify, opts) {
         events.push({ type: 'subscription', time: r.redeemed_at, label: `Upgraded via Promo (expires ${r.tier_expires_at ? new Date(r.tier_expires_at).toLocaleDateString() : 'never'})` });
       }
 
+      // Video interactions
+      for (const r of videoResult.rows) {
+        const label = r.interaction_type === 'search'
+          ? `Video Search · "${r.search_query || ''}"${r.subject ? ` · ${r.subject}` : ''}`
+          : r.interaction_type === 'summary'
+            ? `Video Summary · ${r.title || r.video_id}${r.subject ? ` · ${r.subject}` : ''}`
+            : `Video Opened · ${r.title || r.video_id}${r.subject ? ` · ${r.subject}` : ''}`;
+        events.push({ type: 'video', time: r.created_at, label });
+      }
+
       events.sort((a, b) => new Date(a.time) - new Date(b.time));
 
       // Summary from app_events counts
@@ -1788,6 +1817,7 @@ module.exports = async function (fastify, opts) {
             totalGraded:   countEvent('homework_graded') + countEvent('homework_session_graded'),
             totalPractice: countEvent('practice_generated'),
             totalReports:  reportResult.rows.length,
+            totalVideos:   videoResult.rows.filter(r => r.interaction_type === 'summary').length,
           },
         },
       });
@@ -2029,6 +2059,226 @@ module.exports = async function (fastify, opts) {
     } catch (error) {
       fastify.log.error({ err: error }, 'Error fetching homework pipeline');
       return reply.code(500).send({ success: false, error: 'Failed to fetch homework data', details: error?.message });
+    }
+  });
+
+  // ============================================================================
+  // GET /api/admin/analytics/video — Video learning engagement funnel
+  // ============================================================================
+
+  fastify.get('/api/admin/analytics/video', { preHandler: verifyAdmin }, async (request, reply) => {
+    try {
+      const [funnel, topSubjects, searchQueries, videoVsKtGap, dailyTrend] = await Promise.all([
+
+        // Engagement funnel: search → view → summary
+        db.query(`
+          SELECT
+            COUNT(*) FILTER (WHERE interaction_type = 'search')::int  AS total_searches,
+            COUNT(*) FILTER (WHERE interaction_type = 'view')::int    AS total_views,
+            COUNT(*) FILTER (WHERE interaction_type = 'summary')::int AS total_summaries,
+            COUNT(DISTINCT user_id) FILTER (WHERE interaction_type = 'search')::int  AS users_searched,
+            COUNT(DISTINCT user_id) FILTER (WHERE interaction_type = 'view')::int    AS users_viewed,
+            COUNT(DISTINCT user_id) FILTER (WHERE interaction_type = 'summary')::int AS users_summarized
+          FROM user_video_interactions
+          WHERE created_at >= NOW() - INTERVAL '30 days'
+        `),
+
+        // Top subjects by video engagement (summary = deepest engagement)
+        db.query(`
+          SELECT subject,
+            COUNT(*) FILTER (WHERE interaction_type = 'search')::int  AS searches,
+            COUNT(*) FILTER (WHERE interaction_type = 'view')::int    AS views,
+            COUNT(*) FILTER (WHERE interaction_type = 'summary')::int AS summaries,
+            COUNT(DISTINCT user_id)::int AS unique_users
+          FROM user_video_interactions
+          WHERE subject IS NOT NULL AND created_at >= NOW() - INTERVAL '30 days'
+          GROUP BY subject
+          ORDER BY summaries DESC, views DESC
+          LIMIT 10
+        `),
+
+        // Top search queries (what are users looking for?)
+        db.query(`
+          SELECT search_query, COUNT(*)::int AS cnt, COUNT(DISTINCT user_id)::int AS users
+          FROM user_video_interactions
+          WHERE interaction_type = 'search'
+            AND search_query IS NOT NULL
+            AND created_at >= NOW() - INTERVAL '30 days'
+          GROUP BY search_query
+          ORDER BY cnt DESC
+          LIMIT 20
+        `),
+
+        // Video → no practice gap: users who summarized a subject but never practiced it in KT
+        db.query(`
+          SELECT uvi.subject,
+            COUNT(DISTINCT uvi.user_id)::int AS users_watched_only,
+            COUNT(DISTINCT kts.user_id)::int AS users_also_practiced
+          FROM (
+            SELECT DISTINCT user_id, subject
+            FROM user_video_interactions
+            WHERE interaction_type = 'summary'
+              AND subject IS NOT NULL
+              AND created_at >= NOW() - INTERVAL '30 days'
+          ) uvi
+          LEFT JOIN (
+            SELECT DISTINCT user_id, subject
+            FROM knowledge_tree_snapshots
+            WHERE is_practiced = true
+          ) kts ON kts.user_id = uvi.user_id AND kts.subject = uvi.subject
+          GROUP BY uvi.subject
+          ORDER BY users_watched_only DESC
+          LIMIT 10
+        `),
+
+        // Daily video activity — last 14 days
+        db.query(`
+          SELECT (created_at AT TIME ZONE 'America/Los_Angeles')::date AS date,
+            COUNT(*) FILTER (WHERE interaction_type = 'view')::int    AS views,
+            COUNT(*) FILTER (WHERE interaction_type = 'summary')::int AS summaries,
+            COUNT(DISTINCT user_id)::int AS active_users
+          FROM user_video_interactions
+          WHERE created_at >= NOW() - INTERVAL '14 days'
+          GROUP BY (created_at AT TIME ZONE 'America/Los_Angeles')::date
+          ORDER BY date
+        `),
+      ]);
+
+      return reply.send({
+        success: true,
+        data: {
+          funnel:         funnel.rows[0]     || {},
+          topSubjects:    topSubjects.rows,
+          topSearches:    searchQueries.rows,
+          videoVsKtGap:   videoVsKtGap.rows,
+          dailyTrend:     dailyTrend.rows,
+        },
+      });
+    } catch (error) {
+      fastify.log.error({ err: error }, 'Error fetching video analytics');
+      return reply.code(500).send({ success: false, error: 'Failed to fetch video analytics', details: error?.message });
+    }
+  });
+
+  // ============================================================================
+  // GET /api/admin/analytics/knowledge-tree — Knowledge tree mastery platform stats
+  // ============================================================================
+
+  fastify.get('/api/admin/analytics/knowledge-tree', { preHandler: verifyAdmin }, async (request, reply) => {
+    try {
+      const [masteryBySubject, nearBreakthroughTopics, hardestTopics,
+             masteryDistribution, recentMasteries] = await Promise.all([
+
+        // Mastery rate per subject
+        db.query(`
+          SELECT subject,
+            COUNT(DISTINCT user_id)::int                                             AS users,
+            COUNT(DISTINCT topic_key)::int                                           AS total_topics,
+            COUNT(DISTINCT topic_key) FILTER (WHERE is_mastered = true)::int         AS mastered_topics,
+            COUNT(DISTINCT topic_key) FILTER (WHERE is_practiced = true
+                                              AND is_mastered = false)::int          AS in_progress_topics,
+            ROUND(100.0 * COUNT(DISTINCT topic_key) FILTER (WHERE is_mastered = true)
+                  / NULLIF(COUNT(DISTINCT topic_key), 0))::int                       AS mastery_rate_pct,
+            ROUND(AVG(accuracy) FILTER (WHERE is_practiced = true) * 100)::int       AS avg_accuracy_pct
+          FROM (
+            SELECT DISTINCT ON (user_id, topic_key)
+              user_id, subject, topic_key, is_mastered, is_practiced, accuracy
+            FROM knowledge_tree_snapshots
+            ORDER BY user_id, topic_key, synced_at DESC
+          ) latest
+          GROUP BY subject
+          ORDER BY users DESC
+          LIMIT 15
+        `),
+
+        // Topics where the most users are near breakthrough (accuracy 45-69%, ≥3 attempts)
+        db.query(`
+          SELECT topic_name, subject, branch_name,
+            COUNT(DISTINCT user_id)::int         AS users_near_mastery,
+            ROUND(AVG(accuracy) * 100)::int      AS avg_accuracy_pct,
+            ROUND(AVG(total_attempts))::int      AS avg_attempts
+          FROM (
+            SELECT DISTINCT ON (user_id, topic_key)
+              user_id, topic_name, subject, branch_name, topic_key, accuracy, total_attempts
+            FROM knowledge_tree_snapshots
+            WHERE is_mastered  = false
+              AND is_practiced = true
+              AND accuracy    >= 0.45
+              AND accuracy    <  0.70
+              AND total_attempts >= 3
+            ORDER BY user_id, topic_key, synced_at DESC
+          ) latest
+          GROUP BY topic_name, subject, branch_name
+          ORDER BY users_near_mastery DESC
+          LIMIT 15
+        `),
+
+        // Hardest topics (lowest accuracy, practiced by ≥5 users)
+        db.query(`
+          SELECT topic_name, subject,
+            COUNT(DISTINCT user_id)::int         AS users_attempted,
+            ROUND(AVG(accuracy) * 100)::int      AS avg_accuracy_pct,
+            ROUND(AVG(total_attempts))::int      AS avg_attempts,
+            COUNT(DISTINCT user_id) FILTER (WHERE is_mastered = true)::int AS users_mastered
+          FROM (
+            SELECT DISTINCT ON (user_id, topic_key)
+              user_id, topic_name, subject, topic_key, accuracy, total_attempts, is_mastered
+            FROM knowledge_tree_snapshots
+            WHERE is_practiced = true AND total_attempts >= 2
+            ORDER BY user_id, topic_key, synced_at DESC
+          ) latest
+          GROUP BY topic_name, subject
+          HAVING COUNT(DISTINCT user_id) >= 5
+          ORDER BY avg_accuracy_pct ASC
+          LIMIT 15
+        `),
+
+        // Overall mastery distribution across all users × topics
+        db.query(`
+          SELECT
+            COUNT(*) FILTER (WHERE is_mastered = true)::int                    AS mastered,
+            COUNT(*) FILTER (WHERE is_practiced = true AND is_mastered = false
+                             AND accuracy >= 0.45)::int                        AS near_mastery,
+            COUNT(*) FILTER (WHERE is_practiced = true AND is_mastered = false
+                             AND accuracy < 0.45)::int                         AS struggling,
+            COUNT(*) FILTER (WHERE is_practiced = false)::int                  AS untouched
+          FROM (
+            SELECT DISTINCT ON (user_id, topic_key)
+              user_id, topic_key, is_mastered, is_practiced, accuracy
+            FROM knowledge_tree_snapshots
+            ORDER BY user_id, topic_key, synced_at DESC
+          ) latest
+        `),
+
+        // Recent masteries (last 7 days) — momentum indicator
+        db.query(`
+          SELECT topic_name, subject, COUNT(DISTINCT user_id)::int AS users_mastered_this_week
+          FROM (
+            SELECT DISTINCT ON (user_id, topic_key)
+              user_id, topic_name, subject, topic_key, is_mastered, synced_at
+            FROM knowledge_tree_snapshots
+            WHERE is_mastered = true AND synced_at >= NOW() - INTERVAL '7 days'
+            ORDER BY user_id, topic_key, synced_at DESC
+          ) latest
+          GROUP BY topic_name, subject
+          ORDER BY users_mastered_this_week DESC
+          LIMIT 10
+        `),
+      ]);
+
+      return reply.send({
+        success: true,
+        data: {
+          masteryBySubject:     masteryBySubject.rows,
+          nearBreakthroughTopics: nearBreakthroughTopics.rows,
+          hardestTopics:        hardestTopics.rows,
+          masteryDistribution:  masteryDistribution.rows[0] || {},
+          recentMasteries:      recentMasteries.rows,
+        },
+      });
+    } catch (error) {
+      fastify.log.error({ err: error }, 'Error fetching knowledge tree analytics');
+      return reply.code(500).send({ success: false, error: 'Failed to fetch knowledge tree data', details: error?.message });
     }
   });
 

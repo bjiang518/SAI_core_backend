@@ -14,6 +14,51 @@ extension Double {
     }
 }
 
+// MARK: - Library Filter Enums
+
+enum LibraryContentTypeFilter: String, CaseIterable {
+    case all, questions, conversations, images
+    var displayName: String {
+        switch self {
+        case .all:           return NSLocalizedString("library.filter.type.all", value: "All", comment: "")
+        case .questions:     return NSLocalizedString("library.filter.type.questions", value: "Questions", comment: "")
+        case .conversations: return NSLocalizedString("library.filter.type.conversations", value: "Conversations", comment: "")
+        case .images:        return NSLocalizedString("library.filter.type.images", value: "Images", comment: "")
+        }
+    }
+}
+
+enum LibrarySourceFilter: String, CaseIterable {
+    case all, homework, bank, practice
+    var displayName: String {
+        switch self {
+        case .all:      return NSLocalizedString("library.filter.source.all", value: "All", comment: "")
+        case .homework: return NSLocalizedString("library.filter.source.homework", value: "作业", comment: "")
+        case .bank:     return NSLocalizedString("library.filter.source.bank", value: "真题", comment: "")
+        case .practice: return NSLocalizedString("library.filter.source.practice", value: "练习本", comment: "")
+        }
+    }
+    func matches(_ source: String?) -> Bool {
+        switch self {
+        case .all:      return true
+        case .homework: return source == "homework" || source == nil
+        case .bank:     return source == "bank"
+        case .practice: return source == "practice"
+        }
+    }
+}
+
+enum LibraryResultFilter: String, CaseIterable {
+    case all, correct, incorrect
+    var displayName: String {
+        switch self {
+        case .all:       return NSLocalizedString("library.filter.result.all", value: "All", comment: "")
+        case .correct:   return NSLocalizedString("library.filter.result.correct", value: "Correct", comment: "")
+        case .incorrect: return NSLocalizedString("library.filter.result.incorrect", value: "Incorrect", comment: "")
+        }
+    }
+}
+
 struct UnifiedLibraryView: View {
     @StateObject private var libraryService = LibraryDataService.shared
     @StateObject private var userSession = UserSessionManager.shared
@@ -41,6 +86,11 @@ struct UnifiedLibraryView: View {
     @State private var activeQuickDateFilter: DateRange?
     @State private var hasActiveImageFilter = false
     @State private var selectedQuestionType: QuestionType?
+
+    // New filter state
+    @State private var selectedContentType: LibraryContentTypeFilter = .all
+    @State private var selectedSource: LibrarySourceFilter = .all
+    @State private var selectedResult: LibraryResultFilter = .all
 
     // Custom date picker states
     @State private var showingCustomDatePicker = false
@@ -87,6 +137,20 @@ struct UnifiedLibraryView: View {
                     return type == selectedQuestionType
                 }
                 return false
+            }
+        }
+
+        if selectedSource != .all {
+            questions = questions.filter { selectedSource.matches($0.source) }
+        }
+
+        if selectedResult != .all {
+            questions = questions.filter { q in
+                switch selectedResult {
+                case .correct:   return q.grade == .correct
+                case .incorrect: return q.grade == .incorrect
+                case .all:       return true
+                }
             }
         }
 
@@ -149,11 +213,18 @@ struct UnifiedLibraryView: View {
             conversationsToUse = libraryContent.conversations
         }
 
-        if showQuestionsSection {
+        let includeQuestions = selectedContentType == .all
+            ? showQuestionsSection
+            : selectedContentType == .questions
+        let includeConversations = selectedContentType == .all
+            ? showConversationsSection
+            : selectedContentType == .conversations
+
+        if includeQuestions {
             allItems.append(contentsOf: questionsToUse)
         }
 
-        if showConversationsSection {
+        if includeConversations {
             let conversationItems = conversationsToUse.map { ConversationLibraryItem(data: $0) }
             allItems.append(contentsOf: conversationItems.filter { $0.itemType == .conversation })
         }
@@ -180,6 +251,24 @@ struct UnifiedLibraryView: View {
                 item.title.localizedCaseInsensitiveContains(searchText) ||
                 item.subject.localizedCaseInsensitiveContains(searchText) ||
                 item.preview.localizedCaseInsensitiveContains(searchText)
+            }
+        }
+
+        if selectedSource != .all {
+            filtered = filtered.filter { item in
+                guard let q = item as? QuestionSummary else { return true }
+                return selectedSource.matches(q.source)
+            }
+        }
+
+        if selectedResult != .all {
+            filtered = filtered.filter { item in
+                guard let q = item as? QuestionSummary else { return true }
+                switch selectedResult {
+                case .correct:   return q.grade == .correct
+                case .incorrect: return q.grade == .incorrect
+                case .all:       return true
+                }
             }
         }
 
@@ -405,33 +494,9 @@ struct UnifiedLibraryView: View {
                     )
                     .listRowSeparator(.hidden)
 
-                // ── Stats / content-type header ───────────────────────────
-                if !libraryContent.isEmpty {
-                    QuickStatsHeader(
-                        questionCount: filteredQuestionCount,
-                        conversationCount: filteredConversationCount,
-                        rawHomeworkCount: filteredHomeworkImages.count,
-                        showQuestions: showQuestionsSection,
-                        showConversations: showConversationsSection,
-                        showRawHomeworks: showRawHomeworksSection,
-                        selectedSubject: selectedSubject,
-                        onToggleQuestions: {
-                            withAnimation(.easeInOut(duration: 0.25)) { showQuestionsSection.toggle() }
-                        },
-                        onToggleConversations: {
-                            withAnimation(.easeInOut(duration: 0.25)) { showConversationsSection.toggle() }
-                        },
-                        onToggleRawHomeworks: {
-                            withAnimation(.easeInOut(duration: 0.25)) { showRawHomeworksSection.toggle() }
-                        }
-                    )
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color(.systemBackground))
-                    .listRowSeparator(.hidden)
-                }
-
                 // ── Raw Homework Cover Flow (shown when Raw pill is active) ────
-                if showRawHomeworksSection {
+                if selectedContentType == .images ||
+                   (selectedContentType == .all && showRawHomeworksSection) {
                     if filteredHomeworkImages.isEmpty {
                         HStack(spacing: 8) {
                             Image(systemName: "photo.on.rectangle")
@@ -453,7 +518,7 @@ struct UnifiedLibraryView: View {
 
                 // ── Content items ─────────────────────────────────────────
                 if filteredItems.isEmpty {
-                    NoResultsView(hasFilters: !searchText.isEmpty || selectedSubject != nil || !showQuestionsSection || !showConversationsSection || selectedQuestionType != nil) {
+                    NoResultsView(hasFilters: !searchText.isEmpty || selectedSubject != nil || !showQuestionsSection || !showConversationsSection || selectedQuestionType != nil || selectedContentType != .all || selectedSource != .all || selectedResult != .all) {
                         clearFilters()
                     }
                     .listRowBackground(Color.clear)
@@ -542,119 +607,198 @@ struct UnifiedLibraryView: View {
     }
 
     private var filterBarContent: some View {
-        HStack(spacing: 12) {
-            // Time Range Dropdown
-            Menu {
-                Button {
-                    activeQuickDateFilter = nil
-                    isUsingAdvancedSearch = false
-                    advancedFilteredQuestions = []
-                } label: {
-                    Label(NSLocalizedString("library.filter.allTime", comment: ""), systemImage: "clock")
-                }
-
-                Button {
-                    activeQuickDateFilter = .thisWeek
-                    searchFilters.dateRange = .thisWeek
-                    Task { await performAdvancedSearch(searchFilters) }
-                } label: {
-                    Label(NSLocalizedString("library.filter.thisWeek", comment: ""), systemImage: "calendar.badge.clock")
-                }
-
-                Button {
-                    activeQuickDateFilter = .thisMonth
-                    searchFilters.dateRange = .thisMonth
-                    Task { await performAdvancedSearch(searchFilters) }
-                } label: {
-                    Label(NSLocalizedString("library.filter.thisMonth", comment: ""), systemImage: "calendar")
-                }
-
-                Divider()
-
-                Button {
-                    showingCustomDatePicker = true
-                } label: {
-                    Label(NSLocalizedString("library.filter.moreSpecific", comment: ""), systemImage: "calendar.badge.plus")
-                }
-            } label: {
-                filterChip(
-                    icon: "clock",
-                    label: activeQuickDateFilter?.displayName ?? NSLocalizedString("library.filter.allTime", comment: "")
-                )
-            }
-
-            // Subject Dropdown
-            Menu {
-                Button {
-                    selectedSubject = nil
-                } label: {
-                    Label(NSLocalizedString("library.filter.allSubjects", comment: ""), systemImage: "books.vertical")
-                }
-                ForEach(availableSubjects, id: \.self) { subject in
+        VStack(spacing: 0) {
+            // ── Row 1: Subject  Time (fill full width) ───────────────────────
+            HStack(spacing: 8) {
+                // Subject dropdown
+                Menu {
                     Button {
-                        selectedSubject = subject
+                        selectedSubject = nil
                     } label: {
-                        Label(NSLocalizedString("subject.\(subject.lowercased().replacingOccurrences(of: " ", with: ""))", value: subject, comment: ""), systemImage: Subject.normalize(subject)?.icon ?? "book.fill")
+                        Label(NSLocalizedString("library.filter.allSubjects", comment: ""), systemImage: "books.vertical")
                     }
-                }
-            } label: {
-                filterChip(
-                    icon: selectedSubject.flatMap { Subject.normalize($0) }?.icon ?? "books.vertical",
-                    label: selectedSubject.map { NSLocalizedString("subject.\($0.lowercased().replacingOccurrences(of: " ", with: ""))", value: $0, comment: "") } ?? NSLocalizedString("library.filter.allSubjects", comment: "")
-                )
-            }
-
-            // Question Type Dropdown
-            Menu {
-                Button {
-                    selectedQuestionType = nil
+                    ForEach(availableSubjects, id: \.self) { subject in
+                        Button { selectedSubject = subject } label: {
+                            Label(
+                                NSLocalizedString("subject.\(subject.lowercased().replacingOccurrences(of: " ", with: ""))", value: subject, comment: ""),
+                                systemImage: Subject.normalize(subject)?.icon ?? "book.fill"
+                            )
+                        }
+                    }
                 } label: {
-                    Label(NSLocalizedString("library.filter.allTypes", comment: ""), systemImage: "square.grid.2x2")
+                    row1Chip(
+                        icon: selectedSubject.flatMap { Subject.normalize($0) }?.icon ?? "books.vertical",
+                        label: selectedSubject.map {
+                            NSLocalizedString("subject.\($0.lowercased().replacingOccurrences(of: " ", with: ""))", value: $0, comment: "")
+                        } ?? NSLocalizedString("library.filter.allSubjects", comment: ""),
+                        isActive: selectedSubject != nil
+                    )
                 }
-                ForEach(availableQuestionTypes, id: \.self) { questionType in
+
+                // Time dropdown
+                Menu {
                     Button {
-                        selectedQuestionType = questionType
+                        activeQuickDateFilter = nil
+                        isUsingAdvancedSearch = false
+                        advancedFilteredQuestions = []
                     } label: {
-                        Label(questionType.displayName, systemImage: questionType.icon)
+                        Label(NSLocalizedString("library.filter.allTime", comment: ""), systemImage: "clock")
                     }
+                    Button {
+                        activeQuickDateFilter = .thisWeek
+                        searchFilters.dateRange = .thisWeek
+                        Task { await performAdvancedSearch(searchFilters) }
+                    } label: {
+                        Label(NSLocalizedString("library.filter.thisWeek", comment: ""), systemImage: "calendar.badge.clock")
+                    }
+                    Button {
+                        activeQuickDateFilter = .thisMonth
+                        searchFilters.dateRange = .thisMonth
+                        Task { await performAdvancedSearch(searchFilters) }
+                    } label: {
+                        Label(NSLocalizedString("library.filter.thisMonth", comment: ""), systemImage: "calendar")
+                    }
+                    Divider()
+                    Button {
+                        showingCustomDatePicker = true
+                    } label: {
+                        Label(NSLocalizedString("library.filter.moreSpecific", comment: ""), systemImage: "calendar.badge.plus")
+                    }
+                } label: {
+                    row1Chip(
+                        icon: "clock",
+                        label: activeQuickDateFilter?.displayName ?? NSLocalizedString("library.filter.allTime", comment: ""),
+                        isActive: activeQuickDateFilter != nil
+                    )
                 }
-            } label: {
-                filterChip(
-                    icon: "square.grid.2x2",
-                    label: selectedQuestionType?.displayName ?? NSLocalizedString("library.filter.allTypes", comment: "")
-                )
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+
+            Divider()
+
+            // ── Row 2: Type  Source  Result ──────────────────────────────────
+            HStack(spacing: 8) {
+                // Type
+                Menu {
+                    ForEach(LibraryContentTypeFilter.allCases, id: \.rawValue) { type in
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.15)) { selectedContentType = type }
+                        } label: {
+                            if selectedContentType == type {
+                                Label(type.displayName, systemImage: "checkmark")
+                            } else {
+                                Text(type.displayName)
+                            }
+                        }
+                    }
+                } label: {
+                    row2DropButton(
+                        label: NSLocalizedString("library.filter.type.label", value: "Type", comment: ""),
+                        value: selectedContentType == .all ? nil : selectedContentType.displayName,
+                        isActive: selectedContentType != .all,
+                        color: DesignTokens.Colors.Cute.blue
+                    )
+                }
+
+                // Source
+                Menu {
+                    ForEach(LibrarySourceFilter.allCases, id: \.rawValue) { src in
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.15)) { selectedSource = src }
+                        } label: {
+                            if selectedSource == src {
+                                Label(src.displayName, systemImage: "checkmark")
+                            } else {
+                                Text(src.displayName)
+                            }
+                        }
+                    }
+                } label: {
+                    row2DropButton(
+                        label: NSLocalizedString("library.filter.source.label", value: "Source", comment: ""),
+                        value: selectedSource == .all ? nil : selectedSource.displayName,
+                        isActive: selectedSource != .all,
+                        color: DesignTokens.Colors.Cute.mint
+                    )
+                }
+
+                // Result
+                Menu {
+                    ForEach(LibraryResultFilter.allCases, id: \.rawValue) { result in
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.15)) { selectedResult = result }
+                        } label: {
+                            if selectedResult == result {
+                                Label(result.displayName, systemImage: "checkmark")
+                            } else {
+                                Text(result.displayName)
+                            }
+                        }
+                    }
+                } label: {
+                    row2DropButton(
+                        label: NSLocalizedString("library.filter.result.label", value: "Result", comment: ""),
+                        value: selectedResult == .all ? nil : selectedResult.displayName,
+                        isActive: selectedResult != .all,
+                        color: DesignTokens.Colors.Cute.lavender
+                    )
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
     }
 
-    private func filterChip(icon: String, label: String) -> some View {
-        VStack(spacing: 2) {
+    private func row1Chip(icon: String, label: String, isActive: Bool) -> some View {
+        HStack(spacing: 6) {
             Image(systemName: icon)
                 .font(.caption)
             Text(label)
-                .font(.caption2)
+                .font(.caption.bold())
                 .lineLimit(1)
-                .minimumScaleFactor(0.8)
+            Spacer()
+            Image(systemName: "chevron.down")
+                .font(.system(size: 9, weight: .semibold))
         }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 8)
-        .frame(maxWidth: .infinity, minHeight: 44)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .frame(maxWidth: .infinity)
+        .foregroundColor(isActive ? themeManager.accentColor : .secondary)
         .background(
-            themeManager.currentTheme == .colorful
-                ? DesignTokens.Colors.Cute.blueLight.opacity(0.35)
-                : themeManager.cardBackground
+            RoundedRectangle(cornerRadius: 10)
+                .fill(isActive ? themeManager.accentColor.opacity(0.12) : Color(.secondarySystemBackground))
         )
-        .cornerRadius(10)
         .overlay(
             RoundedRectangle(cornerRadius: 10)
-                .stroke(
-                    themeManager.currentTheme == .colorful
-                        ? DesignTokens.Colors.Cute.blue.opacity(0.3)
-                        : themeManager.secondaryText.opacity(0.3),
-                    lineWidth: 1
-                )
+                .stroke(isActive ? themeManager.accentColor.opacity(0.4) : Color.secondary.opacity(0.2), lineWidth: 1)
+        )
+    }
+
+    private func row2DropButton(label: String, value: String?, isActive: Bool, color: Color) -> some View {
+        VStack(spacing: 2) {
+            Text(label)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(color)
+            HStack(spacing: 3) {
+                Text(value ?? NSLocalizedString("library.filter.all", value: "All", comment: ""))
+                    .font(.caption.bold())
+                    .foregroundColor(isActive ? color : .primary)
+                    .lineLimit(1)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundColor(color.opacity(isActive ? 1.0 : 0.6))
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color(.secondarySystemBackground))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(color.opacity(isActive ? 0.9 : 0.4), lineWidth: isActive ? 1.5 : 1)
         )
     }
 
@@ -878,6 +1022,9 @@ struct UnifiedLibraryView: View {
         activeQuickDateFilter = nil
         hasActiveImageFilter = false
         selectedQuestionType = nil
+        selectedContentType = .all
+        selectedSource = .all
+        selectedResult = .all
         clearAdvancedSearch()
     }
     
@@ -1265,8 +1412,12 @@ struct LibraryItemRow: View {
             if item is ConversationLibraryItem {
                 return "doc.text.fill"
             }
-            if let q = item as? QuestionSummary, q.source == "practice" {
-                return "doc.text.fill"
+            if let q = item as? QuestionSummary {
+                switch q.source {
+                case "practice":      return "sparkles"
+                case "bank":          return "checkmark.seal.fill"
+                default:              return "camera.fill"   // homework
+                }
             }
             return "camera.fill"
         }
@@ -1282,10 +1433,19 @@ struct LibraryItemRow: View {
                     ? DesignTokens.Colors.Cute.lavender
                     : DesignTokens.Colors.analyticsPlum
             }
-            if let q = item as? QuestionSummary, q.source == "practice" {
-                return themeManager.currentTheme == .colorful
-                    ? DesignTokens.Colors.Cute.lavender
-                    : DesignTokens.Colors.analyticsPlum
+            if let q = item as? QuestionSummary {
+                switch q.source {
+                case "practice":
+                    return themeManager.currentTheme == .colorful
+                        ? DesignTokens.Colors.Cute.lavender
+                        : DesignTokens.Colors.analyticsPlum
+                case "bank":
+                    return themeManager.currentTheme == .colorful
+                        ? DesignTokens.Colors.Cute.blue
+                        : .blue
+                default:   // homework
+                    return .secondary
+                }
             }
             return .secondary
         }

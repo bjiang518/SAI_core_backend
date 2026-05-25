@@ -70,6 +70,41 @@ final class LearningViewModel: ObservableObject {
     private var queryVariantIndex = 0
     private let queryVariants = ["tutorial", "explained", "lecture", "step by step", "course", "lesson"]
 
+    /// Primary query suffix localized to the user's language.
+    /// Combines the localized term + "tutorial" so YouTube matches both native and English results.
+    private var localizedQuerySuffix: String {
+        let lang = UserDefaults.standard.string(forKey: "childSessionLanguage")
+                ?? UserDefaults.standard.string(forKey: "appLanguage") ?? "en"
+        let base = lang.components(separatedBy: "-").first ?? lang
+        let suffixMap: [String: String] = [
+            "zh": "教程", "ja": "解説", "de": "Erklärung",
+            "es": "tutorial", "fr": "tutoriel", "ko": "강의",
+            "pt": "tutorial", "it": "lezione",
+        ]
+        if let localized = suffixMap[lang] ?? suffixMap[base] {
+            return "\(localized) tutorial"   // e.g. "教程 tutorial" — matches both language pools
+        }
+        return "tutorial"
+    }
+
+    /// Localized variants for pull-to-refresh, with "tutorial" appended for bilingual matching.
+    private var localizedQueryVariants: [String] {
+        let lang = UserDefaults.standard.string(forKey: "childSessionLanguage")
+                ?? UserDefaults.standard.string(forKey: "appLanguage") ?? "en"
+        let base = lang.components(separatedBy: "-").first ?? lang
+        let variantMap: [String: [String]] = [
+            "zh": ["教程", "讲解", "课程", "入门", "详解"],
+            "ja": ["解説", "講座", "授業", "入門", "まとめ"],
+            "de": ["Erklärung", "Kurs", "Lektion", "Einführung", "Übung"],
+            "es": ["tutorial", "lección", "curso", "explicación", "introducción"],
+            "fr": ["tutoriel", "cours", "leçon", "explication", "introduction"],
+        ]
+        if let local = variantMap[lang] ?? variantMap[base] {
+            return local.map { "\($0) tutorial" }
+        }
+        return queryVariants
+    }
+
     init(topicName: String, branchName: String, subject: String,
          initialVideo: VideoSearchResult? = nil,
          fromChatSessionId: String? = nil,
@@ -98,7 +133,7 @@ final class LearningViewModel: ObservableObject {
         }
         guard !isSearching else { return }
         isSearching = true
-        let query = "\(topicName) \(subject) tutorial"
+        let query = "\(topicName) \(subject) \(localizedQuerySuffix)"
         let response = await networkService.searchVideo(query: query, maxResults: 5)
         videos = response.videos ?? []
         isSearching = false
@@ -108,8 +143,8 @@ final class LearningViewModel: ObservableObject {
     func loadMoreVideos() async {
         guard !isSearching else { return }
         isSearching = true
-        queryVariantIndex = (queryVariantIndex + 1) % queryVariants.count
-        let variant = queryVariants[queryVariantIndex]
+        queryVariantIndex = (queryVariantIndex + 1) % localizedQueryVariants.count
+        let variant = localizedQueryVariants[queryVariantIndex]
         let query = "\(topicName) \(variant)"
         let response = await networkService.searchVideo(query: query, maxResults: 10)
         let existing = Set(videos.map { $0.videoId })
@@ -356,4 +391,48 @@ final class LearningViewModel: ObservableObject {
     }
 
     private func estimatedTokens(_ text: String) -> Int { text.count / 4 }
+
+    /// Snapshot of video context for the Gemini Live session.
+    /// Mirrors `selectTranscript()` strategy: full transcript if it fits in `maxTranscriptTokens`,
+    /// otherwise a ±5 min window around current playback time.
+    struct LiveModeVideoContext {
+        let videoTitle: String
+        let currentTimeSec: Double
+        let formattedTranscript: String   // "[mm:ss] segment text" lines
+        let transcriptIsWindowed: Bool
+    }
+
+    func liveModeVideoContext() -> LiveModeVideoContext? {
+        guard let video = selectedVideo, !transcript.isEmpty else { return nil }
+
+        func fmt(_ seg: TranscriptSegment) -> String {
+            let t = Int(seg.offset / 1000)
+            return String(format: "[%02d:%02d] %@", t / 60, t % 60, seg.text)
+        }
+
+        let full = transcript.map(fmt).joined(separator: "\n")
+        if estimatedTokens(full) <= Self.maxTranscriptTokens {
+            return LiveModeVideoContext(
+                videoTitle: video.title,
+                currentTimeSec: currentTime,
+                formattedTranscript: full,
+                transcriptIsWindowed: false
+            )
+        }
+
+        let w = 300_000.0   // ±5 minutes in ms
+        let window = transcript
+            .filter { $0.offset >= currentTime * 1000 - w && $0.offset <= currentTime * 1000 + w }
+            .map(fmt)
+            .joined(separator: "\n")
+        let capped = estimatedTokens(window) <= Self.maxTranscriptTokens
+            ? window
+            : String(window.prefix(Self.maxTranscriptTokens * 4))
+        return LiveModeVideoContext(
+            videoTitle: video.title,
+            currentTimeSec: currentTime,
+            formattedTranscript: capped,
+            transcriptIsWindowed: true
+        )
+    }
 }

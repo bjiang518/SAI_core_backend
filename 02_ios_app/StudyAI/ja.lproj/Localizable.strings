@@ -1839,6 +1839,21 @@
 
 // Custom Date Range Picker
 "library.filter.moreSpecific" = "より具体的に";
+"library.filter.all" = "すべて";
+"library.filter.type.label" = "タイプ";
+"library.filter.type.all" = "すべて";
+"library.filter.type.questions" = "問題";
+"library.filter.type.conversations" = "会話";
+"library.filter.type.images" = "画像";
+"library.filter.source.label" = "ソース";
+"library.filter.source.all" = "すべて";
+"library.filter.source.homework" = "宿題";
+"library.filter.source.bank" = "問題バンク";
+"library.filter.source.practice" = "練習";
+"library.filter.result.label" = "結果";
+"library.filter.result.all" = "すべて";
+"library.filter.result.correct" = "正解";
+"library.filter.result.incorrect" = "不正解";
 "library.customDate.title" = "カスタム期間を選択";
 "library.customDate.subtitle" = "フィルターの開始日と終了日を選択してください";
 "library.customDate.startDate" = "開始日";
@@ -3185,6 +3200,9 @@
 "dailyChallenge.goal.weakness" = "今日の目標：%d 個の弱点に挑戦";
 "dailyChallenge.goal.leaf" = "今日の目標：「%@」を解禁";
 "dailyChallenge.goal.normal" = "今日のチャレンジ：%@ · 3問";
+"dailyChallenge.questionBankBadge" = "問題バンク";
+"dailyChallenge.questionBankHint" = "今日は問題バンクからの出題です。頑張ろう！";
+"dailyChallenge.figureLoadFailed" = "画像の読み込みに失敗しました。ネットワークを確認して再試行してください。";
 "dailyChallenge.achievement.leafLit" = "葉が解禁されました！";
 "dailyChallenge.achievement.viewTree" = "知識ツリーを見る";
 "dailyChallenge.achievement.weaknessConverted" = "%d 個の弱点を克服！";
@@ -3205,6 +3223,13 @@
 "lightUpTree.selection.header" = "未練習のトピック";
 "lightUpTree.selection.subheader" = "%d 個のトピックがまだ練習されていません。選択して学年に合った問題を生成しましょう。";
 "lightUpTree.config.title" = "練習設定";
+"lightUpTree.source.title" = "出題ソース";
+"lightUpTree.source.ai" = "AI 生成";
+"lightUpTree.source.bank" = "問題バンク";
+"lightUpTree.source.bankHint.math" = "数学：AMC、AIME、SAT Math、Math Kangaroo、GSM8K 等。選択した難易度と完全に一致しない場合があります。";
+"lightUpTree.source.bankHint.english" = "英語：SAT English、LSAT Reading/Logic 等。選択した難易度と完全に一致しない場合があります。";
+"lightUpTree.source.bankHint.science" = "理科：ARC Science、ScienceQA、OpenBookQA 等。選択した難易度と完全に一致しない場合があります。";
+"lightUpTree.source.bankHint.general" = "MMLU 等の精選試験問題。選択した難易度と完全に一致しない場合があります。";
 "lightUpTree.generate.selectFirst" = "トピックを少なくとも1つ選択してください";
 "lightUpTree.generate.button" = "%d 問を生成（%d トピック選択中）";
 "lightUpTree.generating" = "練習問題を生成中…";
@@ -3289,13 +3314,28 @@
 "practice.beta.badge" = "Beta";
 "practice.beta.message" = "問題集を構築中です";
 "practice.mode.ai" = "AI 練習";
-"practice.mode.bank" = "本物の問題";
+"practice.mode.bank" = "問題バンク";
 "proMode.oneMistake" = "1 つの誤り";
 "proMode.nMistakes" = "%d つの誤り";
 "todo.knowledgeTree.title" = "知識ツリーを点灯";
 "todo.knowledgeTree.subtitle" = "「%@」の知識マップを探索";
 "todo.knowledgeTree.defaultSubject" = "全科目";
-"practice.bank.retrieve" = "本物の問題を取得";
+"practice.bank.retrieve" = "問題バンクから取得";
+"practice.bank.sources" = "ソース";
+"practice.bank.allSources" = "すべて";
+"practice.bank.clearSources" = "選択をクリア";
+"practice.bank.selectedCount" = "%d 個選択";
+"practice.bank.source.gradeSchool" = "小学校";
+"practice.bank.source.visualMath" = "Visual Math 🖼";
+"practice.bank.source.arc" = "ARC Science";
+"practice.bank.source.scienceqa" = "ScienceQA";
+"practice.bank.source.kangaroo" = "Math Kangaroo 🦘";
+"practice.bank.source.amcJunior" = "AMC 8";
+"practice.bank.source.amcSenior" = "AMC 10/12";
+"practice.bank.source.aime" = "AIME";
+"practice.bank.source.sat" = "SAT数学";
+"practice.bank.source.mmlu" = "MMLU";
+"practice.bank.source.english" = "SAT/LSAT";
 
 // MARK: - Learning View
 "learning.header.title" = "動画学習";
@@ -3309,7 +3349,11 @@
 
 // MARK: - Learning feature additions
 "mistakeTree.detail.startLearning" = "学習を始める";
-"learning.smartai.hint" = "SmartAI — AIが動画内容を理解します";
+"mistakeTree.detail.questionBank" = "問題バンク";
+"leafDetail.bank.errorTitle" = "本番問題を読み込めませんでした";
+"leafDetail.bank.errorEmpty" = "この概念の本番問題はまだありません。";
+"leafDetail.bank.loading" = "問題バンクを検索中…";
+"learning.smartai.hint" = "AIが動画内容を理解します";
 "learning.smartai.badge" = "SmartAI";
 "chat.video.startLearning" = "動画学習";
 "learning.header.back" = "チャット";

@@ -3974,7 +3974,11 @@ class NetworkService: ObservableObject {
         request.timeoutInterval = 15.0
         addAuthHeader(to: &request)
 
-        let body: [String: Any] = ["query": query, "max_results": maxResults]
+        let body: [String: Any] = [
+            "query": query,
+            "max_results": maxResults,
+            "language": effectiveLanguage
+        ]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
         do {
@@ -4029,7 +4033,8 @@ class NetworkService: ObservableObject {
             "transcript_text": transcriptText,
             "title": title,
             "channel_title": channelTitle,
-            "subject": subject
+            "subject": subject,
+            "language": effectiveLanguage
         ]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
 

@@ -152,7 +152,8 @@ struct ModernAIMessageView: View {
                 .foregroundColor(.primary.opacity(0.95))
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .id("\(messageId)-\(message.count)") // ✅ Stable ID without isStreaming to prevent re-render during scroll/audio changes
+                .id(messageId)  // Stable identity across streaming tokens — prevents view recreation per char (which caused jitter)
+                .transaction { $0.animation = nil }  // Block parent animation context from animating Text size growth
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 0)

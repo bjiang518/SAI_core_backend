@@ -89,7 +89,7 @@ class InteractiveTTSService: NSObject, ObservableObject {
         audioEngine = AVAudioEngine()
         playerNode = AVAudioPlayerNode()
         timePitchNode = AVAudioUnitTimePitch()
-        timePitchNode.rate = 1.2
+        timePitchNode.rate = 1.0
 
         // Standard audio format for MP3 decoded output
         // 44.1kHz stereo (will be converted from MP3 format)

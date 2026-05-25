@@ -212,14 +212,10 @@ struct GeneratedQuestionDetailView: View {
             // Source attribution line at the bottom of the question card
             if currentQuestion.isFromBank {
                 let label = currentQuestion.sourceLabel ?? "Question Bank"
-                HStack(spacing: 4) {
-                    Image(systemName: "books.vertical")
-                        .font(.caption2)
-                    Text(String(format: NSLocalizedString("questionDetail.questionFrom", comment: ""), label))
-                        .font(.caption)
-                }
-                .foregroundColor(.secondary)
-                .padding(.top, 4)
+                Text(String(format: NSLocalizedString("questionDetail.questionFrom", comment: ""), label))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding(.top, 4)
             }
         }
     }

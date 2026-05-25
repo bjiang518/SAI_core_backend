@@ -1785,6 +1785,21 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 
 // Custom Date Range Picker
 "library.filter.moreSpecific" = "Genauer";
+"library.filter.all" = "Alle";
+"library.filter.type.label" = "Typ";
+"library.filter.type.all" = "Alle";
+"library.filter.type.questions" = "Fragen";
+"library.filter.type.conversations" = "Gespräche";
+"library.filter.type.images" = "Bilder";
+"library.filter.source.label" = "Quelle";
+"library.filter.source.all" = "Alle";
+"library.filter.source.homework" = "Hausaufgaben";
+"library.filter.source.bank" = "Fragenbank";
+"library.filter.source.practice" = "Übung";
+"library.filter.result.label" = "Ergebnis";
+"library.filter.result.all" = "Alle";
+"library.filter.result.correct" = "Richtig";
+"library.filter.result.incorrect" = "Falsch";
 "library.customDate.title" = "Benutzerdefinierten Zeitraum auswählen";
 "library.customDate.subtitle" = "Wähle Start- und Enddatum für deinen Filter";
 "library.customDate.startDate" = "Startdatum";
@@ -3142,6 +3157,9 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "dailyChallenge.goal.weakness" = "Heutiges Ziel: %d Schwäche(n) überwinden";
 "dailyChallenge.goal.leaf" = "Heutiges Ziel: \"%@\" aufleuchten";
 "dailyChallenge.goal.normal" = "Heutige Aufgabe: %@ · 3 Fragen";
+"dailyChallenge.questionBankBadge" = "Fragenbank";
+"dailyChallenge.questionBankHint" = "Heutige Fragen aus der Fragenbank. Viel Erfolg!";
+"dailyChallenge.figureLoadFailed" = "Bild konnte nicht geladen werden. Netzwerk prüfen und erneut versuchen.";
 "dailyChallenge.achievement.leafLit" = "Blatt beleuchtet!";
 "dailyChallenge.achievement.viewTree" = "Wissensbaum ansehen";
 "dailyChallenge.achievement.weaknessConverted" = "%d Schwäche(n) überwunden!";
@@ -3162,6 +3180,13 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "lightUpTree.selection.header" = "Noch nicht geübte Themen";
 "lightUpTree.selection.subheader" = "%d Themen noch nicht geübt. Auswählen, um passende Fragen zu erstellen.";
 "lightUpTree.config.title" = "Übungseinstellungen";
+"lightUpTree.source.title" = "Fragenquelle";
+"lightUpTree.source.ai" = "KI-generiert";
+"lightUpTree.source.bank" = "Fragenbank";
+"lightUpTree.source.bankHint.math" = "Mathe: AMC, AIME, SAT Math, Math Kangaroo, GSM8K und mehr. Entspricht ggf. nicht exakt der gewählten Schwierigkeit.";
+"lightUpTree.source.bankHint.english" = "Englisch: SAT English und LSAT Reading/Logic. Entspricht ggf. nicht exakt der gewählten Schwierigkeit.";
+"lightUpTree.source.bankHint.science" = "Naturwissenschaften: ARC Science, ScienceQA und OpenBookQA. Entspricht ggf. nicht exakt der gewählten Schwierigkeit.";
+"lightUpTree.source.bankHint.general" = "MMLU und kuratierte Prüfungsfragen. Entspricht ggf. nicht exakt der gewählten Schwierigkeit.";
 "lightUpTree.generate.selectFirst" = "Bitte mindestens ein Thema auswählen";
 "lightUpTree.generate.button" = "%d Fragen generieren (%d Themen)";
 "lightUpTree.generating" = "Fragen werden erstellt…";
@@ -3246,13 +3271,28 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "practice.beta.badge" = "Beta";
 "practice.beta.message" = "Wir bauen Fragensammlungen auf";
 "practice.mode.ai" = "KI-Übungen";
-"practice.mode.bank" = "Echte Fragen";
+"practice.mode.bank" = "Fragenbank";
 "proMode.oneMistake" = "1 Fehler";
 "proMode.nMistakes" = "%d Fehler";
 "todo.knowledgeTree.title" = "Wissensbaum beleuchten";
 "todo.knowledgeTree.subtitle" = "Wissenskarte «%@» erkunden";
 "todo.knowledgeTree.defaultSubject" = "Alle Fächer";
-"practice.bank.retrieve" = "Echte Fragen abrufen";
+"practice.bank.retrieve" = "Aus Fragenbank holen";
+"practice.bank.sources" = "Quellen";
+"practice.bank.allSources" = "Alle";
+"practice.bank.clearSources" = "Auswahl aufheben";
+"practice.bank.selectedCount" = "%d ausgewählt";
+"practice.bank.source.gradeSchool" = "Grundschule";
+"practice.bank.source.visualMath" = "Visual Math 🖼";
+"practice.bank.source.arc" = "ARC Science";
+"practice.bank.source.scienceqa" = "ScienceQA";
+"practice.bank.source.kangaroo" = "Math Kangaroo 🦘";
+"practice.bank.source.amcJunior" = "AMC 8";
+"practice.bank.source.amcSenior" = "AMC 10/12";
+"practice.bank.source.aime" = "AIME";
+"practice.bank.source.sat" = "SAT Math";
+"practice.bank.source.mmlu" = "MMLU";
+"practice.bank.source.english" = "SAT/LSAT";
 
 // MARK: - Learning View
 "learning.header.title" = "Video-Lernen";
@@ -3266,7 +3306,11 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 
 // MARK: - Learning feature additions
 "mistakeTree.detail.startLearning" = "Lernen starten";
-"learning.smartai.hint" = "SmartAI — KI versteht das Video";
+"mistakeTree.detail.questionBank" = "Fragenbank";
+"leafDetail.bank.errorTitle" = "Originalfragen konnten nicht geladen werden";
+"leafDetail.bank.errorEmpty" = "Für dieses Konzept sind noch keine Originalfragen verfügbar.";
+"leafDetail.bank.loading" = "Fragenbank wird durchsucht…";
+"learning.smartai.hint" = "KI versteht das Video";
 "learning.smartai.badge" = "SmartAI";
 "chat.video.startLearning" = "Video lernen";
 "learning.header.back" = "Chat";

@@ -199,6 +199,10 @@ struct DailyChallengeView: View {
 
     // MARK: - Goal Hint Bar
 
+    private var isQuestionBankSession: Bool {
+        localQuestions.contains { $0.isFromBank }
+    }
+
     @ViewBuilder
     private var goalHintBar: some View {
         if let g = goal, g.routeType != .normal {
@@ -209,12 +213,46 @@ struct DailyChallengeView: View {
                 Text(g.hintText)
                     .font(.caption.bold())
                     .foregroundColor(g.hintColor)
+                if isQuestionBankSession { questionBankBadge }
                 Spacer()
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 6)
             .background(g.hintColor.opacity(0.08))
+        } else if isQuestionBankSession, goal != nil {
+            // Standalone bar only on today's session (goal != nil) — historical
+            // navigation passes goal=nil and shouldn't say "今日".
+            HStack(spacing: 6) {
+                questionBankBadge
+                Text(NSLocalizedString("dailyChallenge.questionBankHint",
+                                       value: "今日为真题挑战，加油！", comment: ""))
+                    .font(.caption.bold())
+                    .foregroundColor(.orange)
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 6)
+            .background(Color.orange.opacity(0.08))
         }
+    }
+
+    private var questionBankBadge: some View {
+        HStack(spacing: 3) {
+            Image(systemName: "rosette")
+                .font(.system(size: 9, weight: .bold))
+            Text(NSLocalizedString("dailyChallenge.questionBankBadge",
+                                   value: "真题", comment: ""))
+                .font(.system(size: 10, weight: .bold))
+        }
+        .foregroundColor(.white)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .background(
+            Capsule().fill(
+                LinearGradient(colors: [Color.orange, Color.red],
+                               startPoint: .leading, endPoint: .trailing)
+            )
+        )
     }
 
     // MARK: - Top Bar
@@ -284,12 +322,93 @@ struct DailyChallengeView: View {
 
             MarkdownLaTeXText(q.question, fontSize: 17, isStreaming: false)
                 .frame(maxWidth: .infinity, alignment: .leading)
+
+            figureView(q)
+
+            if q.isFromBank {
+                Text(String(format: NSLocalizedString("questionDetail.questionFrom", comment: ""),
+                            q.sourceLabel ?? "Question Bank"))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
         }
         .padding(20)
         .background(
             RoundedRectangle(cornerRadius: 20)
                 .fill(colorScheme == .dark ? Color(hex: "252540") : Color.white)
                 .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
+        )
+    }
+
+    @ViewBuilder
+    private func figureView(_ q: QuestionGenerationService.GeneratedQuestion) -> some View {
+        if let relativePath = q.figureUrl,
+           let url = URL(string: NetworkService.shared.apiBaseURL + relativePath) {
+            if q.source == "kangaroo" {
+                // Kangaroo images are wide strips (~1653×220). Default scroll anchor is
+                // trailing — the figure region — since the parsed text is already shown above.
+                ScrollView(.horizontal, showsIndicators: true) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(height: 160)
+                                .fixedSize(horizontal: true, vertical: false)
+                                .cornerRadius(8)
+                        case .failure:
+                            figureFailurePlaceholder
+                        case .empty:
+                            ProgressView().frame(minWidth: 200, minHeight: 80)
+                        @unknown default:
+                            EmptyView()
+                        }
+                    }
+                    .padding(.horizontal, 4)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .defaultScrollAnchor(.trailing)
+            } else {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxWidth: .infinity)
+                            .cornerRadius(8)
+                    case .failure:
+                        figureFailurePlaceholder
+                    case .empty:
+                        ProgressView().frame(maxWidth: .infinity, minHeight: 80)
+                    @unknown default:
+                        EmptyView()
+                    }
+                }
+            }
+        }
+    }
+
+    private var figureFailurePlaceholder: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "photo.on.rectangle.angled")
+                .font(.system(size: 18))
+                .foregroundColor(.secondary)
+            Text(NSLocalizedString("dailyChallenge.figureLoadFailed",
+                                   value: "题目配图加载失败，请检查网络后重试。", comment: ""))
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.leading)
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.secondary.opacity(0.08))
+                .overlay(RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.secondary.opacity(0.2), lineWidth: 1))
         )
     }
 
@@ -331,9 +450,12 @@ struct DailyChallengeView: View {
     }
 
     private func mcOptions(_ q: QuestionGenerationService.GeneratedQuestion) -> some View {
-        let letters = ["A", "B", "C", "D"]
-        let opts = (q.options ?? []).prefix(4)
-        return LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+        let letters = ["A", "B", "C", "D", "E", "F", "G", "H"]
+        let opts = q.options ?? []
+        let columns = opts.count > 4
+            ? [GridItem(.flexible())]
+            : [GridItem(.flexible()), GridItem(.flexible())]
+        return LazyVGrid(columns: columns, spacing: 12) {
             ForEach(Array(opts.enumerated()), id: \.offset) { idx, option in
                 optionCard(label: letters[dailySafe: idx] ?? "\(idx+1)", text: option, displayText: strippedOptionPrefix(option), q: q)
             }
@@ -432,7 +554,7 @@ struct DailyChallengeView: View {
         if strippedOption == strippedCorrect { return true }
 
         // 2. correctAnswer is a bare letter "B" — resolve to option at that index
-        let letters = "ABCD"
+        let letters = "ABCDEFGH"
         if rawCorrect.count == 1, let letterIdx = letters.firstIndex(of: rawCorrect.uppercased().first ?? "X") {
             let idx = letters.distance(from: letters.startIndex, to: letterIdx)
             if let opts = q.options, idx < opts.count {
@@ -459,8 +581,10 @@ struct DailyChallengeView: View {
 
     private func optionState(_ option: String, q: QuestionGenerationService.GeneratedQuestion) -> OptionState {
         guard hasAnswered else { return .neutral }
-        if isOptionCorrect(option, q: q) { return .correct }
-        if option == selectedOption { return .wrong }
+        // User's selection drives correctness — avoids wrong color when AI overrides a bad answer key
+        if option == selectedOption { return isCorrect ? .correct : .wrong }
+        // Only highlight the stored key as green when the user got it wrong (to show the right answer)
+        if !isCorrect && isOptionCorrect(option, q: q) { return .correct }
         return .neutral
     }
 
@@ -1029,6 +1153,22 @@ struct DailyChallengeView: View {
 
     // MARK: - Logic
 
+    /// Fetches a bank question's figure as base64 so the grader/chat AI sees it.
+    private func fetchFigureBase64(_ relativePath: String) async -> String? {
+        guard let url = URL(string: NetworkService.shared.apiBaseURL + relativePath) else { return nil }
+        guard let (data, _) = try? await URLSession.shared.data(from: url) else { return nil }
+        return data.base64EncodedString()
+    }
+
+    /// Downloads a bank figure into ProModeImageStorage so MistakeReview can render it.
+    /// Returns the local relative filename, or nil on failure.
+    private func downloadAndStoreFigure(_ relativePath: String) async -> String? {
+        guard let url = URL(string: NetworkService.shared.apiBaseURL + relativePath) else { return nil }
+        guard let (data, _) = try? await URLSession.shared.data(from: url) else { return nil }
+        guard let image = UIImage(data: data) else { return nil }
+        return ProModeImageStorage.shared.saveImage(image)
+    }
+
     private func loadQuestions() {
         let qs = session.questions
         if qs.isEmpty { showingCompletion = true; return }
@@ -1056,8 +1196,40 @@ struct DailyChallengeView: View {
     private func tapOption(_ option: String, q: QuestionGenerationService.GeneratedQuestion) {
         guard !hasAnswered else { return }
         selectedOption = option
-        let correct = isOptionCorrect(option, q: q)
-        finishAnswer(answer: option, correct: correct, q: q)
+        if isOptionCorrect(option, q: q) {
+            // Answer key match — correct immediately
+            finishAnswer(answer: option, correct: true, q: q)
+        } else {
+            // No key match — send to AI (catches wrong answer keys in question bank)
+            isGradingWithAI = true
+            Task {
+                defer { isGradingWithAI = false }
+                // Bank questions with figures: fetch image so the grader isn't blind.
+                var contextImageBase64: String? = nil
+                if q.isFromBank, let figureUrl = q.figureUrl {
+                    contextImageBase64 = await fetchFigureBase64(figureUrl)
+                }
+                do {
+                    let response = try await NetworkService.shared.gradeSingleQuestion(
+                        questionText: q.question,
+                        studentAnswer: option,
+                        subject: q.topic.isEmpty ? session.subject : q.topic,
+                        questionType: q.type.rawValue,
+                        contextImageBase64: contextImageBase64,
+                        parentQuestionContent: nil,
+                        useDeepReasoning: true
+                    )
+                    if let grade = response.grade {
+                        aiFeedback = grade.feedback
+                        finishAnswer(answer: option, correct: grade.isCorrect, q: q)
+                    } else {
+                        finishAnswer(answer: option, correct: false, q: q)
+                    }
+                } catch {
+                    finishAnswer(answer: option, correct: false, q: q)
+                }
+            }
+        }
     }
 
     private func submitTextAnswer(_ q: QuestionGenerationService.GeneratedQuestion) {
@@ -1081,13 +1253,18 @@ struct DailyChallengeView: View {
         isGradingWithAI = true
         Task {
             defer { isGradingWithAI = false }
+            // Bank questions with figures: fetch image so the grader isn't blind.
+            var contextImageBase64: String? = nil
+            if q.isFromBank, let figureUrl = q.figureUrl {
+                contextImageBase64 = await fetchFigureBase64(figureUrl)
+            }
             do {
                 let response = try await NetworkService.shared.gradeSingleQuestion(
                     questionText: q.question,
                     studentAnswer: answer,
                     subject: q.topic.isEmpty ? session.subject : q.topic,
                     questionType: q.type.rawValue,
-                    contextImageBase64: nil,
+                    contextImageBase64: contextImageBase64,
                     parentQuestionContent: nil,
                     useDeepReasoning: true
                 )
@@ -1209,10 +1386,15 @@ struct DailyChallengeView: View {
         guard let q = currentQuestion else { return }
         let savedAnswer = answeredResults[q.id.uuidString]?.answer ?? ""
         let explanation = aiFeedback ?? q.explanation
+        // For bank questions with figures, include the full figure URL so chat AI has visual context.
+        let figureNote: String = {
+            guard q.isFromBank, let figureUrl = q.figureUrl else { return "" }
+            return "\n\n[Question image: \(NetworkService.shared.apiBaseURL + figureUrl)]"
+        }()
         let message = """
         \(NSLocalizedString("proMode.askAIPrompt", comment: ""))
 
-        \(q.question)
+        \(q.question)\(figureNote)
 
         \(NSLocalizedString("proMode.myAnswer", comment: "")): \(savedAnswer)
 
@@ -1228,13 +1410,17 @@ struct DailyChallengeView: View {
         guard !savedAnswer.isEmpty else { return }
         isRegradingCurrentQuestion = true
         defer { isRegradingCurrentQuestion = false }
+        var contextImageBase64: String? = nil
+        if q.isFromBank, let figureUrl = q.figureUrl {
+            contextImageBase64 = await fetchFigureBase64(figureUrl)
+        }
         do {
             let response = try await NetworkService.shared.gradeSingleQuestion(
                 questionText: q.question,
                 studentAnswer: savedAnswer,
                 subject: q.topic.isEmpty ? session.subject : q.topic,
                 questionType: q.type.rawValue,
-                contextImageBase64: nil,
+                contextImageBase64: contextImageBase64,
                 parentQuestionContent: nil,
                 useDeepReasoning: true
             )
@@ -1260,9 +1446,22 @@ struct DailyChallengeView: View {
         defer { isArchivingCurrentQuestion = false }
         let savedAnswer = answeredResults[qId]?.answer ?? ""
         let correct = answeredResults[qId]?.isCorrect ?? false
+        // For bank questions with figures, persist the image locally so MistakeReview can render it.
+        // Fall back to remote URL if download fails — at least the data is preserved.
+        let resolvedImageUrl: String?
+        if let figure = q.figureUrl {
+            if let localFilename = await downloadAndStoreFigure(figure) {
+                resolvedImageUrl = localFilename
+            } else {
+                resolvedImageUrl = NetworkService.shared.apiBaseURL + figure
+            }
+        } else {
+            resolvedImageUrl = nil
+        }
         let parsedQ = ParsedQuestion(
             questionText: q.question,
             answerText: q.correctAnswer,
+            hasVisualElements: q.figureUrl != nil,
             studentAnswer: savedAnswer.isEmpty ? nil : savedAnswer,
             correctAnswer: q.correctAnswer,
             grade: correct ? "CORRECT" : "INCORRECT",
@@ -1270,7 +1469,8 @@ struct DailyChallengeView: View {
             pointsPossible: Float(q.points ?? 1),
             feedback: q.explanation.isEmpty ? nil : q.explanation,
             questionType: q.type.rawValue,
-            options: q.options
+            options: q.options,
+            questionImageUrl: resolvedImageUrl
         )
         let request = QuestionArchiveRequest(
             questions: [parsedQ],
@@ -1281,7 +1481,7 @@ struct DailyChallengeView: View {
             processingTime: 0,
             userNotes: [""],
             userTags: [[]],
-            source: "daily_challenge"
+            source: q.bankQuestionId != nil ? "bank" : "daily_challenge"
         )
         do {
             let archived = try await QuestionArchiveService.shared.archiveQuestions(request)
@@ -1334,6 +1534,7 @@ struct DailyChallengeView: View {
                 return ParsedQuestion(
                     questionText: q.question,
                     answerText: q.correctAnswer,
+                    hasVisualElements: q.figureUrl != nil,
                     studentAnswer: studentAnswer.isEmpty ? nil : studentAnswer,
                     correctAnswer: q.correctAnswer,
                     grade: "INCORRECT",
@@ -1341,7 +1542,8 @@ struct DailyChallengeView: View {
                     pointsPossible: Float(q.points ?? 1),
                     feedback: q.explanation.isEmpty ? nil : q.explanation,
                     questionType: q.type.rawValue,
-                    options: q.options
+                    options: q.options,
+                    questionImageUrl: q.figureUrl.map { NetworkService.shared.apiBaseURL + $0 }
                 )
             }
             let archiveRequest = QuestionArchiveRequest(
@@ -1353,7 +1555,7 @@ struct DailyChallengeView: View {
                 processingTime: 0,
                 userNotes: Array(repeating: "", count: parsedQuestions.count),
                 userTags: Array(repeating: [], count: parsedQuestions.count),
-                source: "daily_challenge"
+                source: unarchivedWrong.contains(where: { $0.bankQuestionId != nil }) ? "bank" : "daily_challenge"
             )
             let archived = (try? await QuestionArchiveService.shared.archiveQuestions(archiveRequest)) ?? []
 

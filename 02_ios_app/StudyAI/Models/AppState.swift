@@ -137,6 +137,16 @@ class AppState: ObservableObject {
     @Published var pendingMistakeReviewSubject: String? = nil
     @Published var pendingMistakeReviewShowKnowledgeTree: Bool = false
 
+    /// Deep-link from notification: open WeaknessPracticeView for a specific weakness key.
+    /// Set pendingWeaknessKey first, then shouldOpenWeaknessPractice = true.
+    @Published var pendingWeaknessKey: String? = nil
+    @Published var shouldOpenWeaknessPractice: Bool = false
+
+    /// Deep-link from notification: resume an incomplete practice session by ID.
+    /// Set pendingPracticeSessionId first, then shouldOpenIncompleteSession = true.
+    @Published var pendingPracticeSessionId: String? = nil
+    @Published var shouldOpenIncompleteSession: Bool = false
+
     /// Power Saving Mode - disables all animations when enabled
     @Published var isPowerSavingMode: Bool {        didSet {
             UserDefaults.standard.set(isPowerSavingMode, forKey: "isPowerSavingMode")

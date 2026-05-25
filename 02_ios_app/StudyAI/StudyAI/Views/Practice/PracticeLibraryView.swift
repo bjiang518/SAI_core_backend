@@ -426,6 +426,37 @@ struct PracticeLibraryView: View {
                     weaknessKeys: weaknessKeys, weaknessTopicNames: topicNames,
                     leafTopicKey: "", leafTopicName: "", leafBranchName: ""
                 )
+
+                // Try bank retrieval first — real exam questions are more authentic for
+                // weakness conversion and Stage 1 hits exactly on the branches.
+                let bankConfig = QuestionGenerationService.RandomQuestionsConfig(
+                    topics: [subject], focusNotes: nil,
+                    difficulty: .intermediate, questionCount: 3, questionType: .any
+                )
+                let bankResult = await dailyChallengeService.generateQuestionsV2(
+                    subject:          subject,
+                    mode:             4,
+                    config:           bankConfig,
+                    userProfile:      adapter.createUserProfile(),
+                    shortTermContext: weaknessKeys.map { ["weakness_key": $0] }
+                )
+                if case .success = bankResult, (dailyChallengeService.lastGeneratedQuestions.count) >= 3 {
+                    // Bank succeeded — questions already saved internally
+                    await MainActor.run {
+                        isDailyChallengeLoading = false
+                        if let sid = dailyChallengeService.currentSessionId,
+                           let session = PracticeSessionManager.shared.getSession(id: sid) {
+                            PracticeSessionManager.shared.updateGenerationType(sessionId: sid, generationType: "daily_challenge")
+                            dailyChallengeSessionId   = sid
+                            dailyChallengeSessionDate = todayString
+                            if let data = try? JSONEncoder().encode(goal),
+                               let json = String(data: data, encoding: .utf8) { dailyChallengeGoalJson = json }
+                            dailyChallengeSession = PracticeSessionManager.shared.getSession(id: sid) ?? session
+                        }
+                    }
+                    return  // done — skip AI fallback below
+                }
+                // Bank didn't have enough questions → fall through to AI (config already set)
                 config = QuestionGenerationService.RandomQuestionsConfig(
                     topics: topicNames,
                     focusNotes: "IMPORTANT: Each question MUST target one of these specific weak concepts the student struggles with: \(topicNames.joined(separator: ", ")). Make questions directly test understanding of exactly these topics.",

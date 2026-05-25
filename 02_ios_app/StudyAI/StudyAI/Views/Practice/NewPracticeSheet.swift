@@ -60,17 +60,17 @@ struct NewPracticeSheet: View {
 
         var displayName: String {
             switch self {
-            case .gsm8k:     return "Grade School"
-            case .mathvista: return "Visual Math 🖼"
-            case .arc:       return "ARC Science"
-            case .scienceqa: return "ScienceQA"
-            case .kangaroo:  return "Math Kangaroo 🦘"
-            case .amcJunior: return "AMC 8"
-            case .amcSenior: return "AMC 10/12"
-            case .aime:      return "AIME"
-            case .sat:       return "SAT Math"
-            case .mmlu:      return "MMLU"
-            case .english:   return "SAT/LSAT"
+            case .gsm8k:     return NSLocalizedString("practice.bank.source.gradeSchool", value: "Grade School",     comment: "")
+            case .mathvista: return NSLocalizedString("practice.bank.source.visualMath",  value: "Visual Math 🖼",   comment: "")
+            case .arc:       return NSLocalizedString("practice.bank.source.arc",         value: "ARC Science",      comment: "")
+            case .scienceqa: return NSLocalizedString("practice.bank.source.scienceqa",   value: "ScienceQA",        comment: "")
+            case .kangaroo:  return NSLocalizedString("practice.bank.source.kangaroo",    value: "Math Kangaroo 🦘", comment: "")
+            case .amcJunior: return NSLocalizedString("practice.bank.source.amcJunior",   value: "AMC 8",            comment: "")
+            case .amcSenior: return NSLocalizedString("practice.bank.source.amcSenior",   value: "AMC 10/12",        comment: "")
+            case .aime:      return NSLocalizedString("practice.bank.source.aime",        value: "AIME",             comment: "")
+            case .sat:       return NSLocalizedString("practice.bank.source.sat",         value: "SAT Math",         comment: "")
+            case .mmlu:      return NSLocalizedString("practice.bank.source.mmlu",        value: "MMLU",             comment: "")
+            case .english:   return NSLocalizedString("practice.bank.source.english",     value: "SAT/LSAT",         comment: "")
             }
         }
 
@@ -293,6 +293,7 @@ struct NewPracticeSheet: View {
                     }
                 }
                 .padding()
+                .frame(maxWidth: .infinity)
             }
             .navigationTitle(NSLocalizedString("newPractice.title", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
@@ -308,6 +309,9 @@ struct NewPracticeSheet: View {
                 }
             }
         }
+        // iPad: lock form-sheet size so it doesn't oscillate width/height as practiceMode toggles
+        // between AI (more controls) and Bank (fewer controls). No-op on iPhone.
+        .iPadSheetFixedSize()
         .alert(NSLocalizedString("newPractice.error.title", comment: ""), isPresented: $showingError) {
             Button(NSLocalizedString("common.ok", comment: ""), role: .cancel) { }
         } message: {
@@ -561,7 +565,7 @@ struct NewPracticeSheet: View {
                 } }) {
                     Text(mode == .ai
                          ? NSLocalizedString("practice.mode.ai", value: "AI Practice", comment: "")
-                         : NSLocalizedString("practice.mode.bank", value: "Real Questions", comment: ""))
+                         : NSLocalizedString("practice.mode.bank", value: "Question Bank", comment: ""))
                         .font(.subheadline)
                         .fontWeight(.semibold)
                         .foregroundColor(isSelected ? .white : .secondary)
@@ -617,7 +621,7 @@ struct NewPracticeSheet: View {
                     Spacer()
                     Text(selectedBankSources.isEmpty
                          ? NSLocalizedString("practice.bank.allSources", value: "All", comment: "")
-                         : "\(selectedBankSources.count) selected")
+                         : String(format: NSLocalizedString("practice.bank.selectedCount", value: "%d selected", comment: ""), selectedBankSources.count))
                         .font(.caption).foregroundColor(.secondary)
                 }
 
@@ -786,7 +790,7 @@ struct NewPracticeSheet: View {
                 Text(questionService.isGenerating
                      ? NSLocalizedString("questionGeneration.generating", comment: "")
                      : practiceMode == .bank
-                       ? NSLocalizedString("practice.bank.retrieve", value: "获取真题", comment: "")
+                       ? NSLocalizedString("practice.bank.retrieve", value: "Get from Question Bank", comment: "")
                        : NSLocalizedString("questionGeneration.generateQuestions", comment: ""))
                     .font(.body.bold())
             }

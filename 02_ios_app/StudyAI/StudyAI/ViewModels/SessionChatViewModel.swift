@@ -156,6 +156,10 @@ class SessionChatViewModel: ObservableObject {
     /// callbacks from the still-running network stream. Reset at the start of each new message.
     private var generationWasStopped = false
 
+    /// Throttle: timestamp of last activeStreamingMessage UI update.
+    /// Limits re-renders to ≤20fps so long-response Text layout doesn't saturate MainActor.
+    private var lastStreamingUIUpdate: Date = .distantPast
+
     // MARK: - Initialization
 
     init() {
@@ -291,6 +295,7 @@ class SessionChatViewModel: ObservableObject {
         // ✅ Reset chunking for new streaming response
         debugPrint("🔄 Starting new message - resetting chunking state")
         streamingService.resetChunking()
+        lastStreamingUIUpdate = .distantPast
 
         debugPrint("🟢 Prepared message: \(message.prefix(100))")
         debugPrint("🟢 Checking session ID: \(networkService.currentSessionId ?? "nil")")
@@ -1249,8 +1254,16 @@ class SessionChatViewModel: ObservableObject {
                             }
 
                             // ✅ PERFORMANCE FIX: Update streaming message state instead of conversationHistory
+                            // When voice is ON: throttle UI updates to ≤20fps — TTS processing + Text
+                            // layout cost at 30-50 tokens/sec saturates MainActor on long responses.
+                            // When voice is OFF: update on every chunk — no TTS overhead, full speed.
                             self.isActivelyStreaming = true
-                            self.activeStreamingMessage = accumulatedText
+                            let now = Date()
+                            let shouldThrottle = self.voiceService.isVoiceEnabled
+                            if !shouldThrottle || now.timeIntervalSince(self.lastStreamingUIUpdate) >= 0.05 {
+                                self.lastStreamingUIUpdate = now
+                                self.activeStreamingMessage = accumulatedText
+                            }
                         }
                     },
                     onSuggestions: { [weak self] suggestions in
@@ -1279,6 +1292,8 @@ class SessionChatViewModel: ObservableObject {
                             if success {
                                 // ✅ PERFORMANCE FIX: Move streaming message to conversationHistory
                                 if let finalText = fullText {
+                                    // Flush final text unconditionally (bypasses throttle)
+                                    self.activeStreamingMessage = finalText
                                     // Add the complete message to conversation history
                                     self.networkService.appendToConversationHistory([
                                         "role": "assistant",

@@ -21,7 +21,7 @@ class VoiceInteractionService: ObservableObject {
     @Published var interactionState: VoiceInteractionState = .idle
     @Published var voiceSettings = VoiceSettings.load()
     @Published var permissionStatus: VoicePermissionStatus = .notDetermined
-    @Published var isVoiceEnabled = false
+    @Published var isVoiceEnabled = VoiceDefaultsByGrade.loadVoiceEnabled()
     @Published var lastRecognizedText = ""
     @Published var errorMessage: String?
     @Published var isPaused = false
@@ -50,12 +50,24 @@ class VoiceInteractionService: ObservableObject {
     private init() {
         setupBindings()
         setupAudioNotifications()
-        
+
         // Load saved settings
         voiceSettings = VoiceSettings.load()
         textToSpeechService.updateVoiceSettings(voiceSettings)
         enhancedTTSService.updateVoiceSettings(voiceSettings)
-        
+
+        // Apply grade-based first-time defaults as soon as the user profile is available.
+        // Idempotent per user — never overrides user's manual changes.
+        ProfileService.shared.$currentProfile
+            .compactMap { $0?.gradeLevel }
+            .removeDuplicates()
+            .sink { [weak self] grade in
+                self?.applyGradeDefaultsIfNeeded(gradeLevelString: grade)
+            }
+            .store(in: &cancellables)
+        // Cover the case where the profile was already loaded before init.
+        applyGradeDefaultsIfNeeded(gradeLevelString: ProfileService.shared.currentProfile?.gradeLevel)
+
         // Request permissions on initialization
         Task {
             await requestPermissions()
@@ -342,10 +354,27 @@ class VoiceInteractionService: ObservableObject {
     
     func toggleVoiceEnabled() {
         isVoiceEnabled.toggle()
-        
+        VoiceDefaultsByGrade.saveVoiceEnabled(isVoiceEnabled)
+
         if !isVoiceEnabled {
             stopVoiceInput()
             stopSpeech()
+        }
+    }
+
+    /// Apply grade-based first-time defaults (Mia + voice on + sync-with-text on for ≤ Grade 5;
+    /// voice off for > Grade 5). Idempotent per user — user's manual changes are never overridden.
+    /// Safe to call from any thread.
+    func applyGradeDefaultsIfNeeded(gradeLevelString: String?) {
+        guard let result = VoiceDefaultsByGrade.applyIfNeeded(gradeLevelString: gradeLevelString) else { return }
+        let (voice, _, enabled) = result
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.voiceSettings = voice
+            self.isVoiceEnabled = enabled
+            self.textToSpeechService.updateVoiceSettings(voice)
+            self.enhancedTTSService.updateVoiceSettings(voice)
+            debugPrint("🎙️ Applied grade-based voice defaults: voiceType=\(voice.voiceType.rawValue) isVoiceEnabled=\(enabled)")
         }
     }
     

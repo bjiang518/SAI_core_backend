@@ -309,39 +309,67 @@ struct QuestionSheetView: View {
                                 .cornerRadius(6)
                                 .lineLimit(1)
                         }
+                        // Always show the parsed text — even for kangaroo where the image
+                        // also contains the original problem. The text is more readable on
+                        // mobile, and the image shows the figure (scroll defaults to the right).
                         MarkdownLaTeXText(q.question, fontSize: 17, isStreaming: false)
 
                         if let relativePath = q.figureUrl,
                            let url = URL(string: NetworkService.shared.apiBaseURL + relativePath) {
-                            AsyncImage(url: url) { phase in
-                                switch phase {
-                                case .success(let image):
-                                    image
-                                        .resizable()
-                                        .scaledToFit()
-                                        .frame(maxWidth: .infinity)
-                                        .cornerRadius(8)
-                                case .failure:
-                                    EmptyView()
-                                case .empty:
-                                    ProgressView()
-                                        .frame(maxWidth: .infinity, minHeight: 80)
-                                @unknown default:
-                                    EmptyView()
+                            if q.source == "kangaroo" {
+                                // Kangaroo images are very wide strips (~1653×220).
+                                // Default scroll position is RIGHT — the figure region —
+                                // since the user already read the parsed text above.
+                                ScrollView(.horizontal, showsIndicators: true) {
+                                    AsyncImage(url: url) { phase in
+                                        switch phase {
+                                        case .success(let image):
+                                            image
+                                                .resizable()
+                                                .aspectRatio(contentMode: .fit)
+                                                .frame(height: 160)
+                                                .fixedSize(horizontal: true, vertical: false)
+                                                .cornerRadius(8)
+                                        case .failure:
+                                            EmptyView()
+                                        case .empty:
+                                            ProgressView().frame(minWidth: 200, minHeight: 80)
+                                        @unknown default:
+                                            EmptyView()
+                                        }
+                                    }
+                                    .padding(.horizontal, 4)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .defaultScrollAnchor(.trailing)
+                            } else {
+                                // Other sources: figures are squarish — fit to width.
+                                AsyncImage(url: url) { phase in
+                                    switch phase {
+                                    case .success(let image):
+                                        image
+                                            .resizable()
+                                            .scaledToFit()
+                                            .frame(maxWidth: .infinity)
+                                            .cornerRadius(8)
+                                    case .failure:
+                                        EmptyView()
+                                    case .empty:
+                                        ProgressView()
+                                            .frame(maxWidth: .infinity, minHeight: 80)
+                                    @unknown default:
+                                        EmptyView()
+                                    }
                                 }
                             }
                         }
 
                         // Source attribution for bank questions
                         if q.isFromBank {
-                            HStack(spacing: 4) {
-                                Image(systemName: "books.vertical")
-                                    .font(.caption2)
-                                Text(String(format: NSLocalizedString("questionDetail.questionFrom", comment: ""), q.sourceLabel ?? "Question Bank"))
-                                    .font(.caption)
-                            }
-                            .foregroundColor(.secondary)
-                            .padding(.top, 2)
+                            Text(String(format: NSLocalizedString("questionDetail.questionFrom", comment: ""), q.sourceLabel ?? "Question Bank"))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .padding(.top, 2)
                         }
                     }
                     .padding()
@@ -919,6 +947,20 @@ struct QuestionSheetView: View {
         let studentAns = saved?["answer"] as? String ?? ""
         let isCorrectAnswer = (saved?["is_correct"] as? Bool) ?? false
 
+        // For bank questions with a figure, download the image into ProModeImageStorage so the
+        // library renderer (which reads from local disk) can display it. Fall back to the
+        // remote URL if the download fails — at least the data is preserved.
+        let resolvedImageUrl: String?
+        if let figure = q.figureUrl {
+            if let localFilename = await downloadAndStoreFigure(figure) {
+                resolvedImageUrl = localFilename
+            } else {
+                resolvedImageUrl = NetworkService.shared.apiBaseURL + figure
+            }
+        } else {
+            resolvedImageUrl = nil
+        }
+
         let parsedQ = ParsedQuestion(
             questionText: q.question,
             answerText: q.correctAnswer,
@@ -931,7 +973,7 @@ struct QuestionSheetView: View {
             feedback: q.explanation.isEmpty ? nil : q.explanation,
             questionType: q.type.rawValue,
             options: q.options,
-            questionImageUrl: q.figureUrl.map { NetworkService.shared.apiBaseURL + $0 }
+            questionImageUrl: resolvedImageUrl
         )
 
         let request = QuestionArchiveRequest(
@@ -943,7 +985,7 @@ struct QuestionSheetView: View {
             processingTime: 0,
             userNotes: [""],
             userTags: [[]],
-            source: session.generationType == "Mistake-Based" ? "mistake_review" : "practice"
+            source: session.generationType == "Mistake-Based" ? "mistake_review" : (q.bankQuestionId != nil ? "bank" : "practice")
         )
 
         do {
@@ -1341,6 +1383,21 @@ struct QuestionSheetView: View {
         return data.base64EncodedString()
     }
 
+    /// Download a bank question figure and persist it via ProModeImageStorage.
+    /// Returns the local relative filename (same format QuestionImageView expects), or nil on failure.
+    private func downloadAndStoreFigure(_ relativePath: String) async -> String? {
+        guard let url = URL(string: NetworkService.shared.apiBaseURL + relativePath) else { return nil }
+        guard let (data, _) = try? await URLSession.shared.data(from: url) else {
+            debugPrint("⚠️ [Archive] Failed to download bank figure: \(relativePath)")
+            return nil
+        }
+        guard let image = UIImage(data: data) else {
+            debugPrint("⚠️ [Archive] Downloaded bank figure data is not a valid image: \(relativePath)")
+            return nil
+        }
+        return ProModeImageStorage.shared.saveImage(image)
+    }
+
     private func gradeWithAI(q: QuestionGenerationService.GeneratedQuestion, answer: String) async {
         defer { isGradingWithAI = false }
         do {
@@ -1551,7 +1608,7 @@ struct QuestionSheetView: View {
                     processingTime: 0,
                     userNotes: Array(repeating: "", count: parsedQuestions.count),
                     userTags: Array(repeating: [], count: parsedQuestions.count),
-                    source: session.generationType == "Mistake-Based" ? "mistake_review" : "practice"
+                    source: session.generationType == "Mistake-Based" ? "mistake_review" : (questions.contains(where: { $0.bankQuestionId != nil }) ? "bank" : "practice")
                 )
                 let archived = (try? await QuestionArchiveService.shared.archiveQuestions(request)) ?? []
 

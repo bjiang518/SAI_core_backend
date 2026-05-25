@@ -297,7 +297,7 @@ class VideoSearchRoutes {
       return reply.status(401).send({ success: false, error: 'AUTHENTICATION_REQUIRED' });
     }
 
-    const { query, max_results = 3, language = 'en' } = request.body;
+    const { query, max_results = 3, language = 'en', subject = null } = request.body;
 
     if (!query || query.trim().length === 0) {
       return reply.status(400).send({ success: false, error: 'Query is required' });
@@ -322,6 +322,7 @@ class VideoSearchRoutes {
         this.fastify.log.info(
           `🎬 ${(data.items || []).length} candidates, returning ${selected.length}`
         );
+        recordVideoInteraction(this.fastify, userId, null, null, null, subject, 'search', q);
         return { success: true, videos: selected };
       }
 
@@ -335,6 +336,7 @@ class VideoSearchRoutes {
       );
 
       if (localized.length >= max_results) {
+        recordVideoInteraction(this.fastify, userId, null, null, null, subject, 'search', q);
         return { success: true, videos: localized };
       }
 
@@ -353,6 +355,7 @@ class VideoSearchRoutes {
       const selected = [...localized, ...englishOnly].slice(0, max_results);
 
       this.fastify.log.info(`🎬 Merged: ${localized.length} localized + ${englishOnly.length} English fallback`);
+      recordVideoInteraction(this.fastify, userId, null, null, null, subject, 'search', q);
       return { success: true, videos: selected };
 
     } catch (err) {
@@ -360,6 +363,16 @@ class VideoSearchRoutes {
       return reply.status(500).send({ success: false, error: err.message });
     }
   }
+}
+
+function recordVideoInteraction(fastify, userId, videoId, title, channelTitle, subject, type, searchQuery) {
+  const { db } = require('../../../../utils/railway-database');
+  db.query(
+    `INSERT INTO user_video_interactions
+       (user_id, video_id, title, channel_title, subject, interaction_type, search_query)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [userId, videoId || null, title || null, channelTitle || null, subject || null, type, searchQuery || null]
+  ).catch(e => fastify.log.warn(`[VideoTracking] Failed to record ${type}: ${e.message}`));
 }
 
 module.exports = VideoSearchRoutes;

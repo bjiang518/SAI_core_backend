@@ -404,6 +404,7 @@ struct DirectAIHomeworkView: View {
                         preParsedQuestions: proModeParsedQuestions  // NEW: Pass parsed questions from Pro Mode
                     )
                 }
+                .iPadSheetFixedSize()
             }
         }
         .navigationDestination(isPresented: $showProModeSummary) {

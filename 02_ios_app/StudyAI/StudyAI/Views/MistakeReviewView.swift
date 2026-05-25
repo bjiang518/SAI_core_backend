@@ -418,12 +418,9 @@ struct MistakeReviewView: View {
             .task {
                 await mistakeService.fetchSubjectsWithMistakes(timeRange: selectedTimeRange.mistakeTimeRange)
 
-                // New users with no mistakes: automatically show the knowledge tree
-                if mistakeService.subjectsWithMistakes.isEmpty && !showKnowledgeTree {
-                    showKnowledgeTree = true
-                }
-
-                // ✅ Auto-select first subject if available and none selected
+                // ✅ Auto-select first subject if available and none selected.
+                // Mistake mode: pick from subjects-with-mistakes (so empty list → show "no mistakes" state).
+                // Tree mode: pick from all grade-appropriate subjects.
                 let autoSelectList = showKnowledgeTree ? allSubjects : mistakeService.subjectsWithMistakes
                 if selectedSubject == nil, let firstSubject = autoSelectList.first {
                     selectedSubject = firstSubject.subject
@@ -541,7 +538,8 @@ struct MistakeReviewView: View {
                 }
             }
             .overlay {
-                if let step = onboardingStep {
+                // ✅ Mistake-mode only — tree mode is independent and does not share this overlay
+                if let step = onboardingStep, !showKnowledgeTree {
                     MistakeReviewOnboardingOverlayView(
                         step: step,
                         anchors: onboardingAnchors,
@@ -558,7 +556,10 @@ struct MistakeReviewView: View {
     // MARK: - Onboarding
 
     private func startMistakeReviewOnboarding() {
-        guard !onboardingDone, !allSubjects.isEmpty else { return }
+        // ✅ Onboarding is mistake-mode only. Tree mode is a separate view experience
+        // and should NOT inherit this overlay (anchors don't exist in tree mode anyway).
+        guard !showKnowledgeTree else { return }
+        guard !onboardingDone, !mistakeService.subjectsWithMistakes.isEmpty else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
             if onboardingStep == nil {
                 onboardingStep = .subjectSelector
@@ -942,38 +943,11 @@ struct MistakeQuestionListView: View {
 
                 //✅ Generate Practice Button (ENHANCED with configuration UI)
                 if isSelectionMode && !selectedQuestions.isEmpty {
-                    VStack(spacing: 10) {
-                        Button(action: {
-                            // Show configuration sheet instead of immediately generating
-                            showingConfigurationSheet = true
-                        }) {
-                            HStack {
-                                if isGeneratingPractice {
-                                    ProgressView()
-                                        .tint(.white)
-                                        .scaleEffect(0.8)
-                                } else {
-                                    Image(systemName: "brain.head.profile")
-                                        .font(.title3)
-
-                                    Text(String(format: NSLocalizedString("mistakeReview.generatePractice", comment: ""), selectedQuestions.count))
-                                        .font(.body)
-                                        .fontWeight(.semibold)
-                                }
-                            }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 56)
-                            .background(isGeneratingPractice ? Color.gray : themeManager.accentColor)
-                            .cornerRadius(12)
-                        }
-                        .disabled(isGeneratingPractice)
-                        .buttonStyle(PlainButtonStyle())
-
+                    HStack(spacing: 12) {
                         Button(action: { doThemAgain() }) {
                             HStack(spacing: 8) {
                                 Image(systemName: "arrow.counterclockwise")
-                                    .font(.title3)
+                                    .font(.system(size: 15))
                                 Text(String(format: NSLocalizedString("mistakeReview.doThemAgain", comment: ""), selectedQuestions.count))
                                     .font(.body)
                                     .fontWeight(.semibold)
@@ -981,13 +955,34 @@ struct MistakeQuestionListView: View {
                             .foregroundColor(themeManager.accentColor)
                             .frame(maxWidth: .infinity)
                             .frame(height: 56)
-                            .background(themeManager.accentColor.opacity(0.12))
+                            .background(themeManager.accentColor.opacity(0.09))
                             .cornerRadius(12)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(themeManager.accentColor.opacity(0.3), lineWidth: 1)
-                            )
+                            .overlay(RoundedRectangle(cornerRadius: 12)
+                                .stroke(themeManager.accentColor.opacity(0.40), lineWidth: 1.5))
                         }
+                        .buttonStyle(PlainButtonStyle())
+
+                        Button(action: { showingConfigurationSheet = true }) {
+                            HStack {
+                                if isGeneratingPractice {
+                                    ProgressView().tint(themeManager.accentColor).scaleEffect(0.8)
+                                } else {
+                                    Image(systemName: "brain.head.profile")
+                                        .font(.system(size: 15))
+                                    Text(String(format: NSLocalizedString("mistakeReview.generatePractice", comment: ""), selectedQuestions.count))
+                                        .font(.body)
+                                        .fontWeight(.semibold)
+                                }
+                            }
+                            .foregroundColor(themeManager.accentColor)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 56)
+                            .background(themeManager.accentColor.opacity(0.09))
+                            .cornerRadius(12)
+                            .overlay(RoundedRectangle(cornerRadius: 12)
+                                .stroke(themeManager.accentColor.opacity(0.40), lineWidth: 1.5))
+                        }
+                        .disabled(isGeneratingPractice)
                         .buttonStyle(PlainButtonStyle())
                     }
                     .padding(.horizontal)
@@ -1017,21 +1012,25 @@ struct MistakeQuestionListView: View {
                 }
             }
             .sheet(isPresented: $showingConfigurationSheet) {
-                // ✅ NEW: Show configuration sheet before generating
+                let mistakes = filteredMistakes.filter { selectedQuestions.contains($0.id) }
+                let hasBranch = mistakes.contains { $0.baseBranch != nil && !($0.baseBranch ?? "").isEmpty }
                 PracticeConfigurationSheet(
                     mistakeCount: selectedQuestions.count,
-                    selectedMistakes: filteredMistakes.filter { selectedQuestions.contains($0.id) },
+                    selectedMistakes: mistakes,
                     onGenerate: { difficulty, questionTypes, count in
                         Task {
-                            // Generate with user-selected parameters
                             await generatePracticeFromMistakes(
                                 difficulty: difficulty,
                                 questionTypes: questionTypes,
                                 questionCount: count
                             )
                         }
-                    }
+                    },
+                    onGenerateBank: hasBranch ? { count in
+                        Task { await generateBankFromMistakes(count: count) }
+                    } : nil
                 )
+                .iPadSheetFixedSize()
             }
             // Error alert for practice generation
             .alert(NSLocalizedString("mistakeReview.generationFailed", comment: ""), isPresented: Binding(get: { generationError != nil }, set: { _ in generationError = nil })) {
@@ -1179,6 +1178,56 @@ struct MistakeQuestionListView: View {
         )
         PracticeSessionManager.shared.saveSession(session)
         activePracticeSession = session
+    }
+
+    // Bank question retrieval using weakness branches from selected mistakes
+    private func generateBankFromMistakes(count: Int) async {
+        isGeneratingPractice = true
+        defer { isGeneratingPractice = false }
+
+        let selected = filteredMistakes.filter { selectedQuestions.contains($0.id) }
+        let weaknessKeys = selected.compactMap { m -> String? in
+            guard let base = m.baseBranch, !base.isEmpty else { return nil }
+            let subj = m.subject
+            if let detail = m.detailedBranch, !detail.isEmpty { return "\(subj)/\(base)/\(detail)" }
+            return "\(subj)/\(base)"
+        }
+        let subject = selected.first?.subject ?? "Mathematics"
+
+        let cachedProfile = profileService.currentProfile ?? profileService.loadCachedProfile()
+        let userProfile = QuestionGenerationService.UserProfile(
+            grade:       cachedProfile?.gradeLevel ?? "8",
+            location:    cachedProfile?.country    ?? "US",
+            preferences: [:]
+        )
+        let config = QuestionGenerationService.RandomQuestionsConfig(
+            topics:        [subject],
+            focusNotes:    nil,
+            difficulty:    .intermediate,
+            questionCount: count,
+            questionType:  .any
+        )
+        let result = await QuestionGenerationService.shared.generateQuestionsV2(
+            subject:          subject,
+            mode:             4,
+            config:           config,
+            userProfile:      userProfile,
+            shortTermContext: weaknessKeys.map { ["weakness_key": $0] },
+            bankSource:       nil
+        )
+        await MainActor.run {
+            switch result {
+            case .success:
+                if let sid     = QuestionGenerationService.shared.currentSessionId,
+                   let session = PracticeSessionManager.shared.getSession(id: sid) {
+                    activePracticeSession = session
+                }
+            case .failure:
+                generationError = NSLocalizedString("weaknessPractice.bankFallback",
+                    value: "No real questions found for these topics. Try AI Practice instead.",
+                    comment: "")
+            }
+        }
     }
 
     // ✅ OPTIMIZED: Generate practice from selected mistakes with user-configured parameters
@@ -3240,9 +3289,12 @@ struct SubquestionAwareTextView: View {
 struct PracticeConfigurationSheet: View {
     let mistakeCount: Int
     let selectedMistakes: [MistakeQuestion]
-    let onGenerate: (QuestionGenerationService.RandomQuestionsConfig.QuestionDifficulty, Set<QuestionGenerationService.GeneratedQuestion.QuestionType>, Int) -> Void
+    let onGenerate:     (QuestionGenerationService.RandomQuestionsConfig.QuestionDifficulty, Set<QuestionGenerationService.GeneratedQuestion.QuestionType>, Int) -> Void
+    var onGenerateBank: ((Int) -> Void)? = nil   // nil = no bank option available
+
     @Environment(\.dismiss) private var dismiss
 
+    @State private var useRealQuestions   = false
     @State private var selectedDifficulty: QuestionGenerationService.RandomQuestionsConfig.QuestionDifficulty = .intermediate
     @State private var selectedQuestionType: QuestionGenerationService.GeneratedQuestion.QuestionType = .any
     @State private var questionCount: Int = 5
@@ -3277,7 +3329,13 @@ struct PracticeConfigurationSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     headerSection
-                    configCard
+                    // AI / Real Questions toggle — only when bank option available
+                    if onGenerateBank != nil {
+                        practiceModeToggle
+                    }
+                    if !useRealQuestions {
+                        configCard
+                    }
                     generateButton
                 }
                 .padding(.vertical)
@@ -3290,6 +3348,30 @@ struct PracticeConfigurationSheet: View {
                 }
             }
         }
+    }
+
+    private var practiceModeToggle: some View {
+        HStack(spacing: 0) {
+            ForEach([false, true], id: \.self) { isBank in
+                let sel = useRealQuestions == isBank
+                Button(action: { withAnimation(.easeInOut(duration: 0.2)) { useRealQuestions = isBank } }) {
+                    Text(isBank
+                         ? NSLocalizedString("practice.mode.bank", value: "Real Questions", comment: "")
+                         : NSLocalizedString("practice.mode.ai",   value: "AI Practice",    comment: ""))
+                        .font(.subheadline.bold())
+                        .foregroundColor(sel ? .white : .secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(sel ? Color.blue : Color.clear)
+                        .cornerRadius(10)
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+        }
+        .padding(4)
+        .background(Color.gray.opacity(0.12))
+        .cornerRadius(13)
+        .padding(.horizontal)
     }
 
     private var headerSection: some View {
@@ -3360,7 +3442,7 @@ struct PracticeConfigurationSheet: View {
                                 ? "mistakeReview.weaknessHint.one"
                                 : "mistakeReview.weaknessHint.other",
                             comment: ""
-                        ), hint.needed, hint.label))
+                        ), hint.needed, BranchLocalizer.localized(hint.label)))
                             .font(.caption)
                             .foregroundColor(cleared ? DesignTokens.Colors.success : .secondary)
                     }
@@ -3413,13 +3495,19 @@ struct PracticeConfigurationSheet: View {
 
     private var generateButton: some View {
         Button(action: {
-            onGenerate(selectedDifficulty, Set([selectedQuestionType]), questionCount)
+            if useRealQuestions, let bankCb = onGenerateBank {
+                bankCb(questionCount)
+            } else {
+                onGenerate(selectedDifficulty, Set([selectedQuestionType]), questionCount)
+            }
             dismiss()
         }) {
             HStack {
-                Image(systemName: "brain.head.profile")
+                Image(systemName: useRealQuestions ? "magnifyingglass" : "brain.head.profile")
                     .font(.title3)
-                Text(String(format: NSLocalizedString("mistakeReview.generateCount", comment: ""), questionCount))
+                Text(useRealQuestions
+                     ? NSLocalizedString("practice.bank.retrieve", value: "Get Real Questions", comment: "")
+                     : String(format: NSLocalizedString("mistakeReview.generateCount", comment: ""), questionCount))
                     .font(.body)
                     .fontWeight(.semibold)
             }

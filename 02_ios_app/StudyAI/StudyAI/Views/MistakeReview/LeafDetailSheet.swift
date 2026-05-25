@@ -11,6 +11,11 @@ struct LeafDetailSheet: View {
     @State private var showPractice = false
     @State private var showLearning = false
     @State private var selectedSummary: VideoSummary? = nil
+    // Question bank flow
+    @State private var showBankPractice = false
+    @State private var bankSession: PracticeSession? = nil
+    @State private var isGeneratingBank = false
+    @State private var bankError: String? = nil
 
     var body: some View {
         VStack(spacing: 0) {
@@ -83,6 +88,38 @@ struct LeafDetailSheet: View {
                         ? "\(leaf.subject)/\(leaf.branchName)/\(leaf.topicName)"
                         : nil
                 )
+            }
+        }
+        .fullScreenCover(isPresented: $showBankPractice) {
+            if let session = bankSession {
+                QuestionSheetView(session: session)
+            }
+        }
+        .alert(NSLocalizedString("leafDetail.bank.errorTitle",
+                                  value: "无法加载真题", comment: ""),
+               isPresented: Binding(get: { bankError != nil }, set: { if !$0 { bankError = nil } })) {
+            Button(NSLocalizedString("common.ok", comment: ""), role: .cancel) { bankError = nil }
+        } message: {
+            Text(bankError ?? "")
+        }
+        .overlay {
+            if isGeneratingBank {
+                ZStack {
+                    Color.black.opacity(0.3).ignoresSafeArea()
+                    VStack(spacing: 12) {
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                            .tint(.white)
+                            .scaleEffect(1.3)
+                        Text(NSLocalizedString("leafDetail.bank.loading",
+                                               value: "正在从题库检索真题…", comment: ""))
+                            .font(.subheadline.bold())
+                            .foregroundColor(.white)
+                    }
+                    .padding(28)
+                    .background(RoundedRectangle(cornerRadius: 18).fill(.ultraThinMaterial))
+                }
+                .transition(.opacity.animation(.easeInOut(duration: 0.2)))
             }
         }
     }
@@ -259,25 +296,49 @@ struct LeafDetailSheet: View {
 
     @ViewBuilder
     private var actionButton: some View {
-        HStack(spacing: 12) {
-            leafActionButton(
-                icon: "play.circle.fill",
-                title: NSLocalizedString("mistakeTree.detail.startLearning", value: "Start Learning", comment: ""),
-                action: { showLearning = true }
-            )
+        VStack(spacing: 10) {
+            HStack(spacing: 12) {
+                leafActionButton(
+                    icon: "play.circle.fill",
+                    title: NSLocalizedString("mistakeTree.detail.startLearning", value: "Start Learning", comment: ""),
+                    action: { showLearning = true }
+                )
 
-            leafActionButton(
-                icon: "pencil.and.list.clipboard",
-                title: NSLocalizedString("mistakeTree.detail.practice", comment: ""),
-                action: {
-                    if leaf.weaknessValue != nil || leaf.questionCount > 0 {
-                        showPractice = true
-                    } else {
-                        dismiss()
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { onLightUp?() }
+                leafActionButton(
+                    icon: "pencil.and.list.clipboard",
+                    title: NSLocalizedString("mistakeTree.detail.practice", comment: ""),
+                    action: {
+                        if leaf.weaknessValue != nil || leaf.questionCount > 0 {
+                            showPractice = true
+                        } else {
+                            dismiss()
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { onLightUp?() }
+                        }
                     }
+                )
+            }
+
+            // Question Bank: real exam questions targeting this leaf's topic
+            Button(action: { Task { await generateBankPractice() } }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "rosette")
+                        .font(.system(size: 15, weight: .semibold))
+                    Text(NSLocalizedString("mistakeTree.detail.questionBank",
+                                           value: "题库练习 (真题)", comment: ""))
+                        .font(.system(size: 15, weight: .semibold))
                 }
-            )
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 13)
+                .background(
+                    LinearGradient(colors: [Color.orange, Color.red],
+                                   startPoint: .leading, endPoint: .trailing)
+                )
+                .cornerRadius(14)
+            }
+            .buttonStyle(.plain)
+            .disabled(isGeneratingBank)
+            .opacity(isGeneratingBank ? 0.6 : 1.0)
         }
     }
 
@@ -302,6 +363,50 @@ struct LeafDetailSheet: View {
             )
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: - Question Bank generation
+
+    private func generateBankPractice() async {
+        guard !isGeneratingBank else { return }
+        await MainActor.run { isGeneratingBank = true }
+        defer { Task { @MainActor in isGeneratingBank = false } }
+
+        let weaknessKey = "\(leaf.subject)/\(leaf.branchName)/\(leaf.topicName)"
+        let config = QuestionGenerationService.RandomQuestionsConfig(
+            topics: [leaf.topicName],
+            focusNotes: nil,
+            difficulty: .intermediate,
+            questionCount: 5,
+            questionType: .any
+        )
+        let profile = QuestionGenerationDataAdapter.shared.createUserProfile()
+
+        let result = await QuestionGenerationService.shared.generateBankWithFallback(
+            subject: leaf.subject,
+            config: config,
+            userProfile: profile,
+            shortTermContext: [["weakness_key": weaknessKey]]
+        )
+
+        switch result {
+        case .success:
+            guard let sessionId = await MainActor.run(body: { QuestionGenerationService.shared.currentSessionId }),
+                  let session = PracticeSessionManager.shared.getSession(id: sessionId) else {
+                await MainActor.run {
+                    bankError = NSLocalizedString("leafDetail.bank.errorEmpty",
+                                                   value: "题库中暂无该知识点的真题。",
+                                                   comment: "")
+                }
+                return
+            }
+            await MainActor.run {
+                bankSession = session
+                showBankPractice = true
+            }
+        case .failure(let error):
+            await MainActor.run { bankError = error.localizedDescription }
+        }
     }
 
     // MARK: - Video Summaries

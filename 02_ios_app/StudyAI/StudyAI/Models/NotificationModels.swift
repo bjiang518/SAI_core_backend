@@ -151,6 +151,10 @@ struct StudySignals {
     let incompleteSessionSubject: String?
     let goalProgressPercent: Double?  // 0.0–1.0, nil if no daily goal
 
+    // Raw values for deep linking (not displayed in notification text)
+    let rawWeaknessKey: String?       // e.g. "Math/fractions/addition_of_fractions"
+    let incompleteSessionId: String?  // PracticeSession.id for "continue" deep link
+
     var isStreakAtRisk: Bool { currentStreak >= 3 && !hasActivityToday }
     var isStreakMilestone: Bool { [7, 14, 21, 30, 50, 100].contains(currentStreak) }
 }
@@ -297,5 +301,24 @@ struct PersonalizedMessageEngine {
         let topTier = eligible.filter { $0.priority == maxPriority }
         let index = dayOfYear % topTier.count
         return topTier[index].render(with: signals)
+    }
+
+    /// Returns the `userInfo` dict to embed in the notification so a tap can deep-link
+    /// directly to the most relevant feature. Priority mirrors the template selection:
+    /// incomplete session > specific weakness > daily challenge.
+    static func deepLinkUserInfo(for signals: StudySignals) -> [AnyHashable: Any] {
+        if let sessionId = signals.incompleteSessionId, signals.incompleteSessionSubject != nil {
+            return [
+                "deepLink": "studyai://practice/continue",
+                "sessionId": sessionId
+            ]
+        }
+        if let key = signals.rawWeaknessKey {
+            return [
+                "deepLink": "studyai://practice/weakness",
+                "weaknessKey": key
+            ]
+        }
+        return ["deepLink": "studyai://practice/daily"]
     }
 }

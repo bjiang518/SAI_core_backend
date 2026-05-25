@@ -24,6 +24,7 @@ struct LightUpTreeSheet: View {
     @State private var selectedDifficulty: QuestionGenerationService.RandomQuestionsConfig.QuestionDifficulty = .adaptive
     @State private var questionCount: Int = 5
     @State private var selectedType: QuestionGenerationService.GeneratedQuestion.QuestionType = .any
+    @State private var useQuestionBank: Bool = false
 
     // Generation state
     @State private var isGenerating = false
@@ -361,6 +362,34 @@ struct LightUpTreeSheet: View {
                 .foregroundColor(themeManager.primaryText)
                 .padding(.horizontal, 20)
 
+            // Question source: AI generation vs question bank (real exam questions)
+            VStack(alignment: .leading, spacing: 10) {
+                Text(NSLocalizedString("lightUpTree.source.title", value: "出题来源", comment: ""))
+                    .font(.body).fontWeight(.medium)
+                    .foregroundColor(themeManager.primaryText)
+                HStack(spacing: 8) {
+                    sourceChip(
+                        title: NSLocalizedString("lightUpTree.source.ai", value: "AI 出题", comment: ""),
+                        icon: "sparkles",
+                        color: DesignTokens.Colors.Cute.lavender,
+                        selected: !useQuestionBank
+                    ) { useQuestionBank = false }
+
+                    sourceChip(
+                        title: NSLocalizedString("lightUpTree.source.bank", value: "真题题库", comment: ""),
+                        icon: "rosette",
+                        color: .orange,
+                        selected: useQuestionBank
+                    ) { useQuestionBank = true }
+                }
+                if useQuestionBank {
+                    Text(bankSourcesHint)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding(.horizontal, 20)
+
             // Difficulty
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
@@ -450,6 +479,54 @@ struct LightUpTreeSheet: View {
             }
             .padding(.horizontal, 20)
         }
+    }
+
+    /// Subject-aware hint text describing which exam banks Question Bank pulls from.
+    private var bankSourcesHint: String {
+        let s = subject.lowercased()
+        if s.contains("math") || s.contains("数学") || s.contains("數學") || s.contains("算") {
+            return NSLocalizedString("lightUpTree.source.bankHint.math",
+                                     value: "Pulls from AMC, AIME, SAT Math, Math Kangaroo, GSM8K and more. May not match the chosen difficulty exactly.",
+                                     comment: "")
+        }
+        if s.contains("english") || s.contains("language arts") || s.contains("ela")
+            || s.contains("reading") || s.contains("writing") || s.contains("英语") || s.contains("英文") || s.contains("國文") {
+            return NSLocalizedString("lightUpTree.source.bankHint.english",
+                                     value: "Pulls from SAT English and LSAT Reading/Logic. May not match the chosen difficulty exactly.",
+                                     comment: "")
+        }
+        if s.contains("science") || s.contains("physic") || s.contains("chem") || s.contains("biology")
+            || s.contains("理科") || s.contains("物理") || s.contains("化学") || s.contains("化學")
+            || s.contains("生物") || s.contains("科学") || s.contains("科學") {
+            return NSLocalizedString("lightUpTree.source.bankHint.science",
+                                     value: "Pulls from ARC Science, ScienceQA and OpenBookQA. May not match the chosen difficulty exactly.",
+                                     comment: "")
+        }
+        return NSLocalizedString("lightUpTree.source.bankHint.general",
+                                 value: "Pulls from MMLU and curated exam questions. May not match the chosen difficulty exactly.",
+                                 comment: "")
+    }
+
+    private func sourceChip(title: String, icon: String, color: Color, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 13, weight: .semibold))
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+            }
+            .foregroundColor(selected ? .white : color)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 9)
+            .frame(maxWidth: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(selected ? color : color.opacity(0.10))
+                    .overlay(RoundedRectangle(cornerRadius: 12)
+                        .stroke(color.opacity(selected ? 0 : 0.35), lineWidth: 1))
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Difficulty bar (same visual as ChatPracticeConfigSheet)
@@ -598,12 +675,32 @@ struct LightUpTreeSheet: View {
         )
         let profile = QuestionGenerationDataAdapter.shared.createUserProfile()
 
-        let result = await QuestionGenerationService.shared.generateQuestionsV2(
-            subject: subject,
-            mode: 1,
-            config: config,
-            userProfile: profile
-        )
+        // Mode 4 (question bank) when user opted in; tag selected topics as weakness keys
+        // so the bank's Stage-1 retrieval targets exactly these branches.
+        let topicWeaknessKeys: [String] = selectedTopics.compactMap { topic in
+            guard let branch = branches.first(where: { b in
+                b.topics.contains(where: { $0.id == topic.id })
+            }) else { return nil }
+            return "\(subject)/\(branch.name)/\(topic.topicName)"
+        }
+        let result: Result<[QuestionGenerationService.GeneratedQuestion], QuestionGenerationError>
+        if useQuestionBank {
+            // Try bank, fall back to AI (with random bank source tag) when bank is empty
+            result = await QuestionGenerationService.shared.generateBankWithFallback(
+                subject: subject,
+                config: config,
+                userProfile: profile,
+                shortTermContext: topicWeaknessKeys.map { ["weakness_key": $0] }
+            )
+        } else {
+            result = await QuestionGenerationService.shared.generateQuestionsV2(
+                subject: subject,
+                mode: 1,
+                config: config,
+                userProfile: profile,
+                shortTermContext: []
+            )
+        }
 
         switch result {
         case .success:

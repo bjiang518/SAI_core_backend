@@ -82,6 +82,17 @@ class VoiceChatViewModel: ObservableObject {
     /// Optional scenario prompt (sets Live Mode scene)
     private let scenarioPrompt: String?
 
+    /// Optional video context — when Live Mode is opened from the video learning page,
+    /// pass the windowed transcript + current playback time so the AI can answer questions
+    /// about what the speaker is saying.
+    struct VideoContext {
+        let title: String
+        let currentTimeSec: Double
+        let formattedTranscript: String   // "[mm:ss] segment text" lines
+        let isWindowed: Bool              // true if sliced ±5 min around current time
+    }
+    private let videoContext: VideoContext?
+
     /// Selected AI character
     let voiceType: VoiceType
 
@@ -145,13 +156,14 @@ class VoiceChatViewModel: ObservableObject {
 
     // MARK: - Initialization
 
-    init(sessionId: String, subject: String, voiceType: VoiceType, scenarioPrompt: String? = nil) {
+    init(sessionId: String, subject: String, voiceType: VoiceType, scenarioPrompt: String? = nil, videoContext: VideoContext? = nil) {
         self.sessionId = sessionId
         self.subject = subject
         self.voiceType = voiceType
         self.scenarioPrompt = scenarioPrompt
+        self.videoContext = videoContext
 
-        logger.info("VoiceChatViewModel initialized for session: \(sessionId), subject: \(subject), character: \(voiceType.rawValue)")
+        logger.info("VoiceChatViewModel initialized for session: \(sessionId), subject: \(subject), character: \(voiceType.rawValue), videoContext: \(videoContext != nil)")
 
         // Request microphone permission on init
         requestMicrophonePermission()
@@ -232,6 +244,14 @@ class VoiceChatViewModel: ObservableObject {
         ]
         if let prompt = scenarioPrompt {
             startData["scenario_prompt"] = prompt
+        }
+        if let vc = videoContext {
+            startData["video_context"] = [
+                "title": vc.title,
+                "current_time_sec": vc.currentTimeSec,
+                "transcript": vc.formattedTranscript,
+                "is_windowed": vc.isWindowed
+            ]
         }
 
         // Use an initial ping to confirm the WebSocket upgrade is complete and the

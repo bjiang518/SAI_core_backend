@@ -126,6 +126,7 @@ class VideoSummaryRoutes {
         const cached = await redis.get(cacheKey);
         if (cached) {
           this.fastify.log.info(`[VideoSummary] Cache hit for videoId=${videoId}`);
+          recordVideoSummary(this.fastify, userId, videoId, title, channel_title, subject);
           return reply.send({ success: true, html: cached, title, cached: true });
         }
       } catch (_) { /* continue without cache */ }
@@ -188,6 +189,7 @@ No transcript is available for this video. Use your general knowledge about the 
       }
 
       this.fastify.log.info(`[VideoSummary] Done for videoId=${videoId} (${html.length} chars)`);
+      recordVideoSummary(this.fastify, userId, videoId, title, channel_title, subject);
       return reply.send({ success: true, html, title, cached: false });
 
     } catch (err) {
@@ -195,6 +197,16 @@ No transcript is available for this video. Use your general knowledge about the 
       return reply.status(500).send({ success: false, error: 'Failed to generate summary' });
     }
   }
+}
+
+function recordVideoSummary(fastify, userId, videoId, title, channelTitle, subject) {
+  const { db } = require('../../../../utils/railway-database');
+  db.query(
+    `INSERT INTO user_video_interactions
+       (user_id, video_id, title, channel_title, subject, interaction_type)
+     VALUES ($1, $2, $3, $4, $5, 'summary')`,
+    [userId, videoId, title || null, channelTitle || null, subject || null]
+  ).catch(e => fastify.log.warn(`[VideoTracking] Failed to record summary: ${e.message}`));
 }
 
 module.exports = VideoSummaryRoutes;

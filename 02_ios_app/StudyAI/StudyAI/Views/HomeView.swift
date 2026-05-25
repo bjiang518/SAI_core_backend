@@ -263,6 +263,32 @@ struct HomeView: View {
                     showingQuestionGeneration = true
                 }
             }
+            .onChange(of: appState.shouldOpenWeaknessPractice) { _, shouldOpen in
+                guard shouldOpen else { return }
+                appState.shouldOpenWeaknessPractice = false
+                if let key = appState.pendingWeaknessKey,
+                   let weaknessValue = ShortTermStatusService.shared.status.activeWeaknesses[key] {
+                    appState.pendingWeaknessKey = nil
+                    feynmanSheetItem = FeynmanSheetItem(weaknessKey: key, weaknessValue: weaknessValue)
+                } else {
+                    // Weakness was resolved — fall back to Mistake Review
+                    appState.pendingWeaknessKey = nil
+                    showingMistakeReview = true
+                }
+            }
+            .onChange(of: appState.shouldOpenIncompleteSession) { _, shouldOpen in
+                guard shouldOpen else { return }
+                appState.shouldOpenIncompleteSession = false
+                if let sessionId = appState.pendingPracticeSessionId,
+                   let session = PracticeSessionManager.shared.getSession(id: sessionId) {
+                    appState.pendingPracticeSessionId = nil
+                    practiceRetrySession = session
+                } else {
+                    // Session completed or expired — fall back to practice library
+                    appState.pendingPracticeSessionId = nil
+                    showingQuestionGeneration = true
+                }
+            }
             .onChange(of: appState.shouldOpenPointsShop) { _, shouldOpen in
                 if shouldOpen {
                     appState.shouldOpenPointsShop = false

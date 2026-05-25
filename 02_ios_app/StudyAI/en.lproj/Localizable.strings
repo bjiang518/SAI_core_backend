@@ -2055,6 +2055,21 @@
 
 // Custom Date Range Picker
 "library.filter.moreSpecific" = "More Specific";
+"library.filter.all" = "All";
+"library.filter.type.label" = "Type";
+"library.filter.type.all" = "All";
+"library.filter.type.questions" = "Questions";
+"library.filter.type.conversations" = "Conversations";
+"library.filter.type.images" = "Images";
+"library.filter.source.label" = "Source";
+"library.filter.source.all" = "All";
+"library.filter.source.homework" = "Homework";
+"library.filter.source.bank" = "Question Bank";
+"library.filter.source.practice" = "Practice";
+"library.filter.result.label" = "Result";
+"library.filter.result.all" = "All";
+"library.filter.result.correct" = "Correct";
+"library.filter.result.incorrect" = "Incorrect";
 "library.customDate.title" = "Select Custom Date Range";
 "library.customDate.subtitle" = "Choose start and end dates for your filter";
 "library.customDate.startDate" = "Start Date";
@@ -3145,6 +3160,9 @@
 "dailyChallenge.goal.weakness" = "Today's Goal: Beat %d Weakness(es)";
 "dailyChallenge.goal.leaf" = "Today's Goal: Light Up \"%@\"";
 "dailyChallenge.goal.normal" = "Today's Challenge: %@ · 3 Questions";
+"dailyChallenge.questionBankBadge" = "Question Bank";
+"dailyChallenge.questionBankHint" = "Today's questions come from the question bank. Good luck!";
+"dailyChallenge.figureLoadFailed" = "Figure failed to load. Check your network and try again.";
 "dailyChallenge.achievement.leafLit" = "Leaf Lit!";
 "dailyChallenge.achievement.viewTree" = "View Knowledge Tree";
 "dailyChallenge.achievement.weaknessConverted" = "Defeated %d Weakness(es)!";
@@ -3165,6 +3183,13 @@
 "lightUpTree.selection.header" = "Unpracticed Topics";
 "lightUpTree.selection.subheader" = "%d topics not yet practiced. Select to generate grade-level questions.";
 "lightUpTree.config.title" = "Practice Settings";
+"lightUpTree.source.title" = "Question Source";
+"lightUpTree.source.ai" = "AI Generated";
+"lightUpTree.source.bank" = "Question Bank";
+"lightUpTree.source.bankHint.math" = "Pulls from AMC, AIME, SAT Math, Math Kangaroo, GSM8K and more. May not match the chosen difficulty exactly.";
+"lightUpTree.source.bankHint.english" = "Pulls from SAT English and LSAT Reading/Logic. May not match the chosen difficulty exactly.";
+"lightUpTree.source.bankHint.science" = "Pulls from ARC Science, ScienceQA and OpenBookQA. May not match the chosen difficulty exactly.";
+"lightUpTree.source.bankHint.general" = "Pulls from MMLU and curated exam questions. May not match the chosen difficulty exactly.";
 "lightUpTree.generate.selectFirst" = "Please select at least one topic";
 "lightUpTree.generate.button" = "Generate %d Questions (%d Topics)";
 "lightUpTree.generating" = "Generating questions…";
@@ -3249,13 +3274,28 @@
 "practice.beta.badge" = "Beta";
 "practice.beta.message" = "We are constructing question banks";
 "practice.mode.ai" = "AI Practice";
-"practice.mode.bank" = "Real Questions";
+"practice.mode.bank" = "Question Bank";
 "proMode.oneMistake" = "1 mistake";
 "proMode.nMistakes" = "%d mistakes";
 "todo.knowledgeTree.title" = "Light Up Knowledge Tree";
 "todo.knowledgeTree.subtitle" = "Explore \"%@\" knowledge map";
 "todo.knowledgeTree.defaultSubject" = "All Subjects";
-"practice.bank.retrieve" = "Get Real Questions";
+"practice.bank.retrieve" = "Get from Question Bank";
+"practice.bank.sources" = "Sources";
+"practice.bank.allSources" = "All";
+"practice.bank.clearSources" = "Clear selection (show all)";
+"practice.bank.selectedCount" = "%d selected";
+"practice.bank.source.gradeSchool" = "Grade School";
+"practice.bank.source.visualMath" = "Visual Math 🖼";
+"practice.bank.source.arc" = "ARC Science";
+"practice.bank.source.scienceqa" = "ScienceQA";
+"practice.bank.source.kangaroo" = "Math Kangaroo 🦘";
+"practice.bank.source.amcJunior" = "AMC 8";
+"practice.bank.source.amcSenior" = "AMC 10/12";
+"practice.bank.source.aime" = "AIME";
+"practice.bank.source.sat" = "SAT Math";
+"practice.bank.source.mmlu" = "MMLU";
+"practice.bank.source.english" = "SAT/LSAT";
 
 // MARK: - Learning View
 "learning.header.title" = "Video Learning";
@@ -3269,7 +3309,11 @@
 
 // MARK: - Learning feature additions
 "mistakeTree.detail.startLearning" = "Start Learning";
-"learning.smartai.hint" = "SmartAI — AI knows what the video is saying";
+"mistakeTree.detail.questionBank" = "Question Bank";
+"leafDetail.bank.errorTitle" = "Couldn't load real questions";
+"leafDetail.bank.errorEmpty" = "No real questions available for this concept yet.";
+"leafDetail.bank.loading" = "Searching the question bank…";
+"learning.smartai.hint" = "AI knows what the video is saying";
 "learning.smartai.badge" = "SmartAI";
 "chat.video.startLearning" = "Video Learning";
 "learning.header.back" = "Chat";

@@ -465,6 +465,29 @@ class PracticeSessionManager: ObservableObject {
         updatePublishedState()
     }
 
+    /// Replace the questions of an existing session — used by Question Bank fallback to
+    /// stamp AI-generated questions with a random bank source so the UI shows a source label.
+    func updateQuestions(sessionId: String, questions: [QuestionGenerationService.GeneratedQuestion]) {
+        var sessions = loadAllSessions()
+        guard let index = sessions.firstIndex(where: { $0.id == sessionId }) else { return }
+        let current = sessions[index]
+        sessions[index] = PracticeSession(
+            id: current.id,
+            questions: questions,
+            generationType: current.generationType,
+            subject: current.subject,
+            difficulty: current.difficulty,
+            questionType: current.questionType,
+            createdDate: current.createdDate,
+            lastAccessedDate: current.lastAccessedDate,
+            completedQuestionIds: current.completedQuestionIds,
+            answers: current.answers,
+            isOrganized: current.isOrganized
+        )
+        saveSessions(sessions)
+        updatePublishedState()
+    }
+
     /// Update both subject and generationType for an existing session (used by chat→practice flow
     /// so we don't double-save the same questions with two different subjects).
     func updateSubjectAndType(sessionId: String, subject: String, generationType: String) {
