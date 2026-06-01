@@ -512,32 +512,20 @@ struct SessionChatView: View {
                 .presentationBackground(.clear)
                 .interactiveDismissDisabled()
             }
-            // Video Learning mode: launched from a chat video card, reuses the current session
+            // Video Learning mode: launched from a chat video card. The video chat runs in
+            // an isolated context — we do NOT seed it with SessionChatView's history, and
+            // we do NOT merge its messages back when the user exits. This keeps the video
+            // chat ephemeral and avoids polluting the main conversation thread.
             .fullScreenCover(item: $learningModeVideo) { video in
-                let recentHistory: [LearningMessage] = networkService.conversationHistory
-                    .suffix(8)
-                    .compactMap { dict in
-                        guard let role = dict["role"], let content = dict["content"],
-                              !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                        else { return nil }
-                        return LearningMessage(role: role == "user" ? .user : .assistant, content: content)
-                    }
                 NavigationStack {
                     LearningView(
                         topicName: video.title,
                         branchName: "",
                         subject: "General",
                         initialVideo: video,
-                        fromChatSessionId: networkService.currentSessionId,
-                        initialChatMessages: recentHistory,
-                        onDismiss: { messages in
-                            for msg in messages {
-                                networkService.appendToConversationHistory([
-                                    "role": msg.role == .user ? "user" : "assistant",
-                                    "content": msg.content
-                                ])
-                            }
-                        }
+                        fromChatSessionId: nil,
+                        initialChatMessages: [],
+                        onDismiss: { _ in }
                     )
                 }
             }
@@ -3007,7 +2995,7 @@ struct SessionChatView: View {
     /// the same vertical space as UIKit navigation bar items like the ⋯ button.
     @ViewBuilder
     private var floatingAvatarOverlay: some View {
-        if hasConversationStarted && !isLiveMode && !showingArchiveProgress && voiceService.isVoiceEnabled {
+        if hasConversationStarted && !isLiveMode && !showingArchiveProgress && voiceService.isVoiceEnabled && learningModeVideo == nil {
             ZStack(alignment: .center) {
                 // Tap area — large invisible circle
                 Circle()

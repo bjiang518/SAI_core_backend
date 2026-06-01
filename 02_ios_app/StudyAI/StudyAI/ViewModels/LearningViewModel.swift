@@ -172,17 +172,21 @@ final class LearningViewModel: ObservableObject {
     private let streamingService = StreamingMessageService.shared
     private let ttsQueueService  = TTSQueueService.shared
 
-    func sendMessage() async {
+    func sendMessage(image: UIImage? = nil) async {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, !isSending else { return }
+        guard (!text.isEmpty || image != nil), !isSending else { return }
         inputText = ""
         isSending = true
         suggestions = []
 
         let contextPrefix = buildVideoContext()
-        let fullMessage = contextPrefix.isEmpty ? text : contextPrefix + "\n\n" + text
+        let userVisibleText = text.isEmpty ? "📷 [Image]" : text
+        let questionText = text.isEmpty
+            ? "Please analyze this image in the context of the video I'm watching."
+            : text
+        let fullMessage = contextPrefix.isEmpty ? questionText : contextPrefix + "\n\n" + questionText
 
-        messages.append(LearningMessage(role: .user, content: text))
+        messages.append(LearningMessage(role: .user, content: userVisibleText))
 
         if sessionId == nil {
             let primer: [[String: String]] = [
@@ -200,9 +204,21 @@ final class LearningViewModel: ObservableObject {
         // Reset TTS chunking for this new message (same as SessionChatViewModel)
         streamingService.resetChunking()
 
+        // Attach image as questionContext so the AI Engine session stores it for follow-ups.
+        var questionContext: [String: Any]? = nil
+        if let img = image,
+           let imageData = ImageProcessingService.shared.compressImageForUpload(img) {
+            questionContext = [
+                "question_image_base64": imageData.base64EncodedString(),
+                "question_text": questionText
+            ]
+        }
+
         await networkService.sendSessionMessageStreaming(
             sessionId: sid,
             message: fullMessage,
+            deepMode: false,
+            questionContext: questionContext,
             onChunk: { [weak self] accumulated in
                 Task { @MainActor [weak self] in
                     guard let self else { return }

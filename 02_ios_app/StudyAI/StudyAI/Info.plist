@@ -2,18 +2,20 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.studyai.weaknessmigration</string>
+	</array>
 	<key>CFBundleDisplayName</key>
 	<string>StudyAgent</string>
 	<key>CFBundleExecutable</key>
 	<string>StudyAI</string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-	<key>CFBundleShortVersionString</key>
-	<string>$(MARKETING_VERSION)</string>
-	<key>CFBundleVersion</key>
-	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -37,33 +39,11 @@
 			</array>
 		</dict>
 	</array>
-	<key>NSCalendarsUsageDescription</key>
-	<string>StudyAgent needs calendar access to add and view Pomodoro focus sessions, helping you plan your study schedule.</string>
-	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>StudyAgent needs full calendar access to add Pomodoro focus reminders and view your schedule.</string>
-	<key>NSRemindersUsageDescription</key>
-	<string>StudyAgent needs reminders access to set notifications for your focus sessions.</string>
-	<key>NSCameraUsageDescription</key>
-	<string>StudyAgent needs camera access to capture homework photos for AI-powered question analysis and solving.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>StudyAgent needs microphone access for voice questions, real-time voice chat with AI tutor, and voice interaction features.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>StudyAgent needs photo library access to select homework images for analysis and to save processed results.</string>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>StudyAgent uses speech recognition to convert your voice questions into text so our AI can provide better learning assistance.</string>
-	<key>NSFaceIDUsageDescription</key>
-	<string>StudyAgent uses Face ID to securely authenticate parents for accessing protected features and parental controls.</string>
-	<key>NSAppleMusicUsageDescription</key>
-	<string>StudyAgent needs access to your music library to play your own songs during focus sessions.</string>
-	<key>UILaunchScreen</key>
-	<dict>
-		<key>UILaunchScreen</key>
-		<dict/>
-	</dict>
-	<key>UIBackgroundModes</key>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>LSApplicationQueriesSchemes</key>
 	<array>
-		<string>audio</string>
-		<string>processing</string>
+		<string>itms-apps</string>
 	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>
@@ -73,20 +53,53 @@
 		<dict>
 			<key>cdn.jsdelivr.net</key>
 			<dict>
-				<key>NSIncludesSubdomains</key>
-				<true/>
-				<key>NSExceptionRequiresForwardSecrecy</key>
-				<true/>
 				<key>NSExceptionMinimumTLSVersion</key>
 				<string>TLSv1.2</string>
+				<key>NSExceptionRequiresForwardSecrecy</key>
+				<true/>
+				<key>NSIncludesSubdomains</key>
+				<true/>
 			</dict>
 		</dict>
 	</dict>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>StudyAgent needs access to your music library to play your own songs during focus sessions.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>StudyAgent needs full calendar access to add Pomodoro focus reminders and view your schedule.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>StudyAgent needs calendar access to add and view Pomodoro focus sessions, helping you plan your study schedule.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>StudyAgent needs camera access to capture homework photos for AI-powered question analysis and solving.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>StudyAgent uses Face ID to securely authenticate parents for accessing protected features and parental controls.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>StudyAgent needs microphone access for voice questions, real-time voice chat with AI tutor, and voice interaction features.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>StudyAgent needs photo library access to select homework images for analysis and to save processed results.</string>
+	<key>NSRemindersUsageDescription</key>
+	<string>StudyAgent needs reminders access to set notifications for your focus sessions.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>StudyAgent uses speech recognition to convert your voice questions into text so our AI can provide better learning assistance.</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>IndieFlower-Regular.ttf</string>
+		<string>ZCOOLKuaiLe-Regular.ttf</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+		<string>processing</string>
+	</array>
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UILaunchScreen</key>
+		<dict/>
+	</dict>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
-		<string>UIInterfaceOrientationPortrait</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
+		<string>UIInterfaceOrientationPortrait</string>
 	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
@@ -94,19 +107,6 @@
 		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
-	<key>BGTaskSchedulerPermittedIdentifiers</key>
-	<array>
-		<string>com.studyai.weaknessmigration</string>
-	</array>
-	<key>UIAppFonts</key>
-	<array>
-		<string>IndieFlower-Regular.ttf</string>
-		<string>ZCOOLKuaiLe-Regular.ttf</string>
-	</array>
-	<key>LSApplicationQueriesSchemes</key>
-	<array>
-		<string>itms-apps</string>
 	</array>
 </dict>
 </plist>

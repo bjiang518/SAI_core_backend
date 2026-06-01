@@ -28,7 +28,7 @@
 "settings.signOut" = "退出";
 "settings.biometricLogin" = "%@ 登录";
 "settings.parentControls.message" = "验证家长身份以管理设置";
-"settings.appVersion" = "StudyAgent v1.1";
+"settings.appVersion" = "StudyAgent v1.2";
 "settings.appTagline" = "搭载现代身份验证";
 "settings.appPoweredBy" = "由先进AI模型驱动";
 "settings.security" = "安全与隐私";
@@ -1721,6 +1721,183 @@
 "mistakeReview.filter.strengthsTopicCount" = "%d 个主题";
 "mistakeReview.filter.noStrengthsData" = "暂无数据 — 多做题后即可查看掌握情况。";
 "mistakeReview.filter.uncategorized" = "未分类";
+"mistakeReview.recurringPatterns" = "反复出现的错误模式";
+"tag.misread_problem"          = "看错题";
+"tag.transcription_error"      = "抄写错误";
+"tag.incomplete_solution"      = "解答不完整";
+"tag.arithmetic_slip"          = "计算失误";
+"tag.sign_error"               = "符号错误";
+"tag.decimal_placement"        = "小数点位置错误";
+"tag.order_of_operations"      = "运算顺序错误";
+"tag.algebraic_slip"           = "代数运算错误";
+"tag.unit_omission"            = "漏写单位";
+"tag.wrong_formula"            = "公式用错";
+"tag.definition_wrong"         = "定义混淆";
+"tag.scope_violation"          = "适用范围错误";
+"tag.setup_error"              = "列式错误";
+"tag.inverse_direction"        = "方向相反";
+"tag.condition_ignored"        = "忽略条件";
+"tag.rounding_error"           = "四舍五入错误";
+"tag.notation_error"           = "记号错误";
+"tag.vector_direction_wrong"   = "向量方向错误";
+"tag.unit_conversion_error"    = "单位换算错误";
+"tag.wrong_law_applied"        = "套错定律";
+"tag.force_direction_confused" = "力的方向混淆";
+"tag.sig_fig_error"            = "有效数字错误";
+"tag.balancing_equations"      = "方程式配平错误";
+"tag.grammar_rule_wrong"       = "语法规则错误";
+"tag.date_period_wrong"        = "时间/年代错误";
+"tag.causation_correlation_confused" = "混淆因果与相关";
+// Physics
+"tag.trig_ratio_error"             = "三角函数选错";
+"tag.energy_form_confused"         = "能量形式混淆";
+"tag.inertia_misunderstood"        = "惯性理解错误";
+"tag.field_direction_wrong"        = "场方向错误";
+"tag.diagram_missing"              = "缺少图示";
+// Chemistry
+"tag.mole_ratio_wrong"             = "摩尔比错误";
+"tag.coefficient_error"            = "系数错误";
+"tag.wrong_reaction_type"          = "反应类型选错";
+"tag.charge_balance_wrong"         = "电荷不平衡";
+"tag.lewis_structure_error"        = "路易斯结构错误";
+"tag.equilibrium_direction_wrong"  = "平衡移动方向错误";
+"tag.orbital_filling_wrong"        = "轨道排布错误";
+"tag.state_symbol_missing"         = "缺少状态符号";
+"tag.formula_notation_error"       = "化学式书写错误";
+// Biology
+"tag.terminology_confused"         = "术语混淆";
+"tag.sequence_order_wrong"         = "步骤顺序错误";
+"tag.count_wrong"                  = "数目错误";
+"tag.process_direction_wrong"      = "过程方向反转";
+"tag.organelle_function_confused"  = "细胞器功能混淆";
+"tag.inheritance_pattern_wrong"    = "遗传模式错误";
+"tag.evolution_mechanism_wrong"    = "进化机制错误";
+"tag.structure_function_confused"  = "结构与功能不匹配";
+"tag.vague_explanation"            = "解释含糊";
+"tag.incomplete_process"           = "过程不完整";
+// English
+"tag.grammar_rule_slip"            = "语法规则失误";
+"tag.punctuation_error"            = "标点错误";
+"tag.word_form_error"              = "词形错误";
+"tag.misidentified_tone"           = "语气判断错误";
+"tag.missed_main_idea"             = "未抓住主旨";
+"tag.inference_too_broad"          = "推论过于宽泛";
+"tag.author_bias_missed"           = "未察觉作者倾向";
+"tag.evidence_not_cited"           = "未引用文本依据";
+"tag.vague_response"               = "回答含糊";
+// History
+"tag.figure_confused"              = "人物混淆";
+"tag.location_wrong"               = "地点错误";
+"tag.oversimplification"           = "过度简化";
+"tag.anachronism"                  = "时代错置";
+"tag.perspective_bias"             = "视角偏颇";
+"tag.vague_causation"              = "因果说明含糊";
+"tag.incomplete_context"           = "背景不完整";
+// Computer Science
+"tag.off_by_one_error"             = "差一错误";
+"tag.variable_scope_error"         = "变量作用域错误";
+"tag.operator_precedence_wrong"    = "运算符优先级错误";
+"tag.syntax_confusion"             = "语法混淆";
+"tag.wrong_data_structure"         = "数据结构选错";
+"tag.complexity_wrong"             = "复杂度判断错误";
+"tag.recursion_base_case_missing"  = "缺少递归终止条件";
+"tag.algorithm_logic_wrong"        = "算法逻辑错误";
+"tag.inefficient_solution"         = "解法效率低";
+"tag.edge_case_missed"             = "遗漏边界情况";
+"tag.incomplete_implementation"    = "实现不完整";
+
+// MARK: - Skill / style / strategy tags (added for MistakeReviewView analysis chips)
+// Math skill_tags
+"tag.quick_computation"            = "快速计算";
+"tag.algebraic_manipulation"       = "代数变形";
+"tag.pattern_recognition"          = "规律识别";
+"tag.logical_deduction"            = "逻辑推理";
+"tag.formula_recall_apply"         = "公式记忆与应用";
+"tag.spatial_reasoning"            = "空间想象";
+"tag.number_sense"                 = "数感";
+"tag.word_problem_modeling"        = "应用题建模";
+"tag.estimation"                   = "估算";
+"tag.proof_construction"           = "证明构造";
+// Math style_tags
+"tag.olympiad"                     = "竞赛题";
+"tag.computation_heavy"            = "计算密集";
+"tag.proof_based"                  = "证明题";
+"tag.visual_model"                 = "图形模型";
+// Universal style_tags
+"tag.multi_step"                   = "多步推理";
+"tag.single_step"                  = "单步应用";
+"tag.real_world_applied"           = "实际应用";
+"tag.data_interpretation"          = "数据解读";
+"tag.graphical"                    = "图表题";
+// Universal MC strategy_tags
+"tag.distractor_trap"              = "干扰项陷阱";
+"tag.elimination_method"           = "排除法";
+"tag.backsolve"                    = "代入验证";
+"tag.estimate_to_eliminate"        = "估算排除";
+"tag.ordering_comparison"          = "大小比较";
+// Physics
+"tag.vector_analysis"              = "矢量分析";
+"tag.diagram_analysis"             = "图示分析";
+"tag.unit_analysis"                = "单位分析";
+"tag.formula_chaining"             = "公式串联";
+"tag.conceptual_reasoning"         = "概念推理";
+"tag.graph_interpretation"         = "图象解读";
+"tag.lab_experimental"             = "实验题";
+"tag.calculation_heavy"            = "计算密集";
+"tag.conceptual_qualitative"       = "概念定性";
+// Chemistry
+"tag.equation_based"               = "方程式题";
+"tag.formula_writing"              = "化学式书写";
+"tag.stoichiometry_calc"           = "化学计量计算";
+"tag.periodic_trends_reasoning"    = "周期律推理";
+// Biology / Science
+"tag.classification_type"          = "分类题";
+"tag.process_sequencing"           = "过程排序";
+"tag.diagram_interpretation"       = "图示解读";
+"tag.lab_data_interpretation"      = "实验数据解读";
+"tag.definition_recall"            = "定义回忆";
+"tag.diagram_based"                = "图示题";
+// English / Reading
+"tag.inference"                    = "推断";
+"tag.closest_meaning"              = "最接近含义";
+"tag.vocabulary_in_context"        = "语境词汇";
+"tag.vocabulary_context"           = "语境词汇";
+"tag.text_evidence_citation"       = "文本证据";
+"tag.best_evidence"                = "最佳证据";
+"tag.author_intent_analysis"       = "作者意图分析";
+"tag.tone_identification"          = "语气识别";
+"tag.writing_analysis"             = "写作分析";
+"tag.argument_evaluation"          = "论证评价";
+"tag.comparison_analysis"          = "比较分析";
+"tag.passage_based"                = "阅读题";
+"tag.grammar_application"          = "语法应用";
+"tag.grammar_drill"                = "语法练习";
+// History / Social Studies
+"tag.chronological_reasoning"      = "时序推理";
+"tag.cause_effect_reasoning"       = "因果推理";
+"tag.cause_effect_analysis"        = "因果分析";
+"tag.timeline_ordering"            = "时间排序";
+"tag.map_analysis"                 = "地图分析";
+"tag.geographic_reasoning"         = "地理推理";
+"tag.source_evaluation"            = "史料评价";
+"tag.perspective_analysis"         = "视角分析";
+"tag.primary_source_based"         = "史料原文题";
+// CS
+"tag.algorithm_tracing"            = "算法追踪";
+"tag.code_debugging"               = "代码调试";
+"tag.complexity_analysis"          = "复杂度分析";
+"tag.recursion_reasoning"          = "递归推理";
+"tag.data_structure_selection"     = "数据结构选择";
+"tag.trace_execution"              = "执行追踪";
+"tag.pseudocode_based"             = "伪代码题";
+"tag.code_snippet_based"           = "代码片段题";
+"tag.design_question"              = "设计题";
+"tag.case_study"                   = "案例分析";
+"tag.multiple_choice"              = "选择题";
+"tag.except_type"                  = "排除题";
+"tag.concept_check"                = "概念检测";
+"tag.data_analysis"                = "数据分析";
+"tag.logic_reasoning"              = "逻辑推理";
 "heatmap.title" = "薄弱点热力图";
 "heatmap.subTopics" = "· 子主题";
 "heatmap.back" = "返回";
@@ -3267,6 +3444,10 @@
 "todo.knowledgeTree.title" = "点亮知识树";
 "todo.knowledgeTree.subtitle" = "探索「%@」知识图谱";
 "todo.knowledgeTree.defaultSubject" = "各科目";
+"todo.continuePractice.title" = "继续做题";
+"todo.continuePractice.subtitle" = "%@ · 还剩 %d 题";
+"todo.videoLearning.title" = "视频学习";
+"todo.videoLearning.subtitle" = "用视频搞懂「%@」";
 "practice.bank.retrieve" = "获取真题";
 "practice.bank.sources" = "题库来源";
 "practice.bank.allSources" = "全部";
@@ -3290,6 +3471,8 @@
 "learning.video.pick" = "选择一个视频开始学习";
 "learning.video.searching" = "正在搜索视频...";
 "learning.video.empty" = "暂无相关视频";
+"learning.video.addMore.title" = "添加更多视频";
+"learning.video.addMore.subtitle" = "点击搜索更多相关视频";
 "learning.chat.hintNoVideo" = "选择视频后可以随时暂停提问";
 "learning.chat.hint" = "随时暂停视频，向 AI 提问";
 "learning.chat.placeholder" = "问一个问题...";

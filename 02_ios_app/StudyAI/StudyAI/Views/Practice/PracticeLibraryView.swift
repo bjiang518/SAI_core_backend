@@ -60,6 +60,10 @@ struct PracticeLibraryView: View {
     @AppStorage("daily_challenge_session_id") private var dailyChallengeSessionId = ""
     @AppStorage("daily_challenge_session_date") private var dailyChallengeSessionDate = ""
     @AppStorage("daily_challenge_goal_json") private var dailyChallengeGoalJson = ""
+    /// JSON dict [topicKey: "yyyy-MM-dd"] — tracks Route 2 leaf usage for rotation
+    @AppStorage("daily_challenge_used_leaf_keys") private var usedLeafKeysJson = ""
+    /// JSON array [String] — last 21 topics used by AI routes (7 days × 3), oldest-first
+    @AppStorage("daily_challenge_recent_ai_topics") private var recentAITopicsJson = ""
     @State private var isDailyHistoryExpanded = false
     @State private var selectedHistoryDate: String? = nil
     @State private var historyEntries: [DailyChallengeHistory.Entry] = []
@@ -457,9 +461,10 @@ struct PracticeLibraryView: View {
                     return  // done — skip AI fallback below
                 }
                 // Bank didn't have enough questions → fall through to AI (config already set)
+                let avoidNote = aiTopicAvoidInstruction(topicNames)
                 config = QuestionGenerationService.RandomQuestionsConfig(
                     topics: topicNames,
-                    focusNotes: "IMPORTANT: Each question MUST target one of these specific weak concepts the student struggles with: \(topicNames.joined(separator: ", ")). Make questions directly test understanding of exactly these topics.",
+                    focusNotes: "IMPORTANT: Each question MUST target one of these specific weak concepts the student struggles with: \(topicNames.joined(separator: ", ")). Make questions directly test understanding of exactly these topics.\(avoidNote)",
                     difficulty: adapter.getAdaptiveDifficulty(for: subject),
                     questionCount: 3,
                     questionType: .any
@@ -493,9 +498,12 @@ struct PracticeLibraryView: View {
                     weaknessKeys: [], weaknessTopicNames: [],
                     leafTopicKey: "", leafTopicName: "", leafBranchName: ""
                 )
+                let baseNotes = adapter.getPersonalizedFocusNotes(for: subject)
+                let avoidNote = aiTopicAvoidInstruction(mixedTopics)
+                let focusNotes = [baseNotes, avoidNote].compactMap { $0.isEmpty ? nil : $0 }.joined(separator: " ")
                 config = QuestionGenerationService.RandomQuestionsConfig(
                     topics: mixedTopics.isEmpty ? [subject] : mixedTopics,
-                    focusNotes: adapter.getPersonalizedFocusNotes(for: subject),
+                    focusNotes: focusNotes.isEmpty ? nil : focusNotes,
                     difficulty: adapter.getAdaptiveDifficulty(for: subject),
                     questionCount: 3,
                     questionType: .any
@@ -521,6 +529,11 @@ struct PracticeLibraryView: View {
                         if let data = try? JSONEncoder().encode(goal),
                            let json = String(data: data, encoding: .utf8) {
                             dailyChallengeGoalJson = json
+                        }
+                        // Record used topics for AI dedup + leaf key for rotation
+                        recordUsedAITopics(config.topics)
+                        if goal.routeType == .leafLighting, !goal.leafTopicKey.isEmpty {
+                            recordUsedLeafKey(goal.leafTopicKey)
                         }
                         dailyChallengeSession = PracticeSessionManager.shared.getSession(id: sid) ?? session
                     }
@@ -573,21 +586,38 @@ struct PracticeLibraryView: View {
         }
     }
 
-    /// First unlit topic in the user's most-practiced subject.
+    /// First unlit topic in the user's most-practiced subject, with rotation.
+    /// Skips leaves used in the last 14 days; if all unlit leaves are recent, returns the oldest-used one.
     private func unlitLeafTarget() -> (subject: String, topicKey: String, topicName: String, branchName: String)? {
         guard let subject = mostFrequentSubject() else { return nil }
         let branches = TaxonomyService.shared.knowledgeTree(for: subject)
+        let usedDict = leafUsageDict()
+        let cutoff = Calendar.current.date(byAdding: .day, value: -14, to: Date()) ?? Date.distantPast
+        let fmt = DateFormatter(); fmt.dateFormat = "yyyy-MM-dd"
+
+        // First pass: find an unlit topic NOT used in the last 14 days
         for branch in branches {
             for topic in branch.topics where !topic.isPracticed {
-                return (
-                    subject: subject,
-                    topicKey: "\(subject)/\(branch.name)/\(topic.topicName)",
-                    topicName: topic.topicName,
-                    branchName: branch.name
-                )
+                let key = "\(subject)/\(branch.name)/\(topic.topicName)"
+                if let dateStr = usedDict[key], let date = fmt.date(from: dateStr), date > cutoff {
+                    continue  // used recently — skip
+                }
+                return (subject: subject, topicKey: key, topicName: topic.topicName, branchName: branch.name)
             }
         }
-        return nil
+
+        // Second pass: all unlit leaves were used recently — return the least-recently-used one
+        var oldest: (subject: String, topicKey: String, topicName: String, branchName: String, date: Date)?
+        for branch in branches {
+            for topic in branch.topics where !topic.isPracticed {
+                let key = "\(subject)/\(branch.name)/\(topic.topicName)"
+                let date = usedDict[key].flatMap { fmt.date(from: $0) } ?? Date.distantPast
+                if oldest == nil || date < oldest!.date {
+                    oldest = (subject, key, topic.topicName, branch.name, date)
+                }
+            }
+        }
+        return oldest.map { (subject: $0.subject, topicKey: $0.topicKey, topicName: $0.topicName, branchName: $0.branchName) }
     }
 
     /// User's most-practiced subject from local question history.
@@ -601,6 +631,65 @@ struct PracticeLibraryView: View {
             }
         }
         return freq.max(by: { $0.value < $1.value })?.key
+    }
+
+    // MARK: - Daily Challenge Dedup & Rotation Helpers
+
+    /// Decoded leaf usage dict: [topicKey → "yyyy-MM-dd"]
+    private func leafUsageDict() -> [String: String] {
+        guard !usedLeafKeysJson.isEmpty,
+              let data = usedLeafKeysJson.data(using: .utf8),
+              let dict = try? JSONDecoder().decode([String: String].self, from: data)
+        else { return [:] }
+        return dict
+    }
+
+    /// Record that a leaf topic was used today.
+    private func recordUsedLeafKey(_ key: String) {
+        var dict = leafUsageDict()
+        dict[key] = todayString
+        // Prune entries older than 30 days to prevent unbounded growth
+        let fmt = DateFormatter(); fmt.dateFormat = "yyyy-MM-dd"
+        let cutoff = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date.distantPast
+        dict = dict.filter { _, dateStr in
+            (fmt.date(from: dateStr) ?? Date.distantPast) > cutoff
+        }
+        if let data = try? JSONEncoder().encode(dict),
+           let json = String(data: data, encoding: .utf8) {
+            usedLeafKeysJson = json
+        }
+    }
+
+    /// Recent AI-generated topics (last 21 = 7 days × 3), decoded from AppStorage.
+    private func recentAITopics() -> [String] {
+        guard !recentAITopicsJson.isEmpty,
+              let data = recentAITopicsJson.data(using: .utf8),
+              let arr = try? JSONDecoder().decode([String].self, from: data)
+        else { return [] }
+        return arr
+    }
+
+    /// Add new topics to the rolling history; keep only the last 21.
+    private func recordUsedAITopics(_ topics: [String]) {
+        var existing = recentAITopics()
+        existing.append(contentsOf: topics.filter { !$0.isEmpty })
+        if existing.count > 21 { existing = Array(existing.suffix(21)) }
+        if let data = try? JSONEncoder().encode(existing),
+           let json = String(data: data, encoding: .utf8) {
+            recentAITopicsJson = json
+        }
+    }
+
+    /// Build a soft "avoid" instruction for the AI from the last 21 tracked topics,
+    /// excluding topics that are explicitly targeted (so we don't block weakness topics).
+    private func aiTopicAvoidInstruction(_ currentTopics: [String]) -> String {
+        let recent = recentAITopics()
+        let toAvoid = recent.filter { t in
+            !t.isEmpty && !currentTopics.contains(t)
+        }
+        guard !toAvoid.isEmpty else { return "" }
+        let list = Array(Set(toAvoid)).prefix(6).joined(separator: ", ")
+        return " Do not repeat questions on these recently covered topics: \(list)."
     }
 
     // MARK: - Daily Challenge Expandable History

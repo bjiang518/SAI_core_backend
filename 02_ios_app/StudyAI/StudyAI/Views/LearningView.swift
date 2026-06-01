@@ -50,6 +50,14 @@ struct LearningView: View {
     @Environment(\.dismiss) private var dismiss
     @FocusState private var inputFocused: Bool
 
+    // Snapshot of NetworkService chat state taken when LearningView appears, so we can
+    // restore it on exit. Without this, the call to networkService.createSession() inside
+    // LearningViewModel.sendMessage overrides the host chat's currentSessionId and clears
+    // its conversationHistory, leaking the learning session into the regular chat.
+    @State private var savedSessionId: String? = nil
+    @State private var savedConversationHistory: [[String: String]] = []
+    @State private var didCaptureSessionSnapshot = false
+
     // Draggable divider state — initial fraction sized for 16:9 video + info bar
     @State private var videoFraction: CGFloat = 0.42
     @State private var dragStartFraction: CGFloat = 0.42
@@ -137,13 +145,42 @@ struct LearningView: View {
                         dragStartFraction = f
                     }
                 }
-                .ignoresSafeArea(.keyboard, edges: .bottom)
+                // Let the layout respect the keyboard so the chat input bar slides above it.
+                // Previously this view used `.ignoresSafeArea(.keyboard, edges: .bottom)` which
+                // caused the input field to be covered when the keyboard opened.
             }
 
             // Floating AI avatar — same interaction model as SessionChatView
             floatingAvatarOverlay
         }
         .task { await vm.searchVideos() }
+        .onAppear {
+            // Capture the host chat's session state once, so we can restore it on exit.
+            guard !didCaptureSessionSnapshot else { return }
+            let net = NetworkService.shared
+            savedSessionId = net.currentSessionId
+            savedConversationHistory = net.conversationHistory
+            didCaptureSessionSnapshot = true
+        }
+        .onDisappear {
+            // Stop any in-flight TTS + clear avatar state so the floating avatar doesn't
+            // persist into the next view (e.g., when popping back to SessionChatView).
+            voiceService.stopSpeech()
+            avatarAnimState = .idle
+            avatarLatestMsg = ""
+            avatarLatestMsgId = nil
+
+            // Restore the host chat's session state. LearningView's chat ran in its own
+            // backend session; without this restore the regular chat would inherit the
+            // learning session (Case A: chat → learn → chat) or carry a dangling learning
+            // session forward (Case B: home → learn → exit). currentSessionId's willSet
+            // clears conversationHistory, so set it first and then restore the history.
+            let net = NetworkService.shared
+            if net.currentSessionId != savedSessionId {
+                net.currentSessionId = savedSessionId
+            }
+            net.conversationHistory = savedConversationHistory
+        }
         .sheet(isPresented: $showingCamera) {
             ImageSourceSelectionView(selectedImage: $selectedImage, isPresented: $showingCamera)
         }
@@ -677,14 +714,22 @@ struct LearningView: View {
                     ) {
                         ForEach(vm.videos) { video in
                             LearningVideoCard(video: video) {
+                                inputFocused = false
                                 Task { await vm.selectVideo(video) }
                             }
+                        }
+                        // Trailing "add more" tile — same flow as pull-to-refresh
+                        AddVideoCard(isLoading: vm.isSearching) {
+                            inputFocused = false
+                            Task { await vm.loadMoreVideos() }
                         }
                     }
                     .padding(.horizontal, 16)
                     .padding(.bottom, 16)
                 }
                 .refreshable { await vm.loadMoreVideos() }
+                // Tapping anywhere in the video area should dismiss the chat keyboard
+                .simultaneousGesture(TapGesture().onEnded { inputFocused = false })
             }
         }
     }
@@ -880,6 +925,10 @@ struct LearningView: View {
                     }
                     .padding(.vertical, 12)
                 }
+                .scrollDismissesKeyboard(.interactively)
+                // Tap anywhere in the chat scroll area (empty space, message bubbles) to
+                // dismiss the keyboard. `simultaneousGesture` lets button taps still fire.
+                .simultaneousGesture(TapGesture().onEnded { inputFocused = false })
                 .onChange(of: vm.messages.count) { _ in
                     if let last = vm.messages.last {
                         withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
@@ -1132,23 +1181,24 @@ struct LearningView: View {
                 // Send button
                 Button {
                     inputFocused = false
+                    let img = selectedImage
+                    selectedImage = nil  // clear immediately so UI doesn't show stale thumbnail
                     Task {
                         if let webView = playerWebView {
                             let t = await fetchCurrentTime(from: webView)
                             vm.updateCurrentTime(t)
                         }
-                        await vm.sendMessage()
-                        selectedImage = nil
+                        await vm.sendMessage(image: img)
                     }
                 } label: {
                     Image(systemName: vm.isSending ? "ellipsis.circle" : "arrow.up.circle.fill")
                         .font(.system(size: 30))
-                        .foregroundColor(vm.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || vm.isSending
+                        .foregroundColor((vm.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && selectedImage == nil) || vm.isSending
                                          ? .secondary.opacity(0.4)
                                          : themeManager.accentColor)
                         .symbolEffect(.pulse, isActive: vm.isSending)
                 }
-                .disabled(vm.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || vm.isSending)
+                .disabled((vm.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && selectedImage == nil) || vm.isSending)
                 .buttonStyle(.plain)
                 .animation(.easeInOut(duration: 0.15), value: vm.isSending)
             }
@@ -1454,7 +1504,6 @@ struct LearningVideoCard: View {
     let onTap: () -> Void
 
     @State private var thumbnail: UIImage? = nil
-    @State private var isPressed = false
     @StateObject private var themeManager = ThemeManager.shared
 
     var body: some View {
@@ -1523,20 +1572,13 @@ struct LearningVideoCard: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 9)
             }
+            .frame(maxWidth: .infinity)
+            .background(themeManager.cardBackground)
+            .cornerRadius(14)
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.secondary.opacity(0.12), lineWidth: 1))
+            .shadow(color: .black.opacity(0.06), radius: 6, x: 0, y: 2)
         }
-        .buttonStyle(.plain)
-        .frame(maxWidth: .infinity)
-        .background(themeManager.cardBackground)
-        .cornerRadius(14)
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.secondary.opacity(0.12), lineWidth: 1))
-        .shadow(color: .black.opacity(0.06), radius: 6, x: 0, y: 2)
-        .scaleEffect(isPressed ? 0.96 : 1.0)
-        .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isPressed)
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in isPressed = true }
-                .onEnded   { _ in isPressed = false }
-        )
+        .buttonStyle(LearningCardPressStyle())
         .task { await loadThumbnail() }
     }
 
@@ -1545,6 +1587,81 @@ struct LearningVideoCard: View {
         guard let (data, _) = try? await URLSession.shared.data(from: url),
               let img = UIImage(data: data) else { return }
         await MainActor.run { thumbnail = img }
+    }
+}
+
+/// Trailing "+" tile shown after the video list — taps trigger loadMoreVideos.
+struct AddVideoCard: View {
+    let isLoading: Bool
+    let onTap: () -> Void
+
+    @StateObject private var themeManager = ThemeManager.shared
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(spacing: 0) {
+                ZStack {
+                    LinearGradient(
+                        colors: [themeManager.accentColor.opacity(0.18), themeManager.accentColor.opacity(0.08)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    )
+                    if isLoading {
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                            .tint(themeManager.accentColor)
+                    } else {
+                        Image(systemName: "plus")
+                            .font(.system(size: 30, weight: .semibold))
+                            .foregroundColor(themeManager.accentColor)
+                    }
+                }
+                .aspectRatio(16/9, contentMode: .fit)
+                .frame(maxWidth: .infinity)
+                .clipped()
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(NSLocalizedString("learning.video.addMore.title",
+                                           value: "添加更多视频", comment: ""))
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(themeManager.accentColor)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Text(NSLocalizedString("learning.video.addMore.subtitle",
+                                           value: "点击搜索更多相关视频", comment: ""))
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 9)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(maxWidth: .infinity)
+            .background(themeManager.cardBackground)
+            .cornerRadius(14)
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .strokeBorder(
+                        themeManager.accentColor.opacity(0.45),
+                        style: StrokeStyle(lineWidth: 1.5, dash: [5, 4])
+                    )
+            )
+        }
+        .buttonStyle(LearningCardPressStyle())
+        .disabled(isLoading)
+    }
+}
+
+/// Custom ButtonStyle for video cards — gives press feedback without conflicting
+/// with the parent ScrollView's pan gesture (the previous DragGesture(minimumDistance: 0)
+/// trick blocked vertical scrolls when starting on a card).
+private struct LearningCardPressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
+            .animation(.spring(response: 0.2, dampingFraction: 0.7), value: configuration.isPressed)
     }
 }
 

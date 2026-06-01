@@ -52,6 +52,8 @@ struct SuggestedTodo: Identifiable {
         case openProgress
         /// Open MistakeReviewView with the knowledge tree tab pre-selected.
         case openKnowledgeTree(subject: String?)
+        /// Open LearningView (video + AI) for a specific subject/topic.
+        case openVideoLearning(subject: String, topicName: String, branchName: String)
 
         // ── Category 4 · Deep Extension ────────────────────────────────────
         case startOralPractice
@@ -59,6 +61,8 @@ struct SuggestedTodo: Identifiable {
         case showDailyQuestion(question: String)
         /// Launch Live Mode with a specific learning scenario.
         case startLiveScenario(LiveModeScenario)
+        /// Resume an incomplete practice session without resetting progress.
+        case continueIncompleteSession(sessionId: String, subject: String)
     }
 }
 
@@ -114,6 +118,7 @@ final class SuggestedTodoEngine: ObservableObject {
 
         // Category 2 — Main Feature
         HomeworkGraderProvider(),
+        IncompletePracticeProvider(),   // priority 40 ≈ half of oral+live(75) combined
         OralPracticeProvider(),         // live mode fallback — same priority tier as scenarios
         LiveScenarioProvider(scenario: .oralComposition),
         LiveScenarioProvider(scenario: .debate),
@@ -124,7 +129,8 @@ final class SuggestedTodoEngine: ObservableObject {
 
         // Category 3 — Extended Features
         FocusSessionProvider(),
-        KnowledgeTreeProvider(),
+        KnowledgeTreeProvider(),        // priority 3 — rotates 50/50 with VideoLearning
+        VideoLearningProvider(),        // priority 3 — rotates 50/50 with KnowledgeTree
         ParentReportProvider(),         // placeholder — currently always nil
         ProgressCheckProvider(),
 
@@ -608,6 +614,92 @@ private struct LiveScenarioProvider: SuggestedTodoItemProvider {
             subtitle: scenario.subtitle,
             color:    scenario.color,
             action:   .startLiveScenario(scenario)
+        )
+    }
+}
+
+// MARK: - Category 2 Addition: Incomplete Practice
+
+// Surfaces when the user has left a practice session unfinished.
+// Priority 40 ≈ half the combined weight of OralPractice(15) + LiveScenarios(6×10=60) = 75.
+// Allows it to compete meaningfully for the Cat 2 slot without dominating.
+
+private struct IncompletePracticeProvider: SuggestedTodoItemProvider {
+    let todoId   = "continue_practice"
+    let category = TodoCategory.mainFeature
+    let priority = 40
+
+    func evaluate() -> SuggestedTodo? {
+        guard let session = PracticeSessionManager.shared.incompleteSessions.first else { return nil }
+        let remaining = session.remainingQuestions
+        let subject   = localizeSubject(session.subject)
+        let subtitle  = String(
+            format: NSLocalizedString("todo.continuePractice.subtitle",
+                                      value: "%@ · %d questions left",
+                                      comment: ""),
+            subject, remaining
+        )
+        return SuggestedTodo(
+            id:       todoId,
+            icon:     "play.circle.fill",
+            title:    NSLocalizedString("todo.continuePractice.title", value: "Continue Practice", comment: ""),
+            subtitle: subtitle,
+            color:    Color(hex: "5B8EF0"),
+            action:   .continueIncompleteSession(sessionId: session.id, subject: session.subject)
+        )
+    }
+}
+
+// MARK: - Category 3 Addition: Video Learning
+
+// Rotates 50/50 with KnowledgeTreeProvider (both priority = 3).
+// Picks the user's top weakness subject; falls back to profile's favorite subject.
+
+private struct VideoLearningProvider: SuggestedTodoItemProvider {
+    let todoId   = "video_learning"
+    let category = TodoCategory.extended
+    let priority = 3
+
+    func evaluate() -> SuggestedTodo? {
+        // Prefer the top active weakness for a specific topic+branch
+        let weaknesses = ShortTermStatusService.shared.status.activeWeaknesses
+            .filter { $0.value.value > 0 }
+            .sorted { $0.value.value > $1.value.value }
+
+        let subject: String
+        let topicName: String
+        let branchName: String
+
+        if let top = weaknesses.first {
+            let parts  = top.key.components(separatedBy: "/")
+            subject    = parts.count > 0 ? parts[0] : ""
+            branchName = parts.count > 1 ? parts[1] : subject
+            topicName  = parts.count > 2
+                ? parts[2].replacingOccurrences(of: "_", with: " ")
+                : branchName
+        } else if let fav = ProfileService.shared.currentProfile?.favoriteSubjects.first {
+            subject    = fav
+            branchName = fav
+            topicName  = fav
+        } else {
+            return nil  // no usable subject — skip this slot
+        }
+
+        let displaySubject = localizeSubject(subject)
+        let displayTopic   = topicName.isEmpty ? displaySubject : topicName
+
+        return SuggestedTodo(
+            id:       todoId,
+            icon:     "play.rectangle.fill",
+            title:    NSLocalizedString("todo.videoLearning.title", value: "Video Learning", comment: ""),
+            subtitle: String(
+                format: NSLocalizedString("todo.videoLearning.subtitle",
+                                          value: "Watch a video on \"%@\"",
+                                          comment: ""),
+                displayTopic
+            ),
+            color:    Color(hex: "FF6B35"),
+            action:   .openVideoLearning(subject: subject, topicName: topicName, branchName: branchName)
         )
     }
 }

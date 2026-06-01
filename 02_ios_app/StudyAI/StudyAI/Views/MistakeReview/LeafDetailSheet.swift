@@ -317,28 +317,6 @@ struct LeafDetailSheet: View {
                     }
                 )
             }
-
-            // Question Bank: real exam questions targeting this leaf's topic
-            Button(action: { Task { await generateBankPractice() } }) {
-                HStack(spacing: 8) {
-                    Image(systemName: "rosette")
-                        .font(.system(size: 15, weight: .semibold))
-                    Text(NSLocalizedString("mistakeTree.detail.questionBank",
-                                           value: "题库练习 (真题)", comment: ""))
-                        .font(.system(size: 15, weight: .semibold))
-                }
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 13)
-                .background(
-                    LinearGradient(colors: [Color.orange, Color.red],
-                                   startPoint: .leading, endPoint: .trailing)
-                )
-                .cornerRadius(14)
-            }
-            .buttonStyle(.plain)
-            .disabled(isGeneratingBank)
-            .opacity(isGeneratingBank ? 0.6 : 1.0)
         }
     }
 

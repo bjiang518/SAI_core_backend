@@ -2,113 +2,82 @@
 //  SuggestedTodosSection.swift
 //  StudyAI
 //
-//  Torn-notebook-paper style daily to-do list shown on the Home screen.
-//  Visual design: white paper, faint blue ruled lines, red left margin,
-//  grey binding strip, and an irregular torn-paper bottom edge.
+//  Default theme: clean iOS-style cards.
+//  Other themes: torn-notebook-paper style (white paper, ruled lines, stickers).
 //
 
 import SwiftUI
 import AudioToolbox
 
-// MARK: - Torn-edge Shape
+// MARK: - Torn-edge Shape (notebook themes only)
 
-/// Full-rectangle shape whose bottom edge is replaced by an irregular zigzag,
-/// simulating a page torn from a spiral notebook.
 struct TornEdgeShape: Shape {
-    /// Fixed peak heights (pt) for each zigzag segment.
-    /// Hard-coded so the path is stable across re-renders.
     private let peaks: [CGFloat] = [6, 14, 8, 16, 5, 13, 9, 15, 7, 12, 10, 6, 14, 8, 11, 5]
-    /// How far from the bottom the tear begins.
     private let tearDepth: CGFloat = 18
 
     func path(in rect: CGRect) -> Path {
         var path = Path()
         let segW = rect.width / CGFloat(peaks.count)
-
-        // Straight top and sides down to the tear start
         path.move(to: CGPoint(x: 0, y: 0))
         path.addLine(to: CGPoint(x: rect.width, y: 0))
-        path.addLine(to: CGPoint(x: rect.width,
-                                 y: rect.height - tearDepth + peaks[peaks.count - 1]))
-
-        // Zigzag from right to left
+        path.addLine(to: CGPoint(x: rect.width, y: rect.height - tearDepth + peaks[peaks.count - 1]))
         for i in stride(from: peaks.count - 1, through: 0, by: -1) {
-            path.addLine(to: CGPoint(
-                x: CGFloat(i) * segW,
-                y: rect.height - tearDepth + peaks[i]
-            ))
+            path.addLine(to: CGPoint(x: CGFloat(i) * segW, y: rect.height - tearDepth + peaks[i]))
         }
-
         path.addLine(to: CGPoint(x: 0, y: rect.height - tearDepth + peaks[0]))
         path.closeSubpath()
         return path
     }
 }
 
-// MARK: - Highlighter Mark
+// MARK: - Highlighter Mark (notebook themes only)
 
-/// Organic felt-tip highlight band behind text — mimics a real highlighter stroke.
-/// Covers roughly the lower 70 % of the text height with gently wavy top and bottom edges.
 private struct HighlighterMark: Shape {
     func path(in rect: CGRect) -> Path {
         var p = Path()
         let top = rect.height * 0.18
         let bot = rect.height * 0.88
-        let l   = rect.minX - 3
-        let r   = rect.maxX + 4
-
-        // Top edge — gentle left-dip right-rise
+        let l = rect.minX - 3
+        let r = rect.maxX + 4
         p.move(to: CGPoint(x: l, y: top + 1.5))
-        p.addCurve(
-            to: CGPoint(x: r, y: top - 0.5),
-            control1: CGPoint(x: rect.width * 0.32, y: top - 2.5),
-            control2: CGPoint(x: rect.width * 0.70, y: top + 2.0)
-        )
-        // Right edge
+        p.addCurve(to: CGPoint(x: r, y: top - 0.5),
+                   control1: CGPoint(x: rect.width * 0.32, y: top - 2.5),
+                   control2: CGPoint(x: rect.width * 0.70, y: top + 2.0))
         p.addLine(to: CGPoint(x: r, y: bot + 0.5))
-        // Bottom edge — opposite gentle wave
-        p.addCurve(
-            to: CGPoint(x: l, y: bot - 0.5),
-            control1: CGPoint(x: rect.width * 0.65, y: bot + 2.5),
-            control2: CGPoint(x: rect.width * 0.28, y: bot - 2.0)
-        )
+        p.addCurve(to: CGPoint(x: l, y: bot - 0.5),
+                   control1: CGPoint(x: rect.width * 0.65, y: bot + 2.5),
+                   control2: CGPoint(x: rect.width * 0.28, y: bot - 2.0))
         p.closeSubpath()
         return p
     }
 }
 
-// MARK: - Handwritten Underline
+// MARK: - Handwritten Underline (notebook themes only)
 
 private struct HandwrittenUnderline: View {
     let color: Color
     var body: some View {
         Canvas { ctx, size in
             var path = Path()
-            // Gentle S-curve: starts low-left, arcs up through middle, dips back down at right
             path.move(to: CGPoint(x: 0, y: size.height * 0.75))
-            path.addCurve(
-                to: CGPoint(x: size.width, y: size.height * 0.3),
-                control1: CGPoint(x: size.width * 0.28, y: size.height * 0.0),
-                control2: CGPoint(x: size.width * 0.72, y: size.height * 1.05)
-            )
-            ctx.stroke(
-                path,
-                with: .color(color),
-                style: StrokeStyle(lineWidth: 1.6, lineCap: .round, lineJoin: .round)
-            )
+            path.addCurve(to: CGPoint(x: size.width, y: size.height * 0.3),
+                          control1: CGPoint(x: size.width * 0.28, y: size.height * 0.0),
+                          control2: CGPoint(x: size.width * 0.72, y: size.height * 1.05))
+            ctx.stroke(path, with: .color(color),
+                       style: StrokeStyle(lineWidth: 1.6, lineCap: .round, lineJoin: .round))
         }
         .frame(height: 5)
     }
 }
 
-// MARK: - Sticker Decoration
+// MARK: - Sticker Decoration (notebook themes only)
 
 private struct StickerDeco {
     let name: String
-    let xFrac: CGFloat   // 0–1 fraction of card width
-    let yFrac: CGFloat   // 0–1 fraction of card height
-    let size: CGFloat    // pt
-    let rotation: Double // degrees
+    let xFrac: CGFloat
+    let yFrac: CGFloat
+    let size: CGFloat
+    let rotation: Double
 }
 
 // MARK: - Section View
@@ -124,7 +93,7 @@ struct SuggestedTodosSection: View {
     @State private var isRefreshing = false
     @State private var stickerDecos: [StickerDeco] = []
 
-    // MARK: Dismiss animation state
+    // Dismiss animation state
     @State private var dismissingId: String? = nil
     @State private var shakeOffsetX: CGFloat = 0
     @State private var tearOffsetX: CGFloat = 0
@@ -132,13 +101,18 @@ struct SuggestedTodosSection: View {
     @State private var tearRotation: Double = 0
     @State private var tearOpacity: Double = 1.0
 
-    // MARK: Expand / collapse
+    // Expand / collapse
     @State private var isExpanded: Bool = false
 
-    // MARK: Greeting
+    // Folded-state rotating todo (iOS default theme only). When the section is folded
+    // and there are todos, we surface a single todo card and auto-rotate it every
+    // ~6 seconds so the home screen feels alive instead of showing a dead placeholder.
+    @State private var collapsedRotatingIndex: Int = 0
+    private let collapsedRotationInterval: UInt64 = 6_000_000_000  // 6 s in ns
+
+    // Greeting
     @State private var greetingIndex: Int = Int.random(in: 0..<15)
 
-    // All available cartoon sticker asset names
     private let allStickerNames: [String] = [
         "arrow-03-svgrepo-com", "arrow-07-svgrepo-com",
         "arrow-10-svgrepo-com", "arrow-11-svgrepo-com",
@@ -168,87 +142,57 @@ struct SuggestedTodosSection: View {
         "trophy-award-winner-svgrepo-com"
     ]
 
-    /// Pick 2 different stickers and a fresh greeting phrase each time.
     private func buildStickers() {
         greetingIndex = Int.random(in: 0..<15)
         let shuffled = allStickerNames.shuffled()
-        // Zone A — upper-right: x 60–88%, y 4–28%
-        let a = StickerDeco(
-            name: shuffled[0],
-            xFrac: CGFloat.random(in: 0.60...0.88),
-            yFrac: CGFloat.random(in: 0.04...0.28),
-            size: CGFloat.random(in: 38...62),
-            rotation: Double.random(in: -22...22)
-        )
-        // Zone B — lower: x 42–82%, y 68–88%
-        let b = StickerDeco(
-            name: shuffled[1],
-            xFrac: CGFloat.random(in: 0.42...0.82),
-            yFrac: CGFloat.random(in: 0.68...0.88),
-            size: CGFloat.random(in: 38...62),
-            rotation: Double.random(in: -22...22)
-        )
-        stickerDecos = [a, b]
+        stickerDecos = [
+            StickerDeco(name: shuffled[0],
+                        xFrac: CGFloat.random(in: 0.60...0.88),
+                        yFrac: CGFloat.random(in: 0.04...0.28),
+                        size: CGFloat.random(in: 38...62),
+                        rotation: Double.random(in: -22...22)),
+            StickerDeco(name: shuffled[1],
+                        xFrac: CGFloat.random(in: 0.42...0.82),
+                        yFrac: CGFloat.random(in: 0.68...0.88),
+                        size: CGFloat.random(in: 38...62),
+                        rotation: Double.random(in: -22...22)),
+        ]
     }
 
-    // MARK: Theme colours
+    // MARK: Theme helpers
+
+    private var currentTheme: ThemeMode { themeManager.currentTheme }
+    private var isDefaultTheme: Bool { currentTheme == .default }
 
     private var paperColor: Color {
-        if currentTheme == .default {
+        if isDefaultTheme {
             return colorScheme == .dark ? themeManager.notebookPaperColorDark : themeManager.notebookPaperColor
         }
         return themeManager.notebookPaperColor
     }
-    private var lineColor: Color {
-        themeManager.notebookGridLineColor
-    }
-    private var showGridLines: Bool {
-        themeManager.showsNotebookGridLines
-    }
-    private var primaryText: Color {
-        themeManager.cardTextPrimary
-    }
-    private var secondaryText: Color {
-        themeManager.cardTextSecondary
-    }
-    private var chevronColor: Color {
-        themeManager.cardTextSecondary.opacity(0.6)
-    }
-    private var dividerColor: Color {
-        themeManager.cardTextSecondary.opacity(0.2)
-    }
+    private var lineColor: Color    { themeManager.notebookGridLineColor }
+    private var showGridLines: Bool { themeManager.showsNotebookGridLines }
+    private var primaryText: Color  { themeManager.cardTextPrimary }
+    private var secondaryText: Color { themeManager.cardTextSecondary }
+    private var chevronColor: Color { themeManager.cardTextSecondary.opacity(0.6) }
+    private var dividerColor: Color { themeManager.cardTextSecondary.opacity(0.2) }
 
-    private var currentTheme: ThemeMode {
-        themeManager.currentTheme
-    }
-
-    // MARK: Fonts
-
-    /// Picks IndieFlower for Latin-only text, ZCOOLKuaiLe-Regular the moment
-    /// the string contains any CJK Unified Ideograph. This way the font follows
-    /// the content itself — not the device locale — so mixed-language todo items
-    /// always render in the right handwriting style.
     private func handwritingFont(size: CGFloat, for text: String) -> Font {
         let hasCJK = text.unicodeScalars.contains {
-            (0x4E00...0x9FFF ~= $0.value) || // CJK Unified Ideographs
-            (0x3400...0x4DBF ~= $0.value)    // CJK Extension A
+            (0x4E00...0x9FFF ~= $0.value) || (0x3400...0x4DBF ~= $0.value)
         }
         return hasCJK
             ? Font.custom("ZCOOLKuaiLe-Regular", size: size)
             : Font.custom("IndieFlower", size: size)
     }
 
-    // MARK: – Dismiss animation
+    // MARK: Dismiss animations
 
     private func animateDismiss(_ id: String) {
         guard dismissingId == nil else { return }
         dismissingId = id
-
-        // Phase 1: quick left-right shake (0 – 0.18s)
-        // Haptic: sharp snap at shake start
         let snapHaptic = UIImpactFeedbackGenerator(style: .rigid)
         snapHaptic.impactOccurred()
-
         withAnimation(.easeInOut(duration: 0.08)) { shakeOffsetX = 9 }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
             withAnimation(.easeInOut(duration: 0.08)) { shakeOffsetX = -6 }
@@ -256,61 +200,34 @@ struct SuggestedTodosSection: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) {
             withAnimation(.easeOut(duration: 0.04)) { shakeOffsetX = 0 }
         }
-
-        // Phase 2: tear-off — item peels up-right, rotates, fades (0.22s)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
-            // Sound: system "swipe/delete" tone timed with the visual tear
             AudioServicesPlaySystemSound(1104)
-            // Haptic: softer secondary impact at the moment of "rip"
-            let ripHaptic = UIImpactFeedbackGenerator(style: .medium)
-            ripHaptic.impactOccurred()
-
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             withAnimation(.easeIn(duration: 0.30)) {
-                tearOffsetX = 55
-                tearOffsetY = -30
-                tearRotation = 12
-                tearOpacity = 0
+                tearOffsetX = 55; tearOffsetY = -30; tearRotation = 12; tearOpacity = 0
             }
         }
-
-        // Phase 3: remove item — no spring so siblings don't reposition (0.56s)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.56) {
             onDismiss(id)
-            // Reset all state after the row is gone
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                dismissingId  = nil
-                shakeOffsetX  = 0
-                tearOffsetX   = 0
-                tearOffsetY   = 0
-                tearRotation  = 0
-                tearOpacity   = 1.0
+                dismissingId = nil; shakeOffsetX = 0
+                tearOffsetX = 0; tearOffsetY = 0; tearRotation = 0; tearOpacity = 1.0
             }
         }
     }
 
-    // MARK: – Swipe dismiss animation
-
     private func animateSwipeDismiss(_ id: String, toRight: Bool, fromOffset: CGFloat = 0) {
         guard dismissingId == nil else { return }
         dismissingId = id
-
         AudioServicesPlaySystemSound(1104)
-        let haptic = UIImpactFeedbackGenerator(style: .medium)
-        haptic.impactOccurred()
-
-        // Initialise at the finger's release position so there is no pop
-        tearOffsetX  = fromOffset
-        tearOffsetY  = 0
-        tearRotation = 0
-        tearOpacity  = 1.0
-
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        tearOffsetX = fromOffset; tearOffsetY = 0; tearRotation = 0; tearOpacity = 1.0
         withAnimation(.easeOut(duration: 0.22)) {
-            tearOffsetX  = toRight ? 360 : -360
-            tearOffsetY  = -8
+            tearOffsetX = toRight ? 360 : -360
+            tearOffsetY = -8
             tearRotation = toRight ? 6 : -6
-            tearOpacity  = 0
+            tearOpacity = 0
         }
-
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.26) {
             onDismiss(id)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
@@ -323,10 +240,202 @@ struct SuggestedTodosSection: View {
     // MARK: Body
 
     var body: some View {
+        Group {
+            if isDefaultTheme {
+                iOSStyleBody
+            } else {
+                notebookStyleBody
+            }
+        }
+        .onAppear { buildStickers() }
+    }
+
+    // MARK: – iOS-style body (default theme)
+
+    private var iOSStyleBody: some View {
+        VStack(spacing: 0) {
+            iOSHeaderRow
+
+            if isExpanded {
+                VStack(spacing: 10) {
+                    if todos.isEmpty {
+                        iOSEmptyState
+                    } else {
+                        ForEach(todos) { todo in
+                            TodoRowView(
+                                todo: todo,
+                                isIOSStyle: true,
+                                dismissingId: dismissingId,
+                                shakeOffsetX: shakeOffsetX,
+                                tearOffsetX: tearOffsetX,
+                                tearOffsetY: tearOffsetY,
+                                tearRotation: tearRotation,
+                                tearOpacity: tearOpacity,
+                                primaryText: primaryText,
+                                secondaryText: secondaryText,
+                                chevronColor: chevronColor,
+                                fontProvider: handwritingFont(size:for:),
+                                onAction: onAction,
+                                onXDismiss: animateDismiss,
+                                onSwipeDismiss: animateSwipeDismiss
+                            )
+                        }
+                    }
+                }
+                .padding(.top, 2)
+                .padding(.bottom, 4)
+                .clipped()
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            } else {
+                iOSCollapsedHint
+                    .transition(.opacity)
+            }
+
+            iOSExpandToggleRow
+        }
+    }
+
+    /// iOS-style toggle: chevron flanked by thin divider lines, matching the
+    /// AdditionalActionsSection chevron in HomeView so the two sections look unified.
+    private var iOSExpandToggleRow: some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            withAnimation(.spring(response: 0.42, dampingFraction: 0.74)) { isExpanded.toggle() }
+        } label: {
+            HStack(spacing: 0) {
+                Rectangle()
+                    .fill(Color.secondary.opacity(0.18))
+                    .frame(height: 1)
+
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.secondary.opacity(0.5))
+                    .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                    .frame(width: 30, height: 30)
+                    .background(Circle().fill(Color.secondary.opacity(0.09)))
+                    .padding(.horizontal, 10)
+
+                Rectangle()
+                    .fill(Color.secondary.opacity(0.18))
+                    .frame(height: 1)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 6)
+    }
+
+    private var iOSHeaderRow: some View {
+        let greeting = NSLocalizedString(
+            "suggestedTodo.greeting.\(greetingIndex)",
+            value: "今天想一起探索点什么？",
+            comment: ""
+        )
+        return HStack(spacing: 6) {
+            Text(greeting)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundColor(primaryText)
+            Spacer()
+            Button {
+                isRefreshing = true
+                greetingIndex = Int.random(in: 0..<15)
+                onRefresh()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { isRefreshing = false }
+            } label: {
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.secondary.opacity(0.6))
+                    .rotationEffect(.degrees(isRefreshing ? 360 : 0))
+                    .animation(isRefreshing ? .linear(duration: 0.5) : .default, value: isRefreshing)
+                    .frame(width: 28, height: 28)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 2)
+        .padding(.top, 4)
+        .padding(.bottom, 10)
+    }
+
+    private var iOSEmptyState: some View {
+        HStack {
+            Text(NSLocalizedString("suggestedTodo.empty", value: "今日任务已全部完成 🎉", comment: ""))
+                .font(.system(size: 15))
+                .foregroundColor(.secondary)
+            Spacer()
+        }
+        .padding(.horizontal, 4)
+        .padding(.vertical, 12)
+    }
+
+    private var iOSCollapsedHint: some View {
+        Group {
+            if todos.isEmpty {
+                HStack {
+                    Text(NSLocalizedString("suggestedTodo.collapsed", value: "展开看看今天推荐", comment: ""))
+                        .font(.system(size: 15))
+                        .foregroundColor(.secondary.opacity(0.75))
+                    Spacer()
+                }
+                .padding(.horizontal, 4)
+                .padding(.vertical, 10)
+            } else {
+                // Show one rotating todo so the folded section still surfaces value.
+                let safeIndex = collapsedRotatingIndex % max(todos.count, 1)
+                let displayed = todos[safeIndex]
+                TodoRowView(
+                    todo: displayed,
+                    isIOSStyle: true,
+                    dismissingId: dismissingId,
+                    shakeOffsetX: shakeOffsetX,
+                    tearOffsetX: tearOffsetX,
+                    tearOffsetY: tearOffsetY,
+                    tearRotation: tearRotation,
+                    tearOpacity: tearOpacity,
+                    primaryText: primaryText,
+                    secondaryText: secondaryText,
+                    chevronColor: chevronColor,
+                    fontProvider: handwritingFont(size:for:),
+                    onAction: onAction,
+                    onXDismiss: animateDismiss,
+                    onSwipeDismiss: animateSwipeDismiss
+                )
+                .id(displayed.id)
+                .transition(.asymmetric(
+                    insertion: .opacity.combined(with: .offset(y: 6)),
+                    removal: .opacity.combined(with: .offset(y: -6))
+                ))
+                .padding(.vertical, 2)
+            }
+        }
+        // Drive the rotation. `.task(id:)` cancels & restarts when either todo count
+        // changes or the user expands/collapses the section.
+        .task(id: rotationTaskKey) {
+            // No rotation needed when expanded, empty, or only one todo.
+            guard !isExpanded, todos.count > 1 else { return }
+            // Reset index in case the underlying todos array shrank below the old index.
+            collapsedRotatingIndex %= max(todos.count, 1)
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: collapsedRotationInterval)
+                if Task.isCancelled { break }
+                withAnimation(.easeInOut(duration: 0.35)) {
+                    collapsedRotatingIndex = (collapsedRotatingIndex + 1) % max(todos.count, 1)
+                }
+            }
+        }
+    }
+
+    /// Composite key so the rotation task restarts whenever any input that affects
+    /// rotation behavior changes — todo count or expand/collapse state.
+    private var rotationTaskKey: String {
+        "\(isExpanded)-\(todos.count)"
+    }
+
+    // MARK: – Notebook-style body (other themes)
+
+    private var notebookStyleBody: some View {
         VStack(spacing: 0) {
             headerRow
 
-            // Collapsed hint OR full list
             if isExpanded {
                 VStack(spacing: 0) {
                     if todos.isEmpty {
@@ -335,6 +444,7 @@ struct SuggestedTodosSection: View {
                         ForEach(todos) { todo in
                             TodoRowView(
                                 todo: todo,
+                                isIOSStyle: false,
                                 dismissingId: dismissingId,
                                 shakeOffsetX: shakeOffsetX,
                                 tearOffsetX: tearOffsetX,
@@ -353,7 +463,6 @@ struct SuggestedTodosSection: View {
                     }
                     Color.clear.frame(height: 8)
                 }
-                // Prevents flying items from escaping above the header
                 .clipped()
                 .transition(.opacity.combined(with: .move(edge: .top)))
             } else {
@@ -361,20 +470,14 @@ struct SuggestedTodosSection: View {
                     .transition(.opacity)
             }
 
-            // Expand / collapse toggle arrow
             expandToggleRow
-
-            // Extra bottom padding so text clears the torn edge
             Color.clear.frame(height: 22)
         }
         .background(notebookBackground)
         .shadow(
-            color: colorScheme == .dark
-                ? Color.black.opacity(0.35)
-                : Color.black.opacity(0.10),
+            color: colorScheme == .dark ? Color.black.opacity(0.35) : Color.black.opacity(0.10),
             radius: 5, x: 0, y: 4
         )
-        .onAppear { buildStickers() }
     }
 
     // MARK: – Paper background
@@ -382,16 +485,11 @@ struct SuggestedTodosSection: View {
     private var notebookBackground: some View {
         GeometryReader { geo in
             ZStack {
-                // 1. Warm graph-paper fill
                 paperColor
-
-                // 2. Grid lines — equal horizontal + vertical spacing (theme-controlled)
                 if showGridLines {
                     Canvas { ctx, size in
                         let spacing: CGFloat = 24
                         let style = StrokeStyle(lineWidth: 0.5, lineCap: .round)
-
-                        // Horizontal lines
                         var y: CGFloat = spacing
                         while y < size.height {
                             var p = Path()
@@ -400,8 +498,6 @@ struct SuggestedTodosSection: View {
                             ctx.stroke(p, with: .color(lineColor), style: style)
                             y += spacing
                         }
-
-                        // Vertical lines
                         var x: CGFloat = spacing
                         while x < size.width {
                             var p = Path()
@@ -412,20 +508,14 @@ struct SuggestedTodosSection: View {
                         }
                     }
                 }
-
-                // 3. Cartoon stickers — randomised each appearance, behind all content
                 ForEach(stickerDecos, id: \.name) { deco in
                     Image(deco.name)
-                        .resizable()
-                        .scaledToFit()
+                        .resizable().scaledToFit()
                         .frame(width: deco.size, height: deco.size)
                         .rotationEffect(.degrees(deco.rotation))
                         .opacity(colorScheme == .dark ? 0.10 : 0.13)
                         .allowsHitTesting(false)
-                        .position(
-                            x: geo.size.width  * deco.xFrac,
-                            y: geo.size.height * deco.yFrac
-                        )
+                        .position(x: geo.size.width * deco.xFrac, y: geo.size.height * deco.yFrac)
                 }
             }
             .clipShape(TornEdgeShape())
@@ -433,7 +523,7 @@ struct SuggestedTodosSection: View {
         }
     }
 
-    // MARK: – Header
+    // MARK: – Notebook header
 
     private var headerRow: some View {
         let greeting = NSLocalizedString(
@@ -450,38 +540,26 @@ struct SuggestedTodosSection: View {
                 .overlay(alignment: .bottom) {
                     HandwrittenUnderline(color: secondaryText.opacity(0.65))
                 }
-            Text("✏️")
-                .font(.system(size: 11))
+            Text("✏️").font(.system(size: 11))
             Spacer()
             Button {
                 isRefreshing = true
                 greetingIndex = Int.random(in: 0..<15)
                 onRefresh()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-                    isRefreshing = false
-                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { isRefreshing = false }
             } label: {
                 Image(systemName: "arrow.clockwise")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(chevronColor)
                     .rotationEffect(.degrees(isRefreshing ? 360 : 0))
-                    .animation(
-                        isRefreshing
-                            ? .linear(duration: 0.5)
-                            : .default,
-                        value: isRefreshing
-                    )
+                    .animation(isRefreshing ? .linear(duration: 0.5) : .default, value: isRefreshing)
                     .frame(width: 28, height: 28)
             }
             .buttonStyle(.plain)
         }
-        .padding(.leading, 14)
-        .padding(.trailing, 10)
-        .padding(.top, 14)
-        .padding(.bottom, 8)
+        .padding(.leading, 14).padding(.trailing, 10)
+        .padding(.top, 14).padding(.bottom, 8)
     }
-
-    // MARK: – Empty state
 
     private var emptyStateRow: some View {
         let text = NSLocalizedString("suggestedTodo.empty", value: "今日任务已全部完成 🎉", comment: "")
@@ -491,39 +569,24 @@ struct SuggestedTodosSection: View {
                 .foregroundColor(secondaryText)
             Spacer()
         }
-        .padding(.leading, 12)
-        .padding(.trailing, 16)
-        .padding(.vertical, 12)
+        .padding(.leading, 12).padding(.trailing, 16).padding(.vertical, 12)
     }
 
-    // MARK: – Collapsed hint
-
     private var collapsedHintRow: some View {
-        let text = NSLocalizedString(
-            "suggestedTodo.collapsed",
-            value: "展开看看今天推荐",
-            comment: ""
-        )
+        let text = NSLocalizedString("suggestedTodo.collapsed", value: "展开看看今天推荐", comment: "")
         return HStack(spacing: 6) {
             Text(text)
                 .font(handwritingFont(size: 16, for: text))
                 .foregroundColor(secondaryText.opacity(0.75))
             Spacer()
         }
-        .padding(.leading, 12)
-        .padding(.trailing, 16)
-        .padding(.vertical, 12)
+        .padding(.leading, 12).padding(.trailing, 16).padding(.vertical, 12)
     }
-
-    // MARK: – Expand / collapse arrow
 
     private var expandToggleRow: some View {
         Button {
-            let haptic = UIImpactFeedbackGenerator(style: .light)
-            haptic.impactOccurred()
-            withAnimation(.spring(response: 0.42, dampingFraction: 0.74)) {
-                isExpanded.toggle()
-            }
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            withAnimation(.spring(response: 0.42, dampingFraction: 0.74)) { isExpanded.toggle() }
         } label: {
             HStack {
                 Spacer()
@@ -541,26 +604,20 @@ struct SuggestedTodosSection: View {
         .padding(.bottom, 2)
     }
 
-    // MARK: – Divider
-
     private var rowDivider: some View {
         Rectangle()
             .fill(dividerColor)
             .frame(height: 0.5)
             .padding(.leading, 8)
     }
-
-    // MARK: – Todo row (see TodoRowView below)
 }
 
 // MARK: - TodoRowView
-// Each row owns its own drag state so only the dragged row re-renders on every
-// touch event — eliminating the parent re-render / jitter problem.
 
 private struct TodoRowView: View {
     let todo: SuggestedTodo
+    let isIOSStyle: Bool
 
-    // Dismiss animation — driven by parent
     let dismissingId: String?
     let shakeOffsetX: CGFloat
     let tearOffsetX: CGFloat
@@ -568,27 +625,110 @@ private struct TodoRowView: View {
     let tearRotation: Double
     let tearOpacity: Double
 
-    // Styling tokens passed from parent
     let primaryText: Color
     let secondaryText: Color
     let chevronColor: Color
     let fontProvider: (CGFloat, String) -> Font
 
-    // Callbacks
     let onAction: (SuggestedTodo.TodoAction) -> Void
     let onXDismiss: (String) -> Void
-    // id, toRight, fromOffset
     let onSwipeDismiss: (String, Bool, CGFloat) -> Void
 
-    // Row-local state — changes here don't touch the parent or sibling rows
     @State private var dragX: CGFloat = 0
     @State private var isSwiping: Bool = false
 
     private var isDismissing: Bool { dismissingId == todo.id }
 
     var body: some View {
+        Group {
+            if isIOSStyle {
+                iOSCard
+            } else {
+                notebookRow
+            }
+        }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 10, coordinateSpace: .local)
+                .onChanged { value in
+                    guard !isDismissing else { return }
+                    let h = value.translation.width
+                    let v = value.translation.height
+                    if isSwiping {
+                        dragX = h
+                    } else if abs(h) > 12 && abs(h) > abs(v) * 1.5 {
+                        isSwiping = true; dragX = h
+                    }
+                }
+                .onEnded { value in
+                    let h = value.translation.width
+                    if isSwiping {
+                        let predicted = value.predictedEndTranslation.width
+                        if abs(h) > 70 || abs(predicted) > 150 {
+                            onSwipeDismiss(todo.id, h > 0, dragX)
+                        } else {
+                            isSwiping = false
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) { dragX = 0 }
+                        }
+                    } else {
+                        isSwiping = false
+                    }
+                }
+        )
+        .offset(x: isDismissing ? (shakeOffsetX + tearOffsetX) : dragX,
+                y: isDismissing ? tearOffsetY : 0)
+        .rotationEffect(.degrees(isDismissing ? tearRotation : 0), anchor: .topLeading)
+        .opacity(isDismissing ? tearOpacity : 1.0)
+        .zIndex(isDismissing || isSwiping ? 1 : 0)
+    }
+
+    // MARK: iOS card
+
+    private var iOSCard: some View {
+        Button { onAction(todo.action) } label: {
+            HStack(spacing: 14) {
+                // Colored circle icon
+                ZStack {
+                    Circle()
+                        .fill(todo.color)
+                        .frame(width: 46, height: 46)
+                    Image(systemName: todo.icon)
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundColor(.white)
+                }
+
+                // Title + subtitle
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(todo.title)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(primaryText)
+                        .lineLimit(1)
+                    Text(todo.subtitle)
+                        .font(.system(size: 13))
+                        .foregroundColor(secondaryText)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.secondary.opacity(0.35))
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 13)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(todo.color.opacity(0.12))
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: Notebook row
+
+    private var notebookRow: some View {
         HStack(alignment: .center, spacing: 16) {
-            // Icon — decorative only
             ZStack {
                 Circle()
                     .stroke(todo.color.opacity(0.35), lineWidth: 1.5)
@@ -599,7 +739,6 @@ private struct TodoRowView: View {
             }
             .allowsHitTesting(false)
 
-            // Text — only this area triggers navigation; rest of card is scroll-through
             Button { onAction(todo.action) } label: {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(todo.title)
@@ -622,7 +761,6 @@ private struct TodoRowView: View {
 
             Spacer()
 
-            // Dismiss button
             Button { onXDismiss(todo.id) } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 10, weight: .medium))
@@ -631,53 +769,6 @@ private struct TodoRowView: View {
             }
             .buttonStyle(.plain)
         }
-        .padding(.leading, 8)
-        .padding(.trailing, 8)
-        .padding(.vertical, 10)
-        // Note: intentionally NO .contentShape(Rectangle()) here.
-        // Adding it makes the whole row claim touch ownership and blocks the parent ScrollView
-        // from recognising vertical scroll gestures, even when using simultaneousGesture.
-        // The swipe gesture works on all visible content areas (icon, text, X button), which
-        // is sufficient. Empty Spacer gaps pass touch events up to the ScrollView.
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 10, coordinateSpace: .local)
-                .onChanged { value in
-                    guard !isDismissing else { return }
-                    let h = value.translation.width
-                    let v = value.translation.height
-
-                    if isSwiping {
-                        dragX = h
-                    } else if abs(h) > 12 && abs(h) > abs(v) * 1.5 {
-                        isSwiping = true
-                        dragX = h
-                    }
-                }
-                .onEnded { value in
-                    let h = value.translation.width
-
-                    if isSwiping {
-                        let predicted = value.predictedEndTranslation.width
-                        if abs(h) > 70 || abs(predicted) > 150 {
-                            onSwipeDismiss(todo.id, h > 0, dragX)
-                        } else {
-                            isSwiping = false
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
-                                dragX = 0
-                            }
-                        }
-                    } else {
-                        isSwiping = false
-                    }
-                }
-        )
-        // Offset: live drag OR parent tear-off animation
-        .offset(
-            x: isDismissing ? (shakeOffsetX + tearOffsetX) : dragX,
-            y: isDismissing ? tearOffsetY : 0
-        )
-        .rotationEffect(.degrees(isDismissing ? tearRotation : 0), anchor: .topLeading)
-        .opacity(isDismissing ? tearOpacity : 1.0)
-        .zIndex(isDismissing || isSwiping ? 1 : 0)
+        .padding(.leading, 8).padding(.trailing, 8).padding(.vertical, 10)
     }
 }

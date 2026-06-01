@@ -74,12 +74,17 @@ struct MistakeReviewView: View {
     @ObservedObject private var statusService = ShortTermStatusService.shared
     @State private var selectedSubject: String?
 
-    init(initialSubject: String? = nil, initialShowKnowledgeTree: Bool = false) {
-        if let subject = initialSubject {
+    init(initialSubject: String? = nil, initialShowKnowledgeTree: Bool = false,
+         initialDetailedBranches: Set<String> = []) {
+        // Treat empty string same as nil — avoids subject chip mismatch when session.subject is ""
+        if let subject = initialSubject, !subject.isEmpty {
             _selectedSubject = State(initialValue: subject)
         }
         if initialShowKnowledgeTree {
             _showKnowledgeTree = State(initialValue: true)
+        }
+        if !initialDetailedBranches.isEmpty {
+            _selectedDetailedBranches = State(initialValue: initialDetailedBranches)
         }
     }
 
@@ -90,6 +95,10 @@ struct MistakeReviewView: View {
     // NEW: Hierarchical filtering state (multi-select)
     @State private var selectedDetailedBranches: Set<String> = []
     @State private var showKnowledgeTree = false
+
+    // Recurring error tags — collapsible card below heatmap (folded by default)
+    @AppStorage("mistakeReview_tagsExpanded") private var tagsExpanded = false
+    @State private var selectedTagForSheet: TagSheetSelection? = nil
 
     // All grade-appropriate subjects for tree mode (fuzzy-matched to actual stored subject names)
     private var allSubjects: [SubjectMistakeCount] {
@@ -230,6 +239,16 @@ struct MistakeReviewView: View {
                                 WeakPointHeatmapView(subject: subject, mistakeService: mistakeService)
                                     .mistakeReviewOnboardingAnchor("mistake_review_onboarding_heatmap")
                                     .padding(.horizontal)
+
+                                // Recurring error patterns — collapsible, below the heatmap
+                                CollapsibleMicroTagsCard(
+                                    subject: subject,
+                                    mistakeService: mistakeService,
+                                    timeRange: selectedTimeRange.mistakeTimeRange,
+                                    isExpanded: $tagsExpanded,
+                                    onTagTap: { tag in selectedTagForSheet = TagSheetSelection(tag: tag) }
+                                )
+                                .padding(.horizontal)
                             }
 
                             if activeFilter == .goodAt {
@@ -424,6 +443,18 @@ struct MistakeReviewView: View {
                 let autoSelectList = showKnowledgeTree ? allSubjects : mistakeService.subjectsWithMistakes
                 if selectedSubject == nil, let firstSubject = autoSelectList.first {
                     selectedSubject = firstSubject.subject
+                } else if let current = selectedSubject,
+                          !autoSelectList.contains(where: { $0.subject == current }) {
+                    // initialSubject was set but doesn't match loaded list (normalization mismatch).
+                    // Try to find a fuzzy match by normalized name; fall back to first available.
+                    let normalized = PracticeSessionManager.normalizeSubject(current)
+                    if let match = autoSelectList.first(where: {
+                        PracticeSessionManager.normalizeSubject($0.subject) == normalized
+                    }) {
+                        selectedSubject = match.subject
+                    } else {
+                        selectedSubject = autoSelectList.first?.subject
+                    }
                 }
                 refreshUnclassifiedCount()
 
@@ -449,6 +480,12 @@ struct MistakeReviewView: View {
                         activeFilter: activeFilter
                     )
                 }
+            }
+            .sheet(item: $selectedTagForSheet) { sel in
+                TaggedMistakesSheet(
+                    tag: sel.tag,
+                    mistakes: mistakesForTag(sel.tag, subject: selectedSubject)
+                )
             }
             .sheet(item: $lightUpSheetContext) { ctx in
                 if let subject = selectedSubject {
@@ -683,7 +720,7 @@ struct MistakeReviewView: View {
         if activeFilter == .active {
             allMistakes = allMistakes.filter { mistake in
                 guard let key = mistake["weaknessKey"] as? String, !key.isEmpty else {
-                    return true // no key → include (safe fallback)
+                    return false // no weaknessKey → not tracked as active, exclude
                 }
                 return ShortTermStatusService.shared.isActiveWeakness(key)
             }
@@ -708,6 +745,15 @@ struct MistakeReviewView: View {
         }
 
         return allMistakes.count
+    }
+
+    /// All wrong-answer mistakes that carry a given micro tag (optionally filtered to a subject).
+    fileprivate func mistakesForTag(_ tag: String, subject: String?) -> [LocalMistake] {
+        currentUserQuestionStorage().getLocalQuestions()
+            .filter { ($0["isCorrect"] as? Bool) == false }
+            .filter { subject == nil || ($0["subject"] as? String) == subject }
+            .filter { ($0["errorMicroTags"] as? [String] ?? []).contains(tag) }
+            .map { LocalMistake(from: $0) }
     }
 
 }
@@ -760,7 +806,7 @@ struct MistakeQuestionListView: View {
         if activeFilter == .active {
             filtered = filtered.filter { mistake in
                 guard let key = mistake.weaknessKey, !key.isEmpty else {
-                    return true // no key → include (safe fallback)
+                    return false // no weaknessKey → not tracked as active, exclude
                 }
                 return ShortTermStatusService.shared.isActiveWeakness(key)
             }
@@ -1026,8 +1072,8 @@ struct MistakeQuestionListView: View {
                             )
                         }
                     },
-                    onGenerateBank: hasBranch ? { count in
-                        Task { await generateBankFromMistakes(count: count) }
+                    onGenerateBank: hasBranch ? { count, bankSource in
+                        Task { await generateBankFromMistakes(count: count, bankSource: bankSource) }
                     } : nil
                 )
                 .iPadSheetFixedSize()
@@ -1181,7 +1227,7 @@ struct MistakeQuestionListView: View {
     }
 
     // Bank question retrieval using weakness branches from selected mistakes
-    private func generateBankFromMistakes(count: Int) async {
+    private func generateBankFromMistakes(count: Int, bankSource: String? = nil) async {
         isGeneratingPractice = true
         defer { isGeneratingPractice = false }
 
@@ -1213,7 +1259,7 @@ struct MistakeQuestionListView: View {
             config:           config,
             userProfile:      userProfile,
             shortTermContext: weaknessKeys.map { ["weakness_key": $0] },
-            bankSource:       nil
+            bankSource:       bankSource
         )
         await MainActor.run {
             switch result {
@@ -1531,7 +1577,9 @@ struct MistakeQuestionCard: View {
                         )
                     }
 
-                    // 4. What Went Wrong (specificIssue + evidence)
+                    // 4. What Went Wrong (specificIssue only — evidence block removed
+                    // because the user's wrong answer is already shown above and the
+                    // evidence text duplicates that information.)
                     if question.hasErrorAnalysis {
                         if let specificIssue = question.specificIssue, !specificIssue.isEmpty {
                             VStack(alignment: .leading, spacing: 6) {
@@ -1550,26 +1598,6 @@ struct MistakeQuestionCard: View {
                             }
                             .padding(10)
                             .background(DesignTokens.Colors.warning.opacity(0.05))
-                            .cornerRadius(8)
-                        }
-
-                        if let evidence = question.errorEvidence, !evidence.isEmpty {
-                            VStack(alignment: .leading, spacing: 6) {
-                                HStack {
-                                    Image(systemName: "magnifyingglass")
-                                        .foregroundColor(themeManager.accentColor)
-                                        .font(.caption)
-                                    Text(NSLocalizedString("mistakeReview.evidence", comment: ""))
-                                        .font(.caption)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(.secondary)
-                                }
-                                Text(evidence)
-                                    .font(.subheadline)
-                                    .foregroundColor(.primary)
-                            }
-                            .padding(10)
-                            .background(themeManager.accentColor.opacity(0.05))
                             .cornerRadius(8)
                         }
                     } else if question.isAnalyzing {
@@ -1620,30 +1648,56 @@ struct MistakeQuestionCard: View {
                         }
                     }
 
-                    // 7. Error classification badge
+                    // 7. Error classification badge + analysis tags
                     if question.hasErrorAnalysis, let errorType = question.errorType {
-                        HStack(spacing: 8) {
-                            Image(systemName: errorIcon(for: errorType))
-                                .foregroundColor(errorColor(for: errorType))
-                                .font(.caption)
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(spacing: 8) {
+                                Image(systemName: errorIcon(for: errorType))
+                                    .foregroundColor(errorColor(for: errorType))
+                                    .font(.caption)
 
-                            Text(errorDisplayName(for: errorType))
-                                .font(.caption)
-                                .fontWeight(.medium)
-                                .foregroundColor(errorColor(for: errorType))
+                                Text(errorDisplayName(for: errorType))
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(errorColor(for: errorType))
 
-                            Spacer()
+                                Spacer()
 
-                            if let confidence = question.errorConfidence {
-                                Text("\(Int(confidence * 100))%")
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
+                                if let confidence = question.errorConfidence {
+                                    Text("\(Int(confidence * 100))%")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(errorColor(for: errorType).opacity(0.1))
+                            .cornerRadius(6)
+
+                            // Tags from error analysis: micro / skill / style — deduped, ordered.
+                            let analysisTags: [String] = {
+                                var seen = Set<String>()
+                                return (question.errorMicroTags + question.skillTags + question.styleTags)
+                                    .filter { !$0.isEmpty && seen.insert($0).inserted }
+                            }()
+                            if !analysisTags.isEmpty {
+                                FlowLayout(items: analysisTags) { tag in
+                                    Text(NSLocalizedString(
+                                            "tag.\(tag)",
+                                            value: tag.replacingOccurrences(of: "_", with: " "),
+                                            comment: ""))
+                                        .font(.caption2)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 3)
+                                        .background(errorColor(for: errorType).opacity(0.08))
+                                        .foregroundColor(errorColor(for: errorType).opacity(0.9))
+                                        .clipShape(Capsule())
+                                        .overlay(
+                                            Capsule().stroke(errorColor(for: errorType).opacity(0.25), lineWidth: 0.5)
+                                        )
+                                }
                             }
                         }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(errorColor(for: errorType).opacity(0.1))
-                        .cornerRadius(6)
                     }
 
                     // 8. How to Improve
@@ -3290,14 +3344,29 @@ struct PracticeConfigurationSheet: View {
     let mistakeCount: Int
     let selectedMistakes: [MistakeQuestion]
     let onGenerate:     (QuestionGenerationService.RandomQuestionsConfig.QuestionDifficulty, Set<QuestionGenerationService.GeneratedQuestion.QuestionType>, Int) -> Void
-    var onGenerateBank: ((Int) -> Void)? = nil   // nil = no bank option available
+    var onGenerateBank: ((Int, String?) -> Void)? = nil   // nil = no bank option; String? = bankSource filter
 
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var profileService = ProfileService.shared
 
     @State private var useRealQuestions   = false
     @State private var selectedDifficulty: QuestionGenerationService.RandomQuestionsConfig.QuestionDifficulty = .intermediate
     @State private var selectedQuestionType: QuestionGenerationService.GeneratedQuestion.QuestionType = .any
     @State private var questionCount: Int = 5
+    @State private var selectedBankSources: Set<NewPracticeSheet.BankSource> = []
+
+    private var mistakeSubject: String { selectedMistakes.first?.subject ?? "" }
+    private var gradeLevel: String? {
+        profileService.currentProfile?.gradeLevel ?? profileService.loadCachedProfile()?.gradeLevel
+    }
+    private var availableBankSources: [NewPracticeSheet.BankSource] {
+        NewPracticeSheet.BankSource.available(for: mistakeSubject, gradeLevel: gradeLevel)
+    }
+    private var bankSourceParam: String? {
+        selectedBankSources.isEmpty
+            ? nil
+            : selectedBankSources.flatMap { $0.backendSources }.joined(separator: ",")
+    }
 
     // Each element: (label, questionsNeeded)
     private var weaknessHints: [(label: String, needed: Int)] {
@@ -3333,7 +3402,9 @@ struct PracticeConfigurationSheet: View {
                     if onGenerateBank != nil {
                         practiceModeToggle
                     }
-                    if !useRealQuestions {
+                    if useRealQuestions {
+                        bankConfigCard
+                    } else {
                         configCard
                     }
                     generateButton
@@ -3493,10 +3564,68 @@ struct PracticeConfigurationSheet: View {
         }
     }
 
+    private var bankConfigCard: some View {
+        VStack(spacing: 16) {
+            // Count slider (reused from AI side)
+            countSlider
+
+            // Source selection — only when multiple sources available for this subject
+            if availableBankSources.count > 1 {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Text(NSLocalizedString("practice.bank.sources", value: "Sources", comment: ""))
+                            .font(.body).fontWeight(.medium)
+                        Spacer()
+                        Text(selectedBankSources.isEmpty
+                             ? NSLocalizedString("practice.bank.allSources", value: "All", comment: "")
+                             : String(format: NSLocalizedString("practice.bank.selectedCount", value: "%d selected", comment: ""), selectedBankSources.count))
+                            .font(.caption).foregroundColor(.secondary)
+                    }
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                        ForEach(availableBankSources) { src in
+                            let isOn = selectedBankSources.contains(src)
+                            Button {
+                                if isOn { selectedBankSources.remove(src) } else { selectedBankSources.insert(src) }
+                            } label: {
+                                VStack(spacing: 4) {
+                                    Image(systemName: src.icon)
+                                        .font(.title3)
+                                        .foregroundColor(isOn ? Color.blue : .secondary)
+                                    Text(src.displayName)
+                                        .font(.caption2)
+                                        .foregroundColor(isOn ? Color.blue : .secondary)
+                                        .lineLimit(2)
+                                        .multilineTextAlignment(.center)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .background(isOn ? Color.blue.opacity(0.1) : Color.gray.opacity(0.05))
+                                .cornerRadius(8)
+                                .overlay(RoundedRectangle(cornerRadius: 8)
+                                    .stroke(isOn ? Color.blue : Color.clear, lineWidth: 2))
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                    }
+                    if !selectedBankSources.isEmpty {
+                        Button { selectedBankSources.removeAll() } label: {
+                            Text(NSLocalizedString("practice.bank.clearSources", value: "Clear selection (show all)", comment: ""))
+                                .font(.caption).foregroundColor(.secondary)
+                        }
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color.gray.opacity(0.05))
+        .cornerRadius(16)
+        .padding(.horizontal)
+    }
+
     private var generateButton: some View {
         Button(action: {
             if useRealQuestions, let bankCb = onGenerateBank {
-                bankCb(questionCount)
+                bankCb(questionCount, bankSourceParam)
             } else {
                 onGenerate(selectedDifficulty, Set([selectedQuestionType]), questionCount)
             }
@@ -3754,16 +3883,215 @@ enum TagLocalization {
         displayNames[tag] ?? tag.replacingOccurrences(of: "_", with: " ").capitalized
     }
 
+    // Full coverage of backend taxonomy at
+    // 04_ai_engine_service/src/config/tag_taxonomy.py error_micro_tags.
     static let displayNames: [String: String] = [
-        "misread_problem":        NSLocalizedString("tag.misread_problem",        value: "Misread Problem",        comment: ""),
-        "incomplete_solution":    NSLocalizedString("tag.incomplete_solution",    value: "Incomplete Solution",    comment: ""),
-        "calculation_error":      NSLocalizedString("tag.calculation_error",      value: "Calculation Error",      comment: ""),
-        "concept_misunderstand":  NSLocalizedString("tag.concept_misunderstand",  value: "Concept Error",          comment: ""),
-        "sign_error":             NSLocalizedString("tag.sign_error",             value: "Sign Error",             comment: ""),
-        "unit_error":             NSLocalizedString("tag.unit_error",             value: "Unit Error",             comment: ""),
-        "formula_error":          NSLocalizedString("tag.formula_error",          value: "Formula Error",          comment: ""),
-        "logic_error":            NSLocalizedString("tag.logic_error",            value: "Logic Error",            comment: ""),
-        "transcription_error":    NSLocalizedString("tag.transcription_error",    value: "Transcription Error",    comment: ""),
-        "wrong_method":           NSLocalizedString("tag.wrong_method",           value: "Wrong Method",           comment: ""),
+        // ── Universal ─────────────────────────────────────────────────
+        "misread_problem":         NSLocalizedString("tag.misread_problem",         value: "Misread Problem",         comment: ""),
+        "transcription_error":     NSLocalizedString("tag.transcription_error",     value: "Transcription Error",     comment: ""),
+        "incomplete_solution":     NSLocalizedString("tag.incomplete_solution",     value: "Incomplete Solution",     comment: ""),
+
+        // ── Math ──────────────────────────────────────────────────────
+        "arithmetic_slip":         NSLocalizedString("tag.arithmetic_slip",         value: "Arithmetic Slip",         comment: ""),
+        "sign_error":              NSLocalizedString("tag.sign_error",              value: "Sign Error",              comment: ""),
+        "decimal_placement":       NSLocalizedString("tag.decimal_placement",       value: "Decimal Placement",       comment: ""),
+        "order_of_operations":     NSLocalizedString("tag.order_of_operations",     value: "Order of Operations",     comment: ""),
+        "algebraic_slip":          NSLocalizedString("tag.algebraic_slip",          value: "Algebraic Slip",          comment: ""),
+        "unit_omission":           NSLocalizedString("tag.unit_omission",           value: "Unit Omission",           comment: ""),
+        "wrong_formula":           NSLocalizedString("tag.wrong_formula",           value: "Wrong Formula",           comment: ""),
+        "definition_wrong":        NSLocalizedString("tag.definition_wrong",        value: "Definition Confused",     comment: ""),
+        "scope_violation":         NSLocalizedString("tag.scope_violation",         value: "Scope Violation",         comment: ""),
+        "setup_error":             NSLocalizedString("tag.setup_error",             value: "Setup Error",             comment: ""),
+        "inverse_direction":       NSLocalizedString("tag.inverse_direction",       value: "Inverse Direction",       comment: ""),
+        "condition_ignored":       NSLocalizedString("tag.condition_ignored",       value: "Condition Ignored",       comment: ""),
+        "rounding_error":          NSLocalizedString("tag.rounding_error",          value: "Rounding Error",          comment: ""),
+        "notation_error":          NSLocalizedString("tag.notation_error",          value: "Notation Error",          comment: ""),
+
+        // ── Physics ───────────────────────────────────────────────────
+        "vector_direction_wrong":  NSLocalizedString("tag.vector_direction_wrong",  value: "Vector Direction Wrong",  comment: ""),
+        "unit_conversion_error":   NSLocalizedString("tag.unit_conversion_error",   value: "Unit Conversion Error",   comment: ""),
+        "trig_ratio_error":        NSLocalizedString("tag.trig_ratio_error",        value: "Wrong Trig Ratio",        comment: ""),
+        "wrong_law_applied":       NSLocalizedString("tag.wrong_law_applied",       value: "Wrong Law Applied",       comment: ""),
+        "force_direction_confused":NSLocalizedString("tag.force_direction_confused",value: "Force Direction Confused",comment: ""),
+        "energy_form_confused":    NSLocalizedString("tag.energy_form_confused",    value: "Energy Form Confused",    comment: ""),
+        "inertia_misunderstood":   NSLocalizedString("tag.inertia_misunderstood",   value: "Inertia Misunderstood",   comment: ""),
+        "field_direction_wrong":   NSLocalizedString("tag.field_direction_wrong",   value: "Field Direction Wrong",   comment: ""),
+        "sig_fig_error":           NSLocalizedString("tag.sig_fig_error",           value: "Sig Fig Error",           comment: ""),
+        "diagram_missing":         NSLocalizedString("tag.diagram_missing",         value: "Diagram Missing",         comment: ""),
+
+        // ── Chemistry ─────────────────────────────────────────────────
+        "mole_ratio_wrong":        NSLocalizedString("tag.mole_ratio_wrong",        value: "Wrong Mole Ratio",        comment: ""),
+        "coefficient_error":       NSLocalizedString("tag.coefficient_error",       value: "Coefficient Error",       comment: ""),
+        "wrong_reaction_type":     NSLocalizedString("tag.wrong_reaction_type",     value: "Wrong Reaction Type",     comment: ""),
+        "charge_balance_wrong":    NSLocalizedString("tag.charge_balance_wrong",    value: "Charge Imbalance",        comment: ""),
+        "lewis_structure_error":   NSLocalizedString("tag.lewis_structure_error",   value: "Lewis Structure Error",   comment: ""),
+        "equilibrium_direction_wrong": NSLocalizedString("tag.equilibrium_direction_wrong", value: "Wrong Equilibrium Shift", comment: ""),
+        "orbital_filling_wrong":   NSLocalizedString("tag.orbital_filling_wrong",   value: "Wrong Orbital Filling",   comment: ""),
+        "state_symbol_missing":    NSLocalizedString("tag.state_symbol_missing",    value: "Missing State Symbol",    comment: ""),
+        "formula_notation_error":  NSLocalizedString("tag.formula_notation_error",  value: "Wrong Chemical Notation", comment: ""),
+
+        // ── Biology ───────────────────────────────────────────────────
+        "terminology_confused":    NSLocalizedString("tag.terminology_confused",    value: "Terminology Confused",    comment: ""),
+        "sequence_order_wrong":    NSLocalizedString("tag.sequence_order_wrong",    value: "Wrong Sequence Order",    comment: ""),
+        "count_wrong":             NSLocalizedString("tag.count_wrong",             value: "Wrong Count",             comment: ""),
+        "process_direction_wrong": NSLocalizedString("tag.process_direction_wrong", value: "Reversed Process Direction", comment: ""),
+        "organelle_function_confused": NSLocalizedString("tag.organelle_function_confused", value: "Organelle Function Confused", comment: ""),
+        "inheritance_pattern_wrong": NSLocalizedString("tag.inheritance_pattern_wrong", value: "Wrong Inheritance Pattern", comment: ""),
+        "evolution_mechanism_wrong": NSLocalizedString("tag.evolution_mechanism_wrong", value: "Wrong Evolution Mechanism", comment: ""),
+        "structure_function_confused": NSLocalizedString("tag.structure_function_confused", value: "Structure–Function Mismatch", comment: ""),
+        "vague_explanation":       NSLocalizedString("tag.vague_explanation",       value: "Vague Explanation",       comment: ""),
+        "incomplete_process":      NSLocalizedString("tag.incomplete_process",      value: "Incomplete Process",      comment: ""),
+
+        // ── English ───────────────────────────────────────────────────
+        "grammar_rule_slip":       NSLocalizedString("tag.grammar_rule_slip",       value: "Grammar Rule Slip",       comment: ""),
+        "punctuation_error":       NSLocalizedString("tag.punctuation_error",       value: "Punctuation Error",       comment: ""),
+        "word_form_error":         NSLocalizedString("tag.word_form_error",         value: "Wrong Word Form",         comment: ""),
+        "misidentified_tone":      NSLocalizedString("tag.misidentified_tone",      value: "Misidentified Tone",      comment: ""),
+        "missed_main_idea":        NSLocalizedString("tag.missed_main_idea",        value: "Missed Main Idea",        comment: ""),
+        "inference_too_broad":     NSLocalizedString("tag.inference_too_broad",     value: "Inference Too Broad",     comment: ""),
+        "author_bias_missed":      NSLocalizedString("tag.author_bias_missed",      value: "Missed Author's Bias",    comment: ""),
+        "grammar_rule_wrong":      NSLocalizedString("tag.grammar_rule_wrong",      value: "Grammar Rule Wrong",      comment: ""),
+        "evidence_not_cited":      NSLocalizedString("tag.evidence_not_cited",      value: "Evidence Not Cited",      comment: ""),
+        "vague_response":          NSLocalizedString("tag.vague_response",          value: "Vague Response",          comment: ""),
+
+        // ── History ───────────────────────────────────────────────────
+        "date_period_wrong":       NSLocalizedString("tag.date_period_wrong",       value: "Date / Period Wrong",     comment: ""),
+        "figure_confused":         NSLocalizedString("tag.figure_confused",         value: "Confused Historical Figures", comment: ""),
+        "location_wrong":          NSLocalizedString("tag.location_wrong",          value: "Wrong Location",          comment: ""),
+        "causation_correlation_confused": NSLocalizedString("tag.causation_correlation_confused", value: "Causation vs Correlation", comment: ""),
+        "oversimplification":      NSLocalizedString("tag.oversimplification",      value: "Oversimplification",      comment: ""),
+        "anachronism":             NSLocalizedString("tag.anachronism",             value: "Anachronism",             comment: ""),
+        "perspective_bias":        NSLocalizedString("tag.perspective_bias",        value: "Perspective Bias",        comment: ""),
+        "vague_causation":         NSLocalizedString("tag.vague_causation",         value: "Vague Causation",         comment: ""),
+        "incomplete_context":      NSLocalizedString("tag.incomplete_context",      value: "Incomplete Context",      comment: ""),
+
+        // ── Computer Science ──────────────────────────────────────────
+        "off_by_one_error":        NSLocalizedString("tag.off_by_one_error",        value: "Off-by-One Error",        comment: ""),
+        "variable_scope_error":    NSLocalizedString("tag.variable_scope_error",    value: "Variable Scope Error",    comment: ""),
+        "operator_precedence_wrong": NSLocalizedString("tag.operator_precedence_wrong", value: "Wrong Operator Precedence", comment: ""),
+        "syntax_confusion":        NSLocalizedString("tag.syntax_confusion",        value: "Syntax Confusion",        comment: ""),
+        "wrong_data_structure":    NSLocalizedString("tag.wrong_data_structure",    value: "Wrong Data Structure",    comment: ""),
+        "complexity_wrong":        NSLocalizedString("tag.complexity_wrong",        value: "Wrong Big-O Complexity",  comment: ""),
+        "recursion_base_case_missing": NSLocalizedString("tag.recursion_base_case_missing", value: "Missing Recursion Base Case", comment: ""),
+        "algorithm_logic_wrong":   NSLocalizedString("tag.algorithm_logic_wrong",   value: "Algorithm Logic Flaw",    comment: ""),
+        "inefficient_solution":    NSLocalizedString("tag.inefficient_solution",    value: "Inefficient Solution",    comment: ""),
+        "edge_case_missed":        NSLocalizedString("tag.edge_case_missed",        value: "Missed Edge Case",        comment: ""),
+        "incomplete_implementation": NSLocalizedString("tag.incomplete_implementation", value: "Incomplete Implementation", comment: ""),
     ]
+}
+
+// MARK: - Recurring Error Tags (collapsible)
+
+/// Identifiable wrapper so a tag string can drive `.sheet(item:)`.
+struct TagSheetSelection: Identifiable {
+    let tag: String
+    var id: String { tag }
+}
+
+/// Collapsible card showing the most frequent error micro tags for a subject.
+/// Tapping a chip opens `TaggedMistakesSheet` (from MistakeNotebookView.swift).
+struct CollapsibleMicroTagsCard: View {
+    let subject: String
+    let mistakeService: MistakeReviewService
+    let timeRange: MistakeTimeRange
+    @Binding var isExpanded: Bool
+    let onTagTap: (String) -> Void
+
+    @StateObject private var themeManager = ThemeManager.shared
+
+    private var topTags: [(tag: String, count: Int)] {
+        let allWrong = currentUserQuestionStorage().getLocalQuestions()
+            .filter { ($0["isCorrect"] as? Bool) == false }
+            .filter { ($0["subject"] as? String) == subject }
+        let inRange = mistakeService.filterByTimeRange(allWrong, timeRange: timeRange)
+
+        var counts: [String: Int] = [:]
+        for m in inRange {
+            for tag in (m["errorMicroTags"] as? [String] ?? []) {
+                counts[tag, default: 0] += 1
+            }
+        }
+        return counts.sorted { $0.value > $1.value }
+            .prefix(8)
+            .map { ($0.key, $0.value) }
+            .sorted { $0.tag.localizedCaseInsensitiveCompare($1.tag) == .orderedAscending }
+    }
+
+    var body: some View {
+        let tags = topTags
+        if tags.isEmpty {
+            EmptyView()
+        } else {
+            VStack(alignment: .leading, spacing: 0) {
+                // Header — tap to toggle
+                Button {
+                    withAnimation(.spring(response: 0.3)) { isExpanded.toggle() }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "tag.fill")
+                            .font(.caption)
+                            .foregroundColor(DesignTokens.Colors.error)
+                        Text(NSLocalizedString("mistakeReview.recurringPatterns",
+                                              value: "Recurring Error Patterns",
+                                              comment: ""))
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(themeManager.primaryText)
+                        Text("(\(tags.count))")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Image(systemName: "chevron.down")
+                            .font(.caption.bold())
+                            .foregroundColor(.secondary)
+                            .rotationEffect(.degrees(isExpanded ? 0 : -90))
+                    }
+                    .padding(12)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
+                if isExpanded {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(tags, id: \.tag) { item in
+                                Button(action: { onTagTap(item.tag) }) {
+                                    HStack(spacing: 5) {
+                                        Text(TagLocalization.displayName(for: item.tag))
+                                            .font(.caption2)
+                                            .fontWeight(.medium)
+                                        Text("×\(item.count)")
+                                            .font(.caption2)
+                                            .fontWeight(.bold)
+                                            .padding(.horizontal, 5)
+                                            .padding(.vertical, 2)
+                                            .background(DesignTokens.Colors.error.opacity(0.15))
+                                            .cornerRadius(8)
+                                    }
+                                    .foregroundColor(DesignTokens.Colors.error)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .background(DesignTokens.Colors.error.opacity(0.08))
+                                    .cornerRadius(12)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 12)
+                    }
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(themeManager.cardBackground)
+                    .shadow(color: .black.opacity(0.05), radius: 3, x: 0, y: 1)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(DesignTokens.Colors.error.opacity(0.15), lineWidth: 1)
+            )
+        }
+    }
 }

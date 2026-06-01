@@ -77,6 +77,9 @@ struct DailyChallengeView: View {
     @State private var organizeWrongCount: Int = 0
     @State private var showMistakeReview = false
     @State private var showReviewPrompt = false
+    // Review prompt waits for BOTH: toast dismissed + error analysis returned from backend
+    @State private var organizeToastDismissed = false
+    @State private var errorAnalysisReady = false
 
     // Animations
     @State private var questionOffset: CGFloat = 0
@@ -107,12 +110,16 @@ struct DailyChallengeView: View {
                 VStack(spacing: 0) {
                     topBar
                     goalHintBar
-                    Spacer(minLength: 0)
-                    questionContent(q)
-                        .offset(y: questionOffset)
-                        .opacity(questionOpacity)
-                    Spacer()
-                    Color.clear.frame(height: hasAnswered ? feedbackPanelHeight : 88)
+
+                    ScrollView(.vertical, showsIndicators: false) {
+                        questionContent(q)
+                            .padding(.top, 12)
+                            .offset(y: questionOffset)
+                            .opacity(questionOpacity)
+                        // Reserve space so content isn't hidden behind the feedback panel
+                        Color.clear.frame(height: hasAnswered ? feedbackPanelHeight + 16 : 88)
+                    }
+                    .frame(maxHeight: .infinity)
                 }
 
                 if hasAnswered {
@@ -179,6 +186,13 @@ struct DailyChallengeView: View {
                 blockedFeature: "questions",
                 onDismiss: { showingGuestConversion = false }
             )
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ErrorAnalysisCompleted"))) { note in
+            // Backend error analysis finished — gate the review-mistakes popup on this signal
+            // so users don't see a stale MistakeReview page.
+            guard let sid = note.userInfo?["sessionId"] as? String, sid == session.id else { return }
+            errorAnalysisReady = true
+            tryShowReviewPrompt()
         }
     }
 
@@ -376,7 +390,9 @@ struct DailyChallengeView: View {
                         image
                             .resizable()
                             .scaledToFit()
-                            .frame(maxWidth: .infinity)
+                            .frame(maxWidth: .infinity, maxHeight: 260)
+                            .frame(minHeight: 80)
+                            .background(Color(.systemGray6).opacity(0.35))
                             .cornerRadius(8)
                     case .failure:
                         figureFailurePlaceholder
@@ -937,29 +953,9 @@ struct DailyChallengeView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
-
-                        if organizeWrongCount > 0 {
-                            Button(action: { showMistakeReview = true }) {
-                                Text(NSLocalizedString("dailyChallenge.reviewMistakes",
-                                                       value: "Review Mistakes & Practice",
-                                                       comment: ""))
-                                    .font(.subheadline.bold())
-                                    .foregroundColor(themeManager.accentColor)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 13)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 14)
-                                            .strokeBorder(themeManager.accentColor.opacity(0.5), lineWidth: 1.5)
-                                            .background(
-                                                RoundedRectangle(cornerRadius: 14)
-                                                    .fill(themeManager.accentColor.opacity(0.08))
-                                            )
-                                    )
-                            }
-                            .buttonStyle(.plain)
-                            .padding(.horizontal, 32)
-                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
-                        }
+                        // Review-mistakes entry point lives only in the bottom slide-up prompt
+                        // (gated on backend ErrorAnalysisCompleted notification), not here —
+                        // otherwise users could open MistakeReview before analysis returns.
                     }
                     .scaleEffect(completionScale)
                     .animation(.spring(response: 0.5, dampingFraction: 0.6).delay(0.30), value: completionScale)
@@ -1504,23 +1500,26 @@ struct DailyChallengeView: View {
         }
     }
 
-    // Triggered automatically when showingCompletion becomes true — runs regardless of
-    // whether the user taps "Collect Reward" or closes via the X button from review mode.
     private func runAnalysis() async {
         guard !hasAnalyzed else { return }
         hasAnalyzed = true
 
+        // self.session is a value-type snapshot from view init — answers written via
+        // sessionManager.updateProgress() live in PracticeSessionManager.shared, not here.
+        // Always read the fresh copy so answers are actually present.
+        let liveAnswers = PracticeSessionManager.shared.getSession(id: session.id)?.answers ?? session.answers
+
         // Questions already handled by per-question archive button are skipped to avoid duplicates.
         let unarchivedWrong = localQuestions.filter { q in
             let qId = q.id.uuidString
-            guard let ans = session.answers[qId],
+            guard let ans = liveAnswers[qId],
                   (ans["is_correct"] as? Bool) != true else { return false }
             return !archivedQuestionIds.contains(qId)
         }
         let wrongCount = unarchivedWrong.count
         let unarchivedCorrect = localQuestions.filter { q in
             let qId = q.id.uuidString
-            guard let ans = session.answers[qId],
+            guard let ans = liveAnswers[qId],
                   (ans["is_correct"] as? Bool) == true else { return false }
             return !archivedQuestionIds.contains(qId)
         }
@@ -1530,7 +1529,7 @@ struct DailyChallengeView: View {
         // so MistakeReviewService can find them) then queue error analysis.
         if !unarchivedWrong.isEmpty {
             let parsedQuestions: [ParsedQuestion] = unarchivedWrong.map { q in
-                let studentAnswer = (session.answers[q.id.uuidString]?["answer"] as? String) ?? ""
+                let studentAnswer = (liveAnswers[q.id.uuidString]?["answer"] as? String) ?? ""
                 return ParsedQuestion(
                     questionText: q.question,
                     answerText: q.correctAnswer,
@@ -1567,7 +1566,7 @@ struct DailyChallengeView: View {
                     "id": archivedQ.id,
                     "questionText": q.question,
                     "answerText": q.correctAnswer,
-                    "studentAnswer": (session.answers[q.id.uuidString]?["answer"] as? String) ?? "",
+                    "studentAnswer": (liveAnswers[q.id.uuidString]?["answer"] as? String) ?? "",
                     "subject": session.subject,
                     "baseBranch": topic
                     // detailedBranch and weaknessKey left for AI to determine
@@ -1590,7 +1589,7 @@ struct DailyChallengeView: View {
                     "id": q.id.uuidString,
                     "questionText": q.question,
                     "answerText": q.correctAnswer,
-                    "studentAnswer": (session.answers[q.id.uuidString]?["answer"] as? String) ?? "",
+                    "studentAnswer": (liveAnswers[q.id.uuidString]?["answer"] as? String) ?? "",
                     "subject": session.subject,
                     "grade": "CORRECT",
                     "isCorrect": true,
@@ -1816,6 +1815,10 @@ struct DailyChallengeView: View {
 
     private func triggerOrganizeToast(wrongCount: Int) {
         organizeWrongCount = wrongCount
+        // Reset gates — popup will only appear when toast dismisses AND analysis returns
+        organizeToastDismissed = false
+        errorAnalysisReady = false
+
         var lines = [NSLocalizedString("practiceSheet.toastTitle", comment: "")]
         lines.append(String(format: NSLocalizedString("practiceSheet.toastProgress", comment: ""), session.subject))
         if wrongCount > 0 {
@@ -1833,11 +1836,18 @@ struct DailyChallengeView: View {
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
             withAnimation(.easeOut(duration: 0.4)) { showOrganizeToast = false }
-            if wrongCount > 0 {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) { showReviewPrompt = true }
-                }
-            }
+            organizeToastDismissed = true
+            tryShowReviewPrompt()
+        }
+    }
+
+    /// Shows the review-mistakes popup only after BOTH the toast has dismissed
+    /// AND the backend error analysis has returned for this session.
+    /// Prevents the popup from leading users to a stale MistakeReview page.
+    private func tryShowReviewPrompt() {
+        guard organizeToastDismissed, errorAnalysisReady, organizeWrongCount > 0 else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) { showReviewPrompt = true }
         }
     }
 

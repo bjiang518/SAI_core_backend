@@ -28,7 +28,7 @@
 "settings.signOut" = "Cerrar sesión";
 "settings.biometricLogin" = "Inicio de sesión con %@";
 "settings.parentControls.message" = "Verifica el acceso parental para gestionar la configuración";
-"settings.appVersion" = "StudyAgent v1.1";
+"settings.appVersion" = "StudyAgent v1.2";
 "settings.appTagline" = "Con autenticación moderna";
 "settings.appPoweredBy" = "Impulsado por modelos de IA avanzados";
 "settings.security" = "Seguridad y privacidad";
@@ -1561,6 +1561,90 @@
 "mistakeReview.filter.active" = "Activo";
 "mistakeReview.filter.allFilter" = "Todo";
 "mistakeReview.filter.uncategorized" = "Sin categoría";
+"mistakeReview.recurringPatterns" = "Patrones de error recurrentes";
+"tag.misread_problem"          = "Problema mal leído";
+"tag.transcription_error"      = "Error de transcripción";
+"tag.incomplete_solution"      = "Solución incompleta";
+"tag.arithmetic_slip"          = "Error aritmético";
+"tag.sign_error"               = "Error de signo";
+"tag.decimal_placement"        = "Posición decimal";
+"tag.order_of_operations"      = "Orden de operaciones";
+"tag.algebraic_slip"           = "Error algebraico";
+"tag.unit_omission"            = "Unidad omitida";
+"tag.wrong_formula"            = "Fórmula incorrecta";
+"tag.definition_wrong"         = "Definición confusa";
+"tag.scope_violation"          = "Fuera del ámbito de aplicación";
+"tag.setup_error"              = "Error de planteamiento";
+"tag.inverse_direction"        = "Dirección inversa";
+"tag.condition_ignored"        = "Condición ignorada";
+"tag.rounding_error"           = "Error de redondeo";
+"tag.notation_error"           = "Error de notación";
+"tag.vector_direction_wrong"   = "Dirección del vector incorrecta";
+"tag.unit_conversion_error"    = "Error de conversión de unidades";
+"tag.wrong_law_applied"        = "Ley aplicada incorrecta";
+"tag.force_direction_confused" = "Dirección de la fuerza confusa";
+"tag.sig_fig_error"            = "Error de cifras significativas";
+"tag.balancing_equations"      = "Balanceo de ecuaciones";
+"tag.grammar_rule_wrong"       = "Regla gramatical incorrecta";
+"tag.date_period_wrong"        = "Fecha / Período incorrecto";
+"tag.causation_correlation_confused" = "Causalidad vs Correlación";
+// Physics
+"tag.trig_ratio_error"             = "Razón trigonométrica incorrecta";
+"tag.energy_form_confused"         = "Forma de energía confundida";
+"tag.inertia_misunderstood"        = "Inercia mal entendida";
+"tag.field_direction_wrong"        = "Dirección del campo incorrecta";
+"tag.diagram_missing"              = "Falta diagrama";
+// Chemistry
+"tag.mole_ratio_wrong"             = "Relación molar incorrecta";
+"tag.coefficient_error"            = "Error de coeficiente";
+"tag.wrong_reaction_type"          = "Tipo de reacción incorrecto";
+"tag.charge_balance_wrong"         = "Carga sin balancear";
+"tag.lewis_structure_error"        = "Estructura de Lewis incorrecta";
+"tag.equilibrium_direction_wrong"  = "Dirección de equilibrio incorrecta";
+"tag.orbital_filling_wrong"        = "Llenado orbital incorrecto";
+"tag.state_symbol_missing"         = "Falta símbolo de estado";
+"tag.formula_notation_error"       = "Notación química incorrecta";
+// Biology
+"tag.terminology_confused"         = "Terminología confundida";
+"tag.sequence_order_wrong"         = "Orden de la secuencia incorrecto";
+"tag.count_wrong"                  = "Conteo incorrecto";
+"tag.process_direction_wrong"      = "Dirección del proceso invertida";
+"tag.organelle_function_confused"  = "Función del orgánulo confundida";
+"tag.inheritance_pattern_wrong"    = "Patrón de herencia incorrecto";
+"tag.evolution_mechanism_wrong"    = "Mecanismo evolutivo incorrecto";
+"tag.structure_function_confused"  = "Estructura y función no coinciden";
+"tag.vague_explanation"            = "Explicación vaga";
+"tag.incomplete_process"           = "Proceso incompleto";
+// English
+"tag.grammar_rule_slip"            = "Regla gramatical descuidada";
+"tag.punctuation_error"            = "Error de puntuación";
+"tag.word_form_error"              = "Forma de palabra incorrecta";
+"tag.misidentified_tone"           = "Tono mal identificado";
+"tag.missed_main_idea"             = "Idea principal omitida";
+"tag.inference_too_broad"          = "Inferencia demasiado amplia";
+"tag.author_bias_missed"           = "Sesgo del autor no percibido";
+"tag.evidence_not_cited"           = "Evidencia no citada";
+"tag.vague_response"               = "Respuesta vaga";
+// History
+"tag.figure_confused"              = "Figuras históricas confundidas";
+"tag.location_wrong"               = "Ubicación incorrecta";
+"tag.oversimplification"           = "Simplificación excesiva";
+"tag.anachronism"                  = "Anacronismo";
+"tag.perspective_bias"             = "Sesgo de perspectiva";
+"tag.vague_causation"              = "Causalidad vaga";
+"tag.incomplete_context"           = "Contexto incompleto";
+// Computer Science
+"tag.off_by_one_error"             = "Error de uno por uno";
+"tag.variable_scope_error"         = "Error de alcance de variable";
+"tag.operator_precedence_wrong"    = "Precedencia de operadores incorrecta";
+"tag.syntax_confusion"             = "Sintaxis confundida";
+"tag.wrong_data_structure"         = "Estructura de datos incorrecta";
+"tag.complexity_wrong"             = "Complejidad Big-O incorrecta";
+"tag.recursion_base_case_missing"  = "Caso base de recursión faltante";
+"tag.algorithm_logic_wrong"        = "Lógica del algoritmo incorrecta";
+"tag.inefficient_solution"         = "Solución ineficiente";
+"tag.edge_case_missed"             = "Caso límite omitido";
+"tag.incomplete_implementation"    = "Implementación incompleta";
 "mistakeReview.filter.yourStrengths" = "Tus fortalezas";
 "mistakeReview.filter.goodAt" = "Se te da bien";
 "mistakeReview.filter.tree" = "Árbol";
@@ -3209,6 +3293,10 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "todo.knowledgeTree.title" = "Iluminar árbol de conocimiento";
 "todo.knowledgeTree.subtitle" = "Explorar el mapa de conocimiento de \"%@\"";
 "todo.knowledgeTree.defaultSubject" = "Todas las materias";
+"todo.continuePractice.title" = "Continuar práctica";
+"todo.continuePractice.subtitle" = "%@ · quedan %d preguntas";
+"todo.videoLearning.title" = "Aprendizaje en vídeo";
+"todo.videoLearning.subtitle" = "Ver un video sobre \"%@\"";
 
 // MARK: - Learning View
 "learning.header.title" = "Aprendizaje en Video";
@@ -3216,6 +3304,8 @@ Todos los datos se transmiten mediante conexiones HTTPS cifradas. No vendemos su
 "learning.video.pick" = "Elige un video para comenzar";
 "learning.video.searching" = "Buscando videos...";
 "learning.video.empty" = "No se encontraron videos";
+"learning.video.addMore.title" = "Cargar más videos";
+"learning.video.addMore.subtitle" = "Toca para ver más resultados";
 "learning.chat.hintNoVideo" = "Selecciona un video y pausa para preguntar";
 "learning.chat.hint" = "Pausa el video en cualquier momento para preguntar a la IA";
 "learning.chat.placeholder" = "Haz una pregunta...";

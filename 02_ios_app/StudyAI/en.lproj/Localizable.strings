@@ -28,7 +28,7 @@
 "settings.signOut" = "Sign Out";
 "settings.biometricLogin" = "%@ Login";
 "settings.parentControls.message" = "Verify parental access to manage settings";
-"settings.appVersion" = "StudyAgent v1.1";
+"settings.appVersion" = "StudyAgent v1.2";
 "settings.appTagline" = "Enhanced with Modern Authentication";
 "settings.appPoweredBy" = "Powered by advanced AI models";
 "settings.security" = "Security & Privacy";
@@ -42,7 +42,7 @@
 "languageSettings.sectionFooter" = "Choose your preferred language for the app interface. This will affect all text in the app.";
 "languageSettings.restartRequired" = "Restart Required";
 "languageSettings.restartMessage" = "The app will close now. Please reopen it to see the language change.";
-"settings.voiceAudio" = "Study Mates";
+"settings.voiceAudio" = "Study Agents";
 "settings.voiceSettings" = "Audio Settings";
 "settings.learning" = "Learning";
 "settings.learningGoals" = "Learning Goals & Progress";
@@ -1790,6 +1790,90 @@
 "mistakeReview.filter.strengthsTopicCount" = "%d topics";
 "mistakeReview.filter.noStrengthsData" = "No data yet — answer some questions to see your strengths.";
 "mistakeReview.filter.uncategorized" = "Uncategorized";
+"mistakeReview.recurringPatterns" = "Recurring Error Patterns";
+"tag.misread_problem"          = "Misread Problem";
+"tag.transcription_error"      = "Transcription Error";
+"tag.incomplete_solution"      = "Incomplete Solution";
+"tag.arithmetic_slip"          = "Arithmetic Slip";
+"tag.sign_error"               = "Sign Error";
+"tag.decimal_placement"        = "Decimal Placement";
+"tag.order_of_operations"      = "Order of Operations";
+"tag.algebraic_slip"           = "Algebraic Slip";
+"tag.unit_omission"            = "Unit Omission";
+"tag.wrong_formula"            = "Wrong Formula";
+"tag.definition_wrong"         = "Definition Confused";
+"tag.scope_violation"          = "Scope Violation";
+"tag.setup_error"              = "Setup Error";
+"tag.inverse_direction"        = "Inverse Direction";
+"tag.condition_ignored"        = "Condition Ignored";
+"tag.rounding_error"           = "Rounding Error";
+"tag.notation_error"           = "Notation Error";
+"tag.vector_direction_wrong"   = "Vector Direction Wrong";
+"tag.unit_conversion_error"    = "Unit Conversion Error";
+"tag.wrong_law_applied"        = "Wrong Law Applied";
+"tag.force_direction_confused" = "Force Direction Confused";
+"tag.sig_fig_error"            = "Sig Fig Error";
+"tag.balancing_equations"      = "Balancing Equations";
+"tag.grammar_rule_wrong"       = "Grammar Rule Wrong";
+"tag.date_period_wrong"        = "Date / Period Wrong";
+"tag.causation_correlation_confused" = "Causation vs Correlation";
+// Physics
+"tag.trig_ratio_error"             = "Wrong Trig Ratio";
+"tag.energy_form_confused"         = "Energy Form Confused";
+"tag.inertia_misunderstood"        = "Inertia Misunderstood";
+"tag.field_direction_wrong"        = "Field Direction Wrong";
+"tag.diagram_missing"              = "Diagram Missing";
+// Chemistry
+"tag.mole_ratio_wrong"             = "Wrong Mole Ratio";
+"tag.coefficient_error"            = "Coefficient Error";
+"tag.wrong_reaction_type"          = "Wrong Reaction Type";
+"tag.charge_balance_wrong"         = "Charge Imbalance";
+"tag.lewis_structure_error"        = "Lewis Structure Error";
+"tag.equilibrium_direction_wrong"  = "Wrong Equilibrium Shift";
+"tag.orbital_filling_wrong"        = "Wrong Orbital Filling";
+"tag.state_symbol_missing"         = "Missing State Symbol";
+"tag.formula_notation_error"       = "Wrong Chemical Notation";
+// Biology
+"tag.terminology_confused"         = "Terminology Confused";
+"tag.sequence_order_wrong"         = "Wrong Sequence Order";
+"tag.count_wrong"                  = "Wrong Count";
+"tag.process_direction_wrong"      = "Reversed Process Direction";
+"tag.organelle_function_confused"  = "Organelle Function Confused";
+"tag.inheritance_pattern_wrong"    = "Wrong Inheritance Pattern";
+"tag.evolution_mechanism_wrong"    = "Wrong Evolution Mechanism";
+"tag.structure_function_confused"  = "Structure–Function Mismatch";
+"tag.vague_explanation"            = "Vague Explanation";
+"tag.incomplete_process"           = "Incomplete Process";
+// English
+"tag.grammar_rule_slip"            = "Grammar Rule Slip";
+"tag.punctuation_error"            = "Punctuation Error";
+"tag.word_form_error"              = "Wrong Word Form";
+"tag.misidentified_tone"           = "Misidentified Tone";
+"tag.missed_main_idea"             = "Missed Main Idea";
+"tag.inference_too_broad"          = "Inference Too Broad";
+"tag.author_bias_missed"           = "Missed Author's Bias";
+"tag.evidence_not_cited"           = "Evidence Not Cited";
+"tag.vague_response"               = "Vague Response";
+// History
+"tag.figure_confused"              = "Confused Historical Figures";
+"tag.location_wrong"               = "Wrong Location";
+"tag.oversimplification"           = "Oversimplification";
+"tag.anachronism"                  = "Anachronism";
+"tag.perspective_bias"             = "Perspective Bias";
+"tag.vague_causation"              = "Vague Causation";
+"tag.incomplete_context"           = "Incomplete Context";
+// Computer Science
+"tag.off_by_one_error"             = "Off-by-One Error";
+"tag.variable_scope_error"         = "Variable Scope Error";
+"tag.operator_precedence_wrong"    = "Wrong Operator Precedence";
+"tag.syntax_confusion"             = "Syntax Confusion";
+"tag.wrong_data_structure"         = "Wrong Data Structure";
+"tag.complexity_wrong"             = "Wrong Big-O Complexity";
+"tag.recursion_base_case_missing"  = "Missing Recursion Base Case";
+"tag.algorithm_logic_wrong"        = "Algorithm Logic Flaw";
+"tag.inefficient_solution"         = "Inefficient Solution";
+"tag.edge_case_missed"             = "Missed Edge Case";
+"tag.incomplete_implementation"    = "Incomplete Implementation";
 "heatmap.title" = "Weak Point Heatmap";
 "heatmap.subTopics" = "· Sub-topics";
 "heatmap.back" = "Back";
@@ -2598,7 +2682,7 @@
 "tomato.garden.exchange.awesome" = "Awesome\!";
 
 // MARK: - Voice Settings
-"voiceSettings.title" = "Your AI Study Mates";
+"voiceSettings.title" = "Your AI Study Agents";
 "voiceSettings.voiceControls" = "Voice Controls";
 "voiceSettings.speakingSpeed" = "Speaking Speed";
 "voiceSettings.speakingRate" = "Speaking Rate";
@@ -3280,6 +3364,10 @@
 "todo.knowledgeTree.title" = "Light Up Knowledge Tree";
 "todo.knowledgeTree.subtitle" = "Explore \"%@\" knowledge map";
 "todo.knowledgeTree.defaultSubject" = "All Subjects";
+"todo.continuePractice.title" = "Continue Practice";
+"todo.continuePractice.subtitle" = "%@ · %d questions left";
+"todo.videoLearning.title" = "Video Learning";
+"todo.videoLearning.subtitle" = "Watch a video on \"%@\"";
 "practice.bank.retrieve" = "Get from Question Bank";
 "practice.bank.sources" = "Sources";
 "practice.bank.allSources" = "All";
@@ -3303,6 +3391,8 @@
 "learning.video.pick" = "Pick a video to start learning";
 "learning.video.searching" = "Searching videos...";
 "learning.video.empty" = "No videos found";
+"learning.video.addMore.title" = "Add More Videos";
+"learning.video.addMore.subtitle" = "Tap to load more results";
 "learning.chat.hintNoVideo" = "Select a video, then pause to ask questions";
 "learning.chat.hint" = "Pause the video anytime to ask AI";
 "learning.chat.placeholder" = "Ask a question...";

@@ -58,6 +58,8 @@ struct QuestionSheetView: View {
     @State private var organizeWrongCount: Int = 0
     @State private var showMistakeReview: Bool = false
     @State private var showReviewPrompt: Bool = false
+    /// Detailed branches from wrong questions captured at organize time — passed to MistakeReviewView
+    @State private var recentWrongBranches: Set<String> = []
 
     // Mastery firework celebration
     @ObservedObject private var statusService = ShortTermStatusService.shared
@@ -88,7 +90,10 @@ struct QuestionSheetView: View {
         }
         .navigationBarHidden(true)
         .sheet(isPresented: $showMistakeReview) {
-            MistakeReviewView(initialSubject: session.subject ?? "")
+            MistakeReviewView(
+                initialSubject: session.subject.isEmpty ? nil : session.subject,
+                initialDetailedBranches: recentWrongBranches
+            )
         }
         .onAppear { restoreProgress() }
         .onDisappear {
@@ -1353,25 +1358,9 @@ struct QuestionSheetView: View {
             return
         }
 
-        // No exact match — bank questions always fall back to AI (DB correct_answer may be wrong)
-        // Non-bank MC/T-F are objective: no match = wrong, no AI needed
-        if q.isFromBank {
-            isGradingWithAI = true
-            Task { await gradeWithAI(q: q, answer: answer) }
-            return
-        }
-
-        if q.type == .multipleChoice || q.type == .trueFalse {
-            isCorrect = false
-            partialCredit = 0.0
-            wasInstantGraded = true
-            aiFeedback = nil
-            hasSubmitted = true
-            recordAnswer(q: q, answer: answer, correct: false)
-            return
-        }
-
-        // Short answer: AI grading
+        // No match — ALL question types fall back to AI grading.
+        // Even AI-generated MC/T-F answer keys can be wrong (or ambiguous when multiple
+        // answers are valid), so AI rules with full question context.
         isGradingWithAI = true
         Task { await gradeWithAI(q: q, answer: answer) }
     }
@@ -1637,6 +1626,16 @@ struct QuestionSheetView: View {
                         wrongQuestions: errorAnalysisPayload
                     )
                 }
+                // Capture branches from wrong questions for MistakeReviewView pre-selection.
+                // detailedBranch may be nil for AI questions (error analysis sets it later);
+                // baseBranch is available immediately for bank/mistake-based questions.
+                let branches: Set<String> = Set(
+                    wrongQuestions.compactMap { q in
+                        if let d = q.detailedBranch, !d.isEmpty { return d }
+                        return nil
+                    }
+                )
+                await MainActor.run { recentWrongBranches = branches }
             }
 
             // Save correct answers to local storage for progress tracking, and queue concept extraction

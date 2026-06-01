@@ -221,7 +221,7 @@ class MistakeReviewService: ObservableObject {
             let activeWeaknesses = ShortTermStatusService.shared.status.activeWeaknesses
             filteredMistakes = filteredMistakes.filter { mistake in
                 guard let key = mistake["weaknessKey"] as? String, !key.isEmpty else {
-                    return true // no weakness key → include (old/untracked questions)
+                    return false // no weaknessKey → not tracked as active, exclude
                 }
                 return ShortTermStatusService.shared.isActiveWeakness(key)
             }
@@ -287,9 +287,11 @@ class MistakeReviewService: ObservableObject {
         let activeWeaknesses = ShortTermStatusService.shared.status.activeWeaknesses
         let prefix = "\(subject)/"
 
-        // Only entries for this subject with at least one correct attempt
+        // Only entries for this subject that have been mastered (value <= 0) with at least one correct attempt.
+        // value > 0 means still active weakness → belongs in Active tab, not Mastered.
+        // value crosses below 0 in a single recordCorrectAttempt call (never rests at exactly 0).
         let subjectEntries = activeWeaknesses.filter { key, value in
-            key.hasPrefix(prefix) && value.correctAttempts > 0
+            key.hasPrefix(prefix) && value.value <= 0 && value.correctAttempts > 0
         }
 
         // Aggregate by baseBranch → detailedBranch

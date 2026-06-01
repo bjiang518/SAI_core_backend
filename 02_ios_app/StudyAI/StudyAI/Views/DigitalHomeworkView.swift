@@ -2618,6 +2618,7 @@ struct QuestionCard: View {
     @State private var isPulsing = false
     var isExpanded: Binding<Bool>? = nil
     @State private var localExpanded: Bool = true
+    @Environment(\.colorScheme) private var colorScheme
 
     private var expandedValue: Bool { isExpanded?.wrappedValue ?? localExpanded }
     private func toggleExpanded() {
@@ -3350,18 +3351,21 @@ struct QuestionCard: View {
     /// Grid paper + grade color overlay — unified background for ALL student answer boxes
     @ViewBuilder
     private func gridAnswerBackground(grade: ProgressiveGradeResult?) -> some View {
-        // Warm cream paper — matches WorkingStepsCard style
+        // Cream paper in light mode, dark slate in dark mode — matches WorkingStepsCard
         ZStack {
-            Color(red: 1.0, green: 0.99, blue: 0.94)
+            (colorScheme == .dark
+                ? Color(red: 0.18, green: 0.18, blue: 0.22)
+                : Color(red: 1.0,  green: 0.99, blue: 0.94))
             Canvas { ctx, size in
                 let sp: CGFloat = 14; let st = StrokeStyle(lineWidth: 0.5)
-                let col = GraphicsContext.Shading.color(Color.blue.opacity(0.13))
+                let lineOpacity = colorScheme == .dark ? 0.18 : 0.13
+                let col = GraphicsContext.Shading.color(Color.blue.opacity(lineOpacity))
                 var y: CGFloat = sp; while y < size.height { var p = Path(); p.move(to: .init(x: 0, y: y)); p.addLine(to: .init(x: size.width, y: y)); ctx.stroke(p, with: col, style: st); y += sp }
                 var x: CGFloat = sp; while x < size.width { var p = Path(); p.move(to: .init(x: x, y: 0)); p.addLine(to: .init(x: x, y: size.height)); ctx.stroke(p, with: col, style: st); x += sp }
             }
             // Grade color overlay — green for correct, red for wrong
             if let g = grade {
-                (g.isCorrect ? Color.green : Color.red).opacity(0.13)
+                (g.isCorrect ? Color.green : Color.red).opacity(colorScheme == .dark ? 0.18 : 0.13)
             }
         }
     }
@@ -3452,6 +3456,7 @@ struct SubquestionRow: View {
     @State private var showArchiveOptions = false  // ✅ NEW: Show action sheet for archive options
     @State private var isQuestionExpanded = false  // ✅ NEW: Track if question text is expanded
     @State private var isSubShaking = false
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -4085,18 +4090,21 @@ struct SubquestionRow: View {
 
     @ViewBuilder
     private func gridAnswerBackground(grade: ProgressiveGradeResult?) -> some View {
-        // Warm cream paper — matches WorkingStepsCard style
+        // Cream paper in light mode, dark slate in dark mode — matches WorkingStepsCard
         ZStack {
-            Color(red: 1.0, green: 0.99, blue: 0.94)
+            (colorScheme == .dark
+                ? Color(red: 0.18, green: 0.18, blue: 0.22)
+                : Color(red: 1.0,  green: 0.99, blue: 0.94))
             Canvas { ctx, size in
                 let sp: CGFloat = 14; let st = StrokeStyle(lineWidth: 0.5)
-                let col = GraphicsContext.Shading.color(Color.blue.opacity(0.13))
+                let lineOpacity = colorScheme == .dark ? 0.18 : 0.13
+                let col = GraphicsContext.Shading.color(Color.blue.opacity(lineOpacity))
                 var y: CGFloat = sp; while y < size.height { var p = Path(); p.move(to: .init(x: 0, y: y)); p.addLine(to: .init(x: size.width, y: y)); ctx.stroke(p, with: col, style: st); y += sp }
                 var x: CGFloat = sp; while x < size.width { var p = Path(); p.move(to: .init(x: x, y: 0)); p.addLine(to: .init(x: x, y: size.height)); ctx.stroke(p, with: col, style: st); x += sp }
             }
             // Grade color overlay — green for correct, red for wrong
             if let g = grade {
-                (g.isCorrect ? Color.green : Color.red).opacity(0.13)
+                (g.isCorrect ? Color.green : Color.red).opacity(colorScheme == .dark ? 0.18 : 0.13)
             }
         }
     }

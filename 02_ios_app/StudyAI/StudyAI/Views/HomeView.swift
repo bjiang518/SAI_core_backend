@@ -63,6 +63,10 @@ struct HomeView: View {
     @State private var showingHomeworkAlbum = false
     @State private var showingFocusMode = false
     @State private var feynmanSheetItem: FeynmanSheetItem? = nil
+    @State private var showingVideoLearning = false
+    @State private var videoLearningSubject: String = ""
+    @State private var videoLearningTopic: String = ""
+    @State private var videoLearningBranch: String = ""
     @State private var lottieRefreshID: Int = 0
     @State private var isMoreFeaturesExpanded: Bool = true
     @State private var showingPointsShop: Bool = false
@@ -164,6 +168,7 @@ struct HomeView: View {
 
                     // More features — sits flush below the suggestion card
                     additionalActionsSection
+                        .padding(.top, DesignTokens.Spacing.lg)
                         .environment(\.lottieRefreshID, lottieRefreshID)
 
                     Spacer(minLength: 100)
@@ -326,6 +331,14 @@ struct HomeView: View {
             }
             .fullScreenCover(isPresented: $showingFocusMode) {
                 FocusView()
+            }
+            .fullScreenCover(isPresented: $showingVideoLearning) {
+                LearningView(
+                    topicName: videoLearningTopic,
+                    branchName: videoLearningBranch,
+                    subject: videoLearningSubject,
+                    unlitLeafKey: nil
+                )
             }
             .sheet(item: $feynmanSheetItem) { item in
                 WeaknessPracticeView(
@@ -634,6 +647,14 @@ struct HomeView: View {
             } else {
                 showingParentReports = true
             }
+        case .openVideoLearning(let subject, let topicName, let branchName):
+            videoLearningSubject = subject
+            videoLearningTopic   = topicName
+            videoLearningBranch  = branchName
+            showingVideoLearning = true
+        case .continueIncompleteSession(let sessionId, _):
+            AppState.shared.pendingPracticeSessionId = sessionId
+            AppState.shared.shouldOpenIncompleteSession = true
         case .openProgress:
             todoEngine.markProgressViewed()
             onSelectTab(.progress)
@@ -794,7 +815,27 @@ extension HomeView {
     // MARK: - Additional Actions Section
     private var additionalActionsSection: some View {
         VStack(spacing: 0) {
-            // Centered divider + chevron toggle
+            // Cards expand FIRST so the chevron sits at the bottom of the whole block —
+            // avoids the awkward "two stacked chevrons" look between this section and
+            // the SuggestedTodos section above.
+            if isMoreFeaturesExpanded {
+                if sizeClass == .regular {
+                    LazyVGrid(columns: [
+                        GridItem(.flexible(), spacing: DesignTokens.Spacing.md),
+                        GridItem(.flexible(), spacing: DesignTokens.Spacing.md)
+                    ], spacing: DesignTokens.Spacing.md) {
+                        moreFeatureButtons
+                    }
+                    .padding(.horizontal, DesignTokens.Spacing.xl)
+                } else {
+                    VStack(spacing: DesignTokens.Spacing.md) {
+                        moreFeatureButtons
+                            .padding(.horizontal, DesignTokens.Spacing.xl)
+                    }
+                }
+            }
+
+            // Centered divider + chevron toggle — now anchored at the bottom of the cards.
             Button(action: {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                     isMoreFeaturesExpanded.toggle()
@@ -821,24 +862,7 @@ extension HomeView {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .padding(.bottom, DesignTokens.Spacing.sm)
-
-            if isMoreFeaturesExpanded {
-                if sizeClass == .regular {
-                    LazyVGrid(columns: [
-                        GridItem(.flexible(), spacing: DesignTokens.Spacing.md),
-                        GridItem(.flexible(), spacing: DesignTokens.Spacing.md)
-                    ], spacing: DesignTokens.Spacing.md) {
-                        moreFeatureButtons
-                    }
-                    .padding(.horizontal, DesignTokens.Spacing.xl)
-                } else {
-                    VStack(spacing: DesignTokens.Spacing.md) {
-                        moreFeatureButtons
-                            .padding(.horizontal, DesignTokens.Spacing.xl)
-                    }
-                }
-            }
+            .padding(.top, isMoreFeaturesExpanded ? DesignTokens.Spacing.md : DesignTokens.Spacing.sm)
         }
     }
 

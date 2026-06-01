@@ -28,7 +28,7 @@
 "settings.signOut" = "Abmelden";
 "settings.biometricLogin" = "%@ Login";
 "settings.parentControls.message" = "Elternteil-Zugang bestätigen, um Einstellungen zu verwalten";
-"settings.appVersion" = "StudyAgent v1.1";
+"settings.appVersion" = "StudyAgent v1.2";
 "settings.appTagline" = "Erweitert mit moderner Authentifizierung";
 "settings.appPoweredBy" = "Betrieben von fortschrittlichen KI-Modellen";
 "settings.security" = "Sicherheit & Datenschutz";
@@ -42,7 +42,7 @@
 "languageSettings.sectionFooter" = "Wähle deine bevorzugte Sprache für die App-Oberfläche. Dies wirkt sich auf den gesamten Text in der App aus.";
 "languageSettings.restartRequired" = "Neustart erforderlich";
 "languageSettings.restartMessage" = "Die App wird jetzt geschlossen. Bitte öffne sie erneut, um die Sprachänderung zu sehen.";
-"settings.voiceAudio" = "Study Mates";
+"settings.voiceAudio" = "Study Agents";
 "settings.voiceSettings" = "Audioeinstellungen";
 "settings.learning" = "Lernen";
 "settings.learningGoals" = "Lernziele & Fortschritt";
@@ -980,7 +980,7 @@
 "helpCenter.faq2.question" = "What subjects are supported?";
 "helpCenter.faq2.answer" = "StudyAgent supports Mathematics, Physics, Chemistry, Biology, English, History, Geography, and Computer Science. We're constantly adding more subjects\!";
 "helpCenter.faq3.question" = "How do I change the AI voice?";
-"helpCenter.faq3.answer" = "Go to Einstellungen > Study Mates > Select your study mate. You can choose between Adam (boy voice) and Eva (girl voice), and customize speed and volume.";
+"helpCenter.faq3.answer" = "Go to Einstellungen > Study Agents > Select your study agent. You can choose between Adam (boy voice) and Eva (girl voice), and customize speed and volume.";
 "helpCenter.faq4.question" = "Can I review my past mistakes?";
 "helpCenter.faq4.answer" = "Yes\! Use the Mistake Review feature from the home screen to revisit questions you got wrong and practice similar problems.";
 "helpCenter.faq5.question" = "How does the streak system work?";
@@ -1516,6 +1516,90 @@
 "mistakeReview.filter.active" = "Active";
 "mistakeReview.filter.allFilter" = "All";
 "mistakeReview.filter.uncategorized" = "Uncategorized";
+"mistakeReview.recurringPatterns" = "Wiederkehrende Fehlermuster";
+"tag.misread_problem"          = "Aufgabe falsch gelesen";
+"tag.transcription_error"      = "Übertragungsfehler";
+"tag.incomplete_solution"      = "Unvollständige Lösung";
+"tag.arithmetic_slip"          = "Rechenfehler";
+"tag.sign_error"               = "Vorzeichenfehler";
+"tag.decimal_placement"        = "Dezimalstelle falsch";
+"tag.order_of_operations"      = "Reihenfolge der Operationen";
+"tag.algebraic_slip"           = "Algebraischer Fehler";
+"tag.unit_omission"            = "Einheit fehlt";
+"tag.wrong_formula"            = "Falsche Formel";
+"tag.definition_wrong"         = "Definition verwechselt";
+"tag.scope_violation"          = "Geltungsbereich überschritten";
+"tag.setup_error"              = "Ansatzfehler";
+"tag.inverse_direction"        = "Umgekehrte Richtung";
+"tag.condition_ignored"        = "Bedingung ignoriert";
+"tag.rounding_error"           = "Rundungsfehler";
+"tag.notation_error"           = "Notationsfehler";
+"tag.vector_direction_wrong"   = "Vektorrichtung falsch";
+"tag.unit_conversion_error"    = "Einheitenumrechnung falsch";
+"tag.wrong_law_applied"        = "Falsches Gesetz angewendet";
+"tag.force_direction_confused" = "Kraftrichtung verwechselt";
+"tag.sig_fig_error"            = "Signifikante Stellen falsch";
+"tag.balancing_equations"      = "Gleichungen ausgleichen";
+"tag.grammar_rule_wrong"       = "Grammatikregel falsch";
+"tag.date_period_wrong"        = "Datum / Zeitraum falsch";
+"tag.causation_correlation_confused" = "Kausalität vs Korrelation";
+// Physics
+"tag.trig_ratio_error"             = "Falsches Trigonometrieverhältnis";
+"tag.energy_form_confused"         = "Energieform verwechselt";
+"tag.inertia_misunderstood"        = "Trägheit falsch verstanden";
+"tag.field_direction_wrong"        = "Feldrichtung falsch";
+"tag.diagram_missing"              = "Diagramm fehlt";
+// Chemistry
+"tag.mole_ratio_wrong"             = "Falsches Molverhältnis";
+"tag.coefficient_error"            = "Koeffizientenfehler";
+"tag.wrong_reaction_type"          = "Falscher Reaktionstyp";
+"tag.charge_balance_wrong"         = "Ladungsbilanz falsch";
+"tag.lewis_structure_error"        = "Lewis-Struktur falsch";
+"tag.equilibrium_direction_wrong"  = "Gleichgewichtsverschiebung falsch";
+"tag.orbital_filling_wrong"        = "Orbitalbesetzung falsch";
+"tag.state_symbol_missing"         = "Zustandssymbol fehlt";
+"tag.formula_notation_error"       = "Falsche chemische Notation";
+// Biology
+"tag.terminology_confused"         = "Fachbegriffe verwechselt";
+"tag.sequence_order_wrong"         = "Reihenfolge falsch";
+"tag.count_wrong"                  = "Anzahl falsch";
+"tag.process_direction_wrong"      = "Prozessrichtung umgekehrt";
+"tag.organelle_function_confused"  = "Organellenfunktion verwechselt";
+"tag.inheritance_pattern_wrong"    = "Vererbungsmuster falsch";
+"tag.evolution_mechanism_wrong"    = "Evolutionsmechanismus falsch";
+"tag.structure_function_confused"  = "Struktur-Funktion-Mismatch";
+"tag.vague_explanation"            = "Vage Erklärung";
+"tag.incomplete_process"           = "Unvollständiger Prozess";
+// English
+"tag.grammar_rule_slip"            = "Grammatikfehler (Flüchtigkeit)";
+"tag.punctuation_error"            = "Zeichensetzungsfehler";
+"tag.word_form_error"              = "Falsche Wortform";
+"tag.misidentified_tone"           = "Tonfall falsch erkannt";
+"tag.missed_main_idea"             = "Hauptgedanken verpasst";
+"tag.inference_too_broad"          = "Schlussfolgerung zu weit";
+"tag.author_bias_missed"           = "Autorenmeinung übersehen";
+"tag.evidence_not_cited"           = "Textbeleg fehlt";
+"tag.vague_response"               = "Vage Antwort";
+// History
+"tag.figure_confused"              = "Historische Personen verwechselt";
+"tag.location_wrong"               = "Falscher Ort";
+"tag.oversimplification"           = "Übermäßige Vereinfachung";
+"tag.anachronism"                  = "Anachronismus";
+"tag.perspective_bias"             = "Perspektivische Voreingenommenheit";
+"tag.vague_causation"              = "Vage Ursachenangabe";
+"tag.incomplete_context"           = "Unvollständiger Kontext";
+// Computer Science
+"tag.off_by_one_error"             = "Off-by-One-Fehler";
+"tag.variable_scope_error"         = "Variablensichtbarkeit falsch";
+"tag.operator_precedence_wrong"    = "Operatorpriorität falsch";
+"tag.syntax_confusion"             = "Syntax verwechselt";
+"tag.wrong_data_structure"         = "Falsche Datenstruktur";
+"tag.complexity_wrong"             = "Falsche Big-O-Komplexität";
+"tag.recursion_base_case_missing"  = "Rekursions-Basisfall fehlt";
+"tag.algorithm_logic_wrong"        = "Algorithmuslogik fehlerhaft";
+"tag.inefficient_solution"         = "Ineffiziente Lösung";
+"tag.edge_case_missed"             = "Randfall übersehen";
+"tag.incomplete_implementation"    = "Unvollständige Implementierung";
 "difficulty.desc.beginner" = "Foundation-building questions for new concepts";
 "difficulty.desc.intermediate" = "Balanced questions for practice and review";
 "difficulty.desc.advanced" = "Challenging questions to push understanding";
@@ -2240,7 +2324,7 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "tomato.garden.exchange.awesome" = "Awesome\!";
 
 // MARK: - Voice Settings
-"voiceSettings.title" = "Your AI Study Mates";
+"voiceSettings.title" = "Your AI Study Agents";
 "voiceSettings.voiceControls" = "Voice Controls";
 "voiceSettings.speakingSpeed" = "Speaking Speed";
 "voiceSettings.speakingRate" = "Speaking Rate";
@@ -3277,6 +3361,10 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "todo.knowledgeTree.title" = "Wissensbaum beleuchten";
 "todo.knowledgeTree.subtitle" = "Wissenskarte «%@» erkunden";
 "todo.knowledgeTree.defaultSubject" = "Alle Fächer";
+"todo.continuePractice.title" = "Übung fortsetzen";
+"todo.continuePractice.subtitle" = "%@ · noch %d Aufgaben";
+"todo.videoLearning.title" = "Video-Lernen";
+"todo.videoLearning.subtitle" = "Video zu \"%@\" ansehen";
 "practice.bank.retrieve" = "Aus Fragenbank holen";
 "practice.bank.sources" = "Quellen";
 "practice.bank.allSources" = "Alle";
@@ -3300,6 +3388,8 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 "learning.video.pick" = "Wähle ein Video zum Lernen";
 "learning.video.searching" = "Videos werden gesucht...";
 "learning.video.empty" = "Keine Videos gefunden";
+"learning.video.addMore.title" = "Mehr Videos laden";
+"learning.video.addMore.subtitle" = "Tippen für weitere Ergebnisse";
 "learning.chat.hintNoVideo" = "Wähle ein Video und pausiere, um Fragen zu stellen";
 "learning.chat.hint" = "Pausiere jederzeit, um die KI zu fragen";
 "learning.chat.placeholder" = "Eine Frage stellen...";

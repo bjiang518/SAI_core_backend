@@ -108,13 +108,16 @@ class ThemeManager: ObservableObject {
                 self.currentTheme = .default
                 UserDefaults.standard.set(ThemeMode.default.rawValue, forKey: "selectedTheme")
             } else if savedTheme == "cute" {
+                // Legacy "cute" key — preserve the user's explicit choice as .colorful.
                 self.currentTheme = .colorful
                 UserDefaults.standard.set(ThemeMode.colorful.rawValue, forKey: "selectedTheme")
             } else {
-                self.currentTheme = .colorful
+                // Unrecognized saved value — fall back to iOS default theme.
+                self.currentTheme = .default
             }
         } else {
-            self.currentTheme = .colorful
+            // First launch: use iOS default theme (auto light/dark following system).
+            self.currentTheme = .default
         }
 
         self.defaultModeOverride = UserDefaults.standard.string(forKey: "defaultModeOverride") ?? "auto"
