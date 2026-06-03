@@ -186,6 +186,28 @@ export const analyticsAPI = {
     const response = await apiClient.get('/api/admin/analytics/events')
     return response.data
   },
+  getRecentUserActions: async (params?: {
+    days?: number
+    limit?: number
+    tier?: 'free' | 'premium' | 'premium_plus' | 'guest' | ''
+    includeInternal?: boolean
+  }) => {
+    const response = await apiClient.get('/api/admin/analytics/recent-user-actions', { params })
+    return response.data
+  },
+  getRecentUserActionsCsvUrl: (params?: {
+    days?: number
+    limit?: number
+    tier?: 'free' | 'premium' | 'premium_plus' | 'guest' | ''
+    includeInternal?: boolean
+  }) => {
+    const qs = new URLSearchParams({ format: 'csv' })
+    if (params?.days != null)            qs.set('days', String(params.days))
+    if (params?.limit != null)           qs.set('limit', String(params.limit))
+    if (params?.tier)                    qs.set('tier', params.tier)
+    if (params?.includeInternal)         qs.set('includeInternal', 'true')
+    return `${API_URL}/api/admin/analytics/recent-user-actions?${qs.toString()}`
+  },
 }
 
 // Insights API
@@ -221,6 +243,19 @@ export const promoCodesAPI = {
 
   deactivate: async (codeId: number | string) => {
     const response = await apiClient.patch(`/api/admin/promo-codes/${codeId}/deactivate`)
+    return response.data
+  },
+
+  update: async (
+    codeId: number | string,
+    payload: {
+      expires_at?: string | null
+      max_uses?: number | null
+      duration_days?: number
+      tier?: 'premium' | 'premium_plus' | 'free'
+    }
+  ) => {
+    const response = await apiClient.patch(`/api/admin/promo-codes/${codeId}`, payload)
     return response.data
   },
 }

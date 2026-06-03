@@ -149,7 +149,8 @@ struct ContentView: View {
                 .interactiveDismissDisabled()
         }
         .alert(
-            NSLocalizedString("softUpdate.title", value: "Update Available", comment: ""),
+            authService.updateRecommendationTitle
+                ?? NSLocalizedString("softUpdate.title", value: "Update Available", comment: ""),
             isPresented: $authService.showUpdateRecommendation
         ) {
             Button(NSLocalizedString("softUpdate.updateNow", value: "Update Now", comment: "")) {
@@ -160,7 +161,8 @@ struct ContentView: View {
             }
             Button(NSLocalizedString("softUpdate.later", value: "Later", comment: ""), role: .cancel) { }
         } message: {
-            Text(NSLocalizedString("softUpdate.message", value: "A newer version is available with improvements and bug fixes. Update when you're ready.", comment: ""))
+            Text(authService.updateRecommendationBody
+                 ?? NSLocalizedString("softUpdate.message", value: "A newer version is available with improvements and bug fixes. Update when you're ready.", comment: ""))
         }
         .sheet(isPresented: $showingTierSheet) {
             let feature = usageService.limitReachedFeature ?? ""

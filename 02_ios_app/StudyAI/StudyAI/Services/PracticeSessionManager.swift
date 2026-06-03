@@ -224,7 +224,8 @@ class PracticeSessionManager: ObservableObject {
             errorType: nil,
             baseBranch: nil,
             detailedBranch: nil,
-            weaknessKey: q.weaknessKey
+            weaknessKey: q.weaknessKey,
+            figureUrl: q.questionImageUrl
         )
     }
 

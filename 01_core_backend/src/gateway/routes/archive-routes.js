@@ -1183,6 +1183,9 @@ class ArchiveRoutes {
   async getArchivedQuestions(request, reply) {
     try {
       const userId = this.getUserId(request);
+      if (!userId) {
+        return reply.status(401).send({ success: false, error: 'Authentication required' });
+      }
       const {
         limit = 50,
         offset = 0,
@@ -1282,7 +1285,7 @@ class ArchiveRoutes {
         }
       });
     } catch (error) {
-      this.fastify.log.error('Error fetching archived questions:', error);
+      this.fastify.log.error({ err: error }, 'Error fetching archived questions');
       return reply.status(500).send({
         success: false,
         error: 'Failed to fetch questions',

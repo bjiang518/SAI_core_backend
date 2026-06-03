@@ -192,12 +192,13 @@ module.exports = async function (fastify, opts) {
             (SELECT COUNT(DISTINCT user_id) FROM app_events WHERE event_name = 'app_open' AND occurred_at >= NOW() - INTERVAL '30 days')::int AS mau,
             (SELECT COUNT(*) FROM users u LEFT JOIN profiles p ON p.user_id = u.id
               WHERE p.parent_id IS NULL AND u.is_anonymous = false ${iFilter}
-              AND LEAST(GREATEST(u.last_login_at,
-                (SELECT MAX(s.created_at)  FROM sessions s   WHERE s.user_id = u.id),
-                (SELECT MAX(us.created_at) FROM user_sessions us WHERE us.user_id = u.id),
-                (SELECT MAX(ae.occurred_at) FROM app_events ae WHERE ae.user_id = u.id AND ae.event_name != 'app_background'),
-                (SELECT LEAST(MAX(dsa.activity_date::timestamptz), NOW()) FROM daily_subject_activities dsa WHERE dsa.user_id = u.id)
-              ), NOW()) < NOW() - INTERVAL '30 days')::int AS churn_risk,
+              AND NULLIF(LEAST(GREATEST(
+                COALESCE(u.last_login_at,                                                                                                       '1970-01-01'::timestamptz),
+                COALESCE((SELECT MAX(s.created_at)  FROM sessions s   WHERE s.user_id = u.id),                                                  '1970-01-01'::timestamptz),
+                COALESCE((SELECT MAX(us.created_at) FROM user_sessions us WHERE us.user_id = u.id),                                             '1970-01-01'::timestamptz),
+                COALESCE((SELECT MAX(ae.occurred_at) FROM app_events ae WHERE ae.user_id = u.id AND ae.event_name != 'app_background'),         '1970-01-01'::timestamptz),
+                COALESCE((SELECT MAX(dsa.activity_date::timestamptz) FROM daily_subject_activities dsa WHERE dsa.user_id = u.id), '1970-01-01'::timestamptz)
+              ), NOW()), '1970-01-01'::timestamptz) < NOW() - INTERVAL '30 days')::int AS churn_risk,
             (SELECT COUNT(*) FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE u.created_at >= NOW() - INTERVAL '7 days' AND p.parent_id IS NULL ${iFilter})::int AS new_users_this_week
         `),
 
@@ -373,20 +374,11 @@ module.exports = async function (fastify, opts) {
           u.is_anonymous,
           u.tier_expires_at,
           u.created_at as join_date,
-          LEAST(GREATEST(
-            u.last_login_at,
-            (SELECT MAX(s.created_at)  FROM sessions s        WHERE s.user_id = u.id),
-            (SELECT MAX(us.created_at) FROM user_sessions us  WHERE us.user_id = u.id),
-            (SELECT MAX(ae.occurred_at) FROM app_events ae    WHERE ae.user_id = u.id AND ae.event_name != 'app_background'),
-            (SELECT LEAST(MAX(dsa.activity_date::timestamptz), NOW()) FROM daily_subject_activities dsa WHERE dsa.user_id = u.id)
-          ), NOW()) as last_active,
-          EXTRACT(day FROM NOW() - LEAST(GREATEST(
-            u.last_login_at,
-            (SELECT MAX(s.created_at)  FROM sessions s        WHERE s.user_id = u.id),
-            (SELECT MAX(us.created_at) FROM user_sessions us  WHERE us.user_id = u.id),
-            (SELECT MAX(ae.occurred_at) FROM app_events ae    WHERE ae.user_id = u.id AND ae.event_name != 'app_background'),
-            (SELECT LEAST(MAX(dsa.activity_date::timestamptz), NOW()) FROM daily_subject_activities dsa WHERE dsa.user_id = u.id)
-          ), NOW()))::int as days_inactive,
+          la.last_active,
+          CASE
+            WHEN la.last_active IS NULL THEN NULL
+            ELSE EXTRACT(day FROM NOW() - la.last_active)::int
+          END as days_inactive,
           (SELECT COUNT(*) FROM sessions s WHERE s.user_id = u.id) as total_sessions,
           (SELECT device_info->>'userAgent'
            FROM user_sessions us
@@ -396,19 +388,7 @@ module.exports = async function (fastify, opts) {
             WHEN u.is_anonymous = true THEN 'guest'
             WHEN u.tier = 'premium_plus' AND (u.tier_expires_at IS NULL OR u.tier_expires_at > NOW()) THEN 'ultra'
             WHEN u.tier = 'premium'      AND (u.tier_expires_at IS NULL OR u.tier_expires_at > NOW()) THEN 'premium'
-            WHEN LEAST(GREATEST(
-              u.last_login_at,
-              (SELECT MAX(s.created_at)  FROM sessions s        WHERE s.user_id = u.id),
-              (SELECT MAX(us.created_at) FROM user_sessions us  WHERE us.user_id = u.id),
-              (SELECT MAX(ae.occurred_at) FROM app_events ae    WHERE ae.user_id = u.id AND ae.event_name != 'app_background'),
-              (SELECT LEAST(MAX(dsa.activity_date::timestamptz), NOW()) FROM daily_subject_activities dsa WHERE dsa.user_id = u.id)
-            ), NOW()) IS NULL OR LEAST(GREATEST(
-              u.last_login_at,
-              (SELECT MAX(s.created_at)  FROM sessions s        WHERE s.user_id = u.id),
-              (SELECT MAX(us.created_at) FROM user_sessions us  WHERE us.user_id = u.id),
-              (SELECT MAX(ae.occurred_at) FROM app_events ae    WHERE ae.user_id = u.id AND ae.event_name != 'app_background'),
-              (SELECT LEAST(MAX(dsa.activity_date::timestamptz), NOW()) FROM daily_subject_activities dsa WHERE dsa.user_id = u.id)
-            ), NOW()) < NOW() - INTERVAL '30 days' THEN 'inactive'
+            WHEN la.last_active IS NULL OR la.last_active < NOW() - INTERVAL '30 days' THEN 'inactive'
             ELSE 'free'
           END as "subscriptionStatus",
           (SELECT JSON_AGG(th ORDER BY th.changed_at DESC)
@@ -418,6 +398,19 @@ module.exports = async function (fastify, opts) {
                  ORDER BY changed_at DESC LIMIT 3) th) as recent_tier_changes
         FROM users u
         LEFT JOIN profiles p ON p.user_id = u.id
+        LEFT JOIN LATERAL (
+          -- NULL-safe last_active. Each input gets COALESCE(_, epoch); NULLIF strips
+          -- back to NULL when EVERY input was null (= user has zero activity).
+          -- Without this, LEAST(NULL, NOW()) returns NOW() and unused users look
+          -- like they were active today.
+          SELECT NULLIF(LEAST(GREATEST(
+            COALESCE(u.last_login_at,                                                                                                       '1970-01-01'::timestamptz),
+            COALESCE((SELECT MAX(s.created_at)  FROM sessions s        WHERE s.user_id = u.id),                                             '1970-01-01'::timestamptz),
+            COALESCE((SELECT MAX(us.created_at) FROM user_sessions us  WHERE us.user_id = u.id),                                            '1970-01-01'::timestamptz),
+            COALESCE((SELECT MAX(ae.occurred_at) FROM app_events ae    WHERE ae.user_id = u.id AND ae.event_name != 'app_background'),      '1970-01-01'::timestamptz),
+            COALESCE((SELECT MAX(dsa.activity_date::timestamptz) FROM daily_subject_activities dsa WHERE dsa.user_id = u.id), '1970-01-01'::timestamptz)
+          ), NOW()), '1970-01-01'::timestamptz) AS last_active
+        ) la ON true
       `;
       const params = [];
 
@@ -428,7 +421,7 @@ module.exports = async function (fastify, opts) {
         query += ` WHERE p.parent_id IS NULL`;
       }
 
-      const LAST_ACTIVE_EXPR = `LEAST(GREATEST(u.last_login_at,(SELECT MAX(s.created_at) FROM sessions s WHERE s.user_id=u.id),(SELECT MAX(us.created_at) FROM user_sessions us WHERE us.user_id=u.id),(SELECT MAX(ae.occurred_at) FROM app_events ae WHERE ae.user_id=u.id AND ae.event_name!='app_background'),(SELECT LEAST(MAX(dsa.activity_date::timestamptz),NOW()) FROM daily_subject_activities dsa WHERE dsa.user_id=u.id)),NOW())`;
+      const LAST_ACTIVE_EXPR = `la.last_active`;
 
       if (filter === 'active') {
         query += ` AND ${LAST_ACTIVE_EXPR} >= NOW() - INTERVAL '7 days'`;
@@ -449,7 +442,21 @@ module.exports = async function (fastify, opts) {
 
       const result = await db.query(query, params);
 
-      let countQuery = `SELECT COUNT(*) as total FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE p.parent_id IS NULL`;
+      // count query needs the same LATERAL so the filter conditions resolve to a value
+      let countQuery = `
+        SELECT COUNT(*) as total
+        FROM users u
+        LEFT JOIN profiles p ON p.user_id = u.id
+        LEFT JOIN LATERAL (
+          SELECT NULLIF(LEAST(GREATEST(
+            COALESCE(u.last_login_at,                                                                                                       '1970-01-01'::timestamptz),
+            COALESCE((SELECT MAX(s.created_at)  FROM sessions s        WHERE s.user_id = u.id),                                             '1970-01-01'::timestamptz),
+            COALESCE((SELECT MAX(us.created_at) FROM user_sessions us  WHERE us.user_id = u.id),                                            '1970-01-01'::timestamptz),
+            COALESCE((SELECT MAX(ae.occurred_at) FROM app_events ae    WHERE ae.user_id = u.id AND ae.event_name != 'app_background'),      '1970-01-01'::timestamptz),
+            COALESCE((SELECT MAX(dsa.activity_date::timestamptz) FROM daily_subject_activities dsa WHERE dsa.user_id = u.id), '1970-01-01'::timestamptz)
+          ), NOW()), '1970-01-01'::timestamptz) AS last_active
+        ) la ON true
+        WHERE p.parent_id IS NULL`;
       const countParams = [];
       if (search) {
         countQuery += ' AND (u.email ILIKE $1 OR u.name ILIKE $1)';
@@ -1400,6 +1407,71 @@ module.exports = async function (fastify, opts) {
     }
   });
 
+  /**
+   * PATCH /api/admin/promo-codes/:codeId
+   * Body: { expires_at?, max_uses?, duration_days?, tier? }
+   * Updates editable fields on an existing promo code. `expires_at: null` clears the
+   * expiry; `max_uses: null` makes uses unlimited. Lets admins extend codes that
+   * have already passed their expiry date.
+   */
+  fastify.patch('/api/admin/promo-codes/:codeId', { preHandler: verifyAdmin }, async (request, reply) => {
+    const { codeId } = request.params;
+    const body = request.body || {};
+
+    const sets = [];
+    const params = [];
+    let i = 1;
+
+    if ('expires_at' in body) {
+      sets.push(`expires_at = $${i++}`);
+      params.push(body.expires_at || null);
+    }
+    if ('max_uses' in body) {
+      const mu = body.max_uses;
+      if (mu !== null && (typeof mu !== 'number' || mu < 1 || !Number.isInteger(mu))) {
+        return reply.code(400).send({ success: false, error: 'max_uses must be a positive integer or null' });
+      }
+      sets.push(`max_uses = $${i++}`);
+      params.push(mu);
+    }
+    if ('duration_days' in body) {
+      const dd = parseInt(body.duration_days);
+      if (isNaN(dd) || dd < 0 || dd > 3650) {
+        return reply.code(400).send({ success: false, error: 'duration_days must be between 0 and 3650' });
+      }
+      sets.push(`duration_days = $${i++}`);
+      params.push(dd);
+    }
+    if ('tier' in body) {
+      const validTiers = ['premium', 'premium_plus', 'free'];
+      if (!validTiers.includes(body.tier)) {
+        return reply.code(400).send({ success: false, error: `tier must be one of: ${validTiers.join(', ')}` });
+      }
+      sets.push(`tier = $${i++}`);
+      params.push(body.tier);
+    }
+
+    if (sets.length === 0) {
+      return reply.code(400).send({ success: false, error: 'No updatable fields provided' });
+    }
+
+    params.push(codeId);
+    try {
+      const result = await db.query(
+        `UPDATE promo_codes SET ${sets.join(', ')} WHERE id = $${i} RETURNING *`,
+        params
+      );
+      if (result.rows.length === 0) {
+        return reply.code(404).send({ success: false, error: 'Promo code not found' });
+      }
+      fastify.log.info(`[Admin] promo-code updated: ${result.rows[0].code} fields=[${Object.keys(body).join(',')}] by ${request.adminUser?.email}`);
+      return reply.send({ success: true, data: result.rows[0] });
+    } catch (error) {
+      fastify.log.error({ err: error }, 'Error updating promo code');
+      return reply.code(500).send({ success: false, error: 'Failed to update promo code' });
+    }
+  });
+
   // ============================================================================
   // UTILITY ROUTES
   // ============================================================================
@@ -2282,8 +2354,265 @@ module.exports = async function (fastify, opts) {
     }
   });
 
+  // ============================================================================
+  // RECENT USER ACTIONS — bulk export of per-user action timelines
+  // ============================================================================
+
+  /**
+   * GET /api/admin/analytics/recent-user-actions?days=7&limit=200&tier=free|premium|premium_plus|guest&includeInternal=true&format=json|csv
+   *
+   * Returns recent app_events grouped by user, so we can see what each user
+   * actually did (and where they dropped off) in the last N days.
+   *
+   * Response (JSON):
+   * {
+   *   success: true,
+   *   data: {
+   *     summary: { totalUsers, totalEvents, days, generatedAt },
+   *     users: [
+   *       {
+   *         userId, email, name, tier, isAnonymous, signupDate,
+   *         firstEventAt, lastEventAt, daysActive, totalEvents,
+   *         eventCounts: { app_open: 5, chat_message_sent: 3, ... },
+   *         timeline: [{ time, event, type, label, properties }, ...]
+   *       }
+   *     ]
+   *   }
+   * }
+   *
+   * CSV format: one row per event, columns:
+   *   user_id,email,tier,is_anonymous,signup_date,event_time,event_name,label,subject,properties_json
+   */
+  fastify.get('/api/admin/analytics/recent-user-actions', { preHandler: verifyAdmin }, async (request, reply) => {
+    try {
+      const days = Math.min(Math.max(parseInt(request.query.days) || 7, 1), 30);
+      const limit = Math.min(Math.max(parseInt(request.query.limit) || 200, 1), 1000);
+      const tierFilter = request.query.tier || ''; // 'free' | 'premium' | 'premium_plus' | 'guest' | ''
+      const includeInternal = request.query.includeInternal === 'true';
+      const format = (request.query.format || 'json').toLowerCase();
+      const iFilter = await getIFilterNoAlias(includeInternal);
+
+      if (!(await appEventsExist())) {
+        return reply.send({
+          success: true,
+          data: { summary: { totalUsers: 0, totalEvents: 0, days, generatedAt: new Date().toISOString() }, users: [] },
+          note: 'app_events table not yet migrated',
+        });
+      }
+
+      const tierClauseMap = {
+        free:         `AND u.tier = 'free' AND u.is_anonymous = false`,
+        premium:      `AND u.tier = 'premium' AND (u.tier_expires_at IS NULL OR u.tier_expires_at > NOW())`,
+        premium_plus: `AND u.tier = 'premium_plus' AND (u.tier_expires_at IS NULL OR u.tier_expires_at > NOW())`,
+        guest:        `AND u.is_anonymous = true`,
+      };
+      const tierClause = tierClauseMap[tierFilter] || '';
+
+      // Step 1: pick the most recently active users in the window
+      const activeUsersResult = await db.query(`
+        WITH active AS (
+          SELECT user_id, MAX(occurred_at) AS last_event, MIN(occurred_at) AS first_event,
+                 COUNT(*)::int AS event_count
+          FROM app_events
+          WHERE occurred_at >= NOW() - INTERVAL '${days} days'
+            AND event_name != 'app_background'
+          GROUP BY user_id
+        )
+        SELECT
+          u.id::text                                  AS user_id,
+          u.email,
+          u.name,
+          u.tier,
+          u.is_anonymous                              AS is_anonymous,
+          u.created_at                                AS signup_date,
+          a.first_event,
+          a.last_event,
+          a.event_count
+        FROM active a
+        JOIN users u ON u.id = a.user_id
+        LEFT JOIN profiles p ON p.user_id = u.id
+        WHERE p.parent_id IS NULL
+          ${iFilter}
+          ${tierClause}
+        ORDER BY a.last_event DESC
+        LIMIT $1
+      `, [limit]);
+
+      const userRows = activeUsersResult.rows;
+      if (userRows.length === 0) {
+        return reply.send({
+          success: true,
+          data: { summary: { totalUsers: 0, totalEvents: 0, days, generatedAt: new Date().toISOString() }, users: [] },
+        });
+      }
+
+      const userIds = userRows.map(r => r.user_id);
+
+      // Step 2: pull all events for those users (single query, capped per user via window)
+      // We fetch up to 500 events per user to bound payload size.
+      const eventsResult = await db.query(`
+        SELECT user_id::text, event_name, properties, occurred_at
+        FROM (
+          SELECT user_id, event_name, properties, occurred_at,
+                 ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY occurred_at ASC) AS rn
+          FROM app_events
+          WHERE user_id = ANY($1::uuid[])
+            AND occurred_at >= NOW() - INTERVAL '${days} days'
+            AND event_name != 'app_background'
+        ) t
+        WHERE rn <= 500
+        ORDER BY user_id, occurred_at ASC
+      `, [userIds]);
+
+      // Group events by user
+      const eventsByUser = new Map();
+      for (const ev of eventsResult.rows) {
+        if (!eventsByUser.has(ev.user_id)) eventsByUser.set(ev.user_id, []);
+        eventsByUser.get(ev.user_id).push(ev);
+      }
+
+      const users = userRows.map(u => {
+        const evs = eventsByUser.get(u.user_id) || [];
+        const eventCounts = {};
+        const dayKeys = new Set();
+        const timeline = evs.map(ev => {
+          const name = ev.event_name;
+          eventCounts[name] = (eventCounts[name] || 0) + 1;
+          dayKeys.add(new Date(ev.occurred_at).toISOString().slice(0, 10));
+          return {
+            time:       ev.occurred_at,
+            event:      name,
+            type:       JOURNEY_TYPE_MAP[name] || 'app_session',
+            label:      labelFromEvent(name, ev.properties),
+            properties: ev.properties || {},
+          };
+        });
+        return {
+          userId:        u.user_id,
+          email:         u.email,
+          name:          u.name,
+          tier:          u.is_anonymous ? 'guest' : (u.tier || 'free'),
+          isAnonymous:   u.is_anonymous,
+          signupDate:    u.signup_date,
+          firstEventAt:  u.first_event,
+          lastEventAt:   u.last_event,
+          daysActive:    dayKeys.size,
+          totalEvents:   u.event_count,
+          eventCounts,
+          timeline,
+        };
+      });
+
+      const summary = {
+        totalUsers:  users.length,
+        totalEvents: users.reduce((s, u) => s + u.totalEvents, 0),
+        days,
+        tierFilter:  tierFilter || 'all',
+        generatedAt: new Date().toISOString(),
+      };
+
+      // CSV export — one row per event
+      if (format === 'csv') {
+        const escape = v => {
+          if (v == null) return '';
+          const s = typeof v === 'string' ? v : JSON.stringify(v);
+          return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+        };
+        const header = 'user_id,email,tier,is_anonymous,signup_date,event_time,event_name,label,subject,properties_json';
+        const lines = [header];
+        for (const u of users) {
+          for (const ev of u.timeline) {
+            lines.push([
+              u.userId,
+              u.email || '',
+              u.tier,
+              u.isAnonymous,
+              u.signupDate ? new Date(u.signupDate).toISOString() : '',
+              new Date(ev.time).toISOString(),
+              ev.event,
+              ev.label,
+              ev.properties?.subject || '',
+              JSON.stringify(ev.properties || {}),
+            ].map(escape).join(','));
+          }
+        }
+        reply.header('Content-Type', 'text/csv; charset=utf-8');
+        reply.header('Content-Disposition', `attachment; filename="user-actions-${days}d-${new Date().toISOString().slice(0,10)}.csv"`);
+        return reply.send(lines.join('\n'));
+      }
+
+      return reply.send({ success: true, data: { summary, users } });
+    } catch (error) {
+      fastify.log.error({ err: error }, 'Error fetching recent user actions');
+      return reply.code(500).send({ success: false, error: 'Failed to fetch user actions', details: error?.message });
+    }
+  });
+
   fastify.log.info('Admin routes registered successfully');
 };
+
+// ============================================================================
+// Shared event-label helpers (used by /journey and /recent-user-actions)
+// ============================================================================
+
+const JOURNEY_TYPE_MAP = {
+  app_open:                'app_session',
+  chat_opened:             'ai_chat',
+  chat_message_sent:       'ai_chat',
+  live_mode_started:       'live_mode',
+  live_mode_ended:         'live_mode',
+  homework_submitted:      'parsed',
+  homework_graded:         'graded',
+  homework_session_graded: 'graded',
+  focus_session_started:   'focus',
+  focus_session_completed: 'focus',
+  question_answered:       'graded',
+  practice_generated:      'practice_gen',
+  practice_completed:      'practice_done',
+  practice_abandoned:      'practice_gen',
+  knowledge_tree_viewed:   'homework_archive',
+  tree_lightup_done:       'homework_archive',
+};
+
+function labelFromEvent(name, p) {
+  p = p || {};
+  switch (name) {
+    case 'app_open':
+      return `App Opened${p.cold_start ? ' (cold start)' : ''}${p.app_version ? ` · v${p.app_version}` : ''}`;
+    case 'chat_opened':
+      return `Started Chat${p.subject ? ` · ${p.subject}` : ''}`;
+    case 'chat_message_sent':
+      return `Sent Message${p.subject ? ` · ${p.subject}` : ''}`;
+    case 'live_mode_started':
+      return `Started Live Mode${p.subject ? ` · ${p.subject}` : ''}${p.has_scenario ? ' (scenario)' : ''}`;
+    case 'live_mode_ended':
+      return `Ended Live Mode${p.duration_sec ? ` · ${Math.round(p.duration_sec / 60)}min` : ''}${p.subject ? ` · ${p.subject}` : ''}`;
+    case 'homework_submitted':
+      return `Submitted Homework · ${p.subject || 'Unknown'}${p.question_count ? ` (${p.question_count}q)` : ''}${p.parsing_mode ? ` · ${p.parsing_mode}` : ''}`;
+    case 'homework_graded':
+      return `Graded · ${p.subject || 'Unknown'}${p.is_correct != null ? (p.is_correct ? ' · ✓' : ' · ✗') : ''}${p.score != null ? ` · ${Math.round(p.score)}%` : ''}`;
+    case 'homework_session_graded':
+      return `Session Graded · ${p.subject || 'Unknown'} · ${p.correct_count ?? '?'}/${p.total_questions ?? '?'}${p.accuracy_pct != null ? ` (${Math.round(p.accuracy_pct)}%)` : ''}`;
+    case 'focus_session_started':
+      return `Focus Started${p.deep_focus ? ' · Deep Focus' : ''}${p.has_music ? ' 🎵' : ''}`;
+    case 'focus_session_completed':
+      return `Focus Done · ${p.duration_min ?? '?'}min${p.tree_type ? ` · ${p.tree_type}` : ''}`;
+    case 'question_answered':
+      return `Answered · ${p.subject || 'Unknown'} · ${p.question_type || 'Q'}${p.correct != null ? (p.correct ? ' ✓' : ' ✗') : ''}`;
+    case 'practice_generated':
+      return `Generated Practice · ${p.subject || 'Unknown'} · ${p.count ?? '?'}q (${p.practice_type || 'random'})`;
+    case 'practice_completed':
+      return `Practice Done · ${p.subject || 'Unknown'} · ${p.score_pct != null ? p.score_pct + '%' : 'n/a'} (${p.correct_count ?? '?'}/${p.total_questions ?? '?'})`;
+    case 'practice_abandoned':
+      return `Practice Abandoned · ${p.subject || 'Unknown'} at ${p.progress_pct ?? 0}%`;
+    case 'knowledge_tree_viewed':
+      return `Viewed Knowledge Tree · ${p.subject || 'Unknown'}`;
+    case 'tree_lightup_done':
+      return `Lit Up Tree · ${p.subject || 'Unknown'} · ${p.topic_count ?? '?'} topics`;
+    default:
+      return name;
+  }
+}
 
 // ============================================================================
 // Helpers

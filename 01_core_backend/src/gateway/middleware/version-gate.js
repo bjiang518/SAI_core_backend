@@ -7,14 +7,17 @@
  *
  * Controlled by one environment variable:
  *
- *   IOS_RECOMMENDED_VERSION  – semver string, e.g. "1.0.6" (default: "0.0.0" = no warning)
+ *   IOS_RECOMMENDED_VERSION  – semver string, e.g. "1.2.6" (default: "0.0.0" = no warning)
  *
  * The iOS app sends `User-Agent: StudyAI-iOS/<version>`.
  * Old builds may send "StudyAI-iOS/1.0"; new builds send the real CFBundleShortVersionString.
  *
  * When the client version < recommendedVersion, the middleware tags the request
- * and an onSend hook adds the `X-Version-Warning` response header with JSON metadata.
- * Old clients that don't understand the header simply ignore it.
+ * and an onSend hook adds the `X-Version-Warning` response header with JSON metadata
+ * including a bilingual `releaseNotes` payload.
+ *
+ * Old clients that don't understand the new fields simply ignore them — header
+ * additions are forward-compatible.
  */
 
 const logger = require('../../utils/logger');
@@ -22,6 +25,36 @@ const logger = require('../../utils/logger');
 // Read once at startup — change requires restart or redeploy
 const RECOMMENDED_VERSION = process.env.IOS_RECOMMENDED_VERSION || '0.0.0';
 const STORE_URL = 'https://apps.apple.com/app/id6754365864';
+
+/**
+ * Bilingual release notes for the current `RECOMMENDED_VERSION`.
+ * iOS 1.2.7+ reads `releaseNotes[lang]` and shows it in the soft-update prompt.
+ * Clients < 1.2.7 ignore this field entirely (alert message is hardcoded locally).
+ *
+ * Keep each language's body short — at most ~5 bullet points, ~300 chars total —
+ * so it fits cleanly inside an iOS alert / sheet.
+ */
+const RELEASE_NOTES = {
+  version: '1.2.6',
+  zh: {
+    title: '新版本上线啦 🎉',
+    body: [
+      '• 真题库全面增强：更多真实考试题，按知识点精准筛选',
+      '• 知识树升级：直观看见薄弱点，一键点亮未掌握的概念',
+      '• AI 视频学习：和 AI 一起看视频，边看边讲解、边练习',
+      '• 多项性能优化和体验提升',
+    ].join('\n'),
+  },
+  en: {
+    title: "What's New 🎉",
+    body: [
+      '• Question Bank upgraded — more real exam questions, filterable by topic',
+      '• Knowledge Tree improved — see weak spots clearly, light up concepts you haven\'t mastered',
+      '• Learn-with-AI Videos — watch with AI, get live explanations and practice',
+      '• Performance and UX improvements',
+    ].join('\n'),
+  },
+};
 
 /**
  * Compare two semver-ish strings ("1.0.5" vs "1.0").
@@ -67,7 +100,8 @@ async function versionGate(request, reply) {
     request.versionWarning = {
       recommendedVersion: RECOMMENDED_VERSION,
       clientVersion,
-      storeUrl: STORE_URL
+      storeUrl: STORE_URL,
+      releaseNotes: RELEASE_NOTES,
     };
   }
 }
@@ -83,4 +117,4 @@ async function versionWarningHook(request, reply, payload) {
   return payload;
 }
 
-module.exports = { versionGate, versionWarningHook, compareSemver, parseIOSVersion };
+module.exports = { versionGate, versionWarningHook, compareSemver, parseIOSVersion, RELEASE_NOTES };

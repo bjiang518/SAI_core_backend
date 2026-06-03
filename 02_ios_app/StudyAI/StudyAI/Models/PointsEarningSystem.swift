@@ -396,6 +396,7 @@ class PointsEarningManager: ObservableObject {
     
     private let userDefaults = UserDefaults.standard
     private var authCancellable: AnyCancellable?
+    private var observedUserId: String?
 
     // MARK: - Per-user UserDefaults key prefix
     private var userKeyPrefix: String {
@@ -463,12 +464,19 @@ class PointsEarningManager: ObservableObject {
         // Setup day change notifications
         setupDayChangeNotifications()
 
-        // Reload data when user changes — observe $currentUser so uid is correct at both logout and login
+        // Reload data when user changes — observe $currentUser so uid is correct at both logout and login.
+        // Only treat *user-id* changes as account switches; ignore property changes (e.g. tier updates from
+        // promo redemption) which would otherwise reload pointsBalance from possibly-stale UserDefaults
+        // and trigger a sync that overwrites a freshly-spent balance.
+        observedUserId = AuthenticationService.shared.currentUser?.id
         authCancellable = AuthenticationService.shared.$currentUser
             .dropFirst()
             .receive(on: DispatchQueue.main)
             .sink { [weak self] user in
                 guard let self else { return }
+                let newId = user?.id
+                guard newId != self.observedUserId else { return }
+                self.observedUserId = newId
                 if user == nil {
                     // Logout — reset in-memory state immediately without saving
                     // (correct user data was already saved by signOut before currentUser was cleared)
@@ -1557,7 +1565,7 @@ class PointsEarningManager: ObservableObject {
         guard amount > 0, pointsBalance >= amount else { return false }
         pointsBalance -= amount
         logger.info("💰 [SPEND] Spent \(amount) points. Balance: \(self.pointsBalance)")
-        saveData()
+        forceSave()
         return true
     }
 

@@ -457,7 +457,8 @@ struct WeaknessPracticeQuestion: Identifiable {
             topic: topic,
             difficulty: "adaptive",
             options: options,
-            weaknessKey: weaknessKey
+            weaknessKey: weaknessKey,
+            figureUrl: questionImageUrl
         )
     }
 

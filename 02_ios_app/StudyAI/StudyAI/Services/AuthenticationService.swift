@@ -153,6 +153,13 @@ final class AuthenticationService: ObservableObject {
     var appUpdateStoreUrl: String?
     @Published var showUpdateRecommendation = false  // Soft warning — dismissable alert
     var updateRecommendationStoreUrl: String?
+    /// Localized release-notes title shown in the soft-update prompt.
+    /// Populated from the backend's `X-Version-Warning` header (1.2.6+ servers).
+    /// nil → fall back to the local `softUpdate.title` string.
+    @Published var updateRecommendationTitle: String?
+    /// Localized release-notes body. Multi-line, bullet-style. nil → fall back to
+    /// the generic local `softUpdate.message` string.
+    @Published var updateRecommendationBody: String?
 
     private let keychainService = KeychainService.shared
     private let biometricAuth = BiometricAuthService.shared

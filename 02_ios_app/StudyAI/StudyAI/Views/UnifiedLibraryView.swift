@@ -853,7 +853,8 @@ struct UnifiedLibraryView: View {
                 explanation: "",
                 topic: subject,
                 difficulty: "intermediate",
-                options: q.options ?? (type == .multipleChoice ? parseOptionsFromText(q.questionText) : nil)
+                options: q.options ?? (type == .multipleChoice ? parseOptionsFromText(q.questionText) : nil),
+                figureUrl: q.questionImageUrl
             )
         }
 

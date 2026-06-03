@@ -1109,31 +1109,26 @@ class SessionChatViewModel: ObservableObject {
                     }
 
                     if success, let text = fullText {
-                        // ⚠️ CRITICAL: DON'T add to conversationHistory yet!
-                        // The synchronized text is still revealing. Only persist to database.
+                        // Persist to database before mutating in-memory state
                         self.persistMessage(role: "assistant", content: text, addToHistory: false)
 
-                        // ✅ Wire cleanup to actual audio completion rather than a fixed timer.
-                        // onPlaybackComplete fires when the last AVAudioPlayerNode buffer drains.
-                        // notifyStreamingComplete() triggers it immediately if the queue is
-                        // already empty, otherwise it fires after the last buffer plays.
-                        self.interactiveTTSService.onPlaybackComplete = { [weak self] in
-                            Task { @MainActor in
-                                guard let self = self else { return }
-                                self.textRenderer.complete()
-                                self.networkService.appendToConversationHistory([
-                                    "role": "assistant",
-                                    "content": text
-                                ])
-                                self.isSynchronizing = false
-                                self.isActivelyStreaming = false
-                                self.activeStreamingMessage = ""
-                                self.loadSessionInfo()
-                                // Award 1 point for completing a chat exchange
-                                PointsEarningManager.shared.awardChatSessionPoint()
-                            }
-                        }
+                        // Finalize text rendering immediately when the SSE stream ends.
+                        // Audio continues to drain in the background — we do not gate
+                        // text on playback completion.
+                        self.textRenderer.complete()
+                        self.networkService.appendToConversationHistory([
+                            "role": "assistant",
+                            "content": text
+                        ])
+                        self.isSynchronizing = false
+                        self.isActivelyStreaming = false
+                        self.activeStreamingMessage = ""
+                        self.loadSessionInfo()
+                        PointsEarningManager.shared.awardChatSessionPoint()
 
+                        // Clear any prior playback callback so a late-firing drain doesn't
+                        // re-run finalization, then let queued audio play out on its own.
+                        self.interactiveTTSService.onPlaybackComplete = nil
                         self.interactiveTTSService.notifyStreamingComplete()
                     } else {
                         self.isActivelyStreaming = false

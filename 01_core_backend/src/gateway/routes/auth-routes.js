@@ -2066,7 +2066,7 @@ class AuthRoutes {
       this.fastify.log.info(`
 📧 ===== PASSWORD RESET CODE =====
 To: ${email}
-Subject: Reset your Study Mates password
+Subject: Reset your Study Agent password
 
 Hi ${name},
 
@@ -2077,7 +2077,7 @@ This code will expire in 10 minutes.
 If you didn't request a password reset, please ignore this email.
 
 Best regards,
-The Study Mates Team
+The Study Agent Team
 =====================================
       `);
       return;
@@ -2090,12 +2090,12 @@ The Study Mates Team
       const { data, error } = await resend.emails.send({
         from: fromEmail,
         to: [email],
-        subject: 'Reset your Study Mates password',
+        subject: 'Reset your Study Agent password',
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
             <h2 style="color: #2563eb;">Reset Your Password</h2>
             <p>Hi ${name},</p>
-            <p>We received a request to reset your Study Mates password.</p>
+            <p>We received a request to reset your Study Agent password.</p>
             <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; text-align: center; margin: 30px 0;">
               <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px;">Your password reset code is:</p>
               <p style="font-size: 32px; font-weight: bold; color: #2563eb; letter-spacing: 8px; margin: 10px 0;">${code}</p>
@@ -2103,10 +2103,10 @@ The Study Mates Team
             </div>
             <p style="color: #6b7280; font-size: 14px;">If you didn't request a password reset, please ignore this email. Your password will remain unchanged.</p>
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
-            <p style="color: #9ca3af; font-size: 12px; text-align: center;">Best regards,<br>The Study Mates Team</p>
+            <p style="color: #9ca3af; font-size: 12px; text-align: center;">Best regards,<br>The Study Agent Team</p>
           </div>
         `,
-        text: `Hi ${name},\n\nWe received a request to reset your Study Mates password.\n\nYour password reset code is: ${code}\n\nThis code will expire in 10 minutes.\n\nIf you didn't request a password reset, please ignore this email.\n\nBest regards,\nThe Study Mates Team`
+        text: `Hi ${name},\n\nWe received a request to reset your Study Agent password.\n\nYour password reset code is: ${code}\n\nThis code will expire in 10 minutes.\n\nIf you didn't request a password reset, please ignore this email.\n\nBest regards,\nThe Study Agent Team`
       });
 
       if (error) {
@@ -2134,20 +2134,20 @@ The Study Mates Team
       this.fastify.log.info(`
 📧 ===== EMAIL VERIFICATION CODE =====
 To: ${email}
-Subject: Verify your Study Mates email address
+Subject: Verify your Study Agent email address
 
 Hi ${name},
 
-Welcome to Study Mates!
+Welcome to Study Agent!
 
 Your verification code is: ${code}
 
 This code will expire in 10 minutes.
 
-If you didn't create an account with Study Mates, please ignore this email.
+If you didn't create an account with Study Agent, please ignore this email.
 
 Best regards,
-The Study Mates Team
+The Study Agent Team
 =====================================
       `);
       return; // Don't throw error in dev mode
@@ -2161,10 +2161,10 @@ The Study Mates Team
       const { data, error } = await resend.emails.send({
         from: fromEmail,
         to: [email],
-        subject: 'Verify your Study Mates email address',
+        subject: 'Verify your Study Agent email address',
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <h2 style="color: #2563eb;">Welcome to Study Mates!</h2>
+            <h2 style="color: #2563eb;">Welcome to Study Agent!</h2>
             <p>Hi ${name},</p>
             <p>Thank you for signing up! Please verify your email address to complete your registration.</p>
             <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; text-align: center; margin: 30px 0;">
@@ -2172,12 +2172,12 @@ The Study Mates Team
               <p style="font-size: 32px; font-weight: bold; color: #2563eb; letter-spacing: 8px; margin: 10px 0;">${code}</p>
               <p style="margin: 10px 0 0 0; color: #6b7280; font-size: 14px;">This code will expire in 10 minutes</p>
             </div>
-            <p style="color: #6b7280; font-size: 14px;">If you didn't create an account with Study Mates, please ignore this email.</p>
+            <p style="color: #6b7280; font-size: 14px;">If you didn't create an account with Study Agent, please ignore this email.</p>
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
-            <p style="color: #9ca3af; font-size: 12px; text-align: center;">Best regards,<br>The Study Mates Team</p>
+            <p style="color: #9ca3af; font-size: 12px; text-align: center;">Best regards,<br>The Study Agent Team</p>
           </div>
         `,
-        text: `Hi ${name},\n\nWelcome to Study Mates!\n\nYour verification code is: ${code}\n\nThis code will expire in 10 minutes.\n\nIf you didn't create an account with Study Mates, please ignore this email.\n\nBest regards,\nThe Study Mates Team`
+        text: `Hi ${name},\n\nWelcome to Study Agent!\n\nYour verification code is: ${code}\n\nThis code will expire in 10 minutes.\n\nIf you didn't create an account with Study Agent, please ignore this email.\n\nBest regards,\nThe Study Agent Team`
       });
 
       if (error) {
@@ -2508,22 +2508,22 @@ The Study Mates Team
       this.fastify.log.info(`
 📧 ===== PARENTAL CONSENT EMAIL =====
 To: ${parentEmail}
-Subject: Parental Consent Required - Study Mates
+Subject: Parental Consent Required - Study Agent
 
 Hi ${parentName},
 
-Your child (${childEmail}) has signed up for Study Mates. Because they are under 13 years old, we require parental consent under COPPA (Children's Online Privacy Protection Act).
+Your child (${childEmail}) has signed up for Study Agent. Because they are under 13 years old, we require parental consent under COPPA (Children's Online Privacy Protection Act).
 
 Your verification code is: ${verificationCode}
 
 This code will expire in 24 hours.
 
-Please enter this code to grant consent for your child to use Study Mates.
+Please enter this code to grant consent for your child to use Study Agent.
 
 If you did not expect this email, please ignore it.
 
 Best regards,
-The Study Mates Team
+The Study Agent Team
 =====================================
       `);
       return; // Don't throw error in dev mode
@@ -2537,28 +2537,28 @@ The Study Mates Team
       const { data, error } = await resend.emails.send({
         from: fromEmail,
         to: [parentEmail],
-        subject: 'Parental Consent Required - Study Mates',
+        subject: 'Parental Consent Required - Study Agent',
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
             <h2 style="color: #2563eb;">Parental Consent Required</h2>
             <p>Hi ${parentName},</p>
-            <p>Your child (<strong>${childEmail}</strong>) has signed up for Study Mates. Because they are under 13 years old, we require parental consent under <strong>COPPA</strong> (Children's Online Privacy Protection Act).</p>
+            <p>Your child (<strong>${childEmail}</strong>) has signed up for Study Agent. Because they are under 13 years old, we require parental consent under <strong>COPPA</strong> (Children's Online Privacy Protection Act).</p>
             <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; text-align: center; margin: 30px 0;">
               <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px;">Your verification code is:</p>
               <p style="font-size: 32px; font-weight: bold; color: #2563eb; letter-spacing: 8px; margin: 10px 0;">${verificationCode}</p>
               <p style="margin: 10px 0 0 0; color: #6b7280; font-size: 14px;">This code will expire in 24 hours</p>
             </div>
-            <p>Please enter this code in the Study Mates app to grant consent for your child to use Study Mates.</p>
+            <p>Please enter this code in the Study Agent app to grant consent for your child to use Study Agent.</p>
             <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0;">
               <p style="margin: 0; color: #92400e; font-size: 14px;"><strong>COPPA Privacy Notice:</strong></p>
-              <p style="margin: 5px 0 0 0; color: #92400e; font-size: 14px;">By providing consent, you authorize Study Mates to collect and process your child's learning data for educational purposes. You may revoke consent at any time.</p>
+              <p style="margin: 5px 0 0 0; color: #92400e; font-size: 14px;">By providing consent, you authorize Study Agent to collect and process your child's learning data for educational purposes. You may revoke consent at any time.</p>
             </div>
             <p style="color: #6b7280; font-size: 14px;">If you did not expect this email or if you have questions, please contact us at privacy@study-mates.net</p>
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
-            <p style="color: #9ca3af; font-size: 12px; text-align: center;">Best regards,<br>The Study Mates Team</p>
+            <p style="color: #9ca3af; font-size: 12px; text-align: center;">Best regards,<br>The Study Agent Team</p>
           </div>
         `,
-        text: `Hi ${parentName},\n\nYour child (${childEmail}) has signed up for Study Mates. Because they are under 13 years old, we require parental consent under COPPA (Children's Online Privacy Protection Act).\n\nYour verification code is: ${verificationCode}\n\nThis code will expire in 24 hours.\n\nPlease enter this code to grant consent for your child to use Study Mates.\n\nCOPPA Privacy Notice: By providing consent, you authorize Study Mates to collect and process your child's learning data for educational purposes. You may revoke consent at any time.\n\nIf you did not expect this email, please contact us at privacy@study-mates.net\n\nBest regards,\nThe Study Mates Team`
+        text: `Hi ${parentName},\n\nYour child (${childEmail}) has signed up for Study Agent. Because they are under 13 years old, we require parental consent under COPPA (Children's Online Privacy Protection Act).\n\nYour verification code is: ${verificationCode}\n\nThis code will expire in 24 hours.\n\nPlease enter this code to grant consent for your child to use Study Agent.\n\nCOPPA Privacy Notice: By providing consent, you authorize Study Agent to collect and process your child's learning data for educational purposes. You may revoke consent at any time.\n\nIf you did not expect this email, please contact us at privacy@study-mates.net\n\nBest regards,\nThe Study Agent Team`
       });
 
       if (error) {
@@ -2865,12 +2865,12 @@ This code will expire in 10 minutes.
       const { data, error } = await resend.emails.send({
         from: fromEmail,
         to: [email],
-        subject: 'Reset your Study Mates Parent PIN',
+        subject: 'Reset your Study Agent Parent PIN',
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
             <h2 style="color: #7c3aed;">Reset Your Parent PIN</h2>
             <p>Hi ${name},</p>
-            <p>We received a request to reset your Study Mates parental control PIN.</p>
+            <p>We received a request to reset your Study Agent parental control PIN.</p>
             ${providerNote}
             <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; text-align: center; margin: 30px 0;">
               <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px;">Your PIN reset code is:</p>
@@ -2879,10 +2879,10 @@ This code will expire in 10 minutes.
             </div>
             <p style="color: #6b7280; font-size: 14px;">If you didn't request a PIN reset, please ignore this email. Your parent PIN will remain unchanged.</p>
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
-            <p style="color: #9ca3af; font-size: 12px; text-align: center;">Best regards,<br>The Study Mates Team</p>
+            <p style="color: #9ca3af; font-size: 12px; text-align: center;">Best regards,<br>The Study Agent Team</p>
           </div>
         `,
-        text: `Hi ${name},\n\nYour Study Mates parent PIN reset code is: ${code}\n\nThis code will expire in 10 minutes.\n\nIf you didn't request a PIN reset, please ignore this email.\n\nBest regards,\nThe Study Mates Team`
+        text: `Hi ${name},\n\nYour Study Agent parent PIN reset code is: ${code}\n\nThis code will expire in 10 minutes.\n\nIf you didn't request a PIN reset, please ignore this email.\n\nBest regards,\nThe Study Agent Team`
       });
 
       if (error) {

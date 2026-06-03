@@ -218,8 +218,23 @@ class NetworkService: ObservableObject {
             return
         }
         let storeUrl = json["storeUrl"] as? String
+
+        // releaseNotes is optional — older backends omit it. Pick the user's language
+        // (zh-Hans / zh-Hant → zh, everything else → en) and fall back gracefully.
+        var notesTitle: String?
+        var notesBody:  String?
+        if let notes = json["releaseNotes"] as? [String: Any] {
+            let pref = Locale.preferredLanguages.first ?? "en"
+            let langKey = pref.lowercased().hasPrefix("zh") ? "zh" : "en"
+            let chosen  = (notes[langKey] as? [String: Any]) ?? (notes["en"] as? [String: Any])
+            notesTitle = chosen?["title"] as? String
+            notesBody  = chosen?["body"]  as? String
+        }
+
         DispatchQueue.main.async {
             AuthenticationService.shared.updateRecommendationStoreUrl = storeUrl
+            AuthenticationService.shared.updateRecommendationTitle    = notesTitle
+            AuthenticationService.shared.updateRecommendationBody     = notesBody
             AuthenticationService.shared.showUpdateRecommendation = true
         }
     }

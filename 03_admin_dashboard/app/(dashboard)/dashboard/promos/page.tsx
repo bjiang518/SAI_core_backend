@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Copy, RefreshCw, AlertCircle, Tag } from 'lucide-react'
+import { Copy, RefreshCw, AlertCircle, Tag, Pencil, X } from 'lucide-react'
 import { promoCodesAPI } from '@/lib/api'
 
 type TierOption = 'premium' | 'premium_plus' | 'free'
@@ -38,12 +38,50 @@ function TierBadge({ tier }: { tier: string }) {
   return <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${cfg.badge}`}>{cfg.label}</span>
 }
 
+type EffectiveStatus = 'active' | 'inactive' | 'expired' | 'exhausted'
+
+function getEffectiveStatus(code: PromoCode): EffectiveStatus {
+  if (!code.is_active) return 'inactive'
+  if (code.expires_at && new Date(code.expires_at).getTime() < Date.now()) return 'expired'
+  if (code.max_uses !== null && code.uses_count >= code.max_uses) return 'exhausted'
+  return 'active'
+}
+
+function StatusBadge({ status }: { status: EffectiveStatus }) {
+  if (status === 'active') return <Badge variant="success">Active</Badge>
+  if (status === 'inactive') return <Badge variant="secondary">Inactive</Badge>
+  if (status === 'expired') return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">Expired</span>
+  return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-200 text-gray-700">Exhausted</span>
+}
+
+// Convert ISO timestamp → "YYYY-MM-DD" (local) for the <input type=date>
+function isoToDateInput(iso: string | null): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return ''
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
 export default function PromosPage() {
   const [codes, setCodes] = useState<PromoCode[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [togglingId, setTogglingId] = useState<number | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<number | null>(null)
+
+  // Edit modal state
+  const [editingCode, setEditingCode] = useState<PromoCode | null>(null)
+  const [editExpiresAt, setEditExpiresAt] = useState('')
+  const [editDurationDays, setEditDurationDays] = useState(30)
+  const [editMaxUses, setEditMaxUses] = useState<number | ''>('')
+  const [editUnlimited, setEditUnlimited] = useState(false)
+  const [editTier, setEditTier] = useState<TierOption>('premium')
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [editError, setEditError] = useState<string | null>(null)
 
   // Create form state
   const [newCode, setNewCode] = useState('')
@@ -79,19 +117,69 @@ export default function PromosPage() {
 
   useEffect(() => { fetchCodes() }, [])
 
+  const extractError = (err: unknown): string => {
+    return (err as { response?: { data?: { error?: string } }; message?: string })?.response?.data?.error
+      || (err instanceof Error ? err.message : String(err))
+  }
+
   const handleToggle = async (code: PromoCode) => {
     setTogglingId(code.id)
+    setActionError(null)
     try {
-      if (code.is_active) {
-        await promoCodesAPI.deactivate(code.id)
-      } else {
-        await promoCodesAPI.activate(code.id)
+      const res = code.is_active
+        ? await promoCodesAPI.deactivate(code.id)
+        : await promoCodesAPI.activate(code.id)
+      if (res && res.success === false) {
+        setActionError(res.error || 'Failed to update code')
       }
       await fetchCodes()
-    } catch {
-      // silently refresh — server error will surface on next load
+    } catch (err: unknown) {
+      setActionError(`Error: ${extractError(err)}`)
     } finally {
       setTogglingId(null)
+    }
+  }
+
+  const openEdit = (code: PromoCode) => {
+    setEditingCode(code)
+    setEditExpiresAt(isoToDateInput(code.expires_at))
+    setEditDurationDays(code.duration_days || 0)
+    setEditMaxUses(code.max_uses ?? '')
+    setEditUnlimited(code.max_uses === null)
+    setEditTier((code.tier as TierOption) || 'premium')
+    setEditError(null)
+  }
+
+  const closeEdit = () => {
+    setEditingCode(null)
+    setEditError(null)
+  }
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingCode) return
+    setSavingEdit(true)
+    setEditError(null)
+    try {
+      const payload: Parameters<typeof promoCodesAPI.update>[1] = {
+        expires_at: editExpiresAt || null,
+        max_uses: editUnlimited ? null : (editMaxUses === '' ? null : Number(editMaxUses)),
+        tier: editTier,
+      }
+      if (editTier !== 'free') {
+        payload.duration_days = editDurationDays
+      }
+      const res = await promoCodesAPI.update(editingCode.id, payload)
+      if (res && res.success === false) {
+        setEditError(res.error || 'Failed to update code')
+        return
+      }
+      await fetchCodes()
+      closeEdit()
+    } catch (err: unknown) {
+      setEditError(`Error: ${extractError(err)}`)
+    } finally {
+      setSavingEdit(false)
     }
   }
 
@@ -130,9 +218,7 @@ export default function PromosPage() {
         setCreateError(res.error || 'Failed to create promo code')
       }
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { error?: string } }; message?: string })?.response?.data?.error
-        || (err instanceof Error ? err.message : String(err))
-      setCreateError(`Error: ${msg}`)
+      setCreateError(`Error: ${extractError(err)}`)
     } finally {
       setCreating(false)
     }
@@ -142,6 +228,8 @@ export default function PromosPage() {
     if (!iso) return '—'
     return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
   }
+
+  const isEditDowngrade = editTier === 'free'
 
   return (
     <div className="space-y-6">
@@ -167,6 +255,18 @@ export default function PromosPage() {
         <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
           <AlertCircle className="h-4 w-4 shrink-0" />
           {error}
+        </div>
+      )}
+
+      {actionError && (
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            {actionError}
+          </div>
+          <button onClick={() => setActionError(null)} className="text-red-800 hover:text-red-900">
+            <X className="h-4 w-4" />
+          </button>
         </div>
       )}
 
@@ -202,50 +302,188 @@ export default function PromosPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {codes.map((code) => (
-                    <tr key={code.id} className="py-3">
-                      <td className="py-3 pr-4 font-mono font-semibold">{code.code}</td>
-                      <td className="py-3 pr-4"><TierBadge tier={code.tier} /></td>
-                      <td className="py-3 pr-4 text-muted-foreground">
-                        {code.tier === 'free' ? '—' : `${code.duration_days}d`}
-                      </td>
-                      <td className="py-3 pr-4">
-                        {code.uses_count} / {code.max_uses ?? '∞'}
-                      </td>
-                      <td className="py-3 pr-4 text-muted-foreground">{formatDate(code.expires_at)}</td>
-                      <td className="py-3 pr-4">
-                        {code.is_active ? (
-                          <Badge variant="success">Active</Badge>
-                        ) : (
-                          <Badge variant="secondary">Inactive</Badge>
-                        )}
-                      </td>
-                      <td className="py-3">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleToggle(code)}
-                            disabled={togglingId === code.id}
-                            className="px-3 py-1 text-xs border rounded hover:bg-gray-50 disabled:opacity-50 transition-colors"
-                          >
-                            {togglingId === code.id ? '…' : code.is_active ? 'Disable' : 'Enable'}
-                          </button>
-                          <button
-                            onClick={() => handleCopy(code)}
-                            className="p-1 hover:text-blue-600 transition-colors"
-                            title="Copy code"
-                          >
-                            <Copy className={`h-4 w-4 ${copiedId === code.id ? 'text-green-600' : ''}`} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {codes.map((code) => {
+                    const status = getEffectiveStatus(code)
+                    return (
+                      <tr key={code.id} className="py-3">
+                        <td className="py-3 pr-4 font-mono font-semibold">{code.code}</td>
+                        <td className="py-3 pr-4"><TierBadge tier={code.tier} /></td>
+                        <td className="py-3 pr-4 text-muted-foreground">
+                          {code.tier === 'free' ? '—' : `${code.duration_days}d`}
+                        </td>
+                        <td className="py-3 pr-4">
+                          {code.uses_count} / {code.max_uses ?? '∞'}
+                        </td>
+                        <td className="py-3 pr-4 text-muted-foreground">{formatDate(code.expires_at)}</td>
+                        <td className="py-3 pr-4"><StatusBadge status={status} /></td>
+                        <td className="py-3">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleToggle(code)}
+                              disabled={togglingId === code.id}
+                              className="px-3 py-1 text-xs border rounded hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                            >
+                              {togglingId === code.id ? '…' : code.is_active ? 'Disable' : 'Enable'}
+                            </button>
+                            <button
+                              onClick={() => openEdit(code)}
+                              className="px-3 py-1 text-xs border rounded hover:bg-gray-50 transition-colors flex items-center gap-1"
+                              title="Edit code"
+                            >
+                              <Pencil className="h-3 w-3" />
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleCopy(code)}
+                              className="p-1 hover:text-blue-600 transition-colors"
+                              title="Copy code"
+                            >
+                              <Copy className={`h-4 w-4 ${copiedId === code.id ? 'text-green-600' : ''}`} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Edit modal */}
+      {editingCode && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={closeEdit}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">
+                Edit Code <span className="font-mono">{editingCode.code}</span>
+              </h2>
+              <button onClick={closeEdit} className="text-gray-400 hover:text-gray-700">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+              {/* Tier */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Tier</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(Object.entries(TIER_CONFIG) as [TierOption, typeof TIER_CONFIG[TierOption]][]).map(([value, cfg]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setEditTier(value)}
+                      className={`px-3 py-2 text-xs font-medium rounded-lg border-2 transition-colors text-left ${
+                        editTier === value ? `${cfg.color} bg-white shadow-sm` : 'border-gray-200 text-muted-foreground hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="font-semibold">{cfg.label}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Duration */}
+              {!isEditDowngrade && (
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Duration (days)</label>
+                  <input
+                    type="number"
+                    value={editDurationDays}
+                    onChange={(e) => setEditDurationDays(Math.max(1, parseInt(e.target.value) || 1))}
+                    min={1}
+                    max={3650}
+                    className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              )}
+
+              {/* Max Uses */}
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Max Uses</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    value={editUnlimited ? '' : editMaxUses}
+                    onChange={(e) => setEditMaxUses(e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value) || 1))}
+                    disabled={editUnlimited}
+                    placeholder="e.g. 100"
+                    min={1}
+                    className="flex-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
+                  />
+                  <label className="flex items-center gap-2 text-sm cursor-pointer whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      checked={editUnlimited}
+                      onChange={(e) => setEditUnlimited(e.target.checked)}
+                      className="rounded"
+                    />
+                    Unlimited
+                  </label>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Already used: {editingCode.uses_count}
+                </p>
+              </div>
+
+              {/* Expiry */}
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Expiry Date</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="date"
+                    value={editExpiresAt}
+                    onChange={(e) => setEditExpiresAt(e.target.value)}
+                    className="flex-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setEditExpiresAt('')}
+                    className="px-3 py-2 text-xs border rounded-lg hover:bg-gray-50 whitespace-nowrap"
+                  >
+                    Never expires
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Leave blank for no expiry. Set a future date to extend an expired code.
+                </p>
+              </div>
+
+              {editError && (
+                <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  {editError}
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={closeEdit}
+                  className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingEdit}
+                  className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700 disabled:opacity-50"
+                >
+                  {savingEdit ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Create new code */}
       <Card>
