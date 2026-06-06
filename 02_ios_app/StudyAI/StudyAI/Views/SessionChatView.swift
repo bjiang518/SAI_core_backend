@@ -133,6 +133,10 @@ struct SessionChatView: View {
     @State private var isLiveMode = false
     @State private var liveModeStartTime: Date? = nil
     @StateObject private var liveVMHolder = LiveVMHolder()
+    // ⭐ Live tutor feedback — flashes the bar after live mode exits.
+    @State private var liveTutorRecentlyEnded = false
+    @State private var liveTutorDurationSec   = 0
+    @State private var liveTutorClearTask: Task<Void, Never>? = nil
     // Live mode leave confirmation
     @State private var showingLiveLeaveAlert = false
     @State private var pendingTab: MainTab? = nil
@@ -924,6 +928,22 @@ struct SessionChatView: View {
         avatarState.animationState = .processing  // Fast animation, no effects
                 }
             }
+            .onChange(of: isLiveMode) { wasLive, nowLive in
+                // ⭐ Live tutor feedback trigger: when live mode ends (was true, now false),
+                // briefly flag so the live_tutor feedback bar can render. Auto-clears after
+                // 30 seconds so the bar doesn't linger if the user ignores it.
+                if wasLive && !nowLive {
+                    if let start = liveModeStartTime {
+                        liveTutorDurationSec = max(0, Int(Date().timeIntervalSince(start)))
+                    }
+                    liveTutorRecentlyEnded = true
+                    liveTutorClearTask?.cancel()
+                    liveTutorClearTask = Task { @MainActor in
+                        try? await Task.sleep(nanoseconds: 30_000_000_000)  // 30s
+                        if !Task.isCancelled { liveTutorRecentlyEnded = false }
+                    }
+                }
+            }
             .onChange(of: viewModel.isInteractiveTTSPlaying) { _, isPlaying in
                 let ts = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
                 if isPlaying {
@@ -1377,6 +1397,45 @@ struct SessionChatView: View {
                viewModel.isStreamingComplete {
                 conversationContinuationButtons
                     .transition(.opacity)  // ✅ Simplified for performance
+            }
+
+            // ⭐ Feedback bar — shown once per chat session after a real conversation has happened.
+            // Gating: ≥ 4 messages exchanged, AI not streaming, not in live mode, not already asked.
+            if !isLiveMode,
+               viewModel.isStreamingComplete,
+               !viewModel.isActivelyStreaming,
+               !viewModel.showTypingIndicator,
+               networkService.conversationHistory.count >= 4,
+               let sid = networkService.currentSessionId,
+               FeedbackService.shared.shouldAsk(surface: .chatSession, refId: sid) {
+                FeedbackThumbsBar(
+                    surface:  .chatSession,
+                    refType:  "chat_session",
+                    refId:    sid,
+                    metadata: [
+                        "message_count": networkService.conversationHistory.count,
+                        "subject":       viewModel.selectedSubject,
+                    ]
+                )
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+
+            // ⭐ Live tutor feedback — shown right after user exits live voice mode.
+            // Uses the same currentSessionId but a different surface, so its dedup key is independent.
+            if liveTutorRecentlyEnded,
+               !isLiveMode,
+               let sid = networkService.currentSessionId,
+               FeedbackService.shared.shouldAsk(surface: .liveTutor, refId: sid) {
+                FeedbackThumbsBar(
+                    surface:  .liveTutor,
+                    refType:  "live_session",
+                    refId:    sid,
+                    metadata: [
+                        "subject":             viewModel.selectedSubject,
+                        "live_duration_sec":   liveTutorDurationSec,
+                    ]
+                )
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
 
             // WeChat-style voice input or text input

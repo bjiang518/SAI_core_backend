@@ -192,14 +192,23 @@ class NetworkService: ObservableObject {
         }
 
         guard statusCode == 403 || statusCode == 429 else { return }
-        let code: String
+
+        // Decode the error code from the response body.
+        // Two error sources collide on 429:
+        //   • tier-check.js   → { error: "MONTHLY_LIMIT_REACHED", ... }
+        //   • fastify-rate-limit → { error: "Rate limit exceeded", code: "RATE_LIMIT_EXCEEDED", retryAfter: 30 }
+        // The latter has a numeric `retryAfter`, so a strict `[String: String]` decode FAILS
+        // and we used to fall back to "MONTHLY_LIMIT_REACHED" — incorrectly showing the upgrade
+        // prompt for transient rate-limit hits. Use `[String: Any]` and prefer `code` over `error`.
+        var resolvedCode: String?
         if let data,
-           let json = try? JSONDecoder().decode([String: String].self, from: data),
-           let err = json["error"] {
-            code = err
-        } else {
-            code = statusCode == 403 ? "UPGRADE_REQUIRED" : "MONTHLY_LIMIT_REACHED"
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            resolvedCode = (json["code"] as? String) ?? (json["error"] as? String)
         }
+        let code = resolvedCode ?? (statusCode == 403 ? "UPGRADE_REQUIRED" : "MONTHLY_LIMIT_REACHED")
+
+        // Only tier-quota codes trigger the upgrade UI. RATE_LIMIT_EXCEEDED is transient
+        // (server-side burst protection) — the user still has budget; they just need to wait.
         let tierCodes: Set<String> = ["UPGRADE_REQUIRED", "MONTHLY_LIMIT_REACHED", "LIFETIME_LIMIT_REACHED"]
         guard tierCodes.contains(code) else { return }
         UsageService.shared.flagLimitReached(feature: feature, errorCode: code)
@@ -3405,7 +3414,135 @@ class NetworkService: ObservableObject {
 
         return gradeResponse
     }
-    
+
+    // MARK: - Solve Question (used when student answer is empty)
+
+    /// Solve mode: walk the student through a question step-by-step.
+    /// Used when the student uploaded a question photo without writing an answer.
+    /// Mirrors `gradeSingleQuestion` in shape but produces a teaching response.
+    ///
+    /// - Parameter useDeepReasoning: false → gpt-5.2 brief solution; true → gemini deep with calc + reasoning per step.
+    func solveQuestion(
+        questionText: String,
+        subject: String?,
+        questionType: String? = nil,
+        gradeLevel: String? = nil,
+        contextImageBase64: String? = nil,
+        parentQuestionContent: String? = nil,
+        useDeepReasoning: Bool = false
+    ) async throws -> SolveQuestionResponse {
+
+        guard let url = URL(string: "\(baseURL)/api/ai/solve-question") else {
+            throw NetworkError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        // Single source of truth — useDeepReasoning derives model_provider (per CLAUDE.md)
+        let modelProvider = useDeepReasoning ? "gemini" : "openai"
+        request.timeoutInterval = useDeepReasoning ? 150.0 : 60.0
+
+        if let token = AuthenticationService.shared.getAuthToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        var requestData: [String: Any] = [
+            "question_text": questionText,
+            "model_provider": modelProvider,
+            "use_deep_reasoning": useDeepReasoning,
+            "language": effectiveLanguage
+        ]
+        if let subject = subject { requestData["subject"] = subject }
+        if let questionType = questionType { requestData["question_type"] = questionType }
+        if let gradeLevel = gradeLevel { requestData["grade_level"] = gradeLevel }
+        if let contextImage = contextImageBase64 { requestData["context_image_base64"] = contextImage }
+        if let parentContent = parentQuestionContent { requestData["parent_question_content"] = parentContent }
+
+        request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NetworkError.invalidResponse
+        }
+
+        guard httpResponse.statusCode == 200 else {
+            if httpResponse.statusCode == 401 {
+                throw NetworkError.authenticationRequired
+            }
+            if httpResponse.statusCode == 429 || httpResponse.statusCode == 403 {
+                handleTierError(statusCode: httpResponse.statusCode, data: data, feature: "homework_pages")
+                throw NetworkError.rateLimited
+            }
+            throw NetworkError.serverError(httpResponse.statusCode)
+        }
+
+        let decoder = JSONDecoder()
+        let solveResponse = try decoder.decode(SolveQuestionResponse.self, from: data)
+
+        if let solution = solveResponse.solution {
+            JourneyTracker.shared.track("question_solved", [
+                "subject": subject ?? "unknown",
+                "depth": useDeepReasoning ? "deep" : "fast",
+                "step_count": solution.steps.count
+            ])
+        }
+
+        return solveResponse
+    }
+
+    // MARK: - Feedback Submission
+
+    /// Submit a thumbs up/down rating to /api/feedback.
+    /// Fire-and-forget by design — failures are logged, never surfaced to UI.
+    func submitFeedback(
+        surface: String,
+        rating: Int,
+        refType: String? = nil,
+        refId: String? = nil,
+        reasonTag: String? = nil,
+        comment: String? = nil,
+        metadata: [String: Any]? = nil
+    ) async {
+        guard let url = URL(string: "\(baseURL)/api/feedback") else { return }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 10.0
+
+        if let token = AuthenticationService.shared.getAuthToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        } else {
+            return  // Anonymous / signed-out — silently skip
+        }
+
+        var body: [String: Any] = [
+            "surface": surface,
+            "rating":  rating,
+        ]
+        if let refType   = refType   { body["ref_type"]   = refType }
+        if let refId     = refId     { body["ref_id"]     = refId }
+        if let reasonTag = reasonTag { body["reason_tag"] = reasonTag }
+        if let comment   = comment   { body["comment"]    = comment }
+        if let metadata  = metadata  { body["metadata"]   = metadata }
+        if let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
+            body["app_version"] = appVersion
+        }
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let (_, response) = try await URLSession.shared.data(for: request)
+            if let http = response as? HTTPURLResponse, http.statusCode != 200 {
+                debugPrint("⚠️ [Feedback] non-200: \(http.statusCode) for \(surface)")
+            }
+        } catch {
+            debugPrint("⚠️ [Feedback] submit failed: \(error.localizedDescription)")
+        }
+    }
+
     // MARK: - Locate Diagram Regions (Phase 1.5)
 
     /// Locate diagram bounding boxes for need_image=true questions.
@@ -6887,5 +7024,276 @@ extension Dictionary {
             }
         }
         return result
+    }
+}
+
+// ============================================================================
+// MARK: - Feedback Mechanism
+//
+// Captures explicit thumbs up/down feedback at key moments (homework grade,
+// homework solve, chat session end, practice complete, parent report).
+//
+// Lives at the bottom of NetworkService.swift because the new files
+// (FeedbackService.swift / FeedbackThumbsBar.swift) are not in the Xcode
+// project's Compile Sources phase. Inlining here keeps the API simple.
+// ============================================================================
+
+/// Where the feedback was captured. Strings MUST match backend `VALID_SURFACES`.
+public enum FeedbackSurface: String, CaseIterable {
+    case homeworkGrade   = "homework_grade"
+    case homeworkSolve   = "homework_solve"
+    case questionGrade   = "question_grade"     // reserved
+    case questionSolve   = "question_solve"     // reserved
+    case chatSession     = "chat_session"
+    case practiceSession = "practice_session"
+    case parentReport    = "parent_report"
+    case liveTutor       = "live_tutor"
+    case solveStep       = "solve_step"         // reserved
+    // P1: extra surfaces
+    case videoSummary           = "video_summary"
+    case mistakeReviewSession   = "mistake_review_session"
+    case knowledgeTreeLighten   = "knowledge_tree_lighten"
+}
+
+/// Closed set of structured reasons for a 👎.
+public enum FeedbackReason: String, CaseIterable {
+    case wrong, confusing, slow, ugly, rude, other
+
+    var label: String {
+        switch self {
+        case .wrong:     return NSLocalizedString("feedback.reason.wrong",     value: "Wrong answer", comment: "")
+        case .confusing: return NSLocalizedString("feedback.reason.confusing", value: "Confusing",    comment: "")
+        case .slow:      return NSLocalizedString("feedback.reason.slow",      value: "Too slow",     comment: "")
+        case .ugly:      return NSLocalizedString("feedback.reason.ugly",      value: "Looks bad",    comment: "")
+        case .rude:      return NSLocalizedString("feedback.reason.rude",      value: "Rude tone",    comment: "")
+        case .other:     return NSLocalizedString("feedback.reason.other",     value: "Other",        comment: "")
+        }
+    }
+
+    /// Reason chips shown for a given surface (3-4 most relevant).
+    static func chips(for surface: FeedbackSurface) -> [FeedbackReason] {
+        switch surface {
+        case .homeworkGrade, .questionGrade:
+            return [.wrong, .confusing, .other]
+        case .homeworkSolve, .questionSolve, .solveStep:
+            return [.wrong, .confusing, .ugly, .other]
+        case .chatSession, .liveTutor:
+            return [.confusing, .slow, .rude, .other]
+        case .practiceSession:
+            return [.wrong, .confusing, .other]
+        case .parentReport:
+            return [.confusing, .other]
+        // P1
+        case .videoSummary:
+            return [.confusing, .slow, .ugly, .other]
+        case .mistakeReviewSession:
+            return [.confusing, .other]
+        case .knowledgeTreeLighten:
+            return [.wrong, .confusing, .other]
+        }
+    }
+}
+
+public enum FeedbackRating: Int {
+    case down = -1
+    case up   =  1
+}
+
+/// Singleton — submits feedback and dedupes per (surface, refId) via UserDefaults.
+@MainActor
+final class FeedbackService: ObservableObject {
+    static let shared = FeedbackService()
+    private init() {}
+
+    private static let dedupPrefix = "fb_seen_"
+
+    func shouldAsk(surface: FeedbackSurface, refId: String?) -> Bool {
+        guard let refId, !refId.isEmpty else { return true }
+        return !UserDefaults.standard.bool(forKey: dedupKey(surface, refId))
+    }
+
+    func markAsked(surface: FeedbackSurface, refId: String?) {
+        guard let refId, !refId.isEmpty else { return }
+        UserDefaults.standard.set(true, forKey: dedupKey(surface, refId))
+    }
+
+    /// Fire-and-forget submission. Failures are logged, never surfaced to UI.
+    func submit(
+        surface: FeedbackSurface,
+        rating: FeedbackRating,
+        refType: String? = nil,
+        refId: String? = nil,
+        reason: FeedbackReason? = nil,
+        metadata: [String: Any]? = nil
+    ) {
+        markAsked(surface: surface, refId: refId)
+        Task.detached {
+            await NetworkService.shared.submitFeedback(
+                surface:   surface.rawValue,
+                rating:    rating.rawValue,
+                refType:   refType,
+                refId:     refId,
+                reasonTag: reason?.rawValue,
+                metadata:  metadata
+            )
+        }
+    }
+
+    private func dedupKey(_ surface: FeedbackSurface, _ refId: String) -> String {
+        return "\(Self.dedupPrefix)\(surface.rawValue)_\(refId)"
+    }
+}
+
+// MARK: - FeedbackThumbsBar (UI component)
+
+/// Compact thumbs up/down bar. 1-tap 👍, 2-tap 👎 (optional reason chips).
+/// Auto-fades out 1.2s after submit.
+struct FeedbackThumbsBar: View {
+    let surface: FeedbackSurface
+    let refType: String?
+    let refId: String?
+    let metadata: [String: Any]?
+    var promptText: String? = nil
+
+    @StateObject private var themeManager = ThemeManager.shared
+    @State private var phase: Phase = .ask
+
+    init(
+        surface: FeedbackSurface,
+        refType: String? = nil,
+        refId: String? = nil,
+        metadata: [String: Any]? = nil,
+        promptText: String? = nil
+    ) {
+        self.surface    = surface
+        self.refType    = refType
+        self.refId      = refId
+        self.metadata   = metadata
+        self.promptText = promptText
+    }
+
+    private enum Phase: Equatable { case ask, askingReason, submitted, dismissed }
+
+    var body: some View {
+        Group {
+            switch phase {
+            case .ask:           askView
+            case .askingReason:  reasonView
+            case .submitted:     submittedView
+            case .dismissed:     EmptyView()
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity)
+        .background(themeManager.cardBackground)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(themeManager.secondaryText.opacity(0.12), lineWidth: 1)
+        )
+        .cornerRadius(12)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .animation(.easeInOut(duration: 0.25), value: phase)
+        .transition(.opacity.combined(with: .move(edge: .bottom)))
+    }
+
+    @ViewBuilder
+    private var askView: some View {
+        HStack(spacing: 12) {
+            Text(promptText ?? NSLocalizedString("feedback.prompt", value: "Was this helpful?", comment: ""))
+                .font(.caption)
+                .foregroundColor(themeManager.secondaryText.opacity(0.75))
+            Spacer()
+            thumbButton(icon: "hand.thumbsup.fill", color: DesignTokens.Colors.Cute.mint) {
+                submit(rating: .up, reason: nil)
+            }
+            thumbButton(icon: "hand.thumbsdown.fill", color: DesignTokens.Colors.Cute.peach) {
+                phase = .askingReason
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var reasonView: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(NSLocalizedString("feedback.reasonPrompt", value: "What went wrong?", comment: ""))
+                    .font(.callout.weight(.medium))
+                    .foregroundColor(themeManager.primaryText)
+                Spacer()
+                Button(action: { submit(rating: .down, reason: nil) }) {
+                    Text(NSLocalizedString("feedback.skip", value: "Skip", comment: ""))
+                        .font(.caption)
+                        .foregroundColor(themeManager.secondaryText)
+                }
+            }
+            chipsRow
+        }
+    }
+
+    @ViewBuilder
+    private var chipsRow: some View {
+        let chips = FeedbackReason.chips(for: surface)
+        HStack(spacing: 8) {
+            ForEach(chips, id: \.self) { reason in
+                Button(action: { submit(rating: .down, reason: reason) }) {
+                    Text(reason.label)
+                        .font(.caption.weight(.medium))
+                        .foregroundColor(themeManager.primaryText)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(DesignTokens.Colors.Cute.peach.opacity(0.15))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(DesignTokens.Colors.Cute.peach.opacity(0.4), lineWidth: 1)
+                        )
+                        .cornerRadius(8)
+                }
+                .buttonStyle(.plain)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    @ViewBuilder
+    private var submittedView: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundColor(DesignTokens.Colors.Cute.mint)
+            Text(NSLocalizedString("feedback.thanks", value: "Thanks for your feedback!", comment: ""))
+                .font(.callout.weight(.medium))
+                .foregroundColor(themeManager.primaryText)
+            Spacer()
+        }
+    }
+
+    @ViewBuilder
+    private func thumbButton(icon: String, color: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(.white)
+                .frame(width: 36, height: 36)
+                .background(color)
+                .clipShape(Circle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func submit(rating: FeedbackRating, reason: FeedbackReason?) {
+        FeedbackService.shared.submit(
+            surface:  surface,
+            rating:   rating,
+            refType:  refType,
+            refId:    refId,
+            reason:   reason,
+            metadata: metadata
+        )
+        phase = .submitted
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_200_000_000)
+            phase = .dismissed
+        }
     }
 }

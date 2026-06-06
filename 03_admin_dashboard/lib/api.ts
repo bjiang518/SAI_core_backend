@@ -260,4 +260,80 @@ export const promoCodesAPI = {
   },
 }
 
+// Re-engagement Campaigns API
+export interface ReengagementFilter {
+  days_inactive_min?: number
+  tier?: 'free' | 'premium' | 'premium_plus' | 'any'
+  exclude_recent_send_days?: number
+}
+
+export const reengagementAPI = {
+  getDefaults: async () => {
+    const response = await apiClient.get('/api/admin/reengagement/defaults')
+    return response.data
+  },
+
+  preview: async (filter: ReengagementFilter) => {
+    const response = await apiClient.post('/api/admin/reengagement/preview', { filter })
+    return response.data
+  },
+
+  createCampaign: async (payload: {
+    name: string
+    code: string
+    subject: string
+    body_html: string
+    body_text: string
+    filter: ReengagementFilter
+  }) => {
+    const response = await apiClient.post('/api/admin/reengagement/campaigns', payload)
+    return response.data
+  },
+
+  sendTest: async (payload: {
+    to_email: string
+    subject: string
+    body_html: string
+    body_text: string
+    code: string
+  }) => {
+    const response = await apiClient.post('/api/admin/reengagement/send-test', payload)
+    return response.data
+  },
+
+  list: async () => {
+    const response = await apiClient.get('/api/admin/reengagement/campaigns')
+    return response.data
+  },
+
+  get: async (campaignId: number | string) => {
+    const response = await apiClient.get(`/api/admin/reengagement/campaigns/${campaignId}`)
+    return response.data
+  },
+
+  getSends: async (
+    campaignId: number | string,
+    params?: { status?: string; limit?: number; offset?: number }
+  ) => {
+    const response = await apiClient.get(`/api/admin/reengagement/campaigns/${campaignId}/sends`, { params })
+    return response.data
+  },
+
+  getSendsCsvUrl: (campaignId: number | string, status?: string) => {
+    const qs = new URLSearchParams({ format: 'csv' })
+    if (status && status !== 'all') qs.set('status', status)
+    return `${API_URL}/api/admin/reengagement/campaigns/${campaignId}/sends?${qs.toString()}`
+  },
+
+  getUnsubscribes: async () => {
+    const response = await apiClient.get('/api/admin/reengagement/unsubscribes')
+    return response.data
+  },
+
+  resendFailed: async (campaignId: number | string) => {
+    const response = await apiClient.post(`/api/admin/reengagement/campaigns/${campaignId}/resend-failed`)
+    return response.data
+  },
+}
+
 export default apiClient

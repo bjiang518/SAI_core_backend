@@ -163,6 +163,40 @@ class DigitalHomeworkViewModel: ObservableObject {
         return stateManager.currentState == .graded
     }
 
+    /// What kind of AI task this homework needs based on parsed student answers.
+    /// Used to swap "Grade" → "Solve" labels and hide score widgets when nothing
+    /// was actually graded.
+    enum AITaskMode { case grade, solve, mixed }
+
+    var aiTaskMode: AITaskMode {
+        guard !questions.isEmpty else { return .grade }
+        var anyHasAnswer = false
+        var anyMissing = false
+        for q in questions {
+            if q.question.isParentQuestion, let subs = q.question.subquestions {
+                // Parent counts each subquestion individually
+                for sub in subs {
+                    if sub.hasStudentAnswer { anyHasAnswer = true } else { anyMissing = true }
+                }
+            } else {
+                if q.question.hasStudentAnswer { anyHasAnswer = true } else { anyMissing = true }
+            }
+        }
+        if anyHasAnswer && anyMissing { return .mixed }
+        if anyHasAnswer { return .grade }
+        return .solve
+    }
+
+    /// True when at least one question has been graded (i.e. has a real score).
+    /// Solve-only homework will have this false even after completion.
+    var hasGradedAnyQuestion: Bool {
+        for q in questions {
+            if q.grade != nil { return true }
+            if !q.subquestionGrades.isEmpty { return true }
+        }
+        return false
+    }
+
     /// Grade button is enabled only when diagram analysis is complete and not already grading
     var isGradingEnabled: Bool {
         !isDiagramAnalysisPending &&
@@ -172,11 +206,17 @@ class DigitalHomeworkViewModel: ObservableObject {
     }
 
     var gradeButtonLabel: String {
-        stateManager.isBackgroundDiagramAnalysisPending
-            ? NSLocalizedString("proMode.addingImagesToQuestions", comment: "Adding images to questions…")
-            : (useDeepReasoning
-               ? NSLocalizedString("proMode.deepGrade", comment: "Deep Grade")
-               : NSLocalizedString("proMode.quickGrade", comment: "Quick Grade"))
+        if stateManager.isBackgroundDiagramAnalysisPending {
+            return NSLocalizedString("proMode.addingImagesToQuestions", comment: "Adding images to questions…")
+        }
+        switch (useDeepReasoning, aiTaskMode) {
+        case (true,  .solve): return NSLocalizedString("proMode.deepSolve",  value: "Deep Solve",  comment: "Deep Solve")
+        case (false, .solve): return NSLocalizedString("proMode.quickSolve", value: "Quick Solve", comment: "Quick Solve")
+        case (true,  .mixed): return NSLocalizedString("proMode.deepHelp",   value: "Deep Help",   comment: "Deep Help")
+        case (false, .mixed): return NSLocalizedString("proMode.quickHelp",  value: "Quick Help",  comment: "Quick Help")
+        case (true,  .grade): return NSLocalizedString("proMode.deepGrade",  comment: "Deep Grade")
+        case (false, .grade): return NSLocalizedString("proMode.quickGrade", comment: "Quick Grade")
+        }
     }
 
     var hasValidAnnotations: Bool {
@@ -1085,6 +1125,7 @@ class DigitalHomeworkViewModel: ObservableObject {
                     // Update state with result
                     if let index = updatedQuestions.firstIndex(where: { $0.id == result.questionId }) {
                         updatedQuestions[index].grade = result.grade
+                        updatedQuestions[index].solution = result.solution
                         updatedQuestions[index].gradingError = result.error
                         updatedQuestions[index].isGrading = false
 
@@ -1093,10 +1134,17 @@ class DigitalHomeworkViewModel: ObservableObject {
                             logger.debug("Storing subquestion grades for Q\(result.questionId): \(result.subquestionGrades.count) subquestions")
                             updatedQuestions[index].subquestionGrades = result.subquestionGrades
                         }
+                        if !result.subquestionSolutions.isEmpty {
+                            logger.debug("Storing subquestion solutions for Q\(result.questionId): \(result.subquestionSolutions.count) subquestions")
+                            updatedQuestions[index].subquestionSolutions = result.subquestionSolutions
+                        }
                         if !result.subquestionErrors.isEmpty {
                             updatedQuestions[index].subquestionErrors = result.subquestionErrors
                         }
                         for subId in result.subquestionGrades.keys {
+                            updatedQuestions[index].subquestionGradingStatus[subId] = false
+                        }
+                        for subId in result.subquestionSolutions.keys {
                             updatedQuestions[index].subquestionGradingStatus[subId] = false
                         }
 
@@ -1152,12 +1200,14 @@ class DigitalHomeworkViewModel: ObservableObject {
         logger.debug("State transitioned to .graded")
     }
 
-    // ✅ NEW: Unified grading result type
+    // ✅ NEW: Unified grading result type — covers both grade and solve paths
     private struct GradingResult {
         let questionId: String  // Changed from Int to String
         let grade: ProgressiveGradeResult?
+        let solution: SolveResult?         // ⭐ populated when student answer was empty
         let error: String?
         let subquestionGrades: [String: ProgressiveGradeResult]
+        let subquestionSolutions: [String: SolveResult]   // ⭐ per-subquestion solve results
         let subquestionErrors: [String: String]
     }
 
@@ -1168,24 +1218,28 @@ class DigitalHomeworkViewModel: ObservableObject {
         if question.isParentQuestion, let subquestions = question.subquestions {
             logger.debug("Q\(question.id) is parent question with \(subquestions.count) subquestions")
 
-            // Grade all subquestions in parallel
-            var subquestionResults: [String: ProgressiveGradeResult] = [:]
+            // Process all subquestions in parallel — each independently routes to grade or solve
+            var subquestionGradeResults: [String: ProgressiveGradeResult] = [:]
+            var subquestionSolveResults: [String: SolveResult] = [:]
             var subquestionErrors: [String: String] = [:]
 
-            await withTaskGroup(of: (String, ProgressiveGradeResult?, String?).self) { group in
+            await withTaskGroup(of: (String, ProgressiveGradeResult?, SolveResult?, String?).self) { group in
                 for subquestion in subquestions {
                     group.addTask {
-                        await self.gradeSubquestion(
+                        await self.processSubquestion(
                             subquestion: subquestion,
                             parentQuestionId: question.id
                         )
                     }
                 }
 
-                // Collect all subquestion grades
-                for await (subId, grade, error) in group {
+                // Collect all subquestion results
+                for await (subId, grade, solution, error) in group {
                     if let grade = grade {
-                        subquestionResults[subId] = grade
+                        subquestionGradeResults[subId] = grade
+                    }
+                    if let solution = solution {
+                        subquestionSolveResults[subId] = solution
                     }
                     if let error = error {
                         subquestionErrors[subId] = error
@@ -1193,77 +1247,136 @@ class DigitalHomeworkViewModel: ObservableObject {
                 }
             }
 
-            // ✅ SIMPLIFIED: Return all results in one batch
-            logger.debug("Q\(question.id) completed: \(subquestionResults.count) subquestions graded")
+            logger.debug("Q\(question.id) completed: \(subquestionGradeResults.count) graded, \(subquestionSolveResults.count) solved")
 
             return GradingResult(
                 questionId: question.id,
                 grade: nil,
+                solution: nil,
                 error: nil,
-                subquestionGrades: subquestionResults,
+                subquestionGrades: subquestionGradeResults,
+                subquestionSolutions: subquestionSolveResults,
                 subquestionErrors: subquestionErrors
             )
 
         } else {
-            // Regular question: grade normally
-            do {
-                // Get context image if available
-                let contextImage = getCroppedImageBase64(for: question.id)
+            // Regular question: route to grade or solve based on student answer presence
+            let contextImage = getCroppedImageBase64(for: question.id)
 
-                // Call grading endpoint with deep reasoning flag
-                let response = try await networkService.gradeSingleQuestion(
-                    questionText: question.displayText,
-                    studentAnswer: question.displayStudentAnswer,
-                    subject: subject,
-                    questionType: question.questionType,
-                    contextImageBase64: contextImage,
-                    useDeepReasoning: useDeepReasoning,
-                    workingSteps: question.workingSteps
-                )
+            if question.hasStudentAnswer {
+                return await gradeRegularQuestion(question: question, contextImage: contextImage)
+            } else {
+                return await solveRegularQuestion(question: question, contextImage: contextImage)
+            }
+        }
+    }
 
-                if response.success, let grade = response.grade {
-                    if Self.isDebugMode {
-                        logger.debug("Q\(question.id) graded: score=\(grade.score), correct=\(grade.isCorrect)")
-                    }
-                    return GradingResult(
-                        questionId: question.id,
-                        grade: grade,
-                        error: nil,
-                        subquestionGrades: [:],
-                        subquestionErrors: [:]
-                    )
-                } else {
-                    let error = response.error ?? "Grading failed"
-                    logger.error("Q\(question.id) grading error: \(error)")
-                    return GradingResult(
-                        questionId: question.id,
-                        grade: nil,
-                        error: error,
-                        subquestionGrades: [:],
-                        subquestionErrors: [:]
-                    )
+    /// Grade a regular (non-parent) question that has a student answer.
+    private func gradeRegularQuestion(
+        question: ProgressiveQuestion,
+        contextImage: String?
+    ) async -> GradingResult {
+        do {
+            let response = try await networkService.gradeSingleQuestion(
+                questionText: question.displayText,
+                studentAnswer: question.displayStudentAnswer,
+                subject: subject,
+                questionType: question.questionType,
+                contextImageBase64: contextImage,
+                useDeepReasoning: useDeepReasoning,
+                workingSteps: question.workingSteps
+            )
+
+            if response.success, let grade = response.grade {
+                if Self.isDebugMode {
+                    logger.debug("Q\(question.id) graded: score=\(grade.score), correct=\(grade.isCorrect)")
                 }
-
-            } catch NetworkService.NetworkError.authenticationRequired {
-                logger.error("Q\(question.id) auth expired — triggering sign-out")
-                AuthenticationService.shared.handleExpiredSession()
                 return GradingResult(
-                    questionId: question.id,
-                    grade: nil,
-                    error: "Session expired",
-                    subquestionGrades: [:],
-                    subquestionErrors: [:]
+                    questionId: question.id, grade: grade, solution: nil, error: nil,
+                    subquestionGrades: [:], subquestionSolutions: [:], subquestionErrors: [:]
                 )
-            } catch {
-                logger.error("Q\(question.id) exception: \(error.localizedDescription)")
+            } else {
+                let error = response.error ?? "Grading failed"
+                logger.error("Q\(question.id) grading error: \(error)")
                 return GradingResult(
-                    questionId: question.id,
-                    grade: nil,
-                    error: error.localizedDescription,
-                    subquestionGrades: [:],
-                    subquestionErrors: [:]
+                    questionId: question.id, grade: nil, solution: nil, error: error,
+                    subquestionGrades: [:], subquestionSolutions: [:], subquestionErrors: [:]
                 )
             }
+        } catch NetworkService.NetworkError.authenticationRequired {
+            logger.error("Q\(question.id) auth expired — triggering sign-out")
+            AuthenticationService.shared.handleExpiredSession()
+            return GradingResult(
+                questionId: question.id, grade: nil, solution: nil, error: "Session expired",
+                subquestionGrades: [:], subquestionSolutions: [:], subquestionErrors: [:]
+            )
+        } catch {
+            logger.error("Q\(question.id) exception: \(error.localizedDescription)")
+            return GradingResult(
+                questionId: question.id, grade: nil, solution: nil, error: error.localizedDescription,
+                subquestionGrades: [:], subquestionSolutions: [:], subquestionErrors: [:]
+            )
+        }
+    }
+
+    /// Solve a regular (non-parent) question when no student answer was detected.
+    private func solveRegularQuestion(
+        question: ProgressiveQuestion,
+        contextImage: String?
+    ) async -> GradingResult {
+        do {
+            let response = try await networkService.solveQuestion(
+                questionText: question.displayText,
+                subject: subject,
+                questionType: question.questionType,
+                gradeLevel: nil,
+                contextImageBase64: contextImage,
+                useDeepReasoning: useDeepReasoning
+            )
+
+            if response.success, let solution = response.solution {
+                if Self.isDebugMode {
+                    logger.debug("Q\(question.id) solved: steps=\(solution.steps.count) depth=\(response.depth ?? "?")")
+                }
+                return GradingResult(
+                    questionId: question.id, grade: nil, solution: solution, error: nil,
+                    subquestionGrades: [:], subquestionSolutions: [:], subquestionErrors: [:]
+                )
+            } else {
+                let error = response.error ?? "Solve failed"
+                logger.error("Q\(question.id) solve error: \(error)")
+                return GradingResult(
+                    questionId: question.id, grade: nil, solution: nil, error: error,
+                    subquestionGrades: [:], subquestionSolutions: [:], subquestionErrors: [:]
+                )
+            }
+        } catch NetworkService.NetworkError.authenticationRequired {
+            logger.error("Q\(question.id) auth expired — triggering sign-out")
+            AuthenticationService.shared.handleExpiredSession()
+            return GradingResult(
+                questionId: question.id, grade: nil, solution: nil, error: "Session expired",
+                subquestionGrades: [:], subquestionSolutions: [:], subquestionErrors: [:]
+            )
+        } catch {
+            logger.error("Q\(question.id) solve exception: \(error.localizedDescription)")
+            return GradingResult(
+                questionId: question.id, grade: nil, solution: nil, error: error.localizedDescription,
+                subquestionGrades: [:], subquestionSolutions: [:], subquestionErrors: [:]
+            )
+        }
+    }
+
+    /// Per-subquestion router: grade if it has an answer, solve otherwise.
+    private func processSubquestion(
+        subquestion: ProgressiveSubquestion,
+        parentQuestionId: String
+    ) async -> (String, ProgressiveGradeResult?, SolveResult?, String?) {
+        if subquestion.hasStudentAnswer {
+            let (id, grade, error) = await gradeSubquestion(subquestion: subquestion, parentQuestionId: parentQuestionId)
+            return (id, grade, nil, error)
+        } else {
+            let (id, solution, error) = await solveSubquestion(subquestion: subquestion, parentQuestionId: parentQuestionId)
+            return (id, nil, solution, error)
         }
     }
 
@@ -1313,6 +1426,46 @@ class DigitalHomeworkViewModel: ObservableObject {
             return (subquestion.id, nil, "Session expired")
         } catch {
             logger.error("Subquestion \(subquestion.id) exception: \(error.localizedDescription)")
+            return (subquestion.id, nil, error.localizedDescription)
+        }
+    }
+
+    /// Solve a subquestion when no student answer was detected.
+    private func solveSubquestion(
+        subquestion: ProgressiveSubquestion,
+        parentQuestionId: String
+    ) async -> (String, SolveResult?, String?) {
+        logger.debug("Solving subquestion \(subquestion.id) (no student answer detected)...")
+
+        do {
+            let contextImage = getCroppedImageBase64(for: subquestion.id)
+                ?? getCroppedImageBase64(for: parentQuestionId)
+            let parentContent = questions.first(where: { $0.question.id == parentQuestionId })?.question.parentContent
+
+            let response = try await networkService.solveQuestion(
+                questionText: subquestion.questionText,
+                subject: subject,
+                questionType: subquestion.questionType,
+                gradeLevel: nil,
+                contextImageBase64: contextImage,
+                parentQuestionContent: parentContent,
+                useDeepReasoning: useDeepReasoning
+            )
+
+            if response.success, let solution = response.solution {
+                logger.debug("Subquestion \(subquestion.id) solved successfully")
+                return (subquestion.id, solution, nil)
+            } else {
+                let error = response.error ?? "Solve failed"
+                logger.error("Subquestion \(subquestion.id) solve error: \(error)")
+                return (subquestion.id, nil, error)
+            }
+        } catch NetworkService.NetworkError.authenticationRequired {
+            logger.error("Subquestion \(subquestion.id) auth expired — triggering sign-out")
+            AuthenticationService.shared.handleExpiredSession()
+            return (subquestion.id, nil, "Session expired")
+        } catch {
+            logger.error("Subquestion \(subquestion.id) solve exception: \(error.localizedDescription)")
             return (subquestion.id, nil, error.localizedDescription)
         }
     }
@@ -1639,6 +1792,167 @@ class DigitalHomeworkViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Per-Question Re-Solving (Solve mode equivalent of regrade)
+
+    /// Re-solve a single question with Gemini's deep mode for a more thorough walkthrough.
+    /// Mirror of `regradeQuestion` but operates on `solution` instead of `grade`.
+    func resolveQuestion(questionId: String) async {
+        guard let index = questions.firstIndex(where: { $0.question.id == questionId }) else {
+            logger.error("Question \(questionId) not found for resolve")
+            return
+        }
+
+        logger.info("🔄 [Resolve] Starting resolve for Q\(questionId) with Gemini deep mode...")
+
+        // Mark as grading (reuse the same flag — UI shows the same loading indicator)
+        var updatedQuestions = questions
+        updatedQuestions[index].isGrading = true
+
+        await MainActor.run {
+            objectWillChange.send()
+            stateManager.updateHomework(questions: updatedQuestions)
+        }
+
+        let question = updatedQuestions[index].question
+
+        do {
+            let contextImage = getCroppedImageBase64(for: questionId)
+            let response = try await networkService.solveQuestion(
+                questionText: question.displayText,
+                subject: subject,
+                questionType: question.questionType,
+                gradeLevel: nil,
+                contextImageBase64: contextImage,
+                useDeepReasoning: true
+            )
+
+            await MainActor.run {
+                var freshQuestions = self.questions
+                guard let currentIndex = freshQuestions.firstIndex(where: { $0.question.id == questionId }) else {
+                    logger.error("Question \(questionId) disappeared during resolve")
+                    return
+                }
+
+                if response.success, let solution = response.solution {
+                    freshQuestions[currentIndex].solution = solution
+                    freshQuestions[currentIndex].gradingError = nil
+                    logger.info("✅ [Resolve] Q\(questionId) re-solved: steps=\(solution.steps.count) depth=\(response.depth ?? "?")")
+                } else {
+                    let error = response.error ?? "Resolve failed"
+                    freshQuestions[currentIndex].gradingError = error
+                    logger.error("❌ [Resolve] Q\(questionId) failed: \(error)")
+                }
+
+                freshQuestions[currentIndex].isGrading = false
+                objectWillChange.send()
+                stateManager.updateHomework(questions: freshQuestions)
+
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(response.success ? .success : .error)
+            }
+
+        } catch NetworkService.NetworkError.authenticationRequired {
+            logger.error("❌ [Resolve] Q\(questionId) auth expired — triggering sign-out")
+            AuthenticationService.shared.handleExpiredSession()
+            await MainActor.run {
+                var freshQuestions = self.questions
+                guard let currentIndex = freshQuestions.firstIndex(where: { $0.question.id == questionId }) else { return }
+                freshQuestions[currentIndex].gradingError = "Session expired"
+                freshQuestions[currentIndex].isGrading = false
+                objectWillChange.send()
+                stateManager.updateHomework(questions: freshQuestions)
+            }
+        } catch {
+            logger.error("❌ [Resolve] Q\(questionId) exception: \(error.localizedDescription)")
+            await MainActor.run {
+                var freshQuestions = self.questions
+                guard let currentIndex = freshQuestions.firstIndex(where: { $0.question.id == questionId }) else { return }
+                freshQuestions[currentIndex].gradingError = error.localizedDescription
+                freshQuestions[currentIndex].isGrading = false
+                objectWillChange.send()
+                stateManager.updateHomework(questions: freshQuestions)
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(.error)
+            }
+        }
+    }
+
+    /// Re-solve a specific subquestion with Gemini's deep mode.
+    /// Mirror of `regradeSubquestion` but writes `subquestionSolutions` instead of `subquestionGrades`.
+    func resolveSubquestion(parentQuestionId: String, subquestionId: String) async {
+        guard let index = questions.firstIndex(where: { $0.question.id == parentQuestionId }) else {
+            logger.error("Parent question \(parentQuestionId) not found for subquestion resolve")
+            return
+        }
+        guard let subquestion = questions[index].question.subquestions?.first(where: { $0.id == subquestionId }) else {
+            logger.error("Subquestion \(subquestionId) not found in Q\(parentQuestionId)")
+            return
+        }
+
+        logger.info("🔄 [Resolve] Starting resolve for subquestion \(subquestionId) of Q\(parentQuestionId)...")
+
+        var updatedQuestions = questions
+        updatedQuestions[index].subquestionGradingStatus[subquestionId] = true
+
+        await MainActor.run {
+            objectWillChange.send()
+            stateManager.updateHomework(questions: updatedQuestions)
+        }
+
+        do {
+            let contextImage = getCroppedImageBase64(for: subquestionId)
+                ?? getCroppedImageBase64(for: parentQuestionId)
+            let parentContent = updatedQuestions[index].question.parentContent
+
+            let response = try await networkService.solveQuestion(
+                questionText: subquestion.questionText,
+                subject: subject,
+                questionType: subquestion.questionType,
+                gradeLevel: nil,
+                contextImageBase64: contextImage,
+                parentQuestionContent: parentContent,
+                useDeepReasoning: true
+            )
+
+            await MainActor.run {
+                var freshQuestions = self.questions
+                guard let currentIndex = freshQuestions.firstIndex(where: { $0.question.id == parentQuestionId }) else {
+                    logger.error("Parent question \(parentQuestionId) disappeared during resolve")
+                    return
+                }
+
+                if response.success, let solution = response.solution {
+                    freshQuestions[currentIndex].subquestionSolutions[subquestionId] = solution
+                    freshQuestions[currentIndex].subquestionErrors.removeValue(forKey: subquestionId)
+                    logger.info("✅ [Resolve] Subquestion \(subquestionId) re-solved: steps=\(solution.steps.count)")
+                } else {
+                    let error = response.error ?? "Resolve failed"
+                    freshQuestions[currentIndex].subquestionErrors[subquestionId] = error
+                    logger.error("❌ [Resolve] Subquestion \(subquestionId) failed: \(error)")
+                }
+
+                freshQuestions[currentIndex].subquestionGradingStatus[subquestionId] = false
+                objectWillChange.send()
+                stateManager.updateHomework(questions: freshQuestions)
+
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(response.success ? .success : .error)
+            }
+        } catch {
+            logger.error("❌ [Resolve] Subquestion \(subquestionId) exception: \(error.localizedDescription)")
+            await MainActor.run {
+                var freshQuestions = self.questions
+                guard let currentIndex = freshQuestions.firstIndex(where: { $0.question.id == parentQuestionId }) else { return }
+                freshQuestions[currentIndex].subquestionErrors[subquestionId] = error.localizedDescription
+                freshQuestions[currentIndex].subquestionGradingStatus[subquestionId] = false
+                objectWillChange.send()
+                stateManager.updateHomework(questions: freshQuestions)
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(.error)
+            }
+        }
+    }
+
     // MARK: - User Actions
 
     func askAIForHelp(questionId: String, appState: AppState, subquestion: ProgressiveSubquestion? = nil) {  // Changed Int to String
@@ -1652,7 +1966,8 @@ class DigitalHomeworkViewModel: ObservableObject {
         // ✅ NEW: Handle subquestion case separately
         if let subquestion = subquestion {
             // Subquestion case: Use subquestion-specific data
-            let subGrade = questionWithGrade.subquestionGrades[subquestion.id]
+            let subGrade    = questionWithGrade.subquestionGrades[subquestion.id]
+            let subSolution = questionWithGrade.subquestionSolutions[subquestion.id]
 
             logger.debug("Opening AI chat for subquestion \(subquestion.id) of Q\(questionId)")
 
@@ -1679,26 +1994,36 @@ class DigitalHomeworkViewModel: ObservableObject {
                 questionImage: questionImage  // Use parent's cropped image
             )
 
-            // Navigate to chat with subquestion context
-            // Include parent question content for context
+            // Build prompt body — skip empty answer / no-feedback noise so the AI gets a clean context
             let parentContext = question.parentContent ?? ""
-            let message = String(
-                format: NSLocalizedString("proMode.askAIPromptWithSubquestion", comment: ""),
-                subquestion.id
-            ) + """
-
-            \(NSLocalizedString("proMode.parentQuestionContext", comment: ""))
-            \(parentContext)
-
-            \(NSLocalizedString("proMode.subquestion", comment: ""))
-            \(subquestion.questionText)
-
-            \(NSLocalizedString("proMode.myAnswer", comment: ""))
-            \(subquestion.studentAnswer)
-
-            \(NSLocalizedString("proMode.teacherFeedback", comment: ""))
-            \(subGrade?.feedback ?? NSLocalizedString("proMode.noFeedback", comment: ""))
-            """
+            let answer = subquestion.studentAnswer.trimmingCharacters(in: .whitespacesAndNewlines)
+            var lines: [String] = []
+            lines.append(String(format: NSLocalizedString("proMode.askAIPromptWithSubquestion", comment: ""), subquestion.id))
+            lines.append("")
+            if !parentContext.isEmpty {
+                lines.append(NSLocalizedString("proMode.parentQuestionContext", comment: ""))
+                lines.append(parentContext)
+                lines.append("")
+            }
+            lines.append(NSLocalizedString("proMode.subquestion", comment: ""))
+            lines.append(subquestion.questionText)
+            if !answer.isEmpty {
+                lines.append("")
+                lines.append(NSLocalizedString("proMode.myAnswer", comment: ""))
+                lines.append(answer)
+            }
+            if let grade = subGrade, !grade.feedback.isEmpty {
+                lines.append("")
+                lines.append(NSLocalizedString("proMode.teacherFeedback", comment: ""))
+                lines.append(grade.feedback)
+            } else if let solution = subSolution {
+                lines.append("")
+                lines.append(NSLocalizedString("proMode.aiSolutionContext",
+                                               value: "[AI's step-by-step solution]",
+                                               comment: "Header introducing AI solve solution to chat"))
+                lines.append(Self.formatSolveSolutionAsText(solution))
+            }
+            let message = lines.joined(separator: "\n")
 
             appState.navigateToChatWithHomeworkQuestion(message: message, context: context)
 
@@ -1706,7 +2031,8 @@ class DigitalHomeworkViewModel: ObservableObject {
 
         } else {
             // Regular question case: Use original logic
-            let grade = questionWithGrade.grade
+            let grade    = questionWithGrade.grade
+            let solution = questionWithGrade.solution
 
             logger.debug("Opening AI chat for Q\(questionId)")
 
@@ -1733,8 +2059,27 @@ class DigitalHomeworkViewModel: ObservableObject {
                 questionImage: questionImage  // ✅ NEW: Pass cropped image
             )
 
-            // Navigate to chat with context
-            let message = "\(NSLocalizedString("proMode.askAIPrompt", comment: "")):\n\n\(question.displayText)\n\n\(NSLocalizedString("proMode.myAnswer", comment: "")):\(question.displayStudentAnswer)\n\n\(NSLocalizedString("proMode.teacherFeedback", comment: "")):\(grade?.feedback ?? NSLocalizedString("proMode.noFeedback", comment: ""))"
+            // Build prompt body — skip empty answer / no-feedback noise so the AI gets a clean context
+            let answer = question.displayStudentAnswer.trimmingCharacters(in: .whitespacesAndNewlines)
+            var lines: [String] = []
+            lines.append("\(NSLocalizedString("proMode.askAIPrompt", comment: "")):")
+            lines.append("")
+            lines.append(question.displayText)
+            if !answer.isEmpty {
+                lines.append("")
+                lines.append("\(NSLocalizedString("proMode.myAnswer", comment: "")):\(answer)")
+            }
+            if let grade = grade, !grade.feedback.isEmpty {
+                lines.append("")
+                lines.append("\(NSLocalizedString("proMode.teacherFeedback", comment: "")):\(grade.feedback)")
+            } else if let solution = solution {
+                lines.append("")
+                lines.append(NSLocalizedString("proMode.aiSolutionContext",
+                                               value: "[AI's step-by-step solution]",
+                                               comment: "Header introducing AI solve solution to chat"))
+                lines.append(Self.formatSolveSolutionAsText(solution))
+            }
+            let message = lines.joined(separator: "\n")
 
             appState.navigateToChatWithHomeworkQuestion(
                 message: message,
@@ -1743,6 +2088,30 @@ class DigitalHomeworkViewModel: ObservableObject {
 
             logger.debug("Navigated to chat with homework context")
         }
+    }
+
+    /// Render a SolveResult as a plain-text block suitable for chat context.
+    /// Used by askAIForHelp on the solve path (no grade → AI's prior solution
+    /// is the relevant context for follow-up questions).
+    private static func formatSolveSolutionAsText(_ solution: SolveResult) -> String {
+        var blocks: [String] = []
+        for step in solution.steps {
+            var stepLines: [String] = ["Step \(step.stepNum): \(step.title)"]
+            if !step.explanation.isEmpty {
+                stepLines.append("  \(step.explanation)")
+            }
+            if let calc = step.calculation, !calc.isEmpty {
+                stepLines.append("  \(calc)")
+            }
+            if let reasoning = step.reasoning, !reasoning.isEmpty {
+                stepLines.append("  Why: \(reasoning)")
+            }
+            blocks.append(stepLines.joined(separator: "\n"))
+        }
+        if !solution.finalAnswer.isEmpty {
+            blocks.append("Final answer: \(solution.finalAnswer)")
+        }
+        return blocks.joined(separator: "\n\n")
     }
 
     func archiveQuestion(questionId: String) {  // Changed Int to String

@@ -110,6 +110,23 @@ struct ReportDetailSheet: View {
                         if let recommendations = report.recommendations, !recommendations.isEmpty {
                             recommendationsSection(recommendations: recommendations)
                         }
+
+                        // ⭐ Feedback bar — at the bottom of the report, once per report.
+                        if FeedbackService.shared.shouldAsk(
+                            surface: .parentReport,
+                            refId: report.id
+                        ) {
+                            FeedbackThumbsBar(
+                                surface:  .parentReport,
+                                refType:  "report",
+                                refId:    report.id,
+                                metadata: [
+                                    "report_type": report.reportType,
+                                    "ai_model":    report.aiModelUsed ?? "unknown",
+                                ]
+                            )
+                            .padding(.top, 8)
+                        }
                     }
                     .padding(.bottom, 24)
                 }

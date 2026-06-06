@@ -128,23 +128,60 @@ module.exports = async function (fastify) {
         tierExpiresAt = new Date(baseDate.getTime() + promo.duration_days * 86400_000);
       }
 
-      // Atomically record redemption + increment counter + upgrade tier
-      await db.query('BEGIN');
-      try {
-        await db.query(
+      // Atomically record redemption + increment counter + upgrade tier.
+      // ⚠️ MUST use db.transaction (single client) — db.query('BEGIN') gets a
+      // fresh connection per call, so manual BEGIN/COMMIT here are NOT atomic
+      // and the UPDATE users SET tier... can land on a connection with an open
+      // dangling tx and never commit (root cause of the "redeem says success
+      // but users.tier still free" bug).
+      let prevTier = null;
+      let prevExpiresAt = null;
+      await db.transaction(async (client) => {
+        await client.query(
           `INSERT INTO promo_redemptions (code_id, user_id, tier_expires_at) VALUES ($1, $2, $3)`,
           [promo.id, userId, tierExpiresAt]
         );
-        await db.query(
+        await client.query(
           `UPDATE promo_codes SET uses_count = uses_count + 1 WHERE id = $1`,
           [promo.id]
         );
-        await db.setUserTier(userId, grantedTier, tierExpiresAt, 'promo_code', normalizedCode);
-        await db.query('COMMIT');
-      } catch (innerErr) {
-        await db.query('ROLLBACK');
-        throw innerErr;
-      }
+        // Inline setUserTier on the SAME client so the tier UPDATE is part of
+        // the same transaction as the redemption insert.
+        const prev = await client.query(
+          `SELECT tier, tier_expires_at FROM users WHERE id = $1 FOR UPDATE`,
+          [userId]
+        );
+        prevTier = prev.rows[0]?.tier ?? null;
+        prevExpiresAt = prev.rows[0]?.tier_expires_at ?? null;
+        const upd = await client.query(
+          `UPDATE users SET tier = $1, tier_expires_at = $2 WHERE id = $3`,
+          [grantedTier, tierExpiresAt, userId]
+        );
+        if (upd.rowCount === 0) {
+          throw new Error(`user not found: id=${userId}`);
+        }
+      });
+
+      // Tier history insert is fire-and-forget (outside tx) — its absence shouldn't fail the redeem
+      db.query(
+        `INSERT INTO tier_history (user_id, from_tier, to_tier, from_expires_at, to_expires_at, source, note)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [userId, prevTier, grantedTier, prevExpiresAt, tierExpiresAt, 'promo_code', normalizedCode]
+      ).catch(err => fastify.log.warn({ err }, '[redeem-promo-self] tier_history insert failed (non-fatal)'));
+
+      // Re-engagement attribution — if this user was sent this code in any
+      // campaign, mark that send as redeemed so the dashboard can compute
+      // conversion rates. Fire-and-forget; missing/already-set rows are fine.
+      db.query(
+        `UPDATE reengagement_sends s
+         SET redeemed_at = NOW()
+         FROM reengagement_campaigns c
+         WHERE s.campaign_id = c.id
+           AND s.user_id = $1
+           AND c.code = $2
+           AND s.redeemed_at IS NULL`,
+        [userId, normalizedCode]
+      ).catch(err => fastify.log.warn({ err }, '[redeem-promo-self] reengagement_sends attribution failed (non-fatal)'));
 
       fastify.log.info(`[redeem-promo-self] user=${userId} code=${normalizedCode} tier=${grantedTier} expires=${tierExpiresAt?.toISOString() ?? 'none'}`);
 
@@ -661,23 +698,52 @@ module.exports = async function (fastify) {
         : new Date();
       const tierExpiresAt = new Date(baseDate.getTime() + promo.duration_days * 86400_000);
 
-      // Atomically record redemption + increment counter + upgrade tier
-      await db.query('BEGIN');
-      try {
-        await db.query(
+      // Atomically record redemption + increment counter + upgrade tier.
+      // ⚠️ MUST use db.transaction (single client) — see redeem-promo-self for rationale.
+      let prevTier = null;
+      let prevExpiresAt = null;
+      await db.transaction(async (client) => {
+        await client.query(
           `INSERT INTO promo_redemptions (code_id, user_id, tier_expires_at) VALUES ($1, $2, $3)`,
           [promo.id, userId, tierExpiresAt]
         );
-        await db.query(
+        await client.query(
           `UPDATE promo_codes SET uses_count = uses_count + 1 WHERE id = $1`,
           [promo.id]
         );
-        await db.setUserTier(userId, promo.tier, tierExpiresAt, 'promo_code', normalizedCode);
-        await db.query('COMMIT');
-      } catch (innerErr) {
-        await db.query('ROLLBACK');
-        throw innerErr;
-      }
+        const prev = await client.query(
+          `SELECT tier, tier_expires_at FROM users WHERE id = $1 FOR UPDATE`,
+          [userId]
+        );
+        prevTier = prev.rows[0]?.tier ?? null;
+        prevExpiresAt = prev.rows[0]?.tier_expires_at ?? null;
+        const upd = await client.query(
+          `UPDATE users SET tier = $1, tier_expires_at = $2 WHERE id = $3`,
+          [promo.tier, tierExpiresAt, userId]
+        );
+        if (upd.rowCount === 0) {
+          throw new Error(`user not found: id=${userId}`);
+        }
+      });
+
+      // Tier history insert (non-fatal, outside tx)
+      db.query(
+        `INSERT INTO tier_history (user_id, from_tier, to_tier, from_expires_at, to_expires_at, source, note)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [userId, prevTier, promo.tier, prevExpiresAt, tierExpiresAt, 'promo_code', normalizedCode]
+      ).catch(err => fastify.log.warn({ err }, '[redeem-promo] tier_history insert failed (non-fatal)'));
+
+      // Re-engagement attribution (see redeem-promo-self for rationale).
+      db.query(
+        `UPDATE reengagement_sends s
+         SET redeemed_at = NOW()
+         FROM reengagement_campaigns c
+         WHERE s.campaign_id = c.id
+           AND s.user_id = $1
+           AND c.code = $2
+           AND s.redeemed_at IS NULL`,
+        [userId, normalizedCode]
+      ).catch(err => fastify.log.warn({ err }, '[redeem-promo] reengagement_sends attribution failed (non-fatal)'));
 
       fastify.log.info(`[redeem-promo] user=${userId} code=${normalizedCode} tier=${promo.tier} expires=${tierExpiresAt.toISOString()}`);
 
@@ -693,6 +759,118 @@ module.exports = async function (fastify) {
     } catch (error) {
       fastify.log.error({ err: error }, '[redeem-promo] Error');
       return reply.code(500).send({ success: false, error: 'Redemption failed. Please try again.' });
+    }
+  });
+
+  /**
+   * GET /api/email/unsubscribe?token=<jwt>[&confirm=1&reason=<slug>&detail=<free text>]
+   *
+   * Two-step flow:
+   *   1) Initial click from email — no `confirm` param → renders the reason
+   *      form. NOTHING is written to the DB at this stage so accidental clicks
+   *      / email security pre-fetchers don't unsubscribe people.
+   *   2) Form submit (GET with confirm=1) → records unsubscribe + reason and
+   *      shows the success page.
+   *
+   * Reasons stored as `slug | detail` so we can both group by category and
+   * still see free-text feedback. Detail is capped at 500 chars.
+   */
+  fastify.get('/api/email/unsubscribe', async (request, reply) => {
+    const { token, confirm, reason, detail } = request.query || {};
+
+    const baseStyle = `body{font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;max-width:520px;margin:60px auto;padding:24px;color:#1f2937;line-height:1.5}
+h1{color:#2563eb;margin:0 0 8px;font-size:24px}h2{color:#2563eb;font-size:20px;margin:0 0 16px}
+p{color:#4b5563}.muted{color:#9ca3af;font-size:13px}
+.option{display:block;padding:12px 14px;margin:6px 0;border:1px solid #e5e7eb;border-radius:8px;cursor:pointer;background:#fff}
+.option:hover{background:#f9fafb;border-color:#d1d5db}
+.option input{margin-right:10px}
+textarea{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-family:inherit;font-size:14px;margin-top:8px;resize:vertical;min-height:70px}
+button{background:#dc2626;color:#fff;border:0;padding:11px 20px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;margin-top:16px}
+button:hover{background:#b91c1c}
+.cancel{display:inline-block;margin-left:12px;color:#6b7280;text-decoration:none}
+.cancel:hover{color:#374151}`;
+
+    const renderShell = (title, body) => {
+      reply.type('text/html');
+      return `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>${baseStyle}</style></head><body>${body}</body></html>`;
+    };
+
+    if (!token) {
+      return reply.code(400).send(renderShell('Invalid link', '<h1>Invalid link</h1><p>Missing token.</p>'));
+    }
+
+    const SECRET = (process.env.JWT_SECRET || 'dev-secret') + '_unsubscribe';
+    let decoded;
+    try {
+      decoded = jwt.verify(token, SECRET);
+      if (decoded.purpose !== 'unsubscribe') throw new Error('wrong purpose');
+    } catch (err) {
+      return reply.code(400).send(renderShell(
+        'Invalid link',
+        '<h1>Invalid link</h1><p>This unsubscribe link is invalid or expired.</p>'
+      ));
+    }
+
+    // Step 1 — show form (no DB write yet).
+    if (confirm !== '1') {
+      const escapedToken = String(token).replace(/"/g, '&quot;');
+      const reasonOptions = [
+        { slug: 'inaccurate_answers',  label: "The answers / grading weren't accurate enough" },
+        { slug: 'too_slow',            label: 'The app felt too slow or laggy' },
+        { slug: 'content_mismatch',    label: "Content didn't match what I'm studying" },
+        { slug: 'questions_too_hard',  label: 'The questions were too hard' },
+        { slug: 'questions_too_easy',  label: 'The questions were too easy' },
+        { slug: 'not_studying_now',    label: "I'm not actively studying right now" },
+        { slug: 'other',               label: 'Other' },
+      ];
+      const optionsHtml = reasonOptions.map(o =>
+        `<label class="option"><input type="radio" name="reason" value="${o.slug}"${o.slug === 'inaccurate_answers' ? ' checked' : ''}>${o.label}</label>`
+      ).join('');
+
+      return reply.send(renderShell('Unsubscribe', `
+<h1>Sorry to see you go</h1>
+<p>If you've got a moment, what made StudyAgent not work for you? Honest answers help us fix the right things.</p>
+<form method="GET" action="/api/email/unsubscribe">
+  <input type="hidden" name="token" value="${escapedToken}">
+  <input type="hidden" name="confirm" value="1">
+  ${optionsHtml}
+  <textarea name="detail" placeholder="Tell us more — what specifically didn't work? (optional)" maxlength="500"></textarea>
+  <div style="margin-top:8px">
+    <button type="submit">Confirm Unsubscribe</button>
+    <a class="cancel" href="javascript:window.close()">Cancel</a>
+  </div>
+</form>
+<p class="muted" style="margin-top:24px">You can also just hit reply to the original email — Bo reads every response.</p>
+`));
+    }
+
+    // Step 2 — record + confirm.
+    const allowedSlugs = new Set([
+      'inaccurate_answers', 'too_slow', 'content_mismatch',
+      'questions_too_hard', 'questions_too_easy', 'not_studying_now', 'other',
+    ]);
+    const reasonSlug = allowedSlugs.has(reason) ? reason : 'unspecified';
+    const reasonDetail = typeof detail === 'string' ? detail.trim().slice(0, 500) : '';
+    const reasonStr = reasonDetail ? `${reasonSlug} | ${reasonDetail}` : reasonSlug;
+
+    try {
+      await db.query(
+        `INSERT INTO email_unsubscribes (user_id, list, reason)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (user_id) DO UPDATE SET list = EXCLUDED.list, reason = EXCLUDED.reason, created_at = NOW()`,
+        [decoded.userId, decoded.list || 'reengagement', reasonStr]
+      );
+      fastify.log.info(`[unsubscribe] user=${decoded.userId} list=${decoded.list || 'reengagement'} reason=${reasonSlug} detail_len=${reasonDetail.length}`);
+      return reply.send(renderShell("You're unsubscribed", `
+<h1>You're unsubscribed</h1>
+<p>We won't send you these emails anymore. Thanks for the feedback — it helps.</p>
+<p class="muted">You can keep using StudyAgent normally. Account emails (sign-in codes, receipts) will still come through.</p>
+`));
+    } catch (error) {
+      fastify.log.error({ err: error }, '[unsubscribe] DB error');
+      return reply.code(500).send(renderShell('Something went wrong', '<h1>Something went wrong</h1><p>Please try again later.</p>'));
     }
   });
 };

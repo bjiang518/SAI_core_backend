@@ -798,6 +798,17 @@ struct MistakeQuestionListView: View {
         }
     }
 
+    /// Stable refId for the mistake_review_session feedback surface.
+    /// Combines subject + sorted branch filter so a user is asked once per
+    /// (subject, branch-set) view. Different filter combos count as distinct
+    /// review sessions because they show different mistakes.
+    private var feedbackRefId: String {
+        let branchKey = selectedDetailedBranches.isEmpty
+            ? "all"
+            : Array(selectedDetailedBranches).sorted().joined(separator: "_")
+        return "\(subject)_\(branchKey)"
+    }
+
     /// Filter mistakes by hierarchical filters, severity, and active status
     private var filteredMistakes: [MistakeQuestion] {
         var filtered = mistakeService.mistakes
@@ -957,6 +968,29 @@ struct MistakeQuestionListView: View {
                                     isSelectionMode: isSelectionMode,
                                     isSelected: selectedQuestions.contains(mistake.id),
                                     onToggleSelection: { toggleSelection(mistake.id) }
+                                )
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
+                            }
+
+                            // ⭐ Feedback bar at the very end of the mistake list — only shown
+                            // when the user has scrolled past all mistakes and is not in
+                            // selection mode (so it doesn't interfere with picking).
+                            if !isSelectionMode,
+                               !filteredMistakes.isEmpty,
+                               FeedbackService.shared.shouldAsk(
+                                    surface: .mistakeReviewSession,
+                                    refId: feedbackRefId) {
+                                FeedbackThumbsBar(
+                                    surface:  .mistakeReviewSession,
+                                    refType:  "mistake_review",
+                                    refId:    feedbackRefId,
+                                    metadata: [
+                                        "subject":        subject,
+                                        "mistake_count":  filteredMistakes.count,
+                                        "branches":       Array(selectedDetailedBranches).sorted().joined(separator: ","),
+                                        "severity":       String(describing: selectedSeverity),
+                                    ]
                                 )
                                 .listRowSeparator(.hidden)
                                 .listRowBackground(Color.clear)

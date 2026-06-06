@@ -6054,6 +6054,122 @@ async function runDatabaseMigrations() {
       logger.debug('✅ Migration 042: user_video_interactions already applied');
     }
 
+    // 043: feedback_events — explicit thumbs up/down feedback at key moments
+    // (homework grade, homework solve, chat session, practice session, parent report, live tutor)
+    // Dedup unique index lets a user change their mind on the same item via UPSERT.
+    const m043 = await db.query(
+      `SELECT 1 FROM migration_history WHERE migration_name = '043_feedback_events'`
+    );
+    if (m043.rows.length === 0) {
+      try {
+        await db.query(`
+          CREATE TABLE IF NOT EXISTS feedback_events (
+            id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            surface      TEXT NOT NULL,
+            rating       SMALLINT NOT NULL CHECK (rating IN (-1, 1)),
+            ref_type     TEXT,
+            ref_id       TEXT,
+            reason_tag   TEXT,
+            comment      TEXT CHECK (comment IS NULL OR char_length(comment) <= 500),
+            metadata     JSONB,
+            app_version  TEXT,
+            created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          );
+          CREATE INDEX IF NOT EXISTS idx_feedback_user
+            ON feedback_events (user_id, created_at DESC);
+          CREATE INDEX IF NOT EXISTS idx_feedback_surface
+            ON feedback_events (surface, created_at DESC);
+          -- Same user rating the same item only keeps one row (latest replaces).
+          CREATE UNIQUE INDEX IF NOT EXISTS idx_feedback_dedup
+            ON feedback_events (user_id, surface, ref_id)
+            WHERE ref_id IS NOT NULL;
+        `);
+        await db.query(
+          `INSERT INTO migration_history (migration_name) VALUES ('043_feedback_events') ON CONFLICT DO NOTHING`
+        );
+        logger.debug('✅ Migration 043: feedback_events table created');
+      } catch (migrationError) {
+        logger.error({ err: migrationError }, '❌ Migration 043 failed');
+      }
+    } else {
+      logger.debug('✅ Migration 043: feedback_events already applied');
+    }
+
+    // 044: Re-engagement campaigns + per-user send log + email unsubscribes.
+    //   - reengagement_campaigns: one row per admin-triggered campaign
+    //   - reengagement_sends:     one row per (campaign, user) — records Resend id, lifecycle timestamps
+    //   - email_unsubscribes:     opt-out list, checked before each send
+    const m044 = await db.query(
+      `SELECT 1 FROM migration_history WHERE migration_name = '044_reengagement'`
+    );
+    if (m044.rows.length === 0) {
+      try {
+        await db.query(`
+          CREATE TABLE IF NOT EXISTS reengagement_campaigns (
+            id              SERIAL PRIMARY KEY,
+            name            VARCHAR(100) UNIQUE NOT NULL,
+            code            VARCHAR(50) NOT NULL,
+            filter_json     JSONB NOT NULL,
+            subject         TEXT NOT NULL,
+            body_html       TEXT NOT NULL,
+            body_text       TEXT NOT NULL,
+            status          VARCHAR(20) NOT NULL DEFAULT 'pending',
+            total_targeted  INTEGER NOT NULL DEFAULT 0,
+            total_sent      INTEGER NOT NULL DEFAULT 0,
+            total_bounced   INTEGER NOT NULL DEFAULT 0,
+            total_failed    INTEGER NOT NULL DEFAULT 0,
+            started_at      TIMESTAMPTZ,
+            completed_at    TIMESTAMPTZ,
+            created_by      VARCHAR(255),
+            created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          );
+          CREATE INDEX IF NOT EXISTS idx_reengagement_campaigns_status
+            ON reengagement_campaigns (status, created_at DESC);
+
+          CREATE TABLE IF NOT EXISTS reengagement_sends (
+            id            SERIAL PRIMARY KEY,
+            campaign_id   INTEGER NOT NULL REFERENCES reengagement_campaigns(id) ON DELETE CASCADE,
+            user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            email_to      VARCHAR(255) NOT NULL,
+            resend_id     VARCHAR(100),
+            status        VARCHAR(20) NOT NULL DEFAULT 'queued',
+            error         TEXT,
+            queued_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            sent_at       TIMESTAMPTZ,
+            delivered_at  TIMESTAMPTZ,
+            bounced_at    TIMESTAMPTZ,
+            opened_at     TIMESTAMPTZ,
+            redeemed_at   TIMESTAMPTZ,
+            UNIQUE (campaign_id, user_id)
+          );
+          CREATE INDEX IF NOT EXISTS idx_reengagement_sends_campaign_status
+            ON reengagement_sends (campaign_id, status);
+          CREATE INDEX IF NOT EXISTS idx_reengagement_sends_resend_id
+            ON reengagement_sends (resend_id)
+            WHERE resend_id IS NOT NULL;
+          CREATE INDEX IF NOT EXISTS idx_reengagement_sends_user_recent
+            ON reengagement_sends (user_id, queued_at DESC);
+
+          CREATE TABLE IF NOT EXISTS email_unsubscribes (
+            user_id    UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+            list       VARCHAR(50) NOT NULL DEFAULT 'reengagement',
+            reason     TEXT,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          );
+        `);
+        await db.query(
+          `INSERT INTO migration_history (migration_name) VALUES ('044_reengagement') ON CONFLICT DO NOTHING`
+        );
+        logger.debug('✅ Migration 044: re-engagement tables created');
+      } catch (migrationError) {
+        logger.error({ err: migrationError }, '❌ Migration 044 failed');
+      }
+    } else {
+      logger.debug('✅ Migration 044: re-engagement tables already applied');
+    }
+
   } catch (error) {
     logger.error('❌ Database migration failed:', error);
     // Don't throw - let the app continue with what it has

@@ -1131,6 +1131,25 @@ struct QuestionSheetView: View {
                 }
                 .padding(.horizontal)
 
+                // ⭐ Feedback bar — once per session, only after completion
+                if FeedbackService.shared.shouldAsk(
+                    surface: .practiceSession,
+                    refId: session.id
+                ) {
+                    FeedbackThumbsBar(
+                        surface:  .practiceSession,
+                        refType:  "practice",
+                        refId:    session.id,
+                        metadata: [
+                            "subject":         session.subject,
+                            "question_count":  questions.count,
+                            "answered_count":  answeredIds.count,
+                            "correct_count":   correctCount,
+                            "score_pct":       Int(scorePercentage),
+                        ]
+                    )
+                }
+
                 // Action buttons
                 VStack(spacing: 12) {
                     // Review + Redo side by side

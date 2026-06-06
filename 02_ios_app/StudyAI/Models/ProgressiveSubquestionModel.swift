@@ -24,4 +24,12 @@ public struct ProgressiveSubquestion: Codable, Identifiable {
         case needImage     = "need_image"
         case workingSteps  = "working_steps"
     }
+
+    /// Whether the parsed answer field looks non-empty (used to route grade vs solve).
+    public var hasStudentAnswer: Bool {
+        let trimmed = studentAnswer.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty { return false }
+        let placeholders: Set<String> = ["?", "_", "—", "-", "...", "n/a", "na"]
+        return !placeholders.contains(trimmed.lowercased())
+    }
 }

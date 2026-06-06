@@ -81,15 +81,17 @@ struct DigitalHomeworkData: Codable {
         }
     }
 
-    /// Clear all grades but keep homework data (for revert)
+    /// Clear all grades and solutions but keep homework data (for revert)
     mutating func clearGrades() {
         for i in 0..<questions.count {
             questions[i].grade = nil
+            questions[i].solution = nil           // ⭐ Solve mode: also clear solution
             questions[i].isGrading = false
             questions[i].gradingError = nil
 
             if questions[i].isParentQuestion {
                 questions[i].subquestionGrades.removeAll()
+                questions[i].subquestionSolutions.removeAll()   // ⭐ also clear subquestion solutions
                 questions[i].subquestionGradingStatus.removeAll()
                 questions[i].subquestionErrors.removeAll()
             }

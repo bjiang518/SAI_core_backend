@@ -671,6 +671,150 @@ class GeminiEducationalAIService:
                 "error": f"Gemini grading failed: {str(e)}"
             }
 
+    async def solve_question(
+        self,
+        question_text: str,
+        subject: Optional[str] = None,
+        question_type: Optional[str] = None,
+        grade_level: Optional[str] = None,
+        parent_content: Optional[str] = None,
+        context_image: Optional[str] = None,
+        language: str = "en",
+        depth: str = "deep",
+    ) -> Dict[str, Any]:
+        """
+        Solve mode (Deep): walk the student through the problem with FULL reasoning.
+
+        Used when student uploaded a question photo WITHOUT writing an answer
+        AND requested deep reasoning. Each step shows: explanation, calculation, reasoning.
+        Plus common_mistakes at the end.
+
+        Mirrors grade_single_question() shape but is a teaching response.
+        """
+        if depth != "deep":
+            raise ValueError(
+                "solve_question on GeminiEducationalAIService only supports depth='deep'. "
+                "Fast solve is handled by EducationalAIService."
+            )
+        if not self.client:
+            raise Exception("Gemini client not initialized. Check GEMINI_API_KEY in environment.")
+
+        from src.services.solve_prompts import build_deep_solve_prompt
+
+        model_name = self.thinking_model_name  # gemini-3-flash-preview
+        logger.debug(f"💡 === SOLVING WITH GEMINI (DEEP) ===")
+        logger.debug(f"🤖 Model: {model_name}")
+        logger.debug(f"📚 Subject: {subject or 'General'} | Grade: {grade_level or 'General'}")
+        logger.debug(f"❓ Question: {question_text[:80]}...")
+
+        try:
+            solve_prompt = build_deep_solve_prompt(
+                question_text=question_text,
+                subject=subject,
+                question_type=question_type,
+                grade_level=grade_level,
+                parent_content=parent_content,
+                has_context_image=bool(context_image),
+                language=language,
+            )
+
+            content = [genai_types.Part.from_text(text=solve_prompt)]
+            if context_image:
+                image_bytes = base64.b64decode(context_image)
+                content.append(genai_types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"))
+
+            generation_config = genai_types.GenerateContentConfig(
+                thinking_config=genai_types.ThinkingConfig(thinking_budget=8192),
+                max_output_tokens=8192,
+                candidate_count=1,
+                response_mime_type="application/json",
+            )
+            timeout = 120
+
+            logger.debug(f"🚀 Calling Gemini for solve...")
+            start_time = time.time()
+
+            response = None
+            fallback_attempted = False
+            try:
+                response = await asyncio.wait_for(
+                    self.client.aio.models.generate_content(
+                        model=model_name,
+                        contents=content,
+                        config=generation_config,
+                    ),
+                    timeout=timeout,
+                )
+            except Exception as e:
+                if "503" in str(e) or "UNAVAILABLE" in str(e) or "overloaded" in str(e):
+                    logger.debug(f"⚠️ Model {model_name} unavailable (503), falling back to gemini-2.5-flash...")
+                    fallback_attempted = True
+                    response = await asyncio.wait_for(
+                        self.client.aio.models.generate_content(
+                            model="gemini-2.5-flash",
+                            contents=content,
+                            config=generation_config,
+                        ),
+                        timeout=timeout,
+                    )
+                else:
+                    raise
+
+            api_duration = time.time() - start_time
+            logger.debug(f"✅ Solve completed in {api_duration:.2f}s (fallback={fallback_attempted})")
+
+            # Check finish_reason for token-limit / safety issues
+            if response.candidates and len(response.candidates) > 0:
+                finish_reason = response.candidates[0].finish_reason
+                finish_reason_str = str(finish_reason)
+                if "MAX_TOKENS" in finish_reason_str or finish_reason == 2:
+                    logger.warning(f"⚠️ Deep solve hit MAX_TOKENS — retrying with gemini-2.5-flash")
+                    fallback_config = genai_types.GenerateContentConfig(
+                        max_output_tokens=8192,
+                        candidate_count=1,
+                        response_mime_type="application/json",
+                    )
+                    try:
+                        response = await asyncio.wait_for(
+                            self.client.aio.models.generate_content(
+                                model="gemini-2.5-flash",
+                                contents=content,
+                                config=fallback_config,
+                            ),
+                            timeout=60,
+                        )
+                    except Exception as fe:
+                        return {"success": False, "error": f"Solve token limit and fallback failed: {str(fe)}"}
+                elif finish_reason == 3:
+                    return {"success": False, "error": "Response blocked by safety filter."}
+
+            raw_response = self._extract_response_text(response)
+            solution_data = self._extract_json_from_response(raw_response)
+
+            # Normalize: ensure required fields exist; force step_num consecutive
+            if "final_answer" not in solution_data or not solution_data.get("final_answer"):
+                solution_data["final_answer"] = ""
+            if not isinstance(solution_data.get("steps"), list):
+                solution_data["steps"] = []
+            for idx, step in enumerate(solution_data["steps"], start=1):
+                if isinstance(step, dict):
+                    step["step_num"] = idx
+            if not isinstance(solution_data.get("common_mistakes"), list):
+                solution_data["common_mistakes"] = []
+
+            return {
+                "success": True,
+                "solution": solution_data,
+                "depth": "deep",
+                "model": model_name,
+            }
+
+        except Exception as e:
+            logger.debug(f"❌ Gemini solve error: {e}")
+            import traceback
+            traceback.print_exc()
+            return {"success": False, "error": f"Gemini solve failed: {str(e)}"}
+
     async def generate_questions_unified(
         self,
         subject: str,

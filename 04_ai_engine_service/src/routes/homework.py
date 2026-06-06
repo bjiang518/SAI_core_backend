@@ -237,6 +237,46 @@ class GradeSingleQuestionResponse(BaseModel):
     error: Optional[str] = None
 
 
+# ── Solve mode (mirror of grade-question, used when student didn't write an answer) ──
+
+class SolveQuestionRequest(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
+    question_text: str
+    subject: Optional[str] = None
+    question_type: Optional[str] = None
+    grade_level: Optional[str] = None
+    parent_question_content: Optional[str] = None
+    context_image_base64: Optional[str] = None
+    model_provider: Optional[str] = "openai"  # "openai" | "gemini"
+    use_deep_reasoning: bool = False
+    language: Optional[str] = "en"
+
+
+class SolveStep(BaseModel):
+    step_num: int
+    title: str
+    explanation: str
+    calculation: Optional[str] = None  # deep only
+    reasoning: Optional[str] = None    # deep only
+
+
+class SolveResult(BaseModel):
+    final_answer: str
+    steps: List[SolveStep]
+    concept: Optional[str] = None
+    common_mistakes: Optional[List[str]] = None  # deep only
+
+
+class SolveQuestionResponse(BaseModel):
+    success: bool
+    solution: Optional[SolveResult] = None
+    depth: Optional[str] = None  # "fast" | "deep"
+    model: Optional[str] = None
+    processing_time_ms: int
+    error: Optional[str] = None
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -822,4 +862,102 @@ async def grade_single_question(request: GradeSingleQuestionRequest):
         return GradeSingleQuestionResponse(
             success=False, grade=None, processing_time_ms=processing_time,
             error=f"Grading error: {type(e).__name__}: {str(e)}"
+        )
+
+
+@router.post("/api/v1/solve-question", response_model=SolveQuestionResponse)
+async def solve_question(request: SolveQuestionRequest):
+    """
+    Solve mode: walk a student through a question step-by-step.
+    Used when the student uploaded a question without writing an answer.
+
+    Mirrors grade-question routing:
+      Fast (default)            → EducationalAIService (gpt-5.2)
+      Deep (deep+gemini)        → GeminiEducationalAIService (gemini-3-flash-preview thinking)
+    """
+    start_time = _time.time()
+    try:
+        # Same selector pattern as grade-question
+        selected_service = (
+            gemini_service
+            if (request.model_provider == "gemini" and request.use_deep_reasoning)
+            else ai_service
+        )
+        depth = "deep" if request.use_deep_reasoning else "fast"
+
+        logger.warning(
+            f"[SOLVE] START subject={request.subject} type={request.question_type} "
+            f"grade={request.grade_level} depth={depth}"
+        )
+
+        result = await selected_service.solve_question(
+            question_text=request.question_text,
+            subject=request.subject,
+            question_type=request.question_type,
+            grade_level=request.grade_level,
+            parent_content=request.parent_question_content,
+            context_image=request.context_image_base64,
+            language=request.language or "en",
+            depth=depth,
+        )
+
+        if not result.get("success"):
+            raise HTTPException(status_code=500, detail=result.get("error", "Solve failed"))
+
+        processing_time = int((_time.time() - start_time) * 1000)
+        sol = result.get("solution", {}) or {}
+
+        # Convert raw step dicts → SolveStep models (defensive: skip non-dicts)
+        steps_list = []
+        for s in (sol.get("steps") or []):
+            if not isinstance(s, dict):
+                continue
+            steps_list.append(SolveStep(
+                step_num=int(s.get("step_num", len(steps_list) + 1)),
+                title=str(s.get("title", "")),
+                explanation=str(s.get("explanation", "")),
+                calculation=s.get("calculation"),
+                reasoning=s.get("reasoning"),
+            ))
+
+        common_mistakes = sol.get("common_mistakes")
+        if common_mistakes is not None and not isinstance(common_mistakes, list):
+            common_mistakes = None
+
+        solve_obj = SolveResult(
+            final_answer=str(sol.get("final_answer", "")),
+            steps=steps_list,
+            concept=sol.get("concept"),
+            common_mistakes=common_mistakes,
+        )
+
+        logger.warning(
+            f"[SOLVE] DONE depth={depth} steps={len(steps_list)} "
+            f"final_answer={solve_obj.final_answer[:60]} time={processing_time}ms"
+        )
+
+        return SolveQuestionResponse(
+            success=True,
+            solution=solve_obj,
+            depth=depth,
+            model=result.get("model"),
+            processing_time_ms=processing_time,
+            error=None,
+        )
+
+    except HTTPException as he:
+        processing_time = int((_time.time() - start_time) * 1000)
+        return SolveQuestionResponse(
+            success=False, solution=None, depth=None, model=None,
+            processing_time_ms=processing_time,
+            error=f"Solve error: {he.detail}",
+        )
+    except Exception as e:
+        processing_time = int((_time.time() - start_time) * 1000)
+        import traceback
+        traceback.print_exc()
+        return SolveQuestionResponse(
+            success=False, solution=None, depth=None, model=None,
+            processing_time_ms=processing_time,
+            error=f"Solve error: {type(e).__name__}: {str(e)}",
         )

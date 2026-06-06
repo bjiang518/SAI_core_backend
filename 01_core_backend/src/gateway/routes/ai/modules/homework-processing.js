@@ -76,8 +76,10 @@ class HomeworkProcessingRoutes {
       },
       config: {
         rateLimit: {
-          max: 15,
-          timeWindow: '1 hour',
+          // Burst protection only — monthly budget is enforced by tier-check on
+          // homework_pages. The previous 15/hr was hitting premium users mid-session.
+          max: 30,
+          timeWindow: '1 minute',
           keyGenerator: async (request) => {
             const userId = await this.authHelper.getUserIdFromToken(request);
             return userId || request.ip;
@@ -92,7 +94,7 @@ class HomeworkProcessingRoutes {
             return {
               error: 'Rate limit exceeded',
               code: 'RATE_LIMIT_EXCEEDED',
-              message: `You can only process ${context.max} homework images per hour. Please try again later.`,
+              message: `Too many homework images in a short time. Please wait a moment and try again.`,
               retryAfter: context.after
             };
           }
@@ -125,8 +127,9 @@ class HomeworkProcessingRoutes {
       },
       config: {
         rateLimit: {
-          max: 5,
-          timeWindow: '1 hour',
+          // Burst protection — monthly budget enforced by tier-check on homework_pages.
+          max: 10,
+          timeWindow: '1 minute',
           keyGenerator: async (request) => {
             const userId = await this.authHelper.getUserIdFromToken(request);
             return userId || request.ip;
@@ -141,7 +144,7 @@ class HomeworkProcessingRoutes {
             return {
               error: 'Rate limit exceeded',
               code: 'RATE_LIMIT_EXCEEDED',
-              message: `You can only process ${context.max} batch homework requests per hour. Please try again later.`,
+              message: `Too many batch homework requests in a short time. Please wait a moment and try again.`,
               retryAfter: context.after
             };
           }
@@ -170,8 +173,9 @@ class HomeworkProcessingRoutes {
       },
       config: {
         rateLimit: {
-          max: 15,
-          timeWindow: '1 hour',
+          // Burst protection — monthly budget enforced by tier-check on homework_pages.
+          max: 30,
+          timeWindow: '1 minute',
           keyGenerator: async (request) => {
             const userId = await this.authHelper.getUserIdFromToken(request);
             return userId || request.ip;
@@ -186,7 +190,7 @@ class HomeworkProcessingRoutes {
             return {
               error: 'Rate limit exceeded',
               code: 'RATE_LIMIT_EXCEEDED',
-              message: `You can only parse ${context.max} homework images per hour. Please try again later.`,
+              message: `Too many homework parses in a short time. Please wait a moment and try again.`,
               retryAfter: context.after
             };
           }
@@ -218,8 +222,9 @@ class HomeworkProcessingRoutes {
       },
       config: {
         rateLimit: {
-          max: 10,  // Lower limit for batch requests (more expensive)
-          timeWindow: '1 hour',
+          // Burst protection only — monthly budget enforced by tier-check on homework_pages.
+          max: 15,
+          timeWindow: '1 minute',
           keyGenerator: async (request) => {
             const userId = await this.authHelper.getUserIdFromToken(request);
             return userId || request.ip;
@@ -234,7 +239,7 @@ class HomeworkProcessingRoutes {
             return {
               error: 'Rate limit exceeded',
               code: 'RATE_LIMIT_EXCEEDED',
-              message: `You can only batch parse ${context.max} homework sets per hour. Please try again later.`,
+              message: `Too many batch parses in a short time. Please wait a moment and try again.`,
               retryAfter: context.after
             };
           }
@@ -293,6 +298,53 @@ class HomeworkProcessingRoutes {
         }
       }
     }, this.gradeSingleQuestion.bind(this));
+
+    // Solve a single question (used when student didn't write an answer)
+    this.fastify.post('/api/ai/solve-question', {
+      schema: {
+        description: 'Solve a single question step-by-step (used when student answer is empty)',
+        tags: ['AI', 'Homework', 'Solve'],
+        body: {
+          type: 'object',
+          required: ['question_text'],
+          properties: {
+            question_text: { type: 'string' },
+            subject: { type: 'string' },
+            question_type: { type: 'string' },
+            grade_level: { type: 'string' },
+            parent_question_content: { type: 'string' },
+            context_image_base64: { type: 'string' },
+            model_provider: { type: 'string' },
+            use_deep_reasoning: { type: 'boolean' },
+            language: { type: 'string' }
+          }
+        }
+      },
+      config: {
+        rateLimit: {
+          max: 100,
+          timeWindow: '1 minute',
+          keyGenerator: async (request) => {
+            const userId = await this.authHelper.getUserIdFromToken(request);
+            return userId || request.ip;
+          },
+          addHeaders: {
+            'x-ratelimit-limit': true,
+            'x-ratelimit-remaining': true,
+            'x-ratelimit-reset': true,
+            'retry-after': true
+          },
+          errorResponseBuilder: (request, context) => {
+            return {
+              error: 'Rate limit exceeded',
+              code: 'RATE_LIMIT_EXCEEDED',
+              message: `You can only solve ${context.max} questions per minute. Please try again later.`,
+              retryAfter: context.after
+            };
+          }
+        }
+      }
+    }, this.solveQuestion.bind(this));
 
     // Locate diagram bounding boxes for need_image=true questions (Phase 1.5)
     this.fastify.post('/api/ai/locate-diagram-regions', {
@@ -796,6 +848,48 @@ class HomeworkProcessingRoutes {
     } catch (error) {
       const duration = Date.now() - startTime;
       this.fastify.log.error(`[${reqId}] grade FAILED after ${duration}ms: ${error.message}`);
+      return this.handleProxyError(reply, error);
+    }
+  }
+
+  /**
+   * Solve mode (single question) — mirrors gradeSingleQuestion but produces a teaching response.
+   * Used when student uploaded a question photo without writing an answer.
+   */
+  async solveQuestion(request, reply) {
+    const startTime = Date.now();
+    const reqId = `solve-${Date.now().toString(36)}`;
+    const { model_provider = '?', use_deep_reasoning = false, question_type = '?', subject = '?' } = request.body || {};
+
+    try {
+      const result = await this.aiClient.proxyRequest(
+        'POST',
+        '/api/v1/solve-question',
+        request.body,
+        { 'Content-Type': 'application/json' }
+      );
+
+      const aiDuration = Date.now() - startTime;
+      const stepCount = result.data?.solution?.steps?.length ?? 0;
+      const depth = result.data?.depth ?? '?';
+
+      this.fastify.log.info(`[${reqId}] solve | model=${model_provider} subject=${subject} type=${question_type} depth=${depth} steps=${stepCount} ${aiDuration}ms`);
+
+      return reply.send({
+        ...result.data,
+        _gateway: {
+          processTime: aiDuration,
+          aiEngineTime: aiDuration,
+          gatewayOverhead: 0,
+          service: 'ai-engine',
+          mode: 'solve',
+          reqId
+        }
+      });
+
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      this.fastify.log.error(`[${reqId}] solve FAILED after ${duration}ms: ${error.message}`);
       return this.handleProxyError(reply, error);
     }
   }

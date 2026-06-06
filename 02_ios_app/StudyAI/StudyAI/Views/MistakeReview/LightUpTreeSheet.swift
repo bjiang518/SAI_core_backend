@@ -31,6 +31,13 @@ struct LightUpTreeSheet: View {
     @State private var generationError: String? = nil
     @State private var generationTask: Task<Void, Never>? = nil
 
+    // ⭐ Post-generation celebration state — when set, the sheet shows a brief
+    // "knowledge tree lit up!" overlay with a feedback bar, then hands off to
+    // the practice flow via onSessionCreated. The handoff is auto-triggered
+    // after ~3s OR when the user explicitly taps Continue / dismisses feedback.
+    @State private var pendingHandoff: (session: PracticeSession, topicKeys: [String])? = nil
+    @State private var handoffTask: Task<Void, Never>? = nil
+
     // Pre-expand the branch that contains the pre-selected topic
     @State private var expandedBranches: Set<String>
 
@@ -146,7 +153,19 @@ struct LightUpTreeSheet: View {
                     .ignoresSafeArea(edges: .bottom)
             }
         }
+        // ⭐ Celebration + feedback bar — shown for ~3s between generation success
+        // and the handoff to practice flow.
+        .overlay {
+            if pendingHandoff != nil {
+                ZStack {
+                    Color.black.opacity(0.35).ignoresSafeArea()
+                    celebrationOverlay
+                        .transition(.scale.combined(with: .opacity))
+                }
+            }
+        }
         .animation(.easeInOut(duration: 0.25), value: isGenerating)
+        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: pendingHandoff != nil)
         .onAppear {
             debugPrint("🌿 [LightUpTreeSheet] onAppear — initialTopicId='\(initialTopicId ?? "nil")'")
             debugPrint("🌿 [LightUpTreeSheet] unlitBranches.count=\(unlitBranches.count) allUnlitIds=\(allUnlitIds.sorted())")
@@ -733,7 +752,19 @@ struct LightUpTreeSheet: View {
                 return "\(subject)/\(branch.name)/\(topic.topicName)"
             }
             debugPrint("🌳 [LightUpTree] topic keys to light up: \(topicKeys)")
-            await MainActor.run { onSessionCreated(session, topicKeys) }
+            // ⭐ Defer the handoff so we can show a celebration + feedback bar first.
+            // The auto-handoff Task fires after ~3s; user tapping the bar (which
+            // is fire-and-forget) doesn't block this timer.
+            await MainActor.run {
+                pendingHandoff = (session, topicKeys)
+                handoffTask?.cancel()
+                handoffTask = Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 3_000_000_000)  // 3s
+                    if !Task.isCancelled {
+                        triggerHandoff()
+                    }
+                }
+            }
             JourneyTracker.shared.track("tree_lightup_done", [
                 "subject": subject,
                 "topic_count": selectedTopicIds.count,
@@ -745,6 +776,83 @@ struct LightUpTreeSheet: View {
             debugPrint("🌳 [LightUpTree] ❌ generation failed: \(error.localizedDescription)")
             await MainActor.run { generationError = error.localizedDescription }
         }
+    }
+
+    /// Hand off the freshly-generated session to the parent (which dismisses
+    /// the sheet and presents the practice flow). Idempotent — safe to call
+    /// from both the auto-timer and a user-tapped Continue button.
+    private func triggerHandoff() {
+        guard let pending = pendingHandoff else { return }
+        pendingHandoff = nil
+        handoffTask?.cancel()
+        onSessionCreated(pending.session, pending.topicKeys)
+    }
+
+    /// Stable refId for the knowledge_tree_lighten feedback surface.
+    /// Combines subject + alphabetically-sorted topic names so the same set
+    /// of unlit topics maps to one feedback prompt across re-runs.
+    private var feedbackRefId: String {
+        let topicNames = selectedTopics.map { $0.topicName }.sorted().joined(separator: "_")
+        return "\(subject)_\(topicNames)"
+    }
+
+    /// Celebration view shown for ~3s between generation success and practice handoff.
+    /// Houses the knowledge_tree_lighten feedback bar.
+    @ViewBuilder
+    private var celebrationOverlay: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 48))
+                .foregroundColor(DesignTokens.Colors.Cute.peach)
+            Text(NSLocalizedString("lightUpTree.celebrate.title",
+                                   value: "Knowledge tree lit up!",
+                                   comment: "Knowledge tree celebration title"))
+                .font(.title3.bold())
+                .foregroundColor(themeManager.primaryText)
+            Text(NSLocalizedString("lightUpTree.celebrate.subtitle",
+                                   value: "Loading practice questions…",
+                                   comment: "Knowledge tree celebration subtitle"))
+                .font(.subheadline)
+                .foregroundColor(themeManager.secondaryText)
+
+            // Feedback bar — only ask once per topic-set
+            if FeedbackService.shared.shouldAsk(surface: .knowledgeTreeLighten, refId: feedbackRefId) {
+                FeedbackThumbsBar(
+                    surface:  .knowledgeTreeLighten,
+                    refType:  "knowledge_tree",
+                    refId:    feedbackRefId,
+                    metadata: [
+                        "subject":         subject,
+                        "topic_count":     selectedTopics.count,
+                        "topic_names":     selectedTopics.map { $0.topicName }.joined(separator: ","),
+                        "difficulty":      String(describing: selectedDifficulty),
+                        "question_count":  questionCount,
+                    ],
+                    promptText: NSLocalizedString("lightUpTree.feedback.prompt",
+                                                   value: "Were these topics the right ones?",
+                                                   comment: "")
+                )
+                .padding(.top, 8)
+            }
+
+            Button(action: { triggerHandoff() }) {
+                Text(NSLocalizedString("lightUpTree.celebrate.continue",
+                                       value: "Continue",
+                                       comment: "Continue button on celebration screen"))
+                    .font(.callout.weight(.semibold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 32)
+                    .padding(.vertical, 12)
+                    .background(DesignTokens.Colors.Cute.peach)
+                    .cornerRadius(20)
+            }
+            .padding(.top, 4)
+        }
+        .padding(24)
+        .background(themeManager.cardBackground)
+        .cornerRadius(20)
+        .shadow(color: .black.opacity(0.15), radius: 20, x: 0, y: 4)
+        .padding(.horizontal, 32)
     }
 }
 

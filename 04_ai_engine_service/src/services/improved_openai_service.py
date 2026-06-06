@@ -3825,6 +3825,134 @@ If the initial grade was accurate, set verified_correct=false and revised_score 
             }
 
 
+    async def solve_question(
+        self,
+        question_text: str,
+        subject: Optional[str] = None,
+        question_type: Optional[str] = None,
+        grade_level: Optional[str] = None,
+        parent_content: Optional[str] = None,
+        context_image: Optional[str] = None,
+        language: str = "en",
+        depth: str = "fast",  # "fast" only here; deep is handled by GeminiService
+    ) -> Dict[str, Any]:
+        """
+        Solve mode (Fast): walk the student through the answer step-by-step.
+
+        Used when the student uploaded a question photo WITHOUT writing an answer.
+        Mirrors grade_single_question() in shape but produces a teaching response
+        instead of a verdict.
+
+        Args:
+            depth: "fast" — gpt-5.2 brief solution. Deep mode lives in GeminiService.
+
+        Returns:
+            Dict with:
+              - success: bool
+              - solution: {final_answer, steps[], concept, common_mistakes?}
+              - depth: "fast"
+              - model: model id used
+        """
+        if depth != "fast":
+            raise ValueError(
+                "solve_question on EducationalAIService only supports depth='fast'. "
+                "Deep solve is handled by GeminiEducationalAIService."
+            )
+
+        from src.services.solve_prompts import build_fast_solve_prompt
+
+        selected_model = "gpt-5.2"
+        logger.debug(f"💡 === SOLVING SINGLE QUESTION (OPENAI FAST) ===")
+        logger.debug(f"🤖 Model: {selected_model}")
+        logger.debug(f"📚 Subject: {subject or 'General'} | Grade: {grade_level or 'General'}")
+        logger.debug(f"❓ Question: {question_text[:80]}...")
+
+        try:
+            full_prompt = build_fast_solve_prompt(
+                question_text=question_text,
+                subject=subject,
+                question_type=question_type,
+                grade_level=grade_level,
+                parent_content=parent_content,
+                has_context_image=bool(context_image),
+                language=language,
+            )
+
+            system_prompt = "You are an expert tutor. Solve student questions clearly with step-by-step explanations."
+
+            if context_image:
+                input_messages = [
+                    {"role": "system", "content": system_prompt},
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "input_text", "text": full_prompt},
+                            {"type": "input_image", "image_url": f"data:image/jpeg;base64,{context_image}"},
+                        ],
+                    },
+                ]
+            else:
+                input_messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": full_prompt},
+                ]
+
+            logger.debug(f"🚀 Calling {selected_model}...")
+            start_time = time.time()
+
+            # gpt-5.2 Responses API — same shape as grade_single_question fast path
+            response = await self.client.responses.create(
+                model=selected_model,
+                input=input_messages,
+                reasoning={"effort": "low"},
+                text={"format": {"type": "json_object"}},
+                max_output_tokens=2048,
+            )
+            raw_response = response.output_text
+
+            api_duration = time.time() - start_time
+            logger.debug(f"✅ Solve completed in {api_duration:.2f}s")
+
+            if not raw_response:
+                return {
+                    "success": False,
+                    "error": "Solve error: model returned empty response (likely token budget exhausted)",
+                }
+
+            solution_data = json.loads(raw_response)
+
+            # Normalize: ensure required fields exist with safe defaults
+            if "final_answer" not in solution_data or not solution_data.get("final_answer"):
+                solution_data["final_answer"] = ""
+            if not isinstance(solution_data.get("steps"), list):
+                solution_data["steps"] = []
+            # Force step_num to be int and consecutive (defensive)
+            for idx, step in enumerate(solution_data["steps"], start=1):
+                if isinstance(step, dict):
+                    step["step_num"] = idx
+                    # Fast mode: strip deep-only fields if AI accidentally returned them
+                    step.pop("calculation", None)
+                    step.pop("reasoning", None)
+            # Fast mode: strip common_mistakes (deep-only)
+            solution_data.pop("common_mistakes", None)
+
+            return {
+                "success": True,
+                "solution": solution_data,
+                "depth": "fast",
+                "model": selected_model,
+            }
+
+        except json.JSONDecodeError as e:
+            logger.debug(f"❌ Solve JSON parsing error: {e}")
+            return {"success": False, "error": f"Failed to parse solve response: {str(e)}"}
+        except Exception as e:
+            logger.debug(f"❌ Solve error: {e}")
+            import traceback
+            traceback.print_exc()
+            return {"success": False, "error": f"Question solve failed: {str(e)}"}
+
+
     def _build_parse_with_coordinates_prompt(
         self,
         parsing_mode: str = "standard",

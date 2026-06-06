@@ -440,7 +440,7 @@ module.exports = async function (fastify, opts) {
       query += ` ORDER BY u.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
       params.push(limit, offset);
 
-      const result = await db.query(query, params);
+      const result = await db.query(query, params, { cache: false });
 
       // count query needs the same LATERAL so the filter conditions resolve to a value
       let countQuery = `
@@ -498,7 +498,8 @@ module.exports = async function (fastify, opts) {
       const [userResult, progressResult] = await Promise.all([
         db.query(
           'SELECT id, email, name, tier, is_anonymous, tier_expires_at, created_at, last_login_at FROM users WHERE id = $1',
-          [userId]
+          [userId],
+          { cache: false }
         ),
         db.query('SELECT subject, total_questions_attempted, accuracy_rate FROM subject_progress WHERE user_id = $1', [userId]),
       ]);
@@ -1355,7 +1356,7 @@ module.exports = async function (fastify, opts) {
         LEFT JOIN promo_redemptions pr ON pr.code_id = pc.id
         GROUP BY pc.id
         ORDER BY pc.created_at DESC
-      `);
+      `, [], { cache: false });
       return reply.send({ success: true, data: result.rows });
     } catch (error) {
       fastify.log.error({ err: error }, 'Error listing promo codes');
@@ -2545,6 +2546,433 @@ module.exports = async function (fastify, opts) {
     } catch (error) {
       fastify.log.error({ err: error }, 'Error fetching recent user actions');
       return reply.code(500).send({ success: false, error: 'Failed to fetch user actions', details: error?.message });
+    }
+  });
+
+  // ============================================================================
+  // RE-ENGAGEMENT CAMPAIGN ROUTES
+  // ============================================================================
+  const reengagementWorker = require('../services/reengagement-worker');
+  const emailService = require('../services/email-service');
+
+  /**
+   * POST /api/admin/reengagement/preview
+   * Body: { filter: { days_inactive_min, tier?, exclude_recent_send_days? } }
+   * Returns: { count, breakdown: {by auth/relay}, sample[10] } — no emails sent.
+   */
+  fastify.post('/api/admin/reengagement/preview', { preHandler: verifyAdmin }, async (request, reply) => {
+    try {
+      const filter = request.body?.filter || {};
+      const result = await reengagementWorker.previewAudience(filter);
+      return reply.send({ success: true, data: result });
+    } catch (error) {
+      fastify.log.error({ err: error }, '[admin/reengagement/preview] Error');
+      return reply.code(500).send({ success: false, error: 'Preview failed', details: error?.message });
+    }
+  });
+
+  /**
+   * POST /api/admin/reengagement/campaigns
+   * Body: { name, code, subject, body_html, body_text, filter }
+   * Creates a campaign row + spawns background worker. Returns immediately.
+   */
+  fastify.post('/api/admin/reengagement/campaigns', { preHandler: verifyAdmin }, async (request, reply) => {
+    const { name, code, subject, body_html, body_text, filter } = request.body || {};
+
+    if (!name || !/^[\w-]{3,100}$/.test(name)) {
+      return reply.code(400).send({ success: false, error: 'name is required (3–100 chars, [a-zA-Z0-9_-])' });
+    }
+    if (!code) return reply.code(400).send({ success: false, error: 'code is required' });
+    if (!subject) return reply.code(400).send({ success: false, error: 'subject is required' });
+    if (!body_html && !body_text) return reply.code(400).send({ success: false, error: 'body_html or body_text is required' });
+
+    const normalizedCode = String(code).trim().toUpperCase();
+
+    try {
+      // Validate the promo code exists and is active.
+      const codeRes = await db.query(
+        `SELECT id, is_active, expires_at FROM promo_codes WHERE code = $1`,
+        [normalizedCode]
+      );
+      if (codeRes.rows.length === 0) {
+        return reply.code(400).send({ success: false, error: `Promo code "${normalizedCode}" does not exist. Create it in Promo Codes first.` });
+      }
+      if (!codeRes.rows[0].is_active) {
+        return reply.code(400).send({ success: false, error: `Promo code "${normalizedCode}" is inactive` });
+      }
+
+      const insertRes = await db.query(
+        `INSERT INTO reengagement_campaigns
+           (name, code, filter_json, subject, body_html, body_text, status, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7)
+         RETURNING *`,
+        [
+          name.trim(),
+          normalizedCode,
+          filter || {},
+          subject,
+          body_html || '',
+          body_text || '',
+          request.adminUser?.email || 'unknown',
+        ]
+      );
+      const campaign = insertRes.rows[0];
+
+      // Fire-and-forget background send. Errors are logged inside runCampaign;
+      // we don't await so the admin sees an immediate response.
+      setImmediate(() => {
+        reengagementWorker.runCampaign(campaign.id, { logger: fastify.log })
+          .catch(err => fastify.log.error({ err }, `[reengagement] campaign ${campaign.id} crashed`));
+      });
+
+      fastify.log.info(`[admin/reengagement] campaign created id=${campaign.id} name=${campaign.name} by=${request.adminUser?.email}`);
+      return reply.send({ success: true, data: { campaignId: campaign.id, status: campaign.status } });
+    } catch (error) {
+      if (error.code === '23505') {
+        return reply.code(409).send({ success: false, error: `Campaign name "${name}" already exists` });
+      }
+      fastify.log.error({ err: error }, '[admin/reengagement/campaigns] Error');
+      return reply.code(500).send({ success: false, error: 'Failed to create campaign', details: error?.message });
+    }
+  });
+
+  /**
+   * GET /api/admin/reengagement/campaigns — history list with stats.
+   */
+  fastify.get('/api/admin/reengagement/campaigns', { preHandler: verifyAdmin }, async (request, reply) => {
+    try {
+      const result = await db.query(`
+        SELECT
+          c.id, c.name, c.code, c.subject, c.status,
+          c.total_targeted, c.total_sent, c.total_bounced, c.total_failed,
+          c.started_at, c.completed_at, c.created_by, c.created_at,
+          (SELECT COUNT(*) FROM reengagement_sends WHERE campaign_id = c.id AND opened_at IS NOT NULL) AS total_opened,
+          (SELECT COUNT(*) FROM reengagement_sends WHERE campaign_id = c.id AND redeemed_at IS NOT NULL) AS total_redeemed
+        FROM reengagement_campaigns c
+        ORDER BY c.created_at DESC
+        LIMIT 100
+      `);
+      return reply.send({ success: true, data: result.rows });
+    } catch (error) {
+      fastify.log.error({ err: error }, '[admin/reengagement/campaigns:list] Error');
+      return reply.code(500).send({ success: false, error: 'Failed to list campaigns' });
+    }
+  });
+
+  /**
+   * GET /api/admin/reengagement/campaigns/:id — detail + live counters.
+   */
+  fastify.get('/api/admin/reengagement/campaigns/:id', { preHandler: verifyAdmin }, async (request, reply) => {
+    const { id } = request.params;
+    try {
+      const campRes = await db.query(`SELECT * FROM reengagement_campaigns WHERE id = $1`, [id]);
+      if (campRes.rows.length === 0) {
+        return reply.code(404).send({ success: false, error: 'Campaign not found' });
+      }
+      // Live status counts straight from sends table — these supersede the
+      // cached totals on the campaign row when the worker is mid-flight.
+      const liveRes = await db.query(`
+        SELECT
+          COUNT(*) AS total,
+          COUNT(*) FILTER (WHERE status = 'queued')                              AS queued,
+          COUNT(*) FILTER (WHERE status = 'sent' OR status='delivered' OR status='opened') AS sent,
+          COUNT(*) FILTER (WHERE status = 'delivered' OR status='opened')        AS delivered,
+          COUNT(*) FILTER (WHERE status = 'bounced')                             AS bounced,
+          COUNT(*) FILTER (WHERE status = 'failed')                              AS failed,
+          COUNT(*) FILTER (WHERE opened_at IS NOT NULL)                          AS opened,
+          COUNT(*) FILTER (WHERE redeemed_at IS NOT NULL)                        AS redeemed
+        FROM reengagement_sends WHERE campaign_id = $1
+      `, [id]);
+      return reply.send({
+        success: true,
+        data: {
+          campaign: campRes.rows[0],
+          live: liveRes.rows[0],
+        },
+      });
+    } catch (error) {
+      fastify.log.error({ err: error }, '[admin/reengagement/campaigns/:id] Error');
+      return reply.code(500).send({ success: false, error: 'Failed to fetch campaign' });
+    }
+  });
+
+  /**
+   * GET /api/admin/reengagement/campaigns/:id/sends?status=&limit=&offset=&format=csv
+   * Paginated send-log. status filter: queued|sent|delivered|bounced|opened|redeemed|failed|all
+   */
+  fastify.get('/api/admin/reengagement/campaigns/:id/sends', { preHandler: verifyAdmin }, async (request, reply) => {
+    const { id } = request.params;
+    const status = request.query.status || 'all';
+    const format = request.query.format || 'json';
+    const limit = Math.min(parseInt(request.query.limit) || 200, format === 'csv' ? 100000 : 1000);
+    const offset = parseInt(request.query.offset) || 0;
+
+    let whereExtra = '';
+    const params = [id];
+    if (status === 'redeemed') whereExtra = 'AND s.redeemed_at IS NOT NULL';
+    else if (status === 'opened') whereExtra = 'AND s.opened_at IS NOT NULL';
+    else if (status !== 'all') {
+      params.push(status);
+      whereExtra = `AND s.status = $${params.length}`;
+    }
+    params.push(limit, offset);
+
+    try {
+      const result = await db.query(`
+        SELECT
+          s.id, s.user_id, s.email_to, s.status, s.error,
+          s.sent_at, s.delivered_at, s.bounced_at, s.opened_at, s.redeemed_at,
+          u.name, u.auth_provider
+        FROM reengagement_sends s
+        LEFT JOIN users u ON u.id = s.user_id
+        WHERE s.campaign_id = $1 ${whereExtra}
+        ORDER BY s.id DESC
+        LIMIT $${params.length - 1} OFFSET $${params.length}
+      `, params);
+
+      const rows = result.rows.map(r => ({
+        ...r,
+        email_masked: reengagementWorker.maskEmail(r.email_to),
+        classification: reengagementWorker.classifyEmail(r.email_to, r.auth_provider),
+      }));
+
+      if (format === 'csv') {
+        const header = 'id,user_id,email_to,name,status,classification,sent_at,delivered_at,bounced_at,opened_at,redeemed_at,error';
+        const csvLines = [header];
+        for (const r of rows) {
+          const esc = (v) => v == null ? '' : `"${String(v).replace(/"/g, '""')}"`;
+          csvLines.push([
+            r.id, r.user_id, r.email_to, r.name, r.status, r.classification,
+            r.sent_at, r.delivered_at, r.bounced_at, r.opened_at, r.redeemed_at, r.error,
+          ].map(esc).join(','));
+        }
+        reply.header('Content-Type', 'text/csv; charset=utf-8');
+        reply.header('Content-Disposition', `attachment; filename="campaign-${id}-sends.csv"`);
+        return reply.send(csvLines.join('\n'));
+      }
+
+      return reply.send({ success: true, data: { rows, limit, offset } });
+    } catch (error) {
+      fastify.log.error({ err: error }, '[admin/reengagement/campaigns/:id/sends] Error');
+      return reply.code(500).send({ success: false, error: 'Failed to fetch sends' });
+    }
+  });
+
+  /**
+   * GET /api/admin/reengagement/defaults
+   * Returns the default subject/body templates so the dashboard "New Campaign"
+   * form can pre-fill them.
+   */
+  fastify.get('/api/admin/reengagement/defaults', { preHandler: verifyAdmin }, async (request, reply) => {
+    return reply.send({
+      success: true,
+      data: {
+        subject:   emailService.DEFAULT_REENGAGEMENT_SUBJECT,
+        body_html: emailService.DEFAULT_REENGAGEMENT_HTML,
+        body_text: emailService.DEFAULT_REENGAGEMENT_TEXT,
+        placeholders: ['name', 'code', 'code_expires_at', 'unsubscribe_url'],
+      },
+    });
+  });
+
+  /**
+   * POST /api/admin/reengagement/send-test
+   * Body: { to_email, subject, body_html, body_text, code }
+   *
+   * Sends ONE rendered email exactly as a real user would receive it. The
+   * recipient email MUST belong to a real user in the `users` table — we look
+   * them up and use their actual user_id (so the unsubscribe JWT works end-to-
+   * end) and their actual name (so {{name}} renders correctly). Returns 404 if
+   * the email isn't a known user.
+   *
+   * The subject is prefixed with [TEST] so the admin can find it in their
+   * inbox and the recipient can tell it's not a campaign send.
+   *
+   * Test sends are NOT recorded in reengagement_sends — they don't belong to
+   * any campaign and shouldn't pollute campaign stats.
+   */
+  fastify.post('/api/admin/reengagement/send-test', { preHandler: verifyAdmin }, async (request, reply) => {
+    const { to_email, subject, body_html, body_text, code } = request.body || {};
+
+    if (!to_email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to_email)) {
+      return reply.code(400).send({ success: false, error: 'Valid to_email is required' });
+    }
+    if (!subject) return reply.code(400).send({ success: false, error: 'subject is required' });
+    if (!body_html && !body_text) return reply.code(400).send({ success: false, error: 'body_html or body_text is required' });
+
+    // Look up the recipient as a real user. Required — we want the test send
+    // to be a faithful replica (working unsubscribe link, real personalization).
+    const userRes = await db.query(
+      `SELECT id, name, email FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
+      [to_email.trim()]
+    );
+    if (userRes.rows.length === 0) {
+      return reply.code(404).send({
+        success: false,
+        error: `No user with email ${to_email}. Test sends require a real account so the unsubscribe link works end-to-end.`,
+        code: 'USER_NOT_FOUND',
+      });
+    }
+    const user = userRes.rows[0];
+
+    const sampleCode = (code || 'TESTCODE').toString().toUpperCase();
+
+    // Render the {{code_expires_at}} placeholder with the real promo code's
+    // expiry if available — same as a real campaign send.
+    let expiresAtLabel = 'soon';
+    try {
+      const codeRow = await db.query(`SELECT expires_at FROM promo_codes WHERE code = $1`, [sampleCode]);
+      if (codeRow.rows[0]?.expires_at) {
+        expiresAtLabel = new Date(codeRow.rows[0].expires_at).toLocaleDateString('en-US', {
+          year: 'numeric', month: 'long', day: 'numeric',
+        });
+      }
+    } catch { /* fall through to "soon" */ }
+
+    // Real vars — same shape the worker uses for campaign sends.
+    const vars = {
+      name: user.name || 'there',
+      code: sampleCode,
+      redeem_url: emailService.buildRedeemUrl(sampleCode),
+      code_expires_at: expiresAtLabel,
+      unsubscribe_url: emailService.buildUnsubscribeUrl(user.id),
+    };
+
+    try {
+      const renderedSubject = emailService.renderTemplate(subject, vars);
+      const renderedHtml    = emailService.renderTemplate(body_html || '', vars);
+      const renderedText    = emailService.renderTemplate(body_text || '', vars);
+
+      const { id: resendId } = await emailService.sendEmail({
+        to: user.email,
+        subject: `[TEST] ${renderedSubject}`,
+        html: renderedHtml,
+        text: renderedText,
+        logger: fastify.log,
+      });
+
+      fastify.log.info(`[admin/reengagement/send-test] to=${user.email} user=${user.id} code=${sampleCode} resend_id=${resendId} by=${request.adminUser?.email}`);
+      return reply.send({
+        success: true,
+        data: {
+          resend_id: resendId,
+          to: user.email,
+          rendered_for: { name: user.name, user_id: user.id },
+        },
+      });
+    } catch (error) {
+      fastify.log.error({ err: error }, '[admin/reengagement/send-test] Error');
+      return reply.code(500).send({ success: false, error: `Send failed: ${error?.message || 'unknown'}` });
+    }
+  });
+
+  /**
+   * GET /api/admin/reengagement/unsubscribes
+   * Returns aggregated unsubscribe reasons + recent free-text feedback.
+   * Privacy-first: NO user_id / email is exposed — just counts and the
+   * "detail" portion users typed (which they wrote knowing it's feedback).
+   */
+  fastify.get('/api/admin/reengagement/unsubscribes', { preHandler: verifyAdmin }, async (request, reply) => {
+    // Same slugs/labels as the unsubscribe form in account-routes.js. Kept in
+    // sync manually — small enough that a label drift is obvious in QA.
+    const SLUG_TO_LABEL = {
+      inaccurate_answers:  "Answers / grading weren't accurate",
+      too_slow:            'App felt too slow or laggy',
+      content_mismatch:    "Content didn't match what they're studying",
+      questions_too_hard:  'Questions were too hard',
+      questions_too_easy:  'Questions were too easy',
+      not_studying_now:    'Not actively studying right now',
+      other:               'Other',
+      unspecified:         'Unspecified',
+    };
+
+    try {
+      // Aggregate by slug — extract the part before " | ".
+      // (split_part returns the whole string if delimiter is absent, which is
+      // exactly what we want for rows that have only a slug.)
+      const aggResult = await db.query(`
+        SELECT split_part(reason, ' | ', 1) AS slug, COUNT(*)::int AS count
+        FROM email_unsubscribes
+        WHERE list = 'reengagement'
+        GROUP BY slug
+        ORDER BY count DESC
+      `);
+
+      const total = aggResult.rows.reduce((sum, r) => sum + r.count, 0);
+      const byReason = aggResult.rows.map(r => ({
+        slug: r.slug,
+        label: SLUG_TO_LABEL[r.slug] || r.slug,
+        count: r.count,
+        pct: total > 0 ? Math.round((r.count / total) * 1000) / 10 : 0,
+      }));
+
+      // Recent free-text feedback. We extract the substring after " | " — only
+      // rows where the user actually typed something.
+      const feedbackResult = await db.query(`
+        SELECT
+          split_part(reason, ' | ', 1) AS slug,
+          substring(reason from position(' | ' in reason) + 3) AS detail,
+          created_at
+        FROM email_unsubscribes
+        WHERE list = 'reengagement'
+          AND reason LIKE '% | %'
+          AND length(trim(substring(reason from position(' | ' in reason) + 3))) > 0
+        ORDER BY created_at DESC
+        LIMIT 100
+      `);
+
+      const recentFeedback = feedbackResult.rows.map(r => ({
+        slug: r.slug,
+        slug_label: SLUG_TO_LABEL[r.slug] || r.slug,
+        detail: r.detail,
+        created_at: r.created_at,
+      }));
+
+      return reply.send({
+        success: true,
+        data: { total, by_reason: byReason, recent_feedback: recentFeedback },
+      });
+    } catch (error) {
+      fastify.log.error({ err: error }, '[admin/reengagement/unsubscribes] Error');
+      return reply.code(500).send({ success: false, error: 'Failed to load unsubscribe data' });
+    }
+  });
+
+  /**
+   * POST /api/admin/reengagement/campaigns/:id/resend-failed
+   * Re-attempts sends that previously failed (e.g. rate limited) for this
+   * campaign. Operates on existing reengagement_sends rows — does NOT
+   * re-evaluate the audience filter, so already-sent users won't be re-emailed.
+   * Apple Private Relay rows + users who unsubscribed since are excluded.
+   */
+  fastify.post('/api/admin/reengagement/campaigns/:id/resend-failed', { preHandler: verifyAdmin }, async (request, reply) => {
+    const { id } = request.params;
+    try {
+      // Quick pre-check so we can return a useful count immediately.
+      const countRes = await db.query(`
+        SELECT COUNT(*)::int AS n
+        FROM reengagement_sends s
+        WHERE s.campaign_id = $1
+          AND s.status = 'failed'
+          AND s.email_to NOT ILIKE '%@privaterelay.appleid.com'
+          AND NOT EXISTS (SELECT 1 FROM email_unsubscribes eu WHERE eu.user_id = s.user_id)
+      `, [id]);
+      const eligible = countRes.rows[0]?.n || 0;
+      if (eligible === 0) {
+        return reply.code(400).send({ success: false, error: 'No eligible failed sends to retry for this campaign.' });
+      }
+
+      // Background fire-and-forget.
+      setImmediate(() => {
+        reengagementWorker.resendFailed(id, { logger: fastify.log })
+          .catch(err => fastify.log.error({ err }, `[reengagement] resend-failed crashed campaign=${id}`));
+      });
+
+      fastify.log.info(`[admin/reengagement/resend-failed] campaign=${id} eligible=${eligible} by=${request.adminUser?.email}`);
+      return reply.send({ success: true, data: { campaignId: id, eligible_count: eligible } });
+    } catch (error) {
+      fastify.log.error({ err: error }, '[admin/reengagement/resend-failed] Error');
+      return reply.code(500).send({ success: false, error: 'Failed to start resend' });
     }
   });
 

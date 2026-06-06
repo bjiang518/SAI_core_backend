@@ -488,6 +488,9 @@ if (features.useGateway) {
   // Behavioural event ingestion — POST /api/events/batch (iOS client)
   fastify.register(require('./routes/event-routes'));
 
+  // Explicit user feedback (thumbs up/down at key moments) — POST /api/feedback
+  fastify.register(require('./routes/feedback-routes'));
+
   // AI Engine proxy routes (modular)
   fastify.register(AIModularRoutes);
 
@@ -505,6 +508,9 @@ if (features.useGateway) {
 
   // Account routes — usage summary for authenticated user
   fastify.register(require('./routes/account-routes'));
+
+  // Resend webhook — encapsulated plugin (uses raw body for signature verify)
+  fastify.register(require('./routes/resend-webhook'));
 
   // Family routes — multi-child account management (Ultra tier)
   fastify.register(require('./routes/family-routes'));
@@ -586,6 +592,14 @@ const start = async () => {
     });
 
     fastify.log.info(`🚀 API Gateway started on http://${host}:${port}`);
+
+    // Resume any re-engagement campaigns left in 'running' state after a redeploy.
+    try {
+      const reengagementWorker = require('./services/reengagement-worker');
+      reengagementWorker.resumeRunningCampaigns({ logger: fastify.log });
+    } catch (resumeErr) {
+      fastify.log.error({ err: resumeErr }, '❌ Failed to resume re-engagement campaigns');
+    }
 
     // Initialize Daily Reset Service after server startup
     try {

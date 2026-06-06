@@ -16,16 +16,46 @@ struct VideoSummarySheet: View {
     @State private var contentHeight: CGFloat = 500
     @State private var showPDFView = false
     @State private var archiveConfirm = false
+    /// ⭐ Set true when the user scrolls the bottom sentinel into view, gating
+    /// the feedback bar so we only ask after they've actually read the summary.
+    @State private var hasScrolledToBottom = false
 
     private var isArchived: Bool { store.isSaved(videoId: videoId) }
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                HTMLView(htmlContent: html, contentHeight: $contentHeight)
-                    .frame(height: max(contentHeight, 500))
-                    .padding(.horizontal, 4)
-                    .padding(.bottom, 20)
+                VStack(spacing: 0) {
+                    HTMLView(htmlContent: html, contentHeight: $contentHeight)
+                        .frame(height: max(contentHeight, 500))
+                        .padding(.horizontal, 4)
+                        .padding(.bottom, 20)
+
+                    // ⭐ Scroll-to-bottom sentinel: invisible 1pt view; .onAppear fires
+                    // when user scrolls past the HTMLView, marking the summary as "read".
+                    Color.clear
+                        .frame(height: 1)
+                        .onAppear { hasScrolledToBottom = true }
+
+                    // ⭐ Feedback bar — only after the user has reached the bottom of the summary,
+                    // and only once per video.
+                    if hasScrolledToBottom,
+                       FeedbackService.shared.shouldAsk(surface: .videoSummary, refId: videoId) {
+                        FeedbackThumbsBar(
+                            surface:  .videoSummary,
+                            refType:  "video",
+                            refId:    videoId,
+                            metadata: [
+                                "video_title":   videoTitle,
+                                "channel_title": channelTitle,
+                                "subject":       subject,
+                                "topic_name":    topicName,
+                            ]
+                        )
+                        .padding(.top, 4)
+                        .padding(.bottom, 16)
+                    }
+                }
             }
             .background(themeManager.cardBackground)
             .navigationTitle(NSLocalizedString("video.summary.title", value: "Video Summary", comment: ""))

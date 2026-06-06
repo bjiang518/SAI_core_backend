@@ -393,6 +393,26 @@ struct DigitalHomeworkView: View {
                                     .padding(.horizontal)
                                     .padding(.top, 16)
                                     .transition(.opacity)
+
+                                // ⭐ Feedback bar — shown once per homework, fades out after submit.
+                                // Surface depends on whether AI mostly graded or solved this set.
+                                if let hwHash = stateManager.currentHomework?.homeworkHash,
+                                   FeedbackService.shared.shouldAsk(
+                                        surface: feedbackSurface,
+                                        refId: hwHash) {
+                                    FeedbackThumbsBar(
+                                        surface:  feedbackSurface,
+                                        refType:  "homework",
+                                        refId:    hwHash,
+                                        metadata: [
+                                            "subject":     viewModel.subject,
+                                            "mode":        viewModel.useDeepReasoning ? "deep" : "fast",
+                                            "task_mode":   String(describing: viewModel.aiTaskMode),
+                                            "question_count": viewModel.totalQuestions,
+                                        ]
+                                    )
+                                    .padding(.top, 12)
+                                }
                             }
 
                             // Bottom padding for tab bar
@@ -1942,6 +1962,10 @@ struct DigitalHomeworkView: View {
             onRegradeSubquestion: { subId in
                 Task { await viewModel.regradeSubquestion(parentQuestionId: qId, subquestionId: subId) }
             },
+            onResolve: { Task { await viewModel.resolveQuestion(questionId: qId) } },
+            onResolveSubquestion: { subId in
+                Task { await viewModel.resolveSubquestion(parentQuestionId: qId, subquestionId: subId) }
+            },
             onReparse: { Task { await viewModel.reparseQuestion(questionId: qId) } },
             onToggleSelection: { viewModel.toggleQuestionSelection(questionId: qId) },
             onToggleDeletionSelection: {
@@ -2031,6 +2055,12 @@ struct DigitalHomeworkView: View {
     /// No longer needed — subquestion dots are handled inside GradingDotsView
     private var subquestionGradingDots: [(dot: GradingDotState, parentId: String, subId: String)] { [] }
 
+    /// Picks the feedback surface based on whether this set is mostly graded
+    /// vs solved. Mixed sets get the grade surface (the dominant interaction).
+    private var feedbackSurface: FeedbackSurface {
+        viewModel.aiTaskMode == .solve ? .homeworkSolve : .homeworkGrade
+    }
+
     private var completionScore: Int {
         guard !viewModel.questions.isEmpty else { return 0 }
         var correctCount = 0
@@ -2062,6 +2092,20 @@ struct DigitalHomeworkView: View {
             if q.isParentQuestion {
                 count += q.subquestionGrades.values.filter { !$0.isCorrect }.count
             } else if let g = q.grade, !g.isCorrect {
+                count += 1
+            }
+        }
+        return count
+    }
+
+    /// Number of questions (or subquestions) that ended up with a solve result.
+    /// Used to show "X solved" in the header for solve-only homework.
+    private var solvedQuestionCount: Int {
+        var count = 0
+        for q in viewModel.questions {
+            if q.isParentQuestion {
+                count += q.subquestionSolutions.count
+            } else if q.solution != nil {
                 count += 1
             }
         }
@@ -2404,10 +2448,7 @@ struct DigitalHomeworkView: View {
             // ── Grade button ─────────────────────────────────────────────
             let isCropping = stateManager.isBackgroundDiagramAnalysisPending || viewModel.isDiagramAnalysisPending
             GradeButtonView(
-                label: viewModel.isGrading ? viewModel.gradeButtonLabel
-                    : (viewModel.useDeepReasoning
-                        ? NSLocalizedString("proMode.deepGrade", comment: "Deep Grade")
-                        : NSLocalizedString("proMode.quickGrade", comment: "Quick Grade")),
+                label: viewModel.gradeButtonLabel,
                 isGrading: viewModel.isGrading,
                 isEnabled: viewModel.isGradingEnabled,
                 isCropping: isCropping,
@@ -2436,27 +2477,46 @@ struct DigitalHomeworkView: View {
                 )
                 .frame(maxWidth: .infinity)
 
-                // Mistakes-only toggle — shows count, no icon
-                Button {
-                    withAnimation(.spring(response: 0.3)) { showMistakesOnly.toggle() }
-                } label: {
-                    let n = mistakeCount
-                    let label = n == 1
-                        ? NSLocalizedString("proMode.oneMistake", value: "1 mistake", comment: "")
-                        : String(format: NSLocalizedString("proMode.nMistakes", value: "%d mistakes", comment: ""), n)
-                    Text(label)
+                // Mistakes-only toggle / Solved badge — adapts to solve-only homework
+                if viewModel.aiTaskMode == .solve {
+                    // Solve-only: show "X solved" instead of mistake count
+                    let solvedTotal = solvedQuestionCount
+                    Text(String(format: NSLocalizedString("proMode.nSolved", value: "%d solved", comment: ""), solvedTotal))
                         .font(.caption2.bold())
-                        .foregroundColor(showMistakesOnly ? .white : (n > 0 ? .red : .secondary))
+                        .foregroundColor(DesignTokens.Colors.Cute.peach)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(showMistakesOnly ? Color.red.opacity(0.75) : (n > 0 ? Color.red.opacity(0.10) : Color.gray.opacity(0.12)))
+                        .background(DesignTokens.Colors.Cute.peach.opacity(0.12))
                         .cornerRadius(8)
+                } else {
+                    Button {
+                        withAnimation(.spring(response: 0.3)) { showMistakesOnly.toggle() }
+                    } label: {
+                        let n = mistakeCount
+                        let label = n == 1
+                            ? NSLocalizedString("proMode.oneMistake", value: "1 mistake", comment: "")
+                            : String(format: NSLocalizedString("proMode.nMistakes", value: "%d mistakes", comment: ""), n)
+                        Text(label)
+                            .font(.caption2.bold())
+                            .foregroundColor(showMistakesOnly ? .white : (n > 0 ? .red : .secondary))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(showMistakesOnly ? Color.red.opacity(0.75) : (n > 0 ? Color.red.opacity(0.10) : Color.gray.opacity(0.12)))
+                            .cornerRadius(8)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .disabled(!viewModel.allQuestionsGraded)
                 }
-                .buttonStyle(PlainButtonStyle())
-                .disabled(!viewModel.allQuestionsGraded)
 
                 Group {
-                    if viewModel.allQuestionsGraded {
+                    if viewModel.aiTaskMode == .solve {
+                        // Solve-only: don't show "0%" — show fraction during work, then nothing
+                        if !viewModel.allQuestionsGraded {
+                            Text("\(viewModel.gradedCount)/\(viewModel.totalQuestions)")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                    } else if viewModel.allQuestionsGraded {
                         Text("\(completionScore)%")
                             .font(.title3.bold())
                             .foregroundColor(completionScoreColor)
@@ -2602,6 +2662,8 @@ struct QuestionCard: View {
     let onArchiveSubquestion: ((String) -> Void)?  // ✅ NEW: Archive specific subquestion (optional, only for parent questions)
     let onRegrade: () -> Void  // ✅ NEW: Regrade this question
     let onRegradeSubquestion: ((String) -> Void)?  // ✅ NEW: Regrade specific subquestion
+    let onResolve: () -> Void  // ⭐ Re-solve this question with deep mode (solve flow)
+    let onResolveSubquestion: ((String) -> Void)?  // ⭐ Re-solve specific subquestion
     let onReparse: () -> Void  // Reparse this question with Gemini
     let onToggleSelection: () -> Void
     let onToggleDeletionSelection: () -> Void  // ✅ NEW: Toggle deletion selection
@@ -2692,7 +2754,7 @@ struct QuestionCard: View {
                 .hwOnboardingAnchor(isFirstQuestion ? "hw_onboarding_reparse" : "")
             }
 
-            // Grade badge (if graded) or loading indicator (if grading)
+            // Grade badge (if graded), Solve badge (if solved), or loading indicator (if grading)
             // ✅ NEW: Hide grade during regrading with fade animation
             if questionWithGrade.isGrading {
                 GradingLoadingIndicator(modelType: modelType)
@@ -2700,10 +2762,13 @@ struct QuestionCard: View {
             } else if let grade = questionWithGrade.grade {
                 HomeworkGradeBadge(grade: grade)
                     .transition(.scale.combined(with: .opacity))
+            } else if questionWithGrade.solution != nil {
+                SolveBadge(depth: nil)
+                    .transition(.scale.combined(with: .opacity))
             }
 
-            // Fold/expand chevron — only show after graded
-            if questionWithGrade.grade != nil {
+            // Fold/expand chevron — show after graded or solved
+            if questionWithGrade.grade != nil || questionWithGrade.solution != nil {
                 Button(action: { withAnimation(.spring(response: 0.3)) { toggleExpanded() } }) {
                     Image(systemName: expandedValue ? "chevron.up" : "chevron.down")
                         .font(.caption.weight(.semibold))
@@ -2802,14 +2867,16 @@ struct QuestionCard: View {
                 if let subquestions = questionWithGrade.question.subquestions {
                     ForEach(subquestions.filter { sub in
                         if !showMistakesOnly { return true }
-                        // show if not yet graded or if incorrect
-                        guard let g = questionWithGrade.subquestionGrades[sub.id] else { return true }
-                        return !g.isCorrect
+                        // show if not yet graded/solved or if incorrect
+                        if let g = questionWithGrade.subquestionGrades[sub.id] { return !g.isCorrect }
+                        if questionWithGrade.subquestionSolutions[sub.id] != nil { return true }
+                        return true
                     }) { subquestion in
                         SubquestionRow(
                             subquestion: subquestion,
                             parentQuestionId: questionWithGrade.question.id,
                             grade: questionWithGrade.subquestionGrades[subquestion.id],
+                            solution: questionWithGrade.subquestionSolutions[subquestion.id],
                             isGrading: questionWithGrade.subquestionGradingStatus[subquestion.id] ?? false,
                             modelType: modelType,
                             isArchived: questionWithGrade.archivedSubquestions.contains(subquestion.id),
@@ -2833,6 +2900,10 @@ struct QuestionCard: View {
                                 debugPrint("🔄 Regrade subquestion \(subquestion.id)")
                                 onRegradeSubquestion?(subquestion.id)
                             },
+                            onResolve: {
+                                debugPrint("💡 Resolve subquestion \(subquestion.id)")
+                                onResolveSubquestion?(subquestion.id)
+                            },
                             onEditCroppedImage: onEditCroppedImage,
                             onAddPicture: {
                                 let pageIndex = max((questionWithGrade.question.pageNumber ?? 1) - 1, 0)
@@ -2846,9 +2917,18 @@ struct QuestionCard: View {
                 renderQuestionByType(questionWithGrade: questionWithGrade)
             }
 
-            // AI grading results — folded/expanded by chevron
+            // AI grading / solving results — folded/expanded by chevron
             if expandedValue {
-                // Correct Answer (wrong answers only, non-MC/TF)
+                // ⭐ Solve mode: show step-by-step solution instead of grade UI
+                if let solution = questionWithGrade.solution {
+                    SolvedSolutionSection(
+                        solution: solution,
+                        depth: modelType == "gemini" ? "deep" : "fast",
+                        onTryYourself: nil   // P1: wire to practice flow
+                    )
+                }
+
+                // Correct Answer (wrong answers only, non-MC/TF) — grade-only branch
                 if let grade = questionWithGrade.grade,
                    let correctAnswer = grade.correctAnswer,
                    !correctAnswer.isEmpty,
@@ -2893,6 +2973,29 @@ struct QuestionCard: View {
                         }
                         .buttonStyle(.bordered)
                         .tint(.purple)
+                        .disabled(questionWithGrade.isArchived || questionWithGrade.isGrading)
+                        Spacer()
+                        Button(action: onArchive) {
+                            Image(systemName: questionWithGrade.isArchived ? "checkmark.circle" : "books.vertical.fill")
+                                .font(.caption)
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(questionWithGrade.isArchived || questionWithGrade.isGrading)
+                    }
+                }
+
+                // ⭐ Solve mode action buttons (mirror of grade actions for solve flow)
+                if questionWithGrade.solution != nil && questionWithGrade.grade == nil && !isArchiveMode {
+                    HStack(spacing: 12) {
+                        FollowUpButton(action: { onAskAI(nil) }, isIncorrect: false)
+                            .disabled(questionWithGrade.isArchived || questionWithGrade.isGrading)
+                        Button(action: onResolve) {
+                            Label(NSLocalizedString("proMode.resolve", value: "Resolve", comment: "Re-solve with deep mode"),
+                                  systemImage: "arrow.triangle.2.circlepath")
+                                .font(.caption)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(DesignTokens.Colors.Cute.peach)
                         .disabled(questionWithGrade.isArchived || questionWithGrade.isGrading)
                         Spacer()
                         Button(action: onArchive) {
@@ -3096,39 +3199,81 @@ struct QuestionCard: View {
         VStack(alignment: .leading, spacing: 6) {
             FullLaTeXText(questionText, fontSize: 14)
 
-            let answers = studentAnswer.components(separatedBy: " | ")
-
-            if answers.count > 1 {
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(answers.indices, id: \.self) { index in
-                        HStack(spacing: 4) {
-                            Text(String(format: NSLocalizedString("proMode.blankLabel", comment: ""), index + 1))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            FullLaTeXText(answers[index], fontSize: 12)
-                                .foregroundColor(.primary)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 2)
-                                .background(gridAnswerBackground(grade: grade))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .stroke(answerBoxBorderColor(grade: grade), lineWidth: grade != nil ? 1.5 : 0)
-                                )
-                                .cornerRadius(4)
-                        }
-                    }
-                    if let g = grade {
-                        Image(systemName: g.isCorrect ? "checkmark" : "xmark")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundColor(g.isCorrect ? .green : .red)
-                    }
+            // Only render answer boxes when the student actually wrote something.
+            // For solve mode (empty studentAnswer) we don't want blank yellow grid boxes.
+            if !studentAnswer.isEmpty {
+                let answers = studentAnswer.components(separatedBy: " | ")
+                if answers.count > 1 {
+                    multiBlankRow(answers: answers, grade: grade)
+                } else {
+                    singleBlankRow(studentAnswer: studentAnswer, grade: grade)
                 }
-            } else {
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func multiBlankRow(answers: [String], grade: ProgressiveGradeResult?) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(answers.indices, id: \.self) { index in
                 HStack(spacing: 4) {
-                    FullLaTeXText(studentAnswer, fontSize: 12)
+                    Text(String(format: NSLocalizedString("proMode.blankLabel", comment: ""), index + 1))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    FullLaTeXText(answers[index], fontSize: 12)
                         .foregroundColor(.primary)
                         .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
+                        .padding(.vertical, 2)
+                        .background(gridAnswerBackground(grade: grade))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 4)
+                                .stroke(answerBoxBorderColor(grade: grade), lineWidth: grade != nil ? 1.5 : 0)
+                        )
+                        .cornerRadius(4)
+                }
+            }
+            if let g = grade {
+                Image(systemName: g.isCorrect ? "checkmark" : "xmark")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(g.isCorrect ? .green : .red)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func singleBlankRow(studentAnswer: String, grade: ProgressiveGradeResult?) -> some View {
+        HStack(spacing: 4) {
+            FullLaTeXText(studentAnswer, fontSize: 12)
+                .foregroundColor(.primary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(gridAnswerBackground(grade: grade))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(answerBoxBorderColor(grade: grade), lineWidth: grade != nil ? 1.5 : 0)
+                )
+                .cornerRadius(6)
+            if let g = grade {
+                Image(systemName: g.isCorrect ? "checkmark" : "xmark")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(g.isCorrect ? .green : .red)
+            }
+        }
+    }
+
+    // MARK: - Calculation Rendering
+
+    @ViewBuilder
+    private func renderCalculation(questionText: String, studentAnswer: String, grade: ProgressiveGradeResult?) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            FullLaTeXText(questionText, fontSize: 14)
+
+            // Only show the answer box when the student actually wrote something.
+            // For solve mode (empty studentAnswer) we don't want a blank yellow grid.
+            if !studentAnswer.isEmpty {
+                HStack(alignment: .center, spacing: 4) {
+                    FullLaTeXText(studentAnswer, fontSize: 12)
+                        .padding(8)
                         .background(gridAnswerBackground(grade: grade))
                         .overlay(
                             RoundedRectangle(cornerRadius: 6)
@@ -3145,62 +3290,42 @@ struct QuestionCard: View {
         }
     }
 
-    // MARK: - Calculation Rendering
-
-    @ViewBuilder
-    private func renderCalculation(questionText: String, studentAnswer: String, grade: ProgressiveGradeResult?) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            FullLaTeXText(questionText, fontSize: 14)
-
-            HStack(alignment: .center, spacing: 4) {
-                FullLaTeXText(studentAnswer, fontSize: 12)
-                    .padding(8)
-                    .background(gridAnswerBackground(grade: grade))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .stroke(answerBoxBorderColor(grade: grade), lineWidth: grade != nil ? 1.5 : 0)
-                    )
-                    .cornerRadius(6)
-                if let g = grade {
-                    Image(systemName: g.isCorrect ? "checkmark" : "xmark")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(g.isCorrect ? .green : .red)
-                }
-            }
-        }
-    }
-
     // MARK: - True/False Rendering
 
     @ViewBuilder
     private func renderTrueFalse(questionText: String, studentAnswer: String, grade: ProgressiveGradeResult?) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             FullLaTeXText(questionText, fontSize: 14)
-            HStack(spacing: 16) {
-                // Prefer explicit correctAnswer; fall back to inferring from the grade:
-                // if student chose one option and was wrong, the OTHER must be correct.
-                let explicitCA = grade?.correctAnswer ?? ""
-                let studentChoseSomething = isTrue(studentAnswer) || isFalse(studentAnswer)
-                let correctIsTrue: Bool = {
-                    if !explicitCA.isEmpty { return isTrue(explicitCA) }
-                    if let g = grade, !g.isCorrect, studentChoseSomething { return isFalse(studentAnswer) }
-                    return false
-                }()
-                let correctIsFalse: Bool = {
-                    if !explicitCA.isEmpty { return isFalse(explicitCA) }
-                    if let g = grade, !g.isCorrect, studentChoseSomething { return isTrue(studentAnswer) }
-                    return false
-                }()
-                tfButton(label: NSLocalizedString("proMode.trueFalse.true", comment: ""),
-                         isChosen: isTrue(studentAnswer),
-                         isCorrectAnswer: correctIsTrue,
-                         grade: grade)
-                tfButton(label: NSLocalizedString("proMode.trueFalse.false", comment: ""),
-                         isChosen: isFalse(studentAnswer),
-                         isCorrectAnswer: correctIsFalse,
-                         grade: grade)
+
+            // Hide T/F buttons when no student answer was detected (solve mode).
+            // Without a chosen option, two unselected circles look like a blank answer area.
+            if !studentAnswer.isEmpty || grade != nil {
+                HStack(spacing: 16) {
+                    // Prefer explicit correctAnswer; fall back to inferring from the grade:
+                    // if student chose one option and was wrong, the OTHER must be correct.
+                    let explicitCA = grade?.correctAnswer ?? ""
+                    let studentChoseSomething = isTrue(studentAnswer) || isFalse(studentAnswer)
+                    let correctIsTrue: Bool = {
+                        if !explicitCA.isEmpty { return isTrue(explicitCA) }
+                        if let g = grade, !g.isCorrect, studentChoseSomething { return isFalse(studentAnswer) }
+                        return false
+                    }()
+                    let correctIsFalse: Bool = {
+                        if !explicitCA.isEmpty { return isFalse(explicitCA) }
+                        if let g = grade, !g.isCorrect, studentChoseSomething { return isTrue(studentAnswer) }
+                        return false
+                    }()
+                    tfButton(label: NSLocalizedString("proMode.trueFalse.true", comment: ""),
+                             isChosen: isTrue(studentAnswer),
+                             isCorrectAnswer: correctIsTrue,
+                             grade: grade)
+                    tfButton(label: NSLocalizedString("proMode.trueFalse.false", comment: ""),
+                             isChosen: isFalse(studentAnswer),
+                             isCorrectAnswer: correctIsFalse,
+                             grade: grade)
+                }
+                .padding(.leading, 12)
             }
-            .padding(.leading, 12)
         }
     }
 
@@ -3438,6 +3563,7 @@ struct SubquestionRow: View {
     let subquestion: ProgressiveSubquestion
     let parentQuestionId: String  // ✅ NEW: Parent question ID
     let grade: ProgressiveGradeResult?
+    let solution: SolveResult?  // ⭐ Solve mode result (mutually exclusive with grade)
     let isGrading: Bool  // ✅ NEW: Track grading status
     let modelType: String  // ✅ NEW: Track AI model for loading indicator
     let isArchived: Bool  // ✅ NEW: Track if this subquestion is archived
@@ -3449,6 +3575,7 @@ struct SubquestionRow: View {
     let onArchive: () -> Void  // This archives the parent question
     let onArchiveSubquestion: () -> Void  // ✅ NEW: Archive this subquestion only
     let onRegrade: () -> Void  // ✅ NEW: Regrade this subquestion
+    let onResolve: () -> Void  // ⭐ Re-solve this subquestion with deep mode
     let onEditCroppedImage: ((String) -> Void)?  // Tap subquestion's cropped image → focused edit
     let onAddPicture: (() -> Void)?  // Tap "add picture here" → open annotation editor
 
@@ -3457,6 +3584,50 @@ struct SubquestionRow: View {
     @State private var isQuestionExpanded = false  // ✅ NEW: Track if question text is expanded
     @State private var isSubShaking = false
     @Environment(\.colorScheme) private var colorScheme
+
+    // ⭐ Extracted to keep SubquestionRow body small enough for the type-checker.
+    @ViewBuilder
+    private var solveSection: some View {
+        if let solution = solution {
+            SolvedSolutionSection(
+                solution: solution,
+                depth: modelType == "gemini" ? "deep" : "fast",
+                onTryYourself: nil  // P1: wire to practice flow
+            )
+            .padding(.leading, 24)
+        }
+    }
+
+    /// Solve-mode action panel — mirrors the grade-mode action row inside the feedback block.
+    @ViewBuilder
+    private var solveActionPanel: some View {
+        if solution != nil && grade == nil {
+            HStack(spacing: 8) {
+                Button(action: onAskAI) {
+                    Image(systemName: "message").font(.caption)
+                }
+                .buttonStyle(.bordered)
+                .disabled(isArchived || isGrading)
+
+                Button(action: onResolve) {
+                    Image(systemName: "arrow.triangle.2.circlepath").font(.caption)
+                }
+                .buttonStyle(.bordered)
+                .tint(DesignTokens.Colors.Cute.peach)
+                .disabled(isArchived || isGrading)
+
+                Spacer()
+
+                Button(action: { showArchiveOptions = true }) {
+                    Image(systemName: isArchived ? "checkmark.circle" : "books.vertical.fill")
+                        .font(.caption)
+                }
+                .buttonStyle(.bordered)
+                .disabled(isArchived || isGrading)
+            }
+            .padding(.leading, 24)
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -3506,7 +3677,7 @@ struct SubquestionRow: View {
 
                 Spacer()
 
-                // ✅ UPDATED: Show loading indicator or score, hide score during regrading
+                // ✅ UPDATED: Show loading indicator, score, or solve badge
                 if isGrading {
                     GradingLoadingIndicator(modelType: modelType)
                         .scaleEffect(0.6)
@@ -3516,6 +3687,10 @@ struct SubquestionRow: View {
                         .font(.caption2)
                         .fontWeight(.semibold)
                         .foregroundColor(grade.isCorrect ? .green : .orange)
+                        .transition(.scale.combined(with: .opacity))
+                } else if solution != nil {
+                    SolveBadge(depth: nil)
+                        .scaleEffect(0.85)
                         .transition(.scale.combined(with: .opacity))
                 }
             }
@@ -3598,6 +3773,10 @@ struct SubquestionRow: View {
                 .cornerRadius(6)
                 .padding(.leading, 24)  // Indent under subquestion
             }
+
+            // ⭐ Solve mode: render solution instead of grade feedback when solution is set
+            solveSection
+            solveActionPanel
 
             // Feedback section (if graded)
             if let grade = grade, !grade.feedback.isEmpty {
@@ -3835,13 +4014,35 @@ struct SubquestionRow: View {
         VStack(alignment: .leading, spacing: 4) {
             FullLaTeXText(questionText, fontSize: 12)
 
-            let answers = studentAnswer.components(separatedBy: " | ")
+            // Solve mode: hide blank answer boxes when no student answer.
+            if !studentAnswer.isEmpty {
+                let answers = studentAnswer.components(separatedBy: " | ")
 
-            if answers.count > 1 {
-                // Multiple blanks (compact) — all boxes share the overall grade color
-                HStack(spacing: 4) {
-                    ForEach(answers.indices, id: \.self) { index in
-                        FullLaTeXText(answers[index], fontSize: 12)
+                if answers.count > 1 {
+                    // Multiple blanks (compact) — all boxes share the overall grade color
+                    HStack(spacing: 4) {
+                        ForEach(answers.indices, id: \.self) { index in
+                            FullLaTeXText(answers[index], fontSize: 12)
+                                .foregroundColor(.primary)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 1)
+                                .background(gridAnswerBackground(grade: grade))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 3)
+                                        .stroke(answerBoxBorderColor(grade: grade), lineWidth: grade != nil ? 1 : 0)
+                                )
+                                .cornerRadius(3)
+                        }
+                        if let g = grade {
+                            Image(systemName: g.isCorrect ? "checkmark" : "xmark")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(g.isCorrect ? .green : .red)
+                        }
+                    }
+                } else {
+                    // Single blank
+                    HStack(spacing: 4) {
+                        FullLaTeXText(studentAnswer, fontSize: 12)
                             .foregroundColor(.primary)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 1)
@@ -3851,31 +4052,12 @@ struct SubquestionRow: View {
                                     .stroke(answerBoxBorderColor(grade: grade), lineWidth: grade != nil ? 1 : 0)
                             )
                             .cornerRadius(3)
-                    }
-                    if let g = grade {
-                        Image(systemName: g.isCorrect ? "checkmark" : "xmark")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(g.isCorrect ? .green : .red)
-                    }
-                }
-            } else {
-                // Single blank
-                HStack(spacing: 4) {
-                    FullLaTeXText(studentAnswer, fontSize: 12)
-                        .foregroundColor(.primary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 1)
-                        .background(gridAnswerBackground(grade: grade))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 3)
-                                .stroke(answerBoxBorderColor(grade: grade), lineWidth: grade != nil ? 1 : 0)
-                        )
-                        .cornerRadius(3)
 
-                    if let g = grade {
-                        Image(systemName: g.isCorrect ? "checkmark" : "xmark")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(g.isCorrect ? .green : .red)
+                        if let g = grade {
+                            Image(systemName: g.isCorrect ? "checkmark" : "xmark")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(g.isCorrect ? .green : .red)
+                        }
                     }
                 }
             }
@@ -3891,22 +4073,25 @@ struct SubquestionRow: View {
                 FullLaTeXText(questionText, fontSize: 12)
             }
 
-            HStack(alignment: .center, spacing: 4) {
-                FullLaTeXText(studentAnswer, fontSize: 11)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 6)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(gridAnswerBackground(grade: grade))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .stroke(answerBoxBorderColor(grade: grade), lineWidth: grade != nil ? 1 : 0)
-                    )
-                    .cornerRadius(6)
+            // Solve mode: hide blank answer box when no student answer.
+            if !studentAnswer.isEmpty {
+                HStack(alignment: .center, spacing: 4) {
+                    FullLaTeXText(studentAnswer, fontSize: 11)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 6)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(gridAnswerBackground(grade: grade))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .stroke(answerBoxBorderColor(grade: grade), lineWidth: grade != nil ? 1 : 0)
+                        )
+                        .cornerRadius(6)
 
-                if let g = grade {
-                    Image(systemName: g.isCorrect ? "checkmark" : "xmark")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(g.isCorrect ? .green : .red)
+                    if let g = grade {
+                        Image(systemName: g.isCorrect ? "checkmark" : "xmark")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(g.isCorrect ? .green : .red)
+                    }
                 }
             }
         }
@@ -3919,30 +4104,33 @@ struct SubquestionRow: View {
         VStack(alignment: .leading, spacing: 4) {
             FullLaTeXText(questionText, fontSize: 12)
 
-            // True/False options (compact) — grade-aware, with nil-correctAnswer inference
-            let explicitCA = grade?.correctAnswer ?? ""
-            let studentChoseSomething = isTrue(studentAnswer) || isFalse(studentAnswer)
-            let correctIsTrue: Bool = {
-                if !explicitCA.isEmpty { return isTrue(explicitCA) }
-                if let g = grade, !g.isCorrect, studentChoseSomething { return isFalse(studentAnswer) }
-                return false
-            }()
-            let correctIsFalse: Bool = {
-                if !explicitCA.isEmpty { return isFalse(explicitCA) }
-                if let g = grade, !g.isCorrect, studentChoseSomething { return isTrue(studentAnswer) }
-                return false
-            }()
-            HStack(spacing: 12) {
-                subTFButton(label: NSLocalizedString("proMode.trueFalse.trueShort", comment: ""),
-                            isChosen: isTrue(studentAnswer),
-                            isCorrectAnswer: correctIsTrue,
-                            grade: grade)
-                subTFButton(label: NSLocalizedString("proMode.trueFalse.falseShort", comment: ""),
-                            isChosen: isFalse(studentAnswer),
-                            isCorrectAnswer: correctIsFalse,
-                            grade: grade)
+            // Solve mode: hide T/F buttons when no student answer was detected.
+            if !studentAnswer.isEmpty || grade != nil {
+                // True/False options (compact) — grade-aware, with nil-correctAnswer inference
+                let explicitCA = grade?.correctAnswer ?? ""
+                let studentChoseSomething = isTrue(studentAnswer) || isFalse(studentAnswer)
+                let correctIsTrue: Bool = {
+                    if !explicitCA.isEmpty { return isTrue(explicitCA) }
+                    if let g = grade, !g.isCorrect, studentChoseSomething { return isFalse(studentAnswer) }
+                    return false
+                }()
+                let correctIsFalse: Bool = {
+                    if !explicitCA.isEmpty { return isFalse(explicitCA) }
+                    if let g = grade, !g.isCorrect, studentChoseSomething { return isTrue(studentAnswer) }
+                    return false
+                }()
+                HStack(spacing: 12) {
+                    subTFButton(label: NSLocalizedString("proMode.trueFalse.trueShort", comment: ""),
+                                isChosen: isTrue(studentAnswer),
+                                isCorrectAnswer: correctIsTrue,
+                                grade: grade)
+                    subTFButton(label: NSLocalizedString("proMode.trueFalse.falseShort", comment: ""),
+                                isChosen: isFalse(studentAnswer),
+                                isCorrectAnswer: correctIsFalse,
+                                grade: grade)
+                }
+                .padding(.leading, 8)
             }
-            .padding(.leading, 8)
         }
     }
 
@@ -4318,6 +4506,264 @@ private struct GradeButtonView: View {
                     glowing = true
                 }
             }
+        }
+    }
+}
+
+// MARK: - Solve mode UI (used when student didn't write an answer)
+
+/// Header indicator shown alongside HomeworkGradeBadge — orange/lavender gradient.
+struct SolveBadge: View {
+    let depth: String?  // "fast" | "deep" | nil
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "lightbulb.fill")
+                .font(.caption2)
+            Text(label)
+                .font(.caption.weight(.semibold))
+        }
+        .foregroundColor(.white)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(
+            LinearGradient(
+                colors: [DesignTokens.Colors.Cute.peach, DesignTokens.Colors.Cute.lavender],
+                startPoint: .leading, endPoint: .trailing
+            )
+        )
+        .cornerRadius(8)
+    }
+
+    private var label: String {
+        if depth == "deep" {
+            return NSLocalizedString("solve.badge.deep", value: "Solved (Deep)", comment: "Solve badge — deep")
+        }
+        return NSLocalizedString("solve.badge.fast", value: "Solved", comment: "Solve badge — fast")
+    }
+}
+
+/// Solve solution section rendered inside the expanded card body.
+/// Fast mode: title + brief explanation per step + final answer + concept.
+/// Deep mode: also calculation, reasoning, common_mistakes.
+struct SolvedSolutionSection: View {
+    let solution: SolveResult
+    let depth: String?
+    let onTryYourself: (() -> Void)?
+
+    @StateObject private var themeManager = ThemeManager.shared
+
+    private var isDeep: Bool { depth == "deep" }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            stepsSection
+            finalAnswerSection
+            conceptSection
+            mistakesSection
+            if let cta = onTryYourself {
+                tryYourselfButton(action: cta)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var stepsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            stepsHeader
+            ForEach(solution.steps, id: \.stepNum) { step in
+                SolveStepRow(step: step, isDeep: isDeep)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var stepsHeader: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "list.number")
+                .font(.caption)
+                .foregroundColor(DesignTokens.Colors.Cute.peach)
+            Text(NSLocalizedString("solve.section.steps",
+                                   value: "Step-by-step solution",
+                                   comment: "Header above solve steps"))
+                .font(.caption.weight(.semibold))
+                .foregroundColor(themeManager.primaryText)
+            Spacer(minLength: 0)
+        }
+    }
+
+    @ViewBuilder
+    private var finalAnswerSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Image(systemName: "sparkles")
+                    .font(.caption)
+                    .foregroundColor(DesignTokens.Colors.Cute.pink)
+                Text(NSLocalizedString("solve.section.answer",
+                                       value: "Answer",
+                                       comment: "Header above final answer"))
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(themeManager.primaryText)
+                Spacer(minLength: 0)
+            }
+            FullLaTeXText(solution.finalAnswer, fontSize: 15)
+                .foregroundColor(themeManager.primaryText)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(DesignTokens.Colors.Cute.pink.opacity(0.10))
+        .cornerRadius(10)
+    }
+
+    @ViewBuilder
+    private var conceptSection: some View {
+        if let concept = solution.concept, !concept.isEmpty {
+            HStack(spacing: 6) {
+                Image(systemName: "book.closed.fill")
+                    .font(.caption2)
+                    .foregroundColor(DesignTokens.Colors.Cute.mint)
+                Text(NSLocalizedString("solve.section.concept",
+                                       value: "Concept",
+                                       comment: "Header above concept tag"))
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(themeManager.primaryText)
+                Text(concept)
+                    .font(.caption)
+                    .foregroundColor(themeManager.secondaryText)
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var mistakesSection: some View {
+        if isDeep, let mistakes = solution.commonMistakes, !mistakes.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.caption2)
+                        .foregroundColor(DesignTokens.Colors.Cute.yellow)
+                    Text(NSLocalizedString("solve.section.commonMistakes",
+                                           value: "Common mistakes",
+                                           comment: "Header above common-mistakes list"))
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(themeManager.primaryText)
+                    Spacer(minLength: 0)
+                }
+                ForEach(Array(mistakes.enumerated()), id: \.offset) { _, mistake in
+                    HStack(alignment: .top, spacing: 6) {
+                        Text("•").foregroundColor(DesignTokens.Colors.Cute.yellow)
+                        FullLaTeXText(mistake, fontSize: 12)
+                            .foregroundColor(themeManager.secondaryText)
+                        Spacer(minLength: 0)
+                    }
+                }
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(DesignTokens.Colors.Cute.yellow.opacity(0.10))
+            .cornerRadius(10)
+        }
+    }
+
+    @ViewBuilder
+    private func tryYourselfButton(action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: "pencil.line").font(.callout.weight(.semibold))
+                Text(NSLocalizedString("solve.cta.tryYourself",
+                                       value: "Now solve it yourself",
+                                       comment: "CTA at bottom of solve card"))
+                    .font(.callout.weight(.semibold))
+                Spacer()
+                Image(systemName: "arrow.right").font(.callout)
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(
+                LinearGradient(
+                    colors: [DesignTokens.Colors.Cute.peach, DesignTokens.Colors.Cute.pink],
+                    startPoint: .leading, endPoint: .trailing
+                )
+            )
+            .cornerRadius(10)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// Single step row — split out to keep type-checker happy.
+private struct SolveStepRow: View {
+    let step: SolveStep
+    let isDeep: Bool
+
+    @StateObject private var themeManager = ThemeManager.shared
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            stepNumberBubble
+            VStack(alignment: .leading, spacing: 6) {
+                if !step.title.isEmpty {
+                    Text(step.title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(themeManager.primaryText)
+                }
+                if !step.explanation.isEmpty {
+                    FullLaTeXText(step.explanation, fontSize: 13)
+                        .foregroundColor(themeManager.secondaryText)
+                }
+                if isDeep, let calc = step.calculation, !calc.isEmpty {
+                    calculationBlock(calc)
+                }
+                if isDeep, let reasoning = step.reasoning, !reasoning.isEmpty {
+                    reasoningBlock(reasoning)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(10)
+        .background(themeManager.cardBackground)
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(DesignTokens.Colors.Cute.peach.opacity(0.2), lineWidth: 1)
+        )
+        .cornerRadius(10)
+    }
+
+    private var stepNumberBubble: some View {
+        ZStack {
+            Circle()
+                .fill(DesignTokens.Colors.Cute.peach.opacity(0.18))
+                .frame(width: 26, height: 26)
+            Text("\(step.stepNum)")
+                .font(.caption.weight(.bold))
+                .foregroundColor(DesignTokens.Colors.Cute.peach)
+        }
+    }
+
+    private func calculationBlock(_ calc: String) -> some View {
+        HStack(alignment: .top, spacing: 6) {
+            Text("▸")
+                .foregroundColor(DesignTokens.Colors.Cute.lavender)
+                .font(.caption.weight(.bold))
+            FullLaTeXText(calc, fontSize: 13)
+                .foregroundColor(themeManager.primaryText)
+        }
+        .padding(8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(DesignTokens.Colors.Cute.lavender.opacity(0.10))
+        .cornerRadius(6)
+    }
+
+    private func reasoningBlock(_ reasoning: String) -> some View {
+        HStack(alignment: .top, spacing: 6) {
+            Image(systemName: "bubble.left.fill")
+                .font(.caption2)
+                .foregroundColor(DesignTokens.Colors.Cute.blue)
+            FullLaTeXText(reasoning, fontSize: 12)
+                .foregroundColor(themeManager.secondaryText)
+                .italic()
         }
     }
 }

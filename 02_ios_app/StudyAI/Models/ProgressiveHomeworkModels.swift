@@ -109,6 +109,23 @@ struct ProgressiveQuestion: Codable, Identifiable {
         return studentAnswer ?? ""
     }
 
+    /// Whether the parsed answer field looks non-empty (used to route grade vs solve).
+    /// Defensive against OCR noise: single placeholder characters / blanks count as empty.
+    var hasStudentAnswer: Bool {
+        return !ProgressiveQuestion.isAnswerBlank(studentAnswer)
+    }
+
+    /// Shared blank-answer heuristic so subquestions and parent share one rule.
+    static func isAnswerBlank(_ answer: String?) -> Bool {
+        guard let raw = answer else { return true }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty { return true }
+        let lowered = trimmed.lowercased()
+        // Common OCR noise / placeholders that mean "nothing was written"
+        let placeholders: Set<String> = ["?", "_", "—", "-", "...", "n/a", "na"]
+        return placeholders.contains(lowered)
+    }
+
     // MARK: - Subquestion ID Deduplication
 
     /// Returns a copy with subquestion IDs guaranteed unique.
@@ -327,6 +344,61 @@ struct GradeSingleQuestionResponse: Codable {
     }
 }
 
+// MARK: - Solve Mode (used when student didn't write an answer)
+
+/// One step in a step-by-step solution.
+/// Fast mode: only `title` + `explanation` are populated.
+/// Deep mode: also `calculation` and `reasoning`.
+struct SolveStep: Codable {
+    let stepNum: Int
+    let title: String
+    let explanation: String
+    let calculation: String?  // deep only — actual math/work shown
+    let reasoning: String?    // deep only — WHY this step works
+
+    enum CodingKeys: String, CodingKey {
+        case stepNum = "step_num"
+        case title
+        case explanation
+        case calculation
+        case reasoning
+    }
+}
+
+/// The full solution returned by /api/ai/solve-question
+struct SolveResult: Codable {
+    let finalAnswer: String
+    let steps: [SolveStep]
+    let concept: String?
+    let commonMistakes: [String]?  // deep only
+
+    enum CodingKeys: String, CodingKey {
+        case finalAnswer = "final_answer"
+        case steps
+        case concept
+        case commonMistakes = "common_mistakes"
+    }
+}
+
+/// Response from /api/ai/solve-question
+struct SolveQuestionResponse: Codable {
+    let success: Bool
+    let solution: SolveResult?
+    let depth: String?   // "fast" | "deep"
+    let model: String?
+    let processingTimeMs: Int?
+    let error: String?
+
+    enum CodingKeys: String, CodingKey {
+        case success
+        case solution
+        case depth
+        case model
+        case processingTimeMs = "processing_time_ms"
+        case error
+    }
+}
+
 // MARK: - Phase 1.5: Diagram Region Location Models
 
 /// A question sent to locate-diagram-regions
@@ -405,6 +477,11 @@ struct ProgressiveQuestionWithGrade: Identifiable, Codable {
     var subquestionGradingStatus: [String: Bool] = [:]  // key = subquestion id, value = isGrading
     var subquestionErrors: [String: String] = [:]  // key = subquestion id
 
+    // ✅ Solve mode: populated when student didn't write an answer.
+    // Mutually exclusive with `grade` per question — a question is either graded or solved, never both.
+    var solution: SolveResult?
+    var subquestionSolutions: [String: SolveResult] = [:]  // key = subquestion id
+
     // ✅ NEW: Archive status (questions remain visible after archiving)
     var isArchived: Bool = false
 
@@ -445,12 +522,18 @@ struct ProgressiveQuestionWithGrade: Identifiable, Codable {
         return subquestionGrades.values.allSatisfy { $0.isCorrect }
     }
 
-    /// Whether this question is complete (graded successfully or failed)
+    /// Whether this question is complete (graded successfully, solved, or failed)
     var isComplete: Bool {
         if isParentQuestion {
-            return allSubquestionsGraded || !subquestionErrors.isEmpty
+            // Parent: every subquestion must be graded, solved, or errored
+            guard let subs = question.subquestions else { return !subquestionErrors.isEmpty }
+            return subs.allSatisfy { sub in
+                subquestionGrades[sub.id] != nil
+                    || subquestionSolutions[sub.id] != nil
+                    || subquestionErrors[sub.id] != nil
+            }
         } else {
-            return grade != nil || gradingError != nil
+            return grade != nil || solution != nil || gradingError != nil
         }
     }
 }

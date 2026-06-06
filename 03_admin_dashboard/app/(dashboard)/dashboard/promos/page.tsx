@@ -54,14 +54,18 @@ function StatusBadge({ status }: { status: EffectiveStatus }) {
   return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-200 text-gray-700">Exhausted</span>
 }
 
-// Convert ISO timestamp → "YYYY-MM-DD" (local) for the <input type=date>
+// Convert ISO timestamp → "YYYY-MM-DD" for the <input type=date>.
+// The backend stores expires_at as TIMESTAMP and the pg driver returns it as
+// "...T00:00:00.000Z" (UTC). Use UTC accessors so the date round-trips identically
+// regardless of the admin's local timezone — otherwise PST/EST users would see the
+// date jump back one day and the edit appears to revert.
 function isoToDateInput(iso: string | null): string {
   if (!iso) return ''
   const d = new Date(iso)
   if (isNaN(d.getTime())) return ''
-  const yyyy = d.getFullYear()
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
+  const yyyy = d.getUTCFullYear()
+  const mm = String(d.getUTCMonth() + 1).padStart(2, '0')
+  const dd = String(d.getUTCDate()).padStart(2, '0')
   return `${yyyy}-${mm}-${dd}`
 }
 
@@ -226,7 +230,7 @@ export default function PromosPage() {
 
   const formatDate = (iso: string | null) => {
     if (!iso) return '—'
-    return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+    return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' })
   }
 
   const isEditDowngrade = editTier === 'free'
