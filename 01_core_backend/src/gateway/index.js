@@ -114,6 +114,17 @@ fastify.register(require('@fastify/static'), {
 });
 fastify.log.info('✅ Static file serving registered (privacy policy at /legal/)');
 
+// Brand assets for transactional emails — same root, separate prefix so
+// hotlinked logo URLs don't appear under /legal/. Inline base64 was rejected
+// by some webmail clients (Gmail strips data: src), so emails reference this
+// public URL instead.
+fastify.register(require('@fastify/static'), {
+  root: path.join(__dirname, '../../public/assets'),
+  prefix: '/assets/',
+  decorateReply: false,
+});
+fastify.log.info('✅ Static file serving registered (brand assets at /assets/)');
+
 // Register CORS with strict origin whitelist for security
 const corsOrigins = [
   'https://sai-backend-production.up.railway.app',
@@ -414,6 +425,12 @@ if (features.useGateway) {
   });
   fastify.get('/favicon.ico', async (request, reply) => reply.code(204).send());
   fastify.get('/favicon.png', async (request, reply) => reply.code(204).send());
+  // Safari / iOS auto-probe for Web Clip icons whenever someone hits a URL —
+  // there are several legacy filename variants. Silence them all with 204.
+  fastify.get('/apple-touch-icon.png', async (request, reply) => reply.code(204).send());
+  fastify.get('/apple-touch-icon-precomposed.png', async (request, reply) => reply.code(204).send());
+  fastify.get('/apple-touch-icon-:size.png', async (request, reply) => reply.code(204).send());
+  fastify.get('/apple-touch-icon-:size-precomposed.png', async (request, reply) => reply.code(204).send());
 
   // PHASE 1 OPTIMIZATION: Database pool monitoring endpoint
   const { getPoolHealth } = require('../utils/railway-database');
@@ -502,6 +519,7 @@ if (features.useGateway) {
 
   // Admin dashboard routes - NEW: Admin panel API endpoints
   fastify.register(require('./routes/admin-routes'));
+  fastify.register(require('./routes/admin-insights-routes'));
 
   // Payments + Apple webhook routes (IAP receipt validation, tier sync)
   fastify.register(require('./routes/payments'));

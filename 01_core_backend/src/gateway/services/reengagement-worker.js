@@ -15,16 +15,22 @@ const {
   renderTemplate,
   buildUnsubscribeUrl,
   buildRedeemUrl,
+  getLogoUrl,
 } = require('./email-service');
 
-// Concurrency cap on Resend calls. Resend's free tier is 10 req/s. Combined
-// with the global rate limiter below this gives safe headroom for parallel
+// Concurrency cap on Resend calls. Resend's published default rate limit is
+// 2 req/s on the free tier and 10 req/s on paid plans, but in practice 5 req/s
+// is what's enforced for sending across both tiers — we've observed 429s
+// "You can only make 5 requests per second" when going faster. Combined with
+// the global rate limiter below this gives safe headroom for parallel
 // verification/reset emails the auth flow may fire.
 const SEND_CONCURRENCY = 3;
 
 // Minimum gap between any two Resend API calls across the whole worker. Keeps
-// us comfortably under 10 req/s even under burst conditions.
-const SEND_MIN_INTERVAL_MS = 140;
+// us comfortably under Resend's 5 req/s cap even when multiple workers race
+// to call rateLimit() at the same instant. 250ms = 4 req/s steady state, with
+// a small buffer in case auth flows fire concurrent verification emails.
+const SEND_MIN_INTERVAL_MS = 250;
 
 // Apple Private Relay addresses bounce at high rates when users disable the
 // alias in appleid.apple.com. Excluding them entirely is cleaner than wasting
@@ -164,6 +170,9 @@ async function sendOne({ campaign, user, codeExpiresAt, logger }) {
       ? new Date(codeExpiresAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
       : 'soon',
     unsubscribe_url: buildUnsubscribeUrl(user.id),
+    // Public hotlink URL of the StudyAgent logo (served by /assets/). Webmail
+    // clients render this reliably; data: URIs got stripped by Gmail web.
+    logo_url: getLogoUrl(),
   };
 
   // Reserve the row first so a retry doesn't double-send. ON CONFLICT DO NOTHING

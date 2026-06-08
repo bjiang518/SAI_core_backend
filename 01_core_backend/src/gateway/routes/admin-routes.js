@@ -862,6 +862,38 @@ module.exports = async function (fastify, opts) {
    */
   fastify.get('/api/admin/insights/overview', { preHandler: verifyAdmin }, async (request, reply) => {
     try {
+      // Whether the thumbs up/down feedback table exists. iOS started writing
+      // to it in 1.2.x; on a fresh DB it may not be migrated yet.
+      let _hasFeedbackEvents = null;
+      const feedbackEventsExist = async () => {
+        if (_hasFeedbackEvents !== null) return _hasFeedbackEvents;
+        try {
+          await db.query('SELECT id FROM feedback_events LIMIT 0');
+          _hasFeedbackEvents = true;
+        } catch {
+          _hasFeedbackEvents = false;
+        }
+        return _hasFeedbackEvents;
+      };
+      const hasFE = await feedbackEventsExist();
+
+      // Whether the app_language column exists (added 2026-06-07). Until the
+      // migration runs, we fall back to a profiles-only language query so the
+      // section still renders.
+      let _hasLangCol = null;
+      const langColExists = async () => {
+        if (_hasLangCol !== null) return _hasLangCol;
+        try {
+          await db.query('SELECT app_language FROM app_events LIMIT 0');
+          _hasLangCol = true;
+        } catch {
+          _hasLangCol = false;
+        }
+        return _hasLangCol;
+      };
+      const hasLang = await langColExists();
+      const hasAE   = await appEventsExist();
+
       const [
         hardestSubjectsResult,
         accuracyDistResult,
@@ -869,6 +901,13 @@ module.exports = async function (fastify, opts) {
         practiceRatioResult,
         reportQualityResult,
         topWeaknessResult,
+        feedbackBySurfaceResult,
+        feedbackReasonsResult,
+        feedbackRecentCommentsResult,
+        languageDistResult,
+        languageDistProfilesResult,
+        tourFunnelResult,
+        tourSkipsResult,
       ] = await Promise.all([
         // Hardest subjects — lowest avg accuracy, minimum 5 questions attempted
         db.query(`
@@ -968,17 +1007,173 @@ module.exports = async function (fastify, opts) {
             LIMIT 8
           `)
         })(),
+
+        // ── Thumbs up/down feedback by surface (last 30 days) ───────────────
+        // Each surface is a feature where iOS shows a 👍/👎 prompt
+        // (homework_grade, chat_session, practice_session, parent_report,
+        // live_tutor, video_summary, mistake_review_session,
+        // knowledge_tree_lighten). pct_positive lets us spot which features
+        // users love vs. quietly tolerate.
+        hasFE
+          ? db.query(`
+              SELECT
+                surface,
+                COUNT(*) FILTER (WHERE rating =  1)::int AS thumbs_up,
+                COUNT(*) FILTER (WHERE rating = -1)::int AS thumbs_down,
+                COUNT(*)::int                              AS total,
+                ROUND(
+                  100.0 * COUNT(*) FILTER (WHERE rating = 1)
+                  / NULLIF(COUNT(*), 0)
+                )::int                                     AS pct_positive
+              FROM feedback_events
+              WHERE created_at >= NOW() - INTERVAL '30 days'
+              GROUP BY surface
+              ORDER BY total DESC
+            `)
+          : Promise.resolve({ rows: [] }),
+
+        // Reason tags on thumbs-DOWN — answers "why are users unhappy?"
+        // Tags are a closed enum: wrong, confusing, slow, ugly, rude, other.
+        hasFE
+          ? db.query(`
+              SELECT
+                COALESCE(reason_tag, 'untagged') AS reason_tag,
+                COUNT(*)::int                   AS count
+              FROM feedback_events
+              WHERE rating = -1
+                AND created_at >= NOW() - INTERVAL '30 days'
+              GROUP BY COALESCE(reason_tag, 'untagged')
+              ORDER BY count DESC
+            `)
+          : Promise.resolve({ rows: [] }),
+
+        // Recent free-text comments — most recent 30 with a non-empty comment.
+        // Truncated server-side so dashboard doesn't load full essays.
+        hasFE
+          ? db.query(`
+              SELECT
+                surface,
+                rating,
+                reason_tag,
+                LEFT(comment, 240) AS comment_preview,
+                created_at
+              FROM feedback_events
+              WHERE comment IS NOT NULL AND length(trim(comment)) > 0
+                AND created_at >= NOW() - INTERVAL '30 days'
+              ORDER BY created_at DESC
+              LIMIT 30
+            `)
+          : Promise.resolve({ rows: [] }),
+
+        // ── Language distribution (last 30 days, from app_events) ──────────
+        // Uses the new app_language column on app_events. Bucketed by the
+        // primary subtag (e.g. "en-US" → "en", "zh-Hans-CN" → "zh") so the
+        // chart isn't fragmented across regional dialects.
+        (hasAE && hasLang)
+          ? db.query(`
+              SELECT
+                lower(split_part(app_language, '-', 1))     AS language,
+                COUNT(DISTINCT user_id)::int                AS unique_users,
+                COUNT(*)::int                               AS event_count
+              FROM app_events
+              WHERE app_language IS NOT NULL AND app_language != ''
+                AND occurred_at >= NOW() - INTERVAL '30 days'
+              GROUP BY lower(split_part(app_language, '-', 1))
+              ORDER BY unique_users DESC
+              LIMIT 15
+            `)
+          : Promise.resolve({ rows: [] }),
+
+        // Profile-level language preference — works even before the migration
+        // (or for users who haven't opened the app since the iOS update). This
+        // is the user's stated preference rather than runtime-detected locale.
+        db.query(`
+          SELECT
+            lower(split_part(language_preference, '-', 1)) AS language,
+            COUNT(*)::int                                  AS users
+          FROM profiles
+          WHERE language_preference IS NOT NULL
+            AND language_preference != ''
+            AND parent_id IS NULL
+          GROUP BY lower(split_part(language_preference, '-', 1))
+          ORDER BY users DESC
+          LIMIT 15
+        `).catch(() => ({ rows: [] })),
+
+        // ── Onboarding tour funnel (last 90 days) ─────────────────────────
+        // Three events: onboarding_tour_started / _completed / _skipped.
+        // Skipped carries `at_step` so we know exactly where users drop off.
+        // Skipped also carries `at_step_name` so the dashboard can show
+        // step labels without needing a step-name table on the backend.
+        // Distinct user_id counts so multi-fire (rare but possible from
+        // re-entrancy edge cases) doesn't double-count.
+        hasAE
+          ? db.query(`
+              SELECT
+                COUNT(DISTINCT user_id) FILTER (WHERE event_name = 'onboarding_tour_started')::int   AS started,
+                COUNT(DISTINCT user_id) FILTER (WHERE event_name = 'onboarding_tour_completed')::int AS completed,
+                COUNT(DISTINCT user_id) FILTER (WHERE event_name = 'onboarding_tour_skipped')::int   AS skipped
+              FROM app_events
+              WHERE event_name IN ('onboarding_tour_started','onboarding_tour_completed','onboarding_tour_skipped')
+                AND occurred_at >= NOW() - INTERVAL '90 days'
+            `)
+          : Promise.resolve({ rows: [{ started: 0, completed: 0, skipped: 0 }] }),
+
+        // Per-step drop-off — for each Skip, what step was the user on?
+        // Buckets by at_step (numeric, so it sorts naturally) and reports
+        // the most descriptive at_step_name we've seen for that bucket.
+        hasAE
+          ? db.query(`
+              SELECT
+                (properties->>'at_step')::int       AS step,
+                MIN(properties->>'at_step_name')    AS step_name,
+                COUNT(*)::int                       AS skips
+              FROM app_events
+              WHERE event_name = 'onboarding_tour_skipped'
+                AND properties->>'at_step' IS NOT NULL
+                AND occurred_at >= NOW() - INTERVAL '90 days'
+              GROUP BY (properties->>'at_step')::int
+              ORDER BY step ASC
+            `)
+          : Promise.resolve({ rows: [] }),
       ]);
 
       return reply.send({
         success: true,
         data: {
-          hardestSubjects: hardestSubjectsResult.rows,
+          hardestSubjects:      hardestSubjectsResult.rows,
           accuracyDistribution: accuracyDistResult.rows[0] || {},
-          streakHealth: streakDistResult.rows[0] || {},
-          practiceRatio: practiceRatioResult.rows[0] || {},
-          reportQuality: reportQualityResult.rows[0] || {},
-          topWeaknesses: topWeaknessResult.rows,
+          streakHealth:         streakDistResult.rows[0] || {},
+          practiceRatio:        practiceRatioResult.rows[0] || {},
+          reportQuality:        reportQualityResult.rows[0] || {},
+          topWeaknesses:        topWeaknessResult.rows,
+          // Thumbs-feedback view — empty arrays when feedback_events isn't
+          // migrated yet, so the dashboard can render "no data" cleanly.
+          userFeedback: {
+            bySurface:      feedbackBySurfaceResult.rows,
+            thumbsDownReasons: feedbackReasonsResult.rows,
+            recentComments: feedbackRecentCommentsResult.rows,
+            available:      hasFE,
+          },
+          // App language distribution — two angles:
+          //   active30d:    runtime locale from recent events (app_language)
+          //   byProfile:    user's saved language preference
+          // The dashboard prefers active30d when populated; falls back to
+          // byProfile until the column has data.
+          languageDistribution: {
+            active30d:        languageDistResult.rows,
+            byProfile:        languageDistProfilesResult.rows,
+            sourceAvailable:  hasAE && hasLang,
+          },
+          // Onboarding tour funnel — answers "are users actually walking
+          // through the home tour, or skipping it?" and "where in the tour
+          // do they bail out?". Empty/zero counts when app_events isn't
+          // migrated yet so the dashboard can render "no data" cleanly.
+          onboardingTour: {
+            funnel: tourFunnelResult.rows[0] || { started: 0, completed: 0, skipped: 0 },
+            skipsByStep: tourSkipsResult.rows,
+            sourceAvailable: hasAE,
+          },
         }
       });
     } catch (error) {
@@ -1770,66 +1965,10 @@ module.exports = async function (fastify, opts) {
           .catch(() => ({ rows: [] })),
       ]);
 
-      // Map app_events event_name → journey type
-      const TYPE_MAP = {
-        app_open:                'app_session',
-        chat_opened:             'ai_chat',
-        chat_message_sent:       'ai_chat',
-        live_mode_started:       'live_mode',
-        live_mode_ended:         'live_mode',
-        homework_submitted:      'parsed',
-        homework_graded:         'graded',
-        homework_session_graded: 'graded',
-        focus_session_started:   'focus',
-        focus_session_completed: 'focus',
-        question_answered:       'graded',
-        practice_generated:      'practice_gen',
-        practice_completed:      'practice_done',
-        practice_abandoned:      'practice_gen',
-        knowledge_tree_viewed:   'homework_archive',
-        tree_lightup_done:       'homework_archive',
-      };
-
-      // Build human-readable label from event_name + properties
-      function labelFromEvent(name, p) {
-        p = p || {};
-        switch (name) {
-          case 'app_open':
-            return `App Opened${p.cold_start ? ' (cold start)' : ''}${p.app_version ? ` · v${p.app_version}` : ''}`;
-          case 'chat_opened':
-            return `Started Chat${p.subject ? ` · ${p.subject}` : ''}`;
-          case 'chat_message_sent':
-            return `Sent Message${p.subject ? ` · ${p.subject}` : ''}`;
-          case 'live_mode_started':
-            return `Started Live Mode${p.subject ? ` · ${p.subject}` : ''}${p.has_scenario ? ' (scenario)' : ''}`;
-          case 'live_mode_ended':
-            return `Ended Live Mode${p.duration_sec ? ` · ${Math.round(p.duration_sec / 60)}min` : ''}${p.subject ? ` · ${p.subject}` : ''}`;
-          case 'homework_submitted':
-            return `Submitted Homework · ${p.subject || 'Unknown'}${p.question_count ? ` (${p.question_count}q)` : ''}${p.parsing_mode ? ` · ${p.parsing_mode}` : ''}`;
-          case 'homework_graded':
-            return `Graded · ${p.subject || 'Unknown'}${p.is_correct != null ? (p.is_correct ? ' · ✓' : ' · ✗') : ''}${p.score != null ? ` · ${Math.round(p.score)}%` : ''}`;
-          case 'homework_session_graded':
-            return `Session Graded · ${p.subject || 'Unknown'} · ${p.correct_count ?? '?'}/${p.total_questions ?? '?'}${p.accuracy_pct != null ? ` (${Math.round(p.accuracy_pct)}%)` : ''}`;
-          case 'focus_session_started':
-            return `Focus Started${p.deep_focus ? ' · Deep Focus' : ''}${p.has_music ? ' 🎵' : ''}`;
-          case 'focus_session_completed':
-            return `Focus Done · ${p.duration_min ?? '?'}min${p.tree_type ? ` · ${p.tree_type}` : ''}`;
-          case 'question_answered':
-            return `Answered · ${p.subject || 'Unknown'} · ${p.question_type || 'Q'}${p.correct != null ? (p.correct ? ' ✓' : ' ✗') : ''}`;
-          case 'practice_generated':
-            return `Generated Practice · ${p.subject || 'Unknown'} · ${p.count ?? '?'}q (${p.practice_type || 'random'})`;
-          case 'practice_completed':
-            return `Practice Done · ${p.subject || 'Unknown'} · ${p.score_pct != null ? p.score_pct + '%' : 'n/a'} (${p.correct_count ?? '?'}/${p.total_questions ?? '?'})`;
-          case 'practice_abandoned':
-            return `Practice Abandoned · ${p.subject || 'Unknown'} at ${p.progress_pct ?? 0}%`;
-          case 'knowledge_tree_viewed':
-            return `Viewed Knowledge Tree · ${p.subject || 'Unknown'}`;
-          case 'tree_lightup_done':
-            return `Lit Up Tree · ${p.subject || 'Unknown'} · ${p.topic_count ?? '?'} topics`;
-          default:
-            return name;
-        }
-      }
+      // Map app_events event_name → journey type — module-level JOURNEY_TYPE_MAP
+      // and labelFromEvent (defined below) are the canonical source. Aliased
+      // locally so existing closure references continue to compile.
+      const TYPE_MAP = JOURNEY_TYPE_MAP;
 
       const events = [];
 
@@ -2836,6 +2975,7 @@ module.exports = async function (fastify, opts) {
       redeem_url: emailService.buildRedeemUrl(sampleCode),
       code_expires_at: expiresAtLabel,
       unsubscribe_url: emailService.buildUnsubscribeUrl(user.id),
+      logo_url: emailService.getLogoUrl(),
     };
 
     try {
@@ -3000,6 +3140,50 @@ const JOURNEY_TYPE_MAP = {
   practice_abandoned:      'practice_gen',
   knowledge_tree_viewed:   'homework_archive',
   tree_lightup_done:       'homework_archive',
+
+  // ── Phase 2 events (added 2026-06) ─────────────────────────────────────────
+  // Screen telemetry
+  screen_viewed:                 'navigation',
+  screen_exited:                 'navigation',
+  // Onboarding tour funnel
+  onboarding_tour_started:       'onboarding',
+  onboarding_tour_completed:     'onboarding',
+  onboarding_tour_skipped:       'onboarding',
+  // AI chat depth
+  generation_stopped:            'ai_chat',
+  follow_up_suggestion_tapped:   'ai_chat',
+  // Permissions
+  microphone_permission_denied:  'permission',
+  // Auth funnel
+  signup_started:                'auth',
+  signup_completed:              'auth',
+  signup_failed:                 'auth_error',
+  login_started:                 'auth',
+  login_completed:               'auth',
+  login_failed:                  'auth_error',
+  guest_session_started:         'auth',
+  guest_session_failed:          'auth_error',
+  // Paywall + purchase funnel
+  paywall_viewed:                'paywall',
+  upgrade_prompt_shown:          'paywall',  // legacy alias
+  upgrade_tapped:                'paywall',  // legacy alias
+  purchase_started:              'purchase',
+  purchase_succeeded:            'purchase',
+  purchase_pending:              'purchase',
+  purchase_cancelled:            'purchase',
+  purchase_failed:               'purchase_error',
+  subscription_cancel_reason:    'subscription',
+  // Camera funnel
+  camera_opened:                 'homework',
+  camera_permission_denied:      'homework_error',
+  photo_captured:                'homework',
+  photo_cancelled:                'homework',
+  // Push
+  push_received:                 'push',
+  push_tapped:                   'push',
+  // Quality
+  network_request_failed:        'error',
+  feedback_submitted:            'feedback',
 };
 
 function labelFromEvent(name, p) {
@@ -3037,6 +3221,84 @@ function labelFromEvent(name, p) {
       return `Viewed Knowledge Tree · ${p.subject || 'Unknown'}`;
     case 'tree_lightup_done':
       return `Lit Up Tree · ${p.subject || 'Unknown'} · ${p.topic_count ?? '?'} topics`;
+
+    // ── Phase 2 events ─────────────────────────────────────────────────────
+    case 'screen_viewed':
+      return `Viewed ${p.screen || '(unnamed)'}${p.source ? ` · from ${p.source}` : ''}`;
+    case 'screen_exited':
+      return `Left ${p.screen || '(unnamed)'} · ${p.stay_ms != null ? Math.round(p.stay_ms / 1000) + 's' : '?'}`;
+
+    case 'onboarding_tour_started':
+      return `Started Home Tour${p.total_steps ? ` (${p.total_steps} steps)` : ''}`;
+    case 'onboarding_tour_completed':
+      return `Completed Home Tour ✓${p.total_steps ? ` (${p.total_steps}/${p.total_steps})` : ''}`;
+    case 'onboarding_tour_skipped':
+      return `Skipped Home Tour${p.at_step != null ? ` at step ${p.at_step + 1}` : ''}${p.at_step_name ? ` (${p.at_step_name})` : ''}${p.total_steps ? ` of ${p.total_steps}` : ''}`;
+
+    case 'generation_stopped':
+      return `Stopped AI Streaming${p.streamed_chars != null ? ` after ${p.streamed_chars} chars` : ''}`;
+    case 'follow_up_suggestion_tapped':
+      return `Tapped Suggestion · ${p.kind || 'regular'}${p.label ? ` · "${p.label}"` : ''}${p.position != null ? ` (#${p.position + 1})` : ''}`;
+    case 'microphone_permission_denied':
+      return `Microphone Permission Denied${p.speech_status ? ` · speech=${p.speech_status}` : ''}`;
+
+    case 'signup_started':
+      return `Signup Started · ${p.provider || '?'}`;
+    case 'signup_completed':
+      return `Signup Completed · ${p.provider || '?'}`;
+    case 'signup_failed':
+      return `Signup Failed · ${p.provider || '?'}${p.reason ? ` · ${p.reason}` : ''}`;
+    case 'login_started':
+      return `Login Started · ${p.provider || '?'}`;
+    case 'login_completed':
+      return `Login Completed · ${p.provider || '?'}`;
+    case 'login_failed':
+      return `Login Failed · ${p.provider || '?'}${p.reason ? ` · ${p.reason}` : ''}`;
+    case 'guest_session_started':
+      return `Guest Session Started`;
+    case 'guest_session_failed':
+      return `Guest Session Failed${p.reason ? ` · ${p.reason}` : ''}`;
+
+    case 'paywall_viewed':
+    case 'upgrade_prompt_shown':
+      return `Saw Paywall · ${p.feature || 'unknown'}${p.reason ? ` (${p.reason})` : ''}`;
+    case 'upgrade_tapped':
+      return `Tapped Upgrade · ${p.tier || '?'}${p.feature ? ` · ${p.feature}` : ''}`;
+    case 'purchase_started':
+      return `Started Purchase · ${p.tier || p.product_id || '?'}${p.price ? ` · ${p.price}` : ''}`;
+    case 'purchase_succeeded':
+      return `Purchase Succeeded · ${p.tier || p.product_id || '?'}`;
+    case 'purchase_pending':
+      return `Purchase Pending · ${p.tier || p.product_id || '?'} (Ask to Buy)`;
+    case 'purchase_cancelled':
+      return `Purchase Cancelled · ${p.tier || p.product_id || '?'}`;
+    case 'purchase_failed':
+      return `Purchase Failed · ${p.tier || p.product_id || '?'}${p.reason ? ` · ${p.reason}` : ''}`;
+    case 'subscription_cancel_reason':
+      return `Heading to Cancel · reason: ${p.reason || 'skipped'}`;
+
+    case 'camera_opened':
+      return `Opened Camera${p.source ? ` · ${p.source}` : ''}`;
+    case 'camera_permission_denied':
+      return `Camera Permission Denied`;
+    case 'photo_captured':
+      return `Captured Photo · ${p.source || '?'}${p.width && p.height ? ` · ${p.width}×${p.height}` : ''}`;
+    case 'photo_cancelled':
+      return `Cancelled Photo · ${p.source || '?'}`;
+
+    case 'push_received':
+      return `Push Received${p.in_foreground ? ' (foreground)' : ''}${p.deep_link ? ` · ${p.deep_link}` : ''}`;
+    case 'push_tapped':
+      return `Push Tapped · ${p.kind || 'other'}${p.deep_link ? ` · ${p.deep_link}` : ''}`;
+
+    case 'network_request_failed':
+      return `Network ${p.kind || 'error'} · ${p.method || 'GET'} ${p.endpoint || '?'}${p.status ? ` · ${p.status}` : ''}`;
+    case 'feedback_submitted':
+      return `Submitted Feedback · ${p.category || '?'}${p.message_len ? ` (${p.message_len} chars)` : ''}${p.success === false ? ' · failed' : ''}`;
+
+    case 'app_background':
+      return `Backgrounded${p.session_duration_sec != null ? ` after ${p.session_duration_sec}s` : ''}${p.last_screen ? ` · last on ${p.last_screen}` : ''}${p.last_action ? ` · doing ${p.last_action}` : ''}`;
+
     default:
       return name;
   }

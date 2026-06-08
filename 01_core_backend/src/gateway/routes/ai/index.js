@@ -35,6 +35,7 @@ const GeminiLiveRoutes = require('./modules/gemini-live-v2'); // NEW: Gemini Liv
 const PracticeLibraryRoutes = require('./modules/practice-library'); // NEW: Practice Library backend sync
 const ProgressInsightsRoutes = require('./modules/progress-insights'); // NEW: AI progress insights
 const VideoSummaryRoutes = require('./modules/video-summary'); // NEW: Video transcript HTML summary
+const SuggestedPromptsRoutes = require('./modules/suggested-prompts'); // NEW: Empty-state question marquee
 
 /**
  * Register all AI routes
@@ -144,6 +145,14 @@ async function aiRoutes(fastify, opts) {
     fastify.log.info(`  ✅ Progress Insights routes registered`);
   } catch (error) {
     fastify.log.error(`  ❌ Failed to register Progress Insights routes:`, error);
+  }
+
+  // Register suggested prompts routes (NEW: Chat empty-state marquee)
+  try {
+    await fastify.register(SuggestedPromptsRoutes);
+    fastify.log.info(`  ✅ Suggested Prompts routes registered`);
+  } catch (error) {
+    fastify.log.error(`  ❌ Failed to register Suggested Prompts routes:`, error);
   }
 
   fastify.log.info('✅ All AI routes registered successfully');

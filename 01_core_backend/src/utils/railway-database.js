@@ -264,8 +264,9 @@ const db = {
         }
 
         // Not retryable or max retries exceeded
-        // Don't log expected column-not-found errors (these are handled by fallback queries)
-        const isExpectedMigrationError = error.code === '42703' || error.code === '42701';
+        // Don't log expected schema-not-yet-migrated errors (callers handle these via fallback or null)
+        // 42703 = column doesn't exist, 42701 = duplicate column, 42P01 = relation/table doesn't exist
+        const isExpectedMigrationError = error.code === '42703' || error.code === '42701' || error.code === '42P01';
 
         if (isExpectedMigrationError) {
           logger.debug('⚠️ Database query error (expected): ' + error.message);

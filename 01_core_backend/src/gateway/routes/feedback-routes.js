@@ -144,4 +144,93 @@ module.exports = async function feedbackRoutes(fastify) {
       return reply.code(500).send({ success: false, error: 'Failed to record feedback' });
     }
   });
+
+  // ============================================================================
+  // POST /api/feedback/report — free-text "Report a problem" channel
+  //
+  // Different intent from the per-surface thumbs above: this is the
+  // user-initiated entry point from Settings → Report a problem.
+  // Persists to feedback_submissions; aggregated in admin/analytics/quality.
+  // ============================================================================
+
+  const REPORT_CATEGORIES = new Set(['bug', 'suggestion', 'content', 'praise', 'other']);
+  const REPORT_MAX_LEN = 4000;
+
+  // Cache once whether the new table exists; the migration may not have been
+  // run yet on first deploy.
+  let _reportTableExists = null;
+  async function reportTableExists() {
+    if (_reportTableExists !== null) return _reportTableExists;
+    try {
+      await db.query('SELECT id FROM feedback_submissions LIMIT 0');
+      _reportTableExists = true;
+    } catch {
+      _reportTableExists = false;
+    }
+    return _reportTableExists;
+  }
+
+  fastify.post('/api/feedback/report', {
+    schema: {
+      description: 'User-initiated "Report a problem" / suggestion submission',
+      tags: ['Feedback'],
+      body: {
+        type: 'object',
+        required: ['category', 'message'],
+        properties: {
+          category:    { type: 'string' },
+          message:     { type: 'string', minLength: 1, maxLength: REPORT_MAX_LEN },
+          app_version: { type: 'string', maxLength: 20 },
+          device_info: { type: 'object' },
+        },
+        additionalProperties: false,
+      }
+    },
+    config: {
+      rateLimit: {
+        max: 10,
+        timeWindow: '1 minute',
+        keyGenerator: async (request) => request.user?.id || request.ip,
+      }
+    },
+    preHandler: [authenticateUser],
+  }, async (request, reply) => {
+    const userId = request.user?.id;
+    if (!userId) return reply.code(401).send({ success: false, error: 'Unauthorized' });
+
+    const { category, message, app_version, device_info } = request.body;
+    if (!REPORT_CATEGORIES.has(category)) {
+      return reply.code(400).send({ success: false, error: `invalid category: ${category}` });
+    }
+
+    if (!(await reportTableExists())) {
+      // Accept silently so iOS doesn't show a confusing error before the
+      // migration has been applied. Run via admin/setup/run-migration with
+      // file=20260606_feedback_submissions.sql
+      fastify.log.warn('[feedback/report] table feedback_submissions not yet migrated');
+      return reply.send({ success: true, note: 'table_pending' });
+    }
+
+    try {
+      const result = await db.query(
+        `INSERT INTO feedback_submissions
+           (user_id, category, message, app_version, device_info)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING id, created_at`,
+        [
+          userId,
+          category,
+          message.slice(0, REPORT_MAX_LEN),
+          app_version || null,
+          device_info ? JSON.stringify(device_info) : '{}',
+        ]
+      );
+      const row = result.rows[0];
+      fastify.log.info(`[feedback/report] user=${userId} category=${category} len=${message.length}`);
+      return reply.send({ success: true, data: { id: row.id, created_at: row.created_at } });
+    } catch (error) {
+      fastify.log.error({ err: error }, '[feedback/report] insert failed');
+      return reply.code(500).send({ success: false, error: 'Failed to submit report' });
+    }
+  });
 };

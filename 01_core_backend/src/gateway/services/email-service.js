@@ -18,6 +18,14 @@ const APP_URL = process.env.APP_URL || 'https://study-mates.net';
 // behind APP_URL would 404 unless study-mates.net proxies /api/* to Railway.
 const BACKEND_URL = process.env.BACKEND_URL || 'https://sai-backend-production.up.railway.app';
 
+// Public URL of the StudyAgent logo, served by the backend's @fastify/static
+// plugin from public/assets/. Email clients hotlink it via standard <img src>
+// — base64 inlining was rejected by some webmail clients (notably Gmail web),
+// which strip data: URIs and render a broken image icon instead.
+function getLogoUrl() {
+  return `${BACKEND_URL}/assets/studyagent-logo.png`;
+}
+
 let _resend = null;
 function getResend() {
   if (_resend !== null) return _resend;
@@ -106,51 +114,119 @@ const APP_STORE_URL = 'https://apps.apple.com/us/app/studyagent/id6754365864';
 
 const DEFAULT_REENGAGEMENT_SUBJECT = 'A note from StudyAgent, {{name}}';
 
-const DEFAULT_REENGAGEMENT_HTML = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px 24px; color: #1f2937; line-height: 1.6; font-size: 15px;">
+// Layout uses tables (not flex) so Outlook renders correctly. Inline styles
+// throughout — Gmail strips <style> blocks. Solid background-color is set
+// before background-image so clients that don't support linear-gradient
+// (Outlook) fall back to the brand-blue solid.
+const DEFAULT_REENGAGEMENT_HTML = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>StudyAgent</title>
+</head>
+<body style="margin:0; padding:0; background:#f3f4f6;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#f3f4f6; padding:32px 16px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;">
+  <tr>
+    <td align="center">
+      <!-- Card -->
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width:600px; width:100%; background:#ffffff; border-radius:18px; overflow:hidden; box-shadow:0 6px 30px rgba(15,23,42,0.06);">
 
-  <p>Hi {{name}},</p>
+        <!-- Brand header (gradient with solid fallback) -->
+        <tr>
+          <td style="background-color:#2563eb; background-image:linear-gradient(135deg,#5BAEDC 0%,#2563eb 100%); padding:30px 36px;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td valign="middle" style="padding-right:18px;">
+                  <img src="{{logo_url}}" width="54" height="54" alt="StudyAgent" style="display:block; border-radius:12px; border:0; outline:none;" />
+                </td>
+                <td valign="middle">
+                  <div style="font-size:24px; font-weight:700; color:#ffffff; letter-spacing:-0.3px; line-height:1.1;">StudyAgent</div>
+                  <div style="font-size:13px; color:rgba(255,255,255,0.88); margin-top:4px; line-height:1.3;">Personal AI tutor for students</div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
 
-  <p>I noticed you haven't opened StudyAgent in a little while, and I wanted to reach out personally.</p>
+        <!-- Body -->
+        <tr>
+          <td style="padding:34px 36px 8px; color:#1f2937; line-height:1.65; font-size:15px;">
+            <p style="margin:0 0 14px;">Hi {{name}},</p>
+            <p style="margin:0 0 14px;">I noticed you haven't opened StudyAgent in a little while, and I wanted to reach out personally.</p>
+            <p style="margin:0 0 14px;">If you stopped because something didn't work, or it just wasn't useful — I'd genuinely like to know. Just hit reply.</p>
+            <p style="margin:0 0 14px;">If you forgot it was there, here's what's been added since you last opened the app:</p>
+            <ul style="padding-left:22px; margin:0 0 22px; color:#374151;">
+              <li style="margin-bottom:8px;">Photo a homework page, get step-by-step explanations</li>
+              <li style="margin-bottom:8px;">Practice generated from <em>your</em> past mistakes, not random questions</li>
+              <li style="margin-bottom:8px;">Ask questions inside YouTube lessons</li>
+              <li style="margin-bottom:8px;">A knowledge tree that shows what's mastered and what's next</li>
+            </ul>
+            <p style="margin:0 0 14px;">To say sorry for losing touch, here's a code for <strong style="color:#111827;">30 days of Premium</strong>, no strings:</p>
+          </td>
+        </tr>
 
-  <p>If you stopped because something didn't work, or it just wasn't useful — I'd genuinely like to know. Just hit reply.</p>
+        <!-- Promo code -->
+        <tr>
+          <td style="padding:0 36px 26px;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td align="center" style="background:#f0f7ff; border:2px dashed #7EC8E3; border-radius:14px; padding:22px 16px;">
+                  <div style="font-family:'SF Mono',Menlo,Consolas,monospace; font-size:26px; font-weight:700; letter-spacing:3px; color:#2563eb;">{{code}}</div>
+                  <div style="font-size:12px; color:#6b7280; margin-top:8px;">Valid through {{code_expires_at}}</div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
 
-  <p>If you forgot it was there, here's what's been added since you last opened the app:</p>
+        <!-- Step 1 — App Store CTA -->
+        <tr>
+          <td style="padding:0 36px 18px; color:#1f2937; line-height:1.6; font-size:15px;">
+            <p style="margin:0 0 12px;"><strong style="color:#111827;">Step 1 — Update or download the app</strong><br /><span style="color:#6b7280; font-size:14px;">Many of the things above only work on the newest build.</span></p>
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:6px 0 4px;">
+              <tr>
+                <td style="background:#2563eb; border-radius:10px;">
+                  <a href="${APP_STORE_URL}" style="display:inline-block; padding:13px 24px; color:#ffffff; text-decoration:none; font-weight:600; font-size:14px; border-radius:10px;">Open in App Store →</a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
 
-  <ul style="padding-left: 20px; margin: 16px 0;">
-    <li style="margin-bottom: 6px;">Photo a homework page, get step-by-step explanations</li>
-    <li style="margin-bottom: 6px;">Practice generated from <em>your</em> past mistakes, not random questions</li>
-    <li style="margin-bottom: 6px;">Ask questions inside YouTube lessons</li>
-    <li style="margin-bottom: 6px;">A knowledge tree that shows what's mastered and what's next</li>
-  </ul>
+        <!-- Step 2 — redeem -->
+        <tr>
+          <td style="padding:14px 36px 8px; color:#1f2937; line-height:1.65; font-size:15px;">
+            <p style="margin:0 0 10px;"><strong style="color:#111827;">Step 2 — Redeem inside the app</strong></p>
+            <ol style="padding-left:22px; margin:0 0 22px; color:#374151;">
+              <li style="margin-bottom:6px;">Sign in to your StudyAgent account</li>
+              <li style="margin-bottom:6px;">Tap the gear icon (top right) and open <em>Plan &amp; Usage</em></li>
+              <li style="margin-bottom:6px;">Scroll down, tap <em>Have a promo code?</em>, paste <code style="background:#f3f4f6; padding:2px 7px; border-radius:5px; font-family:'SF Mono',Menlo,monospace; font-size:13px;">{{code}}</code>, then tap <em>Apply Code</em></li>
+            </ol>
 
-  <p>To say sorry for losing touch, here's a code for <strong>30 days of Premium</strong>, no strings:</p>
+            <p style="margin:0 0 14px; color:#374151;">Got a friend or sibling who'd use this? Forward them this email — the same code works for them too. One redemption per person.</p>
 
-  <p style="font-family: 'SF Mono', Menlo, monospace; font-size: 18px; font-weight: 600; letter-spacing: 1px; color: #111827; margin: 8px 0 24px;">{{code}}</p>
+            <p style="margin:24px 0 0;">Thanks for giving us a try in the first place.</p>
+            <p style="margin:18px 0 0; font-weight:600; color:#111827;">— Bo</p>
+            <p style="margin:2px 0 28px; color:#6b7280; font-size:13px;">Founder, StudyAgent</p>
+          </td>
+        </tr>
 
-  <p style="margin: 0 0 6px;"><strong>Before you start:</strong> please download or update to the latest version — many of the things above only work on the newest build:</p>
-  <p style="margin: 6px 0 24px;">
-    <a href="${APP_STORE_URL}" style="color: #2563eb; word-break: break-all;">${APP_STORE_URL}</a>
-  </p>
+        <!-- Footer -->
+        <tr>
+          <td style="background:#f9fafb; padding:18px 36px; border-top:1px solid #e5e7eb; text-align:center;">
+            <div style="font-size:12px; color:#9ca3af; line-height:1.5;">
+              Don't want emails like this? <a href="{{unsubscribe_url}}" style="color:#9ca3af; text-decoration:underline;">Unsubscribe</a> and I won't bother you again.
+            </div>
+          </td>
+        </tr>
 
-  <p style="margin: 0 0 6px;"><strong>Then to redeem:</strong></p>
-  <ol style="padding-left: 20px; margin: 6px 0 24px;">
-    <li style="margin-bottom: 4px;">Open StudyAgent on your iPhone and sign in to your account</li>
-    <li style="margin-bottom: 4px;">Tap the gear icon (top right) and open <em>Plan &amp; Usage</em></li>
-    <li style="margin-bottom: 4px;">Scroll down, tap <em>Have a promo code?</em>, paste <code style="font-family: 'SF Mono', Menlo, monospace;">{{code}}</code>, then tap <em>Apply Code</em></li>
-  </ol>
-
-  <p>Got a friend or sibling who'd use this? Forward them this email — the same code works for them too. One redemption per person.</p>
-
-  <p>The code's good through {{code_expires_at}}.</p>
-
-  <p style="margin-top: 28px;">Thanks for giving us a try in the first place.</p>
-
-  <p style="margin: 4px 0 0;">— Bo<br><span style="color: #6b7280; font-size: 13px;">Founder, StudyAgent</span></p>
-
-  <p style="color: #9ca3af; font-size: 12px; margin-top: 36px; padding-top: 16px; border-top: 1px solid #e5e7eb;">
-    Don't want emails like this? <a href="{{unsubscribe_url}}" style="color: #9ca3af;">Unsubscribe here</a> and I won't bother you again.
-  </p>
-</div>`;
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>`;
 
 const DEFAULT_REENGAGEMENT_TEXT = `Hi {{name}},
 
@@ -196,6 +272,7 @@ module.exports = {
   renderTemplate,
   buildUnsubscribeUrl,
   buildRedeemUrl,
+  getLogoUrl,
   DEFAULT_REENGAGEMENT_SUBJECT,
   DEFAULT_REENGAGEMENT_HTML,
   DEFAULT_REENGAGEMENT_TEXT,

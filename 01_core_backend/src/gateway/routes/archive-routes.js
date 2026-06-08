@@ -1038,10 +1038,13 @@ class ArchiveRoutes {
 
       this.fastify.log.info(`📝 [Sync] Archiving single question for user: ${PIIMasking.maskUserId(userId)}, subject: ${subject}, grade: ${grade}`);
 
-      // Deduplicate by (user_id, question_text, student_answer, grade):
-      //   same question + different student answer  → different row (allowed)
-      //   same question + same answer + different grade → different row (allowed)
-      //   same question + same answer + same grade  → duplicate (update metadata only)
+      // Upsert by the DB's actual unique constraint:
+      //   `questions_unique_user_question_answer` on (user_id, question_text, student_answer).
+      // The ON CONFLICT target MUST match an existing constraint exactly —
+      // listing extra columns like `grade` makes Postgres ignore the
+      // conflict path and raise 23505 directly.
+      // On duplicate (re-archive of the same answer), refresh the grading
+      // and any newly-computed error-analysis fields.
       const query = `
         INSERT INTO questions (
           user_id, subject, question_text, raw_question_text, answer_text, confidence, has_visual_elements,
@@ -1049,12 +1052,20 @@ class ArchiveRoutes {
           ai_answer,
           error_type, error_evidence, error_confidence, learning_suggestion, error_analysis_status, error_analyzed_at
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
-        ON CONFLICT (user_id, question_text, student_answer, grade) DO UPDATE
-          SET feedback              = EXCLUDED.feedback,
-              error_analysis_status = EXCLUDED.error_analysis_status,
+        ON CONFLICT (user_id, question_text, student_answer) DO UPDATE
+          SET grade                 = EXCLUDED.grade,
+              points                = EXCLUDED.points,
+              max_points            = EXCLUDED.max_points,
+              feedback              = EXCLUDED.feedback,
+              is_correct            = EXCLUDED.is_correct,
+              ai_answer             = EXCLUDED.ai_answer,
+              archived_at           = EXCLUDED.archived_at,
               error_type            = EXCLUDED.error_type,
               error_evidence        = EXCLUDED.error_evidence,
-              learning_suggestion   = EXCLUDED.learning_suggestion
+              error_confidence      = EXCLUDED.error_confidence,
+              learning_suggestion   = EXCLUDED.learning_suggestion,
+              error_analysis_status = EXCLUDED.error_analysis_status,
+              error_analyzed_at     = EXCLUDED.error_analyzed_at
         RETURNING id, subject, question_text, grade, is_correct, archived_at
       `;
 
@@ -1153,8 +1164,14 @@ class ArchiveRoutes {
               has_visual_elements, tags, notes, student_answer, grade, points, max_points,
               feedback, is_correct, archived_at, ai_answer
             ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
-            ON CONFLICT (user_id, question_text, student_answer, grade) DO UPDATE
-              SET feedback = EXCLUDED.feedback
+            ON CONFLICT (user_id, question_text, student_answer) DO UPDATE
+              SET grade       = EXCLUDED.grade,
+                  points      = EXCLUDED.points,
+                  max_points  = EXCLUDED.max_points,
+                  feedback    = EXCLUDED.feedback,
+                  is_correct  = EXCLUDED.is_correct,
+                  ai_answer   = EXCLUDED.ai_answer,
+                  archived_at = EXCLUDED.archived_at
             RETURNING id, subject, grade, is_correct, archived_at, xmax
           `, values);
 

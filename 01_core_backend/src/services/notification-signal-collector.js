@@ -177,16 +177,20 @@ async function _getTopError(userId) {
 
 // In-progress goal closest to completion
 async function _getGoalProgress(userId) {
-    const { rows } = await db.query(
-        `SELECT goal_type, current_value, target_value,
-                ROUND(100.0 * current_value / NULLIF(target_value, 0))::int AS pct
-         FROM user_goals
-         WHERE user_id = $1 AND status = 'in_progress' AND target_value > 0
-         ORDER BY (current_value::float / NULLIF(target_value, 0)) DESC
-         LIMIT 1`,
-        [userId]
-    );
-    return rows[0] || null;
+    try {
+        const { rows } = await db.query(
+            `SELECT goal_type, current_value, target_value,
+                    ROUND(100.0 * current_value / NULLIF(target_value, 0))::int AS pct
+             FROM user_goals
+             WHERE user_id = $1 AND status = 'in_progress' AND target_value > 0
+             ORDER BY (current_value::float / NULLIF(target_value, 0)) DESC
+             LIMIT 1`,
+            [userId]
+        );
+        return rows[0] || null;
+    } catch {
+        return null; // table may not exist yet — signal is optional
+    }
 }
 
 // Subject not touched for the longest time (among subjects with any history)
