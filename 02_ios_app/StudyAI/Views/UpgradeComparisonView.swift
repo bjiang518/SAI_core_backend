@@ -131,7 +131,16 @@ struct UpgradeComparisonView: View {
             .padding(.leading, 16)
         }
         .task { await storeKit.loadProducts() }
+        .trackScreen(Screen.paywall, source: blockedFeature, extras: [
+            "reason": reason == .featureBlocked ? "feature_blocked" : "limit_reached"
+        ])
         .onAppear {
+            // Standardized funnel event — every paywall impression goes through here.
+            JourneyTracker.shared.track("paywall_viewed", [
+                "feature": blockedFeature,
+                "reason": reason == .featureBlocked ? "feature_blocked" : "limit_reached"
+            ])
+            // Legacy event name — kept so older dashboards/reports keep working.
             JourneyTracker.shared.track("upgrade_prompt_shown", [
                 "feature": blockedFeature,
                 "reason": reason == .featureBlocked ? "feature_blocked" : "limit_reached"

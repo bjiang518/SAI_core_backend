@@ -402,7 +402,9 @@ struct FillInBlankRenderer: View {
                     MathFormattedText(question.rawQuestionText ?? questionTextWithBlanks, fontSize: 16)
 
                     // Show filled blank if available
-                    if isExpanded, let studentAnswer = question.studentAnswer, !studentAnswer.isEmpty {
+                    if isExpanded, let studentAnswer = question.studentAnswer,
+                       !studentAnswer.isEmpty,
+                       studentAnswer != ProgressiveQuestion.answerInImageSentinel {
                         blankFilledView(answer: studentAnswer)
                     }
                 }
@@ -488,7 +490,9 @@ struct CalculationRenderer: View {
 
             if isExpanded {
                 // Student's Work/Answer
-                if let studentAnswer = question.studentAnswer, !studentAnswer.isEmpty {
+                if let studentAnswer = question.studentAnswer,
+                   !studentAnswer.isEmpty,
+                   studentAnswer != ProgressiveQuestion.answerInImageSentinel {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(spacing: 6) {
                             Image(systemName: "function")
@@ -632,7 +636,9 @@ struct LongAnswerRenderer: View {
 
             if isExpanded {
                 // Student Answer (with expand/collapse)
-                if let studentAnswer = question.studentAnswer, !studentAnswer.isEmpty {
+                if let studentAnswer = question.studentAnswer,
+                   !studentAnswer.isEmpty,
+                   studentAnswer != ProgressiveQuestion.answerInImageSentinel {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(spacing: 6) {
                             Image(systemName: "pencil.circle.fill")

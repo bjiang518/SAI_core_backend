@@ -547,6 +547,12 @@ extension NotificationService: UNUserNotificationCenterDelegate {
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
         debugPrint("📱 NotificationService: Notification received in foreground")
+        let userInfo = notification.request.content.userInfo
+        JourneyTracker.shared.track("push_received", [
+            "identifier_prefix": String(notification.request.identifier.prefix(40)),
+            "deep_link":         (userInfo["deepLink"] as? String) ?? "",
+            "in_foreground":     true,
+        ])
         // Show notification even when app is in foreground
         completionHandler([.banner, .sound, .badge])
     }
@@ -562,6 +568,18 @@ extension NotificationService: UNUserNotificationCenterDelegate {
         // Handle different notification types here
         let identifier = response.notification.request.identifier
         let userInfo = response.notification.request.content.userInfo
+
+        // Categorize for the analytics dashboard
+        let kind: String = {
+            if identifier.hasPrefix(studyReminderIdentifierPrefix)   { return "study_reminder" }
+            if identifier.hasPrefix(dailyChallengeIdentifierPrefix)  { return "daily_challenge" }
+            if identifier.hasPrefix("com.studyai.parentReport")      { return "parent_report" }
+            return "other"
+        }()
+        JourneyTracker.shared.track("push_tapped", [
+            "kind":      kind,
+            "deep_link": (userInfo["deepLink"] as? String) ?? "",
+        ])
 
         if identifier.hasPrefix(studyReminderIdentifierPrefix) {
             let deepLink = userInfo["deepLink"] as? String ?? "studyai://practice/daily"

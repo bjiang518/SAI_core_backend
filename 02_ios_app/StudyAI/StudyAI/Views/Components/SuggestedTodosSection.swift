@@ -702,11 +702,13 @@ private struct TodoRowView: View {
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(primaryText)
                         .lineLimit(1)
-                    Text(todo.subtitle)
-                        .font(.system(size: 13))
-                        .foregroundColor(secondaryText)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
+                    // Subtitle: single line, marquee-scrolls when overflowing.
+                    // Keeps every card the same height regardless of text length.
+                    MarqueeText(
+                        text: todo.subtitle,
+                        font: .system(size: 13),
+                        color: secondaryText
+                    )
                 }
 
                 Spacer()
@@ -748,12 +750,14 @@ private struct TodoRowView: View {
                         .padding(.horizontal, 1)
                         .background(HighlighterMark().fill(todo.color.opacity(0.28)))
                         .frame(minHeight: 28, alignment: .center)
-                    Text(todo.subtitle)
-                        .font(fontProvider(16, todo.subtitle))
-                        .foregroundColor(secondaryText)
-                        .lineLimit(3)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(minHeight: 22, alignment: .center)
+                    // Single-line marquee — keeps the row height consistent
+                    // even when subtitles vary in length.
+                    MarqueeText(
+                        text: todo.subtitle,
+                        font: fontProvider(16, todo.subtitle),
+                        color: secondaryText
+                    )
+                    .frame(minHeight: 22, alignment: .center)
                 }
                 .contentShape(Rectangle())
             }
@@ -770,5 +774,94 @@ private struct TodoRowView: View {
             .buttonStyle(.plain)
         }
         .padding(.leading, 8).padding(.trailing, 8).padding(.vertical, 10)
+    }
+}
+
+// MARK: - Marquee single-line text
+//
+// Renders the text on a single line. If the text is wider than the available
+// container width, it auto-scrolls horizontally (ticker-style) so users can
+// read it without wrapping the layout. Falls back to a static centered Text
+// when the content fits — no animation overhead in the common case.
+
+struct MarqueeText: View {
+    let text: String
+    let font: Font
+    let color: Color
+    /// Pixels per second the ticker moves. Slow enough to be readable.
+    var speed: CGFloat = 26
+    /// Visible gap between the end of one cycle and the start of the next.
+    var gapBetweenCycles: CGFloat = 36
+
+    @State private var textWidth: CGFloat = 0
+    @State private var startTime: Date = Date()
+
+    var body: some View {
+        GeometryReader { geo in
+            let needsScroll = textWidth > geo.size.width + 1
+
+            ZStack(alignment: .leading) {
+                if needsScroll && textWidth > 0 {
+                    TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: false)) { context in
+                        let elapsed = context.date.timeIntervalSince(startTime)
+                        let cycle = textWidth + gapBetweenCycles
+                        let raw = CGFloat(elapsed) * speed
+                        let phase = raw.truncatingRemainder(dividingBy: cycle)
+                        HStack(spacing: gapBetweenCycles) {
+                            Text(text)
+                                .font(font).foregroundColor(color)
+                                .lineLimit(1).fixedSize(horizontal: true, vertical: false)
+                            Text(text)
+                                .font(font).foregroundColor(color)
+                                .lineLimit(1).fixedSize(horizontal: true, vertical: false)
+                        }
+                        .offset(x: -phase)
+                    }
+                } else {
+                    Text(text)
+                        .font(font).foregroundColor(color)
+                        .lineLimit(1)
+                }
+            }
+            .frame(width: geo.size.width, alignment: .leading)
+            .clipped()
+        }
+        .frame(height: estimatedHeight)
+        // Hidden ruler measures the text's natural width without affecting
+        // the visible layout.
+        .background(
+            Text(text)
+                .font(font)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+                .opacity(0)
+                .background(
+                    GeometryReader { proxy in
+                        Color.clear.preference(
+                            key: MarqueeTextWidthKey.self,
+                            value: proxy.size.width
+                        )
+                    }
+                )
+                .allowsHitTesting(false)
+        )
+        .onPreferenceChange(MarqueeTextWidthKey.self) { width in
+            if abs(width - textWidth) > 0.5 {
+                textWidth = width
+                startTime = Date()
+            }
+        }
+    }
+
+    /// Rough height — enough for the body fonts the suggestion cards use
+    /// (system 13–16pt). Intentionally fixed so the row's height never
+    /// jitters when the text content changes.
+    private var estimatedHeight: CGFloat { 22 }
+}
+
+private struct MarqueeTextWidthKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }

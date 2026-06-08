@@ -132,6 +132,7 @@ class SpeechRecognitionService: NSObject, ObservableObject {
 
     @MainActor
     private func updatePermissionStatus(speechStatus: SFSpeechRecognizerAuthorizationStatus, microphoneStatus: AVAudioSession.RecordPermission) {
+        let previous = permissionStatus
         switch (speechStatus, microphoneStatus) {
         case (.authorized, .granted):
             permissionStatus = .granted
@@ -143,6 +144,15 @@ class SpeechRecognitionService: NSObject, ObservableObject {
             permissionStatus = .notDetermined
         @unknown default:
             permissionStatus = .denied
+        }
+        // Track only the *transition into* denied — answers "how many users
+        // who tried voice ended up blocking it?". Pair with camera_permission_denied
+        // for the full permission-friction view in the dashboard.
+        if previous != .denied && permissionStatus == .denied {
+            JourneyTracker.shared.track("microphone_permission_denied", [
+                "speech_status":     String(describing: speechStatus),
+                "microphone_status": String(describing: microphoneStatus),
+            ])
         }
     }
     

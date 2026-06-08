@@ -725,7 +725,18 @@ class PDFGeneratorService: ObservableObject {
     ) {
         withUIKitContext(ctx: ctx, pageRect: pageRect) {
             let cx = pageRect.width / 2
-            var y: CGFloat = 220
+            var y: CGFloat = 160
+
+            // App logo — large, centered above the title
+            if let logo = UIImage(named: "AppLogo") {
+                let size: CGFloat = 96
+                let logoRect = CGRect(x: cx - size / 2, y: y, width: size, height: size)
+                ctx.saveGState()
+                UIBezierPath(roundedRect: logoRect, cornerRadius: 20).addClip()
+                logo.draw(in: logoRect)
+                ctx.restoreGState()
+                y += size + 24
+            }
 
             // App title
             let titleAttrs: [NSAttributedString.Key: Any] = [
@@ -789,6 +800,19 @@ class PDFGeneratorService: ObservableObject {
         var y = startY
         withUIKitContext(ctx: ctx, pageRect: pageRect) {
             let w = contentWidth
+
+            // App logo — small badge top-left, vertically aligned with the title.
+            // Rendered first so the title (centered across full content width) is
+            // drawn on top if the title is long enough to extend into the logo's
+            // column; in practice titles are short and there's no overlap.
+            let logoSize: CGFloat = 28
+            if let logo = UIImage(named: "AppLogo") {
+                let logoRect = CGRect(x: margin, y: y - 2, width: logoSize, height: logoSize)
+                ctx.saveGState()
+                UIBezierPath(roundedRect: logoRect, cornerRadius: 6).addClip()
+                logo.draw(in: logoRect)
+                ctx.restoreGState()
+            }
 
             // Title
             let titleFont = UIFont.systemFont(ofSize: options.titleFontSize, weight: .bold)
@@ -901,7 +925,16 @@ class PDFGeneratorService: ObservableObject {
             // Index + question body on one line: "1. Question text…"
             y += drawMultiline("\(number). \(plainText(question.question))", font: bodyFont, x: margin, y: y, width: w) + 10
 
-            let hintText = String(format: NSLocalizedString("pdf.mistake.hint", value: "💡 You originally answered: \"%@\"", comment: ""), question.studentAnswer.isEmpty ? NSLocalizedString("pdf.mistake.noAnswer", value: "No answer", comment: "") : question.studentAnswer)
+            let answerLine: String = {
+                if question.studentAnswer.isEmpty {
+                    return NSLocalizedString("pdf.mistake.noAnswer", value: "No answer", comment: "")
+                }
+                if question.studentAnswer == ProgressiveQuestion.answerInImageSentinel {
+                    return NSLocalizedString("homework.answer.inImage", value: "Answer shown in image", comment: "")
+                }
+                return question.studentAnswer
+            }()
+            let hintText = String(format: NSLocalizedString("pdf.mistake.hint", value: "💡 You originally answered: \"%@\"", comment: ""), answerLine)
             y += drawString(hintText, font: hintFont, color: .gray, alignment: .left,
                             x: margin + 20, y: y, width: w - 20) + 2
         }

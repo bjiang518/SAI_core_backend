@@ -155,6 +155,7 @@ struct ImageSourceSelectionView: View {
             logger.info("📱 isPresented value: \(isPresented)")
             logger.info("🎯 View dismissed - preserving ViewModel state for user")
         }
+        .trackScreen(Screen.homeworkCamera)
         .onChange(of: isPresented) { oldValue, newValue in
             // Track dismissal for debugging but DO NOT clear ViewModel state
             let logger = Logger(subsystem: "com.studyai", category: "ImageSourceSelectionView")
@@ -185,6 +186,11 @@ struct ImageSourceSelectionView: View {
                         logger.info("✅ Transferring image to selectedImage binding")
                         logger.info("🖼️ Image size: \(capturedImage.size.width)x\(capturedImage.size.height)")
                         selectedImage = capturedImage
+                        JourneyTracker.shared.track("photo_captured", [
+                            "source":  "camera",
+                            "width":   Int(capturedImage.size.width),
+                            "height":  Int(capturedImage.size.height),
+                        ])
                         logger.info("🔄 Setting isPresented = false")
                         isPresented = false
                         logger.info("✅ Transfer complete - DO NOT clear ViewModel here")
@@ -192,6 +198,7 @@ struct ImageSourceSelectionView: View {
                     } else if !cameraViewModel.suppressNextCleanup {
                         logger.info("🧹 No image found, clearing ViewModel (user cancelled)")
                         // Only clear if user cancelled without capturing anything
+                        JourneyTracker.shared.track("photo_cancelled", ["source": "camera"])
                         cameraViewModel.clearForNextCapture()
                     } else {
                         logger.info("🔒 No image transfer - suppressNextCleanup is true")
@@ -205,17 +212,22 @@ struct ImageSourceSelectionView: View {
                 .onDisappear {
                     // CRITICAL: Terminate session immediately when view closes
                     CameraSessionManager.shared.terminateSessionOnViewClose()
-                    
+
                     let logger = Logger(subsystem: "com.studyai", category: "ImageTransfer")
                     logger.info("🔄 === IMAGE TRANSFER ON PHOTO PICKER DISMISS ===")
                     logger.info("🖼️ ViewModel has image: \(cameraViewModel.capturedImage != nil)")
                     logger.info("🔍 suppressNextCleanup: \(cameraViewModel.suppressNextCleanup)")
-                    
+
                     // Get image from ViewModel and transfer to selectedImage binding
                     if let capturedImage = cameraViewModel.capturedImage {
                         logger.info("✅ Transferring image to selectedImage binding")
                         logger.info("🖼️ Image size: \(capturedImage.size.width)x\(capturedImage.size.height)")
                         selectedImage = capturedImage
+                        JourneyTracker.shared.track("photo_captured", [
+                            "source":  "library",
+                            "width":   Int(capturedImage.size.width),
+                            "height":  Int(capturedImage.size.height),
+                        ])
                         logger.info("🔄 Setting isPresented = false")
                         isPresented = false
                         logger.info("✅ Transfer complete - DO NOT clear ViewModel here")
@@ -259,8 +271,10 @@ struct ImageSourceSelectionView: View {
             await MainActor.run {
                 if hasPermission {
                     showingCamera = true
+                    JourneyTracker.shared.track("camera_opened", ["source": "homework"])
                 } else {
                     cameraPermissionDenied = true
+                    JourneyTracker.shared.track("camera_permission_denied", [:])
                 }
             }
         }

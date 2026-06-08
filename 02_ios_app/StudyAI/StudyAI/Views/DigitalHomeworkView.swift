@@ -315,7 +315,7 @@ struct DigitalHomeworkView: View {
             VStack(spacing: 0) {
                 // Annotation section: always visible, collapsible
                 annotationCollapsibleSection(geometry: geometry)
-                    .background(Color(.systemGroupedBackground))
+                    .background(Color(.systemBackground))
 
                 // Compact bar: grade button before grading, dots during + after grading
                 if !viewModel.isArchiveMode && !isDeletionMode {
@@ -1797,7 +1797,10 @@ struct DigitalHomeworkView: View {
             }
 
             // Student answer (only for non-parent questions)
-            if !questionWithGrade.question.isParentQuestion && !studentAnswer.isEmpty {
+            // Hide for sentinel: the visual answer is on the image itself.
+            if !questionWithGrade.question.isParentQuestion
+                && !studentAnswer.isEmpty
+                && studentAnswer != ProgressiveQuestion.answerInImageSentinel {
                 VStack(alignment: .leading, spacing: 4) {
                     let q = questionWithGrade.question
                     let steps = q.workingSteps ?? []
@@ -2459,7 +2462,7 @@ struct DigitalHomeworkView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
-        .background(Color(.systemGroupedBackground))
+        .background(Color(.systemBackground))
     }
 
     // Slim inline progress dots shown during grading — replaces compactGradeBar
@@ -2533,8 +2536,9 @@ struct DigitalHomeworkView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
-        .background(Color(.systemGroupedBackground))
+        .background(Color(.systemBackground))
     }
+
     private func fittedImageSize(_ imageSize: CGSize, _ containerSize: CGSize) -> CGSize {
         let imageAspect = imageSize.width / imageSize.height
         let containerAspect = containerSize.width / containerSize.height
@@ -3161,7 +3165,10 @@ struct QuestionCard: View {
 
             // "Student answered: X" only shown before grading
             if grade == nil, !studentAnswer.isEmpty {
-                Text(String(format: NSLocalizedString("proMode.studentAnswerLabel", comment: "Student Answer: X"), studentAnswer))
+                let answerLabel = studentAnswer == ProgressiveQuestion.answerInImageSentinel
+                    ? NSLocalizedString("homework.answer.inImage", value: "Answer shown in image", comment: "")
+                    : studentAnswer
+                Text(String(format: NSLocalizedString("proMode.studentAnswerLabel", comment: "Student Answer: X"), answerLabel))
                     .font(.caption2)
                     .foregroundColor(.blue)
                     .padding(.top, 2)
@@ -3200,8 +3207,9 @@ struct QuestionCard: View {
             FullLaTeXText(questionText, fontSize: 14)
 
             // Only render answer boxes when the student actually wrote something.
-            // For solve mode (empty studentAnswer) we don't want blank yellow grid boxes.
-            if !studentAnswer.isEmpty {
+            // For solve mode (empty studentAnswer) or visual-only answers (sentinel)
+            // we don't want blank yellow grid boxes.
+            if !studentAnswer.isEmpty && studentAnswer != ProgressiveQuestion.answerInImageSentinel {
                 let answers = studentAnswer.components(separatedBy: " | ")
                 if answers.count > 1 {
                     multiBlankRow(answers: answers, grade: grade)
@@ -3269,8 +3277,9 @@ struct QuestionCard: View {
             FullLaTeXText(questionText, fontSize: 14)
 
             // Only show the answer box when the student actually wrote something.
-            // For solve mode (empty studentAnswer) we don't want a blank yellow grid.
-            if !studentAnswer.isEmpty {
+            // For solve mode (empty studentAnswer) or visual-only answers (sentinel)
+            // we don't want a blank yellow grid.
+            if !studentAnswer.isEmpty && studentAnswer != ProgressiveQuestion.answerInImageSentinel {
                 HStack(alignment: .center, spacing: 4) {
                     FullLaTeXText(studentAnswer, fontSize: 12)
                         .padding(8)
@@ -3297,9 +3306,10 @@ struct QuestionCard: View {
         VStack(alignment: .leading, spacing: 6) {
             FullLaTeXText(questionText, fontSize: 14)
 
-            // Hide T/F buttons when no student answer was detected (solve mode).
+            // Hide T/F buttons when no student answer was detected (solve mode)
+            // or when the choice is shown only in the image (sentinel).
             // Without a chosen option, two unselected circles look like a blank answer area.
-            if !studentAnswer.isEmpty || grade != nil {
+            if (!studentAnswer.isEmpty && studentAnswer != ProgressiveQuestion.answerInImageSentinel) || grade != nil {
                 HStack(spacing: 16) {
                     // Prefer explicit correctAnswer; fall back to inferring from the grade:
                     // if student chose one option and was wrong, the OTHER must be correct.
@@ -3360,7 +3370,7 @@ struct QuestionCard: View {
         VStack(alignment: .leading, spacing: 4) {
             FullLaTeXText(questionText, fontSize: 14)
 
-            if !studentAnswer.isEmpty {
+            if !studentAnswer.isEmpty && studentAnswer != ProgressiveQuestion.answerInImageSentinel {
                 HStack(alignment: .center, spacing: 4) {
                     FullLaTeXText(studentAnswer, fontSize: 12)
                         .padding(6)
@@ -4512,7 +4522,7 @@ private struct GradeButtonView: View {
 
 // MARK: - Solve mode UI (used when student didn't write an answer)
 
-/// Header indicator shown alongside HomeworkGradeBadge — orange/lavender gradient.
+/// Header indicator shown alongside HomeworkGradeBadge — translucent frosted-glass capsule.
 struct SolveBadge: View {
     let depth: String?  // "fast" | "deep" | nil
 
@@ -4523,16 +4533,18 @@ struct SolveBadge: View {
             Text(label)
                 .font(.caption.weight(.semibold))
         }
-        .foregroundColor(.white)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
+        .foregroundColor(DesignTokens.Colors.Cute.lavender)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
         .background(
-            LinearGradient(
-                colors: [DesignTokens.Colors.Cute.peach, DesignTokens.Colors.Cute.lavender],
-                startPoint: .leading, endPoint: .trailing
-            )
+            ZStack {
+                Capsule().fill(.ultraThinMaterial)
+                Capsule().fill(DesignTokens.Colors.Cute.lavender.opacity(0.10))
+            }
         )
-        .cornerRadius(8)
+        .overlay(
+            Capsule().stroke(DesignTokens.Colors.Cute.lavender.opacity(0.28), lineWidth: 0.5)
+        )
     }
 
     private var label: String {

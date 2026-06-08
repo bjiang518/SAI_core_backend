@@ -80,6 +80,13 @@ class StoreKitService: ObservableObject {
         purchaseError = nil
         defer { purchaseInProgress = false }
 
+        let tierKey = tierForProductId(product.id) ?? "unknown"
+        JourneyTracker.shared.track("purchase_started", [
+            "product_id": product.id,
+            "tier":       tierKey,
+            "price":      "\(product.displayPrice)",
+        ])
+
         do {
             #if DEBUG
             print("🛒 [StoreKit] Calling product.purchase()...")
@@ -101,6 +108,12 @@ class StoreKitService: ObservableObject {
                     updateLocalUserTier(tier)
                 }
 
+                JourneyTracker.shared.track("purchase_succeeded", [
+                    "product_id":     product.id,
+                    "tier":           tierKey,
+                    "transaction_id": String(transaction.id),
+                ])
+
                 // ② Persist to backend in background — does NOT block the UI.
                 Task.detached { [weak self] in
                     await self?.handlePurchasedTransaction(transaction, productId: product.id)
@@ -111,11 +124,17 @@ class StoreKitService: ObservableObject {
                 #endif
 
             case .pending:
+                JourneyTracker.shared.track("purchase_pending", [
+                    "product_id": product.id, "tier": tierKey,
+                ])
                 #if DEBUG
                 print("⏳ [StoreKit] Purchase pending (Ask to Buy)")
                 #endif
 
             case .userCancelled:
+                JourneyTracker.shared.track("purchase_cancelled", [
+                    "product_id": product.id, "tier": tierKey,
+                ])
                 #if DEBUG
                 print("🚫 [StoreKit] User cancelled purchase")
                 #endif
@@ -127,6 +146,11 @@ class StoreKitService: ObservableObject {
             }
         } catch {
             purchaseError = error.localizedDescription
+            JourneyTracker.shared.track("purchase_failed", [
+                "product_id": product.id,
+                "tier":       tierKey,
+                "reason":     error.localizedDescription,
+            ])
             #if DEBUG
             print("❌ [StoreKit] Purchase error: \(error)")
             #endif

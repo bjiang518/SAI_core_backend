@@ -811,7 +811,9 @@ struct QuestionGradeCard: View {
                 }
 
                 // Final answer (always shown)
-                Text(q.displayStudentAnswer.isEmpty ? NSLocalizedString("homework.noAnswer", value: "No answer", comment: "") : q.displayStudentAnswer)
+                Text(q.hasAnswerInImage
+                     ? NSLocalizedString("homework.answer.inImage", value: "Answer shown in image", comment: "")
+                     : (q.displayStudentAnswer.isEmpty ? NSLocalizedString("homework.noAnswer", value: "No answer", comment: "") : q.displayStudentAnswer))
                     .font(.body)
                     .foregroundColor(q.displayStudentAnswer.isEmpty ? .red : .primary)
                     .padding(8)
@@ -1035,7 +1037,9 @@ struct ProgressiveSubquestionCard: View {
                     .font(.caption2)
                     .foregroundColor(.secondary)
 
-                Text(subquestion.studentAnswer.isEmpty ? "No answer" : subquestion.studentAnswer)
+                Text(subquestion.hasAnswerInImage
+                     ? NSLocalizedString("homework.answer.inImage", value: "Answer shown in image", comment: "")
+                     : (subquestion.studentAnswer.isEmpty ? "No answer" : subquestion.studentAnswer))
                     .font(.caption)
                     .foregroundColor(subquestion.studentAnswer.isEmpty ? .red : .primary)
             }

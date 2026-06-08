@@ -143,7 +143,8 @@ struct VideoSummaryPDFView: View {
         }
         .onAppear {
             Task { @MainActor in
-                PDFGenerator.shared.generate(html: html) { data in
+                let branded = injectLogoHeader(into: html)
+                PDFGenerator.shared.generate(html: branded) { data in
                     pdfData = data
                     // Create PDFDocument once here, not in the view body
                     if let data {
@@ -154,6 +155,39 @@ struct VideoSummaryPDFView: View {
                 }
             }
         }
+    }
+
+    /// Injects a small branded header (logo + "StudyAgent") right after the
+    /// AI-generated HTML's `<body>` opening tag. The logo is downscaled to
+    /// 64×64 PNG and embedded as a base64 data URL so the WebView doesn't
+    /// need network access.
+    private func injectLogoHeader(into rawHtml: String) -> String {
+        guard let logo = UIImage(named: "AppLogo") else { return rawHtml }
+
+        let target = CGSize(width: 64, height: 64)
+        let resized = UIGraphicsImageRenderer(size: target).image { _ in
+            logo.draw(in: CGRect(origin: .zero, size: target))
+        }
+        guard let data = resized.pngData() else { return rawHtml }
+        let dataUrl = "data:image/png;base64,\(data.base64EncodedString())"
+
+        let header = """
+        <div style="display:flex;align-items:center;gap:10px;padding:14px 24px;border-bottom:1px solid #e5e7eb;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;background:#ffffff;">
+          <img src="\(dataUrl)" style="width:32px;height:32px;border-radius:7px;display:block;" alt="StudyAgent" />
+          <span style="font-size:16px;font-weight:600;color:#111827;letter-spacing:0.2px;">StudyAgent</span>
+        </div>
+        """
+
+        // Inject right after <body ...>'s closing '>' so we sit above any
+        // content the AI included. If <body> isn't found (degenerate HTML),
+        // just prepend.
+        if let bodyOpen = rawHtml.range(of: "<body", options: .caseInsensitive),
+           let closingBracket = rawHtml.range(of: ">", range: bodyOpen.upperBound..<rawHtml.endIndex) {
+            var result = rawHtml
+            result.insert(contentsOf: header, at: closingBracket.upperBound)
+            return result
+        }
+        return header + rawHtml
     }
 
     private func saveToFiles() {

@@ -155,6 +155,7 @@ struct MistakeReviewView: View {
     @State private var showingRecentSummaries = false
 
     var body: some View {
+        ScrollViewReader { proxy in
         ScrollView {
             VStack(spacing: 20) {
                     // SECTION 1: Subject Selection
@@ -191,6 +192,7 @@ struct MistakeReviewView: View {
                                 : nil
                         )
                         .mistakeReviewOnboardingAnchor("mistake_review_onboarding_subjectSelector")
+                        .id("mistake_review_onboarding_subjectSelector")
                         .onChange(of: selectedSubject) { _, _ in
                             // Clear filters when subject changes
                             selectedDetailedBranches.removeAll()
@@ -206,6 +208,7 @@ struct MistakeReviewView: View {
                         }
                         .pickerStyle(.segmented)
                         .mistakeReviewOnboardingAnchor("mistake_review_onboarding_activeFilter")
+                        .id("mistake_review_onboarding_activeFilter")
                         .padding(.horizontal)
                         .onChange(of: activeFilter) { _, newFilter in
                             if newFilter == .goodAt { selectedDetailedBranches.removeAll() }
@@ -238,6 +241,7 @@ struct MistakeReviewView: View {
 
                                 WeakPointHeatmapView(subject: subject, mistakeService: mistakeService)
                                     .mistakeReviewOnboardingAnchor("mistake_review_onboarding_heatmap")
+                                    .id("mistake_review_onboarding_heatmap")
                                     .padding(.horizontal)
 
                                 // Recurring error patterns — collapsible, below the heatmap
@@ -271,6 +275,7 @@ struct MistakeReviewView: View {
                                     selectedDetailedBranches: $selectedDetailedBranches
                                 )
                                 .mistakeReviewOnboardingAnchor("mistake_review_onboarding_taxonomy")
+                                .id("mistake_review_onboarding_taxonomy")
                                 .padding(.horizontal)
                             }
                         }
@@ -353,6 +358,7 @@ struct MistakeReviewView: View {
                             }
                         }
                         .mistakeReviewOnboardingAnchor("mistake_review_onboarding_startReview")
+                        .id("mistake_review_onboarding_startReview")
                         .padding(.horizontal)
                     }
 
@@ -434,6 +440,7 @@ struct MistakeReviewView: View {
             } message: {
                 Text(NSLocalizedString("mistakeReview.instructions.message", comment: ""))
             }
+            .trackScreen(Screen.mistakeReview)
             .task {
                 await mistakeService.fetchSubjectsWithMistakes(timeRange: selectedTimeRange.mistakeTimeRange)
 
@@ -588,6 +595,19 @@ struct MistakeReviewView: View {
                 }
             }
             .onPreferenceChange(MistakeReviewOnboardingAnchorKey.self) { onboardingAnchors = $0 }
+            .onChange(of: onboardingStep) { _, newStep in
+                // Auto-scroll the target into view when the spotlight advances.
+                // Without this, anchors below the fold (heatmap / taxonomy / startReview)
+                // produce a callout card that gets clamped to screen edges and a
+                // spotlight that's drawn offscreen — looks like the layer is "shifted".
+                guard let s = newStep else { return }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    withAnimation(.easeInOut(duration: 0.4)) {
+                        proxy.scrollTo(s.anchorID, anchor: .center)
+                    }
+                }
+            }
+        }
     }
 
     // MARK: - Onboarding
@@ -1596,7 +1616,9 @@ struct MistakeQuestionCard: View {
                         SmartLaTeXView(
                             question.studentAnswer.isEmpty ?
                             NSLocalizedString("mistakeReview.noAnswer", comment: "") :
-                            question.studentAnswer,
+                            (question.studentAnswer == ProgressiveQuestion.answerInImageSentinel ?
+                                NSLocalizedString("homework.answer.inImage", value: "Answer shown in image", comment: "") :
+                                question.studentAnswer),
                             fontSize: 16,
                             colorScheme: colorScheme,
                             strategy: .mathjax

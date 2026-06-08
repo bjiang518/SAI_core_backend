@@ -134,6 +134,19 @@ struct ContentView: View {
                     .zIndex(999)  // Ensure it's on top
             }
         }
+        // Bridge loading-screen state to AppState so HomeView's coach-mark
+        // overlay can hold off until the splash dismisses (the scrim is
+        // window-level and would otherwise leak above the splash).
+        .onChange(of: showLoadingAnimation) { _, isShowing in
+            AppState.shared.isLoadingAnimationActive = isShowing
+        }
+        // Same bridge for the full-screen FirstTimeOnboardingView. HomeView
+        // is mounted underneath this cover (its onAppear / profile-change
+        // hooks fire before the user has dismissed the trial pitch). The
+        // home tour gates on this flag so it can't fire prematurely.
+        .onChange(of: showingOnboarding) { _, isShowing in
+            AppState.shared.isFirstTimeOnboardingActive = isShowing
+        }
         .animationIfNotPowerSaving(.easeInOut(duration: 0.3), value: authService.isAuthenticated)
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .sheet(isPresented: $showingFaceIDReauth) {
@@ -478,7 +491,9 @@ struct MainTabView: View {
             }
 
             // Custom Tab Bar (shown for themes that use it)
-            if themeManager.usesCustomTabBar {
+            // Hidden during HomeView coach-mark onboarding so the tour's
+            // spotlight isn't covered at the bottom of the screen.
+            if themeManager.usesCustomTabBar && !appState.isHomeOnboardingActive {
                 CuteTabBar(
                     selectedTab: $selectedTabIndex,
                     tabs: [

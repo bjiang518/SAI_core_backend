@@ -198,6 +198,7 @@ struct HomeworkResultsView: View {
             } message: {
                 Text(NSLocalizedString("homeworkResults.selectQuestionsToArchiveMessage", comment: "Please select at least one question to archive."))
             }
+            .trackScreen(Screen.homeworkResults)
             .onAppear {
                 initializeQuestionData()
                 loadProgressState()
@@ -1024,7 +1025,11 @@ Question: \(question.rawQuestionText ?? question.questionText)
 
                                 // Add student answer if available
                                 if question.isGraded, let studentAnswer = question.studentAnswer, !studentAnswer.isEmpty {
-                                    userMessage += "\n\nMy answer was: \(studentAnswer)"
+                                    if studentAnswer == ProgressiveQuestion.answerInImageSentinel {
+                                        userMessage += "\n\nMy answer was shown visually in the homework image (e.g. a checked option, drawn line, or marked figure) — it was not written as text."
+                                    } else {
+                                        userMessage += "\n\nMy answer was: \(studentAnswer)"
+                                    }
                                 }
 
                                 // IMPORTANT: Explicitly include the correct answer and current grade
@@ -1262,7 +1267,9 @@ struct SubquestionCard: View {
                                     .fontWeight(.semibold)
                                     .foregroundColor(.gray)
 
-                                MarkdownLaTeXText(studentAnswer, fontSize: 15)
+                                MarkdownLaTeXText(studentAnswer == ProgressiveQuestion.answerInImageSentinel
+                                                  ? NSLocalizedString("homework.answer.inImage", value: "Answer shown in image", comment: "")
+                                                  : studentAnswer, fontSize: 15)
                                     .foregroundColor(DesignTokens.AdaptiveColors.primaryText)
                                     .textSelection(.enabled)
                             }

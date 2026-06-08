@@ -3482,3 +3482,38 @@ Toutes les données sont transmises via des connexions HTTPS chiffrées. Nous ne
 /* Home screen — Knowledge & Learning card */
 "home.knowledgeLearning" = "Connaissance & Apprentissage";
 "home.knowledgeLearningDescription" = "Explorez votre arbre de connaissances";
+
+/* Homework grading — student answer was visible in the image */
+"homework.answer.inImage" = "Réponse présentée dans l'image";
+
+// MARK: - Home Onboarding (visite guidée écran d'accueil, 10 étapes)
+
+"homeOnboarding.askAI.title" = "Demande à l'IA — ton tuteur en direct";
+"homeOnboarding.askAI.desc" = "Texte, voix ou photo. Réponses en quelques secondes.\n\n• {hl}Pratique sur le vif{/hl} — questions tirées du sujet du chat.\n\n• Touche {hl}Smart Learning{/hl} → leçons vidéo IA.\n\n• Demande des {hl}schémas{/hl} — visuels pour concepts difficiles.\n\n• Menu {sfsymbol:ellipsis.circle} → {hl}Mode Live{/hl} voix mains libres + scénarios.\n\n• {sfsymbol:archivebox.fill} {hl}Archive{/hl} les chats importants — seuls les archivés entraînent ton tuteur.";
+
+"homeOnboarding.snapHomework.title" = "Photo des devoirs — corrigés en quelques secondes";
+"homeOnboarding.snapHomework.desc" = "Photo n'importe quelle feuille (1–5 pages) → solutions étape par étape.\n\n• Active {hl}Deep{/hl} pour les problèmes difficiles — raisonnement de niveau supérieur.\n\n• Les mauvaises réponses vont dans la {hl}Revue d'erreurs{/hl}, organisées intelligemment.\n\n• Touche n'importe quelle question pour {hl}poser une question de suivi{/hl}.\n\n• Sauvegarde comme {hl}cahier numérique{/hl} — durable, partageable.";
+
+"homeOnboarding.practice.title" = "Pratique adaptée à toi";
+"homeOnboarding.practice.desc" = "Conçue pour ton niveau, ton style, tes points faibles — jamais générique.\n\n• {hl}Défi quotidien{/hl} — 3 nouvelles questions chaque jour.\n\n• {hl}Vraies banques de questions{/hl} : manuels, AMC, sets sélectionnés.\n\n• 3 modes : Aléatoire · Depuis Erreurs · Depuis un Chat sauvegardé.\n\n• Toutes les sessions s'enregistrent comme {hl}PDF partageables{/hl}.";
+
+"homeOnboarding.suggestedTodos.title" = "Ton plan du jour, sélectionné par IA";
+"homeOnboarding.suggestedTodos.desc" = "Plan quotidien sélectionné par IA — ce qui est le plus utile maintenant.\n\n• Basé sur {hl}tes vraies données{/hl} : sujets faibles, séries qui expirent.\n\n• {hl}Un tap{/hl} → direct au bon endroit.\n\n• Glisse pour ignorer ; touche actualiser pour régénérer.\n\n• Plus intelligent chaque jour d'utilisation.";
+
+"homeOnboarding.mistakeReview.title" = "Toutes tes erreurs, organisées";
+"homeOnboarding.mistakeReview.desc" = "Chaque mauvaise réponse, regroupée par matière et sujet.\n\n• L'IA étiquette chaque {hl}type d'erreur{/hl} — tu sais quoi corriger.\n\n• Touche pour réessayer, ou {hl}\"Pratique celles-ci\"{/hl} pour un lot entier.\n\n• Filtre par matière / erreur / période.\n\n• Alimente le mode {hl}\"Depuis Erreurs\"{/hl} en Pratique — plus intelligent à chaque révision.";
+
+"homeOnboarding.knowledgeTree.title" = "Apprendre + pratiquer, sur un arbre vivant";
+"homeOnboarding.knowledgeTree.desc" = "Chaque concept = une feuille. {hl}Vert = maîtrisé{/hl}, gris = inexploré.\n\n• {hl}Apprendre{/hl} → touche une feuille pour une leçon vidéo IA.\n\n• {hl}Pratiquer{/hl} → questions de la vidéo ou de ta position dans l'arbre.\n\n• {hl}\"Illumine l'arbre\"{/hl} remplit les feuilles grises automatiquement.\n\n• Regarde les branches grandir au fil des semaines.";
+
+"homeOnboarding.focusMode.title" = "Concentre-toi 25 min, fais pousser des tomates";
+"homeOnboarding.focusMode.desc" = "Pomodoro de 25 min = 1 tomate à collectionner. 13 types · 4 niveaux.\n\n• {hl}5 du même niveau{/hl} → échange contre une plus rare (Diamant = niveau final).\n\n• Jardin physique réel — empilées, roulent, se posent.\n\n• Associe avec la {hl}musique de focus{/hl} pour un travail profond.\n\n• La série quotidienne fait pousser ton jardin.";
+
+"homeOnboarding.parentReports.title" = "Rapports hebdomadaires, écrits par l'IA";
+"homeOnboarding.parentReports.desc" = "Rapport hebdo de ce que ton enfant a vraiment étudié — écrit par IA.\n\n• {hl}Matière par matière{/hl} : temps, précision, points faibles, recommandations.\n\n• Langage clair — sans jargon, vrais conseils.\n\n• {hl}Multi-enfants{/hl} pour les fratries.\n\n• Rapports générés automatiquement chaque semaine ; touche une semaine passée pour comparer.";
+
+"homeOnboarding.progress.title" = "Ton parcours d'étude";
+"homeOnboarding.progress.desc" = "Des semaines d'étude → une seule image.\n\n• {hl}Répartition par matière{/hl} : temps, précision, croissance de la maîtrise.\n\n• {hl}Calendrier de série{/hl} — chaque jour actif d'un coup d'œil.\n\n• {hl}Insights IA{/hl} — 3 conseils hebdomadaires depuis tes vraies données.\n\n• Touche un segment du graphique pour voir questions et chats.";
+
+"homeOnboarding.pointsShop.title" = "Gagne des points, échange-les";
+"homeOnboarding.pointsShop.desc" = "Chaque réponse, chaque erreur corrigée, chaque Pomodoro = points.\n\n• Cumul : {hl}bonus de série + défi quotidien + jalons{/hl}.\n\n• Dépense pour des {hl}gels de série{/hl} et tomates rares.\n\n• Nombre sur le badge {sfsymbol:star.fill} = bonus non réclamés aujourd'hui.";

@@ -18,6 +18,7 @@ struct AccountUsageView: View {
     @State private var usageData: AccountUsageData?
     @State private var isLoading = true
     @State private var showingUpgrade = false
+    @State private var showingCancelReason = false
 
     // MARK: - Body
 
@@ -81,6 +82,7 @@ struct AccountUsageView: View {
             .padding(.top, 20)
             .padding(.trailing, 20)
         }
+        .trackScreen(Screen.accountUsage)
         .task { await loadData() }
         .onChange(of: authService.currentUser?.tier) { _ in
             if let current = usageData { usageData = applyLocalTier(to: current) }
@@ -347,11 +349,14 @@ struct AccountUsageView: View {
 
     private var manageSubscriptionButton: some View {
         Button {
-            Task {
-                if let scene = await UIApplication.shared.connectedScenes
-                    .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene {
-                    try? await AppStore.showManageSubscriptions(in: scene)
-                }
+            // Pre-prompt the user for a cancel reason BEFORE opening Apple's
+            // manage-subscriptions sheet — Apple's flow gives us no signal,
+            // so this is the only chance we have to learn why a paying user
+            // is heading there. They can skip the prompt; we record either way.
+            if (authService.currentUser?.tier.isPaid ?? false) {
+                showingCancelReason = true
+            } else {
+                openAppleManageSubscriptions()
             }
         } label: {
             HStack(spacing: 6) {
@@ -361,6 +366,25 @@ struct AccountUsageView: View {
             .font(.subheadline)
             .foregroundColor(.secondary)
             .frame(maxWidth: .infinity)
+        }
+        .sheet(isPresented: $showingCancelReason) {
+            CancelReasonSheet(
+                tier: authService.currentUser?.tier.rawValue ?? "premium",
+                onContinue: {
+                    showingCancelReason = false
+                    openAppleManageSubscriptions()
+                },
+                onDismiss: { showingCancelReason = false }
+            )
+        }
+    }
+
+    private func openAppleManageSubscriptions() {
+        Task {
+            if let scene = await UIApplication.shared.connectedScenes
+                .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene {
+                try? await AppStore.showManageSubscriptions(in: scene)
+            }
         }
     }
 

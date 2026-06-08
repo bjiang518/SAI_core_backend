@@ -32,4 +32,10 @@ public struct ProgressiveSubquestion: Codable, Identifiable {
         let placeholders: Set<String> = ["?", "_", "—", "-", "...", "n/a", "na"]
         return !placeholders.contains(trimmed.lowercased())
     }
+
+    /// True if the parsed answer is the "answer is in the image" sentinel.
+    /// See `ProgressiveQuestion.answerInImageSentinel` for context.
+    public var hasAnswerInImage: Bool {
+        return studentAnswer == ProgressiveQuestion.answerInImageSentinel
+    }
 }

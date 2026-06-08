@@ -95,6 +95,7 @@ struct QuestionSheetView: View {
                 initialDetailedBranches: recentWrongBranches
             )
         }
+        .trackScreen(Screen.practiceSheet)
         .onAppear { restoreProgress() }
         .onDisappear {
             stopVoiceDictation()
@@ -1184,7 +1185,7 @@ struct QuestionSheetView: View {
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .frame(height: 52)
-                            .background(Color.primary)
+                            .background(themeManager.accentColor)
                             .cornerRadius(14)
                     }
                 }

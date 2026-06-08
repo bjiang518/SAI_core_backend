@@ -1404,6 +1404,11 @@ RULES:
    For parent questions with subquestions: if all subquestions share ONE diagram, set need_image=true on the PARENT ONLY (not on subquestions). If each subquestion has its OWN distinct visual, set need_image=true on those specific subquestions only. Never blindly copy need_image to all subquestions.
 5. For parent: extract ALL visible sub-items (a, b, c...) from the image
 6. student_answer is what the student wrote, NOT the correct answer
+   - If the answer is shown VISUALLY in the image rather than written as text
+     (checked option, drawn line, filled cell, shaded region, etc.) AND no
+     handwritten text answer exists → set student_answer: "student answer in image"
+     (use this exact English phrase, never translate or rephrase it)
+   - If the answer area is genuinely blank → set student_answer: ""
 7. Return valid JSON with no trailing commas"""
 
         image_data = base64.b64decode(base64_image)
@@ -1654,6 +1659,18 @@ ANSWER EXTRACTION (CRITICAL)
   - Preserve the student's own notation and language
   - Omit this field entirely if empty (DO NOT include working_steps: [])
 - Never calculate, infer, or correct — extract EXACTLY what is written
+- BEFORE setting student_answer to "", check if the answer is shown VISUALLY
+  in the image rather than written as text:
+  • Examples: a checked/circled multiple-choice option, a line-matching
+    diagram, a filled table cell, a shaded region, a marked number line,
+    a drawn arrow, a pin on a map, a completed drawing/diagram.
+  • If such a visual response exists AND no separate handwritten text
+    answer is present → set student_answer: "student answer in image"
+  • Only set student_answer: "" when there is genuinely NO student
+    response of any kind (blank answer area).
+- The string "student answer in image" is a fixed system sentinel: always
+  use this exact English phrase regardless of the homework's language.
+  DO NOT translate it, DO NOT rephrase it, DO NOT shorten it.
 - If unclear or cut off → set student_answer: ""
 - For multi-blank: use " | " to separate (see TYPE 3 above)
 
@@ -1685,6 +1702,7 @@ OUTPUT CHECKLIST
 6. ✓ total_questions = top-level questions only?
 7. ✓ Valid JSON with no markdown?
 8. ✓ student_answer = FINAL answer only (not the full working)?
+8b. ✓ Visual-only answers tagged "student answer in image" (not blank)?
 9. ✓ working_steps = array of intermediate steps (omitted if none)?
 10. ✓ teacher_mark captured if red-pen corrections visible?
 """

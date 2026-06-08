@@ -3414,3 +3414,38 @@
 /* Home screen — Knowledge & Learning card */
 "home.knowledgeLearning" = "知識與學習";
 "home.knowledgeLearningDescription" = "探索您的知識樹";
+
+/* Homework grading — student answer was visible in the image */
+"homework.answer.inImage" = "答案在圖片中";
+
+// MARK: - Home Onboarding (主頁引導, 10 步)
+
+"homeOnboarding.askAI.title" = "AI 即時輔導";
+"homeOnboarding.askAI.desc" = "打字、語音、圖片提問——AI 秒回。\n\n• 聊天裡 {hl}直接練{/hl}——基於當前話題一鍵生成練習。\n\n• 點 {hl}智能學習{/hl} 進入互動 AI 視頻課。\n\n• 讓 AI 畫 {hl}圖表{/hl}——抽象概念瞬間變直觀。\n\n• {sfsymbol:ellipsis.circle} 選單 → {hl}即時模式{/hl} 語音 + 情境模擬。\n\n• {sfsymbol:archivebox.fill} {hl}存檔{/hl} 重要對話——只有存檔過的對話會訓練你的 AI 導師。";
+
+"homeOnboarding.snapHomework.title" = "拍照批改作業";
+"homeOnboarding.snapHomework.desc" = "拍下任何作業(1–5 頁) → 給出步驟化解答。\n\n• 切換 {hl}Deep{/hl} 模式攻克難題——思考型推理。\n\n• 錯題自動進入 {hl}錯題本{/hl}，智能歸類。\n\n• 點任意題 {hl}直接追問{/hl} AI。\n\n• 存為 {hl}電子作業本{/hl}——長期保存、可分享。";
+
+"homeOnboarding.practice.title" = "為你量身打造的練習";
+"homeOnboarding.practice.desc" = "按你的年級、學習風格、薄弱點生成——絕不千篇一律。\n\n• {hl}每日挑戰{/hl}——每天 3 道新鮮題。\n\n• {hl}真實題庫{/hl}——教材、AMC、精選題集。\n\n• 三種模式: 隨機 · 錯題驅動 · 從儲存的對話生成。\n\n• 所有練習自動存為 {hl}可分享 PDF{/hl}。";
+
+"homeOnboarding.suggestedTodos.title" = "AI 每日學習清單";
+"homeOnboarding.suggestedTodos.desc" = "AI 每日推薦——當下最該做的事。\n\n• 來自 {hl}你的真實數據{/hl}：薄弱知識點、即將斷的連擊。\n\n• {hl}一鍵直達{/hl}——不用翻選單。\n\n• 左滑取消；點刷新換一組。\n\n• 用得越多，推薦越精準。";
+
+"homeOnboarding.mistakeReview.title" = "錯題全收錄";
+"homeOnboarding.mistakeReview.desc" = "所有錯題自動按學科、知識點歸類。\n\n• AI 標注每種 {hl}錯因{/hl}——知道該練什麼。\n\n• 點單題重做，或點 {hl}「集中練習」{/hl} 一次刷一組。\n\n• 按學科、錯因、時間篩選。\n\n• 驅動練習裡的 {hl}「錯題驅動」{/hl} 模式——複習越多越精準。";
+
+"homeOnboarding.knowledgeTree.title" = "活知識樹上學與練";
+"homeOnboarding.knowledgeTree.desc" = "每個學過的知識點 = 一片葉子。{hl}綠葉 = 已掌握{/hl}，灰葉 = 未探索。\n\n• {hl}學{/hl} → 點葉子進入 AI 視頻課。\n\n• {hl}練{/hl} → 基於視頻或你的位置生成練習。\n\n• 點 {hl}「點亮知識樹」{/hl} 自動補全灰葉。\n\n• 看枝葉數週內逐漸變綠。";
+
+"homeOnboarding.focusMode.title" = "專注 25 分鐘，種番茄";
+"homeOnboarding.focusMode.desc" = "25 分鐘番茄鐘 = 1 個可收集番茄。13 種 · 4 個稀有等級。\n\n• {hl}5 個同級番茄{/hl} 可換更稀有的(鑽石是終極)。\n\n• 真實物理花園——會堆疊、滾動、沉澱。\n\n• 配 {hl}專注音樂{/hl} 沉浸式深度工作。\n\n• 每日連續完成種滿你的花園。";
+
+"homeOnboarding.parentReports.title" = "家長每週報告 · AI 撰寫";
+"homeOnboarding.parentReports.desc" = "AI 撰寫的孩子每週學習報告——真實學了什麼。\n\n• {hl}分學科細分{/hl}: 用時、正確率、薄弱點、建議重點。\n\n• 家長能讀懂的話——沒有黑話，有實際建議。\n\n• {hl}多孩切換{/hl}——一個家庭多個學生分別查看。\n\n• 每週自動生成；點過去任一週對比進步。";
+
+"homeOnboarding.progress.title" = "你的學習軌跡";
+"homeOnboarding.progress.desc" = "把幾週的學習濃縮成一張圖。\n\n• {hl}學科分析{/hl}: 用時、正確率趨勢、掌握度增長。\n\n• {hl}連擊日曆{/hl}——一眼看到所有活躍天。\n\n• {hl}AI 洞察{/hl}——每週 3 條針對你真實數據的建議。\n\n• 點圖表任意段下鑽看具體題目。";
+
+"homeOnboarding.pointsShop.title" = "積分兌換中心";
+"homeOnboarding.pointsShop.desc" = "答題、改錯、專注番茄鐘——一切都漲積分。\n\n• 多源疊加: {hl}連擊獎勵 + 每日挑戰 + 週里程碑{/hl}。\n\n• 積分換 {hl}凍結連擊卡{/hl} 和稀有番茄。\n\n• {sfsymbol:star.fill} 紅點數字 = 今天還能領的獎勵。";

@@ -93,6 +93,7 @@ struct FocusView: View {
         } message: {
             Text(NSLocalizedString("deepFocus.guide.message", comment: ""))
         }
+        .trackScreen(Screen.pomodoro)
         .onAppear {
             if deepLinkHandler.shouldShowPomodoro && deepLinkHandler.shouldAutoStart {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {

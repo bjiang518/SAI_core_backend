@@ -12,6 +12,7 @@ struct ContactSupportView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showingMailComposer = false
     @State private var showingMailError = false
+    @State private var showingReportProblem = false
 
     var body: some View {
         NavigationStack {
@@ -65,6 +66,22 @@ struct ContactSupportView: View {
                             )
                         }
                         .buttonStyle(.plain)
+
+                        // In-app feedback / problem report — lightweight channel that
+                        // doesn't require switching to Mail. Goes straight to the
+                        // feedback_submissions table for product review.
+                        Button {
+                            showingReportProblem = true
+                        } label: {
+                            ContactMethodCard(
+                                icon: "exclamationmark.bubble.fill",
+                                title: "Report a problem",
+                                subtitle: "In-app — fastest",
+                                description: "Tell us what broke or share an idea. We read every message.",
+                                color: .orange
+                            )
+                        }
+                        .buttonStyle(.plain)
                     }
 
                     // Response Time
@@ -104,6 +121,9 @@ struct ContactSupportView: View {
                 recipient: AppURLs.supportEmail,
                 subject: "StudyAgent Support Request"
             )
+        }
+        .sheet(isPresented: $showingReportProblem) {
+            ReportProblemView()
         }
         .alert(NSLocalizedString("contactSupport.emailNotAvailable", comment: ""), isPresented: $showingMailError) {
             Button(NSLocalizedString("common.ok", comment: ""), role: .cancel) { }

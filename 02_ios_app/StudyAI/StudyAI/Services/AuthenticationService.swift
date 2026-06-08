@@ -290,16 +290,17 @@ final class AuthenticationService: ObservableObject {
             isLoading = true
             errorMessage = nil
         }
-        
-        defer { 
+
+        defer {
             Task { @MainActor in
                 isLoading = false
             }
         }
-        
+
         debugPrint("🔐 === EMAIL LOGIN DEBUG FLOW ===")
         debugPrint("📧 Attempting login for: \(email)")
-        
+        JourneyTracker.shared.track("login_started", ["provider": "email"])
+
         let result = await networkService.login(email: email, password: password)
         
         if result.success {
@@ -358,6 +359,8 @@ final class AuthenticationService: ObservableObject {
                 sessionManager.startSession()
                 authLogger.info("🔐 Session started for user: \(user.email)")
 
+                JourneyTracker.shared.track("login_completed", ["provider": "email"])
+
                 // ✅ Phase 2.5: Start token monitoring to prevent expiration
                 startTokenMonitoring()
 
@@ -367,6 +370,11 @@ final class AuthenticationService: ObservableObject {
         } else {
 
             let specificError = mapBackendError(statusCode: result.statusCode ?? 0, message: result.message)
+            JourneyTracker.shared.track("login_failed", [
+                "provider": "email",
+                "status":   result.statusCode ?? 0,
+                "reason":   String((result.message ?? "unknown").prefix(80)),
+            ])
             throw specificError
         }
     }
@@ -376,31 +384,39 @@ final class AuthenticationService: ObservableObject {
             isLoading = true
             errorMessage = nil
         }
-        
-        defer { 
+
+        defer {
             Task { @MainActor in
                 isLoading = false
             }
         }
-        
+
+        JourneyTracker.shared.track("signup_started", ["provider": "email"])
+
         // Use the proper registration endpoint (no auto-login)
         let result = await networkService.register(name: name, email: email, password: password)
-        
+
         if result.success {
             // Registration successful - DO NOT auto-login
             // The user will need to manually log in from the login screen
 
-            
+            JourneyTracker.shared.track("signup_completed", ["provider": "email"])
+
             // Store the registered email for pre-filling the login form
             await MainActor.run {
                 lastRegisteredEmail = email
             }
-            
+
             // Don't save tokens or set authentication state
             // Just return successfully - the UI will handle the transition back to login
-            
+
         } else {
             let specificError = mapBackendError(statusCode: result.statusCode ?? 0, message: result.message)
+            JourneyTracker.shared.track("signup_failed", [
+                "provider": "email",
+                "status":   result.statusCode ?? 0,
+                "reason":   String((result.message ?? "unknown").prefix(80)),
+            ])
             throw specificError
         }
     }
@@ -600,6 +616,7 @@ final class AuthenticationService: ObservableObject {
 
     func signInWithApple() async throws {
         debugPrint("🍎 === AuthenticationService.signInWithApple() STARTED ===")
+        JourneyTracker.shared.track("login_started", ["provider": "apple"])
         let appleSignIn = AppleSignInService()
         do {
             debugPrint("🍎 Step 1: Calling AppleSignInService.signIn()...")
@@ -689,6 +706,8 @@ final class AuthenticationService: ObservableObject {
                     sessionManager.startSession()
                     authLogger.info("🔐 Session started for user: \(user.email)")
 
+                    JourneyTracker.shared.track("login_completed", ["provider": "apple"])
+
                     // ✅ Phase 2.5: Start token monitoring to prevent expiration
                     startTokenMonitoring()
 
@@ -712,12 +731,26 @@ final class AuthenticationService: ObservableObject {
 
             // Handle specific Apple Sign-In errors with helpful messages
             if let authError = error as? AuthError {
+                JourneyTracker.shared.track("login_failed", [
+                    "provider": "apple",
+                    "reason":   String(authError.localizedDescription.prefix(80)),
+                ])
                 throw authError
             } else {
                 let nsError = error as NSError
 
                 // Handle specific Apple Sign-In errors
                 if nsError.domain == "com.apple.AuthenticationServices.AuthorizationError" {
+                    let reason: String
+                    switch nsError.code {
+                    case 1000: reason = "config_error"
+                    case 1001: reason = "user_cancelled"
+                    case 1004: reason = "authorization_failed"
+                    default:   reason = "apple_error_\(nsError.code)"
+                    }
+                    JourneyTracker.shared.track("login_failed", [
+                        "provider": "apple", "reason": reason,
+                    ])
                     switch nsError.code {
                     case 1000: // Authorization error - often provisioning related
                         throw AuthError.providerError("Apple Sign-In is temporarily unavailable. This may be due to app configuration. Please use email authentication.")
@@ -730,6 +763,9 @@ final class AuthenticationService: ObservableObject {
                     }
                 } else {
                     // For any other errors (including provisioning issues), provide helpful message
+                    JourneyTracker.shared.track("login_failed", [
+                        "provider": "apple", "reason": "unavailable",
+                    ])
                     throw AuthError.providerError("Apple Sign-In temporarily unavailable. Please use email authentication or try again later.")
                 }
             }
@@ -739,9 +775,19 @@ final class AuthenticationService: ObservableObject {
     // MARK: - Google Sign In
     
     func signInWithGoogle() async throws {
+        JourneyTracker.shared.track("login_started", ["provider": "google"])
         let googleSignIn = GoogleSignInService()
-        let googleUser = try await googleSignIn.signIn()
-        
+        let googleUser: GoogleSignInService.GoogleUser
+        do {
+            googleUser = try await googleSignIn.signIn()
+        } catch {
+            JourneyTracker.shared.track("login_failed", [
+                "provider": "google",
+                "reason":   String(error.localizedDescription.prefix(80)),
+            ])
+            throw error
+        }
+
         // Send Google authentication data to our Railway backend
         let networkService = NetworkService.shared
         let result = await networkService.googleLogin(
@@ -751,16 +797,16 @@ final class AuthenticationService: ObservableObject {
             email: googleUser.email,
             profileImageUrl: googleUser.profileImageURL?.absoluteString
         )
-        
+
         if result.success {
             // Extract server user ID from backend response
             guard let userData = result.userData,
                   let serverUserId = userData["id"] as? String ?? userData["userId"] as? String ?? userData["user_id"] as? String else {
                 throw AuthError.serverError("Backend response missing user ID")
             }
-            
 
-            
+
+
             let user = User(
                 id: serverUserId,  // Use server UID instead of Google UID
                 email: userData["email"] as? String ?? googleUser.email,
@@ -772,12 +818,12 @@ final class AuthenticationService: ObservableObject {
                 tier: UserTier(rawValue: userData["tier"] as? String ?? "free") ?? .free,
                 isAnonymous: userData["is_anonymous"] as? Bool ?? false
             )
-            
+
             // Use the token from our backend instead of generating one locally
             if let token = result.token {
                 try keychainService.saveAuthToken(token)
                 try keychainService.saveUser(user)
-                
+
                 await MainActor.run {
                     currentUser = user
                     isAuthenticated = true
@@ -787,6 +833,8 @@ final class AuthenticationService: ObservableObject {
                 sessionManager.startSession()
                 authLogger.info("🔐 Session started for user: \(user.email)")
 
+                JourneyTracker.shared.track("login_completed", ["provider": "google"])
+
                 // ✅ Phase 2.5: Start token monitoring to prevent expiration
                 startTokenMonitoring()
 
@@ -795,6 +843,11 @@ final class AuthenticationService: ObservableObject {
             }
         } else {
             let specificError = mapBackendError(statusCode: result.statusCode ?? 0, message: result.message)
+            JourneyTracker.shared.track("login_failed", [
+                "provider": "google",
+                "status":   result.statusCode ?? 0,
+                "reason":   String((result.message ?? "unknown").prefix(80)),
+            ])
             throw specificError
         }
     }
@@ -911,12 +964,14 @@ final class AuthenticationService: ObservableObject {
         await MainActor.run { isLoading = true }
         defer { Task { @MainActor in isLoading = false } }
         do {
+            JourneyTracker.shared.track("guest_session_started", [:])
             let result = try await networkService.anonymousLogin()
             guard let userData = result["user"] as? [String: Any],
                   let token = result["token"] as? String,
                   let userId = userData["id"] as? String,
                   let userName = userData["name"] as? String else {
                 await MainActor.run { errorMessage = "Invalid guest session response" }
+                JourneyTracker.shared.track("guest_session_failed", ["reason": "invalid_response"])
                 return
             }
             let guestUser = User(
@@ -938,6 +993,9 @@ final class AuthenticationService: ObservableObject {
             }
         } catch {
             await MainActor.run { errorMessage = error.localizedDescription }
+            JourneyTracker.shared.track("guest_session_failed", [
+                "reason": String(error.localizedDescription.prefix(80))
+            ])
         }
     }
 

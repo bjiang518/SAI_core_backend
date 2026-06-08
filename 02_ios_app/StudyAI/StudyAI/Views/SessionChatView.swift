@@ -129,6 +129,11 @@ struct SessionChatView: View {
     private let emptyStateSubtitles: [String] = (0..<25).map {
         NSLocalizedString("chat.emptyState.subtitle.\($0)", comment: "")
     }
+
+    // Empty-state suggested prompts (3-row marquee). Fetched once per appearance
+    // when the chat is empty; cleared when the first user message is sent.
+    @State private var suggestedPrompts: [String] = []
+    @State private var hasFetchedSuggestions = false
     // Live mode (WeChat-style inline voice chat)
     @State private var isLiveMode = false
     @State private var liveModeStartTime: Date? = nil
@@ -653,18 +658,24 @@ struct SessionChatView: View {
     /// Apply primary lifecycle handlers (onAppear, onDisappear, basic changes)
     private func applyPrimaryHandlers<V: View>(_ content: V) -> some View {
         content
+            .trackScreen(Screen.chat)
             .onAppear {
                 // Initialize and clear previous session data
                 viewModel.aiGeneratedSuggestions = []
 
-                // ✅ Pre-warm keyboard for faster first appearance
-                // This initializes the keyboard subsystem in the background
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    // Briefly focus and unfocus to initialize keyboard cache
-                    isMessageInputFocused = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                        isMessageInputFocused = false
+                // ✅ Pre-warm keyboard for faster first appearance — but ONLY
+                // when an existing conversation is being resumed. On a fresh
+                // empty state we want the keyboard fully retracted so the
+                // suggested-questions marquee is the focal point.
+                if !allMessages.isEmpty || !networkService.conversationHistory.isEmpty {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        isMessageInputFocused = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                            isMessageInputFocused = false
+                        }
                     }
+                } else {
+                    isMessageInputFocused = false
                 }
 
                 // ── Unified message list wiring ──
@@ -1354,6 +1365,15 @@ struct SessionChatView: View {
                 HStack {
                     Spacer()
                     Button(action: {
+                        // Track BEFORE the stop call so we capture the
+                        // streaming text length at abandonment — answers
+                        // "do users stop because the answer is too long, too
+                        // slow, or wrong direction?" Pair with the time
+                        // since the user's last message in the dashboard.
+                        let streamedLen = viewModel.activeStreamingMessage.count
+                        JourneyTracker.shared.track("generation_stopped", [
+                            "streamed_chars": streamedLen,
+                        ])
                         viewModel.stopGeneration()
 
                         let notificationFeedback = UINotificationFeedbackGenerator()
@@ -2082,15 +2102,25 @@ struct SessionChatView: View {
 
                         // Draw Diagram / Find Video from AI suggestions
                         if viewModel.isStreamingComplete && suggestionsMatchLanguage {
-                            ForEach(specialFromAI, id: \.key) { suggestion in
+                            ForEach(Array(specialFromAI.enumerated()), id: \.element.key) { idx, suggestion in
                                 if isVideoSearchRequest(suggestion.value) {
                                     Button(suggestion.key) {
+                                        JourneyTracker.shared.track("follow_up_suggestion_tapped", [
+                                            "kind":     "video_search",
+                                            "label":    suggestion.key,
+                                            "position": idx,
+                                        ])
                                         isMessageInputFocused = false
                                         handleVideoSearchRequest(suggestion)
                                     }
                                     .actionChipStyle(color: DesignTokens.Colors.Cute.lavender, glowing: false)
                                 } else if isDiagramGenerationRequest(suggestion.key) {
                                     Button(suggestion.key) {
+                                        JourneyTracker.shared.track("follow_up_suggestion_tapped", [
+                                            "kind":     "diagram",
+                                            "label":    suggestion.key,
+                                            "position": idx,
+                                        ])
                                         handleDiagramGenerationRequest(suggestion)
                                     }
                                     .actionChipStyle(color: DesignTokens.Colors.Cute.blue, glowing: false)
@@ -2109,8 +2139,13 @@ struct SessionChatView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         if hasRegularSuggestions {
-                            ForEach(regularFromAI.prefix(3), id: \.key) { suggestion in
+                            ForEach(Array(regularFromAI.prefix(3).enumerated()), id: \.element.key) { idx, suggestion in
                                 Button(suggestion.key) {
+                                    JourneyTracker.shared.track("follow_up_suggestion_tapped", [
+                                        "kind":     "regular",
+                                        "label":    suggestion.key,
+                                        "position": idx,
+                                    ])
                                     isMessageInputFocused = false
                                     viewModel.messageText = suggestion.value
                                     viewModel.sendMessage()
@@ -2425,10 +2460,65 @@ struct SessionChatView: View {
                     .foregroundColor(.primary.opacity(0.6))
                     .multilineTextAlignment(.center)
             }
+
+            // Auto-scrolling marquee of grade-aware AI-suggested questions.
+            // Tapping a chip fires the prompt as the first user message, and
+            // the prompt is recorded so it's never suggested again.
+            if !suggestedPrompts.isEmpty {
+                SuggestedQuestionsMarquee(prompts: suggestedPrompts) { prompt in
+                    SuggestedPromptsTracker.shared.recordTap(prompt)
+                    suggestedPrompts.removeAll { $0 == prompt }
+                    isMessageInputFocused = false
+                    viewModel.messageText = prompt
+                    viewModel.sendMessage()
+                }
+                .padding(.top, 12)
+                .transition(.opacity)
+            }
         }
         .padding(.vertical, 40)
         .onAppear {
             emptyStateSubtitle = emptyStateSubtitles.randomElement() ?? ""
+            loadSuggestedPromptsIfNeeded()
+        }
+    }
+
+    private func loadSuggestedPromptsIfNeeded() {
+        guard !hasFetchedSuggestions else { return }
+        hasFetchedSuggestions = true
+
+        let subject = viewModel.selectedSubject
+        let gradeLevel = ProfileService.shared.currentProfile?.gradeLevel
+        // Honor child-session language overrides — same source the rest of
+        // NetworkService uses for outbound AI requests.
+        let language = networkService.currentLanguage
+
+        // Show cached prompts immediately if available — the network roundtrip
+        // can take several seconds and a blank empty state feels broken.
+        let rawCached = networkService.cachedSuggestedPrompts(
+            subject: subject,
+            gradeLevel: gradeLevel,
+            language: language
+        )
+        let filteredCached = SuggestedPromptsTracker.shared.filter(rawCached)
+        if !filteredCached.isEmpty {
+            suggestedPrompts = filteredCached
+            SuggestedPromptsTracker.shared.recordImpressions(filteredCached)
+        }
+
+        // Always refresh in the background so the cache stays fresh.
+        Task { @MainActor in
+            let fetched = await networkService.fetchSuggestedPrompts(
+                subject: subject,
+                gradeLevel: gradeLevel,
+                language: language
+            )
+            let filtered = SuggestedPromptsTracker.shared.filter(fetched)
+            guard !filtered.isEmpty, filtered != suggestedPrompts else { return }
+            withAnimation(.easeInOut(duration: 0.4)) {
+                suggestedPrompts = filtered
+            }
+            SuggestedPromptsTracker.shared.recordImpressions(filtered)
         }
     }
 
@@ -3598,6 +3688,325 @@ private struct ModernButtonStyleModifier: ViewModifier {
             .shadow(color: themeManager.currentTheme == .colorful ?
                 DesignTokens.Colors.Cute.lavender.opacity(0.3) :
                 Color.blue.opacity(0.3), radius: 4, x: 0, y: 2)
+    }
+}
+
+// MARK: - Suggested Questions Marquee
+//
+// Three rows of horizontally auto-scrolling question chips for the chat
+// empty state. Rows alternate scroll direction (left, right, left) at a
+// calm pace so titles remain readable. Tapping a chip reports the prompt
+// to the caller, which sets messageText and sends the message.
+
+private enum MarqueeDirection {
+    case leftward
+    case rightward
+}
+
+// Persistent tracker for which prompts the user has tapped (so we never
+// suggest them again) and how often each prompt has been shown without
+// being tapped (so prompts that the user repeatedly ignores get retired).
+final class SuggestedPromptsTracker {
+    static let shared = SuggestedPromptsTracker()
+
+    private let tappedKey      = "suggestedPrompts.tapped.v1"
+    private let impressionsKey = "suggestedPrompts.impressions.v1"
+    private let ignoreThreshold = 6   // shown this many times w/o tap → retire
+
+    private init() {}
+
+    func filter(_ prompts: [String]) -> [String] {
+        let tapped = Set(loadTapped())
+        let impressions = loadImpressions()
+        return prompts.filter { prompt in
+            if tapped.contains(prompt) { return false }
+            if (impressions[prompt] ?? 0) >= ignoreThreshold { return false }
+            return true
+        }
+    }
+
+    func recordImpressions(_ prompts: [String]) {
+        guard !prompts.isEmpty else { return }
+        var impressions = loadImpressions()
+        for prompt in prompts {
+            impressions[prompt, default: 0] += 1
+        }
+        if let data = try? JSONEncoder().encode(impressions) {
+            UserDefaults.standard.set(data, forKey: impressionsKey)
+        }
+    }
+
+    func recordTap(_ prompt: String) {
+        var tapped = loadTapped()
+        guard !tapped.contains(prompt) else { return }
+        tapped.append(prompt)
+        // Cap to a sane size so the list doesn't grow unbounded.
+        if tapped.count > 500 { tapped = Array(tapped.suffix(500)) }
+        if let data = try? JSONEncoder().encode(tapped) {
+            UserDefaults.standard.set(data, forKey: tappedKey)
+        }
+    }
+
+    private func loadTapped() -> [String] {
+        guard let data = UserDefaults.standard.data(forKey: tappedKey),
+              let arr  = try? JSONDecoder().decode([String].self, from: data) else {
+            return []
+        }
+        return arr
+    }
+
+    private func loadImpressions() -> [String: Int] {
+        guard let data = UserDefaults.standard.data(forKey: impressionsKey),
+              let dict = try? JSONDecoder().decode([String: Int].self, from: data) else {
+            return [:]
+        }
+        return dict
+    }
+}
+
+struct SuggestedQuestionsMarquee: View {
+    let prompts: [String]
+    let onTap: (String) -> Void
+
+    private let rowCount = 3
+
+    var body: some View {
+        if prompts.isEmpty {
+            EmptyView()
+        } else {
+            VStack(spacing: 10) {
+                ForEach(0..<rowCount, id: \.self) { idx in
+                    let items = row(idx)
+                    if !items.isEmpty {
+                        MarqueeRowView(
+                            items: items,
+                            direction: idx.isMultiple(of: 2) ? .leftward : .rightward,
+                            speed: 24 + CGFloat(idx) * 4,
+                            palette: palette(for: idx),
+                            onTap: onTap
+                        )
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 6)
+        }
+    }
+
+    private func row(_ index: Int) -> [String] {
+        guard !prompts.isEmpty else { return [] }
+        return prompts.enumerated()
+            .filter { $0.offset % rowCount == index }
+            .map { $0.element }
+    }
+
+    private func palette(for row: Int) -> [Color] {
+        switch row {
+        case 0: return [
+            DesignTokens.Colors.Cute.peach,
+            DesignTokens.Colors.Cute.pink,
+            DesignTokens.Colors.Cute.yellow,
+        ]
+        case 1: return [
+            DesignTokens.Colors.Cute.lavender,
+            DesignTokens.Colors.Cute.blue,
+            DesignTokens.Colors.Cute.mint,
+        ]
+        default: return [
+            DesignTokens.Colors.Cute.mint,
+            DesignTokens.Colors.Cute.peach,
+            DesignTokens.Colors.Cute.lavender,
+        ]
+        }
+    }
+}
+
+private struct MarqueeRowView: View {
+    let items: [String]
+    let direction: MarqueeDirection
+    let speed: CGFloat
+    let palette: [Color]
+    let onTap: (String) -> Void
+
+    @State private var stripWidth: CGFloat = 0
+    // Frozen reference moment so offset is computed from a stable origin —
+    // avoids huge floating-point pixel values after the app runs for hours.
+    @State private var animationStart: Date = Date()
+
+    // User-controlled offset accumulated from drag gestures. Added on top of
+    // the auto-scrolling phase so the row remains in continuous motion while
+    // also responding to drags.
+    @State private var manualOffset: CGFloat = 0
+    @State private var dragStartOffset: CGFloat = 0
+    // Tracks whether the user is actively dragging the row. Set true once the
+    // drag exceeds its minimum distance; cleared shortly after touch-up so
+    // chip Button taps that fire on the same touch-up event are suppressed
+    // (otherwise dragging horizontally would also enter a topic).
+    @State private var isDraggingRow: Bool = false
+
+    // Repeat the items inside one strip until it has at least this many chips.
+    // Ensures the visible viewport is always full of content with no gap.
+    private let minimumChipsPerStrip = 8
+
+    var body: some View {
+        // GeometryReader gives us a hard width = parent width. We render the
+        // marquee inside it and clip — this prevents the strip's natural width
+        // from leaking out and pushing the parent layout (which was breaking
+        // the chat input bar position).
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                if stripWidth > 0 {
+                    TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: false)) { context in
+                        let elapsed = context.date.timeIntervalSince(animationStart)
+                        let autoPixels = CGFloat(elapsed) * speed
+                        let signedAuto = direction == .leftward ? -autoPixels : autoPixels
+                        let combined = signedAuto + manualOffset
+                        let cycle = max(stripWidth, 1)
+                        let remainder = combined.truncatingRemainder(dividingBy: cycle)
+                        let normalized = remainder > 0 ? remainder - cycle : remainder
+
+                        HStack(spacing: 0) {
+                            stripView
+                            stripView
+                            stripView   // 3rd strip guarantees no edge gap on wide screens
+                        }
+                        .offset(x: normalized)
+                    }
+                } else {
+                    // Initial measurement pass — render one strip to learn its
+                    // natural width. After this fires the preference, the
+                    // animated TimelineView path takes over.
+                    stripView
+                        .background(
+                            GeometryReader { proxy in
+                                Color.clear.preference(
+                                    key: MarqueeWidthKey.self,
+                                    value: proxy.size.width
+                                )
+                            }
+                        )
+                }
+            }
+            .frame(width: geo.size.width, height: 44, alignment: .leading)
+            .clipped()
+            .contentShape(Rectangle())   // make blank gaps draggable too
+            // minimumDistance: 5 lets short taps fall through to chip Buttons,
+            // while horizontal drags that exceed the threshold steal control.
+            // highPriorityGesture (vs. simultaneousGesture) ensures the drag
+            // CANCELS child Button gestures once it activates — otherwise the
+            // chip's tap would fire on touch-up of a horizontal drag.
+            .highPriorityGesture(
+                DragGesture(minimumDistance: 5)
+                    .onChanged { value in
+                        isDraggingRow = true
+                        manualOffset = dragStartOffset + value.translation.width
+                    }
+                    .onEnded { _ in
+                        dragStartOffset = manualOffset
+                        // Keep the flag set briefly so any chip tap action that
+                        // races the touch-up event is rejected.
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                            isDraggingRow = false
+                        }
+                    }
+            )
+        }
+        .frame(height: 44)
+        .onPreferenceChange(MarqueeWidthKey.self) { width in
+            guard width > 1 else { return }
+            stripWidth = width
+            animationStart = Date()
+        }
+    }
+
+    private var displayItems: [String] {
+        guard !items.isEmpty else { return [] }
+        var result = items
+        while result.count < minimumChipsPerStrip {
+            result.append(contentsOf: items)
+        }
+        return result
+    }
+
+    private var stripView: some View {
+        HStack(spacing: 10) {
+            ForEach(Array(displayItems.enumerated()), id: \.offset) { idx, prompt in
+                MarqueeChipButton(
+                    text: prompt,
+                    color: palette[idx % palette.count],
+                    onTap: {
+                        // Belt-and-suspenders: even if the Button tap fires
+                        // during/right-after a drag, don't enter the topic.
+                        guard !isDraggingRow else { return }
+                        onTap(prompt)
+                    }
+                )
+            }
+        }
+        .fixedSize(horizontal: true, vertical: false)
+    }
+}
+
+private struct MarqueeChipButton: View {
+    let text: String
+    let color: Color
+    let onTap: () -> Void
+
+    @StateObject private var themeManager = ThemeManager.shared
+
+    var body: some View {
+        Button(action: onTap) {
+            Text(text)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(textColor)
+                .lineLimit(1)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 9)
+                .background(
+                    Capsule()
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    color.opacity(0.22),
+                                    color.opacity(0.10),
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                )
+                .overlay(
+                    Capsule()
+                        .stroke(color.opacity(0.45), lineWidth: 1.0)
+                )
+                .contentShape(Capsule())
+        }
+        .buttonStyle(MarqueeChipButtonStyle())
+    }
+
+    private var textColor: Color {
+        themeManager.currentTheme == .colorful
+            ? DesignTokens.Colors.Cute.softBlack
+            : Color.primary
+    }
+}
+
+// Custom ButtonStyle gives press feedback without intercepting taps. The
+// previous simultaneousGesture(DragGesture(minimumDistance: 0)) approach
+// preempted the Button's tap-up event, making chips unclickable.
+private struct MarqueeChipButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.94 : 1.0)
+            .opacity(configuration.isPressed ? 0.85 : 1.0)
+            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: configuration.isPressed)
+    }
+}
+
+private struct MarqueeWidthKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
 

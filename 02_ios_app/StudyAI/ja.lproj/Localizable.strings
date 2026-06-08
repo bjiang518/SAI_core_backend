@@ -3503,3 +3503,38 @@
 /* Home screen — Knowledge & Learning card */
 "home.knowledgeLearning" = "知識と学習";
 "home.knowledgeLearningDescription" = "知識ツリーを探索";
+
+/* Homework grading — student answer was visible in the image */
+"homework.answer.inImage" = "答えは画像に示されています";
+
+// MARK: - Home Onboarding (ホーム画面ガイド, 全10ステップ)
+
+"homeOnboarding.askAI.title" = "AI チューターに聞く";
+"homeOnboarding.askAI.desc" = "テキスト・音声・写真で質問。秒で回答。\n\n• チャット中の話題から {hl}その場で練習問題{/hl} を生成。\n\n• {hl}スマートラーニング{/hl} → AI ビデオレッスン。\n\n• {hl}図解{/hl} を依頼——難しい概念を視覚化。\n\n• {sfsymbol:ellipsis.circle} メニュー → {hl}ライブモード{/hl} 音声 + シーンプレイ。\n\n• {sfsymbol:archivebox.fill} 大事な会話を {hl}アーカイブ{/hl}——保存した会話だけが AI チューターを学習させます。";
+
+"homeOnboarding.snapHomework.title" = "宿題を撮る — 秒で採点";
+"homeOnboarding.snapHomework.desc" = "宿題を撮影 (1〜5 ページ) → 段階的な解答。\n\n• 難問は {hl}Deep{/hl} 切替で思考型推論を使用。\n\n• 間違いは自動で {hl}誤答ノート{/hl} へ、AI が分類。\n\n• どの問題でも {hl}フォローアップ質問{/hl} 可能。\n\n• {hl}デジタルワークブック{/hl} として保存——共有・長期保存可。";
+
+"homeOnboarding.practice.title" = "あなた専用の練習問題";
+"homeOnboarding.practice.desc" = "あなたの学年・スタイル・弱点に合わせて生成。\n\n• {hl}デイリーチャレンジ{/hl}——毎日 3 問の新鮮な問題。\n\n• {hl}本物の問題集{/hl}——教科書・AMC・厳選セット。\n\n• 3 モード: ランダム · 誤答から · 保存した会話から。\n\n• すべて自動で {hl}共有可能な PDF{/hl} に保存。";
+
+"homeOnboarding.suggestedTodos.title" = "AI 推奨の今日の計画";
+"homeOnboarding.suggestedTodos.desc" = "毎日 AI が今すぐやるべきことを提案。\n\n• {hl}実データから生成{/hl}: 弱点・期限切れ間近のストリーク。\n\n• {hl}ワンタップ{/hl} で目的の場所へ直行。\n\n• 不要な項目はスワイプで消去、更新で再生成。\n\n• 使うほど提案が賢くなります。";
+
+"homeOnboarding.mistakeReview.title" = "間違いを全部整理";
+"homeOnboarding.mistakeReview.desc" = "すべての誤答が科目・トピック別に自動分類。\n\n• AI が {hl}エラータイプ{/hl} をラベル——直すべきポイントが明確。\n\n• タップで再挑戦、または {hl}「まとめて練習」{/hl}。\n\n• 科目・エラー・期間でフィルター。\n\n• 練習の {hl}「誤答から」{/hl} モードを駆動——復習するほど精度向上。";
+
+"homeOnboarding.knowledgeTree.title" = "学んで練習、生きた知識ツリーで";
+"homeOnboarding.knowledgeTree.desc" = "各概念 = 1 つの葉。{hl}緑 = マスター済み{/hl}、グレー = 未探索。\n\n• {hl}学習{/hl} → 葉をタップで AI ビデオレッスン。\n\n• {hl}練習{/hl} → ビデオまたは木の位置に基づく問題。\n\n• {hl}「ツリーを点灯」{/hl} でグレーの葉に練習を自動生成。\n\n• 数週間で枝葉が満開になるのを見届けます。";
+
+"homeOnboarding.focusMode.title" = "25分集中、トマトを育てる";
+"homeOnboarding.focusMode.desc" = "25 分のポモドーロ = 1 つのコレクショントマト。13 種 · 4 段階。\n\n• {hl}同段階 5 個{/hl} で稀少なトマトと交換 (ダイヤが最高)。\n\n• リアル物理ガーデン——積み重なり、転がり、落ち着く。\n\n• {hl}集中音楽{/hl} と組み合わせて深い作業。\n\n• 毎日の連続でガーデンが育ちます。";
+
+"homeOnboarding.parentReports.title" = "AI が書く週次レポート";
+"homeOnboarding.parentReports.desc" = "お子さんが今週本当に何を学んだか——AI が書いた週次レポート。\n\n• {hl}科目別{/hl}: 学習時間、正答率、弱点、推奨。\n\n• 平易な言葉——専門用語なし、実用的なアドバイス。\n\n• {hl}複数のお子さん対応{/hl}——兄弟姉妹を切り替え。\n\n• 自動で毎週生成、過去の週もタップで比較可。";
+
+"homeOnboarding.progress.title" = "あなたの学習の歩み";
+"homeOnboarding.progress.desc" = "数週間の学習を 1 枚の絵に。\n\n• {hl}科目分析{/hl}: 時間、正答率、習得度の成長。\n\n• {hl}ストリークカレンダー{/hl}——アクティブな日が一目で。\n\n• {hl}AI インサイト{/hl}——毎週 3 つの個別アドバイス。\n\n• グラフをタップして詳細を確認。";
+
+"homeOnboarding.pointsShop.title" = "ポイントを貯めて、報酬と交換";
+"homeOnboarding.pointsShop.desc" = "回答、誤答修正、ポモドーロすべてでポイント獲得。\n\n• 複数源スタック: {hl}ストリークボーナス + デイリーチャレンジ + 週マイルストーン{/hl}。\n\n• {hl}ストリークフリーズ{/hl} や稀少トマトと交換可能。\n\n• {sfsymbol:star.fill} バッジの数字 = 今日未受取のボーナス。";

@@ -3460,3 +3460,38 @@ Alle Daten werden über verschlüsselte HTTPS-Verbindungen übertragen. Wir verk
 /* Home screen — Knowledge & Learning card */
 "home.knowledgeLearning" = "Wissen & Lernen";
 "home.knowledgeLearningDescription" = "Wissensbaum erkunden";
+
+/* Homework grading — student answer was visible in the image */
+"homework.answer.inImage" = "Antwort im Bild gezeigt";
+
+// MARK: - Home Onboarding (Startbildschirm-Einführung, 10 Schritte)
+
+"homeOnboarding.askAI.title" = "Frag AI — dein Echtzeit-Tutor";
+"homeOnboarding.askAI.desc" = "Tippe, sprich oder fotografiere. Antworten in Sekunden.\n\n• {hl}Sofort üben{/hl} — generiere Aufgaben aus dem Chat-Thema.\n\n• Tippe {hl}Smart Learning{/hl} → KI-Videolektionen.\n\n• Frag nach {hl}Diagrammen{/hl} — Visuals für schwere Konzepte.\n\n• {sfsymbol:ellipsis.circle} Menü → {hl}Live-Modus{/hl} freihändige Sprache + Szenarien.\n\n• {sfsymbol:archivebox.fill} {hl}Archiviere{/hl} wichtige Chats — nur archivierte trainieren deinen Tutor.";
+
+"homeOnboarding.snapHomework.title" = "Hausaufgaben fotografieren — in Sekunden bewertet";
+"homeOnboarding.snapHomework.desc" = "Fotografiere ein Arbeitsblatt (1–5 Seiten) → Schritt-für-Schritt-Lösungen.\n\n• Schalte {hl}Deep{/hl} ein für schwere Probleme — fortgeschrittenes Reasoning.\n\n• Falsche Antworten landen automatisch im {hl}Fehlerbuch{/hl}, intelligent organisiert.\n\n• Tippe eine Frage an, um {hl}nachzufragen{/hl}.\n\n• Speichere als {hl}digitales Arbeitsbuch{/hl} — langlebig und teilbar.";
+
+"homeOnboarding.practice.title" = "Übungen, die zu dir passen";
+"homeOnboarding.practice.desc" = "Erstellt für deine Klasse, deinen Stil und deine Schwächen — nie generisch.\n\n• {hl}Tägliche Herausforderung{/hl} — 3 frische Fragen jeden Tag.\n\n• {hl}Echte Fragenbänke{/hl} aus Lehrbüchern, AMC, kuratierten Sets.\n\n• 3 Modi: Zufällig · Aus Fehlern · Aus gespeichertem Chat.\n\n• Alle Sitzungen werden automatisch als {hl}teilbare PDFs{/hl} gespeichert.";
+
+"homeOnboarding.suggestedTodos.title" = "Dein Tagesplan, KI-kuratiert";
+"homeOnboarding.suggestedTodos.desc" = "Täglich KI-kuratierter Plan — was jetzt am nützlichsten ist.\n\n• Aus {hl}deinen echten Daten{/hl}: Schwachstellen, ablaufende Streaks.\n\n• {hl}Ein Tipp{/hl} → direkt zum richtigen Ort.\n\n• Wische zum Verwerfen; tippe Aktualisieren zum Neugenerieren.\n\n• Wird mit jedem Tag besser.";
+
+"homeOnboarding.mistakeReview.title" = "Jeder Fehler, organisiert";
+"homeOnboarding.mistakeReview.desc" = "Jede falsche Antwort, automatisch nach Fach und Thema gruppiert.\n\n• KI markiert jeden {hl}Fehlertyp{/hl} — wisse, was du beheben musst.\n\n• Tippe zum Wiederholen, oder {hl}\"Diese üben\"{/hl} für eine ganze Charge.\n\n• Nach Fach / Fehler / Zeit filtern.\n\n• Treibt den {hl}\"Aus Fehlern\"{/hl}-Modus in Übungen — wird mit jedem Review klüger.";
+
+"homeOnboarding.knowledgeTree.title" = "Lernen + üben, auf einem lebendigen Baum";
+"homeOnboarding.knowledgeTree.desc" = "Jedes Konzept = ein Blatt. {hl}Grün = gemeistert{/hl}, grau = unerforscht.\n\n• {hl}Lernen{/hl} → tippe ein Blatt für eine KI-Videolektion.\n\n• {hl}Üben{/hl} → Fragen aus dem Video oder deiner Baumposition.\n\n• {hl}\"Baum erleuchten\"{/hl} füllt graue Blätter automatisch.\n\n• Beobachte, wie Zweige über Wochen wachsen.";
+
+"homeOnboarding.focusMode.title" = "25 Min konzentrieren, Tomaten züchten";
+"homeOnboarding.focusMode.desc" = "25-Min Pomodoro = 1 Sammler-Tomate. 13 Arten · 4 Stufen.\n\n• {hl}5 gleicher Stufe{/hl} → tausche gegen seltenere ein (Diamant ist End-Game).\n\n• Echter Physik-Garten — stapeln, rollen, setzen.\n\n• Kombiniere mit {hl}Fokusmusik{/hl} für tiefes Arbeiten.\n\n• Tägliche Streak züchtet deinen Garten.";
+
+"homeOnboarding.parentReports.title" = "Wochenberichte, KI-geschrieben";
+"homeOnboarding.parentReports.desc" = "Wochenbericht, was dein Kind tatsächlich gelernt hat — KI-geschrieben.\n\n• {hl}Fach für Fach{/hl}: Zeit, Genauigkeit, Schwachstellen, Empfehlungen.\n\n• Klare Sprache — kein Fachjargon, echter Rat.\n\n• {hl}Mehrere Kinder{/hl} unterstützt für Geschwister.\n\n• Wöchentlich automatisch erstellt; tippe eine vergangene Woche zum Vergleich.";
+
+"homeOnboarding.progress.title" = "Deine Lerngeschichte über die Zeit";
+"homeOnboarding.progress.desc" = "Wochen des Lernens → ein einziges Bild.\n\n• {hl}Fachaufschlüsselung{/hl}: Zeit, Genauigkeit, Beherrschungswachstum.\n\n• {hl}Streak-Kalender{/hl} — jeder aktive Tag auf einen Blick.\n\n• {hl}KI-Einblicke{/hl} — 3 wöchentliche Tipps aus deinen echten Daten.\n\n• Tippe ein Diagramm-Segment, um Fragen und Chats anzusehen.";
+
+"homeOnboarding.pointsShop.title" = "Punkte sammeln, Belohnungen einlösen";
+"homeOnboarding.pointsShop.desc" = "Jede Antwort, jeder korrigierte Fehler, jede Pomodoro = Punkte.\n\n• Stapelt: {hl}Streak-Bonus + tägliche Herausforderung + Meilensteine{/hl}.\n\n• Gib für {hl}Streak-Schutz{/hl} und seltene Tomaten aus.\n\n• {sfsymbol:star.fill} Badge-Zahl = heute nicht abgeholte Boni.";

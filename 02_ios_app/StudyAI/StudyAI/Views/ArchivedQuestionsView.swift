@@ -789,7 +789,11 @@ struct QuestionDetailView: View {
                 parts.append("\n**Options:**\n" + options.joined(separator: "\n"))
             }
             if let studentAnswer = q.studentAnswer, !studentAnswer.isEmpty {
-                parts.append("\n**My answer:** \(studentAnswer)")
+                if studentAnswer == ProgressiveQuestion.answerInImageSentinel {
+                    parts.append("\n**My answer:** (shown visually in the homework image — not extracted as text)")
+                } else {
+                    parts.append("\n**My answer:** \(studentAnswer)")
+                }
             }
             if !q.answerText.isEmpty {
                 parts.append("**Correct answer:** \(q.answerText)")

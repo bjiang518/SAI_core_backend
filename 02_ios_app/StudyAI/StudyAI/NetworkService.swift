@@ -52,6 +52,11 @@ class NetworkService: ObservableObject {
         UserDefaults.standard.string(forKey: "childSessionLanguage") ?? appLanguage
     }
 
+    /// Public accessor for the current effective language code (e.g. "en",
+    /// "zh-Hans"). Use this in callers that need to localize AI-generated
+    /// content (suggested prompts, etc.) so child-session overrides are honored.
+    var currentLanguage: String { effectiveLanguage }
+
     // Public getter for base URL
     var apiBaseURL: String {
         return baseURL
@@ -407,25 +412,34 @@ class NetworkService: ObservableObject {
     
     // Simple performRequest method that returns (Data, URLResponse)
     private func performRequest(_ request: URLRequest) async throws -> (Data, URLResponse) {
-        
+
         // Check circuit breaker
         guard canMakeRequest() else {
             throw NetworkError.circuitBreakerOpen
         }
-        
+
         // Check network availability
         guard isNetworkAvailable else {
             throw NetworkError.noConnection
         }
-        
+
+        let started = Date()
+        let endpointPath = request.url?.path ?? "unknown"
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
-            
+
             // Handle HTTP response
             if let httpResponse = response as? HTTPURLResponse {
                 if httpResponse.statusCode >= 400 {
                     let _ = String(data: data, encoding: .utf8) ?? "Unable to decode response"
-                    
+                    JourneyTracker.shared.track("network_request_failed", [
+                        "endpoint":    endpointPath,
+                        "method":      request.httpMethod ?? "GET",
+                        "status":      httpResponse.statusCode,
+                        "duration_ms": Int(Date().timeIntervalSince(started) * 1000),
+                        "kind":        "http_error",
+                    ])
+
                     if httpResponse.statusCode == 401 {
                         throw NetworkError.authenticationRequired
                     } else if httpResponse.statusCode == 404 {
@@ -439,15 +453,23 @@ class NetworkService: ObservableObject {
                     }
                 }
             }
-            
+
             recordSuccess()
             return (data, response)
-            
+
         } catch {
             recordFailure()
             if error is NetworkError {
                 throw error
             } else {
+                JourneyTracker.shared.track("network_request_failed", [
+                    "endpoint":    endpointPath,
+                    "method":      request.httpMethod ?? "GET",
+                    "status":      0,
+                    "duration_ms": Int(Date().timeIntervalSince(started) * 1000),
+                    "kind":        "transport_error",
+                    "reason":      String(error.localizedDescription.prefix(80)),
+                ])
                 throw NetworkError.networkFailure(error.localizedDescription)
             }
         }
@@ -6000,6 +6022,87 @@ class NetworkService: ObservableObject {
         return result.insights
     }
 
+    // MARK: - Suggested Prompts (Chat Empty-State Marquee)
+
+    /// Reads cached prompts from UserDefaults synchronously. Returns [] if
+    /// no cache exists for this (subject, grade, language). Used by the chat
+    /// empty state to render instantly while a background refresh runs.
+    func cachedSuggestedPrompts(
+        subject: String,
+        gradeLevel: String?,
+        language: String
+    ) -> [String] {
+        let key = suggestedPromptsCacheKey(subject: subject, gradeLevel: gradeLevel, language: language)
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let prompts = try? JSONDecoder().decode([String].self, from: data) else {
+            return []
+        }
+        return prompts
+    }
+
+    private func suggestedPromptsCacheKey(subject: String, gradeLevel: String?, language: String) -> String {
+        "suggestedPrompts.v1.\(subject).\(gradeLevel ?? "_").\(language)"
+    }
+
+    /// Fetch grade- and subject-aware question suggestions for the chat empty state.
+    /// Writes successful results to UserDefaults so the next launch can render
+    /// instantly. Returns an empty array on failure — caller renders no marquee.
+    func fetchSuggestedPrompts(
+        subject: String,
+        gradeLevel: String?,
+        language: String,
+        count: Int = 18
+    ) async -> [String] {
+        guard let url = URL(string: "\(baseURL)/api/ai/suggested-prompts") else { return [] }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let token = AuthenticationService.shared.getAuthToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        request.timeoutInterval = 12
+
+        let body: [String: Any] = [
+            "subject": subject,
+            "grade_level": gradeLevel ?? "",
+            "language": language,
+            "count": count,
+        ]
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        } catch {
+            return []
+        }
+
+        logger.info("💡 [Network] POST /api/ai/suggested-prompts subject=\(subject) grade=\(gradeLevel ?? "-")")
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                return []
+            }
+            struct SuggestedPromptsResponse: Decodable {
+                let success: Bool
+                let prompts: [String]
+            }
+            let result = try JSONDecoder().decode(SuggestedPromptsResponse.self, from: data)
+            logger.info("✅ [Network] Received \(result.prompts.count) suggested prompts")
+
+            // Persist for instant render on next chat entry.
+            if !result.prompts.isEmpty,
+               let encoded = try? JSONEncoder().encode(result.prompts) {
+                let key = suggestedPromptsCacheKey(subject: subject, gradeLevel: gradeLevel, language: language)
+                UserDefaults.standard.set(encoded, forKey: key)
+            }
+
+            return result.prompts
+        } catch {
+            logger.warning("⚠️ [Network] Suggested prompts fetch failed: \(error.localizedDescription)")
+            return []
+        }
+    }
+
     // MARK: - Concept Extraction (Bidirectional Status Tracking)
 
     /// Extract curriculum taxonomy for CORRECT answers (lightweight, no error analysis)
@@ -6813,6 +6916,37 @@ class NetworkService: ObservableObject {
         let (_, response) = try await URLSession.shared.data(for: request)
         guard (response as? HTTPURLResponse)?.statusCode == 200 else {
             throw URLError(.badServerResponse)
+        }
+    }
+
+    /// Send a free-text "Report a problem" submission to /api/feedback/report.
+    /// Returns true on 200; otherwise false (UI shows a generic retry message).
+    func submitProblemReport(category: String, message: String) async -> Bool {
+        guard let url = URL(string: "\(baseURL)/api/feedback/report") else { return false }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 15
+        if let token = AuthenticationService.shared.getAuthToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
+        let body: [String: Any] = [
+            "category":    category,
+            "message":     message,
+            "app_version": appVersion,
+            "device_info": [
+                "model":      UIDevice.current.model,
+                "system":     UIDevice.current.systemName,
+                "os_version": UIDevice.current.systemVersion,
+            ],
+        ]
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let (_, response) = try await URLSession.shared.data(for: request)
+            return (response as? HTTPURLResponse)?.statusCode == 200
+        } catch {
+            return false
         }
     }
 

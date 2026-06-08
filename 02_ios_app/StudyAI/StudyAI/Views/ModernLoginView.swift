@@ -100,6 +100,7 @@ struct ModernLoginView: View {
             // Only show error alerts for actual errors, not nil
             showingError = newValue != nil
         }
+        .trackScreen(Screen.login)
         .onAppear {
             // Pre-fill email if user just registered successfully
             if let registeredEmail = authService.lastRegisteredEmail {

@@ -129,6 +129,23 @@ class AppState: ObservableObject {
     /// Set to true to open PointsShopView (Earn tab) after sheet/view dismissal.
     @Published var shouldOpenPointsShop = false
 
+    /// True while the HomeView coach-mark onboarding is active. Container
+    /// views (e.g. ContentView's CuteTabBar) hide themselves while this is
+    /// on so the tour's spotlight isn't blocked by the bottom tab bar.
+    @Published var isHomeOnboardingActive: Bool = false
+
+    /// True while the launch / first-session LoadingAnimationView is on
+    /// screen. HomeView gates the onboarding tour on this so the UIKit
+    /// scrim (added directly to the window) doesn't show through the
+    /// loading splash.
+    @Published var isLoadingAnimationActive: Bool = false
+
+    /// True while the FirstTimeOnboardingView (full-screen profile setup +
+    /// trial pitch) is on screen as a fullScreenCover. The home coach-mark
+    /// tour holds off while this is up — HomeView is mounted underneath
+    /// the cover and its lifecycle hooks fire prematurely otherwise.
+    @Published var isFirstTimeOnboardingActive: Bool = false
+
     /// Set to true to jump to Grader tab and immediately open the camera.
     @Published var shouldOpenGraderCamera = false
 

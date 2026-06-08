@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { MetricCard } from '@/components/dashboard/MetricCard'
 import {
   Mail, ArrowLeft, AlertCircle, RefreshCw, Download,
-  Send, Inbox, AlertTriangle, Eye, Gift, Users, RotateCw,
+  Send, Inbox, AlertTriangle, Eye, Gift, Users, RotateCw, XCircle,
 } from 'lucide-react'
 import { reengagementAPI } from '@/lib/api'
 
@@ -278,11 +278,12 @@ export default function CampaignDetailPage() {
       )}
 
       {/* Metric cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
         <MetricCard title="Targeted" value={targeted.toLocaleString()} icon={Users} description="users matching filter" />
         <MetricCard title="Sent"     value={sentN.toLocaleString()}   icon={Send}  description={`${queuedN} queued`} />
-        <MetricCard title="Bounced"  value={bouncedN.toLocaleString()} icon={AlertTriangle} description={bouncePct === '—' ? '' : `${bouncePct}% bounce rate`} />
         <MetricCard title="Delivered" value={parseInt(live?.delivered || '0').toLocaleString()} icon={Inbox} />
+        <MetricCard title="Bounced"  value={bouncedN.toLocaleString()} icon={AlertTriangle} description={bouncePct === '—' ? '' : `${bouncePct}% bounce rate`} />
+        <MetricCard title="Failed"   value={failedN.toLocaleString()} icon={XCircle} description={failedN > 0 ? 'click "Resend failed" above' : ''} />
         <MetricCard title="Opened"   value={openedN.toLocaleString()} icon={Eye}   description={openPct === '—' ? '' : `${openPct}% open rate`} />
         <MetricCard title="Redeemed" value={redeemedN.toLocaleString()} icon={Gift} description={redeemPct === '—' ? '' : `${redeemPct}% conversion`} />
       </div>

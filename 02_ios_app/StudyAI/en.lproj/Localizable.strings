@@ -3480,3 +3480,38 @@
 /* Home screen — Knowledge & Learning card */
 "home.knowledgeLearning" = "Knowledge & Learning";
 "home.knowledgeLearningDescription" = "Explore your knowledge tree";
+
+/* Homework grading — student answer was visible in the image (e.g., checked option, drawn line) */
+"homework.answer.inImage" = "Answer shown in image";
+
+// MARK: - Home Onboarding (coach-mark tour, 10 steps)
+
+"homeOnboarding.askAI.title" = "Ask AI — your real-time tutor";
+"homeOnboarding.askAI.desc" = "Type, voice, or photo. Answers in seconds.\n\n• {hl}Practice on the spot{/hl} from any chat topic.\n\n• {hl}Smart Learning{/hl} → AI video lessons.\n\n• Ask for {hl}diagrams{/hl} — visuals for hard concepts.\n\n• {sfsymbol:ellipsis.circle} menu → {hl}Live Mode{/hl} voice + scenarios.\n\n• {sfsymbol:archivebox.fill} {hl}Archive{/hl} chats — only saved ones train your tutor.";
+
+"homeOnboarding.snapHomework.title" = "Snap homework — graded in seconds";
+"homeOnboarding.snapHomework.desc" = "Photo any worksheet (1–5 pages) → step-by-step solutions.\n\n• Toggle {hl}Deep{/hl} for hard problems — thinking-tier reasoning.\n\n• Wrong answers auto-flow to {hl}Mistake Review{/hl}, smart-organized.\n\n• Tap any question to {hl}ask a follow-up{/hl}.\n\n• Save as a {hl}digital workbook{/hl} — long-lived, sharable.";
+
+"homeOnboarding.practice.title" = "Practice that targets you";
+"homeOnboarding.practice.desc" = "Built for your grade, style, and weak spots — never generic.\n\n• {hl}Daily Challenge{/hl} — 3 fresh questions every day.\n\n• {hl}Real question banks{/hl} from textbooks, AMC, curated sets.\n\n• 3 modes: Random · From Mistakes · From a Saved Chat.\n\n• All sessions live here — auto-saved as {hl}sharable PDFs{/hl}.";
+
+"homeOnboarding.suggestedTodos.title" = "Your daily plan, AI-curated";
+"homeOnboarding.suggestedTodos.desc" = "Daily AI-curated plan — what's most useful right now.\n\n• Built from {hl}your real data{/hl}: weak topics, expiring streaks.\n\n• {hl}One tap{/hl} → straight to the right place.\n\n• Swipe to dismiss; tap refresh to regenerate.\n\n• Smarter every day you use it.";
+
+"homeOnboarding.mistakeReview.title" = "Every mistake, organized";
+"homeOnboarding.mistakeReview.desc" = "Every wrong answer, auto-grouped by subject and topic.\n\n• AI labels each {hl}error type{/hl} — know what to fix.\n\n• Tap to retry, or {hl}\"Practice these\"{/hl} for a whole batch.\n\n• Filter by subject / error / time.\n\n• Powers {hl}\"From Mistakes\"{/hl} practice — smarter as you review.";
+
+"homeOnboarding.knowledgeTree.title" = "Learn + practice, on a living tree";
+"homeOnboarding.knowledgeTree.desc" = "Every concept = a leaf. {hl}Green = mastered{/hl}, gray = unexplored.\n\n• {hl}Learn{/hl} → tap any leaf for an AI video lesson.\n\n• {hl}Practice{/hl} → questions from the video or your tree position.\n\n• {hl}\"Light up the tree\"{/hl} auto-fills gray leaves.\n\n• Watch branches grow over weeks.";
+
+"homeOnboarding.focusMode.title" = "Focus 25 min, grow tomatoes";
+"homeOnboarding.focusMode.desc" = "25-min Pomodoro = 1 collectible tomato. 13 types · 4 tiers.\n\n• {hl}5 same-tier{/hl} → exchange for a rarer one (Diamond is end-game).\n\n• Real physics garden — pile up, roll, settle.\n\n• Pair with {hl}focus music{/hl} for deep work.\n\n• Daily streak grows your garden.";
+
+"homeOnboarding.parentReports.title" = "Weekly reports, AI-written";
+"homeOnboarding.parentReports.desc" = "AI-written weekly report of what your child actually studied.\n\n• {hl}Subject-by-subject{/hl}: time, accuracy, weak areas, recommendations.\n\n• Plain language — no jargon, real advice.\n\n• {hl}Multi-child support{/hl} for siblings.\n\n• Tap any past week to compare progress.";
+
+"homeOnboarding.progress.title" = "Your study story, over time";
+"homeOnboarding.progress.desc" = "Weeks of study → a single picture.\n\n• {hl}Subject breakdown{/hl}: time, accuracy, mastery growth.\n\n• {hl}Streak calendar{/hl} — every active day at a glance.\n\n• {hl}AI insights{/hl} — 3 weekly tips from your real data.\n\n• Tap any chart to drill into questions and chats.";
+
+"homeOnboarding.pointsShop.title" = "Earn points, redeem rewards";
+"homeOnboarding.pointsShop.desc" = "Every answer, mistake corrected, Pomodoro = points.\n\n• Stacks: {hl}streak bonus + daily challenge + milestones{/hl}.\n\n• Spend on {hl}streak freezes{/hl} and rare tomato unlocks.\n\n• {sfsymbol:star.fill} badge = today's unclaimed bonuses.";

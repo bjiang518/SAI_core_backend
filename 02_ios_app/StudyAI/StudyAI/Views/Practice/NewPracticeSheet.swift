@@ -338,6 +338,7 @@ struct NewPracticeSheet: View {
                 onDismiss: { showingUpgradeFromLimit = false }
             )
         }
+        .trackScreen(Screen.practiceConfig)
         .onAppear {
             loadArchivesIfNeeded()
             if libOnboardingDone && !sheetOnboardingDone {

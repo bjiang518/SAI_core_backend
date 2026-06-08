@@ -97,7 +97,12 @@ struct MistakeCard: View {
                     .foregroundColor(.red)
                     .textCase(.uppercase)
 
-                SmartLaTeXView(mistake.studentAnswer.isEmpty ? "No answer" : mistake.studentAnswer, fontSize: 14, colorScheme: colorScheme, strategy: .mathjax)
+                SmartLaTeXView(mistake.studentAnswer.isEmpty
+                               ? "No answer"
+                               : (mistake.studentAnswer == ProgressiveQuestion.answerInImageSentinel
+                                  ? NSLocalizedString("homework.answer.inImage", value: "Answer shown in image", comment: "")
+                                  : mistake.studentAnswer),
+                               fontSize: 14, colorScheme: colorScheme, strategy: .mathjax)
             }
             .padding(8)
             .background(

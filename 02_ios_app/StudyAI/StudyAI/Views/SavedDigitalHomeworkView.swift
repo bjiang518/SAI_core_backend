@@ -449,7 +449,7 @@ struct SavedQuestionCard: View {
     private func renderFillInBlank(questionText: String, studentAnswer: String, grade: ProgressiveGradeResult?) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             FullLaTeXText(questionText, fontSize: 14)
-            if !studentAnswer.isEmpty {
+            if !studentAnswer.isEmpty && studentAnswer != ProgressiveQuestion.answerInImageSentinel {
                 let answers = studentAnswer.components(separatedBy: " | ")
                 if answers.count > 1 {
                     VStack(alignment: .leading, spacing: 4) {
@@ -497,7 +497,7 @@ struct SavedQuestionCard: View {
     private func renderCalculation(questionText: String, studentAnswer: String, grade: ProgressiveGradeResult?) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             FullLaTeXText(questionText, fontSize: 14)
-            if !studentAnswer.isEmpty {
+            if !studentAnswer.isEmpty && studentAnswer != ProgressiveQuestion.answerInImageSentinel {
                 HStack(alignment: .center, spacing: 4) {
                     FullLaTeXText(studentAnswer, fontSize: 12)
                         .padding(8)
@@ -563,7 +563,7 @@ struct SavedQuestionCard: View {
     private func renderGenericQuestion(questionText: String, studentAnswer: String, grade: ProgressiveGradeResult?) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             FullLaTeXText(questionText, fontSize: 14)
-            if !studentAnswer.isEmpty {
+            if !studentAnswer.isEmpty && studentAnswer != ProgressiveQuestion.answerInImageSentinel {
                 HStack(alignment: .center, spacing: 4) {
                     FullLaTeXText(studentAnswer, fontSize: 12)
                         .padding(6)
@@ -817,7 +817,7 @@ struct SavedSubquestionRow: View {
     private func renderSubFillBlank(questionText: String, studentAnswer: String, grade: ProgressiveGradeResult?) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             FullLaTeXText(questionText, fontSize: 12)
-            if !studentAnswer.isEmpty {
+            if !studentAnswer.isEmpty && studentAnswer != ProgressiveQuestion.answerInImageSentinel {
                 let answers = studentAnswer.components(separatedBy: " | ")
                 if answers.count > 1 {
                     HStack(spacing: 4) {
@@ -860,7 +860,7 @@ struct SavedSubquestionRow: View {
     private func renderSubCalculation(questionText: String, studentAnswer: String, grade: ProgressiveGradeResult?) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             FullLaTeXText(questionText, fontSize: 12)
-            if !studentAnswer.isEmpty {
+            if !studentAnswer.isEmpty && studentAnswer != ProgressiveQuestion.answerInImageSentinel {
                 HStack(alignment: .center, spacing: 4) {
                     FullLaTeXText(studentAnswer, fontSize: 11)
                         .padding(4)
@@ -926,7 +926,7 @@ struct SavedSubquestionRow: View {
     private func renderSubGeneric(questionText: String, studentAnswer: String, grade: ProgressiveGradeResult?) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             FullLaTeXText(questionText, fontSize: 12)
-            if !studentAnswer.isEmpty {
+            if !studentAnswer.isEmpty && studentAnswer != ProgressiveQuestion.answerInImageSentinel {
                 HStack(alignment: .center, spacing: 4) {
                     FullLaTeXText(studentAnswer, fontSize: 11)
                         .padding(4)

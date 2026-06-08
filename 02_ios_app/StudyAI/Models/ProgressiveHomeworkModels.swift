@@ -109,6 +109,17 @@ struct ProgressiveQuestion: Codable, Identifiable {
         return studentAnswer ?? ""
     }
 
+    /// Sentinel value emitted by parse when the student's answer is shown visually
+    /// in the image (e.g., checked option, drawn line, filled cell) rather than
+    /// written as text. Treated as a non-empty answer so the question routes to
+    /// grading; the grader receives the original image and can re-read the answer.
+    static let answerInImageSentinel = "student answer in image"
+
+    /// True if the parsed answer is the "answer is in the image" sentinel.
+    var hasAnswerInImage: Bool {
+        return studentAnswer == ProgressiveQuestion.answerInImageSentinel
+    }
+
     /// Whether the parsed answer field looks non-empty (used to route grade vs solve).
     /// Defensive against OCR noise: single placeholder characters / blanks count as empty.
     var hasStudentAnswer: Bool {
