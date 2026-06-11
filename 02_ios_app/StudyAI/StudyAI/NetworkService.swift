@@ -233,11 +233,16 @@ class NetworkService: ObservableObject {
         }
         let storeUrl = json["storeUrl"] as? String
 
-        // releaseNotes is optional — older backends omit it. Pick the user's language
-        // (zh-Hans / zh-Hant → zh, everything else → en) and fall back gracefully.
+        // releaseNotesB64 is optional — older backends omit it. The value is a
+        // base64-encoded JSON of {zh: {title, body}, en: {title, body}}, used
+        // because HTTP header values must be ASCII (Chinese/emoji bytes would
+        // crash Node's header validator). Pick the user's language and fall
+        // back gracefully.
         var notesTitle: String?
         var notesBody:  String?
-        if let notes = json["releaseNotes"] as? [String: Any] {
+        if let b64 = json["releaseNotesB64"] as? String,
+           let raw = Data(base64Encoded: b64),
+           let notes = try? JSONSerialization.jsonObject(with: raw) as? [String: Any] {
             let pref = Locale.preferredLanguages.first ?? "en"
             let langKey = pref.lowercased().hasPrefix("zh") ? "zh" : "en"
             let chosen  = (notes[langKey] as? [String: Any]) ?? (notes["en"] as? [String: Any])

@@ -22,33 +22,123 @@ const logger = require('../utils/logger');
 
 let _cachedToken = null;
 let _tokenExpiresAt = 0;
+let _cachedKeyObject = null;   // KeyObject parsed from APNS_KEY — reused across token rotations
+let _cachedKeyDigest = null;   // First 6 chars of sha256 of the key PEM — for log diagnostics
 
-function buildProviderToken() {
-    const now = Math.floor(Date.now() / 1000);
-    if (_cachedToken && _tokenExpiresAt > now + 60) return _cachedToken;
+/// Normalize a PEM string from an env var. Production env-var pipelines
+/// (Railway, Heroku, etc.) frequently mangle multi-line secrets:
+///   • literal "\n" instead of actual newlines  → unescape
+///   • surrounding single or double quotes      → strip
+///   • Windows "\r\n" line endings              → normalize
+///   • leading/trailing whitespace              → trim
+///   • Body run-on with spaces (no line breaks) → re-wrap to 64-char lines
+/// Without normalization, OpenSSL 3's stricter decoder rejects the key
+/// with `error:1E08010C:DECODER routines::unsupported` and every push fails.
+function normalizePem(raw) {
+    if (!raw) return raw;
+    let s = String(raw).trim();
 
-    const { APNS_KEY_ID, APNS_TEAM_ID, APNS_KEY, APNS_KEY_FILE } = process.env;
-
-    if (!APNS_KEY_ID || !APNS_TEAM_ID) {
-        throw new Error('APNs not configured: set APNS_KEY_ID and APNS_TEAM_ID env vars');
+    // Strip wrapping quotes (env vars are sometimes pasted as `"-----BEGIN ..."`).
+    if ((s.startsWith('"') && s.endsWith('"')) ||
+        (s.startsWith("'") && s.endsWith("'"))) {
+        s = s.slice(1, -1).trim();
     }
 
-    // Load key — either inline (with \\n) or from file
+    // Unescape literal "\n" sequences and normalize CRLF → LF.
+    s = s.replace(/\\r\\n/g, '\n')
+         .replace(/\\n/g, '\n')
+         .replace(/\r\n/g, '\n')
+         .replace(/\r/g, '\n');
+
+    // If the BEGIN/END markers are present but the body is one long blob
+    // without line breaks (common when env-var pipelines collapse whitespace),
+    // re-wrap the base64 body to 64-char lines so OpenSSL accepts it.
+    const beginMatch = s.match(/-----BEGIN ([A-Z ]+)-----/);
+    const endMatch   = s.match(/-----END ([A-Z ]+)-----/);
+    if (beginMatch && endMatch) {
+        const label = beginMatch[1];
+        const begin = `-----BEGIN ${label}-----`;
+        const end   = `-----END ${label}-----`;
+        const beginIdx = s.indexOf(begin);
+        const endIdx   = s.indexOf(end);
+        if (beginIdx >= 0 && endIdx > beginIdx) {
+            const body = s.slice(beginIdx + begin.length, endIdx)
+                          .replace(/\s+/g, ''); // drop all whitespace
+            const wrapped = body.match(/.{1,64}/g)?.join('\n') ?? body;
+            s = `${begin}\n${wrapped}\n${end}\n`;
+        }
+    }
+
+    return s;
+}
+
+function loadKeyObject() {
+    if (_cachedKeyObject) return _cachedKeyObject;
+
+    const { APNS_KEY, APNS_KEY_FILE } = process.env;
+
     let keyPem;
     if (APNS_KEY) {
-        keyPem = APNS_KEY.replace(/\\n/g, '\n');
+        keyPem = normalizePem(APNS_KEY);
     } else if (APNS_KEY_FILE) {
         keyPem = require('fs').readFileSync(APNS_KEY_FILE, 'utf8');
     } else {
         throw new Error('APNs not configured: set APNS_KEY or APNS_KEY_FILE env var');
     }
 
+    // Parse explicitly via createPrivateKey — gives a much clearer error than
+    // the opaque DECODER failure that surfaces from `.sign({ key })` later.
+    let keyObj;
+    try {
+        keyObj = crypto.createPrivateKey({ key: keyPem, format: 'pem' });
+    } catch (err) {
+        const digest = crypto.createHash('sha256').update(keyPem).digest('hex').slice(0, 6);
+        const lineCount = (keyPem.match(/\n/g) || []).length;
+        const hasBegin  = /-----BEGIN [A-Z ]+-----/.test(keyPem);
+        const hasEnd    = /-----END [A-Z ]+-----/.test(keyPem);
+        throw new Error(
+            `APNs key parse failed (${err.code || err.message}). ` +
+            `Diagnostics: digest=${digest} length=${keyPem.length} lines=${lineCount} ` +
+            `hasBegin=${hasBegin} hasEnd=${hasEnd}. ` +
+            `Verify APNS_KEY env var contains the .p8 contents with proper newlines.`
+        );
+    }
+
+    if (keyObj.asymmetricKeyType !== 'ec') {
+        throw new Error(
+            `APNs key has wrong type: expected 'ec' (P-256), got '${keyObj.asymmetricKeyType}'. ` +
+            `The .p8 from Apple Developer is always EC; check you didn't paste a different key.`
+        );
+    }
+
+    _cachedKeyObject = keyObj;
+    _cachedKeyDigest = crypto.createHash('sha256').update(keyPem).digest('hex').slice(0, 6);
+    return keyObj;
+}
+
+function buildProviderToken() {
+    const now = Math.floor(Date.now() / 1000);
+    if (_cachedToken && _tokenExpiresAt > now + 60) return _cachedToken;
+
+    const { APNS_KEY_ID, APNS_TEAM_ID } = process.env;
+
+    if (!APNS_KEY_ID || !APNS_TEAM_ID) {
+        throw new Error('APNs not configured: set APNS_KEY_ID and APNS_TEAM_ID env vars');
+    }
+
+    // Parse-and-cache the key once (loadKeyObject normalizes mangled PEMs
+    // and surfaces clear errors for malformed keys). Re-using the parsed
+    // KeyObject across token rotations also avoids re-parsing every hour.
+    const keyObj = loadKeyObject();
+
     const header  = Buffer.from(JSON.stringify({ alg: 'ES256', kid: APNS_KEY_ID })).toString('base64url');
     const payload = Buffer.from(JSON.stringify({ iss: APNS_TEAM_ID, iat: now })).toString('base64url');
     const unsigned = `${header}.${payload}`;
     const sign = crypto.createSign('SHA256');
     sign.update(unsigned);
-    const signature = sign.sign({ key: keyPem, dsaEncoding: 'ieee-p1363' }).toString('base64url');
+    // dsaEncoding 'ieee-p1363' produces the raw r||s output that JWT/ES256
+    // requires (vs. DER, which is the default and would be rejected by APNs).
+    const signature = sign.sign({ key: keyObj, dsaEncoding: 'ieee-p1363' }).toString('base64url');
 
     _cachedToken    = `${unsigned}.${signature}`;
     _tokenExpiresAt = now + 3600; // tokens valid for 1 hour

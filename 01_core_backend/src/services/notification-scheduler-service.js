@@ -98,6 +98,15 @@ class NotificationSchedulerService {
             const users = await this._getEligibleUsers();
             if (users.length === 0) return;
 
+            // Log how many zombies the active-user filter excluded so we
+            // can confirm in production that the filter is doing real work.
+            // Fire-and-forget; don't block the cron on a diagnostic query.
+            this._countZombiesExcluded().then(zombieCount => {
+                if (zombieCount !== null && zombieCount > 0) {
+                    logger.info(`[NotifScheduler] Eligible: ${users.length} active users (excluded ${zombieCount} zombies — inactive 30+ days)`);
+                }
+            }).catch(() => {});
+
             let sent = 0;
             for (const user of users) {
                 try {
@@ -158,15 +167,69 @@ class NotificationSchedulerService {
     // ── DB / Redis helpers ───────────────────────────────────────────────────
 
     async _getEligibleUsers() {
-        // All users with a registered APNs token and a known timezone
+        // Eligibility rules:
+        //   1. Has a registered APNs token + known timezone (without these
+        //      we literally can't send the push at the right time).
+        //   2. At least one of:
+        //      a) Logged an app_event in the last 30 days (clearest "active" signal)
+        //      b) APNs token re-registered in the last 30 days (iOS calls
+        //         registerForRemoteNotifications on launch, so this is a
+        //         proxy "the user opened the app recently"). Acts as a
+        //         safety net for the period right after we deployed
+        //         app_events — pre-existing actives wouldn't yet have
+        //         events but DO refresh their token on every launch.
+        //      c) Account created in the last 7 days (brand-new users may
+        //         not have events yet — give them a window).
+        //
+        // Why: zombie installs (granted permission, never opened again)
+        // were inflating the daily send volume, burning APNs quota, and
+        // diluting the open-rate denominator so we couldn't tell whether
+        // notifications were doing anything for real users.
         const { rows } = await db.query(
-            `SELECT user_id, timezone
-             FROM profiles
-             WHERE apns_token IS NOT NULL
-               AND timezone   IS NOT NULL
-               AND timezone   != ''`
+            `SELECT p.user_id, p.timezone
+             FROM profiles p
+             WHERE p.apns_token IS NOT NULL
+               AND p.timezone   IS NOT NULL
+               AND p.timezone   != ''
+               AND (
+                    EXISTS (
+                        SELECT 1 FROM app_events e
+                        WHERE e.user_id = p.user_id
+                          AND e.occurred_at >= NOW() - INTERVAL '30 days'
+                    )
+                    OR p.apns_token_updated_at >= NOW() - INTERVAL '30 days'
+                    OR p.created_at >= NOW() - INTERVAL '7 days'
+               )`
         );
         return rows;
+    }
+
+    /// Diagnostics: count zombies that the active-user filter excluded.
+    /// Logged each cron run so we can see "filtered N users" in production
+    /// without having to flip a debug gate.
+    async _countZombiesExcluded() {
+        try {
+            const { rows } = await db.query(
+                `SELECT COUNT(*)::int AS n
+                 FROM profiles p
+                 WHERE p.apns_token IS NOT NULL
+                   AND p.timezone   IS NOT NULL
+                   AND p.timezone   != ''
+                   AND p.created_at < NOW() - INTERVAL '7 days'
+                   AND (p.apns_token_updated_at IS NULL
+                        OR p.apns_token_updated_at < NOW() - INTERVAL '30 days')
+                   AND NOT EXISTS (
+                        SELECT 1 FROM app_events e
+                        WHERE e.user_id = p.user_id
+                          AND e.occurred_at >= NOW() - INTERVAL '30 days'
+                   )`
+            );
+            return rows[0]?.n ?? 0;
+        } catch (e) {
+            // If app_events doesn't exist (early environment), don't crash
+            // the scheduler — just skip the diagnostics.
+            return null;
+        }
     }
 
     async _alreadySent(userId, redisKey) {

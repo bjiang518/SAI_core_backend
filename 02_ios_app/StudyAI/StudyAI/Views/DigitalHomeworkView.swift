@@ -45,6 +45,12 @@ struct DigitalHomeworkView: View {
     // Shaking icon for collapsed annotation header when crops exist
     @State private var annotationIconShaking = false
 
+    // Measured height of the floating top section (annotation drawer + grade bar +
+    // archive/deletion bars + divider). Used to inset the ScrollView so question
+    // cards can scroll behind the frosted-glass top — `.ultraThinMaterial` needs
+    // content behind it to actually look like glass.
+    @State private var topSectionHeight: CGFloat = 0
+
     // Annotation question picker sheet
     @State private var showAnnotationPicker = false
 
@@ -312,57 +318,28 @@ struct DigitalHomeworkView: View {
 
     private var previewScrollMode: some View {
         GeometryReader { geometry in
-            VStack(spacing: 0) {
-                // Annotation section: always visible, collapsible
-                annotationCollapsibleSection(geometry: geometry)
-                    .background(Color(.systemBackground))
-
-                // Compact bar: grade button before grading, dots during + after grading
-                if !viewModel.isArchiveMode && !isDeletionMode {
-                    if viewModel.allQuestionsGraded {
-                        compactGradingBar
-                            .transition(.opacity)
-                    } else if viewModel.isGrading {
-                        compactGradingBar
-                            .transition(.opacity)
-                            .animation(.easeInOut(duration: 0.25), value: viewModel.isGrading)
-                    } else {
-                        compactGradeBar
-                            .transition(.move(edge: .top).combined(with: .opacity))
-                            .animation(.easeInOut(duration: 0.25), value: viewModel.isGrading)
-                    }
-                }
-
-                // Floating action bar: shown below annotation section, above scroll content
-                if viewModel.isArchiveMode {
-                    batchArchiveButtonSection
-                        .padding(.horizontal)
-                        .padding(.vertical, 8)
-                        .background(Color(.systemGroupedBackground))
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                }
-
-                if isDeletionMode {
-                    deleteSelectedButtonSection
-                        .padding(.horizontal)
-                        .padding(.vertical, 8)
-                        .background(Color(.systemGroupedBackground))
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                }
-
-                Divider()
-
-                // 题目列表区域 (动态高度，包含底部卡片) - 可滚动
+            ZStack(alignment: .top) {
+                // ─────────────────────────────────────────────────────────
+                // Background layer: ScrollView fills the full geometry so
+                // question cards scroll BEHIND the floating top section.
+                // `.ultraThinMaterial` on the overlay needs moving content
+                // behind it to actually look like frosted glass.
+                // ─────────────────────────────────────────────────────────
                 ScrollViewReader { scrollProxy in
                     ScrollView {
                         VStack(spacing: 0) {
+                            // Spacer matching the floating top section's
+                            // measured height — keeps the first card visible
+                            // just below the overlay at rest.
+                            Color.clear
+                                .frame(height: topSectionHeight)
+                                .allowsHitTesting(false)
+
                             // Question list
                             LazyVStack(spacing: 12) {
                                 ForEach(Array(viewModel.questions.enumerated()), id: \.element.id) { index, questionWithGrade in
-                                    // Mistakes-only filter
                                     let showThis: Bool = {
                                         if !showMistakesOnly { return true }
-                                        // Not yet graded → show (still pending)
                                         if questionWithGrade.isParentQuestion {
                                             return questionWithGrade.subquestionGrades.values.contains { !$0.isCorrect }
                                         }
@@ -381,21 +358,17 @@ struct DigitalHomeworkView: View {
                             .padding(.horizontal)
                             .padding(.top, 12)
 
-                            // Grade button section (if not graded) - 在ScrollView内
                             if !viewModel.allQuestionsGraded {
                                 gradeButtonSection
                                     .padding()
                             }
 
-                            // Bottom section: accuracy card + progress button (inside ScrollView)
                             if viewModel.allQuestionsGraded && !viewModel.isArchiveMode {
                                 gradingCompletedScrollableSection
                                     .padding(.horizontal)
                                     .padding(.top, 16)
                                     .transition(.opacity)
 
-                                // ⭐ Feedback bar — shown once per homework, fades out after submit.
-                                // Surface depends on whether AI mostly graded or solved this set.
                                 if let hwHash = stateManager.currentHomework?.homeworkHash,
                                    FeedbackService.shared.shouldAsk(
                                         surface: feedbackSurface,
@@ -415,13 +388,11 @@ struct DigitalHomeworkView: View {
                                 }
                             }
 
-                            // Bottom padding for tab bar
                             Spacer()
                                 .frame(height: 100)
                         }
                     }
                     .onChange(of: viewModel.selectedAnnotationId) { oldValue, newValue in
-                        // Auto-scroll to corresponding question when annotation is selected
                         if let annotation = viewModel.annotations.first(where: { $0.id == newValue }),
                            let questionNumber = annotation.questionNumber,
                            let question = viewModel.questions.first(where: { $0.question.questionNumber == questionNumber }) {
@@ -432,21 +403,66 @@ struct DigitalHomeworkView: View {
                     }
                     .onAppear { questionScrollProxy = scrollProxy }
                 }
-                .frame(height: geometry.size.height
-                    - (viewModel.isAnnotationSectionExpanded ? geometry.size.height * 0.33 : 44)
-                    - (!viewModel.isArchiveMode && !isDeletionMode ? 52 : 0)
-                    - 1)
+
+                // ─────────────────────────────────────────────────────────
+                // Foreground layer: floating top section with frosted glass.
+                // No opaque background — the ultraThinMaterial blurs whatever
+                // ScrollView content is behind it as the user scrolls.
+                // ─────────────────────────────────────────────────────────
+                VStack(spacing: 0) {
+                    annotationCollapsibleSection(geometry: geometry)
+
+                    if !viewModel.isArchiveMode && !isDeletionMode {
+                        if viewModel.allQuestionsGraded {
+                            compactGradingBar
+                                .transition(.opacity)
+                        } else if viewModel.isGrading {
+                            compactGradingBar
+                                .transition(.opacity)
+                                .animation(.easeInOut(duration: 0.25), value: viewModel.isGrading)
+                        } else {
+                            compactGradeBar
+                                .transition(.move(edge: .top).combined(with: .opacity))
+                                .animation(.easeInOut(duration: 0.25), value: viewModel.isGrading)
+                        }
+                    }
+
+                    if viewModel.isArchiveMode {
+                        batchArchiveButtonSection
+                            .padding(.horizontal)
+                            .padding(.vertical, 8)
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+
+                    if isDeletionMode {
+                        deleteSelectedButtonSection
+                            .padding(.horizontal)
+                            .padding(.vertical, 8)
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+
+                    Divider()
+                }
+                .background(.ultraThinMaterial.opacity(0.75))
+                .background(
+                    GeometryReader { geo in
+                        Color.clear.preference(
+                            key: DigitalHomeworkTopSectionHeightKey.self,
+                            value: geo.size.height
+                        )
+                    }
+                )
+            }
+            .onPreferenceChange(DigitalHomeworkTopSectionHeightKey.self) { newHeight in
+                topSectionHeight = newHeight
             }
             .onAppear {
-                // Default: always collapsed — user expands if needed
                 if !viewModel.isGrading && !viewModel.allQuestionsGraded {
                     viewModel.isAnnotationSectionExpanded = false
                 }
-                // Fly-in animation trigger
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                     questionsAppeared = true
                 }
-                // Auto-show onboarding for first-time users
                 if !homeworkOnboardingDone && viewModel.questions.count > 0 {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
                         if homeworkOnboardingStep == nil {
@@ -456,7 +472,6 @@ struct DigitalHomeworkView: View {
                 }
             }
             .onChange(of: viewModel.questions.count) { _, _ in
-                // Re-trigger fly-in on re-parse
                 questionsAppeared = false
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                     questionsAppeared = true
@@ -476,7 +491,6 @@ struct DigitalHomeworkView: View {
                                 .map { $0.question.id }
                         )
                     }
-                    // Show congrats animation when score is 100%
                     if completionScore == 100 {
                         showCongratsAnimation = true
                         DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
@@ -2462,7 +2476,6 @@ struct DigitalHomeworkView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
-        .background(Color(.systemBackground))
     }
 
     // Slim inline progress dots shown during grading — replaces compactGradeBar
@@ -2536,7 +2549,6 @@ struct DigitalHomeworkView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
-        .background(Color(.systemBackground))
     }
 
     private func fittedImageSize(_ imageSize: CGSize, _ containerSize: CGSize) -> CGSize {
@@ -4777,5 +4789,15 @@ private struct SolveStepRow: View {
                 .foregroundColor(themeManager.secondaryText)
                 .italic()
         }
+    }
+}
+
+// PreferenceKey used to measure the floating top section so the ScrollView
+// behind it can be insetted by an equal amount (so question cards still
+// start visible below the frosted-glass overlay).
+private struct DigitalHomeworkTopSectionHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }

@@ -14,10 +14,13 @@
  *
  * When the client version < recommendedVersion, the middleware tags the request
  * and an onSend hook adds the `X-Version-Warning` response header with JSON metadata
- * including a bilingual `releaseNotes` payload.
+ * including a bilingual release-notes payload.
  *
- * Old clients that don't understand the new fields simply ignore them — header
- * additions are forward-compatible.
+ * IMPORTANT: HTTP header values must be ASCII (Node rejects non-printable bytes
+ * with ERR_INVALID_CHAR). The release-notes object contains Chinese / emoji /
+ * em-dash, so it's serialized as base64-of-JSON under the `releaseNotesB64`
+ * field. iOS 1.2.7+ decodes it; older clients that don't recognize the field
+ * just ignore it — the rest of the header stays plain ASCII.
  */
 
 const logger = require('../../utils/logger');
@@ -55,6 +58,11 @@ const RELEASE_NOTES = {
     ].join('\n'),
   },
 };
+
+// Pre-compute the base64 form once at module load — RELEASE_NOTES is a constant.
+// Storing it directly in an HTTP header would crash Node with ERR_INVALID_CHAR
+// because of the Chinese / emoji / em-dash bytes.
+const RELEASE_NOTES_B64 = Buffer.from(JSON.stringify(RELEASE_NOTES), 'utf8').toString('base64');
 
 /**
  * Compare two semver-ish strings ("1.0.5" vs "1.0").
@@ -101,7 +109,7 @@ async function versionGate(request, reply) {
       recommendedVersion: RECOMMENDED_VERSION,
       clientVersion,
       storeUrl: STORE_URL,
-      releaseNotes: RELEASE_NOTES,
+      releaseNotesB64: RELEASE_NOTES_B64,
     };
   }
 }
